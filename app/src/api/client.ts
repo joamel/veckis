@@ -1,14 +1,31 @@
 import { useAuth } from '@clerk/clerk-expo';
+import type {
+  Household,
+  HouseholdMember,
+  InviteCode,
+  ShoppingList,
+  ShoppingItem,
+  Store,
+  StoreCategory,
+  Chore,
+  ChoreCompletion,
+  ChoreFrequency,
+  ScheduleEntry,
+  WeekDay,
+} from '@veckis/shared';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+
+export type { StoreCategory, ChoreFrequency, WeekDay };
+
+export type HouseholdWithMembers = Household & { members: HouseholdMember[]; stores: Store[] };
+export type MembershipWithHousehold = HouseholdMember & { household: Household };
+export type ShoppingListWithItems = ShoppingList & { items: ShoppingItem[]; store: Store | null };
 
 export function useApiClient() {
   const { getToken } = useAuth();
 
-  async function request<T>(
-    path: string,
-    options: RequestInit = {},
-  ): Promise<T> {
+  async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const token = await getToken();
     const res = await fetch(`${BASE_URL}${path}`, {
       ...options,
@@ -24,8 +41,128 @@ export function useApiClient() {
       throw new Error(err.error ?? `HTTP ${res.status}`);
     }
 
+    if (res.status === 204) return undefined as T;
     return res.json() as Promise<T>;
   }
 
-  return { request };
+  return {
+    // Households
+    createHousehold: (name: string, displayName?: string) =>
+      request<HouseholdWithMembers>('/api/households', {
+        method: 'POST',
+        body: JSON.stringify({ name, displayName }),
+      }),
+
+    getMyHouseholds: () =>
+      request<MembershipWithHousehold[]>('/api/households/me'),
+
+    getHousehold: (householdId: string) =>
+      request<HouseholdWithMembers>(`/api/households/${householdId}`),
+
+    updateHousehold: (householdId: string, name: string) =>
+      request<Household>(`/api/households/${householdId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name }),
+      }),
+
+    joinHousehold: (code: string, displayName?: string) =>
+      request<HouseholdMember>('/api/households/join', {
+        method: 'POST',
+        body: JSON.stringify({ code, displayName }),
+      }),
+
+    createInvite: (householdId: string) =>
+      request<InviteCode>(`/api/households/${householdId}/invite`, { method: 'POST' }),
+
+    removeMember: (householdId: string, memberId: string) =>
+      request<void>(`/api/households/${householdId}/members/${memberId}`, { method: 'DELETE' }),
+
+    // Shopping
+    getShoppingLists: (householdId: string) =>
+      request<ShoppingListWithItems[]>(`/api/shopping/lists?householdId=${householdId}`),
+
+    getShoppingList: (listId: string) =>
+      request<ShoppingListWithItems>(`/api/shopping/lists/${listId}`),
+
+    createShoppingList: (data: { householdId: string; name: string; storeId?: string; isShared?: boolean }) =>
+      request<ShoppingListWithItems>('/api/shopping/lists', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    completeShoppingList: (listId: string) =>
+      request<ShoppingList>(`/api/shopping/lists/${listId}/complete`, { method: 'PATCH' }),
+
+    deleteShoppingList: (listId: string) =>
+      request<void>(`/api/shopping/lists/${listId}`, { method: 'DELETE' }),
+
+    addShoppingItem: (listId: string, data: { name: string; quantity?: number; unit?: string; category?: StoreCategory; note?: string }) =>
+      request<ShoppingItem>(`/api/shopping/lists/${listId}/items`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    updateShoppingItem: (itemId: string, data: Partial<Pick<ShoppingItem, 'name' | 'quantity' | 'unit' | 'category' | 'note'>>) =>
+      request<ShoppingItem>(`/api/shopping/items/${itemId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+
+    checkShoppingItem: (itemId: string, checked: boolean) =>
+      request<ShoppingItem>(`/api/shopping/items/${itemId}/check`, {
+        method: 'PATCH',
+        body: JSON.stringify({ checked }),
+      }),
+
+    deleteShoppingItem: (itemId: string) =>
+      request<void>(`/api/shopping/items/${itemId}`, { method: 'DELETE' }),
+
+    // Stores
+    getStores: (householdId: string) =>
+      request<Store[]>(`/api/stores?householdId=${householdId}`),
+
+    createStore: (data: { householdId: string; name: string; categoryOrder?: StoreCategory[] }) =>
+      request<Store>('/api/stores', { method: 'POST', body: JSON.stringify(data) }),
+
+    updateStore: (storeId: string, data: { name?: string; categoryOrder?: StoreCategory[] }) =>
+      request<Store>(`/api/stores/${storeId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+    deleteStore: (storeId: string) =>
+      request<void>(`/api/stores/${storeId}`, { method: 'DELETE' }),
+
+    // Chores
+    getChores: (householdId: string) =>
+      request<(Chore & { completions: ChoreCompletion[] })[]>(`/api/chores?householdId=${householdId}`),
+
+    createChore: (data: { householdId: string; title: string; description?: string; frequency?: ChoreFrequency; assignedTo?: string; isShared?: boolean }) =>
+      request<Chore>('/api/chores', { method: 'POST', body: JSON.stringify(data) }),
+
+    updateChore: (choreId: string, data: Partial<Pick<Chore, 'title' | 'description' | 'frequency' | 'assignedTo' | 'isShared'>>) =>
+      request<Chore>(`/api/chores/${choreId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+    deleteChore: (choreId: string) =>
+      request<void>(`/api/chores/${choreId}`, { method: 'DELETE' }),
+
+    completeChore: (choreId: string, note?: string) =>
+      request<ChoreCompletion>(`/api/chores/${choreId}/complete`, {
+        method: 'POST',
+        body: JSON.stringify({ note }),
+      }),
+
+    getChoreCompletions: (choreId: string) =>
+      request<ChoreCompletion[]>(`/api/chores/${choreId}/completions`),
+
+    // Schedule
+    getSchedule: (householdId: string) =>
+      request<ScheduleEntry[]>(`/api/schedule?householdId=${householdId}`),
+
+    createScheduleEntry: (data: { householdId: string; title: string; day: WeekDay; description?: string; startTime?: string; endTime?: string; assignedTo?: string; isShared?: boolean; recurrenceWeeks?: number }) =>
+      request<ScheduleEntry>('/api/schedule', { method: 'POST', body: JSON.stringify(data) }),
+
+    updateScheduleEntry: (entryId: string, data: Partial<Omit<ScheduleEntry, 'id' | 'householdId' | 'createdBy'>>) =>
+      request<ScheduleEntry>(`/api/schedule/${entryId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+    deleteScheduleEntry: (entryId: string) =>
+      request<void>(`/api/schedule/${entryId}`, { method: 'DELETE' }),
+  };
 }

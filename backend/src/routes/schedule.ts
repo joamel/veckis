@@ -1,0 +1,89 @@
+import { Router, Response } from 'express';
+import { z } from 'zod';
+import { WeekDay } from '@prisma/client';
+import { prisma } from '../db';
+import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
+import { asyncHandler } from '../lib/asyncHandler';
+
+export const scheduleRouter = Router();
+
+const timeRegex = /^\d{2}:\d{2}$/;
+
+const createEntrySchema = z.object({
+  householdId: z.string(),
+  title: z.string().min(1).max(200),
+  description: z.string().optional(),
+  day: z.nativeEnum(WeekDay),
+  startTime: z.string().regex(timeRegex, 'Format HH:MM').optional(),
+  endTime: z.string().regex(timeRegex, 'Format HH:MM').optional(),
+  assignedTo: z.string().optional(),
+  isShared: z.boolean().default(true),
+  recurrenceWeeks: z.number().int().min(1).default(1),
+});
+
+const updateEntrySchema = createEntrySchema.omit({ householdId: true }).partial();
+
+async function getEntryAndVerifyMember(entryId: string, clerkUserId: string, res: Response) {
+  const entry = await prisma.scheduleEntry.findUnique({ where: { id: entryId } });
+  if (!entry) {
+    res.status(404).json({ error: 'Schedule entry not found' });
+    return null;
+  }
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId: entry.householdId, clerkUserId } },
+  });
+  if (!member) {
+    res.status(403).json({ error: 'Not a member of this household' });
+    return null;
+  }
+  return entry;
+}
+
+// GET /api/schedule?householdId=
+scheduleRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
+  const { householdId } = req.query;
+  if (typeof householdId !== 'string') { res.status(400).json({ error: 'Missing householdId' }); return; }
+
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId, clerkUserId: (req as AuthenticatedRequest).clerkUserId } },
+  });
+  if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
+
+  const entries = await prisma.scheduleEntry.findMany({
+    where: { householdId },
+    orderBy: [{ day: 'asc' }, { startTime: 'asc' }],
+  });
+  res.json(entries);
+}));
+
+// POST /api/schedule
+scheduleRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
+  const body = createEntrySchema.safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const entry = await prisma.scheduleEntry.create({
+    data: { ...body.data, createdBy: (req as AuthenticatedRequest).clerkUserId },
+  });
+  res.status(201).json(entry);
+}));
+
+// PATCH /api/schedule/:entryId
+scheduleRouter.patch('/:entryId', requireAuth, asyncHandler(async (req, res) => {
+  const entry = await getEntryAndVerifyMember(req.params.entryId, (req as AuthenticatedRequest).clerkUserId, res);
+  if (!entry) return;
+
+  const body = updateEntrySchema.safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const updated = await prisma.scheduleEntry.update({ where: { id: entry.id }, data: body.data });
+  res.json(updated);
+}));
+
+// DELETE /api/schedule/:entryId
+scheduleRouter.delete('/:entryId', requireAuth, asyncHandler(async (req, res) => {
+  const entry = await getEntryAndVerifyMember(req.params.entryId, (req as AuthenticatedRequest).clerkUserId, res);
+  if (!entry) return;
+
+  await prisma.scheduleEntry.delete({ where: { id: entry.id } });
+  res.status(204).send();
+}));

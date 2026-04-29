@@ -10,13 +10,10 @@ jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
 
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: veckis
           POSTGRES_PASSWORD: veckis
@@ -29,6 +26,9 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    env:
+      DATABASE_URL: postgresql://veckis:veckis@localhost:5432/veckis_test
+
     steps:
       - uses: actions/checkout@v4
 
@@ -36,32 +36,29 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: package-lock.json
 
-      - run: npm ci --workspace=backend --workspace=shared
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build shared
         run: npm run build --workspace=shared
-        working-directory: .
 
       - name: Generate Prisma client
         run: npx prisma generate
-        env:
-          DATABASE_URL: postgresql://veckis:veckis@localhost:5432/veckis_test
+        working-directory: backend
 
       - name: Run migrations
         run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: postgresql://veckis:veckis@localhost:5432/veckis_test
+        working-directory: backend
 
       - name: TypeScript check
         run: npx tsc --noEmit
+        working-directory: backend
 
   app:
     name: App TypeScript
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app
 
     steps:
       - uses: actions/checkout@v4
@@ -70,12 +67,14 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: package-lock.json
 
-      - run: npm ci --workspace=app --workspace=shared
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build shared
         run: npm run build --workspace=shared
-        working-directory: .
 
       - name: TypeScript check
         run: npx tsc --noEmit
+        working-directory: app
