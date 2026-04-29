@@ -1,0 +1,17 @@
+{
+  "name": "veckis",
+  "private": true,
+  "workspaces": [
+    "app",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:app": "npm run start --workspace=app",
+    "build:shared": "npm run build --workspace=shared",
+    "db:generate": "npm run db:generate --workspace=backend",
+    "db:migrate": "npm run db:migrate --workspace=backend",
+    "db:studio": "npm run db:studio --workspace=backend"
+  }
+}

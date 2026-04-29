@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: veckis
+          POSTGRES_PASSWORD: veckis
+          POSTGRES_DB: veckis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci --workspace=backend --workspace=shared
+
+      - name: Build shared
+        run: npm run build --workspace=shared
+        working-directory: .
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://veckis:veckis@localhost:5432/veckis_test
+
+      - name: Run migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://veckis:veckis@localhost:5432/veckis_test
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+  app:
+    name: App TypeScript
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci --workspace=app --workspace=shared
+
+      - name: Build shared
+        run: npm run build --workspace=shared
+        working-directory: .
+
+      - name: TypeScript check
+        run: npx tsc --noEmit

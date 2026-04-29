@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Household {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members       HouseholdMember[]
+  inviteCodes   InviteCode[]
+  shoppingLists ShoppingList[]
+  stores        Store[]
+  chores        Chore[]
+  scheduleItems ScheduleEntry[]
+}
+
+model HouseholdMember {
+  id          String   @id @default(cuid())
+  householdId String
+  clerkUserId String
+  displayName String
+  role        MemberRole @default(member)
+  joinedAt    DateTime   @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, clerkUserId])
+  @@index([clerkUserId])
+}
+
+model InviteCode {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  householdId String
+  createdBy   String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  usedBy      String?
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([code])
+}
+
+model Store {
+  id            String        @id @default(cuid())
+  householdId   String
+  name          String
+  categoryOrder StoreCategory[]
+  createdAt     DateTime      @default(now())
+
+  household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  shoppingLists ShoppingList[]
+}
+
+model ShoppingList {
+  id          String    @id @default(cuid())
+  householdId String
+  name        String
+  storeId     String?
+  isShared    Boolean   @default(true)
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  household Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  store     Store?        @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  items     ShoppingItem[]
+
+  @@index([householdId])
+}
+
+model ShoppingItem {
+  id        String        @id @default(cuid())
+  listId    String
+  name      String
+  quantity  Float         @default(1)
+  unit      String?
+  category  StoreCategory @default(other)
+  isChecked Boolean       @default(false)
+  checkedBy String?
+  addedBy   String
+  note      String?
+  createdAt DateTime      @default(now())
+
+  list ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@index([listId])
+}
+
+model Chore {
+  id          String         @id @default(cuid())
+  householdId String
+  title       String
+  description String?
+  frequency   ChoreFrequency @default(weekly)
+  assignedTo  String?
+  isShared    Boolean        @default(true)
+  createdBy   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  household   Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  completions ChoreCompletion[]
+
+  @@index([householdId])
+}
+
+model ChoreCompletion {
+  id          String   @id @default(cuid())
+  choreId     String
+  completedBy String
+  completedAt DateTime @default(now())
+  note        String?
+
+  chore Chore @relation(fields: [choreId], references: [id], onDelete: Cascade)
+
+  @@index([choreId])
+}
+
+model ScheduleEntry {
+  id              String    @id @default(cuid())
+  householdId     String
+  title           String
+  description     String?
+  day             WeekDay
+  startTime       String?
+  endTime         String?
+  assignedTo      String?
+  isShared        Boolean   @default(true)
+  recurrenceWeeks Int       @default(1)
+  createdBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId, day])
+}
+
+enum MemberRole {
+  admin
+  member
+}
+
+enum StoreCategory {
+  fruit_veg
+  meat_fish
+  dairy_eggs
+  bread_bakery
+  frozen
+  canned_dry
+  snacks_sweets
+  beverages
+  cleaning
+  personal_care
+  other
+}
+
+enum ChoreFrequency {
+  once
+  daily
+  weekly
+  biweekly
+  monthly
+}
+
+enum WeekDay {
+  mon
+  tue
+  wed
+  thu
+  fri
+  sat
+  sun
+}
