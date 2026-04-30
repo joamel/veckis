@@ -5,6 +5,7 @@ import {
   FlatList,
   Modal,
   Pressable,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -157,7 +158,7 @@ export default function MenuScreen() {
         })}
       </ScrollView>
 
-      <ScrollView style={s.content} contentContainerStyle={s.contentInner} onRefresh={load} refreshing={false}>
+      <ScrollView style={s.content} contentContainerStyle={s.contentInner} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
         {/* Day's recipes */}
         {dayItems.length === 0 ? (
           <View style={s.emptyDay}>

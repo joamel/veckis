@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import Fuse from 'fuse.js';
 import {
   ActivityIndicator,
   Alert,
@@ -44,8 +45,10 @@ export default function ShoppingListScreen() {
   const [savingOrder, setSavingOrder] = useState(false);
 
   const categoryOrder: StoreCategory[] = (list?.store?.categoryOrder as StoreCategory[]) ?? DEFAULT_CATEGORY_ORDER;
+
+  const fuse = useMemo(() => new Fuse(staples, { keys: ['name'], threshold: 0.35, minMatchCharLength: 1 }), [staples]);
   const suggestions = newItem.trim().length >= 1
-    ? staples.filter(s => s.name.toLowerCase().includes(newItem.toLowerCase())).slice(0, 8)
+    ? fuse.search(newItem).slice(0, 8).map(r => r.item)
     : [];
 
   const load = useCallback(async () => {
@@ -75,7 +78,7 @@ export default function ShoppingListScreen() {
     setNewItem('');
     try {
       const item = await client.addShoppingItem(listId, { name: itemName });
-      setList(prev => prev ? { ...prev, items: [...prev.items, item] } : prev);
+      setList(prev => prev ? { ...prev, items: [...prev.items, { ...item, recipe: null }] } : prev);
       // Auto-save to staples
       if (householdId) {
         client.upsertStaple({ householdId, name: itemName }).then(s => {
@@ -402,10 +405,9 @@ function ItemRow({ item, onToggle, onDelete }: { item: ShoppingItemWithRecipe; o
       <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? '#10b981' : '#4f46e5'} />
       <View style={s.itemContent}>
         <Text style={[s.itemName, item.isChecked && s.itemNameChecked]}>{item.name}</Text>
-        <View style={s.itemMeta}>
-          {(item.quantity !== 1 || item.unit) && <Text style={s.itemQty}>{item.quantity}{item.unit ? ` ${item.unit}` : ''}</Text>}
-          {item.recipe && <Text style={s.recipeBadge}>🍴 {item.recipe.title}</Text>}
-        </View>
+        {(item.quantity !== 1 || item.unit) && (
+          <Text style={s.itemQty}>{item.quantity}{item.unit ? ` ${item.unit}` : ''}</Text>
+        )}
       </View>
     </Pressable>
   );
@@ -437,9 +439,7 @@ const s = StyleSheet.create({
   itemContent: { flex: 1 },
   itemName: { fontSize: 16, color: '#111827' },
   itemNameChecked: { textDecorationLine: 'line-through', color: '#9ca3af' },
-  itemMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  itemQty: { fontSize: 13, color: '#6b7280', marginTop: 1 },
-  recipeBadge: { fontSize: 11, color: '#7c3aed', marginTop: 1 },
+  itemQty: { fontSize: 13, color: '#6b7280', marginTop: 2 },
   chipScroll: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6', maxHeight: 44 },
   chipRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
   chip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#eef2ff', borderRadius: 20 },

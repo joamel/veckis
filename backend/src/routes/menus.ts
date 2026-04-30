@@ -4,6 +4,7 @@ import { WeekDay } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
+import { normalizeIngredientNames } from '../lib/normalizeIngredients';
 
 export const menusRouter = Router();
 
@@ -119,9 +120,17 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
 
   const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
 
+  // Normalize ingredient names via AI (strips prep instructions, canonicalizes synonyms)
+  const rawNames = body.data.ingredients.map(i => i.name);
+  const normalizedNames = await normalizeIngredientNames(rawNames);
+  const ingredients = body.data.ingredients.map((ing, i) => ({
+    ...ing,
+    name: normalizedNames[i] ?? ing.name,
+  }));
+
   // Deduplicate: same name+unit → sum quantities
-  const deduped = new Map<string, typeof body.data.ingredients[0]>();
-  for (const ing of body.data.ingredients) {
+  const deduped = new Map<string, typeof ingredients[0]>();
+  for (const ing of ingredients) {
     const key = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}`;
     if (deduped.has(key)) {
       const existing = deduped.get(key)!;

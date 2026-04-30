@@ -40,7 +40,7 @@ export default function RecipeDetailScreen() {
   const [loadingLists, setLoadingLists] = useState(false);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [transferring, setTransferring] = useState(false);
-  const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<Array<{ id: string; name: string; quantity: number | null; unit: string | null; category: string }>>([]);
+  const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<ReturnType<typeof deduplicateIngredients>>([]);
 
   const load = useCallback(async () => {
     if (!recipeId) return;
@@ -350,7 +350,7 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
   backBtn: { padding: 4 },
   headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: '#111827' },
-  transferBtn: { padding: 4, backgroundColor: '#eef2ff', borderRadius: 8, padding: 8 } as never,
+  transferBtn: { padding: 8, backgroundColor: '#eef2ff', borderRadius: 8 },
   scroll: { padding: 20, gap: 16 },
   metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   metaChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#f3f4f6', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
