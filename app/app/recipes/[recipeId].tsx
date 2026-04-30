@@ -40,6 +40,7 @@ export default function RecipeDetailScreen() {
   const [loadingLists, setLoadingLists] = useState(false);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [transferring, setTransferring] = useState(false);
+  const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<Array<{ id: string; name: string; quantity: number | null; unit: string | null; category: string }>>([]);
 
   const load = useCallback(async () => {
     if (!recipeId) return;
@@ -104,8 +105,10 @@ export default function RecipeDetailScreen() {
     if (!rec || !householdId) return;
     setLoadingLists(true);
     setShowTransfer(true);
-    // Pre-check all ingredients
-    setCheckedIds(new Set(rec.ingredients.map(i => i.id)));
+    // Deduplicate ingredients
+    const deduped = deduplicateIngredients(rec.ingredients);
+    setDeduplicatedIngredients(deduped);
+    setCheckedIds(new Set(deduped.map(i => i.id)));
     try {
       setLists(await client.getShoppingLists(householdId));
     } catch {
@@ -125,7 +128,7 @@ export default function RecipeDetailScreen() {
 
   async function doTransfer(listId: string) {
     if (!recipe) return;
-    const selected = recipe.ingredients.filter(i => checkedIds.has(i.id));
+    const selected = deduplicatedIngredients.filter(i => checkedIds.has(i.id));
     if (selected.length === 0) { Alert.alert('Välj minst en ingrediens'); return; }
     setTransferring(true);
     try {
@@ -263,7 +266,7 @@ export default function RecipeDetailScreen() {
 
           {/* Ingredient checklist */}
           <ScrollView style={s.ingredientList} showsVerticalScrollIndicator={false}>
-            {recipe.ingredients.map(ing => {
+            {deduplicatedIngredients.map(ing => {
               const checked = checkedIds.has(ing.id);
               return (
                 <Pressable key={ing.id} style={s.checkRow} onPress={() => toggleIngredient(ing.id)}>
@@ -281,7 +284,7 @@ export default function RecipeDetailScreen() {
           </ScrollView>
 
           <View style={s.selectAllRow}>
-            <Pressable onPress={() => setCheckedIds(new Set(recipe.ingredients.map(i => i.id)))}>
+            <Pressable onPress={() => setCheckedIds(new Set(deduplicatedIngredients.map(i => i.id)))}>
               <Text style={s.selectAllText}>Välj alla</Text>
             </Pressable>
             <Pressable onPress={() => setCheckedIds(new Set())}>
@@ -317,6 +320,20 @@ export default function RecipeDetailScreen() {
       </Modal>
     </SafeAreaView>
   );
+}
+
+function deduplicateIngredients(ingredients: RecipeIngredient[]) {
+  const map = new Map<string, RecipeIngredient & { quantity: number | null }>();
+  for (const ing of ingredients) {
+    const key = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}`;
+    if (map.has(key)) {
+      const ex = map.get(key)!;
+      ex.quantity = (ex.quantity ?? 1) + (ing.quantity ?? 1);
+    } else {
+      map.set(key, { ...ing, quantity: ing.quantity });
+    }
+  }
+  return [...map.values()];
 }
 
 function formatIngredient(ing: RecipeIngredient): string {

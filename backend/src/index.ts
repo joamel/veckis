@@ -14,6 +14,7 @@ import { choresRouter } from './routes/chores';
 import { scheduleRouter } from './routes/schedule';
 import { recipesRouter } from './routes/recipes';
 import { menusRouter } from './routes/menus';
+import { staplesRouter } from './routes/staples';
 import { prisma } from './db';
 import { asyncHandler } from './lib/asyncHandler';
 
@@ -51,6 +52,7 @@ app.use('/api/chores', choresRouter);
 app.use('/api/schedule', scheduleRouter);
 app.use('/api/recipes', recipesRouter);
 app.use('/api/menus', menusRouter);
+app.use('/api/staples', staplesRouter);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not found' });

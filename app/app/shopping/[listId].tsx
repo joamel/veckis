@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   SafeAreaView,
@@ -16,62 +17,89 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
+import { useHousehold } from '../../src/context/HouseholdContext';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type StapleItem, type Store } from '@veckis/shared';
 
 export default function ShoppingListScreen() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
   const router = useRouter();
   const client = useApiClient();
+  const { householdId } = useHousehold();
+
   const [list, setList] = useState<ShoppingListWithItems | null>(null);
   const [loading, setLoading] = useState(true);
   const [newItem, setNewItem] = useState('');
   const [adding, setAdding] = useState(false);
-  const [collapsedRecipes, setCollapsedRecipes] = useState<Set<string>>(new Set());
+  const [stores, setStores] = useState<Store[]>([]);
+  const [staples, setStaples] = useState<StapleItem[]>([]);
 
-  function toggleRecipeCollapse(recipeId: string) {
-    setCollapsedRecipes(prev => {
-      const next = new Set(prev);
-      next.has(recipeId) ? next.delete(recipeId) : next.add(recipeId);
-      return next;
-    });
-  }
+  // Store picker modal
+  const [showStorePicker, setShowStorePicker] = useState(false);
+  const [creatingStore, setCreatingStore] = useState(false);
+  const [newStoreName, setNewStoreName] = useState('');
+
+  // Category order editor
+  const [editingStore, setEditingStore] = useState<Store | null>(null);
+  const [editCategoryOrder, setEditCategoryOrder] = useState<StoreCategory[]>([]);
+  const [savingOrder, setSavingOrder] = useState(false);
+
+  const categoryOrder: StoreCategory[] = (list?.store?.categoryOrder as StoreCategory[]) ?? DEFAULT_CATEGORY_ORDER;
+  const suggestions = newItem.trim().length >= 1
+    ? staples.filter(s => s.name.toLowerCase().includes(newItem.toLowerCase())).slice(0, 8)
+    : [];
 
   const load = useCallback(async () => {
-    if (!listId) return;
+    if (!listId || !householdId) return;
     try {
-      const data = await client.getShoppingList(listId);
+      const [data, storeList, stapleList] = await Promise.all([
+        client.getShoppingList(listId),
+        client.getStores(householdId),
+        client.getStaples(householdId),
+      ]);
       setList(data);
+      setStores(storeList);
+      setStaples(stapleList);
     } catch {
       Alert.alert('Fel', 'Kunde inte ladda listan');
     } finally {
       setLoading(false);
     }
-  }, [listId]);
+  }, [listId, householdId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  async function addItem() {
-    if (!listId || !newItem.trim()) return;
+  async function addItem(name?: string) {
+    const itemName = (name ?? newItem).trim();
+    if (!listId || !itemName) return;
     setAdding(true);
-    const name = newItem.trim();
     setNewItem('');
     try {
-      const item = await client.addShoppingItem(listId, { name });
-      setList(prev => prev ? { ...prev, items: [item, ...prev.items] } : prev);
+      const item = await client.addShoppingItem(listId, { name: itemName });
+      setList(prev => prev ? { ...prev, items: [...prev.items, item] } : prev);
+      // Auto-save to staples
+      if (householdId) {
+        client.upsertStaple({ householdId, name: itemName }).then(s => {
+          setStaples(prev => {
+            const exists = prev.find(p => p.id === s.id);
+            return exists ? prev.map(p => p.id === s.id ? s : p) : [...prev, s].sort((a, b) => a.name.localeCompare(b.name));
+          });
+        }).catch(() => {});
+      }
     } catch {
-      setNewItem(name);
+      setNewItem(itemName);
       Alert.alert('Fel', 'Kunde inte lägga till vara');
     } finally {
       setAdding(false);
     }
   }
 
-  async function toggleItem(item: ShoppingItem) {
+  async function toggleItem(item: ShoppingItemWithRecipe) {
     setList(prev =>
       prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, isChecked: !i.isChecked } : i) } : prev
     );
     try {
       const updated = await client.checkShoppingItem(item.id, !item.isChecked);
-      setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === updated.id ? updated : i) } : prev);
+      setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: item.recipe } : i) } : prev);
     } catch {
       setList(prev =>
         prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? item : i) } : prev
@@ -91,81 +119,134 @@ export default function ShoppingListScreen() {
 
   async function completeList() {
     if (!listId) return;
-    Alert.alert(
-      'Markera klar?',
-      'Listan arkiveras och tas bort från vyn.',
-      [
-        { text: 'Avbryt', style: 'cancel' },
-        {
-          text: 'Markera klar',
-          onPress: async () => {
-            try {
-              await client.completeShoppingList(listId);
-              router.back();
-            } catch {
-              Alert.alert('Fel', 'Kunde inte markera listan som klar');
-            }
-          },
-        },
-      ]
-    );
+    Alert.alert('Markera klar?', 'Listan arkiveras och tas bort från vyn.', [
+      { text: 'Avbryt', style: 'cancel' },
+      { text: 'Markera klar', onPress: async () => {
+        try { await client.completeShoppingList(listId); router.back(); }
+        catch { Alert.alert('Fel', 'Kunde inte markera listan som klar'); }
+      }},
+    ]);
   }
 
-  if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
+  async function selectStore(storeId: string | null) {
+    if (!listId) return;
+    try {
+      const updated = await client.updateShoppingList(listId, { storeId });
+      setList(updated);
+      setShowStorePicker(false);
+    } catch {
+      Alert.alert('Fel', 'Kunde inte byta butik');
+    }
   }
 
+  async function createStore() {
+    if (!householdId || !newStoreName.trim()) return;
+    setCreatingStore(true);
+    try {
+      const store = await client.createStore({ householdId, name: newStoreName.trim() });
+      setStores(prev => [...prev, store]);
+      await selectStore(store.id);
+      setNewStoreName('');
+    } catch {
+      Alert.alert('Fel', 'Kunde inte skapa butik');
+    } finally {
+      setCreatingStore(false);
+    }
+  }
+
+  function openCategoryEditor(store: Store) {
+    setEditingStore(store);
+    setEditCategoryOrder((store.categoryOrder as StoreCategory[]).length
+      ? store.categoryOrder as StoreCategory[]
+      : [...DEFAULT_CATEGORY_ORDER]);
+  }
+
+  function moveCategoryUp(idx: number) {
+    if (idx === 0) return;
+    setEditCategoryOrder(prev => {
+      const next = [...prev];
+      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+      return next;
+    });
+  }
+
+  function moveCategoryDown(idx: number) {
+    setEditCategoryOrder(prev => {
+      if (idx >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      return next;
+    });
+  }
+
+  async function saveCategoryOrder() {
+    if (!editingStore) return;
+    setSavingOrder(true);
+    try {
+      const updated = await client.updateStore(editingStore.id, { categoryOrder: editCategoryOrder });
+      setStores(prev => prev.map(s => s.id === updated.id ? updated : s));
+      if (list?.store?.id === updated.id) {
+        setList(prev => prev ? { ...prev, store: updated } : prev);
+      }
+      setEditingStore(null);
+    } catch {
+      Alert.alert('Fel', 'Kunde inte spara ordning');
+    } finally {
+      setSavingOrder(false);
+    }
+  }
+
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
   if (!list) return null;
 
   const unchecked = list.items.filter(i => !i.isChecked);
   const checked = list.items.filter(i => i.isChecked);
   const allItems = [...unchecked, ...checked];
-
-  // Group unchecked items: recipe groups first, then loose items
-  const recipeGroups = groupByRecipe(unchecked);
+  const categoryGroups = buildCategoryGroups(unchecked, categoryOrder);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+    <SafeAreaView style={s.container}>
+      {/* Header */}
+      <View style={s.header}>
+        <Pressable onPress={() => router.back()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
-        <View style={styles.headerMid}>
-          <Text style={styles.title} numberOfLines={1}>{list.name}</Text>
-          {list.store && <Text style={styles.storeName}>{list.store.name}</Text>}
+        <View style={s.headerMid}>
+          <Text style={s.title} numberOfLines={1}>{list.name}</Text>
+          <Pressable onPress={() => setShowStorePicker(true)} style={s.storeBtn}>
+            <Ionicons name="storefront-outline" size={12} color="#4f46e5" />
+            <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
+          </Pressable>
         </View>
-        <Pressable onPress={completeList} style={styles.doneBtn}>
+        <Pressable onPress={completeList} style={s.doneBtn}>
           <Ionicons name="checkmark-done-outline" size={24} color="#4f46e5" />
         </Pressable>
       </View>
 
+      {/* Progress bar */}
       {checked.length > 0 && unchecked.length > 0 && (
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${(checked.length / allItems.length) * 100}%` as `${number}%` }]} />
+        <View style={s.progressBar}>
+          <View style={[s.progressFill, { width: `${(checked.length / allItems.length) * 100}%` as `${number}%` }]} />
         </View>
       )}
 
-      <ScrollView contentContainerStyle={[styles.list, allItems.length === 0 && styles.listEmpty]}>
+      <ScrollView contentContainerStyle={[s.list, allItems.length === 0 && s.listEmpty]}>
         {allItems.length === 0 && (
-          <View style={styles.emptyContainer}>
+          <View style={s.emptyContainer}>
             <Ionicons name="add-circle-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyText}>Listan är tom</Text>
-            <Text style={styles.emptySubtext}>Lägg till varor nedan</Text>
+            <Text style={s.emptyText}>Listan är tom</Text>
+            <Text style={s.emptySubtext}>Lägg till varor nedan</Text>
           </View>
         )}
 
-        {/* Recipe groups (unchecked) */}
-        {recipeGroups.map(group => (
-          <View key={group.recipeId ?? '__loose'} style={styles.group}>
-            {group.recipeId && (
-              <Pressable style={styles.groupHeader} onPress={() => toggleRecipeCollapse(group.recipeId!)}>
-                <Ionicons name="restaurant-outline" size={14} color="#7c3aed" />
-                <Text style={styles.groupTitle}>{group.recipeName}</Text>
-                <Text style={styles.groupCount}>{group.items.filter(i => !i.isChecked).length}/{group.items.length}</Text>
-                <Ionicons name={collapsedRecipes.has(group.recipeId) ? 'chevron-down' : 'chevron-up'} size={14} color="#9ca3af" />
-              </Pressable>
-            )}
-            {!collapsedRecipes.has(group.recipeId ?? '') && group.items.map(item => (
+        {/* Category groups */}
+        {categoryGroups.map(group => (
+          <View key={group.category} style={s.categoryGroup}>
+            <View style={s.categoryHeader}>
+              <Text style={s.categoryLabel}>{CATEGORY_LABELS[group.category]}</Text>
+              <Text style={s.categoryCount}>{group.items.length}</Text>
+            </View>
+            {group.items.map(item => (
               <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onDelete={() => deleteItem(item.id)} />
             ))}
           </View>
@@ -173,163 +254,216 @@ export default function ShoppingListScreen() {
 
         {/* Checked items */}
         {checked.length > 0 && (
-          <>
-            <View style={styles.divider}>
-              <Text style={styles.dividerText}>Bockat ({checked.length})</Text>
+          <View style={s.categoryGroup}>
+            <View style={s.categoryHeader}>
+              <Text style={[s.categoryLabel, { color: '#9ca3af' }]}>Bockat</Text>
+              <Text style={s.categoryCount}>{checked.length}</Text>
             </View>
             {checked.map(item => (
               <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onDelete={() => deleteItem(item.id)} />
             ))}
-          </>
+          </View>
         )}
       </ScrollView>
 
+      {/* Autocomplete chips + add bar */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.addBar}>
+        {suggestions.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll} contentContainerStyle={s.chipRow}>
+            {suggestions.map(s2 => (
+              <Pressable key={s2.id} style={s.chip} onPress={() => addItem(s2.name)}>
+                <Text style={s.chipText}>{s2.name}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+        <View style={s.addBar}>
           <TextInput
-            style={styles.addInput}
+            style={s.addInput}
             placeholder="Lägg till vara..."
             value={newItem}
             onChangeText={setNewItem}
             returnKeyType="done"
-            onSubmitEditing={addItem}
+            onSubmitEditing={() => addItem()}
             blurOnSubmit={false}
           />
           <Pressable
-            style={[styles.addBtn, (!newItem.trim() || adding) && styles.addBtnDisabled]}
-            onPress={addItem}
+            style={[s.addBtn, (!newItem.trim() || adding) && s.addBtnDisabled]}
+            onPress={() => addItem()}
             disabled={adding || !newItem.trim()}
           >
-            {adding
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <Ionicons name="add" size={22} color="#fff" />}
+            {adding ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="add" size={22} color="#fff" />}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Store picker modal */}
+      <Modal visible={showStorePicker} transparent animationType="slide" onRequestClose={() => setShowStorePicker(false)}>
+        <Pressable style={s.overlay} onPress={() => setShowStorePicker(false)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Välj butik</Text>
+
+          <Pressable style={[s.storeOption, !list.storeId && s.storeOptionActive]} onPress={() => selectStore(null)}>
+            <Ionicons name="close-circle-outline" size={20} color="#6b7280" />
+            <Text style={s.storeOptionText}>Utan butik</Text>
+            {!list.storeId && <Ionicons name="checkmark" size={18} color="#4f46e5" />}
+          </Pressable>
+
+          {stores.map(store => (
+            <View key={store.id} style={s.storeRow}>
+              <Pressable style={[s.storeOption, s.storeOptionFlex, list.storeId === store.id && s.storeOptionActive]} onPress={() => selectStore(store.id)}>
+                <Ionicons name="storefront-outline" size={20} color="#4f46e5" />
+                <Text style={[s.storeOptionText, { flex: 1 }]}>{store.name}</Text>
+                {list.storeId === store.id && <Ionicons name="checkmark" size={18} color="#4f46e5" />}
+              </Pressable>
+              <Pressable style={s.editStoreBtn} onPress={() => { setShowStorePicker(false); openCategoryEditor(store); }}>
+                <Ionicons name="options-outline" size={18} color="#6b7280" />
+              </Pressable>
+            </View>
+          ))}
+
+          <View style={s.newStoreRow}>
+            <TextInput
+              style={[s.addInput, { flex: 1 }]}
+              placeholder="Ny butik..."
+              value={newStoreName}
+              onChangeText={setNewStoreName}
+              returnKeyType="done"
+              onSubmitEditing={createStore}
+            />
+            <Pressable
+              style={[s.addBtn, (!newStoreName.trim() || creatingStore) && s.addBtnDisabled]}
+              onPress={createStore}
+              disabled={creatingStore || !newStoreName.trim()}
+            >
+              {creatingStore ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="add" size={22} color="#fff" />}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Category order editor */}
+      <Modal visible={!!editingStore} transparent animationType="slide" onRequestClose={() => setEditingStore(null)}>
+        <Pressable style={s.overlay} onPress={() => setEditingStore(null)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>{editingStore?.name} — kategoriordning</Text>
+          <Text style={s.sheetSub}>Dra om ordningen med pilarna så den matchar butikens layout</Text>
+          <ScrollView style={{ maxHeight: 380 }}>
+            {editCategoryOrder.map((cat, idx) => (
+              <View key={cat} style={s.catRow}>
+                <Text style={s.catRowLabel}>{CATEGORY_LABELS[cat]}</Text>
+                <Pressable onPress={() => moveCategoryUp(idx)} disabled={idx === 0} style={s.catArrow}>
+                  <Ionicons name="chevron-up" size={18} color={idx === 0 ? '#e5e7eb' : '#374151'} />
+                </Pressable>
+                <Pressable onPress={() => moveCategoryDown(idx)} disabled={idx === editCategoryOrder.length - 1} style={s.catArrow}>
+                  <Ionicons name="chevron-down" size={18} color={idx === editCategoryOrder.length - 1 ? '#e5e7eb' : '#374151'} />
+                </Pressable>
+              </View>
+            ))}
+          </ScrollView>
+          <Pressable style={[s.saveBtn, savingOrder && s.saveBtnDisabled]} onPress={saveCategoryOrder} disabled={savingOrder}>
+            {savingOrder ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>Spara ordning</Text>}
+          </Pressable>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-// Helper: group items by recipe
-function groupByRecipe(items: ShoppingItemWithRecipe[]) {
-  const order: string[] = [];
-  const map = new Map<string, { recipeId: string | null; recipeName: string | null; items: ShoppingItemWithRecipe[] }>();
+type CategoryGroup = { category: StoreCategory; items: ShoppingItemWithRecipe[] };
 
+function buildCategoryGroups(items: ShoppingItemWithRecipe[], order: StoreCategory[]): CategoryGroup[] {
+  const map = new Map<StoreCategory, ShoppingItemWithRecipe[]>();
   for (const item of items) {
-    const key = item.recipeId ?? '__loose';
-    if (!map.has(key)) {
-      order.push(key);
-      map.set(key, { recipeId: item.recipeId, recipeName: item.recipe?.title ?? null, items: [] });
-    }
-    map.get(key)!.items.push(item);
+    const cat = item.category as StoreCategory;
+    if (!map.has(cat)) map.set(cat, []);
+    map.get(cat)!.push(item);
   }
-
-  // Recipe groups first, loose items last
-  const recipeKeys = order.filter(k => k !== '__loose');
-  const looseKey = order.includes('__loose') ? ['__loose'] : [];
-  return [...recipeKeys, ...looseKey].map(k => map.get(k)!);
+  const orderedKeys = [...order.filter(c => map.has(c))];
+  // append any categories not in order
+  for (const cat of map.keys()) {
+    if (!orderedKeys.includes(cat)) orderedKeys.push(cat);
+  }
+  return orderedKeys.map(cat => ({ category: cat, items: map.get(cat)! }));
 }
 
 function ItemRow({ item, onToggle, onDelete }: { item: ShoppingItemWithRecipe; onToggle: () => void; onDelete: () => void }) {
   return (
     <Pressable
-      style={[styles.item, item.isChecked && styles.itemChecked]}
+      style={[s.item, item.isChecked && s.itemChecked]}
       onPress={onToggle}
-      onLongPress={() =>
-        Alert.alert('Ta bort vara', `Ta bort "${item.name}"?`, [
-          { text: 'Avbryt', style: 'cancel' },
-          { text: 'Ta bort', style: 'destructive', onPress: onDelete },
-        ])
-      }
+      onLongPress={() => Alert.alert('Ta bort vara', `Ta bort "${item.name}"?`, [
+        { text: 'Avbryt', style: 'cancel' },
+        { text: 'Ta bort', style: 'destructive', onPress: onDelete },
+      ])}
     >
-      <Ionicons
-        name={item.isChecked ? 'checkbox' : 'square-outline'}
-        size={24}
-        color={item.isChecked ? '#10b981' : '#4f46e5'}
-      />
-      <View style={styles.itemContent}>
-        <Text style={[styles.itemName, item.isChecked && styles.itemNameChecked]}>{item.name}</Text>
-        {(item.quantity !== 1 || item.unit) && (
-          <Text style={styles.itemQty}>{item.quantity} {item.unit ?? 'st'}</Text>
-        )}
+      <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? '#10b981' : '#4f46e5'} />
+      <View style={s.itemContent}>
+        <Text style={[s.itemName, item.isChecked && s.itemNameChecked]}>{item.name}</Text>
+        <View style={s.itemMeta}>
+          {(item.quantity !== 1 || item.unit) && <Text style={s.itemQty}>{item.quantity}{item.unit ? ` ${item.unit}` : ''}</Text>}
+          {item.recipe && <Text style={s.recipeBadge}>🍴 {item.recipe.title}</Text>}
+        </View>
       </View>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-    gap: 12,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
   backBtn: { padding: 4 },
   doneBtn: { padding: 4 },
   headerMid: { flex: 1 },
   title: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  storeName: { fontSize: 12, color: '#6b7280' },
+  storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  storeBtnText: { fontSize: 12, color: '#4f46e5', fontWeight: '500' },
   progressBar: { height: 3, backgroundColor: '#e5e7eb' },
   progressFill: { height: 3, backgroundColor: '#10b981' },
-  list: { padding: 16, gap: 6 },
+  list: { padding: 16, gap: 16, paddingBottom: 8 },
   listEmpty: { flex: 1 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   emptyText: { fontSize: 17, fontWeight: '600', color: '#374151', marginTop: 12 },
   emptySubtext: { fontSize: 13, color: '#9ca3af', marginTop: 4 },
-  divider: { paddingVertical: 10, paddingHorizontal: 4 },
-  dividerText: { fontSize: 12, fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  itemChecked: { opacity: 0.6 },
+  categoryGroup: { gap: 4 },
+  categoryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2, paddingVertical: 4 },
+  categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4f46e5', textTransform: 'uppercase', letterSpacing: 0.6 },
+  categoryCount: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
+  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  itemChecked: { opacity: 0.55 },
   itemContent: { flex: 1 },
   itemName: { fontSize: 16, color: '#111827' },
   itemNameChecked: { textDecorationLine: 'line-through', color: '#9ca3af' },
+  itemMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   itemQty: { fontSize: 13, color: '#6b7280', marginTop: 1 },
-  group: { gap: 4 },
-  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 4 },
-  groupTitle: { flex: 1, fontSize: 12, fontWeight: '700', color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 0.5 },
-  groupCount: { fontSize: 12, color: '#9ca3af' },
-  addBar: {
-    flexDirection: 'row',
-    padding: 12,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    gap: 10,
-  },
-  addInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 16,
-    backgroundColor: '#f9fafb',
-  },
-  addBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: '#4f46e5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  recipeBadge: { fontSize: 11, color: '#7c3aed', marginTop: 1 },
+  chipScroll: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6', maxHeight: 44 },
+  chipRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#eef2ff', borderRadius: 20 },
+  chipText: { fontSize: 13, color: '#4f46e5', fontWeight: '500' },
+  addBar: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6', gap: 10 },
+  addInput: { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
+  addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center' },
   addBtnDisabled: { opacity: 0.4 },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '80%' },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  sheetSub: { fontSize: 13, color: '#6b7280', marginTop: -4 },
+  storeOption: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 10, backgroundColor: '#f9fafb' },
+  storeOptionFlex: { flex: 1 },
+  storeOptionActive: { backgroundColor: '#eef2ff' },
+  storeOptionText: { fontSize: 15, color: '#111827', fontWeight: '500' },
+  storeRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  editStoreBtn: { padding: 12, backgroundColor: '#f9fafb', borderRadius: 10 },
+  newStoreRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
+  catRowLabel: { flex: 1, fontSize: 15, color: '#374151' },
+  catArrow: { padding: 6 },
+  saveBtn: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center', marginTop: 4 },
+  saveBtnDisabled: { opacity: 0.4 },
+  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

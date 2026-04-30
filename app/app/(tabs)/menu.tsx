@@ -43,6 +43,7 @@ export default function MenuScreen() {
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<WeekDay>(TODAY_DAY);
+  const [transferredRecipeIds, setTransferredRecipeIds] = useState<Set<string>>(new Set());
 
   // Recipe picker modal
   const [pickingForDay, setPickingForDay] = useState<WeekDay | null | 'unscheduled'>(undefined as never);
@@ -51,12 +52,18 @@ export default function MenuScreen() {
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
-      const [menu, recs] = await Promise.all([
+      const [menu, recs, activeLists] = await Promise.all([
         client.getWeekMenu(householdId, weekYear, weekNumber),
         client.getRecipes(householdId),
+        client.getShoppingLists(householdId),
       ]);
       setMenuItems(menu);
       setRecipes(recs);
+      // Build set of recipeIds that have items in active lists
+      const transferred = new Set(
+        activeLists.flatMap(l => l.items.map(i => i.recipeId).filter(Boolean) as string[])
+      );
+      setTransferredRecipeIds(transferred);
     } catch {
       Alert.alert('Fel', 'Kunde inte ladda menyn');
     } finally {
@@ -162,6 +169,7 @@ export default function MenuScreen() {
             <MenuCard
               key={item.id}
               item={item}
+              isTransferred={transferredRecipeIds.has(item.recipeId)}
               onRemove={() => removeFromMenu(item.id)}
               onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
               onTransfer={() => router.push(`/recipes/${item.recipeId}?transfer=1` as never)}
@@ -193,6 +201,7 @@ export default function MenuScreen() {
                 <MenuCard
                   key={item.id}
                   item={item}
+                  isTransferred={transferredRecipeIds.has(item.recipeId)}
                   onRemove={() => removeFromMenu(item.id)}
                   onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                   onTransfer={() => router.push(`/recipes/${item.recipeId}?transfer=1` as never)}
@@ -238,12 +247,14 @@ export default function MenuScreen() {
 
 function MenuCard({
   item,
+  isTransferred,
   onRemove,
   onViewRecipe,
   onTransfer,
   onAssignDay,
 }: {
   item: WeekMenuItemWithRecipe;
+  isTransferred: boolean;
   onRemove: () => void;
   onViewRecipe: () => void;
   onTransfer: () => void;
@@ -259,6 +270,12 @@ function MenuCard({
         </View>
         <View style={s.cardContent}>
           <Text style={s.cardTitle}>{item.recipe.title}</Text>
+          {isTransferred && (
+            <View style={s.transferredBadge}>
+              <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+              <Text style={s.transferredText}>I listan</Text>
+            </View>
+          )}
           <Text style={s.cardMeta}>{item.recipe.servings} port · {item.recipe.ingredients.length} ingredienser</Text>
         </View>
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#9ca3af" />
@@ -342,6 +359,8 @@ const s = StyleSheet.create({
   cardContent: { flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
   cardMeta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  transferredBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  transferredText: { fontSize: 11, color: '#10b981', fontWeight: '600' },
   cardExpanded: { borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingHorizontal: 14, paddingBottom: 12 },
   cardActions: { flexDirection: 'row', gap: 0, paddingTop: 10 },
   cardAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8 },

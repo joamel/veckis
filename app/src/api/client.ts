@@ -15,6 +15,7 @@ import type {
   Recipe,
   RecipeIngredient,
   WeekMenuItem,
+  StapleItem,
 } from '@veckis/shared';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
@@ -207,5 +208,18 @@ export function useApiClient() {
 
     transferToShopping: (listId: string, ingredients: Array<{ name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string }>) =>
       request<ShoppingItem[]>('/api/menus/to-shopping', { method: 'POST', body: JSON.stringify({ listId, ingredients }) }),
+
+    // Staples
+    getStaples: (householdId: string) =>
+      request<StapleItem[]>(`/api/staples?householdId=${householdId}`),
+
+    upsertStaple: (data: { householdId: string; name: string; category?: string; unit?: string | null; defaultQuantity?: number | null }) =>
+      request<StapleItem>('/api/staples', { method: 'POST', body: JSON.stringify(data) }),
+
+    deleteStaple: (stapleId: string) =>
+      request<void>(`/api/staples/${stapleId}`, { method: 'DELETE' }),
+
+    updateShoppingList: (listId: string, data: { name?: string; storeId?: string | null }) =>
+      request<ShoppingListWithItems>(`/api/shopping/lists/${listId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   };
 }

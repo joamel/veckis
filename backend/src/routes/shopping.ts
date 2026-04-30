@@ -111,6 +111,25 @@ shoppingRouter.delete('/lists/:listId', requireAuth, asyncHandler(async (req, re
   res.status(204).send();
 }));
 
+// PATCH /api/shopping/lists/:listId
+shoppingRouter.patch('/lists/:listId', requireAuth, asyncHandler(async (req, res) => {
+  const list = await getListAndVerifyMember(req.params.listId, (req as AuthenticatedRequest).clerkUserId, res);
+  if (!list) return;
+
+  const body = z.object({
+    name: z.string().min(1).max(100).optional(),
+    storeId: z.string().nullable().optional(),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const updated = await prisma.shoppingList.update({
+    where: { id: list.id },
+    data: body.data,
+    include: { items: { include: { recipe: { select: { id: true, title: true } } } }, store: true },
+  });
+  res.json(updated);
+}));
+
 // POST /api/shopping/lists/:listId/items
 shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req, res) => {
   const list = await getListAndVerifyMember(req.params.listId, (req as AuthenticatedRequest).clerkUserId, res);

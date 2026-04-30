@@ -21,6 +21,7 @@ model Household {
   scheduleItems ScheduleEntry[]
   recipes       Recipe[]
   weekMenuItems WeekMenuItem[]
+  stapleItems   StapleItem[]
 }
 
 model HouseholdMember {
@@ -197,6 +198,20 @@ model WeekMenuItem {
   recipe    Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@index([householdId, weekYear, weekNumber])
+}
+
+model StapleItem {
+  id              String        @id @default(cuid())
+  householdId     String
+  name            String
+  category        StoreCategory @default(other)
+  unit            String?
+  defaultQuantity Float?
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, name])
+  @@index([householdId])
 }
 
 enum MemberRole {

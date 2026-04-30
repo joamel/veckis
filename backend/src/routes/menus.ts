@@ -118,8 +118,33 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
 
   const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+
+  // Deduplicate: same name+unit → sum quantities
+  const deduped = new Map<string, typeof body.data.ingredients[0]>();
+  for (const ing of body.data.ingredients) {
+    const key = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}`;
+    if (deduped.has(key)) {
+      const existing = deduped.get(key)!;
+      existing.quantity = (existing.quantity ?? 1) + (ing.quantity ?? 1);
+    } else {
+      deduped.set(key, { ...ing });
+    }
+  }
+
+  // Sort by list store's categoryOrder (or default)
+  const store = list.storeId ? await prisma.store.findUnique({ where: { id: list.storeId } }) : null;
+  const categoryOrder: string[] = store?.categoryOrder?.length
+    ? store.categoryOrder
+    : ['fruit_veg','meat_fish','dairy_eggs','bread_bakery','frozen','canned_dry','snacks_sweets','beverages','cleaning','personal_care','other'];
+
+  const sorted = [...deduped.values()].sort((a, b) => {
+    const ai = categoryOrder.indexOf(a.category ?? 'other');
+    const bi = categoryOrder.indexOf(b.category ?? 'other');
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+
   const items = await prisma.shoppingItem.createManyAndReturn({
-    data: body.data.ingredients.map(ing => ({
+    data: sorted.map(ing => ({
       listId: list.id,
       name: ing.name,
       quantity: ing.quantity ?? 1,
