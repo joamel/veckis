@@ -1,43 +1,35 @@
-import Anthropic from '@anthropic-ai/sdk';
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { prisma } from '../db';
+import { stripIngredient } from './stripIngredient';
+import type { StoreCategory } from '@prisma/client';
 
 export async function normalizeIngredientNames(names: string[]): Promise<string[]> {
   if (names.length === 0) return [];
-  if (!process.env.ANTHROPIC_API_KEY) return names;
 
-  try {
-    const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 512,
-      messages: [{
-        role: 'user',
-        content: `Normalisera dessa ingredienssträngar från svenska recept till enkla svenska ingrediensnamn.
+  const keys = names.map(n => n.toLowerCase().trim());
+  const aliases = await prisma.ingredientAlias.findMany({ where: { raw: { in: keys } } });
+  const aliasMap = new Map(aliases.map(a => [a.raw, a.canonical]));
 
-Regler:
-- Ta bort tillagningsinstruktioner: "hackad", "skuren i bitar", "finriven", "pressad", "skalad", "delad", "kokt" osv
-- Ta bort onödiga adjektiv: "färsk" om det är standardformen, "frysta" om det tydliggörs av kategorin
-- Behåll viktiga distinktioner: "röd lök" ≠ "lök", "kycklingfilé" ≠ "kyckling", "crème fraiche" ≠ "grädde"
-- Använd vanliga matbutiksnamn på svenska
-- Returnera ENBART ett JSON-array med samma antal element som inmatningen, inget mer
+  return keys.map(k => aliasMap.get(k) ?? stripIngredient(k));
+}
 
-Inmatning: ${JSON.stringify(names)}
+export async function learnIngredientAliases(
+  ingredients: Array<{ name: string; category?: StoreCategory }>
+): Promise<void> {
+  if (ingredients.length === 0) return;
 
-Svar (bara JSON-arrayen):`,
-      }],
-    });
+  const pairs = ingredients
+    .map(i => ({ raw: i.name.toLowerCase().trim(), canonical: stripIngredient(i.name), category: i.category ?? 'other' as StoreCategory }))
+    .filter(p => p.raw !== p.canonical && p.raw.length > 0);
 
-    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : '';
-    const match = text.match(/\[[\s\S]*\]/);
-    if (!match) return names;
+  if (pairs.length === 0) return;
 
-    const parsed = JSON.parse(match[0]) as unknown[];
-    if (Array.isArray(parsed) && parsed.length === names.length && parsed.every(x => typeof x === 'string')) {
-      return parsed as string[];
-    }
-  } catch (err) {
-    console.error('[normalizeIngredients] failed, using original names:', err instanceof Error ? err.message : err);
-  }
-
-  return names;
+  await prisma.$transaction(
+    pairs.map(p =>
+      prisma.ingredientAlias.upsert({
+        where: { raw: p.raw },
+        create: { raw: p.raw, canonical: p.canonical, category: p.category, seenCount: 1 },
+        update: { seenCount: { increment: 1 } },
+      })
+    )
+  );
 }

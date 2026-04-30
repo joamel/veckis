@@ -4,6 +4,7 @@ import { StoreCategory } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
+import { learnIngredientAliases } from '../lib/normalizeIngredients';
 
 export const recipesRouter = Router();
 
@@ -134,6 +135,8 @@ recipesRouter.post('/from-url', requireAuth, asyncHandler(async (req, res) => {
 
   try {
     const scraped = await scrapeRecipe(body.data.url);
+    // Fire-and-forget: learn aliases from scraped ingredients
+    learnIngredientAliases(scraped.ingredients).catch(() => {});
     res.json(scraped);
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Could not scrape recipe';

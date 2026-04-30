@@ -214,6 +214,15 @@ model StapleItem {
   @@index([householdId])
 }
 
+model IngredientAlias {
+  raw       String        @id
+  canonical String
+  category  StoreCategory @default(other)
+  seenCount Int           @default(1)
+
+  @@index([canonical])
+}
+
 enum MemberRole {
   admin
   member
