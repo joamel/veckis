@@ -3,7 +3,15 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@veckis/shared": ["../shared/src/index.ts"]
+      "@veckis/shared": [
+        "../shared/src/index.ts"
+      ]
     }
-  }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
 }

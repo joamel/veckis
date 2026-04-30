@@ -33,6 +33,7 @@ export interface ShoppingItem {
   checkedBy: string | null;
   addedBy: string;
   note: string | null;
+  recipeId: string | null;
 }
 
 export interface Store {

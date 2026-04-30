@@ -19,6 +19,8 @@ model Household {
   stores        Store[]
   chores        Chore[]
   scheduleItems ScheduleEntry[]
+  recipes       Recipe[]
+  weekMenuItems WeekMenuItem[]
 }
 
 model HouseholdMember {
@@ -88,9 +90,11 @@ model ShoppingItem {
   checkedBy String?
   addedBy   String
   note      String?
+  recipeId  String?
   createdAt DateTime      @default(now())
 
-  list ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  list   ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  recipe Recipe?      @relation(fields: [recipeId], references: [id], onDelete: SetNull)
 
   @@index([listId])
 }
@@ -143,6 +147,56 @@ model ScheduleEntry {
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   @@index([householdId, day])
+}
+
+model Recipe {
+  id          String   @id @default(cuid())
+  householdId String
+  title       String
+  description String?
+  sourceUrl   String?
+  imageUrl    String?
+  servings    Int      @default(4)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  household     Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  ingredients   RecipeIngredient[]
+  weekMenuItems WeekMenuItem[]
+  shoppingItems ShoppingItem[]
+
+  @@index([householdId])
+}
+
+model RecipeIngredient {
+  id       String        @id @default(cuid())
+  recipeId String
+  name     String
+  quantity Float?
+  unit     String?
+  category StoreCategory @default(other)
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId])
+}
+
+model WeekMenuItem {
+  id          String   @id @default(cuid())
+  householdId String
+  recipeId    String
+  day         WeekDay?
+  weekYear    Int
+  weekNumber  Int
+  note        String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  recipe    Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([householdId, weekYear, weekNumber])
 }
 
 enum MemberRole {

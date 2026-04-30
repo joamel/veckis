@@ -72,7 +72,7 @@ shoppingRouter.get('/lists', requireAuth, asyncHandler(async (req, res) => {
 
   const lists = await prisma.shoppingList.findMany({
     where: { householdId, completedAt: null },
-    include: { items: { orderBy: { createdAt: 'asc' } }, store: true },
+    include: { items: { orderBy: { createdAt: 'asc' }, include: { recipe: { select: { id: true, title: true } } } }, store: true },
     orderBy: { createdAt: 'desc' },
   });
   res.json(lists);
@@ -85,7 +85,7 @@ shoppingRouter.get('/lists/:listId', requireAuth, asyncHandler(async (req, res) 
 
   const full = await prisma.shoppingList.findUnique({
     where: { id: list.id },
-    include: { items: { orderBy: [{ isChecked: 'asc' }, { category: 'asc' }] }, store: true },
+    include: { items: { orderBy: [{ isChecked: 'asc' }, { category: 'asc' }], include: { recipe: { select: { id: true, title: true } } } }, store: true },
   });
   res.json(full);
 }));

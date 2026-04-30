@@ -12,6 +12,8 @@ import { shoppingRouter } from './routes/shopping';
 import { storesRouter } from './routes/stores';
 import { choresRouter } from './routes/chores';
 import { scheduleRouter } from './routes/schedule';
+import { recipesRouter } from './routes/recipes';
+import { menusRouter } from './routes/menus';
 import { prisma } from './db';
 import { asyncHandler } from './lib/asyncHandler';
 
@@ -47,6 +49,8 @@ app.use('/api/shopping', shoppingRouter);
 app.use('/api/stores', storesRouter);
 app.use('/api/chores', choresRouter);
 app.use('/api/schedule', scheduleRouter);
+app.use('/api/recipes', recipesRouter);
+app.use('/api/menus', menusRouter);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not found' });

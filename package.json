@@ -6,9 +6,6 @@
     "backend",
     "shared"
   ],
-  "overrides": {
-    "react-dom": "18.2.0"
-  },
   "scripts": {
     "dev:backend": "npm run dev --workspace=backend",
     "dev:app": "npm run start --workspace=app",
@@ -18,5 +15,8 @@
     "db:migrate:prod": "npm run db:migrate:prod --workspace=backend",
     "db:seed": "npm run db:seed --workspace=backend",
     "db:studio": "npm run db:studio --workspace=backend"
+  },
+  "dependencies": {
+    "react-dom": "^19.2.5"
   }
 }

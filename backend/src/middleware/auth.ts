@@ -1,8 +1,6 @@
-import { createClerkClient } from '@clerk/backend';
+import { verifyToken } from '@clerk/backend';
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../db';
-
-const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY ?? 'sk_test_placeholder' });
 
 export interface AuthenticatedRequest extends Request {
   clerkUserId: string;
@@ -28,10 +26,11 @@ export async function requireAuth(
   }
 
   try {
-    const payload = await clerk.verifyToken(token);
+    const payload = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
     (req as AuthenticatedRequest).clerkUserId = payload.sub;
     next();
-  } catch {
+  } catch (err) {
+    console.error('Auth error:', err instanceof Error ? err.message : err);
     res.status(401).json({ error: 'Invalid token' });
   }
 }

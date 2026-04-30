@@ -12,22 +12,30 @@ import type {
   ChoreFrequency,
   ScheduleEntry,
   WeekDay,
+  Recipe,
+  RecipeIngredient,
+  WeekMenuItem,
 } from '@veckis/shared';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 export type { StoreCategory, ChoreFrequency, WeekDay };
 
+export type RecipeWithIngredients = Recipe & { ingredients: RecipeIngredient[] };
+export type WeekMenuItemWithRecipe = WeekMenuItem & { recipe: RecipeWithIngredients };
+
 export type HouseholdWithMembers = Household & { members: HouseholdMember[]; stores: Store[] };
 export type MembershipWithHousehold = HouseholdMember & { household: Household };
-export type ShoppingListWithItems = ShoppingList & { items: ShoppingItem[]; store: Store | null };
+export type ShoppingItemWithRecipe = ShoppingItem & { recipe: { id: string; title: string } | null };
+export type ShoppingListWithItems = ShoppingList & { items: ShoppingItemWithRecipe[]; store: Store | null };
 
 export function useApiClient() {
   const { getToken } = useAuth();
 
   async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const token = await getToken();
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const url = `${BASE_URL}${path}`;
+    const res = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -164,5 +172,40 @@ export function useApiClient() {
 
     deleteScheduleEntry: (entryId: string) =>
       request<void>(`/api/schedule/${entryId}`, { method: 'DELETE' }),
+
+    // Recipes
+    getRecipes: (householdId: string) =>
+      request<RecipeWithIngredients[]>(`/api/recipes?householdId=${householdId}`),
+
+    getRecipe: (recipeId: string) =>
+      request<RecipeWithIngredients>(`/api/recipes/${recipeId}`),
+
+    createRecipe: (data: { householdId: string; title: string; description?: string | null; sourceUrl?: string | null; imageUrl?: string | null; servings?: number; ingredients?: Array<{ name: string; quantity?: number | null; unit?: string | null; category?: StoreCategory }> }) =>
+      request<RecipeWithIngredients>('/api/recipes', { method: 'POST', body: JSON.stringify(data) }),
+
+    updateRecipe: (recipeId: string, data: { title?: string; description?: string | null; servings?: number; ingredients?: Array<{ name: string; quantity?: number | null; unit?: string | null; category?: StoreCategory }> }) =>
+      request<RecipeWithIngredients>(`/api/recipes/${recipeId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+    deleteRecipe: (recipeId: string) =>
+      request<void>(`/api/recipes/${recipeId}`, { method: 'DELETE' }),
+
+    scrapeRecipe: (url: string) =>
+      request<{ title: string; description: string | null; imageUrl: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }>('/api/recipes/from-url', { method: 'POST', body: JSON.stringify({ url }) }),
+
+    // Menus
+    getWeekMenu: (householdId: string, weekYear: number, weekNumber: number) =>
+      request<WeekMenuItemWithRecipe[]>(`/api/menus?householdId=${householdId}&weekYear=${weekYear}&weekNumber=${weekNumber}`),
+
+    addToWeekMenu: (data: { householdId: string; recipeId: string; day?: WeekDay | null; weekYear: number; weekNumber: number; note?: string | null }) =>
+      request<WeekMenuItemWithRecipe>('/api/menus', { method: 'POST', body: JSON.stringify(data) }),
+
+    updateWeekMenuItem: (itemId: string, data: { day?: WeekDay | null; note?: string | null }) =>
+      request<WeekMenuItemWithRecipe>(`/api/menus/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+    deleteWeekMenuItem: (itemId: string) =>
+      request<void>(`/api/menus/${itemId}`, { method: 'DELETE' }),
+
+    transferToShopping: (listId: string, ingredients: Array<{ name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string }>) =>
+      request<ShoppingItem[]>('/api/menus/to-shopping', { method: 'POST', body: JSON.stringify({ listId, ingredients }) }),
   };
 }
