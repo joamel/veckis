@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { ChoreFrequency } from '@prisma/client';
+import { ChoreFrequency, WeekDay } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
@@ -12,7 +12,8 @@ const createChoreSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().optional(),
   frequency: z.nativeEnum(ChoreFrequency).default('weekly'),
-  assignedTo: z.string().optional(),
+  assignedTo: z.string().nullable().optional(),
+  day: z.nativeEnum(WeekDay).nullable().optional(),
   isShared: z.boolean().default(true),
 });
 
@@ -21,6 +22,7 @@ const updateChoreSchema = z.object({
   description: z.string().nullable().optional(),
   frequency: z.nativeEnum(ChoreFrequency).optional(),
   assignedTo: z.string().nullable().optional(),
+  day: z.nativeEnum(WeekDay).nullable().optional(),
   isShared: z.boolean().optional(),
 });
 

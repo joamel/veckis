@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Linking,
   Modal,
   Pressable,
   SafeAreaView,
@@ -13,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +28,7 @@ export default function RecipeDetailScreen() {
 
   const [recipe, setRecipe] = useState<RecipeWithIngredients | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scaledServings, setScaledServings] = useState<number | null>(null);
 
   // Ingredient editing
   const [editMode, setEditMode] = useState(false);
@@ -47,6 +48,7 @@ export default function RecipeDetailScreen() {
     try {
       const r = await client.getRecipe(recipeId);
       setRecipe(r);
+      setScaledServings(null);
       if (transfer === '1') openTransfer(r);
     } catch {
       Alert.alert('Fel', 'Kunde inte ladda receptet');
@@ -56,6 +58,14 @@ export default function RecipeDetailScreen() {
   }, [recipeId, transfer]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const displayServings = scaledServings ?? recipe?.servings ?? 1;
+  const scaleRatio = recipe ? displayServings / recipe.servings : 1;
+
+  function adjustServings(delta: number) {
+    if (!recipe) return;
+    setScaledServings(prev => Math.max(1, (prev ?? recipe.servings) + delta));
+  }
 
   function startEdit() {
     if (!recipe) return;
@@ -105,8 +115,7 @@ export default function RecipeDetailScreen() {
     if (!rec || !householdId) return;
     setLoadingLists(true);
     setShowTransfer(true);
-    // Deduplicate ingredients
-    const deduped = deduplicateIngredients(rec.ingredients);
+    const deduped = deduplicateIngredients(rec.ingredients, scaleRatio);
     setDeduplicatedIngredients(deduped);
     setCheckedIds(new Set(deduped.map(i => i.id)));
     try {
@@ -156,7 +165,6 @@ export default function RecipeDetailScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      {/* Header */}
       <View style={s.header}>
         <Pressable onPress={() => router.back()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
@@ -170,14 +178,25 @@ export default function RecipeDetailScreen() {
       <ScrollView contentContainerStyle={s.scroll}>
         {/* Meta */}
         <View style={s.metaRow}>
-          <View style={s.metaChip}>
+          {/* Serving scaler */}
+          <View style={s.servingChip}>
+            <Pressable onPress={() => adjustServings(-1)} style={s.servingBtn} hitSlop={8}>
+              <Ionicons name="remove" size={14} color="#4f46e5" />
+            </Pressable>
             <Ionicons name="people-outline" size={14} color="#6b7280" />
-            <Text style={s.metaText}>{recipe.servings} portioner</Text>
+            <Text style={s.metaText}>{displayServings} port.</Text>
+            <Pressable onPress={() => adjustServings(1)} style={s.servingBtn} hitSlop={8}>
+              <Ionicons name="add" size={14} color="#4f46e5" />
+            </Pressable>
           </View>
+
           {recipe.sourceUrl && (
-            <Pressable style={s.metaChip} onPress={() => Linking.openURL(recipe.sourceUrl!)}>
-              <Ionicons name="link-outline" size={14} color="#4f46e5" />
-              <Text style={[s.metaText, { color: '#4f46e5' }]}>Källan</Text>
+            <Pressable
+              style={s.metaChip}
+              onPress={() => WebBrowser.openBrowserAsync(recipe.sourceUrl!)}
+            >
+              <Ionicons name="open-outline" size={14} color="#4f46e5" />
+              <Text style={[s.metaText, { color: '#4f46e5' }]}>Originalrecept</Text>
             </Pressable>
           )}
         </View>
@@ -248,7 +267,7 @@ export default function RecipeDetailScreen() {
               <View key={ing.id} style={s.ingredientRow}>
                 <View style={s.ingredientBullet} />
                 <Text style={s.ingredientText}>
-                  {formatIngredient(ing)}
+                  {formatIngredient(ing, scaleRatio)}
                 </Text>
               </View>
             ))
@@ -262,9 +281,10 @@ export default function RecipeDetailScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Lägg till i inköpslistan</Text>
-          <Text style={s.sheetSub}>Välj vilka ingredienser du behöver köpa:</Text>
+          <Text style={s.sheetSub}>
+            {scaleRatio !== 1 ? `Skalat till ${displayServings} portioner · ` : ''}Välj vad du behöver köpa:
+          </Text>
 
-          {/* Ingredient checklist */}
           <ScrollView style={s.ingredientList} showsVerticalScrollIndicator={false}>
             {deduplicatedIngredients.map(ing => {
               const checked = checkedIds.has(ing.id);
@@ -276,7 +296,7 @@ export default function RecipeDetailScreen() {
                     color={checked ? '#4f46e5' : '#d1d5db'}
                   />
                   <Text style={[s.checkLabel, !checked && s.checkLabelUnchecked]}>
-                    {formatIngredient(ing)}
+                    {formatIngredient(ing, 1)}
                   </Text>
                 </Pressable>
               );
@@ -322,7 +342,7 @@ export default function RecipeDetailScreen() {
   );
 }
 
-function deduplicateIngredients(ingredients: RecipeIngredient[]) {
+function deduplicateIngredients(ingredients: RecipeIngredient[], scaleRatio: number) {
   const map = new Map<string, RecipeIngredient & { quantity: number | null }>();
   for (const ing of ingredients) {
     const key = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}`;
@@ -333,12 +353,24 @@ function deduplicateIngredients(ingredients: RecipeIngredient[]) {
       map.set(key, { ...ing, quantity: ing.quantity });
     }
   }
-  return [...map.values()];
+  return [...map.values()].map(ing => ({
+    ...ing,
+    quantity: ing.quantity != null ? roundQty(ing.quantity * scaleRatio) : null,
+  }));
 }
 
-function formatIngredient(ing: RecipeIngredient): string {
+function roundQty(n: number): number {
+  if (n % 1 === 0) return n;
+  if (n < 1) return Math.round(n * 4) / 4;
+  return Math.round(n * 2) / 2;
+}
+
+function formatIngredient(ing: { quantity: number | null; unit: string | null; name: string }, scaleRatio = 1): string {
   const parts: string[] = [];
-  if (ing.quantity != null) parts.push(String(ing.quantity % 1 === 0 ? ing.quantity : ing.quantity.toFixed(1)));
+  if (ing.quantity != null) {
+    const scaled = roundQty(ing.quantity * scaleRatio);
+    parts.push(String(scaled % 1 === 0 ? scaled : scaled.toFixed(2).replace(/\.?0+$/, '')));
+  }
   if (ing.unit) parts.push(ing.unit);
   parts.push(ing.name);
   return parts.join(' ');
@@ -354,6 +386,8 @@ const s = StyleSheet.create({
   scroll: { padding: 20, gap: 16 },
   metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   metaChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#f3f4f6', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
+  servingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f3f4f6', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
+  servingBtn: { padding: 2 },
   metaText: { fontSize: 13, color: '#6b7280' },
   description: { fontSize: 14, color: '#374151', lineHeight: 22 },
   section: { gap: 10 },

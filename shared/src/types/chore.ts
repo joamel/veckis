@@ -7,6 +7,7 @@ export interface Chore {
   description: string | null;
   frequency: ChoreFrequency;
   assignedTo: string | null;
+  day: import('./schedule').WeekDay | null;
   isShared: boolean;
   createdBy: string;
   createdAt: string;

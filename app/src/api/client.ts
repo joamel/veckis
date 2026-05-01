@@ -143,10 +143,10 @@ export function useApiClient() {
     getChores: (householdId: string) =>
       request<(Chore & { completions: ChoreCompletion[] })[]>(`/api/chores?householdId=${householdId}`),
 
-    createChore: (data: { householdId: string; title: string; description?: string; frequency?: ChoreFrequency; assignedTo?: string; isShared?: boolean }) =>
+    createChore: (data: { householdId: string; title: string; description?: string; frequency?: ChoreFrequency; assignedTo?: string | null; day?: WeekDay | null; isShared?: boolean }) =>
       request<Chore>('/api/chores', { method: 'POST', body: JSON.stringify(data) }),
 
-    updateChore: (choreId: string, data: Partial<Pick<Chore, 'title' | 'description' | 'frequency' | 'assignedTo' | 'isShared'>>) =>
+    updateChore: (choreId: string, data: Partial<Pick<Chore, 'title' | 'description' | 'frequency' | 'assignedTo' | 'day' | 'isShared'>>) =>
       request<Chore>(`/api/chores/${choreId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteChore: (choreId: string) =>

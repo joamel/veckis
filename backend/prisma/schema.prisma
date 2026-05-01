@@ -107,6 +107,7 @@ model Chore {
   description String?
   frequency   ChoreFrequency @default(weekly)
   assignedTo  String?
+  day         WeekDay?
   isShared    Boolean        @default(true)
   createdBy   String
   createdAt   DateTime       @default(now())
