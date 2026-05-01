@@ -5,6 +5,7 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases } from '../lib/normalizeIngredients';
+import { stripIngredient } from '../lib/stripIngredient';
 
 export const recipesRouter = Router();
 
@@ -135,9 +136,13 @@ recipesRouter.post('/from-url', requireAuth, asyncHandler(async (req, res) => {
 
   try {
     const scraped = await scrapeRecipe(body.data.url);
-    // Fire-and-forget: learn aliases from scraped ingredients
+    // Learn from parsed names before stripping (e.g. "mjöl, siktat" → "mjöl")
     learnIngredientAliases(scraped.ingredients).catch(() => {});
-    res.json(scraped);
+    // Return with normalized names but quantity/unit preserved
+    res.json({
+      ...scraped,
+      ingredients: scraped.ingredients.map(i => ({ ...i, name: stripIngredient(i.name) })),
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Could not scrape recipe';
     res.status(422).json({ error: msg });
