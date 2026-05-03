@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -10,6 +11,7 @@ import {
   Switch,
   Text,
   TextInput,
+  Vibration,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -33,7 +35,93 @@ const DAYS: { key: WeekDay; label: string; short: string }[] = [
 
 const TODAY_DAY = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1].key;
 
+const DRUM_H = 44;
+const HOUR_VALS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const MIN_VALS = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
+
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
+type Member = { id: string; clerkUserId: string; displayName: string };
+
+function hapticTick() {
+  if (Platform.OS === 'android') Vibration.vibrate(8);
+}
+
+function Drum({ values, selected, onSelect }: { values: string[]; selected: number; onSelect: (i: number) => void }) {
+  const scrollRef = useRef<ScrollView>(null);
+  const len = values.length;
+  // 3 copies for seamless wrapping
+  const allValues = useMemo(() => [...values, ...values, ...values], [values]);
+  const liveIndexRef = useRef(selected);
+  const [liveIndex, setLiveIndex] = useState(selected);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: (len + selected) * DRUM_H, animated: false });
+    }, 60);
+    return () => clearTimeout(t);
+  }, []);
+
+  function handleScroll(e: { nativeEvent: { contentOffset: { y: number } } }) {
+    const y = e.nativeEvent.contentOffset.y;
+    const rawIdx = Math.round(y / DRUM_H);
+    const newIdx = ((rawIdx % len) + len) % len;
+    if (newIdx !== liveIndexRef.current) {
+      liveIndexRef.current = newIdx;
+      setLiveIndex(newIdx);
+      hapticTick();
+    }
+  }
+
+  function handleScrollEnd(e: { nativeEvent: { contentOffset: { y: number } } }) {
+    const y = e.nativeEvent.contentOffset.y;
+    const rawIdx = Math.round(y / DRUM_H);
+    const normalIdx = ((rawIdx % len) + len) % len;
+    onSelect(normalIdx);
+    // If drifted to first or last copy, snap back to middle copy silently
+    const targetY = (len + normalIdx) * DRUM_H;
+    if (Math.abs(y - targetY) > 2) {
+      scrollRef.current?.scrollTo({ y: targetY, animated: false });
+    }
+  }
+
+  return (
+    <View style={{ height: DRUM_H * 3, overflow: 'hidden', flex: 1 }}>
+      <ScrollView
+        ref={scrollRef}
+        snapToInterval={DRUM_H}
+        decelerationRate="fast"
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingVertical: DRUM_H }}
+        onScroll={handleScroll}
+        onMomentumScrollEnd={handleScrollEnd}
+      >
+        {allValues.map((val, i) => {
+          const isSelected = (i % len) === liveIndex;
+          return (
+            <View key={i} style={{ height: DRUM_H, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{
+                fontSize: isSelected ? 26 : 17,
+                fontWeight: isSelected ? '700' : '400',
+                color: isSelected ? '#111827' : '#d1d5db',
+              }}>
+                {val}
+              </Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute', top: DRUM_H, left: 0, right: 0,
+          height: DRUM_H,
+          borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#e5e7eb',
+        }}
+      />
+    </View>
+  );
+}
 
 export default function ScheduleScreen() {
   const router = useRouter();
@@ -45,16 +133,28 @@ export default function ScheduleScreen() {
   const [weekRef, setWeekRef] = useState(new Date());
   const { weekYear, weekNumber } = getISOWeek(weekRef);
 
+  const weekMonday = useMemo(() => {
+    const d = new Date(weekRef);
+    const day = d.getDay();
+    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [weekRef]);
+
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
   const [menuItems, setMenuItems] = useState<WeekMenuItemWithRecipe[]>([]);
   const [chores, setChores] = useState<ChoreWithCompletion[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<WeekDay>(TODAY_DAY);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // New entry modal
   const [showModal, setShowModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newTime, setNewTime] = useState('');
+  const [timeEnabled, setTimeEnabled] = useState(false);
+  const [newHour, setNewHour] = useState(12);
+  const [newMinute, setNewMinute] = useState(0);
   const [newDay, setNewDay] = useState<WeekDay>(TODAY_DAY);
   const [newIsShared, setNewIsShared] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -62,22 +162,76 @@ export default function ScheduleScreen() {
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
-      const [scheduleData, menuData, choreData] = await Promise.all([
+      const [scheduleData, menuData, choreData, household] = await Promise.all([
         client.getSchedule(householdId),
         client.getWeekMenu(householdId, weekYear, weekNumber),
         client.getChores(householdId),
+        client.getHousehold(householdId),
       ]);
       setEntries(scheduleData);
       setMenuItems(menuData);
       setChores(choreData as ChoreWithCompletion[]);
+      setMembers(household.members);
     } catch {
       Alert.alert('Fel', 'Kunde inte ladda schemat');
     } finally {
       setLoading(false);
     }
-  }, [householdId, weekYear, weekNumber]);
+  }, [householdId, weekYear, weekNumber, refreshKey]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  // Reset to current week/day on every focus; refreshKey change triggers load via useEffect
+  useFocusEffect(useCallback(() => {
+    setWeekRef(new Date());
+    setSelectedDay(TODAY_DAY);
+    setRefreshKey(k => k + 1);
+  }, []));
+
+  useEffect(() => { load(); }, [load]);
+
+  function getMemberName(clerkUserId: string | null) {
+    if (!clerkUserId) return null;
+    return members.find(m => m.clerkUserId === clerkUserId)?.displayName ?? null;
+  }
+
+  function isDoneOnDay(completions: ChoreCompletion[], day: WeekDay) {
+    return completions.some(c =>
+      c.day === day &&
+      Date.now() - new Date(c.completedAt).getTime() < 86400000
+    );
+  }
+
+  function choreVisibleOnDay(chore: ChoreWithCompletion, day: WeekDay, actualDate: Date): boolean {
+    if (chore.frequency === 'once') return false;
+    if (chore.frequency === 'daily') return true;
+    if (!chore.days.includes(day)) return false;
+    if (chore.frequency === 'weekly') return true;
+    if (chore.frequency === 'biweekly') {
+      const { weekNumber: wn } = getISOWeek(actualDate);
+      return wn % 2 === 0;
+    }
+    // monthly: only first occurrence of this weekday in the month
+    const firstOfMonth = new Date(actualDate.getFullYear(), actualDate.getMonth(), 1);
+    const firstWeekday = firstOfMonth.getDay();
+    const targetWeekday = actualDate.getDay();
+    let offset = targetWeekday - firstWeekday;
+    if (offset < 0) offset += 7;
+    return 1 + offset === actualDate.getDate();
+  }
+
+  async function uncompleteChoreCalendar(chore: ChoreWithCompletion, day: WeekDay) {
+    try {
+      await client.uncompleteChore(chore.id, day);
+      setChores(prev =>
+        prev.map(c => c.id === chore.id
+          ? { ...c, completions: c.completions.filter(comp =>
+              !(comp.day === day && Date.now() - new Date(comp.completedAt).getTime() < 86400000))
+            }
+          : c)
+      );
+    } catch {
+      Alert.alert('Fel', 'Kunde inte avmarkera sysslan');
+    }
+  }
 
   async function createEntry() {
     if (!householdId || !newTitle.trim()) return;
@@ -87,13 +241,17 @@ export default function ScheduleScreen() {
         householdId,
         title: newTitle.trim(),
         day: newDay,
-        startTime: newTime.match(/^\d{2}:\d{2}$/) ? newTime : undefined,
+        startTime: timeEnabled
+          ? `${newHour.toString().padStart(2, '0')}:${MIN_VALS[newMinute]}`
+          : undefined,
         isShared: newIsShared,
       });
       setEntries(prev => [...prev, entry]);
       setShowModal(false);
       setNewTitle('');
-      setNewTime('');
+      setTimeEnabled(false);
+      setNewHour(12);
+      setNewMinute(0);
       setNewIsShared(true);
     } catch {
       Alert.alert('Fel', 'Kunde inte skapa schemapost');
@@ -119,6 +277,34 @@ export default function ScheduleScreen() {
     ]);
   }
 
+  async function completeChoreCalendar(chore: ChoreWithCompletion, day: WeekDay) {
+    try {
+      const completion = await client.completeChore(chore.id, day);
+      setChores(prev =>
+        prev.map(c => c.id === chore.id ? { ...c, completions: [completion, ...c.completions] } : c)
+      );
+    } catch {
+      Alert.alert('Fel', 'Kunde inte markera sysslan');
+    }
+  }
+
+  async function deleteChoreCalendar(choreId: string, title: string) {
+    Alert.alert('Ta bort syssla', `Ta bort "${title}"?`, [
+      { text: 'Avbryt', style: 'cancel' },
+      {
+        text: 'Ta bort', style: 'destructive',
+        onPress: async () => {
+          try {
+            await client.deleteChore(choreId);
+            setChores(prev => prev.filter(c => c.id !== choreId));
+          } catch {
+            Alert.alert('Fel', 'Kunde inte ta bort');
+          }
+        },
+      },
+    ]);
+  }
+
   if (loading) {
     return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
   }
@@ -126,18 +312,22 @@ export default function ScheduleScreen() {
   const visibleEntries = entries.filter(e => e.isShared || e.createdBy === userId);
   const dayEntries = visibleEntries.filter(e => e.day === selectedDay);
   const dayMenu = menuItems.filter(i => i.day === selectedDay);
-  const dayChores = chores.filter(c => c.day === selectedDay);
+  const selectedDayIndex = DAYS.findIndex(d => d.key === selectedDay);
+  const selectedDayDate = new Date(weekMonday.getTime() + selectedDayIndex * 86400000);
+  const dayChores = chores.filter(c => choreVisibleOnDay(c, selectedDay, selectedDayDate));
 
-  const totalPerDay = (day: WeekDay) =>
-    visibleEntries.filter(e => e.day === day).length +
-    menuItems.filter(i => i.day === day).length +
-    chores.filter(c => c.day === day).length;
+  const totalPerDay = (day: WeekDay) => {
+    const idx = DAYS.findIndex(d => d.key === day);
+    const dt = new Date(weekMonday.getTime() + idx * 86400000);
+    return visibleEntries.filter(e => e.day === day).length +
+      menuItems.filter(i => i.day === day).length +
+      chores.filter(c => choreVisibleOnDay(c, day, dt)).length;
+  };
 
   const isEmpty = dayEntries.length === 0 && dayMenu.length === 0 && dayChores.length === 0;
 
   return (
     <SafeAreaView style={s.container}>
-      {/* Header */}
       <View style={s.header}>
         <View>
           <Text style={s.title}>Kalender</Text>
@@ -145,35 +335,37 @@ export default function ScheduleScreen() {
         </View>
       </View>
 
-      {/* Week navigator */}
       <View style={s.weekNav}>
         <Pressable onPress={() => setWeekRef(w => addWeeks(w, -1))} style={s.weekArrow}>
           <Ionicons name="chevron-back" size={20} color="#374151" />
         </Pressable>
-        <Text style={s.weekLabel}>Vecka {weekNumber}, {weekYear}</Text>
+        <Pressable onPress={() => setWeekRef(new Date())}>
+          <Text style={s.weekLabel}>Vecka {weekNumber}, {weekYear}</Text>
+        </Pressable>
         <Pressable onPress={() => setWeekRef(w => addWeeks(w, 1))} style={s.weekArrow}>
           <Ionicons name="chevron-forward" size={20} color="#374151" />
         </Pressable>
       </View>
 
-      {/* Day tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.dayScroll} contentContainerStyle={s.dayScrollContent}>
-        {DAYS.map(day => {
+        {DAYS.map((day, i) => {
           const count = totalPerDay(day.key);
-          const isToday = day.key === TODAY_DAY;
+          const dayDate = new Date(weekMonday.getTime() + i * 86400000);
+          const now = new Date();
+          const isToday = dayDate.getDate() === now.getDate() &&
+            dayDate.getMonth() === now.getMonth() &&
+            dayDate.getFullYear() === now.getFullYear();
+          const isActive = selectedDay === day.key;
+          const dateNum = new Date(weekMonday.getTime() + i * 86400000).getDate();
           return (
             <Pressable
               key={day.key}
-              style={[s.dayTab, selectedDay === day.key && s.dayTabActive]}
+              style={[s.dayTab, isActive && s.dayTabActive, !isActive && count > 0 && s.dayTabHasContent]}
               onPress={() => setSelectedDay(day.key)}
             >
-              <Text style={[s.dayTabShort, selectedDay === day.key && s.dayTabShortActive]}>{day.short}</Text>
-              {count > 0 && (
-                <View style={[s.dayBadge, selectedDay === day.key && s.dayBadgeActive]}>
-                  <Text style={[s.dayBadgeText, selectedDay === day.key && s.dayBadgeTextActive]}>{count}</Text>
-                </View>
-              )}
-              {isToday && <View style={s.todayDot} />}
+              <Text style={[s.dayTabShort, isActive && s.dayTabTextActive]}>{day.short}</Text>
+              <Text style={[s.dayTabDate, isActive && s.dayTabTextActive]}>{dateNum}</Text>
+              {isToday && <View style={[s.todayDot, isActive && s.todayDotActive]} />}
             </Pressable>
           );
         })}
@@ -188,7 +380,6 @@ export default function ScheduleScreen() {
           </View>
         ) : (
           <>
-            {/* Maträtter */}
             {dayMenu.length > 0 && (
               <View style={s.section}>
                 <Text style={s.sectionLabel}>MATRÄTTER</Text>
@@ -208,20 +399,36 @@ export default function ScheduleScreen() {
               </View>
             )}
 
-            {/* Sysslor */}
             {dayChores.length > 0 && (
               <View style={s.section}>
                 <Text style={s.sectionLabel}>SYSSLOR</Text>
-                {dayChores.map(chore => (
-                  <View key={chore.id} style={s.choreCard}>
-                    <Ionicons name="checkmark-circle-outline" size={20} color="#7c3aed" />
-                    <Text style={s.choreTitle}>{chore.title}</Text>
-                  </View>
-                ))}
+                {dayChores.map(chore => {
+                  const done = isDoneOnDay(chore.completions, selectedDay);
+                  const assignedName = getMemberName(chore.assignedTo);
+                  return (
+                    <Pressable
+                      key={chore.id}
+                      style={[s.choreCard, done && s.choreDone]}
+                      onLongPress={() => deleteChoreCalendar(chore.id, chore.title)}
+                    >
+                      <View style={s.choreInfo}>
+                        <Text style={[s.choreTitle, done && s.choreStrike]}>{chore.title}</Text>
+                        {assignedName && (
+                          <Text style={s.choreAssigned}>{assignedName}</Text>
+                        )}
+                      </View>
+                      <Pressable
+                        style={[s.choreCheckBtn, done && s.choreCheckBtnDone]}
+                        onPress={() => done ? uncompleteChoreCalendar(chore, selectedDay) : completeChoreCalendar(chore, selectedDay)}
+                      >
+                        {done && <Ionicons name="checkmark" size={18} color="#fff" />}
+                      </Pressable>
+                    </Pressable>
+                  );
+                })}
               </View>
             )}
 
-            {/* Aktiviteter */}
             {dayEntries.length > 0 && (
               <View style={s.section}>
                 <Text style={s.sectionLabel}>AKTIVITETER</Text>
@@ -258,47 +465,57 @@ export default function ScheduleScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny aktivitet</Text>
-          <TextInput
-            style={s.input}
-            placeholder="Titel, t.ex. Träning"
-            value={newTitle}
-            onChangeText={setNewTitle}
-            autoFocus
-          />
-          <TextInput
-            style={s.input}
-            placeholder="Tid, t.ex. 18:00 (valfritt)"
-            value={newTime}
-            onChangeText={setNewTime}
-            keyboardType="numbers-and-punctuation"
-          />
-          <Text style={s.label}>Dag</Text>
-          <View style={s.dayPickerRow}>
-            {DAYS.map(day => (
-              <Pressable
-                key={day.key}
-                style={[s.dayPickerOption, newDay === day.key && s.dayPickerOptionActive]}
-                onPress={() => setNewDay(day.key)}
-              >
-                <Text style={[s.dayPickerText, newDay === day.key && s.dayPickerTextActive]}>{day.short}</Text>
-              </Pressable>
-            ))}
-          </View>
-          <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => !v)}>
-            <Ionicons name={newIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={newIsShared ? '#4f46e5' : '#9ca3af'} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.sharedLabel}>{newIsShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
-              <Text style={s.sharedSub}>{newIsShared ? 'Syns för alla i hushållet' : 'Syns bara för dig'}</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+            <TextInput
+              style={s.input}
+              placeholder="Titel, t.ex. Träning"
+              value={newTitle}
+              onChangeText={setNewTitle}
+              autoFocus
+            />
+
+            <View style={s.timeToggleRow}>
+              <Text style={s.label}>Tid (valfritt)</Text>
+              <Switch value={timeEnabled} onValueChange={setTimeEnabled} trackColor={{ true: '#4f46e5' }} />
             </View>
-            <Switch value={newIsShared} onValueChange={setNewIsShared} trackColor={{ true: '#4f46e5' }} />
-          </Pressable>
-          <Pressable
-            style={[s.button, !newTitle.trim() && s.buttonDisabled]}
-            onPress={createEntry}
-            disabled={creating || !newTitle.trim()}
-          >
-            {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Lägg till</Text>}
-          </Pressable>
+            {timeEnabled && (
+              <View style={s.drumRow}>
+                <Drum values={HOUR_VALS} selected={newHour} onSelect={setNewHour} />
+                <Text style={s.drumColon}>:</Text>
+                <Drum values={MIN_VALS} selected={newMinute} onSelect={setNewMinute} />
+              </View>
+            )}
+
+            <Text style={s.label}>Dag</Text>
+            <View style={s.dayPickerRow}>
+              {DAYS.map(day => (
+                <Pressable
+                  key={day.key}
+                  style={[s.dayPickerOption, newDay === day.key && s.dayPickerOptionActive]}
+                  onPress={() => setNewDay(day.key)}
+                >
+                  <Text style={[s.dayPickerText, newDay === day.key && s.dayPickerTextActive]}>{day.short}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => !v)}>
+              <Ionicons name={newIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={newIsShared ? '#4f46e5' : '#9ca3af'} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.sharedLabel}>{newIsShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
+                <Text style={s.sharedSub}>{newIsShared ? 'Syns för alla i hushållet' : 'Syns bara för dig'}</Text>
+              </View>
+              <Switch value={newIsShared} onValueChange={setNewIsShared} trackColor={{ true: '#4f46e5' }} />
+            </Pressable>
+
+            <Pressable
+              style={[s.button, !newTitle.trim() && s.buttonDisabled]}
+              onPress={createEntry}
+              disabled={creating || !newTitle.trim()}
+            >
+              {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Lägg till</Text>}
+            </Pressable>
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -314,17 +531,16 @@ const s = StyleSheet.create({
   weekNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   weekArrow: { padding: 4 },
   weekLabel: { fontSize: 15, fontWeight: '600', color: '#374151' },
-  dayScroll: { maxHeight: 72, backgroundColor: '#fff' },
-  dayScrollContent: { paddingHorizontal: 16, paddingBottom: 12, gap: 8, flexDirection: 'row', alignItems: 'flex-start', paddingTop: 8 },
-  dayTab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', alignItems: 'center', gap: 4 },
+  dayScroll: { maxHeight: 82, backgroundColor: '#fff' },
+  dayScrollContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 6, flexDirection: 'row', alignItems: 'flex-start' },
+  dayTab: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', alignItems: 'center', gap: 1, minWidth: 46 },
   dayTabActive: { borderColor: '#4f46e5', backgroundColor: '#4f46e5' },
-  dayTabShort: { fontSize: 14, fontWeight: '500', color: '#6b7280' },
-  dayTabShortActive: { color: '#fff' },
-  dayBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  dayBadgeActive: { backgroundColor: 'rgba(255,255,255,0.3)' },
-  dayBadgeText: { fontSize: 11, fontWeight: '700', color: '#6b7280' },
-  dayBadgeTextActive: { color: '#fff' },
-  todayDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#4f46e5', position: 'absolute', bottom: 4 },
+  dayTabHasContent: { backgroundColor: '#eeecfa', borderColor: '#c7c2f0' },
+  dayTabShort: { fontSize: 11, fontWeight: '500', color: '#9ca3af' },
+  dayTabDate: { fontSize: 16, fontWeight: '700', color: '#374151' },
+  dayTabTextActive: { color: '#fff' },
+  todayDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#4f46e5', marginTop: 1 },
+  todayDotActive: { backgroundColor: 'rgba(255,255,255,0.8)' },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
   contentEmpty: { flex: 1 },
@@ -338,7 +554,13 @@ const s = StyleSheet.create({
   menuTitle: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
   menuMeta: { fontSize: 12, color: '#9ca3af' },
   choreCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  choreTitle: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
+  choreDone: { backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0' },
+  choreInfo: { flex: 1 },
+  choreTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  choreStrike: { textDecorationLine: 'line-through', color: '#9ca3af' },
+  choreAssigned: { fontSize: 12, color: '#7c3aed', marginTop: 2 },
+  choreCheckBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#d1d5db', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+  choreCheckBtnDone: { backgroundColor: '#10b981', borderColor: '#10b981' },
   entryCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#fff', borderRadius: 12, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   entryTime: { width: 44, alignItems: 'center', paddingTop: 2 },
   timeText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
@@ -347,11 +569,15 @@ const s = StyleSheet.create({
   entryDesc: { fontSize: 13, color: '#6b7280', marginTop: 2 },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 14 },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '85%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },
+  sheetScroll: { gap: 14, paddingBottom: 40 },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#f9fafb' },
   label: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  timeToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  drumRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden', paddingHorizontal: 20 },
+  drumColon: { fontSize: 30, fontWeight: '700', color: '#374151', marginHorizontal: 8 },
   dayPickerRow: { flexDirection: 'row', gap: 6 },
   dayPickerOption: { flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', backgroundColor: '#f9fafb' },
   dayPickerOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },

@@ -13,7 +13,7 @@ const createChoreSchema = z.object({
   description: z.string().optional(),
   frequency: z.nativeEnum(ChoreFrequency).default('weekly'),
   assignedTo: z.string().nullable().optional(),
-  day: z.nativeEnum(WeekDay).nullable().optional(),
+  days: z.array(z.nativeEnum(WeekDay)).default([]),
   isShared: z.boolean().default(true),
 });
 
@@ -22,7 +22,7 @@ const updateChoreSchema = z.object({
   description: z.string().nullable().optional(),
   frequency: z.nativeEnum(ChoreFrequency).optional(),
   assignedTo: z.string().nullable().optional(),
-  day: z.nativeEnum(WeekDay).nullable().optional(),
+  days: z.array(z.nativeEnum(WeekDay)).optional(),
   isShared: z.boolean().optional(),
 });
 
@@ -99,7 +99,10 @@ choresRouter.post('/:choreId/complete', requireAuth, asyncHandler(async (req, re
   const chore = await getChoreAndVerifyMember(req.params.choreId, (req as AuthenticatedRequest).clerkUserId, res);
   if (!chore) return;
 
-  const body = z.object({ note: z.string().optional() }).safeParse(req.body);
+  const body = z.object({
+    note: z.string().optional(),
+    day: z.nativeEnum(WeekDay).nullable().optional(),
+  }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const completion = await prisma.choreCompletion.create({
@@ -107,6 +110,7 @@ choresRouter.post('/:choreId/complete', requireAuth, asyncHandler(async (req, re
       choreId: chore.id,
       completedBy: (req as AuthenticatedRequest).clerkUserId,
       note: body.data.note,
+      day: body.data.day ?? null,
     },
   });
   res.status(201).json(completion);
@@ -123,4 +127,20 @@ choresRouter.get('/:choreId/completions', requireAuth, asyncHandler(async (req, 
     take: 50,
   });
   res.json(completions);
+}));
+
+// DELETE /api/chores/:choreId/complete?day=mon  — undo completion within last 24h
+choresRouter.delete('/:choreId/complete', requireAuth, asyncHandler(async (req, res) => {
+  const chore = await getChoreAndVerifyMember(req.params.choreId, (req as AuthenticatedRequest).clerkUserId, res);
+  if (!chore) return;
+
+  const dayRaw = req.query.day;
+  const dayParse = typeof dayRaw === 'string' ? z.nativeEnum(WeekDay).safeParse(dayRaw) : null;
+  const day = dayParse?.success ? dayParse.data : null;
+  const cutoff = new Date(Date.now() - 86400000);
+
+  await prisma.choreCompletion.deleteMany({
+    where: { choreId: chore.id, day, completedAt: { gte: cutoff } },
+  });
+  res.status(204).send();
 }));
