@@ -27,16 +27,18 @@ app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN ?? '*' }));
 app.use(express.json());
 app.use(morgan(isDev ? 'dev' : 'combined'));
-app.use(
-  '/api',
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 200,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Too many requests, please try again later' },
-  }),
-);
+if (!isDev) {
+  app.use(
+    '/api',
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 200,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many requests, please try again later' },
+    }),
+  );
+}
 
 app.get(
   '/health',

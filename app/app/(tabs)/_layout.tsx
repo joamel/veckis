@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 export default function TabLayout() {
   return (
     <Tabs
+      initialRouteName="schedule"
       screenOptions={{
         tabBarActiveTintColor: '#4f46e5',
         tabBarInactiveTintColor: '#999',
@@ -20,20 +21,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="schedule"
-        options={{
-          title: 'Schema',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="chores"
         options={{
           title: 'Sysslor',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="checkmark-circle-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          title: 'Kalender',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size} color={color} />
           ),
         }}
       />

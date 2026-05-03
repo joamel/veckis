@@ -28,9 +28,9 @@ function NavigationGuard() {
     if (!isSignedIn && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
     } else if (isSignedIn && inAuthGroup) {
-      router.replace(householdId ? '/(tabs)/shopping' : '/household/setup');
+      router.replace(householdId ? '/(tabs)/schedule' : '/household/setup');
     } else if (isSignedIn && inSetup && householdId) {
-      router.replace('/(tabs)/shopping');
+      router.replace('/(tabs)/schedule');
     } else if (isSignedIn && !inAuthGroup && !householdId && !inSetup) {
       router.replace('/household/setup');
     }

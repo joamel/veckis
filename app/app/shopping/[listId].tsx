@@ -21,6 +21,13 @@ import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe }
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type StapleItem, type Store } from '@veckis/shared';
 
+const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
+  fruit_veg: '🥦', meat_fish: '🥩', dairy_eggs: '🥛',
+  bread_bakery: '🍞', frozen: '🧊', canned_dry: '🥫',
+  snacks_sweets: '🍫', beverages: '🥤', cleaning: '🧹',
+  personal_care: '🧴', other: '📦',
+};
+
 export default function ShoppingListScreen() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
   const router = useRouter();
@@ -33,6 +40,18 @@ export default function ShoppingListScreen() {
   const [adding, setAdding] = useState(false);
   const [stores, setStores] = useState<Store[]>([]);
   const [staples, setStaples] = useState<StapleItem[]>([]);
+  const [ingredientSuggestions, setIngredientSuggestions] = useState<{ name: string; category: string }[]>([]);
+
+  // Category browser modal
+  const [showBrowser, setShowBrowser] = useState(false);
+  const [browserCategory, setBrowserCategory] = useState<StoreCategory | null>(null);
+
+  // Item edit modal
+  const [editingItem, setEditingItem] = useState<ShoppingItemWithRecipe | null>(null);
+  const [editQty, setEditQty] = useState('');
+  const [editUnit, setEditUnit] = useState('');
+  const [editCategory, setEditCategory] = useState<StoreCategory>('other');
+  const [saving, setSaving] = useState(false);
 
   // Store picker modal
   const [showStorePicker, setShowStorePicker] = useState(false);
@@ -46,7 +65,15 @@ export default function ShoppingListScreen() {
 
   const categoryOrder: StoreCategory[] = (list?.store?.categoryOrder as StoreCategory[]) ?? DEFAULT_CATEGORY_ORDER;
 
-  const fuse = useMemo(() => new Fuse(staples, { keys: ['name'], threshold: 0.35, minMatchCharLength: 1 }), [staples]);
+  const searchList = useMemo(() => {
+    const stapleNames = new Set(staples.map(s => s.name.toLowerCase()));
+    const extra = ingredientSuggestions
+      .filter(s => !stapleNames.has(s.name.toLowerCase()))
+      .map(s => ({ name: s.name, id: `suggestion:${s.name}`, category: s.category } as unknown as StapleItem));
+    return [...staples, ...extra];
+  }, [staples, ingredientSuggestions]);
+
+  const fuse = useMemo(() => new Fuse(searchList, { keys: ['name'], threshold: 0.35, minMatchCharLength: 1 }), [searchList]);
   const suggestions = newItem.trim().length >= 1
     ? fuse.search(newItem).slice(0, 8).map(r => r.item)
     : [];
@@ -54,14 +81,16 @@ export default function ShoppingListScreen() {
   const load = useCallback(async () => {
     if (!listId || !householdId) return;
     try {
-      const [data, storeList, stapleList] = await Promise.all([
+      const [data, storeList, stapleList, suggestions] = await Promise.all([
         client.getShoppingList(listId),
         client.getStores(householdId),
         client.getStaples(householdId),
+        client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
       ]);
       setList(data);
       setStores(storeList);
       setStaples(stapleList);
+      setIngredientSuggestions(suggestions);
     } catch {
       Alert.alert('Fel', 'Kunde inte ladda listan');
     } finally {
@@ -78,7 +107,14 @@ export default function ShoppingListScreen() {
     setNewItem('');
     try {
       const item = await client.addShoppingItem(listId, { name: itemName });
-      setList(prev => prev ? { ...prev, items: [...prev.items, { ...item, recipe: null }] } : prev);
+      setList(prev => {
+        if (!prev) return prev;
+        const exists = prev.items.some(i => i.id === item.id);
+        const updated = exists
+          ? prev.items.map(i => i.id === item.id ? { ...item, recipe: i.recipe } : i)
+          : [...prev.items, { ...item, recipe: null }];
+        return { ...prev, items: updated };
+      });
       // Auto-save to staples
       if (householdId) {
         client.upsertStaple({ householdId, name: itemName }).then(s => {
@@ -107,6 +143,36 @@ export default function ShoppingListScreen() {
       setList(prev =>
         prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? item : i) } : prev
       );
+    }
+  }
+
+  function openEditItem(item: ShoppingItemWithRecipe) {
+    setEditingItem(item);
+    setEditQty(item.quantity !== 1 || item.unit ? String(item.quantity) : '');
+    setEditUnit(item.unit ?? '');
+    setEditCategory(item.category as StoreCategory);
+  }
+
+  async function saveEditItem() {
+    if (!editingItem) return;
+    setSaving(true);
+    const qty = parseFloat(editQty) || 1;
+    const unit = editUnit.trim() || null;
+    try {
+      const updated = await client.updateShoppingItem(editingItem.id, {
+        quantity: qty,
+        unit,
+        category: editCategory,
+      });
+      setList(prev => prev
+        ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: editingItem.recipe } : i) }
+        : prev
+      );
+      setEditingItem(null);
+    } catch {
+      Alert.alert('Fel', 'Kunde inte spara ändringen');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -250,7 +316,7 @@ export default function ShoppingListScreen() {
               <Text style={s.categoryCount}>{group.items.length}</Text>
             </View>
             {group.items.map(item => (
-              <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onDelete={() => deleteItem(item.id)} />
+              <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onDelete={() => deleteItem(item.id)} onEdit={() => openEditItem(item)} />
             ))}
           </View>
         ))}
@@ -263,7 +329,7 @@ export default function ShoppingListScreen() {
               <Text style={s.categoryCount}>{checked.length}</Text>
             </View>
             {checked.map(item => (
-              <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onDelete={() => deleteItem(item.id)} />
+              <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onDelete={() => deleteItem(item.id)} onEdit={() => openEditItem(item)} />
             ))}
           </View>
         )}
@@ -281,6 +347,9 @@ export default function ShoppingListScreen() {
           </ScrollView>
         )}
         <View style={s.addBar}>
+          <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
+            <Ionicons name="grid-outline" size={22} color="#4f46e5" />
+          </Pressable>
           <TextInput
             style={s.addInput}
             placeholder="Lägg till vara..."
@@ -346,6 +415,109 @@ export default function ShoppingListScreen() {
         </View>
       </Modal>
 
+      {/* Category browser modal */}
+      <Modal visible={showBrowser} transparent animationType="slide" onRequestClose={() => setShowBrowser(false)}>
+        <Pressable style={s.overlay} onPress={() => setShowBrowser(false)} />
+        <View style={[s.sheet, s.browserSheet]}>
+          <View style={s.sheetHandle} />
+          {browserCategory === null ? (
+            <>
+              <Text style={s.sheetTitle}>Välj kategori</Text>
+              <View style={s.categoryGrid}>
+                {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
+                  <Pressable key={cat} style={s.categoryTile} onPress={() => setBrowserCategory(cat)}>
+                    <Text style={s.categoryTileEmoji}>{CATEGORY_EMOJIS[cat]}</Text>
+                    <Text style={s.categoryTileLabel}>{CATEGORY_LABELS[cat]}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={s.browserHeader}>
+                <Pressable style={s.browserBack} onPress={() => setBrowserCategory(null)}>
+                  <Ionicons name="chevron-back" size={20} color="#4f46e5" />
+                  <Text style={s.browserBackText}>Tillbaka</Text>
+                </Pressable>
+                <Text style={s.browserTitle}>{CATEGORY_EMOJIS[browserCategory]} {CATEGORY_LABELS[browserCategory]}</Text>
+              </View>
+              <ScrollView style={s.browserList}>
+                {ingredientSuggestions
+                  .filter(s2 => s2.category === browserCategory)
+                  .map(s2 => (
+                    <Pressable
+                      key={s2.name}
+                      style={s.browserItem}
+                      onPress={() => { addItem(s2.name); setShowBrowser(false); }}
+                    >
+                      <Text style={s.browserItemText}>{s2.name}</Text>
+                      <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
+                    </Pressable>
+                  ))
+                }
+              </ScrollView>
+            </>
+          )}
+        </View>
+      </Modal>
+
+      {/* Item edit modal */}
+      <Modal visible={!!editingItem} transparent animationType="slide" onRequestClose={() => setEditingItem(null)}>
+        <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>{editingItem?.name}</Text>
+          <View style={s.editRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.editLabel}>Antal</Text>
+              <TextInput
+                style={s.editInput}
+                value={editQty}
+                onChangeText={setEditQty}
+                keyboardType="decimal-pad"
+                placeholder="1"
+                selectTextOnFocus
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.editLabel}>Enhet</Text>
+              <TextInput
+                style={s.editInput}
+                value={editUnit}
+                onChangeText={setEditUnit}
+                placeholder="g, dl, st…"
+                autoCapitalize="none"
+              />
+            </View>
+          </View>
+          <Text style={s.editLabel}>Kategori</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
+            <View style={s.catChipRow}>
+              {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
+                <Pressable
+                  key={cat}
+                  style={[s.catChip, editCategory === cat && s.catChipActive]}
+                  onPress={() => setEditCategory(cat)}
+                >
+                  <Text style={[s.catChipText, editCategory === cat && s.catChipTextActive]}>
+                    {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+          <View style={s.editActions}>
+            <Pressable style={s.deleteBtn} onPress={() => { setEditingItem(null); if (editingItem) deleteItem(editingItem.id); }}>
+              <Ionicons name="trash-outline" size={18} color="#ef4444" />
+              <Text style={s.deleteBtnText}>Ta bort</Text>
+            </Pressable>
+            <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled, { flex: 1, marginTop: 0 }]} onPress={saveEditItem} disabled={saving}>
+              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Spara</Text>}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       {/* Category order editor */}
       <Modal visible={!!editingStore} transparent animationType="slide" onRequestClose={() => setEditingStore(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingStore(null)} />
@@ -392,22 +564,21 @@ function buildCategoryGroups(items: ShoppingItemWithRecipe[], order: StoreCatego
   return orderedKeys.map(cat => ({ category: cat, items: map.get(cat)! }));
 }
 
-function ItemRow({ item, onToggle, onDelete }: { item: ShoppingItemWithRecipe; onToggle: () => void; onDelete: () => void }) {
+function ItemRow({ item, onToggle, onDelete, onEdit }: { item: ShoppingItemWithRecipe; onToggle: () => void; onDelete: () => void; onEdit: () => void }) {
   return (
     <Pressable
       style={[s.item, item.isChecked && s.itemChecked]}
       onPress={onToggle}
-      onLongPress={() => Alert.alert('Ta bort vara', `Ta bort "${item.name}"?`, [
-        { text: 'Avbryt', style: 'cancel' },
-        { text: 'Ta bort', style: 'destructive', onPress: onDelete },
-      ])}
+      onLongPress={onEdit}
     >
       <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? '#10b981' : '#4f46e5'} />
       <View style={s.itemContent}>
-        <Text style={[s.itemName, item.isChecked && s.itemNameChecked]}>{item.name}</Text>
-        {(item.quantity !== 1 || item.unit) && (
-          <Text style={s.itemQty}>{item.quantity}{item.unit ? ` ${item.unit}` : ''}</Text>
-        )}
+        <View style={s.itemRow}>
+          <Text style={[s.itemName, item.isChecked && s.itemNameChecked]}>{item.name}</Text>
+          {(item.quantity !== 1 || item.unit) && (
+            <Text style={[s.itemQty, item.isChecked && s.itemNameChecked]}>{item.quantity}{item.unit ? ` ${item.unit}` : ''}</Text>
+          )}
+        </View>
       </View>
     </Pressable>
   );
@@ -432,19 +603,21 @@ const s = StyleSheet.create({
   emptySubtext: { fontSize: 13, color: '#9ca3af', marginTop: 4 },
   categoryGroup: { gap: 4 },
   categoryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2, paddingVertical: 4 },
-  categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4f46e5', textTransform: 'uppercase', letterSpacing: 0.6 },
+  categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4f46e5', textTransform: 'uppercase', letterSpacing: 0.6, flex: 1 },
   categoryCount: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
   item: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   itemChecked: { opacity: 0.55 },
   itemContent: { flex: 1 },
-  itemName: { fontSize: 16, color: '#111827' },
+  itemRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
+  itemName: { fontSize: 16, color: '#111827', flex: 1 },
   itemNameChecked: { textDecorationLine: 'line-through', color: '#9ca3af' },
-  itemQty: { fontSize: 13, color: '#6b7280', marginTop: 2 },
+  itemQty: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
   chipScroll: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6', maxHeight: 44 },
   chipRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
   chip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#eef2ff', borderRadius: 20 },
   chipText: { fontSize: 13, color: '#4f46e5', fontWeight: '500' },
-  addBar: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6', gap: 10 },
+  addBar: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6', gap: 10, alignItems: 'center' },
+  browseBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   addInput: { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
   addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center' },
   addBtnDisabled: { opacity: 0.4 },
@@ -466,4 +639,28 @@ const s = StyleSheet.create({
   saveBtn: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center', marginTop: 4 },
   saveBtnDisabled: { opacity: 0.4 },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  editRow: { flexDirection: 'row', gap: 12 },
+  editLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280', marginBottom: 6 },
+  editInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
+  catChipScroll: { marginBottom: 4 },
+  catChipRow: { flexDirection: 'row', gap: 8, paddingVertical: 4 },
+  catChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  catChipActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
+  catChipText: { fontSize: 13, color: '#374151', fontWeight: '500' },
+  catChipTextActive: { color: '#4f46e5', fontWeight: '600' },
+  editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
+  deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
+  browserSheet: { maxHeight: '90%', gap: 0 },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
+  categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },
+  categoryTileEmoji: { fontSize: 28 },
+  categoryTileLabel: { fontSize: 13, fontWeight: '600', color: '#374151', textAlign: 'center' },
+  browserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  browserBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  browserBackText: { fontSize: 14, color: '#4f46e5', fontWeight: '500' },
+  browserTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111827', textAlign: 'right' },
+  browserList: { marginTop: 12, maxHeight: 400 },
+  browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  browserItemText: { flex: 1, fontSize: 16, color: '#111827' },
 });

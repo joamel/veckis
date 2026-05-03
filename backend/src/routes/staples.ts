@@ -4,6 +4,8 @@ import { StoreCategory } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
+import { categorizeIngredient } from '../lib/categorizeIngredient';
+import { COMMON_INGREDIENTS } from '../lib/commonIngredients';
 
 export const staplesRouter = Router();
 
@@ -37,12 +39,42 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
+  const category = body.data.category === 'other'
+    ? categorizeIngredient(body.data.name)
+    : body.data.category;
+
   const staple = await prisma.stapleItem.upsert({
     where: { householdId_name: { householdId: body.data.householdId, name: body.data.name } },
-    create: body.data,
-    update: { category: body.data.category, unit: body.data.unit, defaultQuantity: body.data.defaultQuantity },
+    create: { ...body.data, category },
+    update: { category, unit: body.data.unit, defaultQuantity: body.data.defaultQuantity },
   });
   res.status(201).json(staple);
+}));
+
+// GET /api/staples/suggestions — canonical ingredient names for autocomplete
+staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => {
+  const { householdId } = req.query;
+  if (typeof householdId !== 'string') { res.status(400).json({ error: 'Missing householdId' }); return; }
+
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId, clerkUserId: (req as AuthenticatedRequest).clerkUserId } },
+  });
+  if (!member) { res.status(403).json({ error: 'Not a member' }); return; }
+
+  const aliases = await prisma.ingredientAlias.findMany({
+    distinct: ['canonical'],
+    select: { canonical: true, category: true },
+    orderBy: { seenCount: 'desc' },
+    take: 500,
+  });
+
+  const aliasNames = new Set(aliases.map(a => a.canonical.toLowerCase()));
+  const common = COMMON_INGREDIENTS.filter(c => !aliasNames.has(c.name.toLowerCase()));
+
+  res.json([
+    ...aliases.map(a => ({ name: a.canonical, category: a.category as string })),
+    ...common.map(c => ({ name: c.name, category: c.category as string })),
+  ]);
 }));
 
 // DELETE /api/staples/:stapleId
