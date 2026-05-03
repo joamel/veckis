@@ -5,6 +5,7 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { normalizeIngredientNames } from '../lib/normalizeIngredients';
+import { categorizeIngredient } from '../lib/categorizeIngredient';
 
 export const menusRouter = Router();
 
@@ -152,16 +153,41 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
   });
 
-  const items = await prisma.shoppingItem.createManyAndReturn({
-    data: sorted.map(ing => ({
-      listId: list.id,
-      name: ing.name,
-      quantity: ing.quantity ?? 1,
-      unit: ing.unit,
-      category: ing.category as never,
-      addedBy: clerkUserId,
-      recipeId: ing.recipeId,
-    })),
+  // Merge with existing unchecked items in the list (same name+unit → increment)
+  const existingItems = await prisma.shoppingItem.findMany({
+    where: { listId: list.id, isChecked: false },
   });
-  res.status(201).json(items);
+  const existingKey = (item: { name: string; unit: string | null }) =>
+    `${item.name.toLowerCase().trim()}|${(item.unit ?? '').toLowerCase().trim()}`;
+  const existingMap = new Map(existingItems.map(ei => [existingKey(ei), ei]));
+
+  const toCreate: typeof sorted = [];
+  const toUpdate: { id: string; quantity: number }[] = [];
+  for (const ing of sorted) {
+    const key = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}`;
+    const match = existingMap.get(key);
+    if (match) {
+      toUpdate.push({ id: match.id, quantity: match.quantity + (ing.quantity ?? 1) });
+    } else {
+      toCreate.push(ing);
+    }
+  }
+
+  const [updatedItems, createdItems] = await Promise.all([
+    Promise.all(toUpdate.map(u => prisma.shoppingItem.update({ where: { id: u.id }, data: { quantity: u.quantity } }))),
+    toCreate.length > 0
+      ? prisma.shoppingItem.createManyAndReturn({
+          data: toCreate.map(ing => ({
+            listId: list.id,
+            name: ing.name,
+            quantity: ing.quantity ?? 1,
+            unit: ing.unit,
+            category: (ing.category === 'other' ? categorizeIngredient(ing.name) : ing.category) as never,
+            addedBy: clerkUserId,
+            recipeId: ing.recipeId,
+          })),
+        })
+      : Promise.resolve([]),
+  ]);
+  res.status(201).json([...updatedItems, ...createdItems]);
 }));

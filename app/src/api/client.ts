@@ -219,6 +219,9 @@ export function useApiClient() {
     deleteStaple: (stapleId: string) =>
       request<void>(`/api/staples/${stapleId}`, { method: 'DELETE' }),
 
+    getIngredientSuggestions: (householdId: string) =>
+      request<{ name: string; category: string }[]>(`/api/staples/suggestions?householdId=${householdId}`),
+
     updateShoppingList: (listId: string, data: { name?: string; storeId?: string | null }) =>
       request<ShoppingListWithItems>(`/api/shopping/lists/${listId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   };

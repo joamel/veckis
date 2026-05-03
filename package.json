@@ -17,6 +17,6 @@
     "db:studio": "npm run db:studio --workspace=backend"
   },
   "dependencies": {
-    "react-dom": "^19.2.5"
+    "react": "19.1.0"
   }
 }

@@ -4,6 +4,8 @@ import { StoreCategory } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
+import { categorizeIngredient } from '../lib/categorizeIngredient';
+import { learnIngredientAliases } from '../lib/normalizeIngredients';
 
 export const shoppingRouter = Router();
 
@@ -138,9 +140,37 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   const body = addItemSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const item = await prisma.shoppingItem.create({
-    data: { listId: list.id, ...body.data, addedBy: (req as AuthenticatedRequest).clerkUserId },
+  const category = body.data.category === 'other'
+    ? categorizeIngredient(body.data.name)
+    : body.data.category;
+
+  // If an unchecked item with the same name+unit already exists, increment its quantity
+  const existing = await prisma.shoppingItem.findFirst({
+    where: {
+      listId: list.id,
+      name: { equals: body.data.name, mode: 'insensitive' },
+      unit: body.data.unit ?? null,
+      isChecked: false,
+    },
   });
+
+  if (existing) {
+    const item = await prisma.shoppingItem.update({
+      where: { id: existing.id },
+      data: { quantity: existing.quantity + (body.data.quantity ?? 1) },
+    });
+    learnIngredientAliases([{ name: body.data.name, category }]).catch(() => {});
+    res.status(200).json(item);
+    return;
+  }
+
+  const item = await prisma.shoppingItem.create({
+    data: { listId: list.id, ...body.data, category, addedBy: (req as AuthenticatedRequest).clerkUserId },
+  });
+
+  // Learn this item for future suggestions (fire-and-forget)
+  learnIngredientAliases([{ name: body.data.name, category }]).catch(() => {});
+
   res.status(201).json(item);
 }));
 

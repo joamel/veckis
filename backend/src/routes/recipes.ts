@@ -83,6 +83,19 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
     },
     include: { ingredients: true },
   });
+
+  // Learn ingredients as household staples (fire-and-forget)
+  prisma.stapleItem.createMany({
+    data: recipe.ingredients.map(ing => ({
+      householdId: body.data.householdId,
+      name: ing.name,
+      category: ing.category,
+      unit: ing.unit ?? undefined,
+      defaultQuantity: ing.quantity ?? undefined,
+    })),
+    skipDuplicates: true,
+  }).catch(() => {});
+
   res.status(201).json(recipe);
 }));
 
