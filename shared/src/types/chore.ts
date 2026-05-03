@@ -7,7 +7,7 @@ export interface Chore {
   description: string | null;
   frequency: ChoreFrequency;
   assignedTo: string | null;
-  day: import('./schedule').WeekDay | null;
+  days: import('./schedule').WeekDay[];
   isShared: boolean;
   createdBy: string;
   createdAt: string;
@@ -19,4 +19,5 @@ export interface ChoreCompletion {
   completedBy: string;
   completedAt: string;
   note: string | null;
+  day: import('./schedule').WeekDay | null;
 }

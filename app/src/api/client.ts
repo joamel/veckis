@@ -143,23 +143,28 @@ export function useApiClient() {
     getChores: (householdId: string) =>
       request<(Chore & { completions: ChoreCompletion[] })[]>(`/api/chores?householdId=${householdId}`),
 
-    createChore: (data: { householdId: string; title: string; description?: string; frequency?: ChoreFrequency; assignedTo?: string | null; day?: WeekDay | null; isShared?: boolean }) =>
+    createChore: (data: { householdId: string; title: string; description?: string; frequency?: ChoreFrequency; assignedTo?: string | null; days?: WeekDay[]; isShared?: boolean }) =>
       request<Chore>('/api/chores', { method: 'POST', body: JSON.stringify(data) }),
 
-    updateChore: (choreId: string, data: Partial<Pick<Chore, 'title' | 'description' | 'frequency' | 'assignedTo' | 'day' | 'isShared'>>) =>
+    updateChore: (choreId: string, data: Partial<Pick<Chore, 'title' | 'description' | 'frequency' | 'assignedTo' | 'days' | 'isShared'>>) =>
       request<Chore>(`/api/chores/${choreId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteChore: (choreId: string) =>
       request<void>(`/api/chores/${choreId}`, { method: 'DELETE' }),
 
-    completeChore: (choreId: string, note?: string) =>
+    completeChore: (choreId: string, day?: WeekDay | null, note?: string) =>
       request<ChoreCompletion>(`/api/chores/${choreId}/complete`, {
         method: 'POST',
-        body: JSON.stringify({ note }),
+        body: JSON.stringify({ day, note }),
       }),
 
     getChoreCompletions: (choreId: string) =>
       request<ChoreCompletion[]>(`/api/chores/${choreId}/completions`),
+
+    uncompleteChore: (choreId: string, day?: WeekDay | null) => {
+      const qs = day ? `?day=${day}` : '';
+      return request<void>(`/api/chores/${choreId}/complete${qs}`, { method: 'DELETE' });
+    },
 
     // Schedule
     getSchedule: (householdId: string) =>

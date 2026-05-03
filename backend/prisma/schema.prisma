@@ -107,7 +107,7 @@ model Chore {
   description String?
   frequency   ChoreFrequency @default(weekly)
   assignedTo  String?
-  day         WeekDay?
+  days        WeekDay[]
   isShared    Boolean        @default(true)
   createdBy   String
   createdAt   DateTime       @default(now())
@@ -125,6 +125,7 @@ model ChoreCompletion {
   completedBy String
   completedAt DateTime @default(now())
   note        String?
+  day         WeekDay?
 
   chore Chore @relation(fields: [choreId], references: [id], onDelete: Cascade)
 
