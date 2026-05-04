@@ -576,7 +576,7 @@ function ItemRow({ item, onToggle, onDelete, onEdit }: { item: ShoppingItemWithR
         <View style={s.itemRow}>
           <Text style={[s.itemName, item.isChecked && s.itemNameChecked]}>{item.name}</Text>
           {(item.quantity !== 1 || item.unit) && (
-            <Text style={[s.itemQty, item.isChecked && s.itemNameChecked]}>{item.quantity}{item.unit ? ` ${item.unit}` : ''}</Text>
+            <Text style={[s.itemQty, item.isChecked && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}</Text>
           )}
         </View>
       </View>

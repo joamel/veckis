@@ -369,7 +369,7 @@ function formatIngredient(ing: { quantity: number | null; unit: string | null; n
   const parts: string[] = [];
   if (ing.quantity != null) {
     const scaled = roundQty(ing.quantity * scaleRatio);
-    parts.push(String(scaled % 1 === 0 ? scaled : scaled.toFixed(2).replace(/\.?0+$/, '')));
+    parts.push(String(scaled % 1 === 0 ? scaled : scaled.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')));
   }
   if (ing.unit) parts.push(ing.unit);
   parts.push(ing.name);

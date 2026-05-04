@@ -21,7 +21,7 @@ import type { Chore, ChoreCompletion, ChoreFrequency, WeekDay } from '@veckis/sh
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 
 const FREQ_LABELS: Record<ChoreFrequency, string> = {
-  once: 'Engång',
+  once: 'En gång',
   daily: 'Dagligen',
   weekly: 'Varje vecka',
   biweekly: 'Varannan vecka',
@@ -328,17 +328,15 @@ export default function ChoresScreen() {
             >
               <View style={s.cardContent}>
                 <Text style={[s.cardTitle, done && s.cardTitleDone]}>{item.title}</Text>
-                <Text style={s.cardMeta} numberOfLines={2}>
-                  <Text style={s.metaFreq}>{FREQ_LABELS[item.frequency]}</Text>
-                  {item.frequency !== 'daily' && item.days.length > 0
-                    ? <Text style={s.metaDays}>{' · ' + item.days.map(d => DAYS.find(x => x.key === d)?.short).join(', ')}</Text>
-                    : null}
-                  {assignedName
-                    ? <Text style={s.metaPerson}>{' · ' + assignedName}</Text>
-                    : null}
-                  {lastCompletion
-                    ? <Text style={s.metaLast}>{' · ' + daysSince(lastCompletion.completedAt)}</Text>
-                    : null}
+                <Text style={s.cardMeta}>
+                  {[
+                    FREQ_LABELS[item.frequency],
+                    item.frequency !== 'daily' && item.days.length > 0
+                      ? item.days.map(d => DAYS.find(x => x.key === d)?.short).join(', ')
+                      : null,
+                    assignedName,
+                    lastCompletion ? daysSince(lastCompletion.completedAt) : null,
+                  ].filter(Boolean).join(' · ')}
                 </Text>
               </View>
               {item.frequency === 'once' && (
@@ -534,11 +532,7 @@ const s = StyleSheet.create({
   cardContent: { flex: 1, minWidth: 0 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
   cardTitleDone: { textDecorationLine: 'line-through', color: '#9ca3af' },
-  cardMeta: { fontSize: 12, color: '#6b7280', marginTop: 4 },
-  metaFreq: { fontSize: 12, color: '#6b7280' },
-  metaDays: { fontSize: 12, color: '#4f46e5', fontWeight: '600' },
-  metaPerson: { fontSize: 12, color: '#7c3aed', fontWeight: '600' },
-  metaLast: { fontSize: 12, color: '#9ca3af' },
+  cardMeta: { fontSize: 12, color: '#6b7280', marginTop: 4, flexWrap: 'wrap' },
   checkBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#d1d5db', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   checkBtnDone: { backgroundColor: '#10b981', borderColor: '#10b981' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
