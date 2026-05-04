@@ -23,6 +23,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "37425b58-c8af-45be-aac8-c26bbdfaa3d1"
+      }
+    },
+    "owner": "joamel"
   }
 }
