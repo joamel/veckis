@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: veckis-backend
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install && npm run build:shared && npm run db:generate --workspace=backend && npm run build --workspace=backend
+    startCommand: npm run db:migrate:prod --workspace=backend && npm run start --workspace=backend
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        value: "*"
