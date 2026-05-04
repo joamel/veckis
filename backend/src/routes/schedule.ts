@@ -21,7 +21,9 @@ const createEntrySchema = z.object({
   recurrenceWeeks: z.number().int().min(1).default(1),
 });
 
-const updateEntrySchema = createEntrySchema.omit({ householdId: true }).partial();
+const updateEntrySchema = createEntrySchema.omit({ householdId: true }).partial().extend({
+  startTime: z.string().regex(timeRegex).nullish(),
+});
 
 async function getEntryAndVerifyMember(entryId: string, clerkUserId: string, res: Response) {
   const entry = await prisma.scheduleEntry.findUnique({ where: { id: entryId } });

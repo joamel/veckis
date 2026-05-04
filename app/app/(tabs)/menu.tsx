@@ -15,7 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients } from '../../src/api/client';
+import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { getISOWeek, addWeeks } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
@@ -59,8 +59,10 @@ export default function MenuScreen() {
 
   const [menuItems, setMenuItems] = useState<WeekMenuItemWithRecipe[]>([]);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
+  const [shoppingLists, setShoppingLists] = useState<ShoppingListWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [transferredRecipeIds, setTransferredRecipeIds] = useState<Set<string>>(new Set());
+  const [transferSheet, setTransferSheet] = useState<WeekMenuItemWithRecipe | null>(null);
   // Per-recipe: which lists have items from it
   type ListEntry = { listId: string; listName: string; itemIds: string[] };
   const [recipeListMap, setRecipeListMap] = useState<Record<string, ListEntry[]>>({});
@@ -83,6 +85,7 @@ export default function MenuScreen() {
       ]);
       setMenuItems(menu);
       setRecipes(recs);
+      setShoppingLists(activeLists);
       const transferred = new Set<string>();
       const listMap: Record<string, ListEntry[]> = {};
       activeLists.forEach(l => {
@@ -194,6 +197,25 @@ export default function MenuScreen() {
     }
   }
 
+  async function doTransfer(listId: string) {
+    if (!transferSheet) return;
+    const recipe = transferSheet.recipe;
+    setTransferSheet(null);
+    try {
+      await client.transferToShopping(listId, recipe.ingredients.map(ing => ({
+        name: ing.name,
+        quantity: ing.quantity ?? null,
+        unit: ing.unit ?? null,
+        category: ing.category ?? undefined,
+        recipeId: recipe.id,
+      })));
+      setTransferredRecipeIds(prev => new Set([...prev, recipe.id]));
+      load();
+    } catch {
+      Alert.alert('Fel', 'Kunde inte lägga till ingredienserna');
+    }
+  }
+
   async function moveToDay(item: WeekMenuItemWithRecipe, day: WeekDay | null) {
     try {
       const updated = await client.updateWeekMenuItem(item.id, { day });
@@ -270,9 +292,6 @@ export default function MenuScreen() {
                   <Text style={s.dayLabel}>{day.label}</Text>
                   <Text style={s.dayDate}>{dateLabel}</Text>
                 </View>
-                <Pressable onPress={() => openPicker(day.key as WeekDay)}>
-                  <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
-                </Pressable>
               </View>
               {items.map(item => (
                 <MenuCard
@@ -281,7 +300,7 @@ export default function MenuScreen() {
                   isTransferred={transferredRecipeIds.has(item.recipeId)}
                   onRemove={() => removeFromMenu(item)}
                   onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
-                  onTransfer={() => router.push(`/recipes/${item.recipeId}?transfer=1` as never)}
+                  onTransfer={() => setTransferSheet(item)}
                   onRemoveFromList={() => removeFromShoppingList(item.recipeId)}
                   onMoveToDay={d => moveToDay(item, d)}
                 />
@@ -444,6 +463,24 @@ export default function MenuScreen() {
               <Text style={s.cleanupConfirmText}>Ta bort från valda</Text>
             </Pressable>
           </View>
+        </View>
+      </Modal>
+      {/* Transfer to shopping list modal */}
+      <Modal visible={!!transferSheet} transparent animationType="slide" onRequestClose={() => setTransferSheet(null)}>
+        <Pressable style={s.overlay} onPress={() => setTransferSheet(null)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Välj inköpslista</Text>
+          {shoppingLists.length === 0 ? (
+            <Text style={s.pickerEmptyText}>Ingen aktiv inköpslista — skapa en först</Text>
+          ) : (
+            shoppingLists.map(l => (
+              <Pressable key={l.id} style={s.pickerItem} onPress={() => doTransfer(l.id)}>
+                <Text style={s.pickerItemTitle}>{l.name}</Text>
+                <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
+              </Pressable>
+            ))
+          )}
         </View>
       </Modal>
     </SafeAreaView>

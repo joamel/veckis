@@ -159,6 +159,22 @@ export default function ScheduleScreen() {
   const [newIsShared, setNewIsShared] = useState(true);
   const [creating, setCreating] = useState(false);
 
+  // Edit entry modal
+  const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
+  const [editEntryTitle, setEditEntryTitle] = useState('');
+  const [editEntryTimeEnabled, setEditEntryTimeEnabled] = useState(false);
+  const [editEntryHour, setEditEntryHour] = useState(12);
+  const [editEntryMinute, setEditEntryMinute] = useState(0);
+  const [editEntryDay, setEditEntryDay] = useState<WeekDay>(TODAY_DAY);
+  const [editEntryIsShared, setEditEntryIsShared] = useState(true);
+  const [savingEntry, setSavingEntry] = useState(false);
+
+  // Edit chore modal (from calendar)
+  const [editingCalChore, setEditingCalChore] = useState<ChoreWithCompletion | null>(null);
+  const [editCalChoreTitle, setEditCalChoreTitle] = useState('');
+  const [editCalChoreAssignedTo, setEditCalChoreAssignedTo] = useState<string | null>(null);
+  const [savingCalChore, setSavingCalChore] = useState(false);
+
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
@@ -305,6 +321,70 @@ export default function ScheduleScreen() {
     ]);
   }
 
+  function openEditEntry(entry: ScheduleEntry) {
+    setEditingEntry(entry);
+    setEditEntryTitle(entry.title);
+    setEditEntryDay(entry.day);
+    setEditEntryIsShared(entry.isShared);
+    if (entry.startTime) {
+      const [h, m] = entry.startTime.split(':').map(Number);
+      setEditEntryTimeEnabled(true);
+      setEditEntryHour(h);
+      setEditEntryMinute(Math.round(m / 5));
+    } else {
+      setEditEntryTimeEnabled(false);
+      setEditEntryHour(12);
+      setEditEntryMinute(0);
+    }
+  }
+
+  async function saveEditEntry() {
+    if (!editingEntry || !editEntryTitle.trim()) return;
+    setSavingEntry(true);
+    try {
+      const updated = await client.updateScheduleEntry(editingEntry.id, {
+        title: editEntryTitle.trim(),
+        day: editEntryDay,
+        startTime: editEntryTimeEnabled
+          ? `${editEntryHour.toString().padStart(2, '0')}:${MIN_VALS[editEntryMinute]}`
+          : null,
+        isShared: editEntryIsShared,
+      });
+      setEntries(prev => prev.map(e => e.id === updated.id ? updated : e));
+      setEditingEntry(null);
+    } catch {
+      Alert.alert('Fel', 'Kunde inte spara aktiviteten');
+    } finally {
+      setSavingEntry(false);
+    }
+  }
+
+  function openEditCalChore(chore: ChoreWithCompletion) {
+    setEditingCalChore(chore);
+    setEditCalChoreTitle(chore.title);
+    setEditCalChoreAssignedTo(chore.assignedTo);
+  }
+
+  async function saveCalChore() {
+    if (!editingCalChore || !editCalChoreTitle.trim()) return;
+    setSavingCalChore(true);
+    try {
+      await client.updateChore(editingCalChore.id, {
+        title: editCalChoreTitle.trim(),
+        assignedTo: editCalChoreAssignedTo,
+      });
+      setChores(prev => prev.map(c => c.id === editingCalChore.id
+        ? { ...c, title: editCalChoreTitle.trim(), assignedTo: editCalChoreAssignedTo }
+        : c
+      ));
+      setEditingCalChore(null);
+    } catch {
+      Alert.alert('Fel', 'Kunde inte spara sysslan');
+    } finally {
+      setSavingCalChore(false);
+    }
+  }
+
   if (loading) {
     return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
   }
@@ -347,7 +427,7 @@ export default function ScheduleScreen() {
         </Pressable>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.dayScroll} contentContainerStyle={s.dayScrollContent}>
+      <View style={s.dayRow}>
         {DAYS.map((day, i) => {
           const count = totalPerDay(day.key);
           const dayDate = new Date(weekMonday.getTime() + i * 86400000);
@@ -369,7 +449,7 @@ export default function ScheduleScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       <ScrollView style={s.content} contentContainerStyle={[s.contentInner, isEmpty && s.contentEmpty]}>
         {isEmpty ? (
@@ -409,7 +489,7 @@ export default function ScheduleScreen() {
                     <Pressable
                       key={chore.id}
                       style={[s.choreCard, done && s.choreDone]}
-                      onLongPress={() => deleteChoreCalendar(chore.id, chore.title)}
+                      onLongPress={() => openEditCalChore(chore)}
                     >
                       <View style={s.choreInfo}>
                         <Text style={[s.choreTitle, done && s.choreStrike]}>{chore.title}</Text>
@@ -436,12 +516,12 @@ export default function ScheduleScreen() {
                   <Pressable
                     key={entry.id}
                     style={s.entryCard}
-                    onLongPress={() => deleteEntry(entry.id, entry.title)}
+                    onLongPress={() => openEditEntry(entry)}
                   >
                     <View style={s.entryTime}>
                       {entry.startTime
                         ? <Text style={s.timeText}>{entry.startTime}</Text>
-                        : <Ionicons name="time-outline" size={18} color="#9ca3af" />}
+                        : <Text style={s.timeTextMuted}>Heldag</Text>}
                     </View>
                     <View style={s.entryContent}>
                       <Text style={s.entryTitle}>{entry.title}</Text>
@@ -459,6 +539,115 @@ export default function ScheduleScreen() {
       <Pressable style={s.fab} onPress={() => { setNewDay(selectedDay); setShowModal(true); }}>
         <Ionicons name="add" size={30} color="#fff" />
       </Pressable>
+
+      {/* Edit entry modal */}
+      <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
+        <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Redigera aktivitet</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+            <TextInput
+              style={s.input}
+              placeholder="Titel"
+              value={editEntryTitle}
+              onChangeText={setEditEntryTitle}
+            />
+            <View style={s.timeToggleRow}>
+              <Text style={s.label}>Tid (valfritt)</Text>
+              <Switch value={editEntryTimeEnabled} onValueChange={setEditEntryTimeEnabled} trackColor={{ true: '#4f46e5' }} />
+            </View>
+            {editEntryTimeEnabled && (
+              <View style={s.drumRow}>
+                <Drum values={HOUR_VALS} selected={editEntryHour} onSelect={setEditEntryHour} />
+                <Text style={s.drumColon}>:</Text>
+                <Drum values={MIN_VALS} selected={editEntryMinute} onSelect={setEditEntryMinute} />
+              </View>
+            )}
+            <Text style={s.label}>Dag</Text>
+            <View style={s.dayPickerRow}>
+              {DAYS.map(day => (
+                <Pressable
+                  key={day.key}
+                  style={[s.dayPickerOption, editEntryDay === day.key && s.dayPickerOptionActive]}
+                  onPress={() => setEditEntryDay(day.key)}
+                >
+                  <Text style={[s.dayPickerText, editEntryDay === day.key && s.dayPickerTextActive]}>{day.short}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable style={s.sharedRow} onPress={() => setEditEntryIsShared(v => !v)}>
+              <Ionicons name={editEntryIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={editEntryIsShared ? '#4f46e5' : '#9ca3af'} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.sharedLabel}>{editEntryIsShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
+                <Text style={s.sharedSub}>{editEntryIsShared ? 'Syns för alla i hushållet' : 'Syns bara för dig'}</Text>
+              </View>
+              <Switch value={editEntryIsShared} onValueChange={setEditEntryIsShared} trackColor={{ true: '#4f46e5' }} />
+            </Pressable>
+            <View style={s.editModalActions}>
+              <Pressable style={s.deleteActionBtn} onPress={() => { setEditingEntry(null); if (editingEntry) deleteEntry(editingEntry.id, editingEntry.title); }}>
+                <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                <Text style={s.deleteActionText}>Ta bort</Text>
+              </Pressable>
+              <Pressable
+                style={[s.button, { flex: 1, marginTop: 0 }, (!editEntryTitle.trim() || savingEntry) && s.buttonDisabled]}
+                onPress={saveEditEntry}
+                disabled={savingEntry || !editEntryTitle.trim()}
+              >
+                {savingEntry ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Spara</Text>}
+              </Pressable>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Edit chore from calendar modal */}
+      <Modal visible={!!editingCalChore} transparent animationType="slide" onRequestClose={() => setEditingCalChore(null)}>
+        <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Redigera syssla</Text>
+          <View style={s.sheetScroll}>
+            <TextInput
+              style={s.input}
+              placeholder="Titel"
+              value={editCalChoreTitle}
+              onChangeText={setEditCalChoreTitle}
+            />
+            <Text style={s.label}>Ansvarig</Text>
+            <View style={s.memberPickerRow}>
+              <Pressable
+                style={[s.memberOption, editCalChoreAssignedTo === null && s.memberOptionActive]}
+                onPress={() => setEditCalChoreAssignedTo(null)}
+              >
+                <Text style={[s.memberOptionText, editCalChoreAssignedTo === null && s.memberOptionTextActive]}>Ingen</Text>
+              </Pressable>
+              {members.map(m => (
+                <Pressable
+                  key={m.id}
+                  style={[s.memberOption, editCalChoreAssignedTo === m.clerkUserId && s.memberOptionActive]}
+                  onPress={() => setEditCalChoreAssignedTo(m.clerkUserId)}
+                >
+                  <Text style={[s.memberOptionText, editCalChoreAssignedTo === m.clerkUserId && s.memberOptionTextActive]}>{m.displayName}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <View style={s.editModalActions}>
+              <Pressable style={s.deleteActionBtn} onPress={() => { setEditingCalChore(null); if (editingCalChore) deleteChoreCalendar(editingCalChore.id, editingCalChore.title); }}>
+                <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                <Text style={s.deleteActionText}>Ta bort</Text>
+              </Pressable>
+              <Pressable
+                style={[s.button, { flex: 1, marginTop: 0 }, (!editCalChoreTitle.trim() || savingCalChore) && s.buttonDisabled]}
+                onPress={saveCalChore}
+                disabled={savingCalChore || !editCalChoreTitle.trim()}
+              >
+                {savingCalChore ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Spara</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
@@ -531,13 +720,12 @@ const s = StyleSheet.create({
   weekNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   weekArrow: { padding: 4 },
   weekLabel: { fontSize: 15, fontWeight: '600', color: '#374151' },
-  dayScroll: { maxHeight: 82, backgroundColor: '#fff' },
-  dayScrollContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 6, flexDirection: 'row', alignItems: 'flex-start' },
-  dayTab: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', alignItems: 'center', gap: 1, minWidth: 46 },
+  dayRow: { flexDirection: 'row', backgroundColor: '#fff', paddingHorizontal: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 4 },
+  dayTab: { flex: 1, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', alignItems: 'center', gap: 1 },
   dayTabActive: { borderColor: '#4f46e5', backgroundColor: '#4f46e5' },
   dayTabHasContent: { backgroundColor: '#eeecfa', borderColor: '#c7c2f0' },
-  dayTabShort: { fontSize: 11, fontWeight: '500', color: '#9ca3af' },
-  dayTabDate: { fontSize: 16, fontWeight: '700', color: '#374151' },
+  dayTabShort: { fontSize: 10, fontWeight: '500', color: '#9ca3af' },
+  dayTabDate: { fontSize: 14, fontWeight: '700', color: '#374151' },
   dayTabTextActive: { color: '#fff' },
   todayDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#4f46e5', marginTop: 1 },
   todayDotActive: { backgroundColor: 'rgba(255,255,255,0.8)' },
@@ -564,6 +752,7 @@ const s = StyleSheet.create({
   entryCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#fff', borderRadius: 12, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   entryTime: { width: 44, alignItems: 'center', paddingTop: 2 },
   timeText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
+  timeTextMuted: { fontSize: 10, color: '#9ca3af', fontStyle: 'italic' },
   entryContent: { flex: 1 },
   entryTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
   entryDesc: { fontSize: 13, color: '#6b7280', marginTop: 2 },
@@ -589,4 +778,12 @@ const s = StyleSheet.create({
   button: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  editModalActions: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  deleteActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 14, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
+  deleteActionText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
+  memberPickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  memberOption: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  memberOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  memberOptionText: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  memberOptionTextActive: { color: '#4f46e5', fontWeight: '600' },
 });

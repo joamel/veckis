@@ -48,6 +48,7 @@ export default function ShoppingListScreen() {
 
   // Item edit modal
   const [editingItem, setEditingItem] = useState<ShoppingItemWithRecipe | null>(null);
+  const [editName, setEditName] = useState('');
   const [editQty, setEditQty] = useState('');
   const [editUnit, setEditUnit] = useState('');
   const [editCategory, setEditCategory] = useState<StoreCategory>('other');
@@ -148,6 +149,7 @@ export default function ShoppingListScreen() {
 
   function openEditItem(item: ShoppingItemWithRecipe) {
     setEditingItem(item);
+    setEditName(item.name);
     setEditQty(item.quantity !== 1 || item.unit ? String(item.quantity) : '');
     setEditUnit(item.unit ?? '');
     setEditCategory(item.category as StoreCategory);
@@ -160,6 +162,7 @@ export default function ShoppingListScreen() {
     const unit = editUnit.trim() || null;
     try {
       const updated = await client.updateShoppingItem(editingItem.id, {
+        name: editName.trim() || editingItem.name,
         quantity: qty,
         unit,
         category: editCategory,
@@ -466,7 +469,14 @@ export default function ShoppingListScreen() {
         <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>{editingItem?.name}</Text>
+          <Text style={s.editLabel}>Namn</Text>
+          <TextInput
+            style={s.editInput}
+            value={editName}
+            onChangeText={setEditName}
+            placeholder="Varunamn"
+            autoCapitalize="sentences"
+          />
           <View style={s.editRow}>
             <View style={{ flex: 1 }}>
               <Text style={s.editLabel}>Antal</Text>
