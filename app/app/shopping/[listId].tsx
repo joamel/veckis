@@ -1,8 +1,10 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import Fuse from 'fuse.js';
 import {
   ActivityIndicator,
   Alert,
+  GestureResponderEvent,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,6 +14,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -45,7 +48,6 @@ export default function ShoppingListScreen() {
   // Category browser modal
   const [showBrowser, setShowBrowser] = useState(false);
   const [browserCategory, setBrowserCategory] = useState<StoreCategory | null>(null);
-  const [browserSearch, setBrowserSearch] = useState('');
 
   // Item edit modal
   const [editingItem, setEditingItem] = useState<ShoppingItemWithRecipe | null>(null);
@@ -64,6 +66,8 @@ export default function ShoppingListScreen() {
   const [editingStore, setEditingStore] = useState<Store | null>(null);
   const [editCategoryOrder, setEditCategoryOrder] = useState<StoreCategory[]>([]);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   const categoryOrder: StoreCategory[] = (list?.store?.categoryOrder as StoreCategory[]) ?? DEFAULT_CATEGORY_ORDER;
 
@@ -102,11 +106,20 @@ export default function ShoppingListScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   async function addItem(name?: string) {
     let itemName = (name ?? newItem).trim().toLowerCase();
     if (!listId || !itemName) return;
     setAdding(true);
-    setNewItem('');
+    Keyboard.dismiss();
     try {
       const item = await client.addShoppingItem(listId, { name: itemName });
       setList(prev => {
@@ -117,6 +130,7 @@ export default function ShoppingListScreen() {
           : [...prev.items, { ...item, recipe: null }];
         return { ...prev, items: updated };
       });
+      setNewItem('');
       // Auto-save to staples
       if (householdId) {
         client.upsertStaple({ householdId, name: itemName }).then(s => {
@@ -126,8 +140,8 @@ export default function ShoppingListScreen() {
           });
         }).catch(() => {});
       }
-    } catch {
-      setNewItem(itemName);
+    } catch (err) {
+      console.error('Failed to add item:', err);
       Alert.alert('Fel', 'Kunde inte lägga till vara');
     } finally {
       setAdding(false);
@@ -191,17 +205,13 @@ export default function ShoppingListScreen() {
     }
   }
 
-  async function clearList() {
-    if (!listId || list?.items.length === 0) return;
-    Alert.alert('Rensa alla varor?', `${list?.items.length} varor tas bort. Listan behålls.`, [
+  async function completeList() {
+    if (!listId) return;
+    Alert.alert('Markera klar?', 'Listan arkiveras och tas bort från vyn.', [
       { text: 'Avbryt', style: 'cancel' },
-      { text: 'Rensa', style: 'destructive', onPress: async () => {
-        try {
-          await Promise.all(list!.items.map(item => client.deleteShoppingItem(item.id)));
-          setList(prev => prev ? { ...prev, items: [] } : null);
-        } catch {
-          Alert.alert('Fel', 'Kunde inte rensa listan');
-        }
+      { text: 'Markera klar', onPress: async () => {
+        try { await client.completeShoppingList(listId); router.back(); }
+        catch { Alert.alert('Fel', 'Kunde inte markera listan som klar'); }
       }},
     ]);
   }
@@ -296,8 +306,8 @@ export default function ShoppingListScreen() {
             <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
           </Pressable>
         </View>
-        <Pressable onPress={clearList} style={s.doneBtn}>
-          <Ionicons name="trash-outline" size={24} color="#4f46e5" />
+        <Pressable onPress={completeList} style={s.doneBtn}>
+          <Ionicons name="checkmark-done-outline" size={24} color="#4f46e5" />
         </Pressable>
       </View>
 
@@ -345,21 +355,32 @@ export default function ShoppingListScreen() {
       </ScrollView>
 
       {/* Autocomplete chips + add bar */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        enabled={keyboardVisible}
+      >
         {suggestions.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll} contentContainerStyle={s.chipRow}>
-            {suggestions.map(s2 => (
-              <Pressable key={s2.id} style={s.chip} onPress={() => addItem(s2.name)}>
-                <Text style={s.chipText}>{s2.name}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          <View style={s.chipScroll}>
+            <View style={s.chipRow}>
+              {suggestions.map(s2 => (
+                <TouchableOpacity
+                  key={s2.id}
+                  style={s.chip}
+                  onPress={() => addItem(s2.name)}
+                >
+                  <Text style={s.chipText}>{s2.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         )}
         <View style={s.addBar}>
           <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
             <Ionicons name="grid-outline" size={22} color="#4f46e5" />
           </Pressable>
           <TextInput
+            ref={inputRef}
             style={s.addInput}
             placeholder="Lägg till vara..."
             value={newItem}
@@ -425,34 +446,34 @@ export default function ShoppingListScreen() {
       </Modal>
 
       {/* Category browser modal */}
-      <Modal visible={showBrowser} transparent animationType="slide" onRequestClose={() => { setShowBrowser(false); setBrowserSearch(''); }}>
-        <Pressable style={s.overlay} onPress={() => { setShowBrowser(false); setBrowserSearch(''); }} />
-        <View style={s.browserModalContainer}>
-          <ScrollView style={[s.sheet, s.browserSheet]} bounces={false}>
-            <View style={s.sheetHandle} />
-            {browserCategory === null ? (
-              <>
-                <Text style={s.sheetTitle}>Välj kategori</Text>
-                <View style={s.categoryGrid}>
-                  {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
-                    <Pressable key={cat} style={s.categoryTile} onPress={() => setBrowserCategory(cat)}>
-                      <Text style={s.categoryTileEmoji}>{CATEGORY_EMOJIS[cat]}</Text>
-                      <Text style={s.categoryTileLabel}>{CATEGORY_LABELS[cat]}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </>
-            ) : (
-              <View style={s.browserContainer}>
-                <View style={s.browserHeader}>
-                  <Pressable style={s.browserBack} onPress={() => { setBrowserCategory(null); setBrowserSearch(''); }}>
-                    <Ionicons name="chevron-back" size={20} color="#4f46e5" />
-                    <Text style={s.browserBackText}>Tillbaka</Text>
+      <Modal visible={showBrowser} transparent animationType="slide" onRequestClose={() => setShowBrowser(false)}>
+        <Pressable style={s.overlay} onPress={() => setShowBrowser(false)} />
+        <View style={[s.sheet, s.browserSheet]}>
+          <View style={s.sheetHandle} />
+          {browserCategory === null ? (
+            <>
+              <Text style={s.sheetTitle}>Välj kategori</Text>
+              <View style={s.categoryGrid}>
+                {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
+                  <Pressable key={cat} style={s.categoryTile} onPress={() => setBrowserCategory(cat)}>
+                    <Text style={s.categoryTileEmoji}>{CATEGORY_EMOJIS[cat]}</Text>
+                    <Text style={s.categoryTileLabel}>{CATEGORY_LABELS[cat]}</Text>
                   </Pressable>
-                  <Text style={s.browserTitle}>{CATEGORY_EMOJIS[browserCategory]} {CATEGORY_LABELS[browserCategory]}</Text>
-                </View>
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={s.browserHeader}>
+                <Pressable style={s.browserBack} onPress={() => setBrowserCategory(null)}>
+                  <Ionicons name="chevron-back" size={20} color="#4f46e5" />
+                  <Text style={s.browserBackText}>Tillbaka</Text>
+                </Pressable>
+                <Text style={s.browserTitle}>{CATEGORY_EMOJIS[browserCategory]} {CATEGORY_LABELS[browserCategory]}</Text>
+              </View>
+              <ScrollView style={s.browserList}>
                 {ingredientSuggestions
-                  .filter(s2 => s2.category === browserCategory && s2.name.toLowerCase().includes(browserSearch.toLowerCase()))
+                  .filter(s2 => s2.category === browserCategory)
                   .map(s2 => (
                     <Pressable
                       key={s2.name}
@@ -464,35 +485,16 @@ export default function ShoppingListScreen() {
                     </Pressable>
                   ))
                 }
-              </View>
-            )}
-          </ScrollView>
+              </ScrollView>
+            </>
+          )}
         </View>
       </Modal>
-
-      {/* Search field below modal - visible always */}
-      {showBrowser && browserCategory && (
-        <View style={s.browserSearchContainer}>
-          <TextInput
-            style={s.browserSearchInput}
-            placeholder="Sök ingredienser..."
-            value={browserSearch}
-            onChangeText={setBrowserSearch}
-            returnKeyType="done"
-            autoFocus
-          />
-        </View>
-      )}
 
       {/* Item edit modal */}
       <Modal visible={!!editingItem} transparent animationType="slide" onRequestClose={() => setEditingItem(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
-          style={{ flex: 1, justifyContent: 'flex-end' }}
-        >
-          <View style={s.sheet}>
+        <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.editLabel}>Namn</Text>
           <TextInput
@@ -550,8 +552,7 @@ export default function ShoppingListScreen() {
               {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Spara</Text>}
             </Pressable>
           </View>
-          </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Category order editor */}
@@ -687,19 +688,16 @@ const s = StyleSheet.create({
   editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
-  browserModalContainer: { flex: 1, justifyContent: 'flex-end' },
-  browserSheet: { maxHeight: '70%', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 0 },
-  browserSearchContainer: { backgroundColor: '#fff', padding: 12, borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingBottom: 40 },
-  browserSearchInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: '#f9fafb' },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16, paddingHorizontal: 24 },
+  browserSheet: { maxHeight: '90%', gap: 0 },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },
   categoryTileEmoji: { fontSize: 28 },
   categoryTileLabel: { fontSize: 13, fontWeight: '600', color: '#374151', textAlign: 'center' },
-  browserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, paddingHorizontal: 24 },
+  browserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
   browserBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   browserBackText: { fontSize: 14, color: '#4f46e5', fontWeight: '500' },
   browserTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111827', textAlign: 'right' },
-  browserContainer: { paddingHorizontal: 24 },
+  browserList: { marginTop: 12, maxHeight: 400 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   browserItemText: { flex: 1, fontSize: 16, color: '#111827' },
 });
