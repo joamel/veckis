@@ -674,7 +674,7 @@ const s = StyleSheet.create({
   editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
-  browserSheet: { maxHeight: '95%', gap: 12, paddingBottom: 24 },
+  browserSheet: { gap: 12, paddingBottom: 24, flexShrink: 1 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },
   categoryTileEmoji: { fontSize: 28 },

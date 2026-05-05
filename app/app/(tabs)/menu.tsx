@@ -210,7 +210,37 @@ export default function MenuScreen() {
       Alert.alert('Ingen lista', 'Skapa en inköpslista först');
       return;
     }
-    setTransferSheet(menuItems[0]);
+
+    // Show list picker to choose which list to add to
+    Alert.alert('Välj inköpslista', '', [
+      { text: 'Avbryt', style: 'cancel' },
+      ...shoppingLists.map(l => ({
+        text: `${l.name} (${l.items.length} varor)`,
+        onPress: async () => {
+          try {
+            // Collect all ingredients from all recipes this week
+            const allIngredients: { name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string }[] = [];
+            for (const item of menuItems) {
+              for (const ing of item.recipe.ingredients) {
+                allIngredients.push({
+                  name: ing.name,
+                  quantity: ing.quantity ?? null,
+                  unit: ing.unit ?? null,
+                  category: ing.category,
+                  recipeId: item.recipeId,
+                });
+              }
+            }
+            await client.transferToShopping(l.id, allIngredients);
+            setTransferredRecipeIds(prev => new Set([...prev, ...menuItems.map(m => m.recipeId)]));
+            load();
+            Alert.alert('Klart', `${menuItems.length} rätter överförda till ${l.name}`);
+          } catch {
+            Alert.alert('Fel', 'Kunde inte överföra ingredienserna');
+          }
+        },
+      })),
+    ]);
   }
 
   async function doTransfer(listId: string) {
