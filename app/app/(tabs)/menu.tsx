@@ -65,7 +65,6 @@ export default function MenuScreen() {
   const [loading, setLoading] = useState(true);
   const [transferredRecipeIds, setTransferredRecipeIds] = useState<Set<string>>(new Set());
   const [transferSheet, setTransferSheet] = useState<WeekMenuItemWithRecipe | null>(null);
-  const [showCreateList, setShowCreateList] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [creatingList, setCreatingList] = useState(false);
   // Per-recipe: which lists have items from it
@@ -202,18 +201,16 @@ export default function MenuScreen() {
     }
   }
 
-  async function createListAndTransfer() {
-    if (!householdId || !newListName.trim() || !transferSheet) return;
-    setCreatingList(true);
-    try {
-      const list = await client.createShoppingList({ householdId, name: newListName.trim() });
-      await doTransfer(list.id);
-      setNewListName('');
-    } catch {
-      Alert.alert('Fel', 'Kunde inte skapa lista och överföra ingredienser');
-    } finally {
-      setCreatingList(false);
+  async function transferWeekMenu() {
+    if (menuItems.length === 0) {
+      Alert.alert('Tomt', 'Ingen rätt planerad denna vecka');
+      return;
     }
+    if (shoppingLists.length === 0) {
+      Alert.alert('Ingen lista', 'Skapa en inköpslista först');
+      return;
+    }
+    setTransferSheet(menuItems[0]);
   }
 
   async function doTransfer(listId: string) {
@@ -363,9 +360,9 @@ export default function MenuScreen() {
         )}
 
         <View style={s.newListSection}>
-          <Pressable style={s.newListBtn} onPress={() => { setNewListName(''); setShowCreateList(true); }}>
-            <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
-            <Text style={s.newListBtnText}>Ny inköpslista</Text>
+          <Pressable style={s.newListBtn} onPress={transferWeekMenu}>
+            <Ionicons name="cart-outline" size={20} color="#4f46e5" />
+            <Text style={s.newListBtnText}>Överför veckomeny till inköpslista</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -510,53 +507,6 @@ export default function MenuScreen() {
         </View>
       </Modal>
 
-      {/* Create list modal */}
-      <Modal visible={showCreateList} transparent animationType="slide" onRequestClose={() => setShowCreateList(false)}>
-        <Pressable style={s.overlay} onPress={() => setShowCreateList(false)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Ny inköpslista</Text>
-          <TextInput
-            style={s.input}
-            placeholder="Listans namn..."
-            value={newListName}
-            onChangeText={setNewListName}
-            returnKeyType="done"
-            onSubmitEditing={async () => {
-              if (!householdId || !newListName.trim()) return;
-              try {
-                await client.createShoppingList({ householdId, name: newListName.trim() });
-                setNewListName('');
-                setShowCreateList(false);
-                load();
-              } catch {
-                Alert.alert('Fel', 'Kunde inte skapa lista');
-              }
-            }}
-            autoFocus
-          />
-          <Pressable
-            style={[s.button, (!newListName.trim() || creatingList) && s.buttonDisabled]}
-            onPress={async () => {
-              if (!householdId || !newListName.trim()) return;
-              setCreatingList(true);
-              try {
-                await client.createShoppingList({ householdId, name: newListName.trim() });
-                setNewListName('');
-                setShowCreateList(false);
-                load();
-              } catch {
-                Alert.alert('Fel', 'Kunde inte skapa lista');
-              } finally {
-                setCreatingList(false);
-              }
-            }}
-            disabled={creatingList || !newListName.trim()}
-          >
-            {creatingList ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Skapa lista</Text>}
-          </Pressable>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

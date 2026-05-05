@@ -683,9 +683,9 @@ const s = StyleSheet.create({
   browserBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   browserBackText: { fontSize: 14, color: '#4f46e5', fontWeight: '500' },
   browserTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111827', textAlign: 'right' },
-  browserContainer: { flex: 1, flexDirection: 'column', gap: 12 },
-  browserSearch: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
-  browserList: { flex: 1, minHeight: 200 },
+  browserContainer: { flex: 1, flexDirection: 'column', gap: 8 },
+  browserSearch: { height: 48, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, fontSize: 16, backgroundColor: '#f9fafb', flexShrink: 0 },
+  browserList: { flex: 1 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   browserItemText: { flex: 1, fontSize: 16, color: '#111827' },
 });
