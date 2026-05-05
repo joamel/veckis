@@ -16,14 +16,14 @@
 - [ ] När man lägger till en inköpslista borde man kunna välja butik direkt -> skapa butik om den inte finns
 - [ ] Även kunna redigera namnet på ingrediensen när man long pressar
 - [ ] Försöka slå ihop ingredienser även om de har olika mått (2 dl + 1,5 msk osv) och namn (mjölk <=> standardmjölk osv)
-- [ ] Om man vill lägga till egen vara i inköpslistan borde den söka på befintliga för att underlätta tilläggning, samt lägga till varan i d2atabasen om den inte redan finns (förutsatt att man lägger till en kategori)
-- [ ] Byt punkt mot komma i ingredienser (1.5 tsk -> 1,5 tsk)
+- [ ] Om man vill lägga till egen vara i inköpslistan borde den söka på befintliga för att underlätta tilläggning, samt lägga till varan i databasen om den inte redan finns (förutsatt att man lägger till en kategori)
+- [x] Byt punkt mot komma i ingredienser (1.5 tsk -> 1,5 tsk)
 - [ ] Lägga till basvara med mängd +/- och förbestämd enhet med möjlighet att ändra
-- [ ] Gemener när man skriver in Ingredienser mm. Även basvaror bör vara med gemener
-- [ ] Kunna skapa en inköpslista när man trycker att man vill överföra till inköpslista
-- [ ] Ha kvar sökfältet när man klickar på basvaruknappen
+- [x] Gemener när man skriver in Ingredienser mm. Även basvaror bör vara med gemener
+- [x] Kunna skapa en inköpslista när man trycker att man vill överföra till inköpslista
+- [x] Ha kvar sökfältet när man klickar på basvaruknappen
 - [ ] Tar man bort maträtt från inköpslista tas inte ingredienser bort som även delas med andra recept (Ex: 4 ägg i inköpslistan ligger kvar om man tar bort pannkakor [3 av 4 äggen])
-- [ ] Möjlighet att rensa inköpslista när man är klar istället för att arkivera den
+- [x] Möjlighet att rensa inköpslista när man är klar istället för att arkivera den
 
 ### Meny
 - [ ] Varna om man lägger till samma rätt igen under samma veckomeny

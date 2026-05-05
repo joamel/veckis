@@ -45,6 +45,7 @@ export default function ShoppingListScreen() {
   // Category browser modal
   const [showBrowser, setShowBrowser] = useState(false);
   const [browserCategory, setBrowserCategory] = useState<StoreCategory | null>(null);
+  const [browserSearch, setBrowserSearch] = useState('');
 
   // Item edit modal
   const [editingItem, setEditingItem] = useState<ShoppingItemWithRecipe | null>(null);
@@ -201,6 +202,21 @@ export default function ShoppingListScreen() {
     ]);
   }
 
+  async function clearList() {
+    if (!listId || list?.items.length === 0) return;
+    Alert.alert('Rensa listan?', `Ta bort alla ${list?.items.length} varor från listan utan att arkivera den.`, [
+      { text: 'Avbryt', style: 'cancel' },
+      { text: 'Rensa', style: 'destructive', onPress: async () => {
+        try {
+          await Promise.all(list!.items.map(item => client.deleteShoppingItem(item.id)));
+          setList(prev => prev ? { ...prev, items: [] } : null);
+        } catch {
+          Alert.alert('Fel', 'Kunde inte rensa listan');
+        }
+      }},
+    ]);
+  }
+
   async function selectStore(storeId: string | null) {
     if (!listId) return;
     try {
@@ -291,7 +307,7 @@ export default function ShoppingListScreen() {
             <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
           </Pressable>
         </View>
-        <Pressable onPress={completeList} style={s.doneBtn}>
+        <Pressable onPress={completeList} onLongPress={clearList} style={s.doneBtn}>
           <Ionicons name="checkmark-done-outline" size={24} color="#4f46e5" />
         </Pressable>
       </View>
@@ -421,7 +437,7 @@ export default function ShoppingListScreen() {
 
       {/* Category browser modal */}
       <Modal visible={showBrowser} transparent animationType="slide" onRequestClose={() => setShowBrowser(false)}>
-        <Pressable style={s.overlay} onPress={() => setShowBrowser(false)} />
+        <Pressable style={s.overlay} onPress={() => { setShowBrowser(false); setBrowserSearch(''); }} />
         <View style={[s.sheet, s.browserSheet]}>
           <View style={s.sheetHandle} />
           {browserCategory === null ? (
@@ -439,15 +455,22 @@ export default function ShoppingListScreen() {
           ) : (
             <>
               <View style={s.browserHeader}>
-                <Pressable style={s.browserBack} onPress={() => setBrowserCategory(null)}>
+                <Pressable style={s.browserBack} onPress={() => { setBrowserCategory(null); setBrowserSearch(''); }}>
                   <Ionicons name="chevron-back" size={20} color="#4f46e5" />
                   <Text style={s.browserBackText}>Tillbaka</Text>
                 </Pressable>
                 <Text style={s.browserTitle}>{CATEGORY_EMOJIS[browserCategory]} {CATEGORY_LABELS[browserCategory]}</Text>
               </View>
+              <TextInput
+                style={s.browserSearch}
+                placeholder="Sök ingredienser..."
+                value={browserSearch}
+                onChangeText={setBrowserSearch}
+                returnKeyType="done"
+              />
               <ScrollView style={s.browserList}>
                 {ingredientSuggestions
-                  .filter(s2 => s2.category === browserCategory)
+                  .filter(s2 => s2.category === browserCategory && s2.name.toLowerCase().includes(browserSearch.toLowerCase()))
                   .map(s2 => (
                     <Pressable
                       key={s2.name}
@@ -671,6 +694,7 @@ const s = StyleSheet.create({
   browserBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   browserBackText: { fontSize: 14, color: '#4f46e5', fontWeight: '500' },
   browserTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111827', textAlign: 'right' },
+  browserSearch: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb', marginBottom: 12 },
   browserList: { marginTop: 12, maxHeight: 400 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   browserItemText: { flex: 1, fontSize: 16, color: '#111827' },

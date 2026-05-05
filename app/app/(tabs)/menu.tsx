@@ -64,6 +64,8 @@ export default function MenuScreen() {
   const [loading, setLoading] = useState(true);
   const [transferredRecipeIds, setTransferredRecipeIds] = useState<Set<string>>(new Set());
   const [transferSheet, setTransferSheet] = useState<WeekMenuItemWithRecipe | null>(null);
+  const [newListName, setNewListName] = useState('');
+  const [creatingList, setCreatingList] = useState(false);
   // Per-recipe: which lists have items from it
   type ListEntry = { listId: string; listName: string; itemIds: string[] };
   const [recipeListMap, setRecipeListMap] = useState<Record<string, ListEntry[]>>({});
@@ -195,6 +197,20 @@ export default function MenuScreen() {
       setRecipeListMap(prev => { const n = { ...prev }; delete n[recipeId]; return n; });
     } catch {
       Alert.alert('Fel', 'Kunde inte ta bort ingredienserna');
+    }
+  }
+
+  async function createListAndTransfer() {
+    if (!householdId || !newListName.trim() || !transferSheet) return;
+    setCreatingList(true);
+    try {
+      const list = await client.createShoppingList({ householdId, name: newListName.trim() });
+      await doTransfer(list.id);
+      setNewListName('');
+    } catch {
+      Alert.alert('Fel', 'Kunde inte skapa lista och överföra ingredienser');
+    } finally {
+      setCreatingList(false);
     }
   }
 
@@ -472,16 +488,29 @@ export default function MenuScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Välj inköpslista</Text>
-          {shoppingLists.length === 0 ? (
-            <Text style={s.pickerEmptyText}>Ingen aktiv inköpslista — skapa en först</Text>
-          ) : (
-            shoppingLists.map(l => (
-              <Pressable key={l.id} style={s.pickerItem} onPress={() => doTransfer(l.id)}>
-                <Text style={s.pickerItemTitle}>{l.name}</Text>
-                <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
-              </Pressable>
-            ))
-          )}
+          {shoppingLists.map(l => (
+            <Pressable key={l.id} style={s.pickerItem} onPress={() => doTransfer(l.id)}>
+              <Text style={s.pickerItemTitle}>{l.name}</Text>
+              <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
+            </Pressable>
+          ))}
+          <View style={s.newListRow}>
+            <TextInput
+              style={[s.input, { flex: 1 }]}
+              placeholder="Ny lista..."
+              value={newListName}
+              onChangeText={setNewListName}
+              returnKeyType="done"
+              onSubmitEditing={createListAndTransfer}
+            />
+            <Pressable
+              style={[s.button, (!newListName.trim() || creatingList) && s.buttonDisabled]}
+              onPress={createListAndTransfer}
+              disabled={creatingList || !newListName.trim()}
+            >
+              {creatingList ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="add" size={20} color="#fff" />}
+            </Pressable>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -673,4 +702,8 @@ const s = StyleSheet.create({
   cleanupConfirm: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: '#ef4444' },
   cleanupConfirmDisabled: { opacity: 0.4 },
   cleanupConfirmText: { fontSize: 15, fontWeight: '600', color: '#fff' },
+  newListRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: '#f9fafb' },
+  button: { backgroundColor: '#4f46e5', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', minWidth: 44 },
+  buttonDisabled: { opacity: 0.4 },
 });
