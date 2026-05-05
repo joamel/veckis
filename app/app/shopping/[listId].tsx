@@ -427,38 +427,30 @@ export default function ShoppingListScreen() {
       {/* Category browser modal */}
       <Modal visible={showBrowser} transparent animationType="slide" onRequestClose={() => { setShowBrowser(false); setBrowserSearch(''); }}>
         <Pressable style={s.overlay} onPress={() => { setShowBrowser(false); setBrowserSearch(''); }} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.browserModalContainer}>
-          <View style={[s.sheet, s.browserSheet]}>
-          <View style={s.sheetHandle} />
-          {browserCategory === null ? (
-            <>
-              <Text style={s.sheetTitle}>Välj kategori</Text>
-              <View style={s.categoryGrid}>
-                {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
-                  <Pressable key={cat} style={s.categoryTile} onPress={() => setBrowserCategory(cat)}>
-                    <Text style={s.categoryTileEmoji}>{CATEGORY_EMOJIS[cat]}</Text>
-                    <Text style={s.categoryTileLabel}>{CATEGORY_LABELS[cat]}</Text>
+        <View style={s.browserModalContainer}>
+          <ScrollView style={[s.sheet, s.browserSheet]} bounces={false}>
+            <View style={s.sheetHandle} />
+            {browserCategory === null ? (
+              <>
+                <Text style={s.sheetTitle}>Välj kategori</Text>
+                <View style={s.categoryGrid}>
+                  {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
+                    <Pressable key={cat} style={s.categoryTile} onPress={() => setBrowserCategory(cat)}>
+                      <Text style={s.categoryTileEmoji}>{CATEGORY_EMOJIS[cat]}</Text>
+                      <Text style={s.categoryTileLabel}>{CATEGORY_LABELS[cat]}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            ) : (
+              <View style={s.browserContainer}>
+                <View style={s.browserHeader}>
+                  <Pressable style={s.browserBack} onPress={() => { setBrowserCategory(null); setBrowserSearch(''); }}>
+                    <Ionicons name="chevron-back" size={20} color="#4f46e5" />
+                    <Text style={s.browserBackText}>Tillbaka</Text>
                   </Pressable>
-                ))}
-              </View>
-            </>
-          ) : (
-            <View style={s.browserContainer}>
-              <View style={s.browserHeader}>
-                <Pressable style={s.browserBack} onPress={() => { setBrowserCategory(null); setBrowserSearch(''); }}>
-                  <Ionicons name="chevron-back" size={20} color="#4f46e5" />
-                  <Text style={s.browserBackText}>Tillbaka</Text>
-                </Pressable>
-                <Text style={s.browserTitle}>{CATEGORY_EMOJIS[browserCategory]} {CATEGORY_LABELS[browserCategory]}</Text>
-              </View>
-              <TextInput
-                style={s.browserSearch}
-                placeholder="Sök ingredienser..."
-                value={browserSearch}
-                onChangeText={setBrowserSearch}
-                returnKeyType="done"
-              />
-              <ScrollView style={s.browserList}>
+                  <Text style={s.browserTitle}>{CATEGORY_EMOJIS[browserCategory]} {CATEGORY_LABELS[browserCategory]}</Text>
+                </View>
                 {ingredientSuggestions
                   .filter(s2 => s2.category === browserCategory && s2.name.toLowerCase().includes(browserSearch.toLowerCase()))
                   .map(s2 => (
@@ -472,17 +464,34 @@ export default function ShoppingListScreen() {
                     </Pressable>
                   ))
                 }
-              </ScrollView>
-            </View>
-          )}
-          </View>
-        </KeyboardAvoidingView>
+              </View>
+            )}
+          </ScrollView>
+        </View>
       </Modal>
+
+      {/* Search field below modal - visible always */}
+      {showBrowser && browserCategory && (
+        <View style={s.browserSearchContainer}>
+          <TextInput
+            style={s.browserSearchInput}
+            placeholder="Sök ingredienser..."
+            value={browserSearch}
+            onChangeText={setBrowserSearch}
+            returnKeyType="done"
+            autoFocus
+          />
+        </View>
+      )}
 
       {/* Item edit modal */}
       <Modal visible={!!editingItem} transparent animationType="slide" onRequestClose={() => setEditingItem(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+          style={{ flex: 1, justifyContent: 'flex-end' }}
+        >
           <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.editLabel}>Namn</Text>
@@ -679,18 +688,18 @@ const s = StyleSheet.create({
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
   browserModalContainer: { flex: 1, justifyContent: 'flex-end' },
-  browserSheet: { gap: 12, paddingBottom: 40, maxHeight: '85%', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
+  browserSheet: { maxHeight: '70%', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 0 },
+  browserSearchContainer: { backgroundColor: '#fff', padding: 12, borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingBottom: 40 },
+  browserSearchInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: '#f9fafb' },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16, paddingHorizontal: 24 },
   categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },
   categoryTileEmoji: { fontSize: 28 },
   categoryTileLabel: { fontSize: 13, fontWeight: '600', color: '#374151', textAlign: 'center' },
-  browserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  browserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, paddingHorizontal: 24 },
   browserBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   browserBackText: { fontSize: 14, color: '#4f46e5', fontWeight: '500' },
   browserTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111827', textAlign: 'right' },
-  browserContainer: { flex: 1, flexDirection: 'column', gap: 8 },
-  browserSearch: { height: 48, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, fontSize: 16, backgroundColor: '#f9fafb', flexShrink: 0 },
-  browserList: { flex: 1 },
+  browserContainer: { paddingHorizontal: 24 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   browserItemText: { flex: 1, fontSize: 16, color: '#111827' },
 });
