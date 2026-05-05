@@ -34,7 +34,8 @@
       "PowerShell($env:EXPO_TOKEN = \"sc6jHJuufdlkNqTZRUIBkcA-rramz0X2LFQDatAp\"; cd C:\\\\Users\\\\joaki\\\\repos\\\\veckis\\\\app; npx eas build --platform android --profile preview --non-interactive 2>&1)",
       "Bash(git log *)",
       "Bash(Get-ChildItem -Recurse C:\\\\Users\\\\joaki\\\\repos\\\\veckis\\\\app\\\\src -Directory)",
-      "Bash(Select-Object -First 20)"
+      "Bash(Select-Object -First 20)",
+      "Bash(Get-Content C:\\\\Users\\\\joaki\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-joaki-repos-veckis\\\\be7f02dc-d54e-4c7d-8d25-6a7c9a0dc369\\\\tasks\\\\bwkn8jk56.output -Wait -Tail 5)"
     ]
   }
 }

@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { WeekDay } from '@prisma/client';
+import { WeekDay, RecurrenceType } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
@@ -18,6 +18,8 @@ const createEntrySchema = z.object({
   endTime: z.string().regex(timeRegex, 'Format HH:MM').optional(),
   assignedTo: z.string().optional(),
   isShared: z.boolean().default(true),
+  recurrenceType: z.nativeEnum(RecurrenceType).default('none'),
+  recurrenceDays: z.nativeEnum(WeekDay).array().default([]),
   recurrenceWeeks: z.number().int().min(1).default(1),
 });
 
