@@ -3,7 +3,7 @@
     "name": "Veckis",
     "slug": "veckis",
     "version": "1.0.0",
-    "orientation": "default",
+    "orientation": "portrait",
     "scheme": "veckis",
     "userInterfaceStyle": "automatic",
     "ios": {

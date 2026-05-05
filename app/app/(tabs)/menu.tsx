@@ -253,7 +253,7 @@ export default function MenuScreen() {
         <View style={s.headerTop}>
           <View>
             <Text style={s.title}>Meny</Text>
-            {householdName && <Text style={s.subtitle}>{householdEmoji} {householdName}</Text>}
+            {householdName && <Text style={s.subtitle}>{householdEmoji || '🏠'} {householdName}</Text>}
           </View>
           <Pressable style={s.recipesBtn} onPress={() => router.push('/recipes' as never)}>
             <Ionicons name="book-outline" size={16} color="#4f46e5" />

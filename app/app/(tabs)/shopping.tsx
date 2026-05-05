@@ -87,7 +87,7 @@ export default function ShoppingScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Inköp</Text>
-          {householdName && <Text style={styles.subtitle}>{householdEmoji} {householdName}</Text>}
+          {householdName && <Text style={styles.subtitle}>{householdEmoji || '🏠'} {householdName}</Text>}
         </View>
       </View>
 

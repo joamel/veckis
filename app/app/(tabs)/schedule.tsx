@@ -434,7 +434,7 @@ export default function ScheduleScreen() {
         <View style={s.header}>
           <View>
             <Text style={s.title}>Kalender</Text>
-            {householdName && <Text style={s.subtitle}>{householdEmoji} {householdName}</Text>}
+            {householdName && <Text style={s.subtitle}>{householdEmoji || '🏠'} {householdName}</Text>}
           </View>
         </View>
         <MonthView
@@ -445,8 +445,8 @@ export default function ScheduleScreen() {
           chores={chores}
           userId={userId}
           onSelectDay={handleSelectDayFromMonth}
-          onEditEntry={() => {}}
-          onEditChore={() => {}}
+          onEditEntry={(entry) => setEditingEntry(entry)}
+          onEditChore={(chore) => setEditingCalChore(chore)}
         />
       </SafeAreaView>
     );
@@ -457,7 +457,7 @@ export default function ScheduleScreen() {
       <View style={s.header}>
         <View>
           <Text style={s.title}>Kalender</Text>
-          {householdName && <Text style={s.subtitle}>{householdEmoji} {householdName}</Text>}
+          {householdName && <Text style={s.subtitle}>{householdEmoji || '🏠'} {householdName}</Text>}
         </View>
       </View>
 
@@ -793,6 +793,27 @@ export default function ScheduleScreen() {
                 <Text style={[s.dayPickerText, newRecurrenceType === 'monthly' && s.dayPickerTextActive]}>Månad</Text>
               </Pressable>
             </View>
+
+            {newRecurrenceType === 'weekly' && (
+              <>
+                <Text style={s.label}>Intervall (veckor)</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <Pressable
+                    style={[s.dayPickerOption, { flex: 0.2 }]}
+                    onPress={() => setNewRecurrenceWeeks(Math.max(1, newRecurrenceWeeks - 1))}
+                  >
+                    <Text style={s.dayPickerText}>−</Text>
+                  </Pressable>
+                  <Text style={{ flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '600' }}>{newRecurrenceWeeks}v</Text>
+                  <Pressable
+                    style={[s.dayPickerOption, { flex: 0.2 }]}
+                    onPress={() => setNewRecurrenceWeeks(newRecurrenceWeeks + 1)}
+                  >
+                    <Text style={s.dayPickerText}>+</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
 
             {newRecurrenceType === 'custom_days' && (
               <>
