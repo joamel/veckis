@@ -32,6 +32,6 @@
 
 ## Inställningar
 
-- **Redigera hushåll** — Admin kan ändra hushållets namn. Se och ta bort medlemmar. Sätta smeknamn på sig själv.
-- **Flera hushåll** — Skapa och växla mellan flera hushåll under inställningar (t.ex. eget + sommarstugan). Aktivt hushåll sparas i context.
-- **Profiler utan konto** — Skapa lokala profiler för barn/personer utan Clerk-konto. Kan tilldelas sysslor och chorer utan att logga in.
+- ✅ **Redigera hushåll** — Admin kan ändra hushållets namn. Se och ta bort medlemmar. Sätta smeknamn på sig själv.
+- ✅ **Flera hushål** — Skapa och växla mellan flera hushål under inställningar (t.ex. eget + sommarstugan). Aktivt hushål sparas i context.
+- ✅ **Profiler utan konto** — Skapa lokala profiler för barn/personer utan Clerk-konto. Kan tilldelas sysslor och chorer utan att logga in.
