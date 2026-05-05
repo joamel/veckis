@@ -218,9 +218,18 @@ export default function MenuScreen() {
         text: `${l.name} (${l.items.length} varor)`,
         onPress: async () => {
           try {
-            // Collect all ingredients from all recipes this week
+            // Only transfer recipes not already in the list
+            const existingRecipeIds = new Set(l.items.filter(i => i.recipe).map(i => i.recipe!.id));
+            const toTransfer = menuItems.filter(item => !existingRecipeIds.has(item.recipeId));
+
+            if (toTransfer.length === 0) {
+              Alert.alert('Redan med', 'Alla rätter denna vecka är redan överförda till denna lista');
+              return;
+            }
+
+            // Collect all ingredients from non-duplicated recipes
             const allIngredients: { name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string }[] = [];
-            for (const item of menuItems) {
+            for (const item of toTransfer) {
               for (const ing of item.recipe.ingredients) {
                 allIngredients.push({
                   name: ing.name,
@@ -231,10 +240,11 @@ export default function MenuScreen() {
                 });
               }
             }
+
             await client.transferToShopping(l.id, allIngredients);
-            setTransferredRecipeIds(prev => new Set([...prev, ...menuItems.map(m => m.recipeId)]));
+            setTransferredRecipeIds(prev => new Set([...prev, ...toTransfer.map(m => m.recipeId)]));
             load();
-            Alert.alert('Klart', `${menuItems.length} rätter överförda till ${l.name}`);
+            Alert.alert('Klart', `${toTransfer.length} rätter överförda till ${l.name}`);
           } catch {
             Alert.alert('Fel', 'Kunde inte överföra ingredienserna');
           }

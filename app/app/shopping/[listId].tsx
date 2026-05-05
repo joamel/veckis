@@ -425,9 +425,9 @@ export default function ShoppingListScreen() {
       </Modal>
 
       {/* Category browser modal */}
-      <Modal visible={showBrowser} transparent animationType="fade" onRequestClose={() => { setShowBrowser(false); setBrowserSearch(''); }}>
+      <Modal visible={showBrowser} transparent animationType="slide" onRequestClose={() => { setShowBrowser(false); setBrowserSearch(''); }}>
         <Pressable style={s.overlay} onPress={() => { setShowBrowser(false); setBrowserSearch(''); }} />
-        <View style={s.browserModalContainer}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.browserModalContainer}>
           <View style={[s.sheet, s.browserSheet]}>
           <View style={s.sheetHandle} />
           {browserCategory === null ? (
@@ -476,7 +476,7 @@ export default function ShoppingListScreen() {
             </View>
           )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Item edit modal */}
@@ -679,7 +679,7 @@ const s = StyleSheet.create({
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
   browserModalContainer: { flex: 1, justifyContent: 'flex-end' },
-  browserSheet: { maxHeight: '70%', gap: 12, paddingBottom: 24, flexShrink: 1 },
+  browserSheet: { gap: 12, paddingBottom: 40, maxHeight: '75%', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },
   categoryTileEmoji: { fontSize: 28 },

@@ -129,10 +129,10 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
     name: normalizedNames[i] ?? ing.name,
   }));
 
-  // Deduplicate: same name+unit → sum quantities
+  // Deduplicate: same name+unit+recipeId → sum quantities (keep per-recipe tracking)
   const deduped = new Map<string, typeof ingredients[0]>();
   for (const ing of ingredients) {
-    const key = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}`;
+    const key = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}|${ing.recipeId}`;
     if (deduped.has(key)) {
       const existing = deduped.get(key)!;
       existing.quantity = (existing.quantity ?? 1) + (ing.quantity ?? 1);
