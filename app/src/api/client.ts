@@ -12,6 +12,7 @@ import type {
   ChoreFrequency,
   ScheduleEntry,
   WeekDay,
+  RecurrenceType,
   Recipe,
   RecipeIngredient,
   WeekMenuItem,
@@ -182,7 +183,7 @@ export function useApiClient() {
     getSchedule: (householdId: string) =>
       request<ScheduleEntry[]>(`/api/schedule?householdId=${householdId}`),
 
-    createScheduleEntry: (data: { householdId: string; title: string; day: WeekDay; description?: string; startTime?: string; endTime?: string; assignedTo?: string; isShared?: boolean; recurrenceWeeks?: number }) =>
+    createScheduleEntry: (data: { householdId: string; title: string; day: WeekDay; description?: string; startTime?: string; endTime?: string; assignedTo?: string; isShared?: boolean; recurrenceType?: RecurrenceType; recurrenceDays?: WeekDay[]; recurrenceWeeks?: number }) =>
       request<ScheduleEntry>('/api/schedule', { method: 'POST', body: JSON.stringify(data) }),
 
     updateScheduleEntry: (entryId: string, data: Partial<Omit<ScheduleEntry, 'id' | 'householdId' | 'createdBy'>>) =>

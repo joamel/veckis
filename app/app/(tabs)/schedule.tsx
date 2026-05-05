@@ -163,6 +163,9 @@ export default function ScheduleScreen() {
   const [newMinute, setNewMinute] = useState(0);
   const [newDay, setNewDay] = useState<WeekDay>(TODAY_DAY);
   const [newIsShared, setNewIsShared] = useState(true);
+  const [newRecurrenceType, setNewRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'custom_days' | 'monthly'>('none');
+  const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
+  const [newRecurrenceWeeks, setNewRecurrenceWeeks] = useState(1);
   const [creating, setCreating] = useState(false);
 
   // Edit entry modal
@@ -267,6 +270,9 @@ export default function ScheduleScreen() {
           ? `${newHour.toString().padStart(2, '0')}:${MIN_VALS[newMinute]}`
           : undefined,
         isShared: newIsShared,
+        recurrenceType: newRecurrenceType,
+        recurrenceDays: newRecurrenceType === 'custom_days' ? newRecurrenceDays : undefined,
+        recurrenceWeeks: newRecurrenceType === 'weekly' ? newRecurrenceWeeks : undefined,
       });
       setEntries(prev => [...prev, entry]);
       setShowModal(false);
@@ -275,6 +281,9 @@ export default function ScheduleScreen() {
       setNewHour(12);
       setNewMinute(0);
       setNewIsShared(true);
+      setNewRecurrenceType('none');
+      setNewRecurrenceDays([]);
+      setNewRecurrenceWeeks(1);
     } catch {
       Alert.alert('Fel', 'Kunde inte skapa schemapost');
     } finally {
@@ -748,6 +757,63 @@ export default function ScheduleScreen() {
               </View>
               <Switch value={newIsShared} onValueChange={setNewIsShared} trackColor={{ true: '#4f46e5' }} />
             </Pressable>
+
+            <Text style={s.label}>Upprepning</Text>
+            <View style={s.dayPickerRow}>
+              <Pressable
+                style={[s.dayPickerOption, newRecurrenceType === 'none' && s.dayPickerOptionActive]}
+                onPress={() => setNewRecurrenceType('none')}
+              >
+                <Text style={[s.dayPickerText, newRecurrenceType === 'none' && s.dayPickerTextActive]}>Ingen</Text>
+              </Pressable>
+              <Pressable
+                style={[s.dayPickerOption, newRecurrenceType === 'daily' && s.dayPickerOptionActive]}
+                onPress={() => setNewRecurrenceType('daily')}
+              >
+                <Text style={[s.dayPickerText, newRecurrenceType === 'daily' && s.dayPickerTextActive]}>Dag</Text>
+              </Pressable>
+              <Pressable
+                style={[s.dayPickerOption, newRecurrenceType === 'weekly' && s.dayPickerOptionActive]}
+                onPress={() => setNewRecurrenceType('weekly')}
+              >
+                <Text style={[s.dayPickerText, newRecurrenceType === 'weekly' && s.dayPickerTextActive]}>Vecka</Text>
+              </Pressable>
+            </View>
+            <View style={s.dayPickerRow}>
+              <Pressable
+                style={[s.dayPickerOption, newRecurrenceType === 'custom_days' && s.dayPickerOptionActive]}
+                onPress={() => setNewRecurrenceType('custom_days')}
+              >
+                <Text style={[s.dayPickerText, newRecurrenceType === 'custom_days' && s.dayPickerTextActive]}>Spec. dagar</Text>
+              </Pressable>
+              <Pressable
+                style={[s.dayPickerOption, newRecurrenceType === 'monthly' && s.dayPickerOptionActive]}
+                onPress={() => setNewRecurrenceType('monthly')}
+              >
+                <Text style={[s.dayPickerText, newRecurrenceType === 'monthly' && s.dayPickerTextActive]}>Månad</Text>
+              </Pressable>
+            </View>
+
+            {newRecurrenceType === 'custom_days' && (
+              <>
+                <Text style={s.label}>Välj dagar</Text>
+                <View style={s.dayPickerRow}>
+                  {DAYS.map(day => (
+                    <Pressable
+                      key={day.key}
+                      style={[s.dayPickerOption, newRecurrenceDays.includes(day.key) && s.dayPickerOptionActive]}
+                      onPress={() => setNewRecurrenceDays(prev =>
+                        prev.includes(day.key)
+                          ? prev.filter(d => d !== day.key)
+                          : [...prev, day.key]
+                      )}
+                    >
+                      <Text style={[s.dayPickerText, newRecurrenceDays.includes(day.key) && s.dayPickerTextActive]}>{day.short}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
 
             <Pressable
               style={[s.button, !newTitle.trim() && s.buttonDisabled]}
