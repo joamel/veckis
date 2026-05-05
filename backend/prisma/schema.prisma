@@ -27,7 +27,7 @@ model Household {
 model HouseholdMember {
   id          String   @id @default(cuid())
   householdId String
-  clerkUserId String
+  clerkUserId String?
   displayName String
   role        MemberRole @default(member)
   joinedAt    DateTime   @default(now())

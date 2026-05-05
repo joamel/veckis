@@ -86,6 +86,18 @@ export function useApiClient() {
     removeMember: (householdId: string, memberId: string) =>
       request<void>(`/api/households/${householdId}/members/${memberId}`, { method: 'DELETE' }),
 
+    updateMember: (householdId: string, memberId: string, data: { displayName: string }) =>
+      request<HouseholdMember>(`/api/households/${householdId}/members/${memberId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+
+    createLocalMember: (householdId: string, displayName: string) =>
+      request<HouseholdMember>(`/api/households/${householdId}/members`, {
+        method: 'POST',
+        body: JSON.stringify({ displayName }),
+      }),
+
     // Shopping
     getShoppingLists: (householdId: string) =>
       request<ShoppingListWithItems[]>(`/api/shopping/lists?householdId=${householdId}`),

@@ -112,6 +112,51 @@ householdRouter.post('/:householdId/invite', requireAuth, requireHouseholdMember
   res.status(201).json(invite);
 }));
 
+// PATCH /api/households/:householdId/members/:memberId
+householdRouter.patch('/:householdId/members/:memberId', requireAuth, asyncHandler(async (req, res) => {
+  const body = z.object({ displayName: z.string().min(1).max(100) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const target = await prisma.householdMember.findUnique({ where: { id: req.params.memberId } });
+  if (!target || target.householdId !== req.params.householdId) {
+    res.status(404).json({ error: 'Member not found' });
+    return;
+  }
+
+  const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId: req.params.householdId, clerkUserId } },
+  });
+  const isAdmin = member?.role === 'admin';
+  const isSelf = target.clerkUserId === clerkUserId;
+
+  if (!isSelf && !isAdmin) {
+    res.status(403).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const updated = await prisma.householdMember.update({
+    where: { id: target.id },
+    data: { displayName: body.data.displayName },
+  });
+  res.json(updated);
+}));
+
+// POST /api/households/:householdId/members
+householdRouter.post('/:householdId/members', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const body = z.object({ displayName: z.string().min(1).max(100) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const member = await prisma.householdMember.create({
+    data: {
+      householdId: req.params.householdId,
+      displayName: body.data.displayName,
+      role: 'member',
+    },
+  });
+  res.status(201).json(member);
+}));
+
 // DELETE /api/households/:householdId/members/:memberId
 householdRouter.delete('/:householdId/members/:memberId', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const target = await prisma.householdMember.findUnique({ where: { id: req.params.memberId } });

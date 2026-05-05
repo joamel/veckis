@@ -7,7 +7,7 @@ export interface Household {
 export interface HouseholdMember {
   id: string;
   householdId: string;
-  clerkUserId: string;
+  clerkUserId: string | null;
   displayName: string;
   role: 'admin' | 'member';
   joinedAt: string;
