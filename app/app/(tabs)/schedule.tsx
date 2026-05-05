@@ -20,6 +20,7 @@ import { useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useHaptics } from '../../src/hooks/useHaptics';
 import { getISOWeek, addWeeks } from '../../src/lib/week';
 import type { ScheduleEntry, WeekDay, Chore, ChoreCompletion } from '@veckis/shared';
 
@@ -128,6 +129,7 @@ export default function ScheduleScreen() {
   const client = useApiClient();
   const { householdId, householdName } = useHousehold();
   const { user } = useUser();
+  const { medium } = useHaptics();
   const userId = user?.id;
 
   const [weekRef, setWeekRef] = useState(new Date());
@@ -489,7 +491,7 @@ export default function ScheduleScreen() {
                     <Pressable
                       key={chore.id}
                       style={[s.choreCard, done && s.choreDone]}
-                      onLongPress={() => openEditCalChore(chore)}
+                      onLongPress={() => { medium(); openEditCalChore(chore); }}
                     >
                       <View style={s.choreInfo}>
                         <Text style={[s.choreTitle, done && s.choreStrike]}>{chore.title}</Text>
@@ -516,7 +518,7 @@ export default function ScheduleScreen() {
                   <Pressable
                     key={entry.id}
                     style={s.entryCard}
-                    onLongPress={() => openEditEntry(entry)}
+                    onLongPress={() => { medium(); openEditEntry(entry); }}
                   >
                     <View style={s.entryTime}>
                       {entry.startTime

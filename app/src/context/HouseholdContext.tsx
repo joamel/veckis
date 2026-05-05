@@ -6,6 +6,7 @@ import { useApiClient, type MembershipWithHousehold } from '../api/client';
 interface HouseholdContextValue {
   householdId: string | null;
   householdName: string | null;
+  householdEmoji: string | null;
   memberRole: 'admin' | 'member' | null;
   allMemberships: MembershipWithHousehold[];
   isLoading: boolean;
@@ -16,6 +17,7 @@ interface HouseholdContextValue {
 const HouseholdContext = createContext<HouseholdContextValue>({
   householdId: null,
   householdName: null,
+  householdEmoji: null,
   memberRole: null,
   allMemberships: [],
   isLoading: true,
@@ -72,6 +74,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       value={{
         householdId: activeMembership?.householdId ?? null,
         householdName: activeMembership?.household.name ?? null,
+        householdEmoji: activeMembership?.household.emoji ?? null,
         memberRole: (activeMembership?.role as 'admin' | 'member' | null) ?? null,
         allMemberships,
         isLoading,

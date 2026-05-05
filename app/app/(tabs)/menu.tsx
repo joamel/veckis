@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { getISOWeek, addWeeks } from '../../src/lib/week';
+import { useHaptics } from '../../src/hooks/useHaptics';
 import type { WeekDay } from '@veckis/shared';
 
 const DAYS: { key: WeekDay; label: string; short: string }[] = [
@@ -43,7 +44,7 @@ function getWeekMonday(weekOffset: number): Date {
 export default function MenuScreen() {
   const router = useRouter();
   const client = useApiClient();
-  const { householdId, householdName } = useHousehold();
+  const { householdId, householdName, householdEmoji } = useHousehold();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const weekMonday = useMemo(() => getWeekMonday(weekOffset), [weekOffset]);
@@ -252,7 +253,7 @@ export default function MenuScreen() {
         <View style={s.headerTop}>
           <View>
             <Text style={s.title}>Meny</Text>
-            {householdName && <Text style={s.subtitle}>{householdName}</Text>}
+            {householdName && <Text style={s.subtitle}>{householdEmoji} {householdName}</Text>}
           </View>
           <Pressable style={s.recipesBtn} onPress={() => router.push('/recipes' as never)}>
             <Ionicons name="book-outline" size={16} color="#4f46e5" />
@@ -505,8 +506,10 @@ function MenuCard({
   onMoveToDay: (day: WeekDay | null) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const { medium } = useHaptics();
 
   function handleLongPress() {
+    medium();
     Alert.alert(
       item.recipe.title,
       undefined,

@@ -3,11 +3,11 @@
     "name": "Veckis",
     "slug": "veckis",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "scheme": "veckis",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.veckis.app"
     },
     "android": {

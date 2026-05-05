@@ -1,6 +1,7 @@
 export interface Household {
   id: string;
   name: string;
+  emoji: string | null;
   createdAt: string;
 }
 

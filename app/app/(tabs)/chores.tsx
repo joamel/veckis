@@ -16,6 +16,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useHaptics } from '../../src/hooks/useHaptics';
 import type { Chore, ChoreCompletion, ChoreFrequency, WeekDay } from '@veckis/shared';
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
@@ -64,6 +65,7 @@ type Member = { id: string; clerkUserId: string; displayName: string };
 export default function ChoresScreen() {
   const client = useApiClient();
   const { householdId, householdName } = useHousehold();
+  const { medium } = useHaptics();
   const [chores, setChores] = useState<ChoreWithCompletion[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -324,7 +326,7 @@ export default function ChoresScreen() {
           return (
             <Pressable
               style={[s.card, done && s.cardDone]}
-              onLongPress={() => openEdit(item)}
+              onLongPress={() => { medium(); openEdit(item); }}
             >
               <View style={s.cardContent}>
                 <Text style={[s.cardTitle, done && s.cardTitleDone]}>{item.title}</Text>

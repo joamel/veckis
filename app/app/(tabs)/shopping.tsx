@@ -3,7 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -16,11 +18,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useHaptics } from '../../src/hooks/useHaptics';
 
 export default function ShoppingScreen() {
   const router = useRouter();
   const client = useApiClient();
-  const { householdId, householdName } = useHousehold();
+  const { householdId, householdName, householdEmoji } = useHousehold();
+  const { medium } = useHaptics();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -83,7 +87,7 @@ export default function ShoppingScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Inköp</Text>
-          {householdName && <Text style={styles.subtitle}>{householdName}</Text>}
+          {householdName && <Text style={styles.subtitle}>{householdEmoji} {householdName}</Text>}
         </View>
       </View>
 
@@ -107,7 +111,7 @@ export default function ShoppingScreen() {
             <Pressable
               style={styles.card}
               onPress={() => router.push(`/shopping/${item.id}` as never)}
-              onLongPress={() => deleteList(item.id, item.name)}
+              onLongPress={() => { medium(); deleteList(item.id, item.name); }}
             >
               <View style={styles.cardLeft}>
                 <Ionicons name="cart-outline" size={20} color="#4f46e5" />
@@ -134,28 +138,30 @@ export default function ShoppingScreen() {
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <Pressable style={styles.overlay} onPress={() => setShowModal(false)} />
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Ny inköpslista</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Listans namn, t.ex. ICA fredag"
-            value={newListName}
-            onChangeText={setNewListName}
-            autoFocus
-            returnKeyType="done"
-            onSubmitEditing={createList}
-          />
-          <Pressable
-            style={[styles.button, !newListName.trim() && styles.buttonDisabled]}
-            onPress={createList}
-            disabled={creating || !newListName.trim()}
-          >
-            {creating
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.buttonText}>Skapa lista</Text>}
-          </Pressable>
-        </View>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Ny inköpslista</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Listans namn, t.ex. ICA fredag"
+              value={newListName}
+              onChangeText={setNewListName}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={createList}
+            />
+            <Pressable
+              style={[styles.button, !newListName.trim() && styles.buttonDisabled]}
+              onPress={createList}
+              disabled={creating || !newListName.trim()}
+            >
+              {creating
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.buttonText}>Skapa lista</Text>}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
