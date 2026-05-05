@@ -390,9 +390,15 @@ export default function MenuScreen() {
         )}
 
         <View style={s.newListSection}>
-          <Pressable style={s.newListBtn} onPress={transferWeekMenu}>
-            <Ionicons name="cart-outline" size={20} color="#4f46e5" />
-            <Text style={s.newListBtnText}>Överför veckomeny till inköpslista</Text>
+          <Pressable
+            style={[s.newListBtn, menuItems.every(m => transferredRecipeIds.has(m.recipeId)) && s.newListBtnDisabled]}
+            onPress={transferWeekMenu}
+            disabled={menuItems.every(m => transferredRecipeIds.has(m.recipeId))}
+          >
+            <Ionicons name="cart-outline" size={20} color={menuItems.every(m => transferredRecipeIds.has(m.recipeId)) ? '#d1d5db' : '#4f46e5'} />
+            <Text style={[s.newListBtnText, menuItems.every(m => transferredRecipeIds.has(m.recipeId)) && s.newListBtnTextDisabled]}>
+              {menuItems.every(m => transferredRecipeIds.has(m.recipeId)) ? 'Redan överförd' : 'Överför veckomeny till inköpslista'}
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -731,7 +737,9 @@ const s = StyleSheet.create({
   newListRow: { flexDirection: 'row', gap: 10 },
   newListSection: { paddingVertical: 24, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: '#f3f4f6', marginTop: 24 },
   newListBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#eef2ff', borderRadius: 12, borderWidth: 1, borderColor: '#c7d2fe' },
+  newListBtnDisabled: { backgroundColor: '#f3f4f6', borderColor: '#e5e7eb' },
   newListBtnText: { fontSize: 16, fontWeight: '600', color: '#4f46e5' },
+  newListBtnTextDisabled: { color: '#9ca3af' },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: '#f9fafb' },
   button: { backgroundColor: '#4f46e5', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', minWidth: 44 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
