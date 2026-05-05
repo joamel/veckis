@@ -21,6 +21,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { useTablet } from '../../src/hooks/useTablet';
+import { MonthView } from '../../src/components/calendar/MonthView';
 import { getISOWeek, addWeeks } from '../../src/lib/week';
 import type { ScheduleEntry, WeekDay, Chore, ChoreCompletion } from '@veckis/shared';
 
@@ -127,12 +129,14 @@ function Drum({ values, selected, onSelect }: { values: string[]; selected: numb
 export default function ScheduleScreen() {
   const router = useRouter();
   const client = useApiClient();
-  const { householdId, householdName } = useHousehold();
+  const { householdId, householdName, householdEmoji } = useHousehold();
   const { user } = useUser();
   const { medium } = useHaptics();
+  const isTablet = useTablet();
   const userId = user?.id;
 
   const [weekRef, setWeekRef] = useState(new Date());
+  const [monthRef, setMonthRef] = useState(new Date());
   const { weekYear, weekNumber } = getISOWeek(weekRef);
 
   const weekMonday = useMemo(() => {
@@ -387,6 +391,13 @@ export default function ScheduleScreen() {
     }
   }
 
+  function handleSelectDayFromMonth(date: Date) {
+    const dow = date.getDay();
+    const dayKey: WeekDay = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dow] as WeekDay;
+    setSelectedDay(dayKey);
+    setWeekRef(date);
+  }
+
   if (loading) {
     return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
   }
@@ -408,12 +419,36 @@ export default function ScheduleScreen() {
 
   const isEmpty = dayEntries.length === 0 && dayMenu.length === 0 && dayChores.length === 0;
 
+  if (isTablet) {
+    return (
+      <SafeAreaView style={s.container}>
+        <View style={s.header}>
+          <View>
+            <Text style={s.title}>Kalender</Text>
+            {householdName && <Text style={s.subtitle}>{householdEmoji} {householdName}</Text>}
+          </View>
+        </View>
+        <MonthView
+          date={monthRef}
+          onMonthChange={setMonthRef}
+          entries={visibleEntries}
+          menuItems={menuItems}
+          chores={chores}
+          userId={userId}
+          onSelectDay={handleSelectDayFromMonth}
+          onEditEntry={() => {}}
+          onEditChore={() => {}}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <View>
           <Text style={s.title}>Kalender</Text>
-          {householdName && <Text style={s.subtitle}>{householdName}</Text>}
+          {householdName && <Text style={s.subtitle}>{householdEmoji} {householdName}</Text>}
         </View>
       </View>
 
@@ -470,6 +505,14 @@ export default function ScheduleScreen() {
                     key={item.id}
                     style={s.menuCard}
                     onPress={() => router.push(`/recipes/${item.recipeId}` as never)}
+                    onLongPress={() => {
+                      medium();
+                      Alert.alert(item.recipe.title, undefined, [
+                        { text: 'Visa recept', onPress: () => router.push(`/recipes/${item.recipeId}` as never) },
+                        { text: 'Gå till Meny', onPress: () => router.push('/(tabs)/menu' as never) },
+                        { text: 'Avbryt', style: 'cancel' },
+                      ]);
+                    }}
                   >
                     <View style={s.menuIcon}>
                       <Ionicons name="restaurant-outline" size={16} color="#4f46e5" />
@@ -634,6 +677,13 @@ export default function ScheduleScreen() {
                 </Pressable>
               ))}
             </View>
+            <Pressable
+              style={s.navButton}
+              onPress={() => { setEditingCalChore(null); router.push('/(tabs)/chores' as never); }}
+            >
+              <Ionicons name="open-outline" size={15} color="#4f46e5" />
+              <Text style={s.navButtonText}>Gå till Sysslor</Text>
+            </Pressable>
             <View style={s.editModalActions}>
               <Pressable style={s.deleteActionBtn} onPress={() => { setEditingCalChore(null); if (editingCalChore) deleteChoreCalendar(editingCalChore.id, editingCalChore.title); }}>
                 <Ionicons name="trash-outline" size={16} color="#ef4444" />
@@ -788,4 +838,6 @@ const s = StyleSheet.create({
   memberOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
   memberOptionText: { fontSize: 14, color: '#374151', fontWeight: '500' },
   memberOptionTextActive: { color: '#4f46e5', fontWeight: '600' },
+  navButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, marginBottom: 10 },
+  navButtonText: { fontSize: 14, fontWeight: '600', color: '#4f46e5' },
 });

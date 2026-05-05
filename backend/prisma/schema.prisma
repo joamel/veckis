@@ -134,7 +134,7 @@ model ChoreCompletion {
 }
 
 model ScheduleEntry {
-  id              String    @id @default(cuid())
+  id              String             @id @default(cuid())
   householdId     String
   title           String
   description     String?
@@ -142,11 +142,13 @@ model ScheduleEntry {
   startTime       String?
   endTime         String?
   assignedTo      String?
-  isShared        Boolean   @default(true)
-  recurrenceWeeks Int       @default(1)
+  isShared        Boolean            @default(true)
+  recurrenceType  RecurrenceType     @default(none)
+  recurrenceDays  WeekDay[]
+  recurrenceWeeks Int                @default(1)
   createdBy       String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
@@ -261,4 +263,12 @@ enum WeekDay {
   fri
   sat
   sun
+}
+
+enum RecurrenceType {
+  none
+  daily
+  weekly
+  custom_days
+  monthly
 }

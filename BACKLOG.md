@@ -16,7 +16,7 @@
 - [ ] När man lägger till en inköpslista borde man kunna välja butik direkt -> skapa butik om den inte finns
 - [ ] Även kunna redigera namnet på ingrediensen när man long pressar
 - [ ] Försöka slå ihop ingredienser även om de har olika mått (2 dl + 1,5 msk osv) och namn (mjölk <=> standardmjölk osv)
-- [ ] Om man vill lägga till egen vara i inköpslistan borde den söka på befintliga för att underlätta tilläggning, samt lägga till varan i databasen om den inte redan finns (förutsatt att man lägger till en kategori)
+- [ ] Om man vill lägga till egen vara i inköpslistan borde den söka på befintliga för att underlätta tilläggning, samt lägga till varan i d2atabasen om den inte redan finns (förutsatt att man lägger till en kategori)
 - [ ] Byt punkt mot komma i ingredienser (1.5 tsk -> 1,5 tsk)
 - [ ] Lägga till basvara med mängd +/- och förbestämd enhet med möjlighet att ändra
 - [ ] Gemener när man skriver in Ingredienser mm. Även basvaror bör vara med gemener
@@ -37,7 +37,6 @@
 - [ ] I menyn räcker det med veckonummer överst då vi har datumen per dag
 
 ### Kalendern
-- [ ] Se alla 7 dagar utan att behöva sidoscrolla
 - [ ] Kunna välja heldag på en aktivitet
 - [ ] Kunna redigera en aktivitet och syssla genom att hålla inne på aktiviteten likt hur det är i Sysslor
 - [ ] Kunna lägga aktiviteter på users
