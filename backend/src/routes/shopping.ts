@@ -140,15 +140,16 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   const body = addItemSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
+  const normalizedName = body.data.name.toLowerCase();
   const category = body.data.category === 'other'
-    ? categorizeIngredient(body.data.name)
+    ? categorizeIngredient(normalizedName)
     : body.data.category;
 
   // If an unchecked item with the same name+unit already exists, increment its quantity
   const existing = await prisma.shoppingItem.findFirst({
     where: {
       listId: list.id,
-      name: { equals: body.data.name, mode: 'insensitive' },
+      name: { equals: normalizedName, mode: 'insensitive' },
       unit: body.data.unit ?? null,
       isChecked: false,
     },
@@ -159,17 +160,17 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
       where: { id: existing.id },
       data: { quantity: existing.quantity + (body.data.quantity ?? 1) },
     });
-    learnIngredientAliases([{ name: body.data.name, category }]).catch(() => {});
+    learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
     res.status(200).json(item);
     return;
   }
 
   const item = await prisma.shoppingItem.create({
-    data: { listId: list.id, ...body.data, category, addedBy: (req as AuthenticatedRequest).clerkUserId },
+    data: { listId: list.id, ...body.data, name: normalizedName, category, addedBy: (req as AuthenticatedRequest).clerkUserId },
   });
 
   // Learn this item for future suggestions (fire-and-forget)
-  learnIngredientAliases([{ name: body.data.name, category }]).catch(() => {});
+  learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
 
   res.status(201).json(item);
 }));
@@ -185,7 +186,9 @@ shoppingRouter.patch('/items/:itemId', requireAuth, asyncHandler(async (req, res
   const body = updateItemSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const item = await prisma.shoppingItem.update({ where: { id: existing.id }, data: body.data });
+  const data = { ...body.data };
+  if (data.name) data.name = data.name.toLowerCase();
+  const item = await prisma.shoppingItem.update({ where: { id: existing.id }, data });
   res.json(item);
 }));
 

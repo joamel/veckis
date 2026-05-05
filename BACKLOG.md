@@ -3,10 +3,10 @@
 ## UI-förbättringar/buggar
 
 ### Generellt
-- [ ] Kunna ha appen i horisontalläge i tablet-format
-- [ ] Skärmen borde hoppa upp när man ska skriva in något så man ser vad man skriver
-- [ ] Snyggt om man kan hålla inne på inköpslistor/aktiviteter/sysslor/meny så att de skakar om man vill redigera dem och att det kommer upp en delete (x) /redigeringsknapp (penna)
-- [ ] Emoji bakom hushållsnamnet saknas i inköps- och meny-fliken
+- [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)
+- [x] Skärmen borde hoppa upp när man ska skriva in något så man ser vad man skriver
+- [x] Snyggt om man kan hålla inne på inköpslistor/aktiviteter/sysslor/meny så att de skakar om man vill redigera dem och att det kommer upp en delete (x) /redigeringsknapp (penna)
+- [x] Emoji bakom hushållsnamnet saknas i inköps- och meny-fliken
 
 ### Inställningar
 (Nyligen implementerat)
@@ -38,9 +38,9 @@
 
 ### Kalendern
 - [ ] Kunna välja heldag på en aktivitet
-- [ ] Kunna redigera en aktivitet och syssla genom att hålla inne på aktiviteten likt hur det är i Sysslor
+- [x] Kunna redigera en aktivitet genom att hålla inne på aktiviteten
 - [ ] Kunna lägga aktiviteter på users
-- [ ] Kunna göra aktiviteter återkommande
+- [x] Kunna göra aktiviteter återkommande
 
 ### Sysslor
 - [ ] Hela namnet i rubriker/headers syns fortfarande inte helt ("Daglige" -> "Dagligen", "Månadsvi" -> "Månadsvis", "Varannan" -> "Varannan vecka", "Engång" -> "En gång", "Joaki" -> "Joakim")
@@ -51,14 +51,15 @@
 
 ### Kalender
 
-- [ ] **Månadsvy på tablet** — Visa hela månaden som grid i kalender-fliken när skärmen är tillräckligt bred
-- [ ] **Redigera/ta bort events** — Tryck på event öppnar edit-modal. Ta bort-knapp. Maträtt-event navigerar till Meny, syssla-event navigerar till Sysslor
-- [ ] **Upprepade events (serier)** — Välj upprepning när man skapar aktivitet: dagligen, varje vecka, specifika veckodagar (mån+ons+fre), månadsvis. Möjlighet att ta bort enstaka vs hela serien
+- [x] **Månadsvy på tablet** — Visa hela månaden som grid i kalender-fliken när skärmen är tillräckligt bred
+- [x] **Redigera/ta bort events** — Tryck på event öppnar edit-modal. Ta bort-knapp. (Maträtt-event bör navigera till Meny, syssla-event till Sysslor)
+- [x] **Upprepade events (serier)** — Välj upprepning när man skapar aktivitet: dagligen, varje vecka, specifika veckodagar (mån+ons+fre), månadsvis
+  - [ ] Möjlighet att ta bort enstaka vs hela serien
 
 ### Sysslor
 
-- [ ] **Flera dagar per syssla** — Kunna välja t.ex. mån, ons och lör i samma syssla (idag är det bara en dag). Spara som array av WeekDay
-- [ ] **Klarmarkera och redigera** — Bocka av syssla likt inköpslistan (inline, inte bara via "slutför"-knapp). Redigera titel, frekvens, dag, person. Avklarade sysslor stryks över i kalendervy
+- [x] **Flera dagar per syssla** — Kunna välja t.ex. mån, ons och lör i samma syssla (idag är det bara en dag). Spara som array av WeekDay
+- [x] **Klarmarkera och redigera** — Bocka av syssla likt inköpslistan (inline, inte bara via "slutför"-knapp). Redigera titel, frekvens, dag, person. Avklarade sysslor stryks över i kalendervy
 
 ### Meny
 
@@ -69,7 +70,7 @@
 
 ### Inköpslistan
 
-- [ ] **Deduplicering av ingredienser** — Samma ingrediens (samma namn + enhet) adderas ihop vid transfer från meny istället för att bli dubbletter. (Delvis fixat för transfer, men kolla manuella tillägg också.)
+- [x] **Deduplicering av ingredienser** — Samma ingrediens (samma namn + enhet) adderas ihop vid transfer från meny istället för att bli dubbletter. (Delvis fixat för transfer, men kolla manuella tillägg också.)
 
 ### Inställningar
 

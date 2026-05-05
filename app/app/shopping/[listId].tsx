@@ -102,7 +102,7 @@ export default function ShoppingListScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   async function addItem(name?: string) {
-    const itemName = (name ?? newItem).trim();
+    let itemName = (name ?? newItem).trim().toLowerCase();
     if (!listId || !itemName) return;
     setAdding(true);
     setNewItem('');
@@ -158,11 +158,12 @@ export default function ShoppingListScreen() {
   async function saveEditItem() {
     if (!editingItem) return;
     setSaving(true);
-    const qty = parseFloat(editQty) || 1;
+    const qty = parseFloat(editQty.replace(',', '.')) || 1;
     const unit = editUnit.trim() || null;
+    const name = (editName.trim() || editingItem.name).toLowerCase();
     try {
       const updated = await client.updateShoppingItem(editingItem.id, {
-        name: editName.trim() || editingItem.name,
+        name,
         quantity: qty,
         unit,
         category: editCategory,

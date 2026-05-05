@@ -39,13 +39,14 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
+  const normalizedName = body.data.name.toLowerCase();
   const category = body.data.category === 'other'
-    ? categorizeIngredient(body.data.name)
+    ? categorizeIngredient(normalizedName)
     : body.data.category;
 
   const staple = await prisma.stapleItem.upsert({
-    where: { householdId_name: { householdId: body.data.householdId, name: body.data.name } },
-    create: { ...body.data, category },
+    where: { householdId_name: { householdId: body.data.householdId, name: normalizedName } },
+    create: { ...body.data, name: normalizedName, category },
     update: { category, unit: body.data.unit, defaultQuantity: body.data.defaultQuantity },
   });
   res.status(201).json(staple);
