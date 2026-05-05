@@ -191,20 +191,27 @@ export default function ShoppingListScreen() {
     }
   }
 
+  async function showListOptions() {
+    Alert.alert('Vad vill du göra?', '', [
+      { text: 'Avbryt', style: 'cancel' },
+      { text: 'Rensa lista', style: 'default', onPress: clearList },
+      { text: 'Arkivera lista', style: 'default', onPress: completeList },
+    ]);
+  }
+
   async function completeList() {
     if (!listId) return;
-    Alert.alert('Markera klar?', 'Listan arkiveras och tas bort från vyn.', [
-      { text: 'Avbryt', style: 'cancel' },
-      { text: 'Markera klar', onPress: async () => {
-        try { await client.completeShoppingList(listId); router.back(); }
-        catch { Alert.alert('Fel', 'Kunde inte markera listan som klar'); }
-      }},
-    ]);
+    try {
+      await client.completeShoppingList(listId);
+      router.back();
+    } catch {
+      Alert.alert('Fel', 'Kunde inte markera listan som klar');
+    }
   }
 
   async function clearList() {
     if (!listId || list?.items.length === 0) return;
-    Alert.alert('Rensa listan?', `Ta bort alla ${list?.items.length} varor från listan utan att arkivera den.`, [
+    Alert.alert('Rensa alla varor?', `${list?.items.length} varor tas bort. Listan behålls.`, [
       { text: 'Avbryt', style: 'cancel' },
       { text: 'Rensa', style: 'destructive', onPress: async () => {
         try {
@@ -307,7 +314,7 @@ export default function ShoppingListScreen() {
             <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
           </Pressable>
         </View>
-        <Pressable onPress={completeList} onLongPress={clearList} style={s.doneBtn}>
+        <Pressable onPress={showListOptions} style={s.doneBtn}>
           <Ionicons name="checkmark-done-outline" size={24} color="#4f46e5" />
         </Pressable>
       </View>
@@ -436,7 +443,7 @@ export default function ShoppingListScreen() {
       </Modal>
 
       {/* Category browser modal */}
-      <Modal visible={showBrowser} transparent animationType="slide" onRequestClose={() => setShowBrowser(false)}>
+      <Modal visible={showBrowser} transparent animationType="slide" onRequestClose={() => { setShowBrowser(false); setBrowserSearch(''); }}>
         <Pressable style={s.overlay} onPress={() => { setShowBrowser(false); setBrowserSearch(''); }} />
         <View style={[s.sheet, s.browserSheet]}>
           <View style={s.sheetHandle} />
@@ -453,7 +460,7 @@ export default function ShoppingListScreen() {
               </View>
             </>
           ) : (
-            <>
+            <View style={s.browserContainer}>
               <View style={s.browserHeader}>
                 <Pressable style={s.browserBack} onPress={() => { setBrowserCategory(null); setBrowserSearch(''); }}>
                   <Ionicons name="chevron-back" size={20} color="#4f46e5" />
@@ -483,7 +490,7 @@ export default function ShoppingListScreen() {
                   ))
                 }
               </ScrollView>
-            </>
+            </View>
           )}
         </View>
       </Modal>
@@ -694,8 +701,9 @@ const s = StyleSheet.create({
   browserBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   browserBackText: { fontSize: 14, color: '#4f46e5', fontWeight: '500' },
   browserTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111827', textAlign: 'right' },
+  browserContainer: { flex: 1, flexDirection: 'column' },
   browserSearch: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb', marginBottom: 12 },
-  browserList: { marginTop: 12, maxHeight: 400 },
+  browserList: { flex: 1 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   browserItemText: { flex: 1, fontSize: 16, color: '#111827' },
 });

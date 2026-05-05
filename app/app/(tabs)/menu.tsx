@@ -489,20 +489,27 @@ export default function MenuScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Välj inköpslista</Text>
-          {shoppingLists.map(l => (
-            <Pressable key={l.id} style={s.pickerItem} onPress={() => doTransfer(l.id)}>
-              <Text style={s.pickerItemTitle}>{l.name}</Text>
-              <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
-            </Pressable>
-          ))}
+          {shoppingLists.length > 0 && (
+            <>
+              {shoppingLists.map(l => (
+                <Pressable key={l.id} style={s.pickerItem} onPress={() => doTransfer(l.id)}>
+                  <Text style={s.pickerItemTitle}>{l.name}</Text>
+                  <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
+                </Pressable>
+              ))}
+              <View style={s.pickerDivider} />
+            </>
+          )}
+          <Text style={s.newListLabel}>Eller skapa en ny lista:</Text>
           <View style={s.newListRow}>
             <TextInput
               style={[s.input, { flex: 1 }]}
-              placeholder="Ny lista..."
+              placeholder="Listans namn..."
               value={newListName}
               onChangeText={setNewListName}
               returnKeyType="done"
               onSubmitEditing={createListAndTransfer}
+              autoFocus={shoppingLists.length === 0}
             />
             <Pressable
               style={[s.button, (!newListName.trim() || creatingList) && s.buttonDisabled]}
@@ -703,7 +710,9 @@ const s = StyleSheet.create({
   cleanupConfirm: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: '#ef4444' },
   cleanupConfirmDisabled: { opacity: 0.4 },
   cleanupConfirmText: { fontSize: 15, fontWeight: '600', color: '#fff' },
-  newListRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  pickerDivider: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 12 },
+  newListLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280', marginTop: 8, marginBottom: 8 },
+  newListRow: { flexDirection: 'row', gap: 10 },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: '#f9fafb' },
   button: { backgroundColor: '#4f46e5', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', minWidth: 44 },
   buttonDisabled: { opacity: 0.4 },
