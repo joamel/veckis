@@ -191,24 +191,6 @@ export default function ShoppingListScreen() {
     }
   }
 
-  async function showListOptions() {
-    Alert.alert('Vad vill du göra?', '', [
-      { text: 'Avbryt', style: 'cancel' },
-      { text: 'Rensa lista', style: 'default', onPress: clearList },
-      { text: 'Arkivera lista', style: 'default', onPress: completeList },
-    ]);
-  }
-
-  async function completeList() {
-    if (!listId) return;
-    try {
-      await client.completeShoppingList(listId);
-      router.back();
-    } catch {
-      Alert.alert('Fel', 'Kunde inte markera listan som klar');
-    }
-  }
-
   async function clearList() {
     if (!listId || list?.items.length === 0) return;
     Alert.alert('Rensa alla varor?', `${list?.items.length} varor tas bort. Listan behålls.`, [
@@ -314,8 +296,8 @@ export default function ShoppingListScreen() {
             <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
           </Pressable>
         </View>
-        <Pressable onPress={showListOptions} style={s.doneBtn}>
-          <Ionicons name="checkmark-done-outline" size={24} color="#4f46e5" />
+        <Pressable onPress={clearList} style={s.doneBtn}>
+          <Ionicons name="trash-outline" size={24} color="#4f46e5" />
         </Pressable>
       </View>
 
@@ -692,7 +674,7 @@ const s = StyleSheet.create({
   editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
-  browserSheet: { maxHeight: '90%', gap: 0 },
+  browserSheet: { maxHeight: '95%', gap: 12, paddingBottom: 24 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },
   categoryTileEmoji: { fontSize: 28 },
@@ -701,9 +683,9 @@ const s = StyleSheet.create({
   browserBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   browserBackText: { fontSize: 14, color: '#4f46e5', fontWeight: '500' },
   browserTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111827', textAlign: 'right' },
-  browserContainer: { flex: 1, flexDirection: 'column' },
-  browserSearch: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb', marginBottom: 12 },
-  browserList: { flex: 1 },
+  browserContainer: { flex: 1, flexDirection: 'column', gap: 12 },
+  browserSearch: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
+  browserList: { flex: 1, minHeight: 200 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   browserItemText: { flex: 1, fontSize: 16, color: '#111827' },
 });

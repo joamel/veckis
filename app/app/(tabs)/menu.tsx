@@ -65,6 +65,7 @@ export default function MenuScreen() {
   const [loading, setLoading] = useState(true);
   const [transferredRecipeIds, setTransferredRecipeIds] = useState<Set<string>>(new Set());
   const [transferSheet, setTransferSheet] = useState<WeekMenuItemWithRecipe | null>(null);
+  const [showCreateList, setShowCreateList] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [creatingList, setCreatingList] = useState(false);
   // Per-recipe: which lists have items from it
@@ -360,6 +361,13 @@ export default function MenuScreen() {
             <Text style={s.emptySubtext}>Tryck på + för att lägga till</Text>
           </View>
         )}
+
+        <View style={s.newListSection}>
+          <Pressable style={s.newListBtn} onPress={() => { setNewListName(''); setShowCreateList(true); }}>
+            <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
+            <Text style={s.newListBtnText}>Ny inköpslista</Text>
+          </Pressable>
+        </View>
       </ScrollView>
 
       <Pressable style={s.fab} onPress={() => openPicker('ask')}>
@@ -489,36 +497,64 @@ export default function MenuScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Välj inköpslista</Text>
-          {shoppingLists.length > 0 && (
-            <>
-              {shoppingLists.map(l => (
-                <Pressable key={l.id} style={s.pickerItem} onPress={() => doTransfer(l.id)}>
-                  <Text style={s.pickerItemTitle}>{l.name}</Text>
-                  <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
-                </Pressable>
-              ))}
-              <View style={s.pickerDivider} />
-            </>
+          {shoppingLists.length === 0 ? (
+            <Text style={s.pickerEmptyText}>Ingen aktiv inköpslista — skapa en från meny-fliken</Text>
+          ) : (
+            shoppingLists.map(l => (
+              <Pressable key={l.id} style={s.pickerItem} onPress={() => doTransfer(l.id)}>
+                <Text style={s.pickerItemTitle}>{l.name}</Text>
+                <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
+              </Pressable>
+            ))
           )}
-          <Text style={s.newListLabel}>Eller skapa en ny lista:</Text>
-          <View style={s.newListRow}>
-            <TextInput
-              style={[s.input, { flex: 1 }]}
-              placeholder="Listans namn..."
-              value={newListName}
-              onChangeText={setNewListName}
-              returnKeyType="done"
-              onSubmitEditing={createListAndTransfer}
-              autoFocus={shoppingLists.length === 0}
-            />
-            <Pressable
-              style={[s.button, (!newListName.trim() || creatingList) && s.buttonDisabled]}
-              onPress={createListAndTransfer}
-              disabled={creatingList || !newListName.trim()}
-            >
-              {creatingList ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="add" size={20} color="#fff" />}
-            </Pressable>
-          </View>
+        </View>
+      </Modal>
+
+      {/* Create list modal */}
+      <Modal visible={showCreateList} transparent animationType="slide" onRequestClose={() => setShowCreateList(false)}>
+        <Pressable style={s.overlay} onPress={() => setShowCreateList(false)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Ny inköpslista</Text>
+          <TextInput
+            style={s.input}
+            placeholder="Listans namn..."
+            value={newListName}
+            onChangeText={setNewListName}
+            returnKeyType="done"
+            onSubmitEditing={async () => {
+              if (!householdId || !newListName.trim()) return;
+              try {
+                await client.createShoppingList({ householdId, name: newListName.trim() });
+                setNewListName('');
+                setShowCreateList(false);
+                load();
+              } catch {
+                Alert.alert('Fel', 'Kunde inte skapa lista');
+              }
+            }}
+            autoFocus
+          />
+          <Pressable
+            style={[s.button, (!newListName.trim() || creatingList) && s.buttonDisabled]}
+            onPress={async () => {
+              if (!householdId || !newListName.trim()) return;
+              setCreatingList(true);
+              try {
+                await client.createShoppingList({ householdId, name: newListName.trim() });
+                setNewListName('');
+                setShowCreateList(false);
+                load();
+              } catch {
+                Alert.alert('Fel', 'Kunde inte skapa lista');
+              } finally {
+                setCreatingList(false);
+              }
+            }}
+            disabled={creatingList || !newListName.trim()}
+          >
+            {creatingList ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Skapa lista</Text>}
+          </Pressable>
         </View>
       </Modal>
     </SafeAreaView>
@@ -713,7 +749,11 @@ const s = StyleSheet.create({
   pickerDivider: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 12 },
   newListLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280', marginTop: 8, marginBottom: 8 },
   newListRow: { flexDirection: 'row', gap: 10 },
+  newListSection: { paddingVertical: 24, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: '#f3f4f6', marginTop: 24 },
+  newListBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#eef2ff', borderRadius: 12, borderWidth: 1, borderColor: '#c7d2fe' },
+  newListBtnText: { fontSize: 16, fontWeight: '600', color: '#4f46e5' },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: '#f9fafb' },
   button: { backgroundColor: '#4f46e5', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', minWidth: 44 },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   buttonDisabled: { opacity: 0.4 },
 });
