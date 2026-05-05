@@ -679,7 +679,7 @@ const s = StyleSheet.create({
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
   browserModalContainer: { flex: 1, justifyContent: 'flex-end' },
-  browserSheet: { gap: 12, paddingBottom: 40, maxHeight: '75%', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  browserSheet: { gap: 12, paddingBottom: 40, maxHeight: '85%', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },
   categoryTileEmoji: { fontSize: 28 },
