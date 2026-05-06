@@ -51,13 +51,7 @@ export default function MenuScreen() {
   const weekMonday = useMemo(() => getWeekMonday(weekOffset), [weekOffset]);
   const { weekYear, weekNumber } = useMemo(() => getISOWeek(weekMonday), [weekMonday]);
 
-  const weekLabel = useMemo(() => {
-    const end = new Date(weekMonday);
-    end.setDate(weekMonday.getDate() + 6);
-    const startStr = weekMonday.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
-    const endStr = end.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
-    return `v${weekNumber} · ${startStr}–${endStr}`;
-  }, [weekMonday, weekNumber]);
+  const weekLabel = useMemo(() => `v${weekNumber}`, [weekNumber]);
 
   const [menuItems, setMenuItems] = useState<WeekMenuItemWithRecipe[]>([]);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
@@ -78,6 +72,11 @@ export default function MenuScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerStep, setPickerStep] = useState<'day' | 'recipe'>('day');
   const [pickingForDay, setPickingForDay] = useState<WeekDay | null>(null);
+
+  // Bulk transfer modal: select which recipes to transfer
+  const [showBulkTransferModal, setShowBulkTransferModal] = useState(false);
+  const [selectedRecipesForTransfer, setSelectedRecipesForTransfer] = useState<Set<string>>(new Set());
+  const [bulkTransferStep, setBulkTransferStep] = useState<'recipe' | 'list'>('recipe');
 
   const load = useCallback(async () => {
     if (!householdId) return;
@@ -137,6 +136,20 @@ export default function MenuScreen() {
         Alert.alert(
           'Dag redan planerad',
           `${dayLabel} har redan en rätt planerad. Lägga till ändå?`,
+          [
+            { text: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Lägg till', onPress: () => resolve(true) },
+          ]
+        )
+      );
+      if (!confirmed) { setShowPicker(false); return; }
+    }
+
+    if (menuItems.some(i => i.recipeId === recipe.id)) {
+      const confirmed = await new Promise<boolean>(resolve =>
+        Alert.alert(
+          'Rätt redan tillagd',
+          `${recipe.title} är redan planerad denna vecka. Lägga till ändå?`,
           [
             { text: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
             { text: 'Lägg till', onPress: () => resolve(true) },
@@ -211,46 +224,52 @@ export default function MenuScreen() {
       return;
     }
 
-    // Show list picker to choose which list to add to
-    Alert.alert('Välj inköpslista', '', [
-      { text: 'Avbryt', style: 'cancel' },
-      ...shoppingLists.map(l => ({
-        text: `${l.name} (${l.items.length} varor)`,
-        onPress: async () => {
-          try {
-            // Only transfer recipes not already in the list
-            const existingRecipeIds = new Set(l.items.filter(i => i.recipe).map(i => i.recipe!.id));
-            const toTransfer = menuItems.filter(item => !existingRecipeIds.has(item.recipeId));
+    setSelectedRecipesForTransfer(new Set(menuItems.map(m => m.id)));
+    setBulkTransferStep('recipe');
+    setShowBulkTransferModal(true);
+  }
 
-            if (toTransfer.length === 0) {
-              Alert.alert('Redan med', 'Alla rätter denna vecka är redan överförda till denna lista');
-              return;
-            }
+  async function executeBulkTransfer(listId: string) {
+    if (selectedRecipesForTransfer.size === 0) {
+      Alert.alert('Ingen rätt vald', 'Välj minst en rätt att överföra');
+      return;
+    }
 
-            // Collect all ingredients from non-duplicated recipes
-            const allIngredients: { name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string }[] = [];
-            for (const item of toTransfer) {
-              for (const ing of item.recipe.ingredients) {
-                allIngredients.push({
-                  name: ing.name,
-                  quantity: ing.quantity ?? null,
-                  unit: ing.unit ?? null,
-                  category: ing.category,
-                  recipeId: item.recipeId,
-                });
-              }
-            }
+    try {
+      const toTransfer = menuItems.filter(item => selectedRecipesForTransfer.has(item.id));
+      const existingRecipeIds = new Set(shoppingLists
+        .find(l => l.id === listId)?.items
+        .filter(i => i.recipe)
+        .map(i => i.recipe!.id) ?? []);
 
-            await client.transferToShopping(l.id, allIngredients);
-            setTransferredRecipeIds(prev => new Set([...prev, ...toTransfer.map(m => m.recipeId)]));
-            load();
-            Alert.alert('Klart', `${toTransfer.length} rätter överförda till ${l.name}`);
-          } catch {
-            Alert.alert('Fel', 'Kunde inte överföra ingredienserna');
-          }
-        },
-      })),
-    ]);
+      const actuallyTransfer = toTransfer.filter(item => !existingRecipeIds.has(item.recipeId));
+
+      if (actuallyTransfer.length === 0) {
+        Alert.alert('Redan med', 'Alla valda rätter är redan överförda till denna lista');
+        return;
+      }
+
+      const allIngredients: { name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string }[] = [];
+      for (const item of actuallyTransfer) {
+        for (const ing of item.recipe.ingredients) {
+          allIngredients.push({
+            name: ing.name,
+            quantity: ing.quantity ?? null,
+            unit: ing.unit ?? null,
+            category: ing.category,
+            recipeId: item.recipeId,
+          });
+        }
+      }
+
+      await client.transferToShopping(listId, allIngredients);
+      setTransferredRecipeIds(prev => new Set([...prev, ...actuallyTransfer.map(m => m.recipeId)]));
+      setShowBulkTransferModal(false);
+      load();
+      Alert.alert('Klart', `${actuallyTransfer.length} rätter överförda`);
+    } catch {
+      Alert.alert('Fel', 'Kunde inte överföra ingredienserna');
+    }
   }
 
   async function doTransfer(listId: string) {
@@ -334,10 +353,9 @@ export default function MenuScreen() {
         contentContainerStyle={s.contentInner}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
       >
-        {/* Day sections — sorted Mon→Sun */}
+        {/* Day sections — sorted Mon→Sun, show all 7 days */}
         {DAYS.map((day, i) => {
           const items = menuItems.filter(m => m.day === day.key);
-          if (items.length === 0) return null;
           const date = new Date(weekMonday);
           date.setDate(weekMonday.getDate() + i);
           const dateLabel = date.toLocaleDateString('sv-SE', { day: 'numeric', month: 'long' });
@@ -348,19 +366,28 @@ export default function MenuScreen() {
                   <Text style={s.dayLabel}>{day.label}</Text>
                   <Text style={s.dayDate}>{dateLabel}</Text>
                 </View>
+                {items.length === 0 && (
+                  <Pressable onPress={() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }}>
+                    <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
+                  </Pressable>
+                )}
               </View>
-              {items.map(item => (
-                <MenuCard
-                  key={item.id}
-                  item={item}
-                  isTransferred={transferredRecipeIds.has(item.recipeId)}
-                  onRemove={() => removeFromMenu(item)}
-                  onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
-                  onTransfer={() => setTransferSheet(item)}
-                  onRemoveFromList={() => removeFromShoppingList(item.recipeId)}
-                  onMoveToDay={d => moveToDay(item, d)}
-                />
-              ))}
+              {items.length === 0 ? (
+                <Text style={s.emptyDayText}>Ingen rätt planerad</Text>
+              ) : (
+                items.map(item => (
+                  <MenuCard
+                    key={item.id}
+                    item={item}
+                    isTransferred={transferredRecipeIds.has(item.recipeId)}
+                    onRemove={() => removeFromMenu(item)}
+                    onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
+                    onTransfer={() => setTransferSheet(item)}
+                    onRemoveFromList={() => removeFromShoppingList(item.recipeId)}
+                    onMoveToDay={d => moveToDay(item, d)}
+                  />
+                ))
+              )}
             </View>
           );
         })}
@@ -383,7 +410,7 @@ export default function MenuScreen() {
                 isTransferred={transferredRecipeIds.has(item.recipeId)}
                 onRemove={() => removeFromMenu(item)}
                 onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
-                onTransfer={() => router.push(`/recipes/${item.recipeId}?transfer=1` as never)}
+                onTransfer={() => setTransferSheet(item)}
                 onRemoveFromList={() => removeFromShoppingList(item.recipeId)}
                 onMoveToDay={d => moveToDay(item, d)}
               />
@@ -413,9 +440,6 @@ export default function MenuScreen() {
         </View>
       </ScrollView>
 
-      <Pressable style={s.fab} onPress={() => openPicker('ask')}>
-        <Ionicons name="add" size={30} color="#fff" />
-      </Pressable>
 
       {/* Two-step recipe picker modal */}
       <Modal visible={showPicker} transparent animationType="slide" onRequestClose={() => setShowPicker(false)}>
@@ -549,6 +573,81 @@ export default function MenuScreen() {
                 <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
               </Pressable>
             ))
+          )}
+        </View>
+      </Modal>
+
+      {/* Bulk transfer modal — choose recipes and list */}
+      <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => setShowBulkTransferModal(false)}>
+        <Pressable style={s.overlay} onPress={() => setShowBulkTransferModal(false)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+
+          {bulkTransferStep === 'recipe' ? (
+            <>
+              <Text style={s.sheetTitle}>Välj rätter</Text>
+              <Text style={s.sheetSub}>Vilka rätter vill du överföra?</Text>
+              <ScrollView style={s.bulkRecipeList}>
+                {menuItems.map(item => {
+                  const selected = selectedRecipesForTransfer.has(item.id);
+                  return (
+                    <Pressable
+                      key={item.id}
+                      style={[s.bulkRecipeItem, selected && s.bulkRecipeItemActive]}
+                      onPress={() => setSelectedRecipesForTransfer(prev => {
+                        const n = new Set(prev);
+                        if (n.has(item.id)) n.delete(item.id); else n.add(item.id);
+                        return n;
+                      })}
+                    >
+                      <Ionicons
+                        name={selected ? 'checkbox' : 'square-outline'}
+                        size={22}
+                        color={selected ? '#4f46e5' : '#9ca3af'}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.bulkRecipeTitle}>{item.recipe.title}</Text>
+                        {item.day !== null && (
+                          <Text style={s.bulkRecipeDay}>
+                            {DAYS.find(d => d.key === item.day)?.label}
+                          </Text>
+                        )}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              <Pressable
+                style={[s.button, selectedRecipesForTransfer.size === 0 && s.buttonDisabled]}
+                disabled={selectedRecipesForTransfer.size === 0}
+                onPress={() => setBulkTransferStep('list')}
+              >
+                <Text style={s.buttonText}>Nästa</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={s.sheetTitle}>Välj inköpslista</Text>
+              <Text style={s.sheetSub}>{selectedRecipesForTransfer.size} rätt(er) att överföra</Text>
+              <ScrollView style={s.bulkRecipeList}>
+                {shoppingLists.map(l => (
+                  <Pressable
+                    key={l.id}
+                    style={s.pickerItem}
+                    onPress={() => executeBulkTransfer(l.id)}
+                  >
+                    <Text style={s.pickerItemTitle}>{l.name}</Text>
+                    <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <Pressable
+                style={[s.button, { backgroundColor: '#e5e7eb' }]}
+                onPress={() => setBulkTransferStep('recipe')}
+              >
+                <Text style={[s.buttonText, { color: '#374151' }]}>Tillbaka</Text>
+              </Pressable>
+            </>
           )}
         </View>
       </Modal>
@@ -688,6 +787,7 @@ const s = StyleSheet.create({
   dayLabel: { fontSize: 14, fontWeight: '700', color: '#111827' },
   dayDate: { fontSize: 12, color: '#6b7280' },
   unscheduledEmpty: { fontSize: 13, color: '#9ca3af', paddingVertical: 8 },
+  emptyDayText: { fontSize: 13, color: '#9ca3af', paddingVertical: 8 },
   emptyDay: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 8 },
   emptyText: { fontSize: 17, fontWeight: '600', color: '#374151' },
   emptySubtext: { fontSize: 13, color: '#9ca3af' },
@@ -716,7 +816,13 @@ const s = StyleSheet.create({
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 12 },
   sheetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16 },
+  sheetSub: { fontSize: 13, color: '#6b7280', marginTop: -10, marginBottom: 12 },
   backBtn: { padding: 4, marginBottom: 16 },
+  bulkRecipeList: { maxHeight: 400, marginBottom: 12 },
+  bulkRecipeItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 8 },
+  bulkRecipeItemActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
+  bulkRecipeTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  bulkRecipeDay: { fontSize: 12, color: '#6b7280', marginTop: 2 },
   dayGrid: { gap: 10 },
   dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#f3f4f6', borderRadius: 12 },
   dayGridItemNone: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
