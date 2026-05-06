@@ -61,11 +61,11 @@ export default function MenuScreen() {
   const [transferSheet, setTransferSheet] = useState<WeekMenuItemWithRecipe | null>(null);
   const [newListName, setNewListName] = useState('');
   const [creatingList, setCreatingList] = useState(false);
-  // Per-recipe: which lists have items from it
+  // Per-menu-item: which lists have items from it (keyed by menuItemId for per-instance tracking)
   type ListEntry = { listId: string; listName: string; itemIds: string[] };
   const [recipeListMap, setRecipeListMap] = useState<Record<string, ListEntry[]>>({});
   // Cleanup prompt after removing from menu
-  const [cleanupPrompt, setCleanupPrompt] = useState<{ recipeId: string; recipeTitle: string; lists: ListEntry[] } | null>(null);
+  const [cleanupPrompt, setCleanupPrompt] = useState<{ menuItemId: string; recipeTitle: string; lists: ListEntry[] } | null>(null);
   const [selectedCleanupLists, setSelectedCleanupLists] = useState<Set<string>>(new Set());
 
   // Two-step modal: 'day' → pick a day, 'recipe' → pick a recipe
@@ -91,17 +91,24 @@ export default function MenuScreen() {
       setShoppingLists(activeLists);
       const transferred = new Set<string>();
       const listMap: Record<string, ListEntry[]> = {};
-      activeLists.forEach(l => {
-        l.items.forEach(item => {
-          if (!item.recipeId) return;
-          transferred.add(item.recipeId);
-          if (!listMap[item.recipeId]) listMap[item.recipeId] = [];
-          let entry = listMap[item.recipeId].find(e => e.listId === l.id);
-          if (!entry) {
-            entry = { listId: l.id, listName: l.name, itemIds: [] };
-            listMap[item.recipeId].push(entry);
+      // Build map keyed by menuItemId so each instance of a recipe is tracked separately
+      menu.forEach(menuItem => {
+        if (!listMap[menuItem.id]) listMap[menuItem.id] = [];
+        activeLists.forEach(l => {
+          const itemsForThisMenuItem = l.items.filter(item => item.recipeId === menuItem.recipeId);
+          if (itemsForThisMenuItem.length > 0) {
+            transferred.add(menuItem.recipeId);
+            let entry = listMap[menuItem.id].find(e => e.listId === l.id);
+            if (!entry) {
+              entry = { listId: l.id, listName: l.name, itemIds: [] };
+              listMap[menuItem.id].push(entry);
+            }
+            itemsForThisMenuItem.forEach(item => {
+              if (!entry!.itemIds.includes(item.id)) {
+                entry!.itemIds.push(item.id);
+              }
+            });
           }
-          entry.itemIds.push(item.id);
         });
       });
       setTransferredRecipeIds(transferred);
@@ -174,10 +181,7 @@ export default function MenuScreen() {
       const newItems = menuItems.filter(i => i.id !== item.id);
       setMenuItems(newItems);
 
-      // If recipe still appears elsewhere in menu, don't prompt for shopping cleanup
-      if (newItems.some(i => i.recipeId === item.recipeId)) return;
-
-      const lists = recipeListMap[item.recipeId] ?? [];
+      const lists = recipeListMap[item.id] ?? [];
       if (lists.length === 0) return;
 
       if (lists.length === 1) {
@@ -187,12 +191,12 @@ export default function MenuScreen() {
           `Ta bort ${item.recipe.title}s ingredienser från "${lists[0].listName}"?`,
           [
             { text: 'Behåll', style: 'cancel' },
-            { text: 'Ta bort', style: 'destructive', onPress: () => executeCleanup(item.recipeId, [lists[0].listId]) },
+            { text: 'Ta bort', style: 'destructive', onPress: () => executeCleanup(item.id, [lists[0].listId]) },
           ]
         );
       } else {
         // Multiple lists — show selection modal
-        setCleanupPrompt({ recipeId: item.recipeId, recipeTitle: item.recipe.title, lists });
+        setCleanupPrompt({ menuItemId: item.id, recipeTitle: item.recipe.title, lists });
         setSelectedCleanupLists(new Set(lists.map(l => l.listId)));
       }
     } catch {
@@ -200,15 +204,14 @@ export default function MenuScreen() {
     }
   }
 
-  async function executeCleanup(recipeId: string, listIds: string[]) {
+  async function executeCleanup(menuItemId: string, listIds: string[]) {
     const allItemIds = listIds.flatMap(lid => {
-      const entry = recipeListMap[recipeId]?.find(e => e.listId === lid);
+      const entry = recipeListMap[menuItemId]?.find(e => e.listId === lid);
       return entry?.itemIds ?? [];
     });
     try {
       await Promise.all(allItemIds.map(id => client.deleteShoppingItem(id)));
-      setTransferredRecipeIds(prev => { const n = new Set(prev); n.delete(recipeId); return n; });
-      setRecipeListMap(prev => { const n = { ...prev }; delete n[recipeId]; return n; });
+      setRecipeListMap(prev => { const n = { ...prev }; delete n[menuItemId]; return n; });
     } catch {
       Alert.alert('Fel', 'Kunde inte ta bort ingredienserna');
     }
@@ -300,15 +303,15 @@ export default function MenuScreen() {
     }
   }
 
-  async function removeFromShoppingList(recipeId: string) {
-    const lists = recipeListMap[recipeId] ?? [];
+  async function removeFromShoppingList(menuItemId: string) {
+    const lists = recipeListMap[menuItemId] ?? [];
     if (lists.length === 0) return;
 
     if (lists.length === 1) {
-      await executeCleanup(recipeId, [lists[0].listId]);
+      await executeCleanup(menuItemId, [lists[0].listId]);
     } else {
       // Let user pick which lists to remove from
-      setCleanupPrompt({ recipeId, recipeTitle: '', lists });
+      setCleanupPrompt({ menuItemId, recipeTitle: '', lists });
       setSelectedCleanupLists(new Set(lists.map(l => l.listId)));
     }
   }
@@ -383,7 +386,7 @@ export default function MenuScreen() {
                     onRemove={() => removeFromMenu(item)}
                     onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                     onTransfer={() => setTransferSheet(item)}
-                    onRemoveFromList={() => removeFromShoppingList(item.recipeId)}
+                    onRemoveFromList={() => removeFromShoppingList(item.id)}
                     onMoveToDay={d => moveToDay(item, d)}
                   />
                 ))
@@ -411,7 +414,7 @@ export default function MenuScreen() {
                 onRemove={() => removeFromMenu(item)}
                 onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                 onTransfer={() => setTransferSheet(item)}
-                onRemoveFromList={() => removeFromShoppingList(item.recipeId)}
+                onRemoveFromList={() => removeFromShoppingList(item.id)}
                 onMoveToDay={d => moveToDay(item, d)}
               />
             ))
@@ -550,7 +553,7 @@ export default function MenuScreen() {
               onPress={() => {
                 if (!cleanupPrompt) return;
                 setCleanupPrompt(null);
-                executeCleanup(cleanupPrompt.recipeId, [...selectedCleanupLists]);
+                executeCleanup(cleanupPrompt.menuItemId, [...selectedCleanupLists]);
               }}
             >
               <Text style={s.cleanupConfirmText}>Ta bort från valda</Text>
