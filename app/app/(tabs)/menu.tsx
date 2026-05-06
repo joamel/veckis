@@ -51,7 +51,11 @@ export default function MenuScreen() {
   const weekMonday = useMemo(() => getWeekMonday(weekOffset), [weekOffset]);
   const { weekYear, weekNumber } = useMemo(() => getISOWeek(weekMonday), [weekMonday]);
 
-  const weekLabel = useMemo(() => `v${weekNumber}`, [weekNumber]);
+  const weekLabel = useMemo(() => {
+    const date = new Date(weekMonday);
+    const year = date.getFullYear();
+    return `Vecka ${weekNumber}, ${year}`;
+  }, [weekMonday, weekNumber]);
 
   const [menuItems, setMenuItems] = useState<WeekMenuItemWithRecipe[]>([]);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
@@ -227,7 +231,13 @@ export default function MenuScreen() {
       return;
     }
 
-    setSelectedRecipesForTransfer(new Set(menuItems.map(m => m.id)));
+    const notTransferred = menuItems.filter(m => !transferredRecipeIds.has(m.recipeId));
+    if (notTransferred.length === 0) {
+      Alert.alert('Redan överförd', 'Alla rätter denna vecka är redan överförda till en inköpslista');
+      return;
+    }
+
+    setSelectedRecipesForTransfer(new Set(notTransferred.map(m => m.id)));
     setBulkTransferStep('recipe');
     setShowBulkTransferModal(true);
   }
@@ -366,8 +376,10 @@ export default function MenuScreen() {
             <View key={day.key} style={s.section}>
               <View style={s.sectionRow}>
                 <View style={s.dayHeader}>
-                  <Text style={s.dayLabel}>{day.label}</Text>
-                  <Text style={s.dayDate}>{dateLabel}</Text>
+                  <View style={s.dayHeaderRow}>
+                    <Text style={s.dayLabel}>{day.label}</Text>
+                    <Text style={s.dayDate}>{dateLabel}</Text>
+                  </View>
                 </View>
                 {items.length === 0 && (
                   <Pressable onPress={() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }}>
@@ -591,34 +603,36 @@ export default function MenuScreen() {
               <Text style={s.sheetTitle}>Välj rätter</Text>
               <Text style={s.sheetSub}>Vilka rätter vill du överföra?</Text>
               <ScrollView style={s.bulkRecipeList}>
-                {menuItems.map(item => {
-                  const selected = selectedRecipesForTransfer.has(item.id);
-                  return (
-                    <Pressable
-                      key={item.id}
-                      style={[s.bulkRecipeItem, selected && s.bulkRecipeItemActive]}
-                      onPress={() => setSelectedRecipesForTransfer(prev => {
-                        const n = new Set(prev);
-                        if (n.has(item.id)) n.delete(item.id); else n.add(item.id);
-                        return n;
-                      })}
-                    >
-                      <Ionicons
-                        name={selected ? 'checkbox' : 'square-outline'}
-                        size={22}
-                        color={selected ? '#4f46e5' : '#9ca3af'}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.bulkRecipeTitle}>{item.recipe.title}</Text>
-                        {item.day !== null && (
-                          <Text style={s.bulkRecipeDay}>
-                            {DAYS.find(d => d.key === item.day)?.label}
-                          </Text>
-                        )}
-                      </View>
-                    </Pressable>
-                  );
-                })}
+                {menuItems
+                  .filter(item => !transferredRecipeIds.has(item.recipeId))
+                  .map(item => {
+                    const selected = selectedRecipesForTransfer.has(item.id);
+                    return (
+                      <Pressable
+                        key={item.id}
+                        style={[s.bulkRecipeItem, selected && s.bulkRecipeItemActive]}
+                        onPress={() => setSelectedRecipesForTransfer(prev => {
+                          const n = new Set(prev);
+                          if (n.has(item.id)) n.delete(item.id); else n.add(item.id);
+                          return n;
+                        })}
+                      >
+                        <Ionicons
+                          name={selected ? 'checkbox' : 'square-outline'}
+                          size={22}
+                          color={selected ? '#4f46e5' : '#9ca3af'}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.bulkRecipeTitle}>{item.recipe.title}</Text>
+                          {item.day !== null && (
+                            <Text style={s.bulkRecipeDay}>
+                              {DAYS.find(d => d.key === item.day)?.label}
+                            </Text>
+                          )}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
               </ScrollView>
               <Pressable
                 style={[s.button, selectedRecipesForTransfer.size === 0 && s.buttonDisabled]}
@@ -718,12 +732,12 @@ function MenuCard({
               <Text style={s.cardActionText}>Visa recept</Text>
             </Pressable>
             {isTransferred ? (
-              <Pressable style={s.cardAction} onPress={onRemoveFromList}>
+              <Pressable style={s.cardAction} onPress={onRemoveFromList} pointerEvents="auto">
                 <Ionicons name="cart" size={15} color="#ef4444" />
                 <Text style={[s.cardActionText, { color: '#ef4444' }]}>Ta bort från lista</Text>
               </Pressable>
             ) : (
-              <Pressable style={s.cardAction} onPress={onTransfer}>
+              <Pressable style={s.cardAction} onPress={onTransfer} pointerEvents="auto">
                 <Ionicons name="cart-outline" size={15} color="#4f46e5" />
                 <Text style={[s.cardActionText, { color: '#4f46e5' }]}>Till inköpslistan</Text>
               </Pressable>
@@ -787,8 +801,9 @@ const s = StyleSheet.create({
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8 },
   dayHeader: { gap: 1 },
+  dayHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dayLabel: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  dayDate: { fontSize: 12, color: '#6b7280' },
+  dayDate: { fontSize: 11, color: '#6b7280' },
   unscheduledEmpty: { fontSize: 13, color: '#9ca3af', paddingVertical: 8 },
   emptyDayText: { fontSize: 13, color: '#9ca3af', paddingVertical: 8 },
   emptyDay: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 8 },
@@ -804,8 +819,8 @@ const s = StyleSheet.create({
   transferredBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   transferredText: { fontSize: 11, color: '#10b981', fontWeight: '600' },
   cardExpanded: { borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingHorizontal: 14, paddingBottom: 12 },
-  cardActions: { flexDirection: 'row', gap: 0, paddingTop: 10 },
-  cardAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8 },
+  cardActions: { flexDirection: 'row', gap: 0, paddingTop: 10, pointerEvents: 'auto' },
+  cardAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, pointerEvents: 'auto' },
   cardActionText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
   assignDayRow: { marginTop: 8, gap: 6 },
   assignDayLabel: { fontSize: 12, color: '#9ca3af' },
