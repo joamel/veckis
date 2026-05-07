@@ -87,7 +87,7 @@ shoppingRouter.get('/lists/:listId', requireAuth, asyncHandler(async (req, res) 
 
   const full = await prisma.shoppingList.findUnique({
     where: { id: list.id },
-    include: { items: { orderBy: [{ isChecked: 'asc' }, { category: 'asc' }], include: { recipe: { select: { id: true, title: true } } } }, store: true },
+    include: { items: { orderBy: [{ isChecked: 'asc' }, { category: 'asc' }, { name: 'asc' }], include: { recipe: { select: { id: true, title: true } } } }, store: true },
   });
   res.json(full);
 }));
@@ -173,6 +173,14 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
 
   res.status(201).json(item);
+}));
+
+// DELETE /api/shopping/lists/:listId/items  (clear all items, keep the list)
+shoppingRouter.delete('/lists/:listId/items', requireAuth, asyncHandler(async (req, res) => {
+  const list = await getListAndVerifyMember(req.params.listId, (req as AuthenticatedRequest).clerkUserId, res);
+  if (!list) return;
+  await prisma.shoppingItem.deleteMany({ where: { listId: list.id } });
+  res.status(204).send();
 }));
 
 // PATCH /api/shopping/items/:itemId

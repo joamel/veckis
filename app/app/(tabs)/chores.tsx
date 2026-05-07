@@ -15,8 +15,10 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
+import { DatePickerModal } from '../../src/components/DatePickerModal';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { ScreenHeader } from '../../src/components/ScreenHeader';
 import type { Chore, ChoreCompletion, ChoreFrequency, WeekDay } from '@veckis/shared';
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
@@ -62,9 +64,59 @@ function isFullyDone(chore: ChoreWithCompletion): boolean {
 
 type Member = { id: string; clerkUserId: string; displayName: string };
 
+function toggleDay(days: WeekDay[], day: WeekDay): WeekDay[] {
+  return days.includes(day) ? days.filter(d => d !== day) : [...days, day];
+}
+
+function DayPicker({ selected, onChange }: { selected: WeekDay[]; onChange: (days: WeekDay[]) => void }) {
+  return (
+    <View style={s.dayRow}>
+      {DAYS.map(d => (
+        <Pressable
+          key={d.key}
+          style={[s.dayOption, selected.includes(d.key) && s.dayOptionActive]}
+          onPress={() => onChange(toggleDay(selected, d.key))}
+        >
+          <Text style={[s.dayOptionText, selected.includes(d.key) && s.dayOptionTextActive]}>
+            {d.short}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function MemberPicker({ members, selected, onChange }: { members: Member[]; selected: string | null; onChange: (id: string | null) => void }) {
+  if (members.length === 0) return null;
+  return (
+    <>
+      <Text style={s.label}>Tilldela person</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberRow}>
+        <Pressable
+          style={[s.memberOption, selected === null && s.memberOptionActive]}
+          onPress={() => onChange(null)}
+        >
+          <Text style={[s.memberOptionText, selected === null && s.memberOptionTextActive]}>Ingen</Text>
+        </Pressable>
+        {members.map(m => (
+          <Pressable
+            key={m.id}
+            style={[s.memberOption, selected === m.clerkUserId && s.memberOptionActive]}
+            onPress={() => onChange(m.clerkUserId)}
+          >
+            <Text style={[s.memberOptionText, selected === m.clerkUserId && s.memberOptionTextActive]}>
+              {m.displayName}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </>
+  );
+}
+
 export default function ChoresScreen() {
   const client = useApiClient();
-  const { householdId, householdName } = useHousehold();
+  const { householdId } = useHousehold();
   const { medium } = useHaptics();
   const [chores, setChores] = useState<ChoreWithCompletion[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -87,6 +139,16 @@ export default function ChoresScreen() {
   const [saving, setSaving] = useState(false);
   const [showRecurring, setShowRecurring] = useState(false);
   const [showEditRecurring, setShowEditRecurring] = useState(false);
+
+  // Date range state
+  const [newStartDate, setNewStartDate] = useState<string | null>(null);
+  const [newEndDate, setNewEndDate] = useState<string | null>(null);
+  const [showNewStartPicker, setShowNewStartPicker] = useState(false);
+  const [showNewEndPicker, setShowNewEndPicker] = useState(false);
+  const [editStartDate, setEditStartDate] = useState<string | null>(null);
+  const [editEndDate, setEditEndDate] = useState<string | null>(null);
+  const [showEditStartPicker, setShowEditStartPicker] = useState(false);
+  const [showEditEndPicker, setShowEditEndPicker] = useState(false);
 
   const load = useCallback(async () => {
     if (!householdId) return;
@@ -123,10 +185,6 @@ export default function ChoresScreen() {
     return members.find(m => m.clerkUserId === clerkUserId)?.displayName ?? null;
   }
 
-  function toggleDay(days: WeekDay[], day: WeekDay): WeekDay[] {
-    return days.includes(day) ? days.filter(d => d !== day) : [...days, day];
-  }
-
   async function createChore() {
     if (!householdId || !newTitle.trim()) return;
     setCreating(true);
@@ -137,6 +195,8 @@ export default function ChoresScreen() {
         frequency: newFreq,
         assignedTo: newAssignedTo,
         days: newDays,
+        startDate: newStartDate,
+        endDate: newEndDate,
       });
       setChores(prev => [...prev, { ...chore, completions: [] }]);
       setShowCreate(false);
@@ -144,6 +204,8 @@ export default function ChoresScreen() {
       setNewFreq('weekly');
       setNewAssignedTo(null);
       setNewDays([]);
+      setNewStartDate(null);
+      setNewEndDate(null);
     } catch {
       Alert.alert('Fel', 'Kunde inte skapa syssla');
     } finally {
@@ -158,6 +220,8 @@ export default function ChoresScreen() {
     setEditAssignedTo(chore.assignedTo);
     setEditDays([...chore.days]);
     setShowEditRecurring(chore.frequency !== 'once');
+    setEditStartDate(chore.startDate ?? null);
+    setEditEndDate(chore.endDate ?? null);
   }
 
   async function saveEdit() {
@@ -169,6 +233,8 @@ export default function ChoresScreen() {
         frequency: editFreq,
         assignedTo: editAssignedTo,
         days: editDays,
+        startDate: editStartDate,
+        endDate: editEndDate,
       });
       setChores(prev => prev.map(c => c.id === editingChore.id ? { ...c, ...updated } : c));
       setEditingChore(null);
@@ -245,66 +311,17 @@ export default function ChoresScreen() {
     return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
   }
 
-  function DayPicker({ selected, onChange }: { selected: WeekDay[]; onChange: (days: WeekDay[]) => void }) {
-    return (
-      <View style={s.dayRow}>
-        {DAYS.map(d => (
-          <Pressable
-            key={d.key}
-            style={[s.dayOption, selected.includes(d.key) && s.dayOptionActive]}
-            onPress={() => onChange(toggleDay(selected, d.key))}
-          >
-            <Text style={[s.dayOptionText, selected.includes(d.key) && s.dayOptionTextActive]}>
-              {d.short}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    );
-  }
-
-  function MemberPicker({ selected, onChange }: { selected: string | null; onChange: (id: string | null) => void }) {
-    if (members.length === 0) return null;
-    return (
-      <>
-        <Text style={s.label}>Tilldela person</Text>
-        <View style={s.memberRow}>
-          <Pressable
-            style={[s.memberOption, selected === null && s.memberOptionActive]}
-            onPress={() => onChange(null)}
-          >
-            <Text style={[s.memberOptionText, selected === null && s.memberOptionTextActive]}>Ingen</Text>
-          </Pressable>
-          {members.map(m => (
-            <Pressable
-              key={m.id}
-              style={[s.memberOption, selected === m.clerkUserId && s.memberOptionActive]}
-              onPress={() => onChange(m.clerkUserId)}
-            >
-              <Text style={[s.memberOptionText, selected === m.clerkUserId && s.memberOptionTextActive]}>
-                {m.displayName}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </>
-    );
-  }
-
   return (
     <SafeAreaView style={s.container}>
-      <View style={s.header}>
-        <View>
-          <Text style={s.title}>Sysslor</Text>
-          {householdName && <Text style={s.subtitle}>{householdName}</Text>}
-        </View>
-        {completedOnce.length > 0 && (
+      <ScreenHeader
+        title="Sysslor"
+        actionNode={completedOnce.length > 0 ? (
           <Pressable style={s.clearBtn} onPress={clearCompleted}>
             <Ionicons name="trash-outline" size={14} color="#ef4444" />
             <Text style={s.clearBtnText}>Rensa klara ({completedOnce.length})</Text>
           </Pressable>
-        )}
-      </View>
+        ) : undefined}
+      />
 
       <FlatList
         data={sortedChores}
@@ -375,7 +392,7 @@ export default function ChoresScreen() {
             />
 
             <Text style={s.label}>Frekvens</Text>
-            <View style={s.freqRow}>
+            <View style={s.freqRowNoWrap}>
               <Pressable
                 style={[s.freqOption, newFreq === 'once' && s.freqOptionActive]}
                 onPress={() => { setNewFreq('once'); setShowRecurring(false); }}
@@ -386,12 +403,10 @@ export default function ChoresScreen() {
                 style={[s.freqOption, newFreq !== 'once' && s.freqOptionActive]}
                 onPress={() => setShowRecurring(v => !v)}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={[s.freqOptionText, newFreq !== 'once' && s.freqOptionTextActive]}>
-                    {newFreq !== 'once' ? FREQ_LABELS[newFreq] : 'Återkommande'}
-                  </Text>
-                  <Ionicons name={showRecurring ? 'chevron-up' : 'chevron-down'} size={12} color={newFreq !== 'once' ? '#4f46e5' : '#6b7280'} />
-                </View>
+                <Text style={[s.freqOptionText, newFreq !== 'once' && s.freqOptionTextActive]}>
+                  {newFreq !== 'once' ? FREQ_LABELS[newFreq] : 'Återkommande'}{' '}
+                  <Text style={s.freqChevron}>{showRecurring ? '▲' : '▼'}</Text>
+                </Text>
               </Pressable>
             </View>
             {showRecurring && (
@@ -399,7 +414,7 @@ export default function ChoresScreen() {
                 {(['daily', 'weekly', 'biweekly', 'monthly'] as ChoreFrequency[]).map(f => (
                   <Pressable
                     key={f}
-                    style={[s.freqOption, newFreq === f && s.freqOptionActive]}
+                    style={[s.freqOption, { width: '47%' }, newFreq === f && s.freqOptionActive]}
                     onPress={() => { setNewFreq(f); if (f === 'daily') setNewDays([]); }}
                   >
                     <Text style={[s.freqOptionText, newFreq === f && s.freqOptionTextActive]}>
@@ -410,12 +425,28 @@ export default function ChoresScreen() {
               </View>
             )}
 
-            <MemberPicker selected={newAssignedTo} onChange={setNewAssignedTo} />
+            <MemberPicker members={members} selected={newAssignedTo} onChange={setNewAssignedTo} />
 
             {newFreq !== 'daily' && newFreq !== 'once' && (
               <>
                 <Text style={s.label}>Dagar i schemat (valfritt)</Text>
                 <DayPicker selected={newDays} onChange={setNewDays} />
+              </>
+            )}
+
+            {newFreq !== 'once' && (
+              <>
+                <Text style={s.label}>Giltighetstid (valfritt)</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
+                    <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Från'}</Text>
+                  </Pressable>
+                  <Pressable style={[s.dateBtn, newEndDate && s.dateBtnSet]} onPress={() => setShowNewEndPicker(true)}>
+                    <Ionicons name="calendar-outline" size={14} color={newEndDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, newEndDate && s.dateBtnTextSet]}>{newEndDate ?? 'Till'}</Text>
+                  </Pressable>
+                </View>
               </>
             )}
 
@@ -431,6 +462,11 @@ export default function ChoresScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} />
+      <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} />
+      <DatePickerModal value={editStartDate} onChange={setEditStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} />
+      <DatePickerModal value={editEndDate} onChange={setEditEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} />
 
       {/* Edit modal */}
       <Modal visible={!!editingChore} transparent animationType="slide" onRequestClose={() => setEditingChore(null)}>
@@ -448,7 +484,7 @@ export default function ChoresScreen() {
             />
 
             <Text style={s.label}>Frekvens</Text>
-            <View style={s.freqRow}>
+            <View style={s.freqRowNoWrap}>
               <Pressable
                 style={[s.freqOption, editFreq === 'once' && s.freqOptionActive]}
                 onPress={() => { setEditFreq('once'); setShowEditRecurring(false); }}
@@ -459,12 +495,10 @@ export default function ChoresScreen() {
                 style={[s.freqOption, editFreq !== 'once' && s.freqOptionActive]}
                 onPress={() => setShowEditRecurring(v => !v)}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={[s.freqOptionText, editFreq !== 'once' && s.freqOptionTextActive]}>
-                    {editFreq !== 'once' ? FREQ_LABELS[editFreq] : 'Återkommande'}
-                  </Text>
-                  <Ionicons name={showEditRecurring ? 'chevron-up' : 'chevron-down'} size={12} color={editFreq !== 'once' ? '#4f46e5' : '#6b7280'} />
-                </View>
+                <Text style={[s.freqOptionText, editFreq !== 'once' && s.freqOptionTextActive]}>
+                  {editFreq !== 'once' ? FREQ_LABELS[editFreq] : 'Återkommande'}{' '}
+                  <Text style={s.freqChevron}>{showEditRecurring ? '▲' : '▼'}</Text>
+                </Text>
               </Pressable>
             </View>
             {showEditRecurring && (
@@ -472,7 +506,7 @@ export default function ChoresScreen() {
                 {(['daily', 'weekly', 'biweekly', 'monthly'] as ChoreFrequency[]).map(f => (
                   <Pressable
                     key={f}
-                    style={[s.freqOption, editFreq === f && s.freqOptionActive]}
+                    style={[s.freqOption, { width: '47%' }, editFreq === f && s.freqOptionActive]}
                     onPress={() => { setEditFreq(f); if (f === 'daily') setEditDays([]); }}
                   >
                     <Text style={[s.freqOptionText, editFreq === f && s.freqOptionTextActive]}>
@@ -483,12 +517,28 @@ export default function ChoresScreen() {
               </View>
             )}
 
-            <MemberPicker selected={editAssignedTo} onChange={setEditAssignedTo} />
+            <MemberPicker members={members} selected={editAssignedTo} onChange={setEditAssignedTo} />
 
             {editFreq !== 'daily' && editFreq !== 'once' && (
               <>
                 <Text style={s.label}>Dagar i schemat</Text>
                 <DayPicker selected={editDays} onChange={setEditDays} />
+              </>
+            )}
+
+            {editFreq !== 'once' && (
+              <>
+                <Text style={s.label}>Giltighetstid (valfritt)</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
+                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Från'}</Text>
+                  </Pressable>
+                  <Pressable style={[s.dateBtn, editEndDate && s.dateBtnSet]} onPress={() => setShowEditEndPicker(true)}>
+                    <Ionicons name="calendar-outline" size={14} color={editEndDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, editEndDate && s.dateBtnTextSet]}>{editEndDate ?? 'Till'}</Text>
+                  </Pressable>
+                </View>
               </>
             )}
 
@@ -519,9 +569,6 @@ export default function ChoresScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  title: { fontSize: 28, fontWeight: '700', color: '#111827' },
-  subtitle: { fontSize: 13, color: '#6b7280', marginTop: 2 },
   clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#fecaca', backgroundColor: '#fff5f5' },
   clearBtnText: { fontSize: 12, color: '#ef4444', fontWeight: '500' },
   list: { padding: 16, gap: 10 },
@@ -546,12 +593,14 @@ const s = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#f9fafb' },
   label: { fontSize: 14, fontWeight: '600', color: '#374151' },
   freqRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  freqOption: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  freqRowNoWrap: { flexDirection: 'row', gap: 8 },
+  freqOption: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', flexShrink: 0, overflow: 'visible' },
   freqOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
   freqOptionText: { fontSize: 13, color: '#6b7280' },
   freqOptionTextActive: { color: '#4f46e5', fontWeight: '600' },
-  memberRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  memberOption: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  freqChevron: { fontSize: 9 },
+  memberRow: { flexDirection: 'row', gap: 8 },
+  memberOption: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', flexShrink: 0 },
   memberOptionActive: { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' },
   memberOptionText: { fontSize: 13, color: '#6b7280' },
   memberOptionTextActive: { color: '#7c3aed', fontWeight: '600' },
@@ -565,4 +614,8 @@ const s = StyleSheet.create({
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   deleteBtnText: { color: '#ef4444', fontSize: 14, fontWeight: '500' },
+  dateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  dateBtnSet: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  dateBtnText: { fontSize: 13, color: '#9ca3af', flex: 1 },
+  dateBtnTextSet: { color: '#4f46e5', fontWeight: '600' },
 });

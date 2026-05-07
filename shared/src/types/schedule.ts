@@ -1,5 +1,5 @@
 export type WeekDay = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
-export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'custom_days' | 'monthly';
+export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'custom_days' | 'monthly' | 'yearly';
 
 export interface ScheduleEntry {
   id: string;
@@ -14,5 +14,10 @@ export interface ScheduleEntry {
   recurrenceType: RecurrenceType;
   recurrenceDays: WeekDay[];
   recurrenceWeeks: number;
+  monthlyType: string;
+  recurrenceWeekOfMonth: number | null;
+  exceptions: string[];
+  startDate: string | null;
+  endDate: string | null;
   createdBy: string;
 }

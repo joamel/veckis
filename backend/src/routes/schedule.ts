@@ -21,6 +21,10 @@ const createEntrySchema = z.object({
   recurrenceType: z.nativeEnum(RecurrenceType).default('none'),
   recurrenceDays: z.nativeEnum(WeekDay).array().default([]),
   recurrenceWeeks: z.number().int().min(1).default(1),
+  monthlyType: z.string().optional(),
+  recurrenceWeekOfMonth: z.number().int().optional().nullable(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 });
 
 const updateEntrySchema = createEntrySchema.omit({ householdId: true }).partial().extend({
@@ -84,9 +88,20 @@ scheduleRouter.patch('/:entryId', requireAuth, asyncHandler(async (req, res) => 
 }));
 
 // DELETE /api/schedule/:entryId
+// If ?date=YYYY-MM-DD is present and entry is recurring, adds date to exceptions instead of deleting
 scheduleRouter.delete('/:entryId', requireAuth, asyncHandler(async (req, res) => {
   const entry = await getEntryAndVerifyMember(req.params.entryId, (req as AuthenticatedRequest).clerkUserId, res);
   if (!entry) return;
+
+  const { date } = req.query;
+  if (typeof date === 'string' && entry.recurrenceType !== 'none') {
+    const updated = await prisma.scheduleEntry.update({
+      where: { id: entry.id },
+      data: { exceptions: { push: date } },
+    });
+    res.status(200).json(updated);
+    return;
+  }
 
   await prisma.scheduleEntry.delete({ where: { id: entry.id } });
   res.status(204).send();

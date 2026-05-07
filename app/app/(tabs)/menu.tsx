@@ -20,6 +20,8 @@ import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, 
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { getISOWeek, addWeeks } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { WeekNav } from '../../src/components/WeekNav';
 import type { WeekDay } from '@veckis/shared';
 
 const DAYS: { key: WeekDay; label: string; short: string }[] = [
@@ -31,6 +33,8 @@ const DAYS: { key: WeekDay; label: string; short: string }[] = [
   { key: 'sat', label: 'Lördag', short: 'Lör' },
   { key: 'sun', label: 'Söndag', short: 'Sön' },
 ];
+
+const MONTH_NAMES = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'];
 
 function getWeekMonday(weekOffset: number): Date {
   const d = addWeeks(new Date(), weekOffset);
@@ -45,7 +49,7 @@ function getWeekMonday(weekOffset: number): Date {
 export default function MenuScreen() {
   const router = useRouter();
   const client = useApiClient();
-  const { householdId, householdName, householdEmoji } = useHousehold();
+  const { householdId } = useHousehold();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const weekMonday = useMemo(() => getWeekMonday(weekOffset), [weekOffset]);
@@ -221,13 +225,23 @@ export default function MenuScreen() {
     }
   }
 
+  async function createListAndContinue() {
+    if (!householdId || !newListName.trim()) return;
+    setCreatingList(true);
+    try {
+      const list = await client.createShoppingList({ householdId, name: newListName.trim() });
+      setShoppingLists(prev => [...prev, list]);
+      setNewListName('');
+    } catch {
+      Alert.alert('Fel', 'Kunde inte skapa lista');
+    } finally {
+      setCreatingList(false);
+    }
+  }
+
   async function transferWeekMenu() {
     if (menuItems.length === 0) {
       Alert.alert('Tomt', 'Ingen rätt planerad denna vecka');
-      return;
-    }
-    if (shoppingLists.length === 0) {
-      Alert.alert('Ingen lista', 'Skapa en inköpslista först');
       return;
     }
 
@@ -335,31 +349,19 @@ export default function MenuScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      {/* Header */}
-      <View style={s.header}>
-        <View style={s.headerTop}>
-          <View>
-            <Text style={s.title}>Meny</Text>
-            {householdName && <Text style={s.subtitle}>{householdEmoji || '🏠'} {householdName}</Text>}
-          </View>
-          <Pressable style={s.recipesBtn} onPress={() => router.push('/recipes' as never)}>
-            <Ionicons name="book-outline" size={16} color="#4f46e5" />
-            <Text style={s.recipesBtnText}>Recept</Text>
-          </Pressable>
-        </View>
-        <View style={s.weekNav}>
-          <Pressable style={s.weekNavBtn} onPress={() => setWeekOffset(o => o - 1)}>
-            <Ionicons name="chevron-back" size={18} color="#4f46e5" />
-          </Pressable>
-          <Pressable style={s.weekLabelBtn} onPress={() => setWeekOffset(0)}>
-            <Text style={[s.weekLabel, weekOffset === 0 && s.weekLabelCurrent]}>{weekLabel}</Text>
-            {weekOffset !== 0 && <Text style={s.weekLabelHint}>tryck för denna vecka</Text>}
-          </Pressable>
-          <Pressable style={s.weekNavBtn} onPress={() => setWeekOffset(o => o + 1)}>
-            <Ionicons name="chevron-forward" size={18} color="#4f46e5" />
-          </Pressable>
-        </View>
-      </View>
+      <ScreenHeader
+        title="Meny"
+        actionIcon="book-outline"
+        actionLabel="Recept"
+        onActionPress={() => router.push('/recipes' as never)}
+      />
+      <WeekNav
+        weekLabel={weekLabel}
+        isCurrentWeek={weekOffset === 0}
+        onPrev={() => setWeekOffset(o => o - 1)}
+        onNext={() => setWeekOffset(o => o + 1)}
+        onToday={() => setWeekOffset(0)}
+      />
 
       <ScrollView
         style={s.content}
@@ -369,18 +371,14 @@ export default function MenuScreen() {
         {/* Day sections — sorted Mon→Sun, show all 7 days */}
         {DAYS.map((day, i) => {
           const items = menuItems.filter(m => m.day === day.key);
-          const date = new Date(weekMonday);
-          date.setDate(weekMonday.getDate() + i);
-          const dateLabel = date.toLocaleDateString('sv-SE', { day: 'numeric', month: 'long' });
+          const date = new Date(weekMonday.getFullYear(), weekMonday.getMonth(), weekMonday.getDate() + i);
           return (
             <View key={day.key} style={s.section}>
-              <View style={s.sectionRow}>
-                <View style={s.dayHeader}>
-                  <View style={s.dayHeaderRow}>
-                    <Text style={s.dayLabel}>{day.label}</Text>
-                    <Text style={s.dayDate}>{dateLabel}</Text>
-                  </View>
-                </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#111827' }}>
+                  {day.label}{' '}
+                  <Text style={{ fontSize: 12, fontWeight: '400', color: '#6b7280' }}>{date.getDate()} {MONTH_NAMES[date.getMonth()]}</Text>
+                </Text>
                 {items.length === 0 && (
                   <Pressable onPress={() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }}>
                     <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
@@ -397,8 +395,6 @@ export default function MenuScreen() {
                     isTransferred={transferredRecipeIds.has(item.recipeId)}
                     onRemove={() => removeFromMenu(item)}
                     onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
-                    onTransfer={() => setTransferSheet(item)}
-                    onRemoveFromList={() => removeFromShoppingList(item.id)}
                     onMoveToDay={d => moveToDay(item, d)}
                   />
                 ))
@@ -425,8 +421,6 @@ export default function MenuScreen() {
                 isTransferred={transferredRecipeIds.has(item.recipeId)}
                 onRemove={() => removeFromMenu(item)}
                 onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
-                onTransfer={() => setTransferSheet(item)}
-                onRemoveFromList={() => removeFromShoppingList(item.id)}
                 onMoveToDay={d => moveToDay(item, d)}
               />
             ))
@@ -449,7 +443,7 @@ export default function MenuScreen() {
           >
             <Ionicons name="cart-outline" size={20} color={menuItems.every(m => transferredRecipeIds.has(m.recipeId)) ? '#d1d5db' : '#4f46e5'} />
             <Text style={[s.newListBtnText, menuItems.every(m => transferredRecipeIds.has(m.recipeId)) && s.newListBtnTextDisabled]}>
-              {menuItems.every(m => transferredRecipeIds.has(m.recipeId)) ? 'Redan överförd' : 'Överför veckomeny till inköpslista'}
+              {menuItems.every(m => transferredRecipeIds.has(m.recipeId)) ? 'Redan överförd' : 'Veckomeny → Inköpslista'}
             </Text>
           </Pressable>
         </View>
@@ -580,7 +574,29 @@ export default function MenuScreen() {
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Välj inköpslista</Text>
           {shoppingLists.length === 0 ? (
-            <Text style={s.pickerEmptyText}>Ingen aktiv inköpslista — skapa en från meny-fliken</Text>
+            <>
+              <Text style={s.pickerEmptyText}>Ingen aktiv inköpslista — skapa en direkt här</Text>
+              <View style={s.createListRow}>
+                <TextInput
+                  style={[s.input, { flex: 1, marginTop: 0 }]}
+                  placeholder="Namn på ny lista"
+                  value={newListName}
+                  onChangeText={setNewListName}
+                  returnKeyType="done"
+                  onSubmitEditing={createListAndContinue}
+                  autoFocus
+                />
+                <Pressable
+                  style={[s.createListBtn, (!newListName.trim() || creatingList) && s.buttonDisabled]}
+                  onPress={createListAndContinue}
+                  disabled={creatingList || !newListName.trim()}
+                >
+                  {creatingList
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={s.createListBtnText}>Skapa</Text>}
+                </Pressable>
+              </View>
+            </>
           ) : (
             shoppingLists.map(l => (
               <Pressable key={l.id} style={s.pickerItem} onPress={() => doTransfer(l.id)}>
@@ -646,18 +662,43 @@ export default function MenuScreen() {
             <>
               <Text style={s.sheetTitle}>Välj inköpslista</Text>
               <Text style={s.sheetSub}>{selectedRecipesForTransfer.size} rätt(er) att överföra</Text>
-              <ScrollView style={s.bulkRecipeList}>
-                {shoppingLists.map(l => (
-                  <Pressable
-                    key={l.id}
-                    style={s.pickerItem}
-                    onPress={() => executeBulkTransfer(l.id)}
-                  >
-                    <Text style={s.pickerItemTitle}>{l.name}</Text>
-                    <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
+              {shoppingLists.length === 0 ? (
+                <>
+                  <Text style={s.pickerEmptyText}>Ingen aktiv inköpslista — skapa en direkt här</Text>
+                  <View style={s.createListRow}>
+                    <TextInput
+                      style={[s.input, { flex: 1, marginTop: 0 }]}
+                      placeholder="Namn på ny lista"
+                      value={newListName}
+                      onChangeText={setNewListName}
+                      returnKeyType="done"
+                      onSubmitEditing={createListAndContinue}
+                    />
+                    <Pressable
+                      style={[s.createListBtn, (!newListName.trim() || creatingList) && s.buttonDisabled]}
+                      onPress={createListAndContinue}
+                      disabled={creatingList || !newListName.trim()}
+                    >
+                      {creatingList
+                        ? <ActivityIndicator color="#fff" size="small" />
+                        : <Text style={s.createListBtnText}>Skapa</Text>}
+                    </Pressable>
+                  </View>
+                </>
+              ) : (
+                <ScrollView style={s.bulkRecipeList}>
+                  {shoppingLists.map(l => (
+                    <Pressable
+                      key={l.id}
+                      style={s.pickerItem}
+                      onPress={() => executeBulkTransfer(l.id)}
+                    >
+                      <Text style={s.pickerItemTitle}>{l.name}</Text>
+                      <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
               <Pressable
                 style={[s.button, { backgroundColor: '#e5e7eb' }]}
                 onPress={() => setBulkTransferStep('recipe')}
@@ -678,16 +719,12 @@ function MenuCard({
   isTransferred,
   onRemove,
   onViewRecipe,
-  onTransfer,
-  onRemoveFromList,
   onMoveToDay,
 }: {
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
   onRemove: () => void;
   onViewRecipe: () => void;
-  onTransfer: () => void;
-  onRemoveFromList: () => void;
   onMoveToDay: (day: WeekDay | null) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -731,17 +768,6 @@ function MenuCard({
               <Ionicons name="open-outline" size={15} color="#6b7280" />
               <Text style={s.cardActionText}>Visa recept</Text>
             </Pressable>
-            {isTransferred ? (
-              <Pressable style={s.cardAction} onPress={onRemoveFromList} pointerEvents="auto">
-                <Ionicons name="cart" size={15} color="#ef4444" />
-                <Text style={[s.cardActionText, { color: '#ef4444' }]}>Ta bort från lista</Text>
-              </Pressable>
-            ) : (
-              <Pressable style={s.cardAction} onPress={onTransfer} pointerEvents="auto">
-                <Ionicons name="cart-outline" size={15} color="#4f46e5" />
-                <Text style={[s.cardActionText, { color: '#4f46e5' }]}>Till inköpslistan</Text>
-              </Pressable>
-            )}
             <Pressable style={s.cardAction} onPress={onRemove}>
               <Ionicons name="trash-outline" size={15} color="#ef4444" />
               <Text style={[s.cardActionText, { color: '#ef4444' }]}>Ta bort</Text>
@@ -780,25 +806,10 @@ function MenuCard({
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: 10 },
-  headerTop: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',
-    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10,
-  },
-  title: { fontSize: 28, fontWeight: '700', color: '#111827' },
-  subtitle: { fontSize: 13, color: '#6b7280', marginTop: 2 },
-  recipesBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eef2ff', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
-  recipesBtnText: { fontSize: 13, fontWeight: '600', color: '#4f46e5' },
-  weekNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
-  weekNavBtn: { padding: 8 },
-  weekLabelBtn: { flex: 1, alignItems: 'center', paddingVertical: 4 },
-  weekLabel: { fontSize: 14, fontWeight: '600', color: '#374151' },
-  weekLabelCurrent: { color: '#4f46e5' },
-  weekLabelHint: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
   section: { gap: 8 },
-  sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2 },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8 },
   dayHeader: { gap: 1 },
   dayHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -854,6 +865,9 @@ const s = StyleSheet.create({
   pickerEmptyText: { fontSize: 14, color: '#6b7280', textAlign: 'center' },
   pickerEmptyBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#4f46e5', borderRadius: 8 },
   pickerEmptyBtnText: { fontSize: 14, color: '#fff', fontWeight: '600' },
+  createListRow: { flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 8 },
+  createListBtn: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#4f46e5', borderRadius: 10 },
+  createListBtnText: { fontSize: 14, color: '#fff', fontWeight: '600' },
   cleanupSub: { fontSize: 13, color: '#6b7280', marginTop: -10 },
   cleanupList: { gap: 8 },
   cleanupItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
@@ -870,7 +884,7 @@ const s = StyleSheet.create({
   newListLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280', marginTop: 8, marginBottom: 8 },
   newListRow: { flexDirection: 'row', gap: 10 },
   newListSection: { paddingVertical: 24, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: '#f3f4f6', marginTop: 24 },
-  newListBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#eef2ff', borderRadius: 12, borderWidth: 1, borderColor: '#c7d2fe' },
+  newListBtn: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#eef2ff', borderRadius: 12, borderWidth: 1, borderColor: '#c7d2fe' },
   newListBtnDisabled: { backgroundColor: '#f3f4f6', borderColor: '#e5e7eb' },
   newListBtnText: { fontSize: 16, fontWeight: '600', color: '#4f46e5' },
   newListBtnTextDisabled: { color: '#9ca3af' },

@@ -9,6 +9,8 @@ export interface Chore {
   assignedTo: string | null;
   days: import('./schedule').WeekDay[];
   isShared: boolean;
+  startDate: string | null;
+  endDate: string | null;
   createdBy: string;
   createdAt: string;
 }

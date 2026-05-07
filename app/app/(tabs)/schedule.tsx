@@ -21,8 +21,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { WeekNav } from '../../src/components/WeekNav';
 import { useTablet } from '../../src/hooks/useTablet';
 import { MonthView } from '../../src/components/calendar/MonthView';
+import { DatePickerModal } from '../../src/components/DatePickerModal';
 import { getISOWeek, addWeeks } from '../../src/lib/week';
 import type { ScheduleEntry, WeekDay, Chore, ChoreCompletion } from '@veckis/shared';
 
@@ -96,6 +99,7 @@ function Drum({ values, selected, onSelect }: { values: string[]; selected: numb
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingVertical: DRUM_H }}
+        nestedScrollEnabled
         onScroll={handleScroll}
         onMomentumScrollEnd={handleScrollEnd}
       >
@@ -129,7 +133,7 @@ function Drum({ values, selected, onSelect }: { values: string[]; selected: numb
 export default function ScheduleScreen() {
   const router = useRouter();
   const client = useApiClient();
-  const { householdId, householdName, householdEmoji } = useHousehold();
+  const { householdId } = useHousehold();
   const { user } = useUser();
   const { medium } = useHaptics();
   const isTablet = useTablet();
@@ -163,7 +167,7 @@ export default function ScheduleScreen() {
   const [newMinute, setNewMinute] = useState(0);
   const [newDay, setNewDay] = useState<WeekDay>(TODAY_DAY);
   const [newIsShared, setNewIsShared] = useState(true);
-  const [newRecurrenceType, setNewRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'custom_days' | 'monthly'>('none');
+  const [newRecurrenceType, setNewRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('none');
   const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
   const [newRecurrenceWeeks, setNewRecurrenceWeeks] = useState(1);
   const [creating, setCreating] = useState(false);
@@ -177,6 +181,26 @@ export default function ScheduleScreen() {
   const [editEntryDay, setEditEntryDay] = useState<WeekDay>(TODAY_DAY);
   const [editEntryIsShared, setEditEntryIsShared] = useState(true);
   const [savingEntry, setSavingEntry] = useState(false);
+
+  // New entry date range + recurrence
+  const [newStartDate, setNewStartDate] = useState<string | null>(null);
+  const [newEndDate, setNewEndDate] = useState<string | null>(null);
+  const [showNewStartPicker, setShowNewStartPicker] = useState(false);
+  const [showNewEndPicker, setShowNewEndPicker] = useState(false);
+  const [newMonthlyType, setNewMonthlyType] = useState<'day_of_month' | 'weekday_of_month'>('day_of_month');
+  const [newRecurrenceWeekOfMonth, setNewRecurrenceWeekOfMonth] = useState<number>(1);
+
+  // Edit entry state
+  const [editMode, setEditMode] = useState<'single' | 'series'>('series');
+  const [editEntryRecurrenceType, setEditEntryRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'custom_days' | 'monthly' | 'yearly'>('none');
+  const [editEntryRecurrenceDays, setEditEntryRecurrenceDays] = useState<WeekDay[]>([]);
+  const [editEntryRecurrenceWeeks, setEditEntryRecurrenceWeeks] = useState(1);
+  const [editEntryMonthlyType, setEditEntryMonthlyType] = useState<'day_of_month' | 'weekday_of_month'>('day_of_month');
+  const [editEntryRecurrenceWeekOfMonth, setEditEntryRecurrenceWeekOfMonth] = useState<number>(1);
+  const [editEntryStartDate, setEditEntryStartDate] = useState<string | null>(null);
+  const [editEntryEndDate, setEditEntryEndDate] = useState<string | null>(null);
+  const [showEditStartPicker, setShowEditStartPicker] = useState(false);
+  const [showEditEndPicker, setShowEditEndPicker] = useState(false);
 
   // Edit chore modal (from calendar)
   const [editingCalChore, setEditingCalChore] = useState<ChoreWithCompletion | null>(null);
@@ -227,6 +251,9 @@ export default function ScheduleScreen() {
 
   function choreVisibleOnDay(chore: ChoreWithCompletion, day: WeekDay, actualDate: Date): boolean {
     if (chore.frequency === 'once') return false;
+    const dateStr = actualDate.toISOString().slice(0, 10);
+    if (chore.startDate && dateStr < chore.startDate) return false;
+    if (chore.endDate && dateStr > chore.endDate) return false;
     if (chore.frequency === 'daily') return true;
     if (!chore.days.includes(day)) return false;
     if (chore.frequency === 'weekly') return true;
@@ -271,8 +298,12 @@ export default function ScheduleScreen() {
           : undefined,
         isShared: newIsShared,
         recurrenceType: newRecurrenceType,
-        recurrenceDays: newRecurrenceType === 'custom_days' ? newRecurrenceDays : undefined,
-        recurrenceWeeks: newRecurrenceType === 'weekly' ? newRecurrenceWeeks : undefined,
+        recurrenceDays: newRecurrenceType === 'weekly' ? newRecurrenceDays : undefined,
+        recurrenceWeeks: newRecurrenceType !== 'none' ? newRecurrenceWeeks : undefined,
+        monthlyType: newRecurrenceType === 'monthly' ? newMonthlyType : undefined,
+        recurrenceWeekOfMonth: newRecurrenceType === 'monthly' && newMonthlyType === 'weekday_of_month' ? newRecurrenceWeekOfMonth : undefined,
+        startDate: newStartDate,
+        endDate: newEndDate,
       });
       setEntries(prev => [...prev, entry]);
       setShowModal(false);
@@ -284,28 +315,65 @@ export default function ScheduleScreen() {
       setNewRecurrenceType('none');
       setNewRecurrenceDays([]);
       setNewRecurrenceWeeks(1);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte skapa schemapost');
+      setNewMonthlyType('day_of_month');
+      setNewRecurrenceWeekOfMonth(1);
+      setNewStartDate(null);
+      setNewEndDate(null);
+    } catch (e: any) {
+      Alert.alert('Fel', e?.message ?? String(e) ?? 'Kunde inte skapa schemapost');
     } finally {
       setCreating(false);
     }
   }
 
-  async function deleteEntry(entryId: string, title: string) {
-    Alert.alert('Ta bort', `Ta bort "${title}"?`, [
-      { text: 'Avbryt', style: 'cancel' },
-      {
-        text: 'Ta bort', style: 'destructive',
-        onPress: async () => {
-          try {
-            await client.deleteScheduleEntry(entryId);
-            setEntries(prev => prev.filter(e => e.id !== entryId));
-          } catch {
-            Alert.alert('Fel', 'Kunde inte ta bort');
-          }
+  async function deleteEntry(entry: ScheduleEntry, dateStr: string) {
+    if (entry.recurrenceType !== 'none') {
+      Alert.alert('Ta bort aktivitet', `Ta bort "${entry.title}"?`, [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Bara den här',
+          onPress: async () => {
+            try {
+              const result = await client.deleteScheduleEntry(entry.id, dateStr);
+              if (result) {
+                setEntries(prev => prev.map(e => e.id === entry.id ? result as ScheduleEntry : e));
+              }
+              setEditingEntry(null);
+            } catch {
+              Alert.alert('Fel', 'Kunde inte ta bort');
+            }
+          },
         },
-      },
-    ]);
+        {
+          text: 'Hela serien', style: 'destructive',
+          onPress: async () => {
+            try {
+              await client.deleteScheduleEntry(entry.id);
+              setEntries(prev => prev.filter(e => e.id !== entry.id));
+              setEditingEntry(null);
+            } catch {
+              Alert.alert('Fel', 'Kunde inte ta bort');
+            }
+          },
+        },
+      ]);
+    } else {
+      Alert.alert('Ta bort', `Ta bort "${entry.title}"?`, [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Ta bort', style: 'destructive',
+          onPress: async () => {
+            try {
+              await client.deleteScheduleEntry(entry.id);
+              setEntries(prev => prev.filter(e => e.id !== entry.id));
+              setEditingEntry(null);
+            } catch {
+              Alert.alert('Fel', 'Kunde inte ta bort');
+            }
+          },
+        },
+      ]);
+    }
   }
 
   async function completeChoreCalendar(chore: ChoreWithCompletion, day: WeekDay) {
@@ -336,11 +404,19 @@ export default function ScheduleScreen() {
     ]);
   }
 
-  function openEditEntry(entry: ScheduleEntry) {
+  function doOpenEditEntry(entry: ScheduleEntry, mode: 'single' | 'series') {
+    setEditMode(mode);
     setEditingEntry(entry);
     setEditEntryTitle(entry.title);
     setEditEntryDay(entry.day);
     setEditEntryIsShared(entry.isShared);
+    setEditEntryRecurrenceType(entry.recurrenceType as any);
+    setEditEntryRecurrenceDays(entry.recurrenceDays as WeekDay[]);
+    setEditEntryRecurrenceWeeks(entry.recurrenceWeeks ?? 1);
+    setEditEntryMonthlyType((entry.monthlyType as any) ?? 'day_of_month');
+    setEditEntryRecurrenceWeekOfMonth(entry.recurrenceWeekOfMonth ?? 1);
+    setEditEntryStartDate(entry.startDate ?? null);
+    setEditEntryEndDate(entry.endDate ?? null);
     if (entry.startTime) {
       const [h, m] = entry.startTime.split(':').map(Number);
       setEditEntryTimeEnabled(true);
@@ -353,19 +429,59 @@ export default function ScheduleScreen() {
     }
   }
 
+  function openEditEntry(entry: ScheduleEntry) {
+    if (entry.recurrenceType !== 'none') {
+      Alert.alert('Redigera aktivitet', 'Vilka tillfällen vill du redigera?', [
+        { text: 'Avbryt', style: 'cancel' },
+        { text: 'Bara det här', onPress: () => doOpenEditEntry(entry, 'single') },
+        { text: 'Hela serien', onPress: () => doOpenEditEntry(entry, 'series') },
+      ]);
+    } else {
+      doOpenEditEntry(entry, 'series');
+    }
+  }
+
   async function saveEditEntry() {
     if (!editingEntry || !editEntryTitle.trim()) return;
     setSavingEntry(true);
     try {
-      const updated = await client.updateScheduleEntry(editingEntry.id, {
-        title: editEntryTitle.trim(),
-        day: editEntryDay,
-        startTime: editEntryTimeEnabled
-          ? `${editEntryHour.toString().padStart(2, '0')}:${MIN_VALS[editEntryMinute]}`
-          : null,
-        isShared: editEntryIsShared,
-      });
-      setEntries(prev => prev.map(e => e.id === updated.id ? updated : e));
+      const startTime = editEntryTimeEnabled
+        ? `${editEntryHour.toString().padStart(2, '0')}:${MIN_VALS[editEntryMinute]}`
+        : null;
+
+      if (editMode === 'single') {
+        // Add this date to exceptions on the original, then create a one-off entry
+        const withException = await client.deleteScheduleEntry(editingEntry.id, selectedDayDateStr);
+        if (withException) {
+          setEntries(prev => prev.map(e => e.id === editingEntry.id ? withException as ScheduleEntry : e));
+        }
+        const newEntry = await client.createScheduleEntry({
+          householdId: editingEntry.householdId,
+          title: editEntryTitle.trim(),
+          day: editEntryDay,
+          startTime: startTime ?? undefined,
+          isShared: editEntryIsShared,
+          recurrenceType: 'none',
+          startDate: selectedDayDateStr,
+          endDate: selectedDayDateStr,
+        });
+        setEntries(prev => [...prev, newEntry]);
+      } else {
+        const updated = await client.updateScheduleEntry(editingEntry.id, {
+          title: editEntryTitle.trim(),
+          day: editEntryDay,
+          startTime,
+          isShared: editEntryIsShared,
+          recurrenceType: editEntryRecurrenceType,
+          recurrenceDays: editEntryRecurrenceType === 'weekly' ? editEntryRecurrenceDays : [],
+          recurrenceWeeks: editEntryRecurrenceWeeks,
+          monthlyType: editEntryMonthlyType,
+          recurrenceWeekOfMonth: editEntryRecurrenceType === 'monthly' && editEntryMonthlyType === 'weekday_of_month' ? editEntryRecurrenceWeekOfMonth : null,
+          startDate: editEntryStartDate,
+          endDate: editEntryEndDate,
+        } as any);
+        setEntries(prev => prev.map(e => e.id === updated.id ? updated : e));
+      }
       setEditingEntry(null);
     } catch {
       Alert.alert('Fel', 'Kunde inte spara aktiviteten');
@@ -411,188 +527,216 @@ export default function ScheduleScreen() {
     return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
   }
 
+  const todayISOWeek = getISOWeek(new Date());
+  const isCurrentWeek = weekYear === todayISOWeek.weekYear && weekNumber === todayISOWeek.weekNumber;
+  const now = new Date();
+  const isCurrentMonth = monthRef.getMonth() === now.getMonth() && monthRef.getFullYear() === now.getFullYear();
+
   const visibleEntries = entries.filter(e => e.isShared || e.createdBy === userId);
-  const dayEntries = visibleEntries.filter(e => e.day === selectedDay);
-  const dayMenu = menuItems.filter(i => i.day === selectedDay);
   const selectedDayIndex = DAYS.findIndex(d => d.key === selectedDay);
   const selectedDayDate = new Date(weekMonday.getTime() + selectedDayIndex * 86400000);
+  const selectedDayDateStr = selectedDayDate.toISOString().slice(0, 10);
+  const dayEntries = visibleEntries.filter(e =>
+    e.day === selectedDay &&
+    !e.exceptions?.includes(selectedDayDateStr) &&
+    (!e.startDate || selectedDayDateStr >= e.startDate) &&
+    (!e.endDate || selectedDayDateStr <= e.endDate)
+  );
+  const dayMenu = menuItems.filter(i => i.day === selectedDay);
   const dayChores = chores.filter(c => choreVisibleOnDay(c, selectedDay, selectedDayDate));
 
   const totalPerDay = (day: WeekDay) => {
     const idx = DAYS.findIndex(d => d.key === day);
     const dt = new Date(weekMonday.getTime() + idx * 86400000);
-    return visibleEntries.filter(e => e.day === day).length +
+    const dtStr = dt.toISOString().slice(0, 10);
+    return visibleEntries.filter(e =>
+      e.day === day &&
+      !e.exceptions?.includes(dtStr) &&
+      (!e.startDate || dtStr >= e.startDate) &&
+      (!e.endDate || dtStr <= e.endDate)
+    ).length +
       menuItems.filter(i => i.day === day).length +
       chores.filter(c => choreVisibleOnDay(c, day, dt)).length;
   };
 
   const isEmpty = dayEntries.length === 0 && dayMenu.length === 0 && dayChores.length === 0;
 
-  if (isTablet) {
-    return (
-      <SafeAreaView style={s.container}>
-        <View style={s.header}>
-          <View>
-            <Text style={s.title}>Kalender</Text>
-            {householdName && <Text style={s.subtitle}>{householdEmoji || '🏠'} {householdName}</Text>}
-          </View>
+  const dayDetailContent = (
+    <>
+      {dayMenu.length > 0 && (
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>MATRÄTTER</Text>
+          {dayMenu.map(item => (
+            <Pressable
+              key={item.id}
+              style={s.menuCard}
+              onPress={() => router.push(`/recipes/${item.recipeId}` as never)}
+              onLongPress={() => {
+                medium();
+                Alert.alert(item.recipe.title, undefined, [
+                  { text: 'Visa recept', onPress: () => router.push(`/recipes/${item.recipeId}` as never) },
+                  { text: 'Gå till Meny', onPress: () => router.push('/(tabs)/menu' as never) },
+                  { text: 'Avbryt', style: 'cancel' },
+                ]);
+              }}
+            >
+              <View style={s.menuIcon}>
+                <Ionicons name="restaurant-outline" size={16} color="#4f46e5" />
+              </View>
+              <Text style={s.menuTitle}>{item.recipe.title}</Text>
+              <Text style={s.menuMeta}>{item.recipe.servings} port</Text>
+            </Pressable>
+          ))}
         </View>
-        <MonthView
-          date={monthRef}
-          onMonthChange={setMonthRef}
-          entries={visibleEntries}
-          menuItems={menuItems}
-          chores={chores}
-          userId={userId}
-          onSelectDay={handleSelectDayFromMonth}
-          onEditEntry={(entry) => setEditingEntry(entry)}
-          onEditChore={(chore) => setEditingCalChore(chore)}
-        />
-      </SafeAreaView>
-    );
-  }
+      )}
+
+      {dayChores.length > 0 && (
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>SYSSLOR</Text>
+          {dayChores.map(chore => {
+            const done = isDoneOnDay(chore.completions, selectedDay);
+            const assignedName = getMemberName(chore.assignedTo);
+            return (
+              <Pressable
+                key={chore.id}
+                style={[s.choreCard, done && s.choreDone]}
+                onLongPress={() => { medium(); openEditCalChore(chore); }}
+              >
+                <View style={s.choreInfo}>
+                  <Text style={[s.choreTitle, done && s.choreStrike]}>{chore.title}</Text>
+                  {assignedName && (
+                    <Text style={s.choreAssigned}>{assignedName}</Text>
+                  )}
+                </View>
+                <Pressable
+                  style={[s.choreCheckBtn, done && s.choreCheckBtnDone]}
+                  onPress={() => done ? uncompleteChoreCalendar(chore, selectedDay) : completeChoreCalendar(chore, selectedDay)}
+                >
+                  {done && <Ionicons name="checkmark" size={18} color="#fff" />}
+                </Pressable>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      {dayEntries.length > 0 && (
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>AKTIVITETER</Text>
+          {dayEntries.map(entry => (
+            <Pressable
+              key={entry.id}
+              style={s.entryCard}
+              onLongPress={() => { medium(); openEditEntry(entry); }}
+            >
+              <View style={s.entryTime}>
+                {entry.startTime
+                  ? <Text style={s.timeText}>{entry.startTime}</Text>
+                  : <Text style={s.timeTextMuted}>Heldag</Text>}
+              </View>
+              <View style={s.entryContent}>
+                <Text style={s.entryTitle}>{entry.title}</Text>
+                {entry.description && <Text style={s.entryDesc}>{entry.description}</Text>}
+              </View>
+              {!entry.isShared && <Ionicons name="lock-closed-outline" size={14} color="#9ca3af" />}
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </>
+  );
 
   return (
     <SafeAreaView style={s.container}>
-      <View style={s.header}>
-        <View>
-          <Text style={s.title}>Kalender</Text>
-          {householdName && <Text style={s.subtitle}>{householdEmoji || '🏠'} {householdName}</Text>}
-        </View>
-      </View>
+      <ScreenHeader title="Kalender" />
 
-      <View style={s.weekNav}>
-        <Pressable onPress={() => setWeekRef(w => addWeeks(w, -1))} style={s.weekArrow}>
-          <Ionicons name="chevron-back" size={20} color="#374151" />
-        </Pressable>
-        <Pressable onPress={() => setWeekRef(new Date())}>
-          <Text style={s.weekLabel}>Vecka {weekNumber}, {weekYear}</Text>
-        </Pressable>
-        <Pressable onPress={() => setWeekRef(w => addWeeks(w, 1))} style={s.weekArrow}>
-          <Ionicons name="chevron-forward" size={20} color="#374151" />
-        </Pressable>
-      </View>
-
-      <View style={s.dayRow}>
-        {DAYS.map((day, i) => {
-          const count = totalPerDay(day.key);
-          const dayDate = new Date(weekMonday.getTime() + i * 86400000);
-          const now = new Date();
-          const isToday = dayDate.getDate() === now.getDate() &&
-            dayDate.getMonth() === now.getMonth() &&
-            dayDate.getFullYear() === now.getFullYear();
-          const isActive = selectedDay === day.key;
-          const dateNum = new Date(weekMonday.getTime() + i * 86400000).getDate();
-          return (
-            <Pressable
-              key={day.key}
-              style={[s.dayTab, isActive && s.dayTabActive, !isActive && count > 0 && s.dayTabHasContent]}
-              onPress={() => setSelectedDay(day.key)}
-            >
-              <Text style={[s.dayTabShort, isActive && s.dayTabTextActive]}>{day.short}</Text>
-              <Text style={[s.dayTabDate, isActive && s.dayTabTextActive]}>{dateNum}</Text>
-              {isToday && <View style={[s.todayDot, isActive && s.todayDotActive]} />}
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <ScrollView style={s.content} contentContainerStyle={[s.contentInner, isEmpty && s.contentEmpty]}>
-        {isEmpty ? (
-          <View style={s.emptyContainer}>
-            <Ionicons name="calendar-outline" size={48} color="#d1d5db" />
-            <Text style={s.emptyText}>Inget planerat</Text>
-            <Text style={s.emptySubtext}>Tryck på + för att lägga till</Text>
+      {isTablet ? (
+        <View style={s.tabletLayout}>
+          <View style={s.tabletLeft}>
+            <MonthView
+              date={monthRef}
+              onMonthChange={setMonthRef}
+              entries={visibleEntries}
+              chores={chores}
+              userId={userId}
+              onSelectDay={handleSelectDayFromMonth}
+              onEditEntry={(entry) => setEditingEntry(entry)}
+              onEditChore={(chore) => setEditingCalChore(chore)}
+              onToday={!isCurrentMonth ? () => { setMonthRef(new Date()); setWeekRef(new Date()); setSelectedDay(TODAY_DAY); } : undefined}
+              selectedDate={selectedDayDate}
+            />
           </View>
-        ) : (
-          <>
-            {dayMenu.length > 0 && (
-              <View style={s.section}>
-                <Text style={s.sectionLabel}>MATRÄTTER</Text>
-                {dayMenu.map(item => (
-                  <Pressable
-                    key={item.id}
-                    style={s.menuCard}
-                    onPress={() => router.push(`/recipes/${item.recipeId}` as never)}
-                    onLongPress={() => {
-                      medium();
-                      Alert.alert(item.recipe.title, undefined, [
-                        { text: 'Visa recept', onPress: () => router.push(`/recipes/${item.recipeId}` as never) },
-                        { text: 'Gå till Meny', onPress: () => router.push('/(tabs)/menu' as never) },
-                        { text: 'Avbryt', style: 'cancel' },
-                      ]);
-                    }}
-                  >
-                    <View style={s.menuIcon}>
-                      <Ionicons name="restaurant-outline" size={16} color="#4f46e5" />
-                    </View>
-                    <Text style={s.menuTitle}>{item.recipe.title}</Text>
-                    <Text style={s.menuMeta}>{item.recipe.servings} port</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
+          <View style={s.tabletRight}>
+            <View style={s.tabletDayHeader}>
+              <Text style={s.tabletDayTitle}>
+                {DAYS.find(d => d.key === selectedDay)?.label}{' '}
+                {selectedDayDate.getDate()}{' '}
+                {selectedDayDate.toLocaleDateString('sv-SE', { month: 'long' })}
+              </Text>
+            </View>
+            <ScrollView style={s.content} contentContainerStyle={[s.contentInner, isEmpty && s.contentEmpty]}>
+              {isEmpty ? (
+                <View style={s.emptyContainer}>
+                  <Ionicons name="calendar-outline" size={48} color="#d1d5db" />
+                  <Text style={s.emptyText}>Inget planerat</Text>
+                  <Text style={s.emptySubtext}>Tryck på + för att lägga till</Text>
+                </View>
+              ) : dayDetailContent}
+            </ScrollView>
+            <Pressable style={s.fab} onPress={() => { setNewDay(selectedDay); setShowModal(true); }}>
+              <Ionicons name="add" size={30} color="#fff" />
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        <>
+          <WeekNav
+            weekLabel={`Vecka ${weekNumber}, ${weekYear}`}
+            isCurrentWeek={isCurrentWeek}
+            onPrev={() => setWeekRef(w => addWeeks(w, -1))}
+            onNext={() => setWeekRef(w => addWeeks(w, 1))}
+            onToday={() => { setWeekRef(new Date()); setSelectedDay(TODAY_DAY); }}
+          />
 
-            {dayChores.length > 0 && (
-              <View style={s.section}>
-                <Text style={s.sectionLabel}>SYSSLOR</Text>
-                {dayChores.map(chore => {
-                  const done = isDoneOnDay(chore.completions, selectedDay);
-                  const assignedName = getMemberName(chore.assignedTo);
-                  return (
-                    <Pressable
-                      key={chore.id}
-                      style={[s.choreCard, done && s.choreDone]}
-                      onLongPress={() => { medium(); openEditCalChore(chore); }}
-                    >
-                      <View style={s.choreInfo}>
-                        <Text style={[s.choreTitle, done && s.choreStrike]}>{chore.title}</Text>
-                        {assignedName && (
-                          <Text style={s.choreAssigned}>{assignedName}</Text>
-                        )}
-                      </View>
-                      <Pressable
-                        style={[s.choreCheckBtn, done && s.choreCheckBtnDone]}
-                        onPress={() => done ? uncompleteChoreCalendar(chore, selectedDay) : completeChoreCalendar(chore, selectedDay)}
-                      >
-                        {done && <Ionicons name="checkmark" size={18} color="#fff" />}
-                      </Pressable>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
+          <View style={s.dayRow}>
+            {DAYS.map((day, i) => {
+              const count = totalPerDay(day.key);
+              const dayDate = new Date(weekMonday.getTime() + i * 86400000);
+              const now = new Date();
+              const isToday = dayDate.getDate() === now.getDate() &&
+                dayDate.getMonth() === now.getMonth() &&
+                dayDate.getFullYear() === now.getFullYear();
+              const isActive = selectedDay === day.key;
+              const dateNum = new Date(weekMonday.getTime() + i * 86400000).getDate();
+              return (
+                <Pressable
+                  key={day.key}
+                  style={[s.dayTab, isActive && s.dayTabActive, !isActive && count > 0 && s.dayTabHasContent]}
+                  onPress={() => setSelectedDay(day.key)}
+                >
+                  <Text style={[s.dayTabShort, isActive && s.dayTabTextActive]}>{day.short}</Text>
+                  <Text style={[s.dayTabDate, isActive && s.dayTabTextActive]}>{dateNum}</Text>
+                  <View style={[s.todayDot, isActive && s.todayDotActive, !isToday && s.todayDotHidden]} />
+                </Pressable>
+              );
+            })}
+          </View>
 
-            {dayEntries.length > 0 && (
-              <View style={s.section}>
-                <Text style={s.sectionLabel}>AKTIVITETER</Text>
-                {dayEntries.map(entry => (
-                  <Pressable
-                    key={entry.id}
-                    style={s.entryCard}
-                    onLongPress={() => { medium(); openEditEntry(entry); }}
-                  >
-                    <View style={s.entryTime}>
-                      {entry.startTime
-                        ? <Text style={s.timeText}>{entry.startTime}</Text>
-                        : <Text style={s.timeTextMuted}>Heldag</Text>}
-                    </View>
-                    <View style={s.entryContent}>
-                      <Text style={s.entryTitle}>{entry.title}</Text>
-                      {entry.description && <Text style={s.entryDesc}>{entry.description}</Text>}
-                    </View>
-                    {!entry.isShared && <Ionicons name="lock-closed-outline" size={14} color="#9ca3af" />}
-                  </Pressable>
-                ))}
+          <ScrollView style={s.content} contentContainerStyle={[s.contentInner, isEmpty && s.contentEmpty]}>
+            {isEmpty ? (
+              <View style={s.emptyContainer}>
+                <Ionicons name="calendar-outline" size={48} color="#d1d5db" />
+                <Text style={s.emptyText}>Inget planerat</Text>
+                <Text style={s.emptySubtext}>Tryck på + för att lägga till</Text>
               </View>
-            )}
-          </>
-        )}
-      </ScrollView>
+            ) : dayDetailContent}
+          </ScrollView>
 
-      <Pressable style={s.fab} onPress={() => { setNewDay(selectedDay); setShowModal(true); }}>
-        <Ionicons name="add" size={30} color="#fff" />
-      </Pressable>
+          <Pressable style={s.fab} onPress={() => { setNewDay(selectedDay); setShowModal(true); }}>
+            <Ionicons name="add" size={30} color="#fff" />
+          </Pressable>
+        </>
+      )}
 
       {/* Edit entry modal */}
       <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
@@ -630,6 +774,95 @@ export default function ScheduleScreen() {
                 </Pressable>
               ))}
             </View>
+            {editMode === 'series' && editEntryRecurrenceType !== 'none' && (
+              <>
+                <Text style={s.label}>Upprepning</Text>
+                <View style={s.recurrenceTypeRow}>
+                  {(['none', 'daily', 'weekly', 'monthly', 'yearly'] as const).map(type => {
+                    const label = { none: 'Ingen', daily: 'Dag', weekly: 'Vecka', monthly: 'Månad', yearly: 'År' }[type];
+                    return (
+                      <Pressable
+                        key={type}
+                        style={[s.recurrenceTypeBtn, editEntryRecurrenceType === type && s.recurrenceTypeBtnActive]}
+                        onPress={() => setEditEntryRecurrenceType(type)}
+                      >
+                        <Text style={[s.recurrenceTypeBtnText, editEntryRecurrenceType === type && s.recurrenceTypeBtnTextActive]}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <View style={s.intervalRow}>
+                  <Text style={s.intervalLabel}>Var</Text>
+                  <Pressable style={s.intervalBtn} onPress={() => setEditEntryRecurrenceWeeks(Math.max(1, editEntryRecurrenceWeeks - 1))}>
+                    <Text style={s.intervalBtnText}>−</Text>
+                  </Pressable>
+                  <Text style={s.intervalValue}>{editEntryRecurrenceWeeks}</Text>
+                  <Pressable style={s.intervalBtn} onPress={() => setEditEntryRecurrenceWeeks(editEntryRecurrenceWeeks + 1)}>
+                    <Text style={s.intervalBtnText}>+</Text>
+                  </Pressable>
+                  <Text style={s.intervalLabel}>
+                    {({ daily: 'dag', weekly: 'vecka', custom_days: 'vecka', monthly: 'månad', yearly: 'år', none: '' } as Record<string, string>)[editEntryRecurrenceType] ?? ''}
+                  </Text>
+                </View>
+                {editEntryRecurrenceType === 'weekly' && (
+                  <>
+                    <Text style={s.label}>Veckodagar</Text>
+                    <View style={s.dayPickerRow}>
+                      {DAYS.map(day => (
+                        <Pressable
+                          key={day.key}
+                          style={[s.dayPickerOption, editEntryRecurrenceDays.includes(day.key) && s.dayPickerOptionActive]}
+                          onPress={() => setEditEntryRecurrenceDays(prev =>
+                            prev.includes(day.key) ? prev.filter(d => d !== day.key) : [...prev, day.key]
+                          )}
+                        >
+                          <Text style={[s.dayPickerText, editEntryRecurrenceDays.includes(day.key) && s.dayPickerTextActive]}>{day.short}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </>
+                )}
+                {editEntryRecurrenceType === 'monthly' && (
+                  <>
+                    <Text style={s.label}>Upprepas</Text>
+                    <View style={s.monthlyTypeRow}>
+                      <Pressable
+                        style={[s.monthlyTypeBtn, editEntryMonthlyType === 'day_of_month' && s.monthlyTypeBtnActive]}
+                        onPress={() => setEditEntryMonthlyType('day_of_month')}
+                      >
+                        <Text style={[s.monthlyTypeBtnText, editEntryMonthlyType === 'day_of_month' && s.monthlyTypeBtnTextActive]}>
+                          Varje månad den {selectedDayDate.getDate()}:e
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={[s.monthlyTypeBtn, editEntryMonthlyType === 'weekday_of_month' && s.monthlyTypeBtnActive]}
+                        onPress={() => setEditEntryMonthlyType('weekday_of_month')}
+                      >
+                        <Text style={[s.monthlyTypeBtnText, editEntryMonthlyType === 'weekday_of_month' && s.monthlyTypeBtnTextActive]}>
+                          {['Första', 'Andra', 'Tredje', 'Fjärde'][editEntryRecurrenceWeekOfMonth - 1] ?? 'Sista'} {DAYS.find(d => d.key === editEntryDay)?.label.toLowerCase()} i månaden
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </>
+                )}
+                <Text style={s.label}>Slutar</Text>
+                <View style={s.endCondRow}>
+                  <Pressable
+                    style={[s.endCondBtn, !editEntryEndDate && s.endCondBtnActive]}
+                    onPress={() => setEditEntryEndDate(null)}
+                  >
+                    <Text style={[s.endCondBtnText, !editEntryEndDate && s.endCondBtnTextActive]}>Upphör aldrig</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[s.endCondBtn, editEntryEndDate && s.endCondBtnActive, { flex: 1.5 }]}
+                    onPress={() => setShowEditEndPicker(true)}
+                  >
+                    <Ionicons name="calendar-outline" size={13} color={editEntryEndDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.endCondBtnText, editEntryEndDate && s.endCondBtnTextActive]}>{editEntryEndDate ?? 'Välj datum'}</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
             <Pressable style={s.sharedRow} onPress={() => setEditEntryIsShared(v => !v)}>
               <Ionicons name={editEntryIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={editEntryIsShared ? '#4f46e5' : '#9ca3af'} />
               <View style={{ flex: 1 }}>
@@ -639,7 +872,7 @@ export default function ScheduleScreen() {
               <Switch value={editEntryIsShared} onValueChange={setEditEntryIsShared} trackColor={{ true: '#4f46e5' }} />
             </Pressable>
             <View style={s.editModalActions}>
-              <Pressable style={s.deleteActionBtn} onPress={() => { setEditingEntry(null); if (editingEntry) deleteEntry(editingEntry.id, editingEntry.title); }}>
+              <Pressable style={s.deleteActionBtn} onPress={() => { if (editingEntry) deleteEntry(editingEntry, selectedDayDateStr); }}>
                 <Ionicons name="trash-outline" size={16} color="#ef4444" />
                 <Text style={s.deleteActionText}>Ta bort</Text>
               </Pressable>
@@ -710,6 +943,11 @@ export default function ScheduleScreen() {
         </View>
       </Modal>
 
+      <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} />
+      <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} />
+      <DatePickerModal value={editEntryStartDate} onChange={setEditEntryStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} />
+      <DatePickerModal value={editEntryEndDate} onChange={setEditEntryEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} />
+
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
         <View style={s.sheet}>
@@ -759,79 +997,109 @@ export default function ScheduleScreen() {
             </Pressable>
 
             <Text style={s.label}>Upprepning</Text>
-            <View style={s.dayPickerRow}>
-              <Pressable
-                style={[s.dayPickerOption, newRecurrenceType === 'none' && s.dayPickerOptionActive]}
-                onPress={() => setNewRecurrenceType('none')}
-              >
-                <Text style={[s.dayPickerText, newRecurrenceType === 'none' && s.dayPickerTextActive]}>Ingen</Text>
-              </Pressable>
-              <Pressable
-                style={[s.dayPickerOption, newRecurrenceType === 'daily' && s.dayPickerOptionActive]}
-                onPress={() => setNewRecurrenceType('daily')}
-              >
-                <Text style={[s.dayPickerText, newRecurrenceType === 'daily' && s.dayPickerTextActive]}>Dag</Text>
-              </Pressable>
-              <Pressable
-                style={[s.dayPickerOption, newRecurrenceType === 'weekly' && s.dayPickerOptionActive]}
-                onPress={() => setNewRecurrenceType('weekly')}
-              >
-                <Text style={[s.dayPickerText, newRecurrenceType === 'weekly' && s.dayPickerTextActive]}>Vecka</Text>
-              </Pressable>
+            <View style={s.recurrenceTypeRow}>
+              {(['none', 'daily', 'weekly', 'monthly', 'yearly'] as const).map(type => {
+                const label = { none: 'Ingen', daily: 'Dag', weekly: 'Vecka', monthly: 'Månad', yearly: 'År' }[type];
+                return (
+                  <Pressable
+                    key={type}
+                    style={[s.recurrenceTypeBtn, newRecurrenceType === type && s.recurrenceTypeBtnActive]}
+                    onPress={() => setNewRecurrenceType(type)}
+                  >
+                    <Text style={[s.recurrenceTypeBtnText, newRecurrenceType === type && s.recurrenceTypeBtnTextActive]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
-            <View style={s.dayPickerRow}>
-              <Pressable
-                style={[s.dayPickerOption, newRecurrenceType === 'custom_days' && s.dayPickerOptionActive]}
-                onPress={() => setNewRecurrenceType('custom_days')}
-              >
-                <Text style={[s.dayPickerText, newRecurrenceType === 'custom_days' && s.dayPickerTextActive]}>Spec. dagar</Text>
-              </Pressable>
-              <Pressable
-                style={[s.dayPickerOption, newRecurrenceType === 'monthly' && s.dayPickerOptionActive]}
-                onPress={() => setNewRecurrenceType('monthly')}
-              >
-                <Text style={[s.dayPickerText, newRecurrenceType === 'monthly' && s.dayPickerTextActive]}>Månad</Text>
-              </Pressable>
-            </View>
+
+            {newRecurrenceType !== 'none' && (
+              <View style={s.intervalRow}>
+                <Text style={s.intervalLabel}>Var</Text>
+                <Pressable style={s.intervalBtn} onPress={() => setNewRecurrenceWeeks(Math.max(1, newRecurrenceWeeks - 1))}>
+                  <Text style={s.intervalBtnText}>−</Text>
+                </Pressable>
+                <Text style={s.intervalValue}>{newRecurrenceWeeks}</Text>
+                <Pressable style={s.intervalBtn} onPress={() => setNewRecurrenceWeeks(newRecurrenceWeeks + 1)}>
+                  <Text style={s.intervalBtnText}>+</Text>
+                </Pressable>
+                <Text style={s.intervalLabel}>
+                  {({ daily: 'dag', weekly: 'vecka', monthly: 'månad', yearly: 'år' } as Record<string, string>)[newRecurrenceType] ?? ''}
+                </Text>
+              </View>
+            )}
 
             {newRecurrenceType === 'weekly' && (
               <>
-                <Text style={s.label}>Intervall (veckor)</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <Pressable
-                    style={[s.dayPickerOption, { flex: 0.2 }]}
-                    onPress={() => setNewRecurrenceWeeks(Math.max(1, newRecurrenceWeeks - 1))}
-                  >
-                    <Text style={s.dayPickerText}>−</Text>
-                  </Pressable>
-                  <Text style={{ flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '600' }}>{newRecurrenceWeeks}v</Text>
-                  <Pressable
-                    style={[s.dayPickerOption, { flex: 0.2 }]}
-                    onPress={() => setNewRecurrenceWeeks(newRecurrenceWeeks + 1)}
-                  >
-                    <Text style={s.dayPickerText}>+</Text>
-                  </Pressable>
-                </View>
-              </>
-            )}
-
-            {newRecurrenceType === 'custom_days' && (
-              <>
-                <Text style={s.label}>Välj dagar</Text>
+                <Text style={s.label}>Veckodagar</Text>
                 <View style={s.dayPickerRow}>
                   {DAYS.map(day => (
                     <Pressable
                       key={day.key}
                       style={[s.dayPickerOption, newRecurrenceDays.includes(day.key) && s.dayPickerOptionActive]}
                       onPress={() => setNewRecurrenceDays(prev =>
-                        prev.includes(day.key)
-                          ? prev.filter(d => d !== day.key)
-                          : [...prev, day.key]
+                        prev.includes(day.key) ? prev.filter(d => d !== day.key) : [...prev, day.key]
                       )}
                     >
                       <Text style={[s.dayPickerText, newRecurrenceDays.includes(day.key) && s.dayPickerTextActive]}>{day.short}</Text>
                     </Pressable>
                   ))}
+                </View>
+              </>
+            )}
+
+            {newRecurrenceType === 'monthly' && (
+              <>
+                <Text style={s.label}>Upprepas</Text>
+                <View style={s.monthlyTypeRow}>
+                  <Pressable
+                    style={[s.monthlyTypeBtn, newMonthlyType === 'day_of_month' && s.monthlyTypeBtnActive]}
+                    onPress={() => setNewMonthlyType('day_of_month')}
+                  >
+                    <Text style={[s.monthlyTypeBtnText, newMonthlyType === 'day_of_month' && s.monthlyTypeBtnTextActive]}>
+                      Varje månad den {new Date().getDate()}:e
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[s.monthlyTypeBtn, newMonthlyType === 'weekday_of_month' && s.monthlyTypeBtnActive]}
+                    onPress={() => setNewMonthlyType('weekday_of_month')}
+                  >
+                    <Text style={[s.monthlyTypeBtnText, newMonthlyType === 'weekday_of_month' && s.monthlyTypeBtnTextActive]}>
+                      {['Första', 'Andra', 'Tredje', 'Fjärde'][newRecurrenceWeekOfMonth - 1] ?? 'Sista'} {DAYS.find(d => d.key === newDay)?.label.toLowerCase()} i månaden
+                    </Text>
+                  </Pressable>
+                </View>
+                {newMonthlyType === 'weekday_of_month' && (
+                  <View style={s.intervalRow}>
+                    <Text style={s.intervalLabel}>Vecka i månaden</Text>
+                    <Pressable style={s.intervalBtn} onPress={() => setNewRecurrenceWeekOfMonth(Math.max(1, newRecurrenceWeekOfMonth - 1))}>
+                      <Text style={s.intervalBtnText}>−</Text>
+                    </Pressable>
+                    <Text style={s.intervalValue}>{newRecurrenceWeekOfMonth}</Text>
+                    <Pressable style={s.intervalBtn} onPress={() => setNewRecurrenceWeekOfMonth(Math.min(4, newRecurrenceWeekOfMonth + 1))}>
+                      <Text style={s.intervalBtnText}>+</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </>
+            )}
+
+            {newRecurrenceType !== 'none' && (
+              <>
+                <Text style={s.label}>Slutar</Text>
+                <View style={s.endCondRow}>
+                  <Pressable
+                    style={[s.endCondBtn, !newEndDate && s.endCondBtnActive]}
+                    onPress={() => setNewEndDate(null)}
+                  >
+                    <Text style={[s.endCondBtnText, !newEndDate && s.endCondBtnTextActive]}>Upphör aldrig</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[s.endCondBtn, newEndDate && s.endCondBtnActive, { flex: 1.5 }]}
+                    onPress={() => setShowNewEndPicker(true)}
+                  >
+                    <Ionicons name="calendar-outline" size={13} color={newEndDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.endCondBtnText, newEndDate && s.endCondBtnTextActive]}>{newEndDate ?? 'Välj datum'}</Text>
+                  </Pressable>
                 </View>
               </>
             )}
@@ -853,12 +1121,6 @@ export default function ScheduleScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { padding: 20, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  title: { fontSize: 28, fontWeight: '700', color: '#111827' },
-  subtitle: { fontSize: 13, color: '#6b7280', marginTop: 2 },
-  weekNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  weekArrow: { padding: 4 },
-  weekLabel: { fontSize: 15, fontWeight: '600', color: '#374151' },
   dayRow: { flexDirection: 'row', backgroundColor: '#fff', paddingHorizontal: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 4 },
   dayTab: { flex: 1, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', alignItems: 'center', gap: 1 },
   dayTabActive: { borderColor: '#4f46e5', backgroundColor: '#4f46e5' },
@@ -868,6 +1130,7 @@ const s = StyleSheet.create({
   dayTabTextActive: { color: '#fff' },
   todayDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#4f46e5', marginTop: 1 },
   todayDotActive: { backgroundColor: 'rgba(255,255,255,0.8)' },
+  todayDotHidden: { opacity: 0 },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
   contentEmpty: { flex: 1 },
@@ -921,10 +1184,39 @@ const s = StyleSheet.create({
   deleteActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 14, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteActionText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
   memberPickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  memberOption: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  memberOption: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', flexShrink: 0 },
   memberOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
   memberOptionText: { fontSize: 14, color: '#374151', fontWeight: '500' },
   memberOptionTextActive: { color: '#4f46e5', fontWeight: '600' },
   navButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, marginBottom: 10 },
   navButtonText: { fontSize: 14, fontWeight: '600', color: '#4f46e5' },
+  tabletLayout: { flex: 1, flexDirection: 'row' },
+  tabletLeft: { flex: 1.4, borderRightWidth: 1, borderRightColor: '#f3f4f6' },
+  tabletRight: { flex: 1, backgroundColor: '#f9fafb' },
+  tabletDayHeader: { padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  tabletDayTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  dateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  dateBtnSet: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  dateBtnText: { fontSize: 13, color: '#9ca3af', flex: 1 },
+  dateBtnTextSet: { color: '#4f46e5', fontWeight: '600' },
+  recurrenceTypeRow: { flexDirection: 'row', gap: 6 },
+  recurrenceTypeBtn: { flex: 1, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', backgroundColor: '#f9fafb' },
+  recurrenceTypeBtnActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  recurrenceTypeBtnText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
+  recurrenceTypeBtnTextActive: { color: '#4f46e5', fontWeight: '700' },
+  intervalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f9fafb', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#e5e7eb' },
+  intervalLabel: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  intervalBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  intervalBtnText: { fontSize: 18, color: '#374151', fontWeight: '600', lineHeight: 22 },
+  intervalValue: { fontSize: 18, fontWeight: '700', color: '#111827', minWidth: 28, textAlign: 'center' },
+  monthlyTypeRow: { gap: 8 },
+  monthlyTypeBtn: { padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  monthlyTypeBtnActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  monthlyTypeBtnText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  monthlyTypeBtnTextActive: { color: '#4f46e5', fontWeight: '700' },
+  endCondRow: { flexDirection: 'row', gap: 8 },
+  endCondBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 11, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  endCondBtnActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  endCondBtnText: { fontSize: 12, color: '#9ca3af', fontWeight: '500' },
+  endCondBtnTextActive: { color: '#4f46e5', fontWeight: '700' },
 });

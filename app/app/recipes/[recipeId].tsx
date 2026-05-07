@@ -233,12 +233,14 @@ export default function RecipeDetailScreen() {
                     placeholder="Enhet"
                     value={row.unit}
                     onChangeText={v => updateEditRow(idx, 'unit', v)}
+                    autoCapitalize="none"
                   />
                   <TextInput
                     style={[s.editInput, s.editInputName]}
                     placeholder="Ingrediens"
                     value={row.name}
                     onChangeText={v => updateEditRow(idx, 'name', v)}
+                    autoCapitalize="none"
                   />
                   <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove}>
                     <Ionicons name="close-circle" size={20} color="#d1d5db" />

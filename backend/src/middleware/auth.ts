@@ -18,9 +18,20 @@ export async function requireAuth(
     return;
   }
 
-  // Dev bypass: Authorization: Bearer dev_<userId> — only in explicit development mode
-  if (process.env.NODE_ENV === 'development' && token.startsWith('dev_')) {
-    (req as AuthenticatedRequest).clerkUserId = token.slice(4);
+  // Dev bypass: accept any token in development mode
+  if (process.env.NODE_ENV === 'development') {
+    // If token starts with dev_, use it directly; otherwise extract sub from token
+    if (token.startsWith('dev_')) {
+      (req as AuthenticatedRequest).clerkUserId = token.slice(4);
+    } else {
+      // For dev testing, extract sub from any bearer token
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        (req as AuthenticatedRequest).clerkUserId = payload.sub || 'dev-user';
+      } catch {
+        (req as AuthenticatedRequest).clerkUserId = 'dev-user';
+      }
+    }
     next();
     return;
   }

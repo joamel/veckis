@@ -207,11 +207,15 @@ export default function ShoppingListScreen() {
 
   async function completeList() {
     if (!listId) return;
-    Alert.alert('Markera klar?', 'Listan arkiveras och tas bort från vyn.', [
+    Alert.alert('Rensa lista?', 'Alla varor tas bort men listan finns kvar.', [
       { text: 'Avbryt', style: 'cancel' },
-      { text: 'Markera klar', onPress: async () => {
-        try { await client.completeShoppingList(listId); router.back(); }
-        catch { Alert.alert('Fel', 'Kunde inte markera listan som klar'); }
+      { text: 'Rensa', style: 'destructive', onPress: async () => {
+        try {
+          await client.clearShoppingList(listId);
+          setList(prev => prev ? { ...prev, items: [] } : prev);
+        } catch {
+          Alert.alert('Fel', 'Kunde inte rensa listan');
+        }
       }},
     ]);
   }
@@ -388,6 +392,7 @@ export default function ShoppingListScreen() {
             returnKeyType="done"
             onSubmitEditing={() => addItem()}
             blurOnSubmit={false}
+            autoCapitalize="none"
           />
           <Pressable
             style={[s.addBtn, (!newItem.trim() || adding) && s.addBtnDisabled]}
@@ -502,7 +507,7 @@ export default function ShoppingListScreen() {
             value={editName}
             onChangeText={setEditName}
             placeholder="Varunamn"
-            autoCapitalize="sentences"
+            autoCapitalize="none"
           />
           <View style={s.editRow}>
             <View style={{ flex: 1 }}>
@@ -598,7 +603,13 @@ function buildCategoryGroups(items: ShoppingItemWithRecipe[], order: StoreCatego
   for (const cat of map.keys()) {
     if (!orderedKeys.includes(cat)) orderedKeys.push(cat);
   }
-  return orderedKeys.map(cat => ({ category: cat, items: map.get(cat)! }));
+  return orderedKeys.map(cat => ({
+    category: cat,
+    items: map.get(cat)!.sort((a, b) => {
+      if (a.isChecked !== b.isChecked) return a.isChecked ? 1 : -1;
+      return a.name.localeCompare(b.name, 'sv');
+    }),
+  }));
 }
 
 function ItemRow({ item, onToggle, onDelete, onEdit }: { item: ShoppingItemWithRecipe; onToggle: () => void; onDelete: () => void; onEdit: () => void }) {

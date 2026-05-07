@@ -15,6 +15,8 @@ const createChoreSchema = z.object({
   assignedTo: z.string().nullable().optional(),
   days: z.array(z.nativeEnum(WeekDay)).default([]),
   isShared: z.boolean().default(true),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 });
 
 const updateChoreSchema = z.object({
@@ -24,6 +26,8 @@ const updateChoreSchema = z.object({
   assignedTo: z.string().nullable().optional(),
   days: z.array(z.nativeEnum(WeekDay)).optional(),
   isShared: z.boolean().optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 });
 
 async function getChoreAndVerifyMember(choreId: string, clerkUserId: string, res: Response) {

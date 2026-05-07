@@ -16,6 +16,7 @@ import { useAuth, useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { ScreenHeader } from '../../src/components/ScreenHeader';
 import type { InviteCode, HouseholdWithMembers } from '@veckis/shared';
 
 export default function SettingsScreen() {
@@ -228,10 +229,8 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScreenHeader title="Inställningar" />
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Inställningar</Text>
-        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>KONTO</Text>
@@ -529,14 +528,6 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   scroll: { paddingBottom: 40 },
-  header: {
-    padding: 20,
-    paddingBottom: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  title: { fontSize: 28, fontWeight: '700', color: '#111827' },
   section: { marginTop: 24, paddingHorizontal: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8 },
