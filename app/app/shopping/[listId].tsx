@@ -90,6 +90,21 @@ export default function ShoppingListScreen() {
     ]).start();
   }
 
+  const openMergeForDupes = useCallback((
+    dupes: ShoppingItemWithRecipe[],
+    lastItem?: { quantity?: number | null; unit?: string | null },
+  ) => {
+    if (dupes.length < 2) return;
+    const allSameUnit = dupes.every(d => (d.unit ?? '') === (dupes[0].unit ?? ''));
+    const totalQty = allSameUnit
+      ? dupes.reduce((sum, d) => sum + (d.quantity ?? 1), 0)
+      : (lastItem?.quantity ?? dupes[0].quantity ?? 1);
+    setMergeSheet({ name: dupes[0].name.toLowerCase().trim(), category: dupes[0].category as StoreCategory, items: dupes });
+    setMergeSelected(new Set(dupes.map(i => i.id)));
+    setMergeQty(String(totalQty));
+    setMergeUnit(allSameUnit ? (dupes[0].unit ?? '') : (lastItem?.unit ?? ''));
+  }, []);
+
   const categoryOrder: StoreCategory[] = (list?.store?.categoryOrder as StoreCategory[]) ?? DEFAULT_CATEGORY_ORDER;
 
   const searchList = useMemo(() => {
@@ -118,12 +133,22 @@ export default function ShoppingListScreen() {
       setStores(storeList);
       setStaples(stapleList);
       setIngredientSuggestions(suggestions);
+      // Detect duplicates (e.g. after recipe transfer from menu)
+      const unchecked = data.items.filter(i => !i.isChecked);
+      const nameMap = new Map<string, typeof unchecked>();
+      for (const item of unchecked) {
+        const key = item.name.toLowerCase().trim();
+        if (!nameMap.has(key)) nameMap.set(key, []);
+        nameMap.get(key)!.push(item);
+      }
+      const firstGroup = [...nameMap.values()].find(g => g.length >= 2);
+      if (firstGroup) openMergeForDupes(firstGroup);
     } catch {
       Alert.alert('Fel', 'Kunde inte ladda listan');
     } finally {
       setLoading(false);
     }
-  }, [listId, householdId]);
+  }, [listId, householdId, openMergeForDupes]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -173,16 +198,7 @@ export default function ShoppingListScreen() {
       const dupes = updatedItems.filter(
         i => !i.isChecked && i.name.toLowerCase().trim() === itemName,
       );
-      if (dupes.length >= 2) {
-        const allSameUnit = dupes.every(d => (d.unit ?? '') === (dupes[0].unit ?? ''));
-        const totalQty = allSameUnit
-          ? dupes.reduce((sum, d) => sum + (d.quantity ?? 1), 0)
-          : (item.quantity ?? 1);
-        setMergeSheet({ name: itemName, category: dupes[0].category as StoreCategory, items: dupes });
-        setMergeSelected(new Set(dupes.map(i => i.id)));
-        setMergeQty(String(totalQty));
-        setMergeUnit(allSameUnit ? (dupes[0].unit ?? '') : (item.unit ?? ''));
-      }
+      if (dupes.length >= 2) openMergeForDupes(dupes, item);
     } catch (err) {
       console.error('Failed to add item:', err);
       Alert.alert('Fel', 'Kunde inte lägga till vara');
@@ -285,11 +301,14 @@ export default function ShoppingListScreen() {
         unit,
         category: editCategory,
       });
-      setList(prev => prev
-        ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: editingItem.recipe } : i) }
-        : prev
+      const savedRecipe = editingItem.recipe;
+      const updatedItems = (list?.items ?? []).map(i =>
+        i.id === updated.id ? { ...updated, recipe: savedRecipe } : i
       );
+      setList(prev => prev ? { ...prev, items: updatedItems } : prev);
       setEditingItem(null);
+      const dupes = updatedItems.filter(i => !i.isChecked && i.name.toLowerCase().trim() === name);
+      if (dupes.length >= 2) openMergeForDupes(dupes, updated);
     } catch {
       Alert.alert('Fel', 'Kunde inte spara ändringen');
     } finally {
@@ -749,18 +768,20 @@ export default function ShoppingListScreen() {
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{mergeSheet?.name}</Text>
             <Text style={s.sheetSub}>Markera vilka som ska slås ihop</Text>
-            {mergeSheet?.items.map(item => (
-              <Pressable key={item.id} style={s.mergeItem} onPress={() => toggleMergeSelected(item.id)}>
-                <Ionicons
-                  name={mergeSelected.has(item.id) ? 'checkbox' : 'square-outline'}
-                  size={22}
-                  color={mergeSelected.has(item.id) ? '#4f46e5' : '#9ca3af'}
-                />
-                <Text style={s.mergeItemText}>
-                  {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}
-                </Text>
-              </Pressable>
-            ))}
+            <ScrollView style={s.mergeList} showsVerticalScrollIndicator={false}>
+              {mergeSheet?.items.map(item => (
+                <Pressable key={item.id} style={s.mergeItem} onPress={() => toggleMergeSelected(item.id)}>
+                  <Ionicons
+                    name={mergeSelected.has(item.id) ? 'checkbox' : 'square-outline'}
+                    size={22}
+                    color={mergeSelected.has(item.id) ? '#4f46e5' : '#9ca3af'}
+                  />
+                  <Text style={s.mergeItemText}>
+                    {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
             <View style={s.mergeDivider} />
             <Text style={s.editLabel}>Ny mängd och enhet</Text>
             <View style={s.qtyStepper}>
@@ -939,6 +960,7 @@ const s = StyleSheet.create({
   qtyConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  mergeList: { maxHeight: 180 },
   mergeItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   mergeItemText: { fontSize: 16, color: '#374151', flex: 1 },
   mergeDivider: { height: 1, backgroundColor: '#e5e7eb', marginTop: 4 },
