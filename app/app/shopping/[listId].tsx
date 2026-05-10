@@ -712,8 +712,8 @@ export default function ShoppingListScreen() {
       </Modal>
       {/* Quantity sheet */}
       <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
-        <Pressable style={s.overlay} onPress={() => setQtySheet(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end', flex: 1 }}>
+        <Pressable style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.3)' }]} onPress={() => setQtySheet(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{qtySheet?.name}</Text>
