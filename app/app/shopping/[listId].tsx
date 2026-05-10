@@ -50,7 +50,10 @@ export default function ShoppingListScreen() {
   const [qtySheet, setQtySheet] = useState<{ name: string; category?: StoreCategory } | null>(null);
   const [qtyValue, setQtyValue] = useState('1');
   const [qtyUnit, setQtyUnit] = useState('');
-  const [mergeItems, setMergeItems] = useState<ShoppingItemWithRecipe[] | null>(null);
+  const [mergeSheet, setMergeSheet] = useState<{ name: string; category: StoreCategory; items: ShoppingItemWithRecipe[] } | null>(null);
+  const [mergeSelected, setMergeSelected] = useState<Set<string>>(new Set());
+  const [mergeQty, setMergeQty] = useState('1');
+  const [mergeUnit, setMergeUnit] = useState('');
 
   // Category browser modal
   const [showBrowser, setShowBrowser] = useState(false);
@@ -175,24 +178,10 @@ export default function ShoppingListScreen() {
         const totalQty = allSameUnit
           ? dupes.reduce((sum, d) => sum + (d.quantity ?? 1), 0)
           : (item.quantity ?? 1);
-        setTimeout(() => {
-          Alert.alert(
-            'Slå ihop?',
-            `Det finns ${dupes.length} likadana varor i inköpslistan — vill du slå ihop dem?`,
-            [
-              { text: 'Nej', style: 'cancel' },
-              {
-                text: 'Ja',
-                onPress: () => {
-                  setMergeItems(dupes);
-                  setQtyValue(String(totalQty));
-                  setQtyUnit(allSameUnit ? (dupes[0].unit ?? '') : (item.unit ?? ''));
-                  setQtySheet({ name: itemName, category: dupes[0].category as StoreCategory });
-                },
-              },
-            ],
-          );
-        }, 300);
+        setMergeSheet({ name: itemName, category: dupes[0].category as StoreCategory, items: dupes });
+        setMergeSelected(new Set(dupes.map(i => i.id)));
+        setMergeQty(String(totalQty));
+        setMergeUnit(allSameUnit ? (dupes[0].unit ?? '') : (item.unit ?? ''));
       }
     } catch (err) {
       console.error('Failed to add item:', err);
@@ -214,40 +203,51 @@ export default function ShoppingListScreen() {
     if (!qtySheet) return;
     const qty = parseFloat(qtyValue.replace(',', '.'));
     const unit = qtyUnit.trim() || undefined;
-
-    if (mergeItems && mergeItems.length > 0) {
-      const [keep, ...remove] = mergeItems;
-      const deleteIds = new Set(remove.map(i => i.id));
-      setAdding(true);
-      try {
-        await Promise.all([
-          client.updateShoppingItem(keep.id, { quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null }),
-          ...remove.map(i => client.deleteShoppingItem(i.id)),
-        ]);
-        setList(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            items: prev.items
-              .filter(i => !deleteIds.has(i.id))
-              .map(i => i.id === keep.id
-                ? { ...i, quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null }
-                : i
-              ),
-          };
-        });
-      } catch {
-        Alert.alert('Fel', 'Kunde inte slå ihop varor');
-      } finally {
-        setAdding(false);
-      }
-      setMergeItems(null);
-      setQtySheet(null);
-      return;
-    }
-
     await addItem(qtySheet.name, qtySheet.category, isNaN(qty) ? 1 : qty, unit);
     setQtySheet(null);
+  }
+
+  function toggleMergeSelected(id: string) {
+    setMergeSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function confirmMerge() {
+    if (!mergeSheet) return;
+    const selected = mergeSheet.items.filter(i => mergeSelected.has(i.id));
+    if (selected.length < 2) return;
+    const qty = parseFloat(mergeQty.replace(',', '.'));
+    const unit = mergeUnit.trim() || undefined;
+    const [keep, ...remove] = selected;
+    const deleteIds = new Set(remove.map(i => i.id));
+    setAdding(true);
+    try {
+      await Promise.all([
+        client.updateShoppingItem(keep.id, { quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null }),
+        ...remove.map(i => client.deleteShoppingItem(i.id)),
+      ]);
+      setList(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: prev.items
+            .filter(i => !deleteIds.has(i.id))
+            .map(i => i.id === keep.id
+              ? { ...i, quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null }
+              : i
+            ),
+        };
+      });
+      setMergeSheet(null);
+    } catch {
+      Alert.alert('Fel', 'Kunde inte slå ihop varor');
+    } finally {
+      setAdding(false);
+    }
   }
 
   async function toggleItem(item: ShoppingItemWithRecipe) {
@@ -692,15 +692,12 @@ export default function ShoppingListScreen() {
         </View>
       </Modal>
       {/* Quantity sheet */}
-      <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => { setQtySheet(null); setMergeItems(null); }}>
-        <Pressable style={s.overlay} onPress={() => { setQtySheet(null); setMergeItems(null); }} />
+      <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
+        <Pressable style={s.overlay} onPress={() => setQtySheet(null)} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end', flex: 1 }}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{qtySheet?.name}</Text>
-            {mergeItems && (
-              <Text style={s.sheetSub}>Slår ihop {mergeItems.length} likadana varor — välj ny mängd och enhet</Text>
-            )}
             <View style={s.qtyStepper}>
               <Pressable
                 style={s.qtyBtn}
@@ -733,7 +730,7 @@ export default function ShoppingListScreen() {
             <Pressable style={s.qtyConfirm} onPress={confirmQtySheet} disabled={adding}>
               {adding
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={s.qtyConfirmText}>{mergeItems ? 'Slå ihop' : 'Lägg till'}</Text>}
+                : <Text style={s.qtyConfirmText}>Lägg till</Text>}
             </Pressable>
           </View>
         </KeyboardAvoidingView>
@@ -743,6 +740,70 @@ export default function ShoppingListScreen() {
         <Ionicons name="checkmark-circle" size={20} color="#fff" />
         <Text style={s.toastText}>{toastMessage}</Text>
       </Animated.View>
+
+      {/* Merge duplicates sheet */}
+      <Modal visible={!!mergeSheet} transparent animationType="slide" onRequestClose={() => setMergeSheet(null)}>
+        <Pressable style={s.overlay} onPress={() => setMergeSheet(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end', flex: 1 }}>
+          <View style={s.sheet}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>{mergeSheet?.name}</Text>
+            <Text style={s.sheetSub}>Markera vilka som ska slås ihop</Text>
+            {mergeSheet?.items.map(item => (
+              <Pressable key={item.id} style={s.mergeItem} onPress={() => toggleMergeSelected(item.id)}>
+                <Ionicons
+                  name={mergeSelected.has(item.id) ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={mergeSelected.has(item.id) ? '#4f46e5' : '#9ca3af'}
+                />
+                <Text style={s.mergeItemText}>
+                  {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}
+                </Text>
+              </Pressable>
+            ))}
+            <View style={s.mergeDivider} />
+            <Text style={s.editLabel}>Ny mängd och enhet</Text>
+            <View style={s.qtyStepper}>
+              <Pressable
+                style={s.qtyBtn}
+                onPress={() => setMergeQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)))}
+              >
+                <Ionicons name="remove" size={22} color="#4f46e5" />
+              </Pressable>
+              <TextInput
+                style={s.qtyInput}
+                value={mergeQty}
+                onChangeText={setMergeQty}
+                keyboardType="decimal-pad"
+                selectTextOnFocus
+              />
+              <Pressable
+                style={s.qtyBtn}
+                onPress={() => setMergeQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1))}
+              >
+                <Ionicons name="add" size={22} color="#4f46e5" />
+              </Pressable>
+              <TextInput
+                style={s.qtyUnitInput}
+                value={mergeUnit}
+                onChangeText={setMergeUnit}
+                placeholder="enhet"
+                placeholderTextColor="#9ca3af"
+                autoCapitalize="none"
+              />
+            </View>
+            <Pressable
+              style={[s.qtyConfirm, (mergeSelected.size < 2 || adding) && s.saveBtnDisabled]}
+              onPress={confirmMerge}
+              disabled={adding || mergeSelected.size < 2}
+            >
+              {adding
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={s.qtyConfirmText}>Slå ihop {mergeSelected.size} varor</Text>}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -878,4 +939,7 @@ const s = StyleSheet.create({
   qtyConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  mergeItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  mergeItemText: { fontSize: 16, color: '#374151', flex: 1 },
+  mergeDivider: { height: 1, backgroundColor: '#e5e7eb', marginTop: 4 },
 });
