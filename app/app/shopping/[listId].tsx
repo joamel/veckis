@@ -70,11 +70,13 @@ export default function ShoppingListScreen() {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
+  const [toastMessage, setToastMessage] = useState('');
 
-  function showToast() {
+  function showToast(message: string) {
+    setToastMessage(message);
     Animated.sequence([
       Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.delay(1500),
+      Animated.delay(1800),
       Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start();
   }
@@ -147,7 +149,7 @@ export default function ShoppingListScreen() {
             const exists = prev.find(p => p.id === s.id);
             return exists ? prev.map(p => p.id === s.id ? s : p) : [...prev, s].sort((a, b) => a.name.localeCompare(b.name));
           });
-          showToast();
+          showToast(`${itemName} sparad som basvara`);
         }).catch(() => {});
       }
     } catch (err) {
@@ -597,8 +599,12 @@ export default function ShoppingListScreen() {
           </Pressable>
         </View>
       </Modal>
-      <Animated.View style={[s.toast, { opacity: toastOpacity }]} pointerEvents="none">
-        <Text style={s.toastText}>Basvara sparad</Text>
+      <Animated.View
+        style={[s.toast, { opacity: toastOpacity, bottom: keyboardVisible ? 100 : 32 }]}
+        pointerEvents="none"
+      >
+        <Ionicons name="checkmark-circle" size={16} color="#fff" />
+        <Text style={s.toastText}>{toastMessage}</Text>
       </Animated.View>
     </SafeAreaView>
   );
@@ -726,6 +732,6 @@ const s = StyleSheet.create({
   browserList: { marginTop: 12, maxHeight: 400 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   browserItemText: { flex: 1, fontSize: 16, color: '#111827' },
-  toast: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#111827', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 20 },
-  toastText: { color: '#fff', fontSize: 14 },
+  toast: { position: 'absolute', alignSelf: 'center', backgroundColor: '#16a34a', borderRadius: 20, paddingVertical: 9, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  toastText: { color: '#fff', fontSize: 14, fontWeight: '500' },
 });

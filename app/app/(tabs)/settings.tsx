@@ -271,29 +271,22 @@ export default function SettingsScreen() {
               <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{displayName}</Text>
+              <View style={styles.nameRow}>
+                <Text style={styles.userName}>{displayName}</Text>
+                {isAdmin && (
+                  <View style={styles.adminBadge}>
+                    <Ionicons name="shield-checkmark" size={11} color="#4f46e5" />
+                    <Text style={styles.adminBadgeText}>Admin</Text>
+                  </View>
+                )}
+              </View>
               {email && <Text style={styles.userEmail}>{email}</Text>}
             </View>
           </View>
         </View>
 
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionLabel}>HUSHÅLLET</Text>
-            {isAdmin && (
-              <View style={styles.sectionHeaderActions}>
-                <Pressable onPress={() => {
-                  setEditingHouseholdName(householdName || '');
-                  setShowEditHouseholdModal(true);
-                }}>
-                  <Ionicons name="pencil-outline" size={16} color="#4f46e5" />
-                </Pressable>
-                <Pressable onPress={handleDeleteHousehold} disabled={loadingDeleteHousehold}>
-                  <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                </Pressable>
-              </View>
-            )}
-          </View>
+          <Text style={styles.sectionLabel}>HUSHÅLLET</Text>
           <View style={styles.card}>
             <View style={styles.householdIcon}>
               <Ionicons name="home-outline" size={20} color="#4f46e5" />
@@ -317,36 +310,65 @@ export default function SettingsScreen() {
                       <Text style={styles.memberEmail}>Lokal profil</Text>
                     )}
                   </View>
-                  <View style={styles.memberActions}>
-                    {(isAdmin || member.clerkUserId === clerkUserId) && (
-                      <Pressable
-                        onPress={() => openEditMember(member.id, member.displayName)}
-                        style={styles.memberActionBtn}
-                      >
-                        <Ionicons name="pencil-outline" size={16} color="#4f46e5" />
-                      </Pressable>
-                    )}
-                    {isAdmin && member.clerkUserId !== clerkUserId && (
-                      <Pressable
-                        onPress={() => handleRemoveMember(member.id, member.displayName)}
-                        style={styles.memberActionBtn}
-                      >
-                        <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                      </Pressable>
-                    )}
-                  </View>
+                  {member.clerkUserId === clerkUserId && (
+                    <Pressable
+                      onPress={() => openEditMember(member.id, member.displayName)}
+                      style={styles.memberActionBtn}
+                    >
+                      <Ionicons name="pencil-outline" size={16} color="#4f46e5" />
+                    </Pressable>
+                  )}
                 </View>
               ))}
             </View>
           )}
-
-          {isAdmin && (
-            <Pressable style={styles.addLocalBtn} onPress={() => setShowCreateLocalModal(true)}>
-              <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
-              <Text style={styles.addLocalBtnText}>Lägg till lokal profil</Text>
-            </Pressable>
-          )}
         </View>
+
+        {isAdmin && (
+          <View style={styles.section}>
+            <View style={styles.adminSectionHeader}>
+              <Ionicons name="shield-checkmark" size={13} color="#4f46e5" />
+              <Text style={styles.sectionLabel}>ADMINISTRERA HUSHÅLLET</Text>
+            </View>
+            <View style={styles.adminBox}>
+              <Pressable
+                style={styles.adminItem}
+                onPress={() => {
+                  setEditingHouseholdName(householdName || '');
+                  setShowEditHouseholdModal(true);
+                }}
+              >
+                <Ionicons name="pencil-outline" size={18} color="#4f46e5" />
+                <Text style={styles.adminItemText}>Byt namn på hushållet</Text>
+              </Pressable>
+
+              {householdMembers.map(member => member.clerkUserId !== clerkUserId && (
+                <Pressable
+                  key={member.id}
+                  style={styles.adminItem}
+                  onPress={() => handleRemoveMember(member.id, member.displayName)}
+                >
+                  <Ionicons name="person-remove-outline" size={18} color="#ef4444" />
+                  <Text style={[styles.adminItemText, styles.adminItemDanger]}>Ta bort {member.displayName}</Text>
+                </Pressable>
+              ))}
+
+              <Pressable style={styles.adminItem} onPress={() => setShowCreateLocalModal(true)}>
+                <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
+                <Text style={styles.adminItemText}>Lägg till lokal profil</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.adminItem, styles.adminItemLast]}
+                onPress={handleDeleteHousehold}
+                disabled={loadingDeleteHousehold}
+              >
+                <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                <Text style={[styles.adminItemText, styles.adminItemDanger]}>Ta bort hushållet</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {allMemberships.length > 1 && (
           <View style={styles.section}>
@@ -600,8 +622,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   userInfo: { flex: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   userName: { fontSize: 16, fontWeight: '600', color: '#111827' },
   userEmail: { fontSize: 13, color: '#6b7280', marginTop: 2 },
+  adminBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#eef2ff', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
+  adminBadgeText: { fontSize: 11, fontWeight: '600', color: '#4f46e5' },
+  adminSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
+  adminBox: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  adminItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  adminItemLast: { borderBottomWidth: 0 },
+  adminItemText: { fontSize: 14, fontWeight: '500', color: '#111827' },
+  adminItemDanger: { color: '#ef4444' },
   membersBox: {
     backgroundColor: '#fff',
     borderRadius: 12,

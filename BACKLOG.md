@@ -11,10 +11,12 @@
 - [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori
 - [ ] Texten hoppar inte upp ovan tangentbordet för Lägga till lokala profiler, nya inköpslistor och butiker
 - [ ] Om flera inputfält i samma form borde det finnas en "nästa" i tangentbordet
-- [ ] Toast när något har sparats/lagts till
+- [ ] Toast för fler händelser: "Inköpslista rensad", "Hushåll borttaget", "Syssla sparad" m.fl.
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
+- [x] Admin-funktioner (redigera/ta bort hushåll och användare) visas i en dedikerad "Administrera hushåll"-sektion som bara syns för admins — ingen toggle, sektionen är alltid kollapsad/tydligt avskild
+- [x] Admin-badge vid profilnamnet i inställningar så det är tydligt vilka rättigheter man har
 
 ### Inköpslistan
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
@@ -31,6 +33,7 @@
 - [ ] Hitta normaliserade ingrediensnamn och på så vis kunna slå ihop "klyftor vitlök" med "vitlök" och "standardmjölk" med "mjölk" i inköpslistan
 - [ ] Om man vill lägga till egen basvara borde den även lägga till varan i databasen om den inte redan finns (förutsatt att man lägger till en kategori)
 - [x] Ge någon typ av feedback när en basvara lagts till. Kanske en liten toast!
+- [x] Toast bör visa varans namn ("havregryn sparad som basvara"), ha grön bakgrund och sitta ovanför sökrutan utan att krocka med tangentbordet
 - [ ] Lägga till basvara med mängd +/- och förbestämd enhet med möjlighet att ändra
 - [x] Tar man bort maträtt från inköpslista tas inte ingredienser bort som även delas med andra recept (Ex: 4 ägg i inköpslistan ligger kvar om man tar bort pannkakor [3 av 4 äggen])
 - [x] Finns dubbletter av en maträtt i samma inköpslista tas bådas ingredienser bort när man tar bort den ena maträtten
