@@ -17,6 +17,7 @@
 - [x] kunna ta bort hushåll (som admin)
 - [x] Admin-funktioner (redigera/ta bort hushåll och användare) visas i en dedikerad "Administrera hushåll"-sektion som bara syns för admins — ingen toggle, sektionen är alltid kollapsad/tydligt avskild
 - [x] Admin-badge vid profilnamnet i inställningar så det är tydligt vilka rättigheter man har
+- [ ] Lokala users ses som samma och delar uppgifter och markeras ihop. Måste ses som individuella profiler.
 
 ### Inköpslistan
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
@@ -34,12 +35,13 @@
 - [ ] Om man vill lägga till egen basvara borde den även lägga till varan i databasen om den inte redan finns (förutsatt att man lägger till en kategori)
 - [x] Ge någon typ av feedback när en basvara lagts till. Kanske en liten toast!
 - [x] Toast bör visa varans namn ("havregryn sparad som basvara"), ha grön bakgrund och sitta ovanför sökrutan utan att krocka med tangentbordet
-- [ ] Lägga till basvara med mängd +/- och förbestämd enhet med möjlighet att ändra
+- [x] Innan basvara läggs till bör man även ange mängd +/- och förbestämd enhet med möjlighet att ändra
 - [x] Tar man bort maträtt från inköpslista tas inte ingredienser bort som även delas med andra recept (Ex: 4 ägg i inköpslistan ligger kvar om man tar bort pannkakor [3 av 4 äggen])
 - [x] Finns dubbletter av en maträtt i samma inköpslista tas bådas ingredienser bort när man tar bort den ena maträtten
 - [x] Rensa-knappen borde bara synas om inköpslistan har innehåll
 - [ ] rubriken på inköpslistan syns knappt i ovankant
 - [x] Basvaror hamnar i annan kategori i inköpslistan än var de väljs ifrån (ex frysta räkor [frysvaror] hamnar i Kött & Fisk)
+- [ ] Ersätt "{basvara} sparad som basvara" med "{Basvara} tillagd till inköpslistan"
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd

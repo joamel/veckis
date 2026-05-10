@@ -46,6 +46,11 @@ export default function ShoppingListScreen() {
   const [staples, setStaples] = useState<StapleItem[]>([]);
   const [ingredientSuggestions, setIngredientSuggestions] = useState<{ name: string; category: string }[]>([]);
 
+  // Quick-add quantity sheet (chip tap)
+  const [qtySheet, setQtySheet] = useState<{ name: string; category?: StoreCategory } | null>(null);
+  const [qtyValue, setQtyValue] = useState('1');
+  const [qtyUnit, setQtyUnit] = useState('');
+
   // Category browser modal
   const [showBrowser, setShowBrowser] = useState(false);
   const [browserCategory, setBrowserCategory] = useState<StoreCategory | null>(null);
@@ -127,13 +132,18 @@ export default function ShoppingListScreen() {
     };
   }, []);
 
-  async function addItem(name?: string, category?: StoreCategory) {
+  async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string) {
     let itemName = (name ?? newItem).trim().toLowerCase();
     if (!listId || !itemName) return;
     setAdding(true);
     Keyboard.dismiss();
     try {
-      const item = await client.addShoppingItem(listId, { name: itemName, ...(category ? { category } : {}) });
+      const item = await client.addShoppingItem(listId, {
+        name: itemName,
+        ...(category ? { category } : {}),
+        ...(quantity && quantity !== 1 ? { quantity } : {}),
+        ...(unit ? { unit } : {}),
+      });
       setList(prev => {
         if (!prev) return prev;
         const exists = prev.items.some(i => i.id === item.id);
@@ -144,7 +154,13 @@ export default function ShoppingListScreen() {
       });
       setNewItem('');
       if (householdId) {
-        client.upsertStaple({ householdId, name: itemName, ...(category ? { category } : {}) }).then(s => {
+        client.upsertStaple({
+          householdId,
+          name: itemName,
+          ...(category ? { category } : {}),
+          ...(quantity && quantity !== 1 ? { defaultQuantity: quantity } : {}),
+          ...(unit ? { unit } : {}),
+        }).then(s => {
           setStaples(prev => {
             const exists = prev.find(p => p.id === s.id);
             return exists ? prev.map(p => p.id === s.id ? s : p) : [...prev, s].sort((a, b) => a.name.localeCompare(b.name));
@@ -158,6 +174,22 @@ export default function ShoppingListScreen() {
     } finally {
       setAdding(false);
     }
+  }
+
+  function openQtySheet(name: string, category?: StoreCategory) {
+    const staple = staples.find(s => s.name.toLowerCase() === name.toLowerCase());
+    setQtyValue(staple?.defaultQuantity ? String(staple.defaultQuantity) : '1');
+    setQtyUnit(staple?.unit ?? '');
+    setQtySheet({ name, category });
+    Keyboard.dismiss();
+  }
+
+  async function confirmQtySheet() {
+    if (!qtySheet) return;
+    const qty = parseFloat(qtyValue.replace(',', '.'));
+    const unit = qtyUnit.trim() || undefined;
+    await addItem(qtySheet.name, qtySheet.category, isNaN(qty) ? 1 : qty, unit);
+    setQtySheet(null);
   }
 
   async function toggleItem(item: ShoppingItemWithRecipe) {
@@ -312,21 +344,23 @@ export default function ShoppingListScreen() {
     <SafeAreaView style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#111827" />
-        </Pressable>
-        <View style={s.headerMid}>
+        <View style={s.headerNav}>
+          <Pressable onPress={() => router.back()} style={s.backBtn}>
+            <Ionicons name="arrow-back" size={24} color="#111827" />
+          </Pressable>
+          {list.items.length > 0 && (
+            <Pressable onPress={completeList} style={s.doneBtn}>
+              <Ionicons name="checkmark-done-outline" size={24} color="#4f46e5" />
+            </Pressable>
+          )}
+        </View>
+        <View style={s.headerTitle}>
           <Text style={s.title} numberOfLines={1}>{list.name}</Text>
           <Pressable onPress={() => setShowStorePicker(true)} style={s.storeBtn}>
             <Ionicons name="storefront-outline" size={12} color="#4f46e5" />
             <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
           </Pressable>
         </View>
-        {list.items.length > 0 && (
-          <Pressable onPress={completeList} style={s.doneBtn}>
-            <Ionicons name="checkmark-done-outline" size={24} color="#4f46e5" />
-          </Pressable>
-        )}
       </View>
 
       {/* Progress bar */}
@@ -385,7 +419,7 @@ export default function ShoppingListScreen() {
                 <TouchableOpacity
                   key={s2.id}
                   style={s.chip}
-                  onPress={() => addItem(s2.name, s2.category as StoreCategory)}
+                  onPress={() => openQtySheet(s2.name, s2.category as StoreCategory)}
                 >
                   <Text style={s.chipText}>{s2.name}</Text>
                 </TouchableOpacity>
@@ -497,7 +531,7 @@ export default function ShoppingListScreen() {
                     <Pressable
                       key={s2.name}
                       style={s.browserItem}
-                      onPress={() => { addItem(s2.name, browserCategory ?? undefined); setShowBrowser(false); }}
+                      onPress={() => { setShowBrowser(false); openQtySheet(s2.name, browserCategory ?? undefined); }}
                     >
                       <Text style={s.browserItemText}>{s2.name}</Text>
                       <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
@@ -599,6 +633,51 @@ export default function ShoppingListScreen() {
           </Pressable>
         </View>
       </Modal>
+      {/* Quantity sheet */}
+      <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
+        <Pressable style={s.overlay} onPress={() => setQtySheet(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end', flex: 1 }}>
+          <View style={s.sheet}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>{qtySheet?.name}</Text>
+            <View style={s.qtyStepper}>
+              <Pressable
+                style={s.qtyBtn}
+                onPress={() => setQtyValue(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)))}
+              >
+                <Ionicons name="remove" size={22} color="#4f46e5" />
+              </Pressable>
+              <TextInput
+                style={s.qtyInput}
+                value={qtyValue}
+                onChangeText={setQtyValue}
+                keyboardType="decimal-pad"
+                selectTextOnFocus
+              />
+              <Pressable
+                style={s.qtyBtn}
+                onPress={() => setQtyValue(v => String((parseFloat(v.replace(',', '.')) || 0) + 1))}
+              >
+                <Ionicons name="add" size={22} color="#4f46e5" />
+              </Pressable>
+              <TextInput
+                style={s.qtyUnitInput}
+                value={qtyUnit}
+                onChangeText={setQtyUnit}
+                placeholder="enhet"
+                placeholderTextColor="#9ca3af"
+                autoCapitalize="none"
+              />
+            </View>
+            <Pressable style={s.qtyConfirm} onPress={confirmQtySheet} disabled={adding}>
+              {adding
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={s.qtyConfirmText}>Lägg till</Text>}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <Animated.View style={[s.toast, { opacity: toastOpacity }]} pointerEvents="none">
         <Ionicons name="checkmark-circle" size={20} color="#fff" />
         <Text style={s.toastText}>{toastMessage}</Text>
@@ -653,11 +732,12 @@ function ItemRow({ item, onToggle, onDelete, onEdit }: { item: ShoppingItemWithR
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
+  header: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: 12 },
+  headerNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  headerTitle: { paddingHorizontal: 20, paddingTop: 2 },
   backBtn: { padding: 4 },
   doneBtn: { padding: 4 },
-  headerMid: { flex: 1 },
-  title: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  title: { fontSize: 26, fontWeight: '700', color: '#111827' },
   storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   storeBtnText: { fontSize: 12, color: '#4f46e5', fontWeight: '500' },
   progressBar: { height: 3, backgroundColor: '#e5e7eb' },
@@ -729,6 +809,12 @@ const s = StyleSheet.create({
   browserList: { marginTop: 12, maxHeight: 400 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   browserItemText: { flex: 1, fontSize: 16, color: '#111827' },
+  qtyStepper: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
+  qtyBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
+  qtyInput: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '700', color: '#111827', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 8 },
+  qtyUnitInput: { flex: 1, fontSize: 16, color: '#111827', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
+  qtyConfirm: { backgroundColor: '#4f46e5', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  qtyConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });
