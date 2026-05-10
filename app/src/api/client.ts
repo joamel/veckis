@@ -75,6 +75,9 @@ export function useApiClient() {
         body: JSON.stringify({ name }),
       }),
 
+    deleteHousehold: (householdId: string) =>
+      request<void>(`/api/households/${householdId}`, { method: 'DELETE' }),
+
     joinHousehold: (code: string, displayName?: string) =>
       request<HouseholdMember>('/api/households/join', {
         method: 'POST',

@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { WeekDay, RecurrenceType } from '@prisma/client';
+import { WeekDay, RecurrenceType, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
@@ -70,7 +70,7 @@ scheduleRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const entry = await prisma.scheduleEntry.create({
-    data: { ...body.data, createdBy: (req as AuthenticatedRequest).clerkUserId },
+    data: { ...body.data, createdBy: (req as AuthenticatedRequest).clerkUserId } as Prisma.ScheduleEntryUncheckedCreateInput,
   });
   res.status(201).json(entry);
 }));

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { WeekDay } from '@prisma/client';
+import { WeekDay, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
@@ -53,7 +53,7 @@ menusRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (r
   }
 
   const item = await prisma.weekMenuItem.create({
-    data: { ...body.data, createdBy: (req as AuthenticatedRequest).clerkUserId },
+    data: { ...body.data, createdBy: (req as AuthenticatedRequest).clerkUserId } as Prisma.WeekMenuItemUncheckedCreateInput,
     include: { recipe: { include: { ingredients: true } } },
   });
   res.status(201).json(item);

@@ -17,7 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
-import type { InviteCode, HouseholdWithMembers } from '@veckis/shared';
+import type { InviteCode } from '@veckis/shared';
+import type { HouseholdWithMembers } from '../../src/api/client';
 
 export default function SettingsScreen() {
   const { signOut } = useAuth();
@@ -31,6 +32,7 @@ export default function SettingsScreen() {
   const [showEditHouseholdModal, setShowEditHouseholdModal] = useState(false);
   const [editingHouseholdName, setEditingHouseholdName] = useState(householdName || '');
   const [loadingHouseholdEdit, setLoadingHouseholdEdit] = useState(false);
+  const [loadingDeleteHousehold, setLoadingDeleteHousehold] = useState(false);
 
 
   // Edit member
@@ -209,6 +211,36 @@ export default function SettingsScreen() {
     }
   }
 
+  // Delete household
+  function handleDeleteHousehold() {
+    if (!householdId || !isAdmin) return;
+    const isLast = allMemberships.length <= 1;
+    Alert.alert(
+      'Ta bort hushåll',
+      isLast
+        ? `"${householdName}" är ditt enda hushåll. All data raderas permanent och kan inte återställas.`
+        : `All data i "${householdName}" (sysslor, meny, inköpslistor) raderas permanent.`,
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Ta bort',
+          style: 'destructive',
+          onPress: async () => {
+            setLoadingDeleteHousehold(true);
+            try {
+              await client.deleteHousehold(householdId);
+              await refresh();
+            } catch {
+              Alert.alert('Fel', 'Kunde inte ta bort hushållet');
+            } finally {
+              setLoadingDeleteHousehold(false);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   // Switch household
   async function handleSwitchHousehold(householdId: string) {
     await setActiveHouseholdId(householdId);
@@ -249,12 +281,17 @@ export default function SettingsScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionLabel}>HUSHÅLLET</Text>
             {isAdmin && (
-              <Pressable onPress={() => {
-                setEditingHouseholdName(householdName || '');
-                setShowEditHouseholdModal(true);
-              }}>
-                <Ionicons name="pencil-outline" size={16} color="#4f46e5" />
-              </Pressable>
+              <View style={styles.sectionHeaderActions}>
+                <Pressable onPress={() => {
+                  setEditingHouseholdName(householdName || '');
+                  setShowEditHouseholdModal(true);
+                }}>
+                  <Ionicons name="pencil-outline" size={16} color="#4f46e5" />
+                </Pressable>
+                <Pressable onPress={handleDeleteHousehold} disabled={loadingDeleteHousehold}>
+                  <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                </Pressable>
+              </View>
             )}
           </View>
           <View style={styles.card}>
@@ -530,6 +567,7 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 40 },
   section: { marginTop: 24, paddingHorizontal: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  sectionHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8 },
   card: {
     flexDirection: 'row',

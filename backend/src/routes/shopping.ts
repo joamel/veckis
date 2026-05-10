@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { StoreCategory } from '@prisma/client';
+import { StoreCategory, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
@@ -56,7 +56,7 @@ shoppingRouter.post('/lists', requireAuth, requireHouseholdMember, asyncHandler(
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const list = await prisma.shoppingList.create({
-    data: { ...body.data, createdBy: (req as AuthenticatedRequest).clerkUserId },
+    data: { ...body.data, createdBy: (req as AuthenticatedRequest).clerkUserId } as Prisma.ShoppingListUncheckedCreateInput,
     include: { items: true, store: true },
   });
   res.status(201).json(list);

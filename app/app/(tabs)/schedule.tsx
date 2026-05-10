@@ -46,7 +46,7 @@ const HOUR_VALS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, 
 const MIN_VALS = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
-type Member = { id: string; clerkUserId: string; displayName: string };
+type Member = { id: string; clerkUserId: string | null; displayName: string };
 
 function hapticTick() {
   if (Platform.OS === 'android') Vibration.vibrate(8);

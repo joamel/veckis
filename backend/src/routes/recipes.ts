@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { StoreCategory } from '@prisma/client';
+import { StoreCategory, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
@@ -79,8 +79,8 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
     data: {
       ...recipeData,
       createdBy: (req as AuthenticatedRequest).clerkUserId,
-      ingredients: { create: ingredients },
-    },
+      ingredients: { create: ingredients as Prisma.RecipeIngredientCreateWithoutRecipeInput[] },
+    } as Prisma.RecipeUncheckedCreateInput,
     include: { ingredients: true },
   });
 
@@ -117,7 +117,7 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
   const updated = await prisma.$transaction(async (tx) => {
     if (ingredients !== undefined) {
       await tx.recipeIngredient.deleteMany({ where: { recipeId: recipe.id } });
-      await tx.recipeIngredient.createMany({ data: ingredients.map(i => ({ ...i, recipeId: recipe.id })) });
+      await tx.recipeIngredient.createMany({ data: ingredients.map(i => ({ ...i, recipeId: recipe.id })) as Prisma.RecipeIngredientCreateManyInput[] });
     }
     return tx.recipe.update({
       where: { id: recipe.id },

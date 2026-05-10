@@ -157,6 +157,12 @@ householdRouter.post('/:householdId/members', requireAuth, requireAdmin, asyncHa
   res.status(201).json(member);
 }));
 
+// DELETE /api/households/:householdId
+householdRouter.delete('/:householdId', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  await prisma.household.delete({ where: { id: req.params.householdId } });
+  res.status(204).send();
+}));
+
 // DELETE /api/households/:householdId/members/:memberId
 householdRouter.delete('/:householdId/members/:memberId', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const target = await prisma.householdMember.findUnique({ where: { id: req.params.memberId } });

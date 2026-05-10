@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { ChoreFrequency, WeekDay } from '@prisma/client';
+import { ChoreFrequency, WeekDay, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
@@ -72,7 +72,7 @@ choresRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const chore = await prisma.chore.create({
-    data: { ...body.data, createdBy: (req as AuthenticatedRequest).clerkUserId },
+    data: { ...body.data, createdBy: (req as AuthenticatedRequest).clerkUserId } as Prisma.ChoreUncheckedCreateInput,
   });
   res.status(201).json(chore);
 }));

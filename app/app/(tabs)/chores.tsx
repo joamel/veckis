@@ -62,7 +62,7 @@ function isFullyDone(chore: ChoreWithCompletion): boolean {
   );
 }
 
-type Member = { id: string; clerkUserId: string; displayName: string };
+type Member = { id: string; clerkUserId: string | null; displayName: string };
 
 function toggleDay(days: WeekDay[], day: WeekDay): WeekDay[] {
   return days.includes(day) ? days.filter(d => d !== day) : [...days, day];

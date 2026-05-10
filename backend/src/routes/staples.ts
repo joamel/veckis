@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { StoreCategory } from '@prisma/client';
+import { StoreCategory, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
@@ -46,7 +46,7 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
 
   const staple = await prisma.stapleItem.upsert({
     where: { householdId_name: { householdId: body.data.householdId, name: normalizedName } },
-    create: { ...body.data, name: normalizedName, category },
+    create: { ...body.data, name: normalizedName, category } as Prisma.StapleItemUncheckedCreateInput,
     update: { category, unit: body.data.unit, defaultQuantity: body.data.defaultQuantity },
   });
   res.status(201).json(staple);

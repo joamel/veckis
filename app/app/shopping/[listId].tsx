@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import Fuse from 'fuse.js';
 import {
   ActivityIndicator,
+  Animated,
   Alert,
   GestureResponderEvent,
   Keyboard,
@@ -68,6 +69,15 @@ export default function ShoppingListScreen() {
   const [savingOrder, setSavingOrder] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+
+  function showToast() {
+    Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(1500),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
+  }
 
   const categoryOrder: StoreCategory[] = (list?.store?.categoryOrder as StoreCategory[]) ?? DEFAULT_CATEGORY_ORDER;
 
@@ -115,13 +125,13 @@ export default function ShoppingListScreen() {
     };
   }, []);
 
-  async function addItem(name?: string) {
+  async function addItem(name?: string, category?: StoreCategory) {
     let itemName = (name ?? newItem).trim().toLowerCase();
     if (!listId || !itemName) return;
     setAdding(true);
     Keyboard.dismiss();
     try {
-      const item = await client.addShoppingItem(listId, { name: itemName });
+      const item = await client.addShoppingItem(listId, { name: itemName, ...(category ? { category } : {}) });
       setList(prev => {
         if (!prev) return prev;
         const exists = prev.items.some(i => i.id === item.id);
@@ -131,13 +141,13 @@ export default function ShoppingListScreen() {
         return { ...prev, items: updated };
       });
       setNewItem('');
-      // Auto-save to staples
       if (householdId) {
-        client.upsertStaple({ householdId, name: itemName }).then(s => {
+        client.upsertStaple({ householdId, name: itemName, ...(category ? { category } : {}) }).then(s => {
           setStaples(prev => {
             const exists = prev.find(p => p.id === s.id);
             return exists ? prev.map(p => p.id === s.id ? s : p) : [...prev, s].sort((a, b) => a.name.localeCompare(b.name));
           });
+          showToast();
         }).catch(() => {});
       }
     } catch (err) {
@@ -310,9 +320,11 @@ export default function ShoppingListScreen() {
             <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
           </Pressable>
         </View>
-        <Pressable onPress={completeList} style={s.doneBtn}>
-          <Ionicons name="checkmark-done-outline" size={24} color="#4f46e5" />
-        </Pressable>
+        {list.items.length > 0 && (
+          <Pressable onPress={completeList} style={s.doneBtn}>
+            <Ionicons name="checkmark-done-outline" size={24} color="#4f46e5" />
+          </Pressable>
+        )}
       </View>
 
       {/* Progress bar */}
@@ -371,7 +383,7 @@ export default function ShoppingListScreen() {
                 <TouchableOpacity
                   key={s2.id}
                   style={s.chip}
-                  onPress={() => addItem(s2.name)}
+                  onPress={() => addItem(s2.name, s2.category as StoreCategory)}
                 >
                   <Text style={s.chipText}>{s2.name}</Text>
                 </TouchableOpacity>
@@ -483,7 +495,7 @@ export default function ShoppingListScreen() {
                     <Pressable
                       key={s2.name}
                       style={s.browserItem}
-                      onPress={() => { addItem(s2.name); setShowBrowser(false); }}
+                      onPress={() => { addItem(s2.name, browserCategory ?? undefined); setShowBrowser(false); }}
                     >
                       <Text style={s.browserItemText}>{s2.name}</Text>
                       <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
@@ -585,6 +597,9 @@ export default function ShoppingListScreen() {
           </Pressable>
         </View>
       </Modal>
+      <Animated.View style={[s.toast, { opacity: toastOpacity }]} pointerEvents="none">
+        <Text style={s.toastText}>Basvara sparad</Text>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -711,4 +726,6 @@ const s = StyleSheet.create({
   browserList: { marginTop: 12, maxHeight: 400 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   browserItemText: { flex: 1, fontSize: 16, color: '#111827' },
+  toast: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#111827', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 20 },
+  toastText: { color: '#fff', fontSize: 14 },
 });
