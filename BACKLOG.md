@@ -8,7 +8,6 @@
 - [x] Snyggt om man kan hålla inne på inköpslistor/aktiviteter/sysslor/meny så att de skakar om man vill redigera dem och att det kommer upp en delete (x) /redigeringsknapp (penna)
 - [x] Emoji bakom hushållsnamnet saknas i inköps- och meny-fliken
 - [ ] Större font och knappar/pilar mm i tablet-vyn
-- [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori
 - [ ] Texten hoppar inte upp ovan tangentbordet för Lägga till lokala profiler, nya inköpslistor och butiker
 - [ ] Om flera inputfält i samma form borde det finnas en "nästa" i tangentbordet
 - [ ] Toast för fler händelser: "Inköpslista rensad", "Hushåll borttaget", "Syssla sparad" m.fl.
@@ -31,8 +30,6 @@
 - [x] när man skriver in ingredienser, enhet och mått borde standard vara gemener i inputfältet
 - [x] Möjlighet att rensa inköpslista när man är klar istället för att arkivera den
 - [x] Slå ihop ingredienser med samma namn men olika mått — förslag "Det finns X likadana varor — vill du slå ihop dem?" med ny mängd/enhet som ersätter befintliga
-- [ ] Hitta normaliserade ingrediensnamn och på så vis kunna slå ihop "klyftor vitlök" med "vitlök" och "standardmjölk" med "mjölk" i inköpslistan
-- [ ] Om man vill lägga till egen basvara borde den även lägga till varan i databasen om den inte redan finns (förutsatt att man lägger till en kategori)
 - [x] Ge någon typ av feedback när en basvara lagts till. Kanske en liten toast!
 - [x] Toast bör visa varans namn ("havregryn sparad som basvara"), ha grön bakgrund och sitta ovanför sökrutan utan att krocka med tangentbordet
 - [x] Innan basvara läggs till bör man även ange mängd +/- och förbestämd enhet med möjlighet att ändra
@@ -42,7 +39,12 @@
 - [x] rubriken på inköpslistan syns knappt i ovankant
 - [x] Basvaror hamnar i annan kategori i inköpslistan än var de väljs ifrån (ex frysta räkor [frysvaror] hamnar i Kött & Fisk)
 - [x] Ersätt "{basvara} sparad som basvara" med "{Basvara} tillagd till inköpslistan"
+- [ ] Hitta normaliserade ingrediensnamn och på så vis kunna slå ihop "klyftor vitlök" med "vitlök" och "standardmjölk" med "mjölk" i inköpslistan samt pluralis till singularis "tomater" -> "tomat"
+- [ ] Om man vill lägga till egen basvara borde den även lägga till varan i databasen om den inte redan finns (förutsatt att man lägger till en kategori)
 - [ ] Lilla counten till höger om kategorin i inköpslistan tillför inget.
+- [x] Addera summan av mängden på ingredienser som ska slås ihop och föreslå senast angivna enheten (om tom, den näst senast angivna)
+- [ ] ha föreslagna enheter när man börjar skriva in
+- [ ] tillbaka- och rensaknappen på inköpslistan syns knappt i ovankant
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -54,6 +56,7 @@
 - [ ] Kunna byta namn och redigera recept med long press
 - [ ] Kunna ersätta en maträtt i menyn mot en annan med en knapp <->
 - [ ] Enklare kunna flytta maträtter mellan dagarna med longpress för att ta tag i och dra.
+- [ ] Ej lägga till recept igen om den känner igen url
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -72,6 +75,13 @@
 ### Sysslor
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.
 - [ ] Kunna redigera sysslor enklare (med en penna till höger)
+
+---
+
+## Agent
+- [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori när den importerar recept.
+- [ ] kanske en agent som lär sig hur användaren brukar lägga till basvaror, aktiviteter etc för att få en bättre UI experience?
+- [ ] Identifiera storleksordning på mått så att den alltid går på det största måttet när den ska slå ihop samma vara
 
 ---
 
