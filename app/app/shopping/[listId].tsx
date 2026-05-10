@@ -422,12 +422,12 @@ export default function ShoppingListScreen() {
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerNav}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Pressable onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
+            <Ionicons name="arrow-back" size={26} color="#111827" />
           </Pressable>
           {list.items.length > 0 && (
-            <Pressable onPress={completeList} style={s.doneBtn}>
-              <Ionicons name="checkmark-done-outline" size={24} color="#4f46e5" />
+            <Pressable onPress={completeList} style={s.doneBtn} hitSlop={8}>
+              <Ionicons name="checkmark-done-outline" size={26} color="#4f46e5" />
             </Pressable>
           )}
         </View>
@@ -461,7 +461,6 @@ export default function ShoppingListScreen() {
           <View key={group.category} style={s.categoryGroup}>
             <View style={s.categoryHeader}>
               <Text style={s.categoryLabel}>{CATEGORY_LABELS[group.category]}</Text>
-              <Text style={s.categoryCount}>{group.items.length}</Text>
             </View>
             {group.items.map(item => (
               <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onDelete={() => deleteItem(item.id)} onEdit={() => openEditItem(item)} />
@@ -474,7 +473,6 @@ export default function ShoppingListScreen() {
           <View style={s.categoryGroup}>
             <View style={s.categoryHeader}>
               <Text style={[s.categoryLabel, { color: '#9ca3af' }]}>Bockat</Text>
-              <Text style={s.categoryCount}>{checked.length}</Text>
             </View>
             {checked.map(item => (
               <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onDelete={() => deleteItem(item.id)} onEdit={() => openEditItem(item)} />
@@ -746,6 +744,15 @@ export default function ShoppingListScreen() {
                 autoCapitalize="none"
               />
             </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
+              <View style={s.unitChipRow}>
+                {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'nypa', 'påse', 'burk', 'flaska'].map(u => (
+                  <Pressable key={u} style={[s.unitChip, qtyUnit === u && s.unitChipActive]} onPress={() => setQtyUnit(v => v === u ? '' : u)}>
+                    <Text style={[s.unitChipText, qtyUnit === u && s.unitChipTextActive]}>{u}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
             <Pressable style={s.qtyConfirm} onPress={confirmQtySheet} disabled={adding}>
               {adding
                 ? <ActivityIndicator color="#fff" size="small" />
@@ -812,6 +819,15 @@ export default function ShoppingListScreen() {
                 autoCapitalize="none"
               />
             </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
+              <View style={s.unitChipRow}>
+                {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'nypa', 'påse', 'burk', 'flaska'].map(u => (
+                  <Pressable key={u} style={[s.unitChip, mergeUnit === u && s.unitChipActive]} onPress={() => setMergeUnit(v => v === u ? '' : u)}>
+                    <Text style={[s.unitChipText, mergeUnit === u && s.unitChipTextActive]}>{u}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
             <Pressable
               style={[s.qtyConfirm, (mergeSelected.size < 2 || adding) && s.saveBtnDisabled]}
               onPress={confirmMerge}
@@ -876,8 +892,8 @@ const s = StyleSheet.create({
   header: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: 12 },
   headerNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   headerTitle: { paddingHorizontal: 20, paddingTop: 2 },
-  backBtn: { padding: 4 },
-  doneBtn: { padding: 4 },
+  backBtn: { padding: 10 },
+  doneBtn: { padding: 10 },
   title: { fontSize: 26, fontWeight: '700', color: '#111827' },
   storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   storeBtnText: { fontSize: 12, color: '#4f46e5', fontWeight: '500' },
@@ -959,6 +975,12 @@ const s = StyleSheet.create({
   toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   mergeList: { height: 176, flexShrink: 0 },
+  unitChipScroll: { marginVertical: 4 },
+  unitChipRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
+  unitChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  unitChipActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
+  unitChipText: { fontSize: 13, color: '#374151', fontWeight: '500' },
+  unitChipTextActive: { color: '#4f46e5', fontWeight: '600' },
   mergeItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   mergeItemText: { fontSize: 16, color: '#374151', flex: 1 },
   mergeDivider: { height: 1, backgroundColor: '#e5e7eb', marginTop: 4 },

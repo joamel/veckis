@@ -41,10 +41,10 @@
 - [x] Ersätt "{basvara} sparad som basvara" med "{Basvara} tillagd till inköpslistan"
 - [ ] Hitta normaliserade ingrediensnamn och på så vis kunna slå ihop "klyftor vitlök" med "vitlök" och "standardmjölk" med "mjölk" i inköpslistan samt pluralis till singularis "tomater" -> "tomat"
 - [ ] Om man vill lägga till egen basvara borde den även lägga till varan i databasen om den inte redan finns (förutsatt att man lägger till en kategori)
-- [ ] Lilla counten till höger om kategorin i inköpslistan tillför inget.
+- [x] Lilla counten till höger om kategorin i inköpslistan tillför inget.
 - [x] Addera summan av mängden på ingredienser som ska slås ihop och föreslå senast angivna enheten (om tom, den näst senast angivna)
-- [ ] ha föreslagna enheter när man börjar skriva in
-- [ ] tillbaka- och rensaknappen på inköpslistan syns knappt i ovankant
+- [x] ha föreslagna enheter när man börjar skriva in
+- [x] tillbaka- och rensaknappen på inköpslistan syns knappt i ovankant
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
