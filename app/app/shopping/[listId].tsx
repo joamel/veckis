@@ -763,8 +763,7 @@ export default function ShoppingListScreen() {
       {/* Merge duplicates sheet */}
       <Modal visible={!!mergeSheet} transparent animationType="slide" onRequestClose={() => setMergeSheet(null)}>
         <Pressable style={s.overlay} onPress={() => setMergeSheet(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end', flex: 1 }}>
-          <View style={s.sheet}>
+        <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{mergeSheet?.name}</Text>
             <Text style={s.sheetSub}>Markera vilka som ska slås ihop</Text>
@@ -822,8 +821,7 @@ export default function ShoppingListScreen() {
                 ? <ActivityIndicator color="#fff" size="small" />
                 : <Text style={s.qtyConfirmText}>Slå ihop {mergeSelected.size} varor</Text>}
             </Pressable>
-          </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
     </SafeAreaView>
   );
