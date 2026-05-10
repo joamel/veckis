@@ -72,12 +72,12 @@ export default function ShoppingListScreen() {
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
 
-  function showToast(message: string) {
-    setToastMessage(message);
+  function showToast(msg: string) {
+    setToastMessage(msg);
     Animated.sequence([
-      Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.delay(1800),
-      Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+      Animated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 350, useNativeDriver: true }),
     ]).start();
   }
 
@@ -149,7 +149,7 @@ export default function ShoppingListScreen() {
             const exists = prev.find(p => p.id === s.id);
             return exists ? prev.map(p => p.id === s.id ? s : p) : [...prev, s].sort((a, b) => a.name.localeCompare(b.name));
           });
-          showToast(`${itemName} sparad som basvara`);
+          showToast(itemName + ' sparad som basvara');
         }).catch(() => {});
       }
     } catch (err) {
@@ -599,11 +599,8 @@ export default function ShoppingListScreen() {
           </Pressable>
         </View>
       </Modal>
-      <Animated.View
-        style={[s.toast, { opacity: toastOpacity, bottom: keyboardVisible ? 100 : 32 }]}
-        pointerEvents="none"
-      >
-        <Ionicons name="checkmark-circle" size={16} color="#fff" />
+      <Animated.View style={[s.toast, { opacity: toastOpacity }]} pointerEvents="none">
+        <Ionicons name="checkmark-circle" size={20} color="#fff" />
         <Text style={s.toastText}>{toastMessage}</Text>
       </Animated.View>
     </SafeAreaView>
@@ -732,6 +729,6 @@ const s = StyleSheet.create({
   browserList: { marginTop: 12, maxHeight: 400 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   browserItemText: { flex: 1, fontSize: 16, color: '#111827' },
-  toast: { position: 'absolute', alignSelf: 'center', backgroundColor: '#16a34a', borderRadius: 20, paddingVertical: 9, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  toastText: { color: '#fff', fontSize: 14, fontWeight: '500' },
+  toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });
