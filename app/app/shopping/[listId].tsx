@@ -960,7 +960,7 @@ const s = StyleSheet.create({
   qtyConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  mergeList: { maxHeight: 180 },
+  mergeList: { height: 176, flexShrink: 0 },
   mergeItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   mergeItemText: { fontSize: 16, color: '#374151', flex: 1 },
   mergeDivider: { height: 1, backgroundColor: '#e5e7eb', marginTop: 4 },
