@@ -30,7 +30,7 @@
 - [x] Sortera ingredienser inom kategori i bokstavsordning
 - [x] när man skriver in ingredienser, enhet och mått borde standard vara gemener i inputfältet
 - [x] Möjlighet att rensa inköpslista när man är klar istället för att arkivera den
-- [ ] Slå ihop ingredienser även om de har olika mått (2 dl + 1,5 msk osv) och namn (mjölk <=> standardmjölk osv)
+- [x] Slå ihop ingredienser med samma namn men olika mått — förslag "Det finns X likadana varor — vill du slå ihop dem?" med ny mängd/enhet som ersätter befintliga
 - [ ] Hitta normaliserade ingrediensnamn och på så vis kunna slå ihop "klyftor vitlök" med "vitlök" och "standardmjölk" med "mjölk" i inköpslistan
 - [ ] Om man vill lägga till egen basvara borde den även lägga till varan i databasen om den inte redan finns (förutsatt att man lägger till en kategori)
 - [x] Ge någon typ av feedback när en basvara lagts till. Kanske en liten toast!
@@ -39,9 +39,10 @@
 - [x] Tar man bort maträtt från inköpslista tas inte ingredienser bort som även delas med andra recept (Ex: 4 ägg i inköpslistan ligger kvar om man tar bort pannkakor [3 av 4 äggen])
 - [x] Finns dubbletter av en maträtt i samma inköpslista tas bådas ingredienser bort när man tar bort den ena maträtten
 - [x] Rensa-knappen borde bara synas om inköpslistan har innehåll
-- [ ] rubriken på inköpslistan syns knappt i ovankant
+- [x] rubriken på inköpslistan syns knappt i ovankant
 - [x] Basvaror hamnar i annan kategori i inköpslistan än var de väljs ifrån (ex frysta räkor [frysvaror] hamnar i Kött & Fisk)
-- [ ] Ersätt "{basvara} sparad som basvara" med "{Basvara} tillagd till inköpslistan"
+- [x] Ersätt "{basvara} sparad som basvara" med "{Basvara} tillagd till inköpslistan"
+- [ ] Lilla counten till höger om kategorin i inköpslistan tillför inget.
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd

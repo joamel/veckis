@@ -50,6 +50,7 @@ export default function ShoppingListScreen() {
   const [qtySheet, setQtySheet] = useState<{ name: string; category?: StoreCategory } | null>(null);
   const [qtyValue, setQtyValue] = useState('1');
   const [qtyUnit, setQtyUnit] = useState('');
+  const [mergeItems, setMergeItems] = useState<ShoppingItemWithRecipe[] | null>(null);
 
   // Category browser modal
   const [showBrowser, setShowBrowser] = useState(false);
@@ -144,14 +145,12 @@ export default function ShoppingListScreen() {
         ...(quantity && quantity !== 1 ? { quantity } : {}),
         ...(unit ? { unit } : {}),
       });
-      setList(prev => {
-        if (!prev) return prev;
-        const exists = prev.items.some(i => i.id === item.id);
-        const updated = exists
-          ? prev.items.map(i => i.id === item.id ? { ...item, recipe: i.recipe } : i)
-          : [...prev.items, { ...item, recipe: null }];
-        return { ...prev, items: updated };
-      });
+      const prevItems = list?.items ?? [];
+      const itemExists = prevItems.some(i => i.id === item.id);
+      const updatedItems = itemExists
+        ? prevItems.map(i => i.id === item.id ? { ...item, recipe: i.recipe } : i)
+        : [...prevItems, { ...item, recipe: null }];
+      setList(prev => prev ? { ...prev, items: updatedItems } : prev);
       setNewItem('');
       if (householdId) {
         client.upsertStaple({
@@ -165,8 +164,35 @@ export default function ShoppingListScreen() {
             const exists = prev.find(p => p.id === s.id);
             return exists ? prev.map(p => p.id === s.id ? s : p) : [...prev, s].sort((a, b) => a.name.localeCompare(b.name));
           });
-          showToast(itemName + ' sparad som basvara');
+          showToast(itemName.charAt(0).toUpperCase() + itemName.slice(1) + ' tillagd till inköpslistan');
         }).catch(() => {});
+      }
+      const dupes = updatedItems.filter(
+        i => !i.isChecked && i.name.toLowerCase().trim() === itemName,
+      );
+      if (dupes.length >= 2) {
+        const allSameUnit = dupes.every(d => (d.unit ?? '') === (dupes[0].unit ?? ''));
+        const totalQty = allSameUnit
+          ? dupes.reduce((sum, d) => sum + (d.quantity ?? 1), 0)
+          : (item.quantity ?? 1);
+        setTimeout(() => {
+          Alert.alert(
+            'Slå ihop?',
+            `Det finns ${dupes.length} likadana varor i inköpslistan — vill du slå ihop dem?`,
+            [
+              { text: 'Nej', style: 'cancel' },
+              {
+                text: 'Ja',
+                onPress: () => {
+                  setMergeItems(dupes);
+                  setQtyValue(String(totalQty));
+                  setQtyUnit(allSameUnit ? (dupes[0].unit ?? '') : (item.unit ?? ''));
+                  setQtySheet({ name: itemName, category: dupes[0].category as StoreCategory });
+                },
+              },
+            ],
+          );
+        }, 300);
       }
     } catch (err) {
       console.error('Failed to add item:', err);
@@ -188,6 +214,38 @@ export default function ShoppingListScreen() {
     if (!qtySheet) return;
     const qty = parseFloat(qtyValue.replace(',', '.'));
     const unit = qtyUnit.trim() || undefined;
+
+    if (mergeItems && mergeItems.length > 0) {
+      const [keep, ...remove] = mergeItems;
+      const deleteIds = new Set(remove.map(i => i.id));
+      setAdding(true);
+      try {
+        await Promise.all([
+          client.updateShoppingItem(keep.id, { quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null }),
+          ...remove.map(i => client.deleteShoppingItem(i.id)),
+        ]);
+        setList(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            items: prev.items
+              .filter(i => !deleteIds.has(i.id))
+              .map(i => i.id === keep.id
+                ? { ...i, quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null }
+                : i
+              ),
+          };
+        });
+      } catch {
+        Alert.alert('Fel', 'Kunde inte slå ihop varor');
+      } finally {
+        setAdding(false);
+      }
+      setMergeItems(null);
+      setQtySheet(null);
+      return;
+    }
+
     await addItem(qtySheet.name, qtySheet.category, isNaN(qty) ? 1 : qty, unit);
     setQtySheet(null);
   }
@@ -634,12 +692,15 @@ export default function ShoppingListScreen() {
         </View>
       </Modal>
       {/* Quantity sheet */}
-      <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
-        <Pressable style={s.overlay} onPress={() => setQtySheet(null)} />
+      <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => { setQtySheet(null); setMergeItems(null); }}>
+        <Pressable style={s.overlay} onPress={() => { setQtySheet(null); setMergeItems(null); }} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end', flex: 1 }}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{qtySheet?.name}</Text>
+            {mergeItems && (
+              <Text style={s.sheetSub}>Slår ihop {mergeItems.length} likadana varor — välj ny mängd och enhet</Text>
+            )}
             <View style={s.qtyStepper}>
               <Pressable
                 style={s.qtyBtn}
@@ -672,7 +733,7 @@ export default function ShoppingListScreen() {
             <Pressable style={s.qtyConfirm} onPress={confirmQtySheet} disabled={adding}>
               {adding
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={s.qtyConfirmText}>Lägg till</Text>}
+                : <Text style={s.qtyConfirmText}>{mergeItems ? 'Slå ihop' : 'Lägg till'}</Text>}
             </Pressable>
           </View>
         </KeyboardAvoidingView>
