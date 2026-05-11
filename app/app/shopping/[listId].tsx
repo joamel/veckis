@@ -72,8 +72,6 @@ export default function ShoppingListScreen() {
   const [creatingStore, setCreatingStore] = useState(false);
   const [newStoreName, setNewStoreName] = useState('');
 
-  const [editMode, setEditMode] = useState(false);
-
   // Category order editor
   const [editingStore, setEditingStore] = useState<Store | null>(null);
   const [editCategoryOrder, setEditCategoryOrder] = useState<StoreCategory[]>([]);
@@ -154,7 +152,7 @@ export default function ShoppingListScreen() {
     }
   }, [listId, householdId, openMergeForDupes]);
 
-  useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
@@ -468,7 +466,7 @@ export default function ShoppingListScreen() {
               <Text style={s.categoryLabel}>{CATEGORY_LABELS[group.category]}</Text>
             </View>
             {group.items.map(item => (
-              <ItemRow key={item.id} item={item} editMode={editMode} onToggle={() => toggleItem(item)} onDelete={() => Alert.alert('Ta bort vara', `Ta bort "${item.name}"?`, [{ text: 'Avbryt', style: 'cancel' }, { text: 'Ta bort', style: 'destructive', onPress: () => deleteItem(item.id) }])} onEnterEditMode={() => setEditMode(true)} />
+              <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
             ))}
           </View>
         ))}
@@ -480,63 +478,57 @@ export default function ShoppingListScreen() {
               <Text style={[s.categoryLabel, { color: '#9ca3af' }]}>Bockat</Text>
             </View>
             {checked.map(item => (
-              <ItemRow key={item.id} item={item} editMode={editMode} onToggle={() => toggleItem(item)} onDelete={() => Alert.alert('Ta bort vara', `Ta bort "${item.name}"?`, [{ text: 'Avbryt', style: 'cancel' }, { text: 'Ta bort', style: 'destructive', onPress: () => deleteItem(item.id) }])} onEnterEditMode={() => setEditMode(true)} />
+              <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
             ))}
           </View>
         )}
       </ScrollView>
 
       {/* Autocomplete chips + add bar */}
-      {editMode ? (
-        <Pressable style={s.editDoneBtn} onPress={() => setEditMode(false)}>
-          <Text style={s.editDoneBtnText}>Klar</Text>
-        </Pressable>
-      ) : (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-          enabled={keyboardVisible}
-        >
-          {suggestions.length > 0 && (
-            <View style={s.chipScroll}>
-              <View style={s.chipRow}>
-                {suggestions.map(s2 => (
-                  <TouchableOpacity
-                    key={s2.id}
-                    style={s.chip}
-                    onPress={() => openQtySheet(s2.name, s2.category as StoreCategory)}
-                  >
-                    <Text style={s.chipText}>{s2.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        enabled={keyboardVisible}
+      >
+        {suggestions.length > 0 && (
+          <View style={s.chipScroll}>
+            <View style={s.chipRow}>
+              {suggestions.map(s2 => (
+                <TouchableOpacity
+                  key={s2.id}
+                  style={s.chip}
+                  onPress={() => openQtySheet(s2.name, s2.category as StoreCategory)}
+                >
+                  <Text style={s.chipText}>{s2.name}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          )}
-          <View style={s.addBar}>
-            <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
-              <Ionicons name="grid-outline" size={22} color="#4f46e5" />
-            </Pressable>
-            <TextInput
-              ref={inputRef}
-              style={s.addInput}
-              placeholder="Lägg till vara..."
-              value={newItem}
-              onChangeText={setNewItem}
-              returnKeyType="done"
-              onSubmitEditing={() => addItem()}
-              blurOnSubmit={false}
-              autoCapitalize="none"
-            />
-            <Pressable
-              style={[s.addBtn, (!newItem.trim() || adding) && s.addBtnDisabled]}
-              onPress={() => addItem()}
-              disabled={adding || !newItem.trim()}
-            >
-              {adding ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="add" size={22} color="#fff" />}
-            </Pressable>
           </View>
-        </KeyboardAvoidingView>
-      )}
+        )}
+        <View style={s.addBar}>
+          <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
+            <Ionicons name="grid-outline" size={22} color="#4f46e5" />
+          </Pressable>
+          <TextInput
+            ref={inputRef}
+            style={s.addInput}
+            placeholder="Lägg till vara..."
+            value={newItem}
+            onChangeText={setNewItem}
+            returnKeyType="done"
+            onSubmitEditing={() => addItem()}
+            blurOnSubmit={false}
+            autoCapitalize="none"
+          />
+          <Pressable
+            style={[s.addBtn, (!newItem.trim() || adding) && s.addBtnDisabled]}
+            onPress={() => addItem()}
+            disabled={adding || !newItem.trim()}
+          >
+            {adding ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="add" size={22} color="#fff" />}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
 
       {/* Store picker modal */}
       <Modal visible={showStorePicker} transparent animationType="slide" onRequestClose={() => setShowStorePicker(false)}>
@@ -893,30 +885,23 @@ function buildCategoryGroups(items: ShoppingItemWithRecipe[], order: StoreCatego
   }));
 }
 
-function ItemRow({ item, editMode, onToggle, onDelete, onEnterEditMode }: { item: ShoppingItemWithRecipe; editMode: boolean; onToggle: () => void; onDelete: () => void; onEnterEditMode: () => void }) {
+function ItemRow({ item, onToggle, onEdit }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void }) {
   return (
-    <View style={s.itemWrap}>
-      <Pressable
-        style={[s.item, item.isChecked && s.itemChecked]}
-        onPress={onToggle}
-        onLongPress={editMode ? undefined : onEnterEditMode}
-      >
-        <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? '#10b981' : '#4f46e5'} />
-        <View style={s.itemContent}>
-          <View style={s.itemRow}>
-            <Text style={[s.itemName, item.isChecked && s.itemNameChecked]}>{item.name}</Text>
-            {(item.quantity !== 1 || item.unit) && (
-              <Text style={[s.itemQty, item.isChecked && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}</Text>
-            )}
-          </View>
+    <Pressable
+      style={[s.item, item.isChecked && s.itemChecked]}
+      onPress={onToggle}
+      onLongPress={onEdit}
+    >
+      <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? '#10b981' : '#4f46e5'} />
+      <View style={s.itemContent}>
+        <View style={s.itemRow}>
+          <Text style={[s.itemName, item.isChecked && s.itemNameChecked]}>{item.name}</Text>
+          {(item.quantity !== 1 || item.unit) && (
+            <Text style={[s.itemQty, item.isChecked && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}</Text>
+          )}
         </View>
-      </Pressable>
-      {editMode && (
-        <Pressable style={s.itemDeleteBtn} onPress={onDelete}>
-          <Ionicons name="remove-circle" size={22} color="#ef4444" />
-        </Pressable>
-      )}
-    </View>
+      </View>
+    </Pressable>
   );
 }
 
