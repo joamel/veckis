@@ -47,6 +47,19 @@ export default function RecipesScreen() {
 
   async function handleScrape() {
     if (!url.trim()) return;
+    const normalizedUrl = url.trim().replace(/\/$/, '');
+    const existing = recipes.find(r => r.sourceUrl?.replace(/\/$/, '') === normalizedUrl);
+    if (existing) {
+      Alert.alert(
+        'Recept finns redan',
+        `"${existing.title}" har redan hämtats från den här URL:en.`,
+        [
+          { text: 'Avbryt', style: 'cancel' },
+          { text: 'Öppna receptet', onPress: () => { setShowModal(false); router.push(`/recipes/${existing.id}` as never); } },
+        ]
+      );
+      return;
+    }
     setScraping(true);
     try {
       const scraped = await client.scrapeRecipe(url.trim());

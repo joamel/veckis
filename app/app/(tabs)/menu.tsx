@@ -86,6 +86,9 @@ export default function MenuScreen() {
   const [selectedRecipesForTransfer, setSelectedRecipesForTransfer] = useState<Set<string>>(new Set());
   const [bulkTransferStep, setBulkTransferStep] = useState<'recipe' | 'list'>('recipe');
 
+  // Replace recipe: item being replaced
+  const [replaceTarget, setReplaceTarget] = useState<WeekMenuItemWithRecipe | null>(null);
+
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
@@ -130,11 +133,38 @@ export default function MenuScreen() {
       setPickingForDay(day);
       setPickerStep('recipe');
     }
+    setReplaceTarget(null);
     setShowPicker(true);
+  }
+
+  function startReplaceRecipe(item: WeekMenuItemWithRecipe) {
+    setReplaceTarget(item);
+    setPickerStep('recipe');
+    setShowPicker(true);
+  }
+
+  function closePicker() {
+    setShowPicker(false);
+    setReplaceTarget(null);
   }
 
   async function addRecipeToDay(recipe: RecipeWithIngredients) {
     if (!householdId) return;
+
+    if (replaceTarget) {
+      closePicker();
+      const day = replaceTarget.day;
+      const oldId = replaceTarget.id;
+      try {
+        await client.deleteWeekMenuItem(oldId);
+        const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
+        setMenuItems(prev => prev.filter(i => i.id !== oldId).concat(item));
+      } catch {
+        Alert.alert('Fel', 'Kunde inte byta ut rätten');
+      }
+      return;
+    }
+
     const day = pickingForDay;
 
     if (day !== null && menuItems.some(i => i.day === day)) {
@@ -149,7 +179,7 @@ export default function MenuScreen() {
           ]
         )
       );
-      if (!confirmed) { setShowPicker(false); return; }
+      if (!confirmed) { closePicker(); return; }
     }
 
     if (menuItems.some(i => i.recipeId === recipe.id)) {
@@ -163,10 +193,10 @@ export default function MenuScreen() {
           ]
         )
       );
-      if (!confirmed) { setShowPicker(false); return; }
+      if (!confirmed) { closePicker(); return; }
     }
 
-    setShowPicker(false);
+    closePicker();
     try {
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
       setMenuItems(prev => [...prev, item]);
@@ -324,6 +354,20 @@ export default function MenuScreen() {
   }
 
   async function moveToDay(item: WeekMenuItemWithRecipe, day: WeekDay | null) {
+    if (day !== null && menuItems.some(i => i.day === day && i.id !== item.id)) {
+      const dayLabel = DAYS.find(d => d.key === day)?.label ?? day;
+      const confirmed = await new Promise<boolean>(resolve =>
+        Alert.alert(
+          'Dag redan planerad',
+          `${dayLabel} har redan en rätt planerad. Flytta ändå?`,
+          [
+            { text: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Flytta', onPress: () => resolve(true) },
+          ]
+        )
+      );
+      if (!confirmed) return;
+    }
     try {
       const updated = await client.updateWeekMenuItem(item.id, { day });
       setMenuItems(prev => prev.map(i => i.id === updated.id ? updated : i));
@@ -402,6 +446,7 @@ export default function MenuScreen() {
                     onRemove={() => removeFromMenu(item)}
                     onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                     onMoveToDay={d => moveToDay(item, d)}
+                    onReplace={() => startReplaceRecipe(item)}
                   />
                 ))
               )}
@@ -428,6 +473,7 @@ export default function MenuScreen() {
                 onRemove={() => removeFromMenu(item)}
                 onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                 onMoveToDay={d => moveToDay(item, d)}
+                onReplace={() => startReplaceRecipe(item)}
               />
             ))
           )}
@@ -457,8 +503,8 @@ export default function MenuScreen() {
 
 
       {/* Two-step recipe picker modal */}
-      <Modal visible={showPicker} transparent animationType="slide" onRequestClose={() => setShowPicker(false)}>
-        <Pressable style={s.overlay} onPress={() => setShowPicker(false)} />
+      <Modal visible={showPicker} transparent animationType="slide" onRequestClose={closePicker}>
+        <Pressable style={s.overlay} onPress={closePicker} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
 
@@ -486,13 +532,17 @@ export default function MenuScreen() {
           ) : (
             <>
               <View style={s.sheetTitleRow}>
-                <Pressable onPress={() => setPickerStep('day')} style={s.backBtn}>
-                  <Ionicons name="chevron-back" size={20} color="#4f46e5" />
-                </Pressable>
+                {!replaceTarget && (
+                  <Pressable onPress={() => setPickerStep('day')} style={s.backBtn}>
+                    <Ionicons name="chevron-back" size={20} color="#4f46e5" />
+                  </Pressable>
+                )}
                 <Text style={s.sheetTitle}>
-                  {pickingForDay
-                    ? DAYS.find(d => d.key === pickingForDay)?.label
-                    : 'Ingen dag'}
+                  {replaceTarget
+                    ? `Byt ut ${replaceTarget.recipe.title}`
+                    : pickingForDay
+                      ? DAYS.find(d => d.key === pickingForDay)?.label
+                      : 'Ingen dag'}
                 </Text>
               </View>
               {recipes.length === 0 ? (
@@ -727,12 +777,14 @@ function MenuCard({
   onRemove,
   onViewRecipe,
   onMoveToDay,
+  onReplace,
 }: {
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
   onRemove: () => void;
   onViewRecipe: () => void;
   onMoveToDay: (day: WeekDay | null) => void;
+  onReplace: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const { medium } = useHaptics();
@@ -743,6 +795,8 @@ function MenuCard({
       item.recipe.title,
       undefined,
       [
+        { text: 'Visa recept', onPress: onViewRecipe },
+        { text: 'Byt ut mot annan rätt', onPress: onReplace },
         { text: 'Ta bort från menyn', style: 'destructive', onPress: onRemove },
         { text: 'Avbryt', style: 'cancel' },
       ]

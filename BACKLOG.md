@@ -53,11 +53,11 @@
 - [x] Lägg till alla dagar i menyn även om de är tomma så att det är lätt att lägga till rätt
 - [x] I menyn räcker det med veckonummer överst då vi har datumen per dag
 - [ ] Har man samma rätt två gånger måste man kunna hålla reda på ingredienser som hör till rätt #1 och #2 för att sedan kunna ta bort/lägga till dem i inköpslistan. Gäller även om de ligger i olika veckomenyer.
-- [ ] Varna om man försöker flytta en befintlig rätt till en dag som redan har en rätt inlagd
+- [x] Varna om man försöker flytta en befintlig rätt till en dag som redan har en rätt inlagd
 - [ ] Kunna byta namn och redigera recept med long press
-- [ ] Kunna ersätta en maträtt i menyn mot en annan med en knapp <->
+- [x] Kunna ersätta en maträtt i menyn mot en annan — long press → "Byt ut mot annan rätt"
 - [ ] Enklare kunna flytta maträtter mellan dagarna med longpress för att ta tag i och dra.
-- [ ] Ej lägga till recept igen om den känner igen url
+- [x] Ej lägga till recept igen om den känner igen url
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
