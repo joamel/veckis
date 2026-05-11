@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,14 +17,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withSequence,
-  withTiming,
-  runOnJS,
-} from 'react-native-reanimated';
+import Animated, { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { getISOWeek, addWeeks } from '../../src/lib/week';
@@ -98,10 +91,7 @@ export default function MenuScreen() {
   // Replace recipe: item being replaced
   const [replaceTarget, setReplaceTarget] = useState<WeekMenuItemWithRecipe | null>(null);
 
-  // Edit (shake) mode
   const [editMode, setEditMode] = useState(false);
-  // ID of the card that should shake — cleared after animation so remounted cards don't reshake
-  const [shakeTargetId, setShakeTargetId] = useState<string | null>(null);
 
   // Drag state — only y is used for hover detection; x kept for future use
   type DragState = { item: WeekMenuItemWithRecipe; y: number };
@@ -171,10 +161,8 @@ export default function MenuScreen() {
     setReplaceTarget(null);
   }
 
-  function enterEditMode(itemId: string) {
+  function enterEditMode() {
     setEditMode(true);
-    setShakeTargetId(itemId);
-    setTimeout(() => setShakeTargetId(null), 400);
   }
 
   function exitEditMode() {
@@ -523,8 +511,7 @@ export default function MenuScreen() {
                     onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                     onMoveToDay={d => moveToDay(item, d)}
                     onReplace={() => startReplaceRecipe(item)}
-                    onLongPress={() => enterEditMode(item.id)}
-                    shouldShake={shakeTargetId === item.id}
+                    onLongPress={enterEditMode}
                     onDragStart={(x, y) => onDragStart(item, x, y)}
                     onDragMove={onDragMove}
                     onDragEnd={onDragEnd}
@@ -558,12 +545,11 @@ export default function MenuScreen() {
                 item={item}
                 isTransferred={transferredRecipeIds.has(item.recipeId)}
                 editMode={editMode}
-                shouldShake={shakeTargetId === item.id}
                 onRemove={() => removeFromMenu(item)}
                 onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                 onMoveToDay={d => moveToDay(item, d)}
                 onReplace={() => startReplaceRecipe(item)}
-                onLongPress={() => enterEditMode(item.id)}
+                onLongPress={enterEditMode}
                 onDragStart={(x, y) => onDragStart(item, x, y)}
                 onDragMove={onDragMove}
                 onDragEnd={onDragEnd}
@@ -889,7 +875,6 @@ function MenuCard({
   item,
   isTransferred,
   editMode,
-  shouldShake,
   onRemove,
   onViewRecipe,
   onMoveToDay,
@@ -903,7 +888,6 @@ function MenuCard({
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
   editMode: boolean;
-  shouldShake: boolean;
   onRemove: () => void;
   onViewRecipe: () => void;
   onMoveToDay: (day: WeekDay | null) => void;
@@ -917,27 +901,6 @@ function MenuCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const { medium } = useHaptics();
-
-  const rotation = useSharedValue(0);
-  const shakeStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }],
-  }));
-
-  useEffect(() => {
-    if (shouldShake) {
-      rotation.value = withSequence(
-        withTiming(2.5, { duration: 60 }),
-        withTiming(-2.5, { duration: 60 }),
-        withTiming(2, { duration: 55 }),
-        withTiming(-2, { duration: 55 }),
-        withTiming(1, { duration: 50 }),
-        withTiming(0, { duration: 50 }),
-      );
-    } else if (!editMode) {
-      rotation.value = withTiming(0, { duration: 80 });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shouldShake, editMode]);
 
   // Pan gesture for drag — use only onFinalize to avoid double-fire
   const panGesture = Gesture.Pan()
@@ -961,7 +924,7 @@ function MenuCard({
 
   return (
     <GestureDetector gesture={panGesture}>
-      <Animated.View style={[s.card, shakeStyle, isDragging && s.cardDragging]}>
+      <View style={[s.card, isDragging && s.cardDragging]}>
         {editMode && (
           <Pressable
             style={s.cardDeleteBtn}
@@ -1038,7 +1001,7 @@ function MenuCard({
             </View>
           )}
         </View>
-      </Animated.View>
+      </View>
     </GestureDetector>
   );
 }

@@ -121,6 +121,7 @@ export default function ChoresScreen() {
   const [chores, setChores] = useState<ChoreWithCompletion[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -341,39 +342,57 @@ export default function ChoresScreen() {
           const done = isFullyDone(item);
           const assignedName = getMemberName(item.assignedTo);
           return (
-            <Pressable
-              style={[s.card, done && s.cardDone]}
-              onLongPress={() => { medium(); openEdit(item); }}
-            >
-              <View style={s.cardContent}>
-                <Text style={[s.cardTitle, done && s.cardTitleDone]}>{item.title}</Text>
-                <Text style={s.cardMeta}>
-                  {[
-                    FREQ_LABELS[item.frequency],
-                    item.frequency !== 'daily' && item.days.length > 0
-                      ? item.days.map(d => DAYS.find(x => x.key === d)?.short).join(', ')
-                      : null,
-                    assignedName,
-                    lastCompletion ? daysSince(lastCompletion.completedAt) : null,
-                  ].filter(Boolean).join(' · ')}
-                </Text>
-              </View>
-              {item.frequency === 'once' && (
+            <View style={s.cardWrap}>
+              {editMode && (
                 <Pressable
-                  style={[s.checkBtn, done && s.checkBtnDone]}
-                  onPress={() => done ? uncompleteChore(item) : completeChore(item)}
+                  style={s.cardDeleteBtn}
+                  onPress={() => deleteChore(item.id, item.title)}
+                  hitSlop={10}
                 >
-                  {done && <Ionicons name="checkmark" size={20} color="#fff" />}
+                  <Ionicons name="remove-circle" size={22} color="#6b7280" />
                 </Pressable>
               )}
-            </Pressable>
+              <Pressable
+                style={[s.card, done && s.cardDone]}
+                onPress={() => { if (!editMode) openEdit(item); }}
+                onLongPress={() => { medium(); setEditMode(true); }}
+              >
+                <View style={s.cardContent}>
+                  <Text style={[s.cardTitle, done && s.cardTitleDone]}>{item.title}</Text>
+                  <Text style={s.cardMeta}>
+                    {[
+                      FREQ_LABELS[item.frequency],
+                      item.frequency !== 'daily' && item.days.length > 0
+                        ? item.days.map(d => DAYS.find(x => x.key === d)?.short).join(', ')
+                        : null,
+                      assignedName,
+                      lastCompletion ? daysSince(lastCompletion.completedAt) : null,
+                    ].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+                {item.frequency === 'once' && !editMode && (
+                  <Pressable
+                    style={[s.checkBtn, done && s.checkBtnDone]}
+                    onPress={() => done ? uncompleteChore(item) : completeChore(item)}
+                  >
+                    {done && <Ionicons name="checkmark" size={20} color="#fff" />}
+                  </Pressable>
+                )}
+              </Pressable>
+            </View>
           );
         }}
       />
 
-      <Pressable style={s.fab} onPress={() => setShowCreate(true)}>
-        <Ionicons name="add" size={30} color="#fff" />
-      </Pressable>
+      {editMode ? (
+        <Pressable style={s.editDoneBtn} onPress={() => setEditMode(false)}>
+          <Text style={s.editDoneBtnText}>Klar</Text>
+        </Pressable>
+      ) : (
+        <Pressable style={s.fab} onPress={() => setShowCreate(true)}>
+          <Ionicons name="add" size={30} color="#fff" />
+        </Pressable>
+      )}
 
       {/* Create modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
@@ -576,6 +595,10 @@ const s = StyleSheet.create({
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   emptyText: { fontSize: 18, fontWeight: '600', color: '#374151', marginTop: 16 },
   emptySubtext: { fontSize: 14, color: '#9ca3af', marginTop: 6 },
+  cardWrap: { position: 'relative' },
+  cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
+  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#111827', borderRadius: 24, zIndex: 20 },
+  editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   cardDone: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
   cardContent: { flex: 1, minWidth: 0 },

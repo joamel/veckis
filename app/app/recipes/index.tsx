@@ -24,6 +24,7 @@ export default function RecipesScreen() {
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   // New recipe form
   const [mode, setMode] = useState<'manual' | 'url'>('manual');
@@ -133,36 +134,52 @@ export default function RecipesScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <Pressable
-            style={s.card}
-            onPress={() => router.push(`/recipes/${item.id}` as never)}
-            onLongPress={() =>
-              Alert.alert('Ta bort recept', `Ta bort "${item.title}"?`, [
-                { text: 'Avbryt', style: 'cancel' },
-                { text: 'Ta bort', style: 'destructive', onPress: async () => {
-                  try {
-                    await client.deleteRecipe(item.id);
-                    setRecipes(prev => prev.filter(r => r.id !== item.id));
-                  } catch { Alert.alert('Fel', 'Kunde inte ta bort receptet'); }
-                }},
-              ])
-            }
-          >
-            <View style={s.cardIcon}>
-              <Ionicons name="restaurant-outline" size={20} color="#4f46e5" />
-            </View>
-            <View style={s.cardContent}>
-              <Text style={s.cardTitle}>{item.title}</Text>
-              <Text style={s.cardMeta}>{item.servings} port · {item.ingredients.length} ingredienser</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#d1d5db" />
-          </Pressable>
+          <View style={s.cardWrap}>
+            <Pressable
+              style={s.card}
+              onPress={() => { if (!editMode) router.push(`/recipes/${item.id}` as never); }}
+              onLongPress={() => setEditMode(true)}
+            >
+              <View style={s.cardIcon}>
+                <Ionicons name="restaurant-outline" size={20} color="#4f46e5" />
+              </View>
+              <View style={s.cardContent}>
+                <Text style={s.cardTitle}>{item.title}</Text>
+                <Text style={s.cardMeta}>{item.servings} port · {item.ingredients.length} ingredienser</Text>
+              </View>
+              {!editMode && <Ionicons name="chevron-forward" size={18} color="#d1d5db" />}
+            </Pressable>
+            {editMode && (
+              <Pressable
+                style={s.cardDeleteBtn}
+                onPress={() =>
+                  Alert.alert('Ta bort recept', `Ta bort "${item.title}"?`, [
+                    { text: 'Avbryt', style: 'cancel' },
+                    { text: 'Ta bort', style: 'destructive', onPress: async () => {
+                      try {
+                        await client.deleteRecipe(item.id);
+                        setRecipes(prev => prev.filter(r => r.id !== item.id));
+                      } catch { Alert.alert('Fel', 'Kunde inte ta bort receptet'); }
+                    }},
+                  ])
+                }
+              >
+                <Ionicons name="remove-circle" size={22} color="#ef4444" />
+              </Pressable>
+            )}
+          </View>
         )}
       />
 
-      <Pressable style={s.fab} onPress={openModal}>
-        <Ionicons name="add" size={30} color="#fff" />
-      </Pressable>
+      {editMode ? (
+        <Pressable style={s.editDoneBtn} onPress={() => setEditMode(false)}>
+          <Text style={s.editDoneBtnText}>Klar</Text>
+        </Pressable>
+      ) : (
+        <Pressable style={s.fab} onPress={openModal}>
+          <Ionicons name="add" size={30} color="#fff" />
+        </Pressable>
+      )}
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
@@ -259,4 +276,8 @@ const s = StyleSheet.create({
   button: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  cardWrap: { position: 'relative' },
+  cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
+  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#111827', borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },
+  editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
