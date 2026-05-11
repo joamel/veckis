@@ -44,7 +44,7 @@ export default function RecipesScreen() {
     }
   }, [householdId]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
 
   async function handleScrape() {
     if (!url.trim()) return;

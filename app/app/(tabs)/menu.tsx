@@ -136,7 +136,7 @@ export default function MenuScreen() {
     }
   }, [householdId, weekYear, weekNumber]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
 
   function openPicker(day: WeekDay | null | 'ask') {
     if (day === 'ask') {

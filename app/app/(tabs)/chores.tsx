@@ -167,7 +167,7 @@ export default function ChoresScreen() {
     }
   }, [householdId]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
 
   // Completed chores sorted to the bottom
   const sortedChores = useMemo(() => {
