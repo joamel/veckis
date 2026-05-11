@@ -100,9 +100,11 @@ export default function MenuScreen() {
 
   // Edit (shake) mode
   const [editMode, setEditMode] = useState(false);
+  // Incremented each time edit mode is entered — cards use this to avoid re-shaking on remount
+  const [shakeKey, setShakeKey] = useState(0);
 
-  // Drag state
-  type DragState = { item: WeekMenuItemWithRecipe; x: number; y: number };
+  // Drag state — only y is used for hover detection; x kept for future use
+  type DragState = { item: WeekMenuItemWithRecipe; y: number };
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [hoverDay, setHoverDay] = useState<WeekDay | null | 'unscheduled' | undefined>(undefined);
 
@@ -171,18 +173,19 @@ export default function MenuScreen() {
 
   function enterEditMode() {
     setEditMode(true);
+    setShakeKey(k => k + 1);
   }
 
   function exitEditMode() {
     setEditMode(false);
   }
 
-  function onDragStart(item: WeekMenuItemWithRecipe, x: number, y: number) {
-    setDragState({ item, x, y });
+  function onDragStart(item: WeekMenuItemWithRecipe, _x: number, y: number) {
+    setDragState({ item, y });
   }
 
-  function onDragMove(x: number, y: number) {
-    setDragState(prev => prev ? { ...prev, x, y } : null);
+  function onDragMove(_x: number, y: number) {
+    setDragState(prev => prev ? { ...prev, y } : null);
     // Find which day section we're hovering over
     let found: WeekDay | null | 'unscheduled' | undefined = undefined;
     for (const [key, layout] of Object.entries(dayLayouts.current)) {
@@ -520,6 +523,7 @@ export default function MenuScreen() {
                     onMoveToDay={d => moveToDay(item, d)}
                     onReplace={() => startReplaceRecipe(item)}
                     onLongPress={enterEditMode}
+                    shakeKey={shakeKey}
                     onDragStart={(x, y) => onDragStart(item, x, y)}
                     onDragMove={onDragMove}
                     onDragEnd={onDragEnd}
@@ -553,6 +557,7 @@ export default function MenuScreen() {
                 item={item}
                 isTransferred={transferredRecipeIds.has(item.recipeId)}
                 editMode={editMode}
+                shakeKey={shakeKey}
                 onRemove={() => removeFromMenu(item)}
                 onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                 onMoveToDay={d => moveToDay(item, d)}
@@ -597,13 +602,15 @@ export default function MenuScreen() {
         </Pressable>
       )}
 
-      {/* Drag ghost card */}
+      {/* Drag ghost card — full width, vertical-only movement */}
       {dragState && (
         <View
           pointerEvents="none"
-          style={[s.ghostCard, { top: dragState.y - 28, left: dragState.x - 120 }]}
+          style={[s.ghostCard, { top: dragState.y - 28 }]}
         >
-          <Ionicons name="restaurant-outline" size={16} color="#4f46e5" />
+          <View style={s.ghostCardIcon}>
+            <Ionicons name="restaurant-outline" size={18} color="#4f46e5" />
+          </View>
           <Text style={s.ghostCardText} numberOfLines={1}>{dragState.item.recipe.title}</Text>
         </View>
       )}
@@ -881,6 +888,7 @@ function MenuCard({
   item,
   isTransferred,
   editMode,
+  shakeKey,
   onRemove,
   onViewRecipe,
   onMoveToDay,
@@ -894,6 +902,7 @@ function MenuCard({
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
   editMode: boolean;
+  shakeKey: number;
   onRemove: () => void;
   onViewRecipe: () => void;
   onMoveToDay: (day: WeekDay | null) => void;
@@ -907,16 +916,17 @@ function MenuCard({
   const [expanded, setExpanded] = useState(false);
   const { medium } = useHaptics();
 
-  // Shake animation — only fires the very first time edit mode is entered
+  // Shake animation — shakes only when shakeKey changes, not on remount mid-drag
   const rotation = useSharedValue(0);
-  const hasShaken = useRef(false);
+  // Initialize to current shakeKey so a freshly mounted card (during drag) does NOT shake
+  const lastShakedKey = useRef(shakeKey);
   const shakeStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
   useEffect(() => {
-    if (editMode && !hasShaken.current) {
-      hasShaken.current = true;
+    if (editMode && shakeKey !== lastShakedKey.current) {
+      lastShakedKey.current = shakeKey;
       rotation.value = withSequence(
         withTiming(2.5, { duration: 60 }),
         withTiming(-2.5, { duration: 60 }),
@@ -926,11 +936,10 @@ function MenuCard({
         withTiming(0, { duration: 50 }),
       );
     } else if (!editMode) {
-      hasShaken.current = false;
       rotation.value = withTiming(0, { duration: 80 });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editMode]);
+  }, [editMode, shakeKey]);
 
   // Pan gesture for drag — use only onFinalize to avoid double-fire
   const panGesture = Gesture.Pan()
@@ -1143,6 +1152,7 @@ const s = StyleSheet.create({
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#111827', borderRadius: 24, zIndex: 20 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  ghostCard: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 8, zIndex: 100, maxWidth: 240 },
-  ghostCardText: { fontSize: 14, fontWeight: '600', color: '#111827', flex: 1 },
+  ghostCard: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 12, padding: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
+  ghostCardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
+  ghostCardText: { fontSize: 15, fontWeight: '600', color: '#111827', flex: 1 },
 });
