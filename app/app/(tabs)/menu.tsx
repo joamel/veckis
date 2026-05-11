@@ -961,21 +961,6 @@ function MenuCard({
     setExpanded(e => !e);
   }
 
-  function handleLongPressStatic() {
-    if (editMode) return;
-    medium();
-    Alert.alert(
-      item.recipe.title,
-      undefined,
-      [
-        { text: 'Visa recept', onPress: onViewRecipe },
-        { text: 'Byt ut mot annan rätt', onPress: onReplace },
-        { text: 'Ta bort från menyn', style: 'destructive', onPress: onRemove },
-        { text: 'Avbryt', style: 'cancel' },
-      ]
-    );
-  }
-
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View style={[s.card, shakeStyle, isDragging && s.cardDragging]}>
@@ -996,7 +981,7 @@ function MenuCard({
           </Pressable>
         )}
         <View style={s.cardInner}>
-          <Pressable style={s.cardMain} onPress={handlePress} onLongPress={handleLongPressStatic}>
+          <Pressable style={s.cardMain} onPress={handlePress}>
             <View style={s.cardIcon}>
               <Ionicons name="restaurant-outline" size={18} color="#4f46e5" />
             </View>
@@ -1019,6 +1004,10 @@ function MenuCard({
                 <Pressable style={s.cardAction} onPress={onViewRecipe}>
                   <Ionicons name="open-outline" size={15} color="#6b7280" />
                   <Text style={s.cardActionText}>Visa recept</Text>
+                </Pressable>
+                <Pressable style={s.cardAction} onPress={onReplace}>
+                  <Ionicons name="swap-horizontal-outline" size={15} color="#6b7280" />
+                  <Text style={s.cardActionText}>Byt ut</Text>
                 </Pressable>
                 <Pressable style={s.cardAction} onPress={onRemove}>
                   <Ionicons name="trash-outline" size={15} color="#ef4444" />
