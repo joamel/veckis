@@ -8,9 +8,10 @@
 - [x] Snyggt om man kan hålla inne på inköpslistor/aktiviteter/sysslor/meny så att de skakar om man vill redigera dem och att det kommer upp en delete (x) /redigeringsknapp (penna)
 - [x] Emoji bakom hushållsnamnet saknas i inköps- och meny-fliken
 - [ ] Större font och knappar/pilar mm i tablet-vyn
-- [ ] Texten hoppar inte upp ovan tangentbordet för Lägga till lokala profiler, nya inköpslistor och butiker
-- [ ] Om flera inputfält i samma form borde det finnas en "nästa" i tangentbordet
-- [ ] Toast för fler händelser: ~~"Inköpslista rensad"~~, "Hushåll borttaget", "Syssla sparad" m.fl.
+- [x] Texten hoppar inte upp ovan tangentbordet för Lägga till lokala profiler, nya inköpslistor och butiker
+- [x] Om flera inputfält i samma form borde det finnas en "nästa" i tangentbordet
+- [ ] Toast för fler händelser: ~~"Inköpslista rensad"~~, ~~"Syssla sparad"~~, "Hushåll borttaget" m.fl.
+- [ ] kan vi ha en optimisisk uppdatering (generellt) så att frontend inte alltid väntar på backend svar innan den flyttar något, skapar något osv?
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -40,7 +41,7 @@
 - [x] Basvaror hamnar i annan kategori i inköpslistan än var de väljs ifrån (ex frysta räkor [frysvaror] hamnar i Kött & Fisk)
 - [x] Ersätt "{basvara} sparad som basvara" med "{Basvara} tillagd till inköpslistan"
 - [x] Lilla counten till höger om kategorin i inköpslistan tillför inget.
-- [x] Addera summan av mängden på ingredienser som ska slås ihop och föreslå senast angivna enheten (om tom, den näst senast angivna)
+- [ ] Addera summan av mängden på ingredienser som ska slås ihop och föreslå senast angivna enheten (om tom, den näst senast angivna)
 - [x] ha föreslagna enheter när man justerar dubbletter
 - [x] tillbaka- och rensaknappen på inköpslistan syns knappt i ovankant
 - [ ] Hitta normaliserade ingrediensnamn och på så vis kunna slå ihop "klyftor vitlök" med "vitlök" och "standardmjölk" med "mjölk" i inköpslistan samt pluralis till singularis "tomater" -> "tomat"
@@ -69,13 +70,13 @@
 - [x] Sysslor ger nu ljuslila färg på dagar i månadsvy
 - [ ] Kunna lägga aktiviteter på users
 - [ ] Kunna filtrera på user i sysslor och kalendern
-- [ ] Kunna trycka på aktiviteter för att se mer info (beskrivning, plats, påminnelse mm)
-- [ ] Få upp en datepicker när man trycker på veckonumret istället för att hoppa till dagens datum
-- [ ] Flytta in "Idag"-knappen lite mer så att man inte råkar trycka på den av misstag (gäller även i menyn)
+- [x] Kunna trycka på aktiviteter för att se mer info (beskrivning, plats, påminnelse mm)
+- [x] Få upp en datepicker när man trycker på veckonumret istället för att hoppa till dagens datum
+- [x] Flytta in "Idag"-knappen lite mer så att man inte råkar trycka på den av misstag (gäller även i menyn)
 
 ### Sysslor
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.
-- [ ] Kunna redigera sysslor enklare (med en penna till höger)
+- [x] Kunna redigera sysslor enklare (med en penna till höger)
 
 ---
 
