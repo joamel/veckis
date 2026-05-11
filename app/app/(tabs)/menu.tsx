@@ -915,17 +915,17 @@ function MenuCard({
 
   useEffect(() => {
     if (editMode) {
-      const offset = (Math.random() - 0.5) * 0.5;
-      rotation.value = withRepeat(
-        withSequence(
-          withTiming(2 + offset, { duration: 80 }),
-          withTiming(-2 + offset, { duration: 80 }),
-        ),
-        -1,
-        true,
+      // Brief shake on enter, then stop
+      rotation.value = withSequence(
+        withTiming(2.5, { duration: 60 }),
+        withTiming(-2.5, { duration: 60 }),
+        withTiming(2, { duration: 55 }),
+        withTiming(-2, { duration: 55 }),
+        withTiming(1, { duration: 50 }),
+        withTiming(0, { duration: 50 }),
       );
     } else {
-      rotation.value = withTiming(0, { duration: 100 });
+      rotation.value = withTiming(0, { duration: 80 });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editMode]);
@@ -972,64 +972,66 @@ function MenuCard({
     <GestureDetector gesture={panGesture}>
       <Animated.View style={[s.card, shakeStyle, isDragging && s.cardDragging]}>
         {editMode && (
-          <Pressable style={s.cardDeleteBtn} onPress={onRemove} hitSlop={8}>
-            <Ionicons name="close-circle" size={22} color="#ef4444" />
+          <Pressable style={s.cardDeleteBtn} onPress={onRemove} hitSlop={10}>
+            <Ionicons name="remove-circle" size={22} color="#6b7280" />
           </Pressable>
         )}
-        <Pressable style={s.cardMain} onPress={handlePress} onLongPress={handleLongPressStatic}>
-          <View style={s.cardIcon}>
-            <Ionicons name="restaurant-outline" size={18} color="#4f46e5" />
-          </View>
-          <View style={s.cardContent}>
-            <Text style={s.cardTitle}>{item.recipe.title}</Text>
-            {isTransferred && (
-              <View style={s.transferredBadge}>
-                <Ionicons name="checkmark-circle" size={14} color="#10b981" />
-                <Text style={s.transferredText}>I inköpslistan</Text>
-              </View>
-            )}
-            <Text style={s.cardMeta}>{item.recipe.servings} port · {item.recipe.ingredients.length} ingredienser</Text>
-          </View>
-          {!editMode && <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#9ca3af" />}
-        </Pressable>
-
-        {!editMode && expanded && (
-          <View style={s.cardExpanded}>
-            <View style={s.cardActions}>
-              <Pressable style={s.cardAction} onPress={onViewRecipe}>
-                <Ionicons name="open-outline" size={15} color="#6b7280" />
-                <Text style={s.cardActionText}>Visa recept</Text>
-              </Pressable>
-              <Pressable style={s.cardAction} onPress={onRemove}>
-                <Ionicons name="trash-outline" size={15} color="#ef4444" />
-                <Text style={[s.cardActionText, { color: '#ef4444' }]}>Ta bort</Text>
-              </Pressable>
+        <View style={s.cardInner}>
+          <Pressable style={s.cardMain} onPress={handlePress} onLongPress={handleLongPressStatic}>
+            <View style={s.cardIcon}>
+              <Ionicons name="restaurant-outline" size={18} color="#4f46e5" />
             </View>
-
-            <View style={s.assignDayRow}>
-              <Text style={s.assignDayLabel}>Flytta till dag:</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={s.assignDayBtns}>
-                  {DAYS.map(d => (
-                    <Pressable
-                      key={d.key}
-                      style={[s.assignDayBtn, item.day === d.key && s.assignDayBtnActive]}
-                      onPress={() => onMoveToDay(d.key)}
-                    >
-                      <Text style={[s.assignDayBtnText, item.day === d.key && s.assignDayBtnTextActive]}>{d.short}</Text>
-                    </Pressable>
-                  ))}
-                  <Pressable
-                    style={[s.assignDayBtn, item.day === null && s.assignDayBtnActive]}
-                    onPress={() => onMoveToDay(null)}
-                  >
-                    <Text style={[s.assignDayBtnText, item.day === null && s.assignDayBtnTextActive]}>Ingen</Text>
-                  </Pressable>
+            <View style={s.cardContent}>
+              <Text style={s.cardTitle}>{item.recipe.title}</Text>
+              {isTransferred && (
+                <View style={s.transferredBadge}>
+                  <Ionicons name="checkmark-circle" size={14} color="#10b981" />
+                  <Text style={s.transferredText}>I inköpslistan</Text>
                 </View>
-              </ScrollView>
+              )}
+              <Text style={s.cardMeta}>{item.recipe.servings} port · {item.recipe.ingredients.length} ingredienser</Text>
             </View>
-          </View>
-        )}
+            {!editMode && <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#9ca3af" />}
+          </Pressable>
+
+          {!editMode && expanded && (
+            <View style={s.cardExpanded}>
+              <View style={s.cardActions}>
+                <Pressable style={s.cardAction} onPress={onViewRecipe}>
+                  <Ionicons name="open-outline" size={15} color="#6b7280" />
+                  <Text style={s.cardActionText}>Visa recept</Text>
+                </Pressable>
+                <Pressable style={s.cardAction} onPress={onRemove}>
+                  <Ionicons name="trash-outline" size={15} color="#ef4444" />
+                  <Text style={[s.cardActionText, { color: '#ef4444' }]}>Ta bort</Text>
+                </Pressable>
+              </View>
+
+              <View style={s.assignDayRow}>
+                <Text style={s.assignDayLabel}>Flytta till dag:</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={s.assignDayBtns}>
+                    {DAYS.map(d => (
+                      <Pressable
+                        key={d.key}
+                        style={[s.assignDayBtn, item.day === d.key && s.assignDayBtnActive]}
+                        onPress={() => onMoveToDay(d.key)}
+                      >
+                        <Text style={[s.assignDayBtnText, item.day === d.key && s.assignDayBtnTextActive]}>{d.short}</Text>
+                      </Pressable>
+                    ))}
+                    <Pressable
+                      style={[s.assignDayBtn, item.day === null && s.assignDayBtnActive]}
+                      onPress={() => onMoveToDay(null)}
+                    >
+                      <Text style={[s.assignDayBtnText, item.day === null && s.assignDayBtnTextActive]}>Ingen</Text>
+                    </Pressable>
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          )}
+        </View>
       </Animated.View>
     </GestureDetector>
   );
@@ -1053,7 +1055,8 @@ const s = StyleSheet.create({
   emptyText: { fontSize: 17, fontWeight: '600', color: '#374151' },
   emptySubtext: { fontSize: 13, color: '#9ca3af' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  card: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  card: { borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  cardInner: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden' },
   cardMain: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
   cardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1 },
@@ -1127,7 +1130,7 @@ const s = StyleSheet.create({
   // Edit mode
   sectionHovered: { backgroundColor: '#eef2ff', borderRadius: 12, borderWidth: 1, borderColor: '#4f46e5' },
   cardDragging: { opacity: 0.4 },
-  cardDeleteBtn: { position: 'absolute', top: -8, left: -8, zIndex: 10 },
+  cardDeleteBtn: { position: 'absolute', top: -9, left: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#111827', borderRadius: 24, zIndex: 20 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   ghostCard: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 8, zIndex: 100, maxWidth: 240 },
