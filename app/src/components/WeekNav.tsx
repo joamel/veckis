@@ -7,13 +7,14 @@ interface WeekNavProps {
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
+  onPickDate?: () => void;
 }
 
-export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday }: WeekNavProps) {
+export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onPickDate }: WeekNavProps) {
   return (
     <View style={s.container}>
       {/* Rendered first so arrows appear on top of it in touch handling */}
-      <Pressable style={s.labelBtn} onPress={onToday}>
+      <Pressable style={s.labelBtn} onPress={onPickDate ?? onToday}>
         <Text style={[s.label, isCurrentWeek && s.labelCurrent]}>{weekLabel}</Text>
       </Pressable>
       <Pressable style={s.arrow} onPress={onPrev}>

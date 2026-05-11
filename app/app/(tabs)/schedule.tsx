@@ -171,6 +171,7 @@ export default function ScheduleScreen() {
   const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
   const [newRecurrenceWeeks, setNewRecurrenceWeeks] = useState(1);
   const [creating, setCreating] = useState(false);
+  const [showWeekPicker, setShowWeekPicker] = useState(false);
 
   // Edit entry modal
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
@@ -600,6 +601,7 @@ export default function ScheduleScreen() {
               <Pressable
                 key={chore.id}
                 style={[s.choreCard, done && s.choreDone]}
+                onPress={() => openEditCalChore(chore)}
                 onLongPress={() => { medium(); openEditCalChore(chore); }}
               >
                 <View style={s.choreInfo}>
@@ -627,6 +629,7 @@ export default function ScheduleScreen() {
             <Pressable
               key={entry.id}
               style={s.entryCard}
+              onPress={() => openEditEntry(entry)}
               onLongPress={() => { medium(); openEditEntry(entry); }}
             >
               <View style={s.entryTime}>
@@ -696,6 +699,7 @@ export default function ScheduleScreen() {
             onPrev={() => setWeekRef(w => addWeeks(w, -1))}
             onNext={() => setWeekRef(w => addWeeks(w, 1))}
             onToday={() => { setWeekRef(new Date()); setSelectedDay(TODAY_DAY); }}
+            onPickDate={() => setShowWeekPicker(true)}
           />
 
           <View style={s.dayRow}>
@@ -943,6 +947,17 @@ export default function ScheduleScreen() {
         </View>
       </Modal>
 
+      <DatePickerModal
+        visible={showWeekPicker}
+        value={null}
+        title="Gå till vecka"
+        onChange={(dateStr) => {
+          if (!dateStr) return;
+          setWeekRef(new Date(dateStr + 'T00:00:00'));
+          setShowWeekPicker(false);
+        }}
+        onClose={() => setShowWeekPicker(false)}
+      />
       <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} />
       <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} />
       <DatePickerModal value={editEntryStartDate} onChange={setEditEntryStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} />

@@ -24,6 +24,7 @@ import { getISOWeek, addWeeks } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { WeekNav } from '../../src/components/WeekNav';
+import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay } from '@veckis/shared';
 
 const DAYS: { key: WeekDay; label: string; short: string }[] = [
@@ -54,6 +55,7 @@ export default function MenuScreen() {
   const { householdId } = useHousehold();
 
   const [weekOffset, setWeekOffset] = useState(0);
+  const [showWeekPicker, setShowWeekPicker] = useState(false);
   const weekMonday = useMemo(() => getWeekMonday(weekOffset), [weekOffset]);
   const { weekYear, weekNumber } = useMemo(() => getISOWeek(weekMonday), [weekMonday]);
 
@@ -469,6 +471,7 @@ export default function MenuScreen() {
         onPrev={() => setWeekOffset(o => o - 1)}
         onNext={() => setWeekOffset(o => o + 1)}
         onToday={() => setWeekOffset(0)}
+        onPickDate={() => setShowWeekPicker(true)}
       />
 
       <ScrollView
@@ -867,6 +870,22 @@ export default function MenuScreen() {
         </View>
       </Modal>
 
+      <DatePickerModal
+        visible={showWeekPicker}
+        value={null}
+        title="Gå till vecka"
+        onChange={(dateStr) => {
+          if (!dateStr) return;
+          const picked = new Date(dateStr + 'T00:00:00');
+          const day = picked.getDay();
+          picked.setDate(picked.getDate() + (day === 0 ? -6 : 1 - day));
+          const todayMonday = getWeekMonday(0);
+          const diffWeeks = Math.round((picked.getTime() - todayMonday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+          setWeekOffset(diffWeeks);
+          setShowWeekPicker(false);
+        }}
+        onClose={() => setShowWeekPicker(false)}
+      />
     </SafeAreaView>
   );
 }
