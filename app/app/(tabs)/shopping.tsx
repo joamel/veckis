@@ -47,6 +47,8 @@ export default function ShoppingScreen() {
   const [editCategoryOrder, setEditCategoryOrder] = useState<StoreCategory[]>([]);
   const [savingCategoryOrder, setSavingCategoryOrder] = useState(false);
 
+  const [editMode, setEditMode] = useState(false);
+
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
@@ -63,7 +65,7 @@ export default function ShoppingScreen() {
     }
   }, [householdId]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
 
   async function createList() {
     if (!householdId || !newListName.trim()) return;
@@ -201,6 +203,7 @@ export default function ShoppingScreen() {
       <FlatList
         data={lists}
         keyExtractor={item => item.id}
+        extraData={editMode}
         contentContainerStyle={[styles.list, lists.length === 0 && styles.listEmpty]}
         onRefresh={load}
         refreshing={loading}
@@ -215,33 +218,46 @@ export default function ShoppingScreen() {
           const unchecked = item.items.filter(i => !i.isChecked).length;
           const total = item.items.length;
           return (
-            <Pressable
-              style={styles.card}
-              onPress={() => router.push(`/shopping/${item.id}` as never)}
-              onLongPress={() => { medium(); deleteList(item.id, item.name); }}
-            >
-              <View style={styles.cardLeft}>
-                <Ionicons name="cart-outline" size={20} color="#4f46e5" />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.cardMeta}>
-                  {item.store ? `${item.store.name} · ` : ''}
-                  {total === 0 ? 'Tom' : unchecked === 0 ? 'Allt bockat' : `${unchecked} av ${total} kvar`}
-                </Text>
-              </View>
-              {unchecked === 0 && total > 0 && (
-                <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+            <View style={styles.cardWrap}>
+              <Pressable
+                style={styles.card}
+                onPress={() => { if (!editMode) router.push(`/shopping/${item.id}` as never); }}
+                onLongPress={() => { medium(); setEditMode(true); }}
+              >
+                <View style={styles.cardLeft}>
+                  <Ionicons name="cart-outline" size={20} color="#4f46e5" />
+                </View>
+                <View style={styles.cardContent}>
+                  <Text style={styles.cardTitle}>{item.name}</Text>
+                  <Text style={styles.cardMeta}>
+                    {item.store ? `${item.store.name} · ` : ''}
+                    {total === 0 ? 'Tom' : unchecked === 0 ? 'Allt bockat' : `${unchecked} av ${total} kvar`}
+                  </Text>
+                </View>
+                {unchecked === 0 && total > 0 && (
+                  <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+                )}
+                {!editMode && <Ionicons name="chevron-forward" size={18} color="#d1d5db" />}
+              </Pressable>
+              {editMode && (
+                <Pressable style={styles.cardDeleteBtn} onPress={() => deleteList(item.id, item.name)}>
+                  <Ionicons name="remove-circle" size={22} color="#ef4444" />
+                </Pressable>
               )}
-              <Ionicons name="chevron-forward" size={18} color="#d1d5db" />
-            </Pressable>
+            </View>
           );
         }}
       />
 
-      <Pressable style={styles.fab} onPress={() => setShowModal(true)}>
-        <Ionicons name="add" size={30} color="#fff" />
-      </Pressable>
+      {editMode ? (
+        <Pressable style={styles.editDoneBtn} onPress={() => setEditMode(false)}>
+          <Text style={styles.editDoneBtnText}>Klar</Text>
+        </Pressable>
+      ) : (
+        <Pressable style={styles.fab} onPress={() => setShowModal(true)}>
+          <Ionicons name="add" size={30} color="#fff" />
+        </Pressable>
+      )}
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setNewListStoreId(null); }}>
         <Pressable style={styles.overlay} onPress={() => { setShowModal(false); setNewListStoreId(null); }} />
@@ -501,4 +517,8 @@ const styles = StyleSheet.create({
   storeChipActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
   storeChipText: { fontSize: 14, color: '#6b7280' },
   storeChipTextActive: { color: '#4f46e5', fontWeight: '600' },
+  cardWrap: { position: 'relative' },
+  cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
+  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#111827', borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },
+  editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
