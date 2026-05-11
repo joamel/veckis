@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,15 @@ import {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { getISOWeek, addWeeks } from '../../src/lib/week';
@@ -89,6 +98,18 @@ export default function MenuScreen() {
   // Replace recipe: item being replaced
   const [replaceTarget, setReplaceTarget] = useState<WeekMenuItemWithRecipe | null>(null);
 
+  // Edit (shake) mode
+  const [editMode, setEditMode] = useState(false);
+
+  // Drag state
+  type DragState = { item: WeekMenuItemWithRecipe; x: number; y: number };
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const [hoverDay, setHoverDay] = useState<WeekDay | null | 'unscheduled' | undefined>(undefined);
+
+  // Refs for measuring day section positions (screen coords)
+  const daySectionRefs = useRef<Record<string, View | null>>({});
+  const dayLayouts = useRef<Record<string, { y: number; height: number }>>({});
+
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
@@ -146,6 +167,51 @@ export default function MenuScreen() {
   function closePicker() {
     setShowPicker(false);
     setReplaceTarget(null);
+  }
+
+  function enterEditMode() {
+    setEditMode(true);
+  }
+
+  function exitEditMode() {
+    setEditMode(false);
+  }
+
+  function onDragStart(item: WeekMenuItemWithRecipe, x: number, y: number) {
+    setDragState({ item, x, y });
+  }
+
+  function onDragMove(x: number, y: number) {
+    setDragState(prev => prev ? { ...prev, x, y } : null);
+    // Find which day section we're hovering over
+    let found: WeekDay | null | 'unscheduled' | undefined = undefined;
+    for (const [key, layout] of Object.entries(dayLayouts.current)) {
+      if (y >= layout.y && y <= layout.y + layout.height) {
+        found = key === 'unscheduled' ? 'unscheduled' : key as WeekDay;
+        break;
+      }
+    }
+    setHoverDay(found);
+  }
+
+  function onDragEnd() {
+    if (!dragState) return;
+    const item = dragState.item;
+    setDragState(null);
+    setHoverDay(undefined);
+    if (hoverDay === undefined) return;
+    const targetDay = hoverDay === 'unscheduled' ? null : hoverDay as WeekDay | null;
+    if (targetDay !== item.day) {
+      moveToDay(item, targetDay);
+    }
+  }
+
+  function measureDaySection(key: string, ref: View | null) {
+    if (!ref) return;
+    daySectionRefs.current[key] = ref;
+    ref.measure((_x, _y, _w, h, _px, py) => {
+      dayLayouts.current[key] = { y: py, height: h };
+    });
   }
 
   async function addRecipeToDay(recipe: RecipeWithIngredients) {
@@ -422,14 +488,19 @@ export default function MenuScreen() {
         {DAYS.map((day, i) => {
           const items = menuItems.filter(m => m.day === day.key);
           const date = new Date(weekMonday.getFullYear(), weekMonday.getMonth(), weekMonday.getDate() + i);
+          const isHovered = hoverDay === day.key;
           return (
-            <View key={day.key} style={s.section}>
+            <View
+              key={day.key}
+              style={[s.section, isHovered && s.sectionHovered]}
+              ref={ref => measureDaySection(day.key, ref)}
+            >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#111827' }}>
                   {day.label}{' '}
                   <Text style={{ fontSize: 12, fontWeight: '400', color: '#6b7280' }}>{date.getDate()} {MONTH_NAMES[date.getMonth()]}</Text>
                 </Text>
-                {items.length === 0 && (
+                {!editMode && items.length === 0 && (
                   <Pressable onPress={() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }}>
                     <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
                   </Pressable>
@@ -443,10 +514,16 @@ export default function MenuScreen() {
                     key={item.id}
                     item={item}
                     isTransferred={transferredRecipeIds.has(item.recipeId)}
+                    editMode={editMode}
                     onRemove={() => removeFromMenu(item)}
                     onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                     onMoveToDay={d => moveToDay(item, d)}
                     onReplace={() => startReplaceRecipe(item)}
+                    onLongPress={enterEditMode}
+                    onDragStart={(x, y) => onDragStart(item, x, y)}
+                    onDragMove={onDragMove}
+                    onDragEnd={onDragEnd}
+                    isDragging={dragState?.item.id === item.id}
                   />
                 ))
               )}
@@ -455,12 +532,17 @@ export default function MenuScreen() {
         })}
 
         {/* Unscheduled */}
-        <View style={s.section}>
+        <View
+          style={[s.section, hoverDay === 'unscheduled' && s.sectionHovered]}
+          ref={ref => measureDaySection('unscheduled', ref)}
+        >
           <View style={s.sectionRow}>
             <Text style={s.sectionLabel}>EJ SCHEMALAGDA</Text>
-            <Pressable onPress={() => openPicker(null)}>
-              <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
-            </Pressable>
+            {!editMode && (
+              <Pressable onPress={() => openPicker(null)}>
+                <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
+              </Pressable>
+            )}
           </View>
           {unscheduled.length === 0 ? (
             <Text style={s.unscheduledEmpty}>Lägg till rätter utan dag för att planera i kalendern</Text>
@@ -470,10 +552,16 @@ export default function MenuScreen() {
                 key={item.id}
                 item={item}
                 isTransferred={transferredRecipeIds.has(item.recipeId)}
+                editMode={editMode}
                 onRemove={() => removeFromMenu(item)}
                 onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                 onMoveToDay={d => moveToDay(item, d)}
                 onReplace={() => startReplaceRecipe(item)}
+                onLongPress={enterEditMode}
+                onDragStart={(x, y) => onDragStart(item, x, y)}
+                onDragMove={onDragMove}
+                onDragEnd={onDragEnd}
+                isDragging={dragState?.item.id === item.id}
               />
             ))
           )}
@@ -501,6 +589,24 @@ export default function MenuScreen() {
         </View>
       </ScrollView>
 
+
+      {/* Edit mode exit button */}
+      {editMode && !dragState && (
+        <Pressable style={s.editDoneBtn} onPress={exitEditMode}>
+          <Text style={s.editDoneBtnText}>Klar</Text>
+        </Pressable>
+      )}
+
+      {/* Drag ghost card */}
+      {dragState && (
+        <View
+          pointerEvents="none"
+          style={[s.ghostCard, { top: dragState.y - 28, left: dragState.x - 120 }]}
+        >
+          <Ionicons name="restaurant-outline" size={16} color="#4f46e5" />
+          <Text style={s.ghostCardText} numberOfLines={1}>{dragState.item.recipe.title}</Text>
+        </View>
+      )}
 
       {/* Two-step recipe picker modal */}
       <Modal visible={showPicker} transparent animationType="slide" onRequestClose={closePicker}>
@@ -774,22 +880,81 @@ export default function MenuScreen() {
 function MenuCard({
   item,
   isTransferred,
+  editMode,
   onRemove,
   onViewRecipe,
   onMoveToDay,
   onReplace,
+  onLongPress,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  isDragging,
 }: {
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
+  editMode: boolean;
   onRemove: () => void;
   onViewRecipe: () => void;
   onMoveToDay: (day: WeekDay | null) => void;
   onReplace: () => void;
+  onLongPress: () => void;
+  onDragStart: (x: number, y: number) => void;
+  onDragMove: (x: number, y: number) => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const { medium } = useHaptics();
 
-  function handleLongPress() {
+  // Shake animation
+  const rotation = useSharedValue(0);
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
+  useEffect(() => {
+    if (editMode) {
+      const offset = (Math.random() - 0.5) * 0.5;
+      rotation.value = withRepeat(
+        withSequence(
+          withTiming(2 + offset, { duration: 80 }),
+          withTiming(-2 + offset, { duration: 80 }),
+        ),
+        -1,
+        true,
+      );
+    } else {
+      rotation.value = withTiming(0, { duration: 100 });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editMode]);
+
+  // Pan gesture for drag
+  const panGesture = Gesture.Pan()
+    .activateAfterLongPress(300)
+    .onStart(e => {
+      runOnJS(medium)();
+      runOnJS(onLongPress)();
+      runOnJS(onDragStart)(e.absoluteX, e.absoluteY);
+    })
+    .onUpdate(e => {
+      runOnJS(onDragMove)(e.absoluteX, e.absoluteY);
+    })
+    .onEnd(() => {
+      runOnJS(onDragEnd)();
+    })
+    .onFinalize(() => {
+      runOnJS(onDragEnd)();
+    });
+
+  function handlePress() {
+    if (editMode) return;
+    setExpanded(e => !e);
+  }
+
+  function handleLongPressStatic() {
+    if (editMode) return;
     medium();
     Alert.alert(
       item.recipe.title,
@@ -804,63 +969,69 @@ function MenuCard({
   }
 
   return (
-    <View style={s.card}>
-      <Pressable style={s.cardMain} onPress={() => setExpanded(e => !e)} onLongPress={handleLongPress}>
-        <View style={s.cardIcon}>
-          <Ionicons name="restaurant-outline" size={18} color="#4f46e5" />
-        </View>
-        <View style={s.cardContent}>
-          <Text style={s.cardTitle}>{item.recipe.title}</Text>
-          {isTransferred && (
-            <View style={s.transferredBadge}>
-              <Ionicons name="checkmark-circle" size={14} color="#10b981" />
-              <Text style={s.transferredText}>I inköpslistan</Text>
-            </View>
-          )}
-          <Text style={s.cardMeta}>{item.recipe.servings} port · {item.recipe.ingredients.length} ingredienser</Text>
-        </View>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#9ca3af" />
-      </Pressable>
-
-      {expanded && (
-        <View style={s.cardExpanded}>
-          <View style={s.cardActions}>
-            <Pressable style={s.cardAction} onPress={onViewRecipe}>
-              <Ionicons name="open-outline" size={15} color="#6b7280" />
-              <Text style={s.cardActionText}>Visa recept</Text>
-            </Pressable>
-            <Pressable style={s.cardAction} onPress={onRemove}>
-              <Ionicons name="trash-outline" size={15} color="#ef4444" />
-              <Text style={[s.cardActionText, { color: '#ef4444' }]}>Ta bort</Text>
-            </Pressable>
+    <GestureDetector gesture={panGesture}>
+      <Animated.View style={[s.card, shakeStyle, isDragging && s.cardDragging]}>
+        {editMode && (
+          <Pressable style={s.cardDeleteBtn} onPress={onRemove} hitSlop={8}>
+            <Ionicons name="close-circle" size={22} color="#ef4444" />
+          </Pressable>
+        )}
+        <Pressable style={s.cardMain} onPress={handlePress} onLongPress={handleLongPressStatic}>
+          <View style={s.cardIcon}>
+            <Ionicons name="restaurant-outline" size={18} color="#4f46e5" />
           </View>
-
-          {/* Move to day — always visible for all cards */}
-          <View style={s.assignDayRow}>
-            <Text style={s.assignDayLabel}>Flytta till dag:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={s.assignDayBtns}>
-                {DAYS.map(d => (
-                  <Pressable
-                    key={d.key}
-                    style={[s.assignDayBtn, item.day === d.key && s.assignDayBtnActive]}
-                    onPress={() => onMoveToDay(d.key)}
-                  >
-                    <Text style={[s.assignDayBtnText, item.day === d.key && s.assignDayBtnTextActive]}>{d.short}</Text>
-                  </Pressable>
-                ))}
-                <Pressable
-                  style={[s.assignDayBtn, item.day === null && s.assignDayBtnActive]}
-                  onPress={() => onMoveToDay(null)}
-                >
-                  <Text style={[s.assignDayBtnText, item.day === null && s.assignDayBtnTextActive]}>Ingen</Text>
-                </Pressable>
+          <View style={s.cardContent}>
+            <Text style={s.cardTitle}>{item.recipe.title}</Text>
+            {isTransferred && (
+              <View style={s.transferredBadge}>
+                <Ionicons name="checkmark-circle" size={14} color="#10b981" />
+                <Text style={s.transferredText}>I inköpslistan</Text>
               </View>
-            </ScrollView>
+            )}
+            <Text style={s.cardMeta}>{item.recipe.servings} port · {item.recipe.ingredients.length} ingredienser</Text>
           </View>
-        </View>
-      )}
-    </View>
+          {!editMode && <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#9ca3af" />}
+        </Pressable>
+
+        {!editMode && expanded && (
+          <View style={s.cardExpanded}>
+            <View style={s.cardActions}>
+              <Pressable style={s.cardAction} onPress={onViewRecipe}>
+                <Ionicons name="open-outline" size={15} color="#6b7280" />
+                <Text style={s.cardActionText}>Visa recept</Text>
+              </Pressable>
+              <Pressable style={s.cardAction} onPress={onRemove}>
+                <Ionicons name="trash-outline" size={15} color="#ef4444" />
+                <Text style={[s.cardActionText, { color: '#ef4444' }]}>Ta bort</Text>
+              </Pressable>
+            </View>
+
+            <View style={s.assignDayRow}>
+              <Text style={s.assignDayLabel}>Flytta till dag:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={s.assignDayBtns}>
+                  {DAYS.map(d => (
+                    <Pressable
+                      key={d.key}
+                      style={[s.assignDayBtn, item.day === d.key && s.assignDayBtnActive]}
+                      onPress={() => onMoveToDay(d.key)}
+                    >
+                      <Text style={[s.assignDayBtnText, item.day === d.key && s.assignDayBtnTextActive]}>{d.short}</Text>
+                    </Pressable>
+                  ))}
+                  <Pressable
+                    style={[s.assignDayBtn, item.day === null && s.assignDayBtnActive]}
+                    onPress={() => onMoveToDay(null)}
+                  >
+                    <Text style={[s.assignDayBtnText, item.day === null && s.assignDayBtnTextActive]}>Ingen</Text>
+                  </Pressable>
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        )}
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -953,4 +1124,12 @@ const s = StyleSheet.create({
   button: { backgroundColor: '#4f46e5', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', minWidth: 44 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   buttonDisabled: { opacity: 0.4 },
+  // Edit mode
+  sectionHovered: { backgroundColor: '#eef2ff', borderRadius: 12, borderWidth: 1, borderColor: '#4f46e5' },
+  cardDragging: { opacity: 0.4 },
+  cardDeleteBtn: { position: 'absolute', top: -8, left: -8, zIndex: 10 },
+  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#111827', borderRadius: 24, zIndex: 20 },
+  editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  ghostCard: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 8, zIndex: 100, maxWidth: 240 },
+  ghostCardText: { fontSize: 14, fontWeight: '600', color: '#111827', flex: 1 },
 });

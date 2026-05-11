@@ -2,6 +2,7 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { HouseholdProvider, useHousehold } from '../src/context/HouseholdContext';
 
 const tokenCache = {
@@ -41,13 +42,15 @@ function NavigationGuard() {
 
 export default function RootLayout() {
   return (
-    <ClerkProvider
-      publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
-      tokenCache={tokenCache}
-    >
-      <HouseholdProvider>
-        <NavigationGuard />
-      </HouseholdProvider>
-    </ClerkProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ClerkProvider
+        publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
+        tokenCache={tokenCache}
+      >
+        <HouseholdProvider>
+          <NavigationGuard />
+        </HouseholdProvider>
+      </ClerkProvider>
+    </GestureHandlerRootView>
   );
 }
