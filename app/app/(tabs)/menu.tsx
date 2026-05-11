@@ -100,8 +100,8 @@ export default function MenuScreen() {
 
   // Edit (shake) mode
   const [editMode, setEditMode] = useState(false);
-  // Incremented each time edit mode is entered — cards use this to avoid re-shaking on remount
-  const [shakeKey, setShakeKey] = useState(0);
+  // ID of the card that should shake — cleared after animation so remounted cards don't reshake
+  const [shakeTargetId, setShakeTargetId] = useState<string | null>(null);
 
   // Drag state — only y is used for hover detection; x kept for future use
   type DragState = { item: WeekMenuItemWithRecipe; y: number };
@@ -171,9 +171,10 @@ export default function MenuScreen() {
     setReplaceTarget(null);
   }
 
-  function enterEditMode() {
+  function enterEditMode(itemId: string) {
     setEditMode(true);
-    setShakeKey(k => k + 1);
+    setShakeTargetId(itemId);
+    setTimeout(() => setShakeTargetId(null), 400);
   }
 
   function exitEditMode() {
@@ -522,8 +523,8 @@ export default function MenuScreen() {
                     onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                     onMoveToDay={d => moveToDay(item, d)}
                     onReplace={() => startReplaceRecipe(item)}
-                    onLongPress={enterEditMode}
-                    shakeKey={shakeKey}
+                    onLongPress={() => enterEditMode(item.id)}
+                    shouldShake={shakeTargetId === item.id}
                     onDragStart={(x, y) => onDragStart(item, x, y)}
                     onDragMove={onDragMove}
                     onDragEnd={onDragEnd}
@@ -557,12 +558,12 @@ export default function MenuScreen() {
                 item={item}
                 isTransferred={transferredRecipeIds.has(item.recipeId)}
                 editMode={editMode}
-                shakeKey={shakeKey}
+                shouldShake={shakeTargetId === item.id}
                 onRemove={() => removeFromMenu(item)}
                 onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                 onMoveToDay={d => moveToDay(item, d)}
                 onReplace={() => startReplaceRecipe(item)}
-                onLongPress={enterEditMode}
+                onLongPress={() => enterEditMode(item.id)}
                 onDragStart={(x, y) => onDragStart(item, x, y)}
                 onDragMove={onDragMove}
                 onDragEnd={onDragEnd}
@@ -888,7 +889,7 @@ function MenuCard({
   item,
   isTransferred,
   editMode,
-  shakeKey,
+  shouldShake,
   onRemove,
   onViewRecipe,
   onMoveToDay,
@@ -902,12 +903,13 @@ function MenuCard({
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
   editMode: boolean;
-  shakeKey: number;
+  shouldShake: boolean;
   onRemove: () => void;
   onViewRecipe: () => void;
   onMoveToDay: (day: WeekDay | null) => void;
   onReplace: () => void;
   onLongPress: () => void;
+
   onDragStart: (x: number, y: number) => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: () => void;
@@ -916,17 +918,13 @@ function MenuCard({
   const [expanded, setExpanded] = useState(false);
   const { medium } = useHaptics();
 
-  // Shake animation — shakes only when shakeKey changes, not on remount mid-drag
   const rotation = useSharedValue(0);
-  // Initialize to current shakeKey so a freshly mounted card (during drag) does NOT shake
-  const lastShakedKey = useRef(shakeKey);
   const shakeStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
   useEffect(() => {
-    if (editMode && shakeKey !== lastShakedKey.current) {
-      lastShakedKey.current = shakeKey;
+    if (shouldShake) {
       rotation.value = withSequence(
         withTiming(2.5, { duration: 60 }),
         withTiming(-2.5, { duration: 60 }),
@@ -939,7 +937,7 @@ function MenuCard({
       rotation.value = withTiming(0, { duration: 80 });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editMode, shakeKey]);
+  }, [shouldShake, editMode]);
 
   // Pan gesture for drag — use only onFinalize to avoid double-fire
   const panGesture = Gesture.Pan()
