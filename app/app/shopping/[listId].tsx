@@ -334,6 +334,7 @@ export default function ShoppingListScreen() {
         try {
           await client.clearShoppingList(listId);
           setList(prev => prev ? { ...prev, items: [] } : prev);
+          showToast('Inköpslistan rensad');
         } catch {
           Alert.alert('Fel', 'Kunde inte rensa listan');
         }
@@ -655,6 +656,15 @@ export default function ShoppingListScreen() {
               />
             </View>
           </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
+            <View style={s.unitChipRow}>
+              {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'nypa', 'påse', 'burk', 'flaska'].map(u => (
+                <Pressable key={u} style={[s.unitChip, editUnit === u && s.unitChipActive]} onPress={() => setEditUnit(v => v === u ? '' : u)}>
+                  <Text style={[s.unitChipText, editUnit === u && s.unitChipTextActive]}>{u}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
           <Text style={s.editLabel}>Kategori</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
             <View style={s.catChipRow}>

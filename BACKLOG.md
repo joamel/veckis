@@ -10,7 +10,7 @@
 - [ ] Större font och knappar/pilar mm i tablet-vyn
 - [ ] Texten hoppar inte upp ovan tangentbordet för Lägga till lokala profiler, nya inköpslistor och butiker
 - [ ] Om flera inputfält i samma form borde det finnas en "nästa" i tangentbordet
-- [ ] Toast för fler händelser: "Inköpslista rensad", "Hushåll borttaget", "Syssla sparad" m.fl.
+- [ ] Toast för fler händelser: ~~"Inköpslista rensad"~~, "Hushåll borttaget", "Syssla sparad" m.fl.
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -39,12 +39,13 @@
 - [x] rubriken på inköpslistan syns knappt i ovankant
 - [x] Basvaror hamnar i annan kategori i inköpslistan än var de väljs ifrån (ex frysta räkor [frysvaror] hamnar i Kött & Fisk)
 - [x] Ersätt "{basvara} sparad som basvara" med "{Basvara} tillagd till inköpslistan"
-- [ ] Hitta normaliserade ingrediensnamn och på så vis kunna slå ihop "klyftor vitlök" med "vitlök" och "standardmjölk" med "mjölk" i inköpslistan samt pluralis till singularis "tomater" -> "tomat"
-- [ ] Om man vill lägga till egen basvara borde den även lägga till varan i databasen om den inte redan finns (förutsatt att man lägger till en kategori)
 - [x] Lilla counten till höger om kategorin i inköpslistan tillför inget.
 - [x] Addera summan av mängden på ingredienser som ska slås ihop och föreslå senast angivna enheten (om tom, den näst senast angivna)
-- [x] ha föreslagna enheter när man börjar skriva in
+- [x] ha föreslagna enheter när man justerar dubbletter
 - [x] tillbaka- och rensaknappen på inköpslistan syns knappt i ovankant
+- [ ] Hitta normaliserade ingrediensnamn och på så vis kunna slå ihop "klyftor vitlök" med "vitlök" och "standardmjölk" med "mjölk" i inköpslistan samt pluralis till singularis "tomater" -> "tomat"
+- [x] Om man vill lägga till egen basvara borde den även lägga till varan i databasen om den inte redan finns (förutsatt att man lägger till en kategori)
+- [x] ha föreslagna enheter när man lägger till/redigerar basvaror
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
