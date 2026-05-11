@@ -165,7 +165,7 @@ const s = StyleSheet.create({
     borderBottomColor: '#f3f4f6',
   },
   monthLabel: { fontSize: 18, fontWeight: '700', color: '#111827', flex: 1, textAlign: 'center' },
-  todayBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#4f46e5', borderRadius: 6, marginRight: 4 },
+  todayBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#4f46e5', borderRadius: 6, marginRight: 16 },
   todayBtnText: { fontSize: 12, fontWeight: '600', color: '#fff' },
   weekDayHeaders: { flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 8 },
   weekDayHeader: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#6b7280' },

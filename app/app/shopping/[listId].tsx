@@ -80,6 +80,8 @@ export default function ShoppingListScreen() {
   const [savingOrder, setSavingOrder] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const editQtyRef = useRef<TextInput>(null);
+  const editUnitRef = useRef<TextInput>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
 
@@ -640,27 +642,34 @@ export default function ShoppingListScreen() {
             onChangeText={setEditName}
             placeholder="Varunamn"
             autoCapitalize="none"
+            returnKeyType="next"
+            onSubmitEditing={() => editQtyRef.current?.focus()}
           />
           <View style={s.editRow}>
             <View style={{ flex: 1 }}>
               <Text style={s.editLabel}>Antal</Text>
               <TextInput
+                ref={editQtyRef}
                 style={s.editInput}
                 value={editQty}
                 onChangeText={setEditQty}
                 keyboardType="decimal-pad"
                 placeholder="1"
                 selectTextOnFocus
+                returnKeyType="next"
+                onSubmitEditing={() => editUnitRef.current?.focus()}
               />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.editLabel}>Enhet</Text>
               <TextInput
+                ref={editUnitRef}
                 style={s.editInput}
                 value={editUnit}
                 onChangeText={setEditUnit}
                 placeholder="g, dl, st…"
                 autoCapitalize="none"
+                returnKeyType="done"
               />
             </View>
           </View>

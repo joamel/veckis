@@ -47,6 +47,6 @@ const s = StyleSheet.create({
   labelBtn: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingVertical: 4 },
   label: { fontSize: 14, fontWeight: '600', color: '#374151' },
   labelCurrent: { color: '#4f46e5' },
-  todayBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#4f46e5', borderRadius: 6, marginRight: 4 },
+  todayBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#4f46e5', borderRadius: 6, marginRight: 16 },
   todayBtnText: { fontSize: 12, fontWeight: '600', color: '#fff' },
 });

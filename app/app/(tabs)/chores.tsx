@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   FlatList,
   Modal,
   Pressable,
@@ -118,6 +119,18 @@ export default function ChoresScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { medium } = useHaptics();
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const [toastMessage, setToastMessage] = useState('');
+
+  function showToast(msg: string) {
+    setToastMessage(msg);
+    Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 350, useNativeDriver: true }),
+    ]).start();
+  }
+
   const [chores, setChores] = useState<ChoreWithCompletion[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,6 +215,7 @@ export default function ChoresScreen() {
       setChores(prev => [...prev, { ...chore, completions: [] }]);
       setShowCreate(false);
       setNewTitle('');
+      showToast('Syssla skapad');
       setNewFreq('weekly');
       setNewAssignedTo(null);
       setNewDays([]);
@@ -239,6 +253,7 @@ export default function ChoresScreen() {
       });
       setChores(prev => prev.map(c => c.id === editingChore.id ? { ...c, ...updated } : c));
       setEditingChore(null);
+      showToast('Syssla sparad');
     } catch {
       Alert.alert('Fel', 'Kunde inte spara ändringarna');
     } finally {
@@ -393,6 +408,11 @@ export default function ChoresScreen() {
           <Ionicons name="add" size={30} color="#fff" />
         </Pressable>
       )}
+
+      <Animated.View style={[s.toast, { opacity: toastOpacity }]} pointerEvents="none">
+        <Ionicons name="checkmark-circle" size={20} color="#fff" />
+        <Text style={s.toastText}>{toastMessage}</Text>
+      </Animated.View>
 
       {/* Create modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
@@ -635,6 +655,8 @@ const s = StyleSheet.create({
   button: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  toast: { position: 'absolute', bottom: 100, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   deleteBtnText: { color: '#ef4444', fontSize: 14, fontWeight: '500' },
   dateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },

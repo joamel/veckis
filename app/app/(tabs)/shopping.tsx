@@ -307,6 +307,7 @@ export default function ShoppingScreen() {
       {/* Stores modal */}
       <Modal visible={showStoresModal} transparent animationType="slide" onRequestClose={() => setShowStoresModal(false)}>
         <Pressable style={styles.overlay} onPress={() => setShowStoresModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Butiker</Text>
@@ -384,6 +385,7 @@ export default function ShoppingScreen() {
             </Pressable>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Category order editor */}

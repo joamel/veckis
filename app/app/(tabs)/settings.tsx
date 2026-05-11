@@ -3,7 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   Clipboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -494,6 +496,7 @@ export default function SettingsScreen() {
       {/* Create Local Profile Modal */}
       <Modal visible={showCreateLocalModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowCreateLocalModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Lägg till lokal profil</Text>
@@ -519,11 +522,13 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Create Household Modal */}
       <Modal visible={showCreateHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowCreateHouseholdModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Skapa nytt hushål</Text>
@@ -548,6 +553,7 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Join Household Modal */}
