@@ -907,15 +907,16 @@ function MenuCard({
   const [expanded, setExpanded] = useState(false);
   const { medium } = useHaptics();
 
-  // Shake animation
+  // Shake animation — only fires the very first time edit mode is entered
   const rotation = useSharedValue(0);
+  const hasShaken = useRef(false);
   const shakeStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
   useEffect(() => {
-    if (editMode) {
-      // Brief shake on enter, then stop
+    if (editMode && !hasShaken.current) {
+      hasShaken.current = true;
       rotation.value = withSequence(
         withTiming(2.5, { duration: 60 }),
         withTiming(-2.5, { duration: 60 }),
@@ -924,13 +925,14 @@ function MenuCard({
         withTiming(1, { duration: 50 }),
         withTiming(0, { duration: 50 }),
       );
-    } else {
+    } else if (!editMode) {
+      hasShaken.current = false;
       rotation.value = withTiming(0, { duration: 80 });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editMode]);
 
-  // Pan gesture for drag
+  // Pan gesture for drag — use only onFinalize to avoid double-fire
   const panGesture = Gesture.Pan()
     .activateAfterLongPress(300)
     .onStart(e => {
@@ -940,9 +942,6 @@ function MenuCard({
     })
     .onUpdate(e => {
       runOnJS(onDragMove)(e.absoluteX, e.absoluteY);
-    })
-    .onEnd(() => {
-      runOnJS(onDragEnd)();
     })
     .onFinalize(() => {
       runOnJS(onDragEnd)();
@@ -972,7 +971,18 @@ function MenuCard({
     <GestureDetector gesture={panGesture}>
       <Animated.View style={[s.card, shakeStyle, isDragging && s.cardDragging]}>
         {editMode && (
-          <Pressable style={s.cardDeleteBtn} onPress={onRemove} hitSlop={10}>
+          <Pressable
+            style={s.cardDeleteBtn}
+            onPress={() => Alert.alert(
+              'Ta bort från menyn?',
+              item.recipe.title,
+              [
+                { text: 'Avbryt', style: 'cancel' },
+                { text: 'Ta bort', style: 'destructive', onPress: onRemove },
+              ]
+            )}
+            hitSlop={10}
+          >
             <Ionicons name="remove-circle" size={22} color="#6b7280" />
           </Pressable>
         )}
@@ -1130,7 +1140,7 @@ const s = StyleSheet.create({
   // Edit mode
   sectionHovered: { backgroundColor: '#eef2ff', borderRadius: 12, borderWidth: 1, borderColor: '#4f46e5' },
   cardDragging: { opacity: 0.4 },
-  cardDeleteBtn: { position: 'absolute', top: -9, left: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
+  cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#111827', borderRadius: 24, zIndex: 20 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   ghostCard: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 8, zIndex: 100, maxWidth: 240 },
