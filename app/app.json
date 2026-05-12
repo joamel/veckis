@@ -2,7 +2,13 @@
   "expo": {
     "name": "Veckis",
     "slug": "veckis",
-    "version": "1.0.0",
+    "version": "1.1.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/37425b58-c8af-45be-aac8-c26bbdfaa3d1"
+    },
     "orientation": "portrait",
     "scheme": "veckis",
     "userInterfaceStyle": "automatic",
