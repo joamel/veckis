@@ -98,6 +98,14 @@ householdRouter.patch('/:householdId', requireAuth, requireAdmin, asyncHandler(a
   res.json(household);
 }));
 
+// DELETE /api/households/:householdId
+householdRouter.delete('/:householdId', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const existing = await prisma.household.findUnique({ where: { id: req.params.householdId } });
+  if (!existing) { res.status(404).json({ error: 'Household not found' }); return; }
+  await prisma.household.delete({ where: { id: req.params.householdId } });
+  res.status(204).send();
+}));
+
 // POST /api/households/:householdId/invite
 householdRouter.post('/:householdId/invite', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
   const code = randomBytes(4).toString('hex').toUpperCase();
@@ -155,12 +163,6 @@ householdRouter.post('/:householdId/members', requireAuth, requireAdmin, asyncHa
     },
   });
   res.status(201).json(member);
-}));
-
-// DELETE /api/households/:householdId
-householdRouter.delete('/:householdId', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
-  await prisma.household.delete({ where: { id: req.params.householdId } });
-  res.status(204).send();
 }));
 
 // DELETE /api/households/:householdId/members/:memberId
