@@ -82,23 +82,25 @@ model ShoppingList {
 }
 
 model ShoppingItem {
-  id        String        @id @default(cuid())
-  listId    String
-  name      String
-  quantity  Float         @default(1)
-  unit      String?
-  category  StoreCategory @default(other)
-  isChecked Boolean       @default(false)
-  checkedBy String?
-  addedBy   String
-  note      String?
-  recipeId  String?
-  createdAt DateTime      @default(now())
+  id         String        @id @default(cuid())
+  listId     String
+  name       String
+  quantity   Float         @default(1)
+  unit       String?
+  category   StoreCategory @default(other)
+  isChecked  Boolean       @default(false)
+  checkedBy  String?
+  addedBy    String
+  note       String?
+  recipeId   String?
+  menuItemId String?
+  createdAt  DateTime      @default(now())
 
   list   ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
   recipe Recipe?      @relation(fields: [recipeId], references: [id], onDelete: SetNull)
 
   @@index([listId])
+  @@index([menuItemId])
 }
 
 model Chore {

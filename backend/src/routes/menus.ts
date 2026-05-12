@@ -4,8 +4,10 @@ import { WeekDay, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
-import { normalizeIngredientNames } from '../lib/normalizeIngredients';
+import { normalizeIngredientNames, getStoredCategory } from '../lib/normalizeIngredients';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
+import { stripIngredient } from '../lib/stripIngredient';
+import { wsBroadcast } from '../lib/wsHub';
 
 export const menusRouter = Router();
 
@@ -107,6 +109,7 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
       unit: z.string().nullable(),
       category: z.string().default('other'),
       recipeId: z.string(),
+      menuItemId: z.string().optional(),
     })),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
@@ -121,7 +124,7 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
 
   const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
 
-  // Normalize ingredient names via AI (strips prep instructions, canonicalizes synonyms)
+  // Normalize ingredient names (strips prep instructions, canonicalizes synonyms)
   const rawNames = body.data.ingredients.map(i => i.name);
   const normalizedNames = await normalizeIngredientNames(rawNames);
   const ingredients = body.data.ingredients.map((ing, i) => ({
@@ -129,10 +132,10 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
     name: normalizedNames[i] ?? ing.name,
   }));
 
-  // Deduplicate: same name+unit+recipeId → sum quantities (keep per-recipe tracking)
+  // Deduplicate within batch: same name+unit+menuItemId → sum quantities
   const deduped = new Map<string, typeof ingredients[0]>();
   for (const ing of ingredients) {
-    const key = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}|${ing.recipeId}`;
+    const key = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}|${ing.menuItemId ?? ing.recipeId}`;
     if (deduped.has(key)) {
       const existing = deduped.get(key)!;
       existing.quantity = (existing.quantity ?? 1) + (ing.quantity ?? 1);
@@ -153,41 +156,80 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
   });
 
-  // Merge with existing unchecked items in the list (same name+unit → increment)
+  // Merge with existing unchecked items in the list.
+  // Normalize existing item names via stripIngredient so stale names (e.g. "klyftor vitlök")
+  // match against canonicalized incoming names ("vitlök").
+  // Items with a menuItemId only merge with existing items sharing the same menuItemId.
+  // Items without a menuItemId merge by canonical name+unit (legacy behaviour).
   const existingItems = await prisma.shoppingItem.findMany({
     where: { listId: list.id, isChecked: false },
   });
-  const existingKey = (item: { name: string; unit: string | null }) =>
-    `${item.name.toLowerCase().trim()}|${(item.unit ?? '').toLowerCase().trim()}`;
-  const existingMap = new Map(existingItems.map(ei => [existingKey(ei), ei]));
-
-  const toCreate: typeof sorted = [];
-  const toUpdate: { id: string; quantity: number }[] = [];
-  for (const ing of sorted) {
-    const key = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}`;
-    const match = existingMap.get(key);
-    if (match) {
-      toUpdate.push({ id: match.id, quantity: match.quantity + (ing.quantity ?? 1) });
+  const existingByMenuItemKey = new Map<string, typeof existingItems[0]>();
+  const existingByNameUnit = new Map<string, typeof existingItems[0]>();
+  for (const ei of existingItems) {
+    const resolvedName = stripIngredient(ei.name);
+    const unitKey = (ei.unit ?? '').toLowerCase().trim();
+    if (ei.menuItemId) {
+      existingByMenuItemKey.set(`${resolvedName}|${unitKey}|${ei.menuItemId}`, ei);
     } else {
-      toCreate.push(ing);
+      existingByNameUnit.set(`${resolvedName}|${unitKey}`, ei);
     }
   }
 
+  const toCreate: typeof sorted = [];
+  const toUpdate: { id: string; quantity: number; name: string }[] = [];
+  for (const ing of sorted) {
+    const nameUnit = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}`;
+    if (ing.menuItemId) {
+      const match = existingByMenuItemKey.get(`${nameUnit}|${ing.menuItemId}`);
+      if (match) {
+        toUpdate.push({ id: match.id, quantity: match.quantity + (ing.quantity ?? 1), name: ing.name });
+      } else {
+        toCreate.push(ing);
+      }
+    } else {
+      const match = existingByNameUnit.get(nameUnit);
+      if (match) {
+        toUpdate.push({ id: match.id, quantity: match.quantity + (ing.quantity ?? 1), name: ing.name });
+      } else {
+        toCreate.push(ing);
+      }
+    }
+  }
+
+  // Resolve categories — check stored user overrides before keyword fallback
+  const toCreateWithCategory = await Promise.all(
+    toCreate.map(async ing => ({
+      ...ing,
+      resolvedCategory: ing.category === 'other'
+        ? (await getStoredCategory(ing.name) ?? categorizeIngredient(ing.name))
+        : ing.category,
+    }))
+  );
+
   const [updatedItems, createdItems] = await Promise.all([
-    Promise.all(toUpdate.map(u => prisma.shoppingItem.update({ where: { id: u.id }, data: { quantity: u.quantity } }))),
-    toCreate.length > 0
+    // Update quantity AND name (canonicalizes stale names like "klyftor vitlök" → "vitlök")
+    Promise.all(toUpdate.map(u => prisma.shoppingItem.update({ where: { id: u.id }, data: { quantity: u.quantity, name: u.name } }))),
+    toCreateWithCategory.length > 0
       ? prisma.shoppingItem.createManyAndReturn({
-          data: toCreate.map(ing => ({
+          data: toCreateWithCategory.map(ing => ({
             listId: list.id,
             name: ing.name,
             quantity: ing.quantity ?? 1,
             unit: ing.unit,
-            category: (ing.category === 'other' ? categorizeIngredient(ing.name) : ing.category) as never,
+            category: ing.resolvedCategory as never,
             addedBy: clerkUserId,
             recipeId: ing.recipeId,
+            menuItemId: ing.menuItemId ?? null,
           })),
         })
       : Promise.resolve([]),
   ]);
+  for (const item of updatedItems) {
+    wsBroadcast(list.id, { type: 'item_updated', data: item });
+  }
+  for (const item of createdItems) {
+    wsBroadcast(list.id, { type: 'item_added', data: item });
+  }
   res.status(201).json([...updatedItems, ...createdItems]);
 }));

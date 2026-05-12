@@ -7,6 +7,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import { WebSocketServer, WebSocket } from 'ws';
+import { verifyToken } from '@clerk/backend';
 import { householdRouter } from './routes/household';
 import { shoppingRouter } from './routes/shopping';
 import { storesRouter } from './routes/stores';
@@ -18,6 +20,7 @@ import { staplesRouter } from './routes/staples';
 import { adminRouter } from './routes/admin';
 import { prisma } from './db';
 import { asyncHandler } from './lib/asyncHandler';
+import { wsSubscribe, wsUnsubscribe } from './lib/wsHub';
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
@@ -72,7 +75,73 @@ const server = app.listen(PORT, () => {
   console.log(`Veckis backend running on port ${PORT}`);
 });
 
+// WebSocket server for real-time shopping list updates
+const wss = new WebSocketServer({ noServer: true });
+
+// Server-side heartbeat — terminate stale connections every 30s
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach(ws => {
+    const annotated = ws as WebSocket & { isAlive?: boolean };
+    if (annotated.isAlive === false) { ws.terminate(); return; }
+    annotated.isAlive = false;
+    ws.ping();
+  });
+}, 30_000);
+
+wss.on('close', () => clearInterval(heartbeatInterval));
+
+server.on('upgrade', async (req, socket, head) => {
+  try {
+    const url = new URL(req.url ?? '', 'http://localhost');
+    const match = url.pathname.match(/^\/ws\/shopping\/([^/]+)$/);
+    if (!match) { socket.destroy(); return; }
+    const listId = match[1];
+
+    const token = url.searchParams.get('token');
+    if (!token) { socket.destroy(); return; }
+
+    // Authenticate
+    let clerkUserId: string;
+    if (isDev) {
+      if (token.startsWith('dev_')) {
+        clerkUserId = token.slice(4);
+      } else {
+        try {
+          const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+          clerkUserId = payload.sub || 'dev-user';
+        } catch {
+          clerkUserId = 'dev-user';
+        }
+      }
+    } else {
+      const payload = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
+      clerkUserId = payload.sub;
+    }
+
+    // Verify list membership
+    const list = await prisma.shoppingList.findUnique({ where: { id: listId } });
+    if (!list) { socket.destroy(); return; }
+    const member = await prisma.householdMember.findUnique({
+      where: { householdId_clerkUserId: { householdId: list.householdId, clerkUserId } },
+    });
+    if (!member) { socket.destroy(); return; }
+
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      const annotated = ws as WebSocket & { isAlive?: boolean };
+      annotated.isAlive = true;
+      ws.on('pong', () => { annotated.isAlive = true; });
+
+      wsSubscribe(listId, ws);
+      ws.on('close', () => wsUnsubscribe(listId, ws));
+    });
+  } catch {
+    socket.destroy();
+  }
+});
+
 async function shutdown() {
+  clearInterval(heartbeatInterval);
+  wss.close();
   server.close();
   await prisma.$disconnect();
   process.exit(0);

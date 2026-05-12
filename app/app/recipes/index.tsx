@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -25,6 +25,16 @@ export default function RecipesScreen() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredRecipes = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return recipes;
+    return recipes.filter(r =>
+      r.title.toLowerCase().includes(q) ||
+      r.ingredients.some(i => i.name.toLowerCase().includes(q))
+    );
+  }, [recipes, searchQuery]);
 
   // New recipe form
   const [mode, setMode] = useState<'manual' | 'url'>('manual');
@@ -118,19 +128,36 @@ export default function RecipesScreen() {
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <Text style={s.title}>Recept</Text>
+        <View style={s.searchRow}>
+          <Ionicons name="search" size={16} color="#9ca3af" style={s.searchIcon} />
+          <TextInput
+            style={s.searchInput}
+            placeholder="Sök på namn eller ingrediens…"
+            placeholderTextColor="#9ca3af"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color="#9ca3af" />
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <FlatList
-        data={recipes}
+        data={filteredRecipes}
         keyExtractor={r => r.id}
-        contentContainerStyle={[s.list, recipes.length === 0 && s.listEmpty]}
+        contentContainerStyle={[s.list, filteredRecipes.length === 0 && s.listEmpty]}
         onRefresh={load}
         refreshing={loading}
         ListEmptyComponent={
           <View style={s.emptyContainer}>
-            <Ionicons name="book-outline" size={56} color="#d1d5db" />
-            <Text style={s.emptyText}>Inga recept än</Text>
-            <Text style={s.emptySubtext}>Lägg till manuellt eller via en URL</Text>
+            <Ionicons name={searchQuery ? 'search-outline' : 'book-outline'} size={56} color="#d1d5db" />
+            <Text style={s.emptyText}>{searchQuery ? 'Inga träffar' : 'Inga recept än'}</Text>
+            <Text style={s.emptySubtext}>{searchQuery ? `Inget recept matchar "${searchQuery}"` : 'Lägg till manuellt eller via en URL'}</Text>
           </View>
         }
         renderItem={({ item }) => (
@@ -249,8 +276,11 @@ export default function RecipesScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { padding: 20, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  header: { padding: 20, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
   title: { fontSize: 28, fontWeight: '700', color: '#111827' },
+  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f3f4f6', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
+  searchIcon: { marginRight: 2 },
+  searchInput: { flex: 1, fontSize: 15, color: '#111827', padding: 0 },
   list: { padding: 16, gap: 10 },
   listEmpty: { flex: 1 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },

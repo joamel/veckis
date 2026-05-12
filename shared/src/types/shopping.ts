@@ -34,6 +34,7 @@ export interface ShoppingItem {
   addedBy: string;
   note: string | null;
   recipeId: string | null;
+  menuItemId: string | null;
 }
 
 export interface Store {

@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev:backend": "npm run dev --workspace=backend",
-    "dev:app": "npm run start --workspace=app",
+    "dev:app": "npm run dev --workspace=app",
     "build:shared": "npm run build --workspace=shared",
     "db:generate": "npm run db:generate --workspace=backend",
     "db:migrate": "npm run db:migrate --workspace=backend",
@@ -17,6 +17,8 @@
     "db:studio": "npm run db:studio --workspace=backend"
   },
   "dependencies": {
-    "react": "19.1.0"
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native-web": "^0.21.0"
   }
 }

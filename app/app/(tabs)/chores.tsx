@@ -19,6 +19,7 @@ import { useApiClient } from '../../src/api/client';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import type { Chore, ChoreCompletion, ChoreFrequency, WeekDay } from '@veckis/shared';
 
@@ -92,22 +93,20 @@ function MemberPicker({ members, selected, onChange }: { members: Member[]; sele
   return (
     <>
       <Text style={s.label}>Tilldela person</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberChipRow}>
         <Pressable
-          style={[s.memberOption, selected === null && s.memberOptionActive]}
+          style={[s.memberChip, selected === null && s.memberChipActive]}
           onPress={() => onChange(null)}
         >
-          <Text style={[s.memberOptionText, selected === null && s.memberOptionTextActive]}>Ingen</Text>
+          <Text style={[s.memberChipText, selected === null && s.memberChipTextActive]}>Ingen</Text>
         </Pressable>
         {members.map(m => (
           <Pressable
             key={m.id}
-            style={[s.memberOption, selected === m.clerkUserId && s.memberOptionActive]}
-            onPress={() => onChange(m.clerkUserId)}
+            style={[s.memberChip, selected === m.id && s.memberChipActive]}
+            onPress={() => onChange(m.id)}
           >
-            <Text style={[s.memberOptionText, selected === m.clerkUserId && s.memberOptionTextActive]}>
-              {m.displayName}
-            </Text>
+            <Text style={[s.memberChipText, selected === m.id && s.memberChipTextActive]}>{m.displayName}</Text>
           </Pressable>
         ))}
       </ScrollView>
@@ -119,6 +118,7 @@ export default function ChoresScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { medium } = useHaptics();
+  const { fs, sp } = useTablet();
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
 
@@ -135,6 +135,8 @@ export default function ChoresScreen() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
+  const [filterMemberIds, setFilterMemberIds] = useState<string[]>([]);
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -182,21 +184,24 @@ export default function ChoresScreen() {
 
   useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
 
-  // Completed chores sorted to the bottom
+  // Completed chores sorted to the bottom, with optional member filter
   const sortedChores = useMemo(() => {
-    const done = chores.filter(c => isFullyDone(c));
-    const notDone = chores.filter(c => !isFullyDone(c));
+    const filtered = filterMemberIds.length > 0
+      ? chores.filter(c => c.assignedTo && filterMemberIds.includes(c.assignedTo))
+      : chores;
+    const done = filtered.filter(c => isFullyDone(c));
+    const notDone = filtered.filter(c => !isFullyDone(c));
     return [...notDone, ...done];
-  }, [chores]);
+  }, [chores, filterMemberIds]);
 
   const completedOnce = useMemo(
     () => chores.filter(c => c.frequency === 'once' && c.completions.length > 0),
     [chores]
   );
 
-  function getMemberName(clerkUserId: string | null) {
-    if (!clerkUserId) return null;
-    return members.find(m => m.clerkUserId === clerkUserId)?.displayName ?? null;
+  function getMemberName(memberId: string | null) {
+    if (!memberId) return null;
+    return members.find(m => m.id === memberId)?.displayName ?? null;
   }
 
   async function createChore() {
@@ -281,26 +286,31 @@ export default function ChoresScreen() {
   }
 
   async function completeChore(chore: ChoreWithCompletion) {
-    // Only once-frequency chores can be completed from this screen (no day context)
+    const fakeId = '__opt__';
+    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', completedAt: new Date().toISOString(), note: null, day: null };
+    setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
     try {
       const completion = await client.completeChore(chore.id, null);
-      setChores(prev =>
-        prev.map(c => c.id === chore.id ? { ...c, completions: [completion, ...c.completions] } : c)
-      );
+      setChores(cs => cs.map(c => c.id === chore.id
+        ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
+        : c));
     } catch {
+      setChores(cs => cs.map(c => c.id === chore.id
+        ? { ...c, completions: c.completions.filter(comp => comp.id !== fakeId) }
+        : c));
       Alert.alert('Fel', 'Kunde inte markera sysslan');
     }
   }
 
   async function uncompleteChore(chore: ChoreWithCompletion) {
+    const saved = chore.completions;
+    setChores(cs => cs.map(c => c.id === chore.id
+      ? { ...c, completions: c.completions.filter(comp => comp.day !== null) }
+      : c));
     try {
       await client.uncompleteChore(chore.id);
-      setChores(prev =>
-        prev.map(c => c.id === chore.id
-          ? { ...c, completions: c.completions.filter(comp => comp.day !== null) }
-          : c)
-      );
     } catch {
+      setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
       Alert.alert('Fel', 'Kunde inte avmarkera sysslan');
     }
   }
@@ -331,12 +341,27 @@ export default function ChoresScreen() {
     <SafeAreaView style={s.container}>
       <ScreenHeader
         title="Sysslor"
-        actionNode={completedOnce.length > 0 ? (
-          <Pressable style={s.clearBtn} onPress={clearCompleted}>
-            <Ionicons name="trash-outline" size={14} color="#ef4444" />
-            <Text style={s.clearBtnText}>Rensa klara ({completedOnce.length})</Text>
-          </Pressable>
-        ) : undefined}
+        actionNode={
+          <View style={s.headerActions}>
+            {completedOnce.length > 0 && (
+              <Pressable style={s.clearBtn} onPress={clearCompleted}>
+                <Ionicons name="trash-outline" size={14} color="#ef4444" />
+                <Text style={s.clearBtnText}>Rensa klara ({completedOnce.length})</Text>
+              </Pressable>
+            )}
+            {members.length > 0 && (
+              <Pressable style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive]} onPress={() => setShowFilterModal(true)}>
+                <Ionicons name="person-outline" size={14} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
+                <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive]}>Filter</Text>
+                {filterMemberIds.length > 0 && (
+                  <View style={s.filterBadge}>
+                    <Text style={s.filterBadgeText}>{filterMemberIds.length}</Text>
+                  </View>
+                )}
+              </Pressable>
+            )}
+          </View>
+        }
       />
 
       <FlatList
@@ -347,9 +372,9 @@ export default function ChoresScreen() {
         refreshing={loading}
         ListEmptyComponent={
           <View style={s.emptyContainer}>
-            <Ionicons name="checkmark-circle-outline" size={56} color="#d1d5db" />
-            <Text style={s.emptyText}>Inga sysslor</Text>
-            <Text style={s.emptySubtext}>Tryck på + för att lägga till en</Text>
+            <Ionicons name="checkmark-circle-outline" size={fs(56)} color="#d1d5db" />
+            <Text style={[s.emptyText, { fontSize: fs(18) }]}>Inga sysslor</Text>
+            <Text style={[s.emptySubtext, { fontSize: fs(14) }]}>Tryck på + för att lägga till en</Text>
           </View>
         }
         renderItem={({ item }) => {
@@ -364,17 +389,17 @@ export default function ChoresScreen() {
                   onPress={() => deleteChore(item.id, item.title)}
                   hitSlop={10}
                 >
-                  <Ionicons name="remove-circle" size={22} color="#6b7280" />
+                  <Ionicons name="remove-circle" size={fs(22)} color="#6b7280" />
                 </Pressable>
               )}
               <Pressable
-                style={[s.card, done && s.cardDone]}
+                style={[s.card, { padding: sp(14), gap: sp(12) }, done && s.cardDone]}
                 onPress={() => { if (!editMode) openEdit(item); }}
                 onLongPress={() => { medium(); setEditMode(true); }}
               >
                 <View style={s.cardContent}>
-                  <Text style={[s.cardTitle, done && s.cardTitleDone]}>{item.title}</Text>
-                  <Text style={s.cardMeta}>
+                  <Text style={[s.cardTitle, { fontSize: fs(16) }, done && s.cardTitleDone]}>{item.title}</Text>
+                  <Text style={[s.cardMeta, { fontSize: fs(12) }]}>
                     {[
                       FREQ_LABELS[item.frequency],
                       item.frequency !== 'daily' && item.days.length > 0
@@ -387,10 +412,10 @@ export default function ChoresScreen() {
                 </View>
                 {item.frequency === 'once' && !editMode && (
                   <Pressable
-                    style={[s.checkBtn, done && s.checkBtnDone]}
+                    style={[s.checkBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }, done && s.checkBtnDone]}
                     onPress={() => done ? uncompleteChore(item) : completeChore(item)}
                   >
-                    {done && <Ionicons name="checkmark" size={20} color="#fff" />}
+                    {done && <Ionicons name="checkmark" size={fs(20)} color="#fff" />}
                   </Pressable>
                 )}
               </Pressable>
@@ -401,11 +426,11 @@ export default function ChoresScreen() {
 
       {editMode ? (
         <Pressable style={s.editDoneBtn} onPress={() => setEditMode(false)}>
-          <Text style={s.editDoneBtnText}>Klar</Text>
+          <Text style={[s.editDoneBtnText, { fontSize: fs(16) }]}>Klar</Text>
         </Pressable>
       ) : (
-        <Pressable style={s.fab} onPress={() => setShowCreate(true)}>
-          <Ionicons name="add" size={30} color="#fff" />
+        <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={() => setShowCreate(true)}>
+          <Ionicons name="add" size={fs(30)} color="#fff" />
         </Pressable>
       )}
 
@@ -413,6 +438,44 @@ export default function ChoresScreen() {
         <Ionicons name="checkmark-circle" size={20} color="#fff" />
         <Text style={s.toastText}>{toastMessage}</Text>
       </Animated.View>
+
+      <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
+        <Pressable style={s.overlay} onPress={() => setShowFilterModal(false)} />
+        <View style={s.filterSheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Filtrera på person</Text>
+          <Pressable
+            style={s.filterMemberRow}
+            onPress={() => setFilterMemberIds([])}
+          >
+            <Text style={[s.filterMemberName, filterMemberIds.length === 0 && s.filterMemberNameActive]}>Alla</Text>
+            <Ionicons
+              name={filterMemberIds.length === 0 ? 'checkbox' : 'square-outline'}
+              size={22}
+              color={filterMemberIds.length === 0 ? '#7c3aed' : '#d1d5db'}
+            />
+          </Pressable>
+          {members.map(m => {
+            const active = filterMemberIds.includes(m.id);
+            return (
+              <Pressable
+                key={m.id}
+                style={s.filterMemberRow}
+                onPress={() => setFilterMemberIds(prev =>
+                  active ? prev.filter(id => id !== m.id) : [...prev, m.id]
+                )}
+              >
+                <Text style={[s.filterMemberName, active && s.filterMemberNameActive]}>{m.displayName}</Text>
+                <Ionicons
+                  name={active ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={active ? '#7c3aed' : '#d1d5db'}
+                />
+              </Pressable>
+            );
+          })}
+        </View>
+      </Modal>
 
       {/* Create modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
@@ -642,11 +705,11 @@ const s = StyleSheet.create({
   freqOptionText: { fontSize: 13, color: '#6b7280' },
   freqOptionTextActive: { color: '#4f46e5', fontWeight: '600' },
   freqChevron: { fontSize: 9 },
-  memberRow: { flexDirection: 'row', gap: 8 },
-  memberOption: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', flexShrink: 0 },
-  memberOptionActive: { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' },
-  memberOptionText: { fontSize: 13, color: '#6b7280' },
-  memberOptionTextActive: { color: '#7c3aed', fontWeight: '600' },
+  memberChipRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
+  memberChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', flexShrink: 0 },
+  memberChipActive: { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' },
+  memberChipText: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  memberChipTextActive: { color: '#7c3aed', fontWeight: '600' },
   dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   dayOption: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
   dayOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
@@ -663,4 +726,15 @@ const s = StyleSheet.create({
   dateBtnSet: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
   dateBtnText: { fontSize: 13, color: '#9ca3af', flex: 1 },
   dateBtnTextSet: { color: '#4f46e5', fontWeight: '600' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  filterBtnActive: { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' },
+  filterBtnText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
+  filterBtnTextActive: { color: '#7c3aed', fontWeight: '600' },
+  filterBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  filterBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  filterSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 32 },
+  filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  filterMemberName: { fontSize: 16, color: '#374151', flex: 1, marginRight: 12 },
+  filterMemberNameActive: { color: '#7c3aed', fontWeight: '600' },
 });

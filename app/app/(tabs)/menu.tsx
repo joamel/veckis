@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated as RNAnimated,
   FlatList,
   Modal,
   Pressable,
@@ -22,6 +23,7 @@ import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, 
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { getISOWeek, addWeeks } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
@@ -53,6 +55,7 @@ export default function MenuScreen() {
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
+  const { fs, sp } = useTablet();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [showWeekPicker, setShowWeekPicker] = useState(false);
@@ -69,8 +72,9 @@ export default function MenuScreen() {
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [shoppingLists, setShoppingLists] = useState<ShoppingListWithItems[]>([]);
   const [loading, setLoading] = useState(true);
-  const [transferredRecipeIds, setTransferredRecipeIds] = useState<Set<string>>(new Set());
   const [transferSheet, setTransferSheet] = useState<WeekMenuItemWithRecipe | null>(null);
+  const [transferringListId, setTransferringListId] = useState<string | null>(null);
+  const [bulkTransferringListId, setBulkTransferringListId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState('');
   const [creatingList, setCreatingList] = useState(false);
   // Per-menu-item: which lists have items from it (keyed by menuItemId for per-instance tracking)
@@ -94,6 +98,35 @@ export default function MenuScreen() {
   const [replaceTarget, setReplaceTarget] = useState<WeekMenuItemWithRecipe | null>(null);
 
   const [editMode, setEditMode] = useState(false);
+
+  // Edit recipe modal
+  const [menuItemServings, setMenuItemServings] = useState<Record<string, number>>({});
+
+  function getScaleRatio(item: WeekMenuItemWithRecipe): number {
+    const base = item.recipe.servings;
+    const scaled = menuItemServings[item.id] ?? base;
+    return base > 0 ? scaled / base : 1;
+  }
+
+  function scaleQty(qty: number | null, ratio: number): number | null {
+    if (qty == null) return null;
+    const n = qty * ratio;
+    if (n % 1 === 0) return n;
+    if (n < 1) return Math.round(n * 4) / 4;
+    return Math.round(n * 2) / 2;
+  }
+
+  const toastOpacity = useRef(new RNAnimated.Value(0)).current;
+  const [toastMessage, setToastMessage] = useState('');
+
+  function showToast(msg: string) {
+    setToastMessage(msg);
+    RNAnimated.sequence([
+      RNAnimated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+      RNAnimated.delay(2500),
+      RNAnimated.timing(toastOpacity, { toValue: 0, duration: 350, useNativeDriver: true }),
+    ]).start();
+  }
 
   // Drag state — only y is used for hover detection; x kept for future use
   type DragState = { item: WeekMenuItemWithRecipe; y: number };
@@ -120,7 +153,10 @@ export default function MenuScreen() {
       menu.forEach(menuItem => {
         if (!listMap[menuItem.id]) listMap[menuItem.id] = [];
         activeLists.forEach(l => {
-          const itemsForThisMenuItem = l.items.filter(item => item.recipeId === menuItem.recipeId);
+          // Match by menuItemId (new) or fall back to recipeId (legacy items without menuItemId)
+          const itemsForThisMenuItem = l.items.filter(item =>
+            item.menuItemId ? item.menuItemId === menuItem.id : item.recipeId === menuItem.recipeId
+          );
           if (itemsForThisMenuItem.length > 0) {
             transferred.add(menuItem.recipeId);
             if (!listMap[menuItem.id].find(e => e.listId === l.id)) {
@@ -129,7 +165,6 @@ export default function MenuScreen() {
           }
         });
       });
-      setTransferredRecipeIds(transferred);
       setRecipeListMap(listMap);
     } catch {
       Alert.alert('Fel', 'Kunde inte ladda menyn');
@@ -297,6 +332,15 @@ export default function MenuScreen() {
     for (const listId of listIds) {
       const list = shoppingLists.find(l => l.id === listId);
       if (!list) continue;
+
+      // New: delete by menuItemId if items are tagged
+      const taggedItems = list.items.filter(i => i.menuItemId === menuItem.id);
+      if (taggedItems.length > 0) {
+        ops.push(client.deleteItemsByMenuItemId(listId, menuItem.id));
+        continue;
+      }
+
+      // Legacy: subtract quantities by name+unit match (items without menuItemId)
       for (const ing of menuItem.recipe.ingredients) {
         const name = ing.name.toLowerCase().trim();
         const unit = (ing.unit ?? '').toLowerCase().trim();
@@ -340,7 +384,7 @@ export default function MenuScreen() {
       return;
     }
 
-    const notTransferred = menuItems.filter(m => !transferredRecipeIds.has(m.recipeId));
+    const notTransferred = menuItems.filter(m => !recipeListMap[m.id]?.length);
     if (notTransferred.length === 0) {
       Alert.alert('Redan överförd', 'Alla rätter denna vecka är redan överförda till en inköpslista');
       return;
@@ -371,44 +415,71 @@ export default function MenuScreen() {
         return;
       }
 
-      const allIngredients: { name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string }[] = [];
+      const allIngredients: { name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string; menuItemId: string }[] = [];
       for (const item of actuallyTransfer) {
+        const scaleRatio = getScaleRatio(item);
         for (const ing of item.recipe.ingredients) {
           allIngredients.push({
             name: ing.name,
-            quantity: ing.quantity ?? null,
+            quantity: scaleQty(ing.quantity ?? null, scaleRatio),
             unit: ing.unit ?? null,
             category: ing.category,
             recipeId: item.recipeId,
+            menuItemId: item.id,
           });
         }
       }
 
+      setBulkTransferringListId(listId);
       await client.transferToShopping(listId, allIngredients);
-      setTransferredRecipeIds(prev => new Set([...prev, ...actuallyTransfer.map(m => m.recipeId)]));
+      const targetList = shoppingLists.find(l => l.id === listId);
+      if (targetList) {
+        setRecipeListMap(prev => {
+          const next = { ...prev };
+          for (const item of actuallyTransfer) {
+            next[item.id] = [{ listId, listName: targetList.name, itemCount: item.recipe.ingredients.length }];
+          }
+          return next;
+        });
+      }
+      setBulkTransferringListId(null);
       setShowBulkTransferModal(false);
       load();
-      Alert.alert('Klart', `${actuallyTransfer.length} rätter överförda`);
+      showToast(`${actuallyTransfer.length} ${actuallyTransfer.length === 1 ? 'rätt' : 'rätter'} överförd${actuallyTransfer.length === 1 ? '' : 'a'} till inköpslistan`);
     } catch {
+      setBulkTransferringListId(null);
       Alert.alert('Fel', 'Kunde inte överföra ingredienserna');
     }
   }
 
   async function doTransfer(listId: string) {
-    if (!transferSheet) return;
+    if (!transferSheet || transferringListId) return;
+    const menuItemId = transferSheet.id;
     const recipe = transferSheet.recipe;
-    setTransferSheet(null);
+    const scaleRatio = getScaleRatio(transferSheet);
+    setTransferringListId(listId);
     try {
       await client.transferToShopping(listId, recipe.ingredients.map(ing => ({
         name: ing.name,
-        quantity: ing.quantity ?? null,
+        quantity: scaleQty(ing.quantity ?? null, scaleRatio),
         unit: ing.unit ?? null,
         category: ing.category ?? undefined,
         recipeId: recipe.id,
+        menuItemId,
       })));
-      setTransferredRecipeIds(prev => new Set([...prev, recipe.id]));
+      const targetList = shoppingLists.find(l => l.id === listId);
+      if (targetList) {
+        setRecipeListMap(prev => ({
+          ...prev,
+          [menuItemId]: [{ listId, listName: targetList.name, itemCount: recipe.ingredients.length }],
+        }));
+      }
+      setTransferSheet(null);
+      setTransferringListId(null);
       load();
+      showToast(`${recipe.title} överförd till inköpslistan`);
     } catch {
+      setTransferringListId(null);
       Alert.alert('Fel', 'Kunde inte lägga till ingredienserna');
     }
   }
@@ -428,10 +499,12 @@ export default function MenuScreen() {
       );
       if (!confirmed) return;
     }
+    setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, day } : i));
     try {
       const updated = await client.updateWeekMenuItem(item.id, { day });
       setMenuItems(prev => prev.map(i => i.id === updated.id ? updated : i));
     } catch {
+      setMenuItems(prev => prev.map(i => i.id === item.id ? item : i));
       Alert.alert('Fel', 'Kunde inte flytta rätten');
     }
   }
@@ -491,13 +564,13 @@ export default function MenuScreen() {
               ref={ref => measureDaySection(day.key, ref)}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#111827' }}>
+                <Text style={{ flex: 1, fontSize: fs(14), fontWeight: '700', color: '#111827' }}>
                   {day.label}{' '}
-                  <Text style={{ fontSize: 12, fontWeight: '400', color: '#6b7280' }}>{date.getDate()} {MONTH_NAMES[date.getMonth()]}</Text>
+                  <Text style={{ fontSize: fs(12), fontWeight: '400', color: '#6b7280' }}>{date.getDate()} {MONTH_NAMES[date.getMonth()]}</Text>
                 </Text>
                 {!editMode && items.length === 0 && (
                   <Pressable onPress={() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }}>
-                    <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
+                    <Ionicons name="add-circle-outline" size={fs(20)} color="#4f46e5" />
                   </Pressable>
                 )}
               </View>
@@ -508,7 +581,7 @@ export default function MenuScreen() {
                   <MenuCard
                     key={item.id}
                     item={item}
-                    isTransferred={transferredRecipeIds.has(item.recipeId)}
+                    isTransferred={!!recipeListMap[item.id]?.length}
                     editMode={editMode}
                     onRemove={() => removeFromMenu(item)}
                     onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
@@ -519,6 +592,8 @@ export default function MenuScreen() {
                     onDragMove={onDragMove}
                     onDragEnd={onDragEnd}
                     isDragging={dragState?.item.id === item.id}
+                    scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
+                    onScaleServings={n => setMenuItemServings(prev => ({ ...prev, [item.id]: n }))}
                   />
                 ))
               )}
@@ -546,7 +621,7 @@ export default function MenuScreen() {
               <MenuCard
                 key={item.id}
                 item={item}
-                isTransferred={transferredRecipeIds.has(item.recipeId)}
+                isTransferred={!!recipeListMap[item.id]?.length}
                 editMode={editMode}
                 onRemove={() => removeFromMenu(item)}
                 onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
@@ -557,6 +632,8 @@ export default function MenuScreen() {
                 onDragMove={onDragMove}
                 onDragEnd={onDragEnd}
                 isDragging={dragState?.item.id === item.id}
+                scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
+                onScaleServings={n => setMenuItemServings(prev => ({ ...prev, [item.id]: n }))}
               />
             ))
           )}
@@ -572,13 +649,13 @@ export default function MenuScreen() {
 
         <View style={s.newListSection}>
           <Pressable
-            style={[s.newListBtn, menuItems.every(m => transferredRecipeIds.has(m.recipeId)) && s.newListBtnDisabled]}
+            style={[s.newListBtn, menuItems.every(m => !!recipeListMap[m.id]?.length) && s.newListBtnDisabled]}
             onPress={transferWeekMenu}
-            disabled={menuItems.every(m => transferredRecipeIds.has(m.recipeId))}
+            disabled={menuItems.every(m => !!recipeListMap[m.id]?.length)}
           >
-            <Ionicons name="cart-outline" size={20} color={menuItems.every(m => transferredRecipeIds.has(m.recipeId)) ? '#d1d5db' : '#4f46e5'} />
-            <Text style={[s.newListBtnText, menuItems.every(m => transferredRecipeIds.has(m.recipeId)) && s.newListBtnTextDisabled]}>
-              {menuItems.every(m => transferredRecipeIds.has(m.recipeId)) ? 'Redan överförd' : 'Veckomeny → Inköpslista'}
+            <Ionicons name="cart-outline" size={20} color={menuItems.every(m => !!recipeListMap[m.id]?.length) ? '#d1d5db' : '#4f46e5'} />
+            <Text style={[s.newListBtnText, menuItems.every(m => !!recipeListMap[m.id]?.length) && s.newListBtnTextDisabled]}>
+              {menuItems.every(m => !!recipeListMap[m.id]?.length) ? 'Redan överförd' : 'Veckomeny → Inköpslista'}
             </Text>
           </Pressable>
         </View>
@@ -588,7 +665,7 @@ export default function MenuScreen() {
       {/* Edit mode exit button */}
       {editMode && !dragState && (
         <Pressable style={s.editDoneBtn} onPress={exitEditMode}>
-          <Text style={s.editDoneBtnText}>Klar</Text>
+          <Text style={[s.editDoneBtnText, { fontSize: fs(16) }]}>Klar</Text>
         </Pressable>
       )}
 
@@ -759,9 +836,17 @@ export default function MenuScreen() {
             </>
           ) : (
             shoppingLists.map(l => (
-              <Pressable key={l.id} style={s.pickerItem} onPress={() => doTransfer(l.id)}>
-                <Text style={s.pickerItemTitle}>{l.name}</Text>
-                <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
+              <Pressable
+                key={l.id}
+                style={[s.pickerItem, !!transferringListId && s.pickerItemDisabled]}
+                onPress={() => doTransfer(l.id)}
+                disabled={!!transferringListId}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.pickerItemTitle}>{l.name}</Text>
+                  <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
+                </View>
+                {transferringListId === l.id && <ActivityIndicator size="small" color="#4f46e5" />}
               </Pressable>
             ))
           )}
@@ -780,7 +865,7 @@ export default function MenuScreen() {
               <Text style={s.sheetSub}>Vilka rätter vill du överföra?</Text>
               <ScrollView style={s.bulkRecipeList}>
                 {menuItems
-                  .filter(item => !transferredRecipeIds.has(item.recipeId))
+                  .filter(item => !!!recipeListMap[item.id]?.length)
                   .map(item => {
                     const selected = selectedRecipesForTransfer.has(item.id);
                     return (
@@ -850,11 +935,15 @@ export default function MenuScreen() {
                   {shoppingLists.map(l => (
                     <Pressable
                       key={l.id}
-                      style={s.pickerItem}
+                      style={[s.pickerItem, !!bulkTransferringListId && s.pickerItemDisabled]}
                       onPress={() => executeBulkTransfer(l.id)}
+                      disabled={!!bulkTransferringListId}
                     >
-                      <Text style={s.pickerItemTitle}>{l.name}</Text>
-                      <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.pickerItemTitle}>{l.name}</Text>
+                        <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
+                      </View>
+                      {bulkTransferringListId === l.id && <ActivityIndicator size="small" color="#4f46e5" />}
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -886,6 +975,11 @@ export default function MenuScreen() {
         }}
         onClose={() => setShowWeekPicker(false)}
       />
+
+      <RNAnimated.View style={[s.toast, { opacity: toastOpacity }]} pointerEvents="none">
+        <Ionicons name="checkmark-circle" size={20} color="#fff" />
+        <Text style={s.toastText}>{toastMessage}</Text>
+      </RNAnimated.View>
     </SafeAreaView>
   );
 }
@@ -903,6 +997,8 @@ function MenuCard({
   onDragMove,
   onDragEnd,
   isDragging,
+  scaledServings,
+  onScaleServings,
 }: {
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
@@ -912,14 +1008,16 @@ function MenuCard({
   onMoveToDay: (day: WeekDay | null) => void;
   onReplace: () => void;
   onLongPress: () => void;
-
   onDragStart: (x: number, y: number) => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: () => void;
   isDragging: boolean;
+  scaledServings: number;
+  onScaleServings: (n: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const { medium } = useHaptics();
+  const { fs, sp } = useTablet();
 
   // Pan gesture for drag — use only onFinalize to avoid double-fire
   const panGesture = Gesture.Pan()
@@ -961,29 +1059,56 @@ function MenuCard({
           </Pressable>
         )}
         <View style={s.cardInner}>
-          <Pressable style={s.cardMain} onPress={handlePress}>
-            <View style={s.cardIcon}>
-              <Ionicons name="restaurant-outline" size={18} color="#4f46e5" />
+          <Pressable style={[s.cardMain, { padding: sp(14), gap: sp(12) }]} onPress={handlePress}>
+            <View style={[s.cardIcon, { width: sp(36), height: sp(36) }]}>
+              <Ionicons name="restaurant-outline" size={fs(18)} color="#4f46e5" />
             </View>
             <View style={s.cardContent}>
-              <Text style={s.cardTitle}>{item.recipe.title}</Text>
+              <Text style={[s.cardTitle, { fontSize: fs(15) }]}>{item.recipe.title}</Text>
               {isTransferred && (
                 <View style={s.transferredBadge}>
-                  <Ionicons name="checkmark-circle" size={14} color="#10b981" />
-                  <Text style={s.transferredText}>I inköpslistan</Text>
+                  <Ionicons name="checkmark-circle" size={fs(14)} color="#10b981" />
+                  <Text style={[s.transferredText, { fontSize: fs(11) }]}>I inköpslistan</Text>
                 </View>
               )}
-              <Text style={s.cardMeta}>{item.recipe.servings} port · {item.recipe.ingredients.length} ingredienser</Text>
+              <Text style={[s.cardMeta, { fontSize: fs(12) }]}>
+                {scaledServings !== item.recipe.servings
+                  ? `${scaledServings} port (orig. ${item.recipe.servings})`
+                  : `${item.recipe.servings} port`}
+                {' · '}{item.recipe.ingredients.length} ingredienser
+              </Text>
             </View>
-            {!editMode && <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#9ca3af" />}
+            {!editMode && <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color="#9ca3af" />}
           </Pressable>
 
           {!editMode && expanded && (
             <View style={s.cardExpanded}>
+              {/* Portion scaler */}
+              <View style={s.servingScaler}>
+                <Text style={s.servingScalerLabel}>Portioner</Text>
+                <View style={s.servingScalerControls}>
+                  <Pressable
+                    onPress={() => onScaleServings(Math.max(1, scaledServings - 1))}
+                    style={s.servingScalerBtn}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="remove" size={14} color="#4f46e5" />
+                  </Pressable>
+                  <Text style={s.servingScalerValue}>{scaledServings}</Text>
+                  <Pressable
+                    onPress={() => onScaleServings(scaledServings + 1)}
+                    style={s.servingScalerBtn}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="add" size={14} color="#4f46e5" />
+                  </Pressable>
+                </View>
+              </View>
+
               <View style={s.cardActions}>
                 <Pressable style={s.cardAction} onPress={onViewRecipe}>
                   <Ionicons name="open-outline" size={15} color="#6b7280" />
-                  <Text style={s.cardActionText}>Visa recept</Text>
+                  <Text style={s.cardActionText}>Visa</Text>
                 </Pressable>
                 <Pressable style={s.cardAction} onPress={onReplace}>
                   <Ionicons name="swap-horizontal-outline" size={15} color="#6b7280" />
@@ -1053,6 +1178,12 @@ const s = StyleSheet.create({
   transferredBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   transferredText: { fontSize: 11, color: '#10b981', fontWeight: '600' },
   cardExpanded: { borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingHorizontal: 14, paddingBottom: 12 },
+  servingScaler: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, paddingBottom: 4 },
+  servingScalerLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  servingScalerControls: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  servingScalerBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
+  servingScalerValue: { fontSize: 15, fontWeight: '700', color: '#111827', minWidth: 24, textAlign: 'center' },
+  servingScalerReset: { fontSize: 12, color: '#9ca3af', textDecorationLine: 'underline' },
   cardActions: { flexDirection: 'row', gap: 0, paddingTop: 10, pointerEvents: 'auto' },
   cardAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, pointerEvents: 'auto' },
   cardActionText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
@@ -1081,7 +1212,8 @@ const s = StyleSheet.create({
   dayGridLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
   dayGridLabelNone: { color: '#9ca3af' },
   pickerList: { maxHeight: 400 },
-  pickerItem: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  pickerItem: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', flexDirection: 'row', alignItems: 'center' },
+  pickerItemDisabled: { opacity: 0.5 },
   pickerItemTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
   pickerItemMeta: { fontSize: 13, color: '#6b7280', marginTop: 2 },
   pickerEmpty: { alignItems: 'center', paddingVertical: 24, gap: 12 },
@@ -1124,4 +1256,6 @@ const s = StyleSheet.create({
   ghostCard: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 12, padding: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
   ghostCardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   ghostCardText: { fontSize: 15, fontWeight: '600', color: '#111827', flex: 1 },
+  toast: { position: 'absolute', bottom: 100, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

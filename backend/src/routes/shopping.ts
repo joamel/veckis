@@ -5,7 +5,9 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
-import { learnIngredientAliases } from '../lib/normalizeIngredients';
+import { learnIngredientAliases, getStoredCategory, storeIngredientCategory } from '../lib/normalizeIngredients';
+import { stripIngredient } from '../lib/stripIngredient';
+import { wsBroadcast } from '../lib/wsHub';
 
 export const shoppingRouter = Router();
 
@@ -140,9 +142,9 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   const body = addItemSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const normalizedName = body.data.name.toLowerCase();
+  const normalizedName = stripIngredient(body.data.name);
   const category = body.data.category === 'other'
-    ? categorizeIngredient(normalizedName)
+    ? (await getStoredCategory(normalizedName) ?? categorizeIngredient(normalizedName))
     : body.data.category;
 
   // If an unchecked item with the same name+unit already exists, increment its quantity
@@ -161,6 +163,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
       data: { quantity: existing.quantity + (body.data.quantity ?? 1) },
     });
     learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
+    wsBroadcast(list.id, { type: 'item_updated', data: item });
     res.status(200).json(item);
     return;
   }
@@ -169,9 +172,8 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
     data: { listId: list.id, ...body.data, name: normalizedName, category, addedBy: (req as AuthenticatedRequest).clerkUserId },
   });
 
-  // Learn this item for future suggestions (fire-and-forget)
   learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
-
+  wsBroadcast(list.id, { type: 'item_added', data: item });
   res.status(201).json(item);
 }));
 
@@ -180,6 +182,7 @@ shoppingRouter.delete('/lists/:listId/items', requireAuth, asyncHandler(async (r
   const list = await getListAndVerifyMember(req.params.listId, (req as AuthenticatedRequest).clerkUserId, res);
   if (!list) return;
   await prisma.shoppingItem.deleteMany({ where: { listId: list.id } });
+  wsBroadcast(list.id, { type: 'list_cleared' });
   res.status(204).send();
 }));
 
@@ -197,6 +200,12 @@ shoppingRouter.patch('/items/:itemId', requireAuth, asyncHandler(async (req, res
   const data = { ...body.data };
   if (data.name) data.name = data.name.toLowerCase();
   const item = await prisma.shoppingItem.update({ where: { id: existing.id }, data });
+
+  if (data.category && data.category !== existing.category) {
+    storeIngredientCategory(item.name, data.category as StoreCategory).catch(() => {});
+  }
+
+  wsBroadcast(list.id, { type: 'item_updated', data: item });
   res.json(item);
 }));
 
@@ -216,7 +225,26 @@ shoppingRouter.patch('/items/:itemId/check', requireAuth, asyncHandler(async (re
     where: { id: existing.id },
     data: { isChecked: body.data.checked, checkedBy: body.data.checked ? clerkUserId : null },
   });
+  wsBroadcast(existing.listId, { type: 'item_updated', data: item });
   res.json(item);
+}));
+
+// DELETE /api/shopping/lists/:listId/items/by-menu-item/:menuItemId
+shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAuth, asyncHandler(async (req, res) => {
+  const list = await getListAndVerifyMember(req.params.listId, (req as AuthenticatedRequest).clerkUserId, res);
+  if (!list) return;
+
+  const deleted = await prisma.shoppingItem.findMany({
+    where: { listId: list.id, menuItemId: req.params.menuItemId },
+    select: { id: true },
+  });
+  await prisma.shoppingItem.deleteMany({
+    where: { listId: list.id, menuItemId: req.params.menuItemId },
+  });
+  for (const { id } of deleted) {
+    wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+  }
+  res.status(204).send();
 }));
 
 // DELETE /api/shopping/items/:itemId
@@ -228,5 +256,6 @@ shoppingRouter.delete('/items/:itemId', requireAuth, asyncHandler(async (req, re
   if (!list) return;
 
   await prisma.shoppingItem.delete({ where: { id: existing.id } });
+  wsBroadcast(list.id, { type: 'item_deleted', data: { id: existing.id } });
   res.status(204).send();
 }));

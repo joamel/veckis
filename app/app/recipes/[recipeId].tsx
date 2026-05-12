@@ -1,9 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -20,6 +22,8 @@ import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems } 
 import { useHousehold } from '../../src/context/HouseholdContext';
 import type { RecipeIngredient } from '@veckis/shared';
 
+const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'nypa', 'påse', 'burk', 'flaska'];
+
 export default function RecipeDetailScreen() {
   const { recipeId, transfer } = useLocalSearchParams<{ recipeId: string; transfer?: string }>();
   const router = useRouter();
@@ -34,6 +38,24 @@ export default function RecipeDetailScreen() {
   const [editMode, setEditMode] = useState(false);
   const [editIngredients, setEditIngredients] = useState<Array<{ name: string; quantity: string; unit: string }>>([]);
   const [saving, setSaving] = useState(false);
+  const [activeUnitIdx, setActiveUnitIdx] = useState<number | null>(null);
+  type RowRef = { qty: TextInput | null; unit: TextInput | null; name: TextInput | null };
+  const rowRefs = useRef<RowRef[]>([]);
+  const mainScrollRef = useRef<ScrollView>(null);
+  const scrollOffsetY = useRef(0);
+
+  useEffect(() => {
+    if (activeUnitIdx === null) return;
+    const t = setTimeout(() => {
+      mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + 50, animated: true });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [activeUnitIdx]);
+
+  function getRowRef(idx: number): RowRef {
+    if (!rowRefs.current[idx]) rowRefs.current[idx] = { qty: null, unit: null, name: null };
+    return rowRefs.current[idx];
+  }
 
   // Transfer to shopping
   const [showTransfer, setShowTransfer] = useState(false);
@@ -69,6 +91,8 @@ export default function RecipeDetailScreen() {
 
   function startEdit() {
     if (!recipe) return;
+    rowRefs.current = [];
+    setActiveUnitIdx(null);
     setEditIngredients(recipe.ingredients.map(i => ({
       name: i.name,
       quantity: i.quantity != null ? String(i.quantity) : '',
@@ -175,7 +199,14 @@ export default function RecipeDetailScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={s.scroll}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <ScrollView
+        ref={mainScrollRef}
+        contentContainerStyle={s.scroll}
+        keyboardShouldPersistTaps="always"
+        scrollEventThrottle={16}
+        onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
+      >
         {/* Meta */}
         <View style={s.metaRow}>
           {/* Serving scaler */}
@@ -220,31 +251,67 @@ export default function RecipeDetailScreen() {
           {editMode ? (
             <View style={s.editList}>
               {editIngredients.map((row, idx) => (
-                <View key={idx} style={s.editRow}>
-                  <TextInput
-                    style={[s.editInput, s.editInputQty]}
-                    placeholder="Mängd"
-                    value={row.quantity}
-                    onChangeText={v => updateEditRow(idx, 'quantity', v)}
-                    keyboardType="decimal-pad"
-                  />
-                  <TextInput
-                    style={[s.editInput, s.editInputUnit]}
-                    placeholder="Enhet"
-                    value={row.unit}
-                    onChangeText={v => updateEditRow(idx, 'unit', v)}
-                    autoCapitalize="none"
-                  />
-                  <TextInput
-                    style={[s.editInput, s.editInputName]}
-                    placeholder="Ingrediens"
-                    value={row.name}
-                    onChangeText={v => updateEditRow(idx, 'name', v)}
-                    autoCapitalize="none"
-                  />
-                  <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove}>
-                    <Ionicons name="close-circle" size={20} color="#d1d5db" />
-                  </Pressable>
+                <View key={idx}>
+                  <View style={s.editRow}>
+                    <TextInput
+                      ref={el => { getRowRef(idx).qty = el; }}
+                      style={[s.editInput, s.editInputQty]}
+                      placeholder="Mängd"
+                      value={row.quantity}
+                      onChangeText={v => updateEditRow(idx, 'quantity', v)}
+                      keyboardType="decimal-pad"
+                      returnKeyType="next"
+                      blurOnSubmit={false}
+                      onSubmitEditing={() => getRowRef(idx).unit?.focus()}
+                    />
+                    <TextInput
+                      ref={el => { getRowRef(idx).unit = el; }}
+                      style={[s.editInput, s.editInputUnit]}
+                      placeholder="Enhet"
+                      value={row.unit}
+                      onChangeText={v => updateEditRow(idx, 'unit', v)}
+                      autoCapitalize="none"
+                      returnKeyType="next"
+                      blurOnSubmit={false}
+                      onFocus={() => setActiveUnitIdx(idx)}
+                      onBlur={() => setTimeout(() => setActiveUnitIdx(a => a === idx ? null : a), 120)}
+                      onSubmitEditing={() => { setActiveUnitIdx(null); getRowRef(idx).name?.focus(); }}
+                    />
+                    <TextInput
+                      ref={el => { getRowRef(idx).name = el; }}
+                      style={[s.editInput, s.editInputName]}
+                      placeholder="Ingrediens"
+                      value={row.name}
+                      onChangeText={v => updateEditRow(idx, 'name', v)}
+                      autoCapitalize="none"
+                      returnKeyType={idx < editIngredients.length - 1 ? 'next' : 'done'}
+                      blurOnSubmit={false}
+                      onSubmitEditing={() => {
+                        if (idx < editIngredients.length - 1) getRowRef(idx + 1).qty?.focus();
+                      }}
+                    />
+                    <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove}>
+                      <Ionicons name="close-circle" size={20} color="#d1d5db" />
+                    </Pressable>
+                  </View>
+                  {activeUnitIdx === idx && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="always">
+                      <View style={s.unitChipRow}>
+                        {UNITS.map(u => {
+                          const active = row.unit === u;
+                          return (
+                            <Pressable
+                              key={u}
+                              style={[s.unitChip, active && s.unitChipActive]}
+                              onPress={() => updateEditRow(idx, 'unit', active ? '' : u)}
+                            >
+                              <Text style={[s.unitChipText, active && s.unitChipTextActive]}>{u}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </ScrollView>
+                  )}
                 </View>
               ))}
               <Pressable style={s.addRowBtn} onPress={addEditRow}>
@@ -276,6 +343,7 @@ export default function RecipeDetailScreen() {
           )}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Transfer modal */}
       <Modal visible={showTransfer} transparent animationType="slide" onRequestClose={() => setShowTransfer(false)}>
@@ -411,6 +479,12 @@ const s = StyleSheet.create({
   editRemove: { padding: 2 },
   addRowBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   addRowBtnText: { fontSize: 14, color: '#4f46e5', fontWeight: '500' },
+  unitChipScroll: { marginBottom: 4 },
+  unitChipRow: { flexDirection: 'row', gap: 6, paddingVertical: 4 },
+  unitChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  unitChipActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
+  unitChipText: { fontSize: 13, color: '#374151', fontWeight: '500' },
+  unitChipTextActive: { color: '#4f46e5', fontWeight: '600' },
   editActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   cancelBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center' },
   cancelBtnText: { fontSize: 15, color: '#6b7280', fontWeight: '500' },

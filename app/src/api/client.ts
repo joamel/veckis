@@ -232,8 +232,11 @@ export function useApiClient() {
     deleteWeekMenuItem: (itemId: string) =>
       request<void>(`/api/menus/${itemId}`, { method: 'DELETE' }),
 
-    transferToShopping: (listId: string, ingredients: Array<{ name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string }>) =>
+    transferToShopping: (listId: string, ingredients: Array<{ name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string; menuItemId?: string }>) =>
       request<ShoppingItem[]>('/api/menus/to-shopping', { method: 'POST', body: JSON.stringify({ listId, ingredients }) }),
+
+    deleteItemsByMenuItemId: (listId: string, menuItemId: string) =>
+      request<void>(`/api/shopping/lists/${listId}/items/by-menu-item/${menuItemId}`, { method: 'DELETE' }),
 
     // Staples
     getStaples: (householdId: string) =>

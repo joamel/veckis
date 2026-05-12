@@ -21,8 +21,10 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@clerk/clerk-expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type StapleItem, type Store } from '@veckis/shared';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
@@ -32,11 +34,15 @@ const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
   personal_care: '🧴', other: '📦',
 };
 
+// Survives navigation within the session; resets on app restart
+const dismissedDupesStore = new Map<string, Set<string>>();
+
 export default function ShoppingListScreen() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
+  const { getToken } = useAuth();
 
   const [list, setList] = useState<ShoppingListWithItems | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,8 +86,12 @@ export default function ShoppingListScreen() {
   const inputRef = useRef<TextInput>(null);
   const editQtyRef = useRef<TextInput>(null);
   const editUnitRef = useRef<TextInput>(null);
+  const qtyUnitRef = useRef<TextInput>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
+  const dupeButtonScale = useRef(new Animated.Value(1)).current;
+  const hasPulsedDupes = useRef(false);
+  const pendingOpenNextDupe = useRef(false);
 
   function showToast(msg: string) {
     setToastMessage(msg);
@@ -92,22 +102,90 @@ export default function ShoppingListScreen() {
     ]).start();
   }
 
+  useShoppingSocket(listId, getToken, (msg) => {
+    setList(prev => {
+      if (!prev) return prev;
+      switch (msg.type) {
+        case 'item_added': {
+          const exists = prev.items.some(i => i.id === msg.data.id);
+          if (exists) return prev;
+          return { ...prev, items: [...prev.items, { ...msg.data, recipe: null }] };
+        }
+        case 'item_updated':
+          return {
+            ...prev,
+            items: prev.items.map(i =>
+              i.id === msg.data.id ? { ...msg.data, recipe: i.recipe } : i,
+            ),
+          };
+        case 'item_deleted':
+          return { ...prev, items: prev.items.filter(i => i.id !== msg.data.id) };
+        case 'list_cleared':
+          return { ...prev, items: [] };
+        default:
+          return prev;
+      }
+    });
+  });
+
   const openMergeForDupes = useCallback((
     dupes: ShoppingItemWithRecipe[],
     lastItem?: { quantity?: number | null; unit?: string | null },
   ) => {
     if (dupes.length < 2) return;
-    const allSameUnit = dupes.every(d => (d.unit ?? '') === (dupes[0].unit ?? ''));
-    const totalQty = allSameUnit
-      ? dupes.reduce((sum, d) => sum + (d.quantity ?? 1), 0)
-      : (lastItem?.quantity ?? dupes[0].quantity ?? 1);
+    const totalQty = dupes.reduce((sum, d) => sum + (d.quantity ?? 1), 0);
+    const bestUnit = lastItem?.unit
+      || [...dupes].reverse().map(d => d.unit ?? '').find(Boolean)
+      || '';
     setMergeSheet({ name: dupes[0].name.toLowerCase().trim(), category: dupes[0].category as StoreCategory, items: dupes });
     setMergeSelected(new Set(dupes.map(i => i.id)));
     setMergeQty(String(totalQty));
-    setMergeUnit(allSameUnit ? (dupes[0].unit ?? '') : (lastItem?.unit ?? ''));
+    setMergeUnit(bestUnit);
   }, []);
 
   const categoryOrder: StoreCategory[] = (list?.store?.categoryOrder as StoreCategory[]) ?? DEFAULT_CATEGORY_ORDER;
+
+  const [dismissedDupeKeys, setDismissedDupeKeys] = useState<Set<string>>(
+    () => dismissedDupesStore.get(listId ?? '') ?? new Set(),
+  );
+
+  const duplicateGroups = useMemo(() => {
+    if (!list) return [];
+    const nameMap = new Map<string, ShoppingItemWithRecipe[]>();
+    for (const item of list.items.filter(i => !i.isChecked && !i.id.startsWith('optimistic-'))) {
+      const key = item.name.toLowerCase().trim();
+      if (!nameMap.has(key)) nameMap.set(key, []);
+      nameMap.get(key)!.push(item);
+    }
+    return [...nameMap.values()].filter(g => g.length >= 2 && !dismissedDupeKeys.has(g[0].name.toLowerCase().trim()));
+  }, [list, dismissedDupeKeys]);
+
+  function dismissDupeGroup(name: string) {
+    const key = name.toLowerCase().trim();
+    const next = new Set([...dismissedDupeKeys, key]);
+    dismissedDupesStore.set(listId ?? '', next);
+    setDismissedDupeKeys(next);
+  }
+
+  useEffect(() => {
+    if (duplicateGroups.length > 0 && !hasPulsedDupes.current) {
+      hasPulsedDupes.current = true;
+      Animated.sequence([
+        Animated.timing(dupeButtonScale, { toValue: 1.15, duration: 150, useNativeDriver: true }),
+        Animated.timing(dupeButtonScale, { toValue: 0.95, duration: 100, useNativeDriver: true }),
+        Animated.timing(dupeButtonScale, { toValue: 1.08, duration: 100, useNativeDriver: true }),
+        Animated.timing(dupeButtonScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+      ]).start();
+    }
+    if (duplicateGroups.length === 0) hasPulsedDupes.current = false;
+  }, [duplicateGroups.length]);
+
+  useEffect(() => {
+    if (pendingOpenNextDupe.current && !mergeSheet && duplicateGroups.length > 0) {
+      pendingOpenNextDupe.current = false;
+      openMergeForDupes(duplicateGroups[0]);
+    }
+  }, [mergeSheet, duplicateGroups, openMergeForDupes]);
 
   const searchList = useMemo(() => {
     const stapleNames = new Set(staples.map(s => s.name.toLowerCase()));
@@ -135,16 +213,6 @@ export default function ShoppingListScreen() {
       setStores(storeList);
       setStaples(stapleList);
       setIngredientSuggestions(suggestions);
-      // Detect duplicates (e.g. after recipe transfer from menu)
-      const unchecked = data.items.filter(i => !i.isChecked);
-      const nameMap = new Map<string, typeof unchecked>();
-      for (const item of unchecked) {
-        const key = item.name.toLowerCase().trim();
-        if (!nameMap.has(key)) nameMap.set(key, []);
-        nameMap.get(key)!.push(item);
-      }
-      const firstGroup = [...nameMap.values()].find(g => g.length >= 2);
-      if (firstGroup) openMergeForDupes(firstGroup);
     } catch {
       Alert.alert('Fel', 'Kunde inte ladda listan');
     } finally {
@@ -166,8 +234,29 @@ export default function ShoppingListScreen() {
   async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string) {
     let itemName = (name ?? newItem).trim().toLowerCase();
     if (!listId || !itemName) return;
-    setAdding(true);
+
+    const tempId = `optimistic-${Date.now()}`;
+    const optimisticItem: ShoppingItemWithRecipe = {
+      id: tempId,
+      listId,
+      name: itemName,
+      quantity: quantity ?? 1,
+      unit: unit ?? null,
+      category: category ?? 'other',
+      isChecked: false,
+      checkedBy: null,
+      addedBy: '',
+      note: null,
+      recipeId: null,
+      menuItemId: null,
+      recipe: null,
+    };
+
+    setList(prev => prev ? { ...prev, items: [...(prev.items ?? []), optimisticItem] } : prev);
+    setNewItem('');
     Keyboard.dismiss();
+    setAdding(true);
+
     try {
       const item = await client.addShoppingItem(listId, {
         name: itemName,
@@ -175,13 +264,24 @@ export default function ShoppingListScreen() {
         ...(quantity && quantity !== 1 ? { quantity } : {}),
         ...(unit ? { unit } : {}),
       });
-      const prevItems = list?.items ?? [];
-      const itemExists = prevItems.some(i => i.id === item.id);
-      const updatedItems = itemExists
-        ? prevItems.map(i => i.id === item.id ? { ...item, recipe: i.recipe } : i)
-        : [...prevItems, { ...item, recipe: null }];
-      setList(prev => prev ? { ...prev, items: updatedItems } : prev);
-      setNewItem('');
+      setList(prev => {
+        if (!prev) return prev;
+        const itemExists = prev.items.some(i => i.id === item.id);
+        if (itemExists) {
+          // Server merged with an existing item — remove optimistic entry and update real one
+          return {
+            ...prev,
+            items: prev.items
+              .filter(i => i.id !== tempId)
+              .map(i => i.id === item.id ? { ...item, recipe: i.recipe } : i),
+          };
+        }
+        // Replace optimistic entry with real item
+        return {
+          ...prev,
+          items: prev.items.map(i => i.id === tempId ? { ...item, recipe: null } : i),
+        };
+      });
       if (householdId) {
         client.upsertStaple({
           householdId,
@@ -197,12 +297,17 @@ export default function ShoppingListScreen() {
           showToast(itemName.charAt(0).toUpperCase() + itemName.slice(1) + ' tillagd till inköpslistan');
         }).catch(() => {});
       }
-      const dupes = updatedItems.filter(
-        i => !i.isChecked && i.name.toLowerCase().trim() === itemName,
-      );
-      if (dupes.length >= 2) openMergeForDupes(dupes, item);
+      setList(prev => {
+        if (!prev) return prev;
+        const currentItems = prev.items.filter(i => i.id !== tempId);
+        const realItem = currentItems.find(i => i.id === item.id) ?? { ...item, recipe: null };
+        const dupes = currentItems.filter(i => !i.isChecked && i.name.toLowerCase().trim() === itemName);
+        if (dupes.length >= 2) openMergeForDupes(dupes, realItem);
+        return prev;
+      });
     } catch (err) {
       console.error('Failed to add item:', err);
+      setList(prev => prev ? { ...prev, items: (prev.items ?? []).filter(i => i.id !== tempId) } : prev);
       Alert.alert('Fel', 'Kunde inte lägga till vara');
     } finally {
       setAdding(false);
@@ -260,6 +365,7 @@ export default function ShoppingListScreen() {
             ),
         };
       });
+      pendingOpenNextDupe.current = true;
       setMergeSheet(null);
     } catch {
       Alert.alert('Fel', 'Kunde inte slå ihop varor');
@@ -436,10 +542,22 @@ export default function ShoppingListScreen() {
         </View>
         <View style={s.headerTitle}>
           <Text style={s.title} numberOfLines={1}>{list.name}</Text>
-          <Pressable onPress={() => setShowStorePicker(true)} style={s.storeBtn}>
-            <Ionicons name="storefront-outline" size={12} color="#4f46e5" />
-            <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
-          </Pressable>
+          <View style={s.headerMeta}>
+            <Pressable onPress={() => setShowStorePicker(true)} style={s.storeBtn}>
+              <Ionicons name="storefront-outline" size={12} color="#4f46e5" />
+              <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
+            </Pressable>
+            {duplicateGroups.length > 0 && (
+              <Animated.View style={{ transform: [{ scale: dupeButtonScale }] }}>
+                <Pressable style={s.dupeBadge} onPress={() => openMergeForDupes(duplicateGroups[0])} hitSlop={8}>
+                  <Ionicons name="git-merge-outline" size={12} color="#7c3aed" />
+                  <Text style={s.dupeBadgeText}>
+                    {duplicateGroups.length === 1 ? '1 dubblett' : `${duplicateGroups.length} dubbletter`}
+                  </Text>
+                </Pressable>
+              </Animated.View>
+            )}
+          </View>
         </View>
       </View>
 
@@ -747,6 +865,9 @@ export default function ShoppingListScreen() {
                 onChangeText={setQtyValue}
                 keyboardType="decimal-pad"
                 selectTextOnFocus
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => qtyUnitRef.current?.focus()}
               />
               <Pressable
                 style={s.qtyBtn}
@@ -755,12 +876,15 @@ export default function ShoppingListScreen() {
                 <Ionicons name="add" size={22} color="#4f46e5" />
               </Pressable>
               <TextInput
+                ref={qtyUnitRef}
                 style={s.qtyUnitInput}
                 value={qtyUnit}
                 onChangeText={setQtyUnit}
                 placeholder="enhet"
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
+                returnKeyType="done"
+                onSubmitEditing={confirmQtySheet}
               />
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
@@ -856,6 +980,16 @@ export default function ShoppingListScreen() {
                 ? <ActivityIndicator color="#fff" size="small" />
                 : <Text style={s.qtyConfirmText}>Slå ihop {mergeSelected.size} varor</Text>}
             </Pressable>
+            <Pressable
+              style={s.mergeIgnoreBtn}
+              onPress={() => {
+                if (mergeSheet) dismissDupeGroup(mergeSheet.name);
+                pendingOpenNextDupe.current = true;
+                setMergeSheet(null);
+              }}
+            >
+              <Text style={s.mergeIgnoreBtnText}>Ignorera</Text>
+            </Pressable>
         </View>
       </Modal>
     </SafeAreaView>
@@ -911,10 +1045,11 @@ const s = StyleSheet.create({
   header: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: 12 },
   headerNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   headerTitle: { paddingHorizontal: 20, paddingTop: 2 },
+  headerMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   backBtn: { padding: 10 },
   doneBtn: { padding: 10 },
   title: { fontSize: 26, fontWeight: '700', color: '#111827' },
-  storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   storeBtnText: { fontSize: 12, color: '#4f46e5', fontWeight: '500' },
   progressBar: { height: 3, backgroundColor: '#e5e7eb' },
   progressFill: { height: 3, backgroundColor: '#10b981' },
@@ -923,6 +1058,10 @@ const s = StyleSheet.create({
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   emptyText: { fontSize: 17, fontWeight: '600', color: '#374151', marginTop: 12 },
   emptySubtext: { fontSize: 13, color: '#9ca3af', marginTop: 4 },
+  dupeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ede9fe', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  dupeBadgeText: { fontSize: 12, fontWeight: '600', color: '#7c3aed' },
+  mergeIgnoreBtn: { paddingVertical: 10 },
+  mergeIgnoreBtnText: { fontSize: 14, color: '#9ca3af', textAlign: 'center' },
   categoryGroup: { gap: 4 },
   categoryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2, paddingVertical: 4 },
   categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4f46e5', textTransform: 'uppercase', letterSpacing: 0.6, flex: 1 },
@@ -993,7 +1132,7 @@ const s = StyleSheet.create({
   qtyConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  mergeList: { height: 176, flexShrink: 0 },
+  mergeList: { height: 136, flexShrink: 0 },
   unitChipScroll: { marginVertical: 4 },
   unitChipRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
   unitChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },

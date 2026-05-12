@@ -7,17 +7,22 @@
 - [x] Skärmen borde hoppa upp när man ska skriva in något så man ser vad man skriver
 - [x] Snyggt om man kan hålla inne på inköpslistor/aktiviteter/sysslor/meny så att de skakar om man vill redigera dem och att det kommer upp en delete (x) /redigeringsknapp (penna)
 - [x] Emoji bakom hushållsnamnet saknas i inköps- och meny-fliken
-- [ ] Större font och knappar/pilar mm i tablet-vyn
 - [x] Texten hoppar inte upp ovan tangentbordet för Lägga till lokala profiler, nya inköpslistor och butiker
 - [x] Om flera inputfält i samma form borde det finnas en "nästa" i tangentbordet
-- [ ] Toast för fler händelser: ~~"Inköpslista rensad"~~, ~~"Syssla sparad"~~, "Hushåll borttaget" m.fl.
-- [ ] kan vi ha en optimisisk uppdatering (generellt) så att frontend inte alltid väntar på backend svar innan den flyttar något, skapar något osv?
+- [x] Toast för fler händelser: ~~"Inköpslista rensad"~~, ~~"Syssla sparad"~~, ~~"Hushåll borttaget"~~ m.fl.
+- [x] kan vi ha en optimisisk uppdatering (generellt) så att frontend inte alltid väntar på backend svar innan den flyttar något, skapar något osv?
+- [ ] Ännu större font och knappar/pilar mm i tablet-vyn. Idag ser de nästan mindre ut än i mobilversionen.
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
 - [x] Admin-funktioner (redigera/ta bort hushåll och användare) visas i en dedikerad "Administrera hushåll"-sektion som bara syns för admins — ingen toggle, sektionen är alltid kollapsad/tydligt avskild
 - [x] Admin-badge vid profilnamnet i inställningar så det är tydligt vilka rättigheter man har
-- [ ] Lokala users ses som samma och delar uppgifter och markeras ihop. Måste ses som individuella profiler.
+- [x] Lokala users ses som samma och delar uppgifter och markeras ihop. Måste ses som individuella profiler.
+- [x] Kan inte lägga till nya lokala användare
+- [x] Admin-vyn borde kunna tas bort och istället admininstrera users direkt under medlemmar samt byta namn och ta bort hushåll direkt på hushållet.
+- [x] Ta bort hushåll borde behöva bekräftas genom att skriva in "DELETE" manuellt och bekräfta, för att inte råka ta bort hushållet.
+- [x] Står hushålet istället för hushållet
+- [x] Bekräfta med knapp innan man byter hushåll
 
 ### Inköpslistan
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
@@ -41,24 +46,33 @@
 - [x] Basvaror hamnar i annan kategori i inköpslistan än var de väljs ifrån (ex frysta räkor [frysvaror] hamnar i Kött & Fisk)
 - [x] Ersätt "{basvara} sparad som basvara" med "{Basvara} tillagd till inköpslistan"
 - [x] Lilla counten till höger om kategorin i inköpslistan tillför inget.
-- [ ] Addera summan av mängden på ingredienser som ska slås ihop och föreslå senast angivna enheten (om tom, den näst senast angivna)
+- [x] Addera summan av mängden på ingredienser som ska slås ihop och föreslå senast angivna enheten (om tom, den näst senast angivna)
 - [x] ha föreslagna enheter när man justerar dubbletter
 - [x] tillbaka- och rensaknappen på inköpslistan syns knappt i ovankant
-- [ ] Hitta normaliserade ingrediensnamn och på så vis kunna slå ihop "klyftor vitlök" med "vitlök" och "standardmjölk" med "mjölk" i inköpslistan samt pluralis till singularis "tomater" -> "tomat"
+- [x] Hitta normaliserade ingrediensnamn och på så vis kunna slå ihop "klyftor vitlök" med "vitlök" och "standardmjölk" med "mjölk" i inköpslistan samt pluralis till singularis "tomater" -> "tomat"
 - [x] Om man vill lägga till egen basvara borde den även lägga till varan i databasen om den inte redan finns (förutsatt att man lägger till en kategori)
 - [x] ha föreslagna enheter när man lägger till/redigerar basvaror
+- [ ] Komma ihåg vilken kategori en vara hör till nästa gång om man har flyttat om en vara (t.ex. från övrigt -> mejeri). Ska gälla över alla inköpslistor
+- [x] Drag-n-droppa ingredienser på varandra om man vill slå ihop dem och få upp dubblettvyn.
+- [x] En liten "dubblett-knapp" med passande emoji strax ovanför varorna till höger borde poppa upp (någon animation som snurrar/blinkar en gång när man öppnar inköpslistan) där man kan hantera dubbletterna istället för att de kommer upp automatiskt när man går in i listan.
+- [ ] Sortera varor inuti kategorisöket i bokstavsordning när man ska lägga till en ny basvara
+- [ ] Det ser inte ut som att alla varor syns i kategorin. Kan t.ex. söka fram vitlök men inte hitta den när jag scrollar i kategorin. 
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
 - [x] Knapp för att kunna överföra hela veckomeny till inköpslistan (kryssa ur om det är någon rätt man av någon anledning inte vill överföra)
 - [x] Lägg till alla dagar i menyn även om de är tomma så att det är lätt att lägga till rätt
 - [x] I menyn räcker det med veckonummer överst då vi har datumen per dag
-- [ ] Har man samma rätt två gånger måste man kunna hålla reda på ingredienser som hör till rätt #1 och #2 för att sedan kunna ta bort/lägga till dem i inköpslistan. Gäller även om de ligger i olika veckomenyer.
+- [x] Har man samma rätt två gånger måste man kunna hålla reda på ingredienser som hör till rätt #1 och #2 för att sedan kunna ta bort/lägga till dem i inköpslistan. Gäller även om de ligger i olika veckomenyer.
 - [x] Varna om man försöker flytta en befintlig rätt till en dag som redan har en rätt inlagd
-- [ ] Kunna byta namn och redigera recept med long press
+- [x] Kunna byta namn och redigera recept med long press
 - [x] Kunna ersätta en maträtt i menyn mot en annan — long press → "Byt ut mot annan rätt"
-- [ ] Enklare kunna flytta maträtter mellan dagarna med longpress för att ta tag i och dra.
+- [x] Enklare kunna flytta maträtter mellan dagarna med longpress för att ta tag i och dra.
 - [x] Ej lägga till recept igen om den känner igen url
+- [x] Ersätta popup med toast om att maträtter blivit överförda till inköpslistan
+- [x] Portionsskalning i recept — stepper ovanför ingredienslistan som skalar alla mängder (t.ex. 4→8 portioner)
+- [x] Realtidsuppdatering av inköpslistan — polling eller WebSocket så att ändringar syns direkt för alla hushållsmedlemmar
+- [x] Sök/filtrera bland recept — sök på namn eller ingrediens ("vad kan jag laga med lax?")
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -68,11 +82,15 @@
 - [x] Månadsvy i tablet visar delad layout: kalender vänster + dagdetaljer höger
 - [x] Veckans navigering (WeekNav) är gemensam komponent för kalender och meny
 - [x] Sysslor ger nu ljuslila färg på dagar i månadsvy
-- [ ] Kunna lägga aktiviteter på users
-- [ ] Kunna filtrera på user i sysslor och kalendern
+- [x] Kunna lägga aktiviteter på users
+- [x] Kunna filtrera på user i sysslor och kalendern
 - [x] Kunna trycka på aktiviteter för att se mer info (beskrivning, plats, påminnelse mm)
 - [x] Få upp en datepicker när man trycker på veckonumret istället för att hoppa till dagens datum
 - [x] Flytta in "Idag"-knappen lite mer så att man inte råkar trycka på den av misstag (gäller även i menyn)
+- [ ] Möjlighet att växla mellan månadsvy och veckovy i tablet-format
+- [ ] i datepickern borde veckonumret stå till vänster, typ "17" i ljusgrått eller liknande
+- [ ] Sista raden i månadsvyn blir konstig med bara 1 eller 2 dagar. Borde fylla upp med nästa månads första dagar precis som på första raden med föregående månads sista dagar. Samma i datepickern.
+- [ ] I kalendervyn skulle idag-knappen kunna 
 
 ### Sysslor
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.

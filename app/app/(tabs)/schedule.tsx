@@ -136,7 +136,7 @@ export default function ScheduleScreen() {
   const { householdId } = useHousehold();
   const { user } = useUser();
   const { medium } = useHaptics();
-  const isTablet = useTablet();
+  const { isTablet, fs, sp } = useTablet();
   const userId = user?.id;
 
   const [weekRef, setWeekRef] = useState(new Date());
@@ -159,6 +159,10 @@ export default function ScheduleScreen() {
   const [selectedDay, setSelectedDay] = useState<WeekDay>(TODAY_DAY);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Filter
+  const [filterMemberIds, setFilterMemberIds] = useState<string[]>([]);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+
   // New entry modal
   const [showModal, setShowModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -167,6 +171,7 @@ export default function ScheduleScreen() {
   const [newMinute, setNewMinute] = useState(0);
   const [newDay, setNewDay] = useState<WeekDay>(TODAY_DAY);
   const [newIsShared, setNewIsShared] = useState(true);
+  const [newAssignedTo, setNewAssignedTo] = useState<string | null>(null);
   const [newRecurrenceType, setNewRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('none');
   const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
   const [newRecurrenceWeeks, setNewRecurrenceWeeks] = useState(1);
@@ -181,6 +186,7 @@ export default function ScheduleScreen() {
   const [editEntryMinute, setEditEntryMinute] = useState(0);
   const [editEntryDay, setEditEntryDay] = useState<WeekDay>(TODAY_DAY);
   const [editEntryIsShared, setEditEntryIsShared] = useState(true);
+  const [editEntryAssignedTo, setEditEntryAssignedTo] = useState<string | null>(null);
   const [savingEntry, setSavingEntry] = useState(false);
 
   // New entry date range + recurrence
@@ -238,9 +244,9 @@ export default function ScheduleScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  function getMemberName(clerkUserId: string | null) {
-    if (!clerkUserId) return null;
-    return members.find(m => m.clerkUserId === clerkUserId)?.displayName ?? null;
+  function getMemberName(memberId: string | null) {
+    if (!memberId) return null;
+    return members.find(m => m.id === memberId)?.displayName ?? null;
   }
 
   function isDoneOnDay(completions: ChoreCompletion[], day: WeekDay) {
@@ -272,16 +278,16 @@ export default function ScheduleScreen() {
   }
 
   async function uncompleteChoreCalendar(chore: ChoreWithCompletion, day: WeekDay) {
+    const saved = chore.completions;
+    setChores(cs => cs.map(c => c.id === chore.id
+      ? { ...c, completions: c.completions.filter(comp =>
+          !(comp.day === day && Date.now() - new Date(comp.completedAt).getTime() < 86400000))
+        }
+      : c));
     try {
       await client.uncompleteChore(chore.id, day);
-      setChores(prev =>
-        prev.map(c => c.id === chore.id
-          ? { ...c, completions: c.completions.filter(comp =>
-              !(comp.day === day && Date.now() - new Date(comp.completedAt).getTime() < 86400000))
-            }
-          : c)
-      );
     } catch {
+      setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
       Alert.alert('Fel', 'Kunde inte avmarkera sysslan');
     }
   }
@@ -297,6 +303,7 @@ export default function ScheduleScreen() {
         startTime: timeEnabled
           ? `${newHour.toString().padStart(2, '0')}:${MIN_VALS[newMinute]}`
           : undefined,
+        assignedTo: newAssignedTo ?? undefined,
         isShared: newIsShared,
         recurrenceType: newRecurrenceType,
         recurrenceDays: newRecurrenceType === 'weekly' ? newRecurrenceDays : undefined,
@@ -313,6 +320,7 @@ export default function ScheduleScreen() {
       setNewHour(12);
       setNewMinute(0);
       setNewIsShared(true);
+      setNewAssignedTo(null);
       setNewRecurrenceType('none');
       setNewRecurrenceDays([]);
       setNewRecurrenceWeeks(1);
@@ -378,12 +386,18 @@ export default function ScheduleScreen() {
   }
 
   async function completeChoreCalendar(chore: ChoreWithCompletion, day: WeekDay) {
+    const fakeId = '__opt__';
+    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', completedAt: new Date().toISOString(), note: null, day };
+    setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
     try {
       const completion = await client.completeChore(chore.id, day);
-      setChores(prev =>
-        prev.map(c => c.id === chore.id ? { ...c, completions: [completion, ...c.completions] } : c)
-      );
+      setChores(cs => cs.map(c => c.id === chore.id
+        ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
+        : c));
     } catch {
+      setChores(cs => cs.map(c => c.id === chore.id
+        ? { ...c, completions: c.completions.filter(comp => comp.id !== fakeId) }
+        : c));
       Alert.alert('Fel', 'Kunde inte markera sysslan');
     }
   }
@@ -411,6 +425,7 @@ export default function ScheduleScreen() {
     setEditEntryTitle(entry.title);
     setEditEntryDay(entry.day);
     setEditEntryIsShared(entry.isShared);
+    setEditEntryAssignedTo(entry.assignedTo ?? null);
     setEditEntryRecurrenceType(entry.recurrenceType as any);
     setEditEntryRecurrenceDays(entry.recurrenceDays as WeekDay[]);
     setEditEntryRecurrenceWeeks(entry.recurrenceWeeks ?? 1);
@@ -473,6 +488,7 @@ export default function ScheduleScreen() {
           day: editEntryDay,
           startTime,
           isShared: editEntryIsShared,
+          assignedTo: editEntryAssignedTo ?? undefined,
           recurrenceType: editEntryRecurrenceType,
           recurrenceDays: editEntryRecurrenceType === 'weekly' ? editEntryRecurrenceDays : [],
           recurrenceWeeks: editEntryRecurrenceWeeks,
@@ -541,10 +557,14 @@ export default function ScheduleScreen() {
     e.day === selectedDay &&
     !e.exceptions?.includes(selectedDayDateStr) &&
     (!e.startDate || selectedDayDateStr >= e.startDate) &&
-    (!e.endDate || selectedDayDateStr <= e.endDate)
+    (!e.endDate || selectedDayDateStr <= e.endDate) &&
+    (filterMemberIds.length === 0 || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo)))
   );
   const dayMenu = menuItems.filter(i => i.day === selectedDay);
-  const dayChores = chores.filter(c => choreVisibleOnDay(c, selectedDay, selectedDayDate));
+  const dayChores = chores.filter(c =>
+    choreVisibleOnDay(c, selectedDay, selectedDayDate) &&
+    (filterMemberIds.length === 0 || (c.assignedTo != null && filterMemberIds.includes(c.assignedTo)))
+  );
 
   const totalPerDay = (day: WeekDay) => {
     const idx = DAYS.findIndex(d => d.key === day);
@@ -582,10 +602,10 @@ export default function ScheduleScreen() {
               }}
             >
               <View style={s.menuIcon}>
-                <Ionicons name="restaurant-outline" size={16} color="#4f46e5" />
+                <Ionicons name="restaurant-outline" size={fs(16)} color="#4f46e5" />
               </View>
-              <Text style={s.menuTitle}>{item.recipe.title}</Text>
-              <Text style={s.menuMeta}>{item.recipe.servings} port</Text>
+              <Text style={[s.menuTitle, { fontSize: fs(15) }]}>{item.recipe.title}</Text>
+              <Text style={[s.menuMeta, { fontSize: fs(12) }]}>{item.recipe.servings} port</Text>
             </Pressable>
           ))}
         </View>
@@ -605,16 +625,16 @@ export default function ScheduleScreen() {
                 onLongPress={() => { medium(); openEditCalChore(chore); }}
               >
                 <View style={s.choreInfo}>
-                  <Text style={[s.choreTitle, done && s.choreStrike]}>{chore.title}</Text>
+                  <Text style={[s.choreTitle, { fontSize: fs(15) }, done && s.choreStrike]}>{chore.title}</Text>
                   {assignedName && (
-                    <Text style={s.choreAssigned}>{assignedName}</Text>
+                    <Text style={[s.choreAssigned, { fontSize: fs(12) }]}>{assignedName}</Text>
                   )}
                 </View>
                 <Pressable
-                  style={[s.choreCheckBtn, done && s.choreCheckBtnDone]}
+                  style={[s.choreCheckBtn, { width: sp(32), height: sp(32), borderRadius: sp(16) }, done && s.choreCheckBtnDone]}
                   onPress={() => done ? uncompleteChoreCalendar(chore, selectedDay) : completeChoreCalendar(chore, selectedDay)}
                 >
-                  {done && <Ionicons name="checkmark" size={18} color="#fff" />}
+                  {done && <Ionicons name="checkmark" size={fs(18)} color="#fff" />}
                 </Pressable>
               </Pressable>
             );
@@ -634,14 +654,17 @@ export default function ScheduleScreen() {
             >
               <View style={s.entryTime}>
                 {entry.startTime
-                  ? <Text style={s.timeText}>{entry.startTime}</Text>
-                  : <Text style={s.timeTextMuted}>Heldag</Text>}
+                  ? <Text style={[s.timeText, { fontSize: fs(13) }]}>{entry.startTime}</Text>
+                  : <Text style={[s.timeTextMuted, { fontSize: fs(10) }]}>Heldag</Text>}
               </View>
               <View style={s.entryContent}>
-                <Text style={s.entryTitle}>{entry.title}</Text>
-                {entry.description && <Text style={s.entryDesc}>{entry.description}</Text>}
+                <Text style={[s.entryTitle, { fontSize: fs(15) }]}>{entry.title}</Text>
+                {entry.description && <Text style={[s.entryDesc, { fontSize: fs(13) }]}>{entry.description}</Text>}
+                {getMemberName(entry.assignedTo ?? null) && (
+                  <Text style={[s.choreAssigned, { fontSize: fs(12) }]}>{getMemberName(entry.assignedTo ?? null)}</Text>
+                )}
               </View>
-              {!entry.isShared && <Ionicons name="lock-closed-outline" size={14} color="#9ca3af" />}
+              {!entry.isShared && <Ionicons name="lock-closed-outline" size={fs(14)} color="#9ca3af" />}
             </Pressable>
           ))}
         </View>
@@ -651,7 +674,20 @@ export default function ScheduleScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <ScreenHeader title="Kalender" />
+      <ScreenHeader
+        title="Kalender"
+        actionNode={members.length > 0 ? (
+          <Pressable style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive]} onPress={() => setShowFilterModal(true)}>
+            <Ionicons name="person-outline" size={14} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
+            <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive]}>Filter</Text>
+            {filterMemberIds.length > 0 && (
+              <View style={s.filterBadge}>
+                <Text style={s.filterBadgeText}>{filterMemberIds.length}</Text>
+              </View>
+            )}
+          </Pressable>
+        ) : undefined}
+      />
 
       {isTablet ? (
         <View style={s.tabletLayout}>
@@ -875,6 +911,28 @@ export default function ScheduleScreen() {
               </View>
               <Switch value={editEntryIsShared} onValueChange={setEditEntryIsShared} trackColor={{ true: '#4f46e5' }} />
             </Pressable>
+            {members.length > 0 && (
+              <>
+                <Text style={s.label}>Tilldela person (valfritt)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberPickerRow}>
+                  <Pressable
+                    style={[s.memberOption, editEntryAssignedTo === null && s.memberOptionActive]}
+                    onPress={() => setEditEntryAssignedTo(null)}
+                  >
+                    <Text style={[s.memberOptionText, editEntryAssignedTo === null && s.memberOptionTextActive]}>Ingen</Text>
+                  </Pressable>
+                  {members.map(m => (
+                    <Pressable
+                      key={m.id}
+                      style={[s.memberOption, editEntryAssignedTo === m.id && s.memberOptionActive]}
+                      onPress={() => setEditEntryAssignedTo(m.id)}
+                    >
+                      <Text style={[s.memberOptionText, editEntryAssignedTo === m.id && s.memberOptionTextActive]}>{m.displayName}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            )}
             <View style={s.editModalActions}>
               <Pressable style={s.deleteActionBtn} onPress={() => { if (editingEntry) deleteEntry(editingEntry, selectedDayDateStr); }}>
                 <Ionicons name="trash-outline" size={16} color="#ef4444" />
@@ -916,10 +974,10 @@ export default function ScheduleScreen() {
               {members.map(m => (
                 <Pressable
                   key={m.id}
-                  style={[s.memberOption, editCalChoreAssignedTo === m.clerkUserId && s.memberOptionActive]}
-                  onPress={() => setEditCalChoreAssignedTo(m.clerkUserId)}
+                  style={[s.memberOption, editCalChoreAssignedTo === m.id && s.memberOptionActive]}
+                  onPress={() => setEditCalChoreAssignedTo(m.id)}
                 >
-                  <Text style={[s.memberOptionText, editCalChoreAssignedTo === m.clerkUserId && s.memberOptionTextActive]}>{m.displayName}</Text>
+                  <Text style={[s.memberOptionText, editCalChoreAssignedTo === m.id && s.memberOptionTextActive]}>{m.displayName}</Text>
                 </Pressable>
               ))}
             </View>
@@ -944,6 +1002,44 @@ export default function ScheduleScreen() {
               </Pressable>
             </View>
           </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
+        <Pressable style={s.overlay} onPress={() => setShowFilterModal(false)} />
+        <View style={s.filterSheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Filtrera på person</Text>
+          <Pressable
+            style={s.filterMemberRow}
+            onPress={() => setFilterMemberIds([])}
+          >
+            <Text style={[s.filterMemberName, filterMemberIds.length === 0 && s.filterMemberNameActive]}>Alla</Text>
+            <Ionicons
+              name={filterMemberIds.length === 0 ? 'checkbox' : 'square-outline'}
+              size={22}
+              color={filterMemberIds.length === 0 ? '#7c3aed' : '#d1d5db'}
+            />
+          </Pressable>
+          {members.map(m => {
+            const active = filterMemberIds.includes(m.id);
+            return (
+              <Pressable
+                key={m.id}
+                style={s.filterMemberRow}
+                onPress={() => setFilterMemberIds(prev =>
+                  active ? prev.filter(id => id !== m.id) : [...prev, m.id]
+                )}
+              >
+                <Text style={[s.filterMemberName, active && s.filterMemberNameActive]}>{m.displayName}</Text>
+                <Ionicons
+                  name={active ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={active ? '#7c3aed' : '#d1d5db'}
+                />
+              </Pressable>
+            );
+          })}
         </View>
       </Modal>
 
@@ -1010,6 +1106,29 @@ export default function ScheduleScreen() {
               </View>
               <Switch value={newIsShared} onValueChange={setNewIsShared} trackColor={{ true: '#4f46e5' }} />
             </Pressable>
+
+            {members.length > 0 && (
+              <>
+                <Text style={s.label}>Tilldela person (valfritt)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberPickerRow}>
+                  <Pressable
+                    style={[s.memberOption, newAssignedTo === null && s.memberOptionActive]}
+                    onPress={() => setNewAssignedTo(null)}
+                  >
+                    <Text style={[s.memberOptionText, newAssignedTo === null && s.memberOptionTextActive]}>Ingen</Text>
+                  </Pressable>
+                  {members.map(m => (
+                    <Pressable
+                      key={m.id}
+                      style={[s.memberOption, newAssignedTo === m.id && s.memberOptionActive]}
+                      onPress={() => setNewAssignedTo(m.id)}
+                    >
+                      <Text style={[s.memberOptionText, newAssignedTo === m.id && s.memberOptionTextActive]}>{m.displayName}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            )}
 
             <Text style={s.label}>Upprepning</Text>
             <View style={s.recurrenceTypeRow}>
@@ -1234,4 +1353,14 @@ const s = StyleSheet.create({
   endCondBtnActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
   endCondBtnText: { fontSize: 12, color: '#9ca3af', fontWeight: '500' },
   endCondBtnTextActive: { color: '#4f46e5', fontWeight: '700' },
+  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  filterBtnActive: { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' },
+  filterBtnText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
+  filterBtnTextActive: { color: '#7c3aed', fontWeight: '600' },
+  filterBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  filterBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  filterSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 32 },
+  filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  filterMemberName: { fontSize: 16, color: '#374151', flex: 1, marginRight: 12 },
+  filterMemberNameActive: { color: '#7c3aed', fontWeight: '600' },
 });

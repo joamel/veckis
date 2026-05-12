@@ -14,5 +14,7 @@ services:
         sync: false
       - key: CLERK_SECRET_KEY
         sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: CORS_ORIGIN
         value: "*"

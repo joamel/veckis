@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type Store } from '@veckis/shared';
 
@@ -28,6 +29,7 @@ export default function ShoppingScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { medium } = useHaptics();
+  const { fs, sp } = useTablet();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -209,9 +211,9 @@ export default function ShoppingScreen() {
         refreshing={loading}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="cart-outline" size={56} color="#d1d5db" />
-            <Text style={styles.emptyText}>Inga aktiva listor</Text>
-            <Text style={styles.emptySubtext}>Tryck på + för att skapa en ny lista</Text>
+            <Ionicons name="cart-outline" size={fs(56)} color="#d1d5db" />
+            <Text style={[styles.emptyText, { fontSize: fs(18) }]}>Inga aktiva listor</Text>
+            <Text style={[styles.emptySubtext, { fontSize: fs(14) }]}>Tryck på + för att skapa en ny lista</Text>
           </View>
         }
         renderItem={({ item }) => {
@@ -225,23 +227,23 @@ export default function ShoppingScreen() {
                 onLongPress={() => { medium(); setEditMode(true); }}
               >
                 <View style={styles.cardLeft}>
-                  <Ionicons name="cart-outline" size={20} color="#4f46e5" />
+                  <Ionicons name="cart-outline" size={fs(20)} color="#4f46e5" />
                 </View>
                 <View style={styles.cardContent}>
-                  <Text style={styles.cardTitle}>{item.name}</Text>
-                  <Text style={styles.cardMeta}>
+                  <Text style={[styles.cardTitle, { fontSize: fs(16) }]}>{item.name}</Text>
+                  <Text style={[styles.cardMeta, { fontSize: fs(13) }]}>
                     {item.store ? `${item.store.name} · ` : ''}
                     {total === 0 ? 'Tom' : unchecked === 0 ? 'Allt bockat' : `${unchecked} av ${total} kvar`}
                   </Text>
                 </View>
                 {unchecked === 0 && total > 0 && (
-                  <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+                  <Ionicons name="checkmark-circle" size={fs(20)} color="#10b981" />
                 )}
-                {!editMode && <Ionicons name="chevron-forward" size={18} color="#d1d5db" />}
+                {!editMode && <Ionicons name="chevron-forward" size={fs(18)} color="#d1d5db" />}
               </Pressable>
               {editMode && (
                 <Pressable style={styles.cardDeleteBtn} onPress={() => deleteList(item.id, item.name)}>
-                  <Ionicons name="remove-circle" size={22} color="#ef4444" />
+                  <Ionicons name="remove-circle" size={fs(22)} color="#ef4444" />
                 </Pressable>
               )}
             </View>
@@ -251,11 +253,11 @@ export default function ShoppingScreen() {
 
       {editMode ? (
         <Pressable style={styles.editDoneBtn} onPress={() => setEditMode(false)}>
-          <Text style={styles.editDoneBtnText}>Klar</Text>
+          <Text style={[styles.editDoneBtnText, { fontSize: fs(16) }]}>Klar</Text>
         </Pressable>
       ) : (
-        <Pressable style={styles.fab} onPress={() => setShowModal(true)}>
-          <Ionicons name="add" size={30} color="#fff" />
+        <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={() => setShowModal(true)}>
+          <Ionicons name="add" size={fs(30)} color="#fff" />
         </Pressable>
       )}
 

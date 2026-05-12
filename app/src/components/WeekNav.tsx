@@ -1,5 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTablet } from '../hooks/useTablet';
 
 interface WeekNavProps {
   weekLabel: string;
@@ -11,23 +12,24 @@ interface WeekNavProps {
 }
 
 export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onPickDate }: WeekNavProps) {
+  const { fs, sp } = useTablet();
   return (
-    <View style={s.container}>
+    <View style={[s.container, { paddingHorizontal: sp(12), paddingVertical: sp(10) }]}>
       {/* Rendered first so arrows appear on top of it in touch handling */}
       <Pressable style={s.labelBtn} onPress={onPickDate ?? onToday}>
-        <Text style={[s.label, isCurrentWeek && s.labelCurrent]}>{weekLabel}</Text>
+        <Text style={[s.label, { fontSize: fs(14) }, isCurrentWeek && s.labelCurrent]}>{weekLabel}</Text>
       </Pressable>
-      <Pressable style={s.arrow} onPress={onPrev}>
-        <Ionicons name="chevron-back" size={18} color="#4f46e5" />
+      <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onPrev}>
+        <Ionicons name="chevron-back" size={fs(18)} color="#4f46e5" />
       </Pressable>
       <View style={{ flex: 1 }} />
       {!isCurrentWeek && (
-        <Pressable style={s.todayBtn} onPress={onToday}>
-          <Text style={s.todayBtnText}>Idag</Text>
+        <Pressable style={[s.todayBtn, { paddingHorizontal: sp(12), paddingVertical: sp(6) }]} onPress={onToday}>
+          <Text style={[s.todayBtnText, { fontSize: fs(12) }]}>Idag</Text>
         </Pressable>
       )}
-      <Pressable style={s.arrow} onPress={onNext}>
-        <Ionicons name="chevron-forward" size={18} color="#4f46e5" />
+      <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onNext}>
+        <Ionicons name="chevron-forward" size={fs(18)} color="#4f46e5" />
       </Pressable>
     </View>
   );
@@ -38,16 +40,14 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
-  arrow: { padding: 8 },
+  arrow: {},
   labelBtn: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingVertical: 4 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  label: { fontWeight: '600', color: '#374151' },
   labelCurrent: { color: '#4f46e5' },
-  todayBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#4f46e5', borderRadius: 6, marginRight: 16 },
-  todayBtnText: { fontSize: 12, fontWeight: '600', color: '#fff' },
+  todayBtn: { backgroundColor: '#4f46e5', borderRadius: 6, marginRight: 16 },
+  todayBtnText: { fontWeight: '600', color: '#fff' },
 });
