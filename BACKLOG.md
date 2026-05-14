@@ -76,7 +76,14 @@
 - [x] Under dubblett-knappen borde man kunna trycka vidare till nästa dubblett om man varken vill ignorera eller slå ihop varorna just där och då
 - [ ] Borde gå att lägga till egna kategorier och ta bort kategorier i butiker. Eventuellt att man kan ha en sökbar databas på butiker som andra lagt till för att på så vis slippa skapa butiker som redan finns inlagda. Kanske ett premium-alternativ?
 - [x] Vissa varor har stor bokstav och vissa har små. Borde kanske lagras i databasen med gemener men ha inledande stor bokstav i UI:et.
-- [ ] Borde kanske gå att klarmarkera alla varor med en box överst?
+- [x] Borde kanske gå att klarmarkera alla varor med en box överst?
+- [x] Kunna importera en veckomeny direkt in i en inköpslista med en knapp (+ från tom-state, eller 3-prickar-menyn)
+- [ ] Automatiskt slå ihop ingredienser av samma typ och måttenhet. Funkar inte när man importerar recept in i befintlig inköpslista.
+- [x] När man lägger till ny basvara borde även kategori synas under enhetsfältet så att man kan ändra om den ligger i fel kategori
+- [x] Dubblett-knappen borde skaka lite längre så man hinner sen den.
+- [x] Dubblettknappen borde även finnas under "3 prickarna" uppe till höger. Om inga dubbletter finns borde dubblett-knappen bara visas under "3 prickarna".
+- [ ] När man byter enhet på en basvara läggs den till under kategori istället för att ersätta den gamla så att man får dubbletter. Bättre att den bara uppdaterar enheten istället.
+- [x] Om man importerar veckomeny från en inköpslista så borde den inte fråga vilken inköpslista man vill överföra till samt redirecta tillbaka till den inköpslista man var inne i.
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -87,7 +94,7 @@
 - [x] Varna om man försöker flytta en befintlig rätt till en dag som redan har en rätt inlagd
 - [x] Kunna byta namn och redigera recept med long press
 - [x] Kunna ersätta en maträtt i menyn mot en annan — long press → "Byt ut mot annan rätt"
-- [x] Enklare kunna flytta maträtter mellan dagarna med longpress för att ta tag i och dra.
+- [x] Enklare kunna flytta maträtter mellan dagarna med long press för att ta tag i och dra.
 - [x] Ej lägga till recept igen om den känner igen url
 - [x] Ersätta popup med toast om att maträtter blivit överförda till inköpslistan
 - [x] Portionsskalning i recept — stepper ovanför ingredienslistan som skalar alla mängder (t.ex. 4→8 portioner)
@@ -95,6 +102,11 @@
 - [x] Sök/filtrera bland recept — sök på namn eller ingrediens ("vad kan jag laga med lax?")
 - [x] Om man skalar receptet borde man få varning om att inköpslistan kan påverkas alt att inköpslistan automatiskt justeras
 - [ ] Bekräftelsedialog innan man tar bort maträtt
+- [ ] När man skapar nytt recept borde man direkt komma till att lägga in första ingrediensen istället för att behöva trycka på redigera-knappen
+- [ ] Saknas tillbaka-knapp i recept-vyn
+- [ ] Kunna lägga till ett nytt recept direkt under "+" i veckomenyn om man saknar en rätt bland befintliga recept
+- [ ] Long press för att flytta rätter mellan dagar i veckomenyn istället för att ha veckodagarna i den utfällda varianten som är idag
+- [ ] optimistisk uppdatering av menyn när man lägger till en maträtt
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -118,10 +130,12 @@
 - [ ] Kunna lägga aktiviteter på fler än en user i taget
 - [ ] Veckovyn i tablet borde kanske se likadan ut som i mobilen med allt under?
 - [ ] En privat aktivitet i kalendern borde kanske inte kunna läggas på någon user
+- [ ] Skapa ny aktivitet behöver inte ha "Dag"-valet med veckodagarna då den bör komma ihåg vilken dag man valt att lägga in aktiviteten på.
 
 ### Sysslor
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.
 - [x] Kunna redigera sysslor enklare (med en penna till höger)
+- [ ] Skapa syssla dialogen borde se mer ut som aktivitetsdialogen med Upprepning och även möjlighet att välja en specifik dag som sysslan ska utföras på.
 
 
 ---

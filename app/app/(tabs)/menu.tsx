@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -7,14 +7,14 @@ import {
   Modal,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -54,6 +54,8 @@ function getWeekMonday(weekOffset: number): Date {
 
 export default function MenuScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string }>();
+  const bulkTransferTriggeredRef = useRef(false);
   const client = useApiClient();
   const { showToast: showGlobalToast } = useToast();
   const scaleWarnedRef = useRef<Set<string>>(new Set());
@@ -177,6 +179,21 @@ export default function MenuScreen() {
   }, [householdId, weekYear, weekNumber]);
 
   useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
+
+  useEffect(() => {
+    if (params.bulkTransfer === '1' && menuItems.length > 0 && !bulkTransferTriggeredRef.current) {
+      bulkTransferTriggeredRef.current = true;
+      transferWeekMenu();
+      router.setParams({ bulkTransfer: undefined });
+    }
+    if (params.bulkTransfer !== '1') bulkTransferTriggeredRef.current = false;
+  }, [params.bulkTransfer, menuItems.length]);
+
+  useEffect(() => {
+    if (!showBulkTransferModal && params.originListId) {
+      router.setParams({ originListId: undefined });
+    }
+  }, [showBulkTransferModal, params.originListId]);
 
   function openPicker(day: WeekDay | null | 'ask') {
     if (day === 'ask') {
@@ -901,9 +918,16 @@ export default function MenuScreen() {
               <Pressable
                 style={[s.button, selectedRecipesForTransfer.size === 0 && s.buttonDisabled]}
                 disabled={selectedRecipesForTransfer.size === 0}
-                onPress={() => setBulkTransferStep('list')}
+                onPress={async () => {
+                  if (params.originListId) {
+                    await executeBulkTransfer(params.originListId);
+                    router.replace(`/shopping/${params.originListId}` as never);
+                  } else {
+                    setBulkTransferStep('list');
+                  }
+                }}
               >
-                <Text style={s.buttonText}>Nästa</Text>
+                <Text style={s.buttonText}>{params.originListId ? 'Överför' : 'Nästa'}</Text>
               </Pressable>
             </>
           ) : (

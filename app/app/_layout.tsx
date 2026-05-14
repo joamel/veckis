@@ -3,6 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { HouseholdProvider, useHousehold } from '../src/context/HouseholdContext';
 import { ToastProvider } from '../src/context/ToastContext';
 
@@ -44,16 +45,18 @@ function NavigationGuard() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ClerkProvider
-        publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
-        tokenCache={tokenCache}
-      >
-        <HouseholdProvider>
-          <ToastProvider>
-            <NavigationGuard />
-          </ToastProvider>
-        </HouseholdProvider>
-      </ClerkProvider>
+      <SafeAreaProvider>
+        <ClerkProvider
+          publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
+          tokenCache={tokenCache}
+        >
+          <HouseholdProvider>
+            <ToastProvider>
+              <NavigationGuard />
+            </ToastProvider>
+          </HouseholdProvider>
+        </ClerkProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
