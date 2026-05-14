@@ -130,6 +130,12 @@ export function useApiClient() {
         body: JSON.stringify(data),
       }),
 
+    mergeShoppingItems: (data: { keepId: string; removeIds: string[]; name?: string; quantity?: number; unit?: string | null; category?: string }) =>
+      request<ShoppingItem>('/api/shopping/items/merge', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
     updateShoppingItem: (itemId: string, data: Partial<Pick<ShoppingItem, 'name' | 'quantity' | 'unit' | 'category' | 'note'>>) =>
       request<ShoppingItem>(`/api/shopping/items/${itemId}`, {
         method: 'PATCH',

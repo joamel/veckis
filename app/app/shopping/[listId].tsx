@@ -362,10 +362,14 @@ export default function ShoppingListScreen() {
     const deleteIds = new Set(remove.map(i => i.id));
     setAdding(true);
     try {
-      await Promise.all([
-        client.updateShoppingItem(keep.id, { name, quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null, category: mergeCategory }),
-        ...remove.map(i => client.deleteShoppingItem(i.id)),
-      ]);
+      await client.mergeShoppingItems({
+        keepId: keep.id,
+        removeIds: remove.map(i => i.id),
+        name,
+        quantity: isNaN(qty) ? 1 : qty,
+        unit: unit ?? null,
+        category: mergeCategory,
+      });
       setList(prev => {
         if (!prev) return prev;
         return {
