@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
+import { useToast } from '../../src/context/ToastContext';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { getISOWeek, addWeeks } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
@@ -54,6 +55,8 @@ function getWeekMonday(weekOffset: number): Date {
 export default function MenuScreen() {
   const router = useRouter();
   const client = useApiClient();
+  const { showToast: showGlobalToast } = useToast();
+  const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
   const { fs, sp } = useTablet();
 
@@ -308,20 +311,7 @@ export default function MenuScreen() {
 
       const lists = recipeListMap[item.id] ?? [];
       if (lists.length === 0) return;
-
-      if (lists.length === 1) {
-        Alert.alert(
-          'Ta bort från inköpslista?',
-          `Ta bort ${item.recipe.title}s ingredienser från "${lists[0].listName}"?`,
-          [
-            { text: 'Behåll', style: 'cancel' },
-            { text: 'Ta bort', style: 'destructive', onPress: () => executeCleanup(item, [lists[0].listId]) },
-          ]
-        );
-      } else {
-        setCleanupPrompt({ menuItem: item, lists });
-        setSelectedCleanupLists(new Set(lists.map(l => l.listId)));
-      }
+      await executeCleanup(item, lists.map(l => l.listId));
     } catch {
       Alert.alert('Fel', 'Kunde inte ta bort');
     }
@@ -593,7 +583,13 @@ export default function MenuScreen() {
                     onDragEnd={onDragEnd}
                     isDragging={dragState?.item.id === item.id}
                     scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
-                    onScaleServings={n => setMenuItemServings(prev => ({ ...prev, [item.id]: n }))}
+                    onScaleServings={n => {
+                  setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
+                  if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
+                    scaleWarnedRef.current.add(item.id);
+                    showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
+                  }
+                }}
                   />
                 ))
               )}
@@ -633,7 +629,13 @@ export default function MenuScreen() {
                 onDragEnd={onDragEnd}
                 isDragging={dragState?.item.id === item.id}
                 scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
-                onScaleServings={n => setMenuItemServings(prev => ({ ...prev, [item.id]: n }))}
+                onScaleServings={n => {
+                  setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
+                  if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
+                    scaleWarnedRef.current.add(item.id);
+                    showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
+                  }
+                }}
               />
             ))
           )}
@@ -817,6 +819,7 @@ export default function MenuScreen() {
                 <TextInput
                   style={[s.input, { flex: 1, marginTop: 0 }]}
                   placeholder="Namn på ny lista"
+                  placeholderTextColor="#9ca3af"
                   value={newListName}
                   onChangeText={setNewListName}
                   returnKeyType="done"
@@ -914,6 +917,7 @@ export default function MenuScreen() {
                     <TextInput
                       style={[s.input, { flex: 1, marginTop: 0 }]}
                       placeholder="Namn på ny lista"
+                      placeholderTextColor="#9ca3af"
                       value={newListName}
                       onChangeText={setNewListName}
                       returnKeyType="done"

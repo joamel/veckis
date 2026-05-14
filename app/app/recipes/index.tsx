@@ -228,6 +228,7 @@ export default function RecipesScreen() {
               <TextInput
                 style={s.input}
                 placeholder="Receptets namn"
+                placeholderTextColor="#9ca3af"
                 value={title}
                 onChangeText={setTitle}
                 autoFocus
@@ -247,6 +248,7 @@ export default function RecipesScreen() {
               <TextInput
                 style={s.input}
                 placeholder="https://tasteline.com/recept/..."
+                placeholderTextColor="#9ca3af"
                 value={url}
                 onChangeText={setUrl}
                 autoCapitalize="none"

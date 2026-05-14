@@ -15,7 +15,7 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
       'sparris', 'kronärtskocka', 'ärtor', 'bönor', 'haricots verts', 'socker­ärtor',
       'svamp', 'champinjoner', 'kantareller', 'shiitake', 'portobello',
       'ingefära', 'chili', 'jalapeño', 'mynta', 'basilika', 'persilja', 'koriander',
-      'dill', 'timjan', 'rosmarin', 'oregano', 'gräslök',
+      'dill', 'timjan', 'rosmarin', 'oregano', 'gräslök', 'granatäpple', 'rabarber',
     ],
   },
   {

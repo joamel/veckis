@@ -270,6 +270,7 @@ export default function ShoppingScreen() {
             <TextInput
               style={styles.input}
               placeholder="Listans namn, t.ex. ICA fredag"
+              placeholderTextColor="#9ca3af"
               value={newListName}
               onChangeText={setNewListName}
               autoFocus
@@ -370,6 +371,7 @@ export default function ShoppingScreen() {
             <TextInput
               style={[styles.input, { flex: 1 }]}
               placeholder="Ny butik..."
+              placeholderTextColor="#9ca3af"
               value={newStoreName}
               onChangeText={setNewStoreName}
               returnKeyType="done"

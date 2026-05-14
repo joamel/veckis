@@ -443,7 +443,14 @@ export default function ChoresScreen() {
         <Pressable style={s.overlay} onPress={() => setShowFilterModal(false)} />
         <View style={s.filterSheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Filtrera på person</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={s.sheetTitle}>Filtrera på person</Text>
+            {filterMemberIds.length > 0 && (
+              <Pressable onPress={() => setFilterMemberIds([])} hitSlop={8}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#7c3aed' }}>Rensa</Text>
+              </Pressable>
+            )}
+          </View>
           <Pressable
             style={s.filterMemberRow}
             onPress={() => setFilterMemberIds([])}
@@ -487,6 +494,7 @@ export default function ChoresScreen() {
             <TextInput
               style={s.input}
               placeholder="Sysslans namn, t.ex. Damma"
+              placeholderTextColor="#9ca3af"
               value={newTitle}
               onChangeText={setNewTitle}
               autoFocus
@@ -580,6 +588,7 @@ export default function ChoresScreen() {
             <TextInput
               style={s.input}
               placeholder="Sysslans namn"
+              placeholderTextColor="#9ca3af"
               value={editTitle}
               onChangeText={setEditTitle}
               returnKeyType="done"

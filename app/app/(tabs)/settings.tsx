@@ -16,9 +16,12 @@ import {
   View,
 } from 'react-native';
 import { useAuth, useUser } from '@clerk/clerk-expo';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useToast } from '../../src/context/ToastContext';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
@@ -28,11 +31,20 @@ export default function SettingsScreen() {
   const { user, isSignedIn } = useUser();
   const client = useApiClient();
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
+  const { showToast: showGlobalToast } = useToast();
   const [invite, setInvite] = useState<InviteCode | null>(null);
   const [loadingInvite, setLoadingInvite] = useState(false);
 
   // Admin edit mode
   const [editMode, setEditMode] = useState(false);
+  useFocusEffect(useCallback(() => {
+    return () => {
+      setEditMode(prev => {
+        if (prev) showGlobalToast('Redigeringsläget avslutat', 'neutral');
+        return false;
+      });
+    };
+  }, [showGlobalToast]));
 
   // Household editing
   const [showEditHouseholdModal, setShowEditHouseholdModal] = useState(false);
@@ -72,9 +84,11 @@ export default function SettingsScreen() {
   // Toast
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
+  const [toastVariant, setToastVariant] = useState<'success' | 'neutral'>('success');
 
-  function showToast(msg: string) {
+  function showToast(msg: string, variant: 'success' | 'neutral' = 'success') {
     setToastMessage(msg);
+    setToastVariant(variant);
     Animated.sequence([
       Animated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
       Animated.delay(2500),
@@ -161,6 +175,33 @@ export default function SettingsScreen() {
   }
 
   // Remove member
+  async function handleToggleAdmin(memberId: string, memberName: string, currentRole: 'admin' | 'member') {
+    if (!householdId) return;
+    const promote = currentRole !== 'admin';
+    Alert.alert(
+      promote ? 'Gör till admin' : 'Ta bort admin-rättigheter',
+      promote
+        ? `Vill du ge ${memberName} admin-rättigheter? Admins kan redigera hushållet och hantera medlemmar.`
+        : `Vill du ta bort admin-rättigheterna från ${memberName}?`,
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: promote ? 'Gör till admin' : 'Ta bort',
+          style: promote ? 'default' : 'destructive',
+          onPress: async () => {
+            try {
+              const updated = await client.updateMember(householdId, memberId, { role: promote ? 'admin' : 'member' });
+              setHousehold(h => h ? { ...h, members: h.members.map(m => m.id === memberId ? { ...m, role: updated.role } : m) } : null);
+              showToast(promote ? `${memberName} är nu admin` : `${memberName} är inte längre admin`);
+            } catch {
+              Alert.alert('Fel', 'Kunde inte ändra roll');
+            }
+          },
+        },
+      ],
+    );
+  }
+
   async function handleRemoveMember(memberId: string, memberName: string) {
     if (!householdId) return;
     Alert.alert('Ta bort medlem', `Är du säker på att du vill ta bort ${memberName}?`, [
@@ -317,13 +358,11 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionLabel}>HUSHÅLLET</Text>
-            {isAdmin && (
-              <Pressable onPress={() => setEditMode(v => !v)} hitSlop={8}>
-                <Text style={[styles.editModeBtn, editMode && styles.editModeBtnActive]}>
-                  {editMode ? 'Klar' : 'Redigera'}
-                </Text>
-              </Pressable>
-            )}
+            <Pressable onPress={() => setEditMode(v => !v)} hitSlop={8}>
+              <Text style={[styles.editModeBtn, editMode && styles.editModeBtnActive]}>
+                {editMode ? 'Klar' : 'Redigera'}
+              </Text>
+            </Pressable>
           </View>
           <View style={styles.card}>
             <View style={styles.householdIcon}>
@@ -333,7 +372,7 @@ export default function SettingsScreen() {
               <Text style={styles.userName}>{householdName ?? 'Okänt hushåll'}</Text>
               <Text style={styles.userEmail}>Aktivt hushåll</Text>
             </View>
-            {editMode && (
+            {editMode && isAdmin && (
               <View style={styles.cardActions}>
                 <Pressable
                   style={styles.memberActionBtn}
@@ -354,7 +393,7 @@ export default function SettingsScreen() {
           <View style={styles.membersBox}>
             <View style={styles.membersHeader}>
               <Text style={styles.membersTitle}>Medlemmar</Text>
-              {editMode && (
+              {editMode && isAdmin && (
                 <Pressable style={styles.addMemberBtn} onPress={() => setShowCreateLocalModal(true)}>
                   <Ionicons name="add-circle-outline" size={15} color="#4f46e5" />
                   <Text style={styles.addMemberBtnText}>Lokal profil</Text>
@@ -380,6 +419,18 @@ export default function SettingsScreen() {
                       style={styles.memberActionBtn}
                     >
                       <Ionicons name="pencil-outline" size={16} color="#4f46e5" />
+                    </Pressable>
+                  )}
+                  {editMode && isAdmin && member.clerkUserId && member.clerkUserId !== clerkUserId && (
+                    <Pressable
+                      onPress={() => handleToggleAdmin(member.id, member.displayName, member.role)}
+                      style={styles.memberActionBtn}
+                    >
+                      <Ionicons
+                        name={member.role === 'admin' ? 'shield-checkmark' : 'shield-outline'}
+                        size={16}
+                        color={member.role === 'admin' ? '#7c3aed' : '#6b7280'}
+                      />
                     </Pressable>
                   )}
                   {editMode && isAdmin && member.clerkUserId !== clerkUserId && (
@@ -639,7 +690,7 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      <Animated.View style={[styles.toast, { opacity: toastOpacity }]} pointerEvents="none">
+      <Animated.View style={[styles.toast, toastVariant === 'neutral' && styles.toastNeutral, { opacity: toastOpacity }]} pointerEvents="none">
         <Text style={styles.toastText}>{toastMessage}</Text>
       </Animated.View>
     </SafeAreaView>
@@ -810,6 +861,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   toastText: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  toastNeutral: { backgroundColor: '#374151' },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flex: 1 },
   sheet: {
     position: 'absolute',
