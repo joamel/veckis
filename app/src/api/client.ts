@@ -229,6 +229,9 @@ export function useApiClient() {
     getWeekMenu: (householdId: string, weekYear: number, weekNumber: number) =>
       request<WeekMenuItemWithRecipe[]>(`/api/menus?householdId=${householdId}&weekYear=${weekYear}&weekNumber=${weekNumber}`),
 
+    getAllMenus: (householdId: string) =>
+      request<WeekMenuItemWithRecipe[]>(`/api/menus?householdId=${householdId}`),
+
     addToWeekMenu: (data: { householdId: string; recipeId: string; day?: WeekDay | null; weekYear: number; weekNumber: number; note?: string | null }) =>
       request<WeekMenuItemWithRecipe>('/api/menus', { method: 'POST', body: JSON.stringify(data) }),
 
