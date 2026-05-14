@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { HouseholdProvider, useHousehold } from '../src/context/HouseholdContext';
+import { ToastProvider } from '../src/context/ToastContext';
 
 const tokenCache = {
   async getToken(key: string) {
@@ -48,7 +49,9 @@ export default function RootLayout() {
         tokenCache={tokenCache}
       >
         <HouseholdProvider>
-          <NavigationGuard />
+          <ToastProvider>
+            <NavigationGuard />
+          </ToastProvider>
         </HouseholdProvider>
       </ClerkProvider>
     </GestureHandlerRootView>

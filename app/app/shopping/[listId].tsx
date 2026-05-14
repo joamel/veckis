@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import Fuse from 'fuse.js';
+import { capitalize } from '../../src/lib/text';
 import {
   ActivityIndicator,
   Animated,
@@ -60,6 +61,10 @@ export default function ShoppingListScreen() {
   const [mergeSelected, setMergeSelected] = useState<Set<string>>(new Set());
   const [mergeQty, setMergeQty] = useState('1');
   const [mergeUnit, setMergeUnit] = useState('');
+  const [mergeName, setMergeName] = useState('');
+  const [mergeCategory, setMergeCategory] = useState<StoreCategory>('other');
+  const [manualPickerOpen, setManualPickerOpen] = useState(false);
+  const [manualPickerSelected, setManualPickerSelected] = useState<Set<string>>(new Set());
 
   // Category browser modal
   const [showBrowser, setShowBrowser] = useState(false);
@@ -139,8 +144,10 @@ export default function ShoppingListScreen() {
       || '';
     setMergeSheet({ name: dupes[0].name.toLowerCase().trim(), category: dupes[0].category as StoreCategory, items: dupes });
     setMergeSelected(new Set(dupes.map(i => i.id)));
-    setMergeQty(String(totalQty));
+    setMergeQty(String(totalQty).replace('.', ','));
     setMergeUnit(bestUnit);
+    setMergeName(capitalize(dupes[0].name));
+    setMergeCategory(dupes[0].category as StoreCategory);
   }, []);
 
   const categoryOrder: StoreCategory[] = (list?.store?.categoryOrder as StoreCategory[]) ?? DEFAULT_CATEGORY_ORDER;
@@ -345,12 +352,13 @@ export default function ShoppingListScreen() {
     if (selected.length < 2) return;
     const qty = parseFloat(mergeQty.replace(',', '.'));
     const unit = mergeUnit.trim() || undefined;
+    const name = (mergeName.trim() || selected[0].name).toLowerCase();
     const [keep, ...remove] = selected;
     const deleteIds = new Set(remove.map(i => i.id));
     setAdding(true);
     try {
       await Promise.all([
-        client.updateShoppingItem(keep.id, { quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null }),
+        client.updateShoppingItem(keep.id, { name, quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null, category: mergeCategory }),
         ...remove.map(i => client.deleteShoppingItem(i.id)),
       ]);
       setList(prev => {
@@ -360,7 +368,7 @@ export default function ShoppingListScreen() {
           items: prev.items
             .filter(i => !deleteIds.has(i.id))
             .map(i => i.id === keep.id
-              ? { ...i, quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null }
+              ? { ...i, name, quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null, category: mergeCategory }
               : i
             ),
         };
@@ -390,7 +398,7 @@ export default function ShoppingListScreen() {
 
   function openEditItem(item: ShoppingItemWithRecipe) {
     setEditingItem(item);
-    setEditName(item.name);
+    setEditName(capitalize(item.name));
     setEditQty(item.quantity !== 1 || item.unit ? String(item.quantity) : '');
     setEditUnit(item.unit ?? '');
     setEditCategory(item.category as StoreCategory);
@@ -415,6 +423,9 @@ export default function ShoppingListScreen() {
       );
       setList(prev => prev ? { ...prev, items: updatedItems } : prev);
       setEditingItem(null);
+      if (householdId && editCategory !== editingItem.category) {
+        client.upsertStaple({ householdId, name, category: editCategory }).catch(() => {});
+      }
       const dupes = updatedItems.filter(i => !i.isChecked && i.name.toLowerCase().trim() === name);
       if (dupes.length >= 2) openMergeForDupes(dupes, updated);
     } catch {
@@ -547,16 +558,21 @@ export default function ShoppingListScreen() {
               <Ionicons name="storefront-outline" size={12} color="#4f46e5" />
               <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
             </Pressable>
-            {duplicateGroups.length > 0 && (
-              <Animated.View style={{ transform: [{ scale: dupeButtonScale }] }}>
-                <Pressable style={s.dupeBadge} onPress={() => openMergeForDupes(duplicateGroups[0])} hitSlop={8}>
-                  <Ionicons name="git-merge-outline" size={12} color="#7c3aed" />
-                  <Text style={s.dupeBadgeText}>
-                    {duplicateGroups.length === 1 ? '1 dubblett' : `${duplicateGroups.length} dubbletter`}
-                  </Text>
-                </Pressable>
-              </Animated.View>
-            )}
+            <Animated.View style={{ transform: [{ scale: dupeButtonScale }] }}>
+              <Pressable
+                style={s.dupeBadge}
+                onPress={() => {
+                  if (duplicateGroups.length > 0) openMergeForDupes(duplicateGroups[0]);
+                  else setMergeSheet({ name: '', category: 'other' as StoreCategory, items: [] });
+                }}
+                hitSlop={8}
+              >
+                <Ionicons name="git-merge-outline" size={12} color="#7c3aed" />
+                <Text style={s.dupeBadgeText}>
+                  {duplicateGroups.length === 1 ? '1 dubblett' : `${duplicateGroups.length} dubbletter`}
+                </Text>
+              </Pressable>
+            </Animated.View>
           </View>
         </View>
       </View>
@@ -581,7 +597,7 @@ export default function ShoppingListScreen() {
         {categoryGroups.map(group => (
           <View key={group.category} style={s.categoryGroup}>
             <View style={s.categoryHeader}>
-              <Text style={s.categoryLabel}>{CATEGORY_LABELS[group.category]}</Text>
+              <Text style={s.categoryLabel}>{CATEGORY_EMOJIS[group.category]} {CATEGORY_LABELS[group.category]}</Text>
             </View>
             {group.items.map(item => (
               <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
@@ -617,7 +633,7 @@ export default function ShoppingListScreen() {
                   style={s.chip}
                   onPress={() => openQtySheet(s2.name, s2.category as StoreCategory)}
                 >
-                  <Text style={s.chipText}>{s2.name}</Text>
+                  <Text style={s.chipText}>{capitalize(s2.name)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -631,6 +647,7 @@ export default function ShoppingListScreen() {
             ref={inputRef}
             style={s.addInput}
             placeholder="Lägg till vara..."
+            placeholderTextColor="#9ca3af"
             value={newItem}
             onChangeText={setNewItem}
             returnKeyType="done"
@@ -678,6 +695,7 @@ export default function ShoppingListScreen() {
             <TextInput
               style={[s.addInput, { flex: 1 }]}
               placeholder="Ny butik..."
+              placeholderTextColor="#9ca3af"
               value={newStoreName}
               onChangeText={setNewStoreName}
               returnKeyType="done"
@@ -702,14 +720,14 @@ export default function ShoppingListScreen() {
           {browserCategory === null ? (
             <>
               <Text style={s.sheetTitle}>Välj kategori</Text>
-              <View style={s.categoryGrid}>
+              <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={[s.categoryGrid, { paddingBottom: 24 }]}>
                 {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
                   <Pressable key={cat} style={s.categoryTile} onPress={() => setBrowserCategory(cat)}>
                     <Text style={s.categoryTileEmoji}>{CATEGORY_EMOJIS[cat]}</Text>
                     <Text style={s.categoryTileLabel}>{CATEGORY_LABELS[cat]}</Text>
                   </Pressable>
                 ))}
-              </View>
+              </ScrollView>
             </>
           ) : (
             <>
@@ -721,15 +739,16 @@ export default function ShoppingListScreen() {
                 <Text style={s.browserTitle}>{CATEGORY_EMOJIS[browserCategory]} {CATEGORY_LABELS[browserCategory]}</Text>
               </View>
               <ScrollView style={s.browserList}>
-                {ingredientSuggestions
+                {searchList
                   .filter(s2 => s2.category === browserCategory)
+                  .sort((a, b) => a.name.localeCompare(b.name, 'sv'))
                   .map(s2 => (
                     <Pressable
                       key={s2.name}
                       style={s.browserItem}
                       onPress={() => { setShowBrowser(false); openQtySheet(s2.name, browserCategory ?? undefined); }}
                     >
-                      <Text style={s.browserItemText}>{s2.name}</Text>
+                      <Text style={s.browserItemText}>{capitalize(s2.name)}</Text>
                       <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
                     </Pressable>
                   ))
@@ -751,6 +770,7 @@ export default function ShoppingListScreen() {
             value={editName}
             onChangeText={setEditName}
             placeholder="Varunamn"
+            placeholderTextColor="#9ca3af"
             autoCapitalize="none"
             returnKeyType="next"
             onSubmitEditing={() => editQtyRef.current?.focus()}
@@ -765,6 +785,7 @@ export default function ShoppingListScreen() {
                 onChangeText={setEditQty}
                 keyboardType="decimal-pad"
                 placeholder="1"
+                placeholderTextColor="#9ca3af"
                 selectTextOnFocus
                 returnKeyType="next"
                 onSubmitEditing={() => editUnitRef.current?.focus()}
@@ -778,6 +799,7 @@ export default function ShoppingListScreen() {
                 value={editUnit}
                 onChangeText={setEditUnit}
                 placeholder="g, dl, st…"
+                placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
                 returnKeyType="done"
               />
@@ -785,7 +807,7 @@ export default function ShoppingListScreen() {
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
             <View style={s.unitChipRow}>
-              {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'nypa', 'påse', 'burk', 'flaska'].map(u => (
+              {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
                 <Pressable key={u} style={[s.unitChip, editUnit === u && s.unitChipActive]} onPress={() => setEditUnit(v => v === u ? '' : u)}>
                   <Text style={[s.unitChipText, editUnit === u && s.unitChipTextActive]}>{u}</Text>
                 </Pressable>
@@ -801,7 +823,7 @@ export default function ShoppingListScreen() {
                   style={[s.catChip, editCategory === cat && s.catChipActive]}
                   onPress={() => setEditCategory(cat)}
                 >
-                  <Text style={[s.catChipText, editCategory === cat && s.catChipTextActive]}>
+                  <Text style={[s.catChipText, editCategory === cat && s.catChipTextActive]} numberOfLines={1}>
                     {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
                   </Text>
                 </Pressable>
@@ -851,7 +873,7 @@ export default function ShoppingListScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>{qtySheet?.name}</Text>
+            <Text style={s.sheetTitle}>{capitalize(qtySheet?.name)}</Text>
             <View style={s.qtyStepper}>
               <Pressable
                 style={s.qtyBtn}
@@ -889,7 +911,7 @@ export default function ShoppingListScreen() {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
               <View style={s.unitChipRow}>
-                {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'nypa', 'påse', 'burk', 'flaska'].map(u => (
+                {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
                   <Pressable key={u} style={[s.unitChip, qtyUnit === u && s.unitChipActive]} onPress={() => setQtyUnit(v => v === u ? '' : u)}>
                     <Text style={[s.unitChipText, qtyUnit === u && s.unitChipTextActive]}>{u}</Text>
                   </Pressable>
@@ -915,9 +937,25 @@ export default function ShoppingListScreen() {
         <Pressable style={s.overlay} onPress={() => setMergeSheet(null)} />
         <View style={s.sheet}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>{mergeSheet?.name}</Text>
-            <Text style={s.sheetSub}>Markera vilka som ska slås ihop</Text>
-            <ScrollView style={s.mergeList} showsVerticalScrollIndicator={false}>
+            <View style={s.mergeHeaderRow}>
+              <Text style={s.sheetTitle}>Dubbletter</Text>
+              {!manualPickerOpen && (
+                <Pressable
+                  style={s.dupeBadge}
+                  onPress={() => { setManualPickerSelected(new Set()); setManualPickerOpen(true); }}
+                  hitSlop={8}
+                >
+                  <Ionicons name="checkbox-outline" size={12} color="#7c3aed" />
+                  <Text style={s.dupeBadgeText}>Markera själv</Text>
+                </Pressable>
+              )}
+            </View>
+            <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 8 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {mergeSheet && mergeSheet.items.length > 0 ? (
+                <Text style={s.sheetSub}>Markera vilka som ska slås ihop</Text>
+              ) : (
+                <Text style={s.sheetSub}>Inga föreslagna dubbletter — markera själv för att slå ihop varor</Text>
+              )}
               {mergeSheet?.items.map(item => (
                 <Pressable key={item.id} style={s.mergeItem} onPress={() => toggleMergeSelected(item.id)}>
                   <Ionicons
@@ -925,52 +963,80 @@ export default function ShoppingListScreen() {
                     size={22}
                     color={mergeSelected.has(item.id) ? '#4f46e5' : '#9ca3af'}
                   />
-                  <Text style={s.mergeItemText}>
-                    {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}
+                  <Text style={s.mergeItemText} numberOfLines={1}>
+                    {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}
                   </Text>
                 </Pressable>
               ))}
-            </ScrollView>
-            <View style={s.mergeDivider} />
-            <Text style={s.editLabel}>Ny mängd och enhet</Text>
-            <View style={s.qtyStepper}>
-              <Pressable
-                style={s.qtyBtn}
-                onPress={() => setMergeQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)))}
-              >
-                <Ionicons name="remove" size={22} color="#4f46e5" />
-              </Pressable>
+              {mergeSheet && mergeSheet.items.length > 0 && (<>
+              <View style={s.mergeDivider} />
+              <Text style={s.editLabel}>Namn</Text>
               <TextInput
-                style={s.qtyInput}
-                value={mergeQty}
-                onChangeText={setMergeQty}
-                keyboardType="decimal-pad"
-                selectTextOnFocus
-              />
-              <Pressable
-                style={s.qtyBtn}
-                onPress={() => setMergeQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1))}
-              >
-                <Ionicons name="add" size={22} color="#4f46e5" />
-              </Pressable>
-              <TextInput
-                style={s.qtyUnitInput}
-                value={mergeUnit}
-                onChangeText={setMergeUnit}
-                placeholder="enhet"
+                style={s.editInput}
+                value={mergeName}
+                onChangeText={setMergeName}
+                placeholder="Varunamn"
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
               />
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
-              <View style={s.unitChipRow}>
-                {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'nypa', 'påse', 'burk', 'flaska'].map(u => (
-                  <Pressable key={u} style={[s.unitChip, mergeUnit === u && s.unitChipActive]} onPress={() => setMergeUnit(v => v === u ? '' : u)}>
-                    <Text style={[s.unitChipText, mergeUnit === u && s.unitChipTextActive]}>{u}</Text>
-                  </Pressable>
-                ))}
+              <Text style={s.editLabel}>Ny mängd och enhet</Text>
+              <View style={s.qtyStepper}>
+                <Pressable
+                  style={s.qtyBtn}
+                  onPress={() => setMergeQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
+                >
+                  <Ionicons name="remove" size={22} color="#4f46e5" />
+                </Pressable>
+                <TextInput
+                  style={s.qtyInput}
+                  value={mergeQty}
+                  onChangeText={setMergeQty}
+                  keyboardType="decimal-pad"
+                  selectTextOnFocus
+                />
+                <Pressable
+                  style={s.qtyBtn}
+                  onPress={() => setMergeQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ','))}
+                >
+                  <Ionicons name="add" size={22} color="#4f46e5" />
+                </Pressable>
+                <TextInput
+                  style={s.qtyUnitInput}
+                  value={mergeUnit}
+                  onChangeText={setMergeUnit}
+                  placeholder="enhet"
+                  placeholderTextColor="#9ca3af"
+                  autoCapitalize="none"
+                />
               </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">
+                <View style={s.unitChipRow}>
+                  {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
+                    <Pressable key={u} style={[s.unitChip, mergeUnit === u && s.unitChipActive]} onPress={() => setMergeUnit(v => v === u ? '' : u)}>
+                      <Text style={[s.unitChipText, mergeUnit === u && s.unitChipTextActive]}>{u}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+              <Text style={s.editLabel}>Kategori</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll} keyboardShouldPersistTaps="handled">
+                <View style={s.catChipRow}>
+                  {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
+                    <Pressable
+                      key={cat}
+                      style={[s.catChip, mergeCategory === cat && s.catChipActive]}
+                      onPress={() => setMergeCategory(cat)}
+                    >
+                      <Text style={[s.catChipText, mergeCategory === cat && s.catChipTextActive]} numberOfLines={1}>
+                        {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+              </>)}
             </ScrollView>
+            {mergeSheet && mergeSheet.items.length > 0 && (<>
             <Pressable
               style={[s.qtyConfirm, (mergeSelected.size < 2 || adding) && s.saveBtnDisabled]}
               onPress={confirmMerge}
@@ -980,6 +1046,19 @@ export default function ShoppingListScreen() {
                 ? <ActivityIndicator color="#fff" size="small" />
                 : <Text style={s.qtyConfirmText}>Slå ihop {mergeSelected.size} varor</Text>}
             </Pressable>
+            {duplicateGroups.length > 1 && (
+              <Pressable
+                style={s.mergeIgnoreBtn}
+                onPress={() => {
+                  if (!mergeSheet) return;
+                  const idx = duplicateGroups.findIndex(g => g[0].name.toLowerCase().trim() === mergeSheet.name);
+                  const next = duplicateGroups[(idx + 1) % duplicateGroups.length];
+                  if (next && next !== duplicateGroups[idx]) openMergeForDupes(next);
+                }}
+              >
+                <Text style={[s.mergeIgnoreBtnText, { color: '#4f46e5' }]}>Nästa dubblett →</Text>
+              </Pressable>
+            )}
             <Pressable
               style={s.mergeIgnoreBtn}
               onPress={() => {
@@ -990,6 +1069,58 @@ export default function ShoppingListScreen() {
             >
               <Text style={s.mergeIgnoreBtnText}>Ignorera</Text>
             </Pressable>
+            </>)}
+        </View>
+      </Modal>
+
+      {/* Manual duplicate picker */}
+      <Modal visible={manualPickerOpen} transparent animationType="slide" onRequestClose={() => setManualPickerOpen(false)}>
+        <Pressable style={s.overlay} onPress={() => setManualPickerOpen(false)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Markera dubbletter själv</Text>
+          <Text style={s.sheetSub}>Välj minst två varor som ska slås ihop</Text>
+          <ScrollView style={s.mergeList} showsVerticalScrollIndicator={false}>
+            {list?.items
+              .filter(i => !i.isChecked && !i.id.startsWith('optimistic-'))
+              .sort((a, b) => a.name.localeCompare(b.name, 'sv'))
+              .map(item => {
+                const checked = manualPickerSelected.has(item.id);
+                return (
+                  <Pressable
+                    key={item.id}
+                    style={s.mergeItem}
+                    onPress={() => setManualPickerSelected(prev => {
+                      const next = new Set(prev);
+                      if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                      return next;
+                    })}
+                  >
+                    <Ionicons
+                      name={checked ? 'checkbox' : 'square-outline'}
+                      size={22}
+                      color={checked ? '#4f46e5' : '#9ca3af'}
+                    />
+                    <Text style={s.mergeItemText} numberOfLines={1}>
+                      {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+          </ScrollView>
+          <Pressable
+            style={[s.qtyConfirm, manualPickerSelected.size < 2 && s.saveBtnDisabled]}
+            disabled={manualPickerSelected.size < 2}
+            onPress={() => {
+              if (!list) return;
+              const selected = list.items.filter(i => manualPickerSelected.has(i.id));
+              if (selected.length < 2) return;
+              setManualPickerOpen(false);
+              openMergeForDupes(selected);
+            }}
+          >
+            <Text style={s.qtyConfirmText}>Fortsätt med {manualPickerSelected.size} varor</Text>
+          </Pressable>
         </View>
       </Modal>
     </SafeAreaView>
@@ -1029,7 +1160,7 @@ function ItemRow({ item, onToggle, onEdit }: { item: ShoppingItemWithRecipe; onT
       <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? '#10b981' : '#4f46e5'} />
       <View style={s.itemContent}>
         <View style={s.itemRow}>
-          <Text style={[s.itemName, item.isChecked && s.itemNameChecked]}>{item.name}</Text>
+          <Text style={[s.itemName, item.isChecked && s.itemNameChecked]}>{capitalize(item.name)}</Text>
           {(item.quantity !== 1 || item.unit) && (
             <Text style={[s.itemQty, item.isChecked && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}</Text>
           )}
@@ -1062,6 +1193,7 @@ const s = StyleSheet.create({
   dupeBadgeText: { fontSize: 12, fontWeight: '600', color: '#7c3aed' },
   mergeIgnoreBtn: { paddingVertical: 10 },
   mergeIgnoreBtnText: { fontSize: 14, color: '#9ca3af', textAlign: 'center' },
+  mergeHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   categoryGroup: { gap: 4 },
   categoryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2, paddingVertical: 4 },
   categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4f46e5', textTransform: 'uppercase', letterSpacing: 0.6, flex: 1 },
@@ -1105,7 +1237,7 @@ const s = StyleSheet.create({
   editInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
   catChipScroll: { marginBottom: 4 },
   catChipRow: { flexDirection: 'row', gap: 8, paddingVertical: 4 },
-  catChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  catChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb', flexShrink: 0 },
   catChipActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
   catChipText: { fontSize: 13, color: '#374151', fontWeight: '500' },
   catChipTextActive: { color: '#4f46e5', fontWeight: '600' },
@@ -1132,7 +1264,7 @@ const s = StyleSheet.create({
   qtyConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  mergeList: { height: 136, flexShrink: 0 },
+  mergeList: { maxHeight: 200, flexGrow: 0 },
   unitChipScroll: { marginVertical: 4 },
   unitChipRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
   unitChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },

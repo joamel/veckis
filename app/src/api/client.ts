@@ -90,7 +90,7 @@ export function useApiClient() {
     removeMember: (householdId: string, memberId: string) =>
       request<void>(`/api/households/${householdId}/members/${memberId}`, { method: 'DELETE' }),
 
-    updateMember: (householdId: string, memberId: string, data: { displayName: string }) =>
+    updateMember: (householdId: string, memberId: string, data: { displayName?: string; role?: 'admin' | 'member' }) =>
       request<HouseholdMember>(`/api/households/${householdId}/members/${memberId}`, {
         method: 'PATCH',
         body: JSON.stringify(data),

@@ -161,6 +161,7 @@ export default function ScheduleScreen() {
 
   // Filter
   const [filterMemberIds, setFilterMemberIds] = useState<string[]>([]);
+  const [tabletCalendarView, setTabletCalendarView] = useState<'month' | 'week'>('month');
   const [showFilterModal, setShowFilterModal] = useState(false);
 
   // New entry modal
@@ -552,14 +553,19 @@ export default function ScheduleScreen() {
   const visibleEntries = entries.filter(e => e.isShared || e.createdBy === userId);
   const selectedDayIndex = DAYS.findIndex(d => d.key === selectedDay);
   const selectedDayDate = new Date(weekMonday.getTime() + selectedDayIndex * 86400000);
-  const selectedDayDateStr = selectedDayDate.toISOString().slice(0, 10);
+  const selectedDayDateStr = `${selectedDayDate.getFullYear()}-${String(selectedDayDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDayDate.getDate()).padStart(2, '0')}`;
   const dayEntries = visibleEntries.filter(e =>
     e.day === selectedDay &&
     !e.exceptions?.includes(selectedDayDateStr) &&
     (!e.startDate || selectedDayDateStr >= e.startDate) &&
     (!e.endDate || selectedDayDateStr <= e.endDate) &&
     (filterMemberIds.length === 0 || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo)))
-  );
+  ).sort((a, b) => {
+    if (!a.startTime && b.startTime) return -1;
+    if (a.startTime && !b.startTime) return 1;
+    if (!a.startTime && !b.startTime) return 0;
+    return (a.startTime ?? '').localeCompare(b.startTime ?? '');
+  });
   const dayMenu = menuItems.filter(i => i.day === selectedDay);
   const dayChores = chores.filter(c =>
     choreVisibleOnDay(c, selectedDay, selectedDayDate) &&
@@ -570,14 +576,19 @@ export default function ScheduleScreen() {
     const idx = DAYS.findIndex(d => d.key === day);
     const dt = new Date(weekMonday.getTime() + idx * 86400000);
     const dtStr = dt.toISOString().slice(0, 10);
+    const filterActive = filterMemberIds.length > 0;
     return visibleEntries.filter(e =>
       e.day === day &&
       !e.exceptions?.includes(dtStr) &&
       (!e.startDate || dtStr >= e.startDate) &&
-      (!e.endDate || dtStr <= e.endDate)
+      (!e.endDate || dtStr <= e.endDate) &&
+      (!filterActive || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo)))
     ).length +
-      menuItems.filter(i => i.day === day).length +
-      chores.filter(c => choreVisibleOnDay(c, day, dt)).length;
+      (filterActive ? 0 : menuItems.filter(i => i.day === day).length) +
+      chores.filter(c =>
+        choreVisibleOnDay(c, day, dt) &&
+        (!filterActive || (c.assignedTo != null && filterMemberIds.includes(c.assignedTo)))
+      ).length;
   };
 
   const isEmpty = dayEntries.length === 0 && dayMenu.length === 0 && dayChores.length === 0;
@@ -645,20 +656,29 @@ export default function ScheduleScreen() {
       {dayEntries.length > 0 && (
         <View style={s.section}>
           <Text style={s.sectionLabel}>AKTIVITETER</Text>
-          {dayEntries.map(entry => (
+          {dayEntries.map(entry => {
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            let isPast = false;
+            if (selectedDayDateStr < todayStr) isPast = true;
+            else if (selectedDayDateStr === todayStr && entry.startTime) {
+              const nowHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+              isPast = entry.startTime < nowHHMM;
+            }
+            return (
             <Pressable
               key={entry.id}
-              style={s.entryCard}
+              style={[s.entryCard, isPast && { opacity: 0.5 }]}
               onPress={() => openEditEntry(entry)}
               onLongPress={() => { medium(); openEditEntry(entry); }}
             >
               <View style={s.entryTime}>
                 {entry.startTime
-                  ? <Text style={[s.timeText, { fontSize: fs(13) }]}>{entry.startTime}</Text>
+                  ? <Text style={[s.timeText, { fontSize: fs(13) }, isPast && { textDecorationLine: 'line-through' }]}>{entry.startTime}</Text>
                   : <Text style={[s.timeTextMuted, { fontSize: fs(10) }]}>Heldag</Text>}
               </View>
               <View style={s.entryContent}>
-                <Text style={[s.entryTitle, { fontSize: fs(15) }]}>{entry.title}</Text>
+                <Text style={[s.entryTitle, { fontSize: fs(15) }, isPast && { textDecorationLine: 'line-through' }]}>{entry.title}</Text>
                 {entry.description && <Text style={[s.entryDesc, { fontSize: fs(13) }]}>{entry.description}</Text>}
                 {getMemberName(entry.assignedTo ?? null) && (
                   <Text style={[s.choreAssigned, { fontSize: fs(12) }]}>{getMemberName(entry.assignedTo ?? null)}</Text>
@@ -666,7 +686,8 @@ export default function ScheduleScreen() {
               </View>
               {!entry.isShared && <Ionicons name="lock-closed-outline" size={fs(14)} color="#9ca3af" />}
             </Pressable>
-          ))}
+            );
+          })}
         </View>
       )}
     </>
@@ -692,18 +713,69 @@ export default function ScheduleScreen() {
       {isTablet ? (
         <View style={s.tabletLayout}>
           <View style={s.tabletLeft}>
-            <MonthView
-              date={monthRef}
-              onMonthChange={setMonthRef}
-              entries={visibleEntries}
-              chores={chores}
-              userId={userId}
-              onSelectDay={handleSelectDayFromMonth}
-              onEditEntry={(entry) => setEditingEntry(entry)}
-              onEditChore={(chore) => setEditingCalChore(chore)}
-              onToday={!isCurrentMonth ? () => { setMonthRef(new Date()); setWeekRef(new Date()); setSelectedDay(TODAY_DAY); } : undefined}
-              selectedDate={selectedDayDate}
-            />
+            <View style={s.tabletViewToggle}>
+              <Pressable
+                style={[s.viewToggleBtn, tabletCalendarView === 'month' && s.viewToggleBtnActive]}
+                onPress={() => setTabletCalendarView('month')}
+              >
+                <Text style={[s.viewToggleText, tabletCalendarView === 'month' && s.viewToggleTextActive]}>Månad</Text>
+              </Pressable>
+              <Pressable
+                style={[s.viewToggleBtn, tabletCalendarView === 'week' && s.viewToggleBtnActive]}
+                onPress={() => setTabletCalendarView('week')}
+              >
+                <Text style={[s.viewToggleText, tabletCalendarView === 'week' && s.viewToggleTextActive]}>Vecka</Text>
+              </Pressable>
+            </View>
+            {tabletCalendarView === 'month' ? (
+              <MonthView
+                date={monthRef}
+                onMonthChange={setMonthRef}
+                entries={visibleEntries}
+                chores={chores}
+                userId={userId}
+                onSelectDay={handleSelectDayFromMonth}
+                onEditEntry={(entry) => setEditingEntry(entry)}
+                onEditChore={(chore) => setEditingCalChore(chore)}
+                onToday={!isCurrentMonth ? () => { setMonthRef(new Date()); setWeekRef(new Date()); setSelectedDay(TODAY_DAY); } : undefined}
+                selectedDate={selectedDayDate}
+                filterMemberIds={filterMemberIds}
+              />
+            ) : (
+              <>
+                <WeekNav
+                  weekLabel={`Vecka ${weekNumber}, ${weekYear}`}
+                  isCurrentWeek={isCurrentWeek}
+                  onPrev={() => setWeekRef(w => addWeeks(w, -1))}
+                  onNext={() => setWeekRef(w => addWeeks(w, 1))}
+                  onToday={() => { setWeekRef(new Date()); setSelectedDay(TODAY_DAY); }}
+                  onPickDate={() => setShowWeekPicker(true)}
+                />
+                <View style={s.dayRow}>
+                  {DAYS.map((day, i) => {
+                    const count = totalPerDay(day.key);
+                    const dayDate = new Date(weekMonday.getTime() + i * 86400000);
+                    const now = new Date();
+                    const isToday = dayDate.getDate() === now.getDate() &&
+                      dayDate.getMonth() === now.getMonth() &&
+                      dayDate.getFullYear() === now.getFullYear();
+                    const isActive = selectedDay === day.key;
+                    const dateNum = dayDate.getDate();
+                    return (
+                      <Pressable
+                        key={day.key}
+                        style={[s.dayTab, isActive && s.dayTabActive, !isActive && count > 0 && s.dayTabHasContent]}
+                        onPress={() => setSelectedDay(day.key)}
+                      >
+                        <Text style={[s.dayTabShort, isActive && s.dayTabTextActive]}>{day.short}</Text>
+                        <Text style={[s.dayTabDate, isActive && s.dayTabTextActive]}>{dateNum}</Text>
+                        <View style={[s.todayDot, isActive && s.todayDotActive, !isToday && s.todayDotHidden]} />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            )}
           </View>
           <View style={s.tabletRight}>
             <View style={s.tabletDayHeader}>
@@ -788,6 +860,7 @@ export default function ScheduleScreen() {
             <TextInput
               style={s.input}
               placeholder="Titel"
+              placeholderTextColor="#9ca3af"
               value={editEntryTitle}
               onChangeText={setEditEntryTitle}
             />
@@ -960,6 +1033,7 @@ export default function ScheduleScreen() {
             <TextInput
               style={s.input}
               placeholder="Titel"
+              placeholderTextColor="#9ca3af"
               value={editCalChoreTitle}
               onChangeText={setEditCalChoreTitle}
             />
@@ -1009,7 +1083,14 @@ export default function ScheduleScreen() {
         <Pressable style={s.overlay} onPress={() => setShowFilterModal(false)} />
         <View style={s.filterSheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Filtrera på person</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={s.sheetTitle}>Filtrera på person</Text>
+            {filterMemberIds.length > 0 && (
+              <Pressable onPress={() => setFilterMemberIds([])} hitSlop={8}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#7c3aed' }}>Rensa</Text>
+              </Pressable>
+            )}
+          </View>
           <Pressable
             style={s.filterMemberRow}
             onPress={() => setFilterMemberIds([])}
@@ -1068,6 +1149,7 @@ export default function ScheduleScreen() {
             <TextInput
               style={s.input}
               placeholder="Titel, t.ex. Träning"
+              placeholderTextColor="#9ca3af"
               value={newTitle}
               onChangeText={setNewTitle}
               autoFocus
@@ -1326,6 +1408,11 @@ const s = StyleSheet.create({
   navButtonText: { fontSize: 14, fontWeight: '600', color: '#4f46e5' },
   tabletLayout: { flex: 1, flexDirection: 'row' },
   tabletLeft: { flex: 1.4, borderRightWidth: 1, borderRightColor: '#f3f4f6' },
+  tabletViewToggle: { flexDirection: 'row', gap: 6, padding: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  viewToggleBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f3f4f6' },
+  viewToggleBtnActive: { backgroundColor: '#4f46e5' },
+  viewToggleText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
+  viewToggleTextActive: { color: '#fff' },
   tabletRight: { flex: 1, backgroundColor: '#f9fafb' },
   tabletDayHeader: { padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   tabletDayTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },

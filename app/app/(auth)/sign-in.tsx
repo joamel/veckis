@@ -62,6 +62,7 @@ export default function SignInScreen() {
       <TextInput
         style={styles.input}
         placeholder="E-post"
+        placeholderTextColor="#9ca3af"
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
@@ -70,6 +71,7 @@ export default function SignInScreen() {
       <TextInput
         style={styles.input}
         placeholder="Lösenord"
+        placeholderTextColor="#9ca3af"
         secureTextEntry
         value={password}
         onChangeText={setPassword}

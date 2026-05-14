@@ -14,6 +14,14 @@ function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function isoWeek(d: Date): number {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil((((t.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
 export function DatePickerModal({ value, onChange, onClose, title, visible }: DatePickerModalProps) {
   const initial = value ? new Date(value + 'T00:00:00') : new Date();
   const [viewYear, setViewYear] = useState(initial.getFullYear());
@@ -27,6 +35,7 @@ export function DatePickerModal({ value, onChange, onClose, title, visible }: Da
     const days: Date[] = [];
     const current = new Date(startDate);
     while (current <= monthEnd) { days.push(new Date(current)); current.setDate(current.getDate() + 1); }
+    while (days.length % 7 !== 0) { days.push(new Date(current)); current.setDate(current.getDate() + 1); }
     const result: Date[][] = [];
     for (let i = 0; i < days.length; i += 7) result.push(days.slice(i, i + 7));
     return result;
@@ -55,10 +64,12 @@ export function DatePickerModal({ value, onChange, onClose, title, visible }: Da
           <Pressable onPress={nextMonth} style={s.arrow}><Ionicons name="chevron-forward" size={20} color="#374151" /></Pressable>
         </View>
         <View style={s.weekDays}>
+          <Text style={s.weekNumHeader}> </Text>
           {['Mån','Tis','Ons','Tor','Fre','Lör','Sön'].map(d => <Text key={d} style={s.weekDay}>{d}</Text>)}
         </View>
         {weeks.map((week, wi) => (
           <View key={wi} style={s.week}>
+            <Text style={s.weekNum}>{isoWeek(week[0])}</Text>
             {week.map(day => {
               const ds = toDateStr(day);
               const isCurrentMonth = day.getMonth() === viewMonth;
@@ -102,6 +113,8 @@ const s = StyleSheet.create({
   monthLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
   weekDays: { flexDirection: 'row', marginBottom: 4 },
   weekDay: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600', color: '#9ca3af', paddingVertical: 4 },
+  weekNumHeader: { width: 24, textAlign: 'center', fontSize: 11 },
+  weekNum: { width: 24, textAlign: 'center', alignSelf: 'center', fontSize: 11, fontWeight: '600', color: '#d1d5db' },
   week: { flexDirection: 'row', marginBottom: 2 },
   day: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 8, margin: 2 },
   dayOther: { opacity: 0.3 },

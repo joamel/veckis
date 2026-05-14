@@ -122,7 +122,10 @@ householdRouter.post('/:householdId/invite', requireAuth, requireHouseholdMember
 
 // PATCH /api/households/:householdId/members/:memberId
 householdRouter.patch('/:householdId/members/:memberId', requireAuth, asyncHandler(async (req, res) => {
-  const body = z.object({ displayName: z.string().min(1).max(100) }).safeParse(req.body);
+  const body = z.object({
+    displayName: z.string().min(1).max(100).optional(),
+    role: z.enum(['admin', 'member']).optional(),
+  }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const target = await prisma.householdMember.findUnique({ where: { id: req.params.memberId } });
@@ -138,14 +141,21 @@ householdRouter.patch('/:householdId/members/:memberId', requireAuth, asyncHandl
   const isAdmin = member?.role === 'admin';
   const isSelf = target.clerkUserId === clerkUserId;
 
-  if (!isSelf && !isAdmin) {
+  if (body.data.role !== undefined && !isAdmin) {
+    res.status(403).json({ error: 'Only admins can change roles' });
+    return;
+  }
+  if (body.data.displayName !== undefined && !isSelf && !isAdmin) {
     res.status(403).json({ error: 'Unauthorized' });
     return;
   }
 
   const updated = await prisma.householdMember.update({
     where: { id: target.id },
-    data: { displayName: body.data.displayName },
+    data: {
+      ...(body.data.displayName !== undefined ? { displayName: body.data.displayName } : {}),
+      ...(body.data.role !== undefined ? { role: body.data.role } : {}),
+    },
   });
   res.json(updated);
 }));

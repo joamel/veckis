@@ -22,7 +22,7 @@ import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems } 
 import { useHousehold } from '../../src/context/HouseholdContext';
 import type { RecipeIngredient } from '@veckis/shared';
 
-const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'nypa', 'påse', 'burk', 'flaska'];
+const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
 export default function RecipeDetailScreen() {
   const { recipeId, transfer } = useLocalSearchParams<{ recipeId: string; transfer?: string }>();
@@ -257,6 +257,7 @@ export default function RecipeDetailScreen() {
                       ref={el => { getRowRef(idx).qty = el; }}
                       style={[s.editInput, s.editInputQty]}
                       placeholder="Mängd"
+                      placeholderTextColor="#9ca3af"
                       value={row.quantity}
                       onChangeText={v => updateEditRow(idx, 'quantity', v)}
                       keyboardType="decimal-pad"
@@ -268,6 +269,7 @@ export default function RecipeDetailScreen() {
                       ref={el => { getRowRef(idx).unit = el; }}
                       style={[s.editInput, s.editInputUnit]}
                       placeholder="Enhet"
+                      placeholderTextColor="#9ca3af"
                       value={row.unit}
                       onChangeText={v => updateEditRow(idx, 'unit', v)}
                       autoCapitalize="none"
@@ -281,6 +283,7 @@ export default function RecipeDetailScreen() {
                       ref={el => { getRowRef(idx).name = el; }}
                       style={[s.editInput, s.editInputName]}
                       placeholder="Ingrediens"
+                      placeholderTextColor="#9ca3af"
                       value={row.name}
                       onChangeText={v => updateEditRow(idx, 'name', v)}
                       autoCapitalize="none"

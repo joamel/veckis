@@ -15,6 +15,7 @@ interface MonthViewProps {
   onEditChore: (chore: Chore & { completions: ChoreCompletion[] }) => void;
   onToday?: () => void;
   selectedDate?: Date;
+  filterMemberIds?: string[];
 }
 
 function choreVisibleOnDay(
@@ -50,6 +51,7 @@ export function MonthView({
   onSelectDay,
   onToday,
   selectedDate,
+  filterMemberIds = [],
 }: MonthViewProps) {
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -63,6 +65,10 @@ export function MonthView({
     const days: Date[] = [];
     const current = new Date(startDate);
     while (current <= monthEnd) {
+      days.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+    while (days.length % 7 !== 0) {
       days.push(new Date(current));
       current.setDate(current.getDate() + 1);
     }
@@ -82,9 +88,13 @@ export function MonthView({
       (e.isShared || e.createdBy === userId) &&
       !e.exceptions?.includes(dateStr) &&
       (!(e as any).startDate || dateStr >= (e as any).startDate) &&
-      (!(e as any).endDate || dateStr <= (e as any).endDate)
+      (!(e as any).endDate || dateStr <= (e as any).endDate) &&
+      (filterMemberIds.length === 0 || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo)))
     );
-    const hasChores = chores.some(c => choreVisibleOnDay(c, dayOfWeek, day));
+    const hasChores = chores.some(c =>
+      choreVisibleOnDay(c, dayOfWeek, day) &&
+      (filterMemberIds.length === 0 || (c.assignedTo != null && filterMemberIds.includes(c.assignedTo)))
+    );
     return hasEntries || hasChores;
   };
 

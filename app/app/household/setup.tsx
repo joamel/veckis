@@ -23,13 +23,14 @@ export default function HouseholdSetupScreen() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const displayName = user?.fullName ?? user?.emailAddresses[0]?.emailAddress ?? 'Användare';
+  const defaultName = user?.firstName ?? user?.fullName ?? user?.emailAddresses[0]?.emailAddress?.split('@')[0] ?? 'Användare';
+  const [nickname, setNickname] = useState(defaultName);
 
   async function handleCreate() {
-    if (!name.trim()) return;
+    if (!name.trim() || !nickname.trim()) return;
     setLoading(true);
     try {
-      await client.createHousehold(name.trim(), displayName);
+      await client.createHousehold(name.trim(), nickname.trim());
       await refresh();
     } catch (err) {
       Alert.alert('Fel', err instanceof Error ? err.message : 'Kunde inte skapa hushåll');
@@ -39,10 +40,10 @@ export default function HouseholdSetupScreen() {
   }
 
   async function handleJoin() {
-    if (code.trim().length !== 8) return;
+    if (code.trim().length !== 8 || !nickname.trim()) return;
     setLoading(true);
     try {
-      await client.joinHousehold(code.trim().toUpperCase(), displayName);
+      await client.joinHousehold(code.trim().toUpperCase(), nickname.trim());
       await refresh();
     } catch (err) {
       Alert.alert('Fel', err instanceof Error ? err.message : 'Ogiltig eller utgången kod');
@@ -57,7 +58,18 @@ export default function HouseholdSetupScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Text style={styles.title}>Välkommen till Veckis</Text>
-      <Text style={styles.subtitle}>Skapa ett nytt hushåll eller gå med i ett befintligt</Text>
+      <Text style={styles.subtitle}>Välj ett smeknamn — det syns för andra i hushållet</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Ditt smeknamn"
+        placeholderTextColor="#9ca3af"
+        value={nickname}
+        onChangeText={setNickname}
+        autoCapitalize="words"
+      />
+
+      <Text style={[styles.subtitle, { marginTop: 16 }]}>Skapa ett nytt hushåll eller gå med i ett befintligt</Text>
 
       <View style={styles.tabs}>
         <Pressable
@@ -79,6 +91,7 @@ export default function HouseholdSetupScreen() {
           <TextInput
             style={styles.input}
             placeholder="Hushållets namn, t.ex. Familjen Andersson"
+            placeholderTextColor="#9ca3af"
             value={name}
             onChangeText={setName}
             autoFocus
@@ -102,6 +115,7 @@ export default function HouseholdSetupScreen() {
           <TextInput
             style={[styles.input, styles.codeInput]}
             placeholder="XXXXXXXX"
+            placeholderTextColor="#9ca3af"
             value={code}
             onChangeText={t => setCode(t.toUpperCase())}
             autoCapitalize="characters"

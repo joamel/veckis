@@ -143,8 +143,12 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const normalizedName = stripIngredient(body.data.name);
+  const staplePref = await prisma.stapleItem.findUnique({
+    where: { householdId_name: { householdId: list.householdId, name: normalizedName } },
+    select: { category: true },
+  });
   const category = body.data.category === 'other'
-    ? (await getStoredCategory(normalizedName) ?? categorizeIngredient(normalizedName))
+    ? (staplePref?.category ?? await getStoredCategory(normalizedName) ?? categorizeIngredient(normalizedName))
     : body.data.category;
 
   // If an unchecked item with the same name+unit already exists, increment its quantity
