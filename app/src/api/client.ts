@@ -130,7 +130,7 @@ export function useApiClient() {
         body: JSON.stringify(data),
       }),
 
-    mergeShoppingItems: (data: { keepId: string; removeIds: string[]; name?: string; quantity?: number; unit?: string | null; category?: string }) =>
+    mergeShoppingItems: (data: { sourceIds: string[]; name: string; quantity: number; unit?: string | null; category: string }) =>
       request<ShoppingItem>('/api/shopping/items/merge', {
         method: 'POST',
         body: JSON.stringify(data),

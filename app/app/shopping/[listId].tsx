@@ -358,13 +358,12 @@ export default function ShoppingListScreen() {
     const qty = parseFloat(mergeQty.replace(',', '.'));
     const unit = mergeUnit.trim() || undefined;
     const name = (mergeName.trim() || selected[0].name).toLowerCase();
-    const [keep, ...remove] = selected;
-    const deleteIds = new Set(remove.map(i => i.id));
+    const sourceIds = selected.map(i => i.id);
+    const hideIds = new Set(sourceIds);
     setAdding(true);
     try {
-      await client.mergeShoppingItems({
-        keepId: keep.id,
-        removeIds: remove.map(i => i.id),
+      const container = await client.mergeShoppingItems({
+        sourceIds,
         name,
         quantity: isNaN(qty) ? 1 : qty,
         unit: unit ?? null,
@@ -374,12 +373,7 @@ export default function ShoppingListScreen() {
         if (!prev) return prev;
         return {
           ...prev,
-          items: prev.items
-            .filter(i => !deleteIds.has(i.id))
-            .map(i => i.id === keep.id
-              ? { ...i, name, quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null, category: mergeCategory }
-              : i
-            ),
+          items: [...prev.items.filter(i => !hideIds.has(i.id)), { ...container, recipe: null }],
         };
       });
       pendingOpenNextDupe.current = true;

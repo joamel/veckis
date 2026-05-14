@@ -24,7 +24,8 @@ async function findMergeRoot(itemId: string): Promise<string> {
   }
 }
 
-// Recursively restore all descendants of rootId (set mergedIntoId = null on them)
+// Recursively restore all descendants of rootId AND delete the synthetic root.
+// Returns surviving (formerly hidden) leaf item IDs.
 async function fullyUnmerge(rootId: string): Promise<string[]> {
   const restored: string[] = [];
   const children = await prisma.shoppingItem.findMany({
@@ -33,10 +34,13 @@ async function fullyUnmerge(rootId: string): Promise<string[]> {
   });
   for (const child of children) {
     await prisma.shoppingItem.update({ where: { id: child.id }, data: { mergedIntoId: null } });
-    restored.push(child.id);
+    // If this child is itself a merge-root, recursively unmerge it too
     const deeper = await fullyUnmerge(child.id);
-    restored.push(...deeper);
+    if (deeper.length > 0) restored.push(...deeper);
+    else restored.push(child.id);
   }
+  // Delete the synthetic merge container (its job is done — children are visible again)
+  await prisma.shoppingItem.delete({ where: { id: rootId } }).catch(() => {});
   return restored;
 }
 
@@ -263,48 +267,61 @@ shoppingRouter.patch('/items/:itemId/check', requireAuth, asyncHandler(async (re
   res.json(item);
 }));
 
-// POST /api/shopping/items/merge — soft-merge: keep one item, hide others by setting mergedIntoId
+// POST /api/shopping/items/merge — create a new synthetic merge container,
+// hide all source items under it. On delete/unmerge the container disappears
+// and the originals re-emerge intact.
 shoppingRouter.post('/items/merge', requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({
-    keepId: z.string(),
-    removeIds: z.array(z.string()).min(1),
-    name: z.string().min(1).optional(),
-    quantity: z.number().positive().optional(),
+    sourceIds: z.array(z.string()).min(2),
+    name: z.string().min(1),
+    quantity: z.number().positive(),
     unit: z.string().nullable().optional(),
-    category: categoryEnum.optional(),
+    category: categoryEnum,
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const keep = await prisma.shoppingItem.findUnique({ where: { id: body.data.keepId } });
-  if (!keep) { res.status(404).json({ error: 'Keep item not found' }); return; }
+  const sources = await prisma.shoppingItem.findMany({
+    where: { id: { in: body.data.sourceIds } },
+  });
+  if (sources.length !== body.data.sourceIds.length) {
+    res.status(404).json({ error: 'Some source items not found' });
+    return;
+  }
+  const listId = sources[0].listId;
+  if (sources.some(s => s.listId !== listId)) {
+    res.status(400).json({ error: 'All items must belong to the same list' });
+    return;
+  }
 
-  const list = await getListAndVerifyMember(keep.listId, (req as AuthenticatedRequest).clerkUserId, res);
+  const list = await getListAndVerifyMember(listId, (req as AuthenticatedRequest).clerkUserId, res);
   if (!list) return;
 
-  const updateData: Prisma.ShoppingItemUpdateInput = {};
-  if (body.data.name !== undefined) updateData.name = body.data.name;
-  if (body.data.quantity !== undefined) updateData.quantity = body.data.quantity;
-  if (body.data.unit !== undefined) updateData.unit = body.data.unit;
-  if (body.data.category !== undefined) updateData.category = body.data.category;
+  const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const u = await tx.shoppingItem.update({
-      where: { id: keep.id },
-      data: updateData,
+  const container = await prisma.$transaction(async (tx) => {
+    const created = await tx.shoppingItem.create({
+      data: {
+        listId,
+        name: body.data.name,
+        quantity: body.data.quantity,
+        unit: body.data.unit ?? null,
+        category: body.data.category,
+        addedBy: clerkUserId,
+      },
       include: { recipe: { select: { id: true, title: true } } },
     });
     await tx.shoppingItem.updateMany({
-      where: { id: { in: body.data.removeIds }, listId: list.id },
-      data: { mergedIntoId: keep.id },
+      where: { id: { in: body.data.sourceIds }, listId },
+      data: { mergedIntoId: created.id },
     });
-    return u;
+    return created;
   });
 
-  wsBroadcast(list.id, { type: 'item_updated', data: updated });
-  for (const id of body.data.removeIds) {
+  wsBroadcast(list.id, { type: 'item_added', data: container });
+  for (const id of body.data.sourceIds) {
     wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
   }
-  res.json(updated);
+  res.json(container);
 }));
 
 // DELETE /api/shopping/lists/:listId/items/by-menu-item/:menuItemId
@@ -361,17 +378,11 @@ shoppingRouter.delete('/items/:itemId', requireAuth, asyncHandler(async (req, re
   const list = await getListAndVerifyMember(existing.listId, (req as AuthenticatedRequest).clerkUserId, res);
   if (!list) return;
 
-  // If this is a visible merged item, fully unmerge its tree first so children survive
-  const rootId = await findMergeRoot(existing.id);
-  let restoredIds: string[] = [];
-  if (rootId === existing.id) {
-    restoredIds = await fullyUnmerge(existing.id);
-  }
-
-  await prisma.shoppingItem.delete({ where: { id: existing.id } });
-  wsBroadcast(list.id, { type: 'item_deleted', data: { id: existing.id } });
-
-  if (restoredIds.length > 0) {
+  // If this is a merge container (has children), fullyUnmerge handles deletion + restoration
+  const hasChildren = await prisma.shoppingItem.findFirst({ where: { mergedIntoId: existing.id }, select: { id: true } });
+  if (hasChildren) {
+    const restoredIds = await fullyUnmerge(existing.id);
+    wsBroadcast(list.id, { type: 'item_deleted', data: { id: existing.id } });
     const survivors = await prisma.shoppingItem.findMany({
       where: { id: { in: restoredIds } },
       include: { recipe: { select: { id: true, title: true } } },
@@ -379,6 +390,11 @@ shoppingRouter.delete('/items/:itemId', requireAuth, asyncHandler(async (req, re
     for (const s of survivors) {
       wsBroadcast(list.id, { type: 'item_added', data: s });
     }
+    res.status(204).send();
+    return;
   }
+
+  await prisma.shoppingItem.delete({ where: { id: existing.id } });
+  wsBroadcast(list.id, { type: 'item_deleted', data: { id: existing.id } });
   res.status(204).send();
 }));
