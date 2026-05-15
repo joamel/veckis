@@ -239,7 +239,7 @@ export default function RecipeDetailScreen() {
               onPress={() => WebBrowser.openBrowserAsync(recipe.sourceUrl!)}
             >
               <Ionicons name="open-outline" size={14} color="#4f46e5" />
-              <Text style={[s.metaText, { color: '#4f46e5', flexShrink: 0, includeFontPadding: false }]}>Originalrecept</Text>
+              <Text style={[s.metaText, { color: '#4f46e5', flexShrink: 0, includeFontPadding: false, paddingRight: 2, letterSpacing: 0.2 }]}>Originalrecept</Text>
             </Pressable>
           )}
         </View>
