@@ -17,7 +17,7 @@
 - [ ] sysslor och aktiviteter skulle kunna ha en emoji likt maträtter för att få samma stil på korten i kalendern.
 - [ ] möjligt med horisontell-vy i tablet
 - [x] Ångra-toast för destruktiva åtgärder (rensa inköpslista) — knapp "Ångra" i toasten i ~5 sekunder (resten kan adderas vid behov)
-- [ ] Utvidga realtidsuppdatering (WebSocket) till meny, sysslor, kalender och inställningar så alla hushållsmedlemmar ser samma data
+- [x] Utvidga realtidsuppdatering (WebSocket) till sysslor och kalender (meny + inställningar kan adderas via samma kanal)
 - [ ] Long press-symmetri: kontrollera att redigering via long press finns konsekvent på basvaror, butiker och kategorier (inte bara inköpslista/maträtt/aktivitet/syssla)
 - [ ] Pushnotiser — specificera per typ: påminnelse innan aktivitet startar, förfallen syssla, någon har rensat aktiv inköpslista, ny medlem i hushållet
 - [x] Bannern ovan appen borde vara svart/neutral så man ser klockan, notiser mm
@@ -147,7 +147,7 @@
 - [x] Aktiviteter som har passerat (i tid) borde strykas över eller gråmarkeras
 - [x] En privat aktivitet i kalendern borde kanske inte kunna läggas på någon user
 - [x] Skapa ny aktivitet behöver inte ha "Dag"-valet med veckodagarna då den bör komma ihåg vilken dag man valt att lägga in aktiviteten på.
-- [ ] Kunna lägga aktiviteter på fler än en user i taget
+- [x] Kunna lägga aktiviteter på fler än en user i taget
 
 ### Sysslor
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.

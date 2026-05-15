@@ -18,6 +18,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
+import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
+import { useAuth } from '@clerk/clerk-expo';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
@@ -119,6 +121,7 @@ function MemberPicker({ members, selected, onChange }: { members: Member[]; sele
 export default function ChoresScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
+  const { getToken } = useAuth();
   const { medium } = useHaptics();
   const { fs, sp } = useTablet();
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -135,6 +138,16 @@ export default function ChoresScreen() {
 
   const [chores, setChores] = useState<ChoreWithCompletion[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+
+  useHouseholdSocket(householdId, getToken, (msg) => {
+    if (msg.type === 'chore_added') {
+      setChores(prev => prev.some(c => c.id === msg.data.id) ? prev : [...prev, msg.data as never]);
+    } else if (msg.type === 'chore_updated') {
+      setChores(prev => prev.map(c => c.id === msg.data.id ? { ...c, ...msg.data } as never : c));
+    } else if (msg.type === 'chore_deleted') {
+      setChores(prev => prev.filter(c => c.id !== msg.data.id));
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [filterMemberIds, setFilterMemberIds] = useState<string[]>([]);

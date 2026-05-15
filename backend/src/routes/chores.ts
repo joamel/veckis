@@ -4,6 +4,7 @@ import { ChoreFrequency, WeekDay, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
+import { wsBroadcast } from '../lib/wsHub';
 
 export const choresRouter = Router();
 
@@ -74,6 +75,7 @@ choresRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (
   const chore = await prisma.chore.create({
     data: { ...body.data, createdBy: (req as AuthenticatedRequest).clerkUserId } as Prisma.ChoreUncheckedCreateInput,
   });
+  wsBroadcast(`household:${chore.householdId}`, { type: 'chore_added', data: { ...chore, completions: [] } });
   res.status(201).json(chore);
 }));
 
@@ -86,6 +88,7 @@ choresRouter.patch('/:choreId', requireAuth, asyncHandler(async (req, res) => {
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const updated = await prisma.chore.update({ where: { id: chore.id }, data: body.data });
+  wsBroadcast(`household:${updated.householdId}`, { type: 'chore_updated', data: updated });
   res.json(updated);
 }));
 
@@ -95,6 +98,7 @@ choresRouter.delete('/:choreId', requireAuth, asyncHandler(async (req, res) => {
   if (!chore) return;
 
   await prisma.chore.delete({ where: { id: chore.id } });
+  wsBroadcast(`household:${chore.householdId}`, { type: 'chore_deleted', data: { id: chore.id } });
   res.status(204).send();
 }));
 
