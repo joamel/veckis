@@ -86,7 +86,7 @@ export default function RecipeDetailScreen() {
         setEditIngredients([{ name: '', quantity: '', unit: '' }]);
         setEditMode(true);
         router.setParams({ edit: undefined });
-        setTimeout(() => getRowRef(0).qty?.focus(), 250);
+        setTimeout(() => getRowRef(0).name?.focus(), 250);
       }
     } catch {
       Alert.alert('Fel', 'Kunde inte ladda receptet');
@@ -274,6 +274,20 @@ export default function RecipeDetailScreen() {
                 <View key={idx}>
                   <View style={s.editRow}>
                     <TextInput
+                      ref={el => { getRowRef(idx).name = el; }}
+                      style={[s.editInput, s.editInputName]}
+                      placeholder="Ingrediens"
+                      placeholderTextColor="#9ca3af"
+                      value={row.name}
+                      onChangeText={v => updateEditRow(idx, 'name', v)}
+                      autoCapitalize="none"
+                      returnKeyType="next"
+                      blurOnSubmit={false}
+                      onFocus={() => setActiveNameIdx(idx)}
+                      onBlur={() => setTimeout(() => setActiveNameIdx(a => a === idx ? null : a), 120)}
+                      onSubmitEditing={() => getRowRef(idx).qty?.focus()}
+                    />
+                    <TextInput
                       ref={el => { getRowRef(idx).qty = el; }}
                       style={[s.editInput, s.editInputQty]}
                       placeholder="Mängd"
@@ -293,26 +307,13 @@ export default function RecipeDetailScreen() {
                       value={row.unit}
                       onChangeText={v => updateEditRow(idx, 'unit', v.toLowerCase())}
                       autoCapitalize="none"
-                      returnKeyType="next"
+                      returnKeyType={idx < editIngredients.length - 1 ? 'next' : 'done'}
                       blurOnSubmit={false}
                       onFocus={() => setActiveUnitIdx(idx)}
                       onBlur={() => setTimeout(() => setActiveUnitIdx(a => a === idx ? null : a), 120)}
-                      onSubmitEditing={() => { setActiveUnitIdx(null); getRowRef(idx).name?.focus(); }}
-                    />
-                    <TextInput
-                      ref={el => { getRowRef(idx).name = el; }}
-                      style={[s.editInput, s.editInputName]}
-                      placeholder="Ingrediens"
-                      placeholderTextColor="#9ca3af"
-                      value={row.name}
-                      onChangeText={v => updateEditRow(idx, 'name', v)}
-                      autoCapitalize="none"
-                      returnKeyType={idx < editIngredients.length - 1 ? 'next' : 'done'}
-                      blurOnSubmit={false}
-                      onFocus={() => setActiveNameIdx(idx)}
-                      onBlur={() => setTimeout(() => setActiveNameIdx(a => a === idx ? null : a), 120)}
                       onSubmitEditing={() => {
-                        if (idx < editIngredients.length - 1) getRowRef(idx + 1).qty?.focus();
+                        setActiveUnitIdx(null);
+                        if (idx < editIngredients.length - 1) getRowRef(idx + 1).name?.focus();
                       }}
                     />
                     <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove}>
@@ -332,7 +333,10 @@ export default function RecipeDetailScreen() {
                                 updateEditRow(idx, 'unit', active ? '' : u);
                                 if (!active) {
                                   setActiveUnitIdx(null);
-                                  setTimeout(() => getRowRef(idx).name?.focus(), 50);
+                                  // Move focus to the next row's name input (or stay if last)
+                                  if (idx < editIngredients.length - 1) {
+                                    setTimeout(() => getRowRef(idx + 1).name?.focus(), 50);
+                                  }
                                 }
                               }}
                             >
@@ -359,6 +363,7 @@ export default function RecipeDetailScreen() {
                               onPress={() => {
                                 updateEditRow(idx, 'name', h.name.toLowerCase());
                                 setActiveNameIdx(null);
+                                setTimeout(() => getRowRef(idx).qty?.focus(), 50);
                               }}
                             >
                               <Text style={s.unitChipText}>{h.name}</Text>

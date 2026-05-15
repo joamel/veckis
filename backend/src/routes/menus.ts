@@ -235,12 +235,19 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   for (const ing of sorted) {
     const nameUnit = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}`;
     if (ing.menuItemId) {
+      // Prefer same-menuItemId match (already linked to this rätt)
       const match = existingByMenuItemKey.get(`${nameUnit}|${ing.menuItemId}`);
       if (match) {
         toUpdate.push({ id: match.id, quantity: match.quantity + (ing.quantity ?? 1), name: ing.name });
-      } else {
-        toCreate.push(ing);
+        continue;
       }
+      // Fallback: same name+unit but no menuItemId → merge into the unbound item
+      const fallback = existingByNameUnit.get(nameUnit);
+      if (fallback) {
+        toUpdate.push({ id: fallback.id, quantity: fallback.quantity + (ing.quantity ?? 1), name: ing.name });
+        continue;
+      }
+      toCreate.push(ing);
     } else {
       const match = existingByNameUnit.get(nameUnit);
       if (match) {

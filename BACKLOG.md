@@ -87,7 +87,7 @@
 - [x] Om man ångrar import borde man återgå till inköpslistan istället för att hamna i veckomenyn
 - [x] När man har flera dubbletter vore det snyggare om allt sparas efter att man klickat klart genom dubbletterna istället för varje gång man trycker på "slå ihop". Så istället kommer nästa sömlöst upp när man trycker på slå ihop.
 - [ ] Borde gå att lägga till egna kategorier och ta bort kategorier i butiker.
-- [ ] Automatiskt slå ihop ingredienser av samma typ och måttenhet. Funkar inte när man importerar recept in i befintlig inköpslista.
+- [x] Automatiskt slå ihop ingredienser av samma typ och måttenhet vid import (recept med menuItemId mergas nu med existerande oberoende vara av samma namn+enhet)
 - [x] När man byter enhet på en basvara läggs den till under kategori istället för att ersätta den gamla så att man får dubbletter. Bättre att den bara uppdaterar enheten istället.
 - [x] Redigera vara borde se likadan ut som lägga till ny vara-vyn (förutom att man ska kunna redigera varunamnet).
 - [x] Ny varuvyn borde komma upp även när man lägger in vara manuellt i inputfältet
@@ -124,7 +124,7 @@
 - [x] När man överför ingrediensern med shopping-carten direkt i ett recept borde det inte gå att välja någon lista om ingen ingrediens är vald
 - [x] När man överför ingredienser direkt med shopping-cart funktionen blir det en spinner på alla inköpslistor istället för den man tryckt på. Och istället för en toast blir det en dialog vilket inte följer resten av designen
 - [ ] Hela rubriken "Originalrecept" syns inte inuti ett recept. Bara "Originalrecep"
-- Flytta ingrediensnamnet först i nytt recept, så att man först skriver in ingrediensen, sedan mängd och sist enhet
+- [x] Flytta ingrediensnamnet så att det kommer först i nytt recept, så att man först skriver in ingrediensen, sedan mängd och sist enhet
 
 
 ### Kalendern
