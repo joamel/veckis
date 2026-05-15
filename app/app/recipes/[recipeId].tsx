@@ -25,7 +25,7 @@ import type { RecipeIngredient } from '@veckis/shared';
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
 export default function RecipeDetailScreen() {
-  const { recipeId, transfer, edit } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string }>();
+  const { recipeId, transfer, edit, forMenuDay } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string }>();
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -133,6 +133,9 @@ export default function RecipeDetailScreen() {
       const updated = await client.updateRecipe(recipe.id, { ingredients });
       setRecipe(updated);
       setEditMode(false);
+      if (forMenuDay !== undefined) {
+        router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}` as never);
+      }
     } catch {
       Alert.alert('Fel', 'Kunde inte spara ingredienser');
     } finally {

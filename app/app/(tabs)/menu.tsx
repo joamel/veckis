@@ -202,8 +202,7 @@ export default function MenuScreen() {
       if (recipe) {
         addRecipeTriggeredRef.current = true;
         const day = (params.day && params.day.length > 0 ? params.day : null) as WeekDay | null;
-        setPickingForDay(day);
-        setTimeout(() => addRecipeToDay(recipe), 0);
+        addRecipeToDay(recipe, day);
         router.setParams({ addRecipeId: undefined, day: undefined });
       }
     }
@@ -312,7 +311,7 @@ export default function MenuScreen() {
     });
   }
 
-  async function addRecipeToDay(recipe: RecipeWithIngredients) {
+  async function addRecipeToDay(recipe: RecipeWithIngredients, dayOverride?: WeekDay | null) {
     if (!householdId) return;
 
     if (replaceTarget) {
@@ -329,7 +328,7 @@ export default function MenuScreen() {
       return;
     }
 
-    const day = pickingForDay;
+    const day = dayOverride !== undefined ? dayOverride : pickingForDay;
 
     if (day !== null && menuItems.some(i => i.day === day)) {
       const dayLabel = DAYS.find(d => d.key === day)?.label ?? day;

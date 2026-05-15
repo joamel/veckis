@@ -108,11 +108,8 @@ export default function RecipesScreen() {
       setShowModal(false);
       setTitle('');
       const forMenuDay = params.forMenuDay;
-      if (forMenuDay !== undefined) {
-        router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}` as never);
-      } else {
-        router.push(`/recipes/${recipe.id}?edit=1` as never);
-      }
+      const suffix = forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '';
+      router.push(`/recipes/${recipe.id}?edit=1${suffix}` as never);
     } catch {
       Alert.alert('Fel', 'Kunde inte skapa recept');
     } finally {
