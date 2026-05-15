@@ -369,25 +369,26 @@ export default function ShoppingListScreen() {
         unit: unit ?? null,
         category: mergeCategory,
       });
-      let updatedItems: ShoppingItemWithRecipe[] = [];
-      setList(prev => {
-        if (!prev) return prev;
-        updatedItems = [
-          ...prev.items.filter(i => !hideIds.has(i.id) && i.id !== container.id),
-          { ...container, recipe: null },
-        ];
-        return { ...prev, items: updatedItems };
-      });
-      // Find next dupe group without closing the sheet (seamless transition)
+      // Build the post-merge list locally so we can find next dupes synchronously
+      const baseItems = list?.items ?? [];
+      const updatedItems: ShoppingItemWithRecipe[] = [
+        ...baseItems.filter(i => !hideIds.has(i.id) && i.id !== container.id),
+        { ...container, recipe: null } as ShoppingItemWithRecipe,
+      ];
+      setList(prev => prev ? { ...prev, items: updatedItems } : prev);
+
+      // Compute next auto-dupe group from the new items
       const nameMap = new Map<string, ShoppingItemWithRecipe[]>();
       for (const it of updatedItems.filter(i => !i.isChecked && !i.id.startsWith('optimistic-'))) {
         const key = it.name.toLowerCase().trim();
         if (!nameMap.has(key)) nameMap.set(key, []);
         nameMap.get(key)!.push(it);
       }
-      const nextGroup = [...nameMap.values()].find(g =>
-        g.length >= 2 && !dismissedDupeKeys.has(g[0].name.toLowerCase().trim()),
-      );
+      const justMergedKey = name.toLowerCase().trim();
+      const nextGroup = [...nameMap.entries()]
+        .filter(([k]) => k !== justMergedKey) // skip the group we just dealt with
+        .map(([, g]) => g)
+        .find(g => g.length >= 2 && !dismissedDupeKeys.has(g[0].name.toLowerCase().trim()));
       if (nextGroup) openMergeForDupes(nextGroup);
       else setMergeSheet(null);
     } catch {
