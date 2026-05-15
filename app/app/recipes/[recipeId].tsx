@@ -39,6 +39,8 @@ export default function RecipeDetailScreen() {
   const [editIngredients, setEditIngredients] = useState<Array<{ name: string; quantity: string; unit: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [activeUnitIdx, setActiveUnitIdx] = useState<number | null>(null);
+  const [activeNameIdx, setActiveNameIdx] = useState<number | null>(null);
+  const [nameSuggestions, setNameSuggestions] = useState<{ name: string; category: string }[]>([]);
   type RowRef = { qty: TextInput | null; unit: TextInput | null; name: TextInput | null };
   const rowRefs = useRef<RowRef[]>([]);
   const mainScrollRef = useRef<ScrollView>(null);
@@ -65,6 +67,13 @@ export default function RecipeDetailScreen() {
   const [transferring, setTransferring] = useState(false);
   const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<ReturnType<typeof deduplicateIngredients>>([]);
+
+  // Load ingredient suggestions once for autocomplete in edit mode
+  useEffect(() => {
+    if (!householdId) return;
+    client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[])
+      .then(s => setNameSuggestions(Array.isArray(s) ? s : []));
+  }, [householdId]);
 
   const load = useCallback(async () => {
     if (!recipeId) return;
@@ -300,6 +309,8 @@ export default function RecipeDetailScreen() {
                       autoCapitalize="none"
                       returnKeyType={idx < editIngredients.length - 1 ? 'next' : 'done'}
                       blurOnSubmit={false}
+                      onFocus={() => setActiveNameIdx(idx)}
+                      onBlur={() => setTimeout(() => setActiveNameIdx(a => a === idx ? null : a), 120)}
                       onSubmitEditing={() => {
                         if (idx < editIngredients.length - 1) getRowRef(idx + 1).qty?.focus();
                       }}
@@ -332,6 +343,31 @@ export default function RecipeDetailScreen() {
                       </View>
                     </ScrollView>
                   )}
+                  {activeNameIdx === idx && row.name.trim().length >= 1 && (() => {
+                    const q = row.name.toLowerCase().trim();
+                    const hits = nameSuggestions
+                      .filter(sg => sg.name.toLowerCase().includes(q) && sg.name.toLowerCase() !== q)
+                      .slice(0, 6);
+                    if (hits.length === 0) return null;
+                    return (
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="always">
+                        <View style={s.unitChipRow}>
+                          {hits.map(h => (
+                            <Pressable
+                              key={h.name}
+                              style={s.unitChip}
+                              onPress={() => {
+                                updateEditRow(idx, 'name', h.name.toLowerCase());
+                                setActiveNameIdx(null);
+                              }}
+                            >
+                              <Text style={s.unitChipText}>{h.name}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </ScrollView>
+                    );
+                  })()}
                 </View>
               ))}
               <Pressable style={s.addRowBtn} onPress={addEditRow}>
