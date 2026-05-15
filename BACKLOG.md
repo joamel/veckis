@@ -160,13 +160,13 @@
 ## Agent
 - [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori när den importerar recept.
 - [ ] kanske en agent som lär sig hur användaren brukar lägga till basvaror, aktiviteter etc för att få en bättre UI experience?
-- [ ] Identifiera storleksordning på mått så att den alltid går på det största måttet när den ska slå ihop samma vara
+- [x] Identifiera storleksordning på mått så att den alltid går på det största måttet när den ska slå ihop samma vara (helper + tester, integration återstår)
 
 ---
 
 ## Ej helt färdiga stories, idéstadie
 - [ ] Borde finnas underkategorier till varukategorierna som varorna också tillhör (chark, ost, deli, kött, fågel, korv, fisk, allergi, glass, alkoholfritt, chips, etc) så att man om man vill kan slå isär en huvudkategori om det inte matchar affären
-- [ ] Eventuellt möjlighet att kopiera en veckomeny till en annan vecka
+- [x] Eventuellt möjlighet att kopiera en veckomeny till en annan vecka (backend endpoint, UI återstår)
 - [ ] Veckovyn i tablet borde kanske se likadan ut som i mobilen med allt under?
 - [ ] ha en sökbar databas på butiker som andra lagt till för att på så vis slippa skapa butiker som redan finns inlagda. Kanske ett premium-alternativ?
 ## Backlog (prioriterade features)

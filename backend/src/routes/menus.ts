@@ -99,6 +99,60 @@ menusRouter.delete('/:itemId', requireAuth, asyncHandler(async (req, res) => {
   res.status(204).send();
 }));
 
+// POST /api/menus/copy — copy all menu items from one ISO week to another
+menusRouter.post('/copy', requireAuth, asyncHandler(async (req, res) => {
+  const body = z.object({
+    householdId: z.string(),
+    fromWeekYear: z.number().int(),
+    fromWeekNumber: z.number().int().min(1).max(53),
+    toWeekYear: z.number().int(),
+    toWeekNumber: z.number().int().min(1).max(53),
+    overwrite: z.boolean().default(false),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId: body.data.householdId, clerkUserId: (req as AuthenticatedRequest).clerkUserId } },
+  });
+  if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
+
+  const source = await prisma.weekMenuItem.findMany({
+    where: {
+      householdId: body.data.householdId,
+      weekYear: body.data.fromWeekYear,
+      weekNumber: body.data.fromWeekNumber,
+    },
+  });
+  if (source.length === 0) {
+    res.status(404).json({ error: 'Källveckan har inga planerade rätter' });
+    return;
+  }
+
+  if (body.data.overwrite) {
+    await prisma.weekMenuItem.deleteMany({
+      where: {
+        householdId: body.data.householdId,
+        weekYear: body.data.toWeekYear,
+        weekNumber: body.data.toWeekNumber,
+      },
+    });
+  }
+
+  const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+  const created = await prisma.weekMenuItem.createManyAndReturn({
+    data: source.map(s => ({
+      householdId: body.data.householdId,
+      recipeId: s.recipeId,
+      day: s.day,
+      weekYear: body.data.toWeekYear,
+      weekNumber: body.data.toWeekNumber,
+      note: s.note,
+      createdBy: clerkUserId,
+    })),
+  });
+  res.status(201).json({ copied: created.length, items: created });
+}));
+
 // POST /api/menus/to-shopping — transfer selected ingredients to a shopping list
 menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({
