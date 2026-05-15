@@ -384,14 +384,27 @@ export default function MenuScreen() {
   }
 
   async function removeFromMenu(item: WeekMenuItemWithRecipe) {
+    const ok = await new Promise<boolean>(resolve => {
+      Alert.alert(
+        'Ta bort från menyn?',
+        item.recipe.title,
+        [
+          { text: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Ta bort', style: 'destructive', onPress: () => resolve(true) },
+        ],
+      );
+    });
+    if (!ok) return;
     try {
       await client.deleteWeekMenuItem(item.id);
       const newItems = menuItems.filter(i => i.id !== item.id);
       setMenuItems(newItems);
 
       const lists = recipeListMap[item.id] ?? [];
-      if (lists.length === 0) return;
-      await executeCleanup(item, lists.map(l => l.listId));
+      if (lists.length > 0) {
+        await executeCleanup(item, lists.map(l => l.listId));
+      }
+      showToast(`${item.recipe.title} borttagen från menyn`);
     } catch {
       Alert.alert('Fel', 'Kunde inte ta bort');
     }
@@ -1246,14 +1259,7 @@ function MenuCard({
         {editMode && (
           <Pressable
             style={s.cardDeleteBtn}
-            onPress={() => Alert.alert(
-              'Ta bort från menyn?',
-              item.recipe.title,
-              [
-                { text: 'Avbryt', style: 'cancel' },
-                { text: 'Ta bort', style: 'destructive', onPress: onRemove },
-              ]
-            )}
+            onPress={onRemove}
             hitSlop={10}
           >
             <Ionicons name="remove-circle" size={22} color="#6b7280" />
