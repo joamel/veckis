@@ -1167,19 +1167,6 @@ export default function ScheduleScreen() {
               </View>
             )}
 
-            <Text style={s.label}>Dag</Text>
-            <View style={s.dayPickerRow}>
-              {DAYS.map(day => (
-                <Pressable
-                  key={day.key}
-                  style={[s.dayPickerOption, newDay === day.key && s.dayPickerOptionActive]}
-                  onPress={() => setNewDay(day.key)}
-                >
-                  <Text style={[s.dayPickerText, newDay === day.key && s.dayPickerTextActive]}>{day.short}</Text>
-                </Pressable>
-              ))}
-            </View>
-
             <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => { if (v) setNewAssignedTo(null); return !v; })}>
               <Ionicons name={newIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={newIsShared ? '#4f46e5' : '#9ca3af'} />
               <View style={{ flex: 1 }}>

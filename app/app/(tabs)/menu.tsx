@@ -821,6 +821,15 @@ export default function MenuScreen() {
                   data={recipes}
                   keyExtractor={r => r.id}
                   style={s.pickerList}
+                  ListFooterComponent={
+                    <Pressable
+                      style={[s.pickerItem, { flexDirection: 'row', gap: 8, alignItems: 'center' }]}
+                      onPress={() => { setShowPicker(false); router.push('/recipes' as never); }}
+                    >
+                      <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
+                      <Text style={[s.pickerItemTitle, { color: '#4f46e5' }]}>Skapa nytt recept</Text>
+                    </Pressable>
+                  }
                   renderItem={({ item }) => (
                     <Pressable style={s.pickerItem} onPress={() => addRecipeToDay(item)}>
                       <Text style={s.pickerItemTitle}>{item.title}</Text>

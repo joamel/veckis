@@ -787,9 +787,8 @@ export default function ShoppingListScreen() {
         <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.editLabel}>Namn</Text>
           <TextInput
-            style={s.editInput}
+            style={[s.sheetTitle, { padding: 0, marginBottom: 4 }]}
             value={editName}
             onChangeText={setEditName}
             placeholder="Varunamn"
@@ -798,35 +797,42 @@ export default function ShoppingListScreen() {
             returnKeyType="next"
             onSubmitEditing={() => editQtyRef.current?.focus()}
           />
-          <View style={s.editRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.editLabel}>Antal</Text>
-              <TextInput
-                ref={editQtyRef}
-                style={s.editInput}
-                value={editQty}
-                onChangeText={setEditQty}
-                keyboardType="decimal-pad"
-                placeholder="1"
-                placeholderTextColor="#9ca3af"
-                selectTextOnFocus
-                returnKeyType="next"
-                onSubmitEditing={() => editUnitRef.current?.focus()}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.editLabel}>Enhet</Text>
-              <TextInput
-                ref={editUnitRef}
-                style={s.editInput}
-                value={editUnit}
-                onChangeText={setEditUnit}
-                placeholder="g, dl, st…"
-                placeholderTextColor="#9ca3af"
-                autoCapitalize="none"
-                returnKeyType="done"
-              />
-            </View>
+          <View style={s.qtyStepper}>
+            <Pressable
+              style={s.qtyBtn}
+              onPress={() => setEditQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)))}
+            >
+              <Ionicons name="remove" size={22} color="#4f46e5" />
+            </Pressable>
+            <TextInput
+              ref={editQtyRef}
+              style={s.qtyInput}
+              value={editQty}
+              onChangeText={setEditQty}
+              keyboardType="decimal-pad"
+              placeholder="1"
+              placeholderTextColor="#9ca3af"
+              selectTextOnFocus
+              returnKeyType="next"
+              blurOnSubmit={false}
+              onSubmitEditing={() => editUnitRef.current?.focus()}
+            />
+            <Pressable
+              style={s.qtyBtn}
+              onPress={() => setEditQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1))}
+            >
+              <Ionicons name="add" size={22} color="#4f46e5" />
+            </Pressable>
+            <TextInput
+              ref={editUnitRef}
+              style={s.qtyUnitInput}
+              value={editUnit}
+              onChangeText={setEditUnit}
+              placeholder="enhet"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="none"
+              returnKeyType="done"
+            />
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
             <View style={s.unitChipRow}>
