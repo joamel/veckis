@@ -22,6 +22,7 @@
 - [ ] Pushnotiser — specificera per typ: påminnelse innan aktivitet startar, förfallen syssla, någon har rensat aktiv inköpslista, ny medlem i hushållet
 - [x] Bannern ovan appen borde vara svart/neutral så man ser klockan, notiser mm
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
+- [ ] Flertal ställen i appen när inputfälten fortfarande inte hoppar upp ovan tangentbordet. Säkerställ att alla inputfält har rätta beteendet
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -87,9 +88,10 @@
 - [x] När man har flera dubbletter vore det snyggare om allt sparas efter att man klickat klart genom dubbletterna istället för varje gång man trycker på "slå ihop". Så istället kommer nästa sömlöst upp när man trycker på slå ihop.
 - [ ] Borde gå att lägga till egna kategorier och ta bort kategorier i butiker.
 - [ ] Automatiskt slå ihop ingredienser av samma typ och måttenhet. Funkar inte när man importerar recept in i befintlig inköpslista.
-- [ ] När man byter enhet på en basvara läggs den till under kategori istället för att ersätta den gamla så att man får dubbletter. Bättre att den bara uppdaterar enheten istället.
+- [x] När man byter enhet på en basvara läggs den till under kategori istället för att ersätta den gamla så att man får dubbletter. Bättre att den bara uppdaterar enheten istället.
 - [x] Redigera vara borde se likadan ut som lägga till ny vara-vyn (förutom att man ska kunna redigera varunamnet).
 - [x] Ny varuvyn borde komma upp även när man lägger in vara manuellt i inputfältet
+- [ ] Enheter har stor bokstav i dubblettvyn.
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd

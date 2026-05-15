@@ -459,8 +459,12 @@ export default function ShoppingListScreen() {
       );
       setList(prev => prev ? { ...prev, items: updatedItems } : prev);
       setEditingItem(null);
-      if (householdId && editCategory !== editingItem.category) {
-        client.upsertStaple({ householdId, name, category: editCategory }).catch(() => {});
+      if (householdId) {
+        const categoryChanged = editCategory !== editingItem.category;
+        const unitChanged = unit !== editingItem.unit;
+        if (categoryChanged || unitChanged) {
+          client.upsertStaple({ householdId, name, category: editCategory, unit }).catch(() => {});
+        }
       }
       const dupes = updatedItems.filter(i => !i.isChecked && i.name.toLowerCase().trim() === name);
       if (dupes.length >= 2) openMergeForDupes(dupes, updated);
