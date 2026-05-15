@@ -194,10 +194,10 @@ export default function MenuScreen() {
   }, [params.bulkTransfer, householdId]);
 
   function handleCancelBulkTransfer() {
-    const wasFromShoppingList = !!params.originListId;
+    const originListId = params.originListId;
     setShowBulkTransferModal(false);
-    if (wasFromShoppingList && router.canGoBack()) {
-      router.back();
+    if (originListId) {
+      router.navigate(`/shopping/${originListId}` as never);
     }
   }
 
@@ -1051,9 +1051,10 @@ export default function MenuScreen() {
                 style={[s.button, selectedRecipesForTransfer.size === 0 && s.buttonDisabled]}
                 disabled={selectedRecipesForTransfer.size === 0}
                 onPress={async () => {
-                  if (params.originListId) {
-                    await executeBulkTransfer(params.originListId);
-                    if (router.canGoBack()) router.back();
+                  const origin = params.originListId;
+                  if (origin) {
+                    await executeBulkTransfer(origin);
+                    router.navigate(`/shopping/${origin}` as never);
                   } else {
                     setBulkTransferStep('list');
                   }
