@@ -8,52 +8,36 @@ import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { learnIngredientAliases, getStoredCategory, storeIngredientCategory } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
 import { wsBroadcast } from '../lib/wsHub';
+import { planFullUnmerge, findRoot } from '../lib/mergeLogic';
 
 export const shoppingRouter = Router();
 
 // Walk up the merge chain to find the visible root item
-async function findMergeRoot(itemId: string): Promise<string> {
-  let currentId = itemId;
-  while (true) {
-    const item = await prisma.shoppingItem.findUnique({
-      where: { id: currentId },
-      select: { mergedIntoId: true },
-    });
-    if (!item?.mergedIntoId) return currentId;
-    currentId = item.mergedIntoId;
-  }
+async function findMergeRoot(listId: string, itemId: string): Promise<string> {
+  const all = await prisma.shoppingItem.findMany({
+    where: { listId },
+    select: { id: true, mergedIntoId: true },
+  });
+  return findRoot(all, itemId);
 }
 
-// BFS through a merge tree. Restore all leaf originals (mergedIntoId = null)
-// and delete every synthetic container along the way.
-async function fullyUnmerge(rootId: string): Promise<{ leaves: string[]; containers: string[] }> {
-  const containers: string[] = [];
-  const leaves: string[] = [];
-  const queue = [rootId];
-  while (queue.length) {
-    const cur = queue.shift()!;
-    const kids = await prisma.shoppingItem.findMany({
-      where: { mergedIntoId: cur },
-      select: { id: true },
-    });
-    if (kids.length === 0) {
-      if (cur === rootId) containers.push(cur);
-      else leaves.push(cur);
-    } else {
-      containers.push(cur);
-      queue.push(...kids.map(k => k.id));
-    }
-  }
-  if (leaves.length > 0) {
+// BFS through a merge tree using pure logic, then apply DB updates.
+async function fullyUnmerge(listId: string, rootId: string): Promise<{ leaves: string[]; containers: string[] }> {
+  const all = await prisma.shoppingItem.findMany({
+    where: { listId },
+    select: { id: true, mergedIntoId: true },
+  });
+  const plan = planFullUnmerge(all, rootId);
+  if (plan.restoreLeaves.length > 0) {
     await prisma.shoppingItem.updateMany({
-      where: { id: { in: leaves } },
+      where: { id: { in: plan.restoreLeaves } },
       data: { mergedIntoId: null },
     });
   }
-  if (containers.length > 0) {
-    await prisma.shoppingItem.deleteMany({ where: { id: { in: containers } } });
+  if (plan.deleteContainers.length > 0) {
+    await prisma.shoppingItem.deleteMany({ where: { id: { in: plan.deleteContainers } } });
   }
-  return { leaves, containers };
+  return { leaves: plan.restoreLeaves, containers: plan.deleteContainers };
 }
 
 const categoryEnum = z.nativeEnum(StoreCategory);
@@ -364,12 +348,12 @@ shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAu
   // Find every merge root touched by this delete and fully unmerge them
   const rootsToUnmerge = new Set<string>();
   for (const m of matched) {
-    rootsToUnmerge.add(await findMergeRoot(m.id));
+    rootsToUnmerge.add(await findMergeRoot(list.id, m.id));
   }
   const restoredIds: string[] = [];
   const removedContainerIds: string[] = [];
   for (const rootId of rootsToUnmerge) {
-    const { leaves, containers } = await fullyUnmerge(rootId);
+    const { leaves, containers } = await fullyUnmerge(list.id, rootId);
     restoredIds.push(...leaves);
     removedContainerIds.push(...containers);
   }
@@ -414,7 +398,7 @@ shoppingRouter.delete('/items/:itemId', requireAuth, asyncHandler(async (req, re
   // If this is a merge container (has children), fullyUnmerge handles deletion + restoration
   const hasChildren = await prisma.shoppingItem.findFirst({ where: { mergedIntoId: existing.id }, select: { id: true } });
   if (hasChildren) {
-    const { leaves, containers } = await fullyUnmerge(existing.id);
+    const { leaves, containers } = await fullyUnmerge(existing.listId, existing.id);
     for (const id of containers) {
       wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
     }
