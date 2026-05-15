@@ -1026,7 +1026,7 @@ export default function ShoppingListScreen() {
                     color={mergeSelected.has(item.id) ? '#4f46e5' : '#9ca3af'}
                   />
                   <Text style={s.mergeItemText} numberOfLines={1}>
-                    {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}
+                    {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}
                   </Text>
                 </Pressable>
               ))}
@@ -1206,7 +1206,7 @@ export default function ShoppingListScreen() {
                       color={checked ? '#4f46e5' : '#9ca3af'}
                     />
                     <Text style={s.mergeItemText} numberOfLines={1}>
-                      {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}
+                      {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}
                     </Text>
                   </Pressable>
                 );

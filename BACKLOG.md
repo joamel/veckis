@@ -91,7 +91,7 @@
 - [x] När man byter enhet på en basvara läggs den till under kategori istället för att ersätta den gamla så att man får dubbletter. Bättre att den bara uppdaterar enheten istället.
 - [x] Redigera vara borde se likadan ut som lägga till ny vara-vyn (förutom att man ska kunna redigera varunamnet).
 - [x] Ny varuvyn borde komma upp även när man lägger in vara manuellt i inputfältet
-- [ ] Enheter har stor bokstav i dubblettvyn.
+- [x] Enheter har stor bokstav i dubblettvyn.
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -123,7 +123,7 @@
 - [ ] när man lägger in nytt recept borde man få förslag när man börjar skriva in ingredienser typ ("ban" -> "banan") likt när man lägger till basvara i inköpslistan
 - [x] När man överför ingrediensern med shopping-carten direkt i ett recept borde det inte gå att välja någon lista om ingen ingrediens är vald
 - [x] När man överför ingredienser direkt med shopping-cart funktionen blir det en spinner på alla inköpslistor istället för den man tryckt på. Och istället för en toast blir det en dialog vilket inte följer resten av designen
-- [ ] Hela rubriken "Originalrecept" syns inte inuti ett recept. Bara "Originalrecep"
+- [x] Hela rubriken "Originalrecept" syns inte inuti ett recept. Bara "Originalrecep"
 
 
 ### Kalendern
