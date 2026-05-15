@@ -21,6 +21,34 @@ npm run dev:backend   # Express på :3000 (kräver Postgres på :5432)
 npm run dev:app       # Expo Metro
 ```
 
+## Backend-endpoints (urval)
+
+| Endpoint | Beskrivning |
+|----------|-------------|
+| `POST /api/menus/copy` | Kopiera alla `weekMenuItems` från en ISO-vecka till en annan inom samma hushåll. Body: `{ householdId, fromWeekYear, fromWeekNumber, toWeekYear, toWeekNumber, overwrite? }`. Returnerar `{ copied, items[] }`. UI saknas i appen ännu. |
+| `POST /api/shopping/items/merge` | Soft-merge av flera shopping-items till en synthetic container (originalen blir dolda, återställs vid borttagning av rätten). Body: `{ sourceIds[], name, quantity, unit?, category }`. |
+| `POST /api/menus/to-shopping` | Överför ingredienser från valda menyobjekt till en inköpslista; dedupliceras på `menuItemId` + name+unit. |
+| `GET /api/shopping/lists` | Inkluderar `linkedMenuItemIds` (visible + hidden) per lista för korrekt "redan-överförd"-detektion. |
+| `WS /ws/shopping/:listId` | Realtidsuppdatering för inköpslista (item_added/updated/deleted). |
+| `WS /ws/household/:id` | Realtidsuppdatering för hushållets schedule + chores (schedule_entry_added/updated/deleted, chore_added/updated/deleted). |
+
+## Backend-helpers (utility)
+
+- **`combineQuantities`** (`backend/src/lib/unitOrder.ts`) — summerar och promotar mätningar mellan volym (krm/tsk/msk/dl/l) och massa (g/kg) enligt svenska köks-konventioner: 500 ml → 0.5 l, 30 ml → 2 msk, 500 g → 0.5 kg. Returnerar `null` vid blandade familjer eller okända enheter (st/påse). Inte än wirad in i `to-shopping`/`merge`-dedupe.
+- **`planFullUnmerge`** (`backend/src/lib/mergeLogic.ts`) — räknar ut vilka items som ska återställas (blad) vs raderas (containers) när en merge-träd unmergas vid borttagning av en rätt.
+
+## Datamodell — anteckningar
+
+- `ScheduleEntry.assignedToMany: String[]` — array med medlems-IDn. Multi-user-aktiviteter. `assignedTo` (singular) behålls för bakåtkompatibilitet och synkas alltid med första elementet i `assignedToMany`.
+- `ShoppingItem.mergedIntoId: String?` — pekar på en synthetic container när items är dolda under en merge. List-queries filtrerar `mergedIntoId IS NULL` så bara den synliga containern syns. Cascade-delete på FK.
+
+## Tester
+
+```bash
+npm test --workspace=backend          # vitest, 20 tester (mergeLogic + unitOrder)
+npm test --workspace=backend -- --watch
+```
+
 ## Manuell deploy
 
 ### Backend (Render)
