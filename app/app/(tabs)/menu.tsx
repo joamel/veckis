@@ -193,6 +193,14 @@ export default function MenuScreen() {
     if (params.bulkTransfer !== '1') bulkTransferTriggeredRef.current = false;
   }, [params.bulkTransfer, householdId]);
 
+  function handleCancelBulkTransfer() {
+    const wasFromShoppingList = params.originListId;
+    setShowBulkTransferModal(false);
+    if (wasFromShoppingList) {
+      router.replace(`/shopping/${wasFromShoppingList}` as never);
+    }
+  }
+
   async function openWeekPicker() {
     if (!householdId) return;
     try {
@@ -338,6 +346,17 @@ export default function MenuScreen() {
   }
 
   async function removeFromMenu(item: WeekMenuItemWithRecipe) {
+    const ok = await new Promise<boolean>(resolve => {
+      Alert.alert(
+        'Ta bort maträtt?',
+        `Vill du ta bort ${item.recipe.title} från veckomenyn?`,
+        [
+          { text: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Ta bort', style: 'destructive', onPress: () => resolve(true) },
+        ],
+      );
+    });
+    if (!ok) return;
     try {
       await client.deleteWeekMenuItem(item.id);
       const newItems = menuItems.filter(i => i.id !== item.id);
@@ -893,8 +912,8 @@ export default function MenuScreen() {
       </Modal>
 
       {/* Bulk transfer modal — choose recipes and list */}
-      <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => setShowBulkTransferModal(false)}>
-        <Pressable style={s.overlay} onPress={() => setShowBulkTransferModal(false)} />
+      <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleCancelBulkTransfer()}>
+        <Pressable style={s.overlay} onPress={() => handleCancelBulkTransfer()} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
 

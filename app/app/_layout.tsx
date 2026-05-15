@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { HouseholdProvider, useHousehold } from '../src/context/HouseholdContext';
 import { ToastProvider } from '../src/context/ToastContext';
 
@@ -46,6 +47,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
+        <StatusBar style="light" backgroundColor="#111827" />
         <ClerkProvider
           publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
           tokenCache={tokenCache}

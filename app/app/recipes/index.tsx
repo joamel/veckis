@@ -127,7 +127,12 @@ export default function RecipesScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Text style={s.title}>Recept</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Pressable onPress={() => router.back()} hitSlop={10}>
+            <Ionicons name="arrow-back" size={26} color="#111827" />
+          </Pressable>
+          <Text style={s.title}>Recept</Text>
+        </View>
         <View style={s.searchRow}>
           <Ionicons name="search" size={16} color="#9ca3af" style={s.searchIcon} />
           <TextInput

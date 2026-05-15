@@ -12,14 +12,16 @@
 - [x] Toast för fler händelser: ~~"Inköpslista rensad"~~, ~~"Syssla sparad"~~, ~~"Hushåll borttaget"~~ m.fl.
 - [x] kan vi ha en optimisisk uppdatering (generellt) så att frontend inte alltid väntar på backend svar innan den flyttar något, skapar något osv?
 - [x] exempeltexter syns inte mot den ljusa bakgrunden
+- [x] rensa filter med ett x bredvid filterknappen?
 - [ ] Ännu större font och knappar/pilar mm i tablet-vyn. Idag ser de nästan mindre ut än i mobilversionen.
 - [ ] sysslor och aktiviteter skulle kunna ha en emoji likt maträtter för att få samma stil på korten i kalendern.
-- [ ] tablet möjligt med horisontell-vy
-- [x] rensa filter med ett x bredvid filterknappen?
+- [ ] möjligt med horisontell-vy i tablet
 - [ ] Ångra-toast för destruktiva åtgärder (rensa inköpslista, ta bort maträtt/aktivitet/syssla) — knapp "Ångra" i toasten i ~5 sekunder
 - [ ] Utvidga realtidsuppdatering (WebSocket) till meny, sysslor, kalender och inställningar så alla hushållsmedlemmar ser samma data
 - [ ] Long press-symmetri: kontrollera att redigering via long press finns konsekvent på basvaror, butiker och kategorier (inte bara inköpslista/maträtt/aktivitet/syssla)
 - [ ] Pushnotiser — specificera per typ: påminnelse innan aktivitet startar, förfallen syssla, någon har rensat aktiv inköpslista, ny medlem i hushållet
+- [x] Bannern ovan appen borde vara svart/neutral så man ser klockan, notiser mm
+- [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -33,10 +35,10 @@
 - [x] Bekräfta med knapp innan man byter hushåll
 - [x] man borde välja nickname när man loggar in för första gången innan man kommer till hushållet. Annars plockar appen ens riktiga Gmail namn t.ex. och det kanske man inte vill.
 - [x] just nu kan bara admin byta namn på användare. Man bör kunna byta sitt eget namn.
-- [ ] inställningar uppdateras inte automatiskt för alla användare när någon gör ändringar.
 - [x] Onboarding vid första inloggning: efter nickname-val ska användaren välja "skapa nytt hushåll" eller "gå med via inbjudningskod"
 - [x] varna admin innan man lämnar fliken om redigeringsläget är igång.
 - [x] möjlighet att kunna dela ut admin
+- [ ] inställningar uppdateras inte automatiskt för alla användare när någon gör ändringar.
 
 ### Inköpslistan
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
@@ -74,16 +76,18 @@
 - [x] Under dubblett-knappen skulle man kunna ha en "markera dubbletter själv"-knapp för att slå ihop varor manuellt
 - [x] Slå ihop varor gör felaktigt "," -> "." i totalen
 - [x] Under dubblett-knappen borde man kunna trycka vidare till nästa dubblett om man varken vill ignorera eller slå ihop varorna just där och då
-- [ ] Borde gå att lägga till egna kategorier och ta bort kategorier i butiker. Eventuellt att man kan ha en sökbar databas på butiker som andra lagt till för att på så vis slippa skapa butiker som redan finns inlagda. Kanske ett premium-alternativ?
 - [x] Vissa varor har stor bokstav och vissa har små. Borde kanske lagras i databasen med gemener men ha inledande stor bokstav i UI:et.
 - [x] Borde kanske gå att klarmarkera alla varor med en box överst?
 - [x] Kunna importera en veckomeny direkt in i en inköpslista med en knapp (+ från tom-state, eller 3-prickar-menyn)
-- [ ] Automatiskt slå ihop ingredienser av samma typ och måttenhet. Funkar inte när man importerar recept in i befintlig inköpslista.
 - [x] När man lägger till ny basvara borde även kategori synas under enhetsfältet så att man kan ändra om den ligger i fel kategori
 - [x] Dubblett-knappen borde skaka lite längre så man hinner sen den.
 - [x] Dubblettknappen borde även finnas under "3 prickarna" uppe till höger. Om inga dubbletter finns borde dubblett-knappen bara visas under "3 prickarna".
-- [ ] När man byter enhet på en basvara läggs den till under kategori istället för att ersätta den gamla så att man får dubbletter. Bättre att den bara uppdaterar enheten istället.
 - [x] Om man importerar veckomeny från en inköpslista så borde den inte fråga vilken inköpslista man vill överföra till samt redirecta tillbaka till den inköpslista man var inne i.
+- [ ] När man har flera dubbletter vore det snyggare om allt sparas efter att man klickat klart genom dubbletterna istället för varje gång man trycker på "slå ihop". Så istället kommer nästa sömlöst upp när man trycker på slå ihop.
+- [ ] Borde gå att lägga till egna kategorier och ta bort kategorier i butiker. Eventuellt att man kan ha en sökbar databas på butiker som andra lagt till för att på så vis slippa skapa butiker som redan finns inlagda. Kanske ett premium-alternativ?
+- [ ] Automatiskt slå ihop ingredienser av samma typ och måttenhet. Funkar inte när man importerar recept in i befintlig inköpslista.
+- [ ] När man byter enhet på en basvara läggs den till under kategori istället för att ersätta den gamla så att man får dubbletter. Bättre att den bara uppdaterar enheten istället.
+- [x] Om man ångrar import borde man återgå till inköpslistan istället för att hamna i veckomenyn
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -101,12 +105,15 @@
 - [x] Realtidsuppdatering av inköpslistan — polling eller WebSocket så att ändringar syns direkt för alla hushållsmedlemmar
 - [x] Sök/filtrera bland recept — sök på namn eller ingrediens ("vad kan jag laga med lax?")
 - [x] Om man skalar receptet borde man få varning om att inköpslistan kan påverkas alt att inköpslistan automatiskt justeras
-- [ ] Bekräftelsedialog innan man tar bort maträtt
+- [x] Bekräftelsedialog innan man tar bort maträtt
 - [ ] När man skapar nytt recept borde man direkt komma till att lägga in första ingrediensen istället för att behöva trycka på redigera-knappen
-- [ ] Saknas tillbaka-knapp i recept-vyn
+- [x] Saknas tillbaka-knapp i recept-vyn
 - [ ] Kunna lägga till ett nytt recept direkt under "+" i veckomenyn om man saknar en rätt bland befintliga recept
-- [ ] Long press för att flytta rätter mellan dagar i veckomenyn istället för att ha veckodagarna i den utfällda varianten som är idag
 - [ ] optimistisk uppdatering av menyn när man lägger till en maträtt
+- [ ] Om dagen är tom borde det gå att trycka över hela rutan för att lägga till ny maträtt
+- [ ] Man måste kunna inventera vad man har hemma innan man överför maträtten till inköpslistan.
+
+
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -128,7 +135,6 @@
 - [x] filter i kalendern borde bara visa färg på dagar där usern har aktiviter/sysslor som är filtrerad. Funkar inte!
 - [x] Aktiviteter som har passerat (i tid) borde strykas över eller gråmarkeras
 - [ ] Kunna lägga aktiviteter på fler än en user i taget
-- [ ] Veckovyn i tablet borde kanske se likadan ut som i mobilen med allt under?
 - [ ] En privat aktivitet i kalendern borde kanske inte kunna läggas på någon user
 - [ ] Skapa ny aktivitet behöver inte ha "Dag"-valet med veckodagarna då den bör komma ihåg vilken dag man valt att lägga in aktiviteten på.
 
@@ -146,6 +152,11 @@
 - [ ] Identifiera storleksordning på mått så att den alltid går på det största måttet när den ska slå ihop samma vara
 
 ---
+
+## Ej helt färdiga stories, idéstadie
+- [ ] Borde finnas underkategorier till varukategorierna som varorna också tillhör (chark, ost, deli, kött, fågel, korv, fisk, allergi, glass, alkoholfritt, chips, etc) så att man om man vill kan slå isär en huvudkategori om det inte matchar affären
+- [ ] Eventuellt möjlighet att kopiera en veckomeny till en annan vecka
+- [ ] Veckovyn i tablet borde kanske se likadan ut som i mobilen med allt under?
 
 ## Backlog (prioriterade features)
 
