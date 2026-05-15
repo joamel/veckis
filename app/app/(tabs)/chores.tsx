@@ -4,7 +4,9 @@ import {
   Alert,
   Animated,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -487,6 +489,7 @@ export default function ChoresScreen() {
       {/* Create modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
         <Pressable style={s.overlay} onPress={() => setShowCreate(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny syssla</Text>
@@ -571,6 +574,7 @@ export default function ChoresScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} />
@@ -581,6 +585,7 @@ export default function ChoresScreen() {
       {/* Edit modal */}
       <Modal visible={!!editingChore} transparent animationType="slide" onRequestClose={() => setEditingChore(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingChore(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera syssla</Text>
@@ -672,6 +677,7 @@ export default function ChoresScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

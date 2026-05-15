@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -867,6 +868,7 @@ export default function ScheduleScreen() {
       {/* Edit entry modal */}
       <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera aktivitet</Text>
@@ -1035,11 +1037,13 @@ export default function ScheduleScreen() {
             </View>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Edit chore from calendar modal */}
       <Modal visible={!!editingCalChore} transparent animationType="slide" onRequestClose={() => setEditingCalChore(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera syssla</Text>
@@ -1091,6 +1095,7 @@ export default function ScheduleScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
@@ -1156,6 +1161,7 @@ export default function ScheduleScreen() {
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny aktivitet</Text>
@@ -1330,6 +1336,7 @@ export default function ScheduleScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
