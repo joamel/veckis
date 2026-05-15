@@ -337,10 +337,25 @@ export default function MenuScreen() {
     }
 
     closePicker();
+    const tempId = `optimistic-menu-${Date.now()}`;
+    const optimistic: WeekMenuItemWithRecipe = {
+      id: tempId,
+      householdId,
+      recipeId: recipe.id,
+      day: day ?? null,
+      weekYear,
+      weekNumber,
+      note: null,
+      createdBy: '',
+      createdAt: new Date().toISOString(),
+      recipe,
+    } as WeekMenuItemWithRecipe;
+    setMenuItems(prev => [...prev, optimistic]);
     try {
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
-      setMenuItems(prev => [...prev, item]);
+      setMenuItems(prev => prev.map(m => m.id === tempId ? item : m));
     } catch {
+      setMenuItems(prev => prev.filter(m => m.id !== tempId));
       Alert.alert('Fel', 'Kunde inte lägga till rätt');
     }
   }
@@ -620,7 +635,12 @@ export default function MenuScreen() {
                 )}
               </View>
               {items.length === 0 ? (
-                <Text style={s.emptyDayText}>Ingen rätt planerad</Text>
+                <Pressable
+                  onPress={() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }}
+                  style={s.emptyDayTap}
+                >
+                  <Text style={s.emptyDayText}>Tryck för att lägga till en rätt</Text>
+                </Pressable>
               ) : (
                 items.map(item => (
                   <MenuCard
@@ -1304,6 +1324,7 @@ const s = StyleSheet.create({
   dayDate: { fontSize: 11, color: '#6b7280' },
   unscheduledEmpty: { fontSize: 13, color: '#9ca3af', paddingVertical: 8 },
   emptyDayText: { fontSize: 13, color: '#9ca3af', paddingVertical: 8 },
+  emptyDayTap: { paddingVertical: 4, alignItems: 'flex-start' },
   emptyDay: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 8 },
   emptyText: { fontSize: 17, fontWeight: '600', color: '#374151' },
   emptySubtext: { fontSize: 13, color: '#9ca3af' },

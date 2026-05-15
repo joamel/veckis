@@ -105,7 +105,7 @@ export default function RecipesScreen() {
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
       setShowModal(false);
       setTitle('');
-      router.push(`/recipes/${recipe.id}` as never);
+      router.push(`/recipes/${recipe.id}?edit=1` as never);
     } catch {
       Alert.alert('Fel', 'Kunde inte skapa recept');
     } finally {

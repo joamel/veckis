@@ -25,7 +25,7 @@ import type { RecipeIngredient } from '@veckis/shared';
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
 export default function RecipeDetailScreen() {
-  const { recipeId, transfer } = useLocalSearchParams<{ recipeId: string; transfer?: string }>();
+  const { recipeId, transfer, edit } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string }>();
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -72,12 +72,18 @@ export default function RecipeDetailScreen() {
       setRecipe(r);
       setScaledServings(null);
       if (transfer === '1') openTransfer(r);
+      if (edit === '1' && r.ingredients.length === 0) {
+        setEditIngredients([{ name: '', quantity: '', unit: '' }]);
+        setEditMode(true);
+        router.setParams({ edit: undefined });
+        setTimeout(() => getRowRef(0).qty?.focus(), 250);
+      }
     } catch {
       Alert.alert('Fel', 'Kunde inte ladda receptet');
     } finally {
       setLoading(false);
     }
-  }, [recipeId, transfer]);
+  }, [recipeId, transfer, edit]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 

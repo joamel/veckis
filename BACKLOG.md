@@ -106,11 +106,11 @@
 - [x] Sök/filtrera bland recept — sök på namn eller ingrediens ("vad kan jag laga med lax?")
 - [x] Om man skalar receptet borde man få varning om att inköpslistan kan påverkas alt att inköpslistan automatiskt justeras
 - [x] Bekräftelsedialog innan man tar bort maträtt
-- [ ] När man skapar nytt recept borde man direkt komma till att lägga in första ingrediensen istället för att behöva trycka på redigera-knappen
+- [x] När man skapar nytt recept borde man direkt komma till att lägga in första ingrediensen istället för att behöva trycka på redigera-knappen
 - [x] Saknas tillbaka-knapp i recept-vyn
 - [ ] Kunna lägga till ett nytt recept direkt under "+" i veckomenyn om man saknar en rätt bland befintliga recept
-- [ ] optimistisk uppdatering av menyn när man lägger till en maträtt
-- [ ] Om dagen är tom borde det gå att trycka över hela rutan för att lägga till ny maträtt
+- [x] optimistisk uppdatering av menyn när man lägger till en maträtt
+- [x] Om dagen är tom borde det gå att trycka över hela rutan för att lägga till ny maträtt
 - [ ] Man måste kunna inventera vad man har hemma innan man överför maträtten till inköpslistan.
 
 
