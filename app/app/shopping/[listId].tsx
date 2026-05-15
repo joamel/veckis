@@ -369,18 +369,27 @@ export default function ShoppingListScreen() {
         unit: unit ?? null,
         category: mergeCategory,
       });
+      let updatedItems: ShoppingItemWithRecipe[] = [];
       setList(prev => {
         if (!prev) return prev;
-        return {
-          ...prev,
-          items: [
-            ...prev.items.filter(i => !hideIds.has(i.id) && i.id !== container.id),
-            { ...container, recipe: null },
-          ],
-        };
+        updatedItems = [
+          ...prev.items.filter(i => !hideIds.has(i.id) && i.id !== container.id),
+          { ...container, recipe: null },
+        ];
+        return { ...prev, items: updatedItems };
       });
-      pendingOpenNextDupe.current = true;
-      setMergeSheet(null);
+      // Find next dupe group without closing the sheet (seamless transition)
+      const nameMap = new Map<string, ShoppingItemWithRecipe[]>();
+      for (const it of updatedItems.filter(i => !i.isChecked && !i.id.startsWith('optimistic-'))) {
+        const key = it.name.toLowerCase().trim();
+        if (!nameMap.has(key)) nameMap.set(key, []);
+        nameMap.get(key)!.push(it);
+      }
+      const nextGroup = [...nameMap.values()].find(g =>
+        g.length >= 2 && !dismissedDupeKeys.has(g[0].name.toLowerCase().trim()),
+      );
+      if (nextGroup) openMergeForDupes(nextGroup);
+      else setMergeSheet(null);
     } catch {
       Alert.alert('Fel', 'Kunde inte slå ihop varor');
     } finally {

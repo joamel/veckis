@@ -63,6 +63,7 @@ export default function RecipeDetailScreen() {
   const [loadingLists, setLoadingLists] = useState(false);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [transferring, setTransferring] = useState(false);
+  const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<ReturnType<typeof deduplicateIngredients>>([]);
 
   const load = useCallback(async () => {
@@ -173,6 +174,7 @@ export default function RecipeDetailScreen() {
     const selected = deduplicatedIngredients.filter(i => checkedIds.has(i.id));
     if (selected.length === 0) { Alert.alert('Välj minst en ingrediens'); return; }
     setTransferring(true);
+    setTransferringListId(listId);
     try {
       await client.transferToShopping(listId, selected.map(i => ({
         name: i.name,
@@ -190,6 +192,7 @@ export default function RecipeDetailScreen() {
       Alert.alert('Fel', 'Kunde inte överföra ingredienser');
     } finally {
       setTransferring(false);
+      setTransferringListId(null);
     }
   }
 
@@ -411,17 +414,20 @@ export default function RecipeDetailScreen() {
               keyExtractor={l => l.id}
               style={s.listPicker}
               scrollEnabled={false}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={s.listPickerItem}
-                  onPress={() => doTransfer(item.id)}
-                  disabled={transferring}
-                >
-                  <Ionicons name="cart-outline" size={18} color="#4f46e5" />
-                  <Text style={s.listPickerItemText}>{item.name}</Text>
-                  {transferring && <ActivityIndicator size="small" color="#4f46e5" />}
-                </Pressable>
-              )}
+              renderItem={({ item }) => {
+                const noneSelected = checkedIds.size === 0;
+                return (
+                  <Pressable
+                    style={[s.listPickerItem, noneSelected && { opacity: 0.4 }]}
+                    onPress={() => doTransfer(item.id)}
+                    disabled={transferring || noneSelected}
+                  >
+                    <Ionicons name="cart-outline" size={18} color="#4f46e5" />
+                    <Text style={s.listPickerItemText}>{item.name}</Text>
+                    {transferringListId === item.id && <ActivityIndicator size="small" color="#4f46e5" />}
+                  </Pressable>
+                );
+              }}
             />
           )}
         </View>
