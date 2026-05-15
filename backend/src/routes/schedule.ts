@@ -5,6 +5,7 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { wsBroadcast } from '../lib/wsHub';
+import { syncAssignedTo } from '../lib/assignedToSync';
 
 export const scheduleRouter = Router();
 
@@ -72,13 +73,7 @@ scheduleRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async
   const body = createEntrySchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const data = { ...body.data };
-  // Keep assignedTo and assignedToMany in sync
-  if (data.assignedToMany !== undefined) {
-    data.assignedTo = data.assignedToMany[0];
-  } else if (data.assignedTo !== undefined) {
-    data.assignedToMany = data.assignedTo ? [data.assignedTo] : [];
-  }
+  const data = syncAssignedTo({ ...body.data });
   const entry = await prisma.scheduleEntry.create({
     data: { ...data, createdBy: (req as AuthenticatedRequest).clerkUserId } as Prisma.ScheduleEntryUncheckedCreateInput,
   });
@@ -94,12 +89,7 @@ scheduleRouter.patch('/:entryId', requireAuth, asyncHandler(async (req, res) => 
   const body = updateEntrySchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const data = { ...body.data };
-  if (data.assignedToMany !== undefined) {
-    data.assignedTo = data.assignedToMany[0] ?? null;
-  } else if (data.assignedTo !== undefined) {
-    data.assignedToMany = data.assignedTo ? [data.assignedTo] : [];
-  }
+  const data = syncAssignedTo({ ...body.data });
   const updated = await prisma.scheduleEntry.update({ where: { id: entry.id }, data });
   wsBroadcast(`household:${updated.householdId}`, { type: 'schedule_entry_updated', data: updated });
   res.json(updated);

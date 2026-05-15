@@ -98,7 +98,8 @@ export default function MenuScreen() {
   // Bulk transfer modal: select which recipes to transfer
   const [showBulkTransferModal, setShowBulkTransferModal] = useState(false);
   const [selectedRecipesForTransfer, setSelectedRecipesForTransfer] = useState<Set<string>>(new Set());
-  const [bulkTransferStep, setBulkTransferStep] = useState<'week' | 'recipe' | 'list'>('recipe');
+  const [bulkTransferStep, setBulkTransferStep] = useState<'week' | 'recipe' | 'ingredients' | 'list'>('recipe');
+  const [excludedIngredients, setExcludedIngredients] = useState<Set<string>>(new Set());
   const [allMenus, setAllMenus] = useState<WeekMenuItemWithRecipe[]>([]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
@@ -510,6 +511,8 @@ export default function MenuScreen() {
       for (const item of actuallyTransfer) {
         const scaleRatio = getScaleRatio(item);
         for (const ing of item.recipe.ingredients) {
+          const key = `${item.id}:${ing.id}`;
+          if (excludedIngredients.has(key)) continue;
           allIngredients.push({
             name: ing.name,
             quantity: scaleQty(ing.quantity ?? null, scaleRatio),
@@ -1105,6 +1108,55 @@ export default function MenuScreen() {
               <Pressable
                 style={[s.button, selectedRecipesForTransfer.size === 0 && s.buttonDisabled]}
                 disabled={selectedRecipesForTransfer.size === 0}
+                onPress={() => {
+                  setExcludedIngredients(new Set());
+                  setBulkTransferStep('ingredients');
+                }}
+              >
+                <Text style={s.buttonText}>Nästa</Text>
+              </Pressable>
+            </>
+          ) : bulkTransferStep === 'ingredients' ? (
+            <>
+              <Text style={s.sheetTitle}>Granska ingredienser</Text>
+              <Text style={s.sheetSub}>Avmarkera det du redan har hemma</Text>
+              <ScrollView style={s.bulkRecipeList}>
+                {(() => {
+                  const pool = bulkTransferWeek ? allMenus : menuItems;
+                  const selectedItems = pool.filter(m => selectedRecipesForTransfer.has(m.id));
+                  return selectedItems.map(item => (
+                    <View key={item.id} style={{ marginBottom: 12 }}>
+                      <Text style={[s.bulkRecipeTitle, { marginBottom: 6 }]}>{item.recipe.title}</Text>
+                      {item.recipe.ingredients.map(ing => {
+                        const key = `${item.id}:${ing.id}`;
+                        const checked = !excludedIngredients.has(key);
+                        return (
+                          <Pressable
+                            key={ing.id}
+                            style={[s.bulkRecipeItem, { marginLeft: 8 }]}
+                            onPress={() => setExcludedIngredients(prev => {
+                              const n = new Set(prev);
+                              if (n.has(key)) n.delete(key); else n.add(key);
+                              return n;
+                            })}
+                          >
+                            <Ionicons
+                              name={checked ? 'checkbox' : 'square-outline'}
+                              size={20}
+                              color={checked ? '#4f46e5' : '#9ca3af'}
+                            />
+                            <Text style={[s.bulkRecipeDay, { color: checked ? '#111827' : '#9ca3af', flex: 1 }]}>
+                              {ing.quantity ? `${String(ing.quantity).replace('.', ',')} ` : ''}{ing.unit ? `${ing.unit} ` : ''}{ing.name}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ));
+                })()}
+              </ScrollView>
+              <Pressable
+                style={s.button}
                 onPress={async () => {
                   const origin = params.originListId;
                   if (origin) {
@@ -1120,6 +1172,9 @@ export default function MenuScreen() {
                 }}
               >
                 <Text style={s.buttonText}>{params.originListId ? 'Överför' : 'Nästa'}</Text>
+              </Pressable>
+              <Pressable style={s.cancelBtn} onPress={() => setBulkTransferStep('recipe')}>
+                <Text style={s.cancelBtnText}>Tillbaka</Text>
               </Pressable>
             </>
           ) : (
@@ -1441,6 +1496,8 @@ const s = StyleSheet.create({
   newListBtnTextDisabled: { color: '#9ca3af' },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: '#f9fafb' },
   button: { backgroundColor: '#4f46e5', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', minWidth: 44 },
+  cancelBtn: { paddingVertical: 10, alignItems: 'center' },
+  cancelBtnText: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   buttonDisabled: { opacity: 0.4 },
   // Edit mode
