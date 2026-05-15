@@ -54,7 +54,8 @@ function getWeekMonday(weekOffset: number): Date {
 
 export default function MenuScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string }>();
+  const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string }>();
+  const addRecipeTriggeredRef = useRef(false);
   const bulkTransferTriggeredRef = useRef(false);
   const client = useApiClient();
   const { showToast: showGlobalToast } = useToast();
@@ -192,6 +193,22 @@ export default function MenuScreen() {
     }
     if (params.bulkTransfer !== '1') bulkTransferTriggeredRef.current = false;
   }, [params.bulkTransfer, householdId]);
+
+  // When returning from "Skapa nytt recept"-flödet, auto-add the new recipe
+  // to the requested day so the user doesn't have to re-open the picker.
+  useEffect(() => {
+    if (params.addRecipeId && recipes.length > 0 && !addRecipeTriggeredRef.current) {
+      const recipe = recipes.find(r => r.id === params.addRecipeId);
+      if (recipe) {
+        addRecipeTriggeredRef.current = true;
+        const day = (params.day && params.day.length > 0 ? params.day : null) as WeekDay | null;
+        setPickingForDay(day);
+        setTimeout(() => addRecipeToDay(recipe), 0);
+        router.setParams({ addRecipeId: undefined, day: undefined });
+      }
+    }
+    if (!params.addRecipeId) addRecipeTriggeredRef.current = false;
+  }, [params.addRecipeId, recipes]);
 
   function handleCancelBulkTransfer() {
     const originListId = params.originListId;
@@ -825,7 +842,11 @@ export default function MenuScreen() {
                   ListFooterComponent={
                     <Pressable
                       style={s.recipeCard}
-                      onPress={() => { setShowPicker(false); router.push('/recipes' as never); }}
+                      onPress={() => {
+                        const day = pickingForDay ?? '';
+                        setShowPicker(false);
+                        router.push(`/recipes?create=1&forMenuDay=${day}` as never);
+                      }}
                     >
                       <View style={[s.recipeCardIcon, { backgroundColor: '#eef2ff' }]}>
                         <Ionicons name="add" size={20} color="#4f46e5" />

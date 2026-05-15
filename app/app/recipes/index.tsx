@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type RecipeWithIngredients } from '../../src/api/client';
@@ -19,6 +19,8 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 
 export default function RecipesScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ create?: string; forMenuDay?: string }>();
+  const createTriggeredRef = useRef(false);
   const client = useApiClient();
   const { householdId } = useHousehold();
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
@@ -105,13 +107,28 @@ export default function RecipesScreen() {
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
       setShowModal(false);
       setTitle('');
-      router.push(`/recipes/${recipe.id}?edit=1` as never);
+      const forMenuDay = params.forMenuDay;
+      if (forMenuDay !== undefined) {
+        router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}` as never);
+      } else {
+        router.push(`/recipes/${recipe.id}?edit=1` as never);
+      }
     } catch {
       Alert.alert('Fel', 'Kunde inte skapa recept');
     } finally {
       setCreating(false);
     }
   }
+
+  // Auto-open create modal when navigated with ?create=1
+  useEffect(() => {
+    if (params.create === '1' && !createTriggeredRef.current) {
+      createTriggeredRef.current = true;
+      openModal();
+      router.setParams({ create: undefined });
+    }
+    if (params.create !== '1') createTriggeredRef.current = false;
+  }, [params.create]);
 
   function openModal() {
     setMode('manual');
