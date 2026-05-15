@@ -277,7 +277,7 @@ export default function RecipeDetailScreen() {
                       placeholder="Enhet"
                       placeholderTextColor="#9ca3af"
                       value={row.unit}
-                      onChangeText={v => updateEditRow(idx, 'unit', v)}
+                      onChangeText={v => updateEditRow(idx, 'unit', v.toLowerCase())}
                       autoCapitalize="none"
                       returnKeyType="next"
                       blurOnSubmit={false}

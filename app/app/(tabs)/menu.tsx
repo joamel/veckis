@@ -821,19 +821,30 @@ export default function MenuScreen() {
                   data={recipes}
                   keyExtractor={r => r.id}
                   style={s.pickerList}
+                  contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
                   ListFooterComponent={
                     <Pressable
-                      style={[s.pickerItem, { flexDirection: 'row', gap: 8, alignItems: 'center' }]}
+                      style={s.recipeCard}
                       onPress={() => { setShowPicker(false); router.push('/recipes' as never); }}
                     >
-                      <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
-                      <Text style={[s.pickerItemTitle, { color: '#4f46e5' }]}>Skapa nytt recept</Text>
+                      <View style={[s.recipeCardIcon, { backgroundColor: '#eef2ff' }]}>
+                        <Ionicons name="add" size={20} color="#4f46e5" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.recipeCardTitle, { color: '#4f46e5' }]}>Skapa nytt recept</Text>
+                      </View>
                     </Pressable>
                   }
                   renderItem={({ item }) => (
-                    <Pressable style={s.pickerItem} onPress={() => addRecipeToDay(item)}>
-                      <Text style={s.pickerItemTitle}>{item.title}</Text>
-                      <Text style={s.pickerItemMeta}>{item.servings} port · {item.ingredients.length} ingredienser</Text>
+                    <Pressable style={s.recipeCard} onPress={() => addRecipeToDay(item)}>
+                      <View style={s.recipeCardIcon}>
+                        <Ionicons name="restaurant-outline" size={20} color="#4f46e5" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.recipeCardTitle}>{item.title}</Text>
+                        <Text style={s.recipeCardMeta}>{item.servings} port · {item.ingredients.length} ingredienser</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#d1d5db" />
                     </Pressable>
                   )}
                 />
@@ -1371,7 +1382,11 @@ const s = StyleSheet.create({
   dayGridItemNone: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
   dayGridLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
   dayGridLabelNone: { color: '#9ca3af' },
-  pickerList: { maxHeight: 400 },
+  pickerList: { maxHeight: 480 },
+  recipeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#f3f4f6' },
+  recipeCardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f9fafb', alignItems: 'center', justifyContent: 'center' },
+  recipeCardTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  recipeCardMeta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
   pickerItem: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', flexDirection: 'row', alignItems: 'center' },
   pickerItemDisabled: { opacity: 0.5 },
   pickerItemTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },

@@ -787,8 +787,9 @@ export default function ShoppingListScreen() {
         <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
+          <Text style={s.editLabel}>Namn</Text>
           <TextInput
-            style={[s.sheetTitle, { padding: 0, marginBottom: 4 }]}
+            style={s.editInput}
             value={editName}
             onChangeText={setEditName}
             placeholder="Varunamn"
@@ -827,7 +828,7 @@ export default function ShoppingListScreen() {
               ref={editUnitRef}
               style={s.qtyUnitInput}
               value={editUnit}
-              onChangeText={setEditUnit}
+              onChangeText={v => setEditUnit(v.toLowerCase())}
               placeholder="enhet"
               placeholderTextColor="#9ca3af"
               autoCapitalize="none"
@@ -930,7 +931,7 @@ export default function ShoppingListScreen() {
                 ref={qtyUnitRef}
                 style={s.qtyUnitInput}
                 value={qtyUnit}
-                onChangeText={setQtyUnit}
+                onChangeText={v => setQtyUnit(v.toLowerCase())}
                 placeholder="enhet"
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
@@ -1048,7 +1049,7 @@ export default function ShoppingListScreen() {
                 <TextInput
                   style={[s.qtyUnitInput, { fontSize: 13, paddingVertical: 6, paddingHorizontal: 8 }]}
                   value={mergeUnit}
-                  onChangeText={setMergeUnit}
+                  onChangeText={v => setMergeUnit(v.toLowerCase())}
                   placeholder="enhet"
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="none"

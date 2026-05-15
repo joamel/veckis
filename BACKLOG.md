@@ -114,7 +114,7 @@
 - [x] Om dagen är tom borde det gå att trycka över hela rutan för att lägga till ny maträtt
 - [x] Kunna lägga till ett nytt recept direkt under "+" i veckomenyn om man saknar en rätt bland befintliga recept
 - [ ] Man måste kunna inventera vad man har hemma innan man överför maträtten till inköpslistan.
-- [ ] Skulle vara snyggare om man valde från receptvyn när man väljer ny maträtt istället för en egen dialog (alt att den ser likadan ut som receptvyn).
+- [x] Skulle vara snyggare om man valde från receptvyn när man väljer ny maträtt istället för en egen dialog (alt att den ser likadan ut som receptvyn).
 - [x] ta bort "Flytta till dag"-sektionen i utfällda meny-vyn. Behövs inte då vi har drag-n-drop
 - [x] om man trycker på ett mått i enhetsfältet borde man automatiskt hoppa till nästa i
   skapa nytt recept-vyn
