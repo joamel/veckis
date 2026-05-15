@@ -24,7 +24,7 @@ export type HouseholdWsMessage =
   | { type: 'member_deleted'; data: { id: string } };
 
 export function useHouseholdSocket(
-  householdId: string | undefined,
+  householdId: string | null | undefined,
   getToken: () => Promise<string | null>,
   onMessage: (msg: HouseholdWsMessage) => void,
 ) {
