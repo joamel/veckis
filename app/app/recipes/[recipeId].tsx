@@ -238,10 +238,7 @@ export default function RecipeDetailScreen() {
               style={s.metaChip}
               onPress={() => WebBrowser.openBrowserAsync(recipe.sourceUrl!)}
             >
-              <Text style={[s.metaText, { color: '#4f46e5' }]}>
-                <Text>{/* icon as text glyph to avoid measure bug */}↗  </Text>
-                Originalrecept
-              </Text>
+              <Text style={[s.metaText, { color: '#4f46e5' }]}>↗  Originalrecept</Text>
             </Pressable>
           )}
         </View>
