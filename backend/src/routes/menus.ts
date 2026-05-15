@@ -292,5 +292,41 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   for (const item of createdItems) {
     wsBroadcast(list.id, { type: 'item_added', data: item });
   }
+
+  // Auto-soft-merge: if multiple visible items share name+unit after import,
+  // wrap them in a synthetic merge container so the list stays clean and
+  // ingredients can be unmerged again when a rätt is removed.
+  const visible = await prisma.shoppingItem.findMany({
+    where: { listId: list.id, isChecked: false, mergedIntoId: null },
+  });
+  const groups = new Map<string, typeof visible>();
+  for (const v of visible) {
+    const key = `${stripIngredient(v.name)}|${(v.unit ?? '').toLowerCase().trim()}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(v);
+  }
+  for (const [, group] of groups) {
+    if (group.length < 2) continue;
+    const totalQty = group.reduce((sum, i) => sum + (i.quantity ?? 1), 0);
+    const container = await prisma.shoppingItem.create({
+      data: {
+        listId: list.id,
+        name: group[0].name,
+        quantity: totalQty,
+        unit: group[0].unit,
+        category: group[0].category,
+        addedBy: clerkUserId,
+      },
+    });
+    await prisma.shoppingItem.updateMany({
+      where: { id: { in: group.map(i => i.id) } },
+      data: { mergedIntoId: container.id },
+    });
+    wsBroadcast(list.id, { type: 'item_added', data: container });
+    for (const child of group) {
+      wsBroadcast(list.id, { type: 'item_deleted', data: { id: child.id } });
+    }
+  }
+
   res.status(201).json([...updatedItems, ...createdItems]);
 }));
