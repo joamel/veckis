@@ -197,7 +197,14 @@ export default function MenuScreen() {
     const originListId = params.originListId;
     setShowBulkTransferModal(false);
     if (originListId) {
-      router.navigate(`/shopping/${originListId}` as never);
+      // Pop the /menu route off the stack so back from the shopping list
+      // goes to wherever the user was before (lists overview etc.),
+      // not back into the menu tab they never intentionally visited.
+      try {
+        (router as { dismissTo?: (h: string) => void }).dismissTo?.(`/shopping/${originListId}`);
+      } catch {
+        router.navigate(`/shopping/${originListId}` as never);
+      }
     }
   }
 
@@ -1054,7 +1061,11 @@ export default function MenuScreen() {
                   const origin = params.originListId;
                   if (origin) {
                     await executeBulkTransfer(origin);
-                    router.navigate(`/shopping/${origin}` as never);
+                    try {
+                      (router as { dismissTo?: (h: string) => void }).dismissTo?.(`/shopping/${origin}`);
+                    } catch {
+                      router.navigate(`/shopping/${origin}` as never);
+                    }
                   } else {
                     setBulkTransferStep('list');
                   }
