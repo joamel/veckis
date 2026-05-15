@@ -357,9 +357,10 @@ export default function MenuScreen() {
       const list = shoppingLists.find(l => l.id === listId);
       if (!list) continue;
 
-      // New: delete by menuItemId if items are tagged
-      const taggedItems = list.items.filter(i => i.menuItemId === menuItem.id);
-      if (taggedItems.length > 0) {
+      // New: delete by menuItemId if items are tagged (visible OR hidden under a merge container)
+      const linked = (list as { linkedMenuItemIds?: string[] }).linkedMenuItemIds ?? [];
+      const hasVisibleTagged = list.items.some(i => i.menuItemId === menuItem.id);
+      if (hasVisibleTagged || linked.includes(menuItem.id)) {
         ops.push(client.deleteItemsByMenuItemId(listId, menuItem.id));
         continue;
       }

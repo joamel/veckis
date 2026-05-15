@@ -25,8 +25,8 @@ async function findMergeRoot(itemId: string): Promise<string> {
 }
 
 // BFS through a merge tree. Restore all leaf originals (mergedIntoId = null)
-// and delete every synthetic container along the way. Returns the restored leaf ids.
-async function fullyUnmerge(rootId: string): Promise<string[]> {
+// and delete every synthetic container along the way.
+async function fullyUnmerge(rootId: string): Promise<{ leaves: string[]; containers: string[] }> {
   const containers: string[] = [];
   const leaves: string[] = [];
   const queue = [rootId];
@@ -37,8 +37,6 @@ async function fullyUnmerge(rootId: string): Promise<string[]> {
       select: { id: true },
     });
     if (kids.length === 0) {
-      // No children → original leaf (unless cur is rootId itself, treated as a container too).
-      // The root we were called with is always considered a container (caller's responsibility).
       if (cur === rootId) containers.push(cur);
       else leaves.push(cur);
     } else {
@@ -46,7 +44,6 @@ async function fullyUnmerge(rootId: string): Promise<string[]> {
       queue.push(...kids.map(k => k.id));
     }
   }
-  // Restore leaves first so the cascade delete on containers doesn't take them down
   if (leaves.length > 0) {
     await prisma.shoppingItem.updateMany({
       where: { id: { in: leaves } },
@@ -56,7 +53,7 @@ async function fullyUnmerge(rootId: string): Promise<string[]> {
   if (containers.length > 0) {
     await prisma.shoppingItem.deleteMany({ where: { id: { in: containers } } });
   }
-  return leaves;
+  return { leaves, containers };
 }
 
 const categoryEnum = z.nativeEnum(StoreCategory);
@@ -370,9 +367,11 @@ shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAu
     rootsToUnmerge.add(await findMergeRoot(m.id));
   }
   const restoredIds: string[] = [];
+  const removedContainerIds: string[] = [];
   for (const rootId of rootsToUnmerge) {
-    const restored = await fullyUnmerge(rootId);
-    restoredIds.push(...restored);
+    const { leaves, containers } = await fullyUnmerge(rootId);
+    restoredIds.push(...leaves);
+    removedContainerIds.push(...containers);
   }
 
   // Now delete all items with this menuItemId (originals + visible parents that came from this rätt)
@@ -386,9 +385,13 @@ shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAu
   for (const { id } of deleted) {
     wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
   }
+  // Containers that got unmerged are also gone — tell clients
+  for (const id of removedContainerIds) {
+    wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+  }
 
   // Broadcast survivors as added (formerly hidden items now visible)
-  const deletedIds = new Set(deleted.map(d => d.id));
+  const deletedIds = new Set([...deleted.map(d => d.id), ...removedContainerIds]);
   const survivors = await prisma.shoppingItem.findMany({
     where: { id: { in: restoredIds.filter(id => !deletedIds.has(id)) } },
     include: { recipe: { select: { id: true, title: true } } },
@@ -411,10 +414,12 @@ shoppingRouter.delete('/items/:itemId', requireAuth, asyncHandler(async (req, re
   // If this is a merge container (has children), fullyUnmerge handles deletion + restoration
   const hasChildren = await prisma.shoppingItem.findFirst({ where: { mergedIntoId: existing.id }, select: { id: true } });
   if (hasChildren) {
-    const restoredIds = await fullyUnmerge(existing.id);
-    wsBroadcast(list.id, { type: 'item_deleted', data: { id: existing.id } });
+    const { leaves, containers } = await fullyUnmerge(existing.id);
+    for (const id of containers) {
+      wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+    }
     const survivors = await prisma.shoppingItem.findMany({
-      where: { id: { in: restoredIds } },
+      where: { id: { in: leaves } },
       include: { recipe: { select: { id: true, title: true } } },
     });
     for (const s of survivors) {
