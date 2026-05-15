@@ -373,7 +373,10 @@ export default function ShoppingListScreen() {
         if (!prev) return prev;
         return {
           ...prev,
-          items: [...prev.items.filter(i => !hideIds.has(i.id)), { ...container, recipe: null }],
+          items: [
+            ...prev.items.filter(i => !hideIds.has(i.id) && i.id !== container.id),
+            { ...container, recipe: null },
+          ],
         };
       });
       pendingOpenNextDupe.current = true;

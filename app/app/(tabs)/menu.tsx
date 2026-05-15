@@ -22,7 +22,7 @@ import Animated, { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useHousehold } from '../../src/context/HouseholdContext';
-import { getISOWeek, addWeeks } from '../../src/lib/week';
+import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -901,8 +901,12 @@ export default function MenuScreen() {
               <Text style={s.sheetSub}>Vilken veckas meny vill du importera?</Text>
               <ScrollView style={s.bulkRecipeList}>
                 {(() => {
+                  // Only mark "already transferred" against the destination list, if known
+                  const destList = params.originListId
+                    ? shoppingLists.find(l => l.id === params.originListId)
+                    : null;
                   const transferredIds = new Set(
-                    shoppingLists.flatMap(l => l.items.map(i => i.menuItemId).filter(Boolean) as string[])
+                    (destList?.items ?? []).map(i => i.menuItemId).filter(Boolean) as string[]
                   );
                   const byWeek = new Map<string, WeekMenuItemWithRecipe[]>();
                   for (const m of allMenus) {
@@ -910,17 +914,29 @@ export default function MenuScreen() {
                     if (!byWeek.has(key)) byWeek.set(key, []);
                     byWeek.get(key)!.push(m);
                   }
-                  const weeks = [...byWeek.entries()].sort(([a], [b]) => a.localeCompare(b));
+                  // Filter out weeks that have already ended (Sunday < today)
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const entries = [...byWeek.entries()].filter(([key]) => {
+                    const [wy, wn] = key.split('-').map(Number);
+                    const monday = getISOWeekMonday(wy, wn);
+                    const sunday = new Date(monday);
+                    sunday.setDate(monday.getDate() + 6);
+                    return sunday >= today;
+                  });
+                  const weeks = entries.sort(([a], [b]) => a.localeCompare(b));
                   if (weeks.length === 0) {
-                    return <Text style={s.pickerEmptyText}>Ingen planerad meny — lägg till rätter först</Text>;
+                    return <Text style={s.pickerEmptyText}>Ingen aktiv vecka med planerade rätter</Text>;
                   }
                   return weeks.map(([key, items]) => {
                     const [wy, wn] = key.split('-').map(Number);
                     const newCount = items.filter(i => !transferredIds.has(i.id)).length;
+                    const allTransferred = newCount === 0;
                     return (
                       <Pressable
                         key={key}
-                        style={s.bulkRecipeItem}
+                        style={[s.bulkRecipeItem, allTransferred && { opacity: 0.5 }]}
+                        disabled={allTransferred}
                         onPress={() => {
                           setBulkTransferWeek({ weekYear: wy, weekNumber: wn });
                           setSelectedRecipesForTransfer(new Set(items.filter(i => !transferredIds.has(i.id)).map(i => i.id)));
@@ -930,9 +946,12 @@ export default function MenuScreen() {
                         <Ionicons name="calendar-outline" size={22} color="#4f46e5" />
                         <View style={{ flex: 1 }}>
                           <Text style={s.bulkRecipeTitle}>Vecka {wn}, {wy}</Text>
-                          <Text style={s.bulkRecipeDay}>{items.length} {items.length === 1 ? 'rätt' : 'rätter'} · {newCount} nya</Text>
+                          <Text style={s.bulkRecipeDay}>
+                            {items.length} {items.length === 1 ? 'rätt' : 'rätter'}
+                            {destList ? ` · ${allTransferred ? 'alla redan med' : `${newCount} nya`}` : ''}
+                          </Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+                        {!allTransferred && <Ionicons name="chevron-forward" size={20} color="#9ca3af" />}
                       </Pressable>
                     );
                   });
