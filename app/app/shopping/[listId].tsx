@@ -65,6 +65,7 @@ export default function ShoppingListScreen() {
   const [mergeName, setMergeName] = useState('');
   const [mergeCategory, setMergeCategory] = useState<StoreCategory>('other');
   const [manualPickerOpen, setManualPickerOpen] = useState(false);
+  const mergeScrollRef = useRef<ScrollView>(null);
   const [manualPickerSelected, setManualPickerSelected] = useState<Set<string>>(new Set());
 
   // Category browser modal
@@ -150,6 +151,7 @@ export default function ShoppingListScreen() {
     setMergeUnit(bestUnit);
     setMergeName(capitalize(dupes[0].name));
     setMergeCategory(dupes[0].category as StoreCategory);
+    setTimeout(() => mergeScrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
   }, []);
 
   const categoryOrder: StoreCategory[] = (list?.store?.categoryOrder as StoreCategory[]) ?? DEFAULT_CATEGORY_ORDER;
@@ -1006,7 +1008,7 @@ export default function ShoppingListScreen() {
                 </Pressable>
               )}
             </View>
-            <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 8 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView ref={mergeScrollRef} style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 8 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {mergeSheet && mergeSheet.items.length > 0 ? (
                 <Text style={s.sheetSub}>Markera vilka som ska slås ihop</Text>
               ) : (
