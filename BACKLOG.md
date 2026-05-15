@@ -39,7 +39,7 @@
 - [x] Onboarding vid första inloggning: efter nickname-val ska användaren välja "skapa nytt hushåll" eller "gå med via inbjudningskod"
 - [x] varna admin innan man lämnar fliken om redigeringsläget är igång.
 - [x] möjlighet att kunna dela ut admin
-- [ ] inställningar uppdateras inte automatiskt för alla användare när någon gör ändringar.
+- [x] inställningar uppdateras inte automatiskt för alla användare när någon gör ändringar.
 
 ### Inköpslistan
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken

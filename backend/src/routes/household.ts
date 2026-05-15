@@ -4,6 +4,11 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, requireAdmin, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { randomBytes } from 'crypto';
+import { wsBroadcast } from '../lib/wsHub';
+
+function broadcastHousehold(householdId: string, type: string, data: unknown) {
+  wsBroadcast(`household:${householdId}`, { type, data });
+}
 
 export const householdRouter = Router();
 
@@ -95,6 +100,7 @@ householdRouter.patch('/:householdId', requireAuth, requireAdmin, asyncHandler(a
     where: { id: req.params.householdId },
     data: { name: body.data.name },
   });
+  broadcastHousehold(household.id, 'household_updated', household);
   res.json(household);
 }));
 
@@ -157,6 +163,7 @@ householdRouter.patch('/:householdId/members/:memberId', requireAuth, asyncHandl
       ...(body.data.role !== undefined ? { role: body.data.role } : {}),
     },
   });
+  broadcastHousehold(updated.householdId, 'member_updated', updated);
   res.json(updated);
 }));
 
@@ -172,6 +179,7 @@ householdRouter.post('/:householdId/members', requireAuth, requireAdmin, asyncHa
       role: 'member',
     },
   });
+  broadcastHousehold(member.householdId, 'member_added', member);
   res.status(201).json(member);
 }));
 
@@ -187,5 +195,6 @@ householdRouter.delete('/:householdId/members/:memberId', requireAuth, requireAd
     return;
   }
   await prisma.householdMember.delete({ where: { id: target.id } });
+  broadcastHousehold(target.householdId, 'member_deleted', { id: target.id });
   res.status(204).send();
 }));
