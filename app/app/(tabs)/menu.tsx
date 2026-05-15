@@ -377,6 +377,7 @@ export default function MenuScreen() {
     try {
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
       setMenuItems(prev => prev.map(m => m.id === tempId ? item : m));
+      showToast('Recept tillagd till menyn');
     } catch {
       setMenuItems(prev => prev.filter(m => m.id !== tempId));
       Alert.alert('Fel', 'Kunde inte lägga till rätt');
@@ -404,7 +405,7 @@ export default function MenuScreen() {
       if (lists.length > 0) {
         await executeCleanup(item, lists.map(l => l.listId));
       }
-      showToast(`${item.recipe.title} borttagen från menyn`);
+      showToast('Recept borttagen från menyn');
     } catch {
       Alert.alert('Fel', 'Kunde inte ta bort');
     }
