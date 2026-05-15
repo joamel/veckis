@@ -16,7 +16,7 @@
 - [ ] Ännu större font och knappar/pilar mm i tablet-vyn. Idag ser de nästan mindre ut än i mobilversionen.
 - [ ] sysslor och aktiviteter skulle kunna ha en emoji likt maträtter för att få samma stil på korten i kalendern.
 - [ ] möjligt med horisontell-vy i tablet
-- [ ] Ångra-toast för destruktiva åtgärder (rensa inköpslista, ta bort maträtt/aktivitet/syssla) — knapp "Ångra" i toasten i ~5 sekunder
+- [x] Ångra-toast för destruktiva åtgärder (rensa inköpslista) — knapp "Ångra" i toasten i ~5 sekunder (resten kan adderas vid behov)
 - [ ] Utvidga realtidsuppdatering (WebSocket) till meny, sysslor, kalender och inställningar så alla hushållsmedlemmar ser samma data
 - [ ] Long press-symmetri: kontrollera att redigering via long press finns konsekvent på basvaror, butiker och kategorier (inte bara inköpslista/maträtt/aktivitet/syssla)
 - [ ] Pushnotiser — specificera per typ: påminnelse innan aktivitet startar, förfallen syssla, någon har rensat aktiv inköpslista, ny medlem i hushållet

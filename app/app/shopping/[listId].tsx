@@ -24,6 +24,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/clerk-expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
+import { useToast } from '../../src/context/ToastContext';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type StapleItem, type Store } from '@veckis/shared';
@@ -42,6 +43,7 @@ export default function ShoppingListScreen() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
   const router = useRouter();
   const client = useApiClient();
+  const { showToast: showGlobalToast } = useToast();
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
 
@@ -489,14 +491,27 @@ export default function ShoppingListScreen() {
     if (!listId) return;
     Alert.alert('Rensa lista?', 'Alla varor tas bort men listan finns kvar.', [
       { text: 'Avbryt', style: 'cancel' },
-      { text: 'Rensa', style: 'destructive', onPress: async () => {
-        try {
-          await client.clearShoppingList(listId);
-          setList(prev => prev ? { ...prev, items: [] } : prev);
-          showToast('Inköpslistan rensad');
-        } catch {
-          Alert.alert('Fel', 'Kunde inte rensa listan');
-        }
+      { text: 'Rensa', style: 'destructive', onPress: () => {
+        // Optimistic clear with undo: hide items from UI, defer backend call 5s
+        const snapshot = list?.items ?? [];
+        setList(prev => prev ? { ...prev, items: [] } : prev);
+        let cancelled = false;
+        showGlobalToast('Inköpslistan rensad', 'neutral', {
+          label: 'Ångra',
+          onPress: () => {
+            cancelled = true;
+            setList(prev => prev ? { ...prev, items: snapshot } : prev);
+          },
+        });
+        setTimeout(async () => {
+          if (cancelled) return;
+          try {
+            await client.clearShoppingList(listId);
+          } catch {
+            setList(prev => prev ? { ...prev, items: snapshot } : prev);
+            Alert.alert('Fel', 'Kunde inte rensa listan');
+          }
+        }, 5000);
       }},
     ]);
   }
