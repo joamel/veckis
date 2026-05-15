@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import { useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type WeekMenuItemWithRecipe } from '../../src/api/client';
+import { useToast } from '../../src/context/ToastContext';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -133,6 +134,7 @@ function Drum({ values, selected, onSelect }: { values: string[]; selected: numb
 export default function ScheduleScreen() {
   const router = useRouter();
   const client = useApiClient();
+  const { showToast } = useToast();
   const { householdId } = useHousehold();
   const { user } = useUser();
   const { medium } = useHaptics();
@@ -372,14 +374,20 @@ export default function ScheduleScreen() {
         { text: 'Avbryt', style: 'cancel' },
         {
           text: 'Ta bort', style: 'destructive',
-          onPress: async () => {
-            try {
-              await client.deleteScheduleEntry(entry.id);
-              setEntries(prev => prev.filter(e => e.id !== entry.id));
-              setEditingEntry(null);
-            } catch {
-              Alert.alert('Fel', 'Kunde inte ta bort');
-            }
+          onPress: () => {
+            const prev = entries;
+            setEntries(p => p.filter(e => e.id !== entry.id));
+            setEditingEntry(null);
+            let cancelled = false;
+            showToast('Aktivitet borttagen', 'neutral', {
+              label: 'Ångra',
+              onPress: () => { cancelled = true; setEntries(prev); },
+            });
+            setTimeout(async () => {
+              if (cancelled) return;
+              try { await client.deleteScheduleEntry(entry.id); }
+              catch { setEntries(prev); Alert.alert('Fel', 'Kunde inte ta bort'); }
+            }, 5000);
           },
         },
       ]);
@@ -408,13 +416,19 @@ export default function ScheduleScreen() {
       { text: 'Avbryt', style: 'cancel' },
       {
         text: 'Ta bort', style: 'destructive',
-        onPress: async () => {
-          try {
-            await client.deleteChore(choreId);
-            setChores(prev => prev.filter(c => c.id !== choreId));
-          } catch {
-            Alert.alert('Fel', 'Kunde inte ta bort');
-          }
+        onPress: () => {
+          const prev = chores;
+          setChores(p => p.filter(c => c.id !== choreId));
+          let cancelled = false;
+          showToast('Syssla borttagen', 'neutral', {
+            label: 'Ångra',
+            onPress: () => { cancelled = true; setChores(prev); },
+          });
+          setTimeout(async () => {
+            if (cancelled) return;
+            try { await client.deleteChore(choreId); }
+            catch { setChores(prev); Alert.alert('Fel', 'Kunde inte ta bort'); }
+          }, 5000);
         },
       },
     ]);

@@ -398,17 +398,22 @@ export default function MenuScreen() {
     if (!ok) return;
     const prevItems = menuItems;
     setMenuItems(prev => prev.filter(i => i.id !== item.id));
-    try {
-      await client.deleteWeekMenuItem(item.id);
-      const lists = recipeListMap[item.id] ?? [];
-      if (lists.length > 0) {
-        await executeCleanup(item, lists.map(l => l.listId));
+    let cancelled = false;
+    showGlobalToast('Recept borttagen från menyn', 'neutral', {
+      label: 'Ångra',
+      onPress: () => { cancelled = true; setMenuItems(prevItems); },
+    });
+    setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        await client.deleteWeekMenuItem(item.id);
+        const lists = recipeListMap[item.id] ?? [];
+        if (lists.length > 0) await executeCleanup(item, lists.map(l => l.listId));
+      } catch {
+        setMenuItems(prevItems);
+        Alert.alert('Fel', 'Kunde inte ta bort');
       }
-      showToast('Recept borttagen från menyn');
-    } catch {
-      setMenuItems(prevItems);
-      Alert.alert('Fel', 'Kunde inte ta bort');
-    }
+    }, 5000);
   }
 
   async function executeCleanup(menuItem: WeekMenuItemWithRecipe, listIds: string[]) {
