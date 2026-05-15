@@ -194,10 +194,10 @@ export default function MenuScreen() {
   }, [params.bulkTransfer, householdId]);
 
   function handleCancelBulkTransfer() {
-    const wasFromShoppingList = params.originListId;
+    const wasFromShoppingList = !!params.originListId;
     setShowBulkTransferModal(false);
-    if (wasFromShoppingList) {
-      router.replace(`/shopping/${wasFromShoppingList}` as never);
+    if (wasFromShoppingList && router.canGoBack()) {
+      router.back();
     }
   }
 
@@ -1053,7 +1053,7 @@ export default function MenuScreen() {
                 onPress={async () => {
                   if (params.originListId) {
                     await executeBulkTransfer(params.originListId);
-                    router.replace(`/shopping/${params.originListId}` as never);
+                    if (router.canGoBack()) router.back();
                   } else {
                     setBulkTransferStep('list');
                   }
