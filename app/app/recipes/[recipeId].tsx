@@ -238,7 +238,8 @@ export default function RecipeDetailScreen() {
               style={s.metaChip}
               onPress={() => WebBrowser.openBrowserAsync(recipe.sourceUrl!)}
             >
-              <Text style={[s.metaText, { color: '#4f46e5' }]}>↗  Originalrecept</Text>
+              <Ionicons name="open-outline" size={14} color="#4f46e5" />
+              <Text style={[s.metaText, { color: '#4f46e5', marginLeft: 5 }]}>Originalrecept</Text>
             </Pressable>
           )}
         </View>
@@ -478,7 +479,7 @@ const s = StyleSheet.create({
   transferBtn: { padding: 8, backgroundColor: '#eef2ff', borderRadius: 8 },
   scroll: { padding: 20, gap: 16 },
   metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  metaChip: { backgroundColor: '#f3f4f6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, alignSelf: 'flex-start' },
+  metaChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f3f4f6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, alignSelf: 'flex-start' },
   servingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f3f4f6', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
   servingBtn: { padding: 2 },
   metaText: { fontSize: 13, color: '#6b7280' },
