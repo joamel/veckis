@@ -83,11 +83,13 @@
 - [x] Dubblett-knappen borde skaka lite längre så man hinner sen den.
 - [x] Dubblettknappen borde även finnas under "3 prickarna" uppe till höger. Om inga dubbletter finns borde dubblett-knappen bara visas under "3 prickarna".
 - [x] Om man importerar veckomeny från en inköpslista så borde den inte fråga vilken inköpslista man vill överföra till samt redirecta tillbaka till den inköpslista man var inne i.
+- [x] Om man ångrar import borde man återgå till inköpslistan istället för att hamna i veckomenyn
 - [ ] När man har flera dubbletter vore det snyggare om allt sparas efter att man klickat klart genom dubbletterna istället för varje gång man trycker på "slå ihop". Så istället kommer nästa sömlöst upp när man trycker på slå ihop.
 - [ ] Borde gå att lägga till egna kategorier och ta bort kategorier i butiker. Eventuellt att man kan ha en sökbar databas på butiker som andra lagt till för att på så vis slippa skapa butiker som redan finns inlagda. Kanske ett premium-alternativ?
 - [ ] Automatiskt slå ihop ingredienser av samma typ och måttenhet. Funkar inte när man importerar recept in i befintlig inköpslista.
 - [ ] När man byter enhet på en basvara läggs den till under kategori istället för att ersätta den gamla så att man får dubbletter. Bättre att den bara uppdaterar enheten istället.
-- [x] Om man ångrar import borde man återgå till inköpslistan istället för att hamna i veckomenyn
+- [ ] Redigera vara borde se likadan ut som lägga till ny vara-vyn (förutom att man ska kunna redigera varunamnet).
+- [x] Ny varuvyn borde komma upp även när man lägger in vara manuellt i inputfältet
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -108,11 +110,14 @@
 - [x] Bekräftelsedialog innan man tar bort maträtt
 - [x] När man skapar nytt recept borde man direkt komma till att lägga in första ingrediensen istället för att behöva trycka på redigera-knappen
 - [x] Saknas tillbaka-knapp i recept-vyn
-- [ ] Kunna lägga till ett nytt recept direkt under "+" i veckomenyn om man saknar en rätt bland befintliga recept
 - [x] optimistisk uppdatering av menyn när man lägger till en maträtt
 - [x] Om dagen är tom borde det gå att trycka över hela rutan för att lägga till ny maträtt
+- [ ] Kunna lägga till ett nytt recept direkt under "+" i veckomenyn om man saknar en rätt bland befintliga recept
 - [ ] Man måste kunna inventera vad man har hemma innan man överför maträtten till inköpslistan.
-
+- [ ] Skulle vara snyggare om man valde från receptvyn när man väljer ny maträtt istället för en egen dialog (alt att den ser likadan ut som receptvyn).
+- [x] ta bort "Flytta till dag"-sektionen i utfällda meny-vyn. Behövs inte då vi har drag-n-drop
+- [x] om man trycker på ett mått i enhetsfältet borde man automatiskt hoppa till nästa i
+  skapa nytt recept-vyn
 
 
 ### Kalendern
@@ -135,7 +140,7 @@
 - [x] filter i kalendern borde bara visa färg på dagar där usern har aktiviter/sysslor som är filtrerad. Funkar inte!
 - [x] Aktiviteter som har passerat (i tid) borde strykas över eller gråmarkeras
 - [ ] Kunna lägga aktiviteter på fler än en user i taget
-- [ ] En privat aktivitet i kalendern borde kanske inte kunna läggas på någon user
+- [x] En privat aktivitet i kalendern borde kanske inte kunna läggas på någon user
 - [ ] Skapa ny aktivitet behöver inte ha "Dag"-valet med veckodagarna då den bör komma ihåg vilken dag man valt att lägga in aktiviteten på.
 
 ### Sysslor

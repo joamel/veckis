@@ -312,7 +312,13 @@ export default function RecipeDetailScreen() {
                             <Pressable
                               key={u}
                               style={[s.unitChip, active && s.unitChipActive]}
-                              onPress={() => updateEditRow(idx, 'unit', active ? '' : u)}
+                              onPress={() => {
+                                updateEditRow(idx, 'unit', active ? '' : u);
+                                if (!active) {
+                                  setActiveUnitIdx(null);
+                                  setTimeout(() => getRowRef(idx).name?.focus(), 50);
+                                }
+                              }}
                             >
                               <Text style={[s.unitChipText, active && s.unitChipTextActive]}>{u}</Text>
                             </Pressable>

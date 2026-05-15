@@ -674,13 +674,13 @@ export default function ShoppingListScreen() {
             value={newItem}
             onChangeText={setNewItem}
             returnKeyType="done"
-            onSubmitEditing={() => addItem()}
+            onSubmitEditing={() => { const n = newItem.trim(); if (!n) return; setNewItem(''); openQtySheet(n); }}
             blurOnSubmit={false}
             autoCapitalize="none"
           />
           <Pressable
             style={[s.addBtn, (!newItem.trim() || adding) && s.addBtnDisabled]}
-            onPress={() => addItem()}
+            onPress={() => { const n = newItem.trim(); if (!n) return; setNewItem(''); openQtySheet(n); }}
             disabled={adding || !newItem.trim()}
           >
             {adding ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="add" size={22} color="#fff" />}

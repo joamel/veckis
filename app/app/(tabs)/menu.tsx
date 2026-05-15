@@ -1292,28 +1292,6 @@ function MenuCard({
                 </Pressable>
               </View>
 
-              <View style={s.assignDayRow}>
-                <Text style={s.assignDayLabel}>Flytta till dag:</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={s.assignDayBtns}>
-                    {DAYS.map(d => (
-                      <Pressable
-                        key={d.key}
-                        style={[s.assignDayBtn, item.day === d.key && s.assignDayBtnActive]}
-                        onPress={() => onMoveToDay(d.key)}
-                      >
-                        <Text style={[s.assignDayBtnText, item.day === d.key && s.assignDayBtnTextActive]}>{d.short}</Text>
-                      </Pressable>
-                    ))}
-                    <Pressable
-                      style={[s.assignDayBtn, item.day === null && s.assignDayBtnActive]}
-                      onPress={() => onMoveToDay(null)}
-                    >
-                      <Text style={[s.assignDayBtnText, item.day === null && s.assignDayBtnTextActive]}>Ingen</Text>
-                    </Pressable>
-                  </View>
-                </ScrollView>
-              </View>
             </View>
           )}
         </View>

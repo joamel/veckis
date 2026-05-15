@@ -976,15 +976,15 @@ export default function ScheduleScreen() {
                 </View>
               </>
             )}
-            <Pressable style={s.sharedRow} onPress={() => setEditEntryIsShared(v => !v)}>
+            <Pressable style={s.sharedRow} onPress={() => setEditEntryIsShared(v => { if (v) setEditEntryAssignedTo(null); return !v; })}>
               <Ionicons name={editEntryIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={editEntryIsShared ? '#4f46e5' : '#9ca3af'} />
               <View style={{ flex: 1 }}>
                 <Text style={s.sharedLabel}>{editEntryIsShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
                 <Text style={s.sharedSub}>{editEntryIsShared ? 'Syns för alla i hushållet' : 'Syns bara för dig'}</Text>
               </View>
-              <Switch value={editEntryIsShared} onValueChange={setEditEntryIsShared} trackColor={{ true: '#4f46e5' }} />
+              <Switch value={editEntryIsShared} onValueChange={v => { setEditEntryIsShared(v); if (!v) setEditEntryAssignedTo(null); }} trackColor={{ true: '#4f46e5' }} />
             </Pressable>
-            {members.length > 0 && (
+            {members.length > 0 && editEntryIsShared && (
               <>
                 <Text style={s.label}>Tilldela person (valfritt)</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberPickerRow}>
@@ -1180,16 +1180,16 @@ export default function ScheduleScreen() {
               ))}
             </View>
 
-            <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => !v)}>
+            <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => { if (v) setNewAssignedTo(null); return !v; })}>
               <Ionicons name={newIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={newIsShared ? '#4f46e5' : '#9ca3af'} />
               <View style={{ flex: 1 }}>
                 <Text style={s.sharedLabel}>{newIsShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
                 <Text style={s.sharedSub}>{newIsShared ? 'Syns för alla i hushållet' : 'Syns bara för dig'}</Text>
               </View>
-              <Switch value={newIsShared} onValueChange={setNewIsShared} trackColor={{ true: '#4f46e5' }} />
+              <Switch value={newIsShared} onValueChange={v => { setNewIsShared(v); if (!v) setNewAssignedTo(null); }} trackColor={{ true: '#4f46e5' }} />
             </Pressable>
 
-            {members.length > 0 && (
+            {members.length > 0 && newIsShared && (
               <>
                 <Text style={s.label}>Tilldela person (valfritt)</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberPickerRow}>
