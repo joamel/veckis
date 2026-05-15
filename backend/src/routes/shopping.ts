@@ -24,24 +24,39 @@ async function findMergeRoot(itemId: string): Promise<string> {
   }
 }
 
-// Recursively restore all descendants of rootId AND delete the synthetic root.
-// Returns surviving (formerly hidden) leaf item IDs.
+// BFS through a merge tree. Restore all leaf originals (mergedIntoId = null)
+// and delete every synthetic container along the way. Returns the restored leaf ids.
 async function fullyUnmerge(rootId: string): Promise<string[]> {
-  const restored: string[] = [];
-  const children = await prisma.shoppingItem.findMany({
-    where: { mergedIntoId: rootId },
-    select: { id: true },
-  });
-  for (const child of children) {
-    await prisma.shoppingItem.update({ where: { id: child.id }, data: { mergedIntoId: null } });
-    // If this child is itself a merge-root, recursively unmerge it too
-    const deeper = await fullyUnmerge(child.id);
-    if (deeper.length > 0) restored.push(...deeper);
-    else restored.push(child.id);
+  const containers: string[] = [];
+  const leaves: string[] = [];
+  const queue = [rootId];
+  while (queue.length) {
+    const cur = queue.shift()!;
+    const kids = await prisma.shoppingItem.findMany({
+      where: { mergedIntoId: cur },
+      select: { id: true },
+    });
+    if (kids.length === 0) {
+      // No children → original leaf (unless cur is rootId itself, treated as a container too).
+      // The root we were called with is always considered a container (caller's responsibility).
+      if (cur === rootId) containers.push(cur);
+      else leaves.push(cur);
+    } else {
+      containers.push(cur);
+      queue.push(...kids.map(k => k.id));
+    }
   }
-  // Delete the synthetic merge container (its job is done — children are visible again)
-  await prisma.shoppingItem.delete({ where: { id: rootId } }).catch(() => {});
-  return restored;
+  // Restore leaves first so the cascade delete on containers doesn't take them down
+  if (leaves.length > 0) {
+    await prisma.shoppingItem.updateMany({
+      where: { id: { in: leaves } },
+      data: { mergedIntoId: null },
+    });
+  }
+  if (containers.length > 0) {
+    await prisma.shoppingItem.deleteMany({ where: { id: { in: containers } } });
+  }
+  return leaves;
 }
 
 const categoryEnum = z.nativeEnum(StoreCategory);
@@ -112,7 +127,18 @@ shoppingRouter.get('/lists', requireAuth, asyncHandler(async (req, res) => {
     include: { items: { where: { mergedIntoId: null }, orderBy: { createdAt: 'asc' }, include: { recipe: { select: { id: true, title: true } } } }, store: true },
     orderBy: { createdAt: 'desc' },
   });
-  res.json(lists);
+  // Augment each list with all menuItemIds (visible + hidden under a merge container)
+  const allItemMenuIds = await prisma.shoppingItem.findMany({
+    where: { listId: { in: lists.map(l => l.id) }, menuItemId: { not: null } },
+    select: { listId: true, menuItemId: true },
+  });
+  const linkedByList = new Map<string, string[]>();
+  for (const r of allItemMenuIds) {
+    if (!r.menuItemId) continue;
+    if (!linkedByList.has(r.listId)) linkedByList.set(r.listId, []);
+    linkedByList.get(r.listId)!.push(r.menuItemId);
+  }
+  res.json(lists.map(l => ({ ...l, linkedMenuItemIds: linkedByList.get(l.id) ?? [] })));
 }));
 
 // GET /api/shopping/lists/:listId
@@ -278,7 +304,11 @@ shoppingRouter.post('/items/merge', requireAuth, asyncHandler(async (req, res) =
     unit: z.string().nullable().optional(),
     category: categoryEnum,
   }).safeParse(req.body);
-  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+  if (!body.success) {
+    console.error('merge body parse failed:', JSON.stringify(req.body), body.error.flatten());
+    res.status(400).json({ error: body.error.flatten() });
+    return;
+  }
 
   const sources = await prisma.shoppingItem.findMany({
     where: { id: { in: body.data.sourceIds } },

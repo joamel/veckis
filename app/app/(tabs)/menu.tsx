@@ -160,14 +160,16 @@ export default function MenuScreen() {
       menu.forEach(menuItem => {
         if (!listMap[menuItem.id]) listMap[menuItem.id] = [];
         activeLists.forEach(l => {
-          // Match by menuItemId (new) or fall back to recipeId (legacy items without menuItemId)
-          const itemsForThisMenuItem = l.items.filter(item =>
-            item.menuItemId ? item.menuItemId === menuItem.id : item.recipeId === menuItem.recipeId
-          );
-          if (itemsForThisMenuItem.length > 0) {
+          // Hidden items under a merge container won't appear in l.items, so trust
+          // l.linkedMenuItemIds (visible + hidden) as the source of truth.
+          const linked = (l as { linkedMenuItemIds?: string[] }).linkedMenuItemIds ?? [];
+          const isLinked = linked.includes(menuItem.id) ||
+            l.items.some(item => !item.menuItemId && item.recipeId === menuItem.recipeId); // legacy
+          if (isLinked) {
             transferred.add(menuItem.recipeId);
+            const visibleCount = l.items.filter(item => item.menuItemId === menuItem.id).length;
             if (!listMap[menuItem.id].find(e => e.listId === l.id)) {
-              listMap[menuItem.id].push({ listId: l.id, listName: l.name, itemCount: itemsForThisMenuItem.length });
+              listMap[menuItem.id].push({ listId: l.id, listName: l.name, itemCount: visibleCount });
             }
           }
         });
