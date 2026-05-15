@@ -130,6 +130,12 @@ export function useApiClient() {
         body: JSON.stringify(data),
       }),
 
+    mergeShoppingItems: (data: { sourceIds: string[]; name: string; quantity: number; unit?: string | null; category: string }) =>
+      request<ShoppingItem>('/api/shopping/items/merge', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
     updateShoppingItem: (itemId: string, data: Partial<Pick<ShoppingItem, 'name' | 'quantity' | 'unit' | 'category' | 'note'>>) =>
       request<ShoppingItem>(`/api/shopping/items/${itemId}`, {
         method: 'PATCH',
@@ -222,6 +228,9 @@ export function useApiClient() {
     // Menus
     getWeekMenu: (householdId: string, weekYear: number, weekNumber: number) =>
       request<WeekMenuItemWithRecipe[]>(`/api/menus?householdId=${householdId}&weekYear=${weekYear}&weekNumber=${weekNumber}`),
+
+    getAllMenus: (householdId: string) =>
+      request<WeekMenuItemWithRecipe[]>(`/api/menus?householdId=${householdId}`),
 
     addToWeekMenu: (data: { householdId: string; recipeId: string; day?: WeekDay | null; weekYear: number; weekNumber: number; note?: string | null }) =>
       request<WeekMenuItemWithRecipe>('/api/menus', { method: 'POST', body: JSON.stringify(data) }),

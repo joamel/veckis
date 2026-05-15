@@ -13,3 +13,15 @@ export function addWeeks(date: Date, n: number): Date {
   d.setDate(d.getDate() + n * 7);
   return d;
 }
+
+// Returns the Monday (00:00 local) of the given ISO week
+export function getISOWeekMonday(weekYear: number, weekNumber: number): Date {
+  // Jan 4 is always in week 1 per ISO 8601
+  const jan4 = new Date(weekYear, 0, 4);
+  const jan4Day = (jan4.getDay() + 6) % 7; // Monday = 0
+  const week1Monday = new Date(weekYear, 0, 4 - jan4Day);
+  const target = new Date(week1Monday);
+  target.setDate(week1Monday.getDate() + (weekNumber - 1) * 7);
+  target.setHours(0, 0, 0, 0);
+  return target;
+}

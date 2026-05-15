@@ -22,7 +22,7 @@ import Animated, { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useHousehold } from '../../src/context/HouseholdContext';
-import { getISOWeek, addWeeks } from '../../src/lib/week';
+import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -97,7 +97,9 @@ export default function MenuScreen() {
   // Bulk transfer modal: select which recipes to transfer
   const [showBulkTransferModal, setShowBulkTransferModal] = useState(false);
   const [selectedRecipesForTransfer, setSelectedRecipesForTransfer] = useState<Set<string>>(new Set());
-  const [bulkTransferStep, setBulkTransferStep] = useState<'recipe' | 'list'>('recipe');
+  const [bulkTransferStep, setBulkTransferStep] = useState<'week' | 'recipe' | 'list'>('recipe');
+  const [allMenus, setAllMenus] = useState<WeekMenuItemWithRecipe[]>([]);
+  const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
   // Replace recipe: item being replaced
   const [replaceTarget, setReplaceTarget] = useState<WeekMenuItemWithRecipe | null>(null);
@@ -158,14 +160,16 @@ export default function MenuScreen() {
       menu.forEach(menuItem => {
         if (!listMap[menuItem.id]) listMap[menuItem.id] = [];
         activeLists.forEach(l => {
-          // Match by menuItemId (new) or fall back to recipeId (legacy items without menuItemId)
-          const itemsForThisMenuItem = l.items.filter(item =>
-            item.menuItemId ? item.menuItemId === menuItem.id : item.recipeId === menuItem.recipeId
-          );
-          if (itemsForThisMenuItem.length > 0) {
+          // Hidden items under a merge container won't appear in l.items, so trust
+          // l.linkedMenuItemIds (visible + hidden) as the source of truth.
+          const linked = (l as { linkedMenuItemIds?: string[] }).linkedMenuItemIds ?? [];
+          const isLinked = linked.includes(menuItem.id) ||
+            l.items.some(item => !item.menuItemId && item.recipeId === menuItem.recipeId); // legacy
+          if (isLinked) {
             transferred.add(menuItem.recipeId);
+            const visibleCount = l.items.filter(item => item.menuItemId === menuItem.id).length;
             if (!listMap[menuItem.id].find(e => e.listId === l.id)) {
-              listMap[menuItem.id].push({ listId: l.id, listName: l.name, itemCount: itemsForThisMenuItem.length });
+              listMap[menuItem.id].push({ listId: l.id, listName: l.name, itemCount: visibleCount });
             }
           }
         });
@@ -181,17 +185,30 @@ export default function MenuScreen() {
   useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
 
   useEffect(() => {
-    if (params.bulkTransfer === '1' && menuItems.length > 0 && !bulkTransferTriggeredRef.current) {
+    if (params.bulkTransfer === '1' && householdId && !bulkTransferTriggeredRef.current) {
       bulkTransferTriggeredRef.current = true;
-      transferWeekMenu();
+      openWeekPicker();
       router.setParams({ bulkTransfer: undefined });
     }
     if (params.bulkTransfer !== '1') bulkTransferTriggeredRef.current = false;
-  }, [params.bulkTransfer, menuItems.length]);
+  }, [params.bulkTransfer, householdId]);
+
+  async function openWeekPicker() {
+    if (!householdId) return;
+    try {
+      const all = await client.getAllMenus(householdId);
+      setAllMenus(all);
+      setBulkTransferStep('week');
+      setShowBulkTransferModal(true);
+    } catch {
+      Alert.alert('Fel', 'Kunde inte hämta veckomenyer');
+    }
+  }
 
   useEffect(() => {
-    if (!showBulkTransferModal && params.originListId) {
-      router.setParams({ originListId: undefined });
+    if (!showBulkTransferModal) {
+      if (params.originListId) router.setParams({ originListId: undefined });
+      setBulkTransferWeek(null);
     }
   }, [showBulkTransferModal, params.originListId]);
 
@@ -340,9 +357,10 @@ export default function MenuScreen() {
       const list = shoppingLists.find(l => l.id === listId);
       if (!list) continue;
 
-      // New: delete by menuItemId if items are tagged
-      const taggedItems = list.items.filter(i => i.menuItemId === menuItem.id);
-      if (taggedItems.length > 0) {
+      // New: delete by menuItemId if items are tagged (visible OR hidden under a merge container)
+      const linked = (list as { linkedMenuItemIds?: string[] }).linkedMenuItemIds ?? [];
+      const hasVisibleTagged = list.items.some(i => i.menuItemId === menuItem.id);
+      if (hasVisibleTagged || linked.includes(menuItem.id)) {
         ops.push(client.deleteItemsByMenuItemId(listId, menuItem.id));
         continue;
       }
@@ -409,13 +427,14 @@ export default function MenuScreen() {
     }
 
     try {
-      const toTransfer = menuItems.filter(item => selectedRecipesForTransfer.has(item.id));
-      const existingRecipeIds = new Set(shoppingLists
+      const sourcePool = bulkTransferWeek ? allMenus : menuItems;
+      const toTransfer = sourcePool.filter(item => selectedRecipesForTransfer.has(item.id));
+      const existingMenuItemIds = new Set(shoppingLists
         .find(l => l.id === listId)?.items
-        .filter(i => i.recipe)
-        .map(i => i.recipe!.id) ?? []);
+        .map(i => i.menuItemId)
+        .filter(Boolean) ?? []);
 
-      const actuallyTransfer = toTransfer.filter(item => !existingRecipeIds.has(item.recipeId));
+      const actuallyTransfer = toTransfer.filter(item => !existingMenuItemIds.has(item.id));
 
       if (actuallyTransfer.length === 0) {
         Alert.alert('Redan med', 'Alla valda rätter är redan överförda till denna lista');
@@ -879,13 +898,87 @@ export default function MenuScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
 
-          {bulkTransferStep === 'recipe' ? (
+          {bulkTransferStep === 'week' ? (
+            <>
+              <Text style={s.sheetTitle}>Välj veckomeny</Text>
+              <Text style={s.sheetSub}>Vilken veckas meny vill du importera?</Text>
+              <ScrollView style={s.bulkRecipeList}>
+                {(() => {
+                  // Only mark "already transferred" against the destination list, if known
+                  const destList = params.originListId
+                    ? shoppingLists.find(l => l.id === params.originListId)
+                    : null;
+                  const transferredIds = new Set(
+                    (destList?.items ?? []).map(i => i.menuItemId).filter(Boolean) as string[]
+                  );
+                  const byWeek = new Map<string, WeekMenuItemWithRecipe[]>();
+                  for (const m of allMenus) {
+                    const key = `${m.weekYear}-${m.weekNumber}`;
+                    if (!byWeek.has(key)) byWeek.set(key, []);
+                    byWeek.get(key)!.push(m);
+                  }
+                  // Filter out weeks that have already ended (Sunday < today)
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const entries = [...byWeek.entries()].filter(([key]) => {
+                    const [wy, wn] = key.split('-').map(Number);
+                    const monday = getISOWeekMonday(wy, wn);
+                    const sunday = new Date(monday);
+                    sunday.setDate(monday.getDate() + 6);
+                    return sunday >= today;
+                  });
+                  const weeks = entries.sort(([a], [b]) => a.localeCompare(b));
+                  if (weeks.length === 0) {
+                    return <Text style={s.pickerEmptyText}>Ingen aktiv vecka med planerade rätter</Text>;
+                  }
+                  return weeks.map(([key, items]) => {
+                    const [wy, wn] = key.split('-').map(Number);
+                    const newCount = items.filter(i => !transferredIds.has(i.id)).length;
+                    const allTransferred = newCount === 0;
+                    return (
+                      <Pressable
+                        key={key}
+                        style={[s.bulkRecipeItem, allTransferred && { opacity: 0.5 }]}
+                        disabled={allTransferred}
+                        onPress={() => {
+                          setBulkTransferWeek({ weekYear: wy, weekNumber: wn });
+                          setSelectedRecipesForTransfer(new Set(items.filter(i => !transferredIds.has(i.id)).map(i => i.id)));
+                          setBulkTransferStep('recipe');
+                        }}
+                      >
+                        <Ionicons name="calendar-outline" size={22} color="#4f46e5" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.bulkRecipeTitle}>Vecka {wn}, {wy}</Text>
+                          <Text style={s.bulkRecipeDay}>
+                            {items.length} {items.length === 1 ? 'rätt' : 'rätter'}
+                            {destList ? ` · ${allTransferred ? 'alla redan med' : `${newCount} nya`}` : ''}
+                          </Text>
+                        </View>
+                        {!allTransferred && <Ionicons name="chevron-forward" size={20} color="#9ca3af" />}
+                      </Pressable>
+                    );
+                  });
+                })()}
+              </ScrollView>
+            </>
+          ) : bulkTransferStep === 'recipe' ? (
             <>
               <Text style={s.sheetTitle}>Välj rätter</Text>
-              <Text style={s.sheetSub}>Vilka rätter vill du överföra?</Text>
+              <Text style={s.sheetSub}>{bulkTransferWeek ? `Vecka ${bulkTransferWeek.weekNumber}, ${bulkTransferWeek.weekYear}` : 'Vilka rätter vill du överföra?'}</Text>
               <ScrollView style={s.bulkRecipeList}>
-                {menuItems
-                  .filter(item => !!!recipeListMap[item.id]?.length)
+                {(bulkTransferWeek
+                  ? allMenus.filter(m => m.weekYear === bulkTransferWeek.weekYear && m.weekNumber === bulkTransferWeek.weekNumber)
+                  : menuItems
+                )
+                  .filter(item => {
+                    if (bulkTransferWeek) {
+                      const transferredIds = new Set(
+                        shoppingLists.flatMap(l => l.items.map(i => i.menuItemId).filter(Boolean) as string[])
+                      );
+                      return !transferredIds.has(item.id);
+                    }
+                    return !!!recipeListMap[item.id]?.length;
+                  })
                   .map(item => {
                     const selected = selectedRecipesForTransfer.has(item.id);
                     return (

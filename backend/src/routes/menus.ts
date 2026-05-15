@@ -162,7 +162,7 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   // Items with a menuItemId only merge with existing items sharing the same menuItemId.
   // Items without a menuItemId merge by canonical name+unit (legacy behaviour).
   const existingItems = await prisma.shoppingItem.findMany({
-    where: { listId: list.id, isChecked: false },
+    where: { listId: list.id, isChecked: false, mergedIntoId: null },
   });
   const existingByMenuItemKey = new Map<string, typeof existingItems[0]>();
   const existingByNameUnit = new Map<string, typeof existingItems[0]>();
