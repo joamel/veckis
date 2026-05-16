@@ -118,6 +118,10 @@ model Chore {
   isShared    Boolean        @default(true)
   startDate   String?
   endDate     String?
+  recurrenceType        RecurrenceType @default(none)
+  recurrenceWeeks       Int            @default(1)
+  monthlyType           String         @default("day_of_month")
+  recurrenceWeekOfMonth Int?
   createdBy   String
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt

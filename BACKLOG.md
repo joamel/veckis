@@ -23,6 +23,7 @@
 - [x] Bannern ovan appen borde vara svart/neutral så man ser klockan, notiser mm
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [ ] Flertal ställen i appen när inputfälten fortfarande inte hoppar upp ovan tangentbordet. Säkerställ att alla inputfält har rätta beteendet
+- [ ] Samma filter borde gälla över sysslor som kalender så att man inte blir förvirrad vad som är filtrerat för de olika flikarna
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -92,6 +93,8 @@
 - [x] Redigera vara borde se likadan ut som lägga till ny vara-vyn (förutom att man ska kunna redigera varunamnet).
 - [x] Ny varuvyn borde komma upp även när man lägger in vara manuellt i inputfältet
 - [x] Enheter har stor bokstav i dubblettvyn.
+- [ ] Enhetsfältet syns inte när man får upp tangentbordet i enheten för dubblettdialogen
+- [ ] möjlighet att redigera felinskriva basvaror genom att longpressa på sökförslaget
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -154,6 +157,12 @@
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.
 - [x] Kunna redigera sysslor enklare (med en penna till höger)
 - [ ] Skapa syssla dialogen borde se mer ut som aktivitetsdialogen med Upprepning och även möjlighet att välja en specifik dag som sysslan ska utföras på.
+- [x] När man skapar en syssla blir det en dubblett
+- [x] Checkar man av en syssla uppdateras det inte automatiskt på en annan enhet
+- [x] Skapa/redigera syssla-dialogen borde vara större så man ser alla fälten. Tilldela person fältet borde ligga ovanför Frekvens.
+- [x] "Återkommande"-knappen borde inte byta namn när man klickar på en återkommande frekvens
+- [x] Man borde kunna sätta ett valfritt datum även för en "engångs-syssla"
+
 
 
 ---

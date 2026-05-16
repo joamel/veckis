@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
+import { RecurrencePicker } from '../../src/components/RecurrencePicker';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/clerk-expo';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
@@ -25,7 +26,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
-import type { Chore, ChoreCompletion, ChoreFrequency, WeekDay } from '@veckis/shared';
+import type { Chore, ChoreCompletion, ChoreFrequency, RecurrenceType, WeekDay } from '@veckis/shared';
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 
@@ -57,8 +58,12 @@ function daysSince(dateStr: string) {
 
 // A once-chore is done if it has any completion (ever). A recurring chore is "fully done today"
 // only if ALL its days have a completion for that specific day within the last 24h.
+function isOnce(chore: ChoreWithCompletion): boolean {
+  return chore.recurrenceType ? chore.recurrenceType === 'none' : chore.frequency === 'once';
+}
+
 function isFullyDone(chore: ChoreWithCompletion): boolean {
-  if (chore.frequency === 'once') {
+  if (isOnce(chore)) {
     return chore.completions.length > 0;
   }
   if (chore.days.length === 0) return false;
@@ -146,6 +151,14 @@ export default function ChoresScreen() {
       setChores(prev => prev.map(c => c.id === msg.data.id ? { ...c, ...msg.data } as never : c));
     } else if (msg.type === 'chore_deleted') {
       setChores(prev => prev.filter(c => c.id !== msg.data.id));
+    } else if (msg.type === 'chore_completed') {
+      setChores(prev => prev.map(c => c.id === msg.data.choreId
+        ? { ...c, completions: c.completions.some(x => x.id === msg.data.id) ? c.completions : [msg.data, ...c.completions] }
+        : c));
+    } else if (msg.type === 'chore_uncompleted') {
+      setChores(prev => prev.map(c => c.id === msg.data.id
+        ? { ...c, completions: c.completions.filter(x => x.day !== msg.data.day || (Date.now() - new Date(x.completedAt).getTime()) > 86_400_000) }
+        : c));
     }
   });
   const [loading, setLoading] = useState(true);
@@ -156,20 +169,24 @@ export default function ChoresScreen() {
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newFreq, setNewFreq] = useState<ChoreFrequency>('once');
   const [newAssignedTo, setNewAssignedTo] = useState<string | null>(null);
-  const [newDays, setNewDays] = useState<WeekDay[]>([]);
+  const [newRecurrenceType, setNewRecurrenceType] = useState<RecurrenceType>('none');
+  const [newRecurrenceWeeks, setNewRecurrenceWeeks] = useState(1);
+  const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
+  const [newMonthlyType, setNewMonthlyType] = useState<'day_of_month' | 'weekday_of_month'>('day_of_month');
+  const [newRecurrenceWeekOfMonth, setNewRecurrenceWeekOfMonth] = useState(1);
   const [creating, setCreating] = useState(false);
 
   // Edit modal
   const [editingChore, setEditingChore] = useState<ChoreWithCompletion | null>(null);
   const [editTitle, setEditTitle] = useState('');
-  const [editFreq, setEditFreq] = useState<ChoreFrequency>('weekly');
   const [editAssignedTo, setEditAssignedTo] = useState<string | null>(null);
-  const [editDays, setEditDays] = useState<WeekDay[]>([]);
+  const [editRecurrenceType, setEditRecurrenceType] = useState<RecurrenceType>('none');
+  const [editRecurrenceWeeks, setEditRecurrenceWeeks] = useState(1);
+  const [editRecurrenceDays, setEditRecurrenceDays] = useState<WeekDay[]>([]);
+  const [editMonthlyType, setEditMonthlyType] = useState<'day_of_month' | 'weekday_of_month'>('day_of_month');
+  const [editRecurrenceWeekOfMonth, setEditRecurrenceWeekOfMonth] = useState(1);
   const [saving, setSaving] = useState(false);
-  const [showRecurring, setShowRecurring] = useState(false);
-  const [showEditRecurring, setShowEditRecurring] = useState(false);
 
   // Date range state
   const [newStartDate, setNewStartDate] = useState<string | null>(null);
@@ -210,7 +227,7 @@ export default function ChoresScreen() {
   }, [chores, filterMemberIds]);
 
   const completedOnce = useMemo(
-    () => chores.filter(c => c.frequency === 'once' && c.completions.length > 0),
+    () => chores.filter(c => isOnce(c) && c.completions.length > 0),
     [chores]
   );
 
@@ -226,19 +243,25 @@ export default function ChoresScreen() {
       const chore = await client.createChore({
         householdId,
         title: newTitle.trim(),
-        frequency: newFreq,
         assignedTo: newAssignedTo,
-        days: newDays,
+        days: newRecurrenceType === 'weekly' ? newRecurrenceDays : [],
         startDate: newStartDate,
         endDate: newEndDate,
+        recurrenceType: newRecurrenceType,
+        recurrenceWeeks: newRecurrenceWeeks,
+        monthlyType: newMonthlyType,
+        recurrenceWeekOfMonth: newRecurrenceType === 'monthly' && newMonthlyType === 'weekday_of_month' ? newRecurrenceWeekOfMonth : null,
       });
-      setChores(prev => [...prev, { ...chore, completions: [] }]);
+      setChores(prev => prev.some(c => c.id === chore.id) ? prev : [...prev, { ...chore, completions: [] }]);
       setShowCreate(false);
       setNewTitle('');
       showToast('Syssla skapad');
-      setNewFreq('weekly');
       setNewAssignedTo(null);
-      setNewDays([]);
+      setNewRecurrenceType('none');
+      setNewRecurrenceWeeks(1);
+      setNewRecurrenceDays([]);
+      setNewMonthlyType('day_of_month');
+      setNewRecurrenceWeekOfMonth(1);
       setNewStartDate(null);
       setNewEndDate(null);
     } catch {
@@ -251,10 +274,18 @@ export default function ChoresScreen() {
   function openEdit(chore: ChoreWithCompletion) {
     setEditingChore(chore);
     setEditTitle(chore.title);
-    setEditFreq(chore.frequency);
     setEditAssignedTo(chore.assignedTo);
-    setEditDays([...chore.days]);
-    setShowEditRecurring(chore.frequency !== 'once');
+    // Legacy fallback: derive recurrenceType from old `frequency` if backend didn't fill it.
+    const rt: RecurrenceType = chore.recurrenceType
+      ?? (chore.frequency === 'once' ? 'none'
+        : chore.frequency === 'daily' ? 'daily'
+        : chore.frequency === 'monthly' ? 'monthly'
+        : 'weekly');
+    setEditRecurrenceType(rt);
+    setEditRecurrenceWeeks(chore.recurrenceWeeks ?? (chore.frequency === 'biweekly' ? 2 : 1));
+    setEditRecurrenceDays([...chore.days]);
+    setEditMonthlyType((chore.monthlyType as 'day_of_month' | 'weekday_of_month') ?? 'day_of_month');
+    setEditRecurrenceWeekOfMonth(chore.recurrenceWeekOfMonth ?? 1);
     setEditStartDate(chore.startDate ?? null);
     setEditEndDate(chore.endDate ?? null);
   }
@@ -265,11 +296,14 @@ export default function ChoresScreen() {
     try {
       const updated = await client.updateChore(editingChore.id, {
         title: editTitle.trim(),
-        frequency: editFreq,
         assignedTo: editAssignedTo,
-        days: editDays,
+        days: editRecurrenceType === 'weekly' ? editRecurrenceDays : [],
         startDate: editStartDate,
         endDate: editEndDate,
+        recurrenceType: editRecurrenceType,
+        recurrenceWeeks: editRecurrenceWeeks,
+        monthlyType: editMonthlyType,
+        recurrenceWeekOfMonth: editRecurrenceType === 'monthly' && editMonthlyType === 'weekday_of_month' ? editRecurrenceWeekOfMonth : null,
       });
       setChores(prev => prev.map(c => c.id === editingChore.id ? { ...c, ...updated } : c));
       setEditingChore(null);
@@ -425,7 +459,7 @@ export default function ChoresScreen() {
                     ].filter(Boolean).join(' · ')}
                   </Text>
                 </View>
-                {item.frequency === 'once' && !editMode && (
+                {isOnce(item) && !editMode && (
                   <Pressable
                     style={[s.checkBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }, done && s.checkBtnDone]}
                     onPress={() => done ? uncompleteChore(item) : completeChore(item)}
@@ -517,62 +551,41 @@ export default function ChoresScreen() {
               returnKeyType="done"
             />
 
-            <Text style={s.label}>Frekvens</Text>
-            <View style={s.freqRowNoWrap}>
-              <Pressable
-                style={[s.freqOption, newFreq === 'once' && s.freqOptionActive]}
-                onPress={() => { setNewFreq('once'); setShowRecurring(false); }}
-              >
-                <Text style={[s.freqOptionText, newFreq === 'once' && s.freqOptionTextActive]}>En gång</Text>
-              </Pressable>
-              <Pressable
-                style={[s.freqOption, newFreq !== 'once' && s.freqOptionActive]}
-                onPress={() => setShowRecurring(v => !v)}
-              >
-                <Text style={[s.freqOptionText, newFreq !== 'once' && s.freqOptionTextActive]}>
-                  {newFreq !== 'once' ? FREQ_LABELS[newFreq] : 'Återkommande'}{' '}
-                  <Text style={s.freqChevron}>{showRecurring ? '▲' : '▼'}</Text>
-                </Text>
-              </Pressable>
-            </View>
-            {showRecurring && (
-              <View style={s.freqRow}>
-                {(['daily', 'weekly', 'biweekly', 'monthly'] as ChoreFrequency[]).map(f => (
-                  <Pressable
-                    key={f}
-                    style={[s.freqOption, { width: '47%' }, newFreq === f && s.freqOptionActive]}
-                    onPress={() => { setNewFreq(f); if (f === 'daily') setNewDays([]); }}
-                  >
-                    <Text style={[s.freqOptionText, newFreq === f && s.freqOptionTextActive]}>
-                      {FREQ_LABELS[f]}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
             <MemberPicker members={members} selected={newAssignedTo} onChange={setNewAssignedTo} />
 
-            {newFreq !== 'daily' && newFreq !== 'once' && (
+            {newRecurrenceType === 'none' && (
               <>
-                <Text style={s.label}>Dagar i schemat (valfritt)</Text>
-                <DayPicker selected={newDays} onChange={setNewDays} />
+                <Text style={s.label}>Datum (valfritt)</Text>
+                <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
+                  <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
+                  <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Välj datum'}</Text>
+                </Pressable>
               </>
             )}
 
-            {newFreq !== 'once' && (
+            <RecurrencePicker
+              recurrenceType={newRecurrenceType}
+              recurrenceWeeks={newRecurrenceWeeks}
+              recurrenceDays={newRecurrenceDays}
+              monthlyType={newMonthlyType}
+              recurrenceWeekOfMonth={newRecurrenceWeekOfMonth}
+              endDate={newEndDate}
+              onChangeType={setNewRecurrenceType}
+              onChangeWeeks={setNewRecurrenceWeeks}
+              onChangeDays={setNewRecurrenceDays}
+              onChangeMonthlyType={setNewMonthlyType}
+              onChangeWeekOfMonth={setNewRecurrenceWeekOfMonth}
+              onChangeEndDate={setNewEndDate}
+              onOpenEndPicker={() => setShowNewEndPicker(true)}
+            />
+
+            {newRecurrenceType !== 'none' && (
               <>
-                <Text style={s.label}>Giltighetstid (valfritt)</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
-                    <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
-                    <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Från'}</Text>
-                  </Pressable>
-                  <Pressable style={[s.dateBtn, newEndDate && s.dateBtnSet]} onPress={() => setShowNewEndPicker(true)}>
-                    <Ionicons name="calendar-outline" size={14} color={newEndDate ? '#4f46e5' : '#9ca3af'} />
-                    <Text style={[s.dateBtnText, newEndDate && s.dateBtnTextSet]}>{newEndDate ?? 'Till'}</Text>
-                  </Pressable>
-                </View>
+                <Text style={s.label}>Startdatum (valfritt)</Text>
+                <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
+                  <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
+                  <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Välj startdatum'}</Text>
+                </Pressable>
               </>
             )}
 
@@ -612,62 +625,41 @@ export default function ChoresScreen() {
               returnKeyType="done"
             />
 
-            <Text style={s.label}>Frekvens</Text>
-            <View style={s.freqRowNoWrap}>
-              <Pressable
-                style={[s.freqOption, editFreq === 'once' && s.freqOptionActive]}
-                onPress={() => { setEditFreq('once'); setShowEditRecurring(false); }}
-              >
-                <Text style={[s.freqOptionText, editFreq === 'once' && s.freqOptionTextActive]}>En gång</Text>
-              </Pressable>
-              <Pressable
-                style={[s.freqOption, editFreq !== 'once' && s.freqOptionActive]}
-                onPress={() => setShowEditRecurring(v => !v)}
-              >
-                <Text style={[s.freqOptionText, editFreq !== 'once' && s.freqOptionTextActive]}>
-                  {editFreq !== 'once' ? FREQ_LABELS[editFreq] : 'Återkommande'}{' '}
-                  <Text style={s.freqChevron}>{showEditRecurring ? '▲' : '▼'}</Text>
-                </Text>
-              </Pressable>
-            </View>
-            {showEditRecurring && (
-              <View style={s.freqRow}>
-                {(['daily', 'weekly', 'biweekly', 'monthly'] as ChoreFrequency[]).map(f => (
-                  <Pressable
-                    key={f}
-                    style={[s.freqOption, { width: '47%' }, editFreq === f && s.freqOptionActive]}
-                    onPress={() => { setEditFreq(f); if (f === 'daily') setEditDays([]); }}
-                  >
-                    <Text style={[s.freqOptionText, editFreq === f && s.freqOptionTextActive]}>
-                      {FREQ_LABELS[f]}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
             <MemberPicker members={members} selected={editAssignedTo} onChange={setEditAssignedTo} />
 
-            {editFreq !== 'daily' && editFreq !== 'once' && (
+            {editRecurrenceType === 'none' && (
               <>
-                <Text style={s.label}>Dagar i schemat</Text>
-                <DayPicker selected={editDays} onChange={setEditDays} />
+                <Text style={s.label}>Datum (valfritt)</Text>
+                <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
+                  <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
+                  <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Välj datum'}</Text>
+                </Pressable>
               </>
             )}
 
-            {editFreq !== 'once' && (
+            <RecurrencePicker
+              recurrenceType={editRecurrenceType}
+              recurrenceWeeks={editRecurrenceWeeks}
+              recurrenceDays={editRecurrenceDays}
+              monthlyType={editMonthlyType}
+              recurrenceWeekOfMonth={editRecurrenceWeekOfMonth}
+              endDate={editEndDate}
+              onChangeType={setEditRecurrenceType}
+              onChangeWeeks={setEditRecurrenceWeeks}
+              onChangeDays={setEditRecurrenceDays}
+              onChangeMonthlyType={setEditMonthlyType}
+              onChangeWeekOfMonth={setEditRecurrenceWeekOfMonth}
+              onChangeEndDate={setEditEndDate}
+              onOpenEndPicker={() => setShowEditEndPicker(true)}
+            />
+
+            {editRecurrenceType !== 'none' && (
               <>
-                <Text style={s.label}>Giltighetstid (valfritt)</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
-                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
-                    <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Från'}</Text>
-                  </Pressable>
-                  <Pressable style={[s.dateBtn, editEndDate && s.dateBtnSet]} onPress={() => setShowEditEndPicker(true)}>
-                    <Ionicons name="calendar-outline" size={14} color={editEndDate ? '#4f46e5' : '#9ca3af'} />
-                    <Text style={[s.dateBtnText, editEndDate && s.dateBtnTextSet]}>{editEndDate ?? 'Till'}</Text>
-                  </Pressable>
-                </View>
+                <Text style={s.label}>Startdatum (valfritt)</Text>
+                <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
+                  <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
+                  <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Välj startdatum'}</Text>
+                </Pressable>
               </>
             )}
 
@@ -720,7 +712,7 @@ const s = StyleSheet.create({
   checkBtnDone: { backgroundColor: '#10b981', borderColor: '#10b981' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '85%' },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, height: '92%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 12 },
   sheetScroll: { gap: 14, paddingBottom: 40 },

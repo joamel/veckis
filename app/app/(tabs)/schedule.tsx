@@ -154,6 +154,14 @@ export default function ScheduleScreen() {
       setChores(prev => prev.map(c => c.id === msg.data.id ? { ...c, ...msg.data } as never : c));
     } else if (msg.type === 'chore_deleted') {
       setChores(prev => prev.filter(c => c.id !== msg.data.id));
+    } else if (msg.type === 'chore_completed') {
+      setChores(prev => prev.map(c => c.id === msg.data.choreId
+        ? { ...c, completions: c.completions.some(x => x.id === msg.data.id) ? c.completions : [msg.data, ...c.completions] }
+        : c));
+    } else if (msg.type === 'chore_uncompleted') {
+      setChores(prev => prev.map(c => c.id === msg.data.id
+        ? { ...c, completions: c.completions.filter(x => x.day !== msg.data.day || (Date.now() - new Date(x.completedAt).getTime()) > 86_400_000) }
+        : c));
     }
   });
   const { user } = useUser();
@@ -336,7 +344,7 @@ export default function ScheduleScreen() {
         startDate: newStartDate,
         endDate: newEndDate,
       });
-      setEntries(prev => [...prev, entry]);
+      setEntries(prev => prev.some(e => e.id === entry.id) ? prev : [...prev, entry]);
       setShowModal(false);
       setNewTitle('');
       setTimeEnabled(false);

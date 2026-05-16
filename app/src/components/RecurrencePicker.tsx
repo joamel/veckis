@@ -1,0 +1,204 @@
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import type { RecurrenceType, WeekDay } from '@veckis/shared';
+
+const DAYS: { key: WeekDay; short: string; label: string }[] = [
+  { key: 'mon', short: 'Mån', label: 'Måndag' },
+  { key: 'tue', short: 'Tis', label: 'Tisdag' },
+  { key: 'wed', short: 'Ons', label: 'Onsdag' },
+  { key: 'thu', short: 'Tor', label: 'Torsdag' },
+  { key: 'fri', short: 'Fre', label: 'Fredag' },
+  { key: 'sat', short: 'Lör', label: 'Lördag' },
+  { key: 'sun', short: 'Sön', label: 'Söndag' },
+];
+
+const TYPE_LABEL: Record<Exclude<RecurrenceType, 'custom_days'>, string> = {
+  none: 'Ingen',
+  daily: 'Dag',
+  weekly: 'Vecka',
+  monthly: 'Månad',
+  yearly: 'År',
+};
+
+const INTERVAL_UNIT: Record<RecurrenceType, string> = {
+  none: '',
+  daily: 'dag',
+  weekly: 'vecka',
+  custom_days: 'vecka',
+  monthly: 'månad',
+  yearly: 'år',
+};
+
+export type RecurrencePickerValue = {
+  recurrenceType: RecurrenceType;
+  recurrenceWeeks: number;
+  recurrenceDays: WeekDay[];
+  monthlyType: 'day_of_month' | 'weekday_of_month';
+  recurrenceWeekOfMonth: number;
+  endDate: string | null;
+};
+
+export type RecurrencePickerProps = RecurrencePickerValue & {
+  onChangeType: (type: RecurrenceType) => void;
+  onChangeWeeks: (weeks: number) => void;
+  onChangeDays: (days: WeekDay[]) => void;
+  onChangeMonthlyType: (type: 'day_of_month' | 'weekday_of_month') => void;
+  onChangeWeekOfMonth: (week: number) => void;
+  onChangeEndDate: (date: string | null) => void;
+  onOpenEndPicker: () => void;
+  /** Referensdatum för "den X:e" och "X dag i månaden". Default: idag. */
+  referenceDate?: Date;
+  /** Referensdag för weekday-of-month-label. Default: härleds från referenceDate. */
+  referenceDay?: WeekDay;
+};
+
+const WEEKDAY_FROM_JS: WeekDay[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+export function RecurrencePicker(props: RecurrencePickerProps) {
+  const ref = props.referenceDate ?? new Date();
+  const refDay = props.referenceDay ?? WEEKDAY_FROM_JS[ref.getDay()];
+
+  return (
+    <>
+      <Text style={s.label}>Upprepning</Text>
+      <View style={s.typeRow}>
+        {(['none', 'daily', 'weekly', 'monthly', 'yearly'] as const).map(type => (
+          <Pressable
+            key={type}
+            style={[s.typeBtn, props.recurrenceType === type && s.typeBtnActive]}
+            onPress={() => props.onChangeType(type)}
+          >
+            <Text style={[s.typeBtnText, props.recurrenceType === type && s.typeBtnTextActive]}>
+              {TYPE_LABEL[type]}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {props.recurrenceType !== 'none' && (
+        <View style={s.intervalRow}>
+          <Text style={s.intervalLabel}>Var</Text>
+          <Pressable style={s.intervalBtn} onPress={() => props.onChangeWeeks(Math.max(1, props.recurrenceWeeks - 1))}>
+            <Text style={s.intervalBtnText}>−</Text>
+          </Pressable>
+          <Text style={s.intervalValue}>{props.recurrenceWeeks}</Text>
+          <Pressable style={s.intervalBtn} onPress={() => props.onChangeWeeks(props.recurrenceWeeks + 1)}>
+            <Text style={s.intervalBtnText}>+</Text>
+          </Pressable>
+          <Text style={s.intervalLabel}>{INTERVAL_UNIT[props.recurrenceType]}</Text>
+        </View>
+      )}
+
+      {props.recurrenceType === 'weekly' && (
+        <>
+          <Text style={s.label}>Veckodagar</Text>
+          <View style={s.dayRow}>
+            {DAYS.map(day => {
+              const active = props.recurrenceDays.includes(day.key);
+              return (
+                <Pressable
+                  key={day.key}
+                  style={[s.dayOption, active && s.dayOptionActive]}
+                  onPress={() =>
+                    props.onChangeDays(
+                      active ? props.recurrenceDays.filter(d => d !== day.key) : [...props.recurrenceDays, day.key],
+                    )
+                  }
+                >
+                  <Text style={[s.dayText, active && s.dayTextActive]}>{day.short}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      )}
+
+      {props.recurrenceType === 'monthly' && (
+        <>
+          <Text style={s.label}>Upprepas</Text>
+          <View style={s.monthlyRow}>
+            <Pressable
+              style={[s.monthlyBtn, props.monthlyType === 'day_of_month' && s.monthlyBtnActive]}
+              onPress={() => props.onChangeMonthlyType('day_of_month')}
+            >
+              <Text style={[s.monthlyBtnText, props.monthlyType === 'day_of_month' && s.monthlyBtnTextActive]}>
+                Varje månad den {ref.getDate()}:e
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[s.monthlyBtn, props.monthlyType === 'weekday_of_month' && s.monthlyBtnActive]}
+              onPress={() => props.onChangeMonthlyType('weekday_of_month')}
+            >
+              <Text style={[s.monthlyBtnText, props.monthlyType === 'weekday_of_month' && s.monthlyBtnTextActive]}>
+                {['Första', 'Andra', 'Tredje', 'Fjärde'][props.recurrenceWeekOfMonth - 1] ?? 'Sista'}{' '}
+                {DAYS.find(d => d.key === refDay)?.label.toLowerCase()} i månaden
+              </Text>
+            </Pressable>
+          </View>
+          {props.monthlyType === 'weekday_of_month' && (
+            <View style={s.intervalRow}>
+              <Text style={s.intervalLabel}>Vecka i månaden</Text>
+              <Pressable style={s.intervalBtn} onPress={() => props.onChangeWeekOfMonth(Math.max(1, props.recurrenceWeekOfMonth - 1))}>
+                <Text style={s.intervalBtnText}>−</Text>
+              </Pressable>
+              <Text style={s.intervalValue}>{props.recurrenceWeekOfMonth}</Text>
+              <Pressable style={s.intervalBtn} onPress={() => props.onChangeWeekOfMonth(Math.min(4, props.recurrenceWeekOfMonth + 1))}>
+                <Text style={s.intervalBtnText}>+</Text>
+              </Pressable>
+            </View>
+          )}
+        </>
+      )}
+
+      {props.recurrenceType !== 'none' && (
+        <>
+          <Text style={s.label}>Slutar</Text>
+          <View style={s.endRow}>
+            <Pressable
+              style={[s.endBtn, !props.endDate && s.endBtnActive]}
+              onPress={() => props.onChangeEndDate(null)}
+            >
+              <Text style={[s.endBtnText, !props.endDate && s.endBtnTextActive]}>Upphör aldrig</Text>
+            </Pressable>
+            <Pressable
+              style={[s.endBtn, props.endDate && s.endBtnActive, { flex: 1.5 }]}
+              onPress={props.onOpenEndPicker}
+            >
+              <Ionicons name="calendar-outline" size={13} color={props.endDate ? '#4f46e5' : '#9ca3af'} />
+              <Text style={[s.endBtnText, props.endDate && s.endBtnTextActive]}>{props.endDate ?? 'Välj datum'}</Text>
+            </Pressable>
+          </View>
+        </>
+      )}
+    </>
+  );
+}
+
+const s = StyleSheet.create({
+  label: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  typeRow: { flexDirection: 'row', gap: 6 },
+  typeBtn: { flex: 1, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', backgroundColor: '#f9fafb' },
+  typeBtnActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  typeBtnText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
+  typeBtnTextActive: { color: '#4f46e5', fontWeight: '700' },
+  intervalRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  intervalLabel: { fontSize: 13, color: '#6b7280' },
+  intervalBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', alignItems: 'center', justifyContent: 'center' },
+  intervalBtnText: { fontSize: 18, color: '#4f46e5', fontWeight: '700' },
+  intervalValue: { fontSize: 15, fontWeight: '600', color: '#111827', minWidth: 24, textAlign: 'center' },
+  dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  dayOption: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  dayOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  dayText: { fontSize: 12, color: '#6b7280' },
+  dayTextActive: { color: '#4f46e5', fontWeight: '600' },
+  monthlyRow: { gap: 6 },
+  monthlyBtn: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  monthlyBtnActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  monthlyBtnText: { fontSize: 13, color: '#6b7280' },
+  monthlyBtnTextActive: { color: '#4f46e5', fontWeight: '600' },
+  endRow: { flexDirection: 'row', gap: 6 },
+  endBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  endBtnActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  endBtnText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
+  endBtnTextActive: { color: '#4f46e5', fontWeight: '700' },
+});
