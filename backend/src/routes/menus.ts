@@ -8,6 +8,7 @@ import { normalizeIngredientNames, getStoredCategory } from '../lib/normalizeIng
 import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { stripIngredient } from '../lib/stripIngredient';
 import { wsBroadcast } from '../lib/wsHub';
+import { planIncomingMatch, planAutoMerge } from '../lib/importDedupe';
 
 export const menusRouter = Router();
 
@@ -99,6 +100,60 @@ menusRouter.delete('/:itemId', requireAuth, asyncHandler(async (req, res) => {
   res.status(204).send();
 }));
 
+// POST /api/menus/copy — copy all menu items from one ISO week to another
+menusRouter.post('/copy', requireAuth, asyncHandler(async (req, res) => {
+  const body = z.object({
+    householdId: z.string(),
+    fromWeekYear: z.number().int(),
+    fromWeekNumber: z.number().int().min(1).max(53),
+    toWeekYear: z.number().int(),
+    toWeekNumber: z.number().int().min(1).max(53),
+    overwrite: z.boolean().default(false),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId: body.data.householdId, clerkUserId: (req as AuthenticatedRequest).clerkUserId } },
+  });
+  if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
+
+  const source = await prisma.weekMenuItem.findMany({
+    where: {
+      householdId: body.data.householdId,
+      weekYear: body.data.fromWeekYear,
+      weekNumber: body.data.fromWeekNumber,
+    },
+  });
+  if (source.length === 0) {
+    res.status(404).json({ error: 'Källveckan har inga planerade rätter' });
+    return;
+  }
+
+  if (body.data.overwrite) {
+    await prisma.weekMenuItem.deleteMany({
+      where: {
+        householdId: body.data.householdId,
+        weekYear: body.data.toWeekYear,
+        weekNumber: body.data.toWeekNumber,
+      },
+    });
+  }
+
+  const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+  const created = await prisma.weekMenuItem.createManyAndReturn({
+    data: source.map(s => ({
+      householdId: body.data.householdId,
+      recipeId: s.recipeId,
+      day: s.day,
+      weekYear: body.data.toWeekYear,
+      weekNumber: body.data.toWeekNumber,
+      note: s.note,
+      createdBy: clerkUserId,
+    })),
+  });
+  res.status(201).json({ copied: created.length, items: created });
+}));
+
 // POST /api/menus/to-shopping — transfer selected ingredients to a shopping list
 menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({
@@ -156,46 +211,36 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
   });
 
-  // Merge with existing unchecked items in the list.
-  // Normalize existing item names via stripIngredient so stale names (e.g. "klyftor vitlök")
-  // match against canonicalized incoming names ("vitlök").
-  // Items with a menuItemId only merge with existing items sharing the same menuItemId.
-  // Items without a menuItemId merge by canonical name+unit (legacy behaviour).
+  // Use the pure helper for phase-1 matching. See importDedupe.test.ts for the
+  // exact merging rules across the user scenarios.
   const existingItems = await prisma.shoppingItem.findMany({
-    where: { listId: list.id, isChecked: false },
+    where: { listId: list.id },
   });
-  const existingByMenuItemKey = new Map<string, typeof existingItems[0]>();
-  const existingByNameUnit = new Map<string, typeof existingItems[0]>();
-  for (const ei of existingItems) {
-    const resolvedName = stripIngredient(ei.name);
-    const unitKey = (ei.unit ?? '').toLowerCase().trim();
-    if (ei.menuItemId) {
-      existingByMenuItemKey.set(`${resolvedName}|${unitKey}|${ei.menuItemId}`, ei);
-    } else {
-      existingByNameUnit.set(`${resolvedName}|${unitKey}`, ei);
-    }
-  }
-
-  const toCreate: typeof sorted = [];
-  const toUpdate: { id: string; quantity: number; name: string }[] = [];
-  for (const ing of sorted) {
-    const nameUnit = `${ing.name.toLowerCase().trim()}|${(ing.unit ?? '').toLowerCase().trim()}`;
-    if (ing.menuItemId) {
-      const match = existingByMenuItemKey.get(`${nameUnit}|${ing.menuItemId}`);
-      if (match) {
-        toUpdate.push({ id: match.id, quantity: match.quantity + (ing.quantity ?? 1), name: ing.name });
-      } else {
-        toCreate.push(ing);
-      }
-    } else {
-      const match = existingByNameUnit.get(nameUnit);
-      if (match) {
-        toUpdate.push({ id: match.id, quantity: match.quantity + (ing.quantity ?? 1), name: ing.name });
-      } else {
-        toCreate.push(ing);
-      }
-    }
-  }
+  const matchPlan = planIncomingMatch(
+    sorted.map(ing => ({
+      name: ing.name,
+      unit: ing.unit,
+      quantity: ing.quantity,
+      menuItemId: ing.menuItemId ?? null,
+      category: ing.category,
+    })),
+    existingItems.map(e => ({
+      id: e.id,
+      name: e.name,
+      unit: e.unit,
+      quantity: e.quantity,
+      menuItemId: e.menuItemId,
+      mergedIntoId: e.mergedIntoId,
+      isChecked: e.isChecked,
+      category: e.category as string,
+    })),
+    (s) => stripIngredient(s),
+  );
+  const toUpdate = matchPlan.toUpdate;
+  // Re-attach the original ingredient objects so we keep recipeId etc. for create.
+  const toCreate = matchPlan.toCreate.map(p =>
+    sorted.find(s => s.name === p.name && s.unit === p.unit && (s.menuItemId ?? null) === (p.menuItemId ?? null) && (s.quantity ?? 1) === (p.quantity ?? 1))!
+  );
 
   // Resolve categories — check stored user overrides before keyword fallback
   const toCreateWithCategory = await Promise.all(
@@ -231,5 +276,44 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   for (const item of createdItems) {
     wsBroadcast(list.id, { type: 'item_added', data: item });
   }
+
+  // Auto-soft-merge using the pure planner so behavior matches importDedupe tests.
+  const visible = await prisma.shoppingItem.findMany({
+    where: { listId: list.id, isChecked: false, mergedIntoId: null },
+  });
+  const mergeGroups = planAutoMerge(
+    visible.map(v => ({
+      id: v.id,
+      name: v.name,
+      unit: v.unit,
+      quantity: v.quantity,
+      menuItemId: v.menuItemId,
+      mergedIntoId: v.mergedIntoId,
+      isChecked: v.isChecked,
+      category: v.category as string,
+    })),
+    (s) => stripIngredient(s),
+  );
+  for (const group of mergeGroups) {
+    const container = await prisma.shoppingItem.create({
+      data: {
+        listId: list.id,
+        name: group.name,
+        quantity: group.totalQty,
+        unit: group.unit,
+        category: group.category as never,
+        addedBy: clerkUserId,
+      },
+    });
+    await prisma.shoppingItem.updateMany({
+      where: { id: { in: group.ids } },
+      data: { mergedIntoId: container.id },
+    });
+    wsBroadcast(list.id, { type: 'item_added', data: container });
+    for (const id of group.ids) {
+      wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+    }
+  }
+
   res.status(201).json([...updatedItems, ...createdItems]);
 }));

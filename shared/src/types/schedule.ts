@@ -10,6 +10,7 @@ export interface ScheduleEntry {
   startTime: string | null;
   endTime: string | null;
   assignedTo: string | null;
+  assignedToMany: string[];
   isShared: boolean;
   recurrenceType: RecurrenceType;
   recurrenceDays: WeekDay[];

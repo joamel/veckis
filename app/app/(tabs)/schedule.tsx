@@ -2,10 +2,10 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
@@ -14,11 +14,15 @@ import {
   Vibration,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type WeekMenuItemWithRecipe } from '../../src/api/client';
+import { useToast } from '../../src/context/ToastContext';
+import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
+import { useAuth } from '@clerk/clerk-expo';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -133,7 +137,33 @@ function Drum({ values, selected, onSelect }: { values: string[]; selected: numb
 export default function ScheduleScreen() {
   const router = useRouter();
   const client = useApiClient();
+  const { showToast } = useToast();
+  const { getToken } = useAuth();
   const { householdId } = useHousehold();
+
+  useHouseholdSocket(householdId, getToken, (msg) => {
+    if (msg.type === 'schedule_entry_added') {
+      setEntries(prev => prev.some(e => e.id === msg.data.id) ? prev : [...prev, msg.data as never]);
+    } else if (msg.type === 'schedule_entry_updated') {
+      setEntries(prev => prev.map(e => e.id === msg.data.id ? (msg.data as never) : e));
+    } else if (msg.type === 'schedule_entry_deleted') {
+      setEntries(prev => prev.filter(e => e.id !== msg.data.id));
+    } else if (msg.type === 'chore_added') {
+      setChores(prev => prev.some(c => c.id === msg.data.id) ? prev : [...prev, msg.data as never]);
+    } else if (msg.type === 'chore_updated') {
+      setChores(prev => prev.map(c => c.id === msg.data.id ? { ...c, ...msg.data } as never : c));
+    } else if (msg.type === 'chore_deleted') {
+      setChores(prev => prev.filter(c => c.id !== msg.data.id));
+    } else if (msg.type === 'chore_completed') {
+      setChores(prev => prev.map(c => c.id === msg.data.choreId
+        ? { ...c, completions: c.completions.some(x => x.id === msg.data.id) ? c.completions : [msg.data, ...c.completions] }
+        : c));
+    } else if (msg.type === 'chore_uncompleted') {
+      setChores(prev => prev.map(c => c.id === msg.data.id
+        ? { ...c, completions: c.completions.filter(x => x.day !== msg.data.day || (Date.now() - new Date(x.completedAt).getTime()) > 86_400_000) }
+        : c));
+    }
+  });
   const { user } = useUser();
   const { medium } = useHaptics();
   const { isTablet, fs, sp } = useTablet();
@@ -172,7 +202,7 @@ export default function ScheduleScreen() {
   const [newMinute, setNewMinute] = useState(0);
   const [newDay, setNewDay] = useState<WeekDay>(TODAY_DAY);
   const [newIsShared, setNewIsShared] = useState(true);
-  const [newAssignedTo, setNewAssignedTo] = useState<string | null>(null);
+  const [newAssignedToMany, setNewAssignedToMany] = useState<string[]>([]);
   const [newRecurrenceType, setNewRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('none');
   const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
   const [newRecurrenceWeeks, setNewRecurrenceWeeks] = useState(1);
@@ -187,7 +217,7 @@ export default function ScheduleScreen() {
   const [editEntryMinute, setEditEntryMinute] = useState(0);
   const [editEntryDay, setEditEntryDay] = useState<WeekDay>(TODAY_DAY);
   const [editEntryIsShared, setEditEntryIsShared] = useState(true);
-  const [editEntryAssignedTo, setEditEntryAssignedTo] = useState<string | null>(null);
+  const [editEntryAssignedToMany, setEditEntryAssignedToMany] = useState<string[]>([]);
   const [savingEntry, setSavingEntry] = useState(false);
 
   // New entry date range + recurrence
@@ -304,7 +334,7 @@ export default function ScheduleScreen() {
         startTime: timeEnabled
           ? `${newHour.toString().padStart(2, '0')}:${MIN_VALS[newMinute]}`
           : undefined,
-        assignedTo: newAssignedTo ?? undefined,
+        assignedToMany: newAssignedToMany,
         isShared: newIsShared,
         recurrenceType: newRecurrenceType,
         recurrenceDays: newRecurrenceType === 'weekly' ? newRecurrenceDays : undefined,
@@ -314,14 +344,14 @@ export default function ScheduleScreen() {
         startDate: newStartDate,
         endDate: newEndDate,
       });
-      setEntries(prev => [...prev, entry]);
+      setEntries(prev => prev.some(e => e.id === entry.id) ? prev : [...prev, entry]);
       setShowModal(false);
       setNewTitle('');
       setTimeEnabled(false);
       setNewHour(12);
       setNewMinute(0);
       setNewIsShared(true);
-      setNewAssignedTo(null);
+      setNewAssignedToMany([]);
       setNewRecurrenceType('none');
       setNewRecurrenceDays([]);
       setNewRecurrenceWeeks(1);
@@ -372,14 +402,20 @@ export default function ScheduleScreen() {
         { text: 'Avbryt', style: 'cancel' },
         {
           text: 'Ta bort', style: 'destructive',
-          onPress: async () => {
-            try {
-              await client.deleteScheduleEntry(entry.id);
-              setEntries(prev => prev.filter(e => e.id !== entry.id));
-              setEditingEntry(null);
-            } catch {
-              Alert.alert('Fel', 'Kunde inte ta bort');
-            }
+          onPress: () => {
+            const prev = entries;
+            setEntries(p => p.filter(e => e.id !== entry.id));
+            setEditingEntry(null);
+            let cancelled = false;
+            showToast('Aktivitet borttagen', 'neutral', {
+              label: 'Ångra',
+              onPress: () => { cancelled = true; setEntries(prev); },
+            });
+            setTimeout(async () => {
+              if (cancelled) return;
+              try { await client.deleteScheduleEntry(entry.id); }
+              catch { setEntries(prev); Alert.alert('Fel', 'Kunde inte ta bort'); }
+            }, 5000);
           },
         },
       ]);
@@ -408,13 +444,19 @@ export default function ScheduleScreen() {
       { text: 'Avbryt', style: 'cancel' },
       {
         text: 'Ta bort', style: 'destructive',
-        onPress: async () => {
-          try {
-            await client.deleteChore(choreId);
-            setChores(prev => prev.filter(c => c.id !== choreId));
-          } catch {
-            Alert.alert('Fel', 'Kunde inte ta bort');
-          }
+        onPress: () => {
+          const prev = chores;
+          setChores(p => p.filter(c => c.id !== choreId));
+          let cancelled = false;
+          showToast('Syssla borttagen', 'neutral', {
+            label: 'Ångra',
+            onPress: () => { cancelled = true; setChores(prev); },
+          });
+          setTimeout(async () => {
+            if (cancelled) return;
+            try { await client.deleteChore(choreId); }
+            catch { setChores(prev); Alert.alert('Fel', 'Kunde inte ta bort'); }
+          }, 5000);
         },
       },
     ]);
@@ -426,7 +468,7 @@ export default function ScheduleScreen() {
     setEditEntryTitle(entry.title);
     setEditEntryDay(entry.day);
     setEditEntryIsShared(entry.isShared);
-    setEditEntryAssignedTo(entry.assignedTo ?? null);
+    setEditEntryAssignedToMany(entry.assignedToMany && entry.assignedToMany.length > 0 ? entry.assignedToMany : (entry.assignedTo ? [entry.assignedTo] : []));
     setEditEntryRecurrenceType(entry.recurrenceType as any);
     setEditEntryRecurrenceDays(entry.recurrenceDays as WeekDay[]);
     setEditEntryRecurrenceWeeks(entry.recurrenceWeeks ?? 1);
@@ -489,7 +531,7 @@ export default function ScheduleScreen() {
           day: editEntryDay,
           startTime,
           isShared: editEntryIsShared,
-          assignedTo: editEntryAssignedTo ?? undefined,
+          assignedToMany: editEntryAssignedToMany,
           recurrenceType: editEntryRecurrenceType,
           recurrenceDays: editEntryRecurrenceType === 'weekly' ? editEntryRecurrenceDays : [],
           recurrenceWeeks: editEntryRecurrenceWeeks,
@@ -559,7 +601,7 @@ export default function ScheduleScreen() {
     !e.exceptions?.includes(selectedDayDateStr) &&
     (!e.startDate || selectedDayDateStr >= e.startDate) &&
     (!e.endDate || selectedDayDateStr <= e.endDate) &&
-    (filterMemberIds.length === 0 || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo)))
+    (filterMemberIds.length === 0 || ((e.assignedToMany && e.assignedToMany.some(id => filterMemberIds.includes(id))) || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo))))
   ).sort((a, b) => {
     if (!a.startTime && b.startTime) return -1;
     if (a.startTime && !b.startTime) return 1;
@@ -582,7 +624,7 @@ export default function ScheduleScreen() {
       !e.exceptions?.includes(dtStr) &&
       (!e.startDate || dtStr >= e.startDate) &&
       (!e.endDate || dtStr <= e.endDate) &&
-      (!filterActive || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo)))
+      (!filterActive || ((e.assignedToMany && e.assignedToMany.some(id => filterMemberIds.includes(id))) || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo))))
     ).length +
       (filterActive ? 0 : menuItems.filter(i => i.day === day).length) +
       chores.filter(c =>
@@ -680,9 +722,14 @@ export default function ScheduleScreen() {
               <View style={s.entryContent}>
                 <Text style={[s.entryTitle, { fontSize: fs(15) }, isPast && { textDecorationLine: 'line-through' }]}>{entry.title}</Text>
                 {entry.description && <Text style={[s.entryDesc, { fontSize: fs(13) }]}>{entry.description}</Text>}
-                {getMemberName(entry.assignedTo ?? null) && (
-                  <Text style={[s.choreAssigned, { fontSize: fs(12) }]}>{getMemberName(entry.assignedTo ?? null)}</Text>
-                )}
+                {(() => {
+                  const ids = entry.assignedToMany && entry.assignedToMany.length > 0
+                    ? entry.assignedToMany
+                    : entry.assignedTo ? [entry.assignedTo] : [];
+                  const names = ids.map(id => getMemberName(id)).filter(Boolean) as string[];
+                  if (names.length === 0) return null;
+                  return <Text style={[s.choreAssigned, { fontSize: fs(12) }]}>{names.join(', ')}</Text>;
+                })()}
               </View>
               {!entry.isShared && <Ionicons name="lock-closed-outline" size={fs(14)} color="#9ca3af" />}
             </Pressable>
@@ -853,6 +900,7 @@ export default function ScheduleScreen() {
       {/* Edit entry modal */}
       <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera aktivitet</Text>
@@ -976,33 +1024,30 @@ export default function ScheduleScreen() {
                 </View>
               </>
             )}
-            <Pressable style={s.sharedRow} onPress={() => setEditEntryIsShared(v => !v)}>
+            <Pressable style={s.sharedRow} onPress={() => setEditEntryIsShared(v => { if (v) setEditEntryAssignedToMany([]); return !v; })}>
               <Ionicons name={editEntryIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={editEntryIsShared ? '#4f46e5' : '#9ca3af'} />
               <View style={{ flex: 1 }}>
                 <Text style={s.sharedLabel}>{editEntryIsShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
                 <Text style={s.sharedSub}>{editEntryIsShared ? 'Syns för alla i hushållet' : 'Syns bara för dig'}</Text>
               </View>
-              <Switch value={editEntryIsShared} onValueChange={setEditEntryIsShared} trackColor={{ true: '#4f46e5' }} />
+              <Switch value={editEntryIsShared} onValueChange={v => { setEditEntryIsShared(v); if (!v) setEditEntryAssignedToMany([]); }} trackColor={{ true: '#4f46e5' }} />
             </Pressable>
-            {members.length > 0 && (
+            {members.length > 0 && editEntryIsShared && (
               <>
-                <Text style={s.label}>Tilldela person (valfritt)</Text>
+                <Text style={s.label}>Tilldela personer (valfritt)</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberPickerRow}>
-                  <Pressable
-                    style={[s.memberOption, editEntryAssignedTo === null && s.memberOptionActive]}
-                    onPress={() => setEditEntryAssignedTo(null)}
-                  >
-                    <Text style={[s.memberOptionText, editEntryAssignedTo === null && s.memberOptionTextActive]}>Ingen</Text>
-                  </Pressable>
-                  {members.map(m => (
-                    <Pressable
-                      key={m.id}
-                      style={[s.memberOption, editEntryAssignedTo === m.id && s.memberOptionActive]}
-                      onPress={() => setEditEntryAssignedTo(m.id)}
-                    >
-                      <Text style={[s.memberOptionText, editEntryAssignedTo === m.id && s.memberOptionTextActive]}>{m.displayName}</Text>
-                    </Pressable>
-                  ))}
+                  {members.map(m => {
+                    const active = editEntryAssignedToMany.includes(m.id);
+                    return (
+                      <Pressable
+                        key={m.id}
+                        style={[s.memberOption, active && s.memberOptionActive]}
+                        onPress={() => setEditEntryAssignedToMany(prev => active ? prev.filter(id => id !== m.id) : [...prev, m.id])}
+                      >
+                        <Text style={[s.memberOptionText, active && s.memberOptionTextActive]}>{m.displayName}</Text>
+                      </Pressable>
+                    );
+                  })}
                 </ScrollView>
               </>
             )}
@@ -1021,11 +1066,13 @@ export default function ScheduleScreen() {
             </View>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Edit chore from calendar modal */}
       <Modal visible={!!editingCalChore} transparent animationType="slide" onRequestClose={() => setEditingCalChore(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera syssla</Text>
@@ -1077,6 +1124,7 @@ export default function ScheduleScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
@@ -1142,6 +1190,7 @@ export default function ScheduleScreen() {
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny aktivitet</Text>
@@ -1167,47 +1216,31 @@ export default function ScheduleScreen() {
               </View>
             )}
 
-            <Text style={s.label}>Dag</Text>
-            <View style={s.dayPickerRow}>
-              {DAYS.map(day => (
-                <Pressable
-                  key={day.key}
-                  style={[s.dayPickerOption, newDay === day.key && s.dayPickerOptionActive]}
-                  onPress={() => setNewDay(day.key)}
-                >
-                  <Text style={[s.dayPickerText, newDay === day.key && s.dayPickerTextActive]}>{day.short}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => !v)}>
+            <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => { if (v) setNewAssignedToMany([]); return !v; })}>
               <Ionicons name={newIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={newIsShared ? '#4f46e5' : '#9ca3af'} />
               <View style={{ flex: 1 }}>
                 <Text style={s.sharedLabel}>{newIsShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
                 <Text style={s.sharedSub}>{newIsShared ? 'Syns för alla i hushållet' : 'Syns bara för dig'}</Text>
               </View>
-              <Switch value={newIsShared} onValueChange={setNewIsShared} trackColor={{ true: '#4f46e5' }} />
+              <Switch value={newIsShared} onValueChange={v => { setNewIsShared(v); if (!v) setNewAssignedToMany([]); }} trackColor={{ true: '#4f46e5' }} />
             </Pressable>
 
-            {members.length > 0 && (
+            {members.length > 0 && newIsShared && (
               <>
-                <Text style={s.label}>Tilldela person (valfritt)</Text>
+                <Text style={s.label}>Tilldela personer (valfritt)</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberPickerRow}>
-                  <Pressable
-                    style={[s.memberOption, newAssignedTo === null && s.memberOptionActive]}
-                    onPress={() => setNewAssignedTo(null)}
-                  >
-                    <Text style={[s.memberOptionText, newAssignedTo === null && s.memberOptionTextActive]}>Ingen</Text>
-                  </Pressable>
-                  {members.map(m => (
-                    <Pressable
-                      key={m.id}
-                      style={[s.memberOption, newAssignedTo === m.id && s.memberOptionActive]}
-                      onPress={() => setNewAssignedTo(m.id)}
-                    >
-                      <Text style={[s.memberOptionText, newAssignedTo === m.id && s.memberOptionTextActive]}>{m.displayName}</Text>
-                    </Pressable>
-                  ))}
+                  {members.map(m => {
+                    const active = newAssignedToMany.includes(m.id);
+                    return (
+                      <Pressable
+                        key={m.id}
+                        style={[s.memberOption, active && s.memberOptionActive]}
+                        onPress={() => setNewAssignedToMany(prev => active ? prev.filter(id => id !== m.id) : [...prev, m.id])}
+                      >
+                        <Text style={[s.memberOptionText, active && s.memberOptionTextActive]}>{m.displayName}</Text>
+                      </Pressable>
+                    );
+                  })}
                 </ScrollView>
               </>
             )}
@@ -1329,6 +1362,7 @@ export default function ScheduleScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

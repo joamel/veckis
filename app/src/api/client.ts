@@ -130,6 +130,12 @@ export function useApiClient() {
         body: JSON.stringify(data),
       }),
 
+    mergeShoppingItems: (data: { sourceIds: string[]; name: string; quantity: number; unit?: string | null; category: string }) =>
+      request<ShoppingItem>('/api/shopping/items/merge', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
     updateShoppingItem: (itemId: string, data: Partial<Pick<ShoppingItem, 'name' | 'quantity' | 'unit' | 'category' | 'note'>>) =>
       request<ShoppingItem>(`/api/shopping/items/${itemId}`, {
         method: 'PATCH',
@@ -162,10 +168,10 @@ export function useApiClient() {
     getChores: (householdId: string) =>
       request<(Chore & { completions: ChoreCompletion[] })[]>(`/api/chores?householdId=${householdId}`),
 
-    createChore: (data: { householdId: string; title: string; description?: string; frequency?: ChoreFrequency; assignedTo?: string | null; days?: WeekDay[]; isShared?: boolean; startDate?: string | null; endDate?: string | null }) =>
+    createChore: (data: { householdId: string; title: string; description?: string; frequency?: ChoreFrequency; assignedTo?: string | null; days?: WeekDay[]; isShared?: boolean; startDate?: string | null; endDate?: string | null; recurrenceType?: Chore['recurrenceType']; recurrenceWeeks?: number; monthlyType?: Chore['monthlyType']; recurrenceWeekOfMonth?: number | null }) =>
       request<Chore>('/api/chores', { method: 'POST', body: JSON.stringify(data) }),
 
-    updateChore: (choreId: string, data: Partial<Pick<Chore, 'title' | 'description' | 'frequency' | 'assignedTo' | 'days' | 'isShared' | 'startDate' | 'endDate'>>) =>
+    updateChore: (choreId: string, data: Partial<Pick<Chore, 'title' | 'description' | 'frequency' | 'assignedTo' | 'days' | 'isShared' | 'startDate' | 'endDate' | 'recurrenceType' | 'recurrenceWeeks' | 'monthlyType' | 'recurrenceWeekOfMonth'>>) =>
       request<Chore>(`/api/chores/${choreId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteChore: (choreId: string) =>
@@ -189,7 +195,7 @@ export function useApiClient() {
     getSchedule: (householdId: string) =>
       request<ScheduleEntry[]>(`/api/schedule?householdId=${householdId}`),
 
-    createScheduleEntry: (data: { householdId: string; title: string; day: WeekDay; description?: string; startTime?: string; endTime?: string; assignedTo?: string; isShared?: boolean; recurrenceType?: RecurrenceType; recurrenceDays?: WeekDay[]; recurrenceWeeks?: number; monthlyType?: string; recurrenceWeekOfMonth?: number | null; startDate?: string | null; endDate?: string | null }) =>
+    createScheduleEntry: (data: { householdId: string; title: string; day: WeekDay; description?: string; startTime?: string; endTime?: string; assignedTo?: string; assignedToMany?: string[]; isShared?: boolean; recurrenceType?: RecurrenceType; recurrenceDays?: WeekDay[]; recurrenceWeeks?: number; monthlyType?: string; recurrenceWeekOfMonth?: number | null; startDate?: string | null; endDate?: string | null }) =>
       request<ScheduleEntry>('/api/schedule', { method: 'POST', body: JSON.stringify(data) }),
 
     updateScheduleEntry: (entryId: string, data: Partial<Omit<ScheduleEntry, 'id' | 'householdId' | 'createdBy'>>) =>
@@ -222,6 +228,9 @@ export function useApiClient() {
     // Menus
     getWeekMenu: (householdId: string, weekYear: number, weekNumber: number) =>
       request<WeekMenuItemWithRecipe[]>(`/api/menus?householdId=${householdId}&weekYear=${weekYear}&weekNumber=${weekNumber}`),
+
+    getAllMenus: (householdId: string) =>
+      request<WeekMenuItemWithRecipe[]>(`/api/menus?householdId=${householdId}`),
 
     addToWeekMenu: (data: { householdId: string; recipeId: string; day?: WeekDay | null; weekYear: number; weekNumber: number; note?: string | null }) =>
       request<WeekMenuItemWithRecipe>('/api/menus', { method: 'POST', body: JSON.stringify(data) }),

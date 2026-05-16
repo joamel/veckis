@@ -11,6 +11,10 @@ export interface Chore {
   isShared: boolean;
   startDate: string | null;
   endDate: string | null;
+  recurrenceType: import('./schedule').RecurrenceType;
+  recurrenceWeeks: number;
+  monthlyType: 'day_of_month' | 'weekday_of_month';
+  recurrenceWeekOfMonth: number | null;
   createdBy: string;
   createdAt: string;
 }

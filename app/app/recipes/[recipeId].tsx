@@ -7,13 +7,13 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -25,7 +25,7 @@ import type { RecipeIngredient } from '@veckis/shared';
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
 export default function RecipeDetailScreen() {
-  const { recipeId, transfer } = useLocalSearchParams<{ recipeId: string; transfer?: string }>();
+  const { recipeId, transfer, edit, forMenuDay } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string }>();
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -39,6 +39,8 @@ export default function RecipeDetailScreen() {
   const [editIngredients, setEditIngredients] = useState<Array<{ name: string; quantity: string; unit: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [activeUnitIdx, setActiveUnitIdx] = useState<number | null>(null);
+  const [activeNameIdx, setActiveNameIdx] = useState<number | null>(null);
+  const [nameSuggestions, setNameSuggestions] = useState<{ name: string; category: string }[]>([]);
   type RowRef = { qty: TextInput | null; unit: TextInput | null; name: TextInput | null };
   const rowRefs = useRef<RowRef[]>([]);
   const mainScrollRef = useRef<ScrollView>(null);
@@ -63,7 +65,15 @@ export default function RecipeDetailScreen() {
   const [loadingLists, setLoadingLists] = useState(false);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [transferring, setTransferring] = useState(false);
+  const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<ReturnType<typeof deduplicateIngredients>>([]);
+
+  // Load ingredient suggestions once for autocomplete in edit mode
+  useEffect(() => {
+    if (!householdId) return;
+    client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[])
+      .then(s => setNameSuggestions(Array.isArray(s) ? s : []));
+  }, [householdId]);
 
   const load = useCallback(async () => {
     if (!recipeId) return;
@@ -72,12 +82,18 @@ export default function RecipeDetailScreen() {
       setRecipe(r);
       setScaledServings(null);
       if (transfer === '1') openTransfer(r);
+      if (edit === '1' && r.ingredients.length === 0) {
+        setEditIngredients([{ name: '', quantity: '', unit: '' }]);
+        setEditMode(true);
+        router.setParams({ edit: undefined });
+        setTimeout(() => getRowRef(0).name?.focus(), 250);
+      }
     } catch {
       Alert.alert('Fel', 'Kunde inte ladda receptet');
     } finally {
       setLoading(false);
     }
-  }, [recipeId, transfer]);
+  }, [recipeId, transfer, edit]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -127,6 +143,9 @@ export default function RecipeDetailScreen() {
       const updated = await client.updateRecipe(recipe.id, { ingredients });
       setRecipe(updated);
       setEditMode(false);
+      if (forMenuDay !== undefined) {
+        router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}` as never);
+      }
     } catch {
       Alert.alert('Fel', 'Kunde inte spara ingredienser');
     } finally {
@@ -164,6 +183,7 @@ export default function RecipeDetailScreen() {
     const selected = deduplicatedIngredients.filter(i => checkedIds.has(i.id));
     if (selected.length === 0) { Alert.alert('Välj minst en ingrediens'); return; }
     setTransferring(true);
+    setTransferringListId(listId);
     try {
       await client.transferToShopping(listId, selected.map(i => ({
         name: i.name,
@@ -181,6 +201,7 @@ export default function RecipeDetailScreen() {
       Alert.alert('Fel', 'Kunde inte överföra ingredienser');
     } finally {
       setTransferring(false);
+      setTransferringListId(null);
     }
   }
 
@@ -226,8 +247,7 @@ export default function RecipeDetailScreen() {
               style={s.metaChip}
               onPress={() => WebBrowser.openBrowserAsync(recipe.sourceUrl!)}
             >
-              <Ionicons name="open-outline" size={14} color="#4f46e5" />
-              <Text style={[s.metaText, { color: '#4f46e5' }]}>Originalrecept</Text>
+              <Text style={[s.metaText, { color: '#4f46e5' }]}>↗ Originalrecept</Text>
             </Pressable>
           )}
         </View>
@@ -254,6 +274,20 @@ export default function RecipeDetailScreen() {
                 <View key={idx}>
                   <View style={s.editRow}>
                     <TextInput
+                      ref={el => { getRowRef(idx).name = el; }}
+                      style={[s.editInput, s.editInputName]}
+                      placeholder="Ingrediens"
+                      placeholderTextColor="#9ca3af"
+                      value={row.name}
+                      onChangeText={v => updateEditRow(idx, 'name', v)}
+                      autoCapitalize="none"
+                      returnKeyType="next"
+                      blurOnSubmit={false}
+                      onFocus={() => setActiveNameIdx(idx)}
+                      onBlur={() => setTimeout(() => setActiveNameIdx(a => a === idx ? null : a), 120)}
+                      onSubmitEditing={() => getRowRef(idx).qty?.focus()}
+                    />
+                    <TextInput
                       ref={el => { getRowRef(idx).qty = el; }}
                       style={[s.editInput, s.editInputQty]}
                       placeholder="Mängd"
@@ -271,26 +305,15 @@ export default function RecipeDetailScreen() {
                       placeholder="Enhet"
                       placeholderTextColor="#9ca3af"
                       value={row.unit}
-                      onChangeText={v => updateEditRow(idx, 'unit', v)}
-                      autoCapitalize="none"
-                      returnKeyType="next"
-                      blurOnSubmit={false}
-                      onFocus={() => setActiveUnitIdx(idx)}
-                      onBlur={() => setTimeout(() => setActiveUnitIdx(a => a === idx ? null : a), 120)}
-                      onSubmitEditing={() => { setActiveUnitIdx(null); getRowRef(idx).name?.focus(); }}
-                    />
-                    <TextInput
-                      ref={el => { getRowRef(idx).name = el; }}
-                      style={[s.editInput, s.editInputName]}
-                      placeholder="Ingrediens"
-                      placeholderTextColor="#9ca3af"
-                      value={row.name}
-                      onChangeText={v => updateEditRow(idx, 'name', v)}
+                      onChangeText={v => updateEditRow(idx, 'unit', v.toLowerCase())}
                       autoCapitalize="none"
                       returnKeyType={idx < editIngredients.length - 1 ? 'next' : 'done'}
                       blurOnSubmit={false}
+                      onFocus={() => setActiveUnitIdx(idx)}
+                      onBlur={() => setTimeout(() => setActiveUnitIdx(a => a === idx ? null : a), 120)}
                       onSubmitEditing={() => {
-                        if (idx < editIngredients.length - 1) getRowRef(idx + 1).qty?.focus();
+                        setActiveUnitIdx(null);
+                        if (idx < editIngredients.length - 1) getRowRef(idx + 1).name?.focus();
                       }}
                     />
                     <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove}>
@@ -306,7 +329,16 @@ export default function RecipeDetailScreen() {
                             <Pressable
                               key={u}
                               style={[s.unitChip, active && s.unitChipActive]}
-                              onPress={() => updateEditRow(idx, 'unit', active ? '' : u)}
+                              onPress={() => {
+                                updateEditRow(idx, 'unit', active ? '' : u);
+                                if (!active) {
+                                  setActiveUnitIdx(null);
+                                  // Move focus to the next row's name input (or stay if last)
+                                  if (idx < editIngredients.length - 1) {
+                                    setTimeout(() => getRowRef(idx + 1).name?.focus(), 50);
+                                  }
+                                }
+                              }}
                             >
                               <Text style={[s.unitChipText, active && s.unitChipTextActive]}>{u}</Text>
                             </Pressable>
@@ -315,6 +347,32 @@ export default function RecipeDetailScreen() {
                       </View>
                     </ScrollView>
                   )}
+                  {activeNameIdx === idx && row.name.trim().length >= 1 && (() => {
+                    const q = row.name.toLowerCase().trim();
+                    const hits = nameSuggestions
+                      .filter(sg => sg.name.toLowerCase().includes(q) && sg.name.toLowerCase() !== q)
+                      .slice(0, 6);
+                    if (hits.length === 0) return null;
+                    return (
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="always">
+                        <View style={s.unitChipRow}>
+                          {hits.map(h => (
+                            <Pressable
+                              key={h.name}
+                              style={s.unitChip}
+                              onPress={() => {
+                                updateEditRow(idx, 'name', h.name.toLowerCase());
+                                setActiveNameIdx(null);
+                                setTimeout(() => getRowRef(idx).qty?.focus(), 50);
+                              }}
+                            >
+                              <Text style={s.unitChipText}>{h.name}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </ScrollView>
+                    );
+                  })()}
                 </View>
               ))}
               <Pressable style={s.addRowBtn} onPress={addEditRow}>
@@ -396,17 +454,20 @@ export default function RecipeDetailScreen() {
               keyExtractor={l => l.id}
               style={s.listPicker}
               scrollEnabled={false}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={s.listPickerItem}
-                  onPress={() => doTransfer(item.id)}
-                  disabled={transferring}
-                >
-                  <Ionicons name="cart-outline" size={18} color="#4f46e5" />
-                  <Text style={s.listPickerItemText}>{item.name}</Text>
-                  {transferring && <ActivityIndicator size="small" color="#4f46e5" />}
-                </Pressable>
-              )}
+              renderItem={({ item }) => {
+                const noneSelected = checkedIds.size === 0;
+                return (
+                  <Pressable
+                    style={[s.listPickerItem, noneSelected && { opacity: 0.4 }]}
+                    onPress={() => doTransfer(item.id)}
+                    disabled={transferring || noneSelected}
+                  >
+                    <Ionicons name="cart-outline" size={18} color="#4f46e5" />
+                    <Text style={s.listPickerItemText}>{item.name}</Text>
+                    {transferringListId === item.id && <ActivityIndicator size="small" color="#4f46e5" />}
+                  </Pressable>
+                );
+              }}
             />
           )}
         </View>
@@ -458,7 +519,7 @@ const s = StyleSheet.create({
   transferBtn: { padding: 8, backgroundColor: '#eef2ff', borderRadius: 8 },
   scroll: { padding: 20, gap: 16 },
   metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  metaChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#f3f4f6', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
+  metaChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', flexShrink: 0 },
   servingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f3f4f6', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
   servingBtn: { padding: 2 },
   metaText: { fontSize: 13, color: '#6b7280' },

@@ -8,14 +8,15 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth, useUser } from '@clerk/clerk-expo';
+import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,7 +28,7 @@ import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
 
 export default function SettingsScreen() {
-  const { signOut } = useAuth();
+  const { signOut, getToken } = useAuth();
   const { user, isSignedIn } = useUser();
   const client = useApiClient();
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
@@ -61,6 +62,22 @@ export default function SettingsScreen() {
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editingDisplayName, setEditingDisplayName] = useState('');
   const [loadingMemberEdit, setLoadingMemberEdit] = useState(false);
+
+  useHouseholdSocket(householdId, getToken, (msg) => {
+    if (msg.type === 'household_updated') {
+      setHousehold(h => h && h.id === msg.data.id ? { ...h, name: msg.data.name } : h);
+    } else if (msg.type === 'member_added') {
+      setHousehold(h => h && h.id === msg.data.householdId
+        ? { ...h, members: h.members.some(m => m.id === msg.data.id) ? h.members : [...h.members, msg.data as never] }
+        : h);
+    } else if (msg.type === 'member_updated') {
+      setHousehold(h => h && h.id === msg.data.householdId
+        ? { ...h, members: h.members.map(m => m.id === msg.data.id ? { ...m, ...msg.data } as never : m) }
+        : h);
+    } else if (msg.type === 'member_deleted') {
+      setHousehold(h => h ? { ...h, members: h.members.filter(m => m.id !== msg.data.id) } : h);
+    }
+  });
 
   // Create local profile
   const [showCreateLocalModal, setShowCreateLocalModal] = useState(false);

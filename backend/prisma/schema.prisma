@@ -82,25 +82,29 @@ model ShoppingList {
 }
 
 model ShoppingItem {
-  id         String        @id @default(cuid())
-  listId     String
-  name       String
-  quantity   Float         @default(1)
-  unit       String?
-  category   StoreCategory @default(other)
-  isChecked  Boolean       @default(false)
-  checkedBy  String?
-  addedBy    String
-  note       String?
-  recipeId   String?
-  menuItemId String?
-  createdAt  DateTime      @default(now())
+  id           String        @id @default(cuid())
+  listId       String
+  name         String
+  quantity     Float         @default(1)
+  unit         String?
+  category     StoreCategory @default(other)
+  isChecked    Boolean       @default(false)
+  checkedBy    String?
+  addedBy      String
+  note         String?
+  recipeId     String?
+  menuItemId   String?
+  mergedIntoId String?
+  createdAt    DateTime      @default(now())
 
-  list   ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  recipe Recipe?      @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  list         ShoppingList   @relation(fields: [listId], references: [id], onDelete: Cascade)
+  recipe       Recipe?        @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  mergedInto   ShoppingItem?  @relation("MergeChildren", fields: [mergedIntoId], references: [id], onDelete: Cascade)
+  mergeSources ShoppingItem[] @relation("MergeChildren")
 
   @@index([listId])
   @@index([menuItemId])
+  @@index([mergedIntoId])
 }
 
 model Chore {
@@ -114,6 +118,10 @@ model Chore {
   isShared    Boolean        @default(true)
   startDate   String?
   endDate     String?
+  recurrenceType        RecurrenceType @default(none)
+  recurrenceWeeks       Int            @default(1)
+  monthlyType           String         @default("day_of_month")
+  recurrenceWeekOfMonth Int?
   createdBy   String
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -146,6 +154,7 @@ model ScheduleEntry {
   startTime            String?
   endTime              String?
   assignedTo           String?
+  assignedToMany       String[]           @default([])
   isShared             Boolean            @default(true)
   recurrenceType       RecurrenceType     @default(none)
   recurrenceDays       WeekDay[]

@@ -1,11 +1,19 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { ChoreFrequency, WeekDay, Prisma } from '@prisma/client';
+import { ChoreFrequency, WeekDay, RecurrenceType, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
+import { wsBroadcast } from '../lib/wsHub';
 
 export const choresRouter = Router();
+
+const recurrenceFields = {
+  recurrenceType: z.nativeEnum(RecurrenceType).optional(),
+  recurrenceWeeks: z.number().int().min(1).max(52).optional(),
+  monthlyType: z.enum(['day_of_month', 'weekday_of_month']).optional(),
+  recurrenceWeekOfMonth: z.number().int().min(1).max(5).nullable().optional(),
+};
 
 const createChoreSchema = z.object({
   householdId: z.string(),
@@ -17,6 +25,7 @@ const createChoreSchema = z.object({
   isShared: z.boolean().default(true),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  ...recurrenceFields,
 });
 
 const updateChoreSchema = z.object({
@@ -28,7 +37,19 @@ const updateChoreSchema = z.object({
   isShared: z.boolean().optional(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  ...recurrenceFields,
 });
+
+// Keep legacy frequency in sync with recurrenceType so older clients still work.
+function deriveFrequency(rt: RecurrenceType | undefined, weeks: number | undefined): ChoreFrequency | undefined {
+  if (!rt) return undefined;
+  if (rt === 'none') return 'once';
+  if (rt === 'daily') return 'daily';
+  if (rt === 'weekly' || rt === 'custom_days') return (weeks ?? 1) >= 2 ? 'biweekly' : 'weekly';
+  if (rt === 'monthly') return 'monthly';
+  if (rt === 'yearly') return 'monthly';
+  return undefined;
+}
 
 async function getChoreAndVerifyMember(choreId: string, clerkUserId: string, res: Response) {
   const chore = await prisma.chore.findUnique({ where: { id: choreId } });
@@ -71,9 +92,15 @@ choresRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (
   const body = createChoreSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
+  const derivedFreq = deriveFrequency(body.data.recurrenceType, body.data.recurrenceWeeks);
   const chore = await prisma.chore.create({
-    data: { ...body.data, createdBy: (req as AuthenticatedRequest).clerkUserId } as Prisma.ChoreUncheckedCreateInput,
+    data: {
+      ...body.data,
+      frequency: derivedFreq ?? body.data.frequency,
+      createdBy: (req as AuthenticatedRequest).clerkUserId,
+    } as Prisma.ChoreUncheckedCreateInput,
   });
+  wsBroadcast(`household:${chore.householdId}`, { type: 'chore_added', data: { ...chore, completions: [] } });
   res.status(201).json(chore);
 }));
 
@@ -85,7 +112,12 @@ choresRouter.patch('/:choreId', requireAuth, asyncHandler(async (req, res) => {
   const body = updateChoreSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const updated = await prisma.chore.update({ where: { id: chore.id }, data: body.data });
+  const derivedFreq = deriveFrequency(body.data.recurrenceType, body.data.recurrenceWeeks);
+  const updated = await prisma.chore.update({
+    where: { id: chore.id },
+    data: { ...body.data, ...(derivedFreq ? { frequency: derivedFreq } : {}) },
+  });
+  wsBroadcast(`household:${updated.householdId}`, { type: 'chore_updated', data: updated });
   res.json(updated);
 }));
 
@@ -95,6 +127,7 @@ choresRouter.delete('/:choreId', requireAuth, asyncHandler(async (req, res) => {
   if (!chore) return;
 
   await prisma.chore.delete({ where: { id: chore.id } });
+  wsBroadcast(`household:${chore.householdId}`, { type: 'chore_deleted', data: { id: chore.id } });
   res.status(204).send();
 }));
 
@@ -117,6 +150,7 @@ choresRouter.post('/:choreId/complete', requireAuth, asyncHandler(async (req, re
       day: body.data.day ?? null,
     },
   });
+  wsBroadcast(`household:${chore.householdId}`, { type: 'chore_completed', data: completion });
   res.status(201).json(completion);
 }));
 
@@ -146,5 +180,6 @@ choresRouter.delete('/:choreId/complete', requireAuth, asyncHandler(async (req, 
   await prisma.choreCompletion.deleteMany({
     where: { choreId: chore.id, day, completedAt: { gte: cutoff } },
   });
+  wsBroadcast(`household:${chore.householdId}`, { type: 'chore_uncompleted', data: { id: chore.id, day } });
   res.status(204).send();
 }));

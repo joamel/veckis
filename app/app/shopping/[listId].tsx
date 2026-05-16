@@ -11,7 +11,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,11 +18,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/clerk-expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
+import { useToast } from '../../src/context/ToastContext';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type StapleItem, type Store } from '@veckis/shared';
@@ -42,6 +43,7 @@ export default function ShoppingListScreen() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
   const router = useRouter();
   const client = useApiClient();
+  const { showToast: showGlobalToast } = useToast();
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
 
@@ -55,6 +57,7 @@ export default function ShoppingListScreen() {
 
   // Quick-add quantity sheet (chip tap)
   const [qtySheet, setQtySheet] = useState<{ name: string; category?: StoreCategory } | null>(null);
+  const [qtyCategory, setQtyCategory] = useState<StoreCategory>('other');
   const [qtyValue, setQtyValue] = useState('1');
   const [qtyUnit, setQtyUnit] = useState('');
   const [mergeSheet, setMergeSheet] = useState<{ name: string; category: StoreCategory; items: ShoppingItemWithRecipe[] } | null>(null);
@@ -64,6 +67,7 @@ export default function ShoppingListScreen() {
   const [mergeName, setMergeName] = useState('');
   const [mergeCategory, setMergeCategory] = useState<StoreCategory>('other');
   const [manualPickerOpen, setManualPickerOpen] = useState(false);
+  const mergeScrollRef = useRef<ScrollView>(null);
   const [manualPickerSelected, setManualPickerSelected] = useState<Set<string>>(new Set());
 
   // Category browser modal
@@ -80,6 +84,7 @@ export default function ShoppingListScreen() {
 
   // Store picker modal
   const [showStorePicker, setShowStorePicker] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [creatingStore, setCreatingStore] = useState(false);
   const [newStoreName, setNewStoreName] = useState('');
 
@@ -148,6 +153,7 @@ export default function ShoppingListScreen() {
     setMergeUnit(bestUnit);
     setMergeName(capitalize(dupes[0].name));
     setMergeCategory(dupes[0].category as StoreCategory);
+    setTimeout(() => mergeScrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
   }, []);
 
   const categoryOrder: StoreCategory[] = (list?.store?.categoryOrder as StoreCategory[]) ?? DEFAULT_CATEGORY_ORDER;
@@ -178,10 +184,12 @@ export default function ShoppingListScreen() {
     if (duplicateGroups.length > 0 && !hasPulsedDupes.current) {
       hasPulsedDupes.current = true;
       Animated.sequence([
-        Animated.timing(dupeButtonScale, { toValue: 1.15, duration: 150, useNativeDriver: true }),
-        Animated.timing(dupeButtonScale, { toValue: 0.95, duration: 100, useNativeDriver: true }),
-        Animated.timing(dupeButtonScale, { toValue: 1.08, duration: 100, useNativeDriver: true }),
-        Animated.timing(dupeButtonScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+        Animated.timing(dupeButtonScale, { toValue: 1.2, duration: 220, useNativeDriver: true }),
+        Animated.timing(dupeButtonScale, { toValue: 0.9, duration: 180, useNativeDriver: true }),
+        Animated.timing(dupeButtonScale, { toValue: 1.15, duration: 180, useNativeDriver: true }),
+        Animated.timing(dupeButtonScale, { toValue: 0.95, duration: 160, useNativeDriver: true }),
+        Animated.timing(dupeButtonScale, { toValue: 1.1, duration: 160, useNativeDriver: true }),
+        Animated.timing(dupeButtonScale, { toValue: 1, duration: 200, useNativeDriver: true }),
       ]).start();
     }
     if (duplicateGroups.length === 0) hasPulsedDupes.current = false;
@@ -325,6 +333,7 @@ export default function ShoppingListScreen() {
     const staple = staples.find(s => s.name.toLowerCase() === name.toLowerCase());
     setQtyValue(staple?.defaultQuantity ? String(staple.defaultQuantity) : '1');
     setQtyUnit(staple?.unit ?? '');
+    setQtyCategory((category ?? staple?.category ?? 'other') as StoreCategory);
     setQtySheet({ name, category });
     Keyboard.dismiss();
   }
@@ -333,7 +342,7 @@ export default function ShoppingListScreen() {
     if (!qtySheet) return;
     const qty = parseFloat(qtyValue.replace(',', '.'));
     const unit = qtyUnit.trim() || undefined;
-    await addItem(qtySheet.name, qtySheet.category, isNaN(qty) ? 1 : qty, unit);
+    await addItem(qtySheet.name, qtyCategory, isNaN(qty) ? 1 : qty, unit);
     setQtySheet(null);
   }
 
@@ -353,32 +362,61 @@ export default function ShoppingListScreen() {
     const qty = parseFloat(mergeQty.replace(',', '.'));
     const unit = mergeUnit.trim() || undefined;
     const name = (mergeName.trim() || selected[0].name).toLowerCase();
-    const [keep, ...remove] = selected;
-    const deleteIds = new Set(remove.map(i => i.id));
+    const sourceIds = selected.map(i => i.id);
+    const hideIds = new Set(sourceIds);
     setAdding(true);
     try {
-      await Promise.all([
-        client.updateShoppingItem(keep.id, { name, quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null, category: mergeCategory }),
-        ...remove.map(i => client.deleteShoppingItem(i.id)),
-      ]);
-      setList(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: prev.items
-            .filter(i => !deleteIds.has(i.id))
-            .map(i => i.id === keep.id
-              ? { ...i, name, quantity: isNaN(qty) ? 1 : qty, unit: unit ?? null, category: mergeCategory }
-              : i
-            ),
-        };
+      const container = await client.mergeShoppingItems({
+        sourceIds,
+        name,
+        quantity: isNaN(qty) ? 1 : qty,
+        unit: unit ?? null,
+        category: mergeCategory,
       });
-      pendingOpenNextDupe.current = true;
-      setMergeSheet(null);
+      // Build the post-merge list locally so we can find next dupes synchronously
+      const baseItems = list?.items ?? [];
+      const updatedItems: ShoppingItemWithRecipe[] = [
+        ...baseItems.filter(i => !hideIds.has(i.id) && i.id !== container.id),
+        { ...container, recipe: null } as ShoppingItemWithRecipe,
+      ];
+      setList(prev => prev ? { ...prev, items: updatedItems } : prev);
+
+      // Compute next auto-dupe group from the new items
+      const nameMap = new Map<string, ShoppingItemWithRecipe[]>();
+      for (const it of updatedItems.filter(i => !i.isChecked && !i.id.startsWith('optimistic-'))) {
+        const key = it.name.toLowerCase().trim();
+        if (!nameMap.has(key)) nameMap.set(key, []);
+        nameMap.get(key)!.push(it);
+      }
+      const justMergedKey = name.toLowerCase().trim();
+      const nextGroup = [...nameMap.entries()]
+        .filter(([k]) => k !== justMergedKey) // skip the group we just dealt with
+        .map(([, g]) => g)
+        .find(g => g.length >= 2 && !dismissedDupeKeys.has(g[0].name.toLowerCase().trim()));
+      if (nextGroup) openMergeForDupes(nextGroup);
+      else setMergeSheet(null);
     } catch {
       Alert.alert('Fel', 'Kunde inte slå ihop varor');
     } finally {
       setAdding(false);
+    }
+  }
+
+  function goToBulkTransfer() {
+    router.push(`/(tabs)/menu?bulkTransfer=1&originListId=${listId}` as never);
+  }
+
+  async function checkAllUnchecked() {
+    if (!list) return;
+    const targets = list.items.filter(i => !i.isChecked && !i.id.startsWith('optimistic-'));
+    if (targets.length === 0) return;
+    const ids = targets.map(i => i.id);
+    setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: true } : i) } : prev);
+    try {
+      await Promise.all(ids.map(id => client.checkShoppingItem(id, true)));
+    } catch {
+      setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: false } : i) } : prev);
+      Alert.alert('Fel', 'Kunde inte klarmarkera alla varor');
     }
   }
 
@@ -423,8 +461,12 @@ export default function ShoppingListScreen() {
       );
       setList(prev => prev ? { ...prev, items: updatedItems } : prev);
       setEditingItem(null);
-      if (householdId && editCategory !== editingItem.category) {
-        client.upsertStaple({ householdId, name, category: editCategory }).catch(() => {});
+      if (householdId) {
+        const categoryChanged = editCategory !== editingItem.category;
+        const unitChanged = unit !== editingItem.unit;
+        if (categoryChanged || unitChanged) {
+          client.upsertStaple({ householdId, name, category: editCategory, unit }).catch(() => {});
+        }
       }
       const dupes = updatedItems.filter(i => !i.isChecked && i.name.toLowerCase().trim() === name);
       if (dupes.length >= 2) openMergeForDupes(dupes, updated);
@@ -449,14 +491,27 @@ export default function ShoppingListScreen() {
     if (!listId) return;
     Alert.alert('Rensa lista?', 'Alla varor tas bort men listan finns kvar.', [
       { text: 'Avbryt', style: 'cancel' },
-      { text: 'Rensa', style: 'destructive', onPress: async () => {
-        try {
-          await client.clearShoppingList(listId);
-          setList(prev => prev ? { ...prev, items: [] } : prev);
-          showToast('Inköpslistan rensad');
-        } catch {
-          Alert.alert('Fel', 'Kunde inte rensa listan');
-        }
+      { text: 'Rensa', style: 'destructive', onPress: () => {
+        // Optimistic clear with undo: hide items from UI, defer backend call 5s
+        const snapshot = list?.items ?? [];
+        setList(prev => prev ? { ...prev, items: [] } : prev);
+        let cancelled = false;
+        showGlobalToast('Inköpslistan rensad', 'neutral', {
+          label: 'Ångra',
+          onPress: () => {
+            cancelled = true;
+            setList(prev => prev ? { ...prev, items: snapshot } : prev);
+          },
+        });
+        setTimeout(async () => {
+          if (cancelled) return;
+          try {
+            await client.clearShoppingList(listId);
+          } catch {
+            setList(prev => prev ? { ...prev, items: snapshot } : prev);
+            Alert.alert('Fel', 'Kunde inte rensa listan');
+          }
+        }, 5000);
       }},
     ]);
   }
@@ -545,11 +600,9 @@ export default function ShoppingListScreen() {
           <Pressable onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
             <Ionicons name="arrow-back" size={26} color="#111827" />
           </Pressable>
-          {list.items.length > 0 && (
-            <Pressable onPress={completeList} style={s.doneBtn} hitSlop={8}>
-              <Ionicons name="checkmark-done-outline" size={26} color="#4f46e5" />
-            </Pressable>
-          )}
+          <Pressable onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8}>
+            <Ionicons name="ellipsis-vertical" size={26} color="#111827" />
+          </Pressable>
         </View>
         <View style={s.headerTitle}>
           <Text style={s.title} numberOfLines={1}>{list.name}</Text>
@@ -558,21 +611,20 @@ export default function ShoppingListScreen() {
               <Ionicons name="storefront-outline" size={12} color="#4f46e5" />
               <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
             </Pressable>
-            <Animated.View style={{ transform: [{ scale: dupeButtonScale }] }}>
-              <Pressable
-                style={s.dupeBadge}
-                onPress={() => {
-                  if (duplicateGroups.length > 0) openMergeForDupes(duplicateGroups[0]);
-                  else setMergeSheet({ name: '', category: 'other' as StoreCategory, items: [] });
-                }}
-                hitSlop={8}
-              >
-                <Ionicons name="git-merge-outline" size={12} color="#7c3aed" />
-                <Text style={s.dupeBadgeText}>
-                  {duplicateGroups.length === 1 ? '1 dubblett' : `${duplicateGroups.length} dubbletter`}
-                </Text>
-              </Pressable>
-            </Animated.View>
+            {duplicateGroups.length > 0 && (
+              <Animated.View style={{ transform: [{ scale: dupeButtonScale }] }}>
+                <Pressable
+                  style={s.dupeBadge}
+                  onPress={() => openMergeForDupes(duplicateGroups[0])}
+                  hitSlop={8}
+                >
+                  <Ionicons name="git-merge-outline" size={12} color="#7c3aed" />
+                  <Text style={s.dupeBadgeText}>
+                    {duplicateGroups.length === 1 ? '1 dubblett' : `${duplicateGroups.length} dubbletter`}
+                  </Text>
+                </Pressable>
+              </Animated.View>
+            )}
           </View>
         </View>
       </View>
@@ -587,9 +639,11 @@ export default function ShoppingListScreen() {
       <ScrollView contentContainerStyle={[s.list, allItems.length === 0 && s.listEmpty]}>
         {allItems.length === 0 && (
           <View style={s.emptyContainer}>
-            <Ionicons name="add-circle-outline" size={48} color="#d1d5db" />
+            <Pressable onPress={goToBulkTransfer} style={s.emptyImportBtn} hitSlop={12}>
+              <Ionicons name="add-circle" size={64} color="#4f46e5" />
+            </Pressable>
             <Text style={s.emptyText}>Listan är tom</Text>
-            <Text style={s.emptySubtext}>Lägg till varor nedan</Text>
+            <Text style={s.emptySubtext}>Tryck på + för att importera veckomenyn, eller lägg till varor nedan</Text>
           </View>
         )}
 
@@ -651,13 +705,13 @@ export default function ShoppingListScreen() {
             value={newItem}
             onChangeText={setNewItem}
             returnKeyType="done"
-            onSubmitEditing={() => addItem()}
+            onSubmitEditing={() => { const n = newItem.trim(); if (!n) return; setNewItem(''); openQtySheet(n); }}
             blurOnSubmit={false}
             autoCapitalize="none"
           />
           <Pressable
             style={[s.addBtn, (!newItem.trim() || adding) && s.addBtnDisabled]}
-            onPress={() => addItem()}
+            onPress={() => { const n = newItem.trim(); if (!n) return; setNewItem(''); openQtySheet(n); }}
             disabled={adding || !newItem.trim()}
           >
             {adding ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="add" size={22} color="#fff" />}
@@ -775,35 +829,42 @@ export default function ShoppingListScreen() {
             returnKeyType="next"
             onSubmitEditing={() => editQtyRef.current?.focus()}
           />
-          <View style={s.editRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.editLabel}>Antal</Text>
-              <TextInput
-                ref={editQtyRef}
-                style={s.editInput}
-                value={editQty}
-                onChangeText={setEditQty}
-                keyboardType="decimal-pad"
-                placeholder="1"
-                placeholderTextColor="#9ca3af"
-                selectTextOnFocus
-                returnKeyType="next"
-                onSubmitEditing={() => editUnitRef.current?.focus()}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.editLabel}>Enhet</Text>
-              <TextInput
-                ref={editUnitRef}
-                style={s.editInput}
-                value={editUnit}
-                onChangeText={setEditUnit}
-                placeholder="g, dl, st…"
-                placeholderTextColor="#9ca3af"
-                autoCapitalize="none"
-                returnKeyType="done"
-              />
-            </View>
+          <View style={s.qtyStepper}>
+            <Pressable
+              style={s.qtyBtn}
+              onPress={() => setEditQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)))}
+            >
+              <Ionicons name="remove" size={22} color="#4f46e5" />
+            </Pressable>
+            <TextInput
+              ref={editQtyRef}
+              style={s.qtyInput}
+              value={editQty}
+              onChangeText={setEditQty}
+              keyboardType="decimal-pad"
+              placeholder="1"
+              placeholderTextColor="#9ca3af"
+              selectTextOnFocus
+              returnKeyType="next"
+              blurOnSubmit={false}
+              onSubmitEditing={() => editUnitRef.current?.focus()}
+            />
+            <Pressable
+              style={s.qtyBtn}
+              onPress={() => setEditQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1))}
+            >
+              <Ionicons name="add" size={22} color="#4f46e5" />
+            </Pressable>
+            <TextInput
+              ref={editUnitRef}
+              style={s.qtyUnitInput}
+              value={editUnit}
+              onChangeText={v => setEditUnit(v.toLowerCase())}
+              placeholder="enhet"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="none"
+              returnKeyType="done"
+            />
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
             <View style={s.unitChipRow}>
@@ -901,7 +962,7 @@ export default function ShoppingListScreen() {
                 ref={qtyUnitRef}
                 style={s.qtyUnitInput}
                 value={qtyUnit}
-                onChangeText={setQtyUnit}
+                onChangeText={v => setQtyUnit(v.toLowerCase())}
                 placeholder="enhet"
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
@@ -914,6 +975,22 @@ export default function ShoppingListScreen() {
                 {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
                   <Pressable key={u} style={[s.unitChip, qtyUnit === u && s.unitChipActive]} onPress={() => setQtyUnit(v => v === u ? '' : u)}>
                     <Text style={[s.unitChipText, qtyUnit === u && s.unitChipTextActive]}>{u}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+            <Text style={s.editLabel}>Kategori</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
+              <View style={s.catChipRow}>
+                {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
+                  <Pressable
+                    key={cat}
+                    style={[s.catChip, qtyCategory === cat && s.catChipActive]}
+                    onPress={() => setQtyCategory(cat)}
+                  >
+                    <Text style={[s.catChipText, qtyCategory === cat && s.catChipTextActive]} numberOfLines={1}>
+                      {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+                    </Text>
                   </Pressable>
                 ))}
               </View>
@@ -950,7 +1027,7 @@ export default function ShoppingListScreen() {
                 </Pressable>
               )}
             </View>
-            <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 8 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView ref={mergeScrollRef} style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 8 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {mergeSheet && mergeSheet.items.length > 0 ? (
                 <Text style={s.sheetSub}>Markera vilka som ska slås ihop</Text>
               ) : (
@@ -964,7 +1041,7 @@ export default function ShoppingListScreen() {
                     color={mergeSelected.has(item.id) ? '#4f46e5' : '#9ca3af'}
                   />
                   <Text style={s.mergeItemText} numberOfLines={1}>
-                    {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}
+                    {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}
                   </Text>
                 </Pressable>
               ))}
@@ -980,30 +1057,30 @@ export default function ShoppingListScreen() {
                 autoCapitalize="none"
               />
               <Text style={s.editLabel}>Ny mängd och enhet</Text>
-              <View style={s.qtyStepper}>
+              <View style={[s.qtyStepper, { gap: 6, marginVertical: 4 }]}>
                 <Pressable
-                  style={s.qtyBtn}
+                  style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
                   onPress={() => setMergeQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
                 >
-                  <Ionicons name="remove" size={22} color="#4f46e5" />
+                  <Ionicons name="remove" size={18} color="#4f46e5" />
                 </Pressable>
                 <TextInput
-                  style={s.qtyInput}
+                  style={[s.qtyInput, { fontSize: 16, fontWeight: '600', paddingVertical: 6 }]}
                   value={mergeQty}
                   onChangeText={setMergeQty}
                   keyboardType="decimal-pad"
                   selectTextOnFocus
                 />
                 <Pressable
-                  style={s.qtyBtn}
+                  style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
                   onPress={() => setMergeQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ','))}
                 >
-                  <Ionicons name="add" size={22} color="#4f46e5" />
+                  <Ionicons name="add" size={18} color="#4f46e5" />
                 </Pressable>
                 <TextInput
-                  style={s.qtyUnitInput}
+                  style={[s.qtyUnitInput, { fontSize: 13, paddingVertical: 6, paddingHorizontal: 8 }]}
                   value={mergeUnit}
-                  onChangeText={setMergeUnit}
+                  onChangeText={v => setMergeUnit(v.toLowerCase())}
                   placeholder="enhet"
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="none"
@@ -1073,6 +1150,48 @@ export default function ShoppingListScreen() {
         </View>
       </Modal>
 
+      {/* Actions menu (3-dot) */}
+      <Modal visible={showActionsMenu} transparent animationType="fade" onRequestClose={() => setShowActionsMenu(false)}>
+        <Pressable style={s.overlay} onPress={() => setShowActionsMenu(false)} />
+        <View style={s.actionsMenu}>
+          <Pressable
+            style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); checkAllUnchecked(); }}
+          >
+            <Ionicons name="checkbox-outline" size={20} color="#4f46e5" />
+            <Text style={s.actionsMenuText}>Klarmarkera alla</Text>
+          </Pressable>
+          <Pressable
+            style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); goToBulkTransfer(); }}
+          >
+            <Ionicons name="restaurant-outline" size={20} color="#4f46e5" />
+            <Text style={s.actionsMenuText}>Importera veckomeny</Text>
+          </Pressable>
+          <Pressable
+            style={s.actionsMenuItem}
+            onPress={() => {
+              setShowActionsMenu(false);
+              if (duplicateGroups.length > 0) openMergeForDupes(duplicateGroups[0]);
+              else setMergeSheet({ name: '', category: 'other' as StoreCategory, items: [] });
+            }}
+          >
+            <Ionicons name="git-merge-outline" size={20} color="#7c3aed" />
+            <Text style={s.actionsMenuText}>
+              Hantera dubbletter{duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ''}
+            </Text>
+          </Pressable>
+          <View style={s.actionsMenuDivider} />
+          <Pressable
+            style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); completeList(); }}
+          >
+            <Ionicons name="trash-outline" size={20} color="#ef4444" />
+            <Text style={[s.actionsMenuText, { color: '#ef4444' }]}>Rensa lista</Text>
+          </Pressable>
+        </View>
+      </Modal>
+
       {/* Manual duplicate picker */}
       <Modal visible={manualPickerOpen} transparent animationType="slide" onRequestClose={() => setManualPickerOpen(false)}>
         <Pressable style={s.overlay} onPress={() => setManualPickerOpen(false)} />
@@ -1102,7 +1221,7 @@ export default function ShoppingListScreen() {
                       color={checked ? '#4f46e5' : '#9ca3af'}
                     />
                     <Text style={s.mergeItemText} numberOfLines={1}>
-                      {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}
+                      {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}
                     </Text>
                   </Pressable>
                 );
@@ -1175,6 +1294,10 @@ const s = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: 12 },
   headerNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  actionsMenu: { position: 'absolute', top: 56, right: 12, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  actionsMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  actionsMenuText: { fontSize: 15, color: '#111827', fontWeight: '500' },
+  actionsMenuDivider: { height: 1, backgroundColor: '#f3f4f6', marginVertical: 4 },
   headerTitle: { paddingHorizontal: 20, paddingTop: 2 },
   headerMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   backBtn: { padding: 10 },
@@ -1187,8 +1310,9 @@ const s = StyleSheet.create({
   list: { padding: 16, gap: 16, paddingBottom: 8 },
   listEmpty: { flex: 1 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
+  emptyImportBtn: { marginBottom: 4 },
   emptyText: { fontSize: 17, fontWeight: '600', color: '#374151', marginTop: 12 },
-  emptySubtext: { fontSize: 13, color: '#9ca3af', marginTop: 4 },
+  emptySubtext: { fontSize: 13, color: '#9ca3af', marginTop: 4, textAlign: 'center', paddingHorizontal: 32 },
   dupeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ede9fe', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   dupeBadgeText: { fontSize: 12, fontWeight: '600', color: '#7c3aed' },
   mergeIgnoreBtn: { paddingVertical: 10 },

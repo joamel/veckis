@@ -89,7 +89,7 @@ export function MonthView({
       !e.exceptions?.includes(dateStr) &&
       (!(e as any).startDate || dateStr >= (e as any).startDate) &&
       (!(e as any).endDate || dateStr <= (e as any).endDate) &&
-      (filterMemberIds.length === 0 || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo)))
+      (filterMemberIds.length === 0 || ((e as { assignedToMany?: string[] }).assignedToMany?.some(id => filterMemberIds.includes(id)) || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo))))
     );
     const hasChores = chores.some(c =>
       choreVisibleOnDay(c, dayOfWeek, day) &&

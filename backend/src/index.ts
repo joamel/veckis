@@ -94,14 +94,13 @@ wss.on('close', () => clearInterval(heartbeatInterval));
 server.on('upgrade', async (req, socket, head) => {
   try {
     const url = new URL(req.url ?? '', 'http://localhost');
-    const match = url.pathname.match(/^\/ws\/shopping\/([^/]+)$/);
-    if (!match) { socket.destroy(); return; }
-    const listId = match[1];
+    const shoppingMatch = url.pathname.match(/^\/ws\/shopping\/([^/]+)$/);
+    const householdMatch = url.pathname.match(/^\/ws\/household\/([^/]+)$/);
+    if (!shoppingMatch && !householdMatch) { socket.destroy(); return; }
 
     const token = url.searchParams.get('token');
     if (!token) { socket.destroy(); return; }
 
-    // Authenticate
     let clerkUserId: string;
     if (isDev) {
       if (token.startsWith('dev_')) {
@@ -119,21 +118,32 @@ server.on('upgrade', async (req, socket, head) => {
       clerkUserId = payload.sub;
     }
 
-    // Verify list membership
-    const list = await prisma.shoppingList.findUnique({ where: { id: listId } });
-    if (!list) { socket.destroy(); return; }
-    const member = await prisma.householdMember.findUnique({
-      where: { householdId_clerkUserId: { householdId: list.householdId, clerkUserId } },
-    });
-    if (!member) { socket.destroy(); return; }
+    let channelKey: string;
+    if (shoppingMatch) {
+      const listId = shoppingMatch[1];
+      const list = await prisma.shoppingList.findUnique({ where: { id: listId } });
+      if (!list) { socket.destroy(); return; }
+      const member = await prisma.householdMember.findUnique({
+        where: { householdId_clerkUserId: { householdId: list.householdId, clerkUserId } },
+      });
+      if (!member) { socket.destroy(); return; }
+      channelKey = listId; // backwards-compat: shopping broadcasts already use bare listId
+    } else {
+      const householdId = householdMatch![1];
+      const member = await prisma.householdMember.findUnique({
+        where: { householdId_clerkUserId: { householdId, clerkUserId } },
+      });
+      if (!member) { socket.destroy(); return; }
+      channelKey = `household:${householdId}`;
+    }
 
     wss.handleUpgrade(req, socket, head, (ws) => {
       const annotated = ws as WebSocket & { isAlive?: boolean };
       annotated.isAlive = true;
       ws.on('pong', () => { annotated.isAlive = true; });
 
-      wsSubscribe(listId, ws);
-      ws.on('close', () => wsUnsubscribe(listId, ws));
+      wsSubscribe(channelKey, ws);
+      ws.on('close', () => wsUnsubscribe(channelKey, ws));
     });
   } catch {
     socket.destroy();

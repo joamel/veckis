@@ -8,8 +8,37 @@ import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { learnIngredientAliases, getStoredCategory, storeIngredientCategory } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
 import { wsBroadcast } from '../lib/wsHub';
+import { planFullUnmerge, findRoot } from '../lib/mergeLogic';
 
 export const shoppingRouter = Router();
+
+// Walk up the merge chain to find the visible root item
+async function findMergeRoot(listId: string, itemId: string): Promise<string> {
+  const all = await prisma.shoppingItem.findMany({
+    where: { listId },
+    select: { id: true, mergedIntoId: true },
+  });
+  return findRoot(all, itemId);
+}
+
+// BFS through a merge tree using pure logic, then apply DB updates.
+async function fullyUnmerge(listId: string, rootId: string): Promise<{ leaves: string[]; containers: string[] }> {
+  const all = await prisma.shoppingItem.findMany({
+    where: { listId },
+    select: { id: true, mergedIntoId: true },
+  });
+  const plan = planFullUnmerge(all, rootId);
+  if (plan.restoreLeaves.length > 0) {
+    await prisma.shoppingItem.updateMany({
+      where: { id: { in: plan.restoreLeaves } },
+      data: { mergedIntoId: null },
+    });
+  }
+  if (plan.deleteContainers.length > 0) {
+    await prisma.shoppingItem.deleteMany({ where: { id: { in: plan.deleteContainers } } });
+  }
+  return { leaves: plan.restoreLeaves, containers: plan.deleteContainers };
+}
 
 const categoryEnum = z.nativeEnum(StoreCategory);
 
@@ -76,10 +105,21 @@ shoppingRouter.get('/lists', requireAuth, asyncHandler(async (req, res) => {
 
   const lists = await prisma.shoppingList.findMany({
     where: { householdId, completedAt: null },
-    include: { items: { orderBy: { createdAt: 'asc' }, include: { recipe: { select: { id: true, title: true } } } }, store: true },
+    include: { items: { where: { mergedIntoId: null }, orderBy: { createdAt: 'asc' }, include: { recipe: { select: { id: true, title: true } } } }, store: true },
     orderBy: { createdAt: 'desc' },
   });
-  res.json(lists);
+  // Augment each list with all menuItemIds (visible + hidden under a merge container)
+  const allItemMenuIds = await prisma.shoppingItem.findMany({
+    where: { listId: { in: lists.map(l => l.id) }, menuItemId: { not: null } },
+    select: { listId: true, menuItemId: true },
+  });
+  const linkedByList = new Map<string, string[]>();
+  for (const r of allItemMenuIds) {
+    if (!r.menuItemId) continue;
+    if (!linkedByList.has(r.listId)) linkedByList.set(r.listId, []);
+    linkedByList.get(r.listId)!.push(r.menuItemId);
+  }
+  res.json(lists.map(l => ({ ...l, linkedMenuItemIds: linkedByList.get(l.id) ?? [] })));
 }));
 
 // GET /api/shopping/lists/:listId
@@ -89,7 +129,7 @@ shoppingRouter.get('/lists/:listId', requireAuth, asyncHandler(async (req, res) 
 
   const full = await prisma.shoppingList.findUnique({
     where: { id: list.id },
-    include: { items: { orderBy: [{ isChecked: 'asc' }, { category: 'asc' }, { name: 'asc' }], include: { recipe: { select: { id: true, title: true } } } }, store: true },
+    include: { items: { where: { mergedIntoId: null }, orderBy: [{ isChecked: 'asc' }, { category: 'asc' }, { name: 'asc' }], include: { recipe: { select: { id: true, title: true } } } }, store: true },
   });
   res.json(full);
 }));
@@ -158,6 +198,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
       name: { equals: normalizedName, mode: 'insensitive' },
       unit: body.data.unit ?? null,
       isChecked: false,
+      mergedIntoId: null,
     },
   });
 
@@ -233,11 +274,91 @@ shoppingRouter.patch('/items/:itemId/check', requireAuth, asyncHandler(async (re
   res.json(item);
 }));
 
+// POST /api/shopping/items/merge — create a new synthetic merge container,
+// hide all source items under it. On delete/unmerge the container disappears
+// and the originals re-emerge intact.
+shoppingRouter.post('/items/merge', requireAuth, asyncHandler(async (req, res) => {
+  const body = z.object({
+    sourceIds: z.array(z.string()).min(2),
+    name: z.string().min(1),
+    quantity: z.number().positive(),
+    unit: z.string().nullable().optional(),
+    category: categoryEnum,
+  }).safeParse(req.body);
+  if (!body.success) {
+    console.error('merge body parse failed:', JSON.stringify(req.body), body.error.flatten());
+    res.status(400).json({ error: body.error.flatten() });
+    return;
+  }
+
+  const sources = await prisma.shoppingItem.findMany({
+    where: { id: { in: body.data.sourceIds } },
+  });
+  if (sources.length !== body.data.sourceIds.length) {
+    res.status(404).json({ error: 'Some source items not found' });
+    return;
+  }
+  const listId = sources[0].listId;
+  if (sources.some(s => s.listId !== listId)) {
+    res.status(400).json({ error: 'All items must belong to the same list' });
+    return;
+  }
+
+  const list = await getListAndVerifyMember(listId, (req as AuthenticatedRequest).clerkUserId, res);
+  if (!list) return;
+
+  const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+
+  const container = await prisma.$transaction(async (tx) => {
+    const created = await tx.shoppingItem.create({
+      data: {
+        listId,
+        name: body.data.name,
+        quantity: body.data.quantity,
+        unit: body.data.unit ?? null,
+        category: body.data.category,
+        addedBy: clerkUserId,
+      },
+      include: { recipe: { select: { id: true, title: true } } },
+    });
+    await tx.shoppingItem.updateMany({
+      where: { id: { in: body.data.sourceIds }, listId },
+      data: { mergedIntoId: created.id },
+    });
+    return created;
+  });
+
+  wsBroadcast(list.id, { type: 'item_added', data: container });
+  for (const id of body.data.sourceIds) {
+    wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+  }
+  res.json(container);
+}));
+
 // DELETE /api/shopping/lists/:listId/items/by-menu-item/:menuItemId
 shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAuth, asyncHandler(async (req, res) => {
   const list = await getListAndVerifyMember(req.params.listId, (req as AuthenticatedRequest).clerkUserId, res);
   if (!list) return;
 
+  const matched = await prisma.shoppingItem.findMany({
+    where: { listId: list.id, menuItemId: req.params.menuItemId },
+    select: { id: true, mergedIntoId: true },
+  });
+
+  // Find every merge root touched by this delete and fully unmerge them
+  const rootsToUnmerge = new Set<string>();
+  for (const m of matched) {
+    rootsToUnmerge.add(await findMergeRoot(list.id, m.id));
+  }
+  const restoredIds: string[] = [];
+  const removedContainerIds: string[] = [];
+  for (const rootId of rootsToUnmerge) {
+    const { leaves, containers } = await fullyUnmerge(list.id, rootId);
+    restoredIds.push(...leaves);
+    removedContainerIds.push(...containers);
+  }
+
+  // Now delete all items with this menuItemId (originals + visible parents that came from this rätt)
   const deleted = await prisma.shoppingItem.findMany({
     where: { listId: list.id, menuItemId: req.params.menuItemId },
     select: { id: true },
@@ -248,6 +369,21 @@ shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAu
   for (const { id } of deleted) {
     wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
   }
+  // Containers that got unmerged are also gone — tell clients
+  for (const id of removedContainerIds) {
+    wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+  }
+
+  // Broadcast survivors as added (formerly hidden items now visible)
+  const deletedIds = new Set([...deleted.map(d => d.id), ...removedContainerIds]);
+  const survivors = await prisma.shoppingItem.findMany({
+    where: { id: { in: restoredIds.filter(id => !deletedIds.has(id)) } },
+    include: { recipe: { select: { id: true, title: true } } },
+  });
+  for (const s of survivors) {
+    wsBroadcast(list.id, { type: 'item_added', data: s });
+  }
+
   res.status(204).send();
 }));
 
@@ -258,6 +394,24 @@ shoppingRouter.delete('/items/:itemId', requireAuth, asyncHandler(async (req, re
 
   const list = await getListAndVerifyMember(existing.listId, (req as AuthenticatedRequest).clerkUserId, res);
   if (!list) return;
+
+  // If this is a merge container (has children), fullyUnmerge handles deletion + restoration
+  const hasChildren = await prisma.shoppingItem.findFirst({ where: { mergedIntoId: existing.id }, select: { id: true } });
+  if (hasChildren) {
+    const { leaves, containers } = await fullyUnmerge(existing.listId, existing.id);
+    for (const id of containers) {
+      wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+    }
+    const survivors = await prisma.shoppingItem.findMany({
+      where: { id: { in: leaves } },
+      include: { recipe: { select: { id: true, title: true } } },
+    });
+    for (const s of survivors) {
+      wsBroadcast(list.id, { type: 'item_added', data: s });
+    }
+    res.status(204).send();
+    return;
+  }
 
   await prisma.shoppingItem.delete({ where: { id: existing.id } });
   wsBroadcast(list.id, { type: 'item_deleted', data: { id: existing.id } });

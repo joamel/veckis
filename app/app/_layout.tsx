@@ -2,7 +2,10 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
+import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { HouseholdProvider, useHousehold } from '../src/context/HouseholdContext';
 import { ToastProvider } from '../src/context/ToastContext';
 
@@ -14,6 +17,17 @@ const tokenCache = {
     return SecureStore.setItemAsync(key, value);
   },
 };
+
+function StatusBarBackdrop() {
+  const insets = useSafeAreaInsets();
+  if (insets.top === 0) return null;
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: '#111827', zIndex: 1000 }}
+    />
+  );
+}
 
 function NavigationGuard() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -44,16 +58,20 @@ function NavigationGuard() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ClerkProvider
-        publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
-        tokenCache={tokenCache}
-      >
-        <HouseholdProvider>
-          <ToastProvider>
-            <NavigationGuard />
-          </ToastProvider>
-        </HouseholdProvider>
-      </ClerkProvider>
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <StatusBarBackdrop />
+        <ClerkProvider
+          publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
+          tokenCache={tokenCache}
+        >
+          <HouseholdProvider>
+            <ToastProvider>
+              <NavigationGuard />
+            </ToastProvider>
+          </HouseholdProvider>
+        </ClerkProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
