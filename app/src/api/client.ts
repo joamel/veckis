@@ -168,26 +168,26 @@ export function useApiClient() {
     getChores: (householdId: string) =>
       request<(Chore & { completions: ChoreCompletion[] })[]>(`/api/chores?householdId=${householdId}`),
 
-    createChore: (data: { householdId: string; title: string; description?: string; frequency?: ChoreFrequency; assignedTo?: string | null; days?: WeekDay[]; isShared?: boolean; startDate?: string | null; endDate?: string | null; recurrenceType?: Chore['recurrenceType']; recurrenceWeeks?: number; monthlyType?: Chore['monthlyType']; recurrenceWeekOfMonth?: number | null }) =>
+    createChore: (data: { householdId: string; title: string; emoji?: string | null; description?: string; frequency?: ChoreFrequency; assignedTo?: string | null; days?: WeekDay[]; isShared?: boolean; startDate?: string | null; endDate?: string | null; recurrenceType?: Chore['recurrenceType']; recurrenceWeeks?: number; monthlyType?: Chore['monthlyType']; recurrenceWeekOfMonth?: number | null }) =>
       request<Chore>('/api/chores', { method: 'POST', body: JSON.stringify(data) }),
 
-    updateChore: (choreId: string, data: Partial<Pick<Chore, 'title' | 'description' | 'frequency' | 'assignedTo' | 'days' | 'isShared' | 'startDate' | 'endDate' | 'recurrenceType' | 'recurrenceWeeks' | 'monthlyType' | 'recurrenceWeekOfMonth'>>) =>
+    updateChore: (choreId: string, data: Partial<Pick<Chore, 'title' | 'emoji' | 'description' | 'frequency' | 'assignedTo' | 'days' | 'isShared' | 'startDate' | 'endDate' | 'recurrenceType' | 'recurrenceWeeks' | 'monthlyType' | 'recurrenceWeekOfMonth'>>) =>
       request<Chore>(`/api/chores/${choreId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteChore: (choreId: string) =>
       request<void>(`/api/chores/${choreId}`, { method: 'DELETE' }),
 
-    completeChore: (choreId: string, day?: WeekDay | null, note?: string) =>
+    completeChore: (choreId: string, day?: WeekDay | null, note?: string, date?: string | null) =>
       request<ChoreCompletion>(`/api/chores/${choreId}/complete`, {
         method: 'POST',
-        body: JSON.stringify({ day, note }),
+        body: JSON.stringify({ day, note, date }),
       }),
 
     getChoreCompletions: (choreId: string) =>
       request<ChoreCompletion[]>(`/api/chores/${choreId}/completions`),
 
-    uncompleteChore: (choreId: string, day?: WeekDay | null) => {
-      const qs = day ? `?day=${day}` : '';
+    uncompleteChore: (choreId: string, day?: WeekDay | null, date?: string | null) => {
+      const qs = date ? `?date=${date}` : day ? `?day=${day}` : '';
       return request<void>(`/api/chores/${choreId}/complete${qs}`, { method: 'DELETE' });
     },
 
@@ -195,7 +195,7 @@ export function useApiClient() {
     getSchedule: (householdId: string) =>
       request<ScheduleEntry[]>(`/api/schedule?householdId=${householdId}`),
 
-    createScheduleEntry: (data: { householdId: string; title: string; day: WeekDay; description?: string; startTime?: string; endTime?: string; assignedTo?: string; assignedToMany?: string[]; isShared?: boolean; recurrenceType?: RecurrenceType; recurrenceDays?: WeekDay[]; recurrenceWeeks?: number; monthlyType?: string; recurrenceWeekOfMonth?: number | null; startDate?: string | null; endDate?: string | null }) =>
+    createScheduleEntry: (data: { householdId: string; title: string; emoji?: string | null; day: WeekDay; description?: string; startTime?: string; endTime?: string; assignedTo?: string; assignedToMany?: string[]; isShared?: boolean; recurrenceType?: RecurrenceType; recurrenceDays?: WeekDay[]; recurrenceWeeks?: number; monthlyType?: string; recurrenceWeekOfMonth?: number | null; startDate?: string | null; endDate?: string | null }) =>
       request<ScheduleEntry>('/api/schedule', { method: 'POST', body: JSON.stringify(data) }),
 
     updateScheduleEntry: (entryId: string, data: Partial<Omit<ScheduleEntry, 'id' | 'householdId' | 'createdBy'>>) =>

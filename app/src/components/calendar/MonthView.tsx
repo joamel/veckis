@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { ScheduleEntry, WeekDay, Chore, ChoreCompletion } from '@veckis/shared';
-import { getISOWeek } from '../../lib/week';
+import { occursOn } from '@veckis/shared';
 
 interface MonthViewProps {
   date: Date;
@@ -20,26 +20,30 @@ interface MonthViewProps {
 
 function choreVisibleOnDay(
   chore: Chore & { completions: ChoreCompletion[] },
-  dayOfWeek: WeekDay,
   date: Date
 ): boolean {
-  if (chore.frequency === 'once') return false;
-  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  if ((chore as any).startDate && dateStr < (chore as any).startDate) return false;
-  if ((chore as any).endDate && dateStr > (chore as any).endDate) return false;
-  if (chore.frequency === 'daily') return true;
-  if (!chore.days.includes(dayOfWeek)) return false;
-  if (chore.frequency === 'weekly') return true;
-  if (chore.frequency === 'biweekly') {
-    const { weekNumber } = getISOWeek(date);
-    return weekNumber % 2 === 0;
+  // Non-recurring chores are not shown via recurrence — they show as one-offs on startDate.
+  if (chore.recurrenceType && chore.recurrenceType !== 'none') {
+    return occursOn({
+      recurrenceType: chore.recurrenceType,
+      recurrenceWeeks: chore.recurrenceWeeks,
+      recurrenceDays: chore.days,
+      monthlyType: chore.monthlyType,
+      recurrenceWeekOfMonth: chore.recurrenceWeekOfMonth,
+      startDate: chore.startDate,
+      endDate: chore.endDate,
+    }, date);
   }
-  const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-  const firstWeekday = firstOfMonth.getDay();
-  const targetWeekday = date.getDay();
-  let offset = targetWeekday - firstWeekday;
-  if (offset < 0) offset += 7;
-  return 1 + offset === date.getDate();
+  // Legacy fallback for chores without recurrenceType (pre-migration data).
+  if (chore.frequency === 'once') return false;
+  const wday: WeekDay = ['sun','mon','tue','wed','thu','fri','sat'][date.getDay()] as WeekDay;
+  return occursOn({
+    recurrenceType: chore.frequency === 'daily' ? 'daily' : chore.frequency === 'monthly' ? 'monthly' : 'weekly',
+    recurrenceWeeks: chore.frequency === 'biweekly' ? 2 : 1,
+    recurrenceDays: chore.days.length > 0 ? chore.days : [wday],
+    startDate: chore.startDate ?? null,
+    endDate: chore.endDate ?? null,
+  }, date);
 }
 
 export function MonthView({
@@ -92,7 +96,7 @@ export function MonthView({
       (filterMemberIds.length === 0 || ((e as { assignedToMany?: string[] }).assignedToMany?.some(id => filterMemberIds.includes(id)) || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo))))
     );
     const hasChores = chores.some(c =>
-      choreVisibleOnDay(c, dayOfWeek, day) &&
+      choreVisibleOnDay(c, day) &&
       (filterMemberIds.length === 0 || (c.assignedTo != null && filterMemberIds.includes(c.assignedTo)))
     );
     return hasEntries || hasChores;

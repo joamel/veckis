@@ -529,6 +529,7 @@ export default function SettingsScreen() {
       {/* Edit Household Name Modal */}
       <Modal visible={showEditHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowEditHouseholdModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Byt namn på hushållet</Text>
@@ -553,11 +554,13 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Delete Household Confirmation Modal */}
       <Modal visible={showDeleteHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowDeleteHouseholdModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Ta bort hushållet</Text>
@@ -586,11 +589,13 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Edit Member Modal */}
       <Modal visible={showEditMemberModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowEditMemberModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Redigera smeknamn</Text>
@@ -615,11 +620,13 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Create Local Profile Modal */}
       <Modal visible={showCreateLocalModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowCreateLocalModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Lägg till lokal profil</Text>
@@ -645,11 +652,13 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Create Household Modal */}
       <Modal visible={showCreateHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowCreateHouseholdModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Skapa nytt hushåll</Text>
@@ -674,11 +683,13 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Join Household Modal */}
       <Modal visible={showJoinHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowJoinHouseholdModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Gå med i hushåll</Text>
@@ -705,6 +716,7 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Animated.View style={[styles.toast, toastVariant === 'neutral' && styles.toastNeutral, { opacity: toastOpacity }]} pointerEvents="none">

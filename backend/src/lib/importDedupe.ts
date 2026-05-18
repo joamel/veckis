@@ -26,6 +26,13 @@ export interface ExistingItem {
   mergedIntoId: string | null;
   isChecked: boolean;
   category: string;
+  /**
+   * True when at least one other item points to this row via mergedIntoId.
+   * Containers are synthetic aggregates: bumping their qty without adding
+   * a child orphans the contribution. The unbound-fallback in
+   * `planIncomingMatch` must skip containers.
+   */
+  hasChildren?: boolean;
 }
 
 export interface MatchPlan {
@@ -65,11 +72,13 @@ export function planIncomingMatch(
 ): MatchPlan {
   const active = existing.filter(e => !e.mergedIntoId && !e.isChecked);
   const byMenuItem = new Map<string, ExistingItem>(); // `${name|unit}|${menuItemId}`
-  const byNameUnit = new Map<string, ExistingItem>(); // unbound only
+  const byNameUnit = new Map<string, ExistingItem>(); // unbound, non-container only
   for (const e of active) {
     const k = keyOf(e.name, e.unit, normalize);
     if (e.menuItemId) byMenuItem.set(`${k}|${e.menuItemId}`, e);
-    else byNameUnit.set(k, e);
+    // Skip containers: bumping their qty silently orphans the contribution
+    // because containers have no menuItemId of their own (their children do).
+    else if (!e.hasChildren) byNameUnit.set(k, e);
   }
 
   const toUpdate: MatchPlan['toUpdate'] = [];

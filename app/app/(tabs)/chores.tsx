@@ -23,6 +23,7 @@ import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/clerk-expo';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useMemberFilter } from '../../src/context/MemberFilterContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -156,14 +157,18 @@ export default function ChoresScreen() {
         ? { ...c, completions: c.completions.some(x => x.id === msg.data.id) ? c.completions : [msg.data, ...c.completions] }
         : c));
     } else if (msg.type === 'chore_uncompleted') {
+      const { date, day } = msg.data;
       setChores(prev => prev.map(c => c.id === msg.data.id
-        ? { ...c, completions: c.completions.filter(x => x.day !== msg.data.day || (Date.now() - new Date(x.completedAt).getTime()) > 86_400_000) }
+        ? { ...c, completions: c.completions.filter(x => {
+            if (date) return x.date !== date;
+            return x.day !== day || (Date.now() - new Date(x.completedAt).getTime()) > 86_400_000;
+          }) }
         : c));
     }
   });
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
-  const [filterMemberIds, setFilterMemberIds] = useState<string[]>([]);
+  const { filterMemberIds, setFilterMemberIds } = useMemberFilter();
   const [showFilterModal, setShowFilterModal] = useState(false);
 
   // Create modal
@@ -175,6 +180,8 @@ export default function ChoresScreen() {
   const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
   const [newMonthlyType, setNewMonthlyType] = useState<'day_of_month' | 'weekday_of_month'>('day_of_month');
   const [newRecurrenceWeekOfMonth, setNewRecurrenceWeekOfMonth] = useState(1);
+  const [newMonthDay, setNewMonthDay] = useState(1);
+  const [newWeekday, setNewWeekday] = useState<WeekDay>('mon');
   const [creating, setCreating] = useState(false);
 
   // Edit modal
@@ -186,6 +193,8 @@ export default function ChoresScreen() {
   const [editRecurrenceDays, setEditRecurrenceDays] = useState<WeekDay[]>([]);
   const [editMonthlyType, setEditMonthlyType] = useState<'day_of_month' | 'weekday_of_month'>('day_of_month');
   const [editRecurrenceWeekOfMonth, setEditRecurrenceWeekOfMonth] = useState(1);
+  const [editMonthDay, setEditMonthDay] = useState(1);
+  const [editWeekday, setEditWeekday] = useState<WeekDay>('mon');
   const [saving, setSaving] = useState(false);
 
   // Date range state
@@ -236,16 +245,48 @@ export default function ChoresScreen() {
     return members.find(m => m.id === memberId)?.displayName ?? null;
   }
 
+  // For monthly recurrence we encode the user's chosen pattern in startDate so it
+  // round-trips: day_of_month uses the chosen day, weekday_of_month resolves to the
+  // Nth occurrence of the chosen weekday in the current month.
+  function buildMonthlyStartDate(monthlyType: 'day_of_month' | 'weekday_of_month', dayOfMonth: number, weekday: WeekDay, weekOfMonth: number): string {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    if (monthlyType === 'day_of_month') {
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const d = Math.min(Math.max(1, dayOfMonth), daysInMonth);
+      return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+    const wIdx = ['sun','mon','tue','wed','thu','fri','sat'].indexOf(weekday);
+    const firstWeekdayIdx = new Date(y, m, 1).getDay();
+    const offset = (wIdx - firstWeekdayIdx + 7) % 7;
+    const d = 1 + offset + (Math.max(1, weekOfMonth) - 1) * 7;
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+
+  function deriveMonthlyFromStartDate(startDate: string | null): { dayOfMonth: number; weekday: WeekDay } {
+    if (!startDate) return { dayOfMonth: 1, weekday: 'mon' };
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startDate);
+    if (!m) return { dayOfMonth: 1, weekday: 'mon' };
+    const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const days: WeekDay[] = ['sun','mon','tue','wed','thu','fri','sat'];
+    return { dayOfMonth: dt.getDate(), weekday: days[dt.getDay()] };
+  }
+
   async function createChore() {
     if (!householdId || !newTitle.trim()) return;
     setCreating(true);
     try {
+      const days = newRecurrenceType === 'weekly' ? newRecurrenceDays : [];
+      const startDate = newRecurrenceType === 'monthly' && !newStartDate
+        ? buildMonthlyStartDate(newMonthlyType, newMonthDay, newWeekday, newRecurrenceWeekOfMonth)
+        : newStartDate;
       const chore = await client.createChore({
         householdId,
         title: newTitle.trim(),
         assignedTo: newAssignedTo,
-        days: newRecurrenceType === 'weekly' ? newRecurrenceDays : [],
-        startDate: newStartDate,
+        days,
+        startDate,
         endDate: newEndDate,
         recurrenceType: newRecurrenceType,
         recurrenceWeeks: newRecurrenceWeeks,
@@ -262,6 +303,8 @@ export default function ChoresScreen() {
       setNewRecurrenceDays([]);
       setNewMonthlyType('day_of_month');
       setNewRecurrenceWeekOfMonth(1);
+      setNewMonthDay(1);
+      setNewWeekday('mon');
       setNewStartDate(null);
       setNewEndDate(null);
     } catch {
@@ -288,17 +331,24 @@ export default function ChoresScreen() {
     setEditRecurrenceWeekOfMonth(chore.recurrenceWeekOfMonth ?? 1);
     setEditStartDate(chore.startDate ?? null);
     setEditEndDate(chore.endDate ?? null);
+    const derived = deriveMonthlyFromStartDate(chore.startDate ?? null);
+    setEditMonthDay(derived.dayOfMonth);
+    setEditWeekday(derived.weekday);
   }
 
   async function saveEdit() {
     if (!editingChore || !editTitle.trim()) return;
     setSaving(true);
     try {
+      const days = editRecurrenceType === 'weekly' ? editRecurrenceDays : [];
+      const startDate = editRecurrenceType === 'monthly'
+        ? buildMonthlyStartDate(editMonthlyType, editMonthDay, editWeekday, editRecurrenceWeekOfMonth)
+        : editStartDate;
       const updated = await client.updateChore(editingChore.id, {
         title: editTitle.trim(),
         assignedTo: editAssignedTo,
-        days: editRecurrenceType === 'weekly' ? editRecurrenceDays : [],
-        startDate: editStartDate,
+        days,
+        startDate,
         endDate: editEndDate,
         recurrenceType: editRecurrenceType,
         recurrenceWeeks: editRecurrenceWeeks,
@@ -336,7 +386,7 @@ export default function ChoresScreen() {
 
   async function completeChore(chore: ChoreWithCompletion) {
     const fakeId = '__opt__';
-    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', completedAt: new Date().toISOString(), note: null, day: null };
+    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', completedAt: new Date().toISOString(), note: null, day: null, date: null };
     setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
     try {
       const completion = await client.completeChore(chore.id, null);
@@ -446,6 +496,9 @@ export default function ChoresScreen() {
                 onPress={() => { if (!editMode) openEdit(item); }}
                 onLongPress={() => { medium(); setEditMode(true); }}
               >
+                <View style={s.cardIcon}>
+                  <Ionicons name="sparkles-outline" size={fs(16)} color="#7c3aed" />
+                </View>
                 <View style={s.cardContent}>
                   <Text style={[s.cardTitle, { fontSize: fs(16) }, done && s.cardTitleDone]}>{item.title}</Text>
                   <Text style={[s.cardMeta, { fontSize: fs(12) }]}>
@@ -536,7 +589,7 @@ export default function ChoresScreen() {
       {/* Create modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
         <Pressable style={s.overlay} onPress={() => setShowCreate(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny syssla</Text>
@@ -570,6 +623,10 @@ export default function ChoresScreen() {
               monthlyType={newMonthlyType}
               recurrenceWeekOfMonth={newRecurrenceWeekOfMonth}
               endDate={newEndDate}
+              dayOfMonth={newMonthDay}
+              onChangeDayOfMonth={setNewMonthDay}
+              weekday={newWeekday}
+              onChangeWeekday={setNewWeekday}
               onChangeType={setNewRecurrenceType}
               onChangeWeeks={setNewRecurrenceWeeks}
               onChangeDays={setNewRecurrenceDays}
@@ -611,7 +668,7 @@ export default function ChoresScreen() {
       {/* Edit modal */}
       <Modal visible={!!editingChore} transparent animationType="slide" onRequestClose={() => setEditingChore(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingChore(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera syssla</Text>
@@ -644,6 +701,10 @@ export default function ChoresScreen() {
               monthlyType={editMonthlyType}
               recurrenceWeekOfMonth={editRecurrenceWeekOfMonth}
               endDate={editEndDate}
+              dayOfMonth={editMonthDay}
+              onChangeDayOfMonth={setEditMonthDay}
+              weekday={editWeekday}
+              onChangeWeekday={setEditWeekday}
               onChangeType={setEditRecurrenceType}
               onChangeWeeks={setEditRecurrenceWeeks}
               onChangeDays={setEditRecurrenceDays}
@@ -704,6 +765,7 @@ const s = StyleSheet.create({
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   cardDone: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
+  cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#f5f3ff', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1, minWidth: 0 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
   cardTitleDone: { textDecorationLine: 'line-through', color: '#9ca3af' },
@@ -712,7 +774,7 @@ const s = StyleSheet.create({
   checkBtnDone: { backgroundColor: '#10b981', borderColor: '#10b981' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, height: '92%' },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '92%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 12 },
   sheetScroll: { gap: 14, paddingBottom: 40 },

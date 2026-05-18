@@ -18,6 +18,7 @@ const recurrenceFields = {
 const createChoreSchema = z.object({
   householdId: z.string(),
   title: z.string().min(1).max(200),
+  emoji: z.string().max(8).nullable().optional(),
   description: z.string().optional(),
   frequency: z.nativeEnum(ChoreFrequency).default('weekly'),
   assignedTo: z.string().nullable().optional(),
@@ -30,6 +31,7 @@ const createChoreSchema = z.object({
 
 const updateChoreSchema = z.object({
   title: z.string().min(1).max(200).optional(),
+  emoji: z.string().max(8).nullable().optional(),
   description: z.string().nullable().optional(),
   frequency: z.nativeEnum(ChoreFrequency).optional(),
   assignedTo: z.string().nullable().optional(),
@@ -139,6 +141,7 @@ choresRouter.post('/:choreId/complete', requireAuth, asyncHandler(async (req, re
   const body = z.object({
     note: z.string().optional(),
     day: z.nativeEnum(WeekDay).nullable().optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
@@ -148,6 +151,7 @@ choresRouter.post('/:choreId/complete', requireAuth, asyncHandler(async (req, re
       completedBy: (req as AuthenticatedRequest).clerkUserId,
       note: body.data.note,
       day: body.data.day ?? null,
+      date: body.data.date ?? null,
     },
   });
   wsBroadcast(`household:${chore.householdId}`, { type: 'chore_completed', data: completion });
@@ -167,10 +171,22 @@ choresRouter.get('/:choreId/completions', requireAuth, asyncHandler(async (req, 
   res.json(completions);
 }));
 
-// DELETE /api/chores/:choreId/complete?day=mon  — undo completion within last 24h
+// DELETE /api/chores/:choreId/complete?date=YYYY-MM-DD — undo completion for that date.
+// Falls back to ?day=mon (legacy) which removes completions of that weekday within last 24h.
 choresRouter.delete('/:choreId/complete', requireAuth, asyncHandler(async (req, res) => {
   const chore = await getChoreAndVerifyMember(req.params.choreId, (req as AuthenticatedRequest).clerkUserId, res);
   if (!chore) return;
+
+  const dateRaw = req.query.date;
+  const dateParse = typeof dateRaw === 'string' ? z.string().regex(/^\d{4}-\d{2}-\d{2}$/).safeParse(dateRaw) : null;
+  const date = dateParse?.success ? dateParse.data : null;
+
+  if (date) {
+    await prisma.choreCompletion.deleteMany({ where: { choreId: chore.id, date } });
+    wsBroadcast(`household:${chore.householdId}`, { type: 'chore_uncompleted', data: { id: chore.id, day: null, date } });
+    res.status(204).send();
+    return;
+  }
 
   const dayRaw = req.query.day;
   const dayParse = typeof dayRaw === 'string' ? z.nativeEnum(WeekDay).safeParse(dayRaw) : null;

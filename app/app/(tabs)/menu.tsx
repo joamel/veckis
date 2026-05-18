@@ -4,7 +4,9 @@ import {
   Alert,
   Animated as RNAnimated,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -942,6 +944,7 @@ export default function MenuScreen() {
       {/* Transfer to shopping list modal */}
       <Modal visible={!!transferSheet} transparent animationType="slide" onRequestClose={() => setTransferSheet(null)}>
         <Pressable style={s.overlay} onPress={() => setTransferSheet(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Välj inköpslista</Text>
@@ -987,11 +990,13 @@ export default function MenuScreen() {
             ))
           )}
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Bulk transfer modal — choose recipes and list */}
       <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleCancelBulkTransfer()}>
         <Pressable style={s.overlay} onPress={() => handleCancelBulkTransfer()} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
 
@@ -1232,6 +1237,7 @@ export default function MenuScreen() {
             </>
           )}
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <DatePickerModal

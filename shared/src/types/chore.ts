@@ -4,6 +4,7 @@ export interface Chore {
   id: string;
   householdId: string;
   title: string;
+  emoji: string | null;
   description: string | null;
   frequency: ChoreFrequency;
   assignedTo: string | null;
@@ -26,4 +27,5 @@ export interface ChoreCompletion {
   completedAt: string;
   note: string | null;
   day: import('./schedule').WeekDay | null;
+  date: string | null;
 }

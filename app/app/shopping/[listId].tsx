@@ -82,6 +82,23 @@ export default function ShoppingListScreen() {
   const [editCategory, setEditCategory] = useState<StoreCategory>('other');
   const [saving, setSaving] = useState(false);
 
+  // Collapsed categories — tap category header to fold/unfold its items.
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<StoreCategory | 'checked'>>(new Set());
+  function toggleCategoryCollapsed(cat: StoreCategory | 'checked') {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  }
+
+  // Staple edit modal (long-press on suggestion chip)
+  const [editingStaple, setEditingStaple] = useState<StapleItem | null>(null);
+  const [stapleName, setStapleName] = useState('');
+  const [stapleUnit, setStapleUnit] = useState('');
+  const [stapleCategory, setStapleCategory] = useState<StoreCategory>('other');
+  const [savingStaple, setSavingStaple] = useState(false);
+
   // Store picker modal
   const [showStorePicker, setShowStorePicker] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -448,32 +465,75 @@ export default function ShoppingListScreen() {
     const qty = parseFloat(editQty.replace(',', '.')) || 1;
     const unit = editUnit.trim() || null;
     const name = (editName.trim() || editingItem.name).toLowerCase();
+    const snapshot = editingItem;
+    // Optimistic: update list + close modal before awaiting backend
+    const optimisticItems = (list?.items ?? []).map(i =>
+      i.id === editingItem.id ? { ...i, name, quantity: qty, unit, category: editCategory } : i
+    );
+    setList(prev => prev ? { ...prev, items: optimisticItems } : prev);
+    setEditingItem(null);
     try {
-      const updated = await client.updateShoppingItem(editingItem.id, {
+      const updated = await client.updateShoppingItem(snapshot.id, {
         name,
         quantity: qty,
         unit,
         category: editCategory,
       });
-      const savedRecipe = editingItem.recipe;
-      const updatedItems = (list?.items ?? []).map(i =>
+      const savedRecipe = snapshot.recipe;
+      const finalItems = optimisticItems.map(i =>
         i.id === updated.id ? { ...updated, recipe: savedRecipe } : i
       );
-      setList(prev => prev ? { ...prev, items: updatedItems } : prev);
-      setEditingItem(null);
+      setList(prev => prev ? { ...prev, items: finalItems } : prev);
       if (householdId) {
-        const categoryChanged = editCategory !== editingItem.category;
-        const unitChanged = unit !== editingItem.unit;
+        const categoryChanged = editCategory !== snapshot.category;
+        const unitChanged = unit !== snapshot.unit;
         if (categoryChanged || unitChanged) {
           client.upsertStaple({ householdId, name, category: editCategory, unit }).catch(() => {});
         }
       }
-      const dupes = updatedItems.filter(i => !i.isChecked && i.name.toLowerCase().trim() === name);
-      if (dupes.length >= 2) openMergeForDupes(dupes, updated);
+      const dupes = finalItems.filter(i => !i.isChecked && i.name.toLowerCase().trim() === name);
+      if (dupes.length >= 2) {
+        // Auto-merge silently if all dupes share the same unit (normalized)
+        const norm = (u: string | null | undefined) => (u ?? '').trim().toLowerCase();
+        const sameUnit = dupes.every(d => norm(d.unit) === norm(unit));
+        if (sameUnit) {
+          autoMergeDupes(dupes, name, editCategory, unit);
+        } else {
+          openMergeForDupes(dupes, updated);
+        }
+      }
     } catch {
+      // Rollback optimistic
+      setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === snapshot.id ? snapshot : i) } : prev);
       Alert.alert('Fel', 'Kunde inte spara ändringen');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function autoMergeDupes(
+    dupes: ShoppingItemWithRecipe[],
+    name: string,
+    category: StoreCategory,
+    unit: string | null,
+  ) {
+    const totalQty = dupes.reduce((sum, d) => sum + (d.quantity ?? 1), 0);
+    const sourceIds = dupes.map(d => d.id);
+    const hideIds = new Set(sourceIds);
+    try {
+      const container = await client.mergeShoppingItems({
+        sourceIds, name, quantity: totalQty, unit, category,
+      });
+      setList(prev => prev ? {
+        ...prev,
+        items: [
+          ...prev.items.filter(i => !hideIds.has(i.id) && i.id !== container.id),
+          { ...container, recipe: null } as ShoppingItemWithRecipe,
+        ],
+      } : prev);
+      showGlobalToast(`Slog ihop ${dupes.length} ${capitalize(name)}`, 'success');
+    } catch {
+      // Silent — user can still merge manually via dupe button
     }
   }
 
@@ -513,6 +573,75 @@ export default function ShoppingListScreen() {
           }
         }, 5000);
       }},
+    ]);
+  }
+
+  function openStapleEditor(suggestion: StapleItem) {
+    // Suggestion chips include both real staples (DB row, has cuid id) and ingredient
+    // suggestions (synthetic id "suggestion:<name>", no DB row yet). For the latter we
+    // open the editor in "create" mode — saving creates the staple.
+    setEditingStaple(suggestion);
+    setStapleName(suggestion.name);
+    setStapleUnit(suggestion.unit ?? '');
+    setStapleCategory(suggestion.category as StoreCategory);
+  }
+
+  async function saveStapleEdit() {
+    if (!editingStaple || !householdId) return;
+    const newName = stapleName.trim().toLowerCase();
+    if (!newName) return;
+    setSavingStaple(true);
+    const original = editingStaple;
+    const isNew = original.id.startsWith('suggestion:');
+    const optimistic: StapleItem = { ...original, name: newName, unit: stapleUnit.trim() || null, category: stapleCategory };
+    if (!isNew) {
+      setStaples(prev => prev.map(s2 => s2.id === original.id ? optimistic : s2));
+    }
+    setEditingStaple(null);
+    try {
+      // Rename of existing staple: delete old, create new (upsert keyed on householdId+name).
+      if (!isNew && newName !== original.name) {
+        await client.deleteStaple(original.id);
+      }
+      const saved = await client.upsertStaple({
+        householdId,
+        name: newName,
+        category: stapleCategory,
+        unit: stapleUnit.trim() || null,
+      });
+      setStaples(prev => {
+        const without = prev.filter(s2 => s2.id !== original.id && s2.id !== saved.id);
+        return [...without, saved];
+      });
+      showGlobalToast(isNew ? `${capitalize(newName)} sparad som basvara` : `${capitalize(newName)} uppdaterad`, 'success');
+    } catch {
+      if (!isNew) setStaples(prev => prev.map(s2 => s2.id === original.id ? original : s2));
+      Alert.alert('Fel', 'Kunde inte spara basvaran');
+    } finally {
+      setSavingStaple(false);
+    }
+  }
+
+  async function deleteStaple() {
+    if (!editingStaple) return;
+    const target = editingStaple;
+    if (target.id.startsWith('suggestion:')) {
+      // Synthetic suggestion — nothing to delete server-side, just close.
+      setEditingStaple(null);
+      return;
+    }
+    Alert.alert('Ta bort basvara', `Ta bort "${capitalize(target.name)}" från basvarorna?`, [
+      { text: 'Avbryt', style: 'cancel' },
+      { text: 'Ta bort', style: 'destructive', onPress: async () => {
+        setStaples(prev => prev.filter(s2 => s2.id !== target.id));
+        setEditingStaple(null);
+        try {
+          await client.deleteStaple(target.id);
+        } catch {
+          setStaples(prev => [...prev, target]);
+          Alert.alert('Fel', 'Kunde inte ta bort basvaran');
+        }
+      } },
     ]);
   }
 
@@ -648,28 +777,41 @@ export default function ShoppingListScreen() {
         )}
 
         {/* Category groups */}
-        {categoryGroups.map(group => (
-          <View key={group.category} style={s.categoryGroup}>
-            <View style={s.categoryHeader}>
-              <Text style={s.categoryLabel}>{CATEGORY_EMOJIS[group.category]} {CATEGORY_LABELS[group.category]}</Text>
+        {categoryGroups.map(group => {
+          const collapsed = collapsedCategories.has(group.category);
+          return (
+            <View key={group.category} style={s.categoryGroup}>
+              <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed(group.category)} hitSlop={4}>
+                <Text style={s.categoryLabel}>
+                  {CATEGORY_EMOJIS[group.category]} {CATEGORY_LABELS[group.category]}
+                  {collapsed ? ` (${group.items.length})` : ''}
+                </Text>
+                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#9ca3af" />
+              </Pressable>
+              {!collapsed && group.items.map(item => (
+                <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
+              ))}
             </View>
-            {group.items.map(item => (
-              <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
-            ))}
-          </View>
-        ))}
+          );
+        })}
 
         {/* Checked items */}
-        {checked.length > 0 && (
-          <View style={s.categoryGroup}>
-            <View style={s.categoryHeader}>
-              <Text style={[s.categoryLabel, { color: '#9ca3af' }]}>Bockat</Text>
+        {checked.length > 0 && (() => {
+          const collapsed = collapsedCategories.has('checked');
+          return (
+            <View style={s.categoryGroup}>
+              <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={4}>
+                <Text style={[s.categoryLabel, { color: '#9ca3af' }]}>
+                  Bockat{collapsed ? ` (${checked.length})` : ''}
+                </Text>
+                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#d1d5db" />
+              </Pressable>
+              {!collapsed && checked.map(item => (
+                <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
+              ))}
             </View>
-            {checked.map(item => (
-              <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
-            ))}
-          </View>
-        )}
+          );
+        })()}
       </ScrollView>
 
       {/* Autocomplete chips + add bar */}
@@ -686,6 +828,8 @@ export default function ShoppingListScreen() {
                   key={s2.id}
                   style={s.chip}
                   onPress={() => openQtySheet(s2.name, s2.category as StoreCategory)}
+                  onLongPress={() => openStapleEditor(s2)}
+                  delayLongPress={350}
                 >
                   <Text style={s.chipText}>{capitalize(s2.name)}</Text>
                 </TouchableOpacity>
@@ -734,7 +878,12 @@ export default function ShoppingListScreen() {
 
           {stores.map(store => (
             <View key={store.id} style={s.storeRow}>
-              <Pressable style={[s.storeOption, s.storeOptionFlex, list.storeId === store.id && s.storeOptionActive]} onPress={() => selectStore(store.id)}>
+              <Pressable
+                style={[s.storeOption, s.storeOptionFlex, list.storeId === store.id && s.storeOptionActive]}
+                onPress={() => selectStore(store.id)}
+                onLongPress={() => { setShowStorePicker(false); openCategoryEditor(store); }}
+                delayLongPress={350}
+              >
                 <Ionicons name="storefront-outline" size={20} color="#4f46e5" />
                 <Text style={[s.storeOptionText, { flex: 1 }]}>{store.name}</Text>
                 {list.storeId === store.id && <Ionicons name="checkmark" size={18} color="#4f46e5" />}
@@ -816,8 +965,10 @@ export default function ShoppingListScreen() {
       {/* Item edit modal */}
       <Modal visible={!!editingItem} transparent animationType="slide" onRequestClose={() => setEditingItem(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
           <Text style={s.editLabel}>Namn</Text>
           <TextInput
             style={s.editInput}
@@ -891,6 +1042,7 @@ export default function ShoppingListScreen() {
               ))}
             </View>
           </ScrollView>
+          </ScrollView>
           <View style={s.editActions}>
             <Pressable style={s.deleteBtn} onPress={() => { setEditingItem(null); if (editingItem) deleteItem(editingItem.id); }}>
               <Ionicons name="trash-outline" size={18} color="#ef4444" />
@@ -901,6 +1053,82 @@ export default function ShoppingListScreen() {
             </Pressable>
           </View>
         </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Staple edit modal (from long-press on suggestion chip) */}
+      <Modal visible={!!editingStaple} transparent animationType="slide" onRequestClose={() => setEditingStaple(null)}>
+        <Pressable style={s.overlay} onPress={() => setEditingStaple(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>
+            {editingStaple?.id.startsWith('suggestion:') ? 'Spara som basvara' : 'Redigera basvara'}
+          </Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
+          <Text style={s.editLabel}>Namn</Text>
+          <TextInput
+            style={s.editInput}
+            value={stapleName}
+            onChangeText={setStapleName}
+            placeholder="Varunamn"
+            placeholderTextColor="#9ca3af"
+            autoCapitalize="none"
+            returnKeyType="done"
+          />
+          <Text style={s.editLabel}>Enhet (valfritt)</Text>
+          <TextInput
+            style={s.editInput}
+            value={stapleUnit}
+            onChangeText={v => setStapleUnit(v.toLowerCase())}
+            placeholder="t.ex. st, dl, paket"
+            placeholderTextColor="#9ca3af"
+            autoCapitalize="none"
+            returnKeyType="done"
+          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">
+            <View style={s.unitChipRow}>
+              {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
+                <Pressable key={u} style={[s.unitChip, stapleUnit === u && s.unitChipActive]} onPress={() => setStapleUnit(v => v === u ? '' : u)}>
+                  <Text style={[s.unitChipText, stapleUnit === u && s.unitChipTextActive]}>{u}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+          <Text style={s.editLabel}>Kategori</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll} keyboardShouldPersistTaps="handled">
+            <View style={s.catChipRow}>
+              {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
+                <Pressable
+                  key={cat}
+                  style={[s.catChip, stapleCategory === cat && s.catChipActive]}
+                  onPress={() => setStapleCategory(cat)}
+                >
+                  <Text style={[s.catChipText, stapleCategory === cat && s.catChipTextActive]} numberOfLines={1}>
+                    {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+          </ScrollView>
+          <View style={s.editActions}>
+            {!editingStaple?.id.startsWith('suggestion:') && (
+              <Pressable style={s.deleteBtn} onPress={deleteStaple}>
+                <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                <Text style={s.deleteBtnText}>Ta bort</Text>
+              </Pressable>
+            )}
+            <Pressable
+              style={[s.saveBtn, (savingStaple || !stapleName.trim()) && s.saveBtnDisabled, { flex: 1, marginTop: 0 }]}
+              onPress={saveStapleEdit}
+              disabled={savingStaple || !stapleName.trim()}
+            >
+              {savingStaple ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Spara</Text>}
+            </Pressable>
+          </View>
+        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Category order editor */}
@@ -931,7 +1159,7 @@ export default function ShoppingListScreen() {
       {/* Quantity sheet */}
       <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
         <Pressable style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.3)' }]} onPress={() => setQtySheet(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{capitalize(qtySheet?.name)}</Text>
@@ -1012,6 +1240,7 @@ export default function ShoppingListScreen() {
       {/* Merge duplicates sheet */}
       <Modal visible={!!mergeSheet} transparent animationType="slide" onRequestClose={() => setMergeSheet(null)}>
         <Pressable style={s.overlay} onPress={() => setMergeSheet(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
         <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <View style={s.mergeHeaderRow}>
@@ -1148,6 +1377,7 @@ export default function ShoppingListScreen() {
             </Pressable>
             </>)}
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Actions menu (3-dot) */}
@@ -1338,8 +1568,9 @@ const s = StyleSheet.create({
   addInput: { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
   addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center' },
   addBtnDisabled: { opacity: 0.4 },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '80%' },
+  overlay: { flex: 1, backgroundColor: 'rgba(17,24,39,0.7)' },
+  kavWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, top: 0, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '85%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   sheetSub: { fontSize: 13, color: '#6b7280', marginTop: -4 },

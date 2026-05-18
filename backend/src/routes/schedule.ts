@@ -14,6 +14,7 @@ const timeRegex = /^\d{2}:\d{2}$/;
 const createEntrySchema = z.object({
   householdId: z.string(),
   title: z.string().min(1).max(200),
+  emoji: z.string().max(8).nullable().optional(),
   description: z.string().optional(),
   day: z.nativeEnum(WeekDay),
   startTime: z.string().regex(timeRegex, 'Format HH:MM').optional(),

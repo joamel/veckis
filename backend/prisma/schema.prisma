@@ -111,6 +111,7 @@ model Chore {
   id          String         @id @default(cuid())
   householdId String
   title       String
+  emoji       String?
   description String?
   frequency   ChoreFrequency @default(weekly)
   assignedTo  String?
@@ -139,6 +140,7 @@ model ChoreCompletion {
   completedAt DateTime @default(now())
   note        String?
   day         WeekDay?
+  date        String?  // YYYY-MM-DD — specific date this completion covers
 
   chore Chore @relation(fields: [choreId], references: [id], onDelete: Cascade)
 
@@ -149,6 +151,7 @@ model ScheduleEntry {
   id                   String             @id @default(cuid())
   householdId          String
   title                String
+  emoji                String?
   description          String?
   day                  WeekDay
   startTime            String?

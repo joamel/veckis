@@ -216,6 +216,7 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   const existingItems = await prisma.shoppingItem.findMany({
     where: { listId: list.id },
   });
+  const parentIds = new Set(existingItems.map(e => e.mergedIntoId).filter((x): x is string => !!x));
   const matchPlan = planIncomingMatch(
     sorted.map(ing => ({
       name: ing.name,
@@ -233,6 +234,7 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
       mergedIntoId: e.mergedIntoId,
       isChecked: e.isChecked,
       category: e.category as string,
+      hasChildren: parentIds.has(e.id),
     })),
     (s) => stripIngredient(s),
   );
