@@ -10,7 +10,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "update:preview": "cross-env EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_URL=https://veckis.onrender.com EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_bmV3LW9hcmZpc2gtNDguY2xlcmsuYWNjb3VudHMuZGV2JA eas update --channel preview --non-interactive"
+    "update:preview": "cross-env EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_URL=https://veckis.onrender.com EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_bmV3LW9hcmZpc2gtNDguY2xlcmsuYWNjb3VudHMuZGV2JA eas update --channel preview --message \"OTA update\" --non-interactive"
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.19.31",
