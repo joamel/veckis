@@ -736,13 +736,17 @@ export default function ScheduleScreen() {
                     ? entry.assignedToMany
                     : entry.assignedTo ? [entry.assignedTo] : [];
                   const names = ids.map(id => getMemberName(id)).filter(Boolean) as string[];
-                  const timeText = entry.startTime ?? 'Heldag';
-                  const meta = [timeText, ...(names.length > 0 ? [names.join(', ')] : [])].join(' · ');
-                  return <Text style={[s.choreAssigned, { fontSize: fs(12) }]}>{meta}</Text>;
+                  if (names.length === 0) return null;
+                  return <Text style={[s.choreAssigned, { fontSize: fs(12) }]}>{names.join(', ')}</Text>;
                 })()}
                 {entry.description && <Text style={[s.entryDesc, { fontSize: fs(13) }]}>{entry.description}</Text>}
               </View>
-              {!entry.isShared && <Ionicons name="lock-closed-outline" size={fs(14)} color="#9ca3af" />}
+              <View style={s.entryRightCol}>
+                <Text style={[s.entryRightTime, { fontSize: fs(13) }, isPast && { textDecorationLine: 'line-through' }]}>
+                  {entry.startTime ?? 'Heldag'}
+                </Text>
+                {!entry.isShared && <Ionicons name="lock-closed-outline" size={fs(14)} color="#9ca3af" />}
+              </View>
             </Pressable>
             );
           })}
@@ -1103,11 +1107,15 @@ export default function ScheduleScreen() {
 
       <DatePickerModal
         visible={showWeekPicker}
-        value={null}
-        title="Gå till vecka"
+        value={selectedDayDateStr}
+        title="Gå till dag"
         onChange={(dateStr) => {
           if (!dateStr) return;
-          setWeekRef(new Date(dateStr + 'T00:00:00'));
+          const picked = new Date(dateStr + 'T00:00:00');
+          setWeekRef(picked);
+          // jsGetDay: 0=Sunday … 6=Saturday → map to our WeekDay.
+          const idx = picked.getDay();
+          setSelectedDay((['sun','mon','tue','wed','thu','fri','sat'] as WeekDay[])[idx]);
           setShowWeekPicker(false);
         }}
         onClose={() => setShowWeekPicker(false)}
@@ -1317,27 +1325,29 @@ const s = StyleSheet.create({
   emptyText: { fontSize: 17, fontWeight: '600', color: '#374151', marginTop: 12 },
   emptySubtext: { fontSize: 13, color: '#9ca3af', marginTop: 4 },
   section: { gap: 8 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8, paddingHorizontal: 2 },
-  menuCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.8, paddingHorizontal: 2 },
+  menuCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c7d2fe', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   menuIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   menuTitle: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
-  menuMeta: { fontSize: 12, color: '#9ca3af' },
-  choreCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  menuMeta: { fontSize: 12, color: '#6b7280' },
+  choreCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#ddd6fe', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   choreDone: { backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0' },
   choreInfo: { flex: 1 },
   choreTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
   choreStrike: { textDecorationLine: 'line-through', color: '#9ca3af' },
-  choreAssigned: { fontSize: 12, color: '#7c3aed', marginTop: 2 },
+  choreAssigned: { fontSize: 12, color: '#6b7280', marginTop: 2 },
   choreCheckBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#d1d5db', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   choreCheckBtnDone: { backgroundColor: '#10b981', borderColor: '#10b981' },
-  entryCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#fff', borderRadius: 12, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  entryCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#cffafe', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   entryTime: { width: 44, alignItems: 'center', paddingTop: 2 },
   timeText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
   timeTextMuted: { fontSize: 10, color: '#9ca3af', fontStyle: 'italic' },
   entryContent: { flex: 1 },
+  entryRightCol: { alignItems: 'flex-end', gap: 4 },
+  entryRightTime: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
   entryTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
   entryDesc: { fontSize: 13, color: '#6b7280', marginTop: 2 },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '92%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },

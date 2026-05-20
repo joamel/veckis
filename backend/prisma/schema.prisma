@@ -54,11 +54,12 @@ model InviteCode {
 }
 
 model Store {
-  id            String        @id @default(cuid())
-  householdId   String
-  name          String
-  categoryOrder StoreCategory[]
-  createdAt     DateTime      @default(now())
+  id                String        @id @default(cuid())
+  householdId       String
+  name              String
+  categoryOrder     StoreCategory[]
+  customCategories  String[]      @default([])
+  createdAt         DateTime      @default(now())
 
   household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
   shoppingLists ShoppingList[]
@@ -88,6 +89,7 @@ model ShoppingItem {
   quantity     Float         @default(1)
   unit         String?
   category     StoreCategory @default(other)
+  customCategory String?
   isChecked    Boolean       @default(false)
   checkedBy    String?
   addedBy      String

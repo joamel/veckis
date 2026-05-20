@@ -13,7 +13,8 @@ export type ShoppingWsMessage =
   | { type: 'item_added'; data: ShoppingItemWithRecipe }
   | { type: 'item_updated'; data: ShoppingItemWithRecipe }
   | { type: 'item_deleted'; data: { id: string } }
-  | { type: 'list_cleared' };
+  | { type: 'list_cleared' }
+  | { type: 'items_auto_merged'; data: { name: string; count: number } };
 
 export function useShoppingSocket(
   listId: string | undefined,

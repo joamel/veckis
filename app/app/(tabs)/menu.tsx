@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated as RNAnimated,
+  Dimensions,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -24,6 +25,7 @@ import Animated, { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -63,6 +65,7 @@ export default function MenuScreen() {
   const { showToast: showGlobalToast } = useToast();
   const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
+  const { markPending, clearPending, cancelAllPending, pendingMenuItemRemovals, pendingCount } = usePendingRemoval();
   const { fs, sp } = useTablet();
 
   const [weekOffset, setWeekOffset] = useState(0);
@@ -147,6 +150,34 @@ export default function MenuScreen() {
   // Refs for measuring day section positions (screen coords)
   const daySectionRefs = useRef<Record<string, View | null>>({});
   const dayLayouts = useRef<Record<string, { y: number; height: number }>>({});
+
+  // Auto-scroll during drag near screen edges
+  const menuScrollRef = useRef<ScrollView | null>(null);
+  const scrollOffsetY = useRef(0);
+  const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollIntervalRef.current) {
+      clearInterval(autoScrollIntervalRef.current);
+      autoScrollIntervalRef.current = null;
+    }
+  }, []);
+  const ensureAutoScroll = useCallback((dragY: number, screenH: number) => {
+    const EDGE = 100;
+    const SPEED = 8;
+    let dir = 0;
+    if (dragY < EDGE) dir = -1;
+    else if (dragY > screenH - EDGE) dir = 1;
+    if (dir === 0) {
+      stopAutoScroll();
+      return;
+    }
+    if (autoScrollIntervalRef.current) return;
+    autoScrollIntervalRef.current = setInterval(() => {
+      const next = Math.max(0, scrollOffsetY.current + dir * SPEED);
+      scrollOffsetY.current = next;
+      menuScrollRef.current?.scrollTo({ y: next, animated: false });
+    }, 16);
+  }, [stopAutoScroll]);
 
   const load = useCallback(async () => {
     if (!householdId) return;
@@ -283,6 +314,9 @@ export default function MenuScreen() {
 
   function onDragMove(_x: number, y: number) {
     setDragState(prev => prev ? { ...prev, y } : null);
+    // Auto-scroll the menu list when finger nears screen edge
+    const { height: screenH } = Dimensions.get('window');
+    ensureAutoScroll(y, screenH);
     // Find which day section we're hovering over
     let found: WeekDay | null | 'unscheduled' | undefined = undefined;
     for (const [key, layout] of Object.entries(dayLayouts.current)) {
@@ -295,6 +329,7 @@ export default function MenuScreen() {
   }
 
   function onDragEnd() {
+    stopAutoScroll();
     if (!dragState) return;
     const item = dragState.item;
     setDragState(null);
@@ -399,22 +434,38 @@ export default function MenuScreen() {
       );
     });
     if (!ok) return;
-    const prevItems = menuItems;
-    setMenuItems(prev => prev.filter(i => i.id !== item.id));
     let cancelled = false;
-    showGlobalToast('Recept borttagen från menyn', 'neutral', {
-      label: 'Ångra',
-      onPress: () => { cancelled = true; setMenuItems(prevItems); },
-    });
+    // Mark as pending — meal card stays visible with fade/strikethrough during the
+    // 5s undo window, and the open shopping-list screen renders ingredients in pending
+    // state instead of either hiding them or making them pop back on undo.
+    // Register cancel callback so the toast's "Ångra" can roll back this and any other
+    // meals currently in the pending queue with one tap.
+    markPending(item.id, () => { cancelled = true; });
+    // Show stacked toast: count is current pendingCount + 1 (this call) since state hasn't flushed.
+    const upcomingCount = pendingCount + 1;
+    showGlobalToast(
+      upcomingCount === 1 ? 'Recept borttagen från menyn' : `${upcomingCount} recept tas bort`,
+      'neutral',
+      { label: 'Ångra', onPress: cancelAllPending },
+    );
     setTimeout(async () => {
       if (cancelled) return;
       try {
         await client.deleteWeekMenuItem(item.id);
-        const lists = recipeListMap[item.id] ?? [];
-        if (lists.length > 0) await executeCleanup(item, lists.map(l => l.listId));
+        const linked = recipeListMap[item.id] ?? [];
+        if (linked.length > 0) await executeCleanup(item, linked.map(l => l.listId));
+        // Backend committed — drop from local state so it doesn't reappear when
+        // the pending flag clears.
+        setMenuItems(prev => prev.filter(i => i.id !== item.id));
+        setRecipeListMap(prev => {
+          const next = { ...prev };
+          delete next[item.id];
+          return next;
+        });
       } catch {
-        setMenuItems(prevItems);
         Alert.alert('Fel', 'Kunde inte ta bort');
+      } finally {
+        clearPending(item.id);
       }
     }, 5000);
   }
@@ -644,9 +695,12 @@ export default function MenuScreen() {
       />
 
       <ScrollView
+        ref={menuScrollRef}
         style={s.content}
         contentContainerStyle={s.contentInner}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
+        onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={32}
       >
         {/* Day sections — sorted Mon→Sun, show all 7 days */}
         {DAYS.map((day, i) => {
@@ -654,35 +708,32 @@ export default function MenuScreen() {
           const date = new Date(weekMonday.getFullYear(), weekMonday.getMonth(), weekMonday.getDate() + i);
           const isHovered = hoverDay === day.key;
           return (
-            <View
-              key={day.key}
-              style={[s.section, isHovered && s.sectionHovered]}
-              ref={ref => measureDaySection(day.key, ref)}
-            >
+            <View key={day.key} style={s.section}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ flex: 1, fontSize: fs(14), fontWeight: '700', color: '#111827' }}>
                   {day.label}{' '}
                   <Text style={{ fontSize: fs(12), fontWeight: '400', color: '#6b7280' }}>{date.getDate()} {MONTH_NAMES[date.getMonth()]}</Text>
                 </Text>
-                {!editMode && items.length === 0 && (
-                  <Pressable onPress={() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }}>
-                    <Ionicons name="add-circle-outline" size={fs(20)} color="#4f46e5" />
-                  </Pressable>
-                )}
               </View>
-              {items.length === 0 ? (
-                <Pressable
-                  onPress={() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }}
-                  style={s.emptyDayTap}
-                >
-                  <Text style={s.emptyDayText}>Tryck för att lägga till en rätt</Text>
-                </Pressable>
-              ) : (
+              <View
+                style={[s.daySlot, items.length > 0 && s.daySlotFilled, items.length === 0 && s.daySlotEmpty, isHovered && s.daySlotHovered]}
+                ref={ref => measureDaySection(day.key, ref)}
+                onLayout={() => measureDaySection(day.key, daySectionRefs.current[day.key] ?? null)}
+              >
+                {items.length === 0 ? (
+                  <Pressable
+                    onPress={() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }}
+                    style={s.daySlotEmptyTap}
+                  >
+                    <Ionicons name="add" size={fs(28)} color="#4f46e5" />
+                  </Pressable>
+                ) : (
                 items.map(item => (
                   <MenuCard
                     key={item.id}
                     item={item}
                     isTransferred={!!recipeListMap[item.id]?.length}
+                    isPending={pendingMenuItemRemovals.has(item.id)}
                     editMode={editMode}
                     onRemove={() => removeFromMenu(item)}
                     onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
@@ -704,6 +755,7 @@ export default function MenuScreen() {
                   />
                 ))
               )}
+              </View>
             </View>
           );
         })}
@@ -729,6 +781,7 @@ export default function MenuScreen() {
                 key={item.id}
                 item={item}
                 isTransferred={!!recipeListMap[item.id]?.length}
+                isPending={pendingMenuItemRemovals.has(item.id)}
                 editMode={editMode}
                 onRemove={() => removeFromMenu(item)}
                 onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
@@ -1268,6 +1321,7 @@ export default function MenuScreen() {
 function MenuCard({
   item,
   isTransferred,
+  isPending,
   editMode,
   onRemove,
   onViewRecipe,
@@ -1283,6 +1337,7 @@ function MenuCard({
 }: {
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
+  isPending?: boolean;
   editMode: boolean;
   onRemove: () => void;
   onViewRecipe: () => void;
@@ -1322,7 +1377,7 @@ function MenuCard({
 
   return (
     <GestureDetector gesture={panGesture}>
-      <View style={[s.card, isDragging && s.cardDragging]}>
+      <View style={[s.card, isDragging && s.cardDragging, isPending && s.cardPending]}>
         {editMode && (
           <Pressable
             style={s.cardDeleteBtn}
@@ -1338,7 +1393,7 @@ function MenuCard({
               <Ionicons name="restaurant-outline" size={fs(18)} color="#4f46e5" />
             </View>
             <View style={s.cardContent}>
-              <Text style={[s.cardTitle, { fontSize: fs(15) }]}>{item.recipe.title}</Text>
+              <Text style={[s.cardTitle, { fontSize: fs(15) }, isPending && s.cardTitlePending]}>{item.recipe.title}</Text>
               {isTransferred && (
                 <View style={s.transferredBadge}>
                   <Ionicons name="checkmark-circle" size={fs(14)} color="#10b981" />
@@ -1408,8 +1463,13 @@ const s = StyleSheet.create({
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
   section: { gap: 8 },
+  daySlot: { borderWidth: 1, borderColor: '#c7c2f0', borderRadius: 12, padding: 6, gap: 6, backgroundColor: '#fff' },
+  daySlotEmpty: { borderColor: '#c7c2f0', backgroundColor: 'transparent', minHeight: 72, alignItems: 'center', justifyContent: 'center', padding: 0 },
+  daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
+  daySlotHovered: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  daySlotEmptyTap: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', minHeight: 72 },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.8 },
   dayHeader: { gap: 1 },
   dayHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dayLabel: { fontSize: 14, fontWeight: '700', color: '#111827' },
@@ -1420,8 +1480,8 @@ const s = StyleSheet.create({
   emptyDay: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 8 },
   emptyText: { fontSize: 17, fontWeight: '600', color: '#374151' },
   emptySubtext: { fontSize: 13, color: '#9ca3af' },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  card: { borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  card: { borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c7d2fe', backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   cardInner: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden' },
   cardMain: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
   cardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
@@ -1509,12 +1569,14 @@ const s = StyleSheet.create({
   // Edit mode
   sectionHovered: { backgroundColor: '#eef2ff', borderRadius: 12, borderWidth: 1, borderColor: '#4f46e5' },
   cardDragging: { opacity: 0.4 },
+  cardPending: { opacity: 0.4, backgroundColor: '#fef2f2' },
+  cardTitlePending: { textDecorationLine: 'line-through', color: '#9ca3af' },
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#111827', borderRadius: 24, zIndex: 20 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   ghostCard: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 12, padding: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
   ghostCardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   ghostCardText: { fontSize: 15, fontWeight: '600', color: '#111827', flex: 1 },
-  toast: { position: 'absolute', bottom: 100, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  toast: { position: 'absolute', bottom: 100, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

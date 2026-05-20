@@ -63,6 +63,7 @@ const updateItemSchema = z.object({
   quantity: z.number().positive().optional(),
   unit: z.string().nullable().optional(),
   category: categoryEnum.optional(),
+  customCategory: z.string().max(40).nullable().optional(),
   note: z.string().nullable().optional(),
 });
 
@@ -417,6 +418,8 @@ shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAu
     for (const id of group.ids) {
       wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
     }
+    // Tell clients to show "Slog ihop N {namn}" so the merge isn't silent.
+    wsBroadcast(list.id, { type: 'items_auto_merged', data: { name: group.name, count: group.ids.length } });
   }
 
   res.status(204).send();

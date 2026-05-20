@@ -8,6 +8,8 @@ interface DatePickerModalProps {
   onClose: () => void;
   title?: string;
   visible: boolean;
+  /** Show a "Rensa" button that clears the date. Default false. */
+  clearable?: boolean;
 }
 
 function toDateStr(d: Date): string {
@@ -22,7 +24,7 @@ function isoWeek(d: Date): number {
   return Math.ceil((((t.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
-export function DatePickerModal({ value, onChange, onClose, title, visible }: DatePickerModalProps) {
+export function DatePickerModal({ value, onChange, onClose, title, visible, clearable = false }: DatePickerModalProps) {
   const initial = value ? new Date(value + 'T00:00:00') : new Date();
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
@@ -90,7 +92,7 @@ export function DatePickerModal({ value, onChange, onClose, title, visible }: Da
           </View>
         ))}
         <View style={s.footer}>
-          {value && (
+          {clearable && value && (
             <Pressable style={s.clearBtn} onPress={() => { onChange(null); onClose(); }}>
               <Text style={s.clearBtnText}>Rensa</Text>
             </Pressable>

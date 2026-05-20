@@ -8,6 +8,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { StatusBar } from 'expo-status-bar';
 import { HouseholdProvider, useHousehold } from '../src/context/HouseholdContext';
 import { MemberFilterProvider } from '../src/context/MemberFilterContext';
+import { PendingRemovalProvider } from '../src/context/PendingRemovalContext';
 import { ToastProvider } from '../src/context/ToastContext';
 
 // Lock app text to designed size regardless of OS "larger text" setting.
@@ -77,9 +78,11 @@ export default function RootLayout() {
         >
           <HouseholdProvider>
             <MemberFilterProvider>
-              <ToastProvider>
-                <NavigationGuard />
-              </ToastProvider>
+              <PendingRemovalProvider>
+                <ToastProvider>
+                  <NavigationGuard />
+                </ToastProvider>
+              </PendingRemovalProvider>
             </MemberFilterProvider>
           </HouseholdProvider>
         </ClerkProvider>
