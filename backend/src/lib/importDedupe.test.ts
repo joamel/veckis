@@ -172,3 +172,45 @@ describe('Scenario 6 — extra edge cases', () => {
     expect(plan.toUpdate).toEqual([{ id: 'e', quantity: 3, name: 'klyftor vitlök' }]);
   });
 });
+
+describe('Containers do not absorb incoming imports (regression)', () => {
+  // Reported bug: an existing merge container (unbound, no menuItemId, has children)
+  // was being treated as the unbound-fallback match, silently bumping its qty
+  // when new ingredients were imported. Because the container itself has no
+  // menuItemId, removing the source meal afterwards couldn't subtract the
+  // contribution back out → eggs accumulated forever.
+  it('skips unbound containers in fallback — creates new tagged item instead', () => {
+    // List has a merge container "ägg 14 st" with 14 hidden leaves.
+    const container = existing({ id: 'c', name: 'ägg', unit: 'st', quantity: 14, hasChildren: true });
+    const plan = planIncomingMatch(
+      [incoming({ name: 'ägg', unit: 'st', quantity: 3, menuItemId: 'pannkakor' })],
+      [container],
+    );
+    // Container is NOT bumped. New leaf is created so it can be removed later.
+    expect(plan.toUpdate).toEqual([]);
+    expect(plan.toCreate).toEqual([
+      { name: 'ägg', unit: 'st', quantity: 3, menuItemId: 'pannkakor' },
+    ]);
+  });
+
+  it('still bumps a plain (non-container) unbound item', () => {
+    const plain = existing({ id: 'p', name: 'ägg', unit: 'st', quantity: 1 });
+    const plan = planIncomingMatch(
+      [incoming({ name: 'ägg', unit: 'st', quantity: 2, menuItemId: 'A' })],
+      [plain],
+    );
+    expect(plan.toUpdate).toEqual([{ id: 'p', quantity: 3, name: 'ägg' }]);
+    expect(plan.toCreate).toEqual([]);
+  });
+
+  it('still matches existing tagged item with same menuItemId, ignoring container', () => {
+    const container = existing({ id: 'c', name: 'ägg', unit: 'st', quantity: 14, hasChildren: true });
+    const tagged = existing({ id: 't', name: 'ägg', unit: 'st', quantity: 2, menuItemId: 'A' });
+    const plan = planIncomingMatch(
+      [incoming({ name: 'ägg', unit: 'st', quantity: 1, menuItemId: 'A' })],
+      [container, tagged],
+    );
+    expect(plan.toUpdate).toEqual([{ id: 't', quantity: 3, name: 'ägg' }]);
+    expect(plan.toCreate).toEqual([]);
+  });
+});

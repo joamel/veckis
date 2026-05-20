@@ -529,6 +529,7 @@ export default function SettingsScreen() {
       {/* Edit Household Name Modal */}
       <Modal visible={showEditHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowEditHouseholdModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Byt namn på hushållet</Text>
@@ -553,11 +554,13 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Delete Household Confirmation Modal */}
       <Modal visible={showDeleteHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowDeleteHouseholdModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Ta bort hushållet</Text>
@@ -586,11 +589,13 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Edit Member Modal */}
       <Modal visible={showEditMemberModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowEditMemberModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Redigera smeknamn</Text>
@@ -615,11 +620,13 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Create Local Profile Modal */}
       <Modal visible={showCreateLocalModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowCreateLocalModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Lägg till lokal profil</Text>
@@ -645,11 +652,13 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Create Household Modal */}
       <Modal visible={showCreateHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowCreateHouseholdModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Skapa nytt hushåll</Text>
@@ -674,11 +683,13 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Join Household Modal */}
       <Modal visible={showJoinHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowJoinHouseholdModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Gå med i hushåll</Text>
@@ -705,6 +716,7 @@ export default function SettingsScreen() {
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Animated.View style={[styles.toast, toastVariant === 'neutral' && styles.toastNeutral, { opacity: toastOpacity }]} pointerEvents="none">
@@ -727,13 +739,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#cbd5e1',
     padding: 14,
     gap: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+    elevation: 3,
   },
   cardActions: { flexDirection: 'row', gap: 4 },
   avatar: {
@@ -765,10 +779,10 @@ const styles = StyleSheet.create({
     padding: 14,
     marginTop: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+    elevation: 3,
   },
   membersHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   membersTitle: { fontSize: 14, fontWeight: '600', color: '#111827' },
@@ -819,10 +833,10 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+    elevation: 3,
   },
   inviteDesc: { fontSize: 14, color: '#6b7280', lineHeight: 20 },
   codeRow: {
@@ -855,10 +869,10 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 8,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+    elevation: 3,
   },
   signOutText: { fontSize: 16, fontWeight: '600', color: '#ef4444' },
   toast: {
@@ -873,7 +887,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.15,
-    shadowRadius: 8,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 2 },
     elevation: 6,
   },

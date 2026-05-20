@@ -29,6 +29,8 @@ export interface ShoppingItem {
   quantity: number;
   unit: string | null;
   category: StoreCategory;
+  /** Overrides `category` for grouping when set. Must be one of the store's customCategories. */
+  customCategory: string | null;
   isChecked: boolean;
   checkedBy: string | null;
   addedBy: string;
@@ -42,4 +44,6 @@ export interface Store {
   householdId: string;
   name: string;
   categoryOrder: StoreCategory[];
+  /** User-defined category labels for this store (appended after the default categories). */
+  customCategories: string[];
 }

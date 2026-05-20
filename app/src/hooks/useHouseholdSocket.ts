@@ -17,7 +17,7 @@ export type HouseholdWsMessage =
   | { type: 'chore_updated'; data: Chore }
   | { type: 'chore_deleted'; data: { id: string } }
   | { type: 'chore_completed'; data: ChoreCompletion }
-  | { type: 'chore_uncompleted'; data: { id: string; day: string | null } }
+  | { type: 'chore_uncompleted'; data: { id: string; day: string | null; date?: string | null } }
   | { type: 'household_updated'; data: { id: string; name: string } }
   | { type: 'member_added'; data: { id: string; householdId: string; displayName: string; role: string; clerkUserId: string | null } }
   | { type: 'member_updated'; data: { id: string; householdId: string; displayName: string; role: string; clerkUserId: string | null } }

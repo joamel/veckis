@@ -9,6 +9,7 @@ import { learnIngredientAliases, getStoredCategory, storeIngredientCategory } fr
 import { stripIngredient } from '../lib/stripIngredient';
 import { wsBroadcast } from '../lib/wsHub';
 import { planFullUnmerge, findRoot } from '../lib/mergeLogic';
+import { planAutoMerge } from '../lib/importDedupe';
 
 export const shoppingRouter = Router();
 
@@ -62,6 +63,7 @@ const updateItemSchema = z.object({
   quantity: z.number().positive().optional(),
   unit: z.string().nullable().optional(),
   category: categoryEnum.optional(),
+  customCategory: z.string().max(40).nullable().optional(),
   note: z.string().nullable().optional(),
 });
 
@@ -382,6 +384,42 @@ shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAu
   });
   for (const s of survivors) {
     wsBroadcast(list.id, { type: 'item_added', data: s });
+  }
+
+  // After unmerging, restored survivors may once again share name+unit with other
+  // visible items. Re-run auto-merge so 3-egg → remove-1 → 2-egg merges cleanly.
+  const visible = await prisma.shoppingItem.findMany({
+    where: { listId: list.id, isChecked: false, mergedIntoId: null },
+  });
+  const groups = planAutoMerge(
+    visible.map(v => ({
+      id: v.id, name: v.name, unit: v.unit, quantity: v.quantity,
+      menuItemId: v.menuItemId, mergedIntoId: v.mergedIntoId,
+      isChecked: v.isChecked, category: v.category as string,
+    })),
+    (s) => stripIngredient(s),
+  );
+  for (const group of groups) {
+    const container = await prisma.shoppingItem.create({
+      data: {
+        listId: list.id,
+        name: group.name,
+        quantity: group.totalQty,
+        unit: group.unit,
+        category: group.category as never,
+        addedBy: (req as AuthenticatedRequest).clerkUserId,
+      },
+    });
+    await prisma.shoppingItem.updateMany({
+      where: { id: { in: group.ids } },
+      data: { mergedIntoId: container.id },
+    });
+    wsBroadcast(list.id, { type: 'item_added', data: container });
+    for (const id of group.ids) {
+      wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+    }
+    // Tell clients to show "Slog ihop N {namn}" so the merge isn't silent.
+    wsBroadcast(list.id, { type: 'items_auto_merged', data: { name: group.name, count: group.ids.length } });
   }
 
   res.status(204).send();

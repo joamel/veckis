@@ -2,12 +2,23 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { HouseholdProvider, useHousehold } from '../src/context/HouseholdContext';
+import { MemberFilterProvider } from '../src/context/MemberFilterContext';
+import { PendingRemovalProvider } from '../src/context/PendingRemovalContext';
 import { ToastProvider } from '../src/context/ToastContext';
+
+// Lock app text to designed size regardless of OS "larger text" setting.
+// Tablet sizing is handled separately via useTablet().fs() so we don't lose tablet scaling.
+(Text as unknown as { defaultProps?: { allowFontScaling?: boolean } }).defaultProps =
+  (Text as unknown as { defaultProps?: { allowFontScaling?: boolean } }).defaultProps || {};
+(Text as unknown as { defaultProps: { allowFontScaling?: boolean } }).defaultProps.allowFontScaling = false;
+(TextInput as unknown as { defaultProps?: { allowFontScaling?: boolean } }).defaultProps =
+  (TextInput as unknown as { defaultProps?: { allowFontScaling?: boolean } }).defaultProps || {};
+(TextInput as unknown as { defaultProps: { allowFontScaling?: boolean } }).defaultProps.allowFontScaling = false;
 
 const tokenCache = {
   async getToken(key: string) {
@@ -66,9 +77,13 @@ export default function RootLayout() {
           tokenCache={tokenCache}
         >
           <HouseholdProvider>
-            <ToastProvider>
-              <NavigationGuard />
-            </ToastProvider>
+            <MemberFilterProvider>
+              <PendingRemovalProvider>
+                <ToastProvider>
+                  <NavigationGuard />
+                </ToastProvider>
+              </PendingRemovalProvider>
+            </MemberFilterProvider>
           </HouseholdProvider>
         </ClerkProvider>
       </SafeAreaProvider>

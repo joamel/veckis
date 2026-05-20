@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Animated,
   Alert,
+  Dimensions,
   GestureResponderEvent,
   Keyboard,
   KeyboardAvoidingView,
@@ -18,7 +19,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import RNAnimated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +34,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type StapleItem, type Store } from '@veckis/shared';
 
@@ -39,12 +48,14 @@ const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
 // Survives navigation within the session; resets on app restart
 const dismissedDupesStore = new Map<string, Set<string>>();
 
+
 export default function ShoppingListScreen() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
   const router = useRouter();
   const client = useApiClient();
   const { showToast: showGlobalToast } = useToast();
   const { householdId } = useHousehold();
+  const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
 
   const [list, setList] = useState<ShoppingListWithItems | null>(null);
@@ -80,17 +91,99 @@ export default function ShoppingListScreen() {
   const [editQty, setEditQty] = useState('');
   const [editUnit, setEditUnit] = useState('');
   const [editCategory, setEditCategory] = useState<StoreCategory>('other');
+  const [editCustomCategory, setEditCustomCategory] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Pure transform-only collapsing header (UI-thread, no layout = zero lag).
+  // The title area (background + title) slides up under the navbar as you scroll;
+  // the title text additionally scales/translates so it lands centered in the navbar.
+  const insets = useSafeAreaInsets();
+  const NAVBAR_HEIGHT = 48;
+  const TITLE_AREA_HEIGHT = 44;
+  const COLLAPSE_RANGE = TITLE_AREA_HEIGHT;
+  const HEADER_TOP = insets.top;
+  const TITLE_SCALE = 0.62;
+  const TITLE_LEFT_PADDING = 20;
+  const screenW = Dimensions.get('window').width;
+  const [titleWidth, setTitleWidth] = useState(0);
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler(e => {
+    scrollY.value = e.contentOffset.y;
+  });
+  // Whole title-area slides up so its background disappears under the navbar.
+  const titleAreaAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: interpolate(scrollY.value, [0, COLLAPSE_RANGE], [0, -TITLE_AREA_HEIGHT], Extrapolation.CLAMP) }],
+  }));
+  // Title text shrinks and slides diagonally from left-aligned (expanded) to
+  // navbar-center (compact). translateX target computed from measured natural width
+  // so it lands exactly centered regardless of title length.
+  // Default transform-origin is the text's own center → scaling around center keeps
+  // the natural center fixed at (LEFT_PADDING + titleWidth/2). To center the scaled
+  // text on screen, translate so that new center = screenW/2.
+  const targetTranslateX = titleWidth > 0
+    ? screenW / 2 - (TITLE_LEFT_PADDING + titleWidth / 2)
+    : 0;
+  const titleTextAnimStyle = useAnimatedStyle(() => {
+    const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [0, 1], Extrapolation.CLAMP);
+    const adjustY = (NAVBAR_HEIGHT - TITLE_AREA_HEIGHT) / 2;
+    return {
+      transform: [
+        { translateY: adjustY * t },
+        { translateX: targetTranslateX * t },
+        { scale: 1 - (1 - TITLE_SCALE) * t },
+      ],
+    };
+  });
+
+  // Collapsed categories — tap category header to fold/unfold its items.
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<StoreCategory | 'checked'>>(new Set());
+  function toggleCategoryCollapsed(cat: StoreCategory | 'checked') {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  }
+
+  // Staple edit modal (long-press on suggestion chip)
+  const [editingStaple, setEditingStaple] = useState<StapleItem | null>(null);
+  const [stapleName, setStapleName] = useState('');
+  const [stapleUnit, setStapleUnit] = useState('');
+  const [stapleCategory, setStapleCategory] = useState<StoreCategory>('other');
+  const [savingStaple, setSavingStaple] = useState(false);
 
   // Store picker modal
   const [showStorePicker, setShowStorePicker] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [renaming, setRenaming] = useState(false);
+
+  async function saveRename() {
+    if (!listId) return;
+    const newName = renameValue.trim();
+    if (!newName) return;
+    setRenaming(true);
+    const prev = list?.name;
+    setList(p => p ? { ...p, name: newName } : p);
+    setShowRenameModal(false);
+    try {
+      await client.updateShoppingList(listId, { name: newName });
+    } catch {
+      setList(p => p && prev !== undefined ? { ...p, name: prev } : p);
+      Alert.alert('Fel', 'Kunde inte byta namn');
+    } finally {
+      setRenaming(false);
+    }
+  }
   const [creatingStore, setCreatingStore] = useState(false);
   const [newStoreName, setNewStoreName] = useState('');
 
   // Category order editor
   const [editingStore, setEditingStore] = useState<Store | null>(null);
   const [editCategoryOrder, setEditCategoryOrder] = useState<StoreCategory[]>([]);
+  const [editCustomCategories, setEditCustomCategories] = useState<string[]>([]);
+  const [newCustomCategory, setNewCustomCategory] = useState('');
   const [savingOrder, setSavingOrder] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -113,6 +206,10 @@ export default function ShoppingListScreen() {
   }
 
   useShoppingSocket(listId, getToken, (msg) => {
+    if (msg.type === 'items_auto_merged') {
+      showGlobalToast(`Slog ihop ${msg.data.count} ${capitalize(msg.data.name)}`, 'success');
+      return;
+    }
     setList(prev => {
       if (!prev) return prev;
       switch (msg.type) {
@@ -258,6 +355,7 @@ export default function ShoppingListScreen() {
       quantity: quantity ?? 1,
       unit: unit ?? null,
       category: category ?? 'other',
+      customCategory: null,
       isChecked: false,
       checkedBy: null,
       addedBy: '',
@@ -395,6 +493,7 @@ export default function ShoppingListScreen() {
         .find(g => g.length >= 2 && !dismissedDupeKeys.has(g[0].name.toLowerCase().trim()));
       if (nextGroup) openMergeForDupes(nextGroup);
       else setMergeSheet(null);
+      showGlobalToast(`Slog ihop ${selected.length} ${capitalize(name)}`, 'success');
     } catch {
       Alert.alert('Fel', 'Kunde inte slå ihop varor');
     } finally {
@@ -440,6 +539,7 @@ export default function ShoppingListScreen() {
     setEditQty(item.quantity !== 1 || item.unit ? String(item.quantity) : '');
     setEditUnit(item.unit ?? '');
     setEditCategory(item.category as StoreCategory);
+    setEditCustomCategory((item as { customCategory?: string | null }).customCategory ?? null);
   }
 
   async function saveEditItem() {
@@ -448,32 +548,76 @@ export default function ShoppingListScreen() {
     const qty = parseFloat(editQty.replace(',', '.')) || 1;
     const unit = editUnit.trim() || null;
     const name = (editName.trim() || editingItem.name).toLowerCase();
+    const snapshot = editingItem;
+    // Optimistic: update list + close modal before awaiting backend
+    const optimisticItems = (list?.items ?? []).map(i =>
+      i.id === editingItem.id ? { ...i, name, quantity: qty, unit, category: editCategory, customCategory: editCustomCategory } : i
+    );
+    setList(prev => prev ? { ...prev, items: optimisticItems } : prev);
+    setEditingItem(null);
     try {
-      const updated = await client.updateShoppingItem(editingItem.id, {
+      const updated = await client.updateShoppingItem(snapshot.id, {
         name,
         quantity: qty,
         unit,
         category: editCategory,
+        customCategory: editCustomCategory,
       });
-      const savedRecipe = editingItem.recipe;
-      const updatedItems = (list?.items ?? []).map(i =>
+      const savedRecipe = snapshot.recipe;
+      const finalItems = optimisticItems.map(i =>
         i.id === updated.id ? { ...updated, recipe: savedRecipe } : i
       );
-      setList(prev => prev ? { ...prev, items: updatedItems } : prev);
-      setEditingItem(null);
+      setList(prev => prev ? { ...prev, items: finalItems } : prev);
       if (householdId) {
-        const categoryChanged = editCategory !== editingItem.category;
-        const unitChanged = unit !== editingItem.unit;
+        const categoryChanged = editCategory !== snapshot.category;
+        const unitChanged = unit !== snapshot.unit;
         if (categoryChanged || unitChanged) {
           client.upsertStaple({ householdId, name, category: editCategory, unit }).catch(() => {});
         }
       }
-      const dupes = updatedItems.filter(i => !i.isChecked && i.name.toLowerCase().trim() === name);
-      if (dupes.length >= 2) openMergeForDupes(dupes, updated);
+      const dupes = finalItems.filter(i => !i.isChecked && i.name.toLowerCase().trim() === name);
+      if (dupes.length >= 2) {
+        // Auto-merge silently if all dupes share the same unit (normalized)
+        const norm = (u: string | null | undefined) => (u ?? '').trim().toLowerCase();
+        const sameUnit = dupes.every(d => norm(d.unit) === norm(unit));
+        if (sameUnit) {
+          autoMergeDupes(dupes, name, editCategory, unit);
+        } else {
+          openMergeForDupes(dupes, updated);
+        }
+      }
     } catch {
+      // Rollback optimistic
+      setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === snapshot.id ? snapshot : i) } : prev);
       Alert.alert('Fel', 'Kunde inte spara ändringen');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function autoMergeDupes(
+    dupes: ShoppingItemWithRecipe[],
+    name: string,
+    category: StoreCategory,
+    unit: string | null,
+  ) {
+    const totalQty = dupes.reduce((sum, d) => sum + (d.quantity ?? 1), 0);
+    const sourceIds = dupes.map(d => d.id);
+    const hideIds = new Set(sourceIds);
+    try {
+      const container = await client.mergeShoppingItems({
+        sourceIds, name, quantity: totalQty, unit, category,
+      });
+      setList(prev => prev ? {
+        ...prev,
+        items: [
+          ...prev.items.filter(i => !hideIds.has(i.id) && i.id !== container.id),
+          { ...container, recipe: null } as ShoppingItemWithRecipe,
+        ],
+      } : prev);
+      showGlobalToast(`Slog ihop ${dupes.length} ${capitalize(name)}`, 'success');
+    } catch {
+      // Silent — user can still merge manually via dupe button
     }
   }
 
@@ -516,6 +660,75 @@ export default function ShoppingListScreen() {
     ]);
   }
 
+  function openStapleEditor(suggestion: StapleItem) {
+    // Suggestion chips include both real staples (DB row, has cuid id) and ingredient
+    // suggestions (synthetic id "suggestion:<name>", no DB row yet). For the latter we
+    // open the editor in "create" mode — saving creates the staple.
+    setEditingStaple(suggestion);
+    setStapleName(suggestion.name);
+    setStapleUnit(suggestion.unit ?? '');
+    setStapleCategory(suggestion.category as StoreCategory);
+  }
+
+  async function saveStapleEdit() {
+    if (!editingStaple || !householdId) return;
+    const newName = stapleName.trim().toLowerCase();
+    if (!newName) return;
+    setSavingStaple(true);
+    const original = editingStaple;
+    const isNew = original.id.startsWith('suggestion:');
+    const optimistic: StapleItem = { ...original, name: newName, unit: stapleUnit.trim() || null, category: stapleCategory };
+    if (!isNew) {
+      setStaples(prev => prev.map(s2 => s2.id === original.id ? optimistic : s2));
+    }
+    setEditingStaple(null);
+    try {
+      // Rename of existing staple: delete old, create new (upsert keyed on householdId+name).
+      if (!isNew && newName !== original.name) {
+        await client.deleteStaple(original.id);
+      }
+      const saved = await client.upsertStaple({
+        householdId,
+        name: newName,
+        category: stapleCategory,
+        unit: stapleUnit.trim() || null,
+      });
+      setStaples(prev => {
+        const without = prev.filter(s2 => s2.id !== original.id && s2.id !== saved.id);
+        return [...without, saved];
+      });
+      showGlobalToast(isNew ? `${capitalize(newName)} sparad som basvara` : `${capitalize(newName)} uppdaterad`, 'success');
+    } catch {
+      if (!isNew) setStaples(prev => prev.map(s2 => s2.id === original.id ? original : s2));
+      Alert.alert('Fel', 'Kunde inte spara basvaran');
+    } finally {
+      setSavingStaple(false);
+    }
+  }
+
+  async function deleteStaple() {
+    if (!editingStaple) return;
+    const target = editingStaple;
+    if (target.id.startsWith('suggestion:')) {
+      // Synthetic suggestion — nothing to delete server-side, just close.
+      setEditingStaple(null);
+      return;
+    }
+    Alert.alert('Ta bort basvara', `Ta bort "${capitalize(target.name)}" från basvarorna?`, [
+      { text: 'Avbryt', style: 'cancel' },
+      { text: 'Ta bort', style: 'destructive', onPress: async () => {
+        setStaples(prev => prev.filter(s2 => s2.id !== target.id));
+        setEditingStaple(null);
+        try {
+          await client.deleteStaple(target.id);
+        } catch {
+          setStaples(prev => [...prev, target]);
+          Alert.alert('Fel', 'Kunde inte ta bort basvaran');
+        }
+      } },
+    ]);
+  }
+
   async function selectStore(storeId: string | null) {
     if (!listId) return;
     try {
@@ -547,6 +760,23 @@ export default function ShoppingListScreen() {
     setEditCategoryOrder((store.categoryOrder as StoreCategory[]).length
       ? store.categoryOrder as StoreCategory[]
       : [...DEFAULT_CATEGORY_ORDER]);
+    setEditCustomCategories([...((store.customCategories as string[] | undefined) ?? [])]);
+    setNewCustomCategory('');
+  }
+
+  function addCustomCategory() {
+    const trimmed = newCustomCategory.trim();
+    if (!trimmed) return;
+    if (editCustomCategories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      Alert.alert('Finns redan', `Kategorin "${trimmed}" finns redan.`);
+      return;
+    }
+    setEditCustomCategories(prev => [...prev, trimmed]);
+    setNewCustomCategory('');
+  }
+
+  function removeCustomCategory(name: string) {
+    setEditCustomCategories(prev => prev.filter(c => c !== name));
   }
 
   function moveCategoryUp(idx: number) {
@@ -571,7 +801,7 @@ export default function ShoppingListScreen() {
     if (!editingStore) return;
     setSavingOrder(true);
     try {
-      const updated = await client.updateStore(editingStore.id, { categoryOrder: editCategoryOrder });
+      const updated = await client.updateStore(editingStore.id, { categoryOrder: editCategoryOrder, customCategories: editCustomCategories });
       setStores(prev => prev.map(s => s.id === updated.id ? updated : s));
       if (list?.store?.id === updated.id) {
         setList(prev => prev ? { ...prev, store: updated } : prev);
@@ -587,56 +817,45 @@ export default function ShoppingListScreen() {
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
   if (!list) return null;
 
+  // Items tied to a meal that's pending removal stay visible but rendered
+  // in a pending state (faded + strikethrough) until backend commits in 5s.
+  const isPending = (item: ShoppingItemWithRecipe) => !!item.menuItemId && pendingMenuItemRemovals.has(item.menuItemId);
   const unchecked = list.items.filter(i => !i.isChecked);
   const checked = list.items.filter(i => i.isChecked);
   const allItems = [...unchecked, ...checked];
-  const categoryGroups = buildCategoryGroups(unchecked, categoryOrder);
+  const customCategories: string[] = (list?.store?.customCategories as string[] | undefined) ?? [];
+  const categoryGroups = buildCategoryGroups(unchecked, categoryOrder, customCategories);
 
   return (
-    <SafeAreaView style={s.container}>
-      {/* Header */}
-      <View style={s.header}>
-        <View style={s.headerNav}>
-          <Pressable onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
-            <Ionicons name="arrow-back" size={26} color="#111827" />
+    <View style={s.container}>
+      <RNAnimated.ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[s.list, allItems.length === 0 && s.listEmpty, { paddingTop: HEADER_TOP + NAVBAR_HEIGHT + TITLE_AREA_HEIGHT + 8 }]}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+      >
+        {/* Butik + dubblettknapp som första scrollbara rad — försvinner upp
+            tillsammans med kategorierna när användaren scrollar. */}
+        <View style={s.scrollMeta}>
+          <Pressable onPress={() => setShowStorePicker(true)} style={s.storeBtn}>
+            <Ionicons name="storefront-outline" size={16} color="#4f46e5" />
+            <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
           </Pressable>
-          <Pressable onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8}>
-            <Ionicons name="ellipsis-vertical" size={26} color="#111827" />
-          </Pressable>
+          {duplicateGroups.length > 0 && (
+            <Animated.View style={{ transform: [{ scale: dupeButtonScale }] }}>
+              <Pressable
+                style={s.dupeBadge}
+                onPress={() => openMergeForDupes(duplicateGroups[0])}
+                hitSlop={8}
+              >
+                <Ionicons name="git-merge-outline" size={12} color="#7c3aed" />
+                <Text style={s.dupeBadgeText}>
+                  {duplicateGroups.length === 1 ? '1 dubblett' : `${duplicateGroups.length} dubbletter`}
+                </Text>
+              </Pressable>
+            </Animated.View>
+          )}
         </View>
-        <View style={s.headerTitle}>
-          <Text style={s.title} numberOfLines={1}>{list.name}</Text>
-          <View style={s.headerMeta}>
-            <Pressable onPress={() => setShowStorePicker(true)} style={s.storeBtn}>
-              <Ionicons name="storefront-outline" size={12} color="#4f46e5" />
-              <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
-            </Pressable>
-            {duplicateGroups.length > 0 && (
-              <Animated.View style={{ transform: [{ scale: dupeButtonScale }] }}>
-                <Pressable
-                  style={s.dupeBadge}
-                  onPress={() => openMergeForDupes(duplicateGroups[0])}
-                  hitSlop={8}
-                >
-                  <Ionicons name="git-merge-outline" size={12} color="#7c3aed" />
-                  <Text style={s.dupeBadgeText}>
-                    {duplicateGroups.length === 1 ? '1 dubblett' : `${duplicateGroups.length} dubbletter`}
-                  </Text>
-                </Pressable>
-              </Animated.View>
-            )}
-          </View>
-        </View>
-      </View>
-
-      {/* Progress bar */}
-      {checked.length > 0 && unchecked.length > 0 && (
-        <View style={s.progressBar}>
-          <View style={[s.progressFill, { width: `${(checked.length / allItems.length) * 100}%` as `${number}%` }]} />
-        </View>
-      )}
-
-      <ScrollView contentContainerStyle={[s.list, allItems.length === 0 && s.listEmpty]}>
         {allItems.length === 0 && (
           <View style={s.emptyContainer}>
             <Pressable onPress={goToBulkTransfer} style={s.emptyImportBtn} hitSlop={12}>
@@ -648,29 +867,91 @@ export default function ShoppingListScreen() {
         )}
 
         {/* Category groups */}
-        {categoryGroups.map(group => (
-          <View key={group.category} style={s.categoryGroup}>
-            <View style={s.categoryHeader}>
-              <Text style={s.categoryLabel}>{CATEGORY_EMOJIS[group.category]} {CATEGORY_LABELS[group.category]}</Text>
+        {categoryGroups.map(group => {
+          const key = group.isCustom ? `c:${group.category}` : group.category as string;
+          const collapsed = collapsedCategories.has(key as StoreCategory | 'checked');
+          const label = group.isCustom
+            ? `🏷️ ${group.category}`
+            : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+          return (
+            <View key={key} style={s.categoryGroup}>
+              <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed(key as StoreCategory | 'checked')} hitSlop={4}>
+                <Text style={s.categoryLabel}>
+                  {label}
+                  {collapsed ? ` (${group.items.length})` : ''}
+                </Text>
+                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#9ca3af" />
+              </Pressable>
+              {!collapsed && group.items.map(item => (
+                <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
+              ))}
             </View>
-            {group.items.map(item => (
-              <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
-            ))}
-          </View>
-        ))}
+          );
+        })}
 
         {/* Checked items */}
-        {checked.length > 0 && (
-          <View style={s.categoryGroup}>
-            <View style={s.categoryHeader}>
-              <Text style={[s.categoryLabel, { color: '#9ca3af' }]}>Bockat</Text>
+        {checked.length > 0 && (() => {
+          const collapsed = collapsedCategories.has('checked');
+          return (
+            <View style={s.categoryGroup}>
+              <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={4}>
+                <Text style={[s.categoryLabel, { color: '#9ca3af' }]}>
+                  Bockat{collapsed ? ` (${checked.length})` : ''}
+                </Text>
+                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#d1d5db" />
+              </Pressable>
+              {!collapsed && checked.map(item => (
+                <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
+              ))}
             </View>
-            {checked.map(item => (
-              <ItemRow key={item.id} item={item} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
-            ))}
-          </View>
-        )}
-      </ScrollView>
+          );
+        })()}
+      </RNAnimated.ScrollView>
+
+      {/* Navbar background — pinned (incl. safe area top) */}
+      <View style={[s.navbarBgAbs, { height: HEADER_TOP + NAVBAR_HEIGHT }]} pointerEvents="none" />
+
+      {/* Title-area background — slides up so it visually scrolls away too */}
+      <RNAnimated.View
+        style={[s.titleAreaAbs, { top: HEADER_TOP + NAVBAR_HEIGHT, height: TITLE_AREA_HEIGHT }, titleAreaAnimStyle]}
+        pointerEvents="none"
+      />
+
+      {/* Title text — absolutely positioned over the title-area, slides with it.
+          Inner wrap uses alignSelf:flex-start so the text View shrinks to its
+          natural width (needed for onLayout to give us the actual text width). */}
+      <RNAnimated.View
+        style={[s.titleTextWrap, { top: HEADER_TOP + NAVBAR_HEIGHT, height: TITLE_AREA_HEIGHT }, titleAreaAnimStyle]}
+        pointerEvents="none"
+      >
+        <RNAnimated.View style={[{ alignSelf: 'flex-start' }, titleTextAnimStyle]}>
+          <Text
+            style={s.title}
+            numberOfLines={1}
+            onLayout={e => setTitleWidth(e.nativeEvent.layout.width)}
+          >
+            {list.name}
+          </Text>
+        </RNAnimated.View>
+      </RNAnimated.View>
+
+      {/* Progress bar — pinned under the navbar so it's always visible */}
+      {checked.length > 0 && unchecked.length > 0 && (
+        <View style={[s.progressBar, { position: 'absolute', top: HEADER_TOP + NAVBAR_HEIGHT, left: 0, right: 0, zIndex: 35 }]}>
+          <View style={[s.progressFill, { width: `${(checked.length / allItems.length) * 100}%` as `${number}%` }]} />
+        </View>
+      )}
+
+      {/* Navbar buttons — rendered last so they always sit on top */}
+      <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
+        <Pressable onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
+          <Ionicons name="arrow-back" size={22} color="#111827" />
+        </Pressable>
+        <View style={{ flex: 1 }} />
+        <Pressable onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8}>
+          <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
+        </Pressable>
+      </View>
 
       {/* Autocomplete chips + add bar */}
       <KeyboardAvoidingView
@@ -686,6 +967,8 @@ export default function ShoppingListScreen() {
                   key={s2.id}
                   style={s.chip}
                   onPress={() => openQtySheet(s2.name, s2.category as StoreCategory)}
+                  onLongPress={() => openStapleEditor(s2)}
+                  delayLongPress={350}
                 >
                   <Text style={s.chipText}>{capitalize(s2.name)}</Text>
                 </TouchableOpacity>
@@ -734,7 +1017,12 @@ export default function ShoppingListScreen() {
 
           {stores.map(store => (
             <View key={store.id} style={s.storeRow}>
-              <Pressable style={[s.storeOption, s.storeOptionFlex, list.storeId === store.id && s.storeOptionActive]} onPress={() => selectStore(store.id)}>
+              <Pressable
+                style={[s.storeOption, s.storeOptionFlex, list.storeId === store.id && s.storeOptionActive]}
+                onPress={() => selectStore(store.id)}
+                onLongPress={() => { setShowStorePicker(false); openCategoryEditor(store); }}
+                delayLongPress={350}
+              >
                 <Ionicons name="storefront-outline" size={20} color="#4f46e5" />
                 <Text style={[s.storeOptionText, { flex: 1 }]}>{store.name}</Text>
                 {list.storeId === store.id && <Ionicons name="checkmark" size={18} color="#4f46e5" />}
@@ -816,8 +1104,10 @@ export default function ShoppingListScreen() {
       {/* Item edit modal */}
       <Modal visible={!!editingItem} transparent animationType="slide" onRequestClose={() => setEditingItem(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
           <Text style={s.editLabel}>Namn</Text>
           <TextInput
             style={s.editInput}
@@ -878,18 +1168,36 @@ export default function ShoppingListScreen() {
           <Text style={s.editLabel}>Kategori</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
             <View style={s.catChipRow}>
-              {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
-                <Pressable
-                  key={cat}
-                  style={[s.catChip, editCategory === cat && s.catChipActive]}
-                  onPress={() => setEditCategory(cat)}
-                >
-                  <Text style={[s.catChipText, editCategory === cat && s.catChipTextActive]} numberOfLines={1}>
-                    {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
-                  </Text>
-                </Pressable>
-              ))}
+              {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => {
+                const active = !editCustomCategory && editCategory === cat;
+                return (
+                  <Pressable
+                    key={cat}
+                    style={[s.catChip, active && s.catChipActive]}
+                    onPress={() => { setEditCategory(cat); setEditCustomCategory(null); }}
+                  >
+                    <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
+                      {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              {customCategories.map(name => {
+                const active = editCustomCategory === name;
+                return (
+                  <Pressable
+                    key={`c:${name}`}
+                    style={[s.catChip, active && s.catChipActive]}
+                    onPress={() => setEditCustomCategory(active ? null : name)}
+                  >
+                    <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
+                      🏷️ {name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
+          </ScrollView>
           </ScrollView>
           <View style={s.editActions}>
             <Pressable style={s.deleteBtn} onPress={() => { setEditingItem(null); if (editingItem) deleteItem(editingItem.id); }}>
@@ -901,16 +1209,93 @@ export default function ShoppingListScreen() {
             </Pressable>
           </View>
         </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Staple edit modal (from long-press on suggestion chip) */}
+      <Modal visible={!!editingStaple} transparent animationType="slide" onRequestClose={() => setEditingStaple(null)}>
+        <Pressable style={s.overlay} onPress={() => setEditingStaple(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>
+            {editingStaple?.id.startsWith('suggestion:') ? 'Spara som basvara' : 'Redigera basvara'}
+          </Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
+          <Text style={s.editLabel}>Namn</Text>
+          <TextInput
+            style={s.editInput}
+            value={stapleName}
+            onChangeText={setStapleName}
+            placeholder="Varunamn"
+            placeholderTextColor="#9ca3af"
+            autoCapitalize="none"
+            returnKeyType="done"
+          />
+          <Text style={s.editLabel}>Enhet (valfritt)</Text>
+          <TextInput
+            style={s.editInput}
+            value={stapleUnit}
+            onChangeText={v => setStapleUnit(v.toLowerCase())}
+            placeholder="t.ex. st, dl, paket"
+            placeholderTextColor="#9ca3af"
+            autoCapitalize="none"
+            returnKeyType="done"
+          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">
+            <View style={s.unitChipRow}>
+              {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
+                <Pressable key={u} style={[s.unitChip, stapleUnit === u && s.unitChipActive]} onPress={() => setStapleUnit(v => v === u ? '' : u)}>
+                  <Text style={[s.unitChipText, stapleUnit === u && s.unitChipTextActive]}>{u}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+          <Text style={s.editLabel}>Kategori</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll} keyboardShouldPersistTaps="handled">
+            <View style={s.catChipRow}>
+              {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
+                <Pressable
+                  key={cat}
+                  style={[s.catChip, stapleCategory === cat && s.catChipActive]}
+                  onPress={() => setStapleCategory(cat)}
+                >
+                  <Text style={[s.catChipText, stapleCategory === cat && s.catChipTextActive]} numberOfLines={1}>
+                    {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+          </ScrollView>
+          <View style={s.editActions}>
+            {!editingStaple?.id.startsWith('suggestion:') && (
+              <Pressable style={s.deleteBtn} onPress={deleteStaple}>
+                <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                <Text style={s.deleteBtnText}>Ta bort</Text>
+              </Pressable>
+            )}
+            <Pressable
+              style={[s.saveBtn, (savingStaple || !stapleName.trim()) && s.saveBtnDisabled, { flex: 1, marginTop: 0 }]}
+              onPress={saveStapleEdit}
+              disabled={savingStaple || !stapleName.trim()}
+            >
+              {savingStaple ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Spara</Text>}
+            </Pressable>
+          </View>
+        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Category order editor */}
       <Modal visible={!!editingStore} transparent animationType="slide" onRequestClose={() => setEditingStore(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingStore(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>{editingStore?.name} — kategoriordning</Text>
-          <Text style={s.sheetSub}>Dra om ordningen med pilarna så den matchar butikens layout</Text>
-          <ScrollView style={{ maxHeight: 380 }}>
+          <ScrollView style={{ maxHeight: '70%' }} contentContainerStyle={{ paddingBottom: 12 }}>
+            <Text style={s.sheetSub}>Dra om ordningen med pilarna så den matchar butikens layout</Text>
             {editCategoryOrder.map((cat, idx) => (
               <View key={cat} style={s.catRow}>
                 <Text style={s.catRowLabel}>{CATEGORY_LABELS[cat]}</Text>
@@ -922,16 +1307,44 @@ export default function ShoppingListScreen() {
                 </Pressable>
               </View>
             ))}
+            <Text style={[s.sheetSub, { marginTop: 16 }]}>Egna kategorier</Text>
+            {editCustomCategories.map(name => (
+              <View key={name} style={s.catRow}>
+                <Text style={s.catRowLabel}>🏷️ {name}</Text>
+                <Pressable onPress={() => removeCustomCategory(name)} style={s.catArrow} hitSlop={8}>
+                  <Ionicons name="close-circle" size={20} color="#ef4444" />
+                </Pressable>
+              </View>
+            ))}
+            <View style={s.newStoreRow}>
+              <TextInput
+                style={[s.addInput, { flex: 1 }]}
+                placeholder="Ny egen kategori"
+                placeholderTextColor="#9ca3af"
+                value={newCustomCategory}
+                onChangeText={setNewCustomCategory}
+                returnKeyType="done"
+                onSubmitEditing={addCustomCategory}
+              />
+              <Pressable
+                style={[s.addBtn, !newCustomCategory.trim() && s.addBtnDisabled]}
+                onPress={addCustomCategory}
+                disabled={!newCustomCategory.trim()}
+              >
+                <Ionicons name="add" size={22} color="#fff" />
+              </Pressable>
+            </View>
           </ScrollView>
           <Pressable style={[s.saveBtn, savingOrder && s.saveBtnDisabled]} onPress={saveCategoryOrder} disabled={savingOrder}>
-            {savingOrder ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>Spara ordning</Text>}
+            {savingOrder ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>Spara</Text>}
           </Pressable>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
       {/* Quantity sheet */}
       <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
         <Pressable style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.3)' }]} onPress={() => setQtySheet(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{capitalize(qtySheet?.name)}</Text>
@@ -1012,6 +1425,7 @@ export default function ShoppingListScreen() {
       {/* Merge duplicates sheet */}
       <Modal visible={!!mergeSheet} transparent animationType="slide" onRequestClose={() => setMergeSheet(null)}>
         <Pressable style={s.overlay} onPress={() => setMergeSheet(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
         <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <View style={s.mergeHeaderRow}>
@@ -1148,12 +1562,27 @@ export default function ShoppingListScreen() {
             </Pressable>
             </>)}
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Actions menu (3-dot) */}
       <Modal visible={showActionsMenu} transparent animationType="fade" onRequestClose={() => setShowActionsMenu(false)}>
         <Pressable style={s.overlay} onPress={() => setShowActionsMenu(false)} />
         <View style={s.actionsMenu}>
+          <Pressable
+            style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); setRenameValue(list.name); setShowRenameModal(true); }}
+          >
+            <Ionicons name="create-outline" size={20} color="#4f46e5" />
+            <Text style={s.actionsMenuText}>Byt namn på listan</Text>
+          </Pressable>
+          <Pressable
+            style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); setShowStorePicker(true); }}
+          >
+            <Ionicons name="storefront-outline" size={20} color="#4f46e5" />
+            <Text style={s.actionsMenuText}>{list.store?.name ? `Butik: ${list.store.name}` : 'Välj butik'}</Text>
+          </Pressable>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); checkAllUnchecked(); }}
@@ -1190,6 +1619,34 @@ export default function ShoppingListScreen() {
             <Text style={[s.actionsMenuText, { color: '#ef4444' }]}>Rensa lista</Text>
           </Pressable>
         </View>
+      </Modal>
+
+      {/* Rename list modal */}
+      <Modal visible={showRenameModal} transparent animationType="slide" onRequestClose={() => setShowRenameModal(false)}>
+        <Pressable style={s.overlay} onPress={() => setShowRenameModal(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
+          <View style={s.sheet}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>Byt namn på listan</Text>
+            <TextInput
+              style={s.editInput}
+              value={renameValue}
+              onChangeText={setRenameValue}
+              placeholder="Listans namn"
+              placeholderTextColor="#9ca3af"
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={saveRename}
+            />
+            <Pressable
+              style={[s.saveBtn, (!renameValue.trim() || renaming) && s.saveBtnDisabled]}
+              onPress={saveRename}
+              disabled={!renameValue.trim() || renaming}
+            >
+              {renaming ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>Spara</Text>}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Manual duplicate picker */}
@@ -1242,46 +1699,61 @@ export default function ShoppingListScreen() {
           </Pressable>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
-type CategoryGroup = { category: StoreCategory; items: ShoppingItemWithRecipe[] };
+type CategoryGroup = { category: StoreCategory | string; isCustom: boolean; items: ShoppingItemWithRecipe[] };
 
-function buildCategoryGroups(items: ShoppingItemWithRecipe[], order: StoreCategory[]): CategoryGroup[] {
-  const map = new Map<StoreCategory, ShoppingItemWithRecipe[]>();
+function buildCategoryGroups(
+  items: ShoppingItemWithRecipe[],
+  order: StoreCategory[],
+  customCategories: string[] = [],
+): CategoryGroup[] {
+  // Items with customCategory go under that key; others under their enum category.
+  const enumMap = new Map<StoreCategory, ShoppingItemWithRecipe[]>();
+  const customMap = new Map<string, ShoppingItemWithRecipe[]>();
   for (const item of items) {
-    const cat = item.category as StoreCategory;
-    if (!map.has(cat)) map.set(cat, []);
-    map.get(cat)!.push(item);
+    if (item.customCategory) {
+      if (!customMap.has(item.customCategory)) customMap.set(item.customCategory, []);
+      customMap.get(item.customCategory)!.push(item);
+    } else {
+      const cat = item.category as StoreCategory;
+      if (!enumMap.has(cat)) enumMap.set(cat, []);
+      enumMap.get(cat)!.push(item);
+    }
   }
-  const orderedKeys = [...order.filter(c => map.has(c))];
-  // append any categories not in order
-  for (const cat of map.keys()) {
-    if (!orderedKeys.includes(cat)) orderedKeys.push(cat);
+  const orderedEnum = [...order.filter(c => enumMap.has(c))];
+  for (const cat of enumMap.keys()) {
+    if (!orderedEnum.includes(cat)) orderedEnum.push(cat);
   }
-  return orderedKeys.map(cat => ({
-    category: cat,
-    items: map.get(cat)!.sort((a, b) => {
-      if (a.isChecked !== b.isChecked) return a.isChecked ? 1 : -1;
-      return a.name.localeCompare(b.name, 'sv');
-    }),
-  }));
+  const orderedCustom = [...customCategories.filter(c => customMap.has(c))];
+  for (const cat of customMap.keys()) {
+    if (!orderedCustom.includes(cat)) orderedCustom.push(cat);
+  }
+  const sortItems = (arr: ShoppingItemWithRecipe[]) => arr.sort((a, b) => {
+    if (a.isChecked !== b.isChecked) return a.isChecked ? 1 : -1;
+    return a.name.localeCompare(b.name, 'sv');
+  });
+  return [
+    ...orderedEnum.map(cat => ({ category: cat, isCustom: false, items: sortItems(enumMap.get(cat)!) })),
+    ...orderedCustom.map(cat => ({ category: cat, isCustom: true, items: sortItems(customMap.get(cat)!) })),
+  ];
 }
 
-function ItemRow({ item, onToggle, onEdit }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void }) {
+function ItemRow({ item, onToggle, onEdit, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; pending?: boolean }) {
   return (
     <Pressable
-      style={[s.item, item.isChecked && s.itemChecked]}
-      onPress={onToggle}
-      onLongPress={onEdit}
+      style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
+      onPress={pending ? undefined : onToggle}
+      onLongPress={pending ? undefined : onEdit}
     >
       <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? '#10b981' : '#4f46e5'} />
       <View style={s.itemContent}>
         <View style={s.itemRow}>
-          <Text style={[s.itemName, item.isChecked && s.itemNameChecked]}>{capitalize(item.name)}</Text>
+          <Text style={[s.itemName, (item.isChecked || pending) && s.itemNameChecked]}>{capitalize(item.name)}</Text>
           {(item.quantity !== 1 || item.unit) && (
-            <Text style={[s.itemQty, item.isChecked && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}</Text>
+            <Text style={[s.itemQty, (item.isChecked || pending) && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}</Text>
           )}
         </View>
       </View>
@@ -1293,18 +1765,28 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: 12 },
-  headerNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  headerNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6 },
+  headerStack: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  titleSlide: { paddingHorizontal: 20, paddingBottom: 6 },
+  scrollMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 8, paddingTop: 4, gap: 8 },
+  titleAreaAbs: { position: 'absolute', left: 0, right: 0, backgroundColor: '#f9fafb', zIndex: 10 },
+  navbarBgAbs: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: '#f9fafb', zIndex: 5 },
+  navbarButtonsAbs: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, zIndex: 30 },
+  titleTextWrap: { position: 'absolute', left: 20, right: 20, justifyContent: 'center', alignItems: 'flex-start', zIndex: 25 },
+  headerNavPinned: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  headerTitleAbs: { position: 'absolute', left: 0, right: 0, zIndex: 10, paddingHorizontal: 20, backgroundColor: '#fff', overflow: 'hidden' },
   actionsMenu: { position: 'absolute', top: 56, right: 12, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
   actionsMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   actionsMenuText: { fontSize: 15, color: '#111827', fontWeight: '500' },
   actionsMenuDivider: { height: 1, backgroundColor: '#f3f4f6', marginVertical: 4 },
-  headerTitle: { paddingHorizontal: 20, paddingTop: 2 },
+  headerTitle: { paddingHorizontal: 20, paddingTop: 5, paddingBottom: 5 },
   headerMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
-  backBtn: { padding: 10 },
-  doneBtn: { padding: 10 },
+  backBtn: { padding: 4 },
+  doneBtn: { padding: 4 },
   title: { fontSize: 26, fontWeight: '700', color: '#111827' },
-  storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  storeBtnText: { fontSize: 12, color: '#4f46e5', fontWeight: '500' },
+  titleCompact: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: '#111827', paddingHorizontal: 8 },
+  storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  storeBtnText: { fontSize: 16, color: '#4f46e5', fontWeight: '600' },
   progressBar: { height: 3, backgroundColor: '#e5e7eb' },
   progressFill: { height: 3, backgroundColor: '#10b981' },
   list: { padding: 16, gap: 16, paddingBottom: 8 },
@@ -1324,6 +1806,7 @@ const s = StyleSheet.create({
   categoryCount: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
   item: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   itemChecked: { opacity: 0.55 },
+  itemPending: { opacity: 0.4, backgroundColor: '#fef2f2' },
   itemContent: { flex: 1 },
   itemRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
   itemName: { fontSize: 16, color: '#111827', flex: 1 },
@@ -1338,8 +1821,9 @@ const s = StyleSheet.create({
   addInput: { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
   addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center' },
   addBtnDisabled: { opacity: 0.4 },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '80%' },
+  overlay: { flex: 1, backgroundColor: 'rgba(17,24,39,0.7)' },
+  kavWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, top: 0, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '85%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   sheetSub: { fontSize: 13, color: '#6b7280', marginTop: -4 },

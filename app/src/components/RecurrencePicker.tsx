@@ -50,13 +50,20 @@ export type RecurrencePickerProps = RecurrencePickerValue & {
   referenceDate?: Date;
   /** Referensdag för weekday-of-month-label. Default: härleds från referenceDate. */
   referenceDay?: WeekDay;
+  /** Om satt: visa stepper för dag-i-månaden (1-31). Annars: visa bara dagen från referenceDate. */
+  dayOfMonth?: number;
+  onChangeDayOfMonth?: (day: number) => void;
+  /** Om satt: visa veckodag-rad för weekday-of-month. Annars: härled från referenceDay. */
+  weekday?: WeekDay;
+  onChangeWeekday?: (day: WeekDay) => void;
 };
 
 const WEEKDAY_FROM_JS: WeekDay[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 export function RecurrencePicker(props: RecurrencePickerProps) {
   const ref = props.referenceDate ?? new Date();
-  const refDay = props.referenceDay ?? WEEKDAY_FROM_JS[ref.getDay()];
+  const dom = props.dayOfMonth ?? ref.getDate();
+  const wday = props.weekday ?? props.referenceDay ?? WEEKDAY_FROM_JS[ref.getDay()];
 
   return (
     <>
@@ -68,7 +75,12 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
             style={[s.typeBtn, props.recurrenceType === type && s.typeBtnActive]}
             onPress={() => props.onChangeType(type)}
           >
-            <Text style={[s.typeBtnText, props.recurrenceType === type && s.typeBtnTextActive]}>
+            <Text
+              style={[s.typeBtnText, props.recurrenceType === type && s.typeBtnTextActive]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
               {TYPE_LABEL[type]}
             </Text>
           </Pressable>
@@ -77,7 +89,7 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
 
       {props.recurrenceType !== 'none' && (
         <View style={s.intervalRow}>
-          <Text style={s.intervalLabel}>Var</Text>
+          <Text style={s.intervalLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>Var</Text>
           <Pressable style={s.intervalBtn} onPress={() => props.onChangeWeeks(Math.max(1, props.recurrenceWeeks - 1))}>
             <Text style={s.intervalBtnText}>−</Text>
           </Pressable>
@@ -85,7 +97,7 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
           <Pressable style={s.intervalBtn} onPress={() => props.onChangeWeeks(props.recurrenceWeeks + 1)}>
             <Text style={s.intervalBtnText}>+</Text>
           </Pressable>
-          <Text style={s.intervalLabel}>{INTERVAL_UNIT[props.recurrenceType]}</Text>
+          <Text style={s.intervalLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{INTERVAL_UNIT[props.recurrenceType]}</Text>
         </View>
       )}
 
@@ -105,7 +117,12 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
                     )
                   }
                 >
-                  <Text style={[s.dayText, active && s.dayTextActive]}>{day.short}</Text>
+                  <Text
+                    style={[s.dayText, active && s.dayTextActive]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >{day.short}</Text>
                 </Pressable>
               );
             })}
@@ -121,31 +138,66 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
               style={[s.monthlyBtn, props.monthlyType === 'day_of_month' && s.monthlyBtnActive]}
               onPress={() => props.onChangeMonthlyType('day_of_month')}
             >
-              <Text style={[s.monthlyBtnText, props.monthlyType === 'day_of_month' && s.monthlyBtnTextActive]}>
-                Varje månad den {ref.getDate()}:e
+              <Text style={[s.monthlyBtnText, props.monthlyType === 'day_of_month' && s.monthlyBtnTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                Varje månad den {dom}:e
               </Text>
             </Pressable>
             <Pressable
               style={[s.monthlyBtn, props.monthlyType === 'weekday_of_month' && s.monthlyBtnActive]}
               onPress={() => props.onChangeMonthlyType('weekday_of_month')}
             >
-              <Text style={[s.monthlyBtnText, props.monthlyType === 'weekday_of_month' && s.monthlyBtnTextActive]}>
+              <Text style={[s.monthlyBtnText, props.monthlyType === 'weekday_of_month' && s.monthlyBtnTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                 {['Första', 'Andra', 'Tredje', 'Fjärde'][props.recurrenceWeekOfMonth - 1] ?? 'Sista'}{' '}
-                {DAYS.find(d => d.key === refDay)?.label.toLowerCase()} i månaden
+                {DAYS.find(d => d.key === wday)?.label.toLowerCase()} i månaden
               </Text>
             </Pressable>
           </View>
-          {props.monthlyType === 'weekday_of_month' && (
+          {props.monthlyType === 'day_of_month' && props.onChangeDayOfMonth && (
             <View style={s.intervalRow}>
-              <Text style={s.intervalLabel}>Vecka i månaden</Text>
-              <Pressable style={s.intervalBtn} onPress={() => props.onChangeWeekOfMonth(Math.max(1, props.recurrenceWeekOfMonth - 1))}>
+              <Text style={s.intervalLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>Dag i månaden</Text>
+              <Pressable style={s.intervalBtn} onPress={() => props.onChangeDayOfMonth!(((dom - 2 + 31) % 31) + 1)}>
                 <Text style={s.intervalBtnText}>−</Text>
               </Pressable>
-              <Text style={s.intervalValue}>{props.recurrenceWeekOfMonth}</Text>
-              <Pressable style={s.intervalBtn} onPress={() => props.onChangeWeekOfMonth(Math.min(4, props.recurrenceWeekOfMonth + 1))}>
+              <Text style={s.intervalValue}>{dom}</Text>
+              <Pressable style={s.intervalBtn} onPress={() => props.onChangeDayOfMonth!((dom % 31) + 1)}>
                 <Text style={s.intervalBtnText}>+</Text>
               </Pressable>
             </View>
+          )}
+          {props.monthlyType === 'weekday_of_month' && (
+            <>
+              {props.onChangeWeekday && (
+                <View style={s.dayRow}>
+                  {DAYS.map(day => {
+                    const active = wday === day.key;
+                    return (
+                      <Pressable
+                        key={day.key}
+                        style={[s.dayOption, active && s.dayOptionActive]}
+                        onPress={() => props.onChangeWeekday!(day.key)}
+                      >
+                        <Text
+                    style={[s.dayText, active && s.dayTextActive]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >{day.short}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+              <View style={s.intervalRow}>
+                <Text style={s.intervalLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>Vecka i månaden</Text>
+                <Pressable style={s.intervalBtn} onPress={() => props.onChangeWeekOfMonth(Math.max(1, props.recurrenceWeekOfMonth - 1))}>
+                  <Text style={s.intervalBtnText}>−</Text>
+                </Pressable>
+                <Text style={s.intervalValue}>{props.recurrenceWeekOfMonth}</Text>
+                <Pressable style={s.intervalBtn} onPress={() => props.onChangeWeekOfMonth(Math.min(4, props.recurrenceWeekOfMonth + 1))}>
+                  <Text style={s.intervalBtnText}>+</Text>
+                </Pressable>
+              </View>
+            </>
           )}
         </>
       )}
@@ -158,7 +210,7 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
               style={[s.endBtn, !props.endDate && s.endBtnActive]}
               onPress={() => props.onChangeEndDate(null)}
             >
-              <Text style={[s.endBtnText, !props.endDate && s.endBtnTextActive]}>Upphör aldrig</Text>
+              <Text style={[s.endBtnText, !props.endDate && s.endBtnTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>Upphör aldrig</Text>
             </Pressable>
             <Pressable
               style={[s.endBtn, props.endDate && s.endBtnActive, { flex: 1.5 }]}
@@ -186,8 +238,8 @@ const s = StyleSheet.create({
   intervalBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', alignItems: 'center', justifyContent: 'center' },
   intervalBtnText: { fontSize: 18, color: '#4f46e5', fontWeight: '700' },
   intervalValue: { fontSize: 15, fontWeight: '600', color: '#111827', minWidth: 24, textAlign: 'center' },
-  dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  dayOption: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  dayRow: { flexDirection: 'row', gap: 4 },
+  dayOption: { flex: 1, paddingVertical: 8, borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', alignItems: 'center' },
   dayOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
   dayText: { fontSize: 12, color: '#6b7280' },
   dayTextActive: { color: '#4f46e5', fontWeight: '600' },

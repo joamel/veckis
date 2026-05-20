@@ -13,17 +13,20 @@
 - [x] kan vi ha en optimisisk uppdatering (generellt) så att frontend inte alltid väntar på backend svar innan den flyttar något, skapar något osv?
 - [x] exempeltexter syns inte mot den ljusa bakgrunden
 - [x] rensa filter med ett x bredvid filterknappen?
-- [ ] Ännu större font och knappar/pilar mm i tablet-vyn. Idag ser de nästan mindre ut än i mobilversionen.
-- [ ] sysslor och aktiviteter skulle kunna ha en emoji likt maträtter för att få samma stil på korten i kalendern.
+- [x] Ännu större font och knappar/pilar mm i tablet-vyn. Idag ser de nästan mindre ut än i mobilversionen.
+- [x] sysslor och aktiviteter skulle kunna ha en emoji likt maträtter för att få samma stil på korten i kalendern.
 - [ ] möjligt med horisontell-vy i tablet
 - [x] Ångra-toast för destruktiva åtgärder (rensa inköpslista) — knapp "Ångra" i toasten i ~5 sekunder (resten kan adderas vid behov)
 - [x] Utvidga realtidsuppdatering (WebSocket) till sysslor och kalender (meny + inställningar kan adderas via samma kanal)
-- [ ] Long press-symmetri: kontrollera att redigering via long press finns konsekvent på basvaror, butiker och kategorier (inte bara inköpslista/maträtt/aktivitet/syssla)
+- [x] Long press-symmetri: kontrollera att redigering via long press finns konsekvent på basvaror, butiker och kategorier (inte bara inköpslista/maträtt/aktivitet/syssla)
 - [ ] Pushnotiser — specificera per typ: påminnelse innan aktivitet startar, förfallen syssla, någon har rensat aktiv inköpslista, ny medlem i hushållet
 - [x] Bannern ovan appen borde vara svart/neutral så man ser klockan, notiser mm
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
-- [ ] Flertal ställen i appen när inputfälten fortfarande inte hoppar upp ovan tangentbordet. Säkerställ att alla inputfält har rätta beteendet
-- [ ] Samma filter borde gälla över sysslor som kalender så att man inte blir förvirrad vad som är filtrerat för de olika flikarna
+- [x] Flertal ställen i appen när inputfälten fortfarande inte hoppar upp ovan tangentbordet. Säkerställ att alla inputfält har rätta beteendet
+- [x] Samma filter borde gälla över sysslor som kalender så att man inte blir förvirrad vad som är filtrerat för de olika flikarna
+- [x] Pending-removal visual state: under ångra-fönstret (5s) ska varor/recept som håller på att tas bort visas med fade + strikethrough + liten "(tas bort om Xs)"-tag istället för att försvinna direkt eller poppa tillbaka vid ångra
+- [x] Toast-kö vid bulk-borttagning: om flera recept tas bort i snabb följd skriver toasten över sig själv. Stacka eller visa "3 recept tas bort om 5s · Ångra"
+- [x] Re-merge feedback: när auto-merge slår ihop kvarvarande varor efter borttagning (t.ex. 3 ägg → ta bort 1 → 2 ägg), visa toast "Slog ihop {n} {namn}" så användaren förstår grupperingen
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -87,14 +90,19 @@
 - [x] Om man importerar veckomeny från en inköpslista så borde den inte fråga vilken inköpslista man vill överföra till samt redirecta tillbaka till den inköpslista man var inne i.
 - [x] Om man ångrar import borde man återgå till inköpslistan istället för att hamna i veckomenyn
 - [x] När man har flera dubbletter vore det snyggare om allt sparas efter att man klickat klart genom dubbletterna istället för varje gång man trycker på "slå ihop". Så istället kommer nästa sömlöst upp när man trycker på slå ihop.
-- [ ] Borde gå att lägga till egna kategorier och ta bort kategorier i butiker.
 - [x] Automatiskt slå ihop ingredienser av samma typ och måttenhet vid import (recept med menuItemId mergas nu med existerande oberoende vara av samma namn+enhet)
 - [x] När man byter enhet på en basvara läggs den till under kategori istället för att ersätta den gamla så att man får dubbletter. Bättre att den bara uppdaterar enheten istället.
 - [x] Redigera vara borde se likadan ut som lägga till ny vara-vyn (förutom att man ska kunna redigera varunamnet).
 - [x] Ny varuvyn borde komma upp även när man lägger in vara manuellt i inputfältet
 - [x] Enheter har stor bokstav i dubblettvyn.
-- [ ] Enhetsfältet syns inte när man får upp tangentbordet i enheten för dubblettdialogen
-- [ ] möjlighet att redigera felinskriva basvaror genom att longpressa på sökförslaget
+- [x] Enhetsfältet syns inte när man får upp tangentbordet i enheten för dubblettdialogen
+- [x] möjlighet att redigera felinskriva basvaror genom att longpressa på sökförslaget
+- [x] optimistisk uppdatering vid redigering av varor
+- [x] tangentbordet hoppar inte upp vid redigering av varor
+- [x] automatiskt sammanslå varor med samma enhet efter redigering
+- [x] kunna skapa egna kategorier samt kunna dölja/lägga till kategorier man vill ha
+- [x] Möjlighet att fälla ihop kategorier i inköpslistan genom att trycka på kategorinamnet
+- [x] toast vid lyckad ihopslagning av dubbletter
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -126,9 +134,9 @@
 - [x] när man lägger in nytt recept borde man få förslag när man börjar skriva in ingredienser typ ("ban" -> "banan") likt när man lägger till basvara i inköpslistan
 - [x] När man överför ingrediensern med shopping-carten direkt i ett recept borde det inte gå att välja någon lista om ingen ingrediens är vald
 - [x] När man överför ingredienser direkt med shopping-cart funktionen blir det en spinner på alla inköpslistor istället för den man tryckt på. Och istället för en toast blir det en dialog vilket inte följer resten av designen
-- [ ] Hela rubriken "Originalrecept" syns inte inuti ett recept. Bara "Originalrecep"
 - [x] Flytta ingrediensnamnet så att det kommer först i nytt recept, så att man först skriver in ingrediensen, sedan mängd och sist enhet
-
+- [x] Hela rubriken "Originalrecept" syns inte inuti ett recept. Bara "Originalrecep"
+- [x] Ha en border under veckodagen som motsvarar en yta för maträtten samt ett "+" i mitten. När man flyttar rätter mellan dagarna borde den bara flytta mellan borders (inte runt veckodagens namn)
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -152,11 +160,13 @@
 - [x] En privat aktivitet i kalendern borde kanske inte kunna läggas på någon user
 - [x] Skapa ny aktivitet behöver inte ha "Dag"-valet med veckodagarna då den bör komma ihåg vilken dag man valt att lägga in aktiviteten på.
 - [x] Kunna lägga aktiviteter på fler än en user i taget
+- [x] Lägga tider ute till höger på aktiviteter
+- [x] Datepickern borde visa datumet man är på och väljer man ett datum i datepickern borde kalendern uppdatera så att det är den dagen som väljs i veckovyn
 
 ### Sysslor
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.
 - [x] Kunna redigera sysslor enklare (med en penna till höger)
-- [ ] Skapa syssla dialogen borde se mer ut som aktivitetsdialogen med Upprepning och även möjlighet att välja en specifik dag som sysslan ska utföras på.
+- [x] Skapa syssla dialogen borde se mer ut som aktivitetsdialogen med Upprepning och även möjlighet att välja en specifik dag som sysslan ska utföras på.
 - [x] När man skapar en syssla blir det en dubblett
 - [x] Checkar man av en syssla uppdateras det inte automatiskt på en annan enhet
 - [x] Skapa/redigera syssla-dialogen borde vara större så man ser alla fälten. Tilldela person fältet borde ligga ovanför Frekvens.

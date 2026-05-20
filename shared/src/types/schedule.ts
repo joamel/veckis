@@ -5,6 +5,7 @@ export interface ScheduleEntry {
   id: string;
   householdId: string;
   title: string;
+  emoji: string | null;
   description: string | null;
   day: WeekDay;
   startTime: string | null;

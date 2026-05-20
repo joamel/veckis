@@ -247,7 +247,7 @@ export default function RecipeDetailScreen() {
               style={s.metaChip}
               onPress={() => WebBrowser.openBrowserAsync(recipe.sourceUrl!)}
             >
-              <Text style={[s.metaText, { color: '#4f46e5' }]}>↗ Originalrecept</Text>
+              <Text style={[s.metaText, { color: '#4f46e5' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>↗ Originalrecept</Text>
             </Pressable>
           )}
         </View>
