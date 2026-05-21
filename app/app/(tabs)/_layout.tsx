@@ -1,7 +1,9 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { usePushRegistration } from '../../src/hooks/usePushRegistration';
 
 export default function TabLayout() {
+  usePushRegistration();
   return (
     <Tabs
       initialRouteName="schedule"

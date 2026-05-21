@@ -23,8 +23,45 @@ const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 export type { StoreCategory, ChoreFrequency, WeekDay };
 
+/**
+ * Error thrown by the API client. Distinguishes a failed network request
+ * (server unreachable / offline) from an HTTP error response so callers can
+ * show a meaningful message when an optimistic update has to be rolled back.
+ */
+export class ApiError extends Error {
+  readonly status: number | null;
+  readonly isNetworkError: boolean;
+
+  constructor(message: string, status: number | null, isNetworkError: boolean) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.isNetworkError = isNetworkError;
+  }
+}
+
+/**
+ * Picks a user-facing Swedish message for a caught error. Network failures get
+ * a connectivity hint; everything else falls back to the caller's context
+ * message so the toast still tells the user *what* failed.
+ */
+export function getApiErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiError && err.isNetworkError) {
+    return 'Ingen anslutning till servern – försök igen';
+  }
+  return fallback;
+}
+
 export type RecipeWithIngredients = Recipe & { ingredients: RecipeIngredient[] };
 export type WeekMenuItemWithRecipe = WeekMenuItem & { recipe: RecipeWithIngredients };
+
+export interface NotificationPreferences {
+  activityReminder: boolean;
+  choreOverdue: boolean;
+  listCleared: boolean;
+  newMember: boolean;
+  reminderMinutes: number;
+}
 
 export type HouseholdWithMembers = Household & { members: HouseholdMember[]; stores: Store[] };
 export type MembershipWithHousehold = HouseholdMember & { household: Household };
@@ -37,18 +74,25 @@ export function useApiClient() {
   async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const token = await getToken();
     const url = `${BASE_URL}${path}`;
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...options.headers,
-      },
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...options.headers,
+        },
+      });
+    } catch {
+      // fetch rejects (rather than resolving with !ok) when the request never
+      // reached the server: no connectivity, DNS failure, server down, etc.
+      throw new ApiError('Network request failed', null, true);
+    }
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error ?? `HTTP ${res.status}`);
+      throw new ApiError(err.error ?? `HTTP ${res.status}`, res.status, false);
     }
 
     if (res.status === 204) return undefined as T;
@@ -262,5 +306,18 @@ export function useApiClient() {
 
     updateShoppingList: (listId: string, data: { name?: string; storeId?: string | null }) =>
       request<ShoppingListWithItems>(`/api/shopping/lists/${listId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+    // Push notifications
+    registerPushToken: (token: string, platform?: string) =>
+      request<{ id: string }>('/api/push/register', { method: 'POST', body: JSON.stringify({ token, platform }) }),
+
+    unregisterPushToken: (token: string) =>
+      request<void>('/api/push/unregister', { method: 'POST', body: JSON.stringify({ token }) }),
+
+    getNotificationPreferences: () =>
+      request<NotificationPreferences>('/api/push/preferences'),
+
+    updateNotificationPreferences: (data: Partial<NotificationPreferences>) =>
+      request<NotificationPreferences>('/api/push/preferences', { method: 'PATCH', body: JSON.stringify(data) }),
   };
 }

@@ -10,6 +10,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -25,14 +26,14 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import type { InviteCode } from '@veckis/shared';
-import type { HouseholdWithMembers } from '../../src/api/client';
+import type { HouseholdWithMembers, NotificationPreferences } from '../../src/api/client';
 
 export default function SettingsScreen() {
   const { signOut, getToken } = useAuth();
   const { user, isSignedIn } = useUser();
   const client = useApiClient();
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
-  const { showToast: showGlobalToast } = useToast();
+  const { showToast: showGlobalToast, showError } = useToast();
   const [invite, setInvite] = useState<InviteCode | null>(null);
   const [loadingInvite, setLoadingInvite] = useState(false);
 
@@ -123,6 +124,25 @@ export default function SettingsScreen() {
     }
   }, [householdId]);
 
+  // Notification preferences
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
+  useEffect(() => {
+    client.getNotificationPreferences().then(setNotifPrefs).catch(() => {});
+  }, []);
+
+  async function toggleNotif(key: keyof NotificationPreferences, value: boolean) {
+    if (!notifPrefs) return;
+    const prev = notifPrefs;
+    setNotifPrefs({ ...notifPrefs, [key]: value }); // optimistic
+    try {
+      const updated = await client.updateNotificationPreferences({ [key]: value });
+      setNotifPrefs(updated);
+    } catch (e) {
+      setNotifPrefs(prev);
+      showError(e, 'Kunde inte spara notisinställningen');
+    }
+  }
+
   const displayName = user?.fullName ?? user?.emailAddresses[0]?.emailAddress ?? 'Användare';
   const email = user?.emailAddresses[0]?.emailAddress;
   const clerkUserId = user?.id;
@@ -136,8 +156,8 @@ export default function SettingsScreen() {
     try {
       const code = await client.createInvite(householdId);
       setInvite(code);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte skapa inbjudningskod');
+    } catch (e) {
+      showError(e, 'Kunde inte skapa inbjudningskod');
     } finally {
       setLoadingInvite(false);
     }
@@ -159,8 +179,8 @@ export default function SettingsScreen() {
       setHousehold(h => h ? { ...h, name: updated.name } : null);
       setShowEditHouseholdModal(false);
       showToast('Hushållets namn uppdaterat');
-    } catch {
-      Alert.alert('Fel', 'Kunde inte uppdatera hushållets namn');
+    } catch (e) {
+      showError(e, 'Kunde inte uppdatera hushållets namn');
     } finally {
       setLoadingHouseholdEdit(false);
     }
@@ -184,8 +204,8 @@ export default function SettingsScreen() {
       } : null);
       setShowEditMemberModal(false);
       showToast('Smeknamnet har uppdaterats');
-    } catch {
-      Alert.alert('Fel', 'Kunde inte uppdatera smeknamnet');
+    } catch (e) {
+      showError(e, 'Kunde inte uppdatera smeknamnet');
     } finally {
       setLoadingMemberEdit(false);
     }
@@ -210,8 +230,8 @@ export default function SettingsScreen() {
               const updated = await client.updateMember(householdId, memberId, { role: promote ? 'admin' : 'member' });
               setHousehold(h => h ? { ...h, members: h.members.map(m => m.id === memberId ? { ...m, role: updated.role } : m) } : null);
               showToast(promote ? `${memberName} är nu admin` : `${memberName} är inte längre admin`);
-            } catch {
-              Alert.alert('Fel', 'Kunde inte ändra roll');
+            } catch (e) {
+              showError(e, 'Kunde inte ändra roll');
             }
           },
         },
@@ -231,8 +251,8 @@ export default function SettingsScreen() {
             await client.removeMember(householdId, memberId);
             setHousehold(h => h ? { ...h, members: h.members.filter(m => m.id !== memberId) } : null);
             showToast(`${memberName} borttagen`);
-          } catch {
-            Alert.alert('Fel', 'Kunde inte ta bort medlem');
+          } catch (e) {
+            showError(e, 'Kunde inte ta bort medlem');
           }
         },
       },
@@ -249,8 +269,8 @@ export default function SettingsScreen() {
       setShowCreateLocalModal(false);
       setLocalProfileName('');
       showToast(`${localProfileName} tillagd som lokal profil`);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte skapa lokal profil');
+    } catch (e) {
+      showError(e, 'Kunde inte skapa lokal profil');
     } finally {
       setLoadingLocalProfile(false);
     }
@@ -266,8 +286,8 @@ export default function SettingsScreen() {
       setShowDeleteHouseholdModal(false);
       setDeleteConfirmText('');
       showToast('Hushållet borttaget');
-    } catch {
-      Alert.alert('Fel', 'Kunde inte ta bort hushållet');
+    } catch (e) {
+      showError(e, 'Kunde inte ta bort hushållet');
     } finally {
       setLoadingDeleteHousehold(false);
     }
@@ -284,8 +304,8 @@ export default function SettingsScreen() {
       setShowCreateHouseholdModal(false);
       setNewHouseholdName('');
       showToast(`"${newHouseholdName}" skapat`);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte skapa hushållet');
+    } catch (e) {
+      showError(e, 'Kunde inte skapa hushållet');
     } finally {
       setLoadingCreateHousehold(false);
     }
@@ -305,7 +325,7 @@ export default function SettingsScreen() {
       if (err?.message?.toLowerCase().includes('already')) {
         Alert.alert('Redan med', 'Du är redan medlem i det hushållet.');
       } else {
-        Alert.alert('Fel', 'Kunde inte ansluta till hushållet. Kontrollera koden.');
+        showError(err, 'Kunde inte ansluta till hushållet. Kontrollera koden.');
       }
     } finally {
       setLoadingJoinHousehold(false);
@@ -490,6 +510,38 @@ export default function SettingsScreen() {
                 : <Text style={styles.inviteBtnText}>{invite ? 'Ny kod' : 'Skapa inbjudningskod'}</Text>}
             </Pressable>
           </View>
+        </View>
+
+        {/* Notiser */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>NOTISER</Text>
+          {notifPrefs ? (
+            <View style={styles.notifBox}>
+              {([
+                ['activityReminder', 'Påminnelse innan aktivitet', 'Innan en aktivitet startar'],
+                ['choreOverdue', 'Förfallen syssla', 'När en syssla inte hunnit bli klar'],
+                ['listCleared', 'Inköpslista rensad', 'När någon rensar en aktiv lista'],
+                ['newMember', 'Ny medlem', 'När någon går med i hushållet'],
+              ] as const).map(([key, title, desc], i) => (
+                <View key={key} style={[styles.notifRow, i > 0 && styles.notifRowBorder]}>
+                  <View style={styles.notifTextWrap}>
+                    <Text style={styles.notifTitle}>{title}</Text>
+                    <Text style={styles.notifDesc}>{desc}</Text>
+                  </View>
+                  <Switch
+                    value={notifPrefs[key] as boolean}
+                    onValueChange={v => toggleNotif(key, v)}
+                    trackColor={{ true: '#4f46e5', false: '#d1d5db' }}
+                    accessibilityLabel={title}
+                  />
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.notifBox}>
+              <Text style={styles.notifDesc}>Läser in…</Text>
+            </View>
+          )}
         </View>
 
         {/* Mina hushåll */}
@@ -839,6 +891,21 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   inviteDesc: { fontSize: 14, color: '#6b7280', lineHeight: 20 },
+  notifBox: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 3,
+  },
+  notifRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },
+  notifRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e7eb' },
+  notifTextWrap: { flex: 1 },
+  notifTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  notifDesc: { fontSize: 13, color: '#9ca3af', marginTop: 2 },
   codeRow: {
     flexDirection: 'row',
     alignItems: 'center',
