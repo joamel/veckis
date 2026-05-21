@@ -10,6 +10,20 @@ const TIMEZONE = 'Europe/Stockholm';
 // Overdue-chore reminders fire once per day, at/after this local hour.
 const CHORE_REMINDER_HOUR = 18;
 
+// How often the scheduler wakes. 5 min keeps DB wake-ups low on serverless
+// Postgres (Neon) — fine since reminder windows are minutes wide.
+const TICK_MS = 5 * 60 * 1000;
+
+// Quiet hours [QUIET_START, 24) ∪ [0, QUIET_END) in local time — the scheduler
+// does no DB work then, so the database can stay suspended overnight.
+const QUIET_START_HOUR = 23;
+const QUIET_END_HOUR = 7;
+
+function inQuietHours(minutesOfDay: number): boolean {
+  const h = Math.floor(minutesOfDay / 60);
+  return h >= QUIET_START_HOUR || h < QUIET_END_HOUR;
+}
+
 interface LocalNow {
   date: Date;        // local date (time stripped) — for occursOn/weekday math
   dateStr: string;   // YYYY-MM-DD in TIMEZONE
@@ -174,12 +188,14 @@ async function runOverdueChores(now: LocalNow): Promise<void> {
 
 async function tick(): Promise<void> {
   const now = localNow();
+  // Skip overnight so a serverless DB can stay suspended.
+  if (inQuietHours(now.minutesOfDay)) return;
   try {
     await runActivityReminders(now);
     await runOverdueChores(now);
-    // Prune the dedupe ledger once an hour (keys are date-scoped, so old rows
-    // are dead weight after a couple of days).
-    if (now.minutesOfDay % 60 === 0) {
+    // Prune the dedupe ledger ~once a day (first tick after the chore-reminder
+    // hour). Keys are date-scoped, so rows older than a few days are dead weight.
+    if (Math.floor(now.minutesOfDay / 60) === CHORE_REMINDER_HOUR && now.minutesOfDay % 60 < 5) {
       const cutoff = new Date(Date.now() - 3 * 86400000);
       await prisma.notificationLog.deleteMany({ where: { sentAt: { lt: cutoff } } });
     }
@@ -193,7 +209,7 @@ let timer: ReturnType<typeof setInterval> | null = null;
 /** Starts the once-a-minute notification scheduler. Idempotent. */
 export function startNotificationScheduler(): void {
   if (timer) return;
-  timer = setInterval(() => { void tick(); }, 60_000);
+  timer = setInterval(() => { void tick(); }, TICK_MS);
   void tick(); // run immediately on boot
   console.log('Notification scheduler started');
 }
