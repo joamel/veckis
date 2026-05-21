@@ -26,6 +26,10 @@ import { startNotificationScheduler } from './lib/notificationScheduler';
 
 const app = express();
 app.disable('etag');
+// Render (and most PaaS) front the app with a proxy that sets X-Forwarded-For.
+// Trust the first hop so express-rate-limit can read the real client IP instead
+// of throwing ERR_ERL_UNEXPECTED_X_FORWARDED_FOR on every /api request.
+app.set('trust proxy', 1);
 const PORT = process.env.PORT ?? 3000;
 const isDev = process.env.NODE_ENV !== 'production';
 
