@@ -20,5 +20,8 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native-web": "^0.21.0"
+  },
+  "overrides": {
+    "@react-navigation/native": "7.2.2"
   }
 }

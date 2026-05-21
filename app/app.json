@@ -17,12 +17,7 @@
       "bundleIdentifier": "com.veckis.app"
     },
     "android": {
-      "package": "com.veckis.app",
-      "statusBar": {
-        "backgroundColor": "#111827",
-        "barStyle": "light-content",
-        "translucent": false
-      }
+      "package": "com.veckis.app"
     },
     "androidStatusBar": {
       "backgroundColor": "#111827",
