@@ -18,9 +18,11 @@ import { recipesRouter } from './routes/recipes';
 import { menusRouter } from './routes/menus';
 import { staplesRouter } from './routes/staples';
 import { adminRouter } from './routes/admin';
+import { pushRouter } from './routes/push';
 import { prisma } from './db';
 import { asyncHandler } from './lib/asyncHandler';
 import { wsSubscribe, wsUnsubscribe } from './lib/wsHub';
+import { startNotificationScheduler } from './lib/notificationScheduler';
 
 const app = express();
 app.disable('etag');
@@ -61,6 +63,7 @@ app.use('/api/recipes', recipesRouter);
 app.use('/api/menus', menusRouter);
 app.use('/api/staples', staplesRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/push', pushRouter);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not found' });
@@ -75,6 +78,9 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 const server = app.listen(PORT, () => {
   console.log(`Veckis backend running on port ${PORT}`);
 });
+
+// Time-based push notifications (activity reminders, overdue chores).
+startNotificationScheduler();
 
 // WebSocket server for real-time shopping list updates
 const wss = new WebSocketServer({ noServer: true });

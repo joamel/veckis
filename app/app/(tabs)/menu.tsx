@@ -30,6 +30,7 @@ import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { EmptyState } from '../../src/components/EmptyState';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay } from '@veckis/shared';
@@ -62,7 +63,7 @@ export default function MenuScreen() {
   const addRecipeTriggeredRef = useRef(false);
   const bulkTransferTriggeredRef = useRef(false);
   const client = useApiClient();
-  const { showToast: showGlobalToast } = useToast();
+  const { showToast: showGlobalToast, showError } = useToast();
   const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
   const { markPending, clearPending, cancelAllPending, pendingMenuItemRemovals, pendingCount } = usePendingRemoval();
@@ -265,8 +266,8 @@ export default function MenuScreen() {
       setAllMenus(all);
       setBulkTransferStep('week');
       setShowBulkTransferModal(true);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte hämta veckomenyer');
+    } catch (e) {
+      showError(e, 'Kunde inte hämta veckomenyer');
     }
   }
 
@@ -360,8 +361,8 @@ export default function MenuScreen() {
         await client.deleteWeekMenuItem(oldId);
         const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
         setMenuItems(prev => prev.filter(i => i.id !== oldId).concat(item));
-      } catch {
-        Alert.alert('Fel', 'Kunde inte byta ut rätten');
+      } catch (e) {
+        showError(e, 'Kunde inte byta ut rätten');
       }
       return;
     }
@@ -416,9 +417,9 @@ export default function MenuScreen() {
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
       setMenuItems(prev => prev.map(m => m.id === tempId ? item : m));
       showToast('Recept tillagd till menyn');
-    } catch {
+    } catch (e) {
       setMenuItems(prev => prev.filter(m => m.id !== tempId));
-      Alert.alert('Fel', 'Kunde inte lägga till rätt');
+      showError(e, 'Kunde inte lägga till rätt');
     }
   }
 
@@ -462,8 +463,8 @@ export default function MenuScreen() {
           delete next[item.id];
           return next;
         });
-      } catch {
-        Alert.alert('Fel', 'Kunde inte ta bort');
+      } catch (e) {
+        showError(e, 'Kunde inte ta bort');
       } finally {
         clearPending(item.id);
       }
@@ -503,8 +504,8 @@ export default function MenuScreen() {
       await Promise.all(ops);
       setRecipeListMap(prev => { const n = { ...prev }; delete n[menuItem.id]; return n; });
       load();
-    } catch {
-      Alert.alert('Fel', 'Kunde inte ta bort ingredienserna');
+    } catch (e) {
+      showError(e, 'Kunde inte ta bort ingredienserna');
     }
   }
 
@@ -515,8 +516,8 @@ export default function MenuScreen() {
       const list = await client.createShoppingList({ householdId, name: newListName.trim() });
       setShoppingLists(prev => [...prev, list]);
       setNewListName('');
-    } catch {
-      Alert.alert('Fel', 'Kunde inte skapa lista');
+    } catch (e) {
+      showError(e, 'Kunde inte skapa lista');
     } finally {
       setCreatingList(false);
     }
@@ -593,9 +594,9 @@ export default function MenuScreen() {
       setShowBulkTransferModal(false);
       load();
       showToast(`${actuallyTransfer.length} ${actuallyTransfer.length === 1 ? 'rätt' : 'rätter'} överförd${actuallyTransfer.length === 1 ? '' : 'a'} till inköpslistan`);
-    } catch {
+    } catch (e) {
       setBulkTransferringListId(null);
-      Alert.alert('Fel', 'Kunde inte överföra ingredienserna');
+      showError(e, 'Kunde inte överföra ingredienserna');
     }
   }
 
@@ -625,9 +626,9 @@ export default function MenuScreen() {
       setTransferringListId(null);
       load();
       showToast(`${recipe.title} överförd till inköpslistan`);
-    } catch {
+    } catch (e) {
       setTransferringListId(null);
-      Alert.alert('Fel', 'Kunde inte lägga till ingredienserna');
+      showError(e, 'Kunde inte lägga till ingredienserna');
     }
   }
 
@@ -650,9 +651,9 @@ export default function MenuScreen() {
     try {
       const updated = await client.updateWeekMenuItem(item.id, { day });
       setMenuItems(prev => prev.map(i => i.id === updated.id ? updated : i));
-    } catch {
+    } catch (e) {
       setMenuItems(prev => prev.map(i => i.id === item.id ? item : i));
-      Alert.alert('Fel', 'Kunde inte flytta rätten');
+      showError(e, 'Kunde inte flytta rätten');
     }
   }
 
@@ -806,11 +807,13 @@ export default function MenuScreen() {
         </View>
 
         {!hasAnyScheduled && unscheduled.length === 0 && (
-          <View style={s.emptyDay}>
-            <Ionicons name="restaurant-outline" size={48} color="#d1d5db" />
-            <Text style={s.emptyText}>Inga rätter planerade</Text>
-            <Text style={s.emptySubtext}>Tryck på + för att lägga till</Text>
-          </View>
+          <EmptyState
+            icon="restaurant-outline"
+            title="Inga rätter planerade"
+            subtitle="Planera veckans måltider så kan ni föra över ingredienserna till inköpslistan."
+            actionLabel="Planera en rätt"
+            onAction={() => openPicker(null)}
+          />
         )}
 
         <View style={s.newListSection}>
@@ -1477,9 +1480,6 @@ const s = StyleSheet.create({
   unscheduledEmpty: { fontSize: 13, color: '#9ca3af', paddingVertical: 8 },
   emptyDayText: { fontSize: 13, color: '#9ca3af', paddingVertical: 8 },
   emptyDayTap: { paddingVertical: 4, alignItems: 'flex-start' },
-  emptyDay: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 8 },
-  emptyText: { fontSize: 17, fontWeight: '600', color: '#374151' },
-  emptySubtext: { fontSize: 13, color: '#9ca3af' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   card: { borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c7d2fe', backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   cardInner: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden' },

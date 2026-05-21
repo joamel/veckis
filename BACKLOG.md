@@ -19,7 +19,12 @@
 - [x] Ångra-toast för destruktiva åtgärder (rensa inköpslista) — knapp "Ångra" i toasten i ~5 sekunder (resten kan adderas vid behov)
 - [x] Utvidga realtidsuppdatering (WebSocket) till sysslor och kalender (meny + inställningar kan adderas via samma kanal)
 - [x] Long press-symmetri: kontrollera att redigering via long press finns konsekvent på basvaror, butiker och kategorier (inte bara inköpslista/maträtt/aktivitet/syssla)
-- [ ] Pushnotiser — specificera per typ: påminnelse innan aktivitet startar, förfallen syssla, någon har rensat aktiv inköpslista, ny medlem i hushållet
+- [x] Pushnotiser — infrastruktur (blockerare för notistyperna nedan): permission-flöde, token-registrering, notis-inställningssida med på/av per typ
+- [x] Pushnotiser — specificera per typ: påminnelse innan aktivitet startar, förfallen syssla, någon har rensat aktiv inköpslista, ny medlem i hushållet (kräver ny eas build för native-modulen)
+- [x] Felhantering vid misslyckad optimistisk uppdatering — om backend-anropet failar efter att UI redan flyttat/skapat något: rulla tillbaka ändringen och visa "kunde inte spara — försök igen"-toast (annars tyst desync mellan enheter)
+- [ ] Konflikthantering vid realtidsuppdatering — om två personer redigerar samma vara/aktivitet samtidigt: last-write-wins + toast till den som blir överskriven så ändringar inte tappas tyst
+- [x] Konsekventa tomma tillstånd (empty states) på alla flikar — vänlig "inget här än" + CTA första gången en ny medlem öppnar meny/sysslor/kalender utan data
+- [ ] Tillgänglighet: allt som nås via long-press ska även ha en synlig knapp + accessibility-labels på ikonknappar (penna/x/dubblett) så VoiceOver/TalkBack fungerar
 - [x] Bannern ovan appen borde vara svart/neutral så man ser klockan, notiser mm
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [x] Flertal ställen i appen när inputfälten fortfarande inte hoppar upp ovan tangentbordet. Säkerställ att alla inputfält har rätta beteendet
@@ -27,6 +32,7 @@
 - [x] Pending-removal visual state: under ångra-fönstret (5s) ska varor/recept som håller på att tas bort visas med fade + strikethrough + liten "(tas bort om Xs)"-tag istället för att försvinna direkt eller poppa tillbaka vid ångra
 - [x] Toast-kö vid bulk-borttagning: om flera recept tas bort i snabb följd skriver toasten över sig själv. Stacka eller visa "3 recept tas bort om 5s · Ångra"
 - [x] Re-merge feedback: när auto-merge slår ihop kvarvarande varor efter borttagning (t.ex. 3 ägg → ta bort 1 → 2 ägg), visa toast "Slog ihop {n} {namn}" så användaren förstår grupperingen
+- [ ] städa upp legacy-kod
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -44,6 +50,7 @@
 - [x] varna admin innan man lämnar fliken om redigeringsläget är igång.
 - [x] möjlighet att kunna dela ut admin
 - [x] inställningar uppdateras inte automatiskt för alla användare när någon gör ändringar.
+- [ ] Varna innan man tar bort en lokal profil/medlem som har tilldelade sysslor/aktiviteter ("X har 4 sysslor och 2 aktiviteter — vad ska hända med dem?") istället för tyst orphaning
 
 ### Inköpslistan
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
@@ -103,6 +110,7 @@
 - [x] kunna skapa egna kategorier samt kunna dölja/lägga till kategorier man vill ha
 - [x] Möjlighet att fälla ihop kategorier i inköpslistan genom att trycka på kategorinamnet
 - [x] toast vid lyckad ihopslagning av dubbletter
+- [ ] Lyft de mest använda basvarorna överst ("dina vanligaste") när man lägger till varor, så återkommande inköp går snabbare
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -137,6 +145,8 @@
 - [x] Flytta ingrediensnamnet så att det kommer först i nytt recept, så att man först skriver in ingrediensen, sedan mängd och sist enhet
 - [x] Hela rubriken "Originalrecept" syns inte inuti ett recept. Bara "Originalrecep"
 - [x] Ha en border under veckodagen som motsvarar en yta för maträtten samt ett "+" i mitten. När man flyttar rätter mellan dagarna borde den bara flytta mellan borders (inte runt veckodagens namn)
+- [ ] Receptimport-robusthet: fallback "kunde inte läsa receptet — lägg till manuellt" vid URL som failar, recept utan ingredienslista eller dubbel-import
+- [ ] Veckomeny-mallar: spara en vecka som mall ("Standardvecka") och applicera den på valfri vecka
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -172,6 +182,7 @@
 - [x] Skapa/redigera syssla-dialogen borde vara större så man ser alla fälten. Tilldela person fältet borde ligga ovanför Frekvens.
 - [x] "Återkommande"-knappen borde inte byta namn när man klickar på en återkommande frekvens
 - [x] Man borde kunna sätta ett valfritt datum även för en "engångs-syssla"
+- [ ] Avklarade sysslor borde hamna underst i listan. Den gröna bakgrunden är lite överflödig för avklarade sysslor
 
 
 
@@ -189,6 +200,8 @@
 - [x] Eventuellt möjlighet att kopiera en veckomeny till en annan vecka (backend endpoint, UI återstår)
 - [ ] Veckovyn i tablet borde kanske se likadan ut som i mobilen med allt under?
 - [ ] ha en sökbar databas på butiker som andra lagt till för att på så vis slippa skapa butiker som redan finns inlagda. Kanske ett premium-alternativ?
+- [ ] Statistik/insikter: lättviktsvy med "mest lagade rätter", "vem gör flest sysslor", "vanligaste inköp" — möjligt premium-läge tillsammans med butiksdatabasen
+- [ ] Datakvalitet-städning: admin-vy för att slå ihop/städa basvaror & kategorier så normaliserade namn och delade kategori-minnen inte driftar över tid
 ## Backlog (prioriterade features)
 
 ### Kalender

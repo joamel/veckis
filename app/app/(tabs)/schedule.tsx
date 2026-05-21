@@ -27,6 +27,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useMemberFilter } from '../../src/context/MemberFilterContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { EmptyState } from '../../src/components/EmptyState';
 import { WeekNav } from '../../src/components/WeekNav';
 import { useTablet } from '../../src/hooks/useTablet';
 import { MonthView } from '../../src/components/calendar/MonthView';
@@ -140,7 +141,7 @@ function Drum({ values, selected, onSelect }: { values: string[]; selected: numb
 export default function ScheduleScreen() {
   const router = useRouter();
   const client = useApiClient();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   const { getToken } = useAuth();
   const { householdId } = useHousehold();
 
@@ -273,10 +274,9 @@ export default function ScheduleScreen() {
     }
   }, [householdId, weekYear, weekNumber, refreshKey]);
 
-  // Reset to current week/day on every focus; refreshKey change triggers load via useEffect
+  // Reload data on focus but DON'T reset week/day — preserves user's position when
+  // navigating to a recipe and back. They can tap "Idag" to return to today.
   useFocusEffect(useCallback(() => {
-    setWeekRef(new Date());
-    setSelectedDay(TODAY_DAY);
     setRefreshKey(k => k + 1);
   }, []));
 
@@ -326,9 +326,9 @@ export default function ScheduleScreen() {
       : c));
     try {
       await client.uncompleteChore(chore.id, day, dateStr);
-    } catch {
+    } catch (e) {
       setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
-      Alert.alert('Fel', 'Kunde inte avmarkera sysslan');
+      showError(e, 'Kunde inte avmarkera sysslan');
     }
   }
 
@@ -369,7 +369,7 @@ export default function ScheduleScreen() {
       setNewStartDate(null);
       setNewEndDate(null);
     } catch (e: any) {
-      Alert.alert('Fel', e?.message ?? String(e) ?? 'Kunde inte skapa schemapost');
+      showError(e, e?.message ?? 'Kunde inte skapa schemapost');
     } finally {
       setCreating(false);
     }
@@ -388,8 +388,8 @@ export default function ScheduleScreen() {
                 setEntries(prev => prev.map(e => e.id === entry.id ? result as ScheduleEntry : e));
               }
               setEditingEntry(null);
-            } catch {
-              Alert.alert('Fel', 'Kunde inte ta bort');
+            } catch (e) {
+              showError(e, 'Kunde inte ta bort');
             }
           },
         },
@@ -400,8 +400,8 @@ export default function ScheduleScreen() {
               await client.deleteScheduleEntry(entry.id);
               setEntries(prev => prev.filter(e => e.id !== entry.id));
               setEditingEntry(null);
-            } catch {
-              Alert.alert('Fel', 'Kunde inte ta bort');
+            } catch (e) {
+              showError(e, 'Kunde inte ta bort');
             }
           },
         },
@@ -423,7 +423,7 @@ export default function ScheduleScreen() {
             setTimeout(async () => {
               if (cancelled) return;
               try { await client.deleteScheduleEntry(entry.id); }
-              catch { setEntries(prev); Alert.alert('Fel', 'Kunde inte ta bort'); }
+              catch (e) { setEntries(prev); showError(e, 'Kunde inte ta bort'); }
             }, 5000);
           },
         },
@@ -440,11 +440,11 @@ export default function ScheduleScreen() {
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
         : c));
-    } catch {
+    } catch (e) {
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.filter(comp => comp.id !== fakeId) }
         : c));
-      Alert.alert('Fel', 'Kunde inte markera sysslan');
+      showError(e, 'Kunde inte markera sysslan');
     }
   }
 
@@ -464,7 +464,7 @@ export default function ScheduleScreen() {
           setTimeout(async () => {
             if (cancelled) return;
             try { await client.deleteChore(choreId); }
-            catch { setChores(prev); Alert.alert('Fel', 'Kunde inte ta bort'); }
+            catch (e) { setChores(prev); showError(e, 'Kunde inte ta bort'); }
           }, 5000);
         },
       },
@@ -552,8 +552,8 @@ export default function ScheduleScreen() {
         setEntries(prev => prev.map(e => e.id === updated.id ? updated : e));
       }
       setEditingEntry(null);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte spara aktiviteten');
+    } catch (e) {
+      showError(e, 'Kunde inte spara aktiviteten');
     } finally {
       setSavingEntry(false);
     }
@@ -578,8 +578,8 @@ export default function ScheduleScreen() {
         : c
       ));
       setEditingCalChore(null);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte spara sysslan');
+    } catch (e) {
+      showError(e, 'Kunde inte spara sysslan');
     } finally {
       setSavingCalChore(false);
     }
@@ -849,11 +849,13 @@ export default function ScheduleScreen() {
             </View>
             <ScrollView style={s.content} contentContainerStyle={[s.contentInner, isEmpty && s.contentEmpty]}>
               {isEmpty ? (
-                <View style={s.emptyContainer}>
-                  <Ionicons name="calendar-outline" size={48} color="#d1d5db" />
-                  <Text style={s.emptyText}>Inget planerat</Text>
-                  <Text style={s.emptySubtext}>Tryck på + för att lägga till</Text>
-                </View>
+                <EmptyState
+                  icon="calendar-outline"
+                  title="Inget planerat"
+                  subtitle="Lägg till en aktivitet på den här dagen."
+                  actionLabel="Ny aktivitet"
+                  onAction={() => { setNewDay(selectedDay); setShowModal(true); }}
+                />
               ) : dayDetailContent}
             </ScrollView>
             <Pressable style={s.fab} onPress={() => { setNewDay(selectedDay); setShowModal(true); }}>
@@ -898,11 +900,13 @@ export default function ScheduleScreen() {
 
           <ScrollView style={s.content} contentContainerStyle={[s.contentInner, isEmpty && s.contentEmpty]}>
             {isEmpty ? (
-              <View style={s.emptyContainer}>
-                <Ionicons name="calendar-outline" size={48} color="#d1d5db" />
-                <Text style={s.emptyText}>Inget planerat</Text>
-                <Text style={s.emptySubtext}>Tryck på + för att lägga till</Text>
-              </View>
+              <EmptyState
+                icon="calendar-outline"
+                title="Inget planerat"
+                subtitle="Lägg till en aktivitet på den här dagen."
+                actionLabel="Ny aktivitet"
+                onAction={() => { setNewDay(selectedDay); setShowModal(true); }}
+              />
             ) : dayDetailContent}
           </ScrollView>
 
@@ -1321,9 +1325,6 @@ const s = StyleSheet.create({
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
   contentEmpty: { flex: 1 },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
-  emptyText: { fontSize: 17, fontWeight: '600', color: '#374151', marginTop: 12 },
-  emptySubtext: { fontSize: 13, color: '#9ca3af', marginTop: 4 },
   section: { gap: 8 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.8, paddingHorizontal: 2 },
   menuCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c7d2fe', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 3 },

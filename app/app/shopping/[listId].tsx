@@ -53,7 +53,7 @@ export default function ShoppingListScreen() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
   const router = useRouter();
   const client = useApiClient();
-  const { showToast: showGlobalToast } = useToast();
+  const { showToast: showGlobalToast, showError } = useToast();
   const { householdId } = useHousehold();
   const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
@@ -169,9 +169,9 @@ export default function ShoppingListScreen() {
     setShowRenameModal(false);
     try {
       await client.updateShoppingList(listId, { name: newName });
-    } catch {
+    } catch (e) {
       setList(p => p && prev !== undefined ? { ...p, name: prev } : p);
-      Alert.alert('Fel', 'Kunde inte byta namn');
+      showError(e, 'Kunde inte byta namn');
     } finally {
       setRenaming(false);
     }
@@ -421,7 +421,7 @@ export default function ShoppingListScreen() {
     } catch (err) {
       console.error('Failed to add item:', err);
       setList(prev => prev ? { ...prev, items: (prev.items ?? []).filter(i => i.id !== tempId) } : prev);
-      Alert.alert('Fel', 'Kunde inte lägga till vara');
+      showError(err, 'Kunde inte lägga till vara');
     } finally {
       setAdding(false);
     }
@@ -494,8 +494,8 @@ export default function ShoppingListScreen() {
       if (nextGroup) openMergeForDupes(nextGroup);
       else setMergeSheet(null);
       showGlobalToast(`Slog ihop ${selected.length} ${capitalize(name)}`, 'success');
-    } catch {
-      Alert.alert('Fel', 'Kunde inte slå ihop varor');
+    } catch (e) {
+      showError(e, 'Kunde inte slå ihop varor');
     } finally {
       setAdding(false);
     }
@@ -513,9 +513,9 @@ export default function ShoppingListScreen() {
     setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: true } : i) } : prev);
     try {
       await Promise.all(ids.map(id => client.checkShoppingItem(id, true)));
-    } catch {
+    } catch (e) {
       setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: false } : i) } : prev);
-      Alert.alert('Fel', 'Kunde inte klarmarkera alla varor');
+      showError(e, 'Kunde inte klarmarkera alla varor');
     }
   }
 
@@ -526,10 +526,11 @@ export default function ShoppingListScreen() {
     try {
       const updated = await client.checkShoppingItem(item.id, !item.isChecked);
       setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: item.recipe } : i) } : prev);
-    } catch {
+    } catch (e) {
       setList(prev =>
         prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? item : i) } : prev
       );
+      showError(e, 'Kunde inte bocka av varan');
     }
   }
 
@@ -586,10 +587,10 @@ export default function ShoppingListScreen() {
           openMergeForDupes(dupes, updated);
         }
       }
-    } catch {
+    } catch (e) {
       // Rollback optimistic
       setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === snapshot.id ? snapshot : i) } : prev);
-      Alert.alert('Fel', 'Kunde inte spara ändringen');
+      showError(e, 'Kunde inte spara ändringen');
     } finally {
       setSaving(false);
     }
@@ -625,8 +626,8 @@ export default function ShoppingListScreen() {
     setList(prev => prev ? { ...prev, items: prev.items.filter(i => i.id !== itemId) } : prev);
     try {
       await client.deleteShoppingItem(itemId);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte ta bort vara');
+    } catch (e) {
+      showError(e, 'Kunde inte ta bort vara');
       load();
     }
   }
@@ -651,9 +652,9 @@ export default function ShoppingListScreen() {
           if (cancelled) return;
           try {
             await client.clearShoppingList(listId);
-          } catch {
+          } catch (e) {
             setList(prev => prev ? { ...prev, items: snapshot } : prev);
-            Alert.alert('Fel', 'Kunde inte rensa listan');
+            showError(e, 'Kunde inte rensa listan');
           }
         }, 5000);
       }},
@@ -698,9 +699,9 @@ export default function ShoppingListScreen() {
         return [...without, saved];
       });
       showGlobalToast(isNew ? `${capitalize(newName)} sparad som basvara` : `${capitalize(newName)} uppdaterad`, 'success');
-    } catch {
+    } catch (e) {
       if (!isNew) setStaples(prev => prev.map(s2 => s2.id === original.id ? original : s2));
-      Alert.alert('Fel', 'Kunde inte spara basvaran');
+      showError(e, 'Kunde inte spara basvaran');
     } finally {
       setSavingStaple(false);
     }
@@ -721,9 +722,9 @@ export default function ShoppingListScreen() {
         setEditingStaple(null);
         try {
           await client.deleteStaple(target.id);
-        } catch {
+        } catch (e) {
           setStaples(prev => [...prev, target]);
-          Alert.alert('Fel', 'Kunde inte ta bort basvaran');
+          showError(e, 'Kunde inte ta bort basvaran');
         }
       } },
     ]);
@@ -735,8 +736,8 @@ export default function ShoppingListScreen() {
       const updated = await client.updateShoppingList(listId, { storeId });
       setList(updated);
       setShowStorePicker(false);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte byta butik');
+    } catch (e) {
+      showError(e, 'Kunde inte byta butik');
     }
   }
 
@@ -748,8 +749,8 @@ export default function ShoppingListScreen() {
       setStores(prev => [...prev, store]);
       await selectStore(store.id);
       setNewStoreName('');
-    } catch {
-      Alert.alert('Fel', 'Kunde inte skapa butik');
+    } catch (e) {
+      showError(e, 'Kunde inte skapa butik');
     } finally {
       setCreatingStore(false);
     }
@@ -807,8 +808,8 @@ export default function ShoppingListScreen() {
         setList(prev => prev ? { ...prev, store: updated } : prev);
       }
       setEditingStore(null);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte spara ordning');
+    } catch (e) {
+      showError(e, 'Kunde inte spara ordning');
     } finally {
       setSavingOrder(false);
     }

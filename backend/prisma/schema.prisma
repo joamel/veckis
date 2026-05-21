@@ -251,6 +251,39 @@ model IngredientAlias {
   @@index([canonical])
 }
 
+// One row per device/token. A user (clerkUserId) may have several.
+model PushToken {
+  id          String   @id @default(cuid())
+  clerkUserId String
+  token       String   @unique
+  platform    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clerkUserId])
+}
+
+// Per-user push preferences (global across households). Defaults all on.
+model NotificationPreference {
+  clerkUserId      String   @id
+  activityReminder Boolean  @default(true)
+  choreOverdue     Boolean  @default(true)
+  listCleared      Boolean  @default(true)
+  newMember        Boolean  @default(true)
+  reminderMinutes  Int      @default(30) // minutes before an activity start to remind
+  updatedAt        DateTime @updatedAt
+}
+
+// Dedupe ledger for time-based notifications so a reminder fires once per
+// occurrence. `dedupeKey` encodes type + entity + occurrence date/time.
+model NotificationLog {
+  id        String   @id @default(cuid())
+  dedupeKey String   @unique
+  sentAt    DateTime @default(now())
+
+  @@index([sentAt])
+}
+
 enum MemberRole {
   admin
   member

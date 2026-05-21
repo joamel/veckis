@@ -5,6 +5,7 @@ import { requireAuth, requireHouseholdMember, requireAdmin, AuthenticatedRequest
 import { asyncHandler } from '../lib/asyncHandler';
 import { randomBytes } from 'crypto';
 import { wsBroadcast } from '../lib/wsHub';
+import { sendPush } from '../lib/sendPush';
 
 function broadcastHousehold(householdId: string, type: string, data: unknown) {
   wsBroadcast(`household:${householdId}`, { type, data });
@@ -71,6 +72,22 @@ householdRouter.post('/join', requireAuth, asyncHandler(async (req, res) => {
     }),
   ]);
   res.status(201).json(member);
+
+  // Notify existing members that someone joined (best-effort, after responding).
+  const household = await prisma.household.findUnique({
+    where: { id: invite.householdId },
+    select: { name: true, members: { select: { clerkUserId: true } } },
+  });
+  const others = (household?.members ?? [])
+    .map(m => m.clerkUserId)
+    .filter((id): id is string => !!id && id !== clerkUserId);
+  if (others.length > 0) {
+    void sendPush(others, 'newMember', {
+      title: 'Ny medlem i hushållet',
+      body: `${member.displayName} gick med i ${household?.name ?? 'hushållet'}`,
+      data: { type: 'newMember', householdId: invite.householdId },
+    });
+  }
 }));
 
 // GET /api/households/me — must be before /:householdId

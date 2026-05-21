@@ -8,6 +8,7 @@ import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { learnIngredientAliases, getStoredCategory, storeIngredientCategory } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
 import { wsBroadcast } from '../lib/wsHub';
+import { sendPush } from '../lib/sendPush';
 import { planFullUnmerge, findRoot } from '../lib/mergeLogic';
 import { planAutoMerge } from '../lib/importDedupe';
 
@@ -226,11 +227,28 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
 
 // DELETE /api/shopping/lists/:listId/items  (clear all items, keep the list)
 shoppingRouter.delete('/lists/:listId/items', requireAuth, asyncHandler(async (req, res) => {
-  const list = await getListAndVerifyMember(req.params.listId, (req as AuthenticatedRequest).clerkUserId, res);
+  const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+  const list = await getListAndVerifyMember(req.params.listId, clerkUserId, res);
   if (!list) return;
   await prisma.shoppingItem.deleteMany({ where: { listId: list.id } });
   wsBroadcast(list.id, { type: 'list_cleared' });
   res.status(204).send();
+
+  // Notify the rest of the household that the active list was cleared.
+  const members = await prisma.householdMember.findMany({
+    where: { householdId: list.householdId },
+    select: { clerkUserId: true },
+  });
+  const others = members
+    .map(m => m.clerkUserId)
+    .filter((id): id is string => !!id && id !== clerkUserId);
+  if (others.length > 0) {
+    void sendPush(others, 'listCleared', {
+      title: 'Inköpslista rensad',
+      body: `"${list.name}" har rensats`,
+      data: { type: 'listCleared', listId: list.id },
+    });
+  }
 }));
 
 // PATCH /api/shopping/items/:itemId

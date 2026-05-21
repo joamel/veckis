@@ -19,6 +19,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useToast } from '../../src/context/ToastContext';
+import { EmptyState } from '../../src/components/EmptyState';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -28,6 +30,7 @@ export default function ShoppingScreen() {
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
+  const { showError } = useToast();
   const { medium } = useHaptics();
   const { fs, sp } = useTablet();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
@@ -78,8 +81,8 @@ export default function ShoppingScreen() {
       setNewListName('');
       setNewListStoreId(null);
       router.push(`/shopping/${list.id}` as never);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte skapa lista');
+    } catch (e) {
+      showError(e, 'Kunde inte skapa lista');
     } finally {
       setCreating(false);
     }
@@ -92,8 +95,8 @@ export default function ShoppingScreen() {
       const store = await client.createStore({ householdId, name: newStoreName.trim() });
       setStores(prev => [...prev, store]);
       setNewStoreName('');
-    } catch {
-      Alert.alert('Fel', 'Kunde inte skapa butik');
+    } catch (e) {
+      showError(e, 'Kunde inte skapa butik');
     } finally {
       setCreatingStore(false);
     }
@@ -106,8 +109,8 @@ export default function ShoppingScreen() {
       const updated = await client.updateStore(storeId, { name: editStoreNameValue.trim() });
       setStores(prev => prev.map(s => s.id === updated.id ? updated : s));
       setEditingStoreName(null);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte byta namn');
+    } catch (e) {
+      showError(e, 'Kunde inte byta namn');
     } finally {
       setSavingStoreName(false);
     }
@@ -147,8 +150,8 @@ export default function ShoppingScreen() {
       const updated = await client.updateStore(editingCategoryStore.id, { categoryOrder: editCategoryOrder });
       setStores(prev => prev.map(s => s.id === updated.id ? updated : s));
       setEditingCategoryStore(null);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte spara ordning');
+    } catch (e) {
+      showError(e, 'Kunde inte spara ordning');
     } finally {
       setSavingCategoryOrder(false);
     }
@@ -163,8 +166,8 @@ export default function ShoppingScreen() {
           try {
             await client.deleteStore(storeId);
             setStores(prev => prev.filter(s => s.id !== storeId));
-          } catch {
-            Alert.alert('Fel', 'Kunde inte ta bort butiken');
+          } catch (e) {
+            showError(e, 'Kunde inte ta bort butiken');
           }
         },
       },
@@ -181,8 +184,8 @@ export default function ShoppingScreen() {
           try {
             await client.deleteShoppingList(listId);
             setLists(prev => prev.filter(l => l.id !== listId));
-          } catch {
-            Alert.alert('Fel', 'Kunde inte ta bort lista');
+          } catch (e) {
+            showError(e, 'Kunde inte ta bort lista');
           }
         },
       },
@@ -210,11 +213,13 @@ export default function ShoppingScreen() {
         onRefresh={load}
         refreshing={loading}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="cart-outline" size={fs(56)} color="#d1d5db" />
-            <Text style={[styles.emptyText, { fontSize: fs(18) }]}>Inga aktiva listor</Text>
-            <Text style={[styles.emptySubtext, { fontSize: fs(14) }]}>Tryck på + för att skapa en ny lista</Text>
-          </View>
+          <EmptyState
+            icon="cart-outline"
+            title="Inga aktiva listor"
+            subtitle="Skapa en inköpslista så kan ni bocka av varor tillsammans."
+            actionLabel="Ny lista"
+            onAction={() => setShowModal(true)}
+          />
         }
         renderItem={({ item }) => {
           const unchecked = item.items.filter(i => !i.isChecked).length;
@@ -433,9 +438,6 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { padding: 16, gap: 10 },
   listEmpty: { flex: 1 },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-  emptyText: { fontSize: 18, fontWeight: '600', color: '#374151', marginTop: 16 },
-  emptySubtext: { fontSize: 14, color: '#9ca3af', marginTop: 6 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -24,9 +24,11 @@ import { useAuth } from '@clerk/clerk-expo';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useMemberFilter } from '../../src/context/MemberFilterContext';
+import { useToast } from '../../src/context/ToastContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { EmptyState } from '../../src/components/EmptyState';
 import type { Chore, ChoreCompletion, ChoreFrequency, RecurrenceType, WeekDay } from '@veckis/shared';
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
@@ -132,6 +134,7 @@ export default function ChoresScreen() {
   const { fs, sp } = useTablet();
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
+  const { showError } = useToast();
 
   function showToast(msg: string) {
     setToastMessage(msg);
@@ -307,8 +310,8 @@ export default function ChoresScreen() {
       setNewWeekday('mon');
       setNewStartDate(null);
       setNewEndDate(null);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte skapa syssla');
+    } catch (e) {
+      showError(e, 'Kunde inte skapa syssla');
     } finally {
       setCreating(false);
     }
@@ -358,8 +361,8 @@ export default function ChoresScreen() {
       setChores(prev => prev.map(c => c.id === editingChore.id ? { ...c, ...updated } : c));
       setEditingChore(null);
       showToast('Syssla sparad');
-    } catch {
-      Alert.alert('Fel', 'Kunde inte spara ändringarna');
+    } catch (e) {
+      showError(e, 'Kunde inte spara ändringarna');
     } finally {
       setSaving(false);
     }
@@ -376,8 +379,8 @@ export default function ChoresScreen() {
             await client.deleteChore(choreId);
             setChores(prev => prev.filter(c => c.id !== choreId));
             setEditingChore(null);
-          } catch {
-            Alert.alert('Fel', 'Kunde inte ta bort sysslan');
+          } catch (e) {
+            showError(e, 'Kunde inte ta bort sysslan');
           }
         },
       },
@@ -393,11 +396,11 @@ export default function ChoresScreen() {
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
         : c));
-    } catch {
+    } catch (e) {
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.filter(comp => comp.id !== fakeId) }
         : c));
-      Alert.alert('Fel', 'Kunde inte markera sysslan');
+      showError(e, 'Kunde inte markera sysslan');
     }
   }
 
@@ -408,9 +411,9 @@ export default function ChoresScreen() {
       : c));
     try {
       await client.uncompleteChore(chore.id);
-    } catch {
+    } catch (e) {
       setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
-      Alert.alert('Fel', 'Kunde inte avmarkera sysslan');
+      showError(e, 'Kunde inte avmarkera sysslan');
     }
   }
 
@@ -470,11 +473,13 @@ export default function ChoresScreen() {
         onRefresh={load}
         refreshing={loading}
         ListEmptyComponent={
-          <View style={s.emptyContainer}>
-            <Ionicons name="checkmark-circle-outline" size={fs(56)} color="#d1d5db" />
-            <Text style={[s.emptyText, { fontSize: fs(18) }]}>Inga sysslor</Text>
-            <Text style={[s.emptySubtext, { fontSize: fs(14) }]}>Tryck på + för att lägga till en</Text>
-          </View>
+          <EmptyState
+            icon="checkmark-circle-outline"
+            title="Inga sysslor än"
+            subtitle="Lägg till en syssla så syns den här och i kalendern."
+            actionLabel="Ny syssla"
+            onAction={() => setShowCreate(true)}
+          />
         }
         renderItem={({ item }) => {
           const lastCompletion = item.completions[0];
@@ -756,9 +761,6 @@ const s = StyleSheet.create({
   clearBtnText: { fontSize: 12, color: '#ef4444', fontWeight: '500' },
   list: { padding: 16, gap: 10 },
   listEmpty: { flex: 1 },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-  emptyText: { fontSize: 18, fontWeight: '600', color: '#374151', marginTop: 16 },
-  emptySubtext: { fontSize: 14, color: '#9ca3af', marginTop: 6 },
   cardWrap: { position: 'relative' },
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#111827', borderRadius: 24, zIndex: 20 },

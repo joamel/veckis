@@ -18,6 +18,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type RecipeWithIngredients } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { EmptyState } from '../../src/components/EmptyState';
 
 export default function RecipesScreen() {
   const router = useRouter();
@@ -175,11 +176,21 @@ export default function RecipesScreen() {
         onRefresh={load}
         refreshing={loading}
         ListEmptyComponent={
-          <View style={s.emptyContainer}>
-            <Ionicons name={searchQuery ? 'search-outline' : 'book-outline'} size={56} color="#d1d5db" />
-            <Text style={s.emptyText}>{searchQuery ? 'Inga träffar' : 'Inga recept än'}</Text>
-            <Text style={s.emptySubtext}>{searchQuery ? `Inget recept matchar "${searchQuery}"` : 'Lägg till manuellt eller via en URL'}</Text>
-          </View>
+          searchQuery ? (
+            <EmptyState
+              icon="search-outline"
+              title="Inga träffar"
+              subtitle={`Inget recept matchar "${searchQuery}"`}
+            />
+          ) : (
+            <EmptyState
+              icon="book-outline"
+              title="Inga recept än"
+              subtitle="Lägg till ett recept manuellt eller via en URL."
+              actionLabel="Nytt recept"
+              onAction={openModal}
+            />
+          )
         }
         renderItem={({ item }) => (
           <View style={s.cardWrap}>
@@ -308,9 +319,6 @@ const s = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 15, color: '#111827', padding: 0 },
   list: { padding: 16, gap: 10 },
   listEmpty: { flex: 1 },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-  emptyText: { fontSize: 18, fontWeight: '600', color: '#374151', marginTop: 16 },
-  emptySubtext: { fontSize: 14, color: '#9ca3af', marginTop: 6 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   cardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1 },
