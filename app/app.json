@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.veckis.app"
     },
     "android": {
-      "package": "com.veckis.app"
+      "package": "com.veckis.app",
+      "googleServicesFile": "./google-services.json"
     },
     "androidStatusBar": {
       "backgroundColor": "#111827",
