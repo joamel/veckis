@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
+import { deliverPush } from '../lib/sendPush';
 
 export const pushRouter = Router();
 
@@ -40,6 +41,18 @@ pushRouter.post('/unregister', requireAuth, asyncHandler(async (req, res) => {
     where: { token: body.data.token, clerkUserId: (req as AuthenticatedRequest).clerkUserId },
   });
   res.status(204).send();
+}));
+
+// POST /api/push/test — send a test push to the caller's own devices.
+// Returns how many tokens were targeted + any Expo errors, for in-app diagnostics.
+pushRouter.post('/test', requireAuth, asyncHandler(async (req, res) => {
+  const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+  const result = await deliverPush([clerkUserId], {
+    title: 'Testnotis från Veckis',
+    body: 'Push fungerar! 🎉',
+    data: { type: 'test' },
+  });
+  res.json(result);
 }));
 
 // GET /api/push/preferences — current user's preferences (defaults if unset)

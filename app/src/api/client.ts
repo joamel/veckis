@@ -319,5 +319,8 @@ export function useApiClient() {
 
     updateNotificationPreferences: (data: Partial<NotificationPreferences>) =>
       request<NotificationPreferences>('/api/push/preferences', { method: 'PATCH', body: JSON.stringify(data) }),
+
+    sendTestPush: () =>
+      request<{ tokens: number; errors: string[] }>('/api/push/test', { method: 'POST' }),
   };
 }
