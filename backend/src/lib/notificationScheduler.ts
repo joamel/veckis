@@ -94,7 +94,7 @@ function chorePattern(c: {
 }
 
 async function runActivityReminders(now: LocalNow): Promise<void> {
-  const entries = await prisma.scheduleEntry.findMany({ where: { startTime: { not: null } } });
+  const entries = await prisma.scheduleEntry.findMany({ where: { startTime: { not: null }, remind: true } });
   const todays = entries.filter(e => entryOccursToday(e, now));
   if (todays.length === 0) return;
 

@@ -161,6 +161,7 @@ model ScheduleEntry {
   assignedTo           String?
   assignedToMany       String[]           @default([])
   isShared             Boolean            @default(true)
+  remind               Boolean            @default(true)
   recurrenceType       RecurrenceType     @default(none)
   recurrenceDays       WeekDay[]
   recurrenceWeeks      Int                @default(1)

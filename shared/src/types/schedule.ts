@@ -13,6 +13,7 @@ export interface ScheduleEntry {
   assignedTo: string | null;
   assignedToMany: string[];
   isShared: boolean;
+  remind: boolean;
   recurrenceType: RecurrenceType;
   recurrenceDays: WeekDay[];
   recurrenceWeeks: number;

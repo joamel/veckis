@@ -22,6 +22,7 @@ const createEntrySchema = z.object({
   assignedTo: z.string().optional(),
   assignedToMany: z.array(z.string()).optional(),
   isShared: z.boolean().default(true),
+  remind: z.boolean().default(true),
   recurrenceType: z.nativeEnum(RecurrenceType).default('none'),
   recurrenceDays: z.nativeEnum(WeekDay).array().default([]),
   recurrenceWeeks: z.number().int().min(1).default(1),
