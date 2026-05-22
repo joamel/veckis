@@ -628,6 +628,9 @@ export default function ScheduleScreen() {
   const dayChores = chores.filter(c =>
     choreVisibleOnDay(c, selectedDay, selectedDayDate) &&
     (filterMemberIds.length === 0 || (c.assignedTo != null && filterMemberIds.includes(c.assignedTo)))
+  ).sort((a, b) =>
+    Number(isDoneOnDate(a.completions, selectedDayDateStr, selectedDay)) -
+    Number(isDoneOnDate(b.completions, selectedDayDateStr, selectedDay))
   );
 
   const totalPerDay = (day: WeekDay) => {
@@ -1359,7 +1362,7 @@ const s = StyleSheet.create({
   menuTitle: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
   menuMeta: { fontSize: 12, color: '#6b7280' },
   choreCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#ddd6fe', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
-  choreDone: { backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0' },
+  choreDone: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', opacity: 0.7 },
   choreInfo: { flex: 1 },
   choreTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
   choreStrike: { textDecorationLine: 'line-through', color: '#9ca3af' },

@@ -110,7 +110,7 @@
 - [x] kunna skapa egna kategorier samt kunna dölja/lägga till kategorier man vill ha
 - [x] Möjlighet att fälla ihop kategorier i inköpslistan genom att trycka på kategorinamnet
 - [x] toast vid lyckad ihopslagning av dubbletter
-- [ ] Lyft de mest använda basvarorna överst ("dina vanligaste") när man lägger till varor, så återkommande inköp går snabbare
+- [x] Lyft de mest använda basvarorna överst ("dina vanligaste") när man lägger till varor, så återkommande inköp går snabbare
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -147,6 +147,7 @@
 - [x] Ha en border under veckodagen som motsvarar en yta för maträtten samt ett "+" i mitten. När man flyttar rätter mellan dagarna borde den bara flytta mellan borders (inte runt veckodagens namn)
 - [ ] Receptimport-robusthet: fallback "kunde inte läsa receptet — lägg till manuellt" vid URL som failar, recept utan ingredienslista eller dubbel-import
 - [ ] Veckomeny-mallar: spara en vecka som mall ("Standardvecka") och applicera den på valfri vecka
+- [ ] Inventering av recepten innan de går till inköpslistan borde ses över..
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -182,7 +183,7 @@
 - [x] Skapa/redigera syssla-dialogen borde vara större så man ser alla fälten. Tilldela person fältet borde ligga ovanför Frekvens.
 - [x] "Återkommande"-knappen borde inte byta namn när man klickar på en återkommande frekvens
 - [x] Man borde kunna sätta ett valfritt datum även för en "engångs-syssla"
-- [ ] Avklarade sysslor borde hamna underst i listan. Den gröna bakgrunden är lite överflödig för avklarade sysslor
+- [x] Avklarade sysslor borde hamna underst i listan. Den gröna bakgrunden är lite överflödig för avklarade sysslor
 
 
 

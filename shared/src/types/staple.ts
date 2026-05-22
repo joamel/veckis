@@ -7,6 +7,7 @@ export interface StapleItem {
   category: StoreCategory;
   unit: string | null;
   defaultQuantity: number | null;
+  usageCount: number;
 }
 
 export const CATEGORY_LABELS: Record<StoreCategory, string> = {

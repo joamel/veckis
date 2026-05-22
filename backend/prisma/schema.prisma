@@ -236,6 +236,7 @@ model StapleItem {
   category        StoreCategory @default(other)
   unit            String?
   defaultQuantity Float?
+  usageCount      Int           @default(0) // times added to a list — drives "dina vanligaste"
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
