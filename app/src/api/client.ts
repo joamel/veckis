@@ -239,7 +239,7 @@ export function useApiClient() {
     getSchedule: (householdId: string) =>
       request<ScheduleEntry[]>(`/api/schedule?householdId=${householdId}`),
 
-    createScheduleEntry: (data: { householdId: string; title: string; emoji?: string | null; day: WeekDay; description?: string; startTime?: string; endTime?: string; assignedTo?: string; assignedToMany?: string[]; isShared?: boolean; recurrenceType?: RecurrenceType; recurrenceDays?: WeekDay[]; recurrenceWeeks?: number; monthlyType?: string; recurrenceWeekOfMonth?: number | null; startDate?: string | null; endDate?: string | null }) =>
+    createScheduleEntry: (data: { householdId: string; title: string; emoji?: string | null; day: WeekDay; description?: string; startTime?: string; endTime?: string; assignedTo?: string; assignedToMany?: string[]; isShared?: boolean; remind?: boolean; recurrenceType?: RecurrenceType; recurrenceDays?: WeekDay[]; recurrenceWeeks?: number; monthlyType?: string; recurrenceWeekOfMonth?: number | null; startDate?: string | null; endDate?: string | null }) =>
       request<ScheduleEntry>('/api/schedule', { method: 'POST', body: JSON.stringify(data) }),
 
     updateScheduleEntry: (entryId: string, data: Partial<Omit<ScheduleEntry, 'id' | 'householdId' | 'createdBy'>>) =>
