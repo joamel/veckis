@@ -190,6 +190,13 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
     where: { householdId_name: { householdId: list.householdId, name: normalizedName } },
     select: { category: true },
   });
+  // Track usage so the most-added staples surface as "dina vanligaste".
+  if (staplePref) {
+    prisma.stapleItem.update({
+      where: { householdId_name: { householdId: list.householdId, name: normalizedName } },
+      data: { usageCount: { increment: 1 } },
+    }).catch(() => {});
+  }
   const category = body.data.category === 'other'
     ? (staplePref?.category ?? await getStoredCategory(normalizedName) ?? categorizeIngredient(normalizedName))
     : body.data.category;

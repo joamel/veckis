@@ -23,7 +23,7 @@ staplesRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
 
   const staples = await prisma.stapleItem.findMany({
     where: { householdId },
-    orderBy: { name: 'asc' },
+    orderBy: [{ usageCount: 'desc' }, { name: 'asc' }],
   });
   res.json(staples);
 }));

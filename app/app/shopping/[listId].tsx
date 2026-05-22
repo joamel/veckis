@@ -312,6 +312,10 @@ export default function ShoppingListScreen() {
     ? fuse.search(newItem).slice(0, 8).map(r => r.item)
     : [];
 
+  // Most-added staples (getStaples returns them usageCount-desc) — shown as
+  // quick-add chips when the add field is empty so återkommande inköp går snabbt.
+  const topStaples = useMemo(() => staples.filter(s => s.usageCount > 0).slice(0, 8), [staples]);
+
   const load = useCallback(async () => {
     if (!listId || !householdId) return;
     try {
@@ -960,7 +964,7 @@ export default function ShoppingListScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         enabled={keyboardVisible}
       >
-        {suggestions.length > 0 && (
+        {suggestions.length > 0 ? (
           <View style={s.chipScroll}>
             <View style={s.chipRow}>
               {suggestions.map(s2 => (
@@ -976,7 +980,24 @@ export default function ShoppingListScreen() {
               ))}
             </View>
           </View>
-        )}
+        ) : keyboardVisible && newItem.trim().length === 0 && topStaples.length > 0 ? (
+          <View style={s.commonScroll}>
+            <Text style={s.chipHint}>Dina vanligaste</Text>
+            <View style={s.chipRowWrap}>
+              {topStaples.map(s2 => (
+                <TouchableOpacity
+                  key={s2.id}
+                  style={s.chip}
+                  onPress={() => openQtySheet(s2.name, s2.category as StoreCategory)}
+                  onLongPress={() => openStapleEditor(s2)}
+                  delayLongPress={350}
+                >
+                  <Text style={s.chipText}>{capitalize(s2.name)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ) : null}
         <View style={s.addBar}>
           <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
             <Ionicons name="grid-outline" size={22} color="#4f46e5" />
@@ -1814,6 +1835,9 @@ const s = StyleSheet.create({
   itemNameChecked: { textDecorationLine: 'line-through', color: '#9ca3af' },
   itemQty: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
   chipScroll: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6', maxHeight: 44 },
+  commonScroll: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingTop: 6, paddingBottom: 2 },
+  chipHint: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.5, paddingHorizontal: 12 },
+  chipRowWrap: { paddingHorizontal: 12, paddingVertical: 6, gap: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   chipRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
   chip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#eef2ff', borderRadius: 20 },
   chipText: { fontSize: 13, color: '#4f46e5', fontWeight: '500' },
