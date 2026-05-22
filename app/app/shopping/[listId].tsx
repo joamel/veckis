@@ -1105,7 +1105,8 @@ export default function ShoppingListScreen() {
               <ScrollView style={s.browserList}>
                 {searchList
                   .filter(s2 => s2.category === browserCategory)
-                  .sort((a, b) => a.name.localeCompare(b.name, 'sv'))
+                  // Mest använda överst, alfabetiskt som andrahandssortering.
+                  .sort((a, b) => ((b.usageCount ?? 0) - (a.usageCount ?? 0)) || a.name.localeCompare(b.name, 'sv'))
                   .map(s2 => (
                     <Pressable
                       key={s2.name}
