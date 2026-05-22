@@ -5,7 +5,7 @@ services:
     plan: free
     region: frankfurt
     buildCommand: npm install && npm run build:shared && npm run db:generate --workspace=backend && npm run build --workspace=backend
-    startCommand: "sh -c 'n=0; until npm run db:migrate:prod --workspace=backend; do n=$((n+1)); if [ $n -ge 6 ]; then echo \"migrate failed after $n attempts\"; exit 1; fi; echo \"migrate retry $n — waiting for DB to wake...\"; sleep 10; done; npm run start --workspace=backend'"
+    startCommand: npm run start:prod --workspace=backend
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
