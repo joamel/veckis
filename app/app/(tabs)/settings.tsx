@@ -10,7 +10,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -25,8 +24,9 @@ import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { NotificationsModal } from '../../src/components/NotificationsModal';
 import type { InviteCode } from '@veckis/shared';
-import type { HouseholdWithMembers, NotificationPreferences } from '../../src/api/client';
+import type { HouseholdWithMembers } from '../../src/api/client';
 
 export default function SettingsScreen() {
   const { signOut, getToken } = useAuth();
@@ -124,24 +124,8 @@ export default function SettingsScreen() {
     }
   }, [householdId]);
 
-  // Notification preferences
-  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
-  useEffect(() => {
-    client.getNotificationPreferences().then(setNotifPrefs).catch(() => {});
-  }, []);
-
-  async function toggleNotif(key: keyof NotificationPreferences, value: boolean) {
-    if (!notifPrefs) return;
-    const prev = notifPrefs;
-    setNotifPrefs({ ...notifPrefs, [key]: value }); // optimistic
-    try {
-      const updated = await client.updateNotificationPreferences({ [key]: value });
-      setNotifPrefs(updated);
-    } catch (e) {
-      setNotifPrefs(prev);
-      showError(e, 'Kunde inte spara notisinställningen');
-    }
-  }
+  // Notifications — managed in a dedicated modal
+  const [showNotifModal, setShowNotifModal] = useState(false);
 
   const displayName = user?.fullName ?? user?.emailAddresses[0]?.emailAddress ?? 'Användare';
   const email = user?.emailAddresses[0]?.emailAddress;
@@ -515,33 +499,14 @@ export default function SettingsScreen() {
         {/* Notiser */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>NOTISER</Text>
-          {notifPrefs ? (
-            <View style={styles.notifBox}>
-              {([
-                ['activityReminder', 'Påminnelse innan aktivitet', 'Innan en aktivitet startar'],
-                ['choreOverdue', 'Förfallen syssla', 'När en syssla inte hunnit bli klar'],
-                ['listCleared', 'Inköpslista rensad', 'När någon rensar en aktiv lista'],
-                ['newMember', 'Ny medlem', 'När någon går med i hushållet'],
-              ] as const).map(([key, title, desc], i) => (
-                <View key={key} style={[styles.notifRow, i > 0 && styles.notifRowBorder]}>
-                  <View style={styles.notifTextWrap}>
-                    <Text style={styles.notifTitle}>{title}</Text>
-                    <Text style={styles.notifDesc}>{desc}</Text>
-                  </View>
-                  <Switch
-                    value={notifPrefs[key] as boolean}
-                    onValueChange={v => toggleNotif(key, v)}
-                    trackColor={{ true: '#4f46e5', false: '#d1d5db' }}
-                    accessibilityLabel={title}
-                  />
-                </View>
-              ))}
+          <Pressable style={styles.notifRowBtn} onPress={() => setShowNotifModal(true)}>
+            <Ionicons name="notifications-outline" size={20} color="#4f46e5" />
+            <View style={styles.notifTextWrap}>
+              <Text style={styles.notifTitle}>Notisinställningar</Text>
+              <Text style={styles.notifDesc}>Välj vilka notiser du vill få och testa på enheten</Text>
             </View>
-          ) : (
-            <View style={styles.notifBox}>
-              <Text style={styles.notifDesc}>Läser in…</Text>
-            </View>
-          )}
+            <Ionicons name="chevron-forward" size={18} color="#d1d5db" />
+          </Pressable>
         </View>
 
         {/* Mina hushåll */}
@@ -771,6 +736,8 @@ export default function SettingsScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+      <NotificationsModal visible={showNotifModal} onClose={() => setShowNotifModal(false)} />
+
       <Animated.View style={[styles.toast, toastVariant === 'neutral' && styles.toastNeutral, { opacity: toastOpacity }]} pointerEvents="none">
         <Text style={styles.toastText}>{toastMessage}</Text>
       </Animated.View>
@@ -891,18 +858,20 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   inviteDesc: { fontSize: 14, color: '#6b7280', lineHeight: 20 },
-  notifBox: {
+  notifRowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     backgroundColor: '#fff',
     borderRadius: 12,
     paddingHorizontal: 16,
+    paddingVertical: 14,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 1 },
     elevation: 3,
   },
-  notifRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },
-  notifRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e7eb' },
   notifTextWrap: { flex: 1 },
   notifTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
   notifDesc: { fontSize: 13, color: '#9ca3af', marginTop: 2 },

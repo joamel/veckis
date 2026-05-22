@@ -40,23 +40,38 @@ export async function sendPush(
   type: NotificationType,
   payload: PushPayload,
 ): Promise<void> {
-  try {
-    const userIds = [...new Set(clerkUserIds)].filter(Boolean);
-    if (userIds.length === 0) return;
+  const userIds = [...new Set(clerkUserIds)].filter(Boolean);
+  if (userIds.length === 0) return;
 
-    // Drop users who opted out of this notification type.
-    const prefs = await prisma.notificationPreference.findMany({
-      where: { clerkUserId: { in: userIds } },
-    });
-    const optedOut = new Set(prefs.filter(p => !p[type]).map(p => p.clerkUserId));
-    const recipients = userIds.filter(id => !optedOut.has(id));
-    if (recipients.length === 0) return;
+  // Drop users who opted out of this notification type.
+  const prefs = await prisma.notificationPreference.findMany({
+    where: { clerkUserId: { in: userIds } },
+  });
+  const optedOut = new Set(prefs.filter(p => !p[type]).map(p => p.clerkUserId));
+  const recipients = userIds.filter(id => !optedOut.has(id));
+  await deliverPush(recipients, payload);
+}
+
+/**
+ * Sends a payload to every device token of the given users, ignoring
+ * preferences. Returns how many tokens were targeted and any Expo error tickets
+ * — used by the in-app "send test notification" endpoint for diagnostics.
+ * Never throws.
+ */
+export async function deliverPush(
+  clerkUserIds: string[],
+  payload: PushPayload,
+): Promise<{ tokens: number; errors: string[] }> {
+  const errors: string[] = [];
+  try {
+    const recipients = [...new Set(clerkUserIds)].filter(Boolean);
+    if (recipients.length === 0) return { tokens: 0, errors };
 
     const tokens = await prisma.pushToken.findMany({
       where: { clerkUserId: { in: recipients } },
       select: { token: true },
     });
-    if (tokens.length === 0) return;
+    if (tokens.length === 0) return { tokens: 0, errors };
 
     const messages: ExpoMessage[] = tokens.map(t => ({
       to: t.token,
@@ -73,24 +88,29 @@ export async function sendPush(
         body: JSON.stringify(batch),
       });
       if (!res.ok) {
-        console.error('Expo push failed:', res.status, await res.text().catch(() => ''));
+        const text = await res.text().catch(() => '');
+        console.error('Expo push failed:', res.status, text);
+        errors.push(`HTTP ${res.status}`);
         continue;
       }
       const json = (await res.json().catch(() => null)) as { data?: ExpoTicket[] } | null;
       const tickets = json?.data ?? [];
-      // Prune tokens Expo says are no longer valid for a device.
       const dead: string[] = [];
       tickets.forEach((ticket, i) => {
-        if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
-          dead.push(batch[i].to);
+        if (ticket.status === 'error') {
+          errors.push(ticket.details?.error ?? ticket.message ?? 'unknown');
+          if (ticket.details?.error === 'DeviceNotRegistered') dead.push(batch[i].to);
         }
       });
       if (dead.length > 0) {
         await prisma.pushToken.deleteMany({ where: { token: { in: dead } } }).catch(() => {});
       }
     }
+    return { tokens: tokens.length, errors };
   } catch (err) {
-    console.error('sendPush error:', err instanceof Error ? err.message : err);
+    console.error('deliverPush error:', err instanceof Error ? err.message : err);
+    errors.push(err instanceof Error ? err.message : String(err));
+    return { tokens: 0, errors };
   }
 }
 
