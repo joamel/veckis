@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "753703215410",
+    "project_id": "veckis",
+    "storage_bucket": "veckis.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:753703215410:android:43c5f131cacad55cbf372b",
+        "android_client_info": {
+          "package_name": "com.veckis.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCDw1qlNCZ6MReH-q9nTlrILR2P1jnIaMs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
