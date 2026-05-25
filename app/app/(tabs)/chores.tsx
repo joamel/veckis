@@ -276,6 +276,26 @@ export default function ChoresScreen() {
     return { dayOfMonth: dt.getDate(), weekday: days[dt.getDay()] };
   }
 
+  function resetCreateForm() {
+    setNewTitle('');
+    setNewAssignedTo(null);
+    setNewRecurrenceType('none');
+    setNewRecurrenceWeeks(1);
+    setNewRecurrenceDays([]);
+    setNewMonthlyType('day_of_month');
+    setNewRecurrenceWeekOfMonth(1);
+    setNewMonthDay(1);
+    setNewWeekday('mon');
+    setNewStartDate(null);
+    setNewEndDate(null);
+  }
+
+  // Always open a fresh dialog so an abandoned (cancelled) syssla doesn't reappear.
+  function openCreate() {
+    resetCreateForm();
+    setShowCreate(true);
+  }
+
   async function createChore() {
     if (!householdId || !newTitle.trim()) return;
     setCreating(true);
@@ -298,18 +318,8 @@ export default function ChoresScreen() {
       });
       setChores(prev => prev.some(c => c.id === chore.id) ? prev : [...prev, { ...chore, completions: [] }]);
       setShowCreate(false);
-      setNewTitle('');
       showToast('Syssla skapad');
-      setNewAssignedTo(null);
-      setNewRecurrenceType('none');
-      setNewRecurrenceWeeks(1);
-      setNewRecurrenceDays([]);
-      setNewMonthlyType('day_of_month');
-      setNewRecurrenceWeekOfMonth(1);
-      setNewMonthDay(1);
-      setNewWeekday('mon');
-      setNewStartDate(null);
-      setNewEndDate(null);
+      resetCreateForm();
     } catch (e) {
       showError(e, 'Kunde inte skapa syssla');
     } finally {
@@ -478,7 +488,7 @@ export default function ChoresScreen() {
             title="Inga sysslor än"
             subtitle="Lägg till en syssla så syns den här och i kalendern."
             actionLabel="Ny syssla"
-            onAction={() => setShowCreate(true)}
+            onAction={openCreate}
           />
         }
         renderItem={({ item }) => {
@@ -536,7 +546,7 @@ export default function ChoresScreen() {
           <Text style={[s.editDoneBtnText, { fontSize: fs(16) }]}>Klar</Text>
         </Pressable>
       ) : (
-        <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={() => setShowCreate(true)}>
+        <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={openCreate}>
           <Ionicons name="add" size={fs(30)} color="#fff" />
         </Pressable>
       )}
