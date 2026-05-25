@@ -1719,7 +1719,7 @@ const s = StyleSheet.create({
   segmentBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   segmentText: { fontSize: 13, fontWeight: '600', color: '#9ca3af' },
   segmentTextActive: { color: '#4f46e5' },
-  invSub: { fontSize: 13, color: '#6b7280', marginTop: 10, marginBottom: 8 },
+  invSub: { fontSize: 13, color: '#6b7280', textAlign: 'center', marginTop: 16, marginBottom: 10 },
   invCellLeft: { height: 56, justifyContent: 'center', paddingRight: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
   invCellRight: { width: 140, height: 56, justifyContent: 'center', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
   invName: { fontSize: 15, color: '#111827', fontWeight: '500' },
