@@ -200,6 +200,19 @@ householdRouter.post('/:householdId/members', requireAuth, requireAdmin, asyncHa
   res.status(201).json(member);
 }));
 
+// GET /api/households/:householdId/members/:memberId/assignments
+// Count chores + activities assigned to a member, for the removal warning.
+householdRouter.get('/:householdId/members/:memberId/assignments', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
+  const { householdId, memberId } = req.params;
+  const [chores, activities] = await Promise.all([
+    prisma.chore.count({ where: { householdId, assignedTo: memberId } }),
+    prisma.scheduleEntry.count({
+      where: { householdId, OR: [{ assignedTo: memberId }, { assignedToMany: { has: memberId } }] },
+    }),
+  ]);
+  res.json({ chores, activities });
+}));
+
 // DELETE /api/households/:householdId/members/:memberId
 householdRouter.delete('/:householdId/members/:memberId', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const target = await prisma.householdMember.findUnique({ where: { id: req.params.memberId } });

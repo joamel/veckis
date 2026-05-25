@@ -93,9 +93,25 @@ export default function RecipesScreen() {
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
       setShowModal(false);
       setUrl('');
-      router.push(`/recipes/${recipe.id}` as never);
+      // Recipe found but no ingredients parsed — drop the user straight into edit
+      // mode to fill them in, instead of a confusing empty recipe.
+      if (scraped.ingredients.length === 0) {
+        Alert.alert('Inga ingredienser hittades', 'Receptet skapades men vi kunde inte läsa ingredienserna. Lägg till dem manuellt.');
+        router.push(`/recipes/${recipe.id}?edit=1` as never);
+      } else {
+        router.push(`/recipes/${recipe.id}` as never);
+      }
     } catch (err) {
-      Alert.alert('Fel', err instanceof Error ? err.message : 'Kunde inte hämta recept från URL');
+      // Scrape failed (no recipe data, fetch error, timeout…) — don't dead-end;
+      // offer to add the recipe manually instead.
+      Alert.alert(
+        'Kunde inte läsa receptet',
+        `${err instanceof Error ? err.message : 'Länken gick inte att läsa'}\n\nVill du lägga till receptet manuellt istället?`,
+        [
+          { text: 'Avbryt', style: 'cancel' },
+          { text: 'Lägg till manuellt', onPress: () => setMode('manual') },
+        ],
+      );
     } finally {
       setScraping(false);
       setCreating(false);

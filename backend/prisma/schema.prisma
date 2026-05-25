@@ -23,6 +23,7 @@ model Household {
   recipes       Recipe[]
   weekMenuItems WeekMenuItem[]
   stapleItems   StapleItem[]
+  menuTemplates MenuTemplate[]
 }
 
 model HouseholdMember {
@@ -195,6 +196,7 @@ model Recipe {
   ingredients   RecipeIngredient[]
   weekMenuItems WeekMenuItem[]
   shoppingItems ShoppingItem[]
+  menuTemplateItems MenuTemplateItem[]
 
   @@index([householdId])
 }
@@ -227,6 +229,31 @@ model WeekMenuItem {
   recipe    Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@index([householdId, weekYear, weekNumber])
+}
+
+model MenuTemplate {
+  id          String   @id @default(cuid())
+  householdId String
+  name        String
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  household Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  items     MenuTemplateItem[]
+
+  @@index([householdId])
+}
+
+model MenuTemplateItem {
+  id         String   @id @default(cuid())
+  templateId String
+  recipeId   String
+  day        WeekDay?
+
+  template MenuTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  recipe   Recipe       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
 }
 
 model StapleItem {

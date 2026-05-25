@@ -225,10 +225,25 @@ export default function SettingsScreen() {
 
   async function handleRemoveMember(memberId: string, memberName: string) {
     if (!householdId) return;
-    Alert.alert('Ta bort medlem', `Är du säker på att du vill ta bort ${memberName}?`, [
+
+    // Surface what the member is responsible for so they aren't silently orphaned.
+    let warning = '';
+    try {
+      const { chores, activities } = await client.getMemberAssignments(householdId, memberId);
+      const parts: string[] = [];
+      if (chores > 0) parts.push(`${chores} ${chores === 1 ? 'syssla' : 'sysslor'}`);
+      if (activities > 0) parts.push(`${activities} ${activities === 1 ? 'aktivitet' : 'aktiviteter'}`);
+      if (parts.length > 0) {
+        warning = `\n\n${memberName} har ${parts.join(' och ')} tilldelade. De blir utan ansvarig om du tar bort ${memberName}.`;
+      }
+    } catch {
+      // Non-fatal — fall back to a plain confirmation.
+    }
+
+    Alert.alert('Ta bort medlem', `Är du säker på att du vill ta bort ${memberName}?${warning}`, [
       { text: 'Avbryt', style: 'cancel' },
       {
-        text: 'Ta bort',
+        text: 'Ta bort ändå',
         style: 'destructive',
         onPress: async () => {
           try {
