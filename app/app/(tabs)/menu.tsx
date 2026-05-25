@@ -236,11 +236,11 @@ export default function MenuScreen() {
             return n;
           })}
         >
-          <Ionicons name={have ? 'checkbox' : 'square-outline'} size={22} color={have ? '#10b981' : '#9ca3af'} />
           <View style={{ flex: 1 }}>
             <Text style={[s.invName, have && s.invNameDone]}>{agg.name}</Text>
             {have ? <Text style={s.invProvenance}>har hemma</Text> : null}
           </View>
+          <Ionicons name={have ? 'checkbox' : 'square-outline'} size={24} color={have ? '#10b981' : '#9ca3af'} />
         </Pressable>
       );
     }
@@ -263,8 +263,8 @@ export default function MenuScreen() {
       const iconColor = covered ? '#10b981' : partial ? '#f59e0b' : '#9ca3af';
       return (
         <Pressable style={s.invRow} onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}>
-          <Ionicons name={icon as never} size={22} color={iconColor} />
           {nameLine}
+          <Ionicons name={icon as never} size={24} color={iconColor} />
         </Pressable>
       );
     }
