@@ -179,7 +179,8 @@ export default function ScheduleScreen() {
   const userId = user?.id;
 
   const [weekRef, setWeekRef] = useState(new Date());
-  const weekPagerRef = useRef<ScrollView>(null);
+  const dayPagerRef = useRef<ScrollView>(null);
+  const dayRowPagerRef = useRef<ScrollView>(null);
   const weekPageW = Dimensions.get('window').width;
   const [monthRef, setMonthRef] = useState(new Date());
   const { weekYear, weekNumber } = getISOWeek(weekRef);
@@ -199,6 +200,13 @@ export default function ScheduleScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<WeekDay>(TODAY_DAY);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Keep both swipe pagers (day-row = week, content = day) centered on page 1
+  // whenever the week or selected day changes from any source (tab tap, arrows,
+  // "Idag", month-pick, or a swipe that crossed a week boundary on the other pager).
+  useEffect(() => {
+    dayRowPagerRef.current?.scrollTo({ x: weekPageW, animated: false });
+    dayPagerRef.current?.scrollTo({ x: weekPageW, animated: false });
+  }, [weekRef, selectedDay, weekPageW]);
 
   // Filter
   const { filterMemberIds, setFilterMemberIds } = useMemberFilter();
@@ -626,13 +634,18 @@ export default function ScheduleScreen() {
   const selectedDayIndex = DAYS.findIndex(d => d.key === selectedDay);
   const selectedDayDate = new Date(weekMonday.getTime() + selectedDayIndex * 86400000);
   const selectedDayDateStr = `${selectedDayDate.getFullYear()}-${String(selectedDayDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDayDate.getDate()).padStart(2, '0')}`;
-  // Per-week day data, parameterized by that week's Monday so the swipe pager
-  // can render the previous/next week's selected day too.
-  const dayDataFor = (pageMonday: Date) => {
-    const date = new Date(pageMonday.getTime() + selectedDayIndex * 86400000);
+  const addDays = (date: Date, n: number) => new Date(date.getTime() + n * 86400000);
+  const weekdayKeyOf = (date: Date): WeekDay =>
+    (['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()]) as WeekDay;
+
+  // Day data for an arbitrary absolute date — filters by THAT date's weekday so
+  // the content day-pager can render the previous/next day (even across a week
+  // boundary).
+  const dayDataForDate = (date: Date) => {
+    const wd = weekdayKeyOf(date);
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    const entries = visibleEntries.filter(e =>
-      e.day === selectedDay &&
+    const dEntries = visibleEntries.filter(e =>
+      e.day === wd &&
       !e.exceptions?.includes(dateStr) &&
       (!e.startDate || dateStr >= e.startDate) &&
       (!e.endDate || dateStr <= e.endDate) &&
@@ -643,20 +656,22 @@ export default function ScheduleScreen() {
       if (!a.startTime && !b.startTime) return 0;
       return (a.startTime ?? '').localeCompare(b.startTime ?? '');
     });
-    const menu = menuItems.filter(i => i.day === selectedDay);
+    const menu = menuItems.filter(i => i.day === wd);
     const dchores = chores.filter(c =>
-      choreVisibleOnDay(c, selectedDay, date) &&
+      choreVisibleOnDay(c, wd, date) &&
       (filterMemberIds.length === 0 || (c.assignedTo != null && filterMemberIds.includes(c.assignedTo)))
     ).sort((a, b) =>
-      Number(isDoneOnDate(a.completions, dateStr, selectedDay)) -
-      Number(isDoneOnDate(b.completions, dateStr, selectedDay))
+      Number(isDoneOnDate(a.completions, dateStr, wd)) -
+      Number(isDoneOnDate(b.completions, dateStr, wd))
     );
-    return { date, dateStr, entries, menu, chores: dchores, isEmpty: entries.length === 0 && menu.length === 0 && dchores.length === 0 };
+    return { date, dateStr, wd, entries: dEntries, menu, chores: dchores, isEmpty: dEntries.length === 0 && menu.length === 0 && dchores.length === 0 };
   };
 
-  const totalPerDay = (day: WeekDay) => {
+  // Item count for a given weekday within an arbitrary week (for the day-row
+  // week-pager, where neighbour pages show other weeks).
+  const totalPerDayOn = (pageMonday: Date, day: WeekDay) => {
     const idx = DAYS.findIndex(d => d.key === day);
-    const dt = new Date(weekMonday.getTime() + idx * 86400000);
+    const dt = new Date(pageMonday.getTime() + idx * 86400000);
     const dtStr = dt.toISOString().slice(0, 10);
     const filterActive = filterMemberIds.length > 0;
     return visibleEntries.filter(e =>
@@ -672,11 +687,12 @@ export default function ScheduleScreen() {
         (!filterActive || (c.assignedTo != null && filterMemberIds.includes(c.assignedTo)))
       ).length;
   };
+  const totalPerDay = (day: WeekDay) => totalPerDayOn(weekMonday, day);
 
-  const cur = dayDataFor(weekMonday);
+  const cur = dayDataForDate(selectedDayDate);
   const isEmpty = cur.isEmpty;
 
-  const renderDayDetail = (d: ReturnType<typeof dayDataFor>) => (
+  const renderDayDetail = (d: ReturnType<typeof dayDataForDate>) => (
     <>
       {d.menu.length > 0 && (
         <View style={s.section}>
@@ -709,7 +725,7 @@ export default function ScheduleScreen() {
         <View style={s.section}>
           <Text style={s.sectionLabel}>SYSSLOR</Text>
           {d.chores.map(chore => {
-            const done = isDoneOnDate(chore.completions, d.dateStr, selectedDay);
+            const done = isDoneOnDate(chore.completions, d.dateStr, d.wd);
             const assignedName = getMemberName(chore.assignedTo);
             return (
               <Pressable
@@ -729,7 +745,7 @@ export default function ScheduleScreen() {
                 </View>
                 <Pressable
                   style={[s.choreCheckBtn, { width: sp(32), height: sp(32), borderRadius: sp(16) }, done && s.choreCheckBtnDone]}
-                  onPress={() => done ? uncompleteChoreCalendar(chore, selectedDay, d.dateStr) : completeChoreCalendar(chore, selectedDay, d.dateStr)}
+                  onPress={() => done ? uncompleteChoreCalendar(chore, d.wd, d.dateStr) : completeChoreCalendar(chore, d.wd, d.dateStr)}
                 >
                   {done && <Ionicons name="checkmark" size={fs(18)} color="#fff" />}
                 </Pressable>
@@ -906,33 +922,54 @@ export default function ScheduleScreen() {
             onPickDate={() => setShowWeekPicker(true)}
           />
 
-          <View style={s.dayRow}>
-            {DAYS.map((day, i) => {
-              const count = totalPerDay(day.key);
-              const dayDate = new Date(weekMonday.getTime() + i * 86400000);
-              const now = new Date();
-              const isToday = dayDate.getDate() === now.getDate() &&
-                dayDate.getMonth() === now.getMonth() &&
-                dayDate.getFullYear() === now.getFullYear();
-              const isActive = selectedDay === day.key;
-              const dateNum = new Date(weekMonday.getTime() + i * 86400000).getDate();
+          {/* Day-row as a 3-page week pager: swipe the weekday bar to slide
+              between weeks (keeps the selected weekday). */}
+          <ScrollView
+            ref={dayRowPagerRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            contentOffset={{ x: weekPageW, y: 0 }}
+            scrollEventThrottle={16}
+            style={s.dayRowPager}
+            onMomentumScrollEnd={e => {
+              const page = Math.round(e.nativeEvent.contentOffset.x / weekPageW);
+              if (page !== 1) setWeekRef(w => addWeeks(w, page - 1));
+            }}
+          >
+            {[-1, 0, 1].map(off => {
+              const pm = addWeeks(weekMonday, off);
               return (
-                <Pressable
-                  key={day.key}
-                  style={[s.dayTab, isActive && s.dayTabActive, !isActive && count > 0 && s.dayTabHasContent]}
-                  onPress={() => setSelectedDay(day.key)}
-                >
-                  <Text style={[s.dayTabShort, isActive && s.dayTabTextActive]}>{day.short}</Text>
-                  <Text style={[s.dayTabDate, isActive && s.dayTabTextActive]}>{dateNum}</Text>
-                  <View style={[s.todayDot, isActive && s.todayDotActive, !isToday && s.todayDotHidden]} />
-                </Pressable>
+                <View key={off} style={[s.dayRow, { width: weekPageW }]}>
+                  {DAYS.map((day, i) => {
+                    const count = totalPerDayOn(pm, day.key);
+                    const dayDate = new Date(pm.getTime() + i * 86400000);
+                    const now = new Date();
+                    const isToday = dayDate.getDate() === now.getDate() &&
+                      dayDate.getMonth() === now.getMonth() &&
+                      dayDate.getFullYear() === now.getFullYear();
+                    const isActive = selectedDay === day.key;
+                    return (
+                      <Pressable
+                        key={day.key}
+                        style={[s.dayTab, isActive && s.dayTabActive, !isActive && count > 0 && s.dayTabHasContent]}
+                        onPress={() => setSelectedDay(day.key)}
+                      >
+                        <Text style={[s.dayTabShort, isActive && s.dayTabTextActive]}>{day.short}</Text>
+                        <Text style={[s.dayTabDate, isActive && s.dayTabTextActive]}>{dayDate.getDate()}</Text>
+                        <View style={[s.todayDot, isActive && s.todayDotActive, !isToday && s.todayDotHidden]} />
+                      </Pressable>
+                    );
+                  })}
+                </View>
               );
             })}
-          </View>
+          </ScrollView>
 
-          {/* 3-page week pager: prev / current / next — swipe to change week */}
+          {/* Content as a 3-page day pager: swipe the detail area to go to the
+              previous / next day (rolls over into the adjacent week). */}
           <ScrollView
-            ref={weekPagerRef}
+            ref={dayPagerRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
@@ -942,13 +979,14 @@ export default function ScheduleScreen() {
             onMomentumScrollEnd={e => {
               const page = Math.round(e.nativeEvent.contentOffset.x / weekPageW);
               if (page !== 1) {
-                setWeekRef(w => addWeeks(w, page - 1));
-                weekPagerRef.current?.scrollTo({ x: weekPageW, animated: false });
+                const nd = addDays(selectedDayDate, page - 1);
+                setSelectedDay(weekdayKeyOf(nd));
+                setWeekRef(nd);
               }
             }}
           >
             {[-1, 0, 1].map(off => {
-              const d = dayDataFor(addWeeks(weekMonday, off));
+              const d = dayDataForDate(addDays(selectedDayDate, off));
               return (
                 <ScrollView
                   key={off}
@@ -961,7 +999,7 @@ export default function ScheduleScreen() {
                       title="Inget planerat"
                       subtitle="Lägg till en aktivitet på den här dagen."
                       actionLabel="Ny aktivitet"
-                      onAction={() => { openNewEntry(selectedDay); }}
+                      onAction={() => { openNewEntry(d.wd); }}
                     />
                   ) : renderDayDetail(d)}
                 </ScrollView>
@@ -1391,6 +1429,7 @@ export default function ScheduleScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  dayRowPager: { flexGrow: 0, backgroundColor: '#fff' },
   dayRow: { flexDirection: 'row', backgroundColor: '#fff', paddingHorizontal: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 4 },
   dayTab: { flex: 1, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', alignItems: 'center', gap: 1 },
   dayTabActive: { borderColor: '#4f46e5', backgroundColor: '#4f46e5' },
