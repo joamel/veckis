@@ -5,6 +5,7 @@ import {
   Animated as RNAnimated,
   Dimensions,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -32,9 +33,11 @@ import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
+import { onShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay } from '@veckis/shared';
+import { DEFAULT_CATEGORY_ORDER } from '@veckis/shared';
 
 const DAYS: { key: WeekDay; label: string; short: string }[] = [
   { key: 'mon', label: 'Måndag', short: 'Mån' },
@@ -56,6 +59,17 @@ function getWeekMonday(weekOffset: number): Date {
   monday.setDate(d.getDate() - daysFromMonday);
   monday.setHours(0, 0, 0, 0);
   return monday;
+}
+
+interface AggIngredient {
+  key: string;
+  name: string;
+  unit: string | null;
+  category: string | undefined;
+  totalQty: number | null; // null = unmeasured (no quantity to do math on)
+  measured: boolean;
+  recipeTitles: string[];
+  sources: { menuItemId: string; recipeId: string; qty: number | null }[];
 }
 
 export default function MenuScreen() {
@@ -90,6 +104,7 @@ export default function MenuScreen() {
   const [bulkTransferringListId, setBulkTransferringListId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState('');
   const [creatingList, setCreatingList] = useState(false);
+  const [ingredientCategories, setIngredientCategories] = useState<Record<string, string>>({}); // name -> category for inventory sorting
   // Per-menu-item: which lists have items from it (keyed by menuItemId for per-instance tracking)
   type ListEntry = { listId: string; listName: string; itemCount: number };
   const [recipeListMap, setRecipeListMap] = useState<Record<string, ListEntry[]>>({});
@@ -107,7 +122,14 @@ export default function MenuScreen() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedRecipesForTransfer, setSelectedRecipesForTransfer] = useState<Set<string>>(new Set());
   const [bulkTransferStep, setBulkTransferStep] = useState<'week' | 'recipe' | 'ingredients' | 'list'>('recipe');
-  const [excludedIngredients, setExcludedIngredients] = useState<Set<string>>(new Set());
+  // Inventory step (aggregated across selected recipes). ONE source of truth that
+  // both tabs read/write: `haveAtHome` (amount on hand) for measured ingredients,
+  // `hadUnmeasured` (have it / not) for ingredients without a quantity. The tab is
+  // only a view/input switch — both always apply to the transfer.
+  const [inventoryMode, setInventoryMode] = useState<'check' | 'amount'>('check');
+  const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> amount on hand
+  const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // unmeasured ingredients marked "har hemma"
+  const [editingAmountKey, setEditingAmountKey] = useState<string | null>(null); // which amount cell is in edit mode
   const [allMenus, setAllMenus] = useState<WeekMenuItemWithRecipe[]>([]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
@@ -131,6 +153,195 @@ export default function MenuScreen() {
     if (n % 1 === 0) return n;
     if (n < 1) return Math.round(n * 4) / 4;
     return Math.round(n * 2) / 2;
+  }
+
+  const fmtQty = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',');
+
+  function resetInventory() {
+    setInventoryMode('check');
+    setHaveAtHome({});
+    setHadUnmeasured(new Set());
+  }
+
+  // Menu items already transferred — scoped to the target list when we came from
+  // a specific list (originListId), otherwise across all lists (matches the
+  // "I inköpslistan"-markering). Used to exclude them from selection + inventory.
+  const transferredMenuItemIds = useMemo(() => {
+    const lists = params.originListId
+      ? shoppingLists.filter(l => l.id === params.originListId)
+      : shoppingLists;
+    const s = new Set<string>();
+    for (const l of lists) {
+      // linkedMenuItemIds (backend) is the same authoritative source recipeListMap
+      // uses — includes hidden merge-container items and works across all weeks,
+      // unlike scanning visible l.items[].menuItemId.
+      const linked = (l as { linkedMenuItemIds?: string[] }).linkedMenuItemIds ?? [];
+      linked.forEach(id => s.add(id));
+    }
+    return s;
+  }, [shoppingLists, params.originListId]);
+
+  // Ingredients across the selected recipes, merged into one row per name+unit
+  // (with provenance), so a shared ingredient isn't inventoried multiple times.
+  // Restricted to the active week and excludes already-transferred recipes so it
+  // matches exactly what step 1 offered + the user picked.
+  const aggregatedInventory = useMemo<AggIngredient[]>(() => {
+    const pool = bulkTransferWeek
+      ? allMenus.filter(m => m.weekYear === bulkTransferWeek.weekYear && m.weekNumber === bulkTransferWeek.weekNumber)
+      : menuItems;
+    const selected = pool.filter(m => selectedRecipesForTransfer.has(m.id) && !transferredMenuItemIds.has(m.id));
+    const map = new Map<string, AggIngredient>();
+    for (const item of selected) {
+      const ratio = getScaleRatio(item);
+      for (const ing of item.recipe.ingredients) {
+        const unit = ing.unit ?? null;
+        const key = `${ing.name.toLowerCase().trim()}|${(unit ?? '').toLowerCase().trim()}`;
+        const qty = scaleQty(ing.quantity ?? null, ratio);
+        let agg = map.get(key);
+        if (!agg) {
+          // Prefer the learned/common category by name (where it lands in the
+          // store); recipe ingredients themselves are usually 'other'.
+          const cat = ingredientCategories[ing.name.toLowerCase().trim()] ?? ing.category;
+          agg = { key, name: ing.name, unit, category: cat, totalQty: 0, measured: true, recipeTitles: [], sources: [] };
+          map.set(key, agg);
+        }
+        agg.sources.push({ menuItemId: item.id, recipeId: item.recipeId, qty });
+        if (!agg.recipeTitles.includes(item.recipe.title)) agg.recipeTitles.push(item.recipe.title);
+        if (qty == null) agg.measured = false;
+        if (agg.measured && agg.totalQty != null) agg.totalQty += qty ?? 0;
+      }
+    }
+    // Group by store category (kyl/frys/skafferi…) so you don't run back and forth
+    // while inventorying — alphabetical within each category. No headers shown.
+    const catIdx = (c?: string) => {
+      const i = DEFAULT_CATEGORY_ORDER.indexOf(c as never);
+      return i < 0 ? DEFAULT_CATEGORY_ORDER.length : i;
+    };
+    return [...map.values()]
+      .map(a => (a.measured && (a.totalQty ?? 0) > 0 ? a : { ...a, measured: false, totalQty: null }))
+      .sort((a, b) => (catIdx(a.category) - catIdx(b.category)) || a.name.localeCompare(b.name, 'sv'));
+  }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings, transferredMenuItemIds, ingredientCategories]);
+
+  // Inventory: names stay fixed on the left; only the right control column
+  // (checkbox ⇄ amount) is a narrow horizontal pager that swipes/tabs between
+  // the two modes, so it looks like only the right half moves.
+  const INV_ROW_H = 56;
+  const INV_CTRL_W = 140;
+  const INV_FULL_W = Dimensions.get('window').width - 48; // sheet padding 24 each side
+  const invListHeight = Math.min(400, Math.max(120, aggregatedInventory.length * INV_ROW_H));
+  const invPagerRef = useRef<ScrollView>(null);
+  // While a tab-tap scrolls programmatically, ignore onScroll so it doesn't flip
+  // the tab back and forth as the animation passes the midpoint.
+  const invScrollLock = useRef(false);
+  const goToInvMode = (mode: 'check' | 'amount') => {
+    invScrollLock.current = true;
+    setInventoryMode(mode);
+    invPagerRef.current?.scrollTo({ x: mode === 'amount' ? INV_FULL_W : 0, animated: true });
+    setTimeout(() => { invScrollLock.current = false; }, 400);
+  };
+  // "Bocka av" has no inputs — drop the keyboard + exit edit mode when switching to it.
+  useEffect(() => { if (inventoryMode === 'check') { Keyboard.dismiss(); setEditingAmountKey(null); } }, [inventoryMode]);
+
+  const toggleUnmeasured = (key: string) => setHadUnmeasured(prev => {
+    const n = new Set(prev);
+    if (n.has(key)) n.delete(key); else n.add(key);
+    return n;
+  });
+
+  // Fixed left cell: the item name (+ "köp X"/"har hemma" line). Stays put while
+  // the right control swipes.
+  function renderNameCell(agg: AggIngredient) {
+    const unitLabel = agg.unit ? ` ${agg.unit}` : '';
+    if (!agg.measured) {
+      const have = hadUnmeasured.has(agg.key);
+      return (
+        <View key={agg.key} style={s.invCellLeft}>
+          <Text style={[s.invName, have && s.invNameDone]}>{agg.name}</Text>
+          {have ? <Text style={s.invProvenance}>har hemma</Text> : null}
+        </View>
+      );
+    }
+    const total = agg.totalQty ?? 0;
+    const haveAmt = haveAtHome[agg.key] ?? 0;
+    const toBuy = Math.max(0, Math.round((total - haveAmt) * 100) / 100);
+    const covered = toBuy <= 0;
+    const partial = haveAmt > 0 && !covered;
+    const secondLine = covered ? 'har hemma' : partial ? `köp ${fmtQty(toBuy)}${unitLabel}` : '';
+    return (
+      <View key={agg.key} style={s.invCellLeft}>
+        <Text style={[s.invName, covered && s.invNameDone]}>{fmtQty(total)}{unitLabel} {agg.name}</Text>
+        {secondLine ? <Text style={[s.invProvenance, partial && s.invBuy]}>{secondLine}</Text> : null}
+      </View>
+    );
+  }
+
+  // Right control cell for a given page: checkbox (Bocka av) or amount (Ange mängd).
+  function renderControlCell(agg: AggIngredient, mode: 'check' | 'amount') {
+    if (!agg.measured) {
+      const have = hadUnmeasured.has(agg.key);
+      // In "Ange mängd" a bare checkbox among the number fields looks off — use a
+      // "Har hemma"-pill instead. In "Bocka av" keep the plain checkbox.
+      if (mode === 'amount') {
+        return (
+          <Pressable key={agg.key} style={s.invCellRight} onPress={() => toggleUnmeasured(agg.key)}>
+            <View style={[s.invHavePill, have && s.invHavePillOn]}>
+              <Text style={[s.invHavePillText, have && s.invHavePillTextOn]}>Har hemma</Text>
+            </View>
+          </Pressable>
+        );
+      }
+      return (
+        <Pressable key={agg.key} style={s.invCellRight} onPress={() => toggleUnmeasured(agg.key)}>
+          <Ionicons name={have ? 'checkbox' : 'square-outline'} size={24} color={have ? '#10b981' : '#9ca3af'} />
+        </Pressable>
+      );
+    }
+    const total = agg.totalQty ?? 0;
+    const haveAmt = haveAtHome[agg.key] ?? 0;
+    const toBuy = Math.max(0, Math.round((total - haveAmt) * 100) / 100);
+    const covered = toBuy <= 0;
+    const partial = haveAmt > 0 && !covered;
+    if (mode === 'check') {
+      const icon = covered ? 'checkbox' : partial ? 'remove-circle' : 'square-outline';
+      const iconColor = covered ? '#10b981' : partial ? '#f59e0b' : '#9ca3af';
+      return (
+        <Pressable key={agg.key} style={s.invCellRight} onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}>
+          <Ionicons name={icon as never} size={24} color={iconColor} />
+        </Pressable>
+      );
+    }
+    // Live TextInput only for the cell being edited; otherwise a tappable display
+    // box so swipes/scrolls pass through (a real TextInput would trap the drag).
+    if (editingAmountKey === agg.key) {
+      return (
+        <View key={agg.key} style={[s.invCellRight, s.invAmountWrap]}>
+          <TextInput
+            style={s.invAmountInput}
+            keyboardType="numeric"
+            autoFocus
+            value={haveAmt ? fmtQty(haveAmt) : ''}
+            placeholder="0"
+            placeholderTextColor="#d1d5db"
+            onChangeText={t => {
+              const v = parseFloat(t.replace(',', '.'));
+              setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
+            }}
+            onBlur={() => setEditingAmountKey(null)}
+            returnKeyType="done"
+            onSubmitEditing={() => setEditingAmountKey(null)}
+          />
+          <Text style={s.invUnit}>{agg.unit ?? ''}</Text>
+        </View>
+      );
+    }
+    return (
+      <Pressable key={agg.key} style={[s.invCellRight, s.invAmountWrap]} onPress={() => setEditingAmountKey(agg.key)}>
+        <View style={[s.invAmountInput, s.invAmountBox]}>
+          <Text style={haveAmt ? s.invAmountBoxText : s.invAmountBoxPlaceholder}>{haveAmt ? fmtQty(haveAmt) : '0'}</Text>
+        </View>
+        <Text style={s.invUnit}>{agg.unit ?? ''}</Text>
+      </Pressable>
+    );
   }
 
   const toastOpacity = useRef(new RNAnimated.Value(0)).current;
@@ -185,14 +396,20 @@ export default function MenuScreen() {
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
-      const [menu, recs, activeLists] = await Promise.all([
+      const [menu, recs, activeLists, suggestions] = await Promise.all([
         client.getWeekMenu(householdId, weekYear, weekNumber),
         client.getRecipes(householdId),
         client.getShoppingLists(householdId),
+        client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
       ]);
       setMenuItems(menu);
       setRecipes(recs);
       setShoppingLists(activeLists);
+      // name -> category map (learned aliases + common ingredients), so the
+      // inventory can group by where the item lands in the store.
+      const catMap: Record<string, string> = {};
+      for (const sgg of suggestions) catMap[sgg.name.toLowerCase().trim()] = sgg.category;
+      setIngredientCategories(catMap);
       const transferred = new Set<string>();
       const listMap: Record<string, ListEntry[]> = {};
       menu.forEach(menuItem => {
@@ -221,6 +438,9 @@ export default function MenuScreen() {
   }, [householdId, weekYear, weekNumber]);
 
   useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
+  // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
+  // transfer filters stay in sync (e.g. after clearing/removing items in a list).
+  useEffect(() => onShoppingChanged(load), [load]);
 
   useEffect(() => {
     if (params.bulkTransfer === '1' && householdId && !bulkTransferTriggeredRef.current) {
@@ -259,6 +479,13 @@ export default function MenuScreen() {
         router.navigate(`/shopping/${originListId}` as never);
       }
     }
+  }
+
+  // Hardware/gesture back steps through the wizard instead of closing it.
+  function handleBulkBack() {
+    if (bulkTransferStep === 'list') { setBulkTransferStep('ingredients'); return; }
+    if (bulkTransferStep === 'ingredients') { setBulkTransferStep('recipe'); return; }
+    handleCancelBulkTransfer();
   }
 
   async function openWeekPicker() {
@@ -531,13 +758,14 @@ export default function MenuScreen() {
       return;
     }
 
-    const notTransferred = menuItems.filter(m => !recipeListMap[m.id]?.length);
+    const notTransferred = menuItems.filter(m => !transferredMenuItemIds.has(m.id));
     if (notTransferred.length === 0) {
       Alert.alert('Redan överförd', 'Alla rätter denna vecka är redan överförda till en inköpslista');
       return;
     }
 
     setSelectedRecipesForTransfer(new Set(notTransferred.map(m => m.id)));
+    resetInventory();
     setBulkTransferStep('recipe');
     setShowBulkTransferModal(true);
   }
@@ -563,20 +791,44 @@ export default function MenuScreen() {
         return;
       }
 
+      // Build the transfer from the aggregated inventory: for each ingredient
+      // compute the shortfall (what's still needed after "har hemma"), then
+      // apportion it back across the contributing recipes (menuItemId) so the
+      // backend's per-meal dedupe/merge + recipe-removal keep working.
+      const actuallyIds = new Set(actuallyTransfer.map(i => i.id));
       const allIngredients: { name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string; menuItemId: string }[] = [];
-      for (const item of actuallyTransfer) {
-        const scaleRatio = getScaleRatio(item);
-        for (const ing of item.recipe.ingredients) {
-          const key = `${item.id}:${ing.id}`;
-          if (excludedIngredients.has(key)) continue;
+      for (const agg of aggregatedInventory) {
+        const srcs = agg.sources.filter(s => actuallyIds.has(s.menuItemId));
+        if (srcs.length === 0) continue;
+
+        if (!agg.measured) {
+          // No quantity to do math on — include each source as-is unless marked "har hemma".
+          if (hadUnmeasured.has(agg.key)) continue;
+          for (const s of srcs) {
+            allIngredients.push({ name: agg.name, quantity: s.qty, unit: agg.unit, category: agg.category, recipeId: s.recipeId, menuItemId: s.menuItemId });
+          }
+          continue;
+        }
+
+        // Single rule regardless of tab: buy what's left after "har hemma".
+        const total = agg.totalQty ?? 0;
+        const needed = Math.max(0, total - (haveAtHome[agg.key] ?? 0));
+        if (needed <= 0) continue;
+
+        let remaining = needed;
+        for (const s of srcs) {
+          if (remaining <= 0) break;
+          const give = Math.min(s.qty ?? 0, remaining);
+          if (give <= 0) continue;
           allIngredients.push({
-            name: ing.name,
-            quantity: scaleQty(ing.quantity ?? null, scaleRatio),
-            unit: ing.unit ?? null,
-            category: ing.category,
-            recipeId: item.recipeId,
-            menuItemId: item.id,
+            name: agg.name,
+            quantity: Math.round(give * 100) / 100,
+            unit: agg.unit,
+            category: agg.category,
+            recipeId: s.recipeId,
+            menuItemId: s.menuItemId,
           });
+          remaining -= give;
         }
       }
 
@@ -1070,7 +1322,7 @@ export default function MenuScreen() {
       </Modal>
 
       {/* Bulk transfer modal — choose recipes and list */}
-      <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleCancelBulkTransfer()}>
+      <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleBulkBack()}>
         <Pressable style={s.overlay} onPress={() => handleCancelBulkTransfer()} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
@@ -1148,15 +1400,7 @@ export default function MenuScreen() {
                   ? allMenus.filter(m => m.weekYear === bulkTransferWeek.weekYear && m.weekNumber === bulkTransferWeek.weekNumber)
                   : menuItems
                 )
-                  .filter(item => {
-                    if (bulkTransferWeek) {
-                      const transferredIds = new Set(
-                        shoppingLists.flatMap(l => l.items.map(i => i.menuItemId).filter(Boolean) as string[])
-                      );
-                      return !transferredIds.has(item.id);
-                    }
-                    return !!!recipeListMap[item.id]?.length;
-                  })
+                  .filter(item => !transferredMenuItemIds.has(item.id))
                   .map(item => {
                     const selected = selectedRecipesForTransfer.has(item.id);
                     return (
@@ -1190,7 +1434,7 @@ export default function MenuScreen() {
                 style={[s.button, selectedRecipesForTransfer.size === 0 && s.buttonDisabled]}
                 disabled={selectedRecipesForTransfer.size === 0}
                 onPress={() => {
-                  setExcludedIngredients(new Set());
+                  resetInventory();
                   setBulkTransferStep('ingredients');
                 }}
               >
@@ -1199,42 +1443,53 @@ export default function MenuScreen() {
             </>
           ) : bulkTransferStep === 'ingredients' ? (
             <>
-              <Text style={s.sheetTitle}>Granska ingredienser</Text>
-              <Text style={s.sheetSub}>Avmarkera det du redan har hemma</Text>
-              <ScrollView style={s.bulkRecipeList}>
-                {(() => {
-                  const pool = bulkTransferWeek ? allMenus : menuItems;
-                  const selectedItems = pool.filter(m => selectedRecipesForTransfer.has(m.id));
-                  return selectedItems.map(item => (
-                    <View key={item.id} style={{ marginBottom: 12 }}>
-                      <Text style={[s.bulkRecipeTitle, { marginBottom: 6 }]}>{item.recipe.title}</Text>
-                      {item.recipe.ingredients.map(ing => {
-                        const key = `${item.id}:${ing.id}`;
-                        const checked = !excludedIngredients.has(key);
-                        return (
-                          <Pressable
-                            key={ing.id}
-                            style={[s.bulkRecipeItem, { marginLeft: 8 }]}
-                            onPress={() => setExcludedIngredients(prev => {
-                              const n = new Set(prev);
-                              if (n.has(key)) n.delete(key); else n.add(key);
-                              return n;
-                            })}
-                          >
-                            <Ionicons
-                              name={checked ? 'checkbox' : 'square-outline'}
-                              size={20}
-                              color={checked ? '#4f46e5' : '#9ca3af'}
-                            />
-                            <Text style={[s.bulkRecipeDay, { color: checked ? '#111827' : '#9ca3af', flex: 1 }]}>
-                              {ing.quantity ? `${String(ing.quantity).replace('.', ',')} ` : ''}{ing.unit ? `${ing.unit} ` : ''}{ing.name}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  ));
-                })()}
+              <Text style={s.sheetTitle}>Vad har du hemma?</Text>
+              <View style={s.segment}>
+                <Pressable style={[s.segmentBtn, inventoryMode === 'check' && s.segmentBtnActive]} onPress={() => goToInvMode('check')}>
+                  <Text style={[s.segmentText, inventoryMode === 'check' && s.segmentTextActive]}>Bocka av</Text>
+                </Pressable>
+                <Pressable style={[s.segmentBtn, inventoryMode === 'amount' && s.segmentBtnActive]} onPress={() => goToInvMode('amount')}>
+                  <Text style={[s.segmentText, inventoryMode === 'amount' && s.segmentTextActive]}>Ange mängd</Text>
+                </Pressable>
+              </View>
+              <Text style={s.invSub} numberOfLines={1}>
+                {inventoryMode === 'check' ? 'Bocka av det du har hemma' : 'Ange mängd du har hemma'}
+              </Text>
+              <ScrollView style={{ height: invListHeight, marginBottom: 12 }} keyboardShouldPersistTaps="handled">
+                <View style={{ height: aggregatedInventory.length * INV_ROW_H }}>
+                  {/* Full-width native pager UNDERNEATH — swipe anywhere flips it.
+                      Each row: empty left spacer + the control on the right. */}
+                  <ScrollView
+                    ref={invPagerRef}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    scrollEventThrottle={16}
+                    style={StyleSheet.absoluteFill}
+                    onScroll={e => {
+                      if (invScrollLock.current) return; // tab-tap is driving the scroll
+                      const mode = e.nativeEvent.contentOffset.x > INV_FULL_W / 2 ? 'amount' : 'check';
+                      setInventoryMode(prev => (prev === mode ? prev : mode));
+                    }}
+                  >
+                    {(['check', 'amount'] as const).map(mode => (
+                      <View key={mode} style={{ width: INV_FULL_W }}>
+                        {aggregatedInventory.map(agg => (
+                          <View key={agg.key} style={{ height: INV_ROW_H, flexDirection: 'row' }}>
+                            <View style={{ flex: 1 }} />
+                            {renderControlCell(agg, mode)}
+                          </View>
+                        ))}
+                      </View>
+                    ))}
+                  </ScrollView>
+                  {/* Static name overlay covering the left region (lets swipes/taps
+                      through to the pager; opaque so sliding controls hide behind it). */}
+                  <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, right: INV_CTRL_W, backgroundColor: '#fff' }} pointerEvents="none">
+                    {aggregatedInventory.map(agg => renderNameCell(agg))}
+                  </View>
+                </View>
               </ScrollView>
               <Pressable
                 style={s.button}
@@ -1306,7 +1561,7 @@ export default function MenuScreen() {
               )}
               <Pressable
                 style={[s.button, { backgroundColor: '#e5e7eb' }]}
-                onPress={() => setBulkTransferStep('recipe')}
+                onPress={() => setBulkTransferStep('ingredients')}
               >
                 <Text style={[s.buttonText, { color: '#374151' }]}>Tillbaka</Text>
               </Pressable>
@@ -1486,6 +1741,29 @@ const s = StyleSheet.create({
   headerActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
   headerActionText: { fontWeight: '600', color: '#4f46e5', fontSize: 13 },
   headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
+  segment: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 8, padding: 2, marginTop: 8 },
+  segmentBtn: { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: 6 },
+  segmentBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  segmentText: { fontSize: 13, fontWeight: '600', color: '#9ca3af' },
+  segmentTextActive: { color: '#4f46e5' },
+  invSub: { fontSize: 13, color: '#6b7280', textAlign: 'center', marginTop: 16, marginBottom: 10 },
+  invCellLeft: { height: 56, justifyContent: 'center', paddingRight: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
+  invCellRight: { width: 140, height: 56, justifyContent: 'center', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
+  invName: { fontSize: 15, color: '#111827', fontWeight: '500' },
+  invNameDone: { color: '#9ca3af', textDecorationLine: 'line-through' },
+  invProvenance: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  invBuy: { color: '#f59e0b', fontWeight: '600' },
+  invAmountWrap: { flexDirection: 'row', gap: 5 },
+  invAmountLabel: { fontSize: 12, color: '#9ca3af' },
+  invAmountInput: { width: 48, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#a5b4fc', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 7, fontSize: 15, color: '#111827', textAlign: 'right' },
+  invAmountBox: { justifyContent: 'center', alignItems: 'flex-end' },
+  invAmountBoxText: { fontSize: 15, color: '#111827' },
+  invAmountBoxPlaceholder: { fontSize: 15, color: '#d1d5db' },
+  invUnit: { width: 26, fontSize: 13, color: '#6b7280' },
+  invHavePill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db' },
+  invHavePillOn: { backgroundColor: '#10b981', borderColor: '#10b981' },
+  invHavePillText: { fontSize: 12, fontWeight: '600', color: '#9ca3af' },
+  invHavePillTextOn: { color: '#fff' },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
   section: { gap: 8 },

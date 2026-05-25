@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import Fuse from 'fuse.js';
 import { capitalize } from '../../src/lib/text';
+import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
   Animated,
@@ -52,6 +53,13 @@ const dismissedDupesStore = new Map<string, Set<string>>();
 export default function ShoppingListScreen() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
   const router = useRouter();
+  // From a list we always want to land on the lists overview. After the
+  // import-from-menu flow (dismissTo) the back stack can be empty, so back()
+  // would throw "GO_BACK was not handled" — fall back to the shopping tab.
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)/shopping' as never);
+  }, [router]);
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const { householdId } = useHousehold();
@@ -127,12 +135,14 @@ export default function ShoppingListScreen() {
     const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [0, 1], Extrapolation.CLAMP);
     const adjustY = (NAVBAR_HEIGHT - TITLE_AREA_HEIGHT) / 2;
     return {
+      // Cast: reanimated 4's transform typing rejects the inferred union of
+      // single-key objects; runtime is unaffected.
       transform: [
         { translateY: adjustY * t },
         { translateX: targetTranslateX * t },
         { scale: 1 - (1 - TITLE_SCALE) * t },
       ],
-    };
+    } as never;
   });
 
   // Collapsed categories — tap category header to fold/unfold its items.
@@ -630,6 +640,7 @@ export default function ShoppingListScreen() {
     setList(prev => prev ? { ...prev, items: prev.items.filter(i => i.id !== itemId) } : prev);
     try {
       await client.deleteShoppingItem(itemId);
+      emitShoppingChanged(); // keep menu's "I inköpslistan"-tag + filters in sync
     } catch (e) {
       showError(e, 'Kunde inte ta bort vara');
       load();
@@ -656,6 +667,7 @@ export default function ShoppingListScreen() {
           if (cancelled) return;
           try {
             await client.clearShoppingList(listId);
+            emitShoppingChanged(); // refresh the lists overview's count
           } catch (e) {
             setList(prev => prev ? { ...prev, items: snapshot } : prev);
             showError(e, 'Kunde inte rensa listan');
@@ -949,7 +961,7 @@ export default function ShoppingListScreen() {
 
       {/* Navbar buttons — rendered last so they always sit on top */}
       <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
-        <Pressable onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
+        <Pressable onPress={goBack} style={s.backBtn} hitSlop={8}>
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
         <View style={{ flex: 1 }} />

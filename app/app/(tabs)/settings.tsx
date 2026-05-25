@@ -39,12 +39,15 @@ export default function SettingsScreen() {
 
   // Admin edit mode
   const [editMode, setEditMode] = useState(false);
+  const editModeRef = useRef(false);
+  useEffect(() => { editModeRef.current = editMode; }, [editMode]);
   useFocusEffect(useCallback(() => {
     return () => {
-      setEditMode(prev => {
-        if (prev) showGlobalToast('Redigeringsläget avslutat', 'neutral');
-        return false;
-      });
+      // Read the latest value from a ref instead of calling the toast inside a
+      // setState updater (that fires during render → "Cannot update a component
+      // while rendering a different component").
+      if (editModeRef.current) showGlobalToast('Redigeringsläget avslutat', 'neutral');
+      setEditMode(false);
     };
   }, [showGlobalToast]));
 
