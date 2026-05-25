@@ -186,6 +186,16 @@ export default function MenuScreen() {
       .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
   }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings]);
 
+  // Swipe left/right to switch inventory tabs. activeOffsetX/failOffsetY let the
+  // vertical FlatList scroll win unless the gesture is clearly horizontal.
+  const inventorySwipe = useMemo(() => Gesture.Pan()
+    .activeOffsetX([-25, 25])
+    .failOffsetY([-12, 12])
+    .onEnd(e => {
+      if (e.translationX <= -45) runOnJS(setInventoryMode)('amount');
+      else if (e.translationX >= 45) runOnJS(setInventoryMode)('check');
+    }), []);
+
   const toastOpacity = useRef(new RNAnimated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
 
@@ -1286,9 +1296,10 @@ export default function MenuScreen() {
                   <Text style={[s.segmentText, inventoryMode === 'amount' && s.segmentTextActive]}>Ange mängd</Text>
                 </Pressable>
               </View>
-              <Text style={s.invSub}>
-                {inventoryMode === 'check' ? 'Bocka av det du redan har hemma' : 'Ange hur mycket du har — bara bristen läggs till'}
+              <Text style={s.invSub} numberOfLines={1}>
+                {inventoryMode === 'check' ? 'Bocka av det du har hemma' : 'Ange mängd du har hemma'}
               </Text>
+              <GestureDetector gesture={inventorySwipe}>
               <FlatList
                 style={s.bulkRecipeList}
                 data={aggregatedInventory}
@@ -1371,6 +1382,7 @@ export default function MenuScreen() {
                   );
                 }}
               />
+              </GestureDetector>
               <Pressable
                 style={s.button}
                 onPress={async () => {
