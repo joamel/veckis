@@ -1286,12 +1286,16 @@ export default function MenuScreen() {
                   <Text style={[s.segmentText, inventoryMode === 'amount' && s.segmentTextActive]}>Ange mängd</Text>
                 </Pressable>
               </View>
-              <Text style={s.sheetSub}>
-                {inventoryMode === 'check' ? 'Bocka av det du redan har hemma — köp visas under varan' : 'Ange hur mycket du har — bara bristen läggs till'}
+              <Text style={s.invSub}>
+                {inventoryMode === 'check' ? 'Bocka av det du redan har hemma' : 'Ange hur mycket du har — bara bristen läggs till'}
               </Text>
-              <ScrollView style={s.bulkRecipeList}>
-                {aggregatedInventory.map(agg => {
-                  const provenance = agg.recipeTitles.join(', ');
+              <FlatList
+                style={s.bulkRecipeList}
+                data={aggregatedInventory}
+                keyExtractor={a => a.key}
+                extraData={[inventoryMode, haveAtHome, hadUnmeasured]}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item: agg }) => {
                   const unitLabel = agg.unit ? ` ${agg.unit}` : '';
 
                   // --- Unmeasured: have-it / not (same in both tabs) ---
@@ -1299,7 +1303,6 @@ export default function MenuScreen() {
                     const have = hadUnmeasured.has(agg.key);
                     return (
                       <Pressable
-                        key={agg.key}
                         style={s.invRow}
                         onPress={() => setHadUnmeasured(prev => {
                           const n = new Set(prev);
@@ -1310,7 +1313,7 @@ export default function MenuScreen() {
                         <Ionicons name={have ? 'checkbox' : 'square-outline'} size={22} color={have ? '#10b981' : '#9ca3af'} />
                         <View style={{ flex: 1 }}>
                           <Text style={[s.invName, have && s.invNameDone]}>{agg.name}</Text>
-                          <Text style={s.invProvenance}>{provenance}{have ? ' · har hemma' : ''}</Text>
+                          {have ? <Text style={s.invProvenance}>har hemma</Text> : null}
                         </View>
                       </Pressable>
                     );
@@ -1322,12 +1325,11 @@ export default function MenuScreen() {
                   const toBuy = Math.max(0, Math.round((total - haveAmt) * 100) / 100);
                   const covered = toBuy <= 0;
                   const partial = haveAmt > 0 && !covered;
-                  // Buy-info shown in BOTH tabs whenever something is on hand.
-                  const buyInfo = covered ? ' · har hemma' : partial ? ` · köp ${fmtQty(toBuy)}${unitLabel}` : '';
+                  const secondLine = covered ? 'har hemma' : partial ? `köp ${fmtQty(toBuy)}${unitLabel}` : '';
                   const nameLine = (
                     <View style={{ flex: 1 }}>
                       <Text style={[s.invName, covered && s.invNameDone]}>{fmtQty(total)}{unitLabel} {agg.name}</Text>
-                      <Text style={s.invProvenance}>{provenance}{buyInfo}</Text>
+                      {secondLine ? <Text style={[s.invProvenance, partial && s.invBuy]}>{secondLine}</Text> : null}
                     </View>
                   );
 
@@ -1336,7 +1338,6 @@ export default function MenuScreen() {
                     const iconColor = covered ? '#10b981' : partial ? '#f59e0b' : '#9ca3af';
                     return (
                       <Pressable
-                        key={agg.key}
                         style={s.invRow}
                         // Tap = "har allt" ⇄ "har inget" (sets the same shared value).
                         onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}
@@ -1349,7 +1350,7 @@ export default function MenuScreen() {
 
                   // "Ange mängd"-tab: numeric input (fixed-width column so units align).
                   return (
-                    <View key={agg.key} style={s.invRow}>
+                    <View style={s.invRow}>
                       {nameLine}
                       <View style={s.invAmountWrap}>
                         <Text style={s.invAmountLabel}>har</Text>
@@ -1368,8 +1369,8 @@ export default function MenuScreen() {
                       </View>
                     </View>
                   );
-                })}
-              </ScrollView>
+                }}
+              />
               <Pressable
                 style={s.button}
                 onPress={async () => {
@@ -1625,10 +1626,12 @@ const s = StyleSheet.create({
   segmentBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   segmentText: { fontSize: 13, fontWeight: '600', color: '#9ca3af' },
   segmentTextActive: { color: '#4f46e5' },
+  invSub: { fontSize: 13, color: '#6b7280', marginTop: 10, marginBottom: 8 },
   invRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
   invName: { fontSize: 15, color: '#111827', fontWeight: '500' },
   invNameDone: { color: '#9ca3af', textDecorationLine: 'line-through' },
   invProvenance: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  invBuy: { color: '#f59e0b', fontWeight: '600' },
   invAmountWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   invAmountLabel: { fontSize: 12, color: '#9ca3af' },
   invAmountInput: { width: 52, backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, fontSize: 14, color: '#111827', textAlign: 'right' },
