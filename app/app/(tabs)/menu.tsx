@@ -118,10 +118,13 @@ export default function MenuScreen() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedRecipesForTransfer, setSelectedRecipesForTransfer] = useState<Set<string>>(new Set());
   const [bulkTransferStep, setBulkTransferStep] = useState<'week' | 'recipe' | 'ingredients' | 'list'>('recipe');
-  // Inventory step (aggregated across selected recipes)
+  // Inventory step (aggregated across selected recipes). ONE source of truth that
+  // both tabs read/write: `haveAtHome` (amount on hand) for measured ingredients,
+  // `hadUnmeasured` (have it / not) for ingredients without a quantity. The tab is
+  // only a view/input switch — both always apply to the transfer.
   const [inventoryMode, setInventoryMode] = useState<'check' | 'amount'>('check');
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> amount on hand
-  const [excludedAggKeys, setExcludedAggKeys] = useState<Set<string>>(new Set()); // checked-off in "Bocka av"-mode
+  const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // unmeasured ingredients marked "har hemma"
   const [allMenus, setAllMenus] = useState<WeekMenuItemWithRecipe[]>([]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
@@ -152,7 +155,7 @@ export default function MenuScreen() {
   function resetInventory() {
     setInventoryMode('check');
     setHaveAtHome({});
-    setExcludedAggKeys(new Set());
+    setHadUnmeasured(new Set());
   }
 
   // Ingredients across the selected recipes, merged into one row per name+unit
@@ -625,18 +628,17 @@ export default function MenuScreen() {
         if (srcs.length === 0) continue;
 
         if (!agg.measured) {
-          // No quantity to do math on — include each source as-is unless checked off.
-          if (excludedAggKeys.has(agg.key)) continue;
+          // No quantity to do math on — include each source as-is unless marked "har hemma".
+          if (hadUnmeasured.has(agg.key)) continue;
           for (const s of srcs) {
             allIngredients.push({ name: agg.name, quantity: s.qty, unit: agg.unit, category: agg.category, recipeId: s.recipeId, menuItemId: s.menuItemId });
           }
           continue;
         }
 
+        // Single rule regardless of tab: buy what's left after "har hemma".
         const total = agg.totalQty ?? 0;
-        const needed = inventoryMode === 'check'
-          ? (excludedAggKeys.has(agg.key) ? 0 : total)
-          : Math.max(0, total - (haveAtHome[agg.key] ?? 0));
+        const needed = Math.max(0, total - (haveAtHome[agg.key] ?? 0));
         if (needed <= 0) continue;
 
         let remaining = needed;
@@ -1275,56 +1277,80 @@ export default function MenuScreen() {
             </>
           ) : bulkTransferStep === 'ingredients' ? (
             <>
-              <View style={s.invHeaderRow}>
-                <Text style={s.sheetTitle}>Vad har du hemma?</Text>
-                <View style={s.segment}>
-                  <Pressable style={[s.segmentBtn, inventoryMode === 'check' && s.segmentBtnActive]} onPress={() => setInventoryMode('check')}>
-                    <Text style={[s.segmentText, inventoryMode === 'check' && s.segmentTextActive]}>Bocka av</Text>
-                  </Pressable>
-                  <Pressable style={[s.segmentBtn, inventoryMode === 'amount' && s.segmentBtnActive]} onPress={() => setInventoryMode('amount')}>
-                    <Text style={[s.segmentText, inventoryMode === 'amount' && s.segmentTextActive]}>Ange mängd</Text>
-                  </Pressable>
-                </View>
+              <Text style={s.sheetTitle}>Vad har du hemma?</Text>
+              <View style={s.segment}>
+                <Pressable style={[s.segmentBtn, inventoryMode === 'check' && s.segmentBtnActive]} onPress={() => setInventoryMode('check')}>
+                  <Text style={[s.segmentText, inventoryMode === 'check' && s.segmentTextActive]}>Bocka av</Text>
+                </Pressable>
+                <Pressable style={[s.segmentBtn, inventoryMode === 'amount' && s.segmentBtnActive]} onPress={() => setInventoryMode('amount')}>
+                  <Text style={[s.segmentText, inventoryMode === 'amount' && s.segmentTextActive]}>Ange mängd</Text>
+                </Pressable>
               </View>
               <Text style={s.sheetSub}>
-                {inventoryMode === 'check' ? 'Bocka av det du redan har hemma' : 'Ange hur mycket du har — bara bristen läggs till'}
+                {inventoryMode === 'check' ? 'Bocka av det du redan har hemma — köp visas under varan' : 'Ange hur mycket du har — bara bristen läggs till'}
               </Text>
               <ScrollView style={s.bulkRecipeList}>
                 {aggregatedInventory.map(agg => {
                   const provenance = agg.recipeTitles.join(', ');
                   const unitLabel = agg.unit ? ` ${agg.unit}` : '';
-                  const toggle = () => setExcludedAggKeys(prev => {
-                    const n = new Set(prev);
-                    if (n.has(agg.key)) n.delete(agg.key); else n.add(agg.key);
-                    return n;
-                  });
 
-                  // Unmeasured ingredient, or "Bocka av"-mode: simple checkbox.
-                  if (!agg.measured || inventoryMode === 'check') {
-                    const have = excludedAggKeys.has(agg.key);
-                    const qtyPrefix = agg.measured && agg.totalQty != null ? `${fmtQty(agg.totalQty)}${unitLabel} ` : '';
+                  // --- Unmeasured: have-it / not (same in both tabs) ---
+                  if (!agg.measured) {
+                    const have = hadUnmeasured.has(agg.key);
                     return (
-                      <Pressable key={agg.key} style={s.invRow} onPress={toggle}>
-                        <Ionicons name={have ? 'checkbox' : 'square-outline'} size={20} color={have ? '#10b981' : '#9ca3af'} />
+                      <Pressable
+                        key={agg.key}
+                        style={s.invRow}
+                        onPress={() => setHadUnmeasured(prev => {
+                          const n = new Set(prev);
+                          if (n.has(agg.key)) n.delete(agg.key); else n.add(agg.key);
+                          return n;
+                        })}
+                      >
+                        <Ionicons name={have ? 'checkbox' : 'square-outline'} size={22} color={have ? '#10b981' : '#9ca3af'} />
                         <View style={{ flex: 1 }}>
-                          <Text style={[s.invName, have && s.invNameDone]}>{qtyPrefix}{agg.name}</Text>
-                          <Text style={s.invProvenance}>{provenance}</Text>
+                          <Text style={[s.invName, have && s.invNameDone]}>{agg.name}</Text>
+                          <Text style={s.invProvenance}>{provenance}{have ? ' · har hemma' : ''}</Text>
                         </View>
                       </Pressable>
                     );
                   }
 
-                  // "Ange mängd"-mode for measured ingredients.
+                  // --- Measured: one shared "har hemma" value drives both tabs ---
                   const total = agg.totalQty ?? 0;
                   const haveAmt = haveAtHome[agg.key] ?? 0;
                   const toBuy = Math.max(0, Math.round((total - haveAmt) * 100) / 100);
                   const covered = toBuy <= 0;
+                  const partial = haveAmt > 0 && !covered;
+                  // Buy-info shown in BOTH tabs whenever something is on hand.
+                  const buyInfo = covered ? ' · har hemma' : partial ? ` · köp ${fmtQty(toBuy)}${unitLabel}` : '';
+                  const nameLine = (
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.invName, covered && s.invNameDone]}>{fmtQty(total)}{unitLabel} {agg.name}</Text>
+                      <Text style={s.invProvenance}>{provenance}{buyInfo}</Text>
+                    </View>
+                  );
+
+                  if (inventoryMode === 'check') {
+                    const icon = covered ? 'checkbox' : partial ? 'remove-circle' : 'square-outline';
+                    const iconColor = covered ? '#10b981' : partial ? '#f59e0b' : '#9ca3af';
+                    return (
+                      <Pressable
+                        key={agg.key}
+                        style={s.invRow}
+                        // Tap = "har allt" ⇄ "har inget" (sets the same shared value).
+                        onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}
+                      >
+                        <Ionicons name={icon as never} size={22} color={iconColor} />
+                        {nameLine}
+                      </Pressable>
+                    );
+                  }
+
+                  // "Ange mängd"-tab: numeric input (fixed-width column so units align).
                   return (
                     <View key={agg.key} style={s.invRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[s.invName, covered && s.invNameDone]}>{fmtQty(total)}{unitLabel} {agg.name}</Text>
-                        <Text style={s.invProvenance}>{provenance}{covered ? ' · har hemma' : ` · köp ${fmtQty(toBuy)}${unitLabel}`}</Text>
-                      </View>
+                      {nameLine}
                       <View style={s.invAmountWrap}>
                         <Text style={s.invAmountLabel}>har</Text>
                         <TextInput
@@ -1332,13 +1358,13 @@ export default function MenuScreen() {
                           keyboardType="numeric"
                           value={haveAmt ? fmtQty(haveAmt) : ''}
                           placeholder="0"
-                          placeholderTextColor="#9ca3af"
+                          placeholderTextColor="#d1d5db"
                           onChangeText={t => {
                             const v = parseFloat(t.replace(',', '.'));
                             setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
                           }}
                         />
-                        {agg.unit ? <Text style={s.invAmountLabel}>{agg.unit}</Text> : null}
+                        <Text style={s.invUnit}>{agg.unit ?? ''}</Text>
                       </View>
                     </View>
                   );
@@ -1594,19 +1620,19 @@ const s = StyleSheet.create({
   headerActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
   headerActionText: { fontWeight: '600', color: '#4f46e5', fontSize: 13 },
   headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
-  invHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
-  segment: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 8, padding: 2 },
-  segmentBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
+  segment: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 8, padding: 2, marginTop: 8 },
+  segmentBtn: { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: 6 },
   segmentBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   segmentText: { fontSize: 13, fontWeight: '600', color: '#9ca3af' },
   segmentTextActive: { color: '#4f46e5' },
-  invRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
+  invRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
   invName: { fontSize: 15, color: '#111827', fontWeight: '500' },
   invNameDone: { color: '#9ca3af', textDecorationLine: 'line-through' },
   invProvenance: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  invAmountWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  invAmountWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   invAmountLabel: { fontSize: 12, color: '#9ca3af' },
-  invAmountInput: { minWidth: 44, backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, fontSize: 14, color: '#111827', textAlign: 'center' },
+  invAmountInput: { width: 52, backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, fontSize: 14, color: '#111827', textAlign: 'right' },
+  invUnit: { width: 32, fontSize: 13, color: '#6b7280' },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
   section: { gap: 8 },
