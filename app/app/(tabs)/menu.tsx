@@ -32,6 +32,7 @@ import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
+import { onShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay } from '@veckis/shared';
@@ -165,7 +166,15 @@ export default function MenuScreen() {
     const lists = params.originListId
       ? shoppingLists.filter(l => l.id === params.originListId)
       : shoppingLists;
-    return new Set(lists.flatMap(l => l.items.map(i => i.menuItemId).filter(Boolean) as string[]));
+    const s = new Set<string>();
+    for (const l of lists) {
+      // linkedMenuItemIds (backend) is the same authoritative source recipeListMap
+      // uses — includes hidden merge-container items and works across all weeks,
+      // unlike scanning visible l.items[].menuItemId.
+      const linked = (l as { linkedMenuItemIds?: string[] }).linkedMenuItemIds ?? [];
+      linked.forEach(id => s.add(id));
+    }
+    return s;
   }, [shoppingLists, params.originListId]);
 
   // Ingredients across the selected recipes, merged into one row per name+unit
@@ -370,6 +379,9 @@ export default function MenuScreen() {
   }, [householdId, weekYear, weekNumber]);
 
   useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
+  // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
+  // transfer filters stay in sync (e.g. after clearing/removing items in a list).
+  useEffect(() => onShoppingChanged(load), [load]);
 
   useEffect(() => {
     if (params.bulkTransfer === '1' && householdId && !bulkTransferTriggeredRef.current) {

@@ -640,6 +640,7 @@ export default function ShoppingListScreen() {
     setList(prev => prev ? { ...prev, items: prev.items.filter(i => i.id !== itemId) } : prev);
     try {
       await client.deleteShoppingItem(itemId);
+      emitShoppingChanged(); // keep menu's "I inköpslistan"-tag + filters in sync
     } catch (e) {
       showError(e, 'Kunde inte ta bort vara');
       load();
