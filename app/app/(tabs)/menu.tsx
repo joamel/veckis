@@ -186,16 +186,21 @@ export default function MenuScreen() {
       .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
   }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings]);
 
-  // Swipe left/right to switch inventory tabs. activeOffsetX makes the pan claim
-  // only clearly-horizontal movement so the FlatList keeps its vertical scroll.
-  // runOnJS(true) → callbacks run on the JS thread so we can call setState directly.
-  const inventorySwipe = useMemo(() => Gesture.Pan()
-    .runOnJS(true)
-    .activeOffsetX([-20, 20])
-    .onEnd(e => {
-      if (e.translationX <= -40) setInventoryMode('amount');
-      else if (e.translationX >= 40) setInventoryMode('check');
-    }), []);
+  // Swipe left/right to switch inventory tabs. The FlatList's native scroll would
+  // otherwise win the gesture race, so run the Pan SIMULTANEOUSLY with it: the pan
+  // only claims clearly-horizontal movement (activeOffsetX) and the list keeps its
+  // vertical scroll. runOnJS(true) → callbacks run on the JS thread.
+  const inventorySwipe = useMemo(() => {
+    const pan = Gesture.Pan()
+      .runOnJS(true)
+      .activeOffsetX([-20, 20])
+      .failOffsetY([-25, 25])
+      .onEnd(e => {
+        if (e.translationX <= -40) setInventoryMode('amount');
+        else if (e.translationX >= 40) setInventoryMode('check');
+      });
+    return Gesture.Simultaneous(pan, Gesture.Native());
+  }, []);
 
   const toastOpacity = useRef(new RNAnimated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
