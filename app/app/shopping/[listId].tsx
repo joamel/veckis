@@ -53,6 +53,13 @@ const dismissedDupesStore = new Map<string, Set<string>>();
 export default function ShoppingListScreen() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
   const router = useRouter();
+  // From a list we always want to land on the lists overview. After the
+  // import-from-menu flow (dismissTo) the back stack can be empty, so back()
+  // would throw "GO_BACK was not handled" — fall back to the shopping tab.
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)/shopping' as never);
+  }, [router]);
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const { householdId } = useHousehold();
@@ -953,7 +960,7 @@ export default function ShoppingListScreen() {
 
       {/* Navbar buttons — rendered last so they always sit on top */}
       <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
-        <Pressable onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
+        <Pressable onPress={goBack} style={s.backBtn} hitSlop={8}>
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
         <View style={{ flex: 1 }} />
