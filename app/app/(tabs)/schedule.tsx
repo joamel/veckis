@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -178,6 +179,8 @@ export default function ScheduleScreen() {
   const userId = user?.id;
 
   const [weekRef, setWeekRef] = useState(new Date());
+  const weekPagerRef = useRef<ScrollView>(null);
+  const weekPageW = Dimensions.get('window').width;
   const [monthRef, setMonthRef] = useState(new Date());
   const { weekYear, weekNumber } = getISOWeek(weekRef);
 
@@ -623,26 +626,33 @@ export default function ScheduleScreen() {
   const selectedDayIndex = DAYS.findIndex(d => d.key === selectedDay);
   const selectedDayDate = new Date(weekMonday.getTime() + selectedDayIndex * 86400000);
   const selectedDayDateStr = `${selectedDayDate.getFullYear()}-${String(selectedDayDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDayDate.getDate()).padStart(2, '0')}`;
-  const dayEntries = visibleEntries.filter(e =>
-    e.day === selectedDay &&
-    !e.exceptions?.includes(selectedDayDateStr) &&
-    (!e.startDate || selectedDayDateStr >= e.startDate) &&
-    (!e.endDate || selectedDayDateStr <= e.endDate) &&
-    (filterMemberIds.length === 0 || ((e.assignedToMany && e.assignedToMany.some(id => filterMemberIds.includes(id))) || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo))))
-  ).sort((a, b) => {
-    if (!a.startTime && b.startTime) return -1;
-    if (a.startTime && !b.startTime) return 1;
-    if (!a.startTime && !b.startTime) return 0;
-    return (a.startTime ?? '').localeCompare(b.startTime ?? '');
-  });
-  const dayMenu = menuItems.filter(i => i.day === selectedDay);
-  const dayChores = chores.filter(c =>
-    choreVisibleOnDay(c, selectedDay, selectedDayDate) &&
-    (filterMemberIds.length === 0 || (c.assignedTo != null && filterMemberIds.includes(c.assignedTo)))
-  ).sort((a, b) =>
-    Number(isDoneOnDate(a.completions, selectedDayDateStr, selectedDay)) -
-    Number(isDoneOnDate(b.completions, selectedDayDateStr, selectedDay))
-  );
+  // Per-week day data, parameterized by that week's Monday so the swipe pager
+  // can render the previous/next week's selected day too.
+  const dayDataFor = (pageMonday: Date) => {
+    const date = new Date(pageMonday.getTime() + selectedDayIndex * 86400000);
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const entries = visibleEntries.filter(e =>
+      e.day === selectedDay &&
+      !e.exceptions?.includes(dateStr) &&
+      (!e.startDate || dateStr >= e.startDate) &&
+      (!e.endDate || dateStr <= e.endDate) &&
+      (filterMemberIds.length === 0 || ((e.assignedToMany && e.assignedToMany.some(id => filterMemberIds.includes(id))) || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo))))
+    ).sort((a, b) => {
+      if (!a.startTime && b.startTime) return -1;
+      if (a.startTime && !b.startTime) return 1;
+      if (!a.startTime && !b.startTime) return 0;
+      return (a.startTime ?? '').localeCompare(b.startTime ?? '');
+    });
+    const menu = menuItems.filter(i => i.day === selectedDay);
+    const dchores = chores.filter(c =>
+      choreVisibleOnDay(c, selectedDay, date) &&
+      (filterMemberIds.length === 0 || (c.assignedTo != null && filterMemberIds.includes(c.assignedTo)))
+    ).sort((a, b) =>
+      Number(isDoneOnDate(a.completions, dateStr, selectedDay)) -
+      Number(isDoneOnDate(b.completions, dateStr, selectedDay))
+    );
+    return { date, dateStr, entries, menu, chores: dchores, isEmpty: entries.length === 0 && menu.length === 0 && dchores.length === 0 };
+  };
 
   const totalPerDay = (day: WeekDay) => {
     const idx = DAYS.findIndex(d => d.key === day);
@@ -663,14 +673,15 @@ export default function ScheduleScreen() {
       ).length;
   };
 
-  const isEmpty = dayEntries.length === 0 && dayMenu.length === 0 && dayChores.length === 0;
+  const cur = dayDataFor(weekMonday);
+  const isEmpty = cur.isEmpty;
 
-  const dayDetailContent = (
+  const renderDayDetail = (d: ReturnType<typeof dayDataFor>) => (
     <>
-      {dayMenu.length > 0 && (
+      {d.menu.length > 0 && (
         <View style={s.section}>
           <Text style={s.sectionLabel}>MATRÄTTER</Text>
-          {dayMenu.map(item => (
+          {d.menu.map(item => (
             <Pressable
               key={item.id}
               style={s.menuCard}
@@ -694,11 +705,11 @@ export default function ScheduleScreen() {
         </View>
       )}
 
-      {dayChores.length > 0 && (
+      {d.chores.length > 0 && (
         <View style={s.section}>
           <Text style={s.sectionLabel}>SYSSLOR</Text>
-          {dayChores.map(chore => {
-            const done = isDoneOnDate(chore.completions, selectedDayDateStr, selectedDay);
+          {d.chores.map(chore => {
+            const done = isDoneOnDate(chore.completions, d.dateStr, selectedDay);
             const assignedName = getMemberName(chore.assignedTo);
             return (
               <Pressable
@@ -718,7 +729,7 @@ export default function ScheduleScreen() {
                 </View>
                 <Pressable
                   style={[s.choreCheckBtn, { width: sp(32), height: sp(32), borderRadius: sp(16) }, done && s.choreCheckBtnDone]}
-                  onPress={() => done ? uncompleteChoreCalendar(chore, selectedDay, selectedDayDateStr) : completeChoreCalendar(chore, selectedDay, selectedDayDateStr)}
+                  onPress={() => done ? uncompleteChoreCalendar(chore, selectedDay, d.dateStr) : completeChoreCalendar(chore, selectedDay, d.dateStr)}
                 >
                   {done && <Ionicons name="checkmark" size={fs(18)} color="#fff" />}
                 </Pressable>
@@ -728,15 +739,15 @@ export default function ScheduleScreen() {
         </View>
       )}
 
-      {dayEntries.length > 0 && (
+      {d.entries.length > 0 && (
         <View style={s.section}>
           <Text style={s.sectionLabel}>AKTIVITETER</Text>
-          {dayEntries.map(entry => {
+          {d.entries.map(entry => {
             const now = new Date();
             const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             let isPast = false;
-            if (selectedDayDateStr < todayStr) isPast = true;
-            else if (selectedDayDateStr === todayStr && entry.startTime) {
+            if (d.dateStr < todayStr) isPast = true;
+            else if (d.dateStr === todayStr && entry.startTime) {
               const nowHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
               isPast = entry.startTime < nowHHMM;
             }
@@ -877,7 +888,7 @@ export default function ScheduleScreen() {
                   actionLabel="Ny aktivitet"
                   onAction={() => { openNewEntry(selectedDay); }}
                 />
-              ) : dayDetailContent}
+              ) : renderDayDetail(cur)}
             </ScrollView>
             <Pressable style={s.fab} onPress={() => { openNewEntry(selectedDay); }}>
               <Ionicons name="add" size={30} color="#fff" />
@@ -919,16 +930,43 @@ export default function ScheduleScreen() {
             })}
           </View>
 
-          <ScrollView style={s.content} contentContainerStyle={[s.contentInner, isEmpty && s.contentEmpty]}>
-            {isEmpty ? (
-              <EmptyState
-                icon="calendar-outline"
-                title="Inget planerat"
-                subtitle="Lägg till en aktivitet på den här dagen."
-                actionLabel="Ny aktivitet"
-                onAction={() => { openNewEntry(selectedDay); }}
-              />
-            ) : dayDetailContent}
+          {/* 3-page week pager: prev / current / next — swipe to change week */}
+          <ScrollView
+            ref={weekPagerRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            style={s.content}
+            contentOffset={{ x: weekPageW, y: 0 }}
+            scrollEventThrottle={16}
+            onMomentumScrollEnd={e => {
+              const page = Math.round(e.nativeEvent.contentOffset.x / weekPageW);
+              if (page !== 1) {
+                setWeekRef(w => addWeeks(w, page - 1));
+                weekPagerRef.current?.scrollTo({ x: weekPageW, animated: false });
+              }
+            }}
+          >
+            {[-1, 0, 1].map(off => {
+              const d = dayDataFor(addWeeks(weekMonday, off));
+              return (
+                <ScrollView
+                  key={off}
+                  style={{ width: weekPageW }}
+                  contentContainerStyle={[s.contentInner, d.isEmpty && s.contentEmpty]}
+                >
+                  {d.isEmpty ? (
+                    <EmptyState
+                      icon="calendar-outline"
+                      title="Inget planerat"
+                      subtitle="Lägg till en aktivitet på den här dagen."
+                      actionLabel="Ny aktivitet"
+                      onAction={() => { openNewEntry(selectedDay); }}
+                    />
+                  ) : renderDayDetail(d)}
+                </ScrollView>
+              );
+            })}
           </ScrollView>
 
           <Pressable style={s.fab} onPress={() => { openNewEntry(selectedDay); }}>
