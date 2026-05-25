@@ -33,6 +33,8 @@
 - [x] Toast-kö vid bulk-borttagning: om flera recept tas bort i snabb följd skriver toasten över sig själv. Stacka eller visa "3 recept tas bort om 5s · Ångra"
 - [x] Re-merge feedback: när auto-merge slår ihop kvarvarande varor efter borttagning (t.ex. 3 ägg → ta bort 1 → 2 ägg), visa toast "Slog ihop {n} {namn}" så användaren förstår grupperingen
 - [ ] städa upp legacy-kod
+- [ ] Kunna swipa mellan veckor i kalender och meny-fliken
+- [ ] uppdateringar från socket borde uppdatera andra flikar innan man trycker på dem så att det inte hoppar till. Just nu kan det stå "0 av 0 kvar" och sedan hoppar det till -> "21 av 21 kvar"
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -51,6 +53,7 @@
 - [x] möjlighet att kunna dela ut admin
 - [x] inställningar uppdateras inte automatiskt för alla användare när någon gör ändringar.
 - [ ] Varna innan man tar bort en lokal profil/medlem som har tilldelade sysslor/aktiviteter ("X har 4 sysslor och 2 aktiviteter — vad ska hända med dem?") istället för tyst orphaning
+- [ ] tydligare indikera vem som är jag (Du) i medlemmar
 
 ### Inköpslistan
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
@@ -111,6 +114,9 @@
 - [x] Möjlighet att fälla ihop kategorier i inköpslistan genom att trycka på kategorinamnet
 - [x] toast vid lyckad ihopslagning av dubbletter
 - [x] Lyft de mest använda basvarorna överst ("dina vanligaste") när man lägger till varor, så återkommande inköp går snabbare
+- [ ] Toast för ihopslagna ingredienser borde gå att ångra
+- [ ] Efter ihopslagning och flytt till nästa dubblett borde tangenbordet försvinna
+- [ ] Kanske det krävs att en vara blivit tillagd mer än 1 gång för att återfinnas i söket. Ett sätt för en felstavad eller inskriven basvara av misstag att inte komma med i söket
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -148,6 +154,8 @@
 - [ ] Receptimport-robusthet: fallback "kunde inte läsa receptet — lägg till manuellt" vid URL som failar, recept utan ingredienslista eller dubbel-import
 - [ ] Veckomeny-mallar: spara en vecka som mall ("Standardvecka") och applicera den på valfri vecka
 - [x] Inventering vid veckomeny → inköpslista görs om: hopslagen lista (en rad per ingrediens över alla valda rätter, med härkomst) istället för en rätt i taget, så delade varor (krossade tomater, lök, grädde) inte dubbelcheckas. Lägesväxel "Bocka av" / "Ange mängd" — i mängdläget räknas bristen ut och bara den överförs. Bristen apportioneras tillbaka per rätt så merge/borttagning funkar.
+- [ ] Lägga till nytt recept: enhet borde föreslå i grått den enhet som väljs oftast, och klickar man inte i det så borde den enheten välas automatiskt"
+- [ ] Lägga till nytt recept: enhetsfältet hoppar inte upp igen om man valt en enhet och trycker i fältet igen
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -193,6 +201,7 @@
 - [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori när den importerar recept.
 - [ ] kanske en agent som lär sig hur användaren brukar lägga till basvaror, aktiviteter etc för att få en bättre UI experience?
 - [x] Identifiera storleksordning på mått så att den alltid går på det största måttet när den ska slå ihop samma vara (helper + tester, integration återstår)
+- [ ] Bli ännu smartare på ihopslagning av dubbletter. Så att den förstår att 400 g + 1 paket --> 2 paket istället för 401 g etc.
 
 ---
 
@@ -204,6 +213,8 @@
 - [ ] Statistik/insikter: lättviktsvy med "mest lagade rätter", "vem gör flest sysslor", "vanligaste inköp" — möjligt premium-läge tillsammans med butiksdatabasen
 - [ ] Datakvalitet-städning: admin-vy för att slå ihop/städa basvaror & kategorier så normaliserade namn och delade kategori-minnen inte driftar över tid
 - [ ] Skafferi-minne: persistent "har hemma" som minns över sessioner (eget skafferi per hushåll) så återkommande basvaror inte behöver inventeras varje gång. Bygger vidare på den hopslagna inventeringen.
+- [ ] Utnyttja större skärm likt kalender-vyn att saker öppnas bredvid istället för under mm.
+
 ## Backlog (prioriterade features)
 
 ### Kalender
