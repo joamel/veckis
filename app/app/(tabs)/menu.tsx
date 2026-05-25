@@ -209,84 +209,90 @@ export default function MenuScreen() {
       .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
   }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings, transferredMenuItemIds]);
 
-  // Inventory tabs are two pages of a native horizontal pager (reliable swipe +
-  // tap, unlike a Pan gesture fighting the list's vertical scroll).
-  const INV_PAGE_W = Dimensions.get('window').width - 48; // sheet has padding 24 each side
-  // Bounded height so each page's vertical FlatList can scroll inside the
-  // horizontal pager; grows with row count up to a cap.
-  const invListHeight = Math.min(400, Math.max(120, aggregatedInventory.length * 56));
+  // Inventory: names stay fixed on the left; only the right control column
+  // (checkbox ⇄ amount) is a narrow horizontal pager that swipes/tabs between
+  // the two modes, so it looks like only the right half moves.
+  const INV_ROW_H = 56;
+  const INV_CTRL_W = 140;
+  const invListHeight = Math.min(400, Math.max(120, aggregatedInventory.length * INV_ROW_H));
   const invPagerRef = useRef<ScrollView>(null);
   const goToInvMode = (mode: 'check' | 'amount') => {
     setInventoryMode(mode);
-    invPagerRef.current?.scrollTo({ x: mode === 'amount' ? INV_PAGE_W : 0, animated: true });
+    invPagerRef.current?.scrollTo({ x: mode === 'amount' ? INV_CTRL_W : 0, animated: true });
   };
 
-  // One inventory row, rendered for a given tab. Shared by both pager pages.
-  function renderInvRow(agg: AggIngredient, mode: 'check' | 'amount') {
-    const unitLabel = agg.unit ? ` ${agg.unit}` : '';
+  const toggleUnmeasured = (key: string) => setHadUnmeasured(prev => {
+    const n = new Set(prev);
+    if (n.has(key)) n.delete(key); else n.add(key);
+    return n;
+  });
 
+  // Fixed left cell: the item name (+ "köp X"/"har hemma" line). Stays put while
+  // the right control swipes.
+  function renderNameCell(agg: AggIngredient) {
+    const unitLabel = agg.unit ? ` ${agg.unit}` : '';
     if (!agg.measured) {
       const have = hadUnmeasured.has(agg.key);
       return (
-        <Pressable
-          style={s.invRow}
-          onPress={() => setHadUnmeasured(prev => {
-            const n = new Set(prev);
-            if (n.has(agg.key)) n.delete(agg.key); else n.add(agg.key);
-            return n;
-          })}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={[s.invName, have && s.invNameDone]}>{agg.name}</Text>
-            {have ? <Text style={s.invProvenance}>har hemma</Text> : null}
-          </View>
-          <Ionicons name={have ? 'checkbox' : 'square-outline'} size={24} color={have ? '#10b981' : '#9ca3af'} />
-        </Pressable>
+        <View key={agg.key} style={s.invCellLeft}>
+          <Text style={[s.invName, have && s.invNameDone]}>{agg.name}</Text>
+          {have ? <Text style={s.invProvenance}>har hemma</Text> : null}
+        </View>
       );
     }
-
     const total = agg.totalQty ?? 0;
     const haveAmt = haveAtHome[agg.key] ?? 0;
     const toBuy = Math.max(0, Math.round((total - haveAmt) * 100) / 100);
     const covered = toBuy <= 0;
     const partial = haveAmt > 0 && !covered;
     const secondLine = covered ? 'har hemma' : partial ? `köp ${fmtQty(toBuy)}${unitLabel}` : '';
-    const nameLine = (
-      <View style={{ flex: 1 }}>
+    return (
+      <View key={agg.key} style={s.invCellLeft}>
         <Text style={[s.invName, covered && s.invNameDone]}>{fmtQty(total)}{unitLabel} {agg.name}</Text>
         {secondLine ? <Text style={[s.invProvenance, partial && s.invBuy]}>{secondLine}</Text> : null}
       </View>
     );
+  }
 
+  // Right control cell for a given page: checkbox (Bocka av) or amount (Ange mängd).
+  function renderControlCell(agg: AggIngredient, mode: 'check' | 'amount') {
+    if (!agg.measured) {
+      const have = hadUnmeasured.has(agg.key);
+      return (
+        <Pressable key={agg.key} style={s.invCellRight} onPress={() => toggleUnmeasured(agg.key)}>
+          <Ionicons name={have ? 'checkbox' : 'square-outline'} size={24} color={have ? '#10b981' : '#9ca3af'} />
+        </Pressable>
+      );
+    }
+    const total = agg.totalQty ?? 0;
+    const haveAmt = haveAtHome[agg.key] ?? 0;
+    const toBuy = Math.max(0, Math.round((total - haveAmt) * 100) / 100);
+    const covered = toBuy <= 0;
+    const partial = haveAmt > 0 && !covered;
     if (mode === 'check') {
       const icon = covered ? 'checkbox' : partial ? 'remove-circle' : 'square-outline';
       const iconColor = covered ? '#10b981' : partial ? '#f59e0b' : '#9ca3af';
       return (
-        <Pressable style={s.invRow} onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}>
-          {nameLine}
+        <Pressable key={agg.key} style={s.invCellRight} onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}>
           <Ionicons name={icon as never} size={24} color={iconColor} />
         </Pressable>
       );
     }
-
     return (
-      <View style={s.invRow}>
-        {nameLine}
-        <View style={s.invAmountWrap}>
-          <Text style={s.invAmountLabel}>har</Text>
-          <TextInput
-            style={s.invAmountInput}
-            keyboardType="numeric"
-            value={haveAmt ? fmtQty(haveAmt) : ''}
-            placeholder="0"
-            placeholderTextColor="#d1d5db"
-            onChangeText={t => {
-              const v = parseFloat(t.replace(',', '.'));
-              setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
-            }}
-          />
-          <Text style={s.invUnit}>{agg.unit ?? ''}</Text>
-        </View>
+      <View key={agg.key} style={[s.invCellRight, s.invAmountWrap]}>
+        <Text style={s.invAmountLabel}>har</Text>
+        <TextInput
+          style={s.invAmountInput}
+          keyboardType="numeric"
+          value={haveAmt ? fmtQty(haveAmt) : ''}
+          placeholder="0"
+          placeholderTextColor="#d1d5db"
+          onChangeText={t => {
+            const v = parseFloat(t.replace(',', '.'));
+            setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
+          }}
+        />
+        <Text style={s.invUnit}>{agg.unit ?? ''}</Text>
       </View>
     );
   }
@@ -1396,32 +1402,34 @@ export default function MenuScreen() {
               <Text style={s.invSub} numberOfLines={1}>
                 {inventoryMode === 'check' ? 'Bocka av det du har hemma' : 'Ange mängd du har hemma'}
               </Text>
-              <ScrollView
-                ref={invPagerRef}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                style={{ height: invListHeight, marginBottom: 12 }}
-                keyboardShouldPersistTaps="handled"
-                scrollEventThrottle={16}
-                // Update the tab/heading live during the swipe (at the midpoint),
-                // not just when it settles.
-                onScroll={e => {
-                  const mode = e.nativeEvent.contentOffset.x > INV_PAGE_W / 2 ? 'amount' : 'check';
-                  setInventoryMode(prev => (prev === mode ? prev : mode));
-                }}
-              >
-                {(['check', 'amount'] as const).map(mode => (
-                  <FlatList
-                    key={mode}
-                    style={{ width: INV_PAGE_W, height: invListHeight }}
-                    data={aggregatedInventory}
-                    keyExtractor={a => a.key}
-                    extraData={[haveAtHome, hadUnmeasured]}
-                    keyboardShouldPersistTaps="handled"
-                    renderItem={({ item: agg }) => renderInvRow(agg, mode)}
-                  />
-                ))}
+              <ScrollView style={{ height: invListHeight, marginBottom: 12 }} keyboardShouldPersistTaps="handled">
+                <View style={{ flexDirection: 'row' }}>
+                  {/* Fixed name column */}
+                  <View style={{ flex: 1 }}>
+                    {aggregatedInventory.map(agg => renderNameCell(agg))}
+                  </View>
+                  {/* Swipable control column (checkbox ⇄ amount) */}
+                  <View style={{ width: INV_CTRL_W }}>
+                    <ScrollView
+                      ref={invPagerRef}
+                      horizontal
+                      pagingEnabled
+                      showsHorizontalScrollIndicator={false}
+                      keyboardShouldPersistTaps="handled"
+                      scrollEventThrottle={16}
+                      onScroll={e => {
+                        const mode = e.nativeEvent.contentOffset.x > INV_CTRL_W / 2 ? 'amount' : 'check';
+                        setInventoryMode(prev => (prev === mode ? prev : mode));
+                      }}
+                    >
+                      {(['check', 'amount'] as const).map(mode => (
+                        <View key={mode} style={{ width: INV_CTRL_W }}>
+                          {aggregatedInventory.map(agg => renderControlCell(agg, mode))}
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
               </ScrollView>
               <Pressable
                 style={s.button}
@@ -1679,15 +1687,16 @@ const s = StyleSheet.create({
   segmentText: { fontSize: 13, fontWeight: '600', color: '#9ca3af' },
   segmentTextActive: { color: '#4f46e5' },
   invSub: { fontSize: 13, color: '#6b7280', marginTop: 10, marginBottom: 8 },
-  invRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
+  invCellLeft: { height: 56, justifyContent: 'center', paddingRight: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
+  invCellRight: { height: 56, justifyContent: 'center', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
   invName: { fontSize: 15, color: '#111827', fontWeight: '500' },
   invNameDone: { color: '#9ca3af', textDecorationLine: 'line-through' },
   invProvenance: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
   invBuy: { color: '#f59e0b', fontWeight: '600' },
-  invAmountWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  invAmountWrap: { flexDirection: 'row', gap: 5 },
   invAmountLabel: { fontSize: 12, color: '#9ca3af' },
-  invAmountInput: { width: 56, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#a5b4fc', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 7, fontSize: 15, color: '#111827', textAlign: 'right' },
-  invUnit: { width: 32, fontSize: 13, color: '#6b7280' },
+  invAmountInput: { width: 48, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#a5b4fc', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 7, fontSize: 15, color: '#111827', textAlign: 'right' },
+  invUnit: { width: 26, fontSize: 13, color: '#6b7280' },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
   section: { gap: 8 },
