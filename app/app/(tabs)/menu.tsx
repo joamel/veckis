@@ -158,11 +158,25 @@ export default function MenuScreen() {
     setHadUnmeasured(new Set());
   }
 
+  // Menu items already transferred — scoped to the target list when we came from
+  // a specific list (originListId), otherwise across all lists (matches the
+  // "I inköpslistan"-markering). Used to exclude them from selection + inventory.
+  const transferredMenuItemIds = useMemo(() => {
+    const lists = params.originListId
+      ? shoppingLists.filter(l => l.id === params.originListId)
+      : shoppingLists;
+    return new Set(lists.flatMap(l => l.items.map(i => i.menuItemId).filter(Boolean) as string[]));
+  }, [shoppingLists, params.originListId]);
+
   // Ingredients across the selected recipes, merged into one row per name+unit
   // (with provenance), so a shared ingredient isn't inventoried multiple times.
+  // Restricted to the active week and excludes already-transferred recipes so it
+  // matches exactly what step 1 offered + the user picked.
   const aggregatedInventory = useMemo<AggIngredient[]>(() => {
-    const pool = bulkTransferWeek ? allMenus : menuItems;
-    const selected = pool.filter(m => selectedRecipesForTransfer.has(m.id));
+    const pool = bulkTransferWeek
+      ? allMenus.filter(m => m.weekYear === bulkTransferWeek.weekYear && m.weekNumber === bulkTransferWeek.weekNumber)
+      : menuItems;
+    const selected = pool.filter(m => selectedRecipesForTransfer.has(m.id) && !transferredMenuItemIds.has(m.id));
     const map = new Map<string, AggIngredient>();
     for (const item of selected) {
       const ratio = getScaleRatio(item);
@@ -184,7 +198,7 @@ export default function MenuScreen() {
     return [...map.values()]
       .map(a => (a.measured && (a.totalQty ?? 0) > 0 ? a : { ...a, measured: false, totalQty: null }))
       .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
-  }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings]);
+  }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings, transferredMenuItemIds]);
 
   // Inventory tabs are two pages of a native horizontal pager (reliable swipe +
   // tap, unlike a Pan gesture fighting the list's vertical scroll).
@@ -673,7 +687,7 @@ export default function MenuScreen() {
       return;
     }
 
-    const notTransferred = menuItems.filter(m => !recipeListMap[m.id]?.length);
+    const notTransferred = menuItems.filter(m => !transferredMenuItemIds.has(m.id));
     if (notTransferred.length === 0) {
       Alert.alert('Redan överförd', 'Alla rätter denna vecka är redan överförda till en inköpslista');
       return;
@@ -1315,15 +1329,7 @@ export default function MenuScreen() {
                   ? allMenus.filter(m => m.weekYear === bulkTransferWeek.weekYear && m.weekNumber === bulkTransferWeek.weekNumber)
                   : menuItems
                 )
-                  .filter(item => {
-                    if (bulkTransferWeek) {
-                      const transferredIds = new Set(
-                        shoppingLists.flatMap(l => l.items.map(i => i.menuItemId).filter(Boolean) as string[])
-                      );
-                      return !transferredIds.has(item.id);
-                    }
-                    return !!!recipeListMap[item.id]?.length;
-                  })
+                  .filter(item => !transferredMenuItemIds.has(item.id))
                   .map(item => {
                     const selected = selectedRecipesForTransfer.has(item.id);
                     return (
