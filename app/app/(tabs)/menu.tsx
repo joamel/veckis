@@ -214,23 +214,13 @@ export default function MenuScreen() {
   // the two modes, so it looks like only the right half moves.
   const INV_ROW_H = 56;
   const INV_CTRL_W = 140;
+  const INV_FULL_W = Dimensions.get('window').width - 48; // sheet padding 24 each side
   const invListHeight = Math.min(400, Math.max(120, aggregatedInventory.length * INV_ROW_H));
   const invPagerRef = useRef<ScrollView>(null);
   const goToInvMode = (mode: 'check' | 'amount') => {
     setInventoryMode(mode);
-    invPagerRef.current?.scrollTo({ x: mode === 'amount' ? INV_CTRL_W : 0, animated: true });
+    invPagerRef.current?.scrollTo({ x: mode === 'amount' ? INV_FULL_W : 0, animated: true });
   };
-  // Horizontal swipe on the (non-scrollable) name column also flips the right
-  // pager, so the whole width is swipeable — easier than hitting the narrow
-  // control column. activeOffsetX lets the outer vertical scroll win otherwise.
-  const invNameSwipe = useMemo(() => Gesture.Pan()
-    .runOnJS(true)
-    .activeOffsetX([-20, 20])
-    .failOffsetY([-20, 20])
-    .onEnd(e => {
-      if (e.translationX <= -40) goToInvMode('amount');
-      else if (e.translationX >= 40) goToInvMode('check');
-    }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleUnmeasured = (key: string) => setHadUnmeasured(prev => {
     const n = new Set(prev);
@@ -1414,33 +1404,37 @@ export default function MenuScreen() {
                 {inventoryMode === 'check' ? 'Bocka av det du har hemma' : 'Ange mängd du har hemma'}
               </Text>
               <ScrollView style={{ height: invListHeight, marginBottom: 12 }} keyboardShouldPersistTaps="handled">
-                <View style={{ flexDirection: 'row' }}>
-                  {/* Fixed name column — swiping it also flips the right pager */}
-                  <GestureDetector gesture={invNameSwipe}>
-                    <View style={{ flex: 1 }}>
-                      {aggregatedInventory.map(agg => renderNameCell(agg))}
-                    </View>
-                  </GestureDetector>
-                  {/* Swipable control column (checkbox ⇄ amount) */}
-                  <View style={{ width: INV_CTRL_W }}>
-                    <ScrollView
-                      ref={invPagerRef}
-                      horizontal
-                      pagingEnabled
-                      showsHorizontalScrollIndicator={false}
-                      keyboardShouldPersistTaps="handled"
-                      scrollEventThrottle={16}
-                      onScroll={e => {
-                        const mode = e.nativeEvent.contentOffset.x > INV_CTRL_W / 2 ? 'amount' : 'check';
-                        setInventoryMode(prev => (prev === mode ? prev : mode));
-                      }}
-                    >
-                      {(['check', 'amount'] as const).map(mode => (
-                        <View key={mode} style={{ width: INV_CTRL_W }}>
-                          {aggregatedInventory.map(agg => renderControlCell(agg, mode))}
-                        </View>
-                      ))}
-                    </ScrollView>
+                <View style={{ height: aggregatedInventory.length * INV_ROW_H }}>
+                  {/* Full-width native pager UNDERNEATH — swipe anywhere flips it.
+                      Each row: empty left spacer + the control on the right. */}
+                  <ScrollView
+                    ref={invPagerRef}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    scrollEventThrottle={16}
+                    style={StyleSheet.absoluteFill}
+                    onScroll={e => {
+                      const mode = e.nativeEvent.contentOffset.x > INV_FULL_W / 2 ? 'amount' : 'check';
+                      setInventoryMode(prev => (prev === mode ? prev : mode));
+                    }}
+                  >
+                    {(['check', 'amount'] as const).map(mode => (
+                      <View key={mode} style={{ width: INV_FULL_W }}>
+                        {aggregatedInventory.map(agg => (
+                          <View key={agg.key} style={{ height: INV_ROW_H, flexDirection: 'row' }}>
+                            <View style={{ flex: 1 }} />
+                            {renderControlCell(agg, mode)}
+                          </View>
+                        ))}
+                      </View>
+                    ))}
+                  </ScrollView>
+                  {/* Static name overlay covering the left region (lets swipes/taps
+                      through to the pager; opaque so sliding controls hide behind it). */}
+                  <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, right: INV_CTRL_W, backgroundColor: '#fff' }} pointerEvents="none">
+                    {aggregatedInventory.map(agg => renderNameCell(agg))}
                   </View>
                 </View>
               </ScrollView>
@@ -1701,7 +1695,7 @@ const s = StyleSheet.create({
   segmentTextActive: { color: '#4f46e5' },
   invSub: { fontSize: 13, color: '#6b7280', marginTop: 10, marginBottom: 8 },
   invCellLeft: { height: 56, justifyContent: 'center', paddingRight: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
-  invCellRight: { height: 56, justifyContent: 'center', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
+  invCellRight: { width: 140, height: 56, justifyContent: 'center', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
   invName: { fontSize: 15, color: '#111827', fontWeight: '500' },
   invNameDone: { color: '#9ca3af', textDecorationLine: 'line-through' },
   invProvenance: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
