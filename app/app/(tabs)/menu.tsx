@@ -186,21 +186,87 @@ export default function MenuScreen() {
       .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
   }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings]);
 
-  // Swipe left/right to switch inventory tabs. The FlatList's native scroll would
-  // otherwise win the gesture race, so run the Pan SIMULTANEOUSLY with it: the pan
-  // only claims clearly-horizontal movement (activeOffsetX) and the list keeps its
-  // vertical scroll. runOnJS(true) → callbacks run on the JS thread.
-  const inventorySwipe = useMemo(() => {
-    const pan = Gesture.Pan()
-      .runOnJS(true)
-      .activeOffsetX([-20, 20])
-      .failOffsetY([-25, 25])
-      .onEnd(e => {
-        if (e.translationX <= -40) setInventoryMode('amount');
-        else if (e.translationX >= 40) setInventoryMode('check');
-      });
-    return Gesture.Simultaneous(pan, Gesture.Native());
-  }, []);
+  // Inventory tabs are two pages of a native horizontal pager (reliable swipe +
+  // tap, unlike a Pan gesture fighting the list's vertical scroll).
+  const INV_PAGE_W = Dimensions.get('window').width - 48; // sheet has padding 24 each side
+  // Bounded height so each page's vertical FlatList can scroll inside the
+  // horizontal pager; grows with row count up to a cap.
+  const invListHeight = Math.min(400, Math.max(120, aggregatedInventory.length * 56));
+  const invPagerRef = useRef<ScrollView>(null);
+  const goToInvMode = (mode: 'check' | 'amount') => {
+    setInventoryMode(mode);
+    invPagerRef.current?.scrollTo({ x: mode === 'amount' ? INV_PAGE_W : 0, animated: true });
+  };
+
+  // One inventory row, rendered for a given tab. Shared by both pager pages.
+  function renderInvRow(agg: AggIngredient, mode: 'check' | 'amount') {
+    const unitLabel = agg.unit ? ` ${agg.unit}` : '';
+
+    if (!agg.measured) {
+      const have = hadUnmeasured.has(agg.key);
+      return (
+        <Pressable
+          style={s.invRow}
+          onPress={() => setHadUnmeasured(prev => {
+            const n = new Set(prev);
+            if (n.has(agg.key)) n.delete(agg.key); else n.add(agg.key);
+            return n;
+          })}
+        >
+          <Ionicons name={have ? 'checkbox' : 'square-outline'} size={22} color={have ? '#10b981' : '#9ca3af'} />
+          <View style={{ flex: 1 }}>
+            <Text style={[s.invName, have && s.invNameDone]}>{agg.name}</Text>
+            {have ? <Text style={s.invProvenance}>har hemma</Text> : null}
+          </View>
+        </Pressable>
+      );
+    }
+
+    const total = agg.totalQty ?? 0;
+    const haveAmt = haveAtHome[agg.key] ?? 0;
+    const toBuy = Math.max(0, Math.round((total - haveAmt) * 100) / 100);
+    const covered = toBuy <= 0;
+    const partial = haveAmt > 0 && !covered;
+    const secondLine = covered ? 'har hemma' : partial ? `köp ${fmtQty(toBuy)}${unitLabel}` : '';
+    const nameLine = (
+      <View style={{ flex: 1 }}>
+        <Text style={[s.invName, covered && s.invNameDone]}>{fmtQty(total)}{unitLabel} {agg.name}</Text>
+        {secondLine ? <Text style={[s.invProvenance, partial && s.invBuy]}>{secondLine}</Text> : null}
+      </View>
+    );
+
+    if (mode === 'check') {
+      const icon = covered ? 'checkbox' : partial ? 'remove-circle' : 'square-outline';
+      const iconColor = covered ? '#10b981' : partial ? '#f59e0b' : '#9ca3af';
+      return (
+        <Pressable style={s.invRow} onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}>
+          <Ionicons name={icon as never} size={22} color={iconColor} />
+          {nameLine}
+        </Pressable>
+      );
+    }
+
+    return (
+      <View style={s.invRow}>
+        {nameLine}
+        <View style={s.invAmountWrap}>
+          <Text style={s.invAmountLabel}>har</Text>
+          <TextInput
+            style={s.invAmountInput}
+            keyboardType="numeric"
+            value={haveAmt ? fmtQty(haveAmt) : ''}
+            placeholder="0"
+            placeholderTextColor="#d1d5db"
+            onChangeText={t => {
+              const v = parseFloat(t.replace(',', '.'));
+              setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
+            }}
+          />
+          <Text style={s.invUnit}>{agg.unit ?? ''}</Text>
+        </View>
+      </View>
+    );
+  }
 
   const toastOpacity = useRef(new RNAnimated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
@@ -1295,100 +1361,40 @@ export default function MenuScreen() {
             <>
               <Text style={s.sheetTitle}>Vad har du hemma?</Text>
               <View style={s.segment}>
-                <Pressable style={[s.segmentBtn, inventoryMode === 'check' && s.segmentBtnActive]} onPress={() => setInventoryMode('check')}>
+                <Pressable style={[s.segmentBtn, inventoryMode === 'check' && s.segmentBtnActive]} onPress={() => goToInvMode('check')}>
                   <Text style={[s.segmentText, inventoryMode === 'check' && s.segmentTextActive]}>Bocka av</Text>
                 </Pressable>
-                <Pressable style={[s.segmentBtn, inventoryMode === 'amount' && s.segmentBtnActive]} onPress={() => setInventoryMode('amount')}>
+                <Pressable style={[s.segmentBtn, inventoryMode === 'amount' && s.segmentBtnActive]} onPress={() => goToInvMode('amount')}>
                   <Text style={[s.segmentText, inventoryMode === 'amount' && s.segmentTextActive]}>Ange mängd</Text>
                 </Pressable>
               </View>
               <Text style={s.invSub} numberOfLines={1}>
                 {inventoryMode === 'check' ? 'Bocka av det du har hemma' : 'Ange mängd du har hemma'}
               </Text>
-              <GestureDetector gesture={inventorySwipe}>
-              <FlatList
-                style={s.bulkRecipeList}
-                data={aggregatedInventory}
-                keyExtractor={a => a.key}
-                extraData={[inventoryMode, haveAtHome, hadUnmeasured]}
+              <ScrollView
+                ref={invPagerRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                style={{ height: invListHeight, marginBottom: 12 }}
                 keyboardShouldPersistTaps="handled"
-                renderItem={({ item: agg }) => {
-                  const unitLabel = agg.unit ? ` ${agg.unit}` : '';
-
-                  // --- Unmeasured: have-it / not (same in both tabs) ---
-                  if (!agg.measured) {
-                    const have = hadUnmeasured.has(agg.key);
-                    return (
-                      <Pressable
-                        style={s.invRow}
-                        onPress={() => setHadUnmeasured(prev => {
-                          const n = new Set(prev);
-                          if (n.has(agg.key)) n.delete(agg.key); else n.add(agg.key);
-                          return n;
-                        })}
-                      >
-                        <Ionicons name={have ? 'checkbox' : 'square-outline'} size={22} color={have ? '#10b981' : '#9ca3af'} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[s.invName, have && s.invNameDone]}>{agg.name}</Text>
-                          {have ? <Text style={s.invProvenance}>har hemma</Text> : null}
-                        </View>
-                      </Pressable>
-                    );
-                  }
-
-                  // --- Measured: one shared "har hemma" value drives both tabs ---
-                  const total = agg.totalQty ?? 0;
-                  const haveAmt = haveAtHome[agg.key] ?? 0;
-                  const toBuy = Math.max(0, Math.round((total - haveAmt) * 100) / 100);
-                  const covered = toBuy <= 0;
-                  const partial = haveAmt > 0 && !covered;
-                  const secondLine = covered ? 'har hemma' : partial ? `köp ${fmtQty(toBuy)}${unitLabel}` : '';
-                  const nameLine = (
-                    <View style={{ flex: 1 }}>
-                      <Text style={[s.invName, covered && s.invNameDone]}>{fmtQty(total)}{unitLabel} {agg.name}</Text>
-                      {secondLine ? <Text style={[s.invProvenance, partial && s.invBuy]}>{secondLine}</Text> : null}
-                    </View>
-                  );
-
-                  if (inventoryMode === 'check') {
-                    const icon = covered ? 'checkbox' : partial ? 'remove-circle' : 'square-outline';
-                    const iconColor = covered ? '#10b981' : partial ? '#f59e0b' : '#9ca3af';
-                    return (
-                      <Pressable
-                        style={s.invRow}
-                        // Tap = "har allt" ⇄ "har inget" (sets the same shared value).
-                        onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}
-                      >
-                        <Ionicons name={icon as never} size={22} color={iconColor} />
-                        {nameLine}
-                      </Pressable>
-                    );
-                  }
-
-                  // "Ange mängd"-tab: numeric input (fixed-width column so units align).
-                  return (
-                    <View style={s.invRow}>
-                      {nameLine}
-                      <View style={s.invAmountWrap}>
-                        <Text style={s.invAmountLabel}>har</Text>
-                        <TextInput
-                          style={s.invAmountInput}
-                          keyboardType="numeric"
-                          value={haveAmt ? fmtQty(haveAmt) : ''}
-                          placeholder="0"
-                          placeholderTextColor="#d1d5db"
-                          onChangeText={t => {
-                            const v = parseFloat(t.replace(',', '.'));
-                            setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
-                          }}
-                        />
-                        <Text style={s.invUnit}>{agg.unit ?? ''}</Text>
-                      </View>
-                    </View>
-                  );
+                onMomentumScrollEnd={e => {
+                  const page = Math.round(e.nativeEvent.contentOffset.x / INV_PAGE_W);
+                  setInventoryMode(page === 1 ? 'amount' : 'check');
                 }}
-              />
-              </GestureDetector>
+              >
+                {(['check', 'amount'] as const).map(mode => (
+                  <FlatList
+                    key={mode}
+                    style={{ width: INV_PAGE_W, height: invListHeight }}
+                    data={aggregatedInventory}
+                    keyExtractor={a => a.key}
+                    extraData={[haveAtHome, hadUnmeasured]}
+                    keyboardShouldPersistTaps="handled"
+                    renderItem={({ item: agg }) => renderInvRow(agg, mode)}
+                  />
+                ))}
+              </ScrollView>
               <Pressable
                 style={s.button}
                 onPress={async () => {
