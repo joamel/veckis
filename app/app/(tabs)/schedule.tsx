@@ -334,6 +334,30 @@ export default function ScheduleScreen() {
     }
   }
 
+  function resetNewEntryForm() {
+    setNewTitle('');
+    setTimeEnabled(false);
+    setNewHour(12);
+    setNewMinute(0);
+    setNewIsShared(true);
+    setNewRemind(true);
+    setNewAssignedToMany([]);
+    setNewRecurrenceType('none');
+    setNewRecurrenceDays([]);
+    setNewRecurrenceWeeks(1);
+    setNewMonthlyType('day_of_month');
+    setNewRecurrenceWeekOfMonth(1);
+    setNewStartDate(null);
+    setNewEndDate(null);
+  }
+
+  // Always open a fresh dialog so an abandoned (cancelled) entry doesn't reappear.
+  function openNewEntry(day: WeekDay) {
+    resetNewEntryForm();
+    setNewDay(day);
+    setShowModal(true);
+  }
+
   async function createEntry() {
     if (!householdId || !newTitle.trim()) return;
     setCreating(true);
@@ -358,20 +382,7 @@ export default function ScheduleScreen() {
       });
       setEntries(prev => prev.some(e => e.id === entry.id) ? prev : [...prev, entry]);
       setShowModal(false);
-      setNewTitle('');
-      setTimeEnabled(false);
-      setNewHour(12);
-      setNewMinute(0);
-      setNewIsShared(true);
-      setNewRemind(true);
-      setNewAssignedToMany([]);
-      setNewRecurrenceType('none');
-      setNewRecurrenceDays([]);
-      setNewRecurrenceWeeks(1);
-      setNewMonthlyType('day_of_month');
-      setNewRecurrenceWeekOfMonth(1);
-      setNewStartDate(null);
-      setNewEndDate(null);
+      resetNewEntryForm();
     } catch (e: any) {
       showError(e, e?.message ?? 'Kunde inte skapa schemapost');
     } finally {
@@ -864,11 +875,11 @@ export default function ScheduleScreen() {
                   title="Inget planerat"
                   subtitle="Lägg till en aktivitet på den här dagen."
                   actionLabel="Ny aktivitet"
-                  onAction={() => { setNewDay(selectedDay); setShowModal(true); }}
+                  onAction={() => { openNewEntry(selectedDay); }}
                 />
               ) : dayDetailContent}
             </ScrollView>
-            <Pressable style={s.fab} onPress={() => { setNewDay(selectedDay); setShowModal(true); }}>
+            <Pressable style={s.fab} onPress={() => { openNewEntry(selectedDay); }}>
               <Ionicons name="add" size={30} color="#fff" />
             </Pressable>
           </View>
@@ -915,12 +926,12 @@ export default function ScheduleScreen() {
                 title="Inget planerat"
                 subtitle="Lägg till en aktivitet på den här dagen."
                 actionLabel="Ny aktivitet"
-                onAction={() => { setNewDay(selectedDay); setShowModal(true); }}
+                onAction={() => { openNewEntry(selectedDay); }}
               />
             ) : dayDetailContent}
           </ScrollView>
 
-          <Pressable style={s.fab} onPress={() => { setNewDay(selectedDay); setShowModal(true); }}>
+          <Pressable style={s.fab} onPress={() => { openNewEntry(selectedDay); }}>
             <Ionicons name="add" size={30} color="#fff" />
           </Pressable>
         </>
