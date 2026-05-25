@@ -1150,7 +1150,7 @@ export default function MenuScreen() {
       {/* Bulk transfer modal — choose recipes and list */}
       <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleCancelBulkTransfer()}>
         <Pressable style={s.overlay} onPress={() => handleCancelBulkTransfer()} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={bulkTransferStep === 'ingredients' ? undefined : (Platform.OS === 'ios' ? 'padding' : 'height')} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
 
@@ -1634,7 +1634,7 @@ const s = StyleSheet.create({
   invBuy: { color: '#f59e0b', fontWeight: '600' },
   invAmountWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   invAmountLabel: { fontSize: 12, color: '#9ca3af' },
-  invAmountInput: { width: 52, backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, fontSize: 14, color: '#111827', textAlign: 'right' },
+  invAmountInput: { width: 56, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#a5b4fc', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 7, fontSize: 15, color: '#111827', textAlign: 'right' },
   invUnit: { width: 32, fontSize: 13, color: '#6b7280' },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
