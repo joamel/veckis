@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -24,6 +24,7 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { onShoppingChanged } from '../../src/lib/shoppingEvents';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type Store } from '@veckis/shared';
 
 export default function ShoppingScreen() {
@@ -71,6 +72,8 @@ export default function ShoppingScreen() {
   }, [householdId]);
 
   useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
+  // Refresh when a list changes elsewhere (e.g. deferred clear in the detail view).
+  useEffect(() => onShoppingChanged(load), [load]);
 
   async function createList() {
     if (!householdId || !newListName.trim()) return;

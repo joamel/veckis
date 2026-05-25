@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import Fuse from 'fuse.js';
 import { capitalize } from '../../src/lib/text';
+import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
   Animated,
@@ -658,6 +659,7 @@ export default function ShoppingListScreen() {
           if (cancelled) return;
           try {
             await client.clearShoppingList(listId);
+            emitShoppingChanged(); // refresh the lists overview's count
           } catch (e) {
             setList(prev => prev ? { ...prev, items: snapshot } : prev);
             showError(e, 'Kunde inte rensa listan');
