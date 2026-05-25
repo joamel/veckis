@@ -104,6 +104,7 @@ export default function MenuScreen() {
   const [bulkTransferringListId, setBulkTransferringListId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState('');
   const [creatingList, setCreatingList] = useState(false);
+  const [ingredientCategories, setIngredientCategories] = useState<Record<string, string>>({}); // name -> category for inventory sorting
   // Per-menu-item: which lists have items from it (keyed by menuItemId for per-instance tracking)
   type ListEntry = { listId: string; listName: string; itemCount: number };
   const [recipeListMap, setRecipeListMap] = useState<Record<string, ListEntry[]>>({});
@@ -197,7 +198,10 @@ export default function MenuScreen() {
         const qty = scaleQty(ing.quantity ?? null, ratio);
         let agg = map.get(key);
         if (!agg) {
-          agg = { key, name: ing.name, unit, category: ing.category, totalQty: 0, measured: true, recipeTitles: [], sources: [] };
+          // Prefer the learned/common category by name (where it lands in the
+          // store); recipe ingredients themselves are usually 'other'.
+          const cat = ingredientCategories[ing.name.toLowerCase().trim()] ?? ing.category;
+          agg = { key, name: ing.name, unit, category: cat, totalQty: 0, measured: true, recipeTitles: [], sources: [] };
           map.set(key, agg);
         }
         agg.sources.push({ menuItemId: item.id, recipeId: item.recipeId, qty });
@@ -215,7 +219,7 @@ export default function MenuScreen() {
     return [...map.values()]
       .map(a => (a.measured && (a.totalQty ?? 0) > 0 ? a : { ...a, measured: false, totalQty: null }))
       .sort((a, b) => (catIdx(a.category) - catIdx(b.category)) || a.name.localeCompare(b.name, 'sv'));
-  }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings, transferredMenuItemIds]);
+  }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings, transferredMenuItemIds, ingredientCategories]);
 
   // Inventory: names stay fixed on the left; only the right control column
   // (checkbox ⇄ amount) is a narrow horizontal pager that swipes/tabs between
@@ -365,14 +369,20 @@ export default function MenuScreen() {
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
-      const [menu, recs, activeLists] = await Promise.all([
+      const [menu, recs, activeLists, suggestions] = await Promise.all([
         client.getWeekMenu(householdId, weekYear, weekNumber),
         client.getRecipes(householdId),
         client.getShoppingLists(householdId),
+        client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
       ]);
       setMenuItems(menu);
       setRecipes(recs);
       setShoppingLists(activeLists);
+      // name -> category map (learned aliases + common ingredients), so the
+      // inventory can group by where the item lands in the store.
+      const catMap: Record<string, string> = {};
+      for (const sgg of suggestions) catMap[sgg.name.toLowerCase().trim()] = sgg.category;
+      setIngredientCategories(catMap);
       const transferred = new Set<string>();
       const listMap: Record<string, ListEntry[]> = {};
       menu.forEach(menuItem => {
