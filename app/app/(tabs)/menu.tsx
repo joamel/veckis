@@ -396,6 +396,13 @@ export default function MenuScreen() {
     }
   }
 
+  // Hardware/gesture back steps through the wizard instead of closing it.
+  function handleBulkBack() {
+    if (bulkTransferStep === 'list') { setBulkTransferStep('ingredients'); return; }
+    if (bulkTransferStep === 'ingredients') { setBulkTransferStep('recipe'); return; }
+    handleCancelBulkTransfer();
+  }
+
   async function openWeekPicker() {
     if (!householdId) return;
     try {
@@ -1230,7 +1237,7 @@ export default function MenuScreen() {
       </Modal>
 
       {/* Bulk transfer modal — choose recipes and list */}
-      <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleCancelBulkTransfer()}>
+      <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleBulkBack()}>
         <Pressable style={s.overlay} onPress={() => handleCancelBulkTransfer()} />
         <KeyboardAvoidingView behavior={bulkTransferStep === 'ingredients' ? undefined : (Platform.OS === 'ios' ? 'padding' : 'height')} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
@@ -1468,7 +1475,7 @@ export default function MenuScreen() {
               )}
               <Pressable
                 style={[s.button, { backgroundColor: '#e5e7eb' }]}
-                onPress={() => setBulkTransferStep('recipe')}
+                onPress={() => setBulkTransferStep('ingredients')}
               >
                 <Text style={[s.buttonText, { color: '#374151' }]}>Tillbaka</Text>
               </Pressable>
