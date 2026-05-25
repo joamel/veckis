@@ -220,6 +220,17 @@ export default function MenuScreen() {
     setInventoryMode(mode);
     invPagerRef.current?.scrollTo({ x: mode === 'amount' ? INV_CTRL_W : 0, animated: true });
   };
+  // Horizontal swipe on the (non-scrollable) name column also flips the right
+  // pager, so the whole width is swipeable — easier than hitting the narrow
+  // control column. activeOffsetX lets the outer vertical scroll win otherwise.
+  const invNameSwipe = useMemo(() => Gesture.Pan()
+    .runOnJS(true)
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-20, 20])
+    .onEnd(e => {
+      if (e.translationX <= -40) goToInvMode('amount');
+      else if (e.translationX >= 40) goToInvMode('check');
+    }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleUnmeasured = (key: string) => setHadUnmeasured(prev => {
     const n = new Set(prev);
@@ -1404,10 +1415,12 @@ export default function MenuScreen() {
               </Text>
               <ScrollView style={{ height: invListHeight, marginBottom: 12 }} keyboardShouldPersistTaps="handled">
                 <View style={{ flexDirection: 'row' }}>
-                  {/* Fixed name column */}
-                  <View style={{ flex: 1 }}>
-                    {aggregatedInventory.map(agg => renderNameCell(agg))}
-                  </View>
+                  {/* Fixed name column — swiping it also flips the right pager */}
+                  <GestureDetector gesture={invNameSwipe}>
+                    <View style={{ flex: 1 }}>
+                      {aggregatedInventory.map(agg => renderNameCell(agg))}
+                    </View>
+                  </GestureDetector>
                   {/* Swipable control column (checkbox ⇄ amount) */}
                   <View style={{ width: INV_CTRL_W }}>
                     <ScrollView
