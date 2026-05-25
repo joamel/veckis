@@ -37,6 +37,7 @@ import { onShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay } from '@veckis/shared';
+import { DEFAULT_CATEGORY_ORDER } from '@veckis/shared';
 
 const DAYS: { key: WeekDay; label: string; short: string }[] = [
   { key: 'mon', label: 'Måndag', short: 'Mån' },
@@ -205,9 +206,15 @@ export default function MenuScreen() {
         if (agg.measured && agg.totalQty != null) agg.totalQty += qty ?? 0;
       }
     }
+    // Group by store category (kyl/frys/skafferi…) so you don't run back and forth
+    // while inventorying — alphabetical within each category. No headers shown.
+    const catIdx = (c?: string) => {
+      const i = DEFAULT_CATEGORY_ORDER.indexOf(c as never);
+      return i < 0 ? DEFAULT_CATEGORY_ORDER.length : i;
+    };
     return [...map.values()]
       .map(a => (a.measured && (a.totalQty ?? 0) > 0 ? a : { ...a, measured: false, totalQty: null }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+      .sort((a, b) => (catIdx(a.category) - catIdx(b.category)) || a.name.localeCompare(b.name, 'sv'));
   }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings, transferredMenuItemIds]);
 
   // Inventory: names stay fixed on the left; only the right control column
