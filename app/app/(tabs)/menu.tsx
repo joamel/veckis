@@ -1378,9 +1378,12 @@ export default function MenuScreen() {
                 showsHorizontalScrollIndicator={false}
                 style={{ height: invListHeight, marginBottom: 12 }}
                 keyboardShouldPersistTaps="handled"
-                onMomentumScrollEnd={e => {
-                  const page = Math.round(e.nativeEvent.contentOffset.x / INV_PAGE_W);
-                  setInventoryMode(page === 1 ? 'amount' : 'check');
+                scrollEventThrottle={16}
+                // Update the tab/heading live during the swipe (at the midpoint),
+                // not just when it settles.
+                onScroll={e => {
+                  const mode = e.nativeEvent.contentOffset.x > INV_PAGE_W / 2 ? 'amount' : 'check';
+                  setInventoryMode(prev => (prev === mode ? prev : mode));
                 }}
               >
                 {(['check', 'amount'] as const).map(mode => (
