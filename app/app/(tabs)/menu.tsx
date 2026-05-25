@@ -31,6 +31,7 @@ import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
+import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay } from '@veckis/shared';
@@ -103,6 +104,7 @@ export default function MenuScreen() {
 
   // Bulk transfer modal: select which recipes to transfer
   const [showBulkTransferModal, setShowBulkTransferModal] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [selectedRecipesForTransfer, setSelectedRecipesForTransfer] = useState<Set<string>>(new Set());
   const [bulkTransferStep, setBulkTransferStep] = useState<'week' | 'recipe' | 'ingredients' | 'list'>('recipe');
   const [excludedIngredients, setExcludedIngredients] = useState<Set<string>>(new Set());
@@ -682,9 +684,17 @@ export default function MenuScreen() {
     <SafeAreaView style={s.container}>
       <ScreenHeader
         title="Meny"
-        actionIcon="book-outline"
-        actionLabel="Recept"
-        onActionPress={() => router.push('/recipes' as never)}
+        actionNode={
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable style={s.headerIconBtn} onPress={() => setShowTemplates(true)} accessibilityLabel="Veckomeny-mallar">
+              <Ionicons name="bookmarks-outline" size={18} color="#4f46e5" />
+            </Pressable>
+            <Pressable style={s.headerActionBtn} onPress={() => router.push('/recipes' as never)}>
+              <Ionicons name="book-outline" size={16} color="#4f46e5" />
+              <Text style={s.headerActionText}>Recept</Text>
+            </Pressable>
+          </View>
+        }
       />
       <WeekNav
         weekLabel={weekLabel}
@@ -852,6 +862,16 @@ export default function MenuScreen() {
       )}
 
       {/* Two-step recipe picker modal */}
+      <MenuTemplatesModal
+        visible={showTemplates}
+        onClose={() => setShowTemplates(false)}
+        householdId={householdId}
+        weekYear={weekYear}
+        weekNumber={weekNumber}
+        weekHasItems={menuItems.length > 0}
+        onApplied={load}
+      />
+
       <Modal visible={showPicker} transparent animationType="slide" onRequestClose={closePicker}>
         <Pressable style={s.overlay} onPress={closePicker} />
         <View style={s.sheet}>
@@ -1463,6 +1483,9 @@ function MenuCard({
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  headerActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
+  headerActionText: { fontWeight: '600', color: '#4f46e5', fontSize: 13 },
+  headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
   section: { gap: 8 },

@@ -63,6 +63,14 @@ export interface NotificationPreferences {
   reminderMinutes: number;
 }
 
+export interface MenuTemplate {
+  id: string;
+  householdId: string;
+  name: string;
+  createdAt: string;
+  items: { id: string; recipeId: string; day: WeekDay | null; recipe: { id: string; title: string } }[];
+}
+
 export type HouseholdWithMembers = Household & { members: HouseholdMember[]; stores: Store[] };
 export type MembershipWithHousehold = HouseholdMember & { household: Household };
 export type ShoppingItemWithRecipe = ShoppingItem & { recipe: { id: string; title: string } | null };
@@ -130,6 +138,9 @@ export function useApiClient() {
 
     createInvite: (householdId: string) =>
       request<InviteCode>(`/api/households/${householdId}/invite`, { method: 'POST' }),
+
+    getMemberAssignments: (householdId: string, memberId: string) =>
+      request<{ chores: number; activities: number }>(`/api/households/${householdId}/members/${memberId}/assignments`),
 
     removeMember: (householdId: string, memberId: string) =>
       request<void>(`/api/households/${householdId}/members/${memberId}`, { method: 'DELETE' }),
@@ -287,6 +298,18 @@ export function useApiClient() {
 
     transferToShopping: (listId: string, ingredients: Array<{ name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string; menuItemId?: string }>) =>
       request<ShoppingItem[]>('/api/menus/to-shopping', { method: 'POST', body: JSON.stringify({ listId, ingredients }) }),
+
+    getMenuTemplates: (householdId: string) =>
+      request<MenuTemplate[]>(`/api/menus/templates?householdId=${householdId}`),
+
+    saveMenuTemplate: (data: { householdId: string; name: string; weekYear: number; weekNumber: number }) =>
+      request<MenuTemplate>('/api/menus/templates', { method: 'POST', body: JSON.stringify(data) }),
+
+    applyMenuTemplate: (templateId: string, data: { weekYear: number; weekNumber: number; overwrite?: boolean }) =>
+      request<{ applied: number }>(`/api/menus/templates/${templateId}/apply`, { method: 'POST', body: JSON.stringify(data) }),
+
+    deleteMenuTemplate: (templateId: string) =>
+      request<void>(`/api/menus/templates/${templateId}`, { method: 'DELETE' }),
 
     deleteItemsByMenuItemId: (listId: string, menuItemId: string) =>
       request<void>(`/api/shopping/lists/${listId}/items/by-menu-item/${menuItemId}`, { method: 'DELETE' }),

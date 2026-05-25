@@ -154,6 +154,106 @@ menusRouter.post('/copy', requireAuth, asyncHandler(async (req, res) => {
   res.status(201).json({ copied: created.length, items: created });
 }));
 
+// --- Menu templates (save a week's menu, apply to any week) ---
+
+async function verifyMember(householdId: string, clerkUserId: string): Promise<boolean> {
+  const m = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId, clerkUserId } },
+  });
+  return !!m;
+}
+
+// GET /api/menus/templates?householdId=
+menusRouter.get('/templates', requireAuth, asyncHandler(async (req, res) => {
+  const householdId = String(req.query.householdId ?? '');
+  if (!householdId) { res.status(400).json({ error: 'Missing householdId' }); return; }
+  if (!await verifyMember(householdId, (req as AuthenticatedRequest).clerkUserId)) {
+    res.status(403).json({ error: 'Not a member of this household' }); return;
+  }
+  const templates = await prisma.menuTemplate.findMany({
+    where: { householdId },
+    orderBy: { createdAt: 'desc' },
+    include: { items: { include: { recipe: { select: { id: true, title: true } } } } },
+  });
+  res.json(templates);
+}));
+
+// POST /api/menus/templates — snapshot a week's menu into a named template
+menusRouter.post('/templates', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
+  const body = z.object({
+    householdId: z.string(),
+    name: z.string().min(1).max(100),
+    weekYear: z.number().int(),
+    weekNumber: z.number().int().min(1).max(53),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const source = await prisma.weekMenuItem.findMany({
+    where: { householdId: body.data.householdId, weekYear: body.data.weekYear, weekNumber: body.data.weekNumber },
+  });
+  if (source.length === 0) { res.status(404).json({ error: 'Veckan har inga planerade rätter att spara' }); return; }
+
+  const template = await prisma.menuTemplate.create({
+    data: {
+      householdId: body.data.householdId,
+      name: body.data.name,
+      createdBy: (req as AuthenticatedRequest).clerkUserId,
+      items: { create: source.map(s => ({ recipeId: s.recipeId, day: s.day })) },
+    },
+    include: { items: { include: { recipe: { select: { id: true, title: true } } } } },
+  });
+  res.status(201).json(template);
+}));
+
+// POST /api/menus/templates/:templateId/apply — create week menu items from a template
+menusRouter.post('/templates/:templateId/apply', requireAuth, asyncHandler(async (req, res) => {
+  const body = z.object({
+    weekYear: z.number().int(),
+    weekNumber: z.number().int().min(1).max(53),
+    overwrite: z.boolean().default(false),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const template = await prisma.menuTemplate.findUnique({
+    where: { id: req.params.templateId },
+    include: { items: true },
+  });
+  if (!template) { res.status(404).json({ error: 'Mall hittades inte' }); return; }
+  if (!await verifyMember(template.householdId, (req as AuthenticatedRequest).clerkUserId)) {
+    res.status(403).json({ error: 'Not a member of this household' }); return;
+  }
+
+  if (body.data.overwrite) {
+    await prisma.weekMenuItem.deleteMany({
+      where: { householdId: template.householdId, weekYear: body.data.weekYear, weekNumber: body.data.weekNumber },
+    });
+  }
+
+  const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+  const created = await prisma.weekMenuItem.createManyAndReturn({
+    data: template.items.map(it => ({
+      householdId: template.householdId,
+      recipeId: it.recipeId,
+      day: it.day,
+      weekYear: body.data.weekYear,
+      weekNumber: body.data.weekNumber,
+      createdBy: clerkUserId,
+    })),
+  });
+  res.status(201).json({ applied: created.length });
+}));
+
+// DELETE /api/menus/templates/:templateId
+menusRouter.delete('/templates/:templateId', requireAuth, asyncHandler(async (req, res) => {
+  const template = await prisma.menuTemplate.findUnique({ where: { id: req.params.templateId } });
+  if (!template) { res.status(404).json({ error: 'Mall hittades inte' }); return; }
+  if (!await verifyMember(template.householdId, (req as AuthenticatedRequest).clerkUserId)) {
+    res.status(403).json({ error: 'Not a member of this household' }); return;
+  }
+  await prisma.menuTemplate.delete({ where: { id: template.id } });
+  res.status(204).send();
+}));
+
 // POST /api/menus/to-shopping — transfer selected ingredients to a shopping list
 menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({
