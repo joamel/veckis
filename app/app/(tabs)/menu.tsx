@@ -5,6 +5,7 @@ import {
   Animated as RNAnimated,
   Dimensions,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -226,6 +227,8 @@ export default function MenuScreen() {
     invPagerRef.current?.scrollTo({ x: mode === 'amount' ? INV_FULL_W : 0, animated: true });
     setTimeout(() => { invScrollLock.current = false; }, 400);
   };
+  // "Bocka av" has no inputs — drop the keyboard when switching to it (tap or swipe).
+  useEffect(() => { if (inventoryMode === 'check') Keyboard.dismiss(); }, [inventoryMode]);
 
   const toggleUnmeasured = (key: string) => setHadUnmeasured(prev => {
     const n = new Set(prev);
@@ -1277,7 +1280,7 @@ export default function MenuScreen() {
       {/* Bulk transfer modal — choose recipes and list */}
       <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleBulkBack()}>
         <Pressable style={s.overlay} onPress={() => handleCancelBulkTransfer()} />
-        <KeyboardAvoidingView behavior={bulkTransferStep === 'ingredients' ? undefined : (Platform.OS === 'ios' ? 'padding' : 'height')} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
 
