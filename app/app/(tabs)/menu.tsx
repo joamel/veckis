@@ -129,6 +129,7 @@ export default function MenuScreen() {
   const [inventoryMode, setInventoryMode] = useState<'check' | 'amount'>('check');
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> amount on hand
   const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // unmeasured ingredients marked "har hemma"
+  const [editingAmountKey, setEditingAmountKey] = useState<string | null>(null); // which amount cell is in edit mode
   const [allMenus, setAllMenus] = useState<WeekMenuItemWithRecipe[]>([]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
@@ -238,8 +239,8 @@ export default function MenuScreen() {
     invPagerRef.current?.scrollTo({ x: mode === 'amount' ? INV_FULL_W : 0, animated: true });
     setTimeout(() => { invScrollLock.current = false; }, 400);
   };
-  // "Bocka av" has no inputs — drop the keyboard when switching to it (tap or swipe).
-  useEffect(() => { if (inventoryMode === 'check') Keyboard.dismiss(); }, [inventoryMode]);
+  // "Bocka av" has no inputs — drop the keyboard + exit edit mode when switching to it.
+  useEffect(() => { if (inventoryMode === 'check') { Keyboard.dismiss(); setEditingAmountKey(null); } }, [inventoryMode]);
 
   const toggleUnmeasured = (key: string) => setHadUnmeasured(prev => {
     const n = new Set(prev);
@@ -309,21 +310,37 @@ export default function MenuScreen() {
         </Pressable>
       );
     }
+    // Live TextInput only for the cell being edited; otherwise a tappable display
+    // box so swipes/scrolls pass through (a real TextInput would trap the drag).
+    if (editingAmountKey === agg.key) {
+      return (
+        <View key={agg.key} style={[s.invCellRight, s.invAmountWrap]}>
+          <TextInput
+            style={s.invAmountInput}
+            keyboardType="numeric"
+            autoFocus
+            value={haveAmt ? fmtQty(haveAmt) : ''}
+            placeholder="0"
+            placeholderTextColor="#d1d5db"
+            onChangeText={t => {
+              const v = parseFloat(t.replace(',', '.'));
+              setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
+            }}
+            onBlur={() => setEditingAmountKey(null)}
+            returnKeyType="done"
+            onSubmitEditing={() => setEditingAmountKey(null)}
+          />
+          <Text style={s.invUnit}>{agg.unit ?? ''}</Text>
+        </View>
+      );
+    }
     return (
-      <View key={agg.key} style={[s.invCellRight, s.invAmountWrap]}>
-        <TextInput
-          style={s.invAmountInput}
-          keyboardType="numeric"
-          value={haveAmt ? fmtQty(haveAmt) : ''}
-          placeholder="0"
-          placeholderTextColor="#d1d5db"
-          onChangeText={t => {
-            const v = parseFloat(t.replace(',', '.'));
-            setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
-          }}
-        />
+      <Pressable key={agg.key} style={[s.invCellRight, s.invAmountWrap]} onPress={() => setEditingAmountKey(agg.key)}>
+        <View style={[s.invAmountInput, s.invAmountBox]}>
+          <Text style={haveAmt ? s.invAmountBoxText : s.invAmountBoxPlaceholder}>{haveAmt ? fmtQty(haveAmt) : '0'}</Text>
+        </View>
         <Text style={s.invUnit}>{agg.unit ?? ''}</Text>
-      </View>
+      </Pressable>
     );
   }
 
@@ -1739,6 +1756,9 @@ const s = StyleSheet.create({
   invAmountWrap: { flexDirection: 'row', gap: 5 },
   invAmountLabel: { fontSize: 12, color: '#9ca3af' },
   invAmountInput: { width: 48, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#a5b4fc', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 7, fontSize: 15, color: '#111827', textAlign: 'right' },
+  invAmountBox: { justifyContent: 'center', alignItems: 'flex-end' },
+  invAmountBoxText: { fontSize: 15, color: '#111827' },
+  invAmountBoxPlaceholder: { fontSize: 15, color: '#d1d5db' },
   invUnit: { width: 26, fontSize: 13, color: '#6b7280' },
   invHavePill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db' },
   invHavePillOn: { backgroundColor: '#10b981', borderColor: '#10b981' },
