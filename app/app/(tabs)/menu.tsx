@@ -58,6 +58,17 @@ function getWeekMonday(weekOffset: number): Date {
   return monday;
 }
 
+interface AggIngredient {
+  key: string;
+  name: string;
+  unit: string | null;
+  category: string | undefined;
+  totalQty: number | null; // null = unmeasured (no quantity to do math on)
+  measured: boolean;
+  recipeTitles: string[];
+  sources: { menuItemId: string; recipeId: string; qty: number | null }[];
+}
+
 export default function MenuScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string }>();
@@ -107,7 +118,10 @@ export default function MenuScreen() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedRecipesForTransfer, setSelectedRecipesForTransfer] = useState<Set<string>>(new Set());
   const [bulkTransferStep, setBulkTransferStep] = useState<'week' | 'recipe' | 'ingredients' | 'list'>('recipe');
-  const [excludedIngredients, setExcludedIngredients] = useState<Set<string>>(new Set());
+  // Inventory step (aggregated across selected recipes)
+  const [inventoryMode, setInventoryMode] = useState<'check' | 'amount'>('check');
+  const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> amount on hand
+  const [excludedAggKeys, setExcludedAggKeys] = useState<Set<string>>(new Set()); // checked-off in "Bocka av"-mode
   const [allMenus, setAllMenus] = useState<WeekMenuItemWithRecipe[]>([]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
@@ -132,6 +146,42 @@ export default function MenuScreen() {
     if (n < 1) return Math.round(n * 4) / 4;
     return Math.round(n * 2) / 2;
   }
+
+  const fmtQty = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',');
+
+  function resetInventory() {
+    setInventoryMode('check');
+    setHaveAtHome({});
+    setExcludedAggKeys(new Set());
+  }
+
+  // Ingredients across the selected recipes, merged into one row per name+unit
+  // (with provenance), so a shared ingredient isn't inventoried multiple times.
+  const aggregatedInventory = useMemo<AggIngredient[]>(() => {
+    const pool = bulkTransferWeek ? allMenus : menuItems;
+    const selected = pool.filter(m => selectedRecipesForTransfer.has(m.id));
+    const map = new Map<string, AggIngredient>();
+    for (const item of selected) {
+      const ratio = getScaleRatio(item);
+      for (const ing of item.recipe.ingredients) {
+        const unit = ing.unit ?? null;
+        const key = `${ing.name.toLowerCase().trim()}|${(unit ?? '').toLowerCase().trim()}`;
+        const qty = scaleQty(ing.quantity ?? null, ratio);
+        let agg = map.get(key);
+        if (!agg) {
+          agg = { key, name: ing.name, unit, category: ing.category, totalQty: 0, measured: true, recipeTitles: [], sources: [] };
+          map.set(key, agg);
+        }
+        agg.sources.push({ menuItemId: item.id, recipeId: item.recipeId, qty });
+        if (!agg.recipeTitles.includes(item.recipe.title)) agg.recipeTitles.push(item.recipe.title);
+        if (qty == null) agg.measured = false;
+        if (agg.measured && agg.totalQty != null) agg.totalQty += qty ?? 0;
+      }
+    }
+    return [...map.values()]
+      .map(a => (a.measured && (a.totalQty ?? 0) > 0 ? a : { ...a, measured: false, totalQty: null }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+  }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings]);
 
   const toastOpacity = useRef(new RNAnimated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
@@ -538,6 +588,7 @@ export default function MenuScreen() {
     }
 
     setSelectedRecipesForTransfer(new Set(notTransferred.map(m => m.id)));
+    resetInventory();
     setBulkTransferStep('recipe');
     setShowBulkTransferModal(true);
   }
@@ -563,20 +614,45 @@ export default function MenuScreen() {
         return;
       }
 
+      // Build the transfer from the aggregated inventory: for each ingredient
+      // compute the shortfall (what's still needed after "har hemma"), then
+      // apportion it back across the contributing recipes (menuItemId) so the
+      // backend's per-meal dedupe/merge + recipe-removal keep working.
+      const actuallyIds = new Set(actuallyTransfer.map(i => i.id));
       const allIngredients: { name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string; menuItemId: string }[] = [];
-      for (const item of actuallyTransfer) {
-        const scaleRatio = getScaleRatio(item);
-        for (const ing of item.recipe.ingredients) {
-          const key = `${item.id}:${ing.id}`;
-          if (excludedIngredients.has(key)) continue;
+      for (const agg of aggregatedInventory) {
+        const srcs = agg.sources.filter(s => actuallyIds.has(s.menuItemId));
+        if (srcs.length === 0) continue;
+
+        if (!agg.measured) {
+          // No quantity to do math on — include each source as-is unless checked off.
+          if (excludedAggKeys.has(agg.key)) continue;
+          for (const s of srcs) {
+            allIngredients.push({ name: agg.name, quantity: s.qty, unit: agg.unit, category: agg.category, recipeId: s.recipeId, menuItemId: s.menuItemId });
+          }
+          continue;
+        }
+
+        const total = agg.totalQty ?? 0;
+        const needed = inventoryMode === 'check'
+          ? (excludedAggKeys.has(agg.key) ? 0 : total)
+          : Math.max(0, total - (haveAtHome[agg.key] ?? 0));
+        if (needed <= 0) continue;
+
+        let remaining = needed;
+        for (const s of srcs) {
+          if (remaining <= 0) break;
+          const give = Math.min(s.qty ?? 0, remaining);
+          if (give <= 0) continue;
           allIngredients.push({
-            name: ing.name,
-            quantity: scaleQty(ing.quantity ?? null, scaleRatio),
-            unit: ing.unit ?? null,
-            category: ing.category,
-            recipeId: item.recipeId,
-            menuItemId: item.id,
+            name: agg.name,
+            quantity: Math.round(give * 100) / 100,
+            unit: agg.unit,
+            category: agg.category,
+            recipeId: s.recipeId,
+            menuItemId: s.menuItemId,
           });
+          remaining -= give;
         }
       }
 
@@ -1190,7 +1266,7 @@ export default function MenuScreen() {
                 style={[s.button, selectedRecipesForTransfer.size === 0 && s.buttonDisabled]}
                 disabled={selectedRecipesForTransfer.size === 0}
                 onPress={() => {
-                  setExcludedIngredients(new Set());
+                  resetInventory();
                   setBulkTransferStep('ingredients');
                 }}
               >
@@ -1199,42 +1275,74 @@ export default function MenuScreen() {
             </>
           ) : bulkTransferStep === 'ingredients' ? (
             <>
-              <Text style={s.sheetTitle}>Granska ingredienser</Text>
-              <Text style={s.sheetSub}>Avmarkera det du redan har hemma</Text>
+              <View style={s.invHeaderRow}>
+                <Text style={s.sheetTitle}>Vad har du hemma?</Text>
+                <View style={s.segment}>
+                  <Pressable style={[s.segmentBtn, inventoryMode === 'check' && s.segmentBtnActive]} onPress={() => setInventoryMode('check')}>
+                    <Text style={[s.segmentText, inventoryMode === 'check' && s.segmentTextActive]}>Bocka av</Text>
+                  </Pressable>
+                  <Pressable style={[s.segmentBtn, inventoryMode === 'amount' && s.segmentBtnActive]} onPress={() => setInventoryMode('amount')}>
+                    <Text style={[s.segmentText, inventoryMode === 'amount' && s.segmentTextActive]}>Ange mängd</Text>
+                  </Pressable>
+                </View>
+              </View>
+              <Text style={s.sheetSub}>
+                {inventoryMode === 'check' ? 'Bocka av det du redan har hemma' : 'Ange hur mycket du har — bara bristen läggs till'}
+              </Text>
               <ScrollView style={s.bulkRecipeList}>
-                {(() => {
-                  const pool = bulkTransferWeek ? allMenus : menuItems;
-                  const selectedItems = pool.filter(m => selectedRecipesForTransfer.has(m.id));
-                  return selectedItems.map(item => (
-                    <View key={item.id} style={{ marginBottom: 12 }}>
-                      <Text style={[s.bulkRecipeTitle, { marginBottom: 6 }]}>{item.recipe.title}</Text>
-                      {item.recipe.ingredients.map(ing => {
-                        const key = `${item.id}:${ing.id}`;
-                        const checked = !excludedIngredients.has(key);
-                        return (
-                          <Pressable
-                            key={ing.id}
-                            style={[s.bulkRecipeItem, { marginLeft: 8 }]}
-                            onPress={() => setExcludedIngredients(prev => {
-                              const n = new Set(prev);
-                              if (n.has(key)) n.delete(key); else n.add(key);
-                              return n;
-                            })}
-                          >
-                            <Ionicons
-                              name={checked ? 'checkbox' : 'square-outline'}
-                              size={20}
-                              color={checked ? '#4f46e5' : '#9ca3af'}
-                            />
-                            <Text style={[s.bulkRecipeDay, { color: checked ? '#111827' : '#9ca3af', flex: 1 }]}>
-                              {ing.quantity ? `${String(ing.quantity).replace('.', ',')} ` : ''}{ing.unit ? `${ing.unit} ` : ''}{ing.name}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
+                {aggregatedInventory.map(agg => {
+                  const provenance = agg.recipeTitles.join(', ');
+                  const unitLabel = agg.unit ? ` ${agg.unit}` : '';
+                  const toggle = () => setExcludedAggKeys(prev => {
+                    const n = new Set(prev);
+                    if (n.has(agg.key)) n.delete(agg.key); else n.add(agg.key);
+                    return n;
+                  });
+
+                  // Unmeasured ingredient, or "Bocka av"-mode: simple checkbox.
+                  if (!agg.measured || inventoryMode === 'check') {
+                    const have = excludedAggKeys.has(agg.key);
+                    const qtyPrefix = agg.measured && agg.totalQty != null ? `${fmtQty(agg.totalQty)}${unitLabel} ` : '';
+                    return (
+                      <Pressable key={agg.key} style={s.invRow} onPress={toggle}>
+                        <Ionicons name={have ? 'checkbox' : 'square-outline'} size={20} color={have ? '#10b981' : '#9ca3af'} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[s.invName, have && s.invNameDone]}>{qtyPrefix}{agg.name}</Text>
+                          <Text style={s.invProvenance}>{provenance}</Text>
+                        </View>
+                      </Pressable>
+                    );
+                  }
+
+                  // "Ange mängd"-mode for measured ingredients.
+                  const total = agg.totalQty ?? 0;
+                  const haveAmt = haveAtHome[agg.key] ?? 0;
+                  const toBuy = Math.max(0, Math.round((total - haveAmt) * 100) / 100);
+                  const covered = toBuy <= 0;
+                  return (
+                    <View key={agg.key} style={s.invRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.invName, covered && s.invNameDone]}>{fmtQty(total)}{unitLabel} {agg.name}</Text>
+                        <Text style={s.invProvenance}>{provenance}{covered ? ' · har hemma' : ` · köp ${fmtQty(toBuy)}${unitLabel}`}</Text>
+                      </View>
+                      <View style={s.invAmountWrap}>
+                        <Text style={s.invAmountLabel}>har</Text>
+                        <TextInput
+                          style={s.invAmountInput}
+                          keyboardType="numeric"
+                          value={haveAmt ? fmtQty(haveAmt) : ''}
+                          placeholder="0"
+                          placeholderTextColor="#9ca3af"
+                          onChangeText={t => {
+                            const v = parseFloat(t.replace(',', '.'));
+                            setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
+                          }}
+                        />
+                        {agg.unit ? <Text style={s.invAmountLabel}>{agg.unit}</Text> : null}
+                      </View>
                     </View>
-                  ));
-                })()}
+                  );
+                })}
               </ScrollView>
               <Pressable
                 style={s.button}
@@ -1486,6 +1594,19 @@ const s = StyleSheet.create({
   headerActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
   headerActionText: { fontWeight: '600', color: '#4f46e5', fontSize: 13 },
   headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
+  invHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
+  segment: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 8, padding: 2 },
+  segmentBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
+  segmentBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  segmentText: { fontSize: 13, fontWeight: '600', color: '#9ca3af' },
+  segmentTextActive: { color: '#4f46e5' },
+  invRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
+  invName: { fontSize: 15, color: '#111827', fontWeight: '500' },
+  invNameDone: { color: '#9ca3af', textDecorationLine: 'line-through' },
+  invProvenance: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  invAmountWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  invAmountLabel: { fontSize: 12, color: '#9ca3af' },
+  invAmountInput: { minWidth: 44, backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, fontSize: 14, color: '#111827', textAlign: 'center' },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
   section: { gap: 8 },

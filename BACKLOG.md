@@ -147,7 +147,7 @@
 - [x] Ha en border under veckodagen som motsvarar en yta för maträtten samt ett "+" i mitten. När man flyttar rätter mellan dagarna borde den bara flytta mellan borders (inte runt veckodagens namn)
 - [ ] Receptimport-robusthet: fallback "kunde inte läsa receptet — lägg till manuellt" vid URL som failar, recept utan ingredienslista eller dubbel-import
 - [ ] Veckomeny-mallar: spara en vecka som mall ("Standardvecka") och applicera den på valfri vecka
-- [ ] Inventering av recepten innan de går till inköpslistan borde ses över..
+- [x] Inventering vid veckomeny → inköpslista görs om: hopslagen lista (en rad per ingrediens över alla valda rätter, med härkomst) istället för en rätt i taget, så delade varor (krossade tomater, lök, grädde) inte dubbelcheckas. Lägesväxel "Bocka av" / "Ange mängd" — i mängdläget räknas bristen ut och bara den överförs. Bristen apportioneras tillbaka per rätt så merge/borttagning funkar.
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -203,6 +203,7 @@
 - [ ] ha en sökbar databas på butiker som andra lagt till för att på så vis slippa skapa butiker som redan finns inlagda. Kanske ett premium-alternativ?
 - [ ] Statistik/insikter: lättviktsvy med "mest lagade rätter", "vem gör flest sysslor", "vanligaste inköp" — möjligt premium-läge tillsammans med butiksdatabasen
 - [ ] Datakvalitet-städning: admin-vy för att slå ihop/städa basvaror & kategorier så normaliserade namn och delade kategori-minnen inte driftar över tid
+- [ ] Skafferi-minne: persistent "har hemma" som minns över sessioner (eget skafferi per hushåll) så återkommande basvaror inte behöver inventeras varje gång. Bygger vidare på den hopslagna inventeringen.
 ## Backlog (prioriterade features)
 
 ### Kalender
