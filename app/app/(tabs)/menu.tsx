@@ -217,9 +217,14 @@ export default function MenuScreen() {
   const INV_FULL_W = Dimensions.get('window').width - 48; // sheet padding 24 each side
   const invListHeight = Math.min(400, Math.max(120, aggregatedInventory.length * INV_ROW_H));
   const invPagerRef = useRef<ScrollView>(null);
+  // While a tab-tap scrolls programmatically, ignore onScroll so it doesn't flip
+  // the tab back and forth as the animation passes the midpoint.
+  const invScrollLock = useRef(false);
   const goToInvMode = (mode: 'check' | 'amount') => {
+    invScrollLock.current = true;
     setInventoryMode(mode);
     invPagerRef.current?.scrollTo({ x: mode === 'amount' ? INV_FULL_W : 0, animated: true });
+    setTimeout(() => { invScrollLock.current = false; }, 400);
   };
 
   const toggleUnmeasured = (key: string) => setHadUnmeasured(prev => {
@@ -1416,6 +1421,7 @@ export default function MenuScreen() {
                     scrollEventThrottle={16}
                     style={StyleSheet.absoluteFill}
                     onScroll={e => {
+                      if (invScrollLock.current) return; // tab-tap is driving the scroll
                       const mode = e.nativeEvent.contentOffset.x > INV_FULL_W / 2 ? 'amount' : 'check';
                       setInventoryMode(prev => (prev === mode ? prev : mode));
                     }}
