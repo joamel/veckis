@@ -186,14 +186,15 @@ export default function MenuScreen() {
       .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
   }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings]);
 
-  // Swipe left/right to switch inventory tabs. activeOffsetX/failOffsetY let the
-  // vertical FlatList scroll win unless the gesture is clearly horizontal.
+  // Swipe left/right to switch inventory tabs. activeOffsetX makes the pan claim
+  // only clearly-horizontal movement so the FlatList keeps its vertical scroll.
+  // runOnJS(true) → callbacks run on the JS thread so we can call setState directly.
   const inventorySwipe = useMemo(() => Gesture.Pan()
-    .activeOffsetX([-25, 25])
-    .failOffsetY([-12, 12])
+    .runOnJS(true)
+    .activeOffsetX([-20, 20])
     .onEnd(e => {
-      if (e.translationX <= -45) runOnJS(setInventoryMode)('amount');
-      else if (e.translationX >= 45) runOnJS(setInventoryMode)('check');
+      if (e.translationX <= -40) setInventoryMode('amount');
+      else if (e.translationX >= 40) setInventoryMode('check');
     }), []);
 
   const toastOpacity = useRef(new RNAnimated.Value(0)).current;

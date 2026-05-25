@@ -127,12 +127,14 @@ export default function ShoppingListScreen() {
     const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [0, 1], Extrapolation.CLAMP);
     const adjustY = (NAVBAR_HEIGHT - TITLE_AREA_HEIGHT) / 2;
     return {
+      // Cast: reanimated 4's transform typing rejects the inferred union of
+      // single-key objects; runtime is unaffected.
       transform: [
         { translateY: adjustY * t },
         { translateX: targetTranslateX * t },
         { scale: 1 - (1 - TITLE_SCALE) * t },
       ],
-    };
+    } as never;
   });
 
   // Collapsed categories — tap category header to fold/unfold its items.
