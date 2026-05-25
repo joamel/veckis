@@ -278,6 +278,17 @@ export default function MenuScreen() {
   function renderControlCell(agg: AggIngredient, mode: 'check' | 'amount') {
     if (!agg.measured) {
       const have = hadUnmeasured.has(agg.key);
+      // In "Ange mängd" a bare checkbox among the number fields looks off — use a
+      // "Har hemma"-pill instead. In "Bocka av" keep the plain checkbox.
+      if (mode === 'amount') {
+        return (
+          <Pressable key={agg.key} style={s.invCellRight} onPress={() => toggleUnmeasured(agg.key)}>
+            <View style={[s.invHavePill, have && s.invHavePillOn]}>
+              <Text style={[s.invHavePillText, have && s.invHavePillTextOn]}>Har hemma</Text>
+            </View>
+          </Pressable>
+        );
+      }
       return (
         <Pressable key={agg.key} style={s.invCellRight} onPress={() => toggleUnmeasured(agg.key)}>
           <Ionicons name={have ? 'checkbox' : 'square-outline'} size={24} color={have ? '#10b981' : '#9ca3af'} />
@@ -300,7 +311,6 @@ export default function MenuScreen() {
     }
     return (
       <View key={agg.key} style={[s.invCellRight, s.invAmountWrap]}>
-        <Text style={s.invAmountLabel}>har</Text>
         <TextInput
           style={s.invAmountInput}
           keyboardType="numeric"
@@ -1730,6 +1740,10 @@ const s = StyleSheet.create({
   invAmountLabel: { fontSize: 12, color: '#9ca3af' },
   invAmountInput: { width: 48, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#a5b4fc', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 7, fontSize: 15, color: '#111827', textAlign: 'right' },
   invUnit: { width: 26, fontSize: 13, color: '#6b7280' },
+  invHavePill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db' },
+  invHavePillOn: { backgroundColor: '#10b981', borderColor: '#10b981' },
+  invHavePillText: { fontSize: 12, fontWeight: '600', color: '#9ca3af' },
+  invHavePillTextOn: { color: '#fff' },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
   section: { gap: 8 },
