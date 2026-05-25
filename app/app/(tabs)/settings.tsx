@@ -446,7 +446,10 @@ export default function SettingsScreen() {
                 style={[styles.memberRow, idx === householdMembers.length - 1 && { borderBottomWidth: 0 }]}
               >
                 <View style={styles.memberInfo}>
-                  <Text style={styles.memberName}>{member.displayName}</Text>
+                  <Text style={styles.memberName}>
+                    {member.displayName}
+                    {member.clerkUserId === clerkUserId && <Text style={styles.memberYou}>  (Du)</Text>}
+                  </Text>
                   <Text style={styles.memberEmail}>
                     {member.clerkUserId ? (member.role === 'admin' ? 'Admin' : 'Konto-medlem') : 'Lokal profil'}
                   </Text>
@@ -835,6 +838,7 @@ const styles = StyleSheet.create({
   },
   memberInfo: { flex: 1 },
   memberName: { fontSize: 14, fontWeight: '500', color: '#111827' },
+  memberYou: { fontSize: 13, fontWeight: '600', color: '#4f46e5' },
   memberEmail: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
   memberActions: { flexDirection: 'row', gap: 4 },
   memberActionBtn: { padding: 7 },
