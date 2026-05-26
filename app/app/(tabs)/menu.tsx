@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -367,8 +367,15 @@ export default function MenuScreen() {
 
   // Auto-scroll during drag near screen edges
   const menuScrollRef = useRef<ScrollView | null>(null);
-  const menuPagerRef = useRef<ScrollView>(null);
+  const weekListRef = useRef<FlatList<number>>(null);
   const weekPageW = Dimensions.get('window').width;
+  // Virtualised week pager: a long list of week offsets so swiping never has to
+  // recenter (which is what caused the flash). The arrows just scrollToIndex.
+  const WEEK_SPAN = 104; // ±2 years of weeks
+  const weekIndices = useMemo(
+    () => Array.from({ length: WEEK_SPAN * 2 + 1 }, (_, i) => i - WEEK_SPAN),
+    [],
+  );
   // Which ISO week the live `menuItems` currently represents — used so the
   // pager's centre page can tell genuine emptiness apart from "reload in
   // flight" without being fooled by an emptied-out week.
@@ -450,14 +457,14 @@ export default function MenuScreen() {
   // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
   // transfer filters stay in sync (e.g. after clearing/removing items in a list).
   useEffect(() => onShoppingChanged(load), [load]);
-  // Keep the week-swipe pager centered on page 1 whenever the week changes from
-  // any source (WeekNav arrows, "Idag", week-picker, or a settled swipe).
-  // useLayoutEffect (not useEffect) so the recenter runs before paint — after a
-  // swipe that lands on a neighbour, this snaps back to the centre before the
-  // shifted week data is shown, so there's no flash of the wrong week.
-  useLayoutEffect(() => {
-    menuPagerRef.current?.scrollTo({ x: weekPageW, animated: false });
-  }, [weekOffset, weekPageW]);
+  // Move the pager to a given week. Swipe handles itself (it's already there);
+  // the arrows / "Idag" / week-picker scroll the list so they behave exactly
+  // like a swipe instead of an instant jump.
+  const goToWeek = useCallback((target: number, animated: boolean) => {
+    const clamped = Math.max(-WEEK_SPAN, Math.min(WEEK_SPAN, target));
+    setWeekOffset(clamped);
+    weekListRef.current?.scrollToIndex({ index: clamped + WEEK_SPAN, animated });
+  }, []);
 
   useEffect(() => {
     if (params.bulkTransfer === '1' && householdId && !bulkTransferTriggeredRef.current) {
@@ -948,13 +955,12 @@ export default function MenuScreen() {
   // data (async reload in flight), so we fall back to the preloaded `allMenus`
   // snapshot. That keeps both neighbours and the just-swiped-to week populated
   // instead of flashing empty/stale.
-  const weekItemsFor = (off: number): WeekMenuItemWithRecipe[] => {
-    const mon = getWeekMonday(weekOffset + off);
+  const weekItemsForOffset = (o: number): WeekMenuItemWithRecipe[] => {
+    const mon = getWeekMonday(o);
     const wk = getISOWeek(mon);
-    if (off === 0) {
+    if (o === weekOffset) {
       const lw = loadedWeekRef.current;
-      const liveMatchesWeek = lw != null && lw.wy === wk.weekYear && lw.wn === wk.weekNumber;
-      if (liveMatchesWeek) return menuItems;
+      if (lw != null && lw.wy === wk.weekYear && lw.wn === wk.weekNumber) return menuItems;
     }
     return allMenus.filter(m => m.weekYear === wk.weekYear && m.weekNumber === wk.weekNumber);
   };
@@ -1120,42 +1126,54 @@ export default function MenuScreen() {
       <WeekNav
         weekLabel={weekLabel}
         isCurrentWeek={weekOffset === 0}
-        onPrev={() => setWeekOffset(o => o - 1)}
-        onNext={() => setWeekOffset(o => o + 1)}
-        onToday={() => setWeekOffset(0)}
+        onPrev={() => goToWeek(weekOffset - 1, true)}
+        onNext={() => goToWeek(weekOffset + 1, true)}
+        onToday={() => goToWeek(0, true)}
         onPickDate={() => setShowWeekPicker(true)}
       />
 
-      {/* 3-page week pager: swipe the content left/right to change week.
-          Locked while dragging/editing so drag-and-drop doesn't fight the swipe. */}
-      <ScrollView
-        ref={menuPagerRef}
+      {/* Virtualised week pager: each page is one week. Swiping just scrolls the
+          list (no recenter → no flash); arrows/Idag/picker scrollToIndex so they
+          behave identically. Locked while dragging/editing so drag-and-drop
+          doesn't fight the swipe. Only the centred week is interactive. */}
+      <FlatList
+        ref={weekListRef}
+        data={weekIndices}
+        keyExtractor={o => String(o)}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         style={s.content}
-        contentOffset={{ x: weekPageW, y: 0 }}
-        scrollEventThrottle={16}
         scrollEnabled={!dragState && !editMode}
+        initialScrollIndex={weekOffset + WEEK_SPAN}
+        getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
+        windowSize={3}
+        initialNumToRender={1}
+        maxToRenderPerBatch={2}
+        removeClippedSubviews
+        scrollEventThrottle={16}
+        extraData={{ weekOffset, menuItems, allMenus, recipeListMap, dragState, editMode, hoverDay, menuItemServings, pendingMenuItemRemovals }}
+        onScrollToIndexFailed={() => {}}
         onMomentumScrollEnd={e => {
-          const page = Math.round(e.nativeEvent.contentOffset.x / weekPageW);
-          if (page !== 1) setWeekOffset(o => o + (page - 1));
+          const o = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
+          if (o !== weekOffset) setWeekOffset(o);
         }}
-      >
-        {[-1, 0, 1].map(off => (
-          <ScrollView
-            key={off}
-            ref={off === 0 ? menuScrollRef : undefined}
-            style={{ width: weekPageW }}
-            contentContainerStyle={s.contentInner}
-            refreshControl={off === 0 ? <RefreshControl refreshing={false} onRefresh={load} /> : undefined}
-            onScroll={off === 0 ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }) : undefined}
-            scrollEventThrottle={32}
-          >
-            {renderWeekContent(weekItemsFor(off), getWeekMonday(weekOffset + off), off === 0)}
-          </ScrollView>
-        ))}
-      </ScrollView>
+        renderItem={({ item: o }) => {
+          const isCenter = o === weekOffset;
+          return (
+            <ScrollView
+              ref={isCenter ? menuScrollRef : undefined}
+              style={{ width: weekPageW }}
+              contentContainerStyle={s.contentInner}
+              refreshControl={isCenter ? <RefreshControl refreshing={false} onRefresh={load} /> : undefined}
+              onScroll={isCenter ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }) : undefined}
+              scrollEventThrottle={32}
+            >
+              {renderWeekContent(weekItemsForOffset(o), getWeekMonday(o), isCenter)}
+            </ScrollView>
+          );
+        }}
+      />
 
 
       {/* Edit mode exit button */}
@@ -1647,7 +1665,7 @@ export default function MenuScreen() {
           picked.setDate(picked.getDate() + (day === 0 ? -6 : 1 - day));
           const todayMonday = getWeekMonday(0);
           const diffWeeks = Math.round((picked.getTime() - todayMonday.getTime()) / (7 * 24 * 60 * 60 * 1000));
-          setWeekOffset(diffWeeks);
+          goToWeek(diffWeeks, false);
           setShowWeekPicker(false);
         }}
         onClose={() => setShowWeekPicker(false)}
