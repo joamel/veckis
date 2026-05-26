@@ -428,7 +428,10 @@ export default function MenuScreen() {
       setIngredientCategories(catMap);
       const transferred = new Set<string>();
       const listMap: Record<string, ListEntry[]> = {};
-      menu.forEach(menuItem => {
+      // Build over ALL weeks' menu items (not just the current week) so the
+      // "I inköpslistan"-tag is already correct on neighbouring week pages the
+      // moment you swipe to them, instead of popping in after the reload.
+      (all.length ? all : menu).forEach(menuItem => {
         if (!listMap[menuItem.id]) listMap[menuItem.id] = [];
         activeLists.forEach(l => {
           // Hidden items under a merge container won't appear in l.items, so trust
