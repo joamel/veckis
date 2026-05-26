@@ -99,6 +99,26 @@ export default function MenuScreen() {
     return `${start.getDate()} ${MONTH_NAMES[start.getMonth()]}–${end.getDate()} ${MONTH_NAMES[end.getMonth()]}`;
   }, [weekMonday]);
 
+  // Centered date with the "–" anchored at the exact centre (fixed-width row,
+  // start right-aligned / end left-aligned around the dash) so it stays put when
+  // swiping between weeks. The week number is pinned left via WeekNav's badge.
+  const weekLabelNode = useMemo(() => {
+    const start = new Date(weekMonday);
+    const end = new Date(weekMonday);
+    end.setDate(end.getDate() + 6);
+    const sameMonth = start.getMonth() === end.getMonth();
+    const startStr = sameMonth ? `${start.getDate()}` : `${start.getDate()} ${MONTH_NAMES[start.getMonth()]}`;
+    const endStr = `${end.getDate()} ${MONTH_NAMES[end.getMonth()]}`;
+    const cell = { color: '#374151', fontWeight: '600' as const, fontSize: fs(14) };
+    return (
+      <View style={{ width: 160, flexDirection: 'row', alignItems: 'baseline' }}>
+        <Text style={[cell, { flex: 1, textAlign: 'right' }]} numberOfLines={1}>{startStr}</Text>
+        <Text style={cell}>–</Text>
+        <Text style={[cell, { flex: 1, textAlign: 'left' }]} numberOfLines={1}>{endStr}</Text>
+      </View>
+    );
+  }, [weekMonday, fs]);
+
   const [menuItems, setMenuItems] = useState<WeekMenuItemWithRecipe[]>([]);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [shoppingLists, setShoppingLists] = useState<ShoppingListWithItems[]>([]);
@@ -1120,6 +1140,7 @@ export default function MenuScreen() {
       />
       <WeekNav
         weekLabel={weekLabel}
+        labelNode={weekLabelNode}
         weekBadge={`V${weekNumber}`}
         isCurrentWeek={weekOffset === 0}
         onPrev={() => goToWeek(weekOffset - 1, true)}
