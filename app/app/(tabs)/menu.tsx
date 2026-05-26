@@ -90,10 +90,14 @@ export default function MenuScreen() {
   const { weekYear, weekNumber } = useMemo(() => getISOWeek(weekMonday), [weekMonday]);
 
   const weekLabel = useMemo(() => {
-    const date = new Date(weekMonday);
-    const year = date.getFullYear();
-    return `Vecka ${weekNumber}, ${year}`;
-  }, [weekMonday, weekNumber]);
+    const start = new Date(weekMonday);
+    const end = new Date(weekMonday);
+    end.setDate(end.getDate() + 6);
+    if (start.getMonth() === end.getMonth()) {
+      return `${start.getDate()}–${end.getDate()} ${MONTH_NAMES[end.getMonth()]}`;
+    }
+    return `${start.getDate()} ${MONTH_NAMES[start.getMonth()]}–${end.getDate()} ${MONTH_NAMES[end.getMonth()]}`;
+  }, [weekMonday]);
 
   const [menuItems, setMenuItems] = useState<WeekMenuItemWithRecipe[]>([]);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
@@ -983,15 +987,13 @@ export default function MenuScreen() {
           const date = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + i);
           const isHovered = isCenter && hoverDay === day.key;
           return (
-            <View key={day.key} style={s.section}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ flex: 1, fontSize: fs(14), fontWeight: '700', color: '#111827' }}>
-                  {day.label}{' '}
-                  <Text style={{ fontSize: fs(12), fontWeight: '400', color: '#6b7280' }}>{date.getDate()} {MONTH_NAMES[date.getMonth()]}</Text>
-                </Text>
+            <View key={day.key} style={s.dayRow2}>
+              <View style={s.dayBadge}>
+                <Text style={[s.dayBadgeAbbr, { fontSize: fs(13) }]}>{day.short.slice(0, 2).toUpperCase()}</Text>
+                <Text style={[s.dayBadgeDate, { fontSize: fs(12) }]}>{date.getDate()}</Text>
               </View>
               <View
-                style={[s.daySlot, items.length > 0 && s.daySlotFilled, items.length === 0 && s.daySlotEmpty, isHovered && s.daySlotHovered]}
+                style={[s.daySlot, { flex: 1 }, items.length > 0 && s.daySlotFilled, items.length === 0 && s.daySlotEmpty, isHovered && s.daySlotHovered]}
                 ref={isCenter ? (ref => measureDaySection(day.key, ref)) : undefined}
                 onLayout={isCenter ? (() => measureDaySection(day.key, daySectionRefs.current[day.key] ?? null)) : undefined}
               >
@@ -1855,8 +1857,12 @@ const s = StyleSheet.create({
   invHavePillText: { fontSize: 12, fontWeight: '600', color: '#9ca3af' },
   invHavePillTextOn: { color: '#fff' },
   content: { flex: 1 },
-  contentInner: { padding: 16, gap: 12, paddingBottom: 80 },
+  contentInner: { padding: 16, gap: 10, paddingBottom: 80 },
   section: { gap: 6 },
+  dayRow2: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  dayBadge: { width: 34, alignItems: 'center', paddingTop: 11 },
+  dayBadgeAbbr: { fontSize: 13, fontWeight: '800', color: '#7c3aed', letterSpacing: 0.5 },
+  dayBadgeDate: { fontSize: 12, fontWeight: '500', color: '#9ca3af', marginTop: 1 },
   daySlot: { borderWidth: 1, borderColor: '#c7c2f0', borderRadius: 12, padding: 6, gap: 6, backgroundColor: '#fff' },
   daySlotEmpty: { borderColor: '#c7c2f0', backgroundColor: 'transparent', minHeight: 44, alignItems: 'center', justifyContent: 'center', padding: 0 },
   daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
