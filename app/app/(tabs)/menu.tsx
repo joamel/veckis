@@ -369,6 +369,10 @@ export default function MenuScreen() {
   const menuScrollRef = useRef<ScrollView | null>(null);
   const menuPagerRef = useRef<ScrollView>(null);
   const weekPageW = Dimensions.get('window').width;
+  // Which ISO week the live `menuItems` currently represents — used so the
+  // pager's centre page can tell genuine emptiness apart from "reload in
+  // flight" without being fooled by an emptied-out week.
+  const loadedWeekRef = useRef<{ wy: number; wn: number } | null>(null);
   const scrollOffsetY = useRef(0);
   const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopAutoScroll = useCallback(() => {
@@ -398,15 +402,18 @@ export default function MenuScreen() {
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
-      const [menu, recs, activeLists, suggestions] = await Promise.all([
+      const [menu, recs, activeLists, suggestions, all] = await Promise.all([
         client.getWeekMenu(householdId, weekYear, weekNumber),
         client.getRecipes(householdId),
         client.getShoppingLists(householdId),
         client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
+        client.getAllMenus(householdId).catch(() => [] as WeekMenuItemWithRecipe[]),
       ]);
       setMenuItems(menu);
+      loadedWeekRef.current = { wy: weekYear, wn: weekNumber };
       setRecipes(recs);
       setShoppingLists(activeLists);
+      setAllMenus(all);
       // name -> category map (learned aliases + common ingredients), so the
       // inventory can group by where the item lands in the store.
       const catMap: Record<string, string> = {};
@@ -932,13 +939,20 @@ export default function MenuScreen() {
     }
   }
 
-  // Items for a neighbouring week page. The centre page (off 0) uses the live,
-  // editable `menuItems`; neighbours read from the preloaded `allMenus` so the
-  // swipe preview shows the real adjacent weeks.
+  // Items for any page in the week pager. The centre page prefers the live,
+  // editable `menuItems` — but only when they actually belong to the current
+  // week; right after a week change `menuItems` is still the previous week's
+  // data (async reload in flight), so we fall back to the preloaded `allMenus`
+  // snapshot. That keeps both neighbours and the just-swiped-to week populated
+  // instead of flashing empty/stale.
   const weekItemsFor = (off: number): WeekMenuItemWithRecipe[] => {
-    if (off === 0) return menuItems;
     const mon = getWeekMonday(weekOffset + off);
     const wk = getISOWeek(mon);
+    if (off === 0) {
+      const lw = loadedWeekRef.current;
+      const liveMatchesWeek = lw != null && lw.wy === wk.weekYear && lw.wn === wk.weekNumber;
+      if (liveMatchesWeek) return menuItems;
+    }
     return allMenus.filter(m => m.weekYear === wk.weekYear && m.weekNumber === wk.weekNumber);
   };
 
