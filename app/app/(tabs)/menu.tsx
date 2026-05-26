@@ -996,9 +996,16 @@ export default function MenuScreen() {
               {items.length === 0 ? (
                 <Pressable
                   onPress={isCenter ? (() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }) : noop}
-                  style={s.daySlotEmptyTap}
+                  style={s.daySlotEmptyRow}
                 >
-                  <Ionicons name="add" size={fs(22)} color="#9ca3af" />
+                  <View style={[s.dayLabelBox, s.dayLabelBoxMuted, { width: sp(36), height: sp(36) }]}>
+                    <Text style={[s.dayLabelAbbr, s.dayLabelAbbrMuted, { fontSize: fs(11) }]}>{dayLabel.abbr}</Text>
+                    <Text style={[s.dayLabelDate, s.dayLabelDateMuted, { fontSize: fs(13) }]}>{dayLabel.date}</Text>
+                  </View>
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <Ionicons name="add" size={fs(22)} color="#9ca3af" />
+                  </View>
+                  <View style={{ width: sp(36) }} />
                 </Pressable>
               ) : (
                 items.map(item => (
@@ -1862,6 +1869,9 @@ const s = StyleSheet.create({
   dayLabelBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   dayLabelAbbr: { fontSize: 11, fontWeight: '800', color: '#7c3aed', letterSpacing: 0.3, lineHeight: 13 },
   dayLabelDate: { fontSize: 13, fontWeight: '700', color: '#4f46e5', lineHeight: 15 },
+  dayLabelBoxMuted: { backgroundColor: '#f3f4f6' },
+  dayLabelAbbrMuted: { color: '#9ca3af' },
+  dayLabelDateMuted: { color: '#6b7280' },
   daySlotEmptyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, minHeight: 44, alignSelf: 'stretch' },
   daySlot: { borderWidth: 1, borderColor: '#c7c2f0', borderRadius: 12, padding: 6, gap: 6, backgroundColor: '#fff' },
   daySlotEmpty: { borderStyle: 'dashed', borderColor: '#d1d5db', backgroundColor: 'transparent', minHeight: 44, alignItems: 'center', justifyContent: 'center', padding: 0 },
