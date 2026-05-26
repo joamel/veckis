@@ -1766,7 +1766,7 @@ function MenuCard({
               </View>
             )}
             <View style={s.cardContent}>
-              <Text style={[s.cardTitle, { fontSize: fs(15) }, isPending && s.cardTitlePending]} numberOfLines={1}>{item.recipe.title}</Text>
+              <Text style={[s.cardTitle, { fontSize: fs(15) }, isPending && s.cardTitlePending]} numberOfLines={expanded ? undefined : 1}>{item.recipe.title}</Text>
             </View>
             {isTransferred && (
               <Ionicons name="checkmark-circle" size={fs(16)} color="#10b981" />
