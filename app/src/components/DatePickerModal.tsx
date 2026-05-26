@@ -116,7 +116,7 @@ const s = StyleSheet.create({
   weekDays: { flexDirection: 'row', marginBottom: 4 },
   weekDay: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600', color: '#9ca3af', paddingVertical: 4 },
   weekNumHeader: { width: 24, textAlign: 'center', fontSize: 11 },
-  weekNum: { width: 24, textAlign: 'center', alignSelf: 'center', fontSize: 11, fontWeight: '600', color: '#d1d5db' },
+  weekNum: { width: 24, textAlign: 'center', alignSelf: 'center', fontSize: 11, fontWeight: '600', color: '#7c3aed' },
   week: { flexDirection: 'row', marginBottom: 2 },
   day: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 8, margin: 2 },
   dayOther: { opacity: 0.3 },

@@ -1120,6 +1120,7 @@ export default function MenuScreen() {
       />
       <WeekNav
         weekLabel={weekLabel}
+        weekBadge={`V${weekNumber}`}
         isCurrentWeek={weekOffset === 0}
         onPrev={() => goToWeek(weekOffset - 1, true)}
         onNext={() => goToWeek(weekOffset + 1, true)}

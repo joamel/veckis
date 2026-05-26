@@ -4,6 +4,7 @@ import { useTablet } from '../hooks/useTablet';
 
 interface WeekNavProps {
   weekLabel: string;
+  weekBadge?: string;
   isCurrentWeek: boolean;
   onPrev: () => void;
   onNext: () => void;
@@ -11,13 +12,16 @@ interface WeekNavProps {
   onPickDate?: () => void;
 }
 
-export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onPickDate }: WeekNavProps) {
+export function WeekNav({ weekLabel, weekBadge, isCurrentWeek, onPrev, onNext, onToday, onPickDate }: WeekNavProps) {
   const { fs, sp } = useTablet();
   return (
     <View style={[s.container, { paddingHorizontal: sp(12), paddingVertical: sp(10) }]}>
       {/* Rendered first so arrows appear on top of it in touch handling */}
       <Pressable style={s.labelBtn} onPress={onPickDate ?? onToday}>
-        <Text style={[s.label, { fontSize: fs(14) }, isCurrentWeek && s.labelCurrent]}>{weekLabel}</Text>
+        <Text style={[s.label, { fontSize: fs(14) }, isCurrentWeek && s.labelCurrent]}>
+          {weekBadge ? <Text style={s.labelWeek}>{weekBadge}  </Text> : null}
+          {weekLabel}
+        </Text>
       </Pressable>
       <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onPrev}>
         <Ionicons name="chevron-back" size={fs(18)} color="#4f46e5" />
@@ -47,6 +51,7 @@ const s = StyleSheet.create({
   arrow: {},
   labelBtn: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingVertical: 4 },
   label: { fontWeight: '600', color: '#374151' },
+  labelWeek: { color: '#7c3aed', fontWeight: '700' },
   labelCurrent: { color: '#4f46e5' },
   todayBtn: { backgroundColor: '#4f46e5', borderRadius: 6, marginRight: 16 },
   todayBtnText: { fontWeight: '600', color: '#fff' },
