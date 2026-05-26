@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -452,7 +452,10 @@ export default function MenuScreen() {
   useEffect(() => onShoppingChanged(load), [load]);
   // Keep the week-swipe pager centered on page 1 whenever the week changes from
   // any source (WeekNav arrows, "Idag", week-picker, or a settled swipe).
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) so the recenter runs before paint — after a
+  // swipe that lands on a neighbour, this snaps back to the centre before the
+  // shifted week data is shown, so there's no flash of the wrong week.
+  useLayoutEffect(() => {
     menuPagerRef.current?.scrollTo({ x: weekPageW, animated: false });
   }, [weekOffset, weekPageW]);
 
