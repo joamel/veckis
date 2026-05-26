@@ -1000,7 +1000,7 @@ export default function MenuScreen() {
                     onPress={isCenter ? (() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }) : noop}
                     style={s.daySlotEmptyTap}
                   >
-                    <Ionicons name="add" size={fs(28)} color="#4f46e5" />
+                    <Ionicons name="add" size={fs(22)} color="#4f46e5" />
                   </Pressable>
                 ) : (
                   items.map(item => (
@@ -1752,30 +1752,34 @@ function MenuCard({
           </Pressable>
         )}
         <View style={s.cardInner}>
-          <Pressable style={[s.cardMain, { padding: sp(14), gap: sp(12) }]} onPress={handlePress}>
-            <View style={[s.cardIcon, { width: sp(36), height: sp(36) }]}>
-              <Ionicons name="restaurant-outline" size={fs(18)} color="#4f46e5" />
+          <Pressable style={[s.cardMain, { padding: sp(10), gap: sp(10) }]} onPress={handlePress}>
+            <View style={[s.cardIcon, { width: sp(30), height: sp(30) }]}>
+              <Ionicons name="restaurant-outline" size={fs(16)} color="#4f46e5" />
             </View>
             <View style={s.cardContent}>
-              <Text style={[s.cardTitle, { fontSize: fs(15) }, isPending && s.cardTitlePending]}>{item.recipe.title}</Text>
-              {isTransferred && (
-                <View style={s.transferredBadge}>
-                  <Ionicons name="checkmark-circle" size={fs(14)} color="#10b981" />
-                  <Text style={[s.transferredText, { fontSize: fs(11) }]}>I inköpslistan</Text>
-                </View>
-              )}
-              <Text style={[s.cardMeta, { fontSize: fs(12) }]}>
-                {scaledServings !== item.recipe.servings
-                  ? `${scaledServings} port (orig. ${item.recipe.servings})`
-                  : `${item.recipe.servings} port`}
-                {' · '}{item.recipe.ingredients.length} ingredienser
-              </Text>
+              <Text style={[s.cardTitle, { fontSize: fs(15) }, isPending && s.cardTitlePending]} numberOfLines={1}>{item.recipe.title}</Text>
             </View>
+            {isTransferred && (
+              <Ionicons name="checkmark-circle" size={fs(16)} color="#10b981" />
+            )}
             {!editMode && <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color="#9ca3af" />}
           </Pressable>
 
           {!editMode && expanded && (
             <View style={s.cardExpanded}>
+              {/* Meta — moved here to keep the collapsed row to a single line */}
+              <Text style={[s.cardMeta, { fontSize: fs(12), marginBottom: sp(4) }]}>
+                {scaledServings !== item.recipe.servings
+                  ? `${scaledServings} port (orig. ${item.recipe.servings})`
+                  : `${item.recipe.servings} port`}
+                {' · '}{item.recipe.ingredients.length} ingredienser
+              </Text>
+              {isTransferred && (
+                <View style={[s.transferredBadge, { marginBottom: sp(8) }]}>
+                  <Ionicons name="checkmark-circle" size={fs(14)} color="#10b981" />
+                  <Text style={[s.transferredText, { fontSize: fs(11) }]}>I inköpslistan</Text>
+                </View>
+              )}
               {/* Portion scaler */}
               <View style={s.servingScaler}>
                 <Text style={s.servingScalerLabel}>Portioner</Text>
@@ -1851,13 +1855,13 @@ const s = StyleSheet.create({
   invHavePillText: { fontSize: 12, fontWeight: '600', color: '#9ca3af' },
   invHavePillTextOn: { color: '#fff' },
   content: { flex: 1 },
-  contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
-  section: { gap: 8 },
+  contentInner: { padding: 16, gap: 12, paddingBottom: 80 },
+  section: { gap: 6 },
   daySlot: { borderWidth: 1, borderColor: '#c7c2f0', borderRadius: 12, padding: 6, gap: 6, backgroundColor: '#fff' },
-  daySlotEmpty: { borderColor: '#c7c2f0', backgroundColor: 'transparent', minHeight: 72, alignItems: 'center', justifyContent: 'center', padding: 0 },
+  daySlotEmpty: { borderColor: '#c7c2f0', backgroundColor: 'transparent', minHeight: 44, alignItems: 'center', justifyContent: 'center', padding: 0 },
   daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
   daySlotHovered: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
-  daySlotEmptyTap: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', minHeight: 72 },
+  daySlotEmptyTap: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.8 },
   dayHeader: { gap: 1 },
