@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -179,9 +180,29 @@ export default function ScheduleScreen() {
   const userId = user?.id;
 
   const [weekRef, setWeekRef] = useState(new Date());
-  const dayPagerRef = useRef<ScrollView>(null);
-  const dayRowPagerRef = useRef<ScrollView>(null);
+  // Two virtualised pagers: the day-row swipes weeks, the content swipes days.
+  // Both are long lists indexed by absolute offset from a fixed base, so they
+  // never recenter (recentering is what made the old 3-page pagers flash).
+  const dayListRef = useRef<FlatList<number>>(null);
+  const weekRowListRef = useRef<FlatList<number>>(null);
   const weekPageW = Dimensions.get('window').width;
+  const DAY_SPAN = 400; // ~13 months of days each way
+  const WEEK_SPAN = 104; // ~2 years of weeks each way
+  const dayIndices = useMemo(() => Array.from({ length: DAY_SPAN * 2 + 1 }, (_, i) => i - DAY_SPAN), []);
+  const weekRowIndices = useMemo(() => Array.from({ length: WEEK_SPAN * 2 + 1 }, (_, i) => i - WEEK_SPAN), []);
+  const dayBase = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+  const weekBase = useMemo(() => {
+    const d = new Date();
+    const day = d.getDay();
+    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  const DAY_MS = 86400000;
+  const dateForDayIndex = (i: number) => new Date(dayBase.getTime() + i * DAY_MS);
+  const dayIndexForDate = (date: Date) => Math.round((date.getTime() - dayBase.getTime()) / DAY_MS);
+  const mondayForWeekIndex = (i: number) => new Date(weekBase.getTime() + i * 7 * DAY_MS);
+  const weekIndexForMonday = (mon: Date) => Math.round((mon.getTime() - weekBase.getTime()) / (7 * DAY_MS));
   const [monthRef, setMonthRef] = useState(new Date());
   const { weekYear, weekNumber } = getISOWeek(weekRef);
 
@@ -200,12 +221,21 @@ export default function ScheduleScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<WeekDay>(TODAY_DAY);
   const [refreshKey, setRefreshKey] = useState(0);
-  // Keep both swipe pagers (day-row = week, content = day) centered on page 1
-  // whenever the week or selected day changes from any source (tab tap, arrows,
-  // "Idag", month-pick, or a swipe that crossed a week boundary on the other pager).
+
+  const selectedDayIndex = DAYS.findIndex(d => d.key === selectedDay);
+  const selectedDayDate = new Date(weekMonday.getTime() + selectedDayIndex * DAY_MS);
+  const selectedDayDateStr = `${selectedDayDate.getFullYear()}-${String(selectedDayDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDayDate.getDate()).padStart(2, '0')}`;
+
+  // Slide both pagers to the current week/day whenever it changes from any
+  // source (swipe, tab tap, arrows, "Idag", month-pick). Absolute indexing means
+  // the target page already shows the right data, so this never flashes — the
+  // list that was just swiped is already there (no-op) and only the other one
+  // moves to follow.
   useEffect(() => {
-    dayRowPagerRef.current?.scrollTo({ x: weekPageW, animated: false });
-    dayPagerRef.current?.scrollTo({ x: weekPageW, animated: false });
+    const di = Math.min(DAY_SPAN, Math.max(-DAY_SPAN, dayIndexForDate(selectedDayDate))) + DAY_SPAN;
+    const wi = Math.min(WEEK_SPAN, Math.max(-WEEK_SPAN, weekIndexForMonday(weekMonday))) + WEEK_SPAN;
+    dayListRef.current?.scrollToIndex({ index: di, animated: false });
+    weekRowListRef.current?.scrollToIndex({ index: wi, animated: false });
   }, [weekRef, selectedDay, weekPageW]);
 
   // Filter
@@ -631,9 +661,6 @@ export default function ScheduleScreen() {
   const isCurrentMonth = monthRef.getMonth() === now.getMonth() && monthRef.getFullYear() === now.getFullYear();
 
   const visibleEntries = entries.filter(e => e.isShared || e.createdBy === userId);
-  const selectedDayIndex = DAYS.findIndex(d => d.key === selectedDay);
-  const selectedDayDate = new Date(weekMonday.getTime() + selectedDayIndex * 86400000);
-  const selectedDayDateStr = `${selectedDayDate.getFullYear()}-${String(selectedDayDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDayDate.getDate()).padStart(2, '0')}`;
   const addDays = (date: Date, n: number) => new Date(date.getTime() + n * 86400000);
   const weekdayKeyOf = (date: Date): WeekDay =>
     (['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()]) as WeekDay;
@@ -922,38 +949,46 @@ export default function ScheduleScreen() {
             onPickDate={() => setShowWeekPicker(true)}
           />
 
-          {/* Day-row as a 3-page week pager: swipe the weekday bar to slide
-              between weeks (keeps the selected weekday). */}
-          <ScrollView
-            ref={dayRowPagerRef}
+          {/* Day-row as a virtualised week pager: swipe the weekday bar to
+              change week (keeps the selected weekday). Absolute-indexed, never
+              recenters. */}
+          <FlatList
+            ref={weekRowListRef}
+            data={weekRowIndices}
+            keyExtractor={i => `w${i}`}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            contentOffset={{ x: weekPageW, y: 0 }}
-            scrollEventThrottle={16}
             style={s.dayRowPager}
+            initialScrollIndex={weekIndexForMonday(weekMonday) + WEEK_SPAN}
+            getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
+            windowSize={5}
+            maxToRenderPerBatch={3}
+            extraData={{ weekRef, selectedDay, entries, menuItems, chores, filterMemberIds }}
+            onScrollToIndexFailed={() => {}}
+            scrollEventThrottle={16}
             onMomentumScrollEnd={e => {
-              const page = Math.round(e.nativeEvent.contentOffset.x / weekPageW);
-              if (page !== 1) setWeekRef(w => addWeeks(w, page - 1));
+              const wi = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
+              const pm = mondayForWeekIndex(wi);
+              if (weekIndexForMonday(weekMonday) !== wi) setWeekRef(pm);
             }}
-          >
-            {[-1, 0, 1].map(off => {
-              const pm = addWeeks(weekMonday, off);
+            renderItem={({ item: wi }) => {
+              const pm = mondayForWeekIndex(wi);
               return (
-                <View key={off} style={[s.dayRow, { width: weekPageW }]}>
+                <View style={[s.dayRow, { width: weekPageW }]}>
                   {DAYS.map((day, i) => {
                     const count = totalPerDayOn(pm, day.key);
-                    const dayDate = new Date(pm.getTime() + i * 86400000);
-                    const now = new Date();
-                    const isToday = dayDate.getDate() === now.getDate() &&
-                      dayDate.getMonth() === now.getMonth() &&
-                      dayDate.getFullYear() === now.getFullYear();
+                    const dayDate = new Date(pm.getTime() + i * DAY_MS);
+                    const today = new Date();
+                    const isToday = dayDate.getDate() === today.getDate() &&
+                      dayDate.getMonth() === today.getMonth() &&
+                      dayDate.getFullYear() === today.getFullYear();
                     const isActive = selectedDay === day.key;
                     return (
                       <Pressable
                         key={day.key}
                         style={[s.dayTab, isActive && s.dayTabActive, !isActive && count > 0 && s.dayTabHasContent]}
-                        onPress={() => setSelectedDay(day.key)}
+                        onPress={() => { setWeekRef(pm); setSelectedDay(day.key); }}
                       >
                         <Text style={[s.dayTabShort, isActive && s.dayTabTextActive]}>{day.short}</Text>
                         <Text style={[s.dayTabDate, isActive && s.dayTabTextActive]}>{dayDate.getDate()}</Text>
@@ -963,33 +998,40 @@ export default function ScheduleScreen() {
                   })}
                 </View>
               );
-            })}
-          </ScrollView>
+            }}
+          />
 
-          {/* Content as a 3-page day pager: swipe the detail area to go to the
-              previous / next day (rolls over into the adjacent week). */}
-          <ScrollView
-            ref={dayPagerRef}
+          {/* Content as a virtualised day pager: swipe the detail area to go to
+              the previous / next day (rolls over into the adjacent week).
+              Absolute-indexed, never recenters → no flash. */}
+          <FlatList
+            ref={dayListRef}
+            data={dayIndices}
+            keyExtractor={i => `d${i}`}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             style={s.content}
-            contentOffset={{ x: weekPageW, y: 0 }}
+            initialScrollIndex={dayIndexForDate(selectedDayDate) + DAY_SPAN}
+            getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
+            windowSize={15}
+            initialNumToRender={1}
+            maxToRenderPerBatch={3}
+            extraData={{ weekRef, selectedDay, entries, menuItems, chores, filterMemberIds }}
+            onScrollToIndexFailed={() => {}}
             scrollEventThrottle={16}
             onMomentumScrollEnd={e => {
-              const page = Math.round(e.nativeEvent.contentOffset.x / weekPageW);
-              if (page !== 1) {
-                const nd = addDays(selectedDayDate, page - 1);
+              const di = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - DAY_SPAN;
+              const nd = dateForDayIndex(di);
+              if (dayIndexForDate(selectedDayDate) !== di) {
                 setSelectedDay(weekdayKeyOf(nd));
                 setWeekRef(nd);
               }
             }}
-          >
-            {[-1, 0, 1].map(off => {
-              const d = dayDataForDate(addDays(selectedDayDate, off));
+            renderItem={({ item: di }) => {
+              const d = dayDataForDate(dateForDayIndex(di));
               return (
                 <ScrollView
-                  key={off}
                   style={{ width: weekPageW }}
                   contentContainerStyle={[s.contentInner, d.isEmpty && s.contentEmpty]}
                 >
@@ -1004,8 +1046,8 @@ export default function ScheduleScreen() {
                   ) : renderDayDetail(d)}
                 </ScrollView>
               );
-            })}
-          </ScrollView>
+            }}
+          />
 
           <Pressable style={s.fab} onPress={() => { openNewEntry(selectedDay); }}>
             <Ionicons name="add" size={30} color="#fff" />

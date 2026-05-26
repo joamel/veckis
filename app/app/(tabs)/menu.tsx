@@ -367,6 +367,19 @@ export default function MenuScreen() {
 
   // Auto-scroll during drag near screen edges
   const menuScrollRef = useRef<ScrollView | null>(null);
+  const weekListRef = useRef<FlatList<number>>(null);
+  const weekPageW = Dimensions.get('window').width;
+  // Virtualised week pager: a long list of week offsets so swiping never has to
+  // recenter (which is what caused the flash). The arrows just scrollToIndex.
+  const WEEK_SPAN = 104; // ±2 years of weeks
+  const weekIndices = useMemo(
+    () => Array.from({ length: WEEK_SPAN * 2 + 1 }, (_, i) => i - WEEK_SPAN),
+    [],
+  );
+  // Which ISO week the live `menuItems` currently represents — used so the
+  // pager's centre page can tell genuine emptiness apart from "reload in
+  // flight" without being fooled by an emptied-out week.
+  const loadedWeekRef = useRef<{ wy: number; wn: number } | null>(null);
   const scrollOffsetY = useRef(0);
   const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopAutoScroll = useCallback(() => {
@@ -396,15 +409,18 @@ export default function MenuScreen() {
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
-      const [menu, recs, activeLists, suggestions] = await Promise.all([
+      const [menu, recs, activeLists, suggestions, all] = await Promise.all([
         client.getWeekMenu(householdId, weekYear, weekNumber),
         client.getRecipes(householdId),
         client.getShoppingLists(householdId),
         client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
+        client.getAllMenus(householdId).catch(() => [] as WeekMenuItemWithRecipe[]),
       ]);
       setMenuItems(menu);
+      loadedWeekRef.current = { wy: weekYear, wn: weekNumber };
       setRecipes(recs);
       setShoppingLists(activeLists);
+      setAllMenus(all);
       // name -> category map (learned aliases + common ingredients), so the
       // inventory can group by where the item lands in the store.
       const catMap: Record<string, string> = {};
@@ -412,7 +428,10 @@ export default function MenuScreen() {
       setIngredientCategories(catMap);
       const transferred = new Set<string>();
       const listMap: Record<string, ListEntry[]> = {};
-      menu.forEach(menuItem => {
+      // Build over ALL weeks' menu items (not just the current week) so the
+      // "I inköpslistan"-tag is already correct on neighbouring week pages the
+      // moment you swipe to them, instead of popping in after the reload.
+      (all.length ? all : menu).forEach(menuItem => {
         if (!listMap[menuItem.id]) listMap[menuItem.id] = [];
         activeLists.forEach(l => {
           // Hidden items under a merge container won't appear in l.items, so trust
@@ -441,6 +460,14 @@ export default function MenuScreen() {
   // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
   // transfer filters stay in sync (e.g. after clearing/removing items in a list).
   useEffect(() => onShoppingChanged(load), [load]);
+  // Move the pager to a given week. Swipe handles itself (it's already there);
+  // the arrows / "Idag" / week-picker scroll the list so they behave exactly
+  // like a swipe instead of an instant jump.
+  const goToWeek = useCallback((target: number, animated: boolean) => {
+    const clamped = Math.max(-WEEK_SPAN, Math.min(WEEK_SPAN, target));
+    setWeekOffset(clamped);
+    weekListRef.current?.scrollToIndex({ index: clamped + WEEK_SPAN, animated });
+  }, []);
 
   useEffect(() => {
     if (params.bulkTransfer === '1' && householdId && !bulkTransferTriggeredRef.current) {
@@ -925,8 +952,159 @@ export default function MenuScreen() {
     }
   }
 
-  const unscheduled = menuItems.filter(i => i.day === null);
-  const hasAnyScheduled = menuItems.some(i => i.day !== null);
+  // Items for any page in the week pager. The centre page prefers the live,
+  // editable `menuItems` — but only when they actually belong to the current
+  // week; right after a week change `menuItems` is still the previous week's
+  // data (async reload in flight), so we fall back to the preloaded `allMenus`
+  // snapshot. That keeps both neighbours and the just-swiped-to week populated
+  // instead of flashing empty/stale.
+  const weekItemsForOffset = (o: number): WeekMenuItemWithRecipe[] => {
+    const mon = getWeekMonday(o);
+    const wk = getISOWeek(mon);
+    if (o === weekOffset) {
+      const lw = loadedWeekRef.current;
+      if (lw != null && lw.wy === wk.weekYear && lw.wn === wk.weekNumber) return menuItems;
+    }
+    return allMenus.filter(m => m.weekYear === wk.weekYear && m.weekNumber === wk.weekNumber);
+  };
+
+  // One week's day-sections + unscheduled + transfer button. Only the centre
+  // page is interactive (drag-and-drop, drop-zone measuring, edit/transfer);
+  // neighbour pages are read-only previews.
+  const renderWeekContent = (weekItems: WeekMenuItemWithRecipe[], weekMon: Date, isCenter: boolean) => {
+    const unsched = weekItems.filter(i => i.day === null);
+    const anyScheduled = weekItems.some(i => i.day !== null);
+    const allTransferred = weekItems.length > 0 && weekItems.every(m => !!recipeListMap[m.id]?.length);
+    const noop = () => {};
+    return (
+      <>
+        {DAYS.map((day, i) => {
+          const items = weekItems.filter(m => m.day === day.key);
+          const date = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + i);
+          const isHovered = isCenter && hoverDay === day.key;
+          return (
+            <View key={day.key} style={s.section}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ flex: 1, fontSize: fs(14), fontWeight: '700', color: '#111827' }}>
+                  {day.label}{' '}
+                  <Text style={{ fontSize: fs(12), fontWeight: '400', color: '#6b7280' }}>{date.getDate()} {MONTH_NAMES[date.getMonth()]}</Text>
+                </Text>
+              </View>
+              <View
+                style={[s.daySlot, items.length > 0 && s.daySlotFilled, items.length === 0 && s.daySlotEmpty, isHovered && s.daySlotHovered]}
+                ref={isCenter ? (ref => measureDaySection(day.key, ref)) : undefined}
+                onLayout={isCenter ? (() => measureDaySection(day.key, daySectionRefs.current[day.key] ?? null)) : undefined}
+              >
+                {items.length === 0 ? (
+                  <Pressable
+                    onPress={isCenter ? (() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }) : noop}
+                    style={s.daySlotEmptyTap}
+                  >
+                    <Ionicons name="add" size={fs(28)} color="#4f46e5" />
+                  </Pressable>
+                ) : (
+                  items.map(item => (
+                    <MenuCard
+                      key={item.id}
+                      item={item}
+                      isTransferred={!!recipeListMap[item.id]?.length}
+                      isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
+                      editMode={isCenter && editMode}
+                      onRemove={isCenter ? (() => removeFromMenu(item)) : noop}
+                      onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
+                      onMoveToDay={isCenter ? (d => moveToDay(item, d)) : noop}
+                      onReplace={isCenter ? (() => startReplaceRecipe(item)) : noop}
+                      onLongPress={isCenter ? enterEditMode : noop}
+                      onDragStart={isCenter ? ((x, y) => onDragStart(item, x, y)) : noop}
+                      onDragMove={isCenter ? onDragMove : noop}
+                      onDragEnd={isCenter ? onDragEnd : noop}
+                      isDragging={isCenter && dragState?.item.id === item.id}
+                      scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
+                      onScaleServings={isCenter ? (n => {
+                        setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
+                        if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
+                          scaleWarnedRef.current.add(item.id);
+                          showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
+                        }
+                      }) : noop}
+                    />
+                  ))
+                )}
+              </View>
+            </View>
+          );
+        })}
+
+        {/* Unscheduled */}
+        <View
+          style={[s.section, isCenter && hoverDay === 'unscheduled' && s.sectionHovered]}
+          ref={isCenter ? (ref => measureDaySection('unscheduled', ref)) : undefined}
+        >
+          <View style={s.sectionRow}>
+            <Text style={s.sectionLabel}>EJ SCHEMALAGDA</Text>
+            {isCenter && !editMode && (
+              <Pressable onPress={() => openPicker(null)}>
+                <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
+              </Pressable>
+            )}
+          </View>
+          {unsched.length === 0 ? (
+            <Text style={s.unscheduledEmpty}>Lägg till rätter utan dag för att planera i kalendern</Text>
+          ) : (
+            unsched.map(item => (
+              <MenuCard
+                key={item.id}
+                item={item}
+                isTransferred={!!recipeListMap[item.id]?.length}
+                isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
+                editMode={isCenter && editMode}
+                onRemove={isCenter ? (() => removeFromMenu(item)) : noop}
+                onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
+                onMoveToDay={isCenter ? (d => moveToDay(item, d)) : noop}
+                onReplace={isCenter ? (() => startReplaceRecipe(item)) : noop}
+                onLongPress={isCenter ? enterEditMode : noop}
+                onDragStart={isCenter ? ((x, y) => onDragStart(item, x, y)) : noop}
+                onDragMove={isCenter ? onDragMove : noop}
+                onDragEnd={isCenter ? onDragEnd : noop}
+                isDragging={isCenter && dragState?.item.id === item.id}
+                scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
+                onScaleServings={isCenter ? (n => {
+                  setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
+                  if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
+                    scaleWarnedRef.current.add(item.id);
+                    showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
+                  }
+                }) : noop}
+              />
+            ))
+          )}
+        </View>
+
+        {!anyScheduled && unsched.length === 0 && (
+          <EmptyState
+            icon="restaurant-outline"
+            title="Inga rätter planerade"
+            subtitle="Planera veckans måltider så kan ni föra över ingredienserna till inköpslistan."
+            actionLabel="Planera en rätt"
+            onAction={() => openPicker(null)}
+          />
+        )}
+
+        <View style={s.newListSection}>
+          <Pressable
+            style={[s.newListBtn, allTransferred && s.newListBtnDisabled]}
+            onPress={isCenter ? transferWeekMenu : noop}
+            disabled={!isCenter || allTransferred}
+          >
+            <Ionicons name="cart-outline" size={20} color={allTransferred ? '#d1d5db' : '#4f46e5'} />
+            <Text style={[s.newListBtnText, allTransferred && s.newListBtnTextDisabled]}>
+              {allTransferred ? 'Redan överförd' : 'Veckomeny → Inköpslista'}
+            </Text>
+          </Pressable>
+        </View>
+      </>
+    );
+  };
 
   if (loading) {
     return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
@@ -951,146 +1129,54 @@ export default function MenuScreen() {
       <WeekNav
         weekLabel={weekLabel}
         isCurrentWeek={weekOffset === 0}
-        onPrev={() => setWeekOffset(o => o - 1)}
-        onNext={() => setWeekOffset(o => o + 1)}
-        onToday={() => setWeekOffset(0)}
+        onPrev={() => goToWeek(weekOffset - 1, true)}
+        onNext={() => goToWeek(weekOffset + 1, true)}
+        onToday={() => goToWeek(0, true)}
         onPickDate={() => setShowWeekPicker(true)}
       />
 
-      <ScrollView
-        ref={menuScrollRef}
+      {/* Virtualised week pager: each page is one week. Swiping just scrolls the
+          list (no recenter → no flash); arrows/Idag/picker scrollToIndex so they
+          behave identically. Locked while dragging/editing so drag-and-drop
+          doesn't fight the swipe. Only the centred week is interactive. */}
+      <FlatList
+        ref={weekListRef}
+        data={weekIndices}
+        keyExtractor={o => String(o)}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
         style={s.content}
-        contentContainerStyle={s.contentInner}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
-        onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
-        scrollEventThrottle={32}
-      >
-        {/* Day sections — sorted Mon→Sun, show all 7 days */}
-        {DAYS.map((day, i) => {
-          const items = menuItems.filter(m => m.day === day.key);
-          const date = new Date(weekMonday.getFullYear(), weekMonday.getMonth(), weekMonday.getDate() + i);
-          const isHovered = hoverDay === day.key;
+        scrollEnabled={!dragState && !editMode}
+        initialScrollIndex={weekOffset + WEEK_SPAN}
+        getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
+        windowSize={3}
+        initialNumToRender={1}
+        maxToRenderPerBatch={2}
+        removeClippedSubviews
+        scrollEventThrottle={16}
+        extraData={{ weekOffset, menuItems, allMenus, recipeListMap, dragState, editMode, hoverDay, menuItemServings, pendingMenuItemRemovals }}
+        onScrollToIndexFailed={() => {}}
+        onMomentumScrollEnd={e => {
+          const o = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
+          if (o !== weekOffset) setWeekOffset(o);
+        }}
+        renderItem={({ item: o }) => {
+          const isCenter = o === weekOffset;
           return (
-            <View key={day.key} style={s.section}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ flex: 1, fontSize: fs(14), fontWeight: '700', color: '#111827' }}>
-                  {day.label}{' '}
-                  <Text style={{ fontSize: fs(12), fontWeight: '400', color: '#6b7280' }}>{date.getDate()} {MONTH_NAMES[date.getMonth()]}</Text>
-                </Text>
-              </View>
-              <View
-                style={[s.daySlot, items.length > 0 && s.daySlotFilled, items.length === 0 && s.daySlotEmpty, isHovered && s.daySlotHovered]}
-                ref={ref => measureDaySection(day.key, ref)}
-                onLayout={() => measureDaySection(day.key, daySectionRefs.current[day.key] ?? null)}
-              >
-                {items.length === 0 ? (
-                  <Pressable
-                    onPress={() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }}
-                    style={s.daySlotEmptyTap}
-                  >
-                    <Ionicons name="add" size={fs(28)} color="#4f46e5" />
-                  </Pressable>
-                ) : (
-                items.map(item => (
-                  <MenuCard
-                    key={item.id}
-                    item={item}
-                    isTransferred={!!recipeListMap[item.id]?.length}
-                    isPending={pendingMenuItemRemovals.has(item.id)}
-                    editMode={editMode}
-                    onRemove={() => removeFromMenu(item)}
-                    onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
-                    onMoveToDay={d => moveToDay(item, d)}
-                    onReplace={() => startReplaceRecipe(item)}
-                    onLongPress={enterEditMode}
-                    onDragStart={(x, y) => onDragStart(item, x, y)}
-                    onDragMove={onDragMove}
-                    onDragEnd={onDragEnd}
-                    isDragging={dragState?.item.id === item.id}
-                    scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
-                    onScaleServings={n => {
-                  setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
-                  if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
-                    scaleWarnedRef.current.add(item.id);
-                    showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
-                  }
-                }}
-                  />
-                ))
-              )}
-              </View>
-            </View>
+            <ScrollView
+              ref={isCenter ? menuScrollRef : undefined}
+              style={{ width: weekPageW }}
+              contentContainerStyle={s.contentInner}
+              refreshControl={isCenter ? <RefreshControl refreshing={false} onRefresh={load} /> : undefined}
+              onScroll={isCenter ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }) : undefined}
+              scrollEventThrottle={32}
+            >
+              {renderWeekContent(weekItemsForOffset(o), getWeekMonday(o), isCenter)}
+            </ScrollView>
           );
-        })}
-
-        {/* Unscheduled */}
-        <View
-          style={[s.section, hoverDay === 'unscheduled' && s.sectionHovered]}
-          ref={ref => measureDaySection('unscheduled', ref)}
-        >
-          <View style={s.sectionRow}>
-            <Text style={s.sectionLabel}>EJ SCHEMALAGDA</Text>
-            {!editMode && (
-              <Pressable onPress={() => openPicker(null)}>
-                <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
-              </Pressable>
-            )}
-          </View>
-          {unscheduled.length === 0 ? (
-            <Text style={s.unscheduledEmpty}>Lägg till rätter utan dag för att planera i kalendern</Text>
-          ) : (
-            unscheduled.map(item => (
-              <MenuCard
-                key={item.id}
-                item={item}
-                isTransferred={!!recipeListMap[item.id]?.length}
-                isPending={pendingMenuItemRemovals.has(item.id)}
-                editMode={editMode}
-                onRemove={() => removeFromMenu(item)}
-                onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
-                onMoveToDay={d => moveToDay(item, d)}
-                onReplace={() => startReplaceRecipe(item)}
-                onLongPress={enterEditMode}
-                onDragStart={(x, y) => onDragStart(item, x, y)}
-                onDragMove={onDragMove}
-                onDragEnd={onDragEnd}
-                isDragging={dragState?.item.id === item.id}
-                scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
-                onScaleServings={n => {
-                  setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
-                  if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
-                    scaleWarnedRef.current.add(item.id);
-                    showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
-                  }
-                }}
-              />
-            ))
-          )}
-        </View>
-
-        {!hasAnyScheduled && unscheduled.length === 0 && (
-          <EmptyState
-            icon="restaurant-outline"
-            title="Inga rätter planerade"
-            subtitle="Planera veckans måltider så kan ni föra över ingredienserna till inköpslistan."
-            actionLabel="Planera en rätt"
-            onAction={() => openPicker(null)}
-          />
-        )}
-
-        <View style={s.newListSection}>
-          <Pressable
-            style={[s.newListBtn, menuItems.every(m => !!recipeListMap[m.id]?.length) && s.newListBtnDisabled]}
-            onPress={transferWeekMenu}
-            disabled={menuItems.every(m => !!recipeListMap[m.id]?.length)}
-          >
-            <Ionicons name="cart-outline" size={20} color={menuItems.every(m => !!recipeListMap[m.id]?.length) ? '#d1d5db' : '#4f46e5'} />
-            <Text style={[s.newListBtnText, menuItems.every(m => !!recipeListMap[m.id]?.length) && s.newListBtnTextDisabled]}>
-              {menuItems.every(m => !!recipeListMap[m.id]?.length) ? 'Redan överförd' : 'Veckomeny → Inköpslista'}
-            </Text>
-          </Pressable>
-        </View>
-      </ScrollView>
+        }}
+      />
 
 
       {/* Edit mode exit button */}
@@ -1582,7 +1668,7 @@ export default function MenuScreen() {
           picked.setDate(picked.getDate() + (day === 0 ? -6 : 1 - day));
           const todayMonday = getWeekMonday(0);
           const diffWeeks = Math.round((picked.getTime() - todayMonday.getTime()) / (7 * 24 * 60 * 60 * 1000));
-          setWeekOffset(diffWeeks);
+          goToWeek(diffWeeks, false);
           setShowWeekPicker(false);
         }}
         onClose={() => setShowWeekPicker(false)}
