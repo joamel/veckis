@@ -114,7 +114,7 @@
 - [x] Möjlighet att fälla ihop kategorier i inköpslistan genom att trycka på kategorinamnet
 - [x] toast vid lyckad ihopslagning av dubbletter
 - [x] Lyft de mest använda basvarorna överst ("dina vanligaste") när man lägger till varor, så återkommande inköp går snabbare
-- [ ] Toast för ihopslagna ingredienser borde gå att ångra
+- [ ] Ihopslagna ingredienser borde gå att ångra via toasten
 - [ ] Efter ihopslagning och flytt till nästa dubblett borde tangenbordet försvinna
 - [ ] Kanske det krävs att en vara blivit tillagd mer än 1 gång för att återfinnas i söket. Ett sätt för en felstavad eller inskriven basvara av misstag att inte komma med i söket
 

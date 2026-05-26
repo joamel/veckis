@@ -492,6 +492,7 @@ export default function ShoppingListScreen() {
         { ...container, recipe: null } as ShoppingItemWithRecipe,
       ];
       setList(prev => prev ? { ...prev, items: updatedItems } : prev);
+      Keyboard.dismiss(); // drop the keyboard when moving on / closing the sheet
 
       // Compute next auto-dupe group from the new items
       const nameMap = new Map<string, ShoppingItemWithRecipe[]>();
@@ -507,7 +508,14 @@ export default function ShoppingListScreen() {
         .find(g => g.length >= 2 && !dismissedDupeKeys.has(g[0].name.toLowerCase().trim()));
       if (nextGroup) openMergeForDupes(nextGroup);
       else setMergeSheet(null);
-      showGlobalToast(`Slog ihop ${selected.length} ${capitalize(name)}`, 'success');
+      // Undo = delete the container, which fully unmerges (restores the sources).
+      showGlobalToast(`Slog ihop ${selected.length} ${capitalize(name)}`, 'success', {
+        label: 'Ångra',
+        onPress: async () => {
+          try { await client.deleteShoppingItem(container.id); load(); }
+          catch (e) { showError(e, 'Kunde inte ångra ihopslagningen'); }
+        },
+      });
     } catch (e) {
       showError(e, 'Kunde inte slå ihop varor');
     } finally {
@@ -630,7 +638,13 @@ export default function ShoppingListScreen() {
           { ...container, recipe: null } as ShoppingItemWithRecipe,
         ],
       } : prev);
-      showGlobalToast(`Slog ihop ${dupes.length} ${capitalize(name)}`, 'success');
+      showGlobalToast(`Slog ihop ${dupes.length} ${capitalize(name)}`, 'success', {
+        label: 'Ångra',
+        onPress: async () => {
+          try { await client.deleteShoppingItem(container.id); load(); }
+          catch (e) { showError(e, 'Kunde inte ångra ihopslagningen'); }
+        },
+      });
     } catch {
       // Silent — user can still merge manually via dupe button
     }
