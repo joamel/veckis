@@ -89,15 +89,7 @@ export default function MenuScreen() {
   const weekMonday = useMemo(() => getWeekMonday(weekOffset), [weekOffset]);
   const { weekYear, weekNumber } = useMemo(() => getISOWeek(weekMonday), [weekMonday]);
 
-  const weekLabel = useMemo(() => {
-    const start = new Date(weekMonday);
-    const end = new Date(weekMonday);
-    end.setDate(end.getDate() + 6);
-    if (start.getMonth() === end.getMonth()) {
-      return `${start.getDate()}–${end.getDate()} ${MONTH_NAMES[end.getMonth()]}`;
-    }
-    return `${start.getDate()} ${MONTH_NAMES[start.getMonth()]}–${end.getDate()} ${MONTH_NAMES[end.getMonth()]}`;
-  }, [weekMonday]);
+  const weekLabel = useMemo(() => `Vecka ${weekNumber}`, [weekNumber]);
 
   const [menuItems, setMenuItems] = useState<WeekMenuItemWithRecipe[]>([]);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
