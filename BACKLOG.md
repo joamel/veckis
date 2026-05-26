@@ -33,7 +33,8 @@
 - [x] Toast-kö vid bulk-borttagning: om flera recept tas bort i snabb följd skriver toasten över sig själv. Stacka eller visa "3 recept tas bort om 5s · Ångra"
 - [x] Re-merge feedback: när auto-merge slår ihop kvarvarande varor efter borttagning (t.ex. 3 ägg → ta bort 1 → 2 ägg), visa toast "Slog ihop {n} {namn}" så användaren förstår grupperingen
 - [ ] städa upp legacy-kod
-- [ ] Kunna swipa mellan veckor i kalender och meny-fliken
+- [ ] refaktorera och skapa fler filer för egna komponenter mm
+- [x] Kunna swipa mellan veckor i kalender och meny-fliken
 - [ ] uppdateringar från socket borde uppdatera andra flikar innan man trycker på dem så att det inte hoppar till. Just nu kan det stå "0 av 0 kvar" och sedan hoppar det till -> "21 av 21 kvar"
 
 ### Inställningar
@@ -52,8 +53,8 @@
 - [x] varna admin innan man lämnar fliken om redigeringsläget är igång.
 - [x] möjlighet att kunna dela ut admin
 - [x] inställningar uppdateras inte automatiskt för alla användare när någon gör ändringar.
-- [ ] Varna innan man tar bort en lokal profil/medlem som har tilldelade sysslor/aktiviteter ("X har 4 sysslor och 2 aktiviteter — vad ska hända med dem?") istället för tyst orphaning
-- [ ] tydligare indikera vem som är jag (Du) i medlemmar
+- [x] Varna innan man tar bort en lokal profil/medlem som har tilldelade sysslor/aktiviteter ("X har 4 sysslor och 2 aktiviteter — vad ska hända med dem?") istället för tyst orphaning
+- [x] tydligare indikera vem som är jag (Du) i medlemmar
 
 ### Inköpslistan
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
@@ -114,8 +115,8 @@
 - [x] Möjlighet att fälla ihop kategorier i inköpslistan genom att trycka på kategorinamnet
 - [x] toast vid lyckad ihopslagning av dubbletter
 - [x] Lyft de mest använda basvarorna överst ("dina vanligaste") när man lägger till varor, så återkommande inköp går snabbare
-- [ ] Ihopslagna ingredienser borde gå att ångra via toasten
-- [ ] Efter ihopslagning och flytt till nästa dubblett borde tangenbordet försvinna
+- [x] Ihopslagna ingredienser borde gå att ångra via toasten
+- [x] Efter ihopslagning och flytt till nästa dubblett borde tangenbordet försvinna
 - [ ] Kanske det krävs att en vara blivit tillagd mer än 1 gång för att återfinnas i söket. Ett sätt för en felstavad eller inskriven basvara av misstag att inte komma med i söket
 
 ### Meny
@@ -151,10 +152,10 @@
 - [x] Flytta ingrediensnamnet så att det kommer först i nytt recept, så att man först skriver in ingrediensen, sedan mängd och sist enhet
 - [x] Hela rubriken "Originalrecept" syns inte inuti ett recept. Bara "Originalrecep"
 - [x] Ha en border under veckodagen som motsvarar en yta för maträtten samt ett "+" i mitten. När man flyttar rätter mellan dagarna borde den bara flytta mellan borders (inte runt veckodagens namn)
-- [ ] Receptimport-robusthet: fallback "kunde inte läsa receptet — lägg till manuellt" vid URL som failar, recept utan ingredienslista eller dubbel-import
-- [ ] Veckomeny-mallar: spara en vecka som mall ("Standardvecka") och applicera den på valfri vecka
+- [x] Receptimport-robusthet: fallback "kunde inte läsa receptet — lägg till manuellt" vid URL som failar, recept utan ingredienslista eller dubbel-import
+- [x] Veckomeny-mallar: spara en vecka som mall ("Standardvecka") och applicera den på valfri vecka
 - [x] Inventering vid veckomeny → inköpslista görs om: hopslagen lista (en rad per ingrediens över alla valda rätter, med härkomst) istället för en rätt i taget, så delade varor (krossade tomater, lök, grädde) inte dubbelcheckas. Lägesväxel "Bocka av" / "Ange mängd" — i mängdläget räknas bristen ut och bara den överförs. Bristen apportioneras tillbaka per rätt så merge/borttagning funkar.
-- [ ] Lägga till nytt recept: enhet borde föreslå i grått den enhet som väljs oftast, och klickar man inte i det så borde den enheten välas automatiskt"
+- [ ] Lägga till nytt recept: enhet borde föreslå i grått den enhet som väljs oftast, och klickar man inte i det så borde den enheten väljas automatiskt"
 - [ ] Lägga till nytt recept: enhetsfältet hoppar inte upp igen om man valt en enhet och trycker i fältet igen
 
 ### Kalendern
@@ -214,6 +215,7 @@
 - [ ] Datakvalitet-städning: admin-vy för att slå ihop/städa basvaror & kategorier så normaliserade namn och delade kategori-minnen inte driftar över tid
 - [ ] Skafferi-minne: persistent "har hemma" som minns över sessioner (eget skafferi per hushåll) så återkommande basvaror inte behöver inventeras varje gång. Bygger vidare på den hopslagna inventeringen.
 - [ ] Utnyttja större skärm likt kalender-vyn att saker öppnas bredvid istället för under mm.
+- [ ] bygga en pwa
 
 ## Backlog (prioriterade features)
 
