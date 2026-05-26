@@ -996,14 +996,9 @@ export default function MenuScreen() {
               {items.length === 0 ? (
                 <Pressable
                   onPress={isCenter ? (() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }) : noop}
-                  style={s.daySlotEmptyRow}
+                  style={s.daySlotEmptyTap}
                 >
-                  <View style={[s.dayLabelBox, { width: sp(36), height: sp(36) }]}>
-                    <Text style={[s.dayLabelAbbr, { fontSize: fs(11) }]}>{dayLabel.abbr}</Text>
-                    <Text style={[s.dayLabelDate, { fontSize: fs(13) }]}>{dayLabel.date}</Text>
-                  </View>
-                  <Ionicons name="add" size={fs(22)} color="#4f46e5" />
-                  <View style={{ flex: 1 }} />
+                  <Ionicons name="add" size={fs(22)} color="#9ca3af" />
                 </Pressable>
               ) : (
                 items.map(item => (
@@ -1869,7 +1864,7 @@ const s = StyleSheet.create({
   dayLabelDate: { fontSize: 13, fontWeight: '700', color: '#4f46e5', lineHeight: 15 },
   daySlotEmptyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, minHeight: 44, alignSelf: 'stretch' },
   daySlot: { borderWidth: 1, borderColor: '#c7c2f0', borderRadius: 12, padding: 6, gap: 6, backgroundColor: '#fff' },
-  daySlotEmpty: { borderColor: '#c7c2f0', backgroundColor: 'transparent', minHeight: 44, alignItems: 'center', justifyContent: 'center', padding: 0 },
+  daySlotEmpty: { borderStyle: 'dashed', borderColor: '#d1d5db', backgroundColor: 'transparent', minHeight: 44, alignItems: 'center', justifyContent: 'center', padding: 0 },
   daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
   daySlotHovered: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
   daySlotEmptyTap: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', minHeight: 44 },
