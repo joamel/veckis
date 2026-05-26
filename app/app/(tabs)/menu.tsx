@@ -986,53 +986,55 @@ export default function MenuScreen() {
           const items = weekItems.filter(m => m.day === day.key);
           const date = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + i);
           const isHovered = isCenter && hoverDay === day.key;
+          const dayLabel = { abbr: day.short.toLowerCase(), date: date.getDate() };
           return (
-            <View key={day.key} style={s.dayRow2}>
-              <View style={s.dayBadge}>
-                <Text style={[s.dayBadgeAbbr, { fontSize: fs(13) }]}>{day.short.slice(0, 2).toUpperCase()}</Text>
-                <Text style={[s.dayBadgeDate, { fontSize: fs(12) }]}>{date.getDate()}</Text>
-              </View>
-              <View
-                style={[s.daySlot, { flex: 1 }, items.length > 0 && s.daySlotFilled, items.length === 0 && s.daySlotEmpty, isHovered && s.daySlotHovered]}
-                ref={isCenter ? (ref => measureDaySection(day.key, ref)) : undefined}
-                onLayout={isCenter ? (() => measureDaySection(day.key, daySectionRefs.current[day.key] ?? null)) : undefined}
-              >
-                {items.length === 0 ? (
-                  <Pressable
-                    onPress={isCenter ? (() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }) : noop}
-                    style={s.daySlotEmptyTap}
-                  >
-                    <Ionicons name="add" size={fs(22)} color="#4f46e5" />
-                  </Pressable>
-                ) : (
-                  items.map(item => (
-                    <MenuCard
-                      key={item.id}
-                      item={item}
-                      isTransferred={!!recipeListMap[item.id]?.length}
-                      isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
-                      editMode={isCenter && editMode}
-                      onRemove={isCenter ? (() => removeFromMenu(item)) : noop}
-                      onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
-                      onMoveToDay={isCenter ? (d => moveToDay(item, d)) : noop}
-                      onReplace={isCenter ? (() => startReplaceRecipe(item)) : noop}
-                      onLongPress={isCenter ? enterEditMode : noop}
-                      onDragStart={isCenter ? ((x, y) => onDragStart(item, x, y)) : noop}
-                      onDragMove={isCenter ? onDragMove : noop}
-                      onDragEnd={isCenter ? onDragEnd : noop}
-                      isDragging={isCenter && dragState?.item.id === item.id}
-                      scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
-                      onScaleServings={isCenter ? (n => {
-                        setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
-                        if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
-                          scaleWarnedRef.current.add(item.id);
-                          showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
-                        }
-                      }) : noop}
-                    />
-                  ))
-                )}
-              </View>
+            <View
+              key={day.key}
+              style={[s.daySlot, items.length > 0 && s.daySlotFilled, items.length === 0 && s.daySlotEmpty, isHovered && s.daySlotHovered]}
+              ref={isCenter ? (ref => measureDaySection(day.key, ref)) : undefined}
+              onLayout={isCenter ? (() => measureDaySection(day.key, daySectionRefs.current[day.key] ?? null)) : undefined}
+            >
+              {items.length === 0 ? (
+                <Pressable
+                  onPress={isCenter ? (() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }) : noop}
+                  style={s.daySlotEmptyRow}
+                >
+                  <View style={[s.dayLabelBox, { width: sp(36), height: sp(36) }]}>
+                    <Text style={[s.dayLabelAbbr, { fontSize: fs(11) }]}>{dayLabel.abbr}</Text>
+                    <Text style={[s.dayLabelDate, { fontSize: fs(13) }]}>{dayLabel.date}</Text>
+                  </View>
+                  <Ionicons name="add" size={fs(22)} color="#4f46e5" />
+                  <View style={{ flex: 1 }} />
+                </Pressable>
+              ) : (
+                items.map(item => (
+                  <MenuCard
+                    key={item.id}
+                    item={item}
+                    dayLabel={dayLabel}
+                    isTransferred={!!recipeListMap[item.id]?.length}
+                    isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
+                    editMode={isCenter && editMode}
+                    onRemove={isCenter ? (() => removeFromMenu(item)) : noop}
+                    onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
+                    onMoveToDay={isCenter ? (d => moveToDay(item, d)) : noop}
+                    onReplace={isCenter ? (() => startReplaceRecipe(item)) : noop}
+                    onLongPress={isCenter ? enterEditMode : noop}
+                    onDragStart={isCenter ? ((x, y) => onDragStart(item, x, y)) : noop}
+                    onDragMove={isCenter ? onDragMove : noop}
+                    onDragEnd={isCenter ? onDragEnd : noop}
+                    isDragging={isCenter && dragState?.item.id === item.id}
+                    scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
+                    onScaleServings={isCenter ? (n => {
+                      setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
+                      if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
+                        scaleWarnedRef.current.add(item.id);
+                        showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
+                      }
+                    }) : noop}
+                  />
+                ))
+              )}
             </View>
           );
         })}
@@ -1700,11 +1702,13 @@ function MenuCard({
   isDragging,
   scaledServings,
   onScaleServings,
+  dayLabel,
 }: {
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
   isPending?: boolean;
   editMode: boolean;
+  dayLabel?: { abbr: string; date: number };
   onRemove: () => void;
   onViewRecipe: () => void;
   onMoveToDay: (day: WeekDay | null) => void;
@@ -1755,9 +1759,16 @@ function MenuCard({
         )}
         <View style={s.cardInner}>
           <Pressable style={[s.cardMain, { padding: sp(10), gap: sp(10) }]} onPress={handlePress}>
-            <View style={[s.cardIcon, { width: sp(30), height: sp(30) }]}>
-              <Ionicons name="restaurant-outline" size={fs(16)} color="#4f46e5" />
-            </View>
+            {dayLabel ? (
+              <View style={[s.dayLabelBox, { width: sp(36), height: sp(36) }]}>
+                <Text style={[s.dayLabelAbbr, { fontSize: fs(11) }]}>{dayLabel.abbr}</Text>
+                <Text style={[s.dayLabelDate, { fontSize: fs(13) }]}>{dayLabel.date}</Text>
+              </View>
+            ) : (
+              <View style={[s.cardIcon, { width: sp(30), height: sp(30) }]}>
+                <Ionicons name="restaurant-outline" size={fs(16)} color="#4f46e5" />
+              </View>
+            )}
             <View style={s.cardContent}>
               <Text style={[s.cardTitle, { fontSize: fs(15) }, isPending && s.cardTitlePending]} numberOfLines={1}>{item.recipe.title}</Text>
             </View>
@@ -1859,10 +1870,10 @@ const s = StyleSheet.create({
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 10, paddingBottom: 80 },
   section: { gap: 6 },
-  dayRow2: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  dayBadge: { width: 34, alignItems: 'center', paddingTop: 11 },
-  dayBadgeAbbr: { fontSize: 13, fontWeight: '800', color: '#7c3aed', letterSpacing: 0.5 },
-  dayBadgeDate: { fontSize: 12, fontWeight: '500', color: '#9ca3af', marginTop: 1 },
+  dayLabelBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
+  dayLabelAbbr: { fontSize: 11, fontWeight: '800', color: '#7c3aed', letterSpacing: 0.3, lineHeight: 13 },
+  dayLabelDate: { fontSize: 13, fontWeight: '700', color: '#4f46e5', lineHeight: 15 },
+  daySlotEmptyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, minHeight: 44, alignSelf: 'stretch' },
   daySlot: { borderWidth: 1, borderColor: '#c7c2f0', borderRadius: 12, padding: 6, gap: 6, backgroundColor: '#fff' },
   daySlotEmpty: { borderColor: '#c7c2f0', backgroundColor: 'transparent', minHeight: 44, alignItems: 'center', justifyContent: 'center', padding: 0 },
   daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
