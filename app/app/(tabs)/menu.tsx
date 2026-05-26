@@ -978,7 +978,6 @@ export default function MenuScreen() {
   const renderWeekContent = (weekItems: WeekMenuItemWithRecipe[], weekMon: Date, isCenter: boolean) => {
     const unsched = weekItems.filter(i => i.day === null);
     const anyScheduled = weekItems.some(i => i.day !== null);
-    const allTransferred = weekItems.length > 0 && weekItems.every(m => !!recipeListMap[m.id]?.length);
     const noop = () => {};
     return (
       <>
@@ -1093,19 +1092,6 @@ export default function MenuScreen() {
             onAction={() => openPicker(null)}
           />
         )}
-
-        <View style={s.newListSection}>
-          <Pressable
-            style={[s.newListBtn, allTransferred && s.newListBtnDisabled]}
-            onPress={isCenter ? transferWeekMenu : noop}
-            disabled={!isCenter || allTransferred}
-          >
-            <Ionicons name="cart-outline" size={20} color={allTransferred ? '#d1d5db' : '#4f46e5'} />
-            <Text style={[s.newListBtnText, allTransferred && s.newListBtnTextDisabled]}>
-              {allTransferred ? 'Redan överförd' : 'Veckomeny → Inköpslista'}
-            </Text>
-          </Pressable>
-        </View>
       </>
     );
   };
@@ -1182,6 +1168,14 @@ export default function MenuScreen() {
         }}
       />
 
+
+      {/* Overför-FAB (kundkorg) — visas bara när minst en rätt i veckan inte är
+          överförd än; dold annars (✓-taggen på korten visar redan status). */}
+      {!editMode && !dragState && menuItems.some(m => !recipeListMap[m.id]?.length) && (
+        <Pressable style={s.fab} onPress={transferWeekMenu} accessibilityLabel="Överför veckomeny till inköpslista">
+          <Ionicons name="cart-outline" size={26} color="#fff" />
+        </Pressable>
+      )}
 
       {/* Edit mode exit button */}
       {editMode && !dragState && (
