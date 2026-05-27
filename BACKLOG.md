@@ -169,13 +169,14 @@
 - [x] Lägga till recept skulle då kunna leda direkt till samma receptdialog (men där veckodagen skickas som parameter)
 - [ ] Lägga till nytt recept: enhet borde föreslå i grått den enhet som väljs oftast, och klickar man inte i det fältet så borde den enheten väljas automatiskt
 - [ ] Lägga till nytt recept: enhetsfältet hoppar inte upp igen om man valt en enhet och trycker i fältet igen
-- [ ] Varna om man byter ut maträtt till dubblett eller lägger till maträtt från recept på en dag som redan har en planerad maträtt
+- [x] Varna om man byter ut maträtt till dubblett eller lägger till maträtt från recept på en dag som redan har en planerad maträtt
 - [ ] Bättre med optimistik uppdatering av menyn när man tar bort ett recept än att det blir en delay
 - [ ] När man lägger till recept borde man även få val att också lägga till beskrivning och instruktioner
 - [ ] Gråa ut dagar som redan har en maträtt när man kommer till "Lägg till i meny" dialogen
 - [ ] "Ingen dag" valet ser inte valbart ut i "Lägg till i meny"-dialogen
-- [ ] "Ta bort recept" i receptets 3-prickar-meny (idag bara via listans redigeringsläge)
-- [ ] Visa receptbild (imageUrl) överst i receptvyn
+- [x] "Ta bort recept" i receptets 3-prickar-meny (idag bara via listans redigeringsläge)
+- [x] Visa receptbild (imageUrl) överst i receptvyn
+- [ ] Riktig bilduppladdning för recept (välj från kamera/galleri → ladda upp till lagring → imageUrl) i stället för att klistra in en bild-URL. Kräver bildlagring (t.ex. S3/Cloudinary) + upload-endpoint + komprimering
 
 
 ### Kalendern

@@ -33,6 +33,7 @@ const updateRecipeSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).nullable().optional(),
   instructions: z.string().max(8000).nullable().optional(),
+  imageUrl: z.string().url().nullable().optional(),
   servings: z.number().int().positive().optional(),
   ingredients: z.array(ingredientSchema).optional(),
 });
