@@ -553,6 +553,20 @@ export default function MenuScreen() {
     const day = old?.day ?? null;
     const wy = old?.weekYear ?? weekYear;
     const wn = old?.weekNumber ?? weekNumber;
+    // Warn if the replacement recipe is already planned elsewhere this week.
+    if (menuItems.some(i => i.id !== oldId && i.recipeId === recipe.id)) {
+      const ok = await new Promise<boolean>(resolve =>
+        Alert.alert(
+          'Rätt redan planerad',
+          `${recipe.title} är redan inlagd denna vecka. Byt ut ändå?`,
+          [
+            { text: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Byt ut', onPress: () => resolve(true) },
+          ],
+        )
+      );
+      if (!ok) return;
+    }
     try {
       await client.deleteWeekMenuItem(oldId);
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear: wy, weekNumber: wn });

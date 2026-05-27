@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useApiClient, type RecipeWithIngredients } from '../../src/api/client';
+import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { EmptyState } from '../../src/components/EmptyState';
@@ -47,13 +47,28 @@ export default function RecipesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   // Quick "add to this week's menu" from the recipe list.
   const [addToMenuFor, setAddToMenuFor] = useState<RecipeWithIngredients | null>(null);
+  const [weekMenu, setWeekMenu] = useState<WeekMenuItemWithRecipe[]>([]);
 
-  async function addRecipeToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
+  function addRecipeToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
     setAddToMenuFor(null);
+    if (!householdId) return;
+    if (day && weekMenu.some(m => m.day === day)) {
+      const label = MENU_DAYS.find(d => d.key === day)?.label;
+      Alert.alert('Dag redan planerad', `${label} har redan en rätt denna vecka. Lägg till ändå?`, [
+        { text: 'Avbryt', style: 'cancel' },
+        { text: 'Lägg till', onPress: () => doAddToMenu(recipe, day) },
+      ]);
+      return;
+    }
+    doAddToMenu(recipe, day);
+  }
+
+  async function doAddToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
     if (!householdId) return;
     const { weekYear, weekNumber } = getISOWeek(new Date());
     try {
-      await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
+      const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
+      setWeekMenu(prev => [...prev, item]);
       const dayLabel = day ? MENU_DAYS.find(d => d.key === day)?.label.toLowerCase() : null;
       showToast(dayLabel ? `${recipe.title} tillagd på ${dayLabel} (denna vecka)` : `${recipe.title} tillagd i menyn`, 'success');
     } catch (e) {
@@ -105,7 +120,13 @@ export default function RecipesScreen() {
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
-      setRecipes(await client.getRecipes(householdId));
+      const { weekYear, weekNumber } = getISOWeek(new Date());
+      const [recs, menu] = await Promise.all([
+        client.getRecipes(householdId),
+        client.getWeekMenu(householdId, weekYear, weekNumber).catch(() => [] as WeekMenuItemWithRecipe[]),
+      ]);
+      setRecipes(recs);
+      setWeekMenu(menu);
     } catch {
       Alert.alert('Fel', 'Kunde inte ladda recept');
     } finally {

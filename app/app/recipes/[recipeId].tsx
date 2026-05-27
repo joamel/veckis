@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -38,6 +39,7 @@ export default function RecipeDetailScreen() {
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editInstr, setEditInstr] = useState('');
+  const [editImage, setEditImage] = useState('');
 
   // Ingredient editing
   const [editMode, setEditMode] = useState(false);
@@ -110,11 +112,28 @@ export default function RecipeDetailScreen() {
     setScaledServings(prev => Math.max(1, (prev ?? recipe.servings) + delta));
   }
 
+  function confirmDeleteRecipe() {
+    if (!recipe) return;
+    setShowMenu(false);
+    Alert.alert('Ta bort recept', `Ta bort "${recipe.title}"? Detta går inte att ångra.`, [
+      { text: 'Avbryt', style: 'cancel' },
+      { text: 'Ta bort', style: 'destructive', onPress: async () => {
+        try {
+          await client.deleteRecipe(recipe.id);
+          router.back();
+        } catch {
+          Alert.alert('Fel', 'Kunde inte ta bort receptet');
+        }
+      } },
+    ]);
+  }
+
   function openEditRecipe() {
     if (!recipe) return;
     setEditTitle(recipe.title);
     setEditDesc(recipe.description ?? '');
     setEditInstr(recipe.instructions ?? '');
+    setEditImage(recipe.imageUrl ?? '');
     setShowMenu(false);
     setShowEdit(true);
   }
@@ -123,11 +142,14 @@ export default function RecipeDetailScreen() {
     if (!recipe) return;
     const t = editTitle.trim();
     if (!t) { Alert.alert('Namn saknas', 'Receptet behöver ett namn.'); return; }
+    const img = editImage.trim();
+    if (img && !/^https?:\/\//i.test(img)) { Alert.alert('Ogiltig bild-URL', 'Bild-URL:en måste börja med http:// eller https://'); return; }
     try {
       const updated = await client.updateRecipe(recipe.id, {
         title: t,
         description: editDesc.trim() || null,
         instructions: editInstr.trim() || null,
+        imageUrl: img || null,
       });
       setRecipe(updated);
       setShowEdit(false);
@@ -259,6 +281,10 @@ export default function RecipeDetailScreen() {
         scrollEventThrottle={16}
         onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
       >
+        {recipe.imageUrl ? (
+          <Image source={{ uri: recipe.imageUrl }} style={s.heroImage} resizeMode="cover" />
+        ) : null}
+
         {/* Meta */}
         <View style={s.metaRow}>
           {/* Serving scaler */}
@@ -526,6 +552,10 @@ export default function RecipeDetailScreen() {
               <Ionicons name="pencil-outline" size={18} color="#111827" />
               <Text style={s.menuItemText}>Redigera ingredienser</Text>
             </Pressable>
+            <Pressable style={s.menuItem} onPress={confirmDeleteRecipe}>
+              <Ionicons name="trash-outline" size={18} color="#ef4444" />
+              <Text style={[s.menuItemText, { color: '#ef4444' }]}>Ta bort recept</Text>
+            </Pressable>
           </View>
         </Pressable>
       </Modal>
@@ -546,6 +576,20 @@ export default function RecipeDetailScreen() {
                 placeholderTextColor="#9ca3af"
                 returnKeyType="done"
               />
+              <Text style={s.editLabel}>Bild-URL</Text>
+              <TextInput
+                style={s.renameInput}
+                value={editImage}
+                onChangeText={setEditImage}
+                placeholder="https://… (valfritt)"
+                placeholderTextColor="#9ca3af"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
+              {editImage.trim() ? (
+                <Image source={{ uri: editImage.trim() }} style={s.editImagePreview} resizeMode="cover" />
+              ) : null}
               <Text style={s.editLabel}>Beskrivning</Text>
               <TextInput
                 style={[s.renameInput, s.editMultiline]}
@@ -617,6 +661,8 @@ const s = StyleSheet.create({
   headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: '#111827' },
   transferBtn: { padding: 8, backgroundColor: '#eef2ff', borderRadius: 8 },
   scroll: { padding: 20, gap: 16 },
+  heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, backgroundColor: '#f3f4f6' },
+  editImagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: '#f3f4f6', marginTop: 8 },
   metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   metaChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', flexShrink: 0 },
   servingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f3f4f6', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
