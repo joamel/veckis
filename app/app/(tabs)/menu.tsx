@@ -1725,7 +1725,9 @@ function MenuCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   // While any card is being dragged, collapse every card so the list is compact.
+  // Also clear the expanded state so cards stay collapsed after the move.
   const isExpanded = expanded && !collapsedForDrag;
+  useEffect(() => { if (collapsedForDrag) setExpanded(false); }, [collapsedForDrag]);
   const { medium } = useHaptics();
   const { fs, sp } = useTablet();
 
@@ -1786,9 +1788,9 @@ function MenuCard({
                   <Text style={[s.transferredText, { fontSize: fs(11) }]}>I inköpslistan</Text>
                 </View>
               )}
-              {/* Portion scaler */}
+              {/* Portion scaler — cutlery icon grouped with the −/+ on the right */}
               <View style={s.servingScaler}>
-                <Text style={s.servingScalerLabel}>Portioner</Text>
+                <Ionicons name="restaurant-outline" size={fs(16)} color="#6b7280" />
                 <View style={s.servingScalerControls}>
                   <Pressable
                     onPress={() => onScaleServings(Math.max(1, scaledServings - 1))}
@@ -1896,7 +1898,7 @@ const s = StyleSheet.create({
   transferredBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   transferredText: { fontSize: 11, color: '#10b981', fontWeight: '600' },
   cardExpanded: { borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingHorizontal: 14, paddingBottom: 12 },
-  servingScaler: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, paddingBottom: 4 },
+  servingScaler: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, paddingTop: 12, paddingBottom: 4 },
   servingScalerLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
   servingScalerControls: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   servingScalerBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
