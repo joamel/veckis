@@ -33,6 +33,11 @@ export default function RecipeDetailScreen() {
   const [recipe, setRecipe] = useState<RecipeWithIngredients | null>(null);
   const [loading, setLoading] = useState(true);
   const [scaledServings, setScaledServings] = useState<number | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editInstr, setEditInstr] = useState('');
 
   // Ingredient editing
   const [editMode, setEditMode] = useState(false);
@@ -103,6 +108,32 @@ export default function RecipeDetailScreen() {
   function adjustServings(delta: number) {
     if (!recipe) return;
     setScaledServings(prev => Math.max(1, (prev ?? recipe.servings) + delta));
+  }
+
+  function openEditRecipe() {
+    if (!recipe) return;
+    setEditTitle(recipe.title);
+    setEditDesc(recipe.description ?? '');
+    setEditInstr(recipe.instructions ?? '');
+    setShowMenu(false);
+    setShowEdit(true);
+  }
+
+  async function saveEditRecipe() {
+    if (!recipe) return;
+    const t = editTitle.trim();
+    if (!t) { Alert.alert('Namn saknas', 'Receptet behöver ett namn.'); return; }
+    try {
+      const updated = await client.updateRecipe(recipe.id, {
+        title: t,
+        description: editDesc.trim() || null,
+        instructions: editInstr.trim() || null,
+      });
+      setRecipe(updated);
+      setShowEdit(false);
+    } catch {
+      Alert.alert('Fel', 'Kunde inte spara receptet');
+    }
   }
 
   function startEdit() {
@@ -215,8 +246,8 @@ export default function RecipeDetailScreen() {
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
         <Text style={s.headerTitle} numberOfLines={1}>{recipe.title}</Text>
-        <Pressable onPress={() => openTransfer()} style={s.transferBtn}>
-          <Ionicons name="cart-outline" size={20} color="#4f46e5" />
+        <Pressable onPress={() => setShowMenu(true)} style={s.transferBtn} accessibilityLabel="Mer">
+          <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
       </View>
 
@@ -260,12 +291,6 @@ export default function RecipeDetailScreen() {
         <View style={s.section}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>Ingredienser</Text>
-            {!editMode && (
-              <Pressable onPress={startEdit} style={s.editBtn}>
-                <Ionicons name="pencil-outline" size={16} color="#4f46e5" />
-                <Text style={s.editBtnText}>Redigera</Text>
-              </Pressable>
-            )}
           </View>
 
           {editMode ? (
@@ -403,6 +428,15 @@ export default function RecipeDetailScreen() {
             ))
           )}
         </View>
+
+        {recipe.instructions ? (
+          <View style={s.section}>
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>Tillvägagångssätt</Text>
+            </View>
+            <Text style={s.instructionsText}>{recipe.instructions}</Text>
+          </View>
+        ) : null}
       </ScrollView>
       </KeyboardAvoidingView>
 
@@ -471,6 +505,71 @@ export default function RecipeDetailScreen() {
             />
           )}
         </View>
+      </Modal>
+
+      {/* Kundvagn-FAB — överför ingredienser till inköpslista (likt andra flikar) */}
+      {!editMode && (
+        <Pressable style={s.fab} onPress={() => openTransfer()} accessibilityLabel="Lägg ingredienser i inköpslista">
+          <Ionicons name="cart-outline" size={26} color="#fff" />
+        </Pressable>
+      )}
+
+      {/* 3-prickar-meny */}
+      <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
+        <Pressable style={s.menuOverlay} onPress={() => setShowMenu(false)}>
+          <View style={s.menuSheet}>
+            <Pressable style={s.menuItem} onPress={openEditRecipe}>
+              <Ionicons name="create-outline" size={18} color="#111827" />
+              <Text style={s.menuItemText}>Redigera recept</Text>
+            </Pressable>
+            <Pressable style={s.menuItem} onPress={() => { setShowMenu(false); startEdit(); }}>
+              <Ionicons name="pencil-outline" size={18} color="#111827" />
+              <Text style={s.menuItemText}>Redigera ingredienser</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Redigera recept-modal (namn, beskrivning, tillvägagångssätt) */}
+      <Modal visible={showEdit} transparent animationType="slide" onRequestClose={() => setShowEdit(false)}>
+        <Pressable style={s.overlay} onPress={() => setShowEdit(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
+          <View style={s.sheet}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <Text style={s.renameTitle}>Redigera recept</Text>
+              <Text style={s.editLabel}>Namn</Text>
+              <TextInput
+                style={s.renameInput}
+                value={editTitle}
+                onChangeText={setEditTitle}
+                placeholder="Receptnamn"
+                placeholderTextColor="#9ca3af"
+                returnKeyType="done"
+              />
+              <Text style={s.editLabel}>Beskrivning</Text>
+              <TextInput
+                style={[s.renameInput, s.editMultiline]}
+                value={editDesc}
+                onChangeText={setEditDesc}
+                placeholder="Kort beskrivning (valfritt)"
+                placeholderTextColor="#9ca3af"
+                multiline
+              />
+              <Text style={s.editLabel}>Tillvägagångssätt</Text>
+              <TextInput
+                style={[s.renameInput, s.editMultilineTall]}
+                value={editInstr}
+                onChangeText={setEditInstr}
+                placeholder="Steg för steg (valfritt)"
+                placeholderTextColor="#9ca3af"
+                multiline
+              />
+              <Pressable style={s.renameSave} onPress={saveEditRecipe}>
+                <Text style={s.renameSaveText}>Spara</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -557,6 +656,19 @@ const s = StyleSheet.create({
   saveBtnText: { fontSize: 15, color: '#fff', fontWeight: '600' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '85%' },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' },
+  menuSheet: { position: 'absolute', top: 56, right: 12, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 16 },
+  menuItemText: { fontSize: 15, color: '#111827', fontWeight: '500' },
+  renameTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16 },
+  renameInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: '#f9fafb', color: '#111827' },
+  editLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280', marginBottom: 6, marginTop: 14 },
+  editMultiline: { minHeight: 70, textAlignVertical: 'top' },
+  editMultilineTall: { minHeight: 140, textAlignVertical: 'top' },
+  instructionsText: { fontSize: 15, color: '#374151', lineHeight: 22 },
+  renameSave: { marginTop: 16, backgroundColor: '#4f46e5', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+  renameSaveText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 12 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   sheetSub: { fontSize: 13, color: '#6b7280', marginTop: 2, marginBottom: 8 },

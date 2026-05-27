@@ -368,7 +368,14 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScreenHeader title="Inställningar" />
+      <ScreenHeader
+        title="Inställningar"
+        actionNode={
+          <Pressable style={styles.headerIconBtn} onPress={() => setShowNotifModal(true)} accessibilityLabel="Notisinställningar">
+            <Ionicons name="notifications-outline" size={20} color="#4f46e5" />
+          </Pressable>
+        }
+      />
       <ScrollView contentContainerStyle={styles.scroll}>
 
         {/* Konto */}
@@ -515,19 +522,6 @@ export default function SettingsScreen() {
                 : <Text style={styles.inviteBtnText}>{invite ? 'Ny kod' : 'Skapa inbjudningskod'}</Text>}
             </Pressable>
           </View>
-        </View>
-
-        {/* Notiser */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>NOTISER</Text>
-          <Pressable style={styles.notifRowBtn} onPress={() => setShowNotifModal(true)}>
-            <Ionicons name="notifications-outline" size={20} color="#4f46e5" />
-            <View style={styles.notifTextWrap}>
-              <Text style={styles.notifTitle}>Notisinställningar</Text>
-              <Text style={styles.notifDesc}>Välj vilka notiser du vill få och testa på enheten</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#d1d5db" />
-          </Pressable>
         </View>
 
         {/* Mina hushåll */}
@@ -880,23 +874,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   inviteDesc: { fontSize: 14, color: '#6b7280', lineHeight: 20 },
-  notifRowBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 3,
-  },
-  notifTextWrap: { flex: 1 },
-  notifTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  notifDesc: { fontSize: 13, color: '#9ca3af', marginTop: 2 },
+  headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
   codeRow: {
     flexDirection: 'row',
     alignItems: 'center',
