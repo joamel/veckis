@@ -125,6 +125,7 @@
 - [x] Efter ihopslagning och flytt till nästa dubblett borde tangenbordet försvinna
 - [ ] Kanske det krävs att en vara blivit tillagd mer än 1 gång för att återfinnas i söket. Ett sätt för en felstavad eller inskriven basvara av misstag att inte komma med i söket
 - [ ] Grönt passar dåligt på skuggan
+- [ ] Inköpsfliken rendar inte om när man tar bort en maträtt från menyn utan att man byter flik eller uppdaterar sidan
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -168,6 +169,7 @@
 - [x] Kunna lägga till maträtter direkt från recept-knappen --> (välj dag)
 - [x] Lägga till recept skulle då kunna leda direkt till samma receptdialog (men där veckodagen skickas som parameter)
 - [ ] Varna om man byter ut maträtt till dubblett eller lägger till maträtt från recept på en dag som redan har en planerad maträtt
+- [ ] Bättre med optimistik uppdatering av menyn när man tar bort ett recept än att det blir en delay
 
 
 ### Kalendern
