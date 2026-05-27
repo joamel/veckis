@@ -176,6 +176,7 @@
 - [ ] "Ingen dag" valet ser inte valbart ut i "Lägg till i meny"-dialogen
 - [x] "Ta bort recept" i receptets 3-prickar-meny (idag bara via listans redigeringsläge)
 - [x] Visa receptbild (imageUrl) överst i receptvyn
+- [ ] Riktig bilduppladdning för recept (välj från kamera/galleri → ladda upp till lagring → imageUrl) i stället för att klistra in en bild-URL. Kräver bildlagring (t.ex. S3/Cloudinary) + upload-endpoint + komprimering
 
 
 ### Kalendern
