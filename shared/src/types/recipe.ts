@@ -6,6 +6,7 @@ export interface Recipe {
   householdId: string;
   title: string;
   description: string | null;
+  instructions: string | null;
   sourceUrl: string | null;
   imageUrl: string | null;
   servings: number;

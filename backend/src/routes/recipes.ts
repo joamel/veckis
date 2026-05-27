@@ -22,6 +22,7 @@ const createRecipeSchema = z.object({
   householdId: z.string(),
   title: z.string().min(1).max(200),
   description: z.string().max(2000).nullable().optional(),
+  instructions: z.string().max(8000).nullable().optional(),
   sourceUrl: z.string().url().nullable().optional(),
   imageUrl: z.string().url().nullable().optional(),
   servings: z.number().int().positive().default(4),
@@ -31,6 +32,7 @@ const createRecipeSchema = z.object({
 const updateRecipeSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).nullable().optional(),
+  instructions: z.string().max(8000).nullable().optional(),
   servings: z.number().int().positive().optional(),
   ingredients: z.array(ingredientSchema).optional(),
 });
