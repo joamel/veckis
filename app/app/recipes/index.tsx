@@ -35,7 +35,7 @@ const MENU_DAYS: { key: WeekDay; label: string }[] = [
 
 export default function RecipesScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ create?: string; forMenuDay?: string }>();
+  const params = useLocalSearchParams<{ create?: string; forMenuDay?: string; replaceMenuItemId?: string; replaceTitle?: string }>();
   const createTriggeredRef = useRef(false);
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -61,14 +61,27 @@ export default function RecipesScreen() {
     }
   }
 
-  // "Select a recipe for a day" mode — entered from the menu's "+". Tapping a
-  // recipe routes back to the menu, which adds it to the week it's showing.
-  const selectionMode = params.forMenuDay !== undefined;
+  // Select mode — entered from the menu's "+" (pick a recipe for a day) or
+  // "Byt ut" (replace a dish). Tapping a recipe routes back to the menu, which
+  // applies it to the week it's showing.
+  const replaceMode = params.replaceMenuItemId !== undefined;
+  const selectionMode = params.forMenuDay !== undefined || replaceMode;
   const selectionDayLabel = params.forMenuDay && params.forMenuDay !== 'none'
     ? MENU_DAYS.find(d => d.key === params.forMenuDay)?.label
     : 'utan dag';
 
   function selectRecipeForMenu(recipe: RecipeWithIngredients) {
+    if (replaceMode) {
+      Alert.alert(
+        'Byt ut rätt',
+        `Ersätt "${params.replaceTitle ?? 'rätten'}" med "${recipe.title}"?`,
+        [
+          { text: 'Avbryt', style: 'cancel' },
+          { text: 'Byt ut', style: 'destructive', onPress: () => router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&replaceMenuItemId=${params.replaceMenuItemId}` as never) },
+        ],
+      );
+      return;
+    }
     const day = params.forMenuDay === 'none' ? '' : (params.forMenuDay ?? '');
     router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${day}` as never);
   }
@@ -229,7 +242,9 @@ export default function RecipesScreen() {
       {selectionMode && (
         <View style={s.selectBanner}>
           <Ionicons name="restaurant-outline" size={16} color="#4f46e5" />
-          <Text style={s.selectBannerText}>Välj en rätt · {selectionDayLabel}</Text>
+          <Text style={s.selectBannerText} numberOfLines={1}>
+            {replaceMode ? `Byt ut · ${params.replaceTitle ?? ''}` : `Välj en rätt · ${selectionDayLabel}`}
+          </Text>
         </View>
       )}
 

@@ -74,7 +74,7 @@ interface AggIngredient {
 
 export default function MenuScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string }>();
+  const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string; replaceMenuItemId?: string }>();
   const addRecipeTriggeredRef = useRef(false);
   const bulkTransferTriggeredRef = useRef(false);
   const client = useApiClient();
@@ -479,9 +479,13 @@ export default function MenuScreen() {
       const recipe = recipes.find(r => r.id === params.addRecipeId);
       if (recipe) {
         addRecipeTriggeredRef.current = true;
-        const day = (params.day && DAYS.some(d => d.key === params.day) ? params.day : null) as WeekDay | null;
-        addRecipeToDay(recipe, day);
-        router.setParams({ addRecipeId: undefined, day: undefined });
+        if (params.replaceMenuItemId) {
+          replaceMenuItem(params.replaceMenuItemId, recipe);
+        } else {
+          const day = (params.day && DAYS.some(d => d.key === params.day) ? params.day : null) as WeekDay | null;
+          addRecipeToDay(recipe, day);
+        }
+        router.setParams({ addRecipeId: undefined, day: undefined, replaceMenuItemId: undefined });
       }
     }
     if (!params.addRecipeId) addRecipeTriggeredRef.current = false;
@@ -536,10 +540,26 @@ export default function MenuScreen() {
     router.push(`/recipes?forMenuDay=${day ?? 'none'}` as never);
   }
 
+  // Replace flow now uses the full recipe view (select mode), like "+".
   function startReplaceRecipe(item: WeekMenuItemWithRecipe) {
-    setReplaceTarget(item);
-    setPickerStep('recipe');
-    setShowPicker(true);
+    router.push(`/recipes?replaceMenuItemId=${item.id}&replaceTitle=${encodeURIComponent(item.recipe.title)}` as never);
+  }
+
+  // Swap a menu item for another recipe on the same day/week (returned from the
+  // recipe view via ?addRecipeId&replaceMenuItemId).
+  async function replaceMenuItem(oldId: string, recipe: RecipeWithIngredients) {
+    if (!householdId) return;
+    const old = menuItems.find(i => i.id === oldId);
+    const day = old?.day ?? null;
+    const wy = old?.weekYear ?? weekYear;
+    const wn = old?.weekNumber ?? weekNumber;
+    try {
+      await client.deleteWeekMenuItem(oldId);
+      const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear: wy, weekNumber: wn });
+      setMenuItems(prev => prev.filter(i => i.id !== oldId).concat(item));
+    } catch (e) {
+      showError(e, 'Kunde inte byta ut rätten');
+    }
   }
 
   function closePicker() {
