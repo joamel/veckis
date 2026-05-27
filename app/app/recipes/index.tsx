@@ -18,7 +18,20 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type RecipeWithIngredients } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useToast } from '../../src/context/ToastContext';
 import { EmptyState } from '../../src/components/EmptyState';
+import { getISOWeek } from '../../src/lib/week';
+import type { WeekDay } from '@veckis/shared';
+
+const MENU_DAYS: { key: WeekDay; label: string }[] = [
+  { key: 'mon', label: 'Måndag' },
+  { key: 'tue', label: 'Tisdag' },
+  { key: 'wed', label: 'Onsdag' },
+  { key: 'thu', label: 'Torsdag' },
+  { key: 'fri', label: 'Fredag' },
+  { key: 'sat', label: 'Lördag' },
+  { key: 'sun', label: 'Söndag' },
+];
 
 export default function RecipesScreen() {
   const router = useRouter();
@@ -26,11 +39,27 @@ export default function RecipesScreen() {
   const createTriggeredRef = useRef(false);
   const client = useApiClient();
   const { householdId } = useHousehold();
+  const { showToast, showError } = useToast();
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // Quick "add to this week's menu" from the recipe list.
+  const [addToMenuFor, setAddToMenuFor] = useState<RecipeWithIngredients | null>(null);
+
+  async function addRecipeToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
+    setAddToMenuFor(null);
+    if (!householdId) return;
+    const { weekYear, weekNumber } = getISOWeek(new Date());
+    try {
+      await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
+      const dayLabel = day ? MENU_DAYS.find(d => d.key === day)?.label.toLowerCase() : null;
+      showToast(dayLabel ? `${recipe.title} tillagd på ${dayLabel} (denna vecka)` : `${recipe.title} tillagd i menyn`, 'success');
+    } catch (e) {
+      showError(e, 'Kunde inte lägga till i menyn');
+    }
+  }
 
   const filteredRecipes = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -222,6 +251,11 @@ export default function RecipesScreen() {
                 <Text style={s.cardTitle}>{item.title}</Text>
                 <Text style={s.cardMeta}>{item.servings} port · {item.ingredients.length} ingredienser</Text>
               </View>
+              {!editMode && (
+                <Pressable style={s.addMenuBtn} onPress={() => setAddToMenuFor(item)} hitSlop={8} accessibilityLabel="Lägg till i meny">
+                  <Ionicons name="calendar-outline" size={20} color="#4f46e5" />
+                </Pressable>
+              )}
               {!editMode && <Ionicons name="chevron-forward" size={18} color="#d1d5db" />}
             </Pressable>
             {editMode && (
@@ -321,6 +355,33 @@ export default function RecipesScreen() {
         </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Quick add-to-menu day picker (current week) */}
+      <Modal visible={!!addToMenuFor} transparent animationType="slide" onRequestClose={() => setAddToMenuFor(null)}>
+        <Pressable style={s.overlay} onPress={() => setAddToMenuFor(null)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Lägg till i meny</Text>
+          <Text style={s.daySheetSub} numberOfLines={2}>{addToMenuFor?.title} · denna vecka</Text>
+          <View style={s.dayGrid}>
+            {MENU_DAYS.map(d => (
+              <Pressable
+                key={d.key}
+                style={s.dayGridItem}
+                onPress={() => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, d.key); }}
+              >
+                <Text style={s.dayGridLabel}>{d.label}</Text>
+              </Pressable>
+            ))}
+            <Pressable
+              style={[s.dayGridItem, s.dayGridItemNone]}
+              onPress={() => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, null); }}
+            >
+              <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>Ingen dag</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -345,6 +406,13 @@ const s = StyleSheet.create({
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 14 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  addMenuBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
+  daySheetSub: { fontSize: 13, color: '#6b7280', marginTop: -8 },
+  dayGrid: { gap: 8, marginTop: 4 },
+  dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#f3f4f6', borderRadius: 12 },
+  dayGridItemNone: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
+  dayGridLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  dayGridLabelNone: { color: '#9ca3af' },
   modeTabs: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 10, padding: 4 },
   modeTab: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
   modeTabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },

@@ -874,7 +874,7 @@ export default function ScheduleScreen() {
                 onSelectDay={handleSelectDayFromMonth}
                 onEditEntry={(entry) => setEditingEntry(entry)}
                 onEditChore={(chore) => setEditingCalChore(chore)}
-                onToday={!isCurrentMonth ? () => { setMonthRef(new Date()); setWeekRef(new Date()); setSelectedDay(TODAY_DAY); } : undefined}
+                onToday={!isCurrentMonth ? () => { setMonthRef(new Date()); setWeekRef(new Date()); setSelectedDay(weekdayKeyOf(new Date())); } : undefined}
                 selectedDate={selectedDayDate}
                 filterMemberIds={filterMemberIds}
               />
@@ -885,7 +885,7 @@ export default function ScheduleScreen() {
                   isCurrentWeek={isCurrentWeek}
                   onPrev={() => setWeekRef(w => addWeeks(w, -1))}
                   onNext={() => setWeekRef(w => addWeeks(w, 1))}
-                  onToday={() => { setWeekRef(new Date()); setSelectedDay(TODAY_DAY); }}
+                  onToday={() => { setWeekRef(new Date()); setSelectedDay(weekdayKeyOf(new Date())); }}
                   onPickDate={() => setShowWeekPicker(true)}
                 />
                 <View style={s.dayRow}>

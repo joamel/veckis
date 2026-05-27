@@ -968,13 +968,18 @@ export default function MenuScreen() {
   // page is interactive (drag-and-drop, drop-zone measuring, edit/transfer);
   // neighbour pages are read-only previews.
   const renderWeekContent = (weekItems: WeekMenuItemWithRecipe[], weekMon: Date, isCenter: boolean) => {
-    const unsched = weekItems.filter(i => i.day === null);
+    // Stable order (createdAt, then id) so a day's recipes render identically
+    // whether they come from the allMenus snapshot or the live menuItems — no
+    // reordering "jump" when swiping between weeks.
+    const byCreated = (a: WeekMenuItemWithRecipe, b: WeekMenuItemWithRecipe) =>
+      a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
+    const unsched = weekItems.filter(i => i.day === null).sort(byCreated);
     const anyScheduled = weekItems.some(i => i.day !== null);
     const noop = () => {};
     return (
       <>
         {DAYS.map((day, i) => {
-          const items = weekItems.filter(m => m.day === day.key);
+          const items = weekItems.filter(m => m.day === day.key).sort(byCreated);
           const date = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + i);
           const isHovered = isCenter && hoverDay === day.key;
           const dayLabel = { abbr: day.short.toLowerCase(), date: date.getDate() };
