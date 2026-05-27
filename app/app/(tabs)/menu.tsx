@@ -132,8 +132,6 @@ export default function MenuScreen() {
   // Replace recipe: item being replaced
   const [replaceTarget, setReplaceTarget] = useState<WeekMenuItemWithRecipe | null>(null);
 
-  const [editMode, setEditMode] = useState(false);
-
   // Edit recipe modal
   const [menuItemServings, setMenuItemServings] = useState<Record<string, number>>({});
 
@@ -452,7 +450,7 @@ export default function MenuScreen() {
     }
   }, [householdId, weekYear, weekNumber]);
 
-  useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
+  useFocusEffect(useCallback(() => { load(); }, [load]));
   // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
   // transfer filters stay in sync (e.g. after clearing/removing items in a list).
   useEffect(() => onShoppingChanged(load), [load]);
@@ -547,14 +545,6 @@ export default function MenuScreen() {
   function closePicker() {
     setShowPicker(false);
     setReplaceTarget(null);
-  }
-
-  function enterEditMode() {
-    setEditMode(true);
-  }
-
-  function exitEditMode() {
-    setEditMode(false);
   }
 
   function onDragStart(item: WeekMenuItemWithRecipe, _x: number, y: number) {
@@ -978,11 +968,12 @@ export default function MenuScreen() {
           const items = weekItems.filter(m => m.day === day.key).sort(byCreated);
           const date = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + i);
           const isHovered = isCenter && hoverDay === day.key;
+          const dragging = isCenter && !!dragState;
           const dayLabel = { abbr: day.short.toLowerCase(), date: date.getDate() };
           return (
             <View
               key={day.key}
-              style={[s.daySlot, items.length > 0 && s.daySlotFilled, items.length === 0 && s.daySlotEmpty, isHovered && s.daySlotHovered]}
+              style={[s.daySlot, items.length > 0 && s.daySlotFilled, items.length === 0 && s.daySlotEmpty, dragging && s.daySlotDropTarget, isHovered && s.daySlotHovered]}
               ref={isCenter ? (ref => measureDaySection(day.key, ref)) : undefined}
               onLayout={isCenter ? (() => measureDaySection(day.key, daySectionRefs.current[day.key] ?? null)) : undefined}
             >
@@ -1008,12 +999,10 @@ export default function MenuScreen() {
                     dayLabel={dayLabel}
                     isTransferred={!!recipeListMap[item.id]?.length}
                     isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
-                    editMode={isCenter && editMode}
                     onRemove={isCenter ? (() => removeFromMenu(item)) : noop}
                     onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                     onMoveToDay={isCenter ? (d => moveToDay(item, d)) : noop}
                     onReplace={isCenter ? (() => startReplaceRecipe(item)) : noop}
-                    onLongPress={isCenter ? enterEditMode : noop}
                     onDragStart={isCenter ? ((x, y) => onDragStart(item, x, y)) : noop}
                     onDragMove={isCenter ? onDragMove : noop}
                     onDragEnd={isCenter ? onDragEnd : noop}
@@ -1040,7 +1029,7 @@ export default function MenuScreen() {
         >
           <View style={s.sectionRow}>
             <Text style={s.sectionLabel}>EJ SCHEMALAGDA</Text>
-            {isCenter && !editMode && (
+            {isCenter && (
               <Pressable onPress={() => openPicker(null)}>
                 <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
               </Pressable>
@@ -1055,12 +1044,10 @@ export default function MenuScreen() {
                 item={item}
                 isTransferred={!!recipeListMap[item.id]?.length}
                 isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
-                editMode={isCenter && editMode}
                 onRemove={isCenter ? (() => removeFromMenu(item)) : noop}
                 onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
                 onMoveToDay={isCenter ? (d => moveToDay(item, d)) : noop}
                 onReplace={isCenter ? (() => startReplaceRecipe(item)) : noop}
-                onLongPress={isCenter ? enterEditMode : noop}
                 onDragStart={isCenter ? ((x, y) => onDragStart(item, x, y)) : noop}
                 onDragMove={isCenter ? onDragMove : noop}
                 onDragEnd={isCenter ? onDragEnd : noop}
@@ -1132,7 +1119,7 @@ export default function MenuScreen() {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         style={s.content}
-        scrollEnabled={!dragState && !editMode}
+        scrollEnabled={!dragState}
         initialScrollIndex={weekOffset + WEEK_SPAN}
         getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
         windowSize={3}
@@ -1140,7 +1127,7 @@ export default function MenuScreen() {
         maxToRenderPerBatch={2}
         removeClippedSubviews
         scrollEventThrottle={16}
-        extraData={{ weekOffset, menuItems, allMenus, recipeListMap, dragState, editMode, hoverDay, menuItemServings, pendingMenuItemRemovals }}
+        extraData={{ weekOffset, menuItems, allMenus, recipeListMap, dragState, hoverDay, menuItemServings, pendingMenuItemRemovals }}
         onScrollToIndexFailed={() => {}}
         onMomentumScrollEnd={e => {
           const o = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
@@ -1166,16 +1153,9 @@ export default function MenuScreen() {
 
       {/* Overför-FAB (kundkorg) — visas bara när minst en rätt i veckan inte är
           överförd än; dold annars (✓-taggen på korten visar redan status). */}
-      {!editMode && !dragState && menuItems.some(m => !recipeListMap[m.id]?.length) && (
+      {!dragState && menuItems.some(m => !recipeListMap[m.id]?.length) && (
         <Pressable style={s.fab} onPress={transferWeekMenu} accessibilityLabel="Överför veckomeny till inköpslista">
           <Ionicons name="cart-outline" size={26} color="#fff" />
-        </Pressable>
-      )}
-
-      {/* Edit mode exit button */}
-      {editMode && !dragState && (
-        <Pressable style={s.editDoneBtn} onPress={exitEditMode}>
-          <Text style={[s.editDoneBtnText, { fontSize: fs(16) }]}>Klar</Text>
         </Pressable>
       )}
 
@@ -1276,7 +1256,20 @@ export default function MenuScreen() {
                     </Pressable>
                   }
                   renderItem={({ item }) => (
-                    <Pressable style={s.recipeCard} onPress={() => addRecipeToDay(item)}>
+                    <Pressable style={s.recipeCard} onPress={() => {
+                      if (replaceTarget) {
+                        Alert.alert(
+                          'Byt ut rätt',
+                          `Ersätt "${replaceTarget.recipe.title}" med "${item.title}"?`,
+                          [
+                            { text: 'Avbryt', style: 'cancel' },
+                            { text: 'Byt ut', style: 'destructive', onPress: () => addRecipeToDay(item) },
+                          ],
+                        );
+                      } else {
+                        addRecipeToDay(item);
+                      }
+                    }}>
                       <View style={s.recipeCardIcon}>
                         <Ionicons name="restaurant-outline" size={20} color="#4f46e5" />
                       </View>
@@ -1679,12 +1672,10 @@ function MenuCard({
   item,
   isTransferred,
   isPending,
-  editMode,
   onRemove,
   onViewRecipe,
   onMoveToDay,
   onReplace,
-  onLongPress,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -1696,13 +1687,11 @@ function MenuCard({
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
   isPending?: boolean;
-  editMode: boolean;
   dayLabel?: { abbr: string; date: number };
   onRemove: () => void;
   onViewRecipe: () => void;
   onMoveToDay: (day: WeekDay | null) => void;
   onReplace: () => void;
-  onLongPress: () => void;
   onDragStart: (x: number, y: number) => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: () => void;
@@ -1719,7 +1708,6 @@ function MenuCard({
     .activateAfterLongPress(300)
     .onStart(e => {
       runOnJS(medium)();
-      runOnJS(onLongPress)();
       runOnJS(onDragStart)(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {
@@ -1730,22 +1718,12 @@ function MenuCard({
     });
 
   function handlePress() {
-    if (editMode) return;
     setExpanded(e => !e);
   }
 
   return (
     <GestureDetector gesture={panGesture}>
       <View style={[s.card, isDragging && s.cardDragging, isPending && s.cardPending]}>
-        {editMode && (
-          <Pressable
-            style={s.cardDeleteBtn}
-            onPress={onRemove}
-            hitSlop={10}
-          >
-            <Ionicons name="remove-circle" size={22} color="#6b7280" />
-          </Pressable>
-        )}
         <View style={s.cardInner}>
           <Pressable style={[s.cardMain, { padding: sp(10), gap: sp(10) }]} onPress={handlePress}>
             {dayLabel ? (
@@ -1764,10 +1742,10 @@ function MenuCard({
             {isTransferred && (
               <Ionicons name="checkmark-circle" size={fs(16)} color="#10b981" />
             )}
-            {!editMode && <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color="#9ca3af" />}
+            <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color="#9ca3af" />
           </Pressable>
 
-          {!editMode && expanded && (
+          {expanded && (
             <View style={s.cardExpanded}>
               {/* Meta — moved here to keep the collapsed row to a single line */}
               <Text style={[s.cardMeta, { fontSize: fs(12), marginBottom: sp(4) }]}>
@@ -1869,7 +1847,8 @@ const s = StyleSheet.create({
   daySlot: { borderWidth: 1, borderColor: '#c7c2f0', borderRadius: 12, padding: 6, gap: 6, backgroundColor: '#fff' },
   daySlotEmpty: { borderStyle: 'dashed', borderColor: '#d1d5db', backgroundColor: 'transparent', minHeight: 44, alignItems: 'center', justifyContent: 'center', padding: 0 },
   daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
-  daySlotHovered: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  daySlotDropTarget: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#c7d2fe', borderRadius: 12, padding: 6, backgroundColor: '#fafaff' },
+  daySlotHovered: { borderWidth: 1.5, borderStyle: 'solid', borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
   daySlotEmptyTap: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.8 },

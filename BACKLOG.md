@@ -22,20 +22,23 @@
 - [x] Pushnotiser — infrastruktur (blockerare för notistyperna nedan): permission-flöde, token-registrering, notis-inställningssida med på/av per typ
 - [x] Pushnotiser — specificera per typ: påminnelse innan aktivitet startar, förfallen syssla, någon har rensat aktiv inköpslista, ny medlem i hushållet (kräver ny eas build för native-modulen)
 - [x] Felhantering vid misslyckad optimistisk uppdatering — om backend-anropet failar efter att UI redan flyttat/skapat något: rulla tillbaka ändringen och visa "kunde inte spara — försök igen"-toast (annars tyst desync mellan enheter)
-- [ ] Konflikthantering vid realtidsuppdatering — om två personer redigerar samma vara/aktivitet samtidigt: last-write-wins + toast till den som blir överskriven så ändringar inte tappas tyst
 - [x] Konsekventa tomma tillstånd (empty states) på alla flikar — vänlig "inget här än" + CTA första gången en ny medlem öppnar meny/sysslor/kalender utan data
-- [ ] Tillgänglighet: allt som nås via long-press ska även ha en synlig knapp + accessibility-labels på ikonknappar (penna/x/dubblett) så VoiceOver/TalkBack fungerar
 - [x] Bannern ovan appen borde vara svart/neutral så man ser klockan, notiser mm
-- [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [x] Flertal ställen i appen när inputfälten fortfarande inte hoppar upp ovan tangentbordet. Säkerställ att alla inputfält har rätta beteendet
 - [x] Samma filter borde gälla över sysslor som kalender så att man inte blir förvirrad vad som är filtrerat för de olika flikarna
 - [x] Pending-removal visual state: under ångra-fönstret (5s) ska varor/recept som håller på att tas bort visas med fade + strikethrough + liten "(tas bort om Xs)"-tag istället för att försvinna direkt eller poppa tillbaka vid ångra
 - [x] Toast-kö vid bulk-borttagning: om flera recept tas bort i snabb följd skriver toasten över sig själv. Stacka eller visa "3 recept tas bort om 5s · Ångra"
 - [x] Re-merge feedback: när auto-merge slår ihop kvarvarande varor efter borttagning (t.ex. 3 ägg → ta bort 1 → 2 ägg), visa toast "Slog ihop {n} {namn}" så användaren förstår grupperingen
-- [ ] städa upp legacy-kod
-- [ ] refaktorera och skapa fler filer för egna komponenter mm
 - [x] Kunna swipa mellan veckor i kalender och meny-fliken
-- [ ] uppdateringar från socket borde uppdatera andra flikar innan man trycker på dem så att det inte hoppar till. Just nu kan det stå "0 av 0 kvar" och sedan hoppar det till -> "21 av 21 kvar"
+- [ ] Konflikthantering vid realtidsuppdatering — om två personer redigerar samma vara/aktivitet samtidigt: last-write-wins + toast till den som blir överskriven så ändringar inte tappas tyst
+- [ ] Tillgänglighet: allt som nås via long-press ska även ha en synlig knapp + accessibility-labels på ikonknappar (penna/x/dubblett) så VoiceOver/TalkBack fungerar
+- [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
+- [ ] Städa upp legacy-kod
+- [ ] Refaktorera och skapa fler filer för egna komponenter mm
+- [ ] Uppdateringar från socket borde uppdatera andra flikar innan man trycker på dem så att det inte hoppar till. Just nu kan det stå "0 av 0 kvar" och sedan hoppar det till -> "21 av 21 kvar"
+- [ ] Se över skuggor på kort. Ej konsekvent genom hela appen..
+- [x] Eventuellt ersätta longpress med en redigeraknapp alt att man bara kan ta bort/byta namn inuti kortet på "3 prickar" (meny: redigera/ta bort/byt ut i utfällt kort, inte via longpress)
+- [x] Istället ha longpress för att sortera/flytta om (meny: longpress = endast dra/flytta)
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -55,6 +58,9 @@
 - [x] inställningar uppdateras inte automatiskt för alla användare när någon gör ändringar.
 - [x] Varna innan man tar bort en lokal profil/medlem som har tilldelade sysslor/aktiviteter ("X har 4 sysslor och 2 aktiviteter — vad ska hända med dem?") istället för tyst orphaning
 - [x] tydligare indikera vem som är jag (Du) i medlemmar
+- [ ] Notisinställningar uppe till höger som en klocka istället
+- [ ] Sätt admin-loggan bredvid "Admin" för admins under Medlemmar
+
 
 ### Inköpslistan
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
@@ -118,6 +124,7 @@
 - [x] Ihopslagna ingredienser borde gå att ångra via toasten
 - [x] Efter ihopslagning och flytt till nästa dubblett borde tangenbordet försvinna
 - [ ] Kanske det krävs att en vara blivit tillagd mer än 1 gång för att återfinnas i söket. Ett sätt för en felstavad eller inskriven basvara av misstag att inte komma med i söket
+- [ ] Grönt passar dåligt på skuggan
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -157,6 +164,11 @@
 - [x] Inventering vid veckomeny → inköpslista görs om: hopslagen lista (en rad per ingrediens över alla valda rätter, med härkomst) istället för en rätt i taget, så delade varor (krossade tomater, lök, grädde) inte dubbelcheckas. Lägesväxel "Bocka av" / "Ange mängd" — i mängdläget räknas bristen ut och bara den överförs. Bristen apportioneras tillbaka per rätt så merge/borttagning funkar.
 - [ ] Lägga till nytt recept: enhet borde föreslå i grått den enhet som väljs oftast, och klickar man inte i det så borde den enheten väljas automatiskt"
 - [ ] Lägga till nytt recept: enhetsfältet hoppar inte upp igen om man valt en enhet och trycker i fältet igen
+- [x] Swipar man mellan menyer byter rätter som ligger på samma dag plats (hoppar till)
+- [x] Kunna lägga till maträtter direkt från recept-knappen --> (välj dag)
+- [x] Lägga till recept skulle då kunna leda direkt till samma receptdialog (men där veckodagen skickas som parameter)
+- [ ] Varna om man byter ut maträtt till dubblett eller lägger till maträtt från recept på en dag som redan har en planerad maträtt
+
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -182,6 +194,8 @@
 - [x] Kunna lägga aktiviteter på fler än en user i taget
 - [x] Lägga tider ute till höger på aktiviteter
 - [x] Datepickern borde visa datumet man är på och väljer man ett datum i datepickern borde kalendern uppdatera så att det är den dagen som väljs i veckovyn
+- [ ] Använda samma veckonummer-bar som i menyfliken
+- [ ] Idag-knappen hoppar inte till rätt dag (endast rätt vecka)
 
 ### Sysslor
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.
@@ -216,6 +230,7 @@
 - [ ] Skafferi-minne: persistent "har hemma" som minns över sessioner (eget skafferi per hushåll) så återkommande basvaror inte behöver inventeras varje gång. Bygger vidare på den hopslagna inventeringen.
 - [ ] Utnyttja större skärm likt kalender-vyn att saker öppnas bredvid istället för under mm.
 - [ ] bygga en pwa
+- [ ] Kan vi implementera en streckkodsläsare för at  tdirekt kunna lägga till en vara?
 
 ## Backlog (prioriterade features)
 
