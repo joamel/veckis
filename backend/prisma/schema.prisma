@@ -185,6 +185,7 @@ model Recipe {
   householdId String
   title       String
   description String?
+  instructions String?
   sourceUrl   String?
   imageUrl    String?
   servings    Int      @default(4)
