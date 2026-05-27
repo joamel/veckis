@@ -1017,6 +1017,7 @@ export default function MenuScreen() {
                     key={item.id}
                     item={item}
                     dayLabel={dayLabel}
+                    collapsedForDrag={dragging}
                     isTransferred={!!recipeListMap[item.id]?.length}
                     isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
                     onRemove={isCenter ? (() => removeFromMenu(item)) : noop}
@@ -1062,6 +1063,7 @@ export default function MenuScreen() {
               <MenuCard
                 key={item.id}
                 item={item}
+                collapsedForDrag={isCenter && !!dragState}
                 isTransferred={!!recipeListMap[item.id]?.length}
                 isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
                 onRemove={isCenter ? (() => removeFromMenu(item)) : noop}
@@ -1703,6 +1705,7 @@ function MenuCard({
   scaledServings,
   onScaleServings,
   dayLabel,
+  collapsedForDrag,
 }: {
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
@@ -1718,8 +1721,11 @@ function MenuCard({
   isDragging: boolean;
   scaledServings: number;
   onScaleServings: (n: number) => void;
+  collapsedForDrag?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // While any card is being dragged, collapse every card so the list is compact.
+  const isExpanded = expanded && !collapsedForDrag;
   const { medium } = useHaptics();
   const { fs, sp } = useTablet();
 
@@ -1757,15 +1763,15 @@ function MenuCard({
               </View>
             )}
             <View style={s.cardContent}>
-              <Text style={[s.cardTitle, { fontSize: fs(15) }, isPending && s.cardTitlePending]} numberOfLines={expanded ? undefined : 1}>{item.recipe.title}</Text>
+              <Text style={[s.cardTitle, { fontSize: fs(15) }, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
             </View>
             {isTransferred && (
               <Ionicons name="checkmark-circle" size={fs(16)} color="#10b981" />
             )}
-            <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color="#9ca3af" />
+            <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color="#9ca3af" />
           </Pressable>
 
-          {expanded && (
+          {isExpanded && (
             <View style={s.cardExpanded}>
               {/* Meta — moved here to keep the collapsed row to a single line */}
               <Text style={[s.cardMeta, { fontSize: fs(12), marginBottom: sp(4) }]}>
