@@ -15,7 +15,6 @@
 - [x] rensa filter med ett x bredvid filterknappen?
 - [x] Ännu större font och knappar/pilar mm i tablet-vyn. Idag ser de nästan mindre ut än i mobilversionen.
 - [x] sysslor och aktiviteter skulle kunna ha en emoji likt maträtter för att få samma stil på korten i kalendern.
-- [ ] möjligt med horisontell-vy i tablet
 - [x] Ångra-toast för destruktiva åtgärder (rensa inköpslista) — knapp "Ångra" i toasten i ~5 sekunder (resten kan adderas vid behov)
 - [x] Utvidga realtidsuppdatering (WebSocket) till sysslor och kalender (meny + inställningar kan adderas via samma kanal)
 - [x] Long press-symmetri: kontrollera att redigering via long press finns konsekvent på basvaror, butiker och kategorier (inte bara inköpslista/maträtt/aktivitet/syssla)
@@ -30,6 +29,9 @@
 - [x] Toast-kö vid bulk-borttagning: om flera recept tas bort i snabb följd skriver toasten över sig själv. Stacka eller visa "3 recept tas bort om 5s · Ångra"
 - [x] Re-merge feedback: när auto-merge slår ihop kvarvarande varor efter borttagning (t.ex. 3 ägg → ta bort 1 → 2 ägg), visa toast "Slog ihop {n} {namn}" så användaren förstår grupperingen
 - [x] Kunna swipa mellan veckor i kalender och meny-fliken
+- [x] Eventuellt ersätta longpress med en redigeraknapp alt att man bara kan ta bort/byta namn inuti kortet på "3 prickar" (meny: redigera/ta bort/byt ut i utfällt kort, inte via longpress)
+- [x] Istället ha longpress för att sortera/flytta om (meny: longpress = endast dra/flytta)
+- [ ] möjligt med horisontell-vy i tablet
 - [ ] Konflikthantering vid realtidsuppdatering — om två personer redigerar samma vara/aktivitet samtidigt: last-write-wins + toast till den som blir överskriven så ändringar inte tappas tyst
 - [ ] Tillgänglighet: allt som nås via long-press ska även ha en synlig knapp + accessibility-labels på ikonknappar (penna/x/dubblett) så VoiceOver/TalkBack fungerar
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
@@ -37,8 +39,7 @@
 - [ ] Refaktorera och skapa fler filer för egna komponenter mm
 - [ ] Uppdateringar från socket borde uppdatera andra flikar innan man trycker på dem så att det inte hoppar till. Just nu kan det stå "0 av 0 kvar" och sedan hoppar det till -> "21 av 21 kvar"
 - [ ] Se över skuggor på kort. Ej konsekvent genom hela appen..
-- [x] Eventuellt ersätta longpress med en redigeraknapp alt att man bara kan ta bort/byta namn inuti kortet på "3 prickar" (meny: redigera/ta bort/byt ut i utfällt kort, inte via longpress)
-- [x] Istället ha longpress för att sortera/flytta om (meny: longpress = endast dra/flytta)
+- [ ] Se över dialog-rutor. Många har olika utseende - vissa är rundade upptill andra inte, vissa är genomskinliga i nedkant andra inte. Bör vara rundade upptill och inte genomskinliga nedtill.
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -58,7 +59,7 @@
 - [x] inställningar uppdateras inte automatiskt för alla användare när någon gör ändringar.
 - [x] Varna innan man tar bort en lokal profil/medlem som har tilldelade sysslor/aktiviteter ("X har 4 sysslor och 2 aktiviteter — vad ska hända med dem?") istället för tyst orphaning
 - [x] tydligare indikera vem som är jag (Du) i medlemmar
-- [ ] Notisinställningar uppe till höger som en klocka istället
+- [x] Notisinställningar uppe till höger som en klocka istället
 - [ ] Sätt admin-loggan bredvid "Admin" för admins under Medlemmar
 
 
@@ -163,13 +164,18 @@
 - [x] Receptimport-robusthet: fallback "kunde inte läsa receptet — lägg till manuellt" vid URL som failar, recept utan ingredienslista eller dubbel-import
 - [x] Veckomeny-mallar: spara en vecka som mall ("Standardvecka") och applicera den på valfri vecka
 - [x] Inventering vid veckomeny → inköpslista görs om: hopslagen lista (en rad per ingrediens över alla valda rätter, med härkomst) istället för en rätt i taget, så delade varor (krossade tomater, lök, grädde) inte dubbelcheckas. Lägesväxel "Bocka av" / "Ange mängd" — i mängdläget räknas bristen ut och bara den överförs. Bristen apportioneras tillbaka per rätt så merge/borttagning funkar.
-- [ ] Lägga till nytt recept: enhet borde föreslå i grått den enhet som väljs oftast, och klickar man inte i det så borde den enheten väljas automatiskt"
-- [ ] Lägga till nytt recept: enhetsfältet hoppar inte upp igen om man valt en enhet och trycker i fältet igen
 - [x] Swipar man mellan menyer byter rätter som ligger på samma dag plats (hoppar till)
 - [x] Kunna lägga till maträtter direkt från recept-knappen --> (välj dag)
 - [x] Lägga till recept skulle då kunna leda direkt till samma receptdialog (men där veckodagen skickas som parameter)
+- [ ] Lägga till nytt recept: enhet borde föreslå i grått den enhet som väljs oftast, och klickar man inte i det fältet så borde den enheten väljas automatiskt
+- [ ] Lägga till nytt recept: enhetsfältet hoppar inte upp igen om man valt en enhet och trycker i fältet igen
 - [ ] Varna om man byter ut maträtt till dubblett eller lägger till maträtt från recept på en dag som redan har en planerad maträtt
 - [ ] Bättre med optimistik uppdatering av menyn när man tar bort ett recept än att det blir en delay
+- [ ] När man lägger till recept borde man även få val att också lägga till beskrivning och instruktioner
+- [ ] Gråa ut dagar som redan har en maträtt när man kommer till "Lägg till i meny" dialogen
+- [ ] "Ingen dag" valet ser inte valbart ut i "Lägg till i meny"-dialogen
+- [ ] "Ta bort recept" i receptets 3-prickar-meny (idag bara via listans redigeringsläge)
+- [ ] Visa receptbild (imageUrl) överst i receptvyn
 
 
 ### Kalendern
@@ -215,16 +221,16 @@
 ---
 
 ## Agent
+- [x] Identifiera storleksordning på mått så att den alltid går på det största måttet när den ska slå ihop samma vara (helper + tester, integration återstår)
 - [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori när den importerar recept.
 - [ ] kanske en agent som lär sig hur användaren brukar lägga till basvaror, aktiviteter etc för att få en bättre UI experience?
-- [x] Identifiera storleksordning på mått så att den alltid går på det största måttet när den ska slå ihop samma vara (helper + tester, integration återstår)
 - [ ] Bli ännu smartare på ihopslagning av dubbletter. Så att den förstår att 400 g + 1 paket --> 2 paket istället för 401 g etc.
 
 ---
 
 ## Ej helt färdiga stories, idéstadie
-- [ ] Borde finnas underkategorier till varukategorierna som varorna också tillhör (chark, ost, deli, kött, fågel, korv, fisk, allergi, glass, alkoholfritt, chips, etc) så att man om man vill kan slå isär en huvudkategori om det inte matchar affären
 - [x] Eventuellt möjlighet att kopiera en veckomeny till en annan vecka (backend endpoint, UI återstår)
+- [ ] Borde finnas underkategorier till varukategorierna som varorna också tillhör (chark, ost, deli, kött, fågel, korv, fisk, allergi, glass, alkoholfritt, chips, etc) så att man om man vill kan slå isär en huvudkategori om det inte matchar affären
 - [ ] Veckovyn i tablet borde kanske se likadan ut som i mobilen med allt under?
 - [ ] ha en sökbar databas på butiker som andra lagt till för att på så vis slippa skapa butiker som redan finns inlagda. Kanske ett premium-alternativ?
 - [ ] Statistik/insikter: lättviktsvy med "mest lagade rätter", "vem gör flest sysslor", "vanligaste inköp" — möjligt premium-läge tillsammans med butiksdatabasen
@@ -232,7 +238,9 @@
 - [ ] Skafferi-minne: persistent "har hemma" som minns över sessioner (eget skafferi per hushåll) så återkommande basvaror inte behöver inventeras varje gång. Bygger vidare på den hopslagna inventeringen.
 - [ ] Utnyttja större skärm likt kalender-vyn att saker öppnas bredvid istället för under mm.
 - [ ] bygga en pwa
-- [ ] Kan vi implementera en streckkodsläsare för at  tdirekt kunna lägga till en vara?
+- [ ] Kan vi implementera en streckkodsläsare för att direkt kunna lägga till en vara?
+- [ ] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt
+- [ ] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp)
 
 ## Backlog (prioriterade features)
 
