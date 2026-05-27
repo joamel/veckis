@@ -481,7 +481,7 @@ export default function MenuScreen() {
       const recipe = recipes.find(r => r.id === params.addRecipeId);
       if (recipe) {
         addRecipeTriggeredRef.current = true;
-        const day = (params.day && params.day.length > 0 ? params.day : null) as WeekDay | null;
+        const day = (params.day && DAYS.some(d => d.key === params.day) ? params.day : null) as WeekDay | null;
         addRecipeToDay(recipe, day);
         router.setParams({ addRecipeId: undefined, day: undefined });
       }
@@ -530,16 +530,12 @@ export default function MenuScreen() {
     }
   }, [showBulkTransferModal, params.originListId]);
 
-  function openPicker(day: WeekDay | null | 'ask') {
-    if (day === 'ask') {
-      setPickingForDay(null);
-      setPickerStep('day');
-    } else {
-      setPickingForDay(day);
-      setPickerStep('recipe');
-    }
-    setReplaceTarget(null);
-    setShowPicker(true);
+  // Pick a recipe for a day by opening the full recipe view in "select" mode,
+  // instead of a separate in-menu picker dialog. The recipe screen routes back
+  // with ?addRecipeId&day, which the addRecipeId effect below applies to the
+  // currently shown week.
+  function openPicker(day: WeekDay | null) {
+    router.push(`/recipes?forMenuDay=${day ?? 'none'}` as never);
   }
 
   function startReplaceRecipe(item: WeekMenuItemWithRecipe) {
@@ -992,7 +988,7 @@ export default function MenuScreen() {
             >
               {items.length === 0 ? (
                 <Pressable
-                  onPress={isCenter ? (() => { setPickingForDay(day.key); setPickerStep('recipe'); setShowPicker(true); }) : noop}
+                  onPress={isCenter ? (() => openPicker(day.key)) : noop}
                   style={s.daySlotEmptyRow}
                 >
                   <View style={[s.dayLabelBox, s.dayLabelBoxMuted, { width: sp(36), height: sp(36) }]}>

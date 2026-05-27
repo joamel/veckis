@@ -61,6 +61,18 @@ export default function RecipesScreen() {
     }
   }
 
+  // "Select a recipe for a day" mode — entered from the menu's "+". Tapping a
+  // recipe routes back to the menu, which adds it to the week it's showing.
+  const selectionMode = params.forMenuDay !== undefined;
+  const selectionDayLabel = params.forMenuDay && params.forMenuDay !== 'none'
+    ? MENU_DAYS.find(d => d.key === params.forMenuDay)?.label
+    : 'utan dag';
+
+  function selectRecipeForMenu(recipe: RecipeWithIngredients) {
+    const day = params.forMenuDay === 'none' ? '' : (params.forMenuDay ?? '');
+    router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${day}` as never);
+  }
+
   const filteredRecipes = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return recipes;
@@ -214,6 +226,13 @@ export default function RecipesScreen() {
         </View>
       </View>
 
+      {selectionMode && (
+        <View style={s.selectBanner}>
+          <Ionicons name="restaurant-outline" size={16} color="#4f46e5" />
+          <Text style={s.selectBannerText}>Välj en rätt · {selectionDayLabel}</Text>
+        </View>
+      )}
+
       <FlatList
         data={filteredRecipes}
         keyExtractor={r => r.id}
@@ -241,8 +260,12 @@ export default function RecipesScreen() {
           <View style={s.cardWrap}>
             <Pressable
               style={s.card}
-              onPress={() => { if (!editMode) router.push(`/recipes/${item.id}` as never); }}
-              onLongPress={() => setEditMode(true)}
+              onPress={() => {
+                if (editMode) return;
+                if (selectionMode) { selectRecipeForMenu(item); return; }
+                router.push(`/recipes/${item.id}` as never);
+              }}
+              onLongPress={() => { if (!selectionMode) setEditMode(true); }}
             >
               <View style={s.cardIcon}>
                 <Ionicons name="restaurant-outline" size={20} color="#4f46e5" />
@@ -251,12 +274,14 @@ export default function RecipesScreen() {
                 <Text style={s.cardTitle}>{item.title}</Text>
                 <Text style={s.cardMeta}>{item.servings} port · {item.ingredients.length} ingredienser</Text>
               </View>
-              {!editMode && (
+              {selectionMode ? (
+                <Ionicons name="add-circle" size={22} color="#4f46e5" />
+              ) : !editMode && (
                 <Pressable style={s.addMenuBtn} onPress={() => setAddToMenuFor(item)} hitSlop={8} accessibilityLabel="Lägg till i meny">
                   <Ionicons name="calendar-outline" size={20} color="#4f46e5" />
                 </Pressable>
               )}
-              {!editMode && <Ionicons name="chevron-forward" size={18} color="#d1d5db" />}
+              {!editMode && !selectionMode && <Ionicons name="chevron-forward" size={18} color="#d1d5db" />}
             </Pressable>
             {editMode && (
               <Pressable
@@ -407,6 +432,8 @@ const s = StyleSheet.create({
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   addMenuBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
+  selectBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#eef2ff', paddingHorizontal: 16, paddingVertical: 10 },
+  selectBannerText: { fontSize: 14, fontWeight: '600', color: '#4f46e5' },
   daySheetSub: { fontSize: 13, color: '#6b7280', marginTop: -8 },
   dayGrid: { gap: 8, marginTop: 4 },
   dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#f3f4f6', borderRadius: 12 },
