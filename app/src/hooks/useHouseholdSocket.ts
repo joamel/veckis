@@ -21,7 +21,8 @@ export type HouseholdWsMessage =
   | { type: 'household_updated'; data: { id: string; name: string } }
   | { type: 'member_added'; data: { id: string; householdId: string; displayName: string; role: string; clerkUserId: string | null } }
   | { type: 'member_updated'; data: { id: string; householdId: string; displayName: string; role: string; clerkUserId: string | null } }
-  | { type: 'member_deleted'; data: { id: string } };
+  | { type: 'member_deleted'; data: { id: string } }
+  | { type: 'shopping_list_updated'; data: { listId: string } };
 
 export function useHouseholdSocket(
   householdId: string | null | undefined,
