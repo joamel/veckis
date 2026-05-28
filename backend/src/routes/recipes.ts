@@ -50,10 +50,11 @@ recipesRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
 
   const recipes = await prisma.recipe.findMany({
     where: { householdId },
-    include: { ingredients: { orderBy: { id: 'asc' } } },
+    include: { ingredients: { orderBy: { id: 'asc' } }, _count: { select: { weekMenuItems: true } } },
     orderBy: { title: 'asc' },
   });
-  res.json(recipes);
+  // Flatten menu-usage count so clients can sort by "most used".
+  res.json(recipes.map(({ _count, ...r }) => ({ ...r, menuCount: _count.weekMenuItems })));
 }));
 
 // GET /api/recipes/:recipeId

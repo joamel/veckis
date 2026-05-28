@@ -182,6 +182,7 @@
 - [x] "Ta bort recept" i receptets 3-prickar-meny (idag bara via listans redigeringsläge)
 - [x] Visa receptbild (imageUrl) överst i receptvyn
 - [ ] Riktig bilduppladdning för recept (välj från kamera/galleri → ladda upp till lagring → imageUrl) i stället för att klistra in en bild-URL. Kräver bildlagring (t.ex. S3/Cloudinary) + upload-endpoint + komprimering
+- [ ] Inventeringsdialogen går inte hela vägen ned
 
 
 ### Kalendern
@@ -246,7 +247,8 @@
 - [ ] bygga en pwa
 - [ ] Kan vi implementera en streckkodsläsare för att direkt kunna lägga till en vara?
 - [ ] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt
-- [ ] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp)
+- [x] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp) — sorter-knapp i recept-headern med radioval: A–Ö / Mest använda (menyförekomster) / Senast tillagda; valet sparas (gäller även välj-läget)
+- [ ] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd..
 
 ## Backlog (prioriterade features)
 

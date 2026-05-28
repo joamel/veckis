@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
@@ -45,6 +46,18 @@ export default function RecipesScreen() {
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortMode, setSortMode] = useState<'name' | 'used' | 'recent'>('name');
+  const [showSort, setShowSort] = useState(false);
+  useEffect(() => {
+    SecureStore.getItemAsync('recipeSort').then(v => {
+      if (v === 'name' || v === 'used' || v === 'recent') setSortMode(v);
+    }).catch(() => {});
+  }, []);
+  function chooseSort(m: 'name' | 'used' | 'recent') {
+    setSortMode(m);
+    setShowSort(false);
+    SecureStore.setItemAsync('recipeSort', m).catch(() => {});
+  }
   // Quick "add to this week's menu" from the recipe list.
   const [addToMenuFor, setAddToMenuFor] = useState<RecipeWithIngredients | null>(null);
   const [weekMenu, setWeekMenu] = useState<WeekMenuItemWithRecipe[]>([]);
@@ -103,12 +116,17 @@ export default function RecipesScreen() {
 
   const filteredRecipes = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return recipes;
-    return recipes.filter(r =>
-      r.title.toLowerCase().includes(q) ||
-      r.ingredients.some(i => i.name.toLowerCase().includes(q))
-    );
-  }, [recipes, searchQuery]);
+    const base = q
+      ? recipes.filter(r =>
+          r.title.toLowerCase().includes(q) ||
+          r.ingredients.some(i => i.name.toLowerCase().includes(q)))
+      : recipes;
+    return [...base].sort((a, b) => {
+      if (sortMode === 'used') return (b.menuCount ?? 0) - (a.menuCount ?? 0) || a.title.localeCompare(b.title);
+      if (sortMode === 'recent') return (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
+      return a.title.localeCompare(b.title);
+    });
+  }, [recipes, searchQuery, sortMode]);
 
   // New recipe form
   const [mode, setMode] = useState<'manual' | 'url'>('manual');
@@ -235,11 +253,16 @@ export default function RecipesScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={26} color="#111827" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable onPress={() => router.back()} hitSlop={10}>
+              <Ionicons name="arrow-back" size={26} color="#111827" />
+            </Pressable>
+            <Text style={s.title}>Recept</Text>
+          </View>
+          <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={s.sortBtn} accessibilityLabel="Sortera recept">
+            <Ionicons name="swap-vertical" size={18} color="#4f46e5" />
           </Pressable>
-          <Text style={s.title}>Recept</Text>
         </View>
         <View style={s.searchRow}>
           <Ionicons name="search" size={16} color="#9ca3af" style={s.searchIcon} />
@@ -449,6 +472,21 @@ export default function RecipesScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Sort options */}
+      <Modal visible={showSort} transparent animationType="slide" onRequestClose={() => setShowSort(false)}>
+        <Pressable style={s.overlay} onPress={() => setShowSort(false)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Sortera recept</Text>
+          {([['name', 'A–Ö'], ['used', 'Mest använda'], ['recent', 'Senast tillagda']] as const).map(([key, label]) => (
+            <Pressable key={key} style={s.sortOption} onPress={() => chooseSort(key)}>
+              <Ionicons name={sortMode === key ? 'radio-button-on' : 'radio-button-off'} size={22} color={sortMode === key ? '#4f46e5' : '#9ca3af'} />
+              <Text style={s.sortOptionText}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -459,6 +497,9 @@ const s = StyleSheet.create({
   header: { padding: 20, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
   title: { fontSize: 28, fontWeight: '700', color: '#111827' },
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f3f4f6', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
+  sortBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
+  sortOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
+  sortOptionText: { fontSize: 16, color: '#111827', fontWeight: '500' },
   searchIcon: { marginRight: 2 },
   searchInput: { flex: 1, fontSize: 15, color: '#111827', padding: 0 },
   list: { padding: 16, gap: 10 },
