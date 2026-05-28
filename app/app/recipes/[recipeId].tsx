@@ -372,7 +372,7 @@ export default function RecipeDetailScreen() {
           </View>
 
           {editMode ? (
-            <View style={s.editList}>
+            <View style={s.editList} {...({ importantForAutofill: 'noExcludeDescendants' } as object)}>
               {editIngredients.map((row, idx) => (
                 <View key={idx}>
                   <View style={s.editRow}>
