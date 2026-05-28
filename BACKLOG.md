@@ -37,9 +37,10 @@
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [ ] Städa upp legacy-kod
 - [ ] Refaktorera och skapa fler filer för egna komponenter mm
-- [ ] Uppdateringar från socket borde uppdatera andra flikar innan man trycker på dem så att det inte hoppar till. Just nu kan det stå "0 av 0 kvar" och sedan hoppar det till -> "21 av 21 kvar"
+- [x] Uppdateringar från socket borde uppdatera andra flikar innan man trycker på dem så att det inte hoppar till. Just nu kan det stå "0 av 0 kvar" och sedan hoppar det till -> "21 av 21 kvar" (backend sänder shopping_list_updated på hushålls-socketen; översikten lyssnar + debounced reload)
 - [ ] Se över skuggor på kort. Ej konsekvent genom hela appen..
-- [ ] Se över dialog-rutor. Många har olika utseende - vissa är rundade upptill andra inte, vissa är genomskinliga i nedkant andra inte. Bör vara rundade upptill och inte genomskinliga nedtill.
+- [ ] Se över dialog-rutor. Många har olika utseende - vissa är rundade upptill andra inte, vissa är genomskinliga i nedkant andra inte. Bör vara rundade upptill och inte genomskinliga nedtill (audit: alla sheets är redan rundade upptill; paddingBottom-variansen är strukturell — sheets med inre ScrollView har 0 + egen padding; enda avvikaren är två grå modaler (MenuTemplatesModal, NotificationsModal, #f3f4f6) som ev. är avsiktligt grå. Kräver visuellt omdöme, ej mekanisk fix)
+- [x] Vecko-rubriken borde vara lila för alla veckor (inte bara nuvarande) i kalendern och menyn
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -60,7 +61,7 @@
 - [x] Varna innan man tar bort en lokal profil/medlem som har tilldelade sysslor/aktiviteter ("X har 4 sysslor och 2 aktiviteter — vad ska hända med dem?") istället för tyst orphaning
 - [x] tydligare indikera vem som är jag (Du) i medlemmar
 - [x] Notisinställningar uppe till höger som en klocka istället
-- [ ] Sätt admin-loggan bredvid "Admin" för admins under Medlemmar
+- [x] Sätt admin-loggan bredvid "Admin" för admins under Medlemmar
 
 
 ### Inköpslistan
@@ -126,7 +127,7 @@
 - [x] Efter ihopslagning och flytt till nästa dubblett borde tangenbordet försvinna
 - [ ] Kanske det krävs att en vara blivit tillagd mer än 1 gång för att återfinnas i söket. Ett sätt för en felstavad eller inskriven basvara av misstag att inte komma med i söket
 - [ ] Grönt passar dåligt på skuggan
-- [ ] Inköpsfliken rendar inte om när man tar bort en maträtt från menyn utan att man byter flik eller uppdaterar sidan
+- [x] Inköpsfliken rendar inte om när man tar bort en maträtt från menyn utan att man byter flik eller uppdaterar sidan
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -168,13 +169,13 @@
 - [x] Kunna lägga till maträtter direkt från recept-knappen --> (välj dag)
 - [x] Lägga till recept skulle då kunna leda direkt till samma receptdialog (men där veckodagen skickas som parameter)
 - [ ] Lägga till nytt recept: enhet borde föreslå i grått den enhet som väljs oftast, och klickar man inte i det fältet så borde den enheten väljas automatiskt
-- [ ] Lägga till nytt recept: enhetsfältet hoppar inte upp igen om man valt en enhet och trycker i fältet igen
+- [x] Lägga till nytt recept: enhetsfältet hoppar inte upp igen om man valt en enhet och trycker i fältet igen (onPressIn återvisar enhets-chipsen vid återklick)
 - [x] Enhetsfältet i ingrediens-redigering scrollade alltid uppåt vid fokus (knuffade tillslut bort inputen) — scrollar nu bara om fältet/chip-raden hamnar under tangentbordet
 - [x] Ingrediensnamn/enhet-fälten triggade OS-autofill ("id:n och lösenord") — autofill/förslag avstängt (textContentType none, autoComplete off, importantForAutofill no)
 - [x] Samsung Pass visar fortfarande "id:n och lösenord"-autofyll på TOMMA nya ingrediens-rader (respekterar inte importantForAutofill via JS). Native-fix: config-plugin sätter android:importantForAutofill=noExcludeDescendants på activity (aktiveras vid nästa EAS-build; stänger även av autofyll på login-fälten)
 - [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
 - [x] Varna om man byter ut maträtt till dubblett eller lägger till maträtt från recept på en dag som redan har en planerad maträtt
-- [ ] Bättre med optimistik uppdatering av menyn när man tar bort ett recept än att det blir en delay
+- [x] Bättre med optimistik uppdatering av menyn när man tar bort ett recept än att det blir en delay — kortet döljs direkt (render filtrerar pending-objekt), commit sker efter 5s och ångra-toasten återställer; stacking bevarad
 - [x] När man lägger till recept borde man även få val att också lägga till beskrivning och instruktioner
 - [x] Gråa ut dagar som redan har en maträtt när man kommer till "Lägg till i meny" dialogen
 - [x] "Ingen dag" valet ser inte valbart ut i "Lägg till i meny"-dialogen
@@ -207,7 +208,7 @@
 - [x] Kunna lägga aktiviteter på fler än en user i taget
 - [x] Lägga tider ute till höger på aktiviteter
 - [x] Datepickern borde visa datumet man är på och väljer man ett datum i datepickern borde kalendern uppdatera så att det är den dagen som väljs i veckovyn
-- [ ] Använda samma veckonummer-bar som i menyfliken
+- [x] Använda samma veckonummer-bar som i menyfliken (kalenderns WeekNav visar nu "Vecka {nr}" utan år, som menyn)
 - [x] Idag-knappen hoppar inte till rätt dag (endast rätt vecka)
 
 ### Sysslor

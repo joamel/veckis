@@ -14,6 +14,14 @@ import { planAutoMerge } from '../lib/importDedupe';
 
 export const shoppingRouter = Router();
 
+// Broadcast a per-list item change AND a lightweight household-level signal so
+// the shopping overview (which isn't subscribed to per-list sockets) can update
+// its counts live instead of only on tab focus.
+function bcast(list: { id: string; householdId: string }, message: object) {
+  wsBroadcast(list.id, message);
+  wsBroadcast(`household:${list.householdId}`, { type: 'shopping_list_updated', data: { listId: list.id } });
+}
+
 // Walk up the merge chain to find the visible root item
 async function findMergeRoot(listId: string, itemId: string): Promise<string> {
   const all = await prisma.shoppingItem.findMany({
@@ -218,7 +226,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
       data: { quantity: existing.quantity + (body.data.quantity ?? 1) },
     });
     learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
-    wsBroadcast(list.id, { type: 'item_updated', data: item });
+    bcast(list, { type: 'item_updated', data: item });
     res.status(200).json(item);
     return;
   }
@@ -228,7 +236,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   });
 
   learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
-  wsBroadcast(list.id, { type: 'item_added', data: item });
+  bcast(list, { type: 'item_added', data: item });
   res.status(201).json(item);
 }));
 
@@ -238,7 +246,7 @@ shoppingRouter.delete('/lists/:listId/items', requireAuth, asyncHandler(async (r
   const list = await getListAndVerifyMember(req.params.listId, clerkUserId, res);
   if (!list) return;
   await prisma.shoppingItem.deleteMany({ where: { listId: list.id } });
-  wsBroadcast(list.id, { type: 'list_cleared' });
+  bcast(list, { type: 'list_cleared' });
   res.status(204).send();
 
   // Notify the rest of the household that the active list was cleared.
@@ -277,7 +285,7 @@ shoppingRouter.patch('/items/:itemId', requireAuth, asyncHandler(async (req, res
     storeIngredientCategory(item.name, data.category as StoreCategory).catch(() => {});
   }
 
-  wsBroadcast(list.id, { type: 'item_updated', data: item });
+  bcast(list, { type: 'item_updated', data: item });
   res.json(item);
 }));
 
@@ -297,7 +305,7 @@ shoppingRouter.patch('/items/:itemId/check', requireAuth, asyncHandler(async (re
     where: { id: existing.id },
     data: { isChecked: body.data.checked, checkedBy: body.data.checked ? clerkUserId : null },
   });
-  wsBroadcast(existing.listId, { type: 'item_updated', data: item });
+  bcast(list, { type: 'item_updated', data: item });
   res.json(item);
 }));
 
@@ -355,9 +363,9 @@ shoppingRouter.post('/items/merge', requireAuth, asyncHandler(async (req, res) =
     return created;
   });
 
-  wsBroadcast(list.id, { type: 'item_added', data: container });
+  bcast(list, { type: 'item_added', data: container });
   for (const id of body.data.sourceIds) {
-    wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+    bcast(list, { type: 'item_deleted', data: { id } });
   }
   res.json(container);
 }));
@@ -394,11 +402,11 @@ shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAu
     where: { listId: list.id, menuItemId: req.params.menuItemId },
   });
   for (const { id } of deleted) {
-    wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+    bcast(list, { type: 'item_deleted', data: { id } });
   }
   // Containers that got unmerged are also gone — tell clients
   for (const id of removedContainerIds) {
-    wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+    bcast(list, { type: 'item_deleted', data: { id } });
   }
 
   // Broadcast survivors as added (formerly hidden items now visible)
@@ -408,7 +416,7 @@ shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAu
     include: { recipe: { select: { id: true, title: true } } },
   });
   for (const s of survivors) {
-    wsBroadcast(list.id, { type: 'item_added', data: s });
+    bcast(list, { type: 'item_added', data: s });
   }
 
   // After unmerging, restored survivors may once again share name+unit with other
@@ -439,12 +447,12 @@ shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAu
       where: { id: { in: group.ids } },
       data: { mergedIntoId: container.id },
     });
-    wsBroadcast(list.id, { type: 'item_added', data: container });
+    bcast(list, { type: 'item_added', data: container });
     for (const id of group.ids) {
-      wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+      bcast(list, { type: 'item_deleted', data: { id } });
     }
     // Tell clients to show "Slog ihop N {namn}" so the merge isn't silent.
-    wsBroadcast(list.id, { type: 'items_auto_merged', data: { name: group.name, count: group.ids.length } });
+    bcast(list, { type: 'items_auto_merged', data: { name: group.name, count: group.ids.length } });
   }
 
   res.status(204).send();
@@ -463,20 +471,20 @@ shoppingRouter.delete('/items/:itemId', requireAuth, asyncHandler(async (req, re
   if (hasChildren) {
     const { leaves, containers } = await fullyUnmerge(existing.listId, existing.id);
     for (const id of containers) {
-      wsBroadcast(list.id, { type: 'item_deleted', data: { id } });
+      bcast(list, { type: 'item_deleted', data: { id } });
     }
     const survivors = await prisma.shoppingItem.findMany({
       where: { id: { in: leaves } },
       include: { recipe: { select: { id: true, title: true } } },
     });
     for (const s of survivors) {
-      wsBroadcast(list.id, { type: 'item_added', data: s });
+      bcast(list, { type: 'item_added', data: s });
     }
     res.status(204).send();
     return;
   }
 
   await prisma.shoppingItem.delete({ where: { id: existing.id } });
-  wsBroadcast(list.id, { type: 'item_deleted', data: { id: existing.id } });
+  bcast(list, { type: 'item_deleted', data: { id: existing.id } });
   res.status(204).send();
 }));

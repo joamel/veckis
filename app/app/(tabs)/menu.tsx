@@ -33,7 +33,7 @@ import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
-import { onShoppingChanged } from '../../src/lib/shoppingEvents';
+import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay } from '@veckis/shared';
@@ -708,11 +708,10 @@ export default function MenuScreen() {
     });
     if (!ok) return;
     let cancelled = false;
-    // Mark as pending — meal card stays visible with fade/strikethrough during the
-    // 5s undo window, and the open shopping-list screen renders ingredients in pending
-    // state instead of either hiding them or making them pop back on undo.
-    // Register cancel callback so the toast's "Ångra" can roll back this and any other
-    // meals currently in the pending queue with one tap.
+    // Mark as pending — the meal card is hidden immediately (optimistic) since the
+    // render filters out pending items; the actual delete commits after the 5s undo
+    // window. Register cancel callback so the toast's "Ångra" rolls back this and any
+    // other meals in the pending queue (they reappear) with one tap.
     markPending(item.id, () => { cancelled = true; });
     // Show stacked toast: count is current pendingCount + 1 (this call) since state hasn't flushed.
     const upcomingCount = pendingCount + 1;
@@ -776,6 +775,9 @@ export default function MenuScreen() {
       await Promise.all(ops);
       setRecipeListMap(prev => { const n = { ...prev }; delete n[menuItem.id]; return n; });
       load();
+      // Notify other tabs (shopping overview / open list) so they re-render
+      // immediately instead of only on next focus.
+      emitShoppingChanged();
     } catch (e) {
       showError(e, 'Kunde inte ta bort ingredienserna');
     }
@@ -993,13 +995,17 @@ export default function MenuScreen() {
     // reordering "jump" when swiping between weeks.
     const byCreated = (a: WeekMenuItemWithRecipe, b: WeekMenuItemWithRecipe) =>
       a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
-    const unsched = weekItems.filter(i => i.day === null).sort(byCreated);
-    const anyScheduled = weekItems.some(i => i.day !== null);
+    // Optimistic removal: hide items pending deletion immediately so the card
+    // disappears at once. They're still in state until the delete commits, so the
+    // toast's "Ångra" restores them.
+    const visible = (i: WeekMenuItemWithRecipe) => !pendingMenuItemRemovals.has(i.id);
+    const unsched = weekItems.filter(i => i.day === null && visible(i)).sort(byCreated);
+    const anyScheduled = weekItems.some(i => i.day !== null && visible(i));
     const noop = () => {};
     return (
       <>
         {DAYS.map((day, i) => {
-          const items = weekItems.filter(m => m.day === day.key).sort(byCreated);
+          const items = weekItems.filter(m => m.day === day.key && visible(m)).sort(byCreated);
           const date = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + i);
           const isHovered = isCenter && hoverDay === day.key;
           const dragging = isCenter && !!dragState;

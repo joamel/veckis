@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -25,6 +25,8 @@ import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { onShoppingChanged } from '../../src/lib/shoppingEvents';
+import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
+import { useAuth } from '@clerk/clerk-expo';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type Store } from '@veckis/shared';
 
 export default function ShoppingScreen() {
@@ -74,6 +76,18 @@ export default function ShoppingScreen() {
   useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
   // Refresh when a list changes elsewhere (e.g. deferred clear in the detail view).
   useEffect(() => onShoppingChanged(load), [load]);
+
+  // Live cross-device refresh: the backend emits shopping_list_updated on the
+  // household socket when any list's items change, so the overview counts update
+  // without waiting for tab focus. Debounced — one mutation can emit several events.
+  const { getToken } = useAuth();
+  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useHouseholdSocket(householdId, getToken, (msg) => {
+    if (msg.type === 'shopping_list_updated') {
+      if (reloadTimer.current) clearTimeout(reloadTimer.current);
+      reloadTimer.current = setTimeout(() => load(), 350);
+    }
+  });
 
   async function createList() {
     if (!householdId || !newListName.trim()) return;
