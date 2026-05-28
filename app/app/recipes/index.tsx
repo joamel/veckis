@@ -113,6 +113,8 @@ export default function RecipesScreen() {
   // New recipe form
   const [mode, setMode] = useState<'manual' | 'url'>('manual');
   const [title, setTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newInstr, setNewInstr] = useState('');
   const [url, setUrl] = useState('');
   const [scraping, setScraping] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -197,10 +199,15 @@ export default function RecipesScreen() {
     if (!householdId || !title.trim()) return;
     setCreating(true);
     try {
-      const recipe = await client.createRecipe({ householdId, title: title.trim() });
+      const recipe = await client.createRecipe({
+        householdId,
+        title: title.trim(),
+        description: newDesc.trim() || null,
+        instructions: newInstr.trim() || null,
+      });
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
       setShowModal(false);
-      setTitle('');
+      setTitle(''); setNewDesc(''); setNewInstr('');
       const forMenuDay = params.forMenuDay;
       const suffix = forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '';
       router.push(`/recipes/${recipe.id}?edit=1${suffix}` as never);
@@ -376,8 +383,23 @@ export default function RecipesScreen() {
                 value={title}
                 onChangeText={setTitle}
                 autoFocus
-                returnKeyType="done"
-                onSubmitEditing={handleCreateManual}
+                returnKeyType="next"
+              />
+              <TextInput
+                style={[s.input, s.inputMultiline]}
+                placeholder="Beskrivning (valfritt)"
+                placeholderTextColor="#9ca3af"
+                value={newDesc}
+                onChangeText={setNewDesc}
+                multiline
+              />
+              <TextInput
+                style={[s.input, s.inputMultilineTall]}
+                placeholder="Tillvägagångssätt (valfritt)"
+                placeholderTextColor="#9ca3af"
+                value={newInstr}
+                onChangeText={setNewInstr}
+                multiline
               />
               <Pressable
                 style={[s.button, !title.trim() && s.buttonDisabled]}
@@ -425,20 +447,25 @@ export default function RecipesScreen() {
           <Text style={s.sheetTitle}>Lägg till i meny</Text>
           <Text style={s.daySheetSub} numberOfLines={2}>{addToMenuFor?.title} · denna vecka</Text>
           <View style={s.dayGrid}>
-            {MENU_DAYS.map(d => (
-              <Pressable
-                key={d.key}
-                style={s.dayGridItem}
-                onPress={() => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, d.key); }}
-              >
-                <Text style={s.dayGridLabel}>{d.label}</Text>
-              </Pressable>
-            ))}
+            {MENU_DAYS.map(d => {
+              const taken = weekMenu.some(m => m.day === d.key);
+              return (
+                <Pressable
+                  key={d.key}
+                  style={[s.dayGridItem, taken && s.dayGridItemTaken]}
+                  onPress={() => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, d.key); }}
+                >
+                  <Text style={[s.dayGridLabel, taken && s.dayGridLabelTaken]}>{d.label}</Text>
+                  {taken && <Text style={s.dayGridTakenHint}>Planerad</Text>}
+                </Pressable>
+              );
+            })}
             <Pressable
               style={[s.dayGridItem, s.dayGridItemNone]}
               onPress={() => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, null); }}
             >
-              <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>Ingen dag</Text>
+              <Ionicons name="calendar-clear-outline" size={18} color="#4f46e5" />
+              <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>Lägg till utan dag</Text>
             </Pressable>
           </View>
         </View>
@@ -472,16 +499,21 @@ const s = StyleSheet.create({
   selectBannerText: { fontSize: 14, fontWeight: '600', color: '#4f46e5' },
   daySheetSub: { fontSize: 13, color: '#6b7280', marginTop: -8 },
   dayGrid: { gap: 8, marginTop: 4 },
-  dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#f3f4f6', borderRadius: 12 },
-  dayGridItemNone: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
+  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#f3f4f6', borderRadius: 12 },
+  dayGridItemTaken: { backgroundColor: '#fafafa' },
+  dayGridItemNone: { backgroundColor: '#eef2ff', borderWidth: 1, borderColor: '#c7d2fe', justifyContent: 'flex-start' },
   dayGridLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  dayGridLabelNone: { color: '#9ca3af' },
+  dayGridLabelTaken: { color: '#9ca3af' },
+  dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: '#f59e0b' },
+  dayGridLabelNone: { color: '#4f46e5' },
   modeTabs: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 10, padding: 4 },
   modeTab: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
   modeTabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   modeTabText: { fontSize: 14, fontWeight: '500', color: '#6b7280' },
   modeTabTextActive: { color: '#111827' },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#f9fafb' },
+  inputMultiline: { minHeight: 64, textAlignVertical: 'top' },
+  inputMultilineTall: { minHeight: 120, textAlignVertical: 'top' },
   urlHint: { fontSize: 12, color: '#9ca3af', marginTop: -6 },
   button: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
