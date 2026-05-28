@@ -33,7 +33,7 @@ import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
-import { onShoppingChanged } from '../../src/lib/shoppingEvents';
+import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay } from '@veckis/shared';
@@ -776,6 +776,9 @@ export default function MenuScreen() {
       await Promise.all(ops);
       setRecipeListMap(prev => { const n = { ...prev }; delete n[menuItem.id]; return n; });
       load();
+      // Notify other tabs (shopping overview / open list) so they re-render
+      // immediately instead of only on next focus.
+      emitShoppingChanged();
     } catch (e) {
       showError(e, 'Kunde inte ta bort ingredienserna');
     }
