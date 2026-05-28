@@ -268,7 +268,7 @@ export function useApiClient() {
     getRecipe: (recipeId: string) =>
       request<RecipeWithIngredients>(`/api/recipes/${recipeId}`),
 
-    createRecipe: (data: { householdId: string; title: string; description?: string | null; sourceUrl?: string | null; imageUrl?: string | null; servings?: number; ingredients?: Array<{ name: string; quantity?: number | null; unit?: string | null; category?: StoreCategory }> }) =>
+    createRecipe: (data: { householdId: string; title: string; description?: string | null; instructions?: string | null; sourceUrl?: string | null; imageUrl?: string | null; servings?: number; ingredients?: Array<{ name: string; quantity?: number | null; unit?: string | null; category?: StoreCategory }> }) =>
       request<RecipeWithIngredients>('/api/recipes', { method: 'POST', body: JSON.stringify(data) }),
 
     updateRecipe: (recipeId: string, data: { title?: string; description?: string | null; instructions?: string | null; imageUrl?: string | null; servings?: number; ingredients?: Array<{ name: string; quantity?: number | null; unit?: string | null; category?: StoreCategory }> }) =>

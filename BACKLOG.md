@@ -169,11 +169,15 @@
 - [x] Lägga till recept skulle då kunna leda direkt till samma receptdialog (men där veckodagen skickas som parameter)
 - [ ] Lägga till nytt recept: enhet borde föreslå i grått den enhet som väljs oftast, och klickar man inte i det fältet så borde den enheten väljas automatiskt
 - [ ] Lägga till nytt recept: enhetsfältet hoppar inte upp igen om man valt en enhet och trycker i fältet igen
+- [x] Enhetsfältet i ingrediens-redigering scrollade alltid uppåt vid fokus (knuffade tillslut bort inputen) — scrollar nu bara om fältet/chip-raden hamnar under tangentbordet
+- [x] Ingrediensnamn/enhet-fälten triggade OS-autofill ("id:n och lösenord") — autofill/förslag avstängt (textContentType none, autoComplete off, importantForAutofill no)
+- [x] Samsung Pass visar fortfarande "id:n och lösenord"-autofyll på TOMMA nya ingrediens-rader (respekterar inte importantForAutofill via JS). Native-fix: config-plugin sätter android:importantForAutofill=noExcludeDescendants på activity (aktiveras vid nästa EAS-build; stänger även av autofyll på login-fälten)
+- [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
 - [x] Varna om man byter ut maträtt till dubblett eller lägger till maträtt från recept på en dag som redan har en planerad maträtt
 - [ ] Bättre med optimistik uppdatering av menyn när man tar bort ett recept än att det blir en delay
-- [ ] När man lägger till recept borde man även få val att också lägga till beskrivning och instruktioner
-- [ ] Gråa ut dagar som redan har en maträtt när man kommer till "Lägg till i meny" dialogen
-- [ ] "Ingen dag" valet ser inte valbart ut i "Lägg till i meny"-dialogen
+- [x] När man lägger till recept borde man även få val att också lägga till beskrivning och instruktioner
+- [x] Gråa ut dagar som redan har en maträtt när man kommer till "Lägg till i meny" dialogen
+- [x] "Ingen dag" valet ser inte valbart ut i "Lägg till i meny"-dialogen
 - [x] "Ta bort recept" i receptets 3-prickar-meny (idag bara via listans redigeringsläge)
 - [x] Visa receptbild (imageUrl) överst i receptvyn
 - [ ] Riktig bilduppladdning för recept (välj från kamera/galleri → ladda upp till lagring → imageUrl) i stället för att klistra in en bild-URL. Kräver bildlagring (t.ex. S3/Cloudinary) + upload-endpoint + komprimering
@@ -204,7 +208,7 @@
 - [x] Lägga tider ute till höger på aktiviteter
 - [x] Datepickern borde visa datumet man är på och väljer man ett datum i datepickern borde kalendern uppdatera så att det är den dagen som väljs i veckovyn
 - [ ] Använda samma veckonummer-bar som i menyfliken
-- [ ] Idag-knappen hoppar inte till rätt dag (endast rätt vecka)
+- [x] Idag-knappen hoppar inte till rätt dag (endast rätt vecka)
 
 ### Sysslor
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.
