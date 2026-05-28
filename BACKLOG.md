@@ -32,7 +32,7 @@
 - [x] Eventuellt ersätta longpress med en redigeraknapp alt att man bara kan ta bort/byta namn inuti kortet på "3 prickar" (meny: redigera/ta bort/byt ut i utfällt kort, inte via longpress)
 - [x] Istället ha longpress för att sortera/flytta om (meny: longpress = endast dra/flytta)
 - [ ] möjligt med horisontell-vy i tablet
-- [ ] Konflikthantering vid realtidsuppdatering — om två personer redigerar samma vara/aktivitet samtidigt: last-write-wins + toast till den som blir överskriven så ändringar inte tappas tyst
+- [x] Konflikthantering vid realtidsuppdatering — om två personer redigerar samma vara/aktivitet samtidigt: last-write-wins + toast till den som blir överskriven så ändringar inte tappas tyst (har man en vara/aktivitet/syssla öppen för redigering och någon annan ändrar/tar bort den via realtid → toast "ändrades/togs bort av någon annan"; gäller inköpsvaror, aktiviteter, kalender-sysslor och sysslor-fliken. Last-write-wins kvarstår vid spara)
 - [ ] Tillgänglighet: allt som nås via long-press ska även ha en synlig knapp + accessibility-labels på ikonknappar (penna/x/dubblett) så VoiceOver/TalkBack fungerar
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [ ] Städa upp legacy-kod

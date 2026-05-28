@@ -152,8 +152,10 @@ export default function ChoresScreen() {
     if (msg.type === 'chore_added') {
       setChores(prev => prev.some(c => c.id === msg.data.id) ? prev : [...prev, msg.data as never]);
     } else if (msg.type === 'chore_updated') {
+      if (editingChore?.id === msg.data.id) showToast(`${editingChore.title} ändrades av någon annan`);
       setChores(prev => prev.map(c => c.id === msg.data.id ? { ...c, ...msg.data } as never : c));
     } else if (msg.type === 'chore_deleted') {
+      if (editingChore?.id === msg.data.id) { showToast(`${editingChore.title} togs bort av någon annan`); setEditingChore(null); }
       setChores(prev => prev.filter(c => c.id !== msg.data.id));
     } else if (msg.type === 'chore_completed') {
       setChores(prev => prev.map(c => c.id === msg.data.choreId

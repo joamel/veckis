@@ -151,14 +151,18 @@ export default function ScheduleScreen() {
     if (msg.type === 'schedule_entry_added') {
       setEntries(prev => prev.some(e => e.id === msg.data.id) ? prev : [...prev, msg.data as never]);
     } else if (msg.type === 'schedule_entry_updated') {
+      if (editingEntry?.id === msg.data.id) showToast(`${editingEntry.title} ändrades av någon annan`, 'neutral');
       setEntries(prev => prev.map(e => e.id === msg.data.id ? (msg.data as never) : e));
     } else if (msg.type === 'schedule_entry_deleted') {
+      if (editingEntry?.id === msg.data.id) { showToast(`${editingEntry.title} togs bort av någon annan`, 'neutral'); setEditingEntry(null); }
       setEntries(prev => prev.filter(e => e.id !== msg.data.id));
     } else if (msg.type === 'chore_added') {
       setChores(prev => prev.some(c => c.id === msg.data.id) ? prev : [...prev, msg.data as never]);
     } else if (msg.type === 'chore_updated') {
+      if (editingCalChore?.id === msg.data.id) showToast(`${editingCalChore.title} ändrades av någon annan`, 'neutral');
       setChores(prev => prev.map(c => c.id === msg.data.id ? { ...c, ...msg.data } as never : c));
     } else if (msg.type === 'chore_deleted') {
+      if (editingCalChore?.id === msg.data.id) { showToast(`${editingCalChore.title} togs bort av någon annan`, 'neutral'); setEditingCalChore(null); }
       setChores(prev => prev.filter(c => c.id !== msg.data.id));
     } else if (msg.type === 'chore_completed') {
       setChores(prev => prev.map(c => c.id === msg.data.choreId

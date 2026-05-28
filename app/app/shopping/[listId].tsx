@@ -220,6 +220,17 @@ export default function ShoppingListScreen() {
       showGlobalToast(`Slog ihop ${msg.data.count} ${capitalize(msg.data.name)}`, 'success');
       return;
     }
+    // Conflict warning: someone else changed/removed the item you have open for
+    // editing. Last-write-wins still applies — this just makes the overwrite
+    // visible instead of silent.
+    if ((msg.type === 'item_updated' || msg.type === 'item_deleted') && editingItem && msg.data.id === editingItem.id) {
+      if (msg.type === 'item_deleted') {
+        showGlobalToast(`${capitalize(editingItem.name)} togs bort av någon annan`, 'neutral');
+        setEditingItem(null);
+      } else {
+        showGlobalToast(`${capitalize(editingItem.name)} ändrades av någon annan`, 'neutral');
+      }
+    }
     setList(prev => {
       if (!prev) return prev;
       switch (msg.type) {
