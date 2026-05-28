@@ -423,6 +423,7 @@ export default function RecipeDetailScreen() {
                       returnKeyType={idx < editIngredients.length - 1 ? 'next' : 'done'}
                       blurOnSubmit={false}
                       onFocus={() => setActiveUnitIdx(idx)}
+                      onPressIn={() => setActiveUnitIdx(idx)}
                       onBlur={() => setTimeout(() => setActiveUnitIdx(a => a === idx ? null : a), 120)}
                       onSubmitEditing={() => {
                         setActiveUnitIdx(null);

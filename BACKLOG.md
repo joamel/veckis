@@ -40,7 +40,7 @@
 - [x] Uppdateringar från socket borde uppdatera andra flikar innan man trycker på dem så att det inte hoppar till. Just nu kan det stå "0 av 0 kvar" och sedan hoppar det till -> "21 av 21 kvar" (backend sänder shopping_list_updated på hushålls-socketen; översikten lyssnar + debounced reload)
 - [ ] Se över skuggor på kort. Ej konsekvent genom hela appen..
 - [ ] Se över dialog-rutor. Många har olika utseende - vissa är rundade upptill andra inte, vissa är genomskinliga i nedkant andra inte. Bör vara rundade upptill och inte genomskinliga nedtill
-- [ ] Vecko-rubriken borde vara lila för alla veckor (inte bara nuvarande) i kalendern och menyn
+- [x] Vecko-rubriken borde vara lila för alla veckor (inte bara nuvarande) i kalendern och menyn
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -169,7 +169,7 @@
 - [x] Kunna lägga till maträtter direkt från recept-knappen --> (välj dag)
 - [x] Lägga till recept skulle då kunna leda direkt till samma receptdialog (men där veckodagen skickas som parameter)
 - [ ] Lägga till nytt recept: enhet borde föreslå i grått den enhet som väljs oftast, och klickar man inte i det fältet så borde den enheten väljas automatiskt
-- [ ] Lägga till nytt recept: enhetsfältet hoppar inte upp igen om man valt en enhet och trycker i fältet igen
+- [x] Lägga till nytt recept: enhetsfältet hoppar inte upp igen om man valt en enhet och trycker i fältet igen (onPressIn återvisar enhets-chipsen vid återklick)
 - [x] Enhetsfältet i ingrediens-redigering scrollade alltid uppåt vid fokus (knuffade tillslut bort inputen) — scrollar nu bara om fältet/chip-raden hamnar under tangentbordet
 - [x] Ingrediensnamn/enhet-fälten triggade OS-autofill ("id:n och lösenord") — autofill/förslag avstängt (textContentType none, autoComplete off, importantForAutofill no)
 - [x] Samsung Pass visar fortfarande "id:n och lösenord"-autofyll på TOMMA nya ingrediens-rader (respekterar inte importantForAutofill via JS). Native-fix: config-plugin sätter android:importantForAutofill=noExcludeDescendants på activity (aktiveras vid nästa EAS-build; stänger även av autofyll på login-fälten)
