@@ -458,6 +458,9 @@ export default function SettingsScreen() {
                     {member.clerkUserId === clerkUserId && <Text style={styles.memberYou}>  (Du)</Text>}
                   </Text>
                   <Text style={styles.memberEmail}>
+                    {member.clerkUserId && member.role === 'admin' && (
+                      <Text style={styles.memberAdminBadge}><Ionicons name="shield-checkmark" size={11} color="#7c3aed" />{'  '}</Text>
+                    )}
                     {member.clerkUserId ? (member.role === 'admin' ? 'Admin' : 'Konto-medlem') : 'Lokal profil'}
                   </Text>
                 </View>
@@ -834,6 +837,7 @@ const styles = StyleSheet.create({
   memberName: { fontSize: 14, fontWeight: '500', color: '#111827' },
   memberYou: { fontSize: 13, fontWeight: '600', color: '#4f46e5' },
   memberEmail: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  memberAdminBadge: { color: '#7c3aed' },
   memberActions: { flexDirection: 'row', gap: 4 },
   memberActionBtn: { padding: 7 },
   householdOption: {
