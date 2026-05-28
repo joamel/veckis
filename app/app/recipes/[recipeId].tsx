@@ -71,11 +71,12 @@ export default function RecipeDetailScreen() {
     const t = setTimeout(() => {
       input.measureInWindow((_x, y, _w, h) => {
         const screenH = Dimensions.get('window').height;
-        const kbTop = screenH - (keyboardH.current || 320);
-        const chipRowH = 52; // approx height of the unit-chip suggestion row
-        const hidden = (y + h + chipRowH) - kbTop;
+        const kbTop = screenH - (keyboardH.current || 340);
+        const chipRowH = 64; // unit-chip suggestion row + gap below the field
+        const margin = 24;   // breathing room above the keyboard
+        const hidden = (y + h + chipRowH + margin) - kbTop;
         if (hidden > 0) {
-          mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + hidden + 12, animated: true });
+          mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + hidden, animated: true });
         }
       });
     }, 200);
@@ -383,6 +384,11 @@ export default function RecipeDetailScreen() {
                       value={row.name}
                       onChangeText={v => updateEditRow(idx, 'name', v)}
                       autoCapitalize="none"
+                      autoComplete="off"
+                      autoCorrect={false}
+                      spellCheck={false}
+                      textContentType="none"
+                      importantForAutofill="no"
                       returnKeyType="next"
                       blurOnSubmit={false}
                       onFocus={() => setActiveNameIdx(idx)}
@@ -409,6 +415,11 @@ export default function RecipeDetailScreen() {
                       value={row.unit}
                       onChangeText={v => updateEditRow(idx, 'unit', v.toLowerCase())}
                       autoCapitalize="none"
+                      autoComplete="off"
+                      autoCorrect={false}
+                      spellCheck={false}
+                      textContentType="none"
+                      importantForAutofill="no"
                       returnKeyType={idx < editIngredients.length - 1 ? 'next' : 'done'}
                       blurOnSubmit={false}
                       onFocus={() => setActiveUnitIdx(idx)}
