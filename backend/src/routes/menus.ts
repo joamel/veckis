@@ -12,6 +12,17 @@ import { planIncomingMatch, planAutoMerge } from '../lib/importDedupe';
 
 export const menusRouter = Router();
 
+// Bump each recipe's lifetime usage counter by how many times it appears in the
+// batch (for "most used" sorting). Fire-and-forget.
+async function bumpTimesUsed(items: { recipeId: string }[]): Promise<void> {
+  const tally = new Map<string, number>();
+  for (const it of items) tally.set(it.recipeId, (tally.get(it.recipeId) ?? 0) + 1);
+  await Promise.all(
+    [...tally].map(([recipeId, n]) =>
+      prisma.recipe.update({ where: { id: recipeId }, data: { timesUsed: { increment: n } } }).catch(() => {})),
+  );
+}
+
 const weekDayEnum = z.nativeEnum(WeekDay);
 
 const createMenuItemSchema = z.object({
@@ -59,6 +70,8 @@ menusRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (r
     data: { ...body.data, createdBy: (req as AuthenticatedRequest).clerkUserId } as Prisma.WeekMenuItemUncheckedCreateInput,
     include: { recipe: { include: { ingredients: true } } },
   });
+  // Lifetime usage counter for "most used" sorting (never decremented).
+  prisma.recipe.update({ where: { id: item.recipeId }, data: { timesUsed: { increment: 1 } } }).catch(() => {});
   res.status(201).json(item);
 }));
 
@@ -151,6 +164,7 @@ menusRouter.post('/copy', requireAuth, asyncHandler(async (req, res) => {
       createdBy: clerkUserId,
     })),
   });
+  await bumpTimesUsed(created);
   res.status(201).json({ copied: created.length, items: created });
 }));
 
@@ -240,6 +254,7 @@ menusRouter.post('/templates/:templateId/apply', requireAuth, asyncHandler(async
       createdBy: clerkUserId,
     })),
   });
+  await bumpTimesUsed(created);
   res.status(201).json({ applied: created.length });
 }));
 

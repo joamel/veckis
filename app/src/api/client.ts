@@ -52,7 +52,7 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-export type RecipeWithIngredients = Recipe & { ingredients: RecipeIngredient[]; menuCount?: number };
+export type RecipeWithIngredients = Recipe & { ingredients: RecipeIngredient[] };
 export type WeekMenuItemWithRecipe = WeekMenuItem & { recipe: RecipeWithIngredients };
 
 export interface NotificationPreferences {

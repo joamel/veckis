@@ -247,7 +247,7 @@
 - [ ] bygga en pwa
 - [ ] Kan vi implementera en streckkodsläsare för att direkt kunna lägga till en vara?
 - [ ] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt
-- [x] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp) — sorter-knapp i recept-headern med radioval: A–Ö / Mest använda (menyförekomster) / Senast tillagda; valet sparas (gäller även välj-läget)
+- [x] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp) — sorter-knapp i recept-headern med radioval: A–Ö / Mest använda / Senast tillagda; valet sparas (gäller även välj-läget). "Mest använda" = livstidsräknare Recipe.timesUsed som ökar varje gång receptet läggs i en meny (backfilld från nuvarande förekomster)
 - [ ] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd..
 
 ## Backlog (prioriterade features)

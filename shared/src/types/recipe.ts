@@ -10,6 +10,7 @@ export interface Recipe {
   sourceUrl: string | null;
   imageUrl: string | null;
   servings: number;
+  timesUsed: number;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

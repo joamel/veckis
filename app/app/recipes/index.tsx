@@ -122,7 +122,7 @@ export default function RecipesScreen() {
           r.ingredients.some(i => i.name.toLowerCase().includes(q)))
       : recipes;
     return [...base].sort((a, b) => {
-      if (sortMode === 'used') return (b.menuCount ?? 0) - (a.menuCount ?? 0) || a.title.localeCompare(b.title);
+      if (sortMode === 'used') return (b.timesUsed ?? 0) - (a.timesUsed ?? 0) || a.title.localeCompare(b.title);
       if (sortMode === 'recent') return (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
       return a.title.localeCompare(b.title);
     });
