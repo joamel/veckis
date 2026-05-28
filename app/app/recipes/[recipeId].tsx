@@ -481,7 +481,14 @@ export default function RecipeDetailScreen() {
                   {activeNameIdx === idx && row.name.trim().length >= 1 && (() => {
                     const q = row.name.toLowerCase().trim();
                     const hits = nameSuggestions
-                      .filter(sg => sg.name.toLowerCase().includes(q) && sg.name.toLowerCase() !== q)
+                      .filter(sg => sg.name.toLowerCase().includes(q))
+                      .sort((a, b) => {
+                        // Exact match first (so it stays tappable for unit auto-fill),
+                        // then the shortest names.
+                        const ax = a.name.toLowerCase() === q ? 0 : 1;
+                        const bx = b.name.toLowerCase() === q ? 0 : 1;
+                        return ax - bx || a.name.length - b.name.length;
+                      })
                       .slice(0, 6);
                     if (hits.length === 0) return null;
                     return (
