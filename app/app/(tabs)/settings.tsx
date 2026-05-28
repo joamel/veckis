@@ -457,14 +457,12 @@ export default function SettingsScreen() {
                     {member.displayName}
                     {member.clerkUserId === clerkUserId && <Text style={styles.memberYou}>  (Du)</Text>}
                   </Text>
-                  <View style={styles.memberRoleRow}>
+                  <Text style={styles.memberEmail}>
                     {member.clerkUserId && member.role === 'admin' && (
-                      <Ionicons name="shield-checkmark" size={12} color="#7c3aed" />
+                      <Text style={styles.memberAdminBadge}><Ionicons name="shield-checkmark" size={11} color="#7c3aed" />{'  '}</Text>
                     )}
-                    <Text style={styles.memberEmail}>
-                      {member.clerkUserId ? (member.role === 'admin' ? 'Admin' : 'Konto-medlem') : 'Lokal profil'}
-                    </Text>
-                  </View>
+                    {member.clerkUserId ? (member.role === 'admin' ? 'Admin' : 'Konto-medlem') : 'Lokal profil'}
+                  </Text>
                 </View>
                 <View style={styles.memberActions}>
                   {editMode && (member.clerkUserId === clerkUserId || isAdmin) && (
@@ -838,8 +836,8 @@ const styles = StyleSheet.create({
   memberInfo: { flex: 1 },
   memberName: { fontSize: 14, fontWeight: '500', color: '#111827' },
   memberYou: { fontSize: 13, fontWeight: '600', color: '#4f46e5' },
-  memberEmail: { fontSize: 12, color: '#9ca3af' },
-  memberRoleRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  memberEmail: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  memberAdminBadge: { color: '#7c3aed' },
   memberActions: { flexDirection: 'row', gap: 4 },
   memberActionBtn: { padding: 7 },
   householdOption: {
