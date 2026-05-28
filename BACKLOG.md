@@ -172,6 +172,7 @@
 - [x] Enhetsfältet i ingrediens-redigering scrollade alltid uppåt vid fokus (knuffade tillslut bort inputen) — scrollar nu bara om fältet/chip-raden hamnar under tangentbordet
 - [x] Ingrediensnamn/enhet-fälten triggade OS-autofill ("id:n och lösenord") — autofill/förslag avstängt (textContentType none, autoComplete off, importantForAutofill no)
 - [x] Samsung Pass visar fortfarande "id:n och lösenord"-autofyll på TOMMA nya ingrediens-rader (respekterar inte importantForAutofill via JS). Native-fix: config-plugin sätter android:importantForAutofill=noExcludeDescendants på activity (aktiveras vid nästa EAS-build; stänger även av autofyll på login-fälten)
+- [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
 - [x] Varna om man byter ut maträtt till dubblett eller lägger till maträtt från recept på en dag som redan har en planerad maträtt
 - [ ] Bättre med optimistik uppdatering av menyn när man tar bort ett recept än att det blir en delay
 - [x] När man lägger till recept borde man även få val att också lägga till beskrivning och instruktioner
