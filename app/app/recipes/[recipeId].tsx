@@ -35,7 +35,6 @@ export default function RecipeDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [scaledServings, setScaledServings] = useState<number | null>(null);
   const [showMenu, setShowMenu] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editInstr, setEditInstr] = useState('');
@@ -90,6 +89,10 @@ export default function RecipeDetailScreen() {
       setScaledServings(null);
       if (transfer === '1') openTransfer(r);
       if (edit === '1' && r.ingredients.length === 0) {
+        setEditTitle(r.title);
+        setEditDesc(r.description ?? '');
+        setEditInstr(r.instructions ?? '');
+        setEditImage(r.imageUrl ?? '');
         setEditIngredients([{ name: '', quantity: '', unit: '' }]);
         setEditMode(true);
         router.setParams({ edit: undefined });
@@ -128,45 +131,22 @@ export default function RecipeDetailScreen() {
     ]);
   }
 
-  function openEditRecipe() {
-    if (!recipe) return;
-    setEditTitle(recipe.title);
-    setEditDesc(recipe.description ?? '');
-    setEditInstr(recipe.instructions ?? '');
-    setEditImage(recipe.imageUrl ?? '');
-    setShowMenu(false);
-    setShowEdit(true);
-  }
-
-  async function saveEditRecipe() {
-    if (!recipe) return;
-    const t = editTitle.trim();
-    if (!t) { Alert.alert('Namn saknas', 'Receptet behöver ett namn.'); return; }
-    const img = editImage.trim();
-    if (img && !/^https?:\/\//i.test(img)) { Alert.alert('Ogiltig bild-URL', 'Bild-URL:en måste börja med http:// eller https://'); return; }
-    try {
-      const updated = await client.updateRecipe(recipe.id, {
-        title: t,
-        description: editDesc.trim() || null,
-        instructions: editInstr.trim() || null,
-        imageUrl: img || null,
-      });
-      setRecipe(updated);
-      setShowEdit(false);
-    } catch {
-      Alert.alert('Fel', 'Kunde inte spara receptet');
-    }
-  }
-
+  // Edit everything (name, image, description, ingredients, instructions) inline
+  // in the detail view.
   function startEdit() {
     if (!recipe) return;
     rowRefs.current = [];
     setActiveUnitIdx(null);
+    setEditTitle(recipe.title);
+    setEditDesc(recipe.description ?? '');
+    setEditInstr(recipe.instructions ?? '');
+    setEditImage(recipe.imageUrl ?? '');
     setEditIngredients(recipe.ingredients.map(i => ({
       name: i.name,
       quantity: i.quantity != null ? String(i.quantity) : '',
       unit: i.unit ?? '',
     })));
+    setShowMenu(false);
     setEditMode(true);
   }
 
@@ -182,8 +162,12 @@ export default function RecipeDetailScreen() {
     setEditIngredients(prev => prev.filter((_, i) => i !== idx));
   }
 
-  async function saveIngredients() {
+  async function saveRecipe() {
     if (!recipe) return;
+    const t = editTitle.trim();
+    if (!t) { Alert.alert('Namn saknas', 'Receptet behöver ett namn.'); return; }
+    const img = editImage.trim();
+    if (img && !/^https?:\/\//i.test(img)) { Alert.alert('Ogiltig bild-URL', 'Bild-URL:en måste börja med http:// eller https://'); return; }
     setSaving(true);
     try {
       const ingredients = editIngredients
@@ -193,14 +177,20 @@ export default function RecipeDetailScreen() {
           quantity: r.quantity ? parseFloat(r.quantity.replace(',', '.')) || null : null,
           unit: r.unit.trim() || null,
         }));
-      const updated = await client.updateRecipe(recipe.id, { ingredients });
+      const updated = await client.updateRecipe(recipe.id, {
+        title: t,
+        description: editDesc.trim() || null,
+        instructions: editInstr.trim() || null,
+        imageUrl: img || null,
+        ingredients,
+      });
       setRecipe(updated);
       setEditMode(false);
       if (forMenuDay !== undefined) {
         router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}` as never);
       }
     } catch {
-      Alert.alert('Fel', 'Kunde inte spara ingredienser');
+      Alert.alert('Fel', 'Kunde inte spara receptet');
     } finally {
       setSaving(false);
     }
@@ -267,7 +257,17 @@ export default function RecipeDetailScreen() {
         <Pressable onPress={() => router.back()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
-        <Text style={s.headerTitle} numberOfLines={1}>{recipe.title}</Text>
+        {editMode ? (
+          <TextInput
+            style={[s.headerTitle, s.headerTitleInput]}
+            value={editTitle}
+            onChangeText={setEditTitle}
+            placeholder="Receptnamn"
+            placeholderTextColor="#9ca3af"
+          />
+        ) : (
+          <Text style={s.headerTitle} numberOfLines={1}>{recipe.title}</Text>
+        )}
         <Pressable onPress={() => setShowMenu(true)} style={s.transferBtn} accessibilityLabel="Mer">
           <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
@@ -281,7 +281,24 @@ export default function RecipeDetailScreen() {
         scrollEventThrottle={16}
         onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
       >
-        {recipe.imageUrl ? (
+        {editMode ? (
+          <View style={{ gap: 8 }}>
+            <Text style={s.editLabel}>Bild-URL</Text>
+            <TextInput
+              style={s.renameInput}
+              value={editImage}
+              onChangeText={setEditImage}
+              placeholder="https://… (valfritt)"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+            {editImage.trim() ? (
+              <Image source={{ uri: editImage.trim() }} style={s.heroImage} resizeMode="cover" />
+            ) : null}
+          </View>
+        ) : recipe.imageUrl ? (
           <Image source={{ uri: recipe.imageUrl }} style={s.heroImage} resizeMode="cover" />
         ) : null}
 
@@ -309,7 +326,19 @@ export default function RecipeDetailScreen() {
           )}
         </View>
 
-        {recipe.description ? (
+        {editMode ? (
+          <View>
+            <Text style={s.editLabel}>Beskrivning</Text>
+            <TextInput
+              style={[s.renameInput, s.editMultiline]}
+              value={editDesc}
+              onChangeText={setEditDesc}
+              placeholder="Beskrivning (valfritt)"
+              placeholderTextColor="#9ca3af"
+              multiline
+            />
+          </View>
+        ) : recipe.description ? (
           <Text style={s.description}>{recipe.description}</Text>
         ) : null}
 
@@ -430,14 +459,6 @@ export default function RecipeDetailScreen() {
                 <Ionicons name="add" size={16} color="#4f46e5" />
                 <Text style={s.addRowBtnText}>Lägg till rad</Text>
               </Pressable>
-              <View style={s.editActions}>
-                <Pressable style={s.cancelBtn} onPress={() => setEditMode(false)}>
-                  <Text style={s.cancelBtnText}>Avbryt</Text>
-                </Pressable>
-                <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled]} onPress={saveIngredients} disabled={saving}>
-                  {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Spara</Text>}
-                </Pressable>
-              </View>
             </View>
           ) : recipe.ingredients.length === 0 ? (
             <Pressable style={s.noIngredients} onPress={startEdit}>
@@ -455,14 +476,39 @@ export default function RecipeDetailScreen() {
           )}
         </View>
 
-        {recipe.instructions ? (
+        {editMode ? (
           <View style={s.section}>
             <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>Tillvägagångssätt</Text>
+              <Text style={s.sectionTitle}>Instruktioner</Text>
+            </View>
+            <TextInput
+              style={[s.renameInput, s.editMultilineTall]}
+              value={editInstr}
+              onChangeText={setEditInstr}
+              placeholder="Steg för steg (valfritt)"
+              placeholderTextColor="#9ca3af"
+              multiline
+            />
+          </View>
+        ) : recipe.instructions ? (
+          <View style={s.section}>
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>Instruktioner</Text>
             </View>
             <Text style={s.instructionsText}>{recipe.instructions}</Text>
           </View>
         ) : null}
+
+        {editMode && (
+          <View style={s.editActions}>
+            <Pressable style={s.cancelBtn} onPress={() => setEditMode(false)}>
+              <Text style={s.cancelBtnText}>Avbryt</Text>
+            </Pressable>
+            <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled]} onPress={saveRecipe} disabled={saving}>
+              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Spara</Text>}
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
       </KeyboardAvoidingView>
 
@@ -544,13 +590,9 @@ export default function RecipeDetailScreen() {
       <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
         <Pressable style={s.menuOverlay} onPress={() => setShowMenu(false)}>
           <View style={s.menuSheet}>
-            <Pressable style={s.menuItem} onPress={openEditRecipe}>
+            <Pressable style={s.menuItem} onPress={() => { setShowMenu(false); startEdit(); }}>
               <Ionicons name="create-outline" size={18} color="#111827" />
               <Text style={s.menuItemText}>Redigera recept</Text>
-            </Pressable>
-            <Pressable style={s.menuItem} onPress={() => { setShowMenu(false); startEdit(); }}>
-              <Ionicons name="pencil-outline" size={18} color="#111827" />
-              <Text style={s.menuItemText}>Redigera ingredienser</Text>
             </Pressable>
             <Pressable style={s.menuItem} onPress={confirmDeleteRecipe}>
               <Ionicons name="trash-outline" size={18} color="#ef4444" />
@@ -558,62 +600,6 @@ export default function RecipeDetailScreen() {
             </Pressable>
           </View>
         </Pressable>
-      </Modal>
-
-      {/* Redigera recept-modal (namn, beskrivning, tillvägagångssätt) */}
-      <Modal visible={showEdit} transparent animationType="slide" onRequestClose={() => setShowEdit(false)}>
-        <Pressable style={s.overlay} onPress={() => setShowEdit(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
-          <View style={s.sheet}>
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              <Text style={s.renameTitle}>Redigera recept</Text>
-              <Text style={s.editLabel}>Namn</Text>
-              <TextInput
-                style={s.renameInput}
-                value={editTitle}
-                onChangeText={setEditTitle}
-                placeholder="Receptnamn"
-                placeholderTextColor="#9ca3af"
-                returnKeyType="done"
-              />
-              <Text style={s.editLabel}>Bild-URL</Text>
-              <TextInput
-                style={s.renameInput}
-                value={editImage}
-                onChangeText={setEditImage}
-                placeholder="https://… (valfritt)"
-                placeholderTextColor="#9ca3af"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-              />
-              {editImage.trim() ? (
-                <Image source={{ uri: editImage.trim() }} style={s.editImagePreview} resizeMode="cover" />
-              ) : null}
-              <Text style={s.editLabel}>Beskrivning</Text>
-              <TextInput
-                style={[s.renameInput, s.editMultiline]}
-                value={editDesc}
-                onChangeText={setEditDesc}
-                placeholder="Kort beskrivning (valfritt)"
-                placeholderTextColor="#9ca3af"
-                multiline
-              />
-              <Text style={s.editLabel}>Tillvägagångssätt</Text>
-              <TextInput
-                style={[s.renameInput, s.editMultilineTall]}
-                value={editInstr}
-                onChangeText={setEditInstr}
-                placeholder="Steg för steg (valfritt)"
-                placeholderTextColor="#9ca3af"
-                multiline
-              />
-              <Pressable style={s.renameSave} onPress={saveEditRecipe}>
-                <Text style={s.renameSaveText}>Spara</Text>
-              </Pressable>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -659,6 +645,7 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
   backBtn: { padding: 4 },
   headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: '#111827' },
+  headerTitleInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#f9fafb' },
   transferBtn: { padding: 8, backgroundColor: '#eef2ff', borderRadius: 8 },
   scroll: { padding: 20, gap: 16 },
   heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, backgroundColor: '#f3f4f6' },

@@ -113,8 +113,6 @@ export default function RecipesScreen() {
   // New recipe form
   const [mode, setMode] = useState<'manual' | 'url'>('manual');
   const [title, setTitle] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [newInstr, setNewInstr] = useState('');
   const [url, setUrl] = useState('');
   const [scraping, setScraping] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -199,15 +197,10 @@ export default function RecipesScreen() {
     if (!householdId || !title.trim()) return;
     setCreating(true);
     try {
-      const recipe = await client.createRecipe({
-        householdId,
-        title: title.trim(),
-        description: newDesc.trim() || null,
-        instructions: newInstr.trim() || null,
-      });
+      const recipe = await client.createRecipe({ householdId, title: title.trim() });
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
       setShowModal(false);
-      setTitle(''); setNewDesc(''); setNewInstr('');
+      setTitle('');
       const forMenuDay = params.forMenuDay;
       const suffix = forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '';
       router.push(`/recipes/${recipe.id}?edit=1${suffix}` as never);
@@ -383,24 +376,10 @@ export default function RecipesScreen() {
                 value={title}
                 onChangeText={setTitle}
                 autoFocus
-                returnKeyType="next"
+                returnKeyType="done"
+                onSubmitEditing={handleCreateManual}
               />
-              <TextInput
-                style={[s.input, s.inputMultiline]}
-                placeholder="Beskrivning (valfritt)"
-                placeholderTextColor="#9ca3af"
-                value={newDesc}
-                onChangeText={setNewDesc}
-                multiline
-              />
-              <TextInput
-                style={[s.input, s.inputMultilineTall]}
-                placeholder="Tillvägagångssätt (valfritt)"
-                placeholderTextColor="#9ca3af"
-                value={newInstr}
-                onChangeText={setNewInstr}
-                multiline
-              />
+              <Text style={s.createHint}>Du fyller i beskrivning, ingredienser och instruktioner i nästa steg.</Text>
               <Pressable
                 style={[s.button, !title.trim() && s.buttonDisabled]}
                 onPress={handleCreateManual}
@@ -512,8 +491,7 @@ const s = StyleSheet.create({
   modeTabText: { fontSize: 14, fontWeight: '500', color: '#6b7280' },
   modeTabTextActive: { color: '#111827' },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#f9fafb' },
-  inputMultiline: { minHeight: 64, textAlignVertical: 'top' },
-  inputMultilineTall: { minHeight: 120, textAlignVertical: 'top' },
+  createHint: { fontSize: 13, color: '#9ca3af', marginTop: -4 },
   urlHint: { fontSize: 12, color: '#9ca3af', marginTop: -6 },
   button: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
