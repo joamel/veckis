@@ -49,6 +49,8 @@ export default function RecipeDetailScreen() {
   const [activeUnitIdx, setActiveUnitIdx] = useState<number | null>(null);
   const [activeNameIdx, setActiveNameIdx] = useState<number | null>(null);
   const [nameSuggestions, setNameSuggestions] = useState<{ name: string; category: string }[]>([]);
+  const [unitByName, setUnitByName] = useState<Record<string, string>>({});
+  const [defaultUnit, setDefaultUnit] = useState('');
   type RowRef = { qty: TextInput | null; unit: TextInput | null; name: TextInput | null };
   const rowRefs = useRef<RowRef[]>([]);
   const mainScrollRef = useRef<ScrollView>(null);
@@ -102,6 +104,21 @@ export default function RecipeDetailScreen() {
     if (!householdId) return;
     client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[])
       .then(s => setNameSuggestions(Array.isArray(s) ? s : []));
+    // Staples give us each ingredient's usual unit + the household's most-used unit,
+    // used to pre-fill / hint the unit field.
+    client.getStaples(householdId).then(staples => {
+      const byName: Record<string, string> = {};
+      const tally: Record<string, number> = {};
+      for (const st of staples) {
+        if (st.unit) {
+          byName[st.name.toLowerCase()] = st.unit;
+          tally[st.unit] = (tally[st.unit] ?? 0) + Math.max(1, st.usageCount);
+        }
+      }
+      setUnitByName(byName);
+      const best = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+      setDefaultUnit(best ? best[0] : '');
+    }).catch(() => {});
   }, [householdId]);
 
   const load = useCallback(async () => {
@@ -410,7 +427,7 @@ export default function RecipeDetailScreen() {
                     <TextInput
                       ref={el => { getRowRef(idx).unit = el; }}
                       style={[s.editInput, s.editInputUnit]}
-                      placeholder="Enhet"
+                      placeholder={defaultUnit || 'Enhet'}
                       placeholderTextColor="#9ca3af"
                       value={row.unit}
                       onChangeText={v => updateEditRow(idx, 'unit', v.toLowerCase())}
@@ -476,6 +493,9 @@ export default function RecipeDetailScreen() {
                               style={s.unitChip}
                               onPress={() => {
                                 updateEditRow(idx, 'name', h.name.toLowerCase());
+                                // Auto-fill the usual unit for this ingredient if the field is empty.
+                                const u = unitByName[h.name.toLowerCase()];
+                                if (u && !row.unit.trim()) updateEditRow(idx, 'unit', u);
                                 setActiveNameIdx(null);
                                 setTimeout(() => getRowRef(idx).qty?.focus(), 50);
                               }}

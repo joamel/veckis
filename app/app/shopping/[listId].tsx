@@ -310,11 +310,15 @@ export default function ShoppingListScreen() {
   }, [mergeSheet, duplicateGroups, openMergeForDupes]);
 
   const searchList = useMemo(() => {
-    const stapleNames = new Set(staples.map(s => s.name.toLowerCase()));
+    // Only surface staples added more than once — a one-off (often a typo or a
+    // mistakenly added item) shouldn't pollute search. Curated ingredient
+    // suggestions still cover common names, so legit items remain searchable.
+    const searchableStaples = staples.filter(s => s.usageCount >= 2);
+    const stapleNames = new Set(searchableStaples.map(s => s.name.toLowerCase()));
     const extra = ingredientSuggestions
       .filter(s => !stapleNames.has(s.name.toLowerCase()))
       .map(s => ({ name: s.name, id: `suggestion:${s.name}`, category: s.category } as unknown as StapleItem));
-    return [...staples, ...extra];
+    return [...searchableStaples, ...extra];
   }, [staples, ingredientSuggestions]);
 
   const fuse = useMemo(() => new Fuse(searchList, { keys: ['name'], threshold: 0.35, minMatchCharLength: 1 }), [searchList]);
