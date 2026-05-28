@@ -2,8 +2,10 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   FlatList,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -52,11 +54,31 @@ export default function RecipeDetailScreen() {
   const mainScrollRef = useRef<ScrollView>(null);
   const scrollOffsetY = useRef(0);
 
+  const keyboardH = useRef(0);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', e => { keyboardH.current = e.endCoordinates.height; });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardH.current = 0; });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  // When the unit field is focused, the unit-chip row appears below it. Only
+  // scroll if that row would be hidden under the keyboard — and just enough to
+  // reveal it, so it doesn't accumulate / push the input off the top.
   useEffect(() => {
     if (activeUnitIdx === null) return;
+    const input = rowRefs.current[activeUnitIdx]?.unit;
+    if (!input) return;
     const t = setTimeout(() => {
-      mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + 50, animated: true });
-    }, 150);
+      input.measureInWindow((_x, y, _w, h) => {
+        const screenH = Dimensions.get('window').height;
+        const kbTop = screenH - (keyboardH.current || 320);
+        const chipRowH = 52; // approx height of the unit-chip suggestion row
+        const hidden = (y + h + chipRowH) - kbTop;
+        if (hidden > 0) {
+          mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + hidden + 12, animated: true });
+        }
+      });
+    }, 200);
     return () => clearTimeout(t);
   }, [activeUnitIdx]);
 
