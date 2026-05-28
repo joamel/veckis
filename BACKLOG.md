@@ -39,7 +39,7 @@
 - [ ] Refaktorera och skapa fler filer för egna komponenter mm
 - [x] Uppdateringar från socket borde uppdatera andra flikar innan man trycker på dem så att det inte hoppar till. Just nu kan det stå "0 av 0 kvar" och sedan hoppar det till -> "21 av 21 kvar" (backend sänder shopping_list_updated på hushålls-socketen; översikten lyssnar + debounced reload)
 - [ ] Se över skuggor på kort. Ej konsekvent genom hela appen..
-- [ ] Se över dialog-rutor. Många har olika utseende - vissa är rundade upptill andra inte, vissa är genomskinliga i nedkant andra inte. Bör vara rundade upptill och inte genomskinliga nedtill
+- [ ] Se över dialog-rutor. Många har olika utseende - vissa är rundade upptill andra inte, vissa är genomskinliga i nedkant andra inte. Bör vara rundade upptill och inte genomskinliga nedtill (audit: alla sheets är redan rundade upptill; paddingBottom-variansen är strukturell — sheets med inre ScrollView har 0 + egen padding; enda avvikaren är två grå modaler (MenuTemplatesModal, NotificationsModal, #f3f4f6) som ev. är avsiktligt grå. Kräver visuellt omdöme, ej mekanisk fix)
 - [x] Vecko-rubriken borde vara lila för alla veckor (inte bara nuvarande) i kalendern och menyn
 
 ### Inställningar
@@ -208,7 +208,7 @@
 - [x] Kunna lägga aktiviteter på fler än en user i taget
 - [x] Lägga tider ute till höger på aktiviteter
 - [x] Datepickern borde visa datumet man är på och väljer man ett datum i datepickern borde kalendern uppdatera så att det är den dagen som väljs i veckovyn
-- [ ] Använda samma veckonummer-bar som i menyfliken
+- [x] Använda samma veckonummer-bar som i menyfliken (kalenderns WeekNav visar nu "Vecka {nr}" utan år, som menyn)
 - [x] Idag-knappen hoppar inte till rätt dag (endast rätt vecka)
 
 ### Sysslor

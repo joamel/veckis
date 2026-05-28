@@ -881,7 +881,7 @@ export default function ScheduleScreen() {
             ) : (
               <>
                 <WeekNav
-                  weekLabel={`Vecka ${weekNumber}, ${weekYear}`}
+                  weekLabel={`Vecka ${weekNumber}`}
                   isCurrentWeek={isCurrentWeek}
                   onPrev={() => setWeekRef(w => addWeeks(w, -1))}
                   onNext={() => setWeekRef(w => addWeeks(w, 1))}
@@ -941,7 +941,7 @@ export default function ScheduleScreen() {
       ) : (
         <>
           <WeekNav
-            weekLabel={`Vecka ${weekNumber}, ${weekYear}`}
+            weekLabel={`Vecka ${weekNumber}`}
             isCurrentWeek={isCurrentWeek}
             onPrev={() => setWeekRef(w => addWeeks(w, -1))}
             onNext={() => setWeekRef(w => addWeeks(w, 1))}
