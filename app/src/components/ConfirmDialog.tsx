@@ -27,9 +27,15 @@ export function ConfirmDialog({
   onClose: () => void;
 }) {
   if (!options) return null;
+  // Dismiss via overlay/back acts like the cancel button so promise-based
+  // consumers don't hang waiting for a resolve from an explicit tap.
+  const dismiss = () => {
+    options.buttons.find(b => b.style === 'cancel')?.onPress?.();
+    onClose();
+  };
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={s.overlay} onPress={onClose} />
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
+      <Pressable style={s.overlay} onPress={dismiss} />
       <View style={s.sheetWrap} pointerEvents="box-none">
         <View style={s.sheet}>
           <View style={s.handle} />

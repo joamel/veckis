@@ -325,7 +325,7 @@ export default function ChoresScreen() {
       setChores(choreData);
       setMembers(household.members);
     } catch {
-      Alert.alert('Fel', 'Kunde inte ladda sysslor');
+      confirm({ title: 'Fel', message: 'Kunde inte ladda sysslor', buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -506,10 +506,12 @@ export default function ChoresScreen() {
   }
 
   async function deleteChore(choreId: string, title: string) {
-    Alert.alert('Ta bort syssla', `Ta bort "${title}"?`, [
-      { text: 'Avbryt', style: 'cancel' },
+    confirm({
+      title: 'Ta bort syssla',
+      message: `Ta bort "${title}"?`,
+      buttons: [
       {
-        text: 'Ta bort',
+        label: 'Ta bort',
         style: 'destructive',
         onPress: async () => {
           try {
@@ -521,7 +523,9 @@ export default function ChoresScreen() {
           }
         },
       },
-    ]);
+      { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   async function completeChore(chore: ChoreWithCompletion, performedByMemberId: string | null = null) {
@@ -604,20 +608,20 @@ export default function ChoresScreen() {
 
   async function clearCompleted() {
     if (completedOnce.length === 0) return;
-    Alert.alert(
-      'Rensa klara sysslor',
-      `Ta bort ${completedOnce.length} avklarade engångssyssla${completedOnce.length > 1 ? 'r' : ''}?`,
-      [
-        { text: 'Avbryt', style: 'cancel' },
+    confirm({
+      title: 'Rensa klara sysslor',
+      message: `Ta bort ${completedOnce.length} avklarade engångssyssla${completedOnce.length > 1 ? 'r' : ''}?`,
+      buttons: [
         {
-          text: 'Rensa', style: 'destructive',
+          label: 'Rensa', style: 'destructive',
           onPress: async () => {
             await Promise.all(completedOnce.map(c => client.deleteChore(c.id).catch(() => {})));
             setChores(prev => prev.filter(c => !completedOnce.find(d => d.id === c.id)));
           },
         },
-      ]
-    );
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   if (loading) {
