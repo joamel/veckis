@@ -88,6 +88,9 @@ export default function ShoppingListScreen() {
   const [mergeCategory, setMergeCategory] = useState<StoreCategory>('other');
   const [manualPickerOpen, setManualPickerOpen] = useState(false);
   const mergeScrollRef = useRef<ScrollView>(null);
+  const mergeScrollY = useRef(0);
+  const mergeRowRef = useRef<View>(null);
+  const keyboardHRef = useRef(0);
   const [manualPickerSelected, setManualPickerSelected] = useState<Set<string>>(new Set());
 
   // Category browser modal
@@ -382,13 +385,28 @@ export default function ShoppingListScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => { setKeyboardVisible(true); keyboardHRef.current = e.endCoordinates.height; });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => { setKeyboardVisible(false); keyboardHRef.current = 0; });
     return () => {
       showSub.remove();
       hideSub.remove();
     };
   }, []);
+
+  // When a field in the merge sheet is focused, lift its row to just above the
+  // keyboard (measure the row's window position vs the keyboard top and scroll
+  // the merge list by the overlap). Scrolling to the end hid it even more.
+  function liftMergeRowAboveKeyboard() {
+    setTimeout(() => {
+      mergeRowRef.current?.measureInWindow((_x, y, _w, h) => {
+        const kbdH = keyboardHRef.current;
+        if (!kbdH) return;
+        const kbdTop = Dimensions.get('window').height - kbdH;
+        const overlap = y + h + 16 - kbdTop; // 16px breathing room under the field
+        if (overlap > 0) mergeScrollRef.current?.scrollTo({ y: mergeScrollY.current + overlap, animated: true });
+      });
+    }, 150);
+  }
 
   async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string) {
     let itemName = (name ?? newItem).trim().toLowerCase();
@@ -1536,7 +1554,7 @@ export default function ShoppingListScreen() {
                 </Pressable>
               )}
             </View>
-            <ScrollView ref={mergeScrollRef} style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 8 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView ref={mergeScrollRef} style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 8 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" scrollEventThrottle={16} onScroll={e => { mergeScrollY.current = e.nativeEvent.contentOffset.y; }}>
               {mergeSheet && mergeSheet.items.length > 0 ? (
                 <Text style={s.sheetSub}>Markera vilka som ska slås ihop</Text>
               ) : (
@@ -1566,7 +1584,7 @@ export default function ShoppingListScreen() {
                 autoCapitalize="none"
               />
               <Text style={s.editLabel}>Ny mängd och enhet</Text>
-              <View style={[s.qtyStepper, { gap: 6, marginVertical: 4 }]}>
+              <View ref={mergeRowRef} style={[s.qtyStepper, { gap: 6, marginVertical: 4 }]}>
                 <Pressable
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
                   onPress={() => setMergeQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
@@ -1579,7 +1597,7 @@ export default function ShoppingListScreen() {
                   onChangeText={setMergeQty}
                   keyboardType="decimal-pad"
                   selectTextOnFocus
-                  onFocus={() => setTimeout(() => mergeScrollRef.current?.scrollToEnd({ animated: true }), 100)}
+                  onFocus={liftMergeRowAboveKeyboard}
                 />
                 <Pressable
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
@@ -1594,7 +1612,7 @@ export default function ShoppingListScreen() {
                   placeholder="enhet"
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="none"
-                  onFocus={() => setTimeout(() => mergeScrollRef.current?.scrollToEnd({ animated: true }), 100)}
+                  onFocus={liftMergeRowAboveKeyboard}
                 />
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">

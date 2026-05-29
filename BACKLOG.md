@@ -130,7 +130,7 @@
 - [x] Kanske det krävs att en vara blivit tillagd mer än 1 gång för att återfinnas i söket. Ett sätt för en felstavad eller inskriven basvara av misstag att inte komma med i söket (staple-söket kräver usageCount >= 2; kurerade ingrediensförslag täcker ändå vanliga namn)
 - [x] Inköpsfliken rendar inte om när man tar bort en maträtt från menyn utan att man byter flik eller uppdaterar sidan
 - [ ] Grönt passar dåligt på skuggan
-- [x] Dubbletter: Enhetsfältet skymt när man klickar i enhet (mängd-/enhetsfälten i ihopslagnings-dialogen scrollar nu listan till slutet vid fokus så fältet hamnar ovanför tangentbordet)
+- [x] Dubbletter: Enhetsfältet skymt när man klickar i enhet (vid fokus mäts mängd/enhet-radens position mot tangentbordets topp och listan scrollas exakt så raden hamnar precis ovanför tangentbordet — scrollToEnd dolde det ännu mer)
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
