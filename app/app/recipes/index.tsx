@@ -178,6 +178,7 @@ export default function RecipesScreen() {
         householdId,
         title: scraped.title,
         description: scraped.description,
+        instructions: scraped.instructions,
         sourceUrl: url.trim(),
         imageUrl: scraped.imageUrl,
         servings: scraped.servings,

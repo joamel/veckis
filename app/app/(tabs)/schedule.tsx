@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type WeekMenuItemWithRecipe } from '../../src/api/client';
@@ -143,6 +143,8 @@ function Drum({ values, selected, onSelect }: { values: string[]; selected: numb
 
 export default function ScheduleScreen() {
   const router = useRouter();
+  const deeplinkParams = useLocalSearchParams<{ entryId?: string }>();
+  const openedEntryParamRef = useRef<string | null>(null);
   const client = useApiClient();
   const { showToast, showError } = useToast();
   const { getToken } = useAuth();
@@ -336,6 +338,19 @@ export default function ScheduleScreen() {
   }, []));
 
   useEffect(() => { load(); }, [load]);
+
+  // Deep link from a tapped activity notification (L45): open that entry's edit
+  // dialog once the entries have loaded, then clear the param so it won't re-fire.
+  useEffect(() => {
+    const id = deeplinkParams.entryId;
+    if (!id || entries.length === 0 || openedEntryParamRef.current === id) return;
+    const entry = entries.find(e => e.id === id);
+    if (entry) {
+      openedEntryParamRef.current = id;
+      doOpenEditEntry(entry, 'series');
+      router.setParams({ entryId: undefined });
+    }
+  }, [deeplinkParams.entryId, entries, router]);
 
   function getMemberName(memberId: string | null) {
     if (!memberId) return null;

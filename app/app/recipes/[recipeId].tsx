@@ -294,7 +294,7 @@ export default function RecipeDetailScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}>
+        <Pressable onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Tillbaka">
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
         {editMode ? (
