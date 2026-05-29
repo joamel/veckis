@@ -5,6 +5,7 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { wsBroadcast } from '../lib/wsHub';
+import { actorName } from '../lib/actor';
 import { syncAssignedTo } from '../lib/assignedToSync';
 
 export const scheduleRouter = Router();
@@ -93,7 +94,8 @@ scheduleRouter.patch('/:entryId', requireAuth, asyncHandler(async (req, res) => 
 
   const data = syncAssignedTo({ ...body.data });
   const updated = await prisma.scheduleEntry.update({ where: { id: entry.id }, data });
-  wsBroadcast(`household:${updated.householdId}`, { type: 'schedule_entry_updated', data: updated });
+  const actor = await actorName(updated.householdId, (req as AuthenticatedRequest).clerkUserId);
+  wsBroadcast(`household:${updated.householdId}`, { type: 'schedule_entry_updated', data: updated, actor });
   res.json(updated);
 }));
 
@@ -102,6 +104,7 @@ scheduleRouter.patch('/:entryId', requireAuth, asyncHandler(async (req, res) => 
 scheduleRouter.delete('/:entryId', requireAuth, asyncHandler(async (req, res) => {
   const entry = await getEntryAndVerifyMember(req.params.entryId, (req as AuthenticatedRequest).clerkUserId, res);
   if (!entry) return;
+  const actor = await actorName(entry.householdId, (req as AuthenticatedRequest).clerkUserId);
 
   const { date } = req.query;
   if (typeof date === 'string' && entry.recurrenceType !== 'none') {
@@ -109,12 +112,12 @@ scheduleRouter.delete('/:entryId', requireAuth, asyncHandler(async (req, res) =>
       where: { id: entry.id },
       data: { exceptions: { push: date } },
     });
-    wsBroadcast(`household:${updated.householdId}`, { type: 'schedule_entry_updated', data: updated });
+    wsBroadcast(`household:${updated.householdId}`, { type: 'schedule_entry_updated', data: updated, actor });
     res.status(200).json(updated);
     return;
   }
 
   await prisma.scheduleEntry.delete({ where: { id: entry.id } });
-  wsBroadcast(`household:${entry.householdId}`, { type: 'schedule_entry_deleted', data: { id: entry.id } });
+  wsBroadcast(`household:${entry.householdId}`, { type: 'schedule_entry_deleted', data: { id: entry.id }, actor });
   res.status(204).send();
 }));

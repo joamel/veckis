@@ -57,6 +57,12 @@ menusRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // POST /api/menus
+// Notify the household that a week's menu changed so other devices refresh the
+// affected week live (L35 follow-up: menu had no realtime at all).
+function bcastMenu(householdId: string, weekYear: number, weekNumber: number) {
+  wsBroadcast(`household:${householdId}`, { type: 'menu_updated', data: { weekYear, weekNumber } });
+}
+
 menusRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
   const body = createMenuItemSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
@@ -72,6 +78,7 @@ menusRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (r
   });
   // Lifetime usage counter for "most used" sorting (never decremented).
   prisma.recipe.update({ where: { id: item.recipeId }, data: { timesUsed: { increment: 1 } } }).catch(() => {});
+  bcastMenu(item.householdId, item.weekYear, item.weekNumber);
   res.status(201).json(item);
 }));
 
@@ -96,6 +103,7 @@ menusRouter.patch('/:itemId', requireAuth, asyncHandler(async (req, res) => {
     data: body.data,
     include: { recipe: { include: { ingredients: true } } },
   });
+  bcastMenu(updated.householdId, updated.weekYear, updated.weekNumber);
   res.json(updated);
 }));
 
@@ -110,6 +118,7 @@ menusRouter.delete('/:itemId', requireAuth, asyncHandler(async (req, res) => {
   if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
 
   await prisma.weekMenuItem.delete({ where: { id: item.id } });
+  bcastMenu(item.householdId, item.weekYear, item.weekNumber);
   res.status(204).send();
 }));
 
@@ -165,6 +174,7 @@ menusRouter.post('/copy', requireAuth, asyncHandler(async (req, res) => {
     })),
   });
   await bumpTimesUsed(created);
+  bcastMenu(body.data.householdId, body.data.toWeekYear, body.data.toWeekNumber);
   res.status(201).json({ copied: created.length, items: created });
 }));
 
@@ -255,6 +265,7 @@ menusRouter.post('/templates/:templateId/apply', requireAuth, asyncHandler(async
     })),
   });
   await bumpTimesUsed(created);
+  bcastMenu(template.householdId, body.data.weekYear, body.data.weekNumber);
   res.status(201).json({ applied: created.length });
 }));
 

@@ -16,7 +16,7 @@
 - [x] Ännu större font och knappar/pilar mm i tablet-vyn. Idag ser de nästan mindre ut än i mobilversionen.
 - [x] sysslor och aktiviteter skulle kunna ha en emoji likt maträtter för att få samma stil på korten i kalendern.
 - [x] Ångra-toast för destruktiva åtgärder (rensa inköpslista) — knapp "Ångra" i toasten i ~5 sekunder (resten kan adderas vid behov)
-- [x] Utvidga realtidsuppdatering (WebSocket) till sysslor och kalender (meny + inställningar kan adderas via samma kanal)
+- [x] Utvidga realtidsuppdatering (WebSocket) till sysslor och kalender (meny + inställningar kan adderas via samma kanal) — meny nu tillagd: backend sänder `menu_updated` (vecka) på hushålls-kanalen vid add/ändra/ta bort/kopiera/applicera-mall; meny-fliken debounce-laddar om så andra enheter ser ändringen direkt
 - [x] Long press-symmetri: kontrollera att redigering via long press finns konsekvent på basvaror, butiker och kategorier (inte bara inköpslista/maträtt/aktivitet/syssla)
 - [x] Pushnotiser — infrastruktur (blockerare för notistyperna nedan): permission-flöde, token-registrering, notis-inställningssida med på/av per typ
 - [x] Pushnotiser — specificera per typ: påminnelse innan aktivitet startar, förfallen syssla, någon har rensat aktiv inköpslista, ny medlem i hushållet (kräver ny eas build för native-modulen)
@@ -32,7 +32,7 @@
 - [x] Eventuellt ersätta longpress med en redigeraknapp alt att man bara kan ta bort/byta namn inuti kortet på "3 prickar" (meny: redigera/ta bort/byt ut i utfällt kort, inte via longpress)
 - [x] Istället ha longpress för att sortera/flytta om (meny: longpress = endast dra/flytta)
 - [ ] möjligt med horisontell-vy i tablet
-- [ ] Konflikthantering vid realtidsuppdatering — om två personer redigerar samma vara/aktivitet samtidigt: last-write-wins + toast till den som blir överskriven så ändringar inte tappas tyst
+- [x] Konflikthantering vid realtidsuppdatering — om två personer redigerar samma vara/aktivitet samtidigt: last-write-wins + toast till den som blir överskriven så ändringar inte tappas tyst (har man en vara/aktivitet/syssla öppen för redigering och någon annan ändrar den via realtid → gul inline-banner högst upp i dialogen "{namn} ändrade {posten}" med knapp "Visa senaste" som icke-destruktivt fyller i de inkomna värdena (toast funkar ej i dialog — RN Modal ligger ovanpå); tas posten bort stängs dialogen + toast "{namn} tog bort {posten}". Aktör-namn skickas med i socket-payloaden (actor) från backend. Gäller inköpsvaror, aktiviteter, kalender-sysslor och sysslor-fliken. Last-write-wins kvarstår vid spara)
 - [ ] Tillgänglighet: allt som nås via long-press ska även ha en synlig knapp + accessibility-labels på ikonknappar (penna/x/dubblett) så VoiceOver/TalkBack fungerar
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [ ] Städa upp legacy-kod
@@ -41,6 +41,8 @@
 - [ ] Se över skuggor på kort. Ej konsekvent genom hela appen..
 - [ ] Se över dialog-rutor. Många har olika utseende - vissa är rundade upptill andra inte, vissa är genomskinliga i nedkant andra inte. Bör vara rundade upptill och inte genomskinliga nedtill (audit: alla sheets är redan rundade upptill; paddingBottom-variansen är strukturell — sheets med inre ScrollView har 0 + egen padding; enda avvikaren är två grå modaler (MenuTemplatesModal, NotificationsModal, #f3f4f6) som ev. är avsiktligt grå. Kräver visuellt omdöme, ej mekanisk fix)
 - [x] Vecko-rubriken borde vara lila för alla veckor (inte bara nuvarande) i kalendern och menyn
+- [x] Trycka på en notis så borde man hamna på det berörda stället (notis-tap routar nu: aktivitetspåminnelse → kalendern, förfallen syssla → sysslor, rensad lista → den specifika listan, ny medlem → inställningar; gäller både tap i appen och kallstart. Att öppna exakt post-dialog (just den sysslan) är en framtida förfining)
+- [ ] Notis-tap: öppna exakt post-dialog (entryId → aktivitetens redigering, choreId → sysslans) istället för bara rätt flik — kräver param-plumbing + att posten är laddad
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -126,8 +128,9 @@
 - [x] Ihopslagna ingredienser borde gå att ångra via toasten
 - [x] Efter ihopslagning och flytt till nästa dubblett borde tangenbordet försvinna
 - [x] Kanske det krävs att en vara blivit tillagd mer än 1 gång för att återfinnas i söket. Ett sätt för en felstavad eller inskriven basvara av misstag att inte komma med i söket (staple-söket kräver usageCount >= 2; kurerade ingrediensförslag täcker ändå vanliga namn)
-- [ ] Grönt passar dåligt på skuggan
 - [x] Inköpsfliken rendar inte om när man tar bort en maträtt från menyn utan att man byter flik eller uppdaterar sidan
+- [ ] Grönt passar dåligt på skuggan
+- [x] Dubbletter: Enhetsfältet skymt när man klickar i enhet (vid fokus mäts mängd/enhet-radens position mot tangentbordets topp och listan scrollas exakt så raden hamnar precis ovanför tangentbordet; ihopslagnings-knapparna (utanför scrollytan) göms medan tangentbordet är uppe så de inte flyter ovanför det och äter höjd)
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -182,7 +185,7 @@
 - [x] "Ta bort recept" i receptets 3-prickar-meny (idag bara via listans redigeringsläge)
 - [x] Visa receptbild (imageUrl) överst i receptvyn
 - [ ] Riktig bilduppladdning för recept (välj från kamera/galleri → ladda upp till lagring → imageUrl) i stället för att klistra in en bild-URL. Kräver bildlagring (t.ex. S3/Cloudinary) + upload-endpoint + komprimering
-- [ ] Inventeringsdialogen går inte hela vägen ned
+- [x] Inventeringsdialogen går inte hela vägen ned (inventeringslistans höjd capades till fast 400px → på korta skärmar trängdes Överför/Tillbaka-knapparna ut under sheetens maxHeight 80%; höjden är nu skärmhöjds-medveten så knapparna alltid får plats)
 
 
 ### Kalendern
@@ -249,6 +252,7 @@
 - [ ] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt
 - [x] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp) — sorter-knapp i recept-headern med radioval: A–Ö / Mest använda / Senast tillagda; valet sparas (gäller även välj-läget). "Mest använda" = livstidsräknare Recipe.timesUsed som ökar varje gång receptet läggs i en meny (backfilld från nuvarande förekomster)
 - [ ] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd..
+- [ ] Möjlighet att klarmarkera sysslor bakåt i tiden alt sätta nytt datum om engångssyssla
 
 ## Backlog (prioriterade features)
 

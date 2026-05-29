@@ -35,6 +35,7 @@ import { useTablet } from '../../src/hooks/useTablet';
 import { MonthView } from '../../src/components/calendar/MonthView';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import { RecurrencePicker } from '../../src/components/RecurrencePicker';
+import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { getISOWeek, addWeeks } from '../../src/lib/week';
 import { occursOn } from '@veckis/shared';
 import type { ScheduleEntry, WeekDay, Chore, ChoreCompletion } from '@veckis/shared';
@@ -151,14 +152,18 @@ export default function ScheduleScreen() {
     if (msg.type === 'schedule_entry_added') {
       setEntries(prev => prev.some(e => e.id === msg.data.id) ? prev : [...prev, msg.data as never]);
     } else if (msg.type === 'schedule_entry_updated') {
+      if (editingEntry?.id === msg.data.id) setEntryConflict({ msg: `${msg.actor ?? 'Någon'} ändrade ${editingEntry.title}`, latest: msg.data });
       setEntries(prev => prev.map(e => e.id === msg.data.id ? (msg.data as never) : e));
     } else if (msg.type === 'schedule_entry_deleted') {
+      if (editingEntry?.id === msg.data.id) { showToast(`${msg.actor ?? 'Någon'} tog bort ${editingEntry.title}`, 'neutral'); setEditingEntry(null); }
       setEntries(prev => prev.filter(e => e.id !== msg.data.id));
     } else if (msg.type === 'chore_added') {
       setChores(prev => prev.some(c => c.id === msg.data.id) ? prev : [...prev, msg.data as never]);
     } else if (msg.type === 'chore_updated') {
+      if (editingCalChore?.id === msg.data.id) setCalChoreConflict({ msg: `${msg.actor ?? 'Någon'} ändrade ${editingCalChore.title}`, latest: { ...editingCalChore, ...msg.data } });
       setChores(prev => prev.map(c => c.id === msg.data.id ? { ...c, ...msg.data } as never : c));
     } else if (msg.type === 'chore_deleted') {
+      if (editingCalChore?.id === msg.data.id) { showToast(`${msg.actor ?? 'Någon'} tog bort ${editingCalChore.title}`, 'neutral'); setEditingCalChore(null); }
       setChores(prev => prev.filter(c => c.id !== msg.data.id));
     } else if (msg.type === 'chore_completed') {
       setChores(prev => prev.map(c => c.id === msg.data.choreId
@@ -261,6 +266,7 @@ export default function ScheduleScreen() {
 
   // Edit entry modal
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
+  const [entryConflict, setEntryConflict] = useState<{ msg: string; latest: ScheduleEntry } | null>(null);
   const [editEntryTitle, setEditEntryTitle] = useState('');
   const [editEntryTimeEnabled, setEditEntryTimeEnabled] = useState(false);
   const [editEntryHour, setEditEntryHour] = useState(12);
@@ -293,7 +299,13 @@ export default function ScheduleScreen() {
 
   // Edit chore modal (from calendar)
   const [editingCalChore, setEditingCalChore] = useState<ChoreWithCompletion | null>(null);
+  const [calChoreConflict, setCalChoreConflict] = useState<{ msg: string; latest: ChoreWithCompletion } | null>(null);
   const [editCalChoreTitle, setEditCalChoreTitle] = useState('');
+  // Clear the conflict banner whenever the opened entity changes (open / switch
+  // / close); a socket update to the same open entity keeps the id, so the
+  // banner set by the handler survives.
+  useEffect(() => { setEntryConflict(null); }, [editingEntry?.id]);
+  useEffect(() => { setCalChoreConflict(null); }, [editingCalChore?.id]);
   const [editCalChoreAssignedTo, setEditCalChoreAssignedTo] = useState<string | null>(null);
   const [savingCalChore, setSavingCalChore] = useState(false);
 
@@ -1062,6 +1074,10 @@ export default function ScheduleScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera aktivitet</Text>
+          <ConflictBanner
+            message={entryConflict?.msg ?? null}
+            onShowLatest={entryConflict ? () => { doOpenEditEntry(entryConflict.latest, editMode); setEntryConflict(null); } : undefined}
+          />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
@@ -1162,6 +1178,10 @@ export default function ScheduleScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera syssla</Text>
+          <ConflictBanner
+            message={calChoreConflict?.msg ?? null}
+            onShowLatest={calChoreConflict ? () => { openEditCalChore(calChoreConflict.latest); setCalChoreConflict(null); } : undefined}
+          />
           <View style={s.sheetScroll}>
             <TextInput
               style={s.input}
