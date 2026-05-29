@@ -38,9 +38,8 @@
 - [ ] Städa upp legacy-kod
 - [ ] Refaktorera och skapa fler filer för egna komponenter mm
 - [x] Uppdateringar från socket borde uppdatera andra flikar innan man trycker på dem så att det inte hoppar till. Just nu kan det stå "0 av 0 kvar" och sedan hoppar det till -> "21 av 21 kvar" (backend sänder shopping_list_updated på hushålls-socketen; översikten lyssnar + debounced reload)
-- [ ] Se över skuggor på kort. Ej konsekvent genom hela appen..
-- [ ] Se över dialog-rutor. Många har olika utseende - vissa är rundade upptill andra inte, vissa är genomskinliga i nedkant andra inte. Bör vara rundade upptill och inte genomskinliga nedtill (audit: alla sheets är redan rundade upptill; paddingBottom-variansen är strukturell — sheets med inre ScrollView har 0 + egen padding; enda avvikaren är två grå modaler (MenuTemplatesModal, NotificationsModal, #f3f4f6) som ev. är avsiktligt grå. Kräver visuellt omdöme, ej mekanisk fix)
-- [ ] Butiker, filter, veckomenymallar, notiser saknar alla rundade hörn upptill i dialogrutan 
+- [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**.
+- [ ] Migrera alla `Alert.alert` till nya `ConfirmDialog`/`useConfirm` så bekräftelse- och valdialoger får rundade hörn och appens stil i stället för native OS-alerts som sticker ut. **14 av 62 klara**: chores.tsx (3) + menu.tsx (11) + performer-pickern. **48 kvar**: recipes (19), settings (6), schedule (6), shopping (7), MenuTemplatesModal (2), household/setup (2), sign-in/up (4). Overlay-dismiss på dialogen anropar cancel-knappen så promise-konsumenter inte hänger.
 - [x] Vecko-rubriken borde vara lila för alla veckor (inte bara nuvarande) i kalendern och menyn
 - [x] Trycka på en notis så borde man hamna på det berörda stället (notis-tap routar nu: aktivitetspåminnelse → kalendern, förfallen syssla → sysslor, rensad lista → den specifika listan, ny medlem → inställningar; gäller både tap i appen och kallstart. Att öppna exakt post-dialog (just den sysslan) är en framtida förfining)
 - [x] Notis-tap: öppna exakt post-dialog (entryId → aktivitetens redigering, choreId → sysslans) istället för bara rätt flik (routing skickar med id som param; kalender/sysslor läser parametern och öppnar postens redigeringsdialog när datan laddats, sen rensas paramen)
@@ -130,7 +129,7 @@
 - [x] Efter ihopslagning och flytt till nästa dubblett borde tangenbordet försvinna
 - [x] Kanske det krävs att en vara blivit tillagd mer än 1 gång för att återfinnas i söket. Ett sätt för en felstavad eller inskriven basvara av misstag att inte komma med i söket (staple-söket kräver usageCount >= 2; kurerade ingrediensförslag täcker ändå vanliga namn)
 - [x] Inköpsfliken rendar inte om när man tar bort en maträtt från menyn utan att man byter flik eller uppdaterar sidan
-- [ ] Grönt passar dåligt på skuggan
+- [ ] "Jag handlar"-läge: markera att du handlar en lista just nu så andra hushållsmedlemmar ser att den är på gång (presence-markör i realtid) — undviker dubbelköp och dubbla turer till affären
 - [x] Dubbletter: Enhetsfältet skymt när man klickar i enhet (vid fokus mäts mängd/enhet-radens position mot tangentbordets topp och listan scrollas exakt så raden hamnar precis ovanför tangentbordet; ihopslagnings-knapparna (utanför scrollytan) göms medan tangentbordet är uppe så de inte flyter ovanför det och äter höjd)
 
 ### Meny
@@ -187,6 +186,7 @@
 - [x] Visa receptbild (imageUrl) överst i receptvyn
 - [ ] Riktig bilduppladdning för recept (välj från kamera/galleri → ladda upp till lagring → imageUrl) i stället för att klistra in en bild-URL. Kräver bildlagring (t.ex. S3/Cloudinary) + upload-endpoint + komprimering
 - [x] Inventeringsdialogen går inte hela vägen ned (inventeringslistans höjd capades till fast 400px → på korta skärmar trängdes Överför/Tillbaka-knapparna ut under sheetens maxHeight 80%; höjden är nu skärmhöjds-medveten så knapparna alltid får plats)
+- [x] Persistera portionsskalning per menyrätt: skalningen (−/+ på menykortet) sparades bara i lokal state → tappades vid reload och syncade inte mellan enheter. Nu sparas `servings` på WeekMenuItem (fält + migration), PATCH:as debounced vid skalning (null = recept-default), och getScaleRatio/inköpsöverföringen läser det persisterade värdet. menu_updated-broadcasten gör att andra enheter laddar om med rätt portioner.
 
 
 ### Kalendern
@@ -226,7 +226,9 @@
 - [x] "Återkommande"-knappen borde inte byta namn när man klickar på en återkommande frekvens
 - [x] Man borde kunna sätta ett valfritt datum även för en "engångs-syssla"
 - [x] Avklarade sysslor borde hamna underst i listan. Den gröna bakgrunden är lite överflödig för avklarade sysslor
-- [ ] Förlåtande återkommande sysslor (ingen skuldhög): ett förfallet tillfälle är åtgärdbart i ett grace-fönster (till nästa tillfälle) — kan klarmarkas i efterhand inom fönstret; därefter auto-stryks det tyst som "missad" (slutar nagga), och notisen för förfallen syssla skickas en gång per tillfälle (inte upprepat). Återkommande syssla kan fällas ut och visa diskret historik (✓ klar / – missad) för senaste tillfällena. Fokus i listan = vad gäller nu/härnäst, inte en backlog av missat.
+- [x] Förlåtande återkommande sysslor (ingen skuldhög): ett förfallet tillfälle är åtgärdbart i ett grace-fönster (till nästa tillfälle) — kan klarmarkas i efterhand inom fönstret; därefter auto-stryks det tyst som "missad" (slutar nagga), och notisen för förfallen syssla skickas en gång per tillfälle (inte upprepat). Återkommande syssla kan fällas ut och visa diskret historik (✓ klar / – missad) för senaste tillfällena. Fokus i listan = vad gäller nu/härnäst, inte en backlog av missat. (V1 byggd: occurrence-status via occursOn, inline-klarmarkering av aktuellt tillfälle, utfällbar historik, ingen "färdig"-look på återkommande, skuldfri notis-ton)
+- [ ] Roterande sysslor ("turas om"): en återkommande syssla kan rotera ansvar mellan valda medlemmar per tillfälle (detta tillfälle = du, nästa = sambo, osv) istället för statisk tilldelning. Visa vems tur det är på kortet. Bygger på occurrence-modellen
+- [x] "Klart av {namn}" på delade sysslor: utfällda historiken visar vem som bockade av varje tillfälle (preferera performedBy-medlemsnamn, annars completedBy via Clerk→medlemsnamn). När sysslan är tilldelad en lokal profil (som inte kan logga in) får den som trycker Klar **välja vem som faktiskt utförde** (lokal profil eller "jag"), så krediten hamnar rätt — nytt `performedByMemberId`-fält på `ChoreCompletion`. Push-notis till övriga vid avbockning är en framtida utbyggnad.
 
 
 

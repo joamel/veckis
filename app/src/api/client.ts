@@ -232,10 +232,10 @@ export function useApiClient() {
     deleteChore: (choreId: string) =>
       request<void>(`/api/chores/${choreId}`, { method: 'DELETE' }),
 
-    completeChore: (choreId: string, day?: WeekDay | null, note?: string, date?: string | null) =>
+    completeChore: (choreId: string, day?: WeekDay | null, note?: string, date?: string | null, performedByMemberId?: string | null) =>
       request<ChoreCompletion>(`/api/chores/${choreId}/complete`, {
         method: 'POST',
-        body: JSON.stringify({ day, note, date }),
+        body: JSON.stringify({ day, note, date, performedByMemberId }),
       }),
 
     getChoreCompletions: (choreId: string) =>
@@ -290,7 +290,7 @@ export function useApiClient() {
     addToWeekMenu: (data: { householdId: string; recipeId: string; day?: WeekDay | null; weekYear: number; weekNumber: number; note?: string | null }) =>
       request<WeekMenuItemWithRecipe>('/api/menus', { method: 'POST', body: JSON.stringify(data) }),
 
-    updateWeekMenuItem: (itemId: string, data: { day?: WeekDay | null; note?: string | null }) =>
+    updateWeekMenuItem: (itemId: string, data: { day?: WeekDay | null; note?: string | null; servings?: number | null }) =>
       request<WeekMenuItemWithRecipe>(`/api/menus/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteWeekMenuItem: (itemId: string) =>
