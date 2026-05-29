@@ -227,7 +227,7 @@
 - [x] Avklarade sysslor borde hamna underst i listan. Den gröna bakgrunden är lite överflödig för avklarade sysslor
 - [x] Förlåtande återkommande sysslor (ingen skuldhög): ett förfallet tillfälle är åtgärdbart i ett grace-fönster (till nästa tillfälle) — kan klarmarkas i efterhand inom fönstret; därefter auto-stryks det tyst som "missad" (slutar nagga), och notisen för förfallen syssla skickas en gång per tillfälle (inte upprepat). Återkommande syssla kan fällas ut och visa diskret historik (✓ klar / – missad) för senaste tillfällena. Fokus i listan = vad gäller nu/härnäst, inte en backlog av missat. (V1 byggd: occurrence-status via occursOn, inline-klarmarkering av aktuellt tillfälle, utfällbar historik, ingen "färdig"-look på återkommande, skuldfri notis-ton)
 - [ ] Roterande sysslor ("turas om"): en återkommande syssla kan rotera ansvar mellan valda medlemmar per tillfälle (detta tillfälle = du, nästa = sambo, osv) istället för statisk tilldelning. Visa vems tur det är på kortet. Bygger på occurrence-modellen
-- [ ] "Klart av {namn}" på delade sysslor: när någon bockar av ett tillfälle på en delad syssla syns/notifieras diskret vem som gjorde det — undviker dubbelarbete och ger bekräftelse. Återanvänder actor/realtid
+- [x] "Klart av {namn}" på delade sysslor: utfällda historiken visar nu vem som bockade av varje tillfälle ("✓ mån 23 · Anna", via completedBy→medlemsnamn). Push-notis till övriga när någon gör klart är en framtida utbyggnad.
 
 
 

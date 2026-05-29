@@ -107,7 +107,7 @@ function completionDate(comp: ChoreCompletion): string {
   return comp.date ?? isoDateStr(new Date(comp.completedAt));
 }
 
-interface ChoreOccurrence { date: string; done: boolean; isCurrent: boolean }
+interface ChoreOccurrence { date: string; done: boolean; isCurrent: boolean; completedBy: string | null }
 interface RecurringStatus {
   occurrences: ChoreOccurrence[]; // ascending, recent window
   current: ChoreOccurrence | null; // latest occurrence on/before today
@@ -121,7 +121,7 @@ interface RecurringStatus {
 // silently "missed" — shown in history, never nagged about.
 function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringStatus {
   const pattern = choreToPattern(chore);
-  const doneDates = new Set(chore.completions.map(completionDate));
+  const completerByDate = new Map(chore.completions.map(c => [completionDate(c), c.completedBy]));
   const today = new Date();
   const todayStr = isoDateStr(today);
   const occurrences: ChoreOccurrence[] = [];
@@ -129,7 +129,7 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
     if (occursOn(pattern, d)) {
       const date = isoDateStr(d);
-      occurrences.push({ date, done: doneDates.has(date), isCurrent: false });
+      occurrences.push({ date, done: completerByDate.has(date), isCurrent: false, completedBy: completerByDate.get(date) ?? null });
     }
   }
   let current: ChoreOccurrence | null = null;
@@ -351,6 +351,13 @@ export default function ChoresScreen() {
   function getMemberName(memberId: string | null) {
     if (!memberId) return null;
     return members.find(m => m.id === memberId)?.displayName ?? null;
+  }
+
+  // Who completed an occurrence (completedBy is a clerkUserId; local profiles
+  // can't complete so this is always a logged-in account).
+  function memberNameByClerkId(clerkUserId: string | null) {
+    if (!clerkUserId) return null;
+    return members.find(m => m.clerkUserId === clerkUserId)?.displayName ?? null;
   }
 
   // For monthly recurrence we encode the user's chosen pattern in startDate so it
@@ -715,7 +722,9 @@ export default function ChoresScreen() {
                           color={o.done ? '#10b981' : o.isCurrent ? '#7c3aed' : '#d1d5db'}
                         />
                         <Text style={[s.historyDate, { fontSize: fs(13) }, !o.done && !o.isCurrent && s.historyMissed]}>
-                          {formatOcc(o.date)}{o.isCurrent && !o.done ? ' · att göra' : !o.done ? ' · missad' : ''}
+                          {formatOcc(o.date)}{o.done
+                            ? (memberNameByClerkId(o.completedBy) ? ` · ${memberNameByClerkId(o.completedBy)}` : '')
+                            : o.isCurrent ? ' · att göra' : ' · missad'}
                         </Text>
                         {o.isCurrent && !o.done && (
                           <Pressable style={s.historyDoBtn} onPress={() => completeOccurrence(item, o.date)} hitSlop={6}>
