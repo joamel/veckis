@@ -249,7 +249,7 @@
 - [ ] Utnyttja större skärm likt kalender-vyn att saker öppnas bredvid istället för under mm.
 - [ ] bygga en pwa
 - [ ] Kan vi implementera en streckkodsläsare för att direkt kunna lägga till en vara?
-- [ ] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt
+- [x] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt (parseInstructions flattenar JSON-LD recipeInstructions — sträng/array/HowToStep/HowToSection — till numrerade rader; from-url returnerar instructions och receptet skapas med dem)
 - [x] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp) — sorter-knapp i recept-headern med radioval: A–Ö / Mest använda / Senast tillagda; valet sparas (gäller även välj-läget). "Mest använda" = livstidsräknare Recipe.timesUsed som ökar varje gång receptet läggs i en meny (backfilld från nuvarande förekomster)
 - [ ] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd..
 - [ ] Möjlighet att klarmarkera sysslor bakåt i tiden alt sätta nytt datum om engångssyssla

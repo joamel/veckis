@@ -169,8 +169,35 @@ interface ScrapedRecipe {
   title: string;
   description: string | null;
   imageUrl: string | null;
+  instructions: string | null;
   servings: number;
   ingredients: Array<{ name: string; quantity: number | null; unit: string | null }>;
+}
+
+// JSON-LD recipeInstructions comes in many shapes: a plain string, an array of
+// strings, an array of HowToStep ({ text }) objects, or HowToSection objects
+// that nest steps under itemListElement. Flatten them all to numbered lines.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseInstructions(raw: any): string | null {
+  const steps: string[] = [];
+  const walk = (node: any): void => {
+    if (!node) return;
+    if (typeof node === 'string') {
+      const t = node.replace(/<[^>]+>/g, '').trim();
+      if (t) steps.push(t);
+      return;
+    }
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (node['@type'] === 'HowToSection' && node.itemListElement) { walk(node.itemListElement); return; }
+    const text = node.text ?? node.name;
+    if (typeof text === 'string') {
+      const t = text.replace(/<[^>]+>/g, '').trim();
+      if (t) steps.push(t);
+    }
+  };
+  walk(raw);
+  if (steps.length === 0) return null;
+  return steps.map((s, i) => `${i + 1}. ${s}`).join('\n').slice(0, 8000);
 }
 
 async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
@@ -235,8 +262,10 @@ function parseJsonLdRecipe(r: any, sourceUrl: string): ScrapedRecipe {
   const rawIngredients: string[] = Array.isArray(r.recipeIngredient) ? r.recipeIngredient.map(String) : [];
   const ingredients = rawIngredients.map(parseIngredientString);
 
+  const instructions = parseInstructions(r.recipeInstructions);
+
   void sourceUrl;
-  return { title, description, imageUrl, servings, ingredients };
+  return { title, description, imageUrl, instructions, servings, ingredients };
 }
 
 function parseIngredientString(raw: string): { name: string; quantity: number | null; unit: string | null } {
