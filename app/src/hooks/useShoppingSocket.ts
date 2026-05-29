@@ -11,8 +11,8 @@ function toWsUrl(listId: string, token: string): string {
 
 export type ShoppingWsMessage =
   | { type: 'item_added'; data: ShoppingItemWithRecipe }
-  | { type: 'item_updated'; data: ShoppingItemWithRecipe }
-  | { type: 'item_deleted'; data: { id: string } }
+  | { type: 'item_updated'; data: ShoppingItemWithRecipe; actor?: string }
+  | { type: 'item_deleted'; data: { id: string }; actor?: string }
   | { type: 'list_cleared' }
   | { type: 'items_auto_merged'; data: { name: string; count: number } };
 

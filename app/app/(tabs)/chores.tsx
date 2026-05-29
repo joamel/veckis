@@ -153,10 +153,10 @@ export default function ChoresScreen() {
     if (msg.type === 'chore_added') {
       setChores(prev => prev.some(c => c.id === msg.data.id) ? prev : [...prev, msg.data as never]);
     } else if (msg.type === 'chore_updated') {
-      if (editingChore?.id === msg.data.id) setChoreConflict(`${editingChore.title} ändrades av någon annan`);
+      if (editingChore?.id === msg.data.id) setChoreConflict({ msg: `${msg.actor ?? 'Någon'} ändrade ${editingChore.title}`, latest: { ...editingChore, ...msg.data } });
       setChores(prev => prev.map(c => c.id === msg.data.id ? { ...c, ...msg.data } as never : c));
     } else if (msg.type === 'chore_deleted') {
-      if (editingChore?.id === msg.data.id) { showToast(`${editingChore.title} togs bort av någon annan`); setEditingChore(null); }
+      if (editingChore?.id === msg.data.id) { showToast(`${msg.actor ?? 'Någon'} tog bort ${editingChore.title}`); setEditingChore(null); }
       setChores(prev => prev.filter(c => c.id !== msg.data.id));
     } else if (msg.type === 'chore_completed') {
       setChores(prev => prev.map(c => c.id === msg.data.choreId
@@ -192,7 +192,7 @@ export default function ChoresScreen() {
 
   // Edit modal
   const [editingChore, setEditingChore] = useState<ChoreWithCompletion | null>(null);
-  const [choreConflict, setChoreConflict] = useState<string | null>(null);
+  const [choreConflict, setChoreConflict] = useState<{ msg: string; latest: ChoreWithCompletion } | null>(null);
   // Clear the conflict banner when the opened chore changes (open/switch/close);
   // a socket update to the same open chore keeps the id, so the banner survives.
   useEffect(() => { setChoreConflict(null); }, [editingChore?.id]);
@@ -694,7 +694,10 @@ export default function ChoresScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera syssla</Text>
-          <ConflictBanner message={choreConflict} />
+          <ConflictBanner
+            message={choreConflict?.msg ?? null}
+            onShowLatest={choreConflict ? () => { openEdit(choreConflict.latest); setChoreConflict(null); } : undefined}
+          />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}

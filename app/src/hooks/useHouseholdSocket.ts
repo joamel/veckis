@@ -11,11 +11,11 @@ function toWsUrl(householdId: string, token: string): string {
 
 export type HouseholdWsMessage =
   | { type: 'schedule_entry_added'; data: ScheduleEntry }
-  | { type: 'schedule_entry_updated'; data: ScheduleEntry }
-  | { type: 'schedule_entry_deleted'; data: { id: string } }
+  | { type: 'schedule_entry_updated'; data: ScheduleEntry; actor?: string }
+  | { type: 'schedule_entry_deleted'; data: { id: string }; actor?: string }
   | { type: 'chore_added'; data: Chore & { completions: ChoreCompletion[] } }
-  | { type: 'chore_updated'; data: Chore }
-  | { type: 'chore_deleted'; data: { id: string } }
+  | { type: 'chore_updated'; data: Chore; actor?: string }
+  | { type: 'chore_deleted'; data: { id: string }; actor?: string }
   | { type: 'chore_completed'; data: ChoreCompletion }
   | { type: 'chore_uncompleted'; data: { id: string; day: string | null; date?: string | null } }
   | { type: 'household_updated'; data: { id: string; name: string } }

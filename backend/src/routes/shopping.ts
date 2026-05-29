@@ -17,8 +17,10 @@ export const shoppingRouter = Router();
 // Broadcast a per-list item change AND a lightweight household-level signal so
 // the shopping overview (which isn't subscribed to per-list sockets) can update
 // its counts live instead of only on tab focus.
-function bcast(list: { id: string; householdId: string }, message: object) {
-  wsBroadcast(list.id, message);
+function bcast(list: { id: string; householdId: string; actor?: string | null }, message: Record<string, unknown>) {
+  // Stamp the per-list event with who triggered it so other clients editing the
+  // same item can show "{name} ändrade ..." (L35). Falls back to undefined.
+  wsBroadcast(list.id, { ...message, actor: list.actor ?? undefined });
   wsBroadcast(`household:${list.householdId}`, { type: 'shopping_list_updated', data: { listId: list.id } });
 }
 
@@ -89,7 +91,7 @@ async function getListAndVerifyMember(listId: string, clerkUserId: string, res: 
     res.status(403).json({ error: 'Not a member of this household' });
     return null;
   }
-  return list;
+  return Object.assign(list, { actor: member.displayName });
 }
 
 // POST /api/shopping/lists
