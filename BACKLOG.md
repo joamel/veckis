@@ -185,7 +185,7 @@
 - [x] "Ta bort recept" i receptets 3-prickar-meny (idag bara via listans redigeringsläge)
 - [x] Visa receptbild (imageUrl) överst i receptvyn
 - [ ] Riktig bilduppladdning för recept (välj från kamera/galleri → ladda upp till lagring → imageUrl) i stället för att klistra in en bild-URL. Kräver bildlagring (t.ex. S3/Cloudinary) + upload-endpoint + komprimering
-- [ ] Inventeringsdialogen går inte hela vägen ned
+- [x] Inventeringsdialogen går inte hela vägen ned (inventeringslistans höjd capades till fast 400px → på korta skärmar trängdes Överför/Tillbaka-knapparna ut under sheetens maxHeight 80%; höjden är nu skärmhöjds-medveten så knapparna alltid får plats)
 
 
 ### Kalendern

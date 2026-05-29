@@ -225,7 +225,10 @@ export default function MenuScreen() {
   const INV_ROW_H = 56;
   const INV_CTRL_W = 140;
   const INV_FULL_W = Dimensions.get('window').width - 48; // sheet padding 24 each side
-  const invListHeight = Math.min(400, Math.max(120, aggregatedInventory.length * INV_ROW_H));
+  // Cap the list to the space left inside the 80%-tall sheet after the header +
+  // Överför/Tillbaka-knapparna, so the buttons never get clipped on short screens.
+  const invMaxListH = Math.max(160, Dimensions.get('window').height * 0.8 - 300);
+  const invListHeight = Math.min(invMaxListH, Math.max(120, aggregatedInventory.length * INV_ROW_H));
   const invPagerRef = useRef<ScrollView>(null);
   // While a tab-tap scrolls programmatically, ignore onScroll so it doesn't flip
   // the tab back and forth as the animation passes the midpoint.
