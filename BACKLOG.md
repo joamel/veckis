@@ -41,7 +41,8 @@
 - [ ] Se över skuggor på kort. Ej konsekvent genom hela appen..
 - [ ] Se över dialog-rutor. Många har olika utseende - vissa är rundade upptill andra inte, vissa är genomskinliga i nedkant andra inte. Bör vara rundade upptill och inte genomskinliga nedtill (audit: alla sheets är redan rundade upptill; paddingBottom-variansen är strukturell — sheets med inre ScrollView har 0 + egen padding; enda avvikaren är två grå modaler (MenuTemplatesModal, NotificationsModal, #f3f4f6) som ev. är avsiktligt grå. Kräver visuellt omdöme, ej mekanisk fix)
 - [x] Vecko-rubriken borde vara lila för alla veckor (inte bara nuvarande) i kalendern och menyn
-- [ ] Trycka på en notis så borde man hamna på det berörda stället (syssla --> sysslan osv) 
+- [x] Trycka på en notis så borde man hamna på det berörda stället (notis-tap routar nu: aktivitetspåminnelse → kalendern, förfallen syssla → sysslor, rensad lista → den specifika listan, ny medlem → inställningar; gäller både tap i appen och kallstart. Att öppna exakt post-dialog (just den sysslan) är en framtida förfining)
+- [ ] Notis-tap: öppna exakt post-dialog (entryId → aktivitetens redigering, choreId → sysslans) istället för bara rätt flik — kräver param-plumbing + att posten är laddad
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
