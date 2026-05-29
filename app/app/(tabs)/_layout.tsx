@@ -1,9 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { usePushRegistration } from '../../src/hooks/usePushRegistration';
+import { useNotificationRouting } from '../../src/hooks/useNotificationRouting';
 
 export default function TabLayout() {
   usePushRegistration();
+  useNotificationRouting();
   return (
     <Tabs
       initialRouteName="schedule"

@@ -11,18 +11,19 @@ function toWsUrl(householdId: string, token: string): string {
 
 export type HouseholdWsMessage =
   | { type: 'schedule_entry_added'; data: ScheduleEntry }
-  | { type: 'schedule_entry_updated'; data: ScheduleEntry }
-  | { type: 'schedule_entry_deleted'; data: { id: string } }
+  | { type: 'schedule_entry_updated'; data: ScheduleEntry; actor?: string }
+  | { type: 'schedule_entry_deleted'; data: { id: string }; actor?: string }
   | { type: 'chore_added'; data: Chore & { completions: ChoreCompletion[] } }
-  | { type: 'chore_updated'; data: Chore }
-  | { type: 'chore_deleted'; data: { id: string } }
+  | { type: 'chore_updated'; data: Chore; actor?: string }
+  | { type: 'chore_deleted'; data: { id: string }; actor?: string }
   | { type: 'chore_completed'; data: ChoreCompletion }
   | { type: 'chore_uncompleted'; data: { id: string; day: string | null; date?: string | null } }
   | { type: 'household_updated'; data: { id: string; name: string } }
   | { type: 'member_added'; data: { id: string; householdId: string; displayName: string; role: string; clerkUserId: string | null } }
   | { type: 'member_updated'; data: { id: string; householdId: string; displayName: string; role: string; clerkUserId: string | null } }
   | { type: 'member_deleted'; data: { id: string } }
-  | { type: 'shopping_list_updated'; data: { listId: string } };
+  | { type: 'shopping_list_updated'; data: { listId: string } }
+  | { type: 'menu_updated'; data: { weekYear: number; weekNumber: number } };
 
 export function useHouseholdSocket(
   householdId: string | null | undefined,

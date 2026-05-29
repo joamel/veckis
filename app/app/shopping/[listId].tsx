@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import Fuse from 'fuse.js';
 import { capitalize } from '../../src/lib/text';
+import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
@@ -87,6 +88,7 @@ export default function ShoppingListScreen() {
   const [mergeCategory, setMergeCategory] = useState<StoreCategory>('other');
   const [manualPickerOpen, setManualPickerOpen] = useState(false);
   const mergeScrollRef = useRef<ScrollView>(null);
+  const mergeRowY = useRef(0); // qty/unit row offset within the merge scroll content
   const [manualPickerSelected, setManualPickerSelected] = useState<Set<string>>(new Set());
 
   // Category browser modal
@@ -95,6 +97,7 @@ export default function ShoppingListScreen() {
 
   // Item edit modal
   const [editingItem, setEditingItem] = useState<ShoppingItemWithRecipe | null>(null);
+  const [editConflict, setEditConflict] = useState<{ msg: string; latest?: ShoppingItemWithRecipe } | null>(null);
   const [editName, setEditName] = useState('');
   const [editQty, setEditQty] = useState('');
   const [editUnit, setEditUnit] = useState('');
@@ -219,6 +222,33 @@ export default function ShoppingListScreen() {
     if (msg.type === 'items_auto_merged') {
       showGlobalToast(`Slog ihop ${msg.data.count} ${capitalize(msg.data.name)}`, 'success');
       return;
+    }
+    // Conflict warning: someone else changed/removed the item you have open for
+    // editing. Last-write-wins still applies — this just makes the overwrite
+    // visible instead of silent.
+    if ((msg.type === 'item_updated' || msg.type === 'item_deleted') && editingItem && msg.data.id === editingItem.id) {
+      const who = msg.actor ?? 'Någon';
+      if (msg.type === 'item_deleted') {
+        // Modal closes → a root toast is visible again.
+        showGlobalToast(`${who} tog bort ${capitalize(editingItem.name)}`, 'neutral');
+        setEditingItem(null);
+        setEditConflict(null);
+      } else {
+        // Modal stays open → show an inline banner (toast would be behind it).
+        // Distinguish a check-toggle from a real content edit so the message and
+        // the "Visa senaste" button (only useful when content changed) fit.
+        const n = msg.data;
+        const contentChanged =
+          n.name !== editingItem.name ||
+          n.quantity !== editingItem.quantity ||
+          (n.unit ?? '') !== (editingItem.unit ?? '') ||
+          n.category !== editingItem.category;
+        const checkChanged = n.isChecked !== editingItem.isChecked;
+        const verb = checkChanged && !contentChanged
+          ? (n.isChecked ? 'bockade av' : 'avmarkerade')
+          : 'ändrade';
+        setEditConflict({ msg: `${who} ${verb} ${capitalize(editingItem.name)}`, latest: contentChanged ? n : undefined });
+      }
     }
     setList(prev => {
       if (!prev) return prev;
@@ -360,6 +390,14 @@ export default function ShoppingListScreen() {
       hideSub.remove();
     };
   }, []);
+
+  // RN doesn't auto-scroll a focused TextInput into view. The merge sheet's qty/
+  // unit row sits far down the content, so on focus we scroll it near the top of
+  // the (keyboard-shrunk) viewport using its content-relative offset from
+  // onLayout — robust vs the window/keyboard coordinate math that misfired.
+  function scrollMergeRowIntoView() {
+    setTimeout(() => mergeScrollRef.current?.scrollTo({ y: Math.max(0, mergeRowY.current - 16), animated: true }), 250);
+  }
 
   async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string) {
     let itemName = (name ?? newItem).trim().toLowerCase();
@@ -560,13 +598,25 @@ export default function ShoppingListScreen() {
     }
   }
 
-  function openEditItem(item: ShoppingItemWithRecipe) {
-    setEditingItem(item);
+  function fillEditForm(item: ShoppingItemWithRecipe) {
     setEditName(capitalize(item.name));
     setEditQty(item.quantity !== 1 || item.unit ? String(item.quantity) : '');
     setEditUnit(item.unit ?? '');
     setEditCategory(item.category as StoreCategory);
     setEditCustomCategory((item as { customCategory?: string | null }).customCategory ?? null);
+  }
+
+  function openEditItem(item: ShoppingItemWithRecipe) {
+    setEditingItem(item);
+    setEditConflict(null);
+    fillEditForm(item);
+  }
+
+  // "Visa senaste": pull the concurrent edit's values into the form on demand.
+  function applyLatestEdit() {
+    if (!editConflict?.latest) return;
+    fillEditForm(editConflict.latest);
+    setEditConflict(null);
   }
 
   async function saveEditItem() {
@@ -1161,6 +1211,7 @@ export default function ShoppingListScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
+          <ConflictBanner message={editConflict?.msg ?? null} onShowLatest={editConflict?.latest ? applyLatestEdit : undefined} />
           <Text style={s.editLabel}>Namn</Text>
           <TextInput
             style={s.editInput}
@@ -1494,7 +1545,7 @@ export default function ShoppingListScreen() {
                 </Pressable>
               )}
             </View>
-            <ScrollView ref={mergeScrollRef} style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 8 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView ref={mergeScrollRef} style={{ flexShrink: 1 }} contentContainerStyle={{ gap: 8, paddingBottom: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {mergeSheet && mergeSheet.items.length > 0 ? (
                 <Text style={s.sheetSub}>Markera vilka som ska slås ihop</Text>
               ) : (
@@ -1524,7 +1575,10 @@ export default function ShoppingListScreen() {
                 autoCapitalize="none"
               />
               <Text style={s.editLabel}>Ny mängd och enhet</Text>
-              <View style={[s.qtyStepper, { gap: 6, marginVertical: 4 }]}>
+              <View
+                style={[s.qtyStepper, { gap: 6, marginVertical: 4 }]}
+                onLayout={e => { mergeRowY.current = e.nativeEvent.layout.y; }}
+              >
                 <Pressable
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
                   onPress={() => setMergeQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
@@ -1537,6 +1591,7 @@ export default function ShoppingListScreen() {
                   onChangeText={setMergeQty}
                   keyboardType="decimal-pad"
                   selectTextOnFocus
+                  onFocus={scrollMergeRowIntoView}
                 />
                 <Pressable
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
@@ -1551,6 +1606,7 @@ export default function ShoppingListScreen() {
                   placeholder="enhet"
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="none"
+                  onFocus={scrollMergeRowIntoView}
                 />
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">
@@ -1580,7 +1636,9 @@ export default function ShoppingListScreen() {
               </ScrollView>
               </>)}
             </ScrollView>
-            {mergeSheet && mergeSheet.items.length > 0 && (<>
+            {/* Fixed action bar — always visible, but hidden while typing so it
+                doesn't float above the keyboard and steal the list's height. */}
+            {mergeSheet && mergeSheet.items.length > 0 && !keyboardVisible && (<>
             <Pressable
               style={[s.qtyConfirm, (mergeSelected.size < 2 || adding) && s.saveBtnDisabled]}
               onPress={confirmMerge}
