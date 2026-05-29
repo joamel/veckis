@@ -33,13 +33,14 @@
 - [x] Istället ha longpress för att sortera/flytta om (meny: longpress = endast dra/flytta)
 - [ ] möjligt med horisontell-vy i tablet
 - [x] Konflikthantering vid realtidsuppdatering — om två personer redigerar samma vara/aktivitet samtidigt: last-write-wins + toast till den som blir överskriven så ändringar inte tappas tyst (har man en vara/aktivitet/syssla öppen för redigering och någon annan ändrar den via realtid → gul inline-banner högst upp i dialogen "{namn} ändrade {posten}" med knapp "Visa senaste" som icke-destruktivt fyller i de inkomna värdena (toast funkar ej i dialog — RN Modal ligger ovanpå); tas posten bort stängs dialogen + toast "{namn} tog bort {posten}". Aktör-namn skickas med i socket-payloaden (actor) från backend. Gäller inköpsvaror, aktiviteter, kalender-sysslor och sysslor-fliken. Last-write-wins kvarstår vid spara)
-- [ ] Tillgänglighet: allt som nås via long-press ska även ha en synlig knapp + accessibility-labels på ikonknappar (penna/x/dubblett) så VoiceOver/TalkBack fungerar
+- [ ] Tillgänglighet: allt som nås via long-press ska även ha en synlig knapp + accessibility-labels på ikonknappar (penna/x/dubblett) så VoiceOver/TalkBack fungerar (delvis: navigations-/åtgärds-ikoner har labels — WeekNav-pilar, tillbaka-knappar, 3-prickar, kundvagn-FAB; kvar: penna/x/dubblett i listraderna + filterknappar)
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [ ] Städa upp legacy-kod
 - [ ] Refaktorera och skapa fler filer för egna komponenter mm
 - [x] Uppdateringar från socket borde uppdatera andra flikar innan man trycker på dem så att det inte hoppar till. Just nu kan det stå "0 av 0 kvar" och sedan hoppar det till -> "21 av 21 kvar" (backend sänder shopping_list_updated på hushålls-socketen; översikten lyssnar + debounced reload)
 - [ ] Se över skuggor på kort. Ej konsekvent genom hela appen..
 - [ ] Se över dialog-rutor. Många har olika utseende - vissa är rundade upptill andra inte, vissa är genomskinliga i nedkant andra inte. Bör vara rundade upptill och inte genomskinliga nedtill (audit: alla sheets är redan rundade upptill; paddingBottom-variansen är strukturell — sheets med inre ScrollView har 0 + egen padding; enda avvikaren är två grå modaler (MenuTemplatesModal, NotificationsModal, #f3f4f6) som ev. är avsiktligt grå. Kräver visuellt omdöme, ej mekanisk fix)
+- [ ] Butiker, filter, veckomenymallar, notiser saknar alla rundade hörn upptill i dialogrutan 
 - [x] Vecko-rubriken borde vara lila för alla veckor (inte bara nuvarande) i kalendern och menyn
 - [x] Trycka på en notis så borde man hamna på det berörda stället (notis-tap routar nu: aktivitetspåminnelse → kalendern, förfallen syssla → sysslor, rensad lista → den specifika listan, ny medlem → inställningar; gäller både tap i appen och kallstart. Att öppna exakt post-dialog (just den sysslan) är en framtida förfining)
 - [x] Notis-tap: öppna exakt post-dialog (entryId → aktivitetens redigering, choreId → sysslans) istället för bara rätt flik (routing skickar med id som param; kalender/sysslor läser parametern och öppnar postens redigeringsdialog när datan laddats, sen rensas paramen)
@@ -225,6 +226,7 @@
 - [x] "Återkommande"-knappen borde inte byta namn när man klickar på en återkommande frekvens
 - [x] Man borde kunna sätta ett valfritt datum även för en "engångs-syssla"
 - [x] Avklarade sysslor borde hamna underst i listan. Den gröna bakgrunden är lite överflödig för avklarade sysslor
+- [ ] Förlåtande återkommande sysslor (ingen skuldhög): ett förfallet tillfälle är åtgärdbart i ett grace-fönster (till nästa tillfälle) — kan klarmarkas i efterhand inom fönstret; därefter auto-stryks det tyst som "missad" (slutar nagga), och notisen för förfallen syssla skickas en gång per tillfälle (inte upprepat). Återkommande syssla kan fällas ut och visa diskret historik (✓ klar / – missad) för senaste tillfällena. Fokus i listan = vad gäller nu/härnäst, inte en backlog av missat.
 
 
 
@@ -252,7 +254,7 @@
 - [x] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt (parseInstructions flattenar JSON-LD recipeInstructions — sträng/array/HowToStep/HowToSection — till numrerade rader; from-url returnerar instructions och receptet skapas med dem)
 - [x] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp) — sorter-knapp i recept-headern med radioval: A–Ö / Mest använda / Senast tillagda; valet sparas (gäller även välj-läget). "Mest använda" = livstidsräknare Recipe.timesUsed som ökar varje gång receptet läggs i en meny (backfilld från nuvarande förekomster)
 - [ ] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd..
-- [ ] Möjlighet att klarmarkera sysslor bakåt i tiden alt sätta nytt datum om engångssyssla
+- [ ] Radikalt alternativ för återkommande sysslor: flexibelt intervall per syssla — nästa förfallodag räknas från när man senast gjorde sysslan ("var 3:e dag" från senaste utförandet) istället för fast kalender. Ingen förfallet-hög alls; passar rytm-sysslor (vattna/dammsuga), sämre för fasta dagar (sopor på måndag). Skulle vara ett val per syssla: "fast dag" vs "ungefär var X:e dag". (Subsumerar tidigare "klarmarkera bakåt"-idén — täcks nu av förlåtande-modellen i Sysslor-sektionen.)
 
 ## Backlog (prioriterade features)
 

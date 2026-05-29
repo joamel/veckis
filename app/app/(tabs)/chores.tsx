@@ -32,6 +32,7 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import type { Chore, ChoreCompletion, ChoreFrequency, RecurrenceType, WeekDay } from '@veckis/shared';
+import { occursOn, weekdayOf, type RecurrencePattern } from '@veckis/shared';
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 
@@ -76,6 +77,83 @@ function isFullyDone(chore: ChoreWithCompletion): boolean {
   return chore.days.every(day =>
     chore.completions.some(c => c.day === day && new Date(c.completedAt).getTime() > cutoff)
   );
+}
+
+function isoDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// "mån 23/6" for an occurrence's history row.
+function formatOcc(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  const short = DAYS.find(x => x.key === weekdayOf(d))?.short ?? '';
+  return `${short} ${d.getDate()}/${d.getMonth() + 1}`;
+}
+
+function choreToPattern(c: ChoreWithCompletion): RecurrencePattern {
+  return {
+    recurrenceType: c.recurrenceType,
+    recurrenceWeeks: c.recurrenceWeeks,
+    recurrenceDays: c.days,
+    monthlyType: c.monthlyType,
+    recurrenceWeekOfMonth: c.recurrenceWeekOfMonth,
+    startDate: c.startDate,
+    endDate: c.endDate,
+  };
+}
+
+// Which date a completion covers: explicit `date`, else the day it was logged.
+function completionDate(comp: ChoreCompletion): string {
+  return comp.date ?? isoDateStr(new Date(comp.completedAt));
+}
+
+interface ChoreOccurrence { date: string; done: boolean; isCurrent: boolean }
+interface RecurringStatus {
+  occurrences: ChoreOccurrence[]; // ascending, recent window
+  current: ChoreOccurrence | null; // latest occurrence on/before today
+  nextDate: string | null; // first occurrence strictly after today
+  state: 'done' | 'today' | 'overdue' | 'none';
+  overdueDays: number;
+}
+
+// Forgiving model: the only actionable occurrence is the latest one on/before
+// today (grace lasts until the next occurrence). Older un-done occurrences are
+// silently "missed" — shown in history, never nagged about.
+function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringStatus {
+  const pattern = choreToPattern(chore);
+  const doneDates = new Set(chore.completions.map(completionDate));
+  const today = new Date();
+  const todayStr = isoDateStr(today);
+  const occurrences: ChoreOccurrence[] = [];
+  for (let i = daysBack; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+    if (occursOn(pattern, d)) {
+      const date = isoDateStr(d);
+      occurrences.push({ date, done: doneDates.has(date), isCurrent: false });
+    }
+  }
+  let current: ChoreOccurrence | null = null;
+  for (let i = occurrences.length - 1; i >= 0; i--) {
+    if (occurrences[i].date <= todayStr) { occurrences[i].isCurrent = true; current = occurrences[i]; break; }
+  }
+  let nextDate: string | null = null;
+  for (let i = 1; i <= 90; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    if (occursOn(pattern, d)) { nextDate = isoDateStr(d); break; }
+  }
+  let state: RecurringStatus['state'] = 'none';
+  let overdueDays = 0;
+  if (current) {
+    if (current.done) state = 'done';
+    else if (current.date === todayStr) state = 'today';
+    else {
+      state = 'overdue';
+      const cd = new Date(current.date + 'T00:00:00').getTime();
+      const t0 = new Date(todayStr + 'T00:00:00').getTime();
+      overdueDays = Math.round((t0 - cd) / 86400000);
+    }
+  }
+  return { occurrences, current, nextDate, state, overdueDays };
 }
 
 type Member = { id: string; clerkUserId: string | null; displayName: string };
@@ -196,6 +274,7 @@ export default function ChoresScreen() {
 
   // Edit modal
   const [editingChore, setEditingChore] = useState<ChoreWithCompletion | null>(null);
+  const [expandedChores, setExpandedChores] = useState<Set<string>>(new Set());
   const [choreConflict, setChoreConflict] = useState<{ msg: string; latest: ChoreWithCompletion } | null>(null);
   // Clear the conflict banner when the opened chore changes (open/switch/close);
   // a socket update to the same open chore keeps the id, so the banner survives.
@@ -257,8 +336,10 @@ export default function ChoresScreen() {
     const filtered = filterMemberIds.length > 0
       ? chores.filter(c => c.assignedTo && filterMemberIds.includes(c.assignedTo))
       : chores;
-    const done = filtered.filter(c => isFullyDone(c));
-    const notDone = filtered.filter(c => !isFullyDone(c));
+    // Match the card's notion of "done": occurrence-based for recurring chores.
+    const choreDone = (c: ChoreWithCompletion) => isOnce(c) ? isFullyDone(c) : recurringStatus(c).state === 'done';
+    const done = filtered.filter(choreDone);
+    const notDone = filtered.filter(c => !choreDone(c));
     return [...notDone, ...done];
   }, [chores, filterMemberIds]);
 
@@ -438,6 +519,37 @@ export default function ChoresScreen() {
     }
   }
 
+  // Forgiving model: complete/uncomplete a specific occurrence date.
+  async function completeOccurrence(chore: ChoreWithCompletion, date: string) {
+    const fakeId = '__occ__' + date;
+    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', completedAt: new Date().toISOString(), note: null, day: null, date };
+    setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
+    try {
+      const completion = await client.completeChore(chore.id, null, undefined, date);
+      setChores(cs => cs.map(c => c.id === chore.id
+        ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
+        : c));
+    } catch (e) {
+      setChores(cs => cs.map(c => c.id === chore.id
+        ? { ...c, completions: c.completions.filter(comp => comp.id !== fakeId) }
+        : c));
+      showError(e, 'Kunde inte markera sysslan');
+    }
+  }
+
+  async function uncompleteOccurrence(chore: ChoreWithCompletion, date: string) {
+    const saved = chore.completions;
+    setChores(cs => cs.map(c => c.id === chore.id
+      ? { ...c, completions: c.completions.filter(comp => completionDate(comp) !== date) }
+      : c));
+    try {
+      await client.uncompleteChore(chore.id, undefined, date);
+    } catch (e) {
+      setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
+      showError(e, 'Kunde inte ångra');
+    }
+  }
+
   async function uncompleteChore(chore: ChoreWithCompletion) {
     const saved = chore.completions;
     setChores(cs => cs.map(c => c.id === chore.id
@@ -516,9 +628,29 @@ export default function ChoresScreen() {
           />
         }
         renderItem={({ item }) => {
-          const lastCompletion = item.completions[0];
-          const done = isFullyDone(item);
+          const once = isOnce(item);
+          const rec = once ? null : recurringStatus(item);
+          const done = once ? isFullyDone(item) : rec!.state === 'done';
+          // A recurring chore is never "finished" — it returns — so don't give it
+          // the greyed/strikethrough look; only one-off chores get that.
+          const finishedLook = once && done;
+          const overdue = rec?.state === 'overdue';
           const assignedName = getMemberName(item.assignedTo);
+          const expanded = expandedChores.has(item.id);
+          const metaParts: (string | null)[] = [
+            FREQ_LABELS[item.frequency],
+            item.frequency !== 'daily' && item.days.length > 0
+              ? item.days.map(d => DAYS.find(x => x.key === d)?.short).join(', ')
+              : null,
+            assignedName,
+          ];
+          if (once) metaParts.push(item.completions[0] ? daysSince(item.completions[0].completedAt) : null);
+          const statusText = rec
+            ? (rec.state === 'overdue' ? `Förfallen sedan ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
+              : rec.state === 'today' ? 'Att göra idag'
+              : rec.state === 'done' ? (rec.nextDate ? `Klar · nästa ${formatOcc(rec.nextDate)}` : 'Klar') : null)
+            : null;
+          const showCheck = !editMode && (once || !!rec?.current);
           return (
             <View style={s.cardWrap}>
               {editMode && (
@@ -531,7 +663,7 @@ export default function ChoresScreen() {
                 </Pressable>
               )}
               <Pressable
-                style={[s.card, { padding: sp(14), gap: sp(12) }, done && s.cardDone]}
+                style={[s.card, { padding: sp(14), gap: sp(12) }, finishedLook && s.cardDone, overdue && s.cardOverdue]}
                 onPress={() => { if (!editMode) openEdit(item); }}
                 onLongPress={() => { medium(); setEditMode(true); }}
               >
@@ -539,27 +671,62 @@ export default function ChoresScreen() {
                   <Ionicons name="sparkles-outline" size={fs(16)} color="#7c3aed" />
                 </View>
                 <View style={s.cardContent}>
-                  <Text style={[s.cardTitle, { fontSize: fs(16) }, done && s.cardTitleDone]}>{item.title}</Text>
-                  <Text style={[s.cardMeta, { fontSize: fs(12) }]}>
-                    {[
-                      FREQ_LABELS[item.frequency],
-                      item.frequency !== 'daily' && item.days.length > 0
-                        ? item.days.map(d => DAYS.find(x => x.key === d)?.short).join(', ')
-                        : null,
-                      assignedName,
-                      lastCompletion ? daysSince(lastCompletion.completedAt) : null,
-                    ].filter(Boolean).join(' · ')}
-                  </Text>
+                  <Text style={[s.cardTitle, { fontSize: fs(16) }, finishedLook && s.cardTitleDone]}>{item.title}</Text>
+                  <Text style={[s.cardMeta, { fontSize: fs(12) }]}>{metaParts.filter(Boolean).join(' · ')}</Text>
+                  {statusText && (
+                    <Text style={[s.choreStatus, { fontSize: fs(12) }, overdue && s.choreStatusOverdue, rec?.state === 'done' && s.choreStatusDone]}>
+                      {statusText}
+                    </Text>
+                  )}
                 </View>
-                {isOnce(item) && !editMode && (
+                {rec && !editMode && (
+                  <Pressable
+                    onPress={() => setExpandedChores(prev => { const n = new Set(prev); if (n.has(item.id)) n.delete(item.id); else n.add(item.id); return n; })}
+                    hitSlop={8}
+                    style={s.expandBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={expanded ? 'Dölj historik' : 'Visa historik'}
+                  >
+                    <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={fs(18)} color="#9ca3af" />
+                  </Pressable>
+                )}
+                {showCheck && (
                   <Pressable
                     style={[s.checkBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }, done && s.checkBtnDone]}
-                    onPress={() => done ? uncompleteChore(item) : completeChore(item)}
+                    onPress={() => {
+                      if (once) { done ? uncompleteChore(item) : completeChore(item); }
+                      else { const cur = rec!.current!; cur.done ? uncompleteOccurrence(item, cur.date) : completeOccurrence(item, cur.date); }
+                    }}
                   >
                     {done && <Ionicons name="checkmark" size={fs(20)} color="#fff" />}
                   </Pressable>
                 )}
               </Pressable>
+              {expanded && rec && (
+                <View style={s.historyBox}>
+                  {rec.occurrences.length === 0 ? (
+                    <Text style={s.historyEmpty}>Inga tillfällen den senaste tiden</Text>
+                  ) : (
+                    [...rec.occurrences].reverse().slice(0, 8).map(o => (
+                      <View key={o.date} style={s.historyRow}>
+                        <Ionicons
+                          name={o.done ? 'checkmark-circle' : o.isCurrent ? 'ellipse-outline' : 'close-circle-outline'}
+                          size={fs(15)}
+                          color={o.done ? '#10b981' : o.isCurrent ? '#7c3aed' : '#d1d5db'}
+                        />
+                        <Text style={[s.historyDate, { fontSize: fs(13) }, !o.done && !o.isCurrent && s.historyMissed]}>
+                          {formatOcc(o.date)}{o.isCurrent && !o.done ? ' · att göra' : !o.done ? ' · missad' : ''}
+                        </Text>
+                        {o.isCurrent && !o.done && (
+                          <Pressable style={s.historyDoBtn} onPress={() => completeOccurrence(item, o.date)} hitSlop={6}>
+                            <Text style={s.historyDoBtnText}>Klar</Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
             </View>
           );
         }}
@@ -810,6 +977,18 @@ const s = StyleSheet.create({
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
   cardTitleDone: { textDecorationLine: 'line-through', color: '#9ca3af' },
   cardMeta: { fontSize: 12, color: '#6b7280', marginTop: 4, flexWrap: 'wrap' },
+  cardOverdue: { borderLeftColor: '#f59e0b' },
+  choreStatus: { fontSize: 12, fontWeight: '600', marginTop: 3, color: '#6b7280' },
+  choreStatusOverdue: { color: '#b45309' },
+  choreStatusDone: { color: '#10b981' },
+  expandBtn: { padding: 4, flexShrink: 0 },
+  historyBox: { backgroundColor: '#fff', borderRadius: 12, marginTop: -4, marginHorizontal: 4, paddingHorizontal: 16, paddingVertical: 10, gap: 8, borderWidth: 1, borderColor: '#f3f4f6' },
+  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  historyDate: { fontSize: 13, color: '#374151', flex: 1 },
+  historyMissed: { color: '#9ca3af' },
+  historyEmpty: { fontSize: 13, color: '#9ca3af', fontStyle: 'italic' },
+  historyDoBtn: { backgroundColor: '#7c3aed', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5 },
+  historyDoBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   checkBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#d1d5db', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   checkBtnDone: { backgroundColor: '#10b981', borderColor: '#10b981' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
