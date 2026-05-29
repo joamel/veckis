@@ -26,6 +26,7 @@ import { DatePickerModal } from '../../src/components/DatePickerModal';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useMemberFilter } from '../../src/context/MemberFilterContext';
 import { useToast } from '../../src/context/ToastContext';
+import { useConfirm } from '../../src/context/ConfirmContext';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -228,6 +229,7 @@ export default function ChoresScreen() {
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
   const { showError } = useToast();
+  const confirm = useConfirm();
   const router = useRouter();
   const deeplinkParams = useLocalSearchParams<{ choreId?: string }>();
   const openedChoreParamRef = useRef<string | null>(null);
@@ -546,14 +548,14 @@ export default function ChoresScreen() {
     const assigned = chore.assignedTo ? members.find(m => m.id === chore.assignedTo) : null;
     if (!assigned || assigned.clerkUserId !== null) { onPick(null); return; }
     const selfMember = userId ? members.find(m => m.clerkUserId === userId) : null;
-    const buttons: { text: string; onPress?: () => void; style?: 'cancel' | 'default' | 'destructive' }[] = [
-      { text: assigned.displayName, onPress: () => onPick(assigned.id) },
+    const buttons: Parameters<typeof confirm>[0]['buttons'] = [
+      { label: assigned.displayName, onPress: () => onPick(assigned.id) },
     ];
     if (selfMember && selfMember.id !== assigned.id) {
-      buttons.push({ text: `${selfMember.displayName} (jag)`, onPress: () => onPick(selfMember.id) });
+      buttons.push({ label: `${selfMember.displayName} (jag)`, onPress: () => onPick(selfMember.id) });
     }
-    buttons.push({ text: 'Avbryt', style: 'cancel' });
-    Alert.alert(`Vem gjorde "${chore.title}"?`, undefined, buttons);
+    buttons.push({ label: 'Avbryt', style: 'cancel' });
+    confirm({ title: `Vem gjorde "${chore.title}"?`, buttons });
   }
 
   // Forgiving model: complete/uncomplete a specific occurrence date.

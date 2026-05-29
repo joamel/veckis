@@ -10,6 +10,7 @@ import { HouseholdProvider, useHousehold } from '../src/context/HouseholdContext
 import { MemberFilterProvider } from '../src/context/MemberFilterContext';
 import { PendingRemovalProvider } from '../src/context/PendingRemovalContext';
 import { ToastProvider } from '../src/context/ToastContext';
+import { ConfirmProvider } from '../src/context/ConfirmContext';
 
 // Lock app text to designed size regardless of OS "larger text" setting.
 // Tablet sizing is handled separately via useTablet().fs() so we don't lose tablet scaling.
@@ -80,7 +81,9 @@ export default function RootLayout() {
             <MemberFilterProvider>
               <PendingRemovalProvider>
                 <ToastProvider>
-                  <NavigationGuard />
+                  <ConfirmProvider>
+                    <NavigationGuard />
+                  </ConfirmProvider>
                 </ToastProvider>
               </PendingRemovalProvider>
             </MemberFilterProvider>
