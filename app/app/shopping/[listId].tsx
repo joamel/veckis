@@ -1579,6 +1579,7 @@ export default function ShoppingListScreen() {
                   onChangeText={setMergeQty}
                   keyboardType="decimal-pad"
                   selectTextOnFocus
+                  onFocus={() => setTimeout(() => mergeScrollRef.current?.scrollToEnd({ animated: true }), 100)}
                 />
                 <Pressable
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
@@ -1593,6 +1594,7 @@ export default function ShoppingListScreen() {
                   placeholder="enhet"
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="none"
+                  onFocus={() => setTimeout(() => mergeScrollRef.current?.scrollToEnd({ animated: true }), 100)}
                 />
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">
