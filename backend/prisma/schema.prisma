@@ -224,6 +224,7 @@ model WeekMenuItem {
   weekYear    Int
   weekNumber  Int
   note        String?
+  servings    Int?     // per-placement portion scaling; null = use recipe default
   createdBy   String
   createdAt   DateTime @default(now())
 

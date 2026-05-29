@@ -136,12 +136,35 @@ export default function MenuScreen() {
   const [replaceTarget, setReplaceTarget] = useState<WeekMenuItemWithRecipe | null>(null);
 
   // Edit recipe modal
+  // Optimistic overlay for the −/+ scaler; the persisted truth is item.servings.
+  // Reset on load() so another device's change isn't shadowed by a stale entry.
   const [menuItemServings, setMenuItemServings] = useState<Record<string, number>>({});
+  const servingsSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  function scaledServingsOf(item: WeekMenuItemWithRecipe): number {
+    return menuItemServings[item.id] ?? item.servings ?? item.recipe.servings;
+  }
 
   function getScaleRatio(item: WeekMenuItemWithRecipe): number {
     const base = item.recipe.servings;
-    const scaled = menuItemServings[item.id] ?? base;
+    const scaled = scaledServingsOf(item);
     return base > 0 ? scaled / base : 1;
+  }
+
+  // Scale a placement's portions: instant optimistic overlay + debounced persist
+  // (null = back to recipe default). PATCH broadcasts menu_updated so other
+  // devices reload with the new servings.
+  function scaleServings(item: WeekMenuItemWithRecipe, n: number) {
+    setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
+    if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
+      scaleWarnedRef.current.add(item.id);
+      showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
+    }
+    const toSave = n === item.recipe.servings ? null : n;
+    if (servingsSaveTimers.current[item.id]) clearTimeout(servingsSaveTimers.current[item.id]);
+    servingsSaveTimers.current[item.id] = setTimeout(() => {
+      client.updateWeekMenuItem(item.id, { servings: toSave }).catch(e => showError(e, 'Kunde inte spara portioner'));
+    }, 600);
   }
 
   function scaleQty(qty: number | null, ratio: number): number | null {
@@ -417,6 +440,7 @@ export default function MenuScreen() {
         client.getAllMenus(householdId).catch(() => [] as WeekMenuItemWithRecipe[]),
       ]);
       setMenuItems(menu);
+      setMenuItemServings({}); // persisted item.servings is the truth after a load
       loadedWeekRef.current = { wy: weekYear, wn: weekNumber };
       setRecipes(recs);
       setShoppingLists(activeLists);
@@ -1062,14 +1086,8 @@ export default function MenuScreen() {
                     onDragMove={isCenter ? onDragMove : noop}
                     onDragEnd={isCenter ? onDragEnd : noop}
                     isDragging={isCenter && dragState?.item.id === item.id}
-                    scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
-                    onScaleServings={isCenter ? (n => {
-                      setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
-                      if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
-                        scaleWarnedRef.current.add(item.id);
-                        showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
-                      }
-                    }) : noop}
+                    scaledServings={scaledServingsOf(item)}
+                    onScaleServings={isCenter ? (n => scaleServings(item, n)) : noop}
                   />
                 ))
               )}
@@ -1108,14 +1126,8 @@ export default function MenuScreen() {
                 onDragMove={isCenter ? onDragMove : noop}
                 onDragEnd={isCenter ? onDragEnd : noop}
                 isDragging={isCenter && dragState?.item.id === item.id}
-                scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
-                onScaleServings={isCenter ? (n => {
-                  setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
-                  if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
-                    scaleWarnedRef.current.add(item.id);
-                    showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
-                  }
-                }) : noop}
+                scaledServings={scaledServingsOf(item)}
+                onScaleServings={isCenter ? (n => scaleServings(item, n)) : noop}
               />
             ))
           )}
