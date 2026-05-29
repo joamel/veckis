@@ -278,7 +278,7 @@ export function useApiClient() {
       request<void>(`/api/recipes/${recipeId}`, { method: 'DELETE' }),
 
     scrapeRecipe: (url: string) =>
-      request<{ title: string; description: string | null; imageUrl: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }>('/api/recipes/from-url', { method: 'POST', body: JSON.stringify({ url }) }),
+      request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }>('/api/recipes/from-url', { method: 'POST', body: JSON.stringify({ url }) }),
 
     // Menus
     getWeekMenu: (householdId: string, weekYear: number, weekNumber: number) =>

@@ -1029,11 +1029,11 @@ export default function ShoppingListScreen() {
 
       {/* Navbar buttons — rendered last so they always sit on top */}
       <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
-        <Pressable onPress={goBack} style={s.backBtn} hitSlop={8}>
+        <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Tillbaka">
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8}>
+        <Pressable onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fler åtgärder">
           <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
       </View>

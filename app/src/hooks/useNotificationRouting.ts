@@ -15,10 +15,10 @@ function routeForNotification(data: NotifData | undefined): void {
   if (!data?.type) return;
   switch (data.type) {
     case 'activityReminder':
-      router.push('/(tabs)/schedule');
+      router.push(data.entryId ? `/(tabs)/schedule?entryId=${data.entryId}` : '/(tabs)/schedule');
       break;
     case 'choreOverdue':
-      router.push('/(tabs)/chores');
+      router.push(data.choreId ? `/(tabs)/chores?choreId=${data.choreId}` : '/(tabs)/chores');
       break;
     case 'listCleared':
       router.push(data.listId ? `/shopping/${data.listId}` : '/(tabs)/shopping');

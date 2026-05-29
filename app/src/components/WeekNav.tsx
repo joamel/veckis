@@ -19,7 +19,7 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
       <Pressable style={s.labelBtn} onPress={onPickDate ?? onToday}>
         <Text style={[s.label, { fontSize: fs(14) }, isCurrentWeek && s.labelCurrent]}>{weekLabel}</Text>
       </Pressable>
-      <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onPrev}>
+      <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onPrev} accessibilityRole="button" accessibilityLabel="Föregående vecka">
         <Ionicons name="chevron-back" size={fs(18)} color="#4f46e5" />
       </Pressable>
       <View style={{ flex: 1 }} />
@@ -28,7 +28,7 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
           <Text style={[s.todayBtnText, { fontSize: fs(12) }]}>Idag</Text>
         </Pressable>
       )}
-      <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onNext}>
+      <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onNext} accessibilityRole="button" accessibilityLabel="Nästa vecka">
         <Ionicons name="chevron-forward" size={fs(18)} color="#4f46e5" />
       </Pressable>
     </View>
