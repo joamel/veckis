@@ -32,6 +32,7 @@ const createMenuItemSchema = z.object({
   weekYear: z.number().int(),
   weekNumber: z.number().int().min(1).max(53),
   note: z.string().max(500).nullable().optional(),
+  servings: z.number().int().positive().nullable().optional(),
 });
 
 // GET /api/menus?householdId=&weekYear=&weekNumber=
@@ -95,6 +96,7 @@ menusRouter.patch('/:itemId', requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({
     day: weekDayEnum.nullable().optional(),
     note: z.string().max(500).nullable().optional(),
+    servings: z.number().int().positive().nullable().optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 

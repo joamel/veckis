@@ -516,7 +516,7 @@ export default function ScheduleScreen() {
 
   async function completeChoreCalendar(chore: ChoreWithCompletion, day: WeekDay, dateStr: string) {
     const fakeId = '__opt__';
-    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', completedAt: new Date().toISOString(), note: null, day, date: dateStr };
+    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId: null, completedAt: new Date().toISOString(), note: null, day, date: dateStr };
     setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
     try {
       const completion = await client.completeChore(chore.id, day, undefined, dateStr);

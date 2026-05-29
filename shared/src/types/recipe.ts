@@ -33,6 +33,7 @@ export interface WeekMenuItem {
   weekYear: number;
   weekNumber: number;
   note: string | null;
+  servings: number | null;
   createdBy: string;
   createdAt: string;
 }

@@ -25,6 +25,7 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
+import { useConfirm } from '../../src/context/ConfirmContext';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useAuth } from '@clerk/clerk-expo';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
@@ -81,6 +82,7 @@ export default function MenuScreen() {
   const bulkTransferTriggeredRef = useRef(false);
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
+  const confirm = useConfirm();
   const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
@@ -136,12 +138,35 @@ export default function MenuScreen() {
   const [replaceTarget, setReplaceTarget] = useState<WeekMenuItemWithRecipe | null>(null);
 
   // Edit recipe modal
+  // Optimistic overlay for the −/+ scaler; the persisted truth is item.servings.
+  // Reset on load() so another device's change isn't shadowed by a stale entry.
   const [menuItemServings, setMenuItemServings] = useState<Record<string, number>>({});
+  const servingsSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  function scaledServingsOf(item: WeekMenuItemWithRecipe): number {
+    return menuItemServings[item.id] ?? item.servings ?? item.recipe.servings;
+  }
 
   function getScaleRatio(item: WeekMenuItemWithRecipe): number {
     const base = item.recipe.servings;
-    const scaled = menuItemServings[item.id] ?? base;
+    const scaled = scaledServingsOf(item);
     return base > 0 ? scaled / base : 1;
+  }
+
+  // Scale a placement's portions: instant optimistic overlay + debounced persist
+  // (null = back to recipe default). PATCH broadcasts menu_updated so other
+  // devices reload with the new servings.
+  function scaleServings(item: WeekMenuItemWithRecipe, n: number) {
+    setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
+    if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
+      scaleWarnedRef.current.add(item.id);
+      showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
+    }
+    const toSave = n === item.recipe.servings ? null : n;
+    if (servingsSaveTimers.current[item.id]) clearTimeout(servingsSaveTimers.current[item.id]);
+    servingsSaveTimers.current[item.id] = setTimeout(() => {
+      client.updateWeekMenuItem(item.id, { servings: toSave }).catch(e => showError(e, 'Kunde inte spara portioner'));
+    }, 600);
   }
 
   function scaleQty(qty: number | null, ratio: number): number | null {
@@ -417,6 +442,7 @@ export default function MenuScreen() {
         client.getAllMenus(householdId).catch(() => [] as WeekMenuItemWithRecipe[]),
       ]);
       setMenuItems(menu);
+      setMenuItemServings({}); // persisted item.servings is the truth after a load
       loadedWeekRef.current = { wy: weekYear, wn: weekNumber };
       setRecipes(recs);
       setShoppingLists(activeLists);
@@ -450,7 +476,7 @@ export default function MenuScreen() {
       });
       setRecipeListMap(listMap);
     } catch {
-      Alert.alert('Fel', 'Kunde inte ladda menyn');
+      confirm({ title: 'Fel', message: 'Kunde inte ladda menyn', buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -570,14 +596,14 @@ export default function MenuScreen() {
     // Warn if the replacement recipe is already planned elsewhere this week.
     if (menuItems.some(i => i.id !== oldId && i.recipeId === recipe.id)) {
       const ok = await new Promise<boolean>(resolve =>
-        Alert.alert(
-          'Rätt redan planerad',
-          `${recipe.title} är redan inlagd denna vecka. Byt ut ändå?`,
-          [
-            { text: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Byt ut', onPress: () => resolve(true) },
+        confirm({
+          title: 'Rätt redan planerad',
+          message: `${recipe.title} är redan inlagd denna vecka. Byt ut ändå?`,
+          buttons: [
+            { label: 'Byt ut', onPress: () => resolve(true) },
+            { label: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
           ],
-        )
+        })
       );
       if (!ok) return;
     }
@@ -658,28 +684,28 @@ export default function MenuScreen() {
     if (day !== null && menuItems.some(i => i.day === day)) {
       const dayLabel = DAYS.find(d => d.key === day)?.label ?? day;
       const confirmed = await new Promise<boolean>(resolve =>
-        Alert.alert(
-          'Dag redan planerad',
-          `${dayLabel} har redan en rätt planerad. Lägga till ändå?`,
-          [
-            { text: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Lägg till', onPress: () => resolve(true) },
-          ]
-        )
+        confirm({
+          title: 'Dag redan planerad',
+          message: `${dayLabel} har redan en rätt planerad. Lägga till ändå?`,
+          buttons: [
+            { label: 'Lägg till', onPress: () => resolve(true) },
+            { label: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+          ],
+        })
       );
       if (!confirmed) { closePicker(); return; }
     }
 
     if (menuItems.some(i => i.recipeId === recipe.id)) {
       const confirmed = await new Promise<boolean>(resolve =>
-        Alert.alert(
-          'Rätt redan tillagd',
-          `${recipe.title} är redan planerad denna vecka. Lägga till ändå?`,
-          [
-            { text: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Lägg till', onPress: () => resolve(true) },
-          ]
-        )
+        confirm({
+          title: 'Rätt redan tillagd',
+          message: `${recipe.title} är redan planerad denna vecka. Lägga till ändå?`,
+          buttons: [
+            { label: 'Lägg till', onPress: () => resolve(true) },
+            { label: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+          ],
+        })
       );
       if (!confirmed) { closePicker(); return; }
     }
@@ -711,14 +737,14 @@ export default function MenuScreen() {
 
   async function removeFromMenu(item: WeekMenuItemWithRecipe) {
     const ok = await new Promise<boolean>(resolve => {
-      Alert.alert(
-        'Ta bort från menyn?',
-        item.recipe.title,
-        [
-          { text: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
-          { text: 'Ta bort', style: 'destructive', onPress: () => resolve(true) },
+      confirm({
+        title: 'Ta bort från menyn?',
+        message: item.recipe.title,
+        buttons: [
+          { label: 'Ta bort', style: 'destructive', onPress: () => resolve(true) },
+          { label: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
         ],
-      );
+      });
     });
     if (!ok) return;
     let cancelled = false;
@@ -813,13 +839,13 @@ export default function MenuScreen() {
 
   async function transferWeekMenu() {
     if (menuItems.length === 0) {
-      Alert.alert('Tomt', 'Ingen rätt planerad denna vecka');
+      confirm({ title: 'Tomt', message: 'Ingen rätt planerad denna vecka', buttons: [{ label: 'OK' }] });
       return;
     }
 
     const notTransferred = menuItems.filter(m => !transferredMenuItemIds.has(m.id));
     if (notTransferred.length === 0) {
-      Alert.alert('Redan överförd', 'Alla rätter denna vecka är redan överförda till en inköpslista');
+      confirm({ title: 'Redan överförd', message: 'Alla rätter denna vecka är redan överförda till en inköpslista', buttons: [{ label: 'OK' }] });
       return;
     }
 
@@ -831,7 +857,7 @@ export default function MenuScreen() {
 
   async function executeBulkTransfer(listId: string) {
     if (selectedRecipesForTransfer.size === 0) {
-      Alert.alert('Ingen rätt vald', 'Välj minst en rätt att överföra');
+      confirm({ title: 'Ingen rätt vald', message: 'Välj minst en rätt att överföra', buttons: [{ label: 'OK' }] });
       return;
     }
 
@@ -846,7 +872,7 @@ export default function MenuScreen() {
       const actuallyTransfer = toTransfer.filter(item => !existingMenuItemIds.has(item.id));
 
       if (actuallyTransfer.length === 0) {
-        Alert.alert('Redan med', 'Alla valda rätter är redan överförda till denna lista');
+        confirm({ title: 'Redan med', message: 'Alla valda rätter är redan överförda till denna lista', buttons: [{ label: 'OK' }] });
         return;
       }
 
@@ -949,14 +975,14 @@ export default function MenuScreen() {
     if (day !== null && menuItems.some(i => i.day === day && i.id !== item.id)) {
       const dayLabel = DAYS.find(d => d.key === day)?.label ?? day;
       const confirmed = await new Promise<boolean>(resolve =>
-        Alert.alert(
-          'Dag redan planerad',
-          `${dayLabel} har redan en rätt planerad. Flytta ändå?`,
-          [
-            { text: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Flytta', onPress: () => resolve(true) },
-          ]
-        )
+        confirm({
+          title: 'Dag redan planerad',
+          message: `${dayLabel} har redan en rätt planerad. Flytta ändå?`,
+          buttons: [
+            { label: 'Flytta', onPress: () => resolve(true) },
+            { label: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+          ],
+        })
       );
       if (!confirmed) return;
     }
@@ -1062,14 +1088,8 @@ export default function MenuScreen() {
                     onDragMove={isCenter ? onDragMove : noop}
                     onDragEnd={isCenter ? onDragEnd : noop}
                     isDragging={isCenter && dragState?.item.id === item.id}
-                    scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
-                    onScaleServings={isCenter ? (n => {
-                      setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
-                      if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
-                        scaleWarnedRef.current.add(item.id);
-                        showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
-                      }
-                    }) : noop}
+                    scaledServings={scaledServingsOf(item)}
+                    onScaleServings={isCenter ? (n => scaleServings(item, n)) : noop}
                   />
                 ))
               )}
@@ -1108,14 +1128,8 @@ export default function MenuScreen() {
                 onDragMove={isCenter ? onDragMove : noop}
                 onDragEnd={isCenter ? onDragEnd : noop}
                 isDragging={isCenter && dragState?.item.id === item.id}
-                scaledServings={menuItemServings[item.id] ?? item.recipe.servings}
-                onScaleServings={isCenter ? (n => {
-                  setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
-                  if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
-                    scaleWarnedRef.current.add(item.id);
-                    showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
-                  }
-                }) : noop}
+                scaledServings={scaledServingsOf(item)}
+                onScaleServings={isCenter ? (n => scaleServings(item, n)) : noop}
               />
             ))
           )}
@@ -1314,14 +1328,14 @@ export default function MenuScreen() {
                   renderItem={({ item }) => (
                     <Pressable style={s.recipeCard} onPress={() => {
                       if (replaceTarget) {
-                        Alert.alert(
-                          'Byt ut rätt',
-                          `Ersätt "${replaceTarget.recipe.title}" med "${item.title}"?`,
-                          [
-                            { text: 'Avbryt', style: 'cancel' },
-                            { text: 'Byt ut', style: 'destructive', onPress: () => addRecipeToDay(item) },
+                        confirm({
+                          title: 'Byt ut rätt',
+                          message: `Ersätt "${replaceTarget.recipe.title}" med "${item.title}"?`,
+                          buttons: [
+                            { label: 'Byt ut', style: 'destructive', onPress: () => addRecipeToDay(item) },
+                            { label: 'Avbryt', style: 'cancel' },
                           ],
-                        );
+                        });
                       } else {
                         addRecipeToDay(item);
                       }
