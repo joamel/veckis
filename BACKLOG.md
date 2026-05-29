@@ -32,7 +32,7 @@
 - [x] Eventuellt ersätta longpress med en redigeraknapp alt att man bara kan ta bort/byta namn inuti kortet på "3 prickar" (meny: redigera/ta bort/byt ut i utfällt kort, inte via longpress)
 - [x] Istället ha longpress för att sortera/flytta om (meny: longpress = endast dra/flytta)
 - [ ] möjligt med horisontell-vy i tablet
-- [x] Konflikthantering vid realtidsuppdatering — om två personer redigerar samma vara/aktivitet samtidigt: last-write-wins + toast till den som blir överskriven så ändringar inte tappas tyst (har man en vara/aktivitet/syssla öppen för redigering och någon annan ändrar/tar bort den via realtid → toast "ändrades/togs bort av någon annan"; gäller inköpsvaror, aktiviteter, kalender-sysslor och sysslor-fliken. Last-write-wins kvarstår vid spara)
+- [x] Konflikthantering vid realtidsuppdatering — om två personer redigerar samma vara/aktivitet samtidigt: last-write-wins + toast till den som blir överskriven så ändringar inte tappas tyst (har man en vara/aktivitet/syssla öppen för redigering och någon annan ändrar den via realtid → gul inline-banner högst upp i dialogen "ändrades av någon annan" (toast funkar ej — RN Modal ligger ovanpå); tas posten bort stängs dialogen + toast "togs bort av någon annan". Gäller inköpsvaror, aktiviteter, kalender-sysslor och sysslor-fliken. Last-write-wins kvarstår vid spara)
 - [ ] Tillgänglighet: allt som nås via long-press ska även ha en synlig knapp + accessibility-labels på ikonknappar (penna/x/dubblett) så VoiceOver/TalkBack fungerar
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [ ] Städa upp legacy-kod
@@ -41,6 +41,7 @@
 - [ ] Se över skuggor på kort. Ej konsekvent genom hela appen..
 - [ ] Se över dialog-rutor. Många har olika utseende - vissa är rundade upptill andra inte, vissa är genomskinliga i nedkant andra inte. Bör vara rundade upptill och inte genomskinliga nedtill (audit: alla sheets är redan rundade upptill; paddingBottom-variansen är strukturell — sheets med inre ScrollView har 0 + egen padding; enda avvikaren är två grå modaler (MenuTemplatesModal, NotificationsModal, #f3f4f6) som ev. är avsiktligt grå. Kräver visuellt omdöme, ej mekanisk fix)
 - [x] Vecko-rubriken borde vara lila för alla veckor (inte bara nuvarande) i kalendern och menyn
+- [ ] Trycka på en notis så borde man hamna på det berörda stället (syssla --> sysslan osv) 
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -126,8 +127,9 @@
 - [x] Ihopslagna ingredienser borde gå att ångra via toasten
 - [x] Efter ihopslagning och flytt till nästa dubblett borde tangenbordet försvinna
 - [x] Kanske det krävs att en vara blivit tillagd mer än 1 gång för att återfinnas i söket. Ett sätt för en felstavad eller inskriven basvara av misstag att inte komma med i söket (staple-söket kräver usageCount >= 2; kurerade ingrediensförslag täcker ändå vanliga namn)
-- [ ] Grönt passar dåligt på skuggan
 - [x] Inköpsfliken rendar inte om när man tar bort en maträtt från menyn utan att man byter flik eller uppdaterar sidan
+- [ ] Grönt passar dåligt på skuggan
+- [ ] Dubbletter: Enhetsfältet skymt när man klickar i enhet
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -249,6 +251,7 @@
 - [ ] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt
 - [x] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp) — sorter-knapp i recept-headern med radioval: A–Ö / Mest använda / Senast tillagda; valet sparas (gäller även välj-läget). "Mest använda" = livstidsräknare Recipe.timesUsed som ökar varje gång receptet läggs i en meny (backfilld från nuvarande förekomster)
 - [ ] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd..
+- [ ] Möjlighet att klarmarkera sysslor bakåt i tiden alt sätta nytt datum om engångssyssla
 
 ## Backlog (prioriterade features)
 

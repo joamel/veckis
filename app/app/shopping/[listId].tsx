@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import Fuse from 'fuse.js';
 import { capitalize } from '../../src/lib/text';
+import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
@@ -95,6 +96,7 @@ export default function ShoppingListScreen() {
 
   // Item edit modal
   const [editingItem, setEditingItem] = useState<ShoppingItemWithRecipe | null>(null);
+  const [editConflict, setEditConflict] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editQty, setEditQty] = useState('');
   const [editUnit, setEditUnit] = useState('');
@@ -225,10 +227,13 @@ export default function ShoppingListScreen() {
     // visible instead of silent.
     if ((msg.type === 'item_updated' || msg.type === 'item_deleted') && editingItem && msg.data.id === editingItem.id) {
       if (msg.type === 'item_deleted') {
+        // Modal closes → a root toast is visible again.
         showGlobalToast(`${capitalize(editingItem.name)} togs bort av någon annan`, 'neutral');
         setEditingItem(null);
+        setEditConflict(null);
       } else {
-        showGlobalToast(`${capitalize(editingItem.name)} ändrades av någon annan`, 'neutral');
+        // Modal stays open → show an inline banner (toast would be behind it).
+        setEditConflict(`${capitalize(editingItem.name)} ändrades av någon annan`);
       }
     }
     setList(prev => {
@@ -573,6 +578,7 @@ export default function ShoppingListScreen() {
 
   function openEditItem(item: ShoppingItemWithRecipe) {
     setEditingItem(item);
+    setEditConflict(null);
     setEditName(capitalize(item.name));
     setEditQty(item.quantity !== 1 || item.unit ? String(item.quantity) : '');
     setEditUnit(item.unit ?? '');
@@ -1172,6 +1178,7 @@ export default function ShoppingListScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
+          <ConflictBanner message={editConflict} />
           <Text style={s.editLabel}>Namn</Text>
           <TextInput
             style={s.editInput}
