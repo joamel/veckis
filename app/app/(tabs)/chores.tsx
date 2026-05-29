@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
 import { RecurrencePicker } from '../../src/components/RecurrencePicker';
@@ -136,6 +137,9 @@ export default function ChoresScreen() {
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
   const { showError } = useToast();
+  const router = useRouter();
+  const deeplinkParams = useLocalSearchParams<{ choreId?: string }>();
+  const openedChoreParamRef = useRef<string | null>(null);
 
   function showToast(msg: string) {
     setToastMessage(msg);
@@ -234,6 +238,19 @@ export default function ChoresScreen() {
   }, [householdId]);
 
   useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
+
+  // Deep link from a tapped chore notification (L45): open that chore's edit
+  // dialog once chores have loaded, then clear the param so it won't re-fire.
+  useEffect(() => {
+    const id = deeplinkParams.choreId;
+    if (!id || chores.length === 0 || openedChoreParamRef.current === id) return;
+    const chore = chores.find(c => c.id === id);
+    if (chore) {
+      openedChoreParamRef.current = id;
+      openEdit(chore);
+      router.setParams({ choreId: undefined });
+    }
+  }, [deeplinkParams.choreId, chores, router]);
 
   // Completed chores sorted to the bottom, with optional member filter
   const sortedChores = useMemo(() => {
