@@ -96,7 +96,7 @@ export default function ShoppingListScreen() {
 
   // Item edit modal
   const [editingItem, setEditingItem] = useState<ShoppingItemWithRecipe | null>(null);
-  const [editConflict, setEditConflict] = useState<{ msg: string; latest: ShoppingItemWithRecipe } | null>(null);
+  const [editConflict, setEditConflict] = useState<{ msg: string; latest?: ShoppingItemWithRecipe } | null>(null);
   const [editName, setEditName] = useState('');
   const [editQty, setEditQty] = useState('');
   const [editUnit, setEditUnit] = useState('');
@@ -234,7 +234,19 @@ export default function ShoppingListScreen() {
         setEditConflict(null);
       } else {
         // Modal stays open → show an inline banner (toast would be behind it).
-        setEditConflict({ msg: `${who} ändrade ${capitalize(editingItem.name)}`, latest: msg.data });
+        // Distinguish a check-toggle from a real content edit so the message and
+        // the "Visa senaste" button (only useful when content changed) fit.
+        const n = msg.data;
+        const contentChanged =
+          n.name !== editingItem.name ||
+          n.quantity !== editingItem.quantity ||
+          (n.unit ?? '') !== (editingItem.unit ?? '') ||
+          n.category !== editingItem.category;
+        const checkChanged = n.isChecked !== editingItem.isChecked;
+        const verb = checkChanged && !contentChanged
+          ? (n.isChecked ? 'bockade av' : 'avmarkerade')
+          : 'ändrade';
+        setEditConflict({ msg: `${who} ${verb} ${capitalize(editingItem.name)}`, latest: contentChanged ? n : undefined });
       }
     }
     setList(prev => {
@@ -593,7 +605,7 @@ export default function ShoppingListScreen() {
 
   // "Visa senaste": pull the concurrent edit's values into the form on demand.
   function applyLatestEdit() {
-    if (!editConflict) return;
+    if (!editConflict?.latest) return;
     fillEditForm(editConflict.latest);
     setEditConflict(null);
   }
@@ -1190,7 +1202,7 @@ export default function ShoppingListScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
-          <ConflictBanner message={editConflict?.msg ?? null} onShowLatest={editConflict ? applyLatestEdit : undefined} />
+          <ConflictBanner message={editConflict?.msg ?? null} onShowLatest={editConflict?.latest ? applyLatestEdit : undefined} />
           <Text style={s.editLabel}>Namn</Text>
           <TextInput
             style={s.editInput}

@@ -26,6 +26,8 @@ import Animated, { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useAuth } from '@clerk/clerk-expo';
+import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
@@ -81,6 +83,7 @@ export default function MenuScreen() {
   const { showToast: showGlobalToast, showError } = useToast();
   const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
+  const { getToken } = useAuth();
   const { markPending, clearPending, cancelAllPending, pendingMenuItemRemovals, pendingCount } = usePendingRemoval();
   const { fs, sp } = useTablet();
 
@@ -454,6 +457,14 @@ export default function MenuScreen() {
   // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
   // transfer filters stay in sync (e.g. after clearing/removing items in a list).
   useEffect(() => onShoppingChanged(load), [load]);
+  // Live menu updates: another device added/removed/moved a meal. load() refreshes
+  // both the visible week and the allMenus snapshot that feeds neighbour pages.
+  const menuReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useHouseholdSocket(householdId, getToken, (msg) => {
+    if (msg.type !== 'menu_updated') return;
+    if (menuReloadTimer.current) clearTimeout(menuReloadTimer.current);
+    menuReloadTimer.current = setTimeout(() => { load(); }, 350);
+  });
   // Move the pager to a given week. Swipe handles itself (it's already there);
   // the arrows / "Idag" / week-picker scroll the list so they behave exactly
   // like a swipe instead of an instant jump.
