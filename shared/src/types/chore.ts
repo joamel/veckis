@@ -24,6 +24,7 @@ export interface ChoreCompletion {
   id: string;
   choreId: string;
   completedBy: string;
+  performedByMemberId: string | null;
   completedAt: string;
   note: string | null;
   day: import('./schedule').WeekDay | null;

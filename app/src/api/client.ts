@@ -232,10 +232,10 @@ export function useApiClient() {
     deleteChore: (choreId: string) =>
       request<void>(`/api/chores/${choreId}`, { method: 'DELETE' }),
 
-    completeChore: (choreId: string, day?: WeekDay | null, note?: string, date?: string | null) =>
+    completeChore: (choreId: string, day?: WeekDay | null, note?: string, date?: string | null, performedByMemberId?: string | null) =>
       request<ChoreCompletion>(`/api/chores/${choreId}/complete`, {
         method: 'POST',
-        body: JSON.stringify({ day, note, date }),
+        body: JSON.stringify({ day, note, date, performedByMemberId }),
       }),
 
     getChoreCompletions: (choreId: string) =>

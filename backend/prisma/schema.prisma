@@ -139,7 +139,8 @@ model Chore {
 model ChoreCompletion {
   id          String   @id @default(cuid())
   choreId     String
-  completedBy String
+  completedBy String   // audit: clerkUserId of the user who pressed Klar
+  performedByMemberId String? // semantic: HouseholdMember who actually did it (may be a local profile); null = same as completedBy
   completedAt DateTime @default(now())
   note        String?
   day         WeekDay?

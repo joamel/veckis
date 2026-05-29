@@ -107,7 +107,13 @@ function completionDate(comp: ChoreCompletion): string {
   return comp.date ?? isoDateStr(new Date(comp.completedAt));
 }
 
-interface ChoreOccurrence { date: string; done: boolean; isCurrent: boolean; completedBy: string | null }
+interface ChoreOccurrence {
+  date: string;
+  done: boolean;
+  isCurrent: boolean;
+  completedBy: string | null;          // clerkUserId who pressed Klar
+  performedByMemberId: string | null;  // who actually did it (may be a local profile)
+}
 interface RecurringStatus {
   occurrences: ChoreOccurrence[]; // ascending, recent window
   current: ChoreOccurrence | null; // latest occurrence on/before today
@@ -121,7 +127,7 @@ interface RecurringStatus {
 // silently "missed" — shown in history, never nagged about.
 function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringStatus {
   const pattern = choreToPattern(chore);
-  const completerByDate = new Map(chore.completions.map(c => [completionDate(c), c.completedBy]));
+  const completionByDate = new Map(chore.completions.map(c => [completionDate(c), c]));
   const today = new Date();
   const todayStr = isoDateStr(today);
   const occurrences: ChoreOccurrence[] = [];
@@ -129,7 +135,14 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
     if (occursOn(pattern, d)) {
       const date = isoDateStr(d);
-      occurrences.push({ date, done: completerByDate.has(date), isCurrent: false, completedBy: completerByDate.get(date) ?? null });
+      const comp = completionByDate.get(date);
+      occurrences.push({
+        date,
+        done: !!comp,
+        isCurrent: false,
+        completedBy: comp?.completedBy ?? null,
+        performedByMemberId: comp?.performedByMemberId ?? null,
+      });
     }
   }
   let current: ChoreOccurrence | null = null;
@@ -209,7 +222,7 @@ function MemberPicker({ members, selected, onChange }: { members: Member[]; sele
 export default function ChoresScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const { medium } = useHaptics();
   const { fs, sp } = useTablet();
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -509,12 +522,12 @@ export default function ChoresScreen() {
     ]);
   }
 
-  async function completeChore(chore: ChoreWithCompletion) {
+  async function completeChore(chore: ChoreWithCompletion, performedByMemberId: string | null = null) {
     const fakeId = '__opt__';
-    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', completedAt: new Date().toISOString(), note: null, day: null, date: null };
+    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note: null, day: null, date: null };
     setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
     try {
-      const completion = await client.completeChore(chore.id, null);
+      const completion = await client.completeChore(chore.id, null, undefined, null, performedByMemberId);
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
         : c));
@@ -526,13 +539,30 @@ export default function ChoresScreen() {
     }
   }
 
+  // When a chore is assigned to a local profile (who can't log in), ask the
+  // tapper to credit the actual doer. Other chores skip the picker and credit
+  // is implicit (= the Clerk user who pressed Klar).
+  function pickPerformer(chore: ChoreWithCompletion, onPick: (performedByMemberId: string | null) => void) {
+    const assigned = chore.assignedTo ? members.find(m => m.id === chore.assignedTo) : null;
+    if (!assigned || assigned.clerkUserId !== null) { onPick(null); return; }
+    const selfMember = userId ? members.find(m => m.clerkUserId === userId) : null;
+    const buttons: { text: string; onPress?: () => void; style?: 'cancel' | 'default' | 'destructive' }[] = [
+      { text: assigned.displayName, onPress: () => onPick(assigned.id) },
+    ];
+    if (selfMember && selfMember.id !== assigned.id) {
+      buttons.push({ text: `${selfMember.displayName} (jag)`, onPress: () => onPick(selfMember.id) });
+    }
+    buttons.push({ text: 'Avbryt', style: 'cancel' });
+    Alert.alert(`Vem gjorde "${chore.title}"?`, undefined, buttons);
+  }
+
   // Forgiving model: complete/uncomplete a specific occurrence date.
-  async function completeOccurrence(chore: ChoreWithCompletion, date: string) {
+  async function completeOccurrence(chore: ChoreWithCompletion, date: string, performedByMemberId: string | null = null) {
     const fakeId = '__occ__' + date;
-    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', completedAt: new Date().toISOString(), note: null, day: null, date };
+    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note: null, day: null, date };
     setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
     try {
-      const completion = await client.completeChore(chore.id, null, undefined, date);
+      const completion = await client.completeChore(chore.id, null, undefined, date, performedByMemberId);
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
         : c));
@@ -701,8 +731,14 @@ export default function ChoresScreen() {
                   <Pressable
                     style={[s.checkBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }, done && s.checkBtnDone]}
                     onPress={() => {
-                      if (once) { done ? uncompleteChore(item) : completeChore(item); }
-                      else { const cur = rec!.current!; cur.done ? uncompleteOccurrence(item, cur.date) : completeOccurrence(item, cur.date); }
+                      if (once) {
+                        if (done) uncompleteChore(item);
+                        else pickPerformer(item, performer => completeChore(item, performer));
+                      } else {
+                        const cur = rec!.current!;
+                        if (cur.done) uncompleteOccurrence(item, cur.date);
+                        else pickPerformer(item, performer => completeOccurrence(item, cur.date, performer));
+                      }
                     }}
                   >
                     {done && <Ionicons name="checkmark" size={fs(20)} color="#fff" />}
@@ -714,7 +750,11 @@ export default function ChoresScreen() {
                   {rec.occurrences.length === 0 ? (
                     <Text style={s.historyEmpty}>Inga tillfällen den senaste tiden</Text>
                   ) : (
-                    [...rec.occurrences].reverse().slice(0, 8).map(o => (
+                    [...rec.occurrences].reverse().slice(0, 8).map(o => {
+                      const performerName = o.performedByMemberId
+                        ? (members.find(m => m.id === o.performedByMemberId)?.displayName ?? null)
+                        : memberNameByClerkId(o.completedBy);
+                      return (
                       <View key={o.date} style={s.historyRow}>
                         <Ionicons
                           name={o.done ? 'checkmark-circle' : o.isCurrent ? 'ellipse-outline' : 'close-circle-outline'}
@@ -723,16 +763,17 @@ export default function ChoresScreen() {
                         />
                         <Text style={[s.historyDate, { fontSize: fs(13) }, !o.done && !o.isCurrent && s.historyMissed]}>
                           {formatOcc(o.date)}{o.done
-                            ? (memberNameByClerkId(o.completedBy) ? ` · ${memberNameByClerkId(o.completedBy)}` : '')
+                            ? (performerName ? ` · ${performerName}` : '')
                             : o.isCurrent ? ' · att göra' : ' · missad'}
                         </Text>
                         {o.isCurrent && !o.done && (
-                          <Pressable style={s.historyDoBtn} onPress={() => completeOccurrence(item, o.date)} hitSlop={6}>
+                          <Pressable style={s.historyDoBtn} onPress={() => pickPerformer(item, performer => completeOccurrence(item, o.date, performer))} hitSlop={6}>
                             <Text style={s.historyDoBtnText}>Klar</Text>
                           </Pressable>
                         )}
                       </View>
-                    ))
+                      );
+                    })
                   )}
                 </View>
               )}

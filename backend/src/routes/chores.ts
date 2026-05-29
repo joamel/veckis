@@ -145,13 +145,25 @@ choresRouter.post('/:choreId/complete', requireAuth, asyncHandler(async (req, re
     note: z.string().optional(),
     day: z.nativeEnum(WeekDay).nullable().optional(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    performedByMemberId: z.string().nullable().optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  // If a performer is named, they must belong to this household — guards against
+  // assigning credit to a member from somewhere else.
+  if (body.data.performedByMemberId) {
+    const m = await prisma.householdMember.findUnique({ where: { id: body.data.performedByMemberId } });
+    if (!m || m.householdId !== chore.householdId) {
+      res.status(400).json({ error: 'performedByMemberId is not a member of this household' });
+      return;
+    }
+  }
 
   const completion = await prisma.choreCompletion.create({
     data: {
       choreId: chore.id,
       completedBy: (req as AuthenticatedRequest).clerkUserId,
+      performedByMemberId: body.data.performedByMemberId ?? null,
       note: body.data.note,
       day: body.data.day ?? null,
       date: body.data.date ?? null,
