@@ -78,3 +78,19 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
         working-directory: app
+
+  deploy:
+    name: Deploy backend (Render)
+    runs-on: ubuntu-latest
+    needs: [backend, app]
+    # Only after tests pass, only on a push to main (not PRs/develop).
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render deploy hook
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK secret saknas — sätt den i repo Settings → Secrets → Actions"
+            exit 1
+          fi
+          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          echo "Render deploy hook triggad."
