@@ -43,3 +43,17 @@ export async function uploadRecipeImage(buf: Buffer, householdId: string): Promi
     stream.end(buf);
   });
 }
+
+/**
+ * Best-effort delete of a previously uploaded Cloudinary asset. Swallows errors
+ * so a failed cleanup never blocks the user-visible operation that triggered it
+ * (image replace / recipe delete). The next sweep / manual prune can mop up.
+ */
+export async function deleteRecipeImage(publicId: string): Promise<void> {
+  try {
+    ensureConfigured();
+    await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+  } catch (e) {
+    console.error('cloudinary destroy failed for', publicId, e instanceof Error ? e.message : e);
+  }
+}

@@ -7,7 +7,7 @@ import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../mi
 import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
-import { uploadRecipeImage } from '../lib/imageUpload';
+import { uploadRecipeImage, deleteRecipeImage } from '../lib/imageUpload';
 
 // In-memory upload — files are forwarded to Cloudinary, never hit disk. 10 MB
 // max keeps us safe against accidental huge uploads.
@@ -130,6 +130,12 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
 
   const { ingredients, ...recipeData } = body.data;
 
+  // If the user clears the image (imageUrl: null), also clear the Cloudinary asset.
+  const clearingImage = 'imageUrl' in recipeData && recipeData.imageUrl === null && recipe.imagePublicId;
+  const data: Prisma.RecipeUpdateInput = clearingImage
+    ? { ...recipeData, imagePublicId: null }
+    : recipeData;
+
   const updated = await prisma.$transaction(async (tx) => {
     if (ingredients !== undefined) {
       await tx.recipeIngredient.deleteMany({ where: { recipeId: recipe.id } });
@@ -137,10 +143,11 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
     }
     return tx.recipe.update({
       where: { id: recipe.id },
-      data: recipeData,
+      data,
       include: { ingredients: { orderBy: { id: 'asc' } } },
     });
   });
+  if (clearingImage && recipe.imagePublicId) void deleteRecipeImage(recipe.imagePublicId);
   res.json(updated);
 }));
 
@@ -157,12 +164,16 @@ recipesRouter.post('/:recipeId/image', requireAuth, upload.single('image'), asyn
   if (!req.file?.buffer) { res.status(400).json({ error: 'No image uploaded' }); return; }
 
   try {
-    const { url } = await uploadRecipeImage(req.file.buffer, recipe.householdId);
+    const { url, publicId } = await uploadRecipeImage(req.file.buffer, recipe.householdId);
     const updated = await prisma.recipe.update({
       where: { id: recipe.id },
-      data: { imageUrl: url },
+      data: { imageUrl: url, imagePublicId: publicId },
       include: { ingredients: { orderBy: { id: 'asc' } } },
     });
+    // Clean up the previous Cloudinary asset (best-effort, fire-and-forget).
+    if (recipe.imagePublicId && recipe.imagePublicId !== publicId) {
+      void deleteRecipeImage(recipe.imagePublicId);
+    }
     res.json(updated);
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Image upload failed';
@@ -181,6 +192,7 @@ recipesRouter.delete('/:recipeId', requireAuth, asyncHandler(async (req, res) =>
   if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
 
   await prisma.recipe.delete({ where: { id: recipe.id } });
+  if (recipe.imagePublicId) void deleteRecipeImage(recipe.imagePublicId);
   res.status(204).send();
 }));
 

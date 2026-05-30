@@ -189,6 +189,7 @@ model Recipe {
   instructions String?
   sourceUrl   String?
   imageUrl    String?
+  imagePublicId String?  // Cloudinary public_id for the uploaded image, so we can delete it on change/recipe-delete
   servings    Int      @default(4)
   timesUsed   Int      @default(0)
   createdBy   String
