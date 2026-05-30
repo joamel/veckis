@@ -20,6 +20,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
+import { useConfirm } from '../../src/context/ConfirmContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { getISOWeek } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
@@ -41,6 +42,7 @@ export default function RecipesScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { showToast, showError } = useToast();
+  const confirm = useConfirm();
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -67,10 +69,14 @@ export default function RecipesScreen() {
     if (!householdId) return;
     if (day && weekMenu.some(m => m.day === day)) {
       const label = MENU_DAYS.find(d => d.key === day)?.label;
-      Alert.alert('Dag redan planerad', `${label} har redan en rätt denna vecka. Lägg till ändå?`, [
-        { text: 'Avbryt', style: 'cancel' },
-        { text: 'Lägg till', onPress: () => doAddToMenu(recipe, day) },
-      ]);
+      confirm({
+        title: 'Dag redan planerad',
+        message: `${label} har redan en rätt denna vecka. Lägg till ändå?`,
+        buttons: [
+          { label: 'Lägg till', onPress: () => doAddToMenu(recipe, day) },
+          { label: 'Avbryt', style: 'cancel' },
+        ],
+      });
       return;
     }
     doAddToMenu(recipe, day);
@@ -100,14 +106,14 @@ export default function RecipesScreen() {
 
   function selectRecipeForMenu(recipe: RecipeWithIngredients) {
     if (replaceMode) {
-      Alert.alert(
-        'Byt ut rätt',
-        `Ersätt "${params.replaceTitle ?? 'rätten'}" med "${recipe.title}"?`,
-        [
-          { text: 'Avbryt', style: 'cancel' },
-          { text: 'Byt ut', style: 'destructive', onPress: () => router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&replaceMenuItemId=${params.replaceMenuItemId}` as never) },
+      confirm({
+        title: 'Byt ut rätt',
+        message: `Ersätt "${params.replaceTitle ?? 'rätten'}" med "${recipe.title}"?`,
+        buttons: [
+          { label: 'Byt ut', style: 'destructive', onPress: () => router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&replaceMenuItemId=${params.replaceMenuItemId}` as never) },
+          { label: 'Avbryt', style: 'cancel' },
         ],
-      );
+      });
       return;
     }
     const day = params.forMenuDay === 'none' ? '' : (params.forMenuDay ?? '');
@@ -146,7 +152,7 @@ export default function RecipesScreen() {
       setRecipes(recs);
       setWeekMenu(menu);
     } catch {
-      Alert.alert('Fel', 'Kunde inte ladda recept');
+      confirm({ title: 'Fel', message: 'Kunde inte ladda recept', buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -159,14 +165,14 @@ export default function RecipesScreen() {
     const normalizedUrl = url.trim().replace(/\/$/, '');
     const existing = recipes.find(r => r.sourceUrl?.replace(/\/$/, '') === normalizedUrl);
     if (existing) {
-      Alert.alert(
-        'Recept finns redan',
-        `"${existing.title}" har redan hämtats från den här URL:en.`,
-        [
-          { text: 'Avbryt', style: 'cancel' },
-          { text: 'Öppna receptet', onPress: () => { setShowModal(false); router.push(`/recipes/${existing.id}` as never); } },
-        ]
-      );
+      confirm({
+        title: 'Recept finns redan',
+        message: `"${existing.title}" har redan hämtats från den här URL:en.`,
+        buttons: [
+          { label: 'Öppna receptet', onPress: () => { setShowModal(false); router.push(`/recipes/${existing.id}` as never); } },
+          { label: 'Avbryt', style: 'cancel' },
+        ],
+      });
       return;
     }
     setScraping(true);
@@ -190,7 +196,7 @@ export default function RecipesScreen() {
       // Recipe found but no ingredients parsed — drop the user straight into edit
       // mode to fill them in, instead of a confusing empty recipe.
       if (scraped.ingredients.length === 0) {
-        Alert.alert('Inga ingredienser hittades', 'Receptet skapades men vi kunde inte läsa ingredienserna. Lägg till dem manuellt.');
+        confirm({ title: 'Inga ingredienser hittades', message: 'Receptet skapades men vi kunde inte läsa ingredienserna. Lägg till dem manuellt.', buttons: [{ label: 'OK' }] });
         router.push(`/recipes/${recipe.id}?edit=1` as never);
       } else {
         router.push(`/recipes/${recipe.id}` as never);
@@ -198,14 +204,14 @@ export default function RecipesScreen() {
     } catch (err) {
       // Scrape failed (no recipe data, fetch error, timeout…) — don't dead-end;
       // offer to add the recipe manually instead.
-      Alert.alert(
-        'Kunde inte läsa receptet',
-        `${err instanceof Error ? err.message : 'Länken gick inte att läsa'}\n\nVill du lägga till receptet manuellt istället?`,
-        [
-          { text: 'Avbryt', style: 'cancel' },
-          { text: 'Lägg till manuellt', onPress: () => setMode('manual') },
+      confirm({
+        title: 'Kunde inte läsa receptet',
+        message: `${err instanceof Error ? err.message : 'Länken gick inte att läsa'}\n\nVill du lägga till receptet manuellt istället?`,
+        buttons: [
+          { label: 'Lägg till manuellt', onPress: () => setMode('manual') },
+          { label: 'Avbryt', style: 'cancel' },
         ],
-      );
+      });
     } finally {
       setScraping(false);
       setCreating(false);
@@ -224,7 +230,7 @@ export default function RecipesScreen() {
       const suffix = forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '';
       router.push(`/recipes/${recipe.id}?edit=1${suffix}` as never);
     } catch {
-      Alert.alert('Fel', 'Kunde inte skapa recept');
+      confirm({ title: 'Fel', message: 'Kunde inte skapa recept', buttons: [{ label: 'OK' }] });
     } finally {
       setCreating(false);
     }
@@ -347,15 +353,19 @@ export default function RecipesScreen() {
               <Pressable
                 style={s.cardDeleteBtn}
                 onPress={() =>
-                  Alert.alert('Ta bort recept', `Ta bort "${item.title}"?`, [
-                    { text: 'Avbryt', style: 'cancel' },
-                    { text: 'Ta bort', style: 'destructive', onPress: async () => {
-                      try {
-                        await client.deleteRecipe(item.id);
-                        setRecipes(prev => prev.filter(r => r.id !== item.id));
-                      } catch { Alert.alert('Fel', 'Kunde inte ta bort receptet'); }
-                    }},
-                  ])
+                  confirm({
+                    title: 'Ta bort recept',
+                    message: `Ta bort "${item.title}"?`,
+                    buttons: [
+                      { label: 'Ta bort', style: 'destructive', onPress: async () => {
+                        try {
+                          await client.deleteRecipe(item.id);
+                          setRecipes(prev => prev.filter(r => r.id !== item.id));
+                        } catch { confirm({ title: 'Fel', message: 'Kunde inte ta bort receptet', buttons: [{ label: 'OK' }] }); }
+                      }},
+                      { label: 'Avbryt', style: 'cancel' },
+                    ],
+                  })
                 }
               >
                 <Ionicons name="remove-circle" size={22} color="#ef4444" />

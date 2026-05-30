@@ -26,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
+import { useConfirm } from '../../src/context/ConfirmContext';
 import type { RecipeIngredient } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
@@ -36,6 +37,7 @@ export default function RecipeDetailScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { showError } = useToast();
+  const confirm = useConfirm();
 
   const [recipe, setRecipe] = useState<RecipeWithIngredients | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,8 @@ export default function RecipeDetailScreen() {
   const [editInstr, setEditInstr] = useState('');
   const [editImage, setEditImage] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [heroLoading, setHeroLoading] = useState(false);
+  const [heroError, setHeroError] = useState(false);
 
   // Ingredient editing
   const [editMode, setEditMode] = useState(false);
@@ -144,7 +148,7 @@ export default function RecipeDetailScreen() {
         setTimeout(() => getRowRef(0).name?.focus(), 250);
       }
     } catch {
-      Alert.alert('Fel', 'Kunde inte ladda receptet');
+      confirm({ title: 'Fel', message: 'Kunde inte ladda receptet', buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -163,17 +167,21 @@ export default function RecipeDetailScreen() {
   function confirmDeleteRecipe() {
     if (!recipe) return;
     setShowMenu(false);
-    Alert.alert('Ta bort recept', `Ta bort "${recipe.title}"? Detta går inte att ångra.`, [
-      { text: 'Avbryt', style: 'cancel' },
-      { text: 'Ta bort', style: 'destructive', onPress: async () => {
+    confirm({
+      title: 'Ta bort recept',
+      message: `Ta bort "${recipe.title}"? Detta går inte att ångra.`,
+      buttons: [
+      { label: 'Ta bort', style: 'destructive', onPress: async () => {
         try {
           await client.deleteRecipe(recipe.id);
           router.back();
         } catch {
-          Alert.alert('Fel', 'Kunde inte ta bort receptet');
+          confirm({ title: 'Fel', message: 'Kunde inte ta bort receptet', buttons: [{ label: 'OK' }] });
         }
       } },
-    ]);
+      { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   // Edit everything (name, image, description, ingredients, instructions) inline
@@ -210,9 +218,9 @@ export default function RecipeDetailScreen() {
   async function saveRecipe() {
     if (!recipe) return;
     const t = editTitle.trim();
-    if (!t) { Alert.alert('Namn saknas', 'Receptet behöver ett namn.'); return; }
+    if (!t) { confirm({ title: 'Namn saknas', message: 'Receptet behöver ett namn.', buttons: [{ label: 'OK' }] }); return; }
     const img = editImage.trim();
-    if (img && !/^https?:\/\//i.test(img)) { Alert.alert('Ogiltig bild-URL', 'Bild-URL:en måste börja med http:// eller https://'); return; }
+    if (img && !/^https?:\/\//i.test(img)) { confirm({ title: 'Ogiltig bild-URL', message: 'Bild-URL:en måste börja med http:// eller https://', buttons: [{ label: 'OK' }] }); return; }
     setSaving(true);
     try {
       const ingredients = editIngredients
@@ -235,7 +243,7 @@ export default function RecipeDetailScreen() {
         router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}` as never);
       }
     } catch {
-      Alert.alert('Fel', 'Kunde inte spara receptet');
+      confirm({ title: 'Fel', message: 'Kunde inte spara receptet', buttons: [{ label: 'OK' }] });
     } finally {
       setSaving(false);
     }
@@ -284,7 +292,7 @@ export default function RecipeDetailScreen() {
     try {
       setLists(await client.getShoppingLists(householdId));
     } catch {
-      Alert.alert('Fel', 'Kunde inte ladda inköpslistor');
+      confirm({ title: 'Fel', message: 'Kunde inte ladda inköpslistor', buttons: [{ label: 'OK' }] });
     } finally {
       setLoadingLists(false);
     }
@@ -301,7 +309,7 @@ export default function RecipeDetailScreen() {
   async function doTransfer(listId: string) {
     if (!recipe) return;
     const selected = deduplicatedIngredients.filter(i => checkedIds.has(i.id));
-    if (selected.length === 0) { Alert.alert('Välj minst en ingrediens'); return; }
+    if (selected.length === 0) { confirm({ title: 'Välj minst en ingrediens', buttons: [{ label: 'OK' }] }); return; }
     setTransferring(true);
     setTransferringListId(listId);
     try {
@@ -313,12 +321,16 @@ export default function RecipeDetailScreen() {
         recipeId: recipe.id,
       })));
       setShowTransfer(false);
-      Alert.alert('Klart!', `${selected.length} ingredienser tillagda i listan`, [
-        { text: 'Gå till listan', onPress: () => router.push(`/shopping/${listId}` as never) },
-        { text: 'Stanna kvar', style: 'cancel' },
-      ]);
+      confirm({
+        title: 'Klart!',
+        message: `${selected.length} ingredienser tillagda i listan`,
+        buttons: [
+          { label: 'Gå till listan', onPress: () => router.push(`/shopping/${listId}` as never) },
+          { label: 'Stanna kvar', style: 'cancel' },
+        ],
+      });
     } catch {
-      Alert.alert('Fel', 'Kunde inte överföra ingredienser');
+      confirm({ title: 'Fel', message: 'Kunde inte överföra ingredienser', buttons: [{ label: 'OK' }] });
     } finally {
       setTransferring(false);
       setTransferringListId(null);
@@ -399,7 +411,27 @@ export default function RecipeDetailScreen() {
             {uploadingImage ? <ActivityIndicator color="#4f46e5" /> : null}
           </View>
         ) : recipe.imageUrl ? (
-          <Image source={{ uri: recipe.imageUrl }} style={s.heroImage} resizeMode="cover" />
+          <View style={s.heroImage}>
+            <Image
+              source={{ uri: recipe.imageUrl }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+              onLoadStart={() => { setHeroLoading(true); setHeroError(false); }}
+              onLoadEnd={() => setHeroLoading(false)}
+              onError={() => { setHeroError(true); setHeroLoading(false); }}
+            />
+            {heroLoading && !heroError ? (
+              <View style={s.heroImageOverlay}>
+                <ActivityIndicator color="#4f46e5" />
+              </View>
+            ) : null}
+            {heroError ? (
+              <View style={[s.heroImageOverlay, s.heroPlaceholder]}>
+                <Ionicons name="image-outline" size={32} color="#9ca3af" />
+                <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 4 }}>Kunde inte ladda bilden</Text>
+              </View>
+            ) : null}
+          </View>
         ) : null}
 
         {/* Meta */}
@@ -771,6 +803,7 @@ const s = StyleSheet.create({
   scroll: { padding: 20, gap: 16 },
   heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, backgroundColor: '#f3f4f6' },
   heroPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  heroImageOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(243,244,246,0.6)' },
   imgBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: '#eef2ff' },
   imgBtnText: { color: '#4f46e5', fontWeight: '600', fontSize: 14 },
   imgBtnDisabled: { opacity: 0.5 },

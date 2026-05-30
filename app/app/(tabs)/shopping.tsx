@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
+import { useConfirm } from '../../src/context/ConfirmContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -34,6 +35,7 @@ export default function ShoppingScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { showError } = useToast();
+  const confirm = useConfirm();
   const { medium } = useHaptics();
   const { fs, sp } = useTablet();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
@@ -67,7 +69,7 @@ export default function ShoppingScreen() {
       setLists(data);
       setStores(storeList);
     } catch {
-      Alert.alert('Fel', 'Kunde inte ladda inköpslistor');
+      confirm({ title: 'Fel', message: 'Kunde inte ladda inköpslistor', buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -175,38 +177,46 @@ export default function ShoppingScreen() {
   }
 
   async function deleteStore(storeId: string, storeName: string) {
-    Alert.alert('Ta bort butik', `Ta bort "${storeName}"?`, [
-      { text: 'Avbryt', style: 'cancel' },
-      {
-        text: 'Ta bort', style: 'destructive',
-        onPress: async () => {
-          try {
-            await client.deleteStore(storeId);
-            setStores(prev => prev.filter(s => s.id !== storeId));
-          } catch (e) {
-            showError(e, 'Kunde inte ta bort butiken');
-          }
+    confirm({
+      title: 'Ta bort butik',
+      message: `Ta bort "${storeName}"?`,
+      buttons: [
+        {
+          label: 'Ta bort', style: 'destructive',
+          onPress: async () => {
+            try {
+              await client.deleteStore(storeId);
+              setStores(prev => prev.filter(s => s.id !== storeId));
+            } catch (e) {
+              showError(e, 'Kunde inte ta bort butiken');
+            }
+          },
         },
-      },
-    ]);
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   async function deleteList(listId: string, listName: string) {
-    Alert.alert('Ta bort lista', `Ta bort "${listName}"?`, [
-      { text: 'Avbryt', style: 'cancel' },
-      {
-        text: 'Ta bort',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await client.deleteShoppingList(listId);
-            setLists(prev => prev.filter(l => l.id !== listId));
-          } catch (e) {
-            showError(e, 'Kunde inte ta bort lista');
-          }
+    confirm({
+      title: 'Ta bort lista',
+      message: `Ta bort "${listName}"?`,
+      buttons: [
+        {
+          label: 'Ta bort',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await client.deleteShoppingList(listId);
+              setLists(prev => prev.filter(l => l.id !== listId));
+            } catch (e) {
+              showError(e, 'Kunde inte ta bort lista');
+            }
+          },
         },
-      },
-    ]);
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   if (loading) {

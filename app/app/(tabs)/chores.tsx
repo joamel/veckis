@@ -27,6 +27,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useMemberFilter } from '../../src/context/MemberFilterContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -230,6 +231,8 @@ export default function ChoresScreen() {
   const [toastMessage, setToastMessage] = useState('');
   const { showError } = useToast();
   const confirm = useConfirm();
+  const forgivingTip = useOnceFlag('seen-forgiving-tip');
+  const tipShownRef = useRef(false);
   const router = useRouter();
   const deeplinkParams = useLocalSearchParams<{ choreId?: string }>();
   const openedChoreParamRef = useRef<string | null>(null);
@@ -345,6 +348,21 @@ export default function ChoresScreen() {
       router.setParams({ choreId: undefined });
     }
   }, [deeplinkParams.choreId, chores, router]);
+
+  // First time the user sees a "förfallen" (overdue) recurring chore: show a
+  // one-time tip explaining the forgiving model so they don't think it's a bug
+  // that the app stops nagging. Flag is persisted in secure-store via useOnceFlag.
+  useEffect(() => {
+    if (forgivingTip.seen !== false || tipShownRef.current) return;
+    const hasOverdue = chores.some(c => !isOnce(c) && recurringStatus(c).state === 'overdue');
+    if (!hasOverdue) return;
+    tipShownRef.current = true;
+    confirm({
+      title: 'Förfallna sysslor naggar inte',
+      message: 'En återkommande syssla som missades en dag stannar bara i historiken — appen fortsätter inte nagga. Nästa tillfälle dyker upp som vanligt. Fäll ut sysslan för att se historiken (✓ klar / – missad).',
+      buttons: [{ label: 'Förstått', onPress: forgivingTip.markSeen }],
+    });
+  }, [chores, forgivingTip.seen, forgivingTip.markSeen, confirm]);
 
   // Completed chores sorted to the bottom, with optional member filter
   const sortedChores = useMemo(() => {

@@ -35,6 +35,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/clerk-expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
+import { useConfirm } from '../../src/context/ConfirmContext';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
@@ -63,6 +64,7 @@ export default function ShoppingListScreen() {
   }, [router]);
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
+  const confirm = useConfirm();
   const { householdId } = useHousehold();
   const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
@@ -374,7 +376,7 @@ export default function ShoppingListScreen() {
       setStaples(stapleList);
       setIngredientSuggestions(suggestions);
     } catch {
-      Alert.alert('Fel', 'Kunde inte ladda listan');
+      confirm({ title: 'Fel', message: 'Kunde inte ladda listan', buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -717,9 +719,11 @@ export default function ShoppingListScreen() {
 
   async function completeList() {
     if (!listId) return;
-    Alert.alert('Rensa lista?', 'Alla varor tas bort men listan finns kvar.', [
-      { text: 'Avbryt', style: 'cancel' },
-      { text: 'Rensa', style: 'destructive', onPress: () => {
+    confirm({
+      title: 'Rensa lista?',
+      message: 'Alla varor tas bort men listan finns kvar.',
+      buttons: [
+      { label: 'Rensa', style: 'destructive', onPress: () => {
         // Optimistic clear with undo: hide items from UI, defer backend call 5s
         const snapshot = list?.items ?? [];
         setList(prev => prev ? { ...prev, items: [] } : prev);
@@ -742,7 +746,9 @@ export default function ShoppingListScreen() {
           }
         }, 5000);
       }},
-    ]);
+      { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   function openStapleEditor(suggestion: StapleItem) {
@@ -799,19 +805,23 @@ export default function ShoppingListScreen() {
       setEditingStaple(null);
       return;
     }
-    Alert.alert('Ta bort basvara', `Ta bort "${capitalize(target.name)}" från basvarorna?`, [
-      { text: 'Avbryt', style: 'cancel' },
-      { text: 'Ta bort', style: 'destructive', onPress: async () => {
-        setStaples(prev => prev.filter(s2 => s2.id !== target.id));
-        setEditingStaple(null);
-        try {
-          await client.deleteStaple(target.id);
-        } catch (e) {
-          setStaples(prev => [...prev, target]);
-          showError(e, 'Kunde inte ta bort basvaran');
-        }
-      } },
-    ]);
+    confirm({
+      title: 'Ta bort basvara',
+      message: `Ta bort "${capitalize(target.name)}" från basvarorna?`,
+      buttons: [
+        { label: 'Ta bort', style: 'destructive', onPress: async () => {
+          setStaples(prev => prev.filter(s2 => s2.id !== target.id));
+          setEditingStaple(null);
+          try {
+            await client.deleteStaple(target.id);
+          } catch (e) {
+            setStaples(prev => [...prev, target]);
+            showError(e, 'Kunde inte ta bort basvaran');
+          }
+        } },
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   async function selectStore(storeId: string | null) {
@@ -853,7 +863,7 @@ export default function ShoppingListScreen() {
     const trimmed = newCustomCategory.trim();
     if (!trimmed) return;
     if (editCustomCategories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
-      Alert.alert('Finns redan', `Kategorin "${trimmed}" finns redan.`);
+      confirm({ title: 'Finns redan', message: `Kategorin "${trimmed}" finns redan.`, buttons: [{ label: 'OK' }] });
       return;
     }
     setEditCustomCategories(prev => [...prev, trimmed]);
