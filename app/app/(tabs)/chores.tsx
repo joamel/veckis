@@ -556,7 +556,7 @@ export default function ChoresScreen() {
       { label: assigned.displayName, onPress: () => onPick(assigned.id) },
     ];
     if (selfMember && selfMember.id !== assigned.id) {
-      buttons.push({ label: `${selfMember.displayName} (jag)`, onPress: () => onPick(selfMember.id) });
+      buttons.push({ label: `${selfMember.displayName} (du)`, onPress: () => onPick(selfMember.id) });
     }
     buttons.push({ label: 'Avbryt', style: 'cancel' });
     confirm({ title: `Vem gjorde "${chore.title}"?`, buttons });
@@ -772,11 +772,6 @@ export default function ChoresScreen() {
                             ? (performerName ? ` · ${performerName}` : '')
                             : o.isCurrent ? ' · att göra' : ' · missad'}
                         </Text>
-                        {o.isCurrent && !o.done && (
-                          <Pressable style={s.historyDoBtn} onPress={() => pickPerformer(item, performer => completeOccurrence(item, o.date, performer))} hitSlop={6}>
-                            <Text style={s.historyDoBtnText}>Klar</Text>
-                          </Pressable>
-                        )}
                       </View>
                       );
                     })
