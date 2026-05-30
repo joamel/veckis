@@ -277,6 +277,23 @@ export function useApiClient() {
     deleteRecipe: (recipeId: string) =>
       request<void>(`/api/recipes/${recipeId}`, { method: 'DELETE' }),
 
+    uploadRecipeImage: async (recipeId: string, fileUri: string, mimeType = 'image/jpeg'): Promise<RecipeWithIngredients> => {
+      const form = new FormData();
+      // RN's FormData accepts the file blob descriptor object directly.
+      form.append('image', { uri: fileUri, name: 'recipe.jpg', type: mimeType } as unknown as Blob);
+      const token = await getToken();
+      const res = await fetch(`${BASE_URL}/api/recipes/${recipeId}/image`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }, // let fetch set the multipart boundary
+        body: form,
+      });
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try { const j = await res.json(); msg = (j as { error?: string }).error ?? msg; } catch { /* ignore */ }
+        throw new Error(msg);
+      }
+      return res.json() as Promise<RecipeWithIngredients>;
+    },
     scrapeRecipe: (url: string) =>
       request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }>('/api/recipes/from-url', { method: 'POST', body: JSON.stringify({ url }) }),
 
