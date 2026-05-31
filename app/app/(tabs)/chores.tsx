@@ -235,6 +235,9 @@ export default function ChoresScreen() {
   const showTip = useSpotlightTip();
   const forgivingTip = useOnceFlag('seen-forgiving-tip');
   const tipShownRef = useRef(false);
+  const filterTip = useOnceFlag('seen-filter-tip');
+  const filterTipShownRef = useRef(false);
+  const filterBtnRef = useRef<View>(null);
   const router = useRouter();
   const deeplinkParams = useLocalSearchParams<{ choreId?: string }>();
   const openedChoreParamRef = useRef<string | null>(null);
@@ -364,6 +367,19 @@ export default function ChoresScreen() {
     });
     if (shown) { tipShownRef.current = true; forgivingTip.markSeen(); }
   }, [chores, forgivingTip.seen, forgivingTip.markSeen, showTip]);
+
+  // Filter-tip i sysslor (samma flagga som schedule).
+  useEffect(() => {
+    if (filterTip.seen !== false || filterTipShownRef.current) return;
+    if (members.length === 0) return;
+    filterTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Filtrera på person',
+      message: 'Tryck här för att bara visa sysslor (och aktiviteter) för en eller flera personer. Filtret gäller både sysslor-fliken och kalendern.',
+      targetRef: filterBtnRef,
+    });
+    if (shown) filterTip.markSeen();
+  }, [members.length, filterTip.seen, filterTip.markSeen, showTip]);
 
   // Completed chores sorted to the bottom, with optional member filter
   const sortedChores = useMemo(() => {
@@ -660,7 +676,7 @@ export default function ChoresScreen() {
               </Pressable>
             )}
             {members.length > 0 && (
-              <Pressable style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive]} onPress={() => setShowFilterModal(true)}>
+              <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive]} onPress={() => setShowFilterModal(true)}>
                 <Ionicons name="person-outline" size={14} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
                 <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive]}>Filter</Text>
                 {filterMemberIds.length > 0 && (

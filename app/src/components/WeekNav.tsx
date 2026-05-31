@@ -1,6 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTablet } from '../hooks/useTablet';
+import { useOnceFlag } from '../hooks/useOnceFlag';
+import { useSpotlightTip } from '../context/SpotlightTipContext';
 
 interface WeekNavProps {
   weekLabel: string;
@@ -13,10 +16,29 @@ interface WeekNavProps {
 
 export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onPickDate }: WeekNavProps) {
   const { fs, sp } = useTablet();
+  const labelBtnRef = useRef<View>(null);
+  const dateTip = useOnceFlag('seen-weeknav-date-tip');
+  const dateTipShownRef = useRef(false);
+  const showTip = useSpotlightTip();
+
+  // Datepicker via week-label tap is hidden — fire a tip once when WeekNav
+  // mounts with a date-picker handler wired (calendar/menu both pass one).
+  useEffect(() => {
+    if (dateTip.seen !== false || dateTipShownRef.current) return;
+    if (!onPickDate) return;
+    dateTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Hoppa till annan vecka',
+      message: 'Tryck på veckonumret för att öppna en kalender och hoppa till valfri vecka eller dag.',
+      targetRef: labelBtnRef,
+    });
+    if (shown) dateTip.markSeen();
+  }, [onPickDate, dateTip.seen, dateTip.markSeen, showTip]);
+
   return (
     <View style={[s.container, { paddingHorizontal: sp(12), paddingVertical: sp(10) }]}>
       {/* Rendered first so arrows appear on top of it in touch handling */}
-      <Pressable style={s.labelBtn} onPress={onPickDate ?? onToday}>
+      <Pressable ref={labelBtnRef} style={s.labelBtn} onPress={onPickDate ?? onToday}>
         <Text style={[s.label, { fontSize: fs(14) }, isCurrentWeek && s.labelCurrent]}>{weekLabel}</Text>
       </Pressable>
       <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onPrev} accessibilityRole="button" accessibilityLabel="Föregående vecka">

@@ -257,15 +257,12 @@ export default function RecipesScreen() {
     if (sortTip.seen !== false || sortTipShownRef.current) return;
     if (recipes.length === 0) return;
     sortTipShownRef.current = true;
-    const t = setTimeout(() => {
-      const shown = showTip({
-        title: 'Sortera recepten',
-        message: 'Tryck här för att välja sortering: A–Ö, mest använda eller senast tillagda. Valet sparas mellan besök.',
-        targetRef: sortBtnRef,
-      });
-      if (shown) sortTip.markSeen();
-    }, 2500);
-    return () => clearTimeout(t);
+    const shown = showTip({
+      title: 'Sortera recepten',
+      message: 'Tryck här för att välja sortering: A–Ö, mest använda eller senast tillagda. Valet sparas mellan besök.',
+      targetRef: sortBtnRef,
+    });
+    if (shown) sortTip.markSeen();
   }, [recipes.length, sortTip.seen, sortTip.markSeen, showTip]);
 
   function openModal() {

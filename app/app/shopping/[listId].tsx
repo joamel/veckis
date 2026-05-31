@@ -74,6 +74,8 @@ export default function ShoppingListScreen() {
   const listActionsTip = useOnceFlag('seen-list-actions-tip');
   const listActionsTipShownRef = useRef(false);
   const listActionsBtnRef = useRef<View>(null);
+  const dragMergeTip = useOnceFlag('seen-drag-merge-tip');
+  const dragMergeTipShownRef = useRef(false);
   const { householdId } = useHousehold();
   const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
@@ -347,18 +349,13 @@ export default function ShoppingListScreen() {
   useEffect(() => {
     if (mergeTip.seen !== false || mergeTipShownRef.current) return;
     if (duplicateGroups.length === 0) return;
-    // Mark up-front to prevent re-scheduling if effect re-runs during the delay.
     mergeTipShownRef.current = true;
-    // Small delay so the dupe button's pulse animation has measurable bounds
-    // before SpotlightTip reads measureInWindow.
-    setTimeout(() => {
-      const shown = showTip({
-        title: 'Slå ihop dubbletter',
-        message: 'Den här lilla knappen visas när vi ser likadana varor på listan. Tryck på den för att slå ihop dem till en vara med samlad mängd.',
-        targetRef: dupeBadgeRef,
-      });
-      if (shown) mergeTip.markSeen(); // else: retry next session (no markSeen)
-    }, 1500); // wait for the existing pulse to finish so user sees it pulse first
+    const shown = showTip({
+      title: 'Slå ihop dubbletter',
+      message: 'Den här lilla knappen visas när vi ser likadana varor på listan. Tryck på den för att slå ihop dem till en vara med samlad mängd.',
+      targetRef: dupeBadgeRef,
+    });
+    if (shown) mergeTip.markSeen(); // else: retry next session
   }, [duplicateGroups.length, mergeTip.seen, mergeTip.markSeen, showTip]);
 
   // ListActions-tip (3-prickar): visas när listan har innehåll och inget annat
@@ -368,17 +365,28 @@ export default function ShoppingListScreen() {
     if (listActionsTip.seen !== false || listActionsTipShownRef.current) return;
     if (!list || list.items.length === 0) return;
     listActionsTipShownRef.current = true;
-    // Generous delay so any merge tip on the same screen gets to fire first.
-    const t = setTimeout(() => {
-      const shown = showTip({
-        title: 'Mer du kan göra med listan',
-        message: 'Tryck på prickarna för fler val: byt namn, byt butik, klarmarka alla, rensa listan eller importera veckomeny.',
-        targetRef: listActionsBtnRef,
-      });
-      if (shown) listActionsTip.markSeen();
-    }, 3500);
-    return () => clearTimeout(t);
+    const shown = showTip({
+      title: 'Mer du kan göra med listan',
+      message: 'Tryck på prickarna för fler val: byt namn, byt butik, klarmarka alla, rensa listan eller importera veckomeny.',
+      targetRef: listActionsBtnRef,
+    });
+    if (shown) listActionsTip.markSeen();
   }, [list, listActionsTip.seen, listActionsTip.markSeen, showTip]);
+
+  // Drag-merge-tip: visas efter list-actions-tipset när listan har minst två
+  // varor — förklarar att man kan dra en vara ovanpå en annan för att slå ihop
+  // dem manuellt (utöver den auto-detekterade dubblett-knappen).
+  useEffect(() => {
+    if (dragMergeTip.seen !== false || dragMergeTipShownRef.current) return;
+    if (listActionsTip.seen !== true) return; // seriellt efter list-actions
+    if (!list || list.items.length < 2) return;
+    dragMergeTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Slå ihop varor manuellt',
+      message: 'Du kan dra en vara ovanpå en annan för att slå ihop dem — praktiskt när vi inte hittade dubbletten automatiskt (olika namn, samma sak).',
+    });
+    if (shown) dragMergeTip.markSeen();
+  }, [list, listActionsTip.seen, dragMergeTip.seen, dragMergeTip.markSeen, showTip]);
 
   useEffect(() => {
     if (pendingOpenNextDupe.current && !mergeSheet && duplicateGroups.length > 0) {

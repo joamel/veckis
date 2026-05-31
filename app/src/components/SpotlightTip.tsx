@@ -60,8 +60,11 @@ export function SpotlightTip({ visible, targetRef, title, message, actionLabel =
 
   const callout = computeCalloutTop(rect, screen.height);
 
+  // statusBarTranslucent OFF on purpose: Modal coords then start at the app
+  // window top (below the status bar) and match measureInWindow's reference,
+  // so the spotlight ring lines up correctly with the target.
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onDismiss} statusBarTranslucent>
+    <Modal visible transparent animationType="fade" onRequestClose={onDismiss}>
       {/* Backdrop: 4 dim rects around the target ("hole"), or full dim. */}
       {rect ? (
         <>

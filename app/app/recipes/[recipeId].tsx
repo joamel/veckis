@@ -27,6 +27,8 @@ import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems } 
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import type { RecipeIngredient } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
@@ -38,6 +40,10 @@ export default function RecipeDetailScreen() {
   const { householdId } = useHousehold();
   const { showError } = useToast();
   const confirm = useConfirm();
+  const showTip = useSpotlightTip();
+  const recipeCartTip = useOnceFlag('seen-recipe-cart-tip');
+  const recipeCartTipShownRef = useRef(false);
+  const recipeCartRef = useRef<View>(null);
 
   const [recipe, setRecipe] = useState<RecipeWithIngredients | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,6 +113,20 @@ export default function RecipeDetailScreen() {
   const [transferring, setTransferring] = useState(false);
   const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<ReturnType<typeof deduplicateIngredients>>([]);
+
+  // Recipe-cart-tip: visa när receptet är laddat och har ingredienser så
+  // kundvagn-FAB:en faktiskt syns och är meningsfull att förklara.
+  useEffect(() => {
+    if (recipeCartTip.seen !== false || recipeCartTipShownRef.current) return;
+    if (!recipe || recipe.ingredients.length === 0) return;
+    recipeCartTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Lägg ingredienser i inköpslistan',
+      message: 'Kundvagnen längst ned till höger låter dig välja ingredienser och skicka dem direkt till en inköpslista — utan att gå via veckomenyn.',
+      targetRef: recipeCartRef,
+    });
+    if (shown) recipeCartTip.markSeen();
+  }, [recipe, recipeCartTip.seen, recipeCartTip.markSeen, showTip]);
 
   // Load ingredient suggestions once for autocomplete in edit mode
   useEffect(() => {
@@ -734,7 +754,7 @@ export default function RecipeDetailScreen() {
 
       {/* Kundvagn-FAB — överför ingredienser till inköpslista (likt andra flikar) */}
       {!editMode && (
-        <Pressable style={s.fab} onPress={() => openTransfer()} accessibilityLabel="Lägg ingredienser i inköpslista">
+        <Pressable ref={recipeCartRef} style={s.fab} onPress={() => openTransfer()} accessibilityLabel="Lägg ingredienser i inköpslista">
           <Ionicons name="cart-outline" size={26} color="#fff" />
         </Pressable>
       )}

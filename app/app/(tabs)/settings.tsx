@@ -23,6 +23,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { NotificationsModal } from '../../src/components/NotificationsModal';
 import type { InviteCode } from '@veckis/shared';
@@ -34,6 +36,10 @@ export default function SettingsScreen() {
   const client = useApiClient();
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
   const { showToast: showGlobalToast, showError } = useToast();
+  const showTip = useSpotlightTip();
+  const notifClockTip = useOnceFlag('seen-notif-clock-tip');
+  const notifClockTipShownRef = useRef(false);
+  const notifClockBtnRef = useRef<View>(null);
   const [invite, setInvite] = useState<InviteCode | null>(null);
   const [loadingInvite, setLoadingInvite] = useState(false);
 
@@ -41,6 +47,19 @@ export default function SettingsScreen() {
   const [editMode, setEditMode] = useState(false);
   const editModeRef = useRef(false);
   useEffect(() => { editModeRef.current = editMode; }, [editMode]);
+
+  // Notis-klocka-tip: visa första gången inställningar öppnas (klockan i högra
+  // hörnet är nyare och inte alltid uppenbar).
+  useEffect(() => {
+    if (notifClockTip.seen !== false || notifClockTipShownRef.current) return;
+    notifClockTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Notisinställningar',
+      message: 'Klockan högst upp till höger öppnar dina notisinställningar — slå på/av påminnelser för aktiviteter, sysslor och inköpslistor per typ.',
+      targetRef: notifClockBtnRef,
+    });
+    if (shown) notifClockTip.markSeen();
+  }, [notifClockTip.seen, notifClockTip.markSeen, showTip]);
   useFocusEffect(useCallback(() => {
     return () => {
       // Read the latest value from a ref instead of calling the toast inside a
@@ -371,7 +390,7 @@ export default function SettingsScreen() {
       <ScreenHeader
         title="Inställningar"
         actionNode={
-          <Pressable style={styles.headerIconBtn} onPress={() => setShowNotifModal(true)} accessibilityLabel="Notisinställningar">
+          <Pressable ref={notifClockBtnRef} style={styles.headerIconBtn} onPress={() => setShowNotifModal(true)} accessibilityLabel="Notisinställningar">
             <Ionicons name="notifications-outline" size={20} color="#4f46e5" />
           </Pressable>
         }
