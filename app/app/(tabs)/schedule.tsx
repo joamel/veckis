@@ -200,6 +200,9 @@ export default function ScheduleScreen() {
   // never recenter (recentering is what made the old 3-page pagers flash).
   const dayListRef = useRef<FlatList<number>>(null);
   const weekRowListRef = useRef<FlatList<number>>(null);
+  // Wrapper view ref used by the calendar-swipe onboarding tip to measure /
+  // light up the week-day row (FlatList ref doesn't support measureInWindow).
+  const weekRowWrapRef = useRef<View | null>(null);
   const weekPageW = Dimensions.get('window').width;
   const DAY_SPAN = 400; // ~13 months of days each way
   const WEEK_SPAN = 104; // ~2 years of weeks each way
@@ -355,7 +358,8 @@ export default function ScheduleScreen() {
     calendarSwipeTipShownRef.current = true;
     const shown = showTip({
       title: 'Två svep i kalendern',
-      message: 'Svep på veckodags-raden högst upp för att byta vecka. Svep på själva dag-innehållet för att byta dag.',
+      message: 'Svep på veckodags-raden (som lyser upp) för att byta vecka. Svep på själva dag-innehållet nedanför för att byta dag.',
+      targetRef: weekRowWrapRef,
       swipeDemo: 'horizontal',
     });
     if (shown) calendarSwipeTip.markSeen();
@@ -1016,7 +1020,9 @@ export default function ScheduleScreen() {
 
           {/* Day-row as a virtualised week pager: swipe the weekday bar to
               change week (keeps the selected weekday). Absolute-indexed, never
-              recenters. */}
+              recenters. Wrapper view is the measure-target for the onboarding
+              swipe tip's spotlight ring + finger animation. */}
+          <View ref={weekRowWrapRef} collapsable={false}>
           <FlatList
             ref={weekRowListRef}
             data={weekRowIndices}
@@ -1065,6 +1071,7 @@ export default function ScheduleScreen() {
               );
             }}
           />
+          </View>
 
           {/* Content as a virtualised day pager: swipe the detail area to go to
               the previous / next day (rolls over into the adjacent week).

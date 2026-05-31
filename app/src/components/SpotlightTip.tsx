@@ -7,14 +7,12 @@ export interface SpotlightRect { x: number; y: number; width: number; height: nu
 export interface SpotlightOptions {
   title: string;
   message?: string;
-  /** A pre-measured rect for the spotlight. The provider measures the
-   *  `targetRef` (passed by callers) before opening the modal so we never race
-   *  the modal's mount against layout — by the time SpotlightTip renders we
-   *  already have a valid rect (or `undefined`, in which case the tip just
-   *  centers on full dim). */
+  /** Pre-measured rect for the spotlight ring (provider measures the
+   *  `targetRef` BEFORE opening the modal so the ring always lines up). */
   targetRef?: RefObject<View | null>;
   targetRect?: SpotlightRect;
-  /** Show an animated "swipe" gesture demo above the title. */
+  /** When set, an animated finger gesture is rendered over the targetRect to
+   *  show the user how to swipe / which way to drag. No-op without targetRect. */
   swipeDemo?: 'horizontal' | 'vertical';
   /** Label for the dismiss button. Defaults to "Förstått" or "Nästa tips →". */
   actionLabel?: string;
@@ -45,28 +43,34 @@ export function SpotlightTip({ visible, targetRect, title, message, actionLabel 
     return () => { loop.stop(); pulse.setValue(0); };
   }, [targetRect, pulse]);
 
-  // Swipe-finger demo: smooth back-and-forth so the user sees the gesture.
+  // Swipe-finger demo: travel across the target rect to demonstrate the gesture.
   useEffect(() => {
-    if (!visible || !swipeDemo) return;
+    if (!visible || !swipeDemo || !targetRect) return;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(swipeAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
-        Animated.timing(swipeAnim, { toValue: 0, duration: 900, useNativeDriver: true }),
+        Animated.timing(swipeAnim, { toValue: 1, duration: 1100, useNativeDriver: true }),
+        Animated.delay(150),
+        Animated.timing(swipeAnim, { toValue: 0, duration: 1100, useNativeDriver: true }),
+        Animated.delay(150),
       ]),
     );
     loop.start();
     return () => { loop.stop(); swipeAnim.setValue(0); };
-  }, [visible, swipeDemo, swipeAnim]);
+  }, [visible, swipeDemo, targetRect, swipeAnim]);
 
   if (!visible) return null;
 
   const callout = computeCalloutTop(targetRect, screen.height);
 
-  // statusBarTranslucent OFF on purpose: Modal coords then start at the app
+  // Swipe finger travels ~70% of the target dimension, centered in the rect.
+  const swipeAmplitudeX = targetRect && swipeDemo === 'horizontal' ? targetRect.width * 0.35 : 0;
+  const swipeAmplitudeY = targetRect && swipeDemo === 'vertical' ? targetRect.height * 0.35 : 0;
+
+  // statusBarTranslucent EXPLICITLY false: Modal coords then start at the app
   // window top (below the status bar) and match measureInWindow's reference,
-  // so the spotlight ring lines up correctly with the target.
+  // so the spotlight ring lines up correctly with the target on Android.
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onDismiss}>
+    <Modal visible transparent animationType="fade" statusBarTranslucent={false} onRequestClose={onDismiss}>
       {/* Backdrop: 4 dim rects around the target ("hole"), or full dim. */}
       {targetRect ? (
         <>
@@ -88,6 +92,32 @@ export function SpotlightTip({ visible, targetRect, title, message, actionLabel 
               },
             ]}
           />
+          {swipeDemo ? (
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: targetRect.y + targetRect.height / 2 - 18,
+                left: targetRect.x + targetRect.width / 2 - 18,
+                width: 36,
+                height: 36,
+                alignItems: 'center',
+                justifyContent: 'center',
+                transform: [
+                  { translateX: swipeAnim.interpolate({ inputRange: [0, 1], outputRange: [-swipeAmplitudeX, swipeAmplitudeX] }) },
+                  { translateY: swipeAnim.interpolate({ inputRange: [0, 1], outputRange: [-swipeAmplitudeY, swipeAmplitudeY] }) },
+                ],
+              }}
+            >
+              <View style={s.fingerHalo} />
+              <Ionicons
+                name="hand-left-outline"
+                size={34}
+                color="#fff"
+                style={swipeDemo === 'horizontal' ? { transform: [{ rotate: '-15deg' }] } : undefined}
+              />
+            </Animated.View>
+          ) : null}
         </>
       ) : (
         <View style={[s.dim, StyleSheet.absoluteFillObject]} />
@@ -95,19 +125,6 @@ export function SpotlightTip({ visible, targetRect, title, message, actionLabel 
       {/* Tap outside the card dismisses (covers full screen, behind the card). */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
       <View style={[s.card, { top: callout, left: 20, right: 20 }]} pointerEvents="box-none">
-        {swipeDemo ? (
-          <View style={s.swipeDemoWrap} pointerEvents="none">
-            <Animated.View
-              style={{
-                transform: swipeDemo === 'horizontal'
-                  ? [{ translateX: swipeAnim.interpolate({ inputRange: [0, 1], outputRange: [-50, 50] }) }]
-                  : [{ translateY: swipeAnim.interpolate({ inputRange: [0, 1], outputRange: [-22, 22] }) }],
-              }}
-            >
-              <Ionicons name="hand-left-outline" size={36} color="#7c3aed" style={swipeDemo === 'horizontal' ? { transform: [{ rotate: '-15deg' }] } : undefined} />
-            </Animated.View>
-          </View>
-        ) : null}
         <Text style={s.title}>{title}</Text>
         {message ? <Text style={s.message}>{message}</Text> : null}
         <Pressable style={s.btn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel={actionLabel}>
@@ -121,7 +138,7 @@ export function SpotlightTip({ visible, targetRect, title, message, actionLabel 
 // Position the callout below the target if there's room, otherwise above,
 // otherwise centred on the screen.
 function computeCalloutTop(rect: SpotlightRect | undefined, screenH: number): number {
-  const cardEstHeight = 220;
+  const cardEstHeight = 200;
   if (!rect) return Math.max(80, (screenH - cardEstHeight) / 2);
   const below = rect.y + rect.height + 24;
   const above = rect.y - cardEstHeight - 24;
@@ -150,7 +167,13 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 10,
   },
-  swipeDemoWrap: { height: 48, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  fingerHalo: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(167, 139, 250, 0.7)',
+  },
   title: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 6, textAlign: 'center' },
   message: { fontSize: 14, color: '#374151', marginBottom: 14, textAlign: 'center', lineHeight: 20 },
   btn: { backgroundColor: '#4f46e5', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
