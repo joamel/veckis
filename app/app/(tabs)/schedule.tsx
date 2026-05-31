@@ -345,10 +345,11 @@ export default function ScheduleScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Filter-tip: när det finns medlemmar att filtrera på (filter-knappen är då
-  // synlig). Samma `seen-filter-tip`-flagga används i sysslor-fliken så det
-  // visas högst en gång oavsett var användaren stöter på den först.
-  useEffect(() => {
+  // Filter-tip: använder useFocusEffect så det bara fyrar från den AKTIVA
+  // fliken. Sysslor-fliken delar flagga `seen-filter-tip` — vem som ser
+  // tipset först beror på vilken flik användaren öppnar först, inte vems
+  // useEffect som vinner mount-racet.
+  useFocusEffect(useCallback(() => {
     if (filterTip.seen !== false || filterTipShownRef.current) return;
     if (members.length === 0) return;
     filterTipShownRef.current = true;
@@ -358,7 +359,7 @@ export default function ScheduleScreen() {
       targetRef: filterBtnRef,
     });
     if (shown) filterTip.markSeen();
-  }, [members.length, filterTip.seen, filterTip.markSeen, showTip]);
+  }, [members.length, filterTip.seen, filterTip.markSeen, showTip]));
 
   // Deep link from a tapped activity notification (L45): open that entry's edit
   // dialog once the entries have loaded, then clear the param so it won't re-fire.

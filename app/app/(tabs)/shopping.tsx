@@ -247,16 +247,19 @@ export default function ShoppingScreen() {
       <ScreenHeader
         title="Inköp"
         actionNode={
-          <Pressable
-            ref={storesBtnRef}
-            style={styles.storesHeaderBtn}
-            onPress={() => setShowStoresModal(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Butiker"
-          >
-            <Ionicons name="storefront-outline" size={16} color="#4f46e5" />
-            <Text style={styles.storesHeaderBtnText}>Butiker</Text>
-          </Pressable>
+          // View-wrapper med collapsable={false} så Android inte optimerar bort
+          // den ur native-hierarkin (annars returnerar measureInWindow 0).
+          <View ref={storesBtnRef} collapsable={false}>
+            <Pressable
+              style={styles.storesHeaderBtn}
+              onPress={() => setShowStoresModal(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Butiker"
+            >
+              <Ionicons name="storefront-outline" size={16} color="#4f46e5" />
+              <Text style={styles.storesHeaderBtnText}>Butiker</Text>
+            </Pressable>
+          </View>
         }
       />
 
