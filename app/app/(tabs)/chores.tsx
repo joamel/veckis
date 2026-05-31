@@ -368,8 +368,9 @@ export default function ChoresScreen() {
     if (shown) { tipShownRef.current = true; forgivingTip.markSeen(); }
   }, [chores, forgivingTip.seen, forgivingTip.markSeen, showTip]);
 
-  // Filter-tip i sysslor (samma flagga som schedule).
-  useEffect(() => {
+  // Filter-tip i sysslor — useFocusEffect så det bara fyrar från aktiv flik.
+  // Samma flagga som schedule så bara en av flikarna visar tipset.
+  useFocusEffect(useCallback(() => {
     if (filterTip.seen !== false || filterTipShownRef.current) return;
     if (members.length === 0) return;
     filterTipShownRef.current = true;
@@ -379,7 +380,7 @@ export default function ChoresScreen() {
       targetRef: filterBtnRef,
     });
     if (shown) filterTip.markSeen();
-  }, [members.length, filterTip.seen, filterTip.markSeen, showTip]);
+  }, [members.length, filterTip.seen, filterTip.markSeen, showTip]));
 
   // Completed chores sorted to the bottom, with optional member filter
   const sortedChores = useMemo(() => {
