@@ -504,7 +504,7 @@ export default function MenuScreen() {
   // First time the user opens menyn with rätter inlagda: visa ett tip om att
   // man kan dra rätter mellan dagar och svepa mellan veckor — annars missar
   // många dessa funktioner helt.
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (menuNavTip.seen !== false || menuNavTipShownRef.current) return;
     if (menuItems.length === 0) return;
     const shown = showTip({
@@ -512,11 +512,11 @@ export default function MenuScreen() {
       message: 'Håll inne på en rätt för att dra den till en annan dag. Svep åt sidan för att byta vecka — eller använd pilarna högst upp.',
     });
     if (shown) { menuNavTipShownRef.current = true; menuNavTip.markSeen(); }
-  }, [menuItems, menuNavTip.seen, menuNavTip.markSeen, showTip]);
+  }, [menuItems, menuNavTip.seen, menuNavTip.markSeen, showTip]));
 
   // Mallar-tip: visas EFTER att menu-nav-tipset är dismissat, så vi inte
   // bombar användaren med två tips på en gång. Spotlightar mallar-knappen.
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (templatesTip.seen !== false || templatesTipShownRef.current) return;
     if (menuNavTip.seen !== true) return; // vänta tills nav-tipset är sett
     if (menuItems.length === 0) return;
@@ -526,11 +526,11 @@ export default function MenuScreen() {
       targetRef: templatesBtnRef,
     });
     if (shown) { templatesTipShownRef.current = true; templatesTip.markSeen(); }
-  }, [menuItems.length, menuNavTip.seen, templatesTip.seen, templatesTip.markSeen, showTip]);
+  }, [menuItems.length, menuNavTip.seen, templatesTip.seen, templatesTip.markSeen, showTip]));
 
   // Recept-knappen i meny-headern: visa direkt efter mallar-tipset så hela
   // header-sviten introduceras i ordning.
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (recipesBtnTip.seen !== false || recipesBtnTipShownRef.current) return;
     if (templatesTip.seen !== true) return;
     recipesBtnTipShownRef.current = true;
@@ -540,11 +540,11 @@ export default function MenuScreen() {
       targetRef: recipesBtnRef,
     });
     if (shown) recipesBtnTip.markSeen();
-  }, [templatesTip.seen, recipesBtnTip.seen, recipesBtnTip.markSeen, showTip]);
+  }, [templatesTip.seen, recipesBtnTip.seen, recipesBtnTip.markSeen, showTip]));
 
   // Cart FAB-tip: visas efter templates-tipset när det finns rätter kvar att
   // överföra (= när FAB:en faktiskt renderas). Workflow-koppling som många missar.
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (cartFabTip.seen !== false || cartFabTipShownRef.current) return;
     if (templatesTip.seen !== true) return;
     const fabVisible = menuItems.some(m => !recipeListMap[m.id]?.length);
@@ -555,7 +555,7 @@ export default function MenuScreen() {
       targetRef: cartFabRef,
     });
     if (shown) { cartFabTipShownRef.current = true; cartFabTip.markSeen(); }
-  }, [menuItems, recipeListMap, templatesTip.seen, cartFabTip.seen, cartFabTip.markSeen, showTip]);
+  }, [menuItems, recipeListMap, templatesTip.seen, cartFabTip.seen, cartFabTip.markSeen, showTip]));
   // Live menu updates: another device added/removed/moved a meal. load() refreshes
   // both the visible week and the allMenus snapshot that feeds neighbour pages.
   const menuReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
