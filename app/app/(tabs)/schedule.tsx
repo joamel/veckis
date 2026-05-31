@@ -23,6 +23,8 @@ import { useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/clerk-expo';
 import { useHousehold } from '../../src/context/HouseholdContext';
@@ -147,6 +149,10 @@ export default function ScheduleScreen() {
   const openedEntryParamRef = useRef<string | null>(null);
   const client = useApiClient();
   const { showToast, showError } = useToast();
+  const showTip = useSpotlightTip();
+  const filterTip = useOnceFlag('seen-filter-tip');
+  const filterTipShownRef = useRef(false);
+  const filterBtnRef = useRef<View>(null);
   const { getToken } = useAuth();
   const { householdId } = useHousehold();
 
@@ -338,6 +344,21 @@ export default function ScheduleScreen() {
   }, []));
 
   useEffect(() => { load(); }, [load]);
+
+  // Filter-tip: när det finns medlemmar att filtrera på (filter-knappen är då
+  // synlig). Samma `seen-filter-tip`-flagga används i sysslor-fliken så det
+  // visas högst en gång oavsett var användaren stöter på den först.
+  useEffect(() => {
+    if (filterTip.seen !== false || filterTipShownRef.current) return;
+    if (members.length === 0) return;
+    filterTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Filtrera på person',
+      message: 'Tryck här för att bara visa aktiviteter (och sysslor) för en eller flera personer. Filtret gäller både kalendern och sysslor-fliken.',
+      targetRef: filterBtnRef,
+    });
+    if (shown) filterTip.markSeen();
+  }, [members.length, filterTip.seen, filterTip.markSeen, showTip]);
 
   // Deep link from a tapped activity notification (L45): open that entry's edit
   // dialog once the entries have loaded, then clear the param so it won't re-fire.
@@ -862,7 +883,7 @@ export default function ScheduleScreen() {
       <ScreenHeader
         title="Kalender"
         actionNode={members.length > 0 ? (
-          <Pressable style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive]} onPress={() => setShowFilterModal(true)}>
+          <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive]} onPress={() => setShowFilterModal(true)}>
             <Ionicons name="person-outline" size={14} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
             <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive]}>Filter</Text>
             {filterMemberIds.length > 0 && (

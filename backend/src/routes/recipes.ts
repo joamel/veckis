@@ -2,10 +2,23 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { StoreCategory, Prisma } from '@prisma/client';
 import { prisma } from '../db';
+import multer from 'multer';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
+import { uploadRecipeImage, deleteRecipeImage } from '../lib/imageUpload';
+
+// In-memory upload — files are forwarded to Cloudinary, never hit disk. 10 MB
+// max keeps us safe against accidental huge uploads.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files are allowed'));
+    cb(null, true);
+  },
+});
 
 export const recipesRouter = Router();
 
@@ -117,6 +130,12 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
 
   const { ingredients, ...recipeData } = body.data;
 
+  // If the user clears the image (imageUrl: null), also clear the Cloudinary asset.
+  const clearingImage = 'imageUrl' in recipeData && recipeData.imageUrl === null && recipe.imagePublicId;
+  const data: Prisma.RecipeUpdateInput = clearingImage
+    ? { ...recipeData, imagePublicId: null }
+    : recipeData;
+
   const updated = await prisma.$transaction(async (tx) => {
     if (ingredients !== undefined) {
       await tx.recipeIngredient.deleteMany({ where: { recipeId: recipe.id } });
@@ -124,11 +143,42 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
     }
     return tx.recipe.update({
       where: { id: recipe.id },
-      data: recipeData,
+      data,
       include: { ingredients: { orderBy: { id: 'asc' } } },
     });
   });
+  if (clearingImage && recipe.imagePublicId) void deleteRecipeImage(recipe.imagePublicId);
   res.json(updated);
+}));
+
+// POST /api/recipes/:recipeId/image — multipart upload to Cloudinary, persist URL.
+recipesRouter.post('/:recipeId/image', requireAuth, upload.single('image'), asyncHandler(async (req, res) => {
+  const recipe = await prisma.recipe.findUnique({ where: { id: req.params.recipeId } });
+  if (!recipe) { res.status(404).json({ error: 'Recipe not found' }); return; }
+
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId: recipe.householdId, clerkUserId: (req as AuthenticatedRequest).clerkUserId } },
+  });
+  if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
+
+  if (!req.file?.buffer) { res.status(400).json({ error: 'No image uploaded' }); return; }
+
+  try {
+    const { url, publicId } = await uploadRecipeImage(req.file.buffer, recipe.householdId);
+    const updated = await prisma.recipe.update({
+      where: { id: recipe.id },
+      data: { imageUrl: url, imagePublicId: publicId },
+      include: { ingredients: { orderBy: { id: 'asc' } } },
+    });
+    // Clean up the previous Cloudinary asset (best-effort, fire-and-forget).
+    if (recipe.imagePublicId && recipe.imagePublicId !== publicId) {
+      void deleteRecipeImage(recipe.imagePublicId);
+    }
+    res.json(updated);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Image upload failed';
+    res.status(500).json({ error: msg });
+  }
 }));
 
 // DELETE /api/recipes/:recipeId
@@ -142,6 +192,7 @@ recipesRouter.delete('/:recipeId', requireAuth, asyncHandler(async (req, res) =>
   if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
 
   await prisma.recipe.delete({ where: { id: recipe.id } });
+  if (recipe.imagePublicId) void deleteRecipeImage(recipe.imagePublicId);
   res.status(204).send();
 }));
 

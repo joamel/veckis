@@ -35,6 +35,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/clerk-expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
+import { useConfirm } from '../../src/context/ConfirmContext';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
@@ -63,6 +66,16 @@ export default function ShoppingListScreen() {
   }, [router]);
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
+  const confirm = useConfirm();
+  const showTip = useSpotlightTip();
+  const mergeTip = useOnceFlag('seen-merge-tip');
+  const mergeTipShownRef = useRef(false);
+  const dupeBadgeRef = useRef<View>(null);
+  const listActionsTip = useOnceFlag('seen-list-actions-tip');
+  const listActionsTipShownRef = useRef(false);
+  const listActionsBtnRef = useRef<View>(null);
+  const dragMergeTip = useOnceFlag('seen-drag-merge-tip');
+  const dragMergeTipShownRef = useRef(false);
   const { householdId } = useHousehold();
   const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
@@ -332,6 +345,49 @@ export default function ShoppingListScreen() {
     if (duplicateGroups.length === 0) hasPulsedDupes.current = false;
   }, [duplicateGroups.length]);
 
+  // First time the merge button pulses for the user: förklara vad den är.
+  useEffect(() => {
+    if (mergeTip.seen !== false || mergeTipShownRef.current) return;
+    if (duplicateGroups.length === 0) return;
+    mergeTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Slå ihop dubbletter',
+      message: 'Den här lilla knappen visas när vi ser likadana varor på listan. Tryck på den för att slå ihop dem till en vara med samlad mängd.',
+      targetRef: dupeBadgeRef,
+    });
+    if (shown) mergeTip.markSeen(); // else: retry next session
+  }, [duplicateGroups.length, mergeTip.seen, mergeTip.markSeen, showTip]);
+
+  // ListActions-tip (3-prickar): visas när listan har innehåll och inget annat
+  // tip körs. Förklarar att det gömmer sig fler val (rensa lista, byt butik,
+  // importera veckomeny, klarmarka alla …) bakom ikonen.
+  useEffect(() => {
+    if (listActionsTip.seen !== false || listActionsTipShownRef.current) return;
+    if (!list || list.items.length === 0) return;
+    listActionsTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Mer du kan göra med listan',
+      message: 'Tryck på prickarna för fler val: byt namn, byt butik, klarmarka alla, rensa listan eller importera veckomeny.',
+      targetRef: listActionsBtnRef,
+    });
+    if (shown) listActionsTip.markSeen();
+  }, [list, listActionsTip.seen, listActionsTip.markSeen, showTip]);
+
+  // Drag-merge-tip: visas efter list-actions-tipset när listan har minst två
+  // varor — förklarar att man kan dra en vara ovanpå en annan för att slå ihop
+  // dem manuellt (utöver den auto-detekterade dubblett-knappen).
+  useEffect(() => {
+    if (dragMergeTip.seen !== false || dragMergeTipShownRef.current) return;
+    if (listActionsTip.seen !== true) return; // seriellt efter list-actions
+    if (!list || list.items.length < 2) return;
+    dragMergeTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Slå ihop varor manuellt',
+      message: 'Du kan dra en vara ovanpå en annan för att slå ihop dem — praktiskt när vi inte hittade dubbletten automatiskt (olika namn, samma sak).',
+    });
+    if (shown) dragMergeTip.markSeen();
+  }, [list, listActionsTip.seen, dragMergeTip.seen, dragMergeTip.markSeen, showTip]);
+
   useEffect(() => {
     if (pendingOpenNextDupe.current && !mergeSheet && duplicateGroups.length > 0) {
       pendingOpenNextDupe.current = false;
@@ -374,7 +430,7 @@ export default function ShoppingListScreen() {
       setStaples(stapleList);
       setIngredientSuggestions(suggestions);
     } catch {
-      Alert.alert('Fel', 'Kunde inte ladda listan');
+      confirm({ title: 'Fel', message: 'Kunde inte ladda listan', buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -717,9 +773,11 @@ export default function ShoppingListScreen() {
 
   async function completeList() {
     if (!listId) return;
-    Alert.alert('Rensa lista?', 'Alla varor tas bort men listan finns kvar.', [
-      { text: 'Avbryt', style: 'cancel' },
-      { text: 'Rensa', style: 'destructive', onPress: () => {
+    confirm({
+      title: 'Rensa lista?',
+      message: 'Alla varor tas bort men listan finns kvar.',
+      buttons: [
+      { label: 'Rensa', style: 'destructive', onPress: () => {
         // Optimistic clear with undo: hide items from UI, defer backend call 5s
         const snapshot = list?.items ?? [];
         setList(prev => prev ? { ...prev, items: [] } : prev);
@@ -742,7 +800,9 @@ export default function ShoppingListScreen() {
           }
         }, 5000);
       }},
-    ]);
+      { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   function openStapleEditor(suggestion: StapleItem) {
@@ -799,19 +859,23 @@ export default function ShoppingListScreen() {
       setEditingStaple(null);
       return;
     }
-    Alert.alert('Ta bort basvara', `Ta bort "${capitalize(target.name)}" från basvarorna?`, [
-      { text: 'Avbryt', style: 'cancel' },
-      { text: 'Ta bort', style: 'destructive', onPress: async () => {
-        setStaples(prev => prev.filter(s2 => s2.id !== target.id));
-        setEditingStaple(null);
-        try {
-          await client.deleteStaple(target.id);
-        } catch (e) {
-          setStaples(prev => [...prev, target]);
-          showError(e, 'Kunde inte ta bort basvaran');
-        }
-      } },
-    ]);
+    confirm({
+      title: 'Ta bort basvara',
+      message: `Ta bort "${capitalize(target.name)}" från basvarorna?`,
+      buttons: [
+        { label: 'Ta bort', style: 'destructive', onPress: async () => {
+          setStaples(prev => prev.filter(s2 => s2.id !== target.id));
+          setEditingStaple(null);
+          try {
+            await client.deleteStaple(target.id);
+          } catch (e) {
+            setStaples(prev => [...prev, target]);
+            showError(e, 'Kunde inte ta bort basvaran');
+          }
+        } },
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   async function selectStore(storeId: string | null) {
@@ -853,7 +917,7 @@ export default function ShoppingListScreen() {
     const trimmed = newCustomCategory.trim();
     if (!trimmed) return;
     if (editCustomCategories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
-      Alert.alert('Finns redan', `Kategorin "${trimmed}" finns redan.`);
+      confirm({ title: 'Finns redan', message: `Kategorin "${trimmed}" finns redan.`, buttons: [{ label: 'OK' }] });
       return;
     }
     setEditCustomCategories(prev => [...prev, trimmed]);
@@ -927,7 +991,7 @@ export default function ShoppingListScreen() {
             <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
           </Pressable>
           {duplicateGroups.length > 0 && (
-            <Animated.View style={{ transform: [{ scale: dupeButtonScale }] }}>
+            <Animated.View ref={dupeBadgeRef} style={{ transform: [{ scale: dupeButtonScale }] }}>
               <Pressable
                 style={s.dupeBadge}
                 onPress={() => openMergeForDupes(duplicateGroups[0])}
@@ -1033,7 +1097,7 @@ export default function ShoppingListScreen() {
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fler åtgärder">
+        <Pressable ref={listActionsBtnRef} onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fler åtgärder">
           <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
       </View>

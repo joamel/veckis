@@ -26,6 +26,8 @@ import Animated, { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useAuth } from '@clerk/clerk-expo';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
@@ -83,6 +85,15 @@ export default function MenuScreen() {
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
+  const showTip = useSpotlightTip();
+  const menuNavTip = useOnceFlag('seen-menu-nav-tip');
+  const menuNavTipShownRef = useRef(false);
+  const templatesTip = useOnceFlag('seen-templates-tip');
+  const templatesTipShownRef = useRef(false);
+  const templatesBtnRef = useRef<View>(null);
+  const cartFabTip = useOnceFlag('seen-cart-fab-tip');
+  const cartFabTipShownRef = useRef(false);
+  const cartFabRef = useRef<View>(null);
   const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
@@ -486,6 +497,48 @@ export default function MenuScreen() {
   // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
   // transfer filters stay in sync (e.g. after clearing/removing items in a list).
   useEffect(() => onShoppingChanged(load), [load]);
+
+  // First time the user opens menyn with rätter inlagda: visa ett tip om att
+  // man kan dra rätter mellan dagar och svepa mellan veckor — annars missar
+  // många dessa funktioner helt.
+  useEffect(() => {
+    if (menuNavTip.seen !== false || menuNavTipShownRef.current) return;
+    if (menuItems.length === 0) return;
+    const shown = showTip({
+      title: 'Tips för veckomenyn',
+      message: 'Håll inne på en rätt för att dra den till en annan dag. Svep åt sidan för att byta vecka — eller använd pilarna högst upp.',
+    });
+    if (shown) { menuNavTipShownRef.current = true; menuNavTip.markSeen(); }
+  }, [menuItems, menuNavTip.seen, menuNavTip.markSeen, showTip]);
+
+  // Mallar-tip: visas EFTER att menu-nav-tipset är dismissat, så vi inte
+  // bombar användaren med två tips på en gång. Spotlightar mallar-knappen.
+  useEffect(() => {
+    if (templatesTip.seen !== false || templatesTipShownRef.current) return;
+    if (menuNavTip.seen !== true) return; // vänta tills nav-tipset är sett
+    if (menuItems.length === 0) return;
+    const shown = showTip({
+      title: 'Spara en vecka som mall',
+      message: 'Den här ikonen sparar nuvarande veckomeny som en mall — eller applicerar en sparad mall på en annan vecka. Praktiskt om du har återkommande "standardveckor".',
+      targetRef: templatesBtnRef,
+    });
+    if (shown) { templatesTipShownRef.current = true; templatesTip.markSeen(); }
+  }, [menuItems.length, menuNavTip.seen, templatesTip.seen, templatesTip.markSeen, showTip]);
+
+  // Cart FAB-tip: visas efter templates-tipset när det finns rätter kvar att
+  // överföra (= när FAB:en faktiskt renderas). Workflow-koppling som många missar.
+  useEffect(() => {
+    if (cartFabTip.seen !== false || cartFabTipShownRef.current) return;
+    if (templatesTip.seen !== true) return;
+    const fabVisible = menuItems.some(m => !recipeListMap[m.id]?.length);
+    if (!fabVisible) return;
+    const shown = showTip({
+      title: 'Överför veckomeny till inköpslistan',
+      message: 'Tryck på kundvagnen för att ladda hela veckans rätter in i en inköpslista. Du väljer rätter, anger vad du redan har hemma, och resten landar på listan.',
+      targetRef: cartFabRef,
+    });
+    if (shown) { cartFabTipShownRef.current = true; cartFabTip.markSeen(); }
+  }, [menuItems, recipeListMap, templatesTip.seen, cartFabTip.seen, cartFabTip.markSeen, showTip]);
   // Live menu updates: another device added/removed/moved a meal. load() refreshes
   // both the visible week and the allMenus snapshot that feeds neighbour pages.
   const menuReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1158,7 +1211,7 @@ export default function MenuScreen() {
         title="Meny"
         actionNode={
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable style={s.headerIconBtn} onPress={() => setShowTemplates(true)} accessibilityLabel="Veckomeny-mallar">
+            <Pressable ref={templatesBtnRef} style={s.headerIconBtn} onPress={() => setShowTemplates(true)} accessibilityLabel="Veckomeny-mallar">
               <Ionicons name="bookmarks-outline" size={18} color="#4f46e5" />
             </Pressable>
             <Pressable style={s.headerActionBtn} onPress={() => router.push('/recipes' as never)}>
@@ -1224,7 +1277,7 @@ export default function MenuScreen() {
       {/* Overför-FAB (kundkorg) — visas bara när minst en rätt i veckan inte är
           överförd än; dold annars (✓-taggen på korten visar redan status). */}
       {!dragState && menuItems.some(m => !recipeListMap[m.id]?.length) && (
-        <Pressable style={s.fab} onPress={transferWeekMenu} accessibilityLabel="Överför veckomeny till inköpslista">
+        <Pressable ref={cartFabRef} style={s.fab} onPress={transferWeekMenu} accessibilityLabel="Överför veckomeny till inköpslista">
           <Ionicons name="cart-outline" size={26} color="#fff" />
         </Pressable>
       )}

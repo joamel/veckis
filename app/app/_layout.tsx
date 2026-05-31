@@ -11,6 +11,7 @@ import { MemberFilterProvider } from '../src/context/MemberFilterContext';
 import { PendingRemovalProvider } from '../src/context/PendingRemovalContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { ConfirmProvider } from '../src/context/ConfirmContext';
+import { SpotlightTipProvider } from '../src/context/SpotlightTipContext';
 
 // Lock app text to designed size regardless of OS "larger text" setting.
 // Tablet sizing is handled separately via useTablet().fs() so we don't lose tablet scaling.
@@ -82,7 +83,9 @@ export default function RootLayout() {
               <PendingRemovalProvider>
                 <ToastProvider>
                   <ConfirmProvider>
-                    <NavigationGuard />
+                    <SpotlightTipProvider>
+                      <NavigationGuard />
+                    </SpotlightTipProvider>
                   </ConfirmProvider>
                 </ToastProvider>
               </PendingRemovalProvider>

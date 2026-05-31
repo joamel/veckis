@@ -18,11 +18,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useToast } from '../../src/context/ToastContext';
+import { useConfirm } from '../../src/context/ConfirmContext';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import type { RecipeIngredient } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
@@ -32,6 +38,12 @@ export default function RecipeDetailScreen() {
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
+  const { showError } = useToast();
+  const confirm = useConfirm();
+  const showTip = useSpotlightTip();
+  const recipeCartTip = useOnceFlag('seen-recipe-cart-tip');
+  const recipeCartTipShownRef = useRef(false);
+  const recipeCartRef = useRef<View>(null);
 
   const [recipe, setRecipe] = useState<RecipeWithIngredients | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +53,9 @@ export default function RecipeDetailScreen() {
   const [editDesc, setEditDesc] = useState('');
   const [editInstr, setEditInstr] = useState('');
   const [editImage, setEditImage] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [heroLoading, setHeroLoading] = useState(false);
+  const [heroError, setHeroError] = useState(false);
 
   // Ingredient editing
   const [editMode, setEditMode] = useState(false);
@@ -99,6 +114,20 @@ export default function RecipeDetailScreen() {
   const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<ReturnType<typeof deduplicateIngredients>>([]);
 
+  // Recipe-cart-tip: visa när receptet är laddat och har ingredienser så
+  // kundvagn-FAB:en faktiskt syns och är meningsfull att förklara.
+  useEffect(() => {
+    if (recipeCartTip.seen !== false || recipeCartTipShownRef.current) return;
+    if (!recipe || recipe.ingredients.length === 0) return;
+    recipeCartTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Lägg ingredienser i inköpslistan',
+      message: 'Kundvagnen längst ned till höger låter dig välja ingredienser och skicka dem direkt till en inköpslista — utan att gå via veckomenyn.',
+      targetRef: recipeCartRef,
+    });
+    if (shown) recipeCartTip.markSeen();
+  }, [recipe, recipeCartTip.seen, recipeCartTip.markSeen, showTip]);
+
   // Load ingredient suggestions once for autocomplete in edit mode
   useEffect(() => {
     if (!householdId) return;
@@ -139,7 +168,7 @@ export default function RecipeDetailScreen() {
         setTimeout(() => getRowRef(0).name?.focus(), 250);
       }
     } catch {
-      Alert.alert('Fel', 'Kunde inte ladda receptet');
+      confirm({ title: 'Fel', message: 'Kunde inte ladda receptet', buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -158,17 +187,21 @@ export default function RecipeDetailScreen() {
   function confirmDeleteRecipe() {
     if (!recipe) return;
     setShowMenu(false);
-    Alert.alert('Ta bort recept', `Ta bort "${recipe.title}"? Detta går inte att ångra.`, [
-      { text: 'Avbryt', style: 'cancel' },
-      { text: 'Ta bort', style: 'destructive', onPress: async () => {
+    confirm({
+      title: 'Ta bort recept',
+      message: `Ta bort "${recipe.title}"? Detta går inte att ångra.`,
+      buttons: [
+      { label: 'Ta bort', style: 'destructive', onPress: async () => {
         try {
           await client.deleteRecipe(recipe.id);
           router.back();
         } catch {
-          Alert.alert('Fel', 'Kunde inte ta bort receptet');
+          confirm({ title: 'Fel', message: 'Kunde inte ta bort receptet', buttons: [{ label: 'OK' }] });
         }
       } },
-    ]);
+      { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   // Edit everything (name, image, description, ingredients, instructions) inline
@@ -205,9 +238,9 @@ export default function RecipeDetailScreen() {
   async function saveRecipe() {
     if (!recipe) return;
     const t = editTitle.trim();
-    if (!t) { Alert.alert('Namn saknas', 'Receptet behöver ett namn.'); return; }
+    if (!t) { confirm({ title: 'Namn saknas', message: 'Receptet behöver ett namn.', buttons: [{ label: 'OK' }] }); return; }
     const img = editImage.trim();
-    if (img && !/^https?:\/\//i.test(img)) { Alert.alert('Ogiltig bild-URL', 'Bild-URL:en måste börja med http:// eller https://'); return; }
+    if (img && !/^https?:\/\//i.test(img)) { confirm({ title: 'Ogiltig bild-URL', message: 'Bild-URL:en måste börja med http:// eller https://', buttons: [{ label: 'OK' }] }); return; }
     setSaving(true);
     try {
       const ingredients = editIngredients
@@ -230,9 +263,41 @@ export default function RecipeDetailScreen() {
         router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}` as never);
       }
     } catch {
-      Alert.alert('Fel', 'Kunde inte spara receptet');
+      confirm({ title: 'Fel', message: 'Kunde inte spara receptet', buttons: [{ label: 'OK' }] });
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Pick a photo (camera or library), resize+compress locally to keep upload
+  // small, then send to backend → Cloudinary → recipe.imageUrl is updated.
+  async function pickAndUploadImage(source: 'library' | 'camera') {
+    if (!recipe) return;
+    try {
+      const perm = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        showError(new Error('permission_denied'), `Veckis behöver tillgång till ${source === 'camera' ? 'kameran' : 'bilder'}`);
+        return;
+      }
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.9 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.9 });
+      if (result.canceled || !result.assets[0]) return;
+      setUploadingImage(true);
+      const compressed = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 1200 } }],
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      const updated = await client.uploadRecipeImage(recipe.id, compressed.uri);
+      setRecipe(updated);
+      setEditImage(updated.imageUrl ?? '');
+    } catch (e) {
+      showError(e, 'Kunde inte ladda upp bilden');
+    } finally {
+      setUploadingImage(false);
     }
   }
 
@@ -247,7 +312,7 @@ export default function RecipeDetailScreen() {
     try {
       setLists(await client.getShoppingLists(householdId));
     } catch {
-      Alert.alert('Fel', 'Kunde inte ladda inköpslistor');
+      confirm({ title: 'Fel', message: 'Kunde inte ladda inköpslistor', buttons: [{ label: 'OK' }] });
     } finally {
       setLoadingLists(false);
     }
@@ -264,7 +329,7 @@ export default function RecipeDetailScreen() {
   async function doTransfer(listId: string) {
     if (!recipe) return;
     const selected = deduplicatedIngredients.filter(i => checkedIds.has(i.id));
-    if (selected.length === 0) { Alert.alert('Välj minst en ingrediens'); return; }
+    if (selected.length === 0) { confirm({ title: 'Välj minst en ingrediens', buttons: [{ label: 'OK' }] }); return; }
     setTransferring(true);
     setTransferringListId(listId);
     try {
@@ -276,12 +341,16 @@ export default function RecipeDetailScreen() {
         recipeId: recipe.id,
       })));
       setShowTransfer(false);
-      Alert.alert('Klart!', `${selected.length} ingredienser tillagda i listan`, [
-        { text: 'Gå till listan', onPress: () => router.push(`/shopping/${listId}` as never) },
-        { text: 'Stanna kvar', style: 'cancel' },
-      ]);
+      confirm({
+        title: 'Klart!',
+        message: `${selected.length} ingredienser tillagda i listan`,
+        buttons: [
+          { label: 'Gå till listan', onPress: () => router.push(`/shopping/${listId}` as never) },
+          { label: 'Stanna kvar', style: 'cancel' },
+        ],
+      });
     } catch {
-      Alert.alert('Fel', 'Kunde inte överföra ingredienser');
+      confirm({ title: 'Fel', message: 'Kunde inte överföra ingredienser', buttons: [{ label: 'OK' }] });
     } finally {
       setTransferring(false);
       setTransferringListId(null);
@@ -323,23 +392,66 @@ export default function RecipeDetailScreen() {
       >
         {editMode ? (
           <View style={{ gap: 8 }}>
-            <Text style={s.editLabel}>Bild-URL</Text>
-            <TextInput
-              style={s.renameInput}
-              value={editImage}
-              onChangeText={setEditImage}
-              placeholder="https://… (valfritt)"
-              placeholderTextColor="#9ca3af"
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-            />
+            <Text style={s.editLabel}>Bild</Text>
             {editImage.trim() ? (
               <Image source={{ uri: editImage.trim() }} style={s.heroImage} resizeMode="cover" />
-            ) : null}
+            ) : (
+              <View style={[s.heroImage, s.heroPlaceholder]}>
+                <Ionicons name="image-outline" size={32} color="#9ca3af" />
+              </View>
+            )}
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable
+                style={[s.imgBtn, { flex: 1 }, uploadingImage && s.imgBtnDisabled]}
+                onPress={() => pickAndUploadImage('library')}
+                disabled={uploadingImage}
+              >
+                <Ionicons name="images-outline" size={18} color="#4f46e5" />
+                <Text style={s.imgBtnText}>Galleri</Text>
+              </Pressable>
+              <Pressable
+                style={[s.imgBtn, { flex: 1 }, uploadingImage && s.imgBtnDisabled]}
+                onPress={() => pickAndUploadImage('camera')}
+                disabled={uploadingImage}
+              >
+                <Ionicons name="camera-outline" size={18} color="#4f46e5" />
+                <Text style={s.imgBtnText}>Kamera</Text>
+              </Pressable>
+              {editImage.trim() ? (
+                <Pressable
+                  style={[s.imgRemoveBtn, uploadingImage && s.imgBtnDisabled]}
+                  onPress={() => setEditImage('')}
+                  disabled={uploadingImage}
+                  accessibilityLabel="Ta bort bild"
+                >
+                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                </Pressable>
+              ) : null}
+            </View>
+            {uploadingImage ? <ActivityIndicator color="#4f46e5" /> : null}
           </View>
         ) : recipe.imageUrl ? (
-          <Image source={{ uri: recipe.imageUrl }} style={s.heroImage} resizeMode="cover" />
+          <View style={s.heroImage}>
+            <Image
+              source={{ uri: recipe.imageUrl }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+              onLoadStart={() => { setHeroLoading(true); setHeroError(false); }}
+              onLoadEnd={() => setHeroLoading(false)}
+              onError={() => { setHeroError(true); setHeroLoading(false); }}
+            />
+            {heroLoading && !heroError ? (
+              <View style={s.heroImageOverlay}>
+                <ActivityIndicator color="#4f46e5" />
+              </View>
+            ) : null}
+            {heroError ? (
+              <View style={[s.heroImageOverlay, s.heroPlaceholder]}>
+                <Ionicons name="image-outline" size={32} color="#9ca3af" />
+                <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 4 }}>Kunde inte ladda bilden</Text>
+              </View>
+            ) : null}
+          </View>
         ) : null}
 
         {/* Meta */}
@@ -642,7 +754,7 @@ export default function RecipeDetailScreen() {
 
       {/* Kundvagn-FAB — överför ingredienser till inköpslista (likt andra flikar) */}
       {!editMode && (
-        <Pressable style={s.fab} onPress={() => openTransfer()} accessibilityLabel="Lägg ingredienser i inköpslista">
+        <Pressable ref={recipeCartRef} style={s.fab} onPress={() => openTransfer()} accessibilityLabel="Lägg ingredienser i inköpslista">
           <Ionicons name="cart-outline" size={26} color="#fff" />
         </Pressable>
       )}
@@ -710,6 +822,12 @@ const s = StyleSheet.create({
   transferBtn: { padding: 8, backgroundColor: '#eef2ff', borderRadius: 8 },
   scroll: { padding: 20, gap: 16 },
   heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, backgroundColor: '#f3f4f6' },
+  heroPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  heroImageOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(243,244,246,0.6)' },
+  imgBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: '#eef2ff' },
+  imgBtnText: { color: '#4f46e5', fontWeight: '600', fontSize: 14 },
+  imgBtnDisabled: { opacity: 0.5 },
+  imgRemoveBtn: { width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#fee2e2' },
   editImagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: '#f3f4f6', marginTop: 8 },
   metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   metaChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', flexShrink: 0 },

@@ -20,6 +20,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
+import { useConfirm } from '../../src/context/ConfirmContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -34,6 +37,11 @@ export default function ShoppingScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { showError } = useToast();
+  const confirm = useConfirm();
+  const showTip = useSpotlightTip();
+  const storesTip = useOnceFlag('seen-stores-tip');
+  const storesTipShownRef = useRef(false);
+  const storesBtnRef = useRef<View>(null);
   const { medium } = useHaptics();
   const { fs, sp } = useTablet();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
@@ -67,7 +75,7 @@ export default function ShoppingScreen() {
       setLists(data);
       setStores(storeList);
     } catch {
-      Alert.alert('Fel', 'Kunde inte ladda inköpslistor');
+      confirm({ title: 'Fel', message: 'Kunde inte ladda inköpslistor', buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -76,6 +84,19 @@ export default function ShoppingScreen() {
   useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
   // Refresh when a list changes elsewhere (e.g. deferred clear in the detail view).
   useEffect(() => onShoppingChanged(load), [load]);
+
+  // Butiker-tip: visa första gången inköp-fliken öppnas — Butiker-knappen är
+  // entry till att redigera butiker, kategorier och kategoriordning.
+  useEffect(() => {
+    if (storesTip.seen !== false || storesTipShownRef.current) return;
+    storesTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Redigera butiker',
+      message: 'Tryck här för att lägga till butiker, byta deras kategorier eller flytta ordningen så listan matchar din affärs layout.',
+      targetRef: storesBtnRef,
+    });
+    if (shown) storesTip.markSeen();
+  }, [storesTip.seen, storesTip.markSeen, showTip]);
 
   // Live cross-device refresh: the backend emits shopping_list_updated on the
   // household socket when any list's items change, so the overview counts update
@@ -175,38 +196,46 @@ export default function ShoppingScreen() {
   }
 
   async function deleteStore(storeId: string, storeName: string) {
-    Alert.alert('Ta bort butik', `Ta bort "${storeName}"?`, [
-      { text: 'Avbryt', style: 'cancel' },
-      {
-        text: 'Ta bort', style: 'destructive',
-        onPress: async () => {
-          try {
-            await client.deleteStore(storeId);
-            setStores(prev => prev.filter(s => s.id !== storeId));
-          } catch (e) {
-            showError(e, 'Kunde inte ta bort butiken');
-          }
+    confirm({
+      title: 'Ta bort butik',
+      message: `Ta bort "${storeName}"?`,
+      buttons: [
+        {
+          label: 'Ta bort', style: 'destructive',
+          onPress: async () => {
+            try {
+              await client.deleteStore(storeId);
+              setStores(prev => prev.filter(s => s.id !== storeId));
+            } catch (e) {
+              showError(e, 'Kunde inte ta bort butiken');
+            }
+          },
         },
-      },
-    ]);
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   async function deleteList(listId: string, listName: string) {
-    Alert.alert('Ta bort lista', `Ta bort "${listName}"?`, [
-      { text: 'Avbryt', style: 'cancel' },
-      {
-        text: 'Ta bort',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await client.deleteShoppingList(listId);
-            setLists(prev => prev.filter(l => l.id !== listId));
-          } catch (e) {
-            showError(e, 'Kunde inte ta bort lista');
-          }
+    confirm({
+      title: 'Ta bort lista',
+      message: `Ta bort "${listName}"?`,
+      buttons: [
+        {
+          label: 'Ta bort',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await client.deleteShoppingList(listId);
+              setLists(prev => prev.filter(l => l.id !== listId));
+            } catch (e) {
+              showError(e, 'Kunde inte ta bort lista');
+            }
+          },
         },
-      },
-    ]);
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   if (loading) {
@@ -217,9 +246,18 @@ export default function ShoppingScreen() {
     <SafeAreaView style={styles.container}>
       <ScreenHeader
         title="Inköp"
-        actionIcon="storefront-outline"
-        actionLabel="Butiker"
-        onActionPress={() => setShowStoresModal(true)}
+        actionNode={
+          <Pressable
+            ref={storesBtnRef}
+            style={styles.storesHeaderBtn}
+            onPress={() => setShowStoresModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Butiker"
+          >
+            <Ionicons name="storefront-outline" size={16} color="#4f46e5" />
+            <Text style={styles.storesHeaderBtnText}>Butiker</Text>
+          </Pressable>
+        }
       />
 
       <FlatList
@@ -452,6 +490,8 @@ export default function ShoppingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
+  storesHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
+  storesHeaderBtnText: { fontWeight: '600', color: '#4f46e5', fontSize: 13 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { padding: 16, gap: 10 },
   listEmpty: { flex: 1 },

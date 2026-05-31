@@ -33,7 +33,14 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-notifications",
-      "./plugins/withDisableAutofill"
+      "./plugins/withDisableAutofill",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Veckis behöver tillgång till dina bilder för att välja receptbild.",
+          "cameraPermission": "Veckis behöver kameran för att ta en receptbild."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

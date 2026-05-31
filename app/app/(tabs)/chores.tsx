@@ -27,6 +27,8 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useMemberFilter } from '../../src/context/MemberFilterContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -125,7 +127,7 @@ interface RecurringStatus {
 
 // Forgiving model: the only actionable occurrence is the latest one on/before
 // today (grace lasts until the next occurrence). Older un-done occurrences are
-// silently "missed" — shown in history, never nagged about.
+// silently "missed" — shown in history, no repeat reminders.
 function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringStatus {
   const pattern = choreToPattern(chore);
   const completionByDate = new Map(chore.completions.map(c => [completionDate(c), c]));
@@ -230,6 +232,12 @@ export default function ChoresScreen() {
   const [toastMessage, setToastMessage] = useState('');
   const { showError } = useToast();
   const confirm = useConfirm();
+  const showTip = useSpotlightTip();
+  const forgivingTip = useOnceFlag('seen-forgiving-tip');
+  const tipShownRef = useRef(false);
+  const filterTip = useOnceFlag('seen-filter-tip');
+  const filterTipShownRef = useRef(false);
+  const filterBtnRef = useRef<View>(null);
   const router = useRouter();
   const deeplinkParams = useLocalSearchParams<{ choreId?: string }>();
   const openedChoreParamRef = useRef<string | null>(null);
@@ -345,6 +353,33 @@ export default function ChoresScreen() {
       router.setParams({ choreId: undefined });
     }
   }, [deeplinkParams.choreId, chores, router]);
+
+  // First time the user sees a "förfallen" (overdue) recurring chore: show a
+  // one-time tip explaining the forgiving model so they don't think it's a bug
+  // that the app stops reminding them. Flag is persisted in secure-store via useOnceFlag.
+  useEffect(() => {
+    if (forgivingTip.seen !== false || tipShownRef.current) return;
+    const hasOverdue = chores.some(c => !isOnce(c) && recurringStatus(c).state === 'overdue');
+    if (!hasOverdue) return;
+    const shown = showTip({
+      title: 'Inga fler påminnelser för missade sysslor',
+      message: 'En återkommande syssla som missades en dag stannar bara i historiken — du får ingen upprepad påminnelse om den. Nästa tillfälle dyker upp som vanligt. Fäll ut sysslan för att se historiken (✓ klar / – missad).',
+    });
+    if (shown) { tipShownRef.current = true; forgivingTip.markSeen(); }
+  }, [chores, forgivingTip.seen, forgivingTip.markSeen, showTip]);
+
+  // Filter-tip i sysslor (samma flagga som schedule).
+  useEffect(() => {
+    if (filterTip.seen !== false || filterTipShownRef.current) return;
+    if (members.length === 0) return;
+    filterTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Filtrera på person',
+      message: 'Tryck här för att bara visa sysslor (och aktiviteter) för en eller flera personer. Filtret gäller både sysslor-fliken och kalendern.',
+      targetRef: filterBtnRef,
+    });
+    if (shown) filterTip.markSeen();
+  }, [members.length, filterTip.seen, filterTip.markSeen, showTip]);
 
   // Completed chores sorted to the bottom, with optional member filter
   const sortedChores = useMemo(() => {
@@ -556,7 +591,7 @@ export default function ChoresScreen() {
       { label: assigned.displayName, onPress: () => onPick(assigned.id) },
     ];
     if (selfMember && selfMember.id !== assigned.id) {
-      buttons.push({ label: `${selfMember.displayName} (jag)`, onPress: () => onPick(selfMember.id) });
+      buttons.push({ label: `${selfMember.displayName} (du)`, onPress: () => onPick(selfMember.id) });
     }
     buttons.push({ label: 'Avbryt', style: 'cancel' });
     confirm({ title: `Vem gjorde "${chore.title}"?`, buttons });
@@ -641,7 +676,7 @@ export default function ChoresScreen() {
               </Pressable>
             )}
             {members.length > 0 && (
-              <Pressable style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive]} onPress={() => setShowFilterModal(true)}>
+              <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive]} onPress={() => setShowFilterModal(true)}>
                 <Ionicons name="person-outline" size={14} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
                 <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive]}>Filter</Text>
                 {filterMemberIds.length > 0 && (
@@ -772,11 +807,6 @@ export default function ChoresScreen() {
                             ? (performerName ? ` · ${performerName}` : '')
                             : o.isCurrent ? ' · att göra' : ' · missad'}
                         </Text>
-                        {o.isCurrent && !o.done && (
-                          <Pressable style={s.historyDoBtn} onPress={() => pickPerformer(item, performer => completeOccurrence(item, o.date, performer))} hitSlop={6}>
-                            <Text style={s.historyDoBtnText}>Klar</Text>
-                          </Pressable>
-                        )}
                       </View>
                       );
                     })
