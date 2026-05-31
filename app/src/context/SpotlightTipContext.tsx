@@ -23,20 +23,32 @@ export function useSpotlightTip(): ShowTipFn {
 
 export function SpotlightTipProvider({ children }: { children: ReactNode }) {
   const [opts, setOpts] = useState<SpotlightOptions | null>(null);
-  // Ref shadows state so concurrent callers see the latest value synchronously
-  // (state updates are async, so two near-simultaneous show() calls would both
-  // see opts === null without this and both return true).
+  const [hasNext, setHasNext] = useState(false);
+  // Refs shadow state so concurrent callers see the latest value synchronously
+  // (state updates are async). Multiple tip useEffects can fire same render —
+  // we queue them in order so the user gets a "Nästa tips →"-button to chain.
   const optsRef = useRef<SpotlightOptions | null>(null);
+  const queueRef = useRef<SpotlightOptions[]>([]);
 
   const show = useCallback<ShowTipFn>((o) => {
-    if (optsRef.current !== null) return false;
-    optsRef.current = o;
-    setOpts(o);
+    // Dedup by title so a re-running effect doesn't enqueue the same tip twice.
+    if (optsRef.current?.title === o.title) return true;
+    if (queueRef.current.some(q => q.title === o.title)) return true;
+    if (optsRef.current === null) {
+      optsRef.current = o;
+      setOpts(o);
+    } else {
+      queueRef.current.push(o);
+      setHasNext(true);
+    }
     return true;
   }, []);
+
   const dismiss = useCallback(() => {
-    optsRef.current = null;
-    setOpts(null);
+    const next = queueRef.current.shift() ?? null;
+    optsRef.current = next;
+    setOpts(next);
+    setHasNext(queueRef.current.length > 0);
   }, []);
 
   return (
@@ -47,7 +59,9 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
         title={opts?.title ?? ''}
         message={opts?.message}
         targetRef={opts?.targetRef}
-        actionLabel={opts?.actionLabel}
+        // If more tips are queued, the dismiss button advances; show that with
+        // a "→" so the user knows tapping moves on rather than closing.
+        actionLabel={opts?.actionLabel ?? (hasNext ? 'Nästa tips →' : 'Förstått')}
         onDismiss={dismiss}
       />
     </SpotlightTipContext.Provider>
