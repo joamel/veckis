@@ -126,7 +126,7 @@ interface RecurringStatus {
 
 // Forgiving model: the only actionable occurrence is the latest one on/before
 // today (grace lasts until the next occurrence). Older un-done occurrences are
-// silently "missed" — shown in history, never nagged about.
+// silently "missed" — shown in history, no repeat reminders.
 function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringStatus {
   const pattern = choreToPattern(chore);
   const completionByDate = new Map(chore.completions.map(c => [completionDate(c), c]));
@@ -351,15 +351,15 @@ export default function ChoresScreen() {
 
   // First time the user sees a "förfallen" (overdue) recurring chore: show a
   // one-time tip explaining the forgiving model so they don't think it's a bug
-  // that the app stops nagging. Flag is persisted in secure-store via useOnceFlag.
+  // that the app stops reminding them. Flag is persisted in secure-store via useOnceFlag.
   useEffect(() => {
     if (forgivingTip.seen !== false || tipShownRef.current) return;
     const hasOverdue = chores.some(c => !isOnce(c) && recurringStatus(c).state === 'overdue');
     if (!hasOverdue) return;
     tipShownRef.current = true;
     confirm({
-      title: 'Förfallna sysslor naggar inte',
-      message: 'En återkommande syssla som missades en dag stannar bara i historiken — appen fortsätter inte nagga. Nästa tillfälle dyker upp som vanligt. Fäll ut sysslan för att se historiken (✓ klar / – missad).',
+      title: 'Missade sysslor påminner inte mer',
+      message: 'En återkommande syssla som missades en dag stannar bara i historiken — du får ingen upprepad påminnelse om den. Nästa tillfälle dyker upp som vanligt. Fäll ut sysslan för att se historiken (✓ klar / – missad).',
       buttons: [{ label: 'Förstått', onPress: forgivingTip.markSeen }],
     });
   }, [chores, forgivingTip.seen, forgivingTip.markSeen, confirm]);

@@ -176,7 +176,7 @@ async function runOverdueChores(now: LocalNow): Promise<void> {
     for (const userId of recipients) {
       // Forgiving model: exactly one gentle nudge per occurrence (dedupe key is
       // chore+date) and only on the occurrence's own day — so a missed chore is
-      // never nagged about on the following days; it just quietly returns next
+      // not reminded about on the following days; it just quietly returns next
       // time. No accumulating "overdue" guilt pile.
       const key = `chore:${c.id}:${now.dateStr}:${userId}`;
       if (await claimNotification(key)) {
