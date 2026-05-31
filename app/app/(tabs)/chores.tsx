@@ -27,6 +27,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useMemberFilter } from '../../src/context/MemberFilterContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -231,6 +232,7 @@ export default function ChoresScreen() {
   const [toastMessage, setToastMessage] = useState('');
   const { showError } = useToast();
   const confirm = useConfirm();
+  const showTip = useSpotlightTip();
   const forgivingTip = useOnceFlag('seen-forgiving-tip');
   const tipShownRef = useRef(false);
   const router = useRouter();
@@ -357,12 +359,12 @@ export default function ChoresScreen() {
     const hasOverdue = chores.some(c => !isOnce(c) && recurringStatus(c).state === 'overdue');
     if (!hasOverdue) return;
     tipShownRef.current = true;
-    confirm({
+    showTip({
       title: 'Inga fler påminnelser för missade sysslor',
       message: 'En återkommande syssla som missades en dag stannar bara i historiken — du får ingen upprepad påminnelse om den. Nästa tillfälle dyker upp som vanligt. Fäll ut sysslan för att se historiken (✓ klar / – missad).',
-      buttons: [{ label: 'Förstått', onPress: forgivingTip.markSeen }],
     });
-  }, [chores, forgivingTip.seen, forgivingTip.markSeen, confirm]);
+    forgivingTip.markSeen();
+  }, [chores, forgivingTip.seen, forgivingTip.markSeen, showTip]);
 
   // Completed chores sorted to the bottom, with optional member filter
   const sortedChores = useMemo(() => {

@@ -26,6 +26,7 @@ import Animated, { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useAuth } from '@clerk/clerk-expo';
@@ -84,8 +85,12 @@ export default function MenuScreen() {
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
+  const showTip = useSpotlightTip();
   const menuNavTip = useOnceFlag('seen-menu-nav-tip');
   const menuNavTipShownRef = useRef(false);
+  const templatesTip = useOnceFlag('seen-templates-tip');
+  const templatesTipShownRef = useRef(false);
+  const templatesBtnRef = useRef<View>(null);
   const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
@@ -497,12 +502,27 @@ export default function MenuScreen() {
     if (menuNavTip.seen !== false || menuNavTipShownRef.current) return;
     if (menuItems.length === 0) return;
     menuNavTipShownRef.current = true;
-    confirm({
+    showTip({
       title: 'Tips för veckomenyn',
       message: 'Håll inne på en rätt för att dra den till en annan dag. Svep åt sidan för att byta vecka — eller använd pilarna högst upp.',
-      buttons: [{ label: 'Förstått', onPress: menuNavTip.markSeen }],
     });
-  }, [menuItems, menuNavTip.seen, menuNavTip.markSeen, confirm]);
+    menuNavTip.markSeen();
+  }, [menuItems, menuNavTip.seen, menuNavTip.markSeen, showTip]);
+
+  // Mallar-tip: visas EFTER att menu-nav-tipset är dismissat, så vi inte
+  // bombar användaren med två tips på en gång. Spotlightar mallar-knappen.
+  useEffect(() => {
+    if (templatesTip.seen !== false || templatesTipShownRef.current) return;
+    if (menuNavTip.seen !== true) return; // vänta tills nav-tipset är sett
+    if (menuItems.length === 0) return;
+    templatesTipShownRef.current = true;
+    showTip({
+      title: 'Spara en vecka som mall',
+      message: 'Den här ikonen sparar nuvarande veckomeny som en mall — eller applicerar en sparad mall på en annan vecka. Praktiskt om du har återkommande "standardveckor".',
+      targetRef: templatesBtnRef,
+    });
+    templatesTip.markSeen();
+  }, [menuItems.length, menuNavTip.seen, templatesTip.seen, templatesTip.markSeen, showTip]);
   // Live menu updates: another device added/removed/moved a meal. load() refreshes
   // both the visible week and the allMenus snapshot that feeds neighbour pages.
   const menuReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1175,7 +1195,7 @@ export default function MenuScreen() {
         title="Meny"
         actionNode={
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable style={s.headerIconBtn} onPress={() => setShowTemplates(true)} accessibilityLabel="Veckomeny-mallar">
+            <Pressable ref={templatesBtnRef} style={s.headerIconBtn} onPress={() => setShowTemplates(true)} accessibilityLabel="Veckomeny-mallar">
               <Ionicons name="bookmarks-outline" size={18} color="#4f46e5" />
             </Pressable>
             <Pressable style={s.headerActionBtn} onPress={() => router.push('/recipes' as never)}>

@@ -36,6 +36,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
@@ -66,8 +67,10 @@ export default function ShoppingListScreen() {
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
+  const showTip = useSpotlightTip();
   const mergeTip = useOnceFlag('seen-merge-tip');
   const mergeTipShownRef = useRef(false);
+  const dupeBadgeRef = useRef<View>(null);
   const { householdId } = useHousehold();
   const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
@@ -342,12 +345,17 @@ export default function ShoppingListScreen() {
     if (mergeTip.seen !== false || mergeTipShownRef.current) return;
     if (duplicateGroups.length === 0) return;
     mergeTipShownRef.current = true;
-    confirm({
-      title: 'Slå ihop dubbletter',
-      message: 'Den lilla knappen som dök upp visas när vi ser likadana varor på listan. Tryck på den för att slå ihop dem till en vara med samlad mängd.',
-      buttons: [{ label: 'Förstått', onPress: mergeTip.markSeen }],
-    });
-  }, [duplicateGroups.length, mergeTip.seen, mergeTip.markSeen, confirm]);
+    // Small delay so the dupe button's pulse animation has measurable bounds
+    // before SpotlightTip reads measureInWindow.
+    setTimeout(() => {
+      showTip({
+        title: 'Slå ihop dubbletter',
+        message: 'Den här lilla knappen visas när vi ser likadana varor på listan. Tryck på den för att slå ihop dem till en vara med samlad mängd.',
+        targetRef: dupeBadgeRef,
+      });
+      mergeTip.markSeen();
+    }, 1500); // wait for the existing pulse to finish so user sees it pulse first
+  }, [duplicateGroups.length, mergeTip.seen, mergeTip.markSeen, showTip]);
 
   useEffect(() => {
     if (pendingOpenNextDupe.current && !mergeSheet && duplicateGroups.length > 0) {
@@ -952,7 +960,7 @@ export default function ShoppingListScreen() {
             <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
           </Pressable>
           {duplicateGroups.length > 0 && (
-            <Animated.View style={{ transform: [{ scale: dupeButtonScale }] }}>
+            <Animated.View ref={dupeBadgeRef} style={{ transform: [{ scale: dupeButtonScale }] }}>
               <Pressable
                 style={s.dupeBadge}
                 onPress={() => openMergeForDupes(duplicateGroups[0])}
