@@ -126,12 +126,18 @@ export function SpotlightTip({ visible, targetRef, title, message, actionLabel =
               pointerEvents="none"
               style={{
                 position: 'absolute',
-                top: rect.y + rect.height / 2 - 22,
-                left: rect.x + rect.width / 2 - 22,
-                width: 44,
-                height: 44,
+                // Center a 56×56 finger view on the rect center.
+                top: rect.y + rect.height / 2 - 28,
+                left: rect.x + rect.width / 2 - 28,
+                width: 56,
+                height: 56,
                 alignItems: 'center',
                 justifyContent: 'center',
+                // zIndex + elevation: keep the finger above the full-screen
+                // dismiss Pressable that renders later in the JSX (Android
+                // stacks absolute siblings by elevation, not JSX order).
+                zIndex: 1000,
+                elevation: 20,
                 transform: [
                   { translateX: swipeAnim.interpolate({ inputRange: [0, 1], outputRange: [-swipeAmpX, swipeAmpX] }) },
                   { translateY: swipeAnim.interpolate({ inputRange: [0, 1], outputRange: [-swipeAmpY, swipeAmpY] }) },
@@ -141,9 +147,9 @@ export function SpotlightTip({ visible, targetRef, title, message, actionLabel =
               <View style={s.fingerHalo} />
               <Ionicons
                 name="hand-left-outline"
-                size={36}
+                size={40}
                 color="#fff"
-                style={swipeDemo === 'horizontal' ? { transform: [{ rotate: '-15deg' }] } : undefined}
+                style={[s.fingerIcon, swipeDemo === 'horizontal' ? { transform: [{ rotate: '-15deg' }] } : null]}
               />
             </Animated.View>
           ) : null}
@@ -198,10 +204,23 @@ const s = StyleSheet.create({
   },
   fingerHalo: {
     position: 'absolute',
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(167, 139, 250, 0.75)',
+    top: 0,
+    left: 0,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#7c3aed',
+    opacity: 0.95,
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
+  },
+  fingerIcon: {
+    // Sits on top of the halo (zIndex on the icon for iOS where the halo
+    // would otherwise overdraw the icon because both are absolute siblings).
+    zIndex: 1,
   },
   title: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 6, textAlign: 'center' },
   message: { fontSize: 14, color: '#374151', marginBottom: 14, textAlign: 'center', lineHeight: 20 },
