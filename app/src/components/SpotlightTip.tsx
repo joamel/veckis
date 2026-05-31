@@ -25,22 +25,34 @@ export function SpotlightTip({ visible, targetRef, title, message, actionLabel =
   const pulse = useRef(new Animated.Value(0)).current;
   const screen = Dimensions.get('window');
 
-  // Measure the target after layout has settled. Falls back gracefully to
-  // no-target mode if the ref hasn't mounted or the element is off-screen.
+  // Measure the target after layout has settled. The target may not be laid
+  // out yet when the tip useEffect fires (especially inside headers that mount
+  // alongside the screen) — retry a few times before giving up. Falls back to
+  // no-target mode if the ref never resolves to non-zero dimensions.
   useEffect(() => {
     if (!visible) { setRect(null); return; }
     if (!targetRef?.current) { setRect(null); return; }
-    const id = setTimeout(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+    const attempt = (n: number) => {
+      if (cancelled) return;
       targetRef.current?.measureInWindow((x, y, width, height) => {
-        if (width <= 0 || height <= 0) { setRect(null); return; }
-        // If clearly off-screen, skip the spotlight cutout.
-        if (y + height < 0 || y > screen.height || x + width < 0 || x > screen.width) {
-          setRect(null); return;
+        if (cancelled) return;
+        const offscreen = y + height < 0 || y > screen.height || x + width < 0 || x > screen.width;
+        if (width > 0 && height > 0 && !offscreen) {
+          setRect({ x, y, width, height });
+          return;
         }
-        setRect({ x, y, width, height });
+        // Retry while layout is still settling — up to ~600 ms total.
+        if (n < 6) {
+          timer = setTimeout(() => attempt(n + 1), 100);
+        } else {
+          setRect(null);
+        }
       });
-    }, 80);
-    return () => clearTimeout(id);
+    };
+    timer = setTimeout(() => attempt(0), 100);
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [visible, targetRef, screen.height, screen.width]);
 
   // Pulse the ring while a spotlight is shown.
