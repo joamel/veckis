@@ -357,7 +357,7 @@ export default function ChoresScreen() {
   // First time the user sees a "förfallen" (overdue) recurring chore: show a
   // one-time tip explaining the forgiving model so they don't think it's a bug
   // that the app stops reminding them. Flag is persisted in secure-store via useOnceFlag.
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (forgivingTip.seen !== false || tipShownRef.current) return;
     const hasOverdue = chores.some(c => !isOnce(c) && recurringStatus(c).state === 'overdue');
     if (!hasOverdue) return;
@@ -366,7 +366,7 @@ export default function ChoresScreen() {
       message: 'En återkommande syssla som missades en dag stannar bara i historiken — du får ingen upprepad påminnelse om den. Nästa tillfälle dyker upp som vanligt. Fäll ut sysslan för att se historiken (✓ klar / – missad).',
     });
     if (shown) { tipShownRef.current = true; forgivingTip.markSeen(); }
-  }, [chores, forgivingTip.seen, forgivingTip.markSeen, showTip]);
+  }, [chores, forgivingTip.seen, forgivingTip.markSeen, showTip]));
 
   // Filter-tip i sysslor — useFocusEffect så det bara fyrar från aktiv flik.
   // Samma flagga som schedule så bara en av flikarna visar tipset.

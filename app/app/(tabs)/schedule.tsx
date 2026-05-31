@@ -153,6 +153,8 @@ export default function ScheduleScreen() {
   const filterTip = useOnceFlag('seen-filter-tip');
   const filterTipShownRef = useRef(false);
   const filterBtnRef = useRef<View>(null);
+  const calendarSwipeTip = useOnceFlag('seen-calendar-swipe-tip');
+  const calendarSwipeTipShownRef = useRef(false);
   const { getToken } = useAuth();
   const { householdId } = useHousehold();
 
@@ -344,6 +346,19 @@ export default function ScheduleScreen() {
   }, []));
 
   useEffect(() => { load(); }, [load]);
+
+  // Kalender-swipe-tip: två dolda gester i kalendern — svep på veckodags-baren
+  // byter vecka, svep på själva dag-innehållet byter dag. Centrerat (ingen
+  // ring, eftersom det är gester inte en knapp).
+  useFocusEffect(useCallback(() => {
+    if (calendarSwipeTip.seen !== false || calendarSwipeTipShownRef.current) return;
+    calendarSwipeTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Två svep i kalendern',
+      message: 'Svep på veckodags-raden högst upp för att byta vecka. Svep på själva dag-innehållet för att byta dag.',
+    });
+    if (shown) calendarSwipeTip.markSeen();
+  }, [calendarSwipeTip.seen, calendarSwipeTip.markSeen, showTip]));
 
   // Filter-tip: använder useFocusEffect så det bara fyrar från den AKTIVA
   // fliken. Sysslor-fliken delar flagga `seen-filter-tip` — vem som ser

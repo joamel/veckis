@@ -55,7 +55,7 @@ export default function SettingsScreen() {
 
   // Notis-klocka-tip: visa första gången inställningar öppnas (klockan i högra
   // hörnet är nyare och inte alltid uppenbar).
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (notifClockTip.seen !== false || notifClockTipShownRef.current) return;
     notifClockTipShownRef.current = true;
     const shown = showTip({
@@ -64,7 +64,7 @@ export default function SettingsScreen() {
       targetRef: notifClockBtnRef,
     });
     if (shown) notifClockTip.markSeen();
-  }, [notifClockTip.seen, notifClockTip.markSeen, showTip]);
+  }, [notifClockTip.seen, notifClockTip.markSeen, showTip]));
 
   useFocusEffect(useCallback(() => {
     return () => {
@@ -164,7 +164,7 @@ export default function SettingsScreen() {
   // Admin-tip: bara för admins, efter notis-tipset. Förklarar att "Redigera"
   // låser upp admin-åtgärder (byt hushållsnamn, hantera medlemmar, dela ut
   // admin, ta bort hushållet).
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (adminTip.seen !== false || adminTipShownRef.current) return;
     if (!isAdmin) return;
     if (notifClockTip.seen !== true) return;
@@ -175,7 +175,7 @@ export default function SettingsScreen() {
       targetRef: adminEditBtnRef,
     });
     if (shown) adminTip.markSeen();
-  }, [isAdmin, notifClockTip.seen, adminTip.seen, adminTip.markSeen, showTip]);
+  }, [isAdmin, notifClockTip.seen, adminTip.seen, adminTip.markSeen, showTip]));
 
   // Invite code
   async function generateInvite() {

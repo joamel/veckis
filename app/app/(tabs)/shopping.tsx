@@ -85,9 +85,10 @@ export default function ShoppingScreen() {
   // Refresh when a list changes elsewhere (e.g. deferred clear in the detail view).
   useEffect(() => onShoppingChanged(load), [load]);
 
-  // Butiker-tip: visa första gången inköp-fliken öppnas — Butiker-knappen är
-  // entry till att redigera butiker, kategorier och kategoriordning.
-  useEffect(() => {
+  // Butiker-tip: useFocusEffect så det bara fyrar när inköp-fliken faktiskt
+  // är aktiv. useEffect skulle fyra direkt när tabben mountar i bakgrunden
+  // (default-fliken är kalender) → tipset poppade men ring missade målet.
+  useFocusEffect(useCallback(() => {
     if (storesTip.seen !== false || storesTipShownRef.current) return;
     storesTipShownRef.current = true;
     const shown = showTip({
@@ -96,7 +97,7 @@ export default function ShoppingScreen() {
       targetRef: storesBtnRef,
     });
     if (shown) storesTip.markSeen();
-  }, [storesTip.seen, storesTip.markSeen, showTip]);
+  }, [storesTip.seen, storesTip.markSeen, showTip]));
 
   // Live cross-device refresh: the backend emits shopping_list_updated on the
   // household socket when any list's items change, so the overview counts update

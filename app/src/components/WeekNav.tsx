@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import { useTablet } from '../hooks/useTablet';
 import { useOnceFlag } from '../hooks/useOnceFlag';
 import { useSpotlightTip } from '../context/SpotlightTipContext';
@@ -20,10 +21,14 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
   const dateTip = useOnceFlag('seen-weeknav-date-tip');
   const dateTipShownRef = useRef(false);
   const showTip = useSpotlightTip();
+  const isFocused = useIsFocused();
 
-  // Datepicker via week-label tap is hidden — fire a tip once when WeekNav
-  // mounts with a date-picker handler wired (calendar/menu both pass one).
+  // Datepicker via week-label tap is hidden — fire a tip once when WeekNav is
+  // visible (host screen focused) with a date-picker handler wired. WeekNav
+  // renders in both calendar and menu; useIsFocused gates so only the active
+  // tab's instance fires, otherwise the ring would target the wrong screen.
   useEffect(() => {
+    if (!isFocused) return;
     if (dateTip.seen !== false || dateTipShownRef.current) return;
     if (!onPickDate) return;
     dateTipShownRef.current = true;
@@ -33,7 +38,7 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
       targetRef: labelBtnRef,
     });
     if (shown) dateTip.markSeen();
-  }, [onPickDate, dateTip.seen, dateTip.markSeen, showTip]);
+  }, [isFocused, onPickDate, dateTip.seen, dateTip.markSeen, showTip]);
 
   return (
     <View style={[s.container, { paddingHorizontal: sp(12), paddingVertical: sp(10) }]}>

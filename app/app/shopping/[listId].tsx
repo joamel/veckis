@@ -74,8 +74,6 @@ export default function ShoppingListScreen() {
   const listActionsTip = useOnceFlag('seen-list-actions-tip');
   const listActionsTipShownRef = useRef(false);
   const listActionsBtnRef = useRef<View>(null);
-  const dragMergeTip = useOnceFlag('seen-drag-merge-tip');
-  const dragMergeTipShownRef = useRef(false);
   const { householdId } = useHousehold();
   const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
@@ -372,21 +370,6 @@ export default function ShoppingListScreen() {
     });
     if (shown) listActionsTip.markSeen();
   }, [list, listActionsTip.seen, listActionsTip.markSeen, showTip]);
-
-  // Drag-merge-tip: visas efter list-actions-tipset när listan har minst två
-  // varor — förklarar att man kan dra en vara ovanpå en annan för att slå ihop
-  // dem manuellt (utöver den auto-detekterade dubblett-knappen).
-  useEffect(() => {
-    if (dragMergeTip.seen !== false || dragMergeTipShownRef.current) return;
-    if (listActionsTip.seen !== true) return; // seriellt efter list-actions
-    if (!list || list.items.length < 2) return;
-    dragMergeTipShownRef.current = true;
-    const shown = showTip({
-      title: 'Slå ihop varor manuellt',
-      message: 'Du kan dra en vara ovanpå en annan för att slå ihop dem — praktiskt när vi inte hittade dubbletten automatiskt (olika namn, samma sak).',
-    });
-    if (shown) dragMergeTip.markSeen();
-  }, [list, listActionsTip.seen, dragMergeTip.seen, dragMergeTip.markSeen, showTip]);
 
   useEffect(() => {
     if (pendingOpenNextDupe.current && !mergeSheet && duplicateGroups.length > 0) {
