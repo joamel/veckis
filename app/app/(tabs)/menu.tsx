@@ -510,6 +510,7 @@ export default function MenuScreen() {
     const shown = showTip({
       title: 'Tips för veckomenyn',
       message: 'Håll inne på en rätt för att dra den till en annan dag. Svep åt sidan för att byta vecka — eller använd pilarna högst upp.',
+      swipeDemo: 'horizontal',
     });
     if (shown) { menuNavTipShownRef.current = true; menuNavTip.markSeen(); }
   }, [menuItems, menuNavTip.seen, menuNavTip.markSeen, showTip]));

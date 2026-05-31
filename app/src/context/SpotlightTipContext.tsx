@@ -1,48 +1,59 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
-import { SpotlightTip, type SpotlightOptions } from '../components/SpotlightTip';
+import { SpotlightTip, type SpotlightOptions, type SpotlightRect } from '../components/SpotlightTip';
 
-/** Returns true when the tip is shown; false if another tip is already up (so
- *  callers can skip `markSeen` and retry on a future render / session). */
+/** Returns true (the tip was accepted — either shown now or queued). Pre-
+ *  measurement of `targetRef` happens BEFORE the modal opens, so the ring is
+ *  guaranteed to line up when the tip becomes visible. */
 type ShowTipFn = (opts: SpotlightOptions) => boolean;
 
 const SpotlightTipContext = createContext<ShowTipFn | null>(null);
 
-/**
- * Open an onboarding tip — full-screen dim + optional spotlight ring around a
- * referenced UI element. Use for "first time you see this feature" hints; pair
- * with `useOnceFlag('seen-…')` so each fires at most once per device.
- *
- * Returns `true` if the tip opened, `false` if another tip was already visible
- * (the caller should NOT mark the flag as seen in that case — try again later).
- */
 export function useSpotlightTip(): ShowTipFn {
   const ctx = useContext(SpotlightTipContext);
   if (!ctx) throw new Error('useSpotlightTip must be used within SpotlightTipProvider');
   return ctx;
 }
 
-export function SpotlightTipProvider({ children }: { children: ReactNode }) {
-  const [opts, setOpts] = useState<SpotlightOptions | null>(null);
-  const [hasNext, setHasNext] = useState(false);
-  // Refs shadow state so concurrent callers see the latest value synchronously
-  // (state updates are async). Multiple tip useEffects can fire same render —
-  // we queue them in order so the user gets a "Nästa tips →"-button to chain.
-  const optsRef = useRef<SpotlightOptions | null>(null);
-  const queueRef = useRef<SpotlightOptions[]>([]);
+type ResolvedOpts = Omit<SpotlightOptions, 'targetRef'> & { targetRect?: SpotlightRect };
 
-  const show = useCallback<ShowTipFn>((o) => {
-    // Dedup by title so a re-running effect doesn't enqueue the same tip twice.
-    if (optsRef.current?.title === o.title) return true;
-    if (queueRef.current.some(q => q.title === o.title)) return true;
+export function SpotlightTipProvider({ children }: { children: ReactNode }) {
+  const [opts, setOpts] = useState<ResolvedOpts | null>(null);
+  const [hasNext, setHasNext] = useState(false);
+  const optsRef = useRef<ResolvedOpts | null>(null);
+  const queueRef = useRef<ResolvedOpts[]>([]);
+  const inFlightTitles = useRef<Set<string>>(new Set());
+
+  const enqueueOrShow = useCallback((finalOpts: ResolvedOpts) => {
     if (optsRef.current === null) {
-      optsRef.current = o;
-      setOpts(o);
+      optsRef.current = finalOpts;
+      setOpts(finalOpts);
     } else {
-      queueRef.current.push(o);
+      queueRef.current.push(finalOpts);
       setHasNext(true);
     }
-    return true;
   }, []);
+
+  const show = useCallback<ShowTipFn>((o) => {
+    // Dedup by title against the currently-shown tip, the queue, and any
+    // in-flight measure() that hasn't resolved yet.
+    if (optsRef.current?.title === o.title) return true;
+    if (queueRef.current.some(q => q.title === o.title)) return true;
+    if (inFlightTitles.current.has(o.title)) return true;
+
+    const { targetRef, ...rest } = o;
+    if (targetRef?.current) {
+      inFlightTitles.current.add(o.title);
+      targetRef.current.measureInWindow((x, y, width, height) => {
+        inFlightTitles.current.delete(o.title);
+        // measure failed → no rect, tip still shows (centered). Don't lose it.
+        const targetRect = width > 0 && height > 0 ? { x, y, width, height } : undefined;
+        enqueueOrShow({ ...rest, targetRect });
+      });
+    } else {
+      enqueueOrShow(rest);
+    }
+    return true;
+  }, [enqueueOrShow]);
 
   const dismiss = useCallback(() => {
     const next = queueRef.current.shift() ?? null;
@@ -58,9 +69,8 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
         visible={!!opts}
         title={opts?.title ?? ''}
         message={opts?.message}
-        targetRef={opts?.targetRef}
-        // If more tips are queued, the dismiss button advances; show that with
-        // a "→" so the user knows tapping moves on rather than closing.
+        targetRect={opts?.targetRect}
+        swipeDemo={opts?.swipeDemo}
         actionLabel={opts?.actionLabel ?? (hasNext ? 'Nästa tips →' : 'Förstått')}
         onDismiss={dismiss}
       />

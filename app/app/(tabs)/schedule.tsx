@@ -356,6 +356,7 @@ export default function ScheduleScreen() {
     const shown = showTip({
       title: 'Två svep i kalendern',
       message: 'Svep på veckodags-raden högst upp för att byta vecka. Svep på själva dag-innehållet för att byta dag.',
+      swipeDemo: 'horizontal',
     });
     if (shown) calendarSwipeTip.markSeen();
   }, [calendarSwipeTip.seen, calendarSwipeTip.markSeen, showTip]));
