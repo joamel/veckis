@@ -358,12 +358,11 @@ export default function ChoresScreen() {
     if (forgivingTip.seen !== false || tipShownRef.current) return;
     const hasOverdue = chores.some(c => !isOnce(c) && recurringStatus(c).state === 'overdue');
     if (!hasOverdue) return;
-    tipShownRef.current = true;
-    showTip({
+    const shown = showTip({
       title: 'Inga fler påminnelser för missade sysslor',
       message: 'En återkommande syssla som missades en dag stannar bara i historiken — du får ingen upprepad påminnelse om den. Nästa tillfälle dyker upp som vanligt. Fäll ut sysslan för att se historiken (✓ klar / – missad).',
     });
-    forgivingTip.markSeen();
+    if (shown) { tipShownRef.current = true; forgivingTip.markSeen(); }
   }, [chores, forgivingTip.seen, forgivingTip.markSeen, showTip]);
 
   // Completed chores sorted to the bottom, with optional member filter

@@ -71,6 +71,9 @@ export default function ShoppingListScreen() {
   const mergeTip = useOnceFlag('seen-merge-tip');
   const mergeTipShownRef = useRef(false);
   const dupeBadgeRef = useRef<View>(null);
+  const listActionsTip = useOnceFlag('seen-list-actions-tip');
+  const listActionsTipShownRef = useRef(false);
+  const listActionsBtnRef = useRef<View>(null);
   const { householdId } = useHousehold();
   const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
@@ -344,18 +347,38 @@ export default function ShoppingListScreen() {
   useEffect(() => {
     if (mergeTip.seen !== false || mergeTipShownRef.current) return;
     if (duplicateGroups.length === 0) return;
+    // Mark up-front to prevent re-scheduling if effect re-runs during the delay.
     mergeTipShownRef.current = true;
     // Small delay so the dupe button's pulse animation has measurable bounds
     // before SpotlightTip reads measureInWindow.
     setTimeout(() => {
-      showTip({
+      const shown = showTip({
         title: 'Slå ihop dubbletter',
         message: 'Den här lilla knappen visas när vi ser likadana varor på listan. Tryck på den för att slå ihop dem till en vara med samlad mängd.',
         targetRef: dupeBadgeRef,
       });
-      mergeTip.markSeen();
+      if (shown) mergeTip.markSeen(); // else: retry next session (no markSeen)
     }, 1500); // wait for the existing pulse to finish so user sees it pulse first
   }, [duplicateGroups.length, mergeTip.seen, mergeTip.markSeen, showTip]);
+
+  // ListActions-tip (3-prickar): visas när listan har innehåll och inget annat
+  // tip körs. Förklarar att det gömmer sig fler val (rensa lista, byt butik,
+  // importera veckomeny, klarmarka alla …) bakom ikonen.
+  useEffect(() => {
+    if (listActionsTip.seen !== false || listActionsTipShownRef.current) return;
+    if (!list || list.items.length === 0) return;
+    listActionsTipShownRef.current = true;
+    // Generous delay so any merge tip on the same screen gets to fire first.
+    const t = setTimeout(() => {
+      const shown = showTip({
+        title: 'Mer du kan göra med listan',
+        message: 'Tryck på prickarna för fler val: byt namn, byt butik, klarmarka alla, rensa listan eller importera veckomeny.',
+        targetRef: listActionsBtnRef,
+      });
+      if (shown) listActionsTip.markSeen();
+    }, 3500);
+    return () => clearTimeout(t);
+  }, [list, listActionsTip.seen, listActionsTip.markSeen, showTip]);
 
   useEffect(() => {
     if (pendingOpenNextDupe.current && !mergeSheet && duplicateGroups.length > 0) {
@@ -1066,7 +1089,7 @@ export default function ShoppingListScreen() {
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fler åtgärder">
+        <Pressable ref={listActionsBtnRef} onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fler åtgärder">
           <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
       </View>

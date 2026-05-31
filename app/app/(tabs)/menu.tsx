@@ -91,6 +91,9 @@ export default function MenuScreen() {
   const templatesTip = useOnceFlag('seen-templates-tip');
   const templatesTipShownRef = useRef(false);
   const templatesBtnRef = useRef<View>(null);
+  const cartFabTip = useOnceFlag('seen-cart-fab-tip');
+  const cartFabTipShownRef = useRef(false);
+  const cartFabRef = useRef<View>(null);
   const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
@@ -501,12 +504,11 @@ export default function MenuScreen() {
   useEffect(() => {
     if (menuNavTip.seen !== false || menuNavTipShownRef.current) return;
     if (menuItems.length === 0) return;
-    menuNavTipShownRef.current = true;
-    showTip({
+    const shown = showTip({
       title: 'Tips för veckomenyn',
       message: 'Håll inne på en rätt för att dra den till en annan dag. Svep åt sidan för att byta vecka — eller använd pilarna högst upp.',
     });
-    menuNavTip.markSeen();
+    if (shown) { menuNavTipShownRef.current = true; menuNavTip.markSeen(); }
   }, [menuItems, menuNavTip.seen, menuNavTip.markSeen, showTip]);
 
   // Mallar-tip: visas EFTER att menu-nav-tipset är dismissat, så vi inte
@@ -515,14 +517,28 @@ export default function MenuScreen() {
     if (templatesTip.seen !== false || templatesTipShownRef.current) return;
     if (menuNavTip.seen !== true) return; // vänta tills nav-tipset är sett
     if (menuItems.length === 0) return;
-    templatesTipShownRef.current = true;
-    showTip({
+    const shown = showTip({
       title: 'Spara en vecka som mall',
       message: 'Den här ikonen sparar nuvarande veckomeny som en mall — eller applicerar en sparad mall på en annan vecka. Praktiskt om du har återkommande "standardveckor".',
       targetRef: templatesBtnRef,
     });
-    templatesTip.markSeen();
+    if (shown) { templatesTipShownRef.current = true; templatesTip.markSeen(); }
   }, [menuItems.length, menuNavTip.seen, templatesTip.seen, templatesTip.markSeen, showTip]);
+
+  // Cart FAB-tip: visas efter templates-tipset när det finns rätter kvar att
+  // överföra (= när FAB:en faktiskt renderas). Workflow-koppling som många missar.
+  useEffect(() => {
+    if (cartFabTip.seen !== false || cartFabTipShownRef.current) return;
+    if (templatesTip.seen !== true) return;
+    const fabVisible = menuItems.some(m => !recipeListMap[m.id]?.length);
+    if (!fabVisible) return;
+    const shown = showTip({
+      title: 'Överför veckomeny till inköpslistan',
+      message: 'Tryck på kundvagnen för att ladda hela veckans rätter in i en inköpslista. Du väljer rätter, anger vad du redan har hemma, och resten landar på listan.',
+      targetRef: cartFabRef,
+    });
+    if (shown) { cartFabTipShownRef.current = true; cartFabTip.markSeen(); }
+  }, [menuItems, recipeListMap, templatesTip.seen, cartFabTip.seen, cartFabTip.markSeen, showTip]);
   // Live menu updates: another device added/removed/moved a meal. load() refreshes
   // both the visible week and the allMenus snapshot that feeds neighbour pages.
   const menuReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1261,7 +1277,7 @@ export default function MenuScreen() {
       {/* Overför-FAB (kundkorg) — visas bara när minst en rätt i veckan inte är
           överförd än; dold annars (✓-taggen på korten visar redan status). */}
       {!dragState && menuItems.some(m => !recipeListMap[m.id]?.length) && (
-        <Pressable style={s.fab} onPress={transferWeekMenu} accessibilityLabel="Överför veckomeny till inköpslista">
+        <Pressable ref={cartFabRef} style={s.fab} onPress={transferWeekMenu} accessibilityLabel="Överför veckomeny till inköpslista">
           <Ionicons name="cart-outline" size={26} color="#fff" />
         </Pressable>
       )}
