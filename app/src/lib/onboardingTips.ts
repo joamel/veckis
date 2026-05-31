@@ -8,6 +8,7 @@ export const TIP_FLAGS = [
   'seen-menu-nav-tip',
   'seen-merge-tip',
   'seen-templates-tip',
+  'seen-recipes-btn-tip',
   'seen-cart-fab-tip',
   'seen-list-actions-tip',
   'seen-sort-tip',
