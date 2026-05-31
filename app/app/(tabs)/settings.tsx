@@ -40,6 +40,9 @@ export default function SettingsScreen() {
   const notifClockTip = useOnceFlag('seen-notif-clock-tip');
   const notifClockTipShownRef = useRef(false);
   const notifClockBtnRef = useRef<View>(null);
+  const adminTip = useOnceFlag('seen-admin-tip');
+  const adminTipShownRef = useRef(false);
+  const adminEditBtnRef = useRef<View>(null);
   const [invite, setInvite] = useState<InviteCode | null>(null);
   const [loadingInvite, setLoadingInvite] = useState(false);
 
@@ -60,6 +63,7 @@ export default function SettingsScreen() {
     });
     if (shown) notifClockTip.markSeen();
   }, [notifClockTip.seen, notifClockTip.markSeen, showTip]);
+
   useFocusEffect(useCallback(() => {
     return () => {
       // Read the latest value from a ref instead of calling the toast inside a
@@ -154,6 +158,22 @@ export default function SettingsScreen() {
   const clerkUserId = user?.id;
   const isAdmin = memberRole === 'admin';
   const householdMembers = household?.members ?? [];
+
+  // Admin-tip: bara för admins, efter notis-tipset. Förklarar att "Redigera"
+  // låser upp admin-åtgärder (byt hushållsnamn, hantera medlemmar, dela ut
+  // admin, ta bort hushållet).
+  useEffect(() => {
+    if (adminTip.seen !== false || adminTipShownRef.current) return;
+    if (!isAdmin) return;
+    if (notifClockTip.seen !== true) return;
+    adminTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Admin-läge',
+      message: 'Som admin kan du trycka "Redigera" för att byta hushållsnamn, hantera medlemmar, dela ut admin-rättigheter och ta bort hushållet.',
+      targetRef: adminEditBtnRef,
+    });
+    if (shown) adminTip.markSeen();
+  }, [isAdmin, notifClockTip.seen, adminTip.seen, adminTip.markSeen, showTip]);
 
   // Invite code
   async function generateInvite() {
@@ -423,7 +443,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionLabel}>HUSHÅLLET</Text>
-            <Pressable onPress={() => setEditMode(v => !v)} hitSlop={8}>
+            <Pressable ref={adminEditBtnRef} onPress={() => setEditMode(v => !v)} hitSlop={8}>
               <Text style={[styles.editModeBtn, editMode && styles.editModeBtnActive]}>
                 {editMode ? 'Klar' : 'Redigera'}
               </Text>
