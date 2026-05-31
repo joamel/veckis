@@ -36,6 +36,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
@@ -65,6 +66,8 @@ export default function ShoppingListScreen() {
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
+  const mergeTip = useOnceFlag('seen-merge-tip');
+  const mergeTipShownRef = useRef(false);
   const { householdId } = useHousehold();
   const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
@@ -333,6 +336,18 @@ export default function ShoppingListScreen() {
     }
     if (duplicateGroups.length === 0) hasPulsedDupes.current = false;
   }, [duplicateGroups.length]);
+
+  // First time the merge button pulses for the user: förklara vad den är.
+  useEffect(() => {
+    if (mergeTip.seen !== false || mergeTipShownRef.current) return;
+    if (duplicateGroups.length === 0) return;
+    mergeTipShownRef.current = true;
+    confirm({
+      title: 'Slå ihop dubbletter',
+      message: 'Den lilla knappen som dök upp visas när vi ser likadana varor på listan. Tryck på den för att slå ihop dem till en vara med samlad mängd.',
+      buttons: [{ label: 'Förstått', onPress: mergeTip.markSeen }],
+    });
+  }, [duplicateGroups.length, mergeTip.seen, mergeTip.markSeen, confirm]);
 
   useEffect(() => {
     if (pendingOpenNextDupe.current && !mergeSheet && duplicateGroups.length > 0) {

@@ -26,6 +26,7 @@ import Animated, { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useAuth } from '@clerk/clerk-expo';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
@@ -83,6 +84,8 @@ export default function MenuScreen() {
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
+  const menuNavTip = useOnceFlag('seen-menu-nav-tip');
+  const menuNavTipShownRef = useRef(false);
   const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
@@ -486,6 +489,20 @@ export default function MenuScreen() {
   // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
   // transfer filters stay in sync (e.g. after clearing/removing items in a list).
   useEffect(() => onShoppingChanged(load), [load]);
+
+  // First time the user opens menyn with rätter inlagda: visa ett tip om att
+  // man kan dra rätter mellan dagar och svepa mellan veckor — annars missar
+  // många dessa funktioner helt.
+  useEffect(() => {
+    if (menuNavTip.seen !== false || menuNavTipShownRef.current) return;
+    if (menuItems.length === 0) return;
+    menuNavTipShownRef.current = true;
+    confirm({
+      title: 'Tips för veckomenyn',
+      message: 'Håll inne på en rätt för att dra den till en annan dag. Svep åt sidan för att byta vecka — eller använd pilarna högst upp.',
+      buttons: [{ label: 'Förstått', onPress: menuNavTip.markSeen }],
+    });
+  }, [menuItems, menuNavTip.seen, menuNavTip.markSeen, confirm]);
   // Live menu updates: another device added/removed/moved a meal. load() refreshes
   // both the visible week and the allMenus snapshot that feeds neighbour pages.
   const menuReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
