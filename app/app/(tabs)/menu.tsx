@@ -94,6 +94,9 @@ export default function MenuScreen() {
   const cartFabTip = useOnceFlag('seen-cart-fab-tip');
   const cartFabTipShownRef = useRef(false);
   const cartFabRef = useRef<View>(null);
+  const recipesBtnTip = useOnceFlag('seen-recipes-btn-tip');
+  const recipesBtnTipShownRef = useRef(false);
+  const recipesBtnRef = useRef<View>(null);
   const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
@@ -524,6 +527,20 @@ export default function MenuScreen() {
     });
     if (shown) { templatesTipShownRef.current = true; templatesTip.markSeen(); }
   }, [menuItems.length, menuNavTip.seen, templatesTip.seen, templatesTip.markSeen, showTip]);
+
+  // Recept-knappen i meny-headern: visa direkt efter mallar-tipset så hela
+  // header-sviten introduceras i ordning.
+  useEffect(() => {
+    if (recipesBtnTip.seen !== false || recipesBtnTipShownRef.current) return;
+    if (templatesTip.seen !== true) return;
+    recipesBtnTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Receptboken',
+      message: 'Tryck på Recept för att se hela ditt receptbibliotek — lägg till nya, sök, sortera och välj recept att lägga in i veckomenyn.',
+      targetRef: recipesBtnRef,
+    });
+    if (shown) recipesBtnTip.markSeen();
+  }, [templatesTip.seen, recipesBtnTip.seen, recipesBtnTip.markSeen, showTip]);
 
   // Cart FAB-tip: visas efter templates-tipset när det finns rätter kvar att
   // överföra (= när FAB:en faktiskt renderas). Workflow-koppling som många missar.
@@ -1214,10 +1231,12 @@ export default function MenuScreen() {
             <Pressable ref={templatesBtnRef} style={s.headerIconBtn} onPress={() => setShowTemplates(true)} accessibilityLabel="Veckomeny-mallar">
               <Ionicons name="bookmarks-outline" size={18} color="#4f46e5" />
             </Pressable>
-            <Pressable style={s.headerActionBtn} onPress={() => router.push('/recipes' as never)}>
-              <Ionicons name="book-outline" size={16} color="#4f46e5" />
-              <Text style={s.headerActionText}>Recept</Text>
-            </Pressable>
+            <View ref={recipesBtnRef} collapsable={false}>
+              <Pressable style={s.headerActionBtn} onPress={() => router.push('/recipes' as never)}>
+                <Ionicons name="book-outline" size={16} color="#4f46e5" />
+                <Text style={s.headerActionText}>Recept</Text>
+              </Pressable>
+            </View>
           </View>
         }
       />
