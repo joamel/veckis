@@ -91,8 +91,8 @@ export default function ShoppingScreen() {
     if (storesTip.seen !== false || storesTipShownRef.current) return;
     storesTipShownRef.current = true;
     const shown = showTip({
-      title: 'Redigera butiker',
-      message: 'Tryck här för att lägga till butiker, byta deras kategorier eller flytta ordningen så listan matchar din affärs layout.',
+      title: 'Butiker',
+      message: 'Tryck här för att lägga till butiker, redigera deras kategorier eller flytta ordningen så listan matchar din affärs layout.',
       targetRef: storesBtnRef,
     });
     if (shown) storesTip.markSeen();

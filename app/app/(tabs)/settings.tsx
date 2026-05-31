@@ -25,6 +25,8 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
+import { TIP_FLAGS } from '../../src/lib/onboardingTips';
+import * as SecureStore from 'expo-secure-store';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { NotificationsModal } from '../../src/components/NotificationsModal';
 import type { InviteCode } from '@veckis/shared';
@@ -400,6 +402,11 @@ export default function SettingsScreen() {
     ]);
   }
 
+  async function handleResetTips() {
+    await Promise.all(TIP_FLAGS.map(k => SecureStore.deleteItemAsync(k).catch(() => {})));
+    showGlobalToast('Onboarding-tips återställda — visas igen i nästa session', 'neutral');
+  }
+
   const expiresAt = invite ? new Date(invite.expiresAt) : null;
   const expiresStr = expiresAt
     ? expiresAt.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -590,6 +597,16 @@ export default function SettingsScreen() {
             <Text style={styles.actionBtnText}>Gå med i hushåll</Text>
           </Pressable>
         </View>
+
+        {/* Dev-only: rensa onboarding-tips så de visas igen vid testning. */}
+        {__DEV__ && (
+          <View style={styles.section}>
+            <Pressable style={styles.devBtn} onPress={handleResetTips}>
+              <Ionicons name="refresh-outline" size={18} color="#6b7280" />
+              <Text style={styles.devBtnText}>Återställ onboarding-tips (dev)</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Logga ut */}
         <View style={styles.section}>
@@ -954,6 +971,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   signOutText: { fontSize: 16, fontWeight: '600', color: '#ef4444' },
+  devBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, backgroundColor: '#f3f4f6', borderRadius: 12 },
+  devBtnText: { fontSize: 14, fontWeight: '500', color: '#6b7280' },
   toast: {
     position: 'absolute',
     bottom: 32,
