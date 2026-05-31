@@ -358,7 +358,7 @@ export default function ChoresScreen() {
     if (!hasOverdue) return;
     tipShownRef.current = true;
     confirm({
-      title: 'Missade sysslor påminner inte mer',
+      title: 'Inga fler påminnelser för missade sysslor',
       message: 'En återkommande syssla som missades en dag stannar bara i historiken — du får ingen upprepad påminnelse om den. Nästa tillfälle dyker upp som vanligt. Fäll ut sysslan för att se historiken (✓ klar / – missad).',
       buttons: [{ label: 'Förstått', onPress: forgivingTip.markSeen }],
     });
