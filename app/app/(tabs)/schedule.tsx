@@ -200,12 +200,10 @@ export default function ScheduleScreen() {
   // never recenter (recentering is what made the old 3-page pagers flash).
   const dayListRef = useRef<FlatList<number>>(null);
   const weekRowListRef = useRef<FlatList<number>>(null);
-  // Wrapper view ref used by the calendar-swipe onboarding tip to measure /
-  // light up the week-day row (FlatList ref doesn't support measureInWindow).
-  const weekRowWrapRef = useRef<View | null>(null);
-  // Pre-measured rect captured via onLayout — measureInWindow on the wrapper
-  // returns 0×0 on Android (virtualised FlatList children don't propagate
-  // size up). onLayout fires after layout commits → measure works there.
+  // Pre-measured window-rect of the day-row for the onboarding swipe tip's
+  // spotlight ring + finger animation. Captured one-shot via a callback ref
+  // on the dayRow itself (measureInWindow on the FlatList wrapper reports
+  // wrong dimensions on Android virtualised content).
   const [weekRowRect, setWeekRowRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const weekPageW = Dimensions.get('window').width;
   const DAY_SPAN = 400; // ~13 months of days each way
@@ -1025,25 +1023,7 @@ export default function ScheduleScreen() {
 
           {/* Day-row as a virtualised week pager: swipe the weekday bar to
               change week (keeps the selected weekday). Absolute-indexed, never
-              recenters. Wrapper view is the measure-target for the onboarding
-              swipe tip's spotlight ring + finger animation. */}
-          {/* minHeight säkerställer att wrappern har en mätbar storlek innan
-              FlatList:ens virtualiserade items har layoutats — annars
-              returnerar measureInWindow 0×0 så onboarding-tipsets ring + finger
-              hamnar fel. */}
-          <View
-            ref={weekRowWrapRef}
-            collapsable={false}
-            onLayout={() => {
-              // Mät WRAPPER:n när dess FlatList-child har layoutats; rect.y är
-              // wrapper-toppen (= dayRow-toppen eftersom de är samma punkt),
-              // height = faktisk content-höjd. Ingen minHeight → ingen tom yta
-              // som skulle få ringen att se "ovanför raden" ut.
-              weekRowWrapRef.current?.measureInWindow((x, y, width, height) => {
-                if (width > 0 && height > 0) setWeekRowRect({ x, y, width, height });
-              });
-            }}
-          >
+              recenters. */}
           <FlatList
             ref={weekRowListRef}
             data={weekRowIndices}
@@ -1067,7 +1047,22 @@ export default function ScheduleScreen() {
             renderItem={({ item: wi }) => {
               const pm = mondayForWeekIndex(wi);
               return (
-                <View style={[s.dayRow, { width: weekPageW }]}>
+                <View
+                  ref={node => {
+                    // Capture window-rect of the dayRow itself (one-shot) for
+                    // the onboarding swipe tip. Done at ref-attach + 200 ms so
+                    // layout has settled. All dayRows have identical dims so
+                    // we can use any of them.
+                    if (!node || weekRowRect) return;
+                    setTimeout(() => {
+                      node.measureInWindow((x, y, width, height) => {
+                        if (width > 0 && height > 0) setWeekRowRect({ x, y, width, height });
+                      });
+                    }, 200);
+                  }}
+                  style={[s.dayRow, { width: weekPageW }]}
+                  collapsable={false}
+                >
                   {DAYS.map((day, i) => {
                     const count = totalPerDayOn(pm, day.key);
                     const dayDate = new Date(pm.getTime() + i * DAY_MS);
@@ -1092,7 +1087,6 @@ export default function ScheduleScreen() {
               );
             }}
           />
-          </View>
 
           {/* Content as a virtualised day pager: swipe the detail area to go to
               the previous / next day (rolls over into the adjacent week).
