@@ -36,7 +36,7 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import type { Chore, ChoreCompletion, ChoreFrequency, RecurrenceType, WeekDay } from '@veckis/shared';
-import { occursOn, weekdayOf, type RecurrencePattern } from '@veckis/shared';
+import { occursOn, weekdayOf, computeCurrentTurn, type RecurrencePattern } from '@veckis/shared';
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 
@@ -447,6 +447,28 @@ export default function ChoresScreen() {
     return members.find(m => m.id === memberId)?.displayName ?? null;
   }
 
+  // Etikett för "tilldelad" på syssla-kortet:
+  //  - rotation=true + 2+ medlemmar → "Annas tur · Nästa: Bo"
+  //  - flera utan rotation → "Anna · Bo · Carl" (kommatecken-separerad)
+  //  - en medlem → "Anna"
+  //  - ingen → null (visas inte)
+  function buildAssignedLabel(chore: ChoreWithCompletion): string | null {
+    const ids = chore.assignedToMany?.length ? chore.assignedToMany : (chore.assignedTo ? [chore.assignedTo] : []);
+    if (ids.length === 0) return null;
+    const names = ids.map(id => getMemberName(id) ?? '').filter(Boolean);
+    if (names.length === 0) return null;
+    if (chore.rotation && ids.length >= 2) {
+      const currentId = computeCurrentTurn({ rotation: true, assignedToMany: ids }, chore.completions.length);
+      const nextId = computeCurrentTurn({ rotation: true, assignedToMany: ids }, chore.completions.length + 1);
+      const currentName = currentId ? getMemberName(currentId) : null;
+      const nextName = nextId && nextId !== currentId ? getMemberName(nextId) : null;
+      return currentName
+        ? (nextName ? `${currentName}s tur · Nästa: ${nextName}` : `${currentName}s tur`)
+        : names.join(' · ');
+    }
+    return names.join(' · ');
+  }
+
   // Who completed an occurrence (completedBy is a clerkUserId; local profiles
   // can't complete so this is always a logged-in account).
   function memberNameByClerkId(clerkUserId: string | null) {
@@ -764,14 +786,14 @@ export default function ChoresScreen() {
           // the greyed/strikethrough look; only one-off chores get that.
           const finishedLook = once && done;
           const overdue = rec?.state === 'overdue';
-          const assignedName = getMemberName(item.assignedTo);
+          const assignedLabel = buildAssignedLabel(item);
           const expanded = expandedChores.has(item.id);
           const metaParts: (string | null)[] = [
             FREQ_LABELS[item.frequency],
             item.frequency !== 'daily' && item.days.length > 0
               ? item.days.map(d => DAYS.find(x => x.key === d)?.short).join(', ')
               : null,
-            assignedName,
+            assignedLabel,
           ];
           if (once) metaParts.push(item.completions[0] ? daysSince(item.completions[0].completedAt) : null);
           const statusText = rec
