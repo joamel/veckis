@@ -36,7 +36,7 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import type { Chore, ChoreCompletion, ChoreFrequency, RecurrenceType, WeekDay } from '@veckis/shared';
-import { occursOn, weekdayOf, computeCurrentTurn, type RecurrencePattern } from '@veckis/shared';
+import { occursOn, weekdayOf, computeCurrentTurn, computeTurnHistory, type RecurrencePattern } from '@veckis/shared';
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 
@@ -939,19 +939,12 @@ export default function ChoresScreen() {
                   {rec.occurrences.length === 0 ? (
                     <Text style={s.historyEmpty}>Inga tillfällen den senaste tiden</Text>
                   ) : (() => {
-                    // För rotation: räkna fram VEMS TUR det var vid varje
-                    // historisk occurrence (turn flyttar bara vid done, missar
-                    // skiftar inte turen). Asc ordning = äldst först.
-                    const isRotating = !!item.rotation && item.assignedToMany?.length >= 2;
-                    const ids = item.assignedToMany ?? [];
-                    let doneCount = 0;
-                    const turnByDate = new Map<string, string>();
-                    if (isRotating && ids.length > 0) {
-                      for (const o of rec.occurrences) {
-                        turnByDate.set(o.date, ids[doneCount % ids.length] ?? '');
-                        if (o.done) doneCount++;
-                      }
-                    }
+                    // För rotation: vems tur vid varje historisk occurrence.
+                    // Helper:n i shared räknar likadant både här och i tester.
+                    const isRotating = !!item.rotation && (item.assignedToMany?.length ?? 0) >= 2;
+                    const turnByDate = isRotating
+                      ? computeTurnHistory({ rotation: true, assignedToMany: item.assignedToMany }, rec.occurrences)
+                      : new Map<string, string>();
                     return [...rec.occurrences].reverse().slice(0, 8).map(o => {
                       const performerName = o.performedByMemberId
                         ? (members.find(m => m.id === o.performedByMemberId)?.displayName ?? null)

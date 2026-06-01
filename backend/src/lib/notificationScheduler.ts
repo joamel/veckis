@@ -2,7 +2,7 @@ import { occursOn, weekdayOf, type RecurrencePattern } from '@veckis/shared';
 import type { WeekDay } from '@prisma/client';
 import { prisma } from '../db';
 import { sendPush, claimNotification } from './sendPush';
-import { computeCurrentTurn } from './choreRotation';
+import { selectChoreRecipients } from './choreRotation';
 
 // Local timezone all household members are assumed to live in. Activity start
 // times ("HH:MM") and "today" are interpreted in this zone, not the server's.
@@ -170,25 +170,11 @@ async function runOverdueChores(now: LocalNow): Promise<void> {
 
   for (const c of due) {
     if (isDoneToday(c)) continue;
-    // Multi-assign + rotation:
-    //  - rotation=true: pinga BARA den vars tur det är (computeCurrentTurn)
-    //  - rotation=false: pinga ALLA i assignedToMany (fallback: assignedTo)
-    //  - tom array + isShared: pinga hela hushållet (= "ingen specifik")
-    let assignedMemberIds: string[] = c.assignedToMany.length > 0
-      ? c.assignedToMany
-      : c.assignedTo ? [c.assignedTo] : [];
-    if (c.rotation && assignedMemberIds.length > 0) {
-      const turnMember = computeCurrentTurn(
-        { rotation: c.rotation, assignedToMany: assignedMemberIds },
-        c.completions.length,
-      );
-      assignedMemberIds = turnMember ? [turnMember] : [];
-    }
-    let recipients = assignedMemberIds
-      .map(id => memberClerk.get(id))
-      .filter((x): x is string => !!x);
-    if (recipients.length === 0 && c.isShared) recipients = householdClerks.get(c.householdId) ?? [];
-    recipients = [...new Set(recipients)];
+    // Multi-assign + rotation fan-out lyfts ut till en ren funktion (testbar).
+    const recipients = selectChoreRecipients(c, c.completions.length, {
+      memberClerk,
+      householdClerks: householdClerks.get(c.householdId) ?? [],
+    });
 
     for (const userId of recipients) {
       // Forgiving model: exactly one gentle nudge per occurrence (dedupe key is
