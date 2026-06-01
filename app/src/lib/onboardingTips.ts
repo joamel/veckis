@@ -27,6 +27,7 @@ export const TIP_FLAGS = [
   'seen-staple-editor-tip',
   'seen-bulk-recipes-tip',
   'seen-bulk-inventory-tip',
+  'seen-rotation-toggle-tip',
   'seen-admin-tip',
   'seen-stores-tip',
 ] as const;

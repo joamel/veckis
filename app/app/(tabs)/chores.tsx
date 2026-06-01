@@ -273,6 +273,9 @@ export default function ChoresScreen() {
   // när användaren faktiskt fäller ut en återkommande syssla (där historiken
   // syns) istället för passivt vid fokus.
   const wrapExpandTip = useFirstActionTip('seen-forgiving-tip');
+  // Rotation-tipset fyrar när användaren för första gången har 2+ medlemmar
+  // valda i editorn — då dyker rotation-toggle:n upp och behöver förklaras.
+  const rotationTip = useOnceFlag('seen-rotation-toggle-tip');
   // Intro-tip — vad fliken är till för. Fyrar EN gång, oavsett om det finns
   // sysslor inlagda (så användaren förstår syftet med fliken direkt).
   const choresIntroTip = useOnceFlag('seen-chores-intro-tip');
@@ -323,6 +326,9 @@ export default function ChoresScreen() {
   const [editMode, setEditMode] = useState(false);
   const { filterMemberIds, setFilterMemberIds } = useMemberFilter();
   const [showFilterModal, setShowFilterModal] = useState(false);
+  // "Min tur"-snabbfilter: visa bara roterande sysslor där JAG har tur just nu.
+  // Sysslor utan rotation där jag är med inkluderas alltid (de är "alla mina").
+  const [myTurnOnly, setMyTurnOnly] = useState(false);
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -348,6 +354,20 @@ export default function ChoresScreen() {
   const [editTitle, setEditTitle] = useState('');
   const [editAssignedToMany, setEditAssignedToMany] = useState<string[]>([]);
   const [editRotation, setEditRotation] = useState(false);
+  // Rotation-tipset: fyra när en av pickrarna passerar 2 medlemmar (då
+  // rotation-toggle:n dyker upp).
+  useEffect(() => {
+    if (!tipsReady) return;
+    if (rotationTip.seen !== false) return;
+    const newHas2 = newAssignedToMany.length >= 2 && showCreate;
+    const editHas2 = editAssignedToMany.length >= 2 && !!editingChore;
+    if (!newHas2 && !editHas2) return;
+    const shown = showTip({
+      title: 'Turas om automatiskt',
+      message: 'När 2 eller fler är tilldelade kan du slå på "Turas om" — då växlar turen mellan er per tillfälle. Lämna av om alla är gemensamt ansvariga.',
+    });
+    if (shown) rotationTip.markSeen();
+  }, [tipsReady, rotationTip, newAssignedToMany.length, editAssignedToMany.length, showCreate, editingChore, showTip]);
   const [editRecurrenceType, setEditRecurrenceType] = useState<RecurrenceType>('none');
   const [editRecurrenceWeeks, setEditRecurrenceWeeks] = useState(1);
   const [editRecurrenceDays, setEditRecurrenceDays] = useState<WeekDay[]>([]);
@@ -429,18 +449,29 @@ export default function ChoresScreen() {
   const sortedChores = useMemo(() => {
     // Multi-assign matchning: filter slår om någon i assignedToMany finns i
     // filtret. Fallback till legacy single assignedTo om many-arrayen är tom.
-    const filtered = filterMemberIds.length > 0
-      ? chores.filter(c => {
-          const ids = c.assignedToMany?.length ? c.assignedToMany : (c.assignedTo ? [c.assignedTo] : []);
-          return ids.some(id => filterMemberIds.includes(id));
-        })
-      : chores;
+    const memberFilter = (c: ChoreWithCompletion) => {
+      const ids = c.assignedToMany?.length ? c.assignedToMany : (c.assignedTo ? [c.assignedTo] : []);
+      return filterMemberIds.length === 0 || ids.some(id => filterMemberIds.includes(id));
+    };
+    // "Min tur"-filter: bara rotation-sysslor där jag är aktuell turperson.
+    // Icke-roterande sysslor jag är med i räknas också som "mina" och hänger
+    // med. Sysslor jag inte är med i alls filtreras bort.
+    const myMemberId = userId ? members.find(m => m.clerkUserId === userId)?.id ?? null : null;
+    const turnFilter = (c: ChoreWithCompletion) => {
+      if (!myTurnOnly) return true;
+      if (!myMemberId) return false;
+      const ids = c.assignedToMany?.length ? c.assignedToMany : (c.assignedTo ? [c.assignedTo] : []);
+      if (!ids.includes(myMemberId)) return false;
+      if (!c.rotation || ids.length < 2) return true;
+      return computeCurrentTurn({ rotation: true, assignedToMany: ids }, c.completions.length) === myMemberId;
+    };
+    const filtered = chores.filter(c => memberFilter(c) && turnFilter(c));
     // Match the card's notion of "done": occurrence-based for recurring chores.
     const choreDone = (c: ChoreWithCompletion) => isOnce(c) ? isFullyDone(c) : recurringStatus(c).state === 'done';
     const done = filtered.filter(choreDone);
     const notDone = filtered.filter(c => !choreDone(c));
     return [...notDone, ...done];
-  }, [chores, filterMemberIds]);
+  }, [chores, filterMemberIds, myTurnOnly, userId, members]);
 
   const completedOnce = useMemo(
     () => chores.filter(c => isOnce(c) && c.completions.length > 0),
@@ -786,6 +817,17 @@ export default function ChoresScreen() {
                 )}
               </Pressable>
             )}
+            {chores.some(c => c.rotation && c.assignedToMany?.length >= 2) && (
+              <Pressable
+                style={[s.filterBtn, myTurnOnly && s.filterBtnActive]}
+                onPress={() => setMyTurnOnly(v => !v)}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: myTurnOnly }}
+              >
+                <Ionicons name="person-circle-outline" size={14} color={myTurnOnly ? '#7c3aed' : '#6b7280'} />
+                <Text style={[s.filterBtnText, myTurnOnly && s.filterBtnTextActive]}>Min tur</Text>
+              </Pressable>
+            )}
           </View>
         }
       />
@@ -896,11 +938,27 @@ export default function ChoresScreen() {
                 <View style={s.historyBox}>
                   {rec.occurrences.length === 0 ? (
                     <Text style={s.historyEmpty}>Inga tillfällen den senaste tiden</Text>
-                  ) : (
-                    [...rec.occurrences].reverse().slice(0, 8).map(o => {
+                  ) : (() => {
+                    // För rotation: räkna fram VEMS TUR det var vid varje
+                    // historisk occurrence (turn flyttar bara vid done, missar
+                    // skiftar inte turen). Asc ordning = äldst först.
+                    const isRotating = !!item.rotation && item.assignedToMany?.length >= 2;
+                    const ids = item.assignedToMany ?? [];
+                    let doneCount = 0;
+                    const turnByDate = new Map<string, string>();
+                    if (isRotating && ids.length > 0) {
+                      for (const o of rec.occurrences) {
+                        turnByDate.set(o.date, ids[doneCount % ids.length] ?? '');
+                        if (o.done) doneCount++;
+                      }
+                    }
+                    return [...rec.occurrences].reverse().slice(0, 8).map(o => {
                       const performerName = o.performedByMemberId
                         ? (members.find(m => m.id === o.performedByMemberId)?.displayName ?? null)
                         : memberNameByClerkId(o.completedBy);
+                      const turnId = turnByDate.get(o.date);
+                      const turnName = turnId ? (members.find(m => m.id === turnId)?.displayName ?? null) : null;
+                      const isHopIn = o.done && turnName && performerName && performerName !== turnName;
                       return (
                       <View key={o.date} style={s.historyRow}>
                         <Ionicons
@@ -910,13 +968,19 @@ export default function ChoresScreen() {
                         />
                         <Text style={[s.historyDate, { fontSize: fs(13) }, !o.done && !o.isCurrent && s.historyMissed]}>
                           {formatOcc(o.date)}{o.done
-                            ? (performerName ? ` · ${performerName}` : '')
-                            : o.isCurrent ? ' · att göra' : ' · missad'}
+                            ? (isHopIn
+                              ? ` · ${performerName} (hoppade in för ${turnName})`
+                              : performerName
+                                ? ` · ${performerName}`
+                                : '')
+                            : o.isCurrent
+                              ? (turnName ? ` · ${turnName}s tur` : ' · att göra')
+                              : (turnName ? ` · ${turnName} missade` : ' · missad')}
                         </Text>
                       </View>
                       );
-                    })
-                  )}
+                    });
+                  })()}
                 </View>
               )}
             </View>
