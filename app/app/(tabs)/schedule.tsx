@@ -778,7 +778,7 @@ export default function ScheduleScreen() {
     const menu = menuItems.filter(i => i.day === wd);
     const dchores = chores.filter(c =>
       choreVisibleOnDay(c, wd, date) &&
-      (filterMemberIds.length === 0 || (c.assignedTo != null && filterMemberIds.includes(c.assignedTo)))
+      (filterMemberIds.length === 0 || (c.assignedToMany?.length ? c.assignedToMany : (c.assignedTo ? [c.assignedTo] : [])).some(id => filterMemberIds.includes(id)))
     ).sort((a, b) =>
       Number(isDoneOnDate(a.completions, dateStr, wd)) -
       Number(isDoneOnDate(b.completions, dateStr, wd))
@@ -803,7 +803,7 @@ export default function ScheduleScreen() {
       (filterActive ? 0 : menuItems.filter(i => i.day === day).length) +
       chores.filter(c =>
         choreVisibleOnDay(c, day, dt) &&
-        (!filterActive || (c.assignedTo != null && filterMemberIds.includes(c.assignedTo)))
+        (!filterActive || (c.assignedToMany?.length ? c.assignedToMany : (c.assignedTo ? [c.assignedTo] : [])).some(id => filterMemberIds.includes(id)))
       ).length;
   };
   const totalPerDay = (day: WeekDay) => totalPerDayOn(weekMonday, day);

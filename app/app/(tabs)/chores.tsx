@@ -427,8 +427,13 @@ export default function ChoresScreen() {
 
   // Completed chores sorted to the bottom, with optional member filter
   const sortedChores = useMemo(() => {
+    // Multi-assign matchning: filter slår om någon i assignedToMany finns i
+    // filtret. Fallback till legacy single assignedTo om many-arrayen är tom.
     const filtered = filterMemberIds.length > 0
-      ? chores.filter(c => c.assignedTo && filterMemberIds.includes(c.assignedTo))
+      ? chores.filter(c => {
+          const ids = c.assignedToMany?.length ? c.assignedToMany : (c.assignedTo ? [c.assignedTo] : []);
+          return ids.some(id => filterMemberIds.includes(id));
+        })
       : chores;
     // Match the card's notion of "done": occurrence-based for recurring chores.
     const choreDone = (c: ChoreWithCompletion) => isOnce(c) ? isFullyDone(c) : recurringStatus(c).state === 'done';
@@ -653,19 +658,41 @@ export default function ChoresScreen() {
     }
   }
 
-  // When a chore is assigned to a local profile (who can't log in), ask the
-  // tapper to credit the actual doer. Other chores skip the picker and credit
-  // is implicit (= the Clerk user who pressed Klar).
+  // Performer-picker — frågar vem som faktiskt utförde sysslan när det inte
+  // är entydigt:
+  //  - rotation=true + 2+ tilldelade → fråga alltid, defaulta på turperson
+  //  - 2+ tilldelade utan rotation där minst en är lokal profil → fråga
+  //  - 1 tilldelad lokal profil → fråga (gamla beteendet)
+  //  - 1 tilldelad Clerk-user eller ingen tilldelad → skippa, kreditera tapparen
   function pickPerformer(chore: ChoreWithCompletion, onPick: (performedByMemberId: string | null) => void) {
-    const assigned = chore.assignedTo ? members.find(m => m.id === chore.assignedTo) : null;
-    if (!assigned || assigned.clerkUserId !== null) { onPick(null); return; }
+    const assignedIds = chore.assignedToMany?.length ? chore.assignedToMany : (chore.assignedTo ? [chore.assignedTo] : []);
+    const assignedMembers = assignedIds.map(id => members.find(m => m.id === id)).filter((m): m is NonNullable<typeof m> => !!m);
+    const hasLocalProfile = assignedMembers.some(m => m.clerkUserId === null);
+    const isRotating = !!chore.rotation && assignedMembers.length >= 2;
+
+    // Skip-fall: ingen tilldelad ELLER en enskild Clerk-user (utan rotation).
+    if (assignedMembers.length === 0) { onPick(null); return; }
+    if (!isRotating && !hasLocalProfile && assignedMembers.length === 1) { onPick(null); return; }
+
     const selfMember = userId ? members.find(m => m.clerkUserId === userId) : null;
-    const buttons: Parameters<typeof confirm>[0]['buttons'] = [
-      { label: assigned.displayName, onPress: () => onPick(assigned.id) },
-    ];
-    if (selfMember && selfMember.id !== assigned.id) {
-      buttons.push({ label: `${selfMember.displayName} (du)`, onPress: () => onPick(selfMember.id) });
-    }
+    const turnId = isRotating
+      ? computeCurrentTurn({ rotation: true, assignedToMany: assignedIds }, chore.completions.length)
+      : null;
+
+    // Bygg knappar: turperson överst (vid rotation), sen övriga tilldelade,
+    // sen "jag" om jag inte redan är med, sen avbryt.
+    const seen = new Set<string>();
+    const buttons: Parameters<typeof confirm>[0]['buttons'] = [];
+    const pushMember = (id: string, suffix = '') => {
+      if (seen.has(id)) return;
+      seen.add(id);
+      const m = members.find(x => x.id === id);
+      if (!m) return;
+      buttons.push({ label: m.displayName + suffix, onPress: () => onPick(m.id) });
+    };
+    if (turnId) pushMember(turnId, ' (tur)');
+    for (const m of assignedMembers) pushMember(m.id);
+    if (selfMember) pushMember(selfMember.id, ' (du)');
     buttons.push({ label: 'Avbryt', style: 'cancel' });
     confirm({ title: `Vem gjorde "${chore.title}"?`, buttons });
   }
