@@ -52,6 +52,7 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
         title={opts?.title ?? ''}
         message={opts?.message}
         targetRef={opts?.targetRef}
+        targetRect={opts?.targetRect}
         swipeDemo={opts?.swipeDemo}
         actionLabel={opts?.actionLabel ?? (hasNext ? 'Nästa tips →' : 'Förstått')}
         onDismiss={dismiss}

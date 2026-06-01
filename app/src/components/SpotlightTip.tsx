@@ -10,8 +10,12 @@ export interface SpotlightOptions {
   /** When given, the dim creates a "hole" around the target and a pulsing ring
    *  highlights it. Without a target, the tip appears centered on a full dim. */
   targetRef?: RefObject<View | null>;
+  /** Pre-measured window-rect for the target. Takes precedence over targetRef
+   *  — use when measureInWindow is unreliable (e.g. virtualised FlatList
+   *  wrappers that report 0×0 on Android until items render). */
+  targetRect?: { x: number; y: number; width: number; height: number };
   /** When set, an animated finger gesture renders over the target rect to
-   *  visualise the swipe direction. No-op without targetRef. */
+   *  visualise the swipe direction. No-op without a target. */
   swipeDemo?: 'horizontal' | 'vertical';
   /** Label for the dismiss button. Defaults to "Förstått". */
   actionLabel?: string;
@@ -24,19 +28,22 @@ interface Props extends SpotlightOptions {
 
 const PAD = 10; // padding around the target inside the highlight ring
 
-export function SpotlightTip({ visible, targetRef, title, message, actionLabel = 'Förstått', swipeDemo, onDismiss }: Props) {
-  const [rect, setRect] = useState<Rect | null>(null);
+export function SpotlightTip({ visible, targetRef, targetRect, title, message, actionLabel = 'Förstått', swipeDemo, onDismiss }: Props) {
+  const [measuredRect, setMeasuredRect] = useState<Rect | null>(null);
   const pulse = useRef(new Animated.Value(0)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
   const screen = Dimensions.get('window');
+  // Pre-measured rect from caller wins over our own measurement.
+  const rect = targetRect ?? measuredRect;
 
   // Measure the target after layout has settled. The target may not be laid
   // out yet when the tip useEffect fires (especially inside headers that mount
   // alongside the screen) — retry a few times before giving up. Falls back to
   // no-target mode if the ref never resolves to non-zero dimensions.
   useEffect(() => {
-    if (!visible) { setRect(null); return; }
-    if (!targetRef?.current) { setRect(null); return; }
+    if (!visible) { setMeasuredRect(null); return; }
+    if (targetRect) return; // caller already supplied the rect
+    if (!targetRef?.current) { setMeasuredRect(null); return; }
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
     const attempt = (n: number) => {
@@ -45,19 +52,19 @@ export function SpotlightTip({ visible, targetRef, title, message, actionLabel =
         if (cancelled) return;
         const offscreen = y + height < 0 || y > screen.height || x + width < 0 || x > screen.width;
         if (width > 0 && height > 0 && !offscreen) {
-          setRect({ x, y, width, height });
+          setMeasuredRect({ x, y, width, height });
           return;
         }
         if (n < 6) {
           timer = setTimeout(() => attempt(n + 1), 100);
         } else {
-          setRect(null);
+          setMeasuredRect(null);
         }
       });
     };
     timer = setTimeout(() => attempt(0), 100);
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, [visible, targetRef, screen.height, screen.width]);
+  }, [visible, targetRef, targetRect, screen.height, screen.width]);
 
   // Pulse the ring while a spotlight is shown.
   useEffect(() => {
