@@ -1034,8 +1034,11 @@ export default function ScheduleScreen() {
           <View
             ref={weekRowWrapRef}
             collapsable={false}
-            style={{ minHeight: 75 }}
             onLayout={() => {
+              // Mät WRAPPER:n när dess FlatList-child har layoutats; rect.y är
+              // wrapper-toppen (= dayRow-toppen eftersom de är samma punkt),
+              // height = faktisk content-höjd. Ingen minHeight → ingen tom yta
+              // som skulle få ringen att se "ovanför raden" ut.
               weekRowWrapRef.current?.measureInWindow((x, y, width, height) => {
                 if (width > 0 && height > 0) setWeekRowRect({ x, y, width, height });
               });
