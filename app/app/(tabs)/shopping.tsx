@@ -89,6 +89,9 @@ export default function ShoppingScreen() {
   // är aktiv. useEffect skulle fyra direkt när tabben mountar i bakgrunden
   // (default-fliken är kalender) → tipset poppade men ring missade målet.
   useFocusEffect(useCallback(() => {
+    // Vänta tills loading-spinnern är borta — annars renderar shopping bara
+    // ActivityIndicator och storesBtnRef.current är null när tipset fyrar.
+    if (loading) return;
     if (storesTip.seen !== false || storesTipShownRef.current) return;
     storesTipShownRef.current = true;
     const shown = showTip({
@@ -97,7 +100,7 @@ export default function ShoppingScreen() {
       targetRef: storesBtnRef,
     });
     if (shown) storesTip.markSeen();
-  }, [storesTip.seen, storesTip.markSeen, showTip]));
+  }, [loading, storesTip.seen, storesTip.markSeen, showTip]));
 
   // Live cross-device refresh: the backend emits shopping_list_updated on the
   // household socket when any list's items change, so the overview counts update

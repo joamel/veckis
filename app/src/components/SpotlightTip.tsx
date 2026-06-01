@@ -92,8 +92,6 @@ export function SpotlightTip({ visible, targetRef, title, message, actionLabel =
   if (!visible) return null;
 
   const callout = computeCalloutTop(rect, screen.height);
-  // DEBUG: visa mät-info så vi kan diagnostisera Butiker + swipe-animering
-  const debugInfo = `rect=${rect ? `${Math.round(rect.x)},${Math.round(rect.y)} ${Math.round(rect.width)}×${Math.round(rect.height)}` : 'null'} | swipe=${swipeDemo ?? '-'} | ref=${targetRef ? (targetRef.current ? 'ok' : 'null') : 'none'}`;
 
   // Swipe finger sweeps ±35% of the target dimension, centered on the rect.
   const swipeAmpX = rect && swipeDemo === 'horizontal' ? rect.width * 0.35 : 0;
@@ -134,7 +132,6 @@ export function SpotlightTip({ visible, targetRef, title, message, actionLabel =
       <View style={[s.card, { top: callout, left: 20, right: 20 }]} pointerEvents="box-none">
         <Text style={s.title}>{title}</Text>
         {message ? <Text style={s.message}>{message}</Text> : null}
-        <Text style={{ fontSize: 11, color: '#ef4444', textAlign: 'center', marginBottom: 8 }}>{debugInfo}</Text>
         <Pressable style={s.btn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel={actionLabel}>
           <Text style={s.btnText}>{actionLabel}</Text>
         </Pressable>
@@ -142,22 +139,6 @@ export function SpotlightTip({ visible, targetRef, title, message, actionLabel =
       {/* Swipe-finger demo: rendered LAST so it's guaranteed on top regardless
           of Android elevation quirks. Outside the rect-fragment so a re-mount
           when rect changes doesn't tear it down. */}
-      {/* DEBUG: statisk röd ruta vid rect-centret för att verifiera rendering */}
-      {rect ? (
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: rect.y + rect.height / 2 - 15,
-            left: rect.x + rect.width / 2 - 15,
-            width: 30,
-            height: 30,
-            backgroundColor: '#ef4444',
-            zIndex: 9999,
-            elevation: 30,
-          }}
-        />
-      ) : null}
       {rect && swipeDemo ? (
         <Animated.View
           pointerEvents="none"
