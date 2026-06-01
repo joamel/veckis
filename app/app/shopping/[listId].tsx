@@ -36,7 +36,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
@@ -68,6 +68,7 @@ export default function ShoppingListScreen() {
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
+  const tipsReady = useTipsReady();
   const mergeTip = useOnceFlag('seen-merge-tip');
   const mergeTipShownRef = useRef(false);
   const dupeBadgeRef = useRef<View>(null);
@@ -345,31 +346,31 @@ export default function ShoppingListScreen() {
 
   // First time the merge button pulses for the user: förklara vad den är.
   useEffect(() => {
+    if (!tipsReady) return;
     if (mergeTip.seen !== false || mergeTipShownRef.current) return;
     if (duplicateGroups.length === 0) return;
-    mergeTipShownRef.current = true;
     const shown = showTip({
       title: 'Slå ihop dubbletter',
       message: 'Den här lilla knappen visas när vi ser likadana varor på listan. Tryck på den för att slå ihop dem till en vara med samlad mängd.',
       targetRef: dupeBadgeRef,
     });
-    if (shown) mergeTip.markSeen(); // else: retry next session
-  }, [duplicateGroups.length, mergeTip.seen, mergeTip.markSeen, showTip]);
+    if (shown) { mergeTipShownRef.current = true; mergeTip.markSeen(); }
+  }, [tipsReady, duplicateGroups.length, mergeTip.seen, mergeTip.markSeen, showTip]);
 
   // ListActions-tip (3-prickar): visas när listan har innehåll och inget annat
   // tip körs. Förklarar att det gömmer sig fler val (rensa lista, byt butik,
   // importera veckomeny, klarmarka alla …) bakom ikonen.
   useEffect(() => {
+    if (!tipsReady) return;
     if (listActionsTip.seen !== false || listActionsTipShownRef.current) return;
     if (!list || list.items.length === 0) return;
-    listActionsTipShownRef.current = true;
     const shown = showTip({
       title: 'Mer du kan göra med listan',
       message: 'Tryck på prickarna för fler val: byt namn, byt butik, klarmarka alla, rensa listan eller importera veckomeny.',
       targetRef: listActionsBtnRef,
     });
-    if (shown) listActionsTip.markSeen();
-  }, [list, listActionsTip.seen, listActionsTip.markSeen, showTip]);
+    if (shown) { listActionsTipShownRef.current = true; listActionsTip.markSeen(); }
+  }, [tipsReady, list, listActionsTip.seen, listActionsTip.markSeen, showTip]);
 
   useEffect(() => {
     if (pendingOpenNextDupe.current && !mergeSheet && duplicateGroups.length > 0) {

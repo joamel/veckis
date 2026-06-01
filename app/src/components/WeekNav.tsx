@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { useTablet } from '../hooks/useTablet';
 import { useOnceFlag } from '../hooks/useOnceFlag';
-import { useSpotlightTip } from '../context/SpotlightTipContext';
+import { useSpotlightTip, useTipsReady } from '../context/SpotlightTipContext';
 
 interface WeekNavProps {
   weekLabel: string;
@@ -23,6 +23,7 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
   const dateTip = useOnceFlag('seen-weeknav-date-tip');
   const dateTipShownRef = useRef(false);
   const showTip = useSpotlightTip();
+  const tipsReady = useTipsReady();
   const isFocused = useIsFocused();
 
   // Datepicker via week-label tap is hidden — fire a tip once when WeekNav is
@@ -30,17 +31,17 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
   // renders in both calendar and menu; useIsFocused gates so only the active
   // tab's instance fires, otherwise the ring would target the wrong screen.
   useEffect(() => {
+    if (!tipsReady) return;
     if (!isFocused) return;
     if (dateTip.seen !== false || dateTipShownRef.current) return;
     if (!onPickDate) return;
-    dateTipShownRef.current = true;
     const shown = showTip({
       title: 'Hoppa till annan vecka',
       message: 'Tryck på veckonumret för att öppna en kalender och hoppa till valfri vecka eller dag.',
       targetRef: labelTextRef,
     });
-    if (shown) dateTip.markSeen();
-  }, [isFocused, onPickDate, dateTip.seen, dateTip.markSeen, showTip]);
+    if (shown) { dateTipShownRef.current = true; dateTip.markSeen(); }
+  }, [tipsReady, isFocused, onPickDate, dateTip.seen, dateTip.markSeen, showTip]);
 
   return (
     <View style={[s.container, { paddingHorizontal: sp(12), paddingVertical: sp(10) }]}>

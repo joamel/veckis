@@ -24,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
-import { useSpotlightTip, useOnboardingMaster } from '../../src/context/SpotlightTipContext';
+import { useSpotlightTip, useOnboardingMaster, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { TIP_FLAGS } from '../../src/lib/onboardingTips';
 import * as SecureStore from 'expo-secure-store';
@@ -40,6 +40,7 @@ export default function SettingsScreen() {
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
   const { showToast: showGlobalToast, showError } = useToast();
   const showTip = useSpotlightTip();
+  const tipsReady = useTipsReady();
   const { skipAll, setSkipAll } = useOnboardingMaster();
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const notifClockTip = useOnceFlag('seen-notif-clock-tip');
@@ -59,15 +60,15 @@ export default function SettingsScreen() {
   // Notis-klocka-tip: visa första gången inställningar öppnas (klockan i högra
   // hörnet är nyare och inte alltid uppenbar).
   useFocusEffect(useCallback(() => {
+    if (!tipsReady) return;
     if (notifClockTip.seen !== false || notifClockTipShownRef.current) return;
-    notifClockTipShownRef.current = true;
     const shown = showTip({
       title: 'Notisinställningar',
       message: 'Klockan högst upp till höger öppnar dina notisinställningar — slå på/av påminnelser för aktiviteter, sysslor och inköpslistor per typ.',
       targetRef: notifClockBtnRef,
     });
-    if (shown) notifClockTip.markSeen();
-  }, [notifClockTip.seen, notifClockTip.markSeen, showTip]));
+    if (shown) { notifClockTipShownRef.current = true; notifClockTip.markSeen(); }
+  }, [tipsReady, notifClockTip.seen, notifClockTip.markSeen, showTip]));
 
   useFocusEffect(useCallback(() => {
     return () => {
@@ -168,17 +169,17 @@ export default function SettingsScreen() {
   // låser upp admin-åtgärder (byt hushållsnamn, hantera medlemmar, dela ut
   // admin, ta bort hushållet).
   useFocusEffect(useCallback(() => {
+    if (!tipsReady) return;
     if (adminTip.seen !== false || adminTipShownRef.current) return;
     if (!isAdmin) return;
     if (notifClockTip.seen !== true) return;
-    adminTipShownRef.current = true;
     const shown = showTip({
       title: 'Admin-läge',
       message: 'Som admin kan du trycka "Redigera" för att byta hushållsnamn, hantera medlemmar, dela ut admin-rättigheter och ta bort hushållet.',
       targetRef: adminEditBtnRef,
     });
-    if (shown) adminTip.markSeen();
-  }, [isAdmin, notifClockTip.seen, adminTip.seen, adminTip.markSeen, showTip]));
+    if (shown) { adminTipShownRef.current = true; adminTip.markSeen(); }
+  }, [tipsReady, isAdmin, notifClockTip.seen, adminTip.seen, adminTip.markSeen, showTip]));
 
   // Invite code
   async function generateInvite() {
