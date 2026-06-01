@@ -14,9 +14,12 @@ export interface SpotlightOptions {
    *  — use when measureInWindow is unreliable (e.g. virtualised FlatList
    *  wrappers that report 0×0 on Android until items render). */
   targetRect?: { x: number; y: number; width: number; height: number };
-  /** When set, an animated finger gesture renders over the target rect to
-   *  visualise the swipe direction. No-op without a target. */
-  swipeDemo?: 'horizontal' | 'vertical';
+  /** When set, an animated finger gesture renders to visualise the gesture.
+   *  - "horizontal"/"vertical": svep i den riktningen (kräver targetRect)
+   *  - "drag": long-press + drag-rörelse — fingret pulsar för att indikera
+   *    hold, glider sen diagonalt, återgår. Fungerar även utan target
+   *    (renderas då centrerat ovanför tip-kortet). */
+  swipeDemo?: 'horizontal' | 'vertical' | 'drag';
   /** Label for the dismiss button. Defaults to "Förstått". */
   actionLabel?: string;
 }
@@ -83,7 +86,8 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
   // useNativeDriver:false on purpose — native-driver animations inside a
   // Modal can silently stop being committed on Android in some RN versions.
   useEffect(() => {
-    if (!visible || !swipeDemo || !rect) return;
+    if (!visible || !swipeDemo) return;
+    if (swipeDemo !== 'drag' && !rect) return; // svep behöver target; drag funkar centrerad
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(swipeAnim, { toValue: 1, duration: 1100, useNativeDriver: false }),
@@ -103,6 +107,9 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
   // Swipe finger sweeps ±35% of the target dimension, centered on the rect.
   const swipeAmpX = rect && swipeDemo === 'horizontal' ? rect.width * 0.35 : 0;
   const swipeAmpY = rect && swipeDemo === 'vertical' ? rect.height * 0.35 : 0;
+  // Drag-demo: pulsar (long-press indikator) sen glider diagonalt nedåt-höger
+  // för att visa "håll inne + dra". Renderas centrerat ovanför tip-kortet.
+  const dragCenter = { x: screen.width / 2, y: callout - 90 };
 
   // statusBarTranslucent OFF on purpose: Modal coords then start at the app
   // window top (below the status bar) and match measureInWindow's reference,
@@ -166,7 +173,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
       {/* Swipe-finger demo: rendered LAST so it's guaranteed on top regardless
           of Android elevation quirks. Outside the rect-fragment so a re-mount
           when rect changes doesn't tear it down. */}
-      {rect && swipeDemo ? (
+      {rect && swipeDemo && swipeDemo !== 'drag' ? (
         <Animated.View
           pointerEvents="none"
           style={{
@@ -192,6 +199,32 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
             color="#fff"
             style={[s.fingerIcon, swipeDemo === 'horizontal' ? { transform: [{ rotate: '-15deg' }] } : null]}
           />
+        </Animated.View>
+      ) : null}
+      {swipeDemo === 'drag' ? (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: dragCenter.y - 28,
+            left: dragCenter.x - 28,
+            width: 56,
+            height: 56,
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            elevation: 30,
+            // 0→0.4: pulse-fas (long-press indikator, ingen translate);
+            // 0.4→1: drag-fas (diagonal förflyttning nedåt-höger).
+            transform: [
+              { translateX: swipeAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 60] }) },
+              { translateY: swipeAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 40] }) },
+              { scale: swipeAnim.interpolate({ inputRange: [0, 0.2, 0.4, 1], outputRange: [1, 1.2, 1, 1] }) },
+            ],
+          }}
+        >
+          <View style={s.fingerHalo} />
+          <Ionicons name="hand-left-outline" size={40} color="#fff" style={s.fingerIcon} />
         </Animated.View>
       ) : null}
     </Modal>

@@ -47,7 +47,7 @@
 - [x] Onboarding: tip-kortet beskär innehållet — innehållet ligger nu i ScrollView med maxHeight 70% av skärm
 - [x] Onboarding: spotlight-hålet har nu en statisk lila border (alltid synlig) + en pulserande overlay-ring för emphasis — tydlig gräns även när pulsen är på sin låga punkt
 - [x] Onboarding: dim-overlay mörkad från rgba(0,0,0,0.55) till 0.82 så underliggande UI inte är läsbart genom dim:en
-- [ ] Onboarding (meny): animering för drag-mellan-dagar (komplement till svep-fingret som redan finns på kalender-svep-tipset)
+- [x] Onboarding (meny): meny-nav-tipset visar nu drag-animering (pulserande long-press + diagonal förflyttning) via swipeDemo: 'drag' i SpotlightTip; renderas centrerat ovanför tip-kortet
 - [x] Onboarding (kalender + meny): WeekNav-date-tipset ringar nu bara in veckonumret-texten (separat ref runt Text), inte hela WeekNav-raden
 - [x] Onboarding (kalender): nytt `seen-calendar-origins-tip` förklarar att maträtter kommer från meny-fliken och sysslor från sysslor-fliken
 - [x] Onboarding (kalender): action-tip på "+"-FAB (`seen-calendar-add-tip`) som förklarar återkommande/vem/påminnelse vid första tryck
