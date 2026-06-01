@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
-import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { useConfirm } from '../../src/context/ConfirmContext';
@@ -40,6 +40,7 @@ export default function ShoppingScreen() {
   const { showError } = useToast();
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
+  const tipsReady = useTipsReady();
   const storesTip = useOnceFlag('seen-stores-tip');
   const storesTipShownRef = useRef(false);
   const storesBtnRef = useRef<View>(null);
@@ -91,18 +92,18 @@ export default function ShoppingScreen() {
   // är aktiv. useEffect skulle fyra direkt när tabben mountar i bakgrunden
   // (default-fliken är kalender) → tipset poppade men ring missade målet.
   useFocusEffect(useCallback(() => {
+    if (!tipsReady) return;
     // Vänta tills loading-spinnern är borta — annars renderar shopping bara
     // ActivityIndicator och storesBtnRef.current är null när tipset fyrar.
     if (loading) return;
     if (storesTip.seen !== false || storesTipShownRef.current) return;
-    storesTipShownRef.current = true;
     const shown = showTip({
       title: 'Butiker',
       message: 'Tryck här för att lägga till butiker, redigera deras kategorier eller flytta ordningen så listan matchar din affärs layout.',
       targetRef: storesBtnRef,
     });
-    if (shown) storesTip.markSeen();
-  }, [loading, storesTip.seen, storesTip.markSeen, showTip]));
+    if (shown) { storesTipShownRef.current = true; storesTip.markSeen(); }
+  }, [tipsReady, loading, storesTip.seen, storesTip.markSeen, showTip]));
 
   // Live cross-device refresh: the backend emits shopping_list_updated on the
   // household socket when any list's items change, so the overview counts update

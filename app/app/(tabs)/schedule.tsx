@@ -23,7 +23,7 @@ import { useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
-import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
@@ -151,6 +151,7 @@ export default function ScheduleScreen() {
   const client = useApiClient();
   const { showToast, showError } = useToast();
   const showTip = useSpotlightTip();
+  const tipsReady = useTipsReady();
   const filterTip = useOnceFlag('seen-filter-tip');
   const filterTipShownRef = useRef(false);
   const filterBtnRef = useRef<View>(null);
@@ -362,46 +363,46 @@ export default function ScheduleScreen() {
   // byter vecka, svep på själva dag-innehållet byter dag. Centrerat (ingen
   // ring, eftersom det är gester inte en knapp).
   useFocusEffect(useCallback(() => {
+    if (!tipsReady) return;
     if (calendarSwipeTip.seen !== false || calendarSwipeTipShownRef.current) return;
     if (!weekRowRect) return; // vänta tills onLayout fångat rect (re-deps nedan)
-    calendarSwipeTipShownRef.current = true;
     const shown = showTip({
       title: 'Två svep i kalendern',
       message: 'Svep på veckodags-raden (som lyser upp) för att byta vecka. Svep på själva dag-innehållet nedanför för att byta dag.',
       targetRect: weekRowRect,
       swipeDemo: 'horizontal',
     });
-    if (shown) calendarSwipeTip.markSeen();
-  }, [calendarSwipeTip.seen, calendarSwipeTip.markSeen, showTip, weekRowRect]));
+    if (shown) { calendarSwipeTipShownRef.current = true; calendarSwipeTip.markSeen(); }
+  }, [tipsReady, calendarSwipeTip.seen, calendarSwipeTip.markSeen, showTip, weekRowRect]));
 
   // Origins-tip: kalendern visar saker som SKAPAS i andra flikar (recept → meny
   // → här; sysslor-fliken → här). Förklaras EN gång efter att swipe-tipset är
   // dismissat (queue:as via showTip's hasNext-knapp).
   useFocusEffect(useCallback(() => {
+    if (!tipsReady) return;
     if (originsTip.seen !== false || originsTipShownRef.current) return;
-    originsTipShownRef.current = true;
     const shown = showTip({
       title: 'Var kommer innehållet ifrån?',
       message: 'Maträtter på kalendern kommer från veckomenyn (Meny-fliken), och sysslor från Sysslor-fliken. Skapa eller redigera dem där — de syns sedan automatiskt i kalendern.',
     });
-    if (shown) originsTip.markSeen();
-  }, [originsTip.seen, originsTip.markSeen, showTip]));
+    if (shown) { originsTipShownRef.current = true; originsTip.markSeen(); }
+  }, [tipsReady, originsTip.seen, originsTip.markSeen, showTip]));
 
   // Filter-tip: använder useFocusEffect så det bara fyrar från den AKTIVA
   // fliken. Sysslor-fliken delar flagga `seen-filter-tip` — vem som ser
   // tipset först beror på vilken flik användaren öppnar först, inte vems
   // useEffect som vinner mount-racet.
   useFocusEffect(useCallback(() => {
+    if (!tipsReady) return;
     if (filterTip.seen !== false || filterTipShownRef.current) return;
     if (members.length === 0) return;
-    filterTipShownRef.current = true;
     const shown = showTip({
       title: 'Filtrera på person',
       message: 'Tryck här för att bara visa aktiviteter (och sysslor) för en eller flera personer. Filtret gäller både kalendern och sysslor-fliken.',
       targetRef: filterBtnRef,
     });
-    if (shown) filterTip.markSeen();
-  }, [members.length, filterTip.seen, filterTip.markSeen, showTip]));
+    if (shown) { filterTipShownRef.current = true; filterTip.markSeen(); }
+  }, [tipsReady, members.length, filterTip.seen, filterTip.markSeen, showTip]));
 
   // Deep link from a tapped activity notification (L45): open that entry's edit
   // dialog once the entries have loaded, then clear the param so it won't re-fire.

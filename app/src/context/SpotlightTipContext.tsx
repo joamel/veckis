@@ -12,6 +12,11 @@ interface SpotlightContextValue {
   /** null while the flag is still loading from SecureStore. */
   skipAll: boolean | null;
   setSkipAll: (v: boolean) => Promise<void>;
+  /** True när välkomstmodalen är klar (sedd tidigare, eller just dismissad).
+   *  Tips blockeras tills detta är true — annars börjar de fyra bakom
+   *  välkomstskärmen. */
+  welcomeReady: boolean;
+  markWelcomeReady: () => void;
 }
 
 const SpotlightTipContext = createContext<SpotlightContextValue | null>(null);
@@ -35,6 +40,23 @@ export function useOnboardingMaster() {
   return { skipAll: ctx.skipAll, setSkipAll: ctx.setSkipAll };
 }
 
+/** Välkomst-gate — använd från _layout för att markera när välkomstmodalen
+ *  är avklarad så tips kan börja fyra. */
+export function useWelcomeGate() {
+  const ctx = useContext(SpotlightTipContext);
+  if (!ctx) throw new Error('useWelcomeGate must be used within SpotlightTipProvider');
+  return { welcomeReady: ctx.welcomeReady, markWelcomeReady: ctx.markWelcomeReady };
+}
+
+/** Sub-set av context:en för tips-callsites — returnerar bara den boolean:en
+ *  som behövs som useFocusEffect-dep så callbacken re-skapas när gaten öppnar
+ *  och useFocusEffect re-invokerar tipset. */
+export function useTipsReady(): boolean {
+  const ctx = useContext(SpotlightTipContext);
+  if (!ctx) throw new Error('useTipsReady must be used within SpotlightTipProvider');
+  return ctx.welcomeReady;
+}
+
 export function SpotlightTipProvider({ children }: { children: ReactNode }) {
   const [opts, setOpts] = useState<SpotlightOptions | null>(null);
   const [hasNext, setHasNext] = useState(false);
@@ -43,6 +65,15 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
   // Master-flagga: när true fyrar inga tips. null = laddar fortfarande.
   const [skipAll, setSkipAllState] = useState<boolean | null>(null);
   const skipAllRef = useRef<boolean>(false);
+  // Välkomst-gate: blockerar alla show()-anrop tills _layout har bekräftat att
+  // välkomstmodalen är dismissad (eller var redan sedd). Ref:en speglar
+  // state:en så synkrona show()-anrop ser senaste värdet.
+  const [welcomeReady, setWelcomeReady] = useState<boolean>(false);
+  const welcomeReadyRef = useRef<boolean>(false);
+  const markWelcomeReady = useCallback(() => {
+    welcomeReadyRef.current = true;
+    setWelcomeReady(true);
+  }, []);
 
   useEffect(() => {
     SecureStore.getItemAsync(SKIP_ALL_FLAG).then(v => {
@@ -60,6 +91,7 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const show = useCallback<ShowTipFn>((o) => {
+    if (!welcomeReadyRef.current) return false; // välkomstmodalen blockerar
     if (skipAllRef.current) return false; // master kill-switch
     if (optsRef.current?.title === o.title) return true;
     if (queueRef.current.some(q => q.title === o.title)) return true;
@@ -80,7 +112,10 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
     setHasNext(queueRef.current.length > 0);
   }, []);
 
-  const value = useMemo<SpotlightContextValue>(() => ({ show, skipAll, setSkipAll }), [show, skipAll, setSkipAll]);
+  const value = useMemo<SpotlightContextValue>(
+    () => ({ show, skipAll, setSkipAll, welcomeReady, markWelcomeReady }),
+    [show, skipAll, setSkipAll, welcomeReady, markWelcomeReady],
+  );
 
   return (
     <SpotlightTipContext.Provider value={value}>

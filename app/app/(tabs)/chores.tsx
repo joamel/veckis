@@ -27,7 +27,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useMemberFilter } from '../../src/context/MemberFilterContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -233,6 +233,7 @@ export default function ChoresScreen() {
   const { showError } = useToast();
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
+  const tipsReady = useTipsReady();
   const forgivingTip = useOnceFlag('seen-forgiving-tip');
   const tipShownRef = useRef(false);
   // Intro-tip — vad fliken är till för. Fyrar EN gång, oavsett om det finns
@@ -361,19 +362,21 @@ export default function ChoresScreen() {
   // Intro-tip: vad fliken är till för. Fyrar först av allt så användaren
   // förstår syftet direkt (även med tom lista).
   useFocusEffect(useCallback(() => {
+    if (!tipsReady) return;
     if (choresIntroTip.seen !== false || choresIntroTipShownRef.current) return;
     const shown = showTip({
       title: 'Sysslor',
       message: 'Här strukturerar du återkommande sysslor — disk, sopor, dammsuga. Prova ett roterande schema så alla i hushållet turas om automatiskt, och bocka av allteftersom.',
     });
     if (shown) { choresIntroTipShownRef.current = true; choresIntroTip.markSeen(); }
-  }, [choresIntroTip.seen, choresIntroTip.markSeen, showTip]));
+  }, [tipsReady, choresIntroTip.seen, choresIntroTip.markSeen, showTip]));
 
   // Historik-tipset: visas när det finns en förfallen återkommande syssla så
   // användaren förstår att utfällning visar historiken (klar/missad), inte att
   // appen "glömt" påminna. (Tidigare hette tipset "Inga fler påminnelser..."
   // vilket gav fel mental modell.)
   useFocusEffect(useCallback(() => {
+    if (!tipsReady) return;
     if (forgivingTip.seen !== false || tipShownRef.current) return;
     const hasOverdue = chores.some(c => !isOnce(c) && recurringStatus(c).state === 'overdue');
     if (!hasOverdue) return;
@@ -382,21 +385,21 @@ export default function ChoresScreen() {
       message: 'Fäll ut en återkommande syssla för att se historiken — vilka tillfällen som blev klara (✓) och vilka som missades (–). Missade dagar ger inga upprepade påminnelser; nästa tillfälle dyker upp som vanligt.',
     });
     if (shown) { tipShownRef.current = true; forgivingTip.markSeen(); }
-  }, [chores, forgivingTip.seen, forgivingTip.markSeen, showTip]));
+  }, [tipsReady, chores, forgivingTip.seen, forgivingTip.markSeen, showTip]));
 
   // Filter-tip i sysslor — useFocusEffect så det bara fyrar från aktiv flik.
   // Samma flagga som schedule så bara en av flikarna visar tipset.
   useFocusEffect(useCallback(() => {
+    if (!tipsReady) return;
     if (filterTip.seen !== false || filterTipShownRef.current) return;
     if (members.length === 0) return;
-    filterTipShownRef.current = true;
     const shown = showTip({
       title: 'Filtrera på person',
       message: 'Tryck här för att bara visa sysslor (och aktiviteter) för en eller flera personer. Filtret gäller både sysslor-fliken och kalendern.',
       targetRef: filterBtnRef,
     });
-    if (shown) filterTip.markSeen();
-  }, [members.length, filterTip.seen, filterTip.markSeen, showTip]));
+    if (shown) { filterTipShownRef.current = true; filterTip.markSeen(); }
+  }, [tipsReady, members.length, filterTip.seen, filterTip.markSeen, showTip]));
 
   // Completed chores sorted to the bottom, with optional member filter
   const sortedChores = useMemo(() => {

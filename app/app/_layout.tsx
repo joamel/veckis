@@ -11,7 +11,7 @@ import { MemberFilterProvider } from '../src/context/MemberFilterContext';
 import { PendingRemovalProvider } from '../src/context/PendingRemovalContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { ConfirmProvider } from '../src/context/ConfirmContext';
-import { SpotlightTipProvider, useOnboardingMaster } from '../src/context/SpotlightTipContext';
+import { SpotlightTipProvider, useOnboardingMaster, useWelcomeGate } from '../src/context/SpotlightTipContext';
 import { WelcomeModal } from '../src/components/WelcomeModal';
 
 // Lock app text to designed size regardless of OS "larger text" setting.
@@ -49,8 +49,10 @@ function NavigationGuard() {
   const segments = useSegments();
   const router = useRouter();
   const { setSkipAll } = useOnboardingMaster();
+  const { markWelcomeReady } = useWelcomeGate();
   // Visa välkomst-modalen EN gång efter att användaren har signat in OCH valt
-  // hushåll. Flagga sparas i SecureStore (seen-welcome-tip).
+  // hushåll. Flagga sparas i SecureStore (seen-welcome-tip). Tips blockeras
+  // via welcomeReady-gaten i providern tills användaren har dismissat modalen.
   const [welcomeState, setWelcomeState] = useState<'loading' | 'show' | 'done'>('loading');
 
   useEffect(() => {
@@ -76,13 +78,21 @@ function NavigationGuard() {
     if (!isSignedIn || !householdId) return;
     if (welcomeState !== 'loading') return;
     SecureStore.getItemAsync('seen-welcome-tip').then(v => {
-      setWelcomeState(v === '1' ? 'done' : 'show');
-    }).catch(() => setWelcomeState('done'));
-  }, [isSignedIn, householdId, welcomeState]);
+      if (v === '1') {
+        // Flaggan satt → ingen modal, släpp gaten direkt så tips kan börja fyra.
+        setWelcomeState('done');
+        markWelcomeReady();
+      } else {
+        // Modal ska visas — gaten förblir stängd tills användaren dismissar.
+        setWelcomeState('show');
+      }
+    }).catch(() => { setWelcomeState('done'); markWelcomeReady(); });
+  }, [isSignedIn, householdId, welcomeState, markWelcomeReady]);
 
   const markWelcomeSeen = async () => {
     await SecureStore.setItemAsync('seen-welcome-tip', '1').catch(() => {});
     setWelcomeState('done');
+    markWelcomeReady();
   };
 
   return (
