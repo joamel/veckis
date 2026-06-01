@@ -5,3 +5,4 @@ export * from './types/schedule';
 export * from './types/recipe';
 export * from './types/staple';
 export * from './lib/recurrence';
+export * from './lib/choreRotation';
