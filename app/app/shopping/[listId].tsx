@@ -75,6 +75,10 @@ export default function ShoppingListScreen() {
   const listActionsTip = useOnceFlag('seen-list-actions-tip');
   const listActionsTipShownRef = useRef(false);
   const listActionsBtnRef = useRef<View>(null);
+  const suggestionTip = useOnceFlag('seen-suggestion-edit-tip');
+  const suggestionTipShownRef = useRef(false);
+  const stapleEditorTip = useOnceFlag('seen-staple-editor-tip');
+  const stapleEditorTipShownRef = useRef(false);
   const { householdId } = useHousehold();
   const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
@@ -346,16 +350,31 @@ export default function ShoppingListScreen() {
 
   // First time the merge button pulses for the user: förklara vad den är.
   useEffect(() => {
+    // Merge-tipset fyrar INTE när dubblett-badge:n syns — det poppar in när
+    // användaren faktiskt öppnar merge-dialogen så förklaringen kommer i
+    // direkt kontext av att de ser den.
     if (!tipsReady) return;
     if (mergeTip.seen !== false || mergeTipShownRef.current) return;
-    if (duplicateGroups.length === 0) return;
+    if (!mergeSheet) return;
     const shown = showTip({
       title: 'Slå ihop dubbletter',
-      message: 'Den här lilla knappen visas när vi ser likadana varor på listan. Tryck på den för att slå ihop dem till en vara med samlad mängd.',
-      targetRef: dupeBadgeRef,
+      message: 'Här slår du ihop likadana varor till en post med samlad mängd. Justera namn, enhet och kategori om du vill — appen drar ihop allt till en rad i listan.',
     });
     if (shown) { mergeTipShownRef.current = true; mergeTip.markSeen(); }
-  }, [tipsReady, duplicateGroups.length, mergeTip.seen, mergeTip.markSeen, showTip]);
+  }, [tipsReady, mergeSheet, mergeTip.seen, mergeTip.markSeen, showTip]);
+
+  // Staple-editor-tip: fyrar när användaren faktiskt öppnar basvara-editorn
+  // (via long-press). Förklarar vad man kan ändra där (enhet + kategori).
+  useEffect(() => {
+    if (!tipsReady) return;
+    if (stapleEditorTip.seen !== false || stapleEditorTipShownRef.current) return;
+    if (!editingStaple) return;
+    const shown = showTip({
+      title: 'Enhet och kategori',
+      message: 'Här ändrar du standardenhet (st, dl, g …) och kategori så varan automatiskt hamnar rätt i butikens ordning nästa gång du lägger till den.',
+    });
+    if (shown) { stapleEditorTipShownRef.current = true; stapleEditorTip.markSeen(); }
+  }, [tipsReady, editingStaple, stapleEditorTip.seen, stapleEditorTip.markSeen, showTip]);
 
   // ListActions-tip (3-prickar): visas när listan har innehåll och inget annat
   // tip körs. Förklarar att det gömmer sig fler val (rensa lista, byt butik,
@@ -395,6 +414,19 @@ export default function ShoppingListScreen() {
   const suggestions = newItem.trim().length >= 1
     ? fuse.search(newItem).slice(0, 8).map(r => r.item)
     : [];
+
+  // Suggestion-tip: fyrar när förslagslistan dyker upp första gången.
+  // Förklarar att man kan långtrycka för att redigera en basvara.
+  useEffect(() => {
+    if (!tipsReady) return;
+    if (suggestionTip.seen !== false || suggestionTipShownRef.current) return;
+    if (suggestions.length === 0) return;
+    const shown = showTip({
+      title: 'Redigera basvara',
+      message: 'Förslagen kommer från dina basvaror och tidigare ingredienser. Håll inne på ett förslag för att redigera enhet, kategori eller spara det som en ny basvara.',
+    });
+    if (shown) { suggestionTipShownRef.current = true; suggestionTip.markSeen(); }
+  }, [tipsReady, suggestions.length, suggestionTip.seen, suggestionTip.markSeen, showTip]);
 
   // Most-added staples (getStaples returns them usageCount-desc) — shown as
   // quick-add chips when the add field is empty so återkommande inköp går snabbt.

@@ -87,6 +87,10 @@ export default function MenuScreen() {
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
+  const bulkRecipesTip = useOnceFlag('seen-bulk-recipes-tip');
+  const bulkRecipesTipShownRef = useRef(false);
+  const bulkInventoryTip = useOnceFlag('seen-bulk-inventory-tip');
+  const bulkInventoryTipShownRef = useRef(false);
   const menuNavTip = useOnceFlag('seen-menu-nav-tip');
   const menuNavTipShownRef = useRef(false);
   const templatesTip = useOnceFlag('seen-templates-tip');
@@ -561,6 +565,32 @@ export default function MenuScreen() {
     });
     if (shown) { cartFabTipShownRef.current = true; cartFabTip.markSeen(); }
   }, [tipsReady, menuItems, recipeListMap, templatesTip.seen, cartFabTip.seen, cartFabTip.markSeen, showTip]));
+
+  // Bulk-transfer steg-tips: fyrar när användaren faktiskt landar på resp.
+  // steg ("recipe" = välj rätter, "ingredients" = vad har du hemma).
+  useEffect(() => {
+    if (!tipsReady) return;
+    if (!bulkTransferWeek) return;
+    if (bulkTransferStep !== 'recipe') return;
+    if (bulkRecipesTip.seen !== false || bulkRecipesTipShownRef.current) return;
+    const shown = showTip({
+      title: 'Välj rätter att överföra',
+      message: 'Bocka av de rätter du vill ta in i inköpslistan. Avbockade rätter och de som redan är överförda lämnas kvar i veckomenyn — du kan komma tillbaka och köra resten senare.',
+    });
+    if (shown) { bulkRecipesTipShownRef.current = true; bulkRecipesTip.markSeen(); }
+  }, [tipsReady, bulkTransferWeek, bulkTransferStep, bulkRecipesTip.seen, bulkRecipesTip.markSeen, showTip]);
+
+  useEffect(() => {
+    if (!tipsReady) return;
+    if (!bulkTransferWeek) return;
+    if (bulkTransferStep !== 'ingredients') return;
+    if (bulkInventoryTip.seen !== false || bulkInventoryTipShownRef.current) return;
+    const shown = showTip({
+      title: 'Vad har du hemma?',
+      message: 'Här filtrerar du bort det du redan har. Bocka av en hel ingrediens om du har tillräckligt — eller ange en mängd om du har lite men inte allt, så landar bara bristen på inköpslistan.',
+    });
+    if (shown) { bulkInventoryTipShownRef.current = true; bulkInventoryTip.markSeen(); }
+  }, [tipsReady, bulkTransferWeek, bulkTransferStep, bulkInventoryTip.seen, bulkInventoryTip.markSeen, showTip]);
   // Live menu updates: another device added/removed/moved a meal. load() refreshes
   // both the visible week and the allMenus snapshot that feeds neighbour pages.
   const menuReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
