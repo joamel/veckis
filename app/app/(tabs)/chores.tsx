@@ -197,28 +197,62 @@ function DayPicker({ selected, onChange }: { selected: WeekDay[]; onChange: (day
   );
 }
 
-function MemberPicker({ members, selected, onChange }: { members: Member[]; selected: string | null; onChange: (id: string | null) => void }) {
+interface MultiMemberPickerProps {
+  members: Member[];
+  selected: string[];
+  rotation: boolean;
+  onChange: (ids: string[]) => void;
+  onRotationChange: (v: boolean) => void;
+}
+function MultiMemberPicker({ members, selected, rotation, onChange, onRotationChange }: MultiMemberPickerProps) {
   if (members.length === 0) return null;
+  const toggle = (id: string) => {
+    if (selected.includes(id)) onChange(selected.filter(x => x !== id));
+    else onChange([...selected, id]);
+  };
   return (
     <>
-      <Text style={s.label}>Tilldela person</Text>
+      <Text style={s.label}>Tilldela person{selected.length > 1 ? 'er' : ''}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberChipRow}>
         <Pressable
-          style={[s.memberChip, selected === null && s.memberChipActive]}
-          onPress={() => onChange(null)}
+          style={[s.memberChip, selected.length === 0 && s.memberChipActive]}
+          onPress={() => onChange([])}
         >
-          <Text style={[s.memberChipText, selected === null && s.memberChipTextActive]}>Ingen</Text>
+          <Text style={[s.memberChipText, selected.length === 0 && s.memberChipTextActive]}>Ingen</Text>
         </Pressable>
-        {members.map(m => (
-          <Pressable
-            key={m.id}
-            style={[s.memberChip, selected === m.id && s.memberChipActive]}
-            onPress={() => onChange(m.id)}
-          >
-            <Text style={[s.memberChipText, selected === m.id && s.memberChipTextActive]}>{m.displayName}</Text>
-          </Pressable>
-        ))}
+        {members.map(m => {
+          const isActive = selected.includes(m.id);
+          return (
+            <Pressable
+              key={m.id}
+              style={[s.memberChip, isActive && s.memberChipActive]}
+              onPress={() => toggle(m.id)}
+            >
+              <Text style={[s.memberChipText, isActive && s.memberChipTextActive]}>{m.displayName}</Text>
+            </Pressable>
+          );
+        })}
       </ScrollView>
+      {selected.length >= 2 ? (
+        <Pressable
+          style={s.rotationRow}
+          onPress={() => onRotationChange(!rotation)}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: rotation }}
+        >
+          <View style={[s.rotationBox, rotation && s.rotationBoxActive]}>
+            {rotation ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.rotationLabel}>Turas om automatiskt</Text>
+            <Text style={s.rotationSub}>
+              {rotation
+                ? 'Tur byts efter varje avbockning — alla turas om i listan.'
+                : 'Alla i listan är gemensamt ansvariga (ingen rotation).'}
+            </Text>
+          </View>
+        </Pressable>
+      ) : null}
     </>
   );
 }
@@ -293,7 +327,8 @@ export default function ChoresScreen() {
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newAssignedTo, setNewAssignedTo] = useState<string | null>(null);
+  const [newAssignedToMany, setNewAssignedToMany] = useState<string[]>([]);
+  const [newRotation, setNewRotation] = useState(false);
   const [newRecurrenceType, setNewRecurrenceType] = useState<RecurrenceType>('none');
   const [newRecurrenceWeeks, setNewRecurrenceWeeks] = useState(1);
   const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
@@ -311,7 +346,8 @@ export default function ChoresScreen() {
   // a socket update to the same open chore keeps the id, so the banner survives.
   useEffect(() => { setChoreConflict(null); }, [editingChore?.id]);
   const [editTitle, setEditTitle] = useState('');
-  const [editAssignedTo, setEditAssignedTo] = useState<string | null>(null);
+  const [editAssignedToMany, setEditAssignedToMany] = useState<string[]>([]);
+  const [editRotation, setEditRotation] = useState(false);
   const [editRecurrenceType, setEditRecurrenceType] = useState<RecurrenceType>('none');
   const [editRecurrenceWeeks, setEditRecurrenceWeeks] = useState(1);
   const [editRecurrenceDays, setEditRecurrenceDays] = useState<WeekDay[]>([]);
@@ -448,7 +484,8 @@ export default function ChoresScreen() {
 
   function resetCreateForm() {
     setNewTitle('');
-    setNewAssignedTo(null);
+    setNewAssignedToMany([]);
+    setNewRotation(false);
     setNewRecurrenceType('none');
     setNewRecurrenceWeeks(1);
     setNewRecurrenceDays([]);
@@ -477,7 +514,9 @@ export default function ChoresScreen() {
       const chore = await client.createChore({
         householdId,
         title: newTitle.trim(),
-        assignedTo: newAssignedTo,
+        assignedTo: newAssignedToMany[0] ?? null,
+        assignedToMany: newAssignedToMany,
+        rotation: newAssignedToMany.length >= 2 ? newRotation : false,
         days,
         startDate,
         endDate: newEndDate,
@@ -500,7 +539,9 @@ export default function ChoresScreen() {
   function openEdit(chore: ChoreWithCompletion) {
     setEditingChore(chore);
     setEditTitle(chore.title);
-    setEditAssignedTo(chore.assignedTo);
+    // Initiera från assignedToMany; fall tillbaka till legacy single assignedTo.
+    setEditAssignedToMany(chore.assignedToMany?.length ? chore.assignedToMany : (chore.assignedTo ? [chore.assignedTo] : []));
+    setEditRotation(!!chore.rotation);
     // Legacy fallback: derive recurrenceType from old `frequency` if backend didn't fill it.
     const rt: RecurrenceType = chore.recurrenceType
       ?? (chore.frequency === 'once' ? 'none'
@@ -529,7 +570,9 @@ export default function ChoresScreen() {
         : editStartDate;
       const updated = await client.updateChore(editingChore.id, {
         title: editTitle.trim(),
-        assignedTo: editAssignedTo,
+        assignedTo: editAssignedToMany[0] ?? null,
+        assignedToMany: editAssignedToMany,
+        rotation: editAssignedToMany.length >= 2 ? editRotation : false,
         days,
         startDate,
         endDate: editEndDate,
@@ -910,7 +953,13 @@ export default function ChoresScreen() {
               returnKeyType="done"
             />
 
-            <MemberPicker members={members} selected={newAssignedTo} onChange={setNewAssignedTo} />
+            <MultiMemberPicker
+              members={members}
+              selected={newAssignedToMany}
+              rotation={newRotation}
+              onChange={setNewAssignedToMany}
+              onRotationChange={setNewRotation}
+            />
 
             {newRecurrenceType === 'none' && (
               <>
@@ -992,7 +1041,13 @@ export default function ChoresScreen() {
               returnKeyType="done"
             />
 
-            <MemberPicker members={members} selected={editAssignedTo} onChange={setEditAssignedTo} />
+            <MultiMemberPicker
+              members={members}
+              selected={editAssignedToMany}
+              rotation={editRotation}
+              onChange={setEditAssignedToMany}
+              onRotationChange={setEditRotation}
+            />
 
             {editRecurrenceType === 'none' && (
               <>
@@ -1111,6 +1166,11 @@ const s = StyleSheet.create({
   memberChipActive: { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' },
   memberChipText: { fontSize: 14, color: '#374151', fontWeight: '500' },
   memberChipTextActive: { color: '#7c3aed', fontWeight: '600' },
+  rotationRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 4, marginTop: 8 },
+  rotationBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  rotationBoxActive: { borderColor: '#7c3aed', backgroundColor: '#7c3aed' },
+  rotationLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  rotationSub: { fontSize: 12, color: '#6b7280', marginTop: 2, lineHeight: 17 },
   dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   dayOption: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
   dayOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
