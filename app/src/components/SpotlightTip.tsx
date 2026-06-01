@@ -268,7 +268,8 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
               zIndex: 10000,
               elevation: 35,
               transform: [
-                { translateX: swipeAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 60] }) },
+                // Endast vertikal rörelse — drag-mellan-dagar i menyn är
+                // upp/ner mellan dagsektioner.
                 { translateY: swipeAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 70] }) },
                 { scale: swipeAnim.interpolate({ inputRange: [0, 0.2, 0.4, 1], outputRange: [1, 1.2, 1, 1] }) },
               ],
