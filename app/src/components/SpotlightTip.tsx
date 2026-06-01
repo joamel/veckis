@@ -102,14 +102,15 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
 
   if (!visible) return null;
 
-  const callout = computeCalloutTop(rect, screen.height);
+  const callout = computeCalloutTop(rect, screen.height, swipeDemo);
 
   // Swipe finger sweeps ±35% of the target dimension, centered on the rect.
   const swipeAmpX = rect && swipeDemo === 'horizontal' ? rect.width * 0.35 : 0;
   const swipeAmpY = rect && swipeDemo === 'vertical' ? rect.height * 0.35 : 0;
-  // Drag-demo: pulsar (long-press indikator) sen glider diagonalt nedåt-höger
-  // för att visa "håll inne + dra". Renderas centrerat ovanför tip-kortet.
-  const dragCenter = { x: screen.width / 2, y: callout - 90 };
+  // Drag-demo: positionerat högt på skärmen där riktiga meny-rätter sitter
+  // (ungefär 22% från toppen), tip-kortet trycks ned i computeCalloutTop
+  // så det finns gott om plats för demon utan att de överlappar.
+  const dragCenter = { x: screen.width / 2, y: screen.height * 0.22 };
 
   // statusBarTranslucent OFF on purpose: Modal coords then start at the app
   // window top (below the status bar) and match measureInWindow's reference,
@@ -283,10 +284,17 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
 }
 
 // Position the callout below the target if there's room, otherwise above,
-// otherwise centred on the screen.
-function computeCalloutTop(rect: Rect | null, screenH: number): number {
+// otherwise centred on the screen. swipeDemo='drag' utan target pushas ned
+// så det finns plats för mock-meny-raderna ovanför tip-kortet.
+function computeCalloutTop(rect: Rect | null, screenH: number, swipeDemo?: 'horizontal' | 'vertical' | 'drag'): number {
   const cardEstHeight = 200;
-  if (!rect) return Math.max(80, (screenH - cardEstHeight) / 2);
+  if (!rect) {
+    if (swipeDemo === 'drag') {
+      // Lägre i nedre halvan så drag-demoen får hela övre delen för sig själv.
+      return Math.max(screenH * 0.55, screenH - cardEstHeight - 60);
+    }
+    return Math.max(80, (screenH - cardEstHeight) / 2);
+  }
   const below = rect.y + rect.height + 24;
   const above = rect.y - cardEstHeight - 24;
   if (below + cardEstHeight < screenH - 40) return below;
