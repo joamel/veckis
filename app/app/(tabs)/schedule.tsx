@@ -1022,7 +1022,11 @@ export default function ScheduleScreen() {
               change week (keeps the selected weekday). Absolute-indexed, never
               recenters. Wrapper view is the measure-target for the onboarding
               swipe tip's spotlight ring + finger animation. */}
-          <View ref={weekRowWrapRef} collapsable={false}>
+          {/* minHeight säkerställer att wrappern har en mätbar storlek innan
+              FlatList:ens virtualiserade items har layoutats — annars
+              returnerar measureInWindow 0×0 så onboarding-tipsets ring + finger
+              hamnar fel. */}
+          <View ref={weekRowWrapRef} collapsable={false} style={{ minHeight: 75 }}>
           <FlatList
             ref={weekRowListRef}
             data={weekRowIndices}
