@@ -28,6 +28,7 @@ import { useMemberFilter } from '../../src/context/MemberFilterContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
+import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -234,8 +235,10 @@ export default function ChoresScreen() {
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
-  const forgivingTip = useOnceFlag('seen-forgiving-tip');
-  const tipShownRef = useRef(false);
+  // Historik-tipset wrap:as runt utfäll-knappens onPress — visas alltså bara
+  // när användaren faktiskt fäller ut en återkommande syssla (där historiken
+  // syns) istället för passivt vid fokus.
+  const wrapExpandTip = useFirstActionTip('seen-forgiving-tip');
   // Intro-tip — vad fliken är till för. Fyrar EN gång, oavsett om det finns
   // sysslor inlagda (så användaren förstår syftet med fliken direkt).
   const choresIntroTip = useOnceFlag('seen-chores-intro-tip');
@@ -371,21 +374,6 @@ export default function ChoresScreen() {
     if (shown) { choresIntroTipShownRef.current = true; choresIntroTip.markSeen(); }
   }, [tipsReady, choresIntroTip.seen, choresIntroTip.markSeen, showTip]));
 
-  // Historik-tipset: visas när det finns en förfallen återkommande syssla så
-  // användaren förstår att utfällning visar historiken (klar/missad), inte att
-  // appen "glömt" påminna. (Tidigare hette tipset "Inga fler påminnelser..."
-  // vilket gav fel mental modell.)
-  useFocusEffect(useCallback(() => {
-    if (!tipsReady) return;
-    if (forgivingTip.seen !== false || tipShownRef.current) return;
-    const hasOverdue = chores.some(c => !isOnce(c) && recurringStatus(c).state === 'overdue');
-    if (!hasOverdue) return;
-    const shown = showTip({
-      title: 'Historik per syssla',
-      message: 'Fäll ut en återkommande syssla för att se historiken — vilka tillfällen som blev klara (✓) och vilka som missades (–). Missade dagar ger inga upprepade påminnelser; nästa tillfälle dyker upp som vanligt.',
-    });
-    if (shown) { tipShownRef.current = true; forgivingTip.markSeen(); }
-  }, [tipsReady, chores, forgivingTip.seen, forgivingTip.markSeen, showTip]));
 
   // Filter-tip i sysslor — useFocusEffect så det bara fyrar från aktiv flik.
   // Samma flagga som schedule så bara en av flikarna visar tipset.
@@ -779,7 +767,13 @@ export default function ChoresScreen() {
                 </View>
                 {rec && !editMode && (
                   <Pressable
-                    onPress={() => setExpandedChores(prev => { const n = new Set(prev); if (n.has(item.id)) n.delete(item.id); else n.add(item.id); return n; })}
+                    onPress={wrapExpandTip(
+                      () => setExpandedChores(prev => { const n = new Set(prev); if (n.has(item.id)) n.delete(item.id); else n.add(item.id); return n; }),
+                      {
+                        title: 'Historik per syssla',
+                        message: 'Här ser du vilka tillfällen som blev klara (✓) och vilka som missades (–). Missade dagar ger inga upprepade påminnelser; nästa tillfälle dyker upp som vanligt.',
+                      },
+                    )}
                     hitSlop={8}
                     style={s.expandBtn}
                     accessibilityRole="button"
