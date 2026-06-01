@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { useIsFocused } from '@react-navigation/native';
 import { SpotlightTip, type SpotlightOptions } from '../components/SpotlightTip';
 import { SKIP_ALL_FLAG } from '../lib/onboardingTips';
 
@@ -48,13 +49,23 @@ export function useWelcomeGate() {
   return { welcomeReady: ctx.welcomeReady, markWelcomeReady: ctx.markWelcomeReady };
 }
 
-/** Sub-set av context:en för tips-callsites — returnerar bara den boolean:en
- *  som behövs som useFocusEffect-dep så callbacken re-skapas när gaten öppnar
- *  och useFocusEffect re-invokerar tipset. */
+/** Per-instance "redo för tips"-flagga. Returnerar true endast när:
+ *  - välkomstmodalen är dismissad (global welcomeReady)
+ *  - skärmen har varit i fokus i minst 2s (per-flik orienteringsbuffer)
+ *  Lägg som dep i useFocusEffect/useEffect så callbacken re-skapas och
+ *  tipset re-invokerar när bufferten löper ut. */
+const PER_FOCUS_BUFFER_MS = 2000;
 export function useTipsReady(): boolean {
   const ctx = useContext(SpotlightTipContext);
   if (!ctx) throw new Error('useTipsReady must be used within SpotlightTipProvider');
-  return ctx.welcomeReady;
+  const isFocused = useIsFocused();
+  const [bufferDone, setBufferDone] = useState(false);
+  useEffect(() => {
+    if (!ctx.welcomeReady || !isFocused) { setBufferDone(false); return; }
+    const t = setTimeout(() => setBufferDone(true), PER_FOCUS_BUFFER_MS);
+    return () => clearTimeout(t);
+  }, [ctx.welcomeReady, isFocused]);
+  return ctx.welcomeReady && isFocused && bufferDone;
 }
 
 export function SpotlightTipProvider({ children }: { children: ReactNode }) {
@@ -66,27 +77,14 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
   const [skipAll, setSkipAllState] = useState<boolean | null>(null);
   const skipAllRef = useRef<boolean>(false);
   // Välkomst-gate: blockerar alla show()-anrop tills _layout har bekräftat att
-  // välkomstmodalen är dismissad (eller var redan sedd). Ref:en speglar
-  // state:en så synkrona show()-anrop ser senaste värdet.
-  //
-  // Buffer: när gaten "markeras klar" vi väntar 2s innan vi flippar
-  // welcomeReady — så användaren hinner se hela vyn utan dim-overlay innan
-  // första tipset poppar.
-  const POST_WELCOME_BUFFER_MS = 2000;
+  // välkomstmodalen är dismissad (eller var redan sedd). Per-flik 2s-bufferten
+  // ligger i useTipsReady (ovan) — här markeras bara global readiness.
   const [welcomeReady, setWelcomeReady] = useState<boolean>(false);
   const welcomeReadyRef = useRef<boolean>(false);
-  const welcomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const markWelcomeReady = useCallback(() => {
     if (welcomeReadyRef.current) return;
-    if (welcomeTimerRef.current) return; // redan timed
-    welcomeTimerRef.current = setTimeout(() => {
-      welcomeReadyRef.current = true;
-      setWelcomeReady(true);
-      welcomeTimerRef.current = null;
-    }, POST_WELCOME_BUFFER_MS);
-  }, []);
-  useEffect(() => () => {
-    if (welcomeTimerRef.current) clearTimeout(welcomeTimerRef.current);
+    welcomeReadyRef.current = true;
+    setWelcomeReady(true);
   }, []);
 
   useEffect(() => {

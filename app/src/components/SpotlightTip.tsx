@@ -202,30 +202,81 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
         </Animated.View>
       ) : null}
       {swipeDemo === 'drag' ? (
-        <Animated.View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: dragCenter.y - 28,
-            left: dragCenter.x - 28,
-            width: 56,
-            height: 56,
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            elevation: 30,
-            // 0→0.4: pulse-fas (long-press indikator, ingen translate);
-            // 0.4→1: drag-fas (diagonal förflyttning nedåt-höger).
-            transform: [
-              { translateX: swipeAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 60] }) },
-              { translateY: swipeAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 40] }) },
-              { scale: swipeAnim.interpolate({ inputRange: [0, 0.2, 0.4, 1], outputRange: [1, 1.2, 1, 1] }) },
-            ],
-          }}
-        >
-          <View style={s.fingerHalo} />
-          <Ionicons name="hand-left-outline" size={40} color="#fff" style={s.fingerIcon} />
-        </Animated.View>
+        <>
+          {/* Mock meny-rad som demo:n flyttar sig över. Två kort så användaren
+              ser källa + mål för dragget; det aktiva (övre) "lyfts" och glider
+              ner i takt med fingret för att illustrera flytten. */}
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: dragCenter.y - 18,
+              left: 40,
+              right: 40,
+              zIndex: 9998,
+              elevation: 25,
+              opacity: 0.45,
+            }}
+          >
+            <View style={s.mockMealRow}>
+              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color="#a78bfa" /></View>
+              <View style={s.mockMealLines}>
+                <View style={[s.mockMealLine, { width: '60%' }]} />
+                <View style={[s.mockMealLine, { width: '35%', marginTop: 4, height: 6 }]} />
+              </View>
+            </View>
+          </Animated.View>
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: dragCenter.y - 18,
+              left: 40,
+              right: 40,
+              zIndex: 9999,
+              elevation: 30,
+              transform: [
+                // Drag-fasen: vänta tills 0.4 (pulse), sen translera ner 70px.
+                { translateY: swipeAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 70] }) },
+                { scale: swipeAnim.interpolate({ inputRange: [0, 0.2, 0.4, 1], outputRange: [1, 1.06, 1.04, 1.04] }) },
+              ],
+              shadowColor: '#000',
+              shadowOpacity: swipeAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0.08, 0.3, 0.25] }),
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 4 },
+            }}
+          >
+            <View style={s.mockMealRow}>
+              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color="#7c3aed" /></View>
+              <View style={s.mockMealLines}>
+                <View style={[s.mockMealLine, { width: '60%' }]} />
+                <View style={[s.mockMealLine, { width: '35%', marginTop: 4, height: 6 }]} />
+              </View>
+            </View>
+          </Animated.View>
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: dragCenter.y + 8,
+              left: dragCenter.x - 28,
+              width: 56,
+              height: 56,
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10000,
+              elevation: 35,
+              transform: [
+                { translateX: swipeAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 60] }) },
+                { translateY: swipeAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 70] }) },
+                { scale: swipeAnim.interpolate({ inputRange: [0, 0.2, 0.4, 1], outputRange: [1, 1.2, 1, 1] }) },
+              ],
+            }}
+          >
+            <View style={s.fingerHalo} />
+            <Ionicons name="hand-left-outline" size={40} color="#fff" style={s.fingerIcon} />
+          </Animated.View>
+        </>
       ) : null}
     </Modal>
   );
@@ -283,6 +334,23 @@ const s = StyleSheet.create({
     // would otherwise overdraw the icon because both are absolute siblings).
     zIndex: 1,
   },
+  mockMealRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  mockMealIcon: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#eef2ff',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  mockMealLines: { flex: 1 },
+  mockMealLine: { height: 10, borderRadius: 5, backgroundColor: '#e5e7eb' },
   title: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 6, textAlign: 'center' },
   message: { fontSize: 14, color: '#374151', marginBottom: 14, textAlign: 'center', lineHeight: 20 },
   btn: { backgroundColor: '#4f46e5', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
