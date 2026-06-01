@@ -54,7 +54,7 @@ export function useWelcomeGate() {
  *  - skärmen har varit i fokus i minst 2s (per-flik orienteringsbuffer)
  *  Lägg som dep i useFocusEffect/useEffect så callbacken re-skapas och
  *  tipset re-invokerar när bufferten löper ut. */
-const PER_FOCUS_BUFFER_MS = 2000;
+const PER_FOCUS_BUFFER_MS = 1000;
 export function useTipsReady(): boolean {
   const ctx = useContext(SpotlightTipContext);
   if (!ctx) throw new Error('useTipsReady must be used within SpotlightTipProvider');

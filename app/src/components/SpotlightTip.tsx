@@ -290,8 +290,9 @@ function computeCalloutTop(rect: Rect | null, screenH: number, swipeDemo?: 'hori
   const cardEstHeight = 200;
   if (!rect) {
     if (swipeDemo === 'drag') {
-      // Lägre i nedre halvan så drag-demoen får hela övre delen för sig själv.
-      return Math.max(screenH * 0.55, screenH - cardEstHeight - 60);
+      // Halvskärm — drag-demoen sitter på övre 22%, plats för mock-rad +
+      // drag-spann (~150px), så tip-kortet börjar runt halva höjden.
+      return Math.round(screenH * 0.45);
     }
     return Math.max(80, (screenH - cardEstHeight) / 2);
   }
