@@ -1072,14 +1072,16 @@ export default function ScheduleScreen() {
               return (
                 <View
                   ref={node => {
-                    // Capture window-rect of the dayRow itself (one-shot) for
-                    // the onboarding swipe tip. Done at ref-attach + 200 ms so
-                    // layout has settled. All dayRows have identical dims so
-                    // we can use any of them.
+                    // Capture window-rect for the onboarding swipe tip. dayRows
+                    // är virtualiserade — vi tar bara den SYNLIGA (x ≈ 0),
+                    // annars får vi en off-screen-instans till vänster. One-shot
+                    // via weekRowRect-guard.
                     if (!node || weekRowRect) return;
                     setTimeout(() => {
                       node.measureInWindow((x, y, width, height) => {
-                        if (width > 0 && height > 0) setWeekRowRect({ x, y, width, height });
+                        if (width > 0 && height > 0 && Math.abs(x) < 5) {
+                          setWeekRowRect({ x, y, width, height });
+                        }
                       });
                     }, 200);
                   }}
