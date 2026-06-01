@@ -2,6 +2,7 @@ import { occursOn, weekdayOf, type RecurrencePattern } from '@veckis/shared';
 import type { WeekDay } from '@prisma/client';
 import { prisma } from '../db';
 import { sendPush, claimNotification } from './sendPush';
+import { selectChoreRecipients } from './choreRotation';
 
 // Local timezone all household members are assumed to live in. Activity start
 // times ("HH:MM") and "today" are interpreted in this zone, not the server's.
@@ -169,9 +170,11 @@ async function runOverdueChores(now: LocalNow): Promise<void> {
 
   for (const c of due) {
     if (isDoneToday(c)) continue;
-    let recipients = c.assignedTo ? [memberClerk.get(c.assignedTo)].filter((x): x is string => !!x) : [];
-    if (recipients.length === 0 && c.isShared) recipients = householdClerks.get(c.householdId) ?? [];
-    recipients = [...new Set(recipients)];
+    // Multi-assign + rotation fan-out lyfts ut till en ren funktion (testbar).
+    const recipients = selectChoreRecipients(c, c.completions.length, {
+      memberClerk,
+      householdClerks: householdClerks.get(c.householdId) ?? [],
+    });
 
     for (const userId of recipients) {
       // Forgiving model: exactly one gentle nudge per occurrence (dedupe key is

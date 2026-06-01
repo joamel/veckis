@@ -205,7 +205,9 @@ householdRouter.post('/:householdId/members', requireAuth, requireAdmin, asyncHa
 householdRouter.get('/:householdId/members/:memberId/assignments', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
   const { householdId, memberId } = req.params;
   const [chores, activities] = await Promise.all([
-    prisma.chore.count({ where: { householdId, assignedTo: memberId } }),
+    prisma.chore.count({
+      where: { householdId, OR: [{ assignedTo: memberId }, { assignedToMany: { has: memberId } }] },
+    }),
     prisma.scheduleEntry.count({
       where: { householdId, OR: [{ assignedTo: memberId }, { assignedToMany: { has: memberId } }] },
     }),
@@ -224,7 +226,43 @@ householdRouter.delete('/:householdId/members/:memberId', requireAuth, requireAd
     res.status(400).json({ error: 'Cannot remove yourself' });
     return;
   }
-  await prisma.householdMember.delete({ where: { id: target.id } });
+  // Rensa medlemmen från alla assignedToMany-arrays innan vi raderar raden så
+  // ingen syssla/aktivitet pekar på en död id. assignedTo nullas i en separat
+  // sweep eftersom Prisma inte stödjer set-filter på enstaka fält.
+  await prisma.$transaction(async (tx) => {
+    const chores = await tx.chore.findMany({
+      where: { householdId: target.householdId, assignedToMany: { has: target.id } },
+      select: { id: true, assignedToMany: true },
+    });
+    for (const c of chores) {
+      const next = c.assignedToMany.filter(id => id !== target.id);
+      await tx.chore.update({
+        where: { id: c.id },
+        data: { assignedToMany: next, assignedTo: next[0] ?? null },
+      });
+    }
+    const entries = await tx.scheduleEntry.findMany({
+      where: { householdId: target.householdId, assignedToMany: { has: target.id } },
+      select: { id: true, assignedToMany: true },
+    });
+    for (const e of entries) {
+      const next = e.assignedToMany.filter(id => id !== target.id);
+      await tx.scheduleEntry.update({
+        where: { id: e.id },
+        data: { assignedToMany: next, assignedTo: next[0] ?? null },
+      });
+    }
+    // Legacy: chores/aktiviteter som bara hade single assignedTo = memberId
+    await tx.chore.updateMany({
+      where: { householdId: target.householdId, assignedTo: target.id },
+      data: { assignedTo: null },
+    });
+    await tx.scheduleEntry.updateMany({
+      where: { householdId: target.householdId, assignedTo: target.id },
+      data: { assignedTo: null },
+    });
+    await tx.householdMember.delete({ where: { id: target.id } });
+  });
   broadcastHousehold(target.householdId, 'member_deleted', { id: target.id });
   res.status(204).send();
 }));

@@ -118,6 +118,12 @@ model Chore {
   description String?
   frequency   ChoreFrequency @default(weekly)
   assignedTo  String?
+  // Multi-assign: lista över medlems-id (lokala profiler eller Clerk-medlemmar).
+  // assignedTo behålls i sync via syncAssignedTo (många[0]) för gamla klienter.
+  assignedToMany       String[]       @default([])
+  // När true turas medlemmarna i assignedToMany om per tillfälle
+  // (turn = list[occurrenceIndex % list.length], deterministisk).
+  rotation             Boolean        @default(false)
   days        WeekDay[]
   isShared    Boolean        @default(true)
   startDate   String?
