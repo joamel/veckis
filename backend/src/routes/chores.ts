@@ -6,6 +6,7 @@ import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../mi
 import { asyncHandler } from '../lib/asyncHandler';
 import { wsBroadcast } from '../lib/wsHub';
 import { actorName } from '../lib/actor';
+import { syncAssignedTo } from '../lib/assignedToSync';
 
 export const choresRouter = Router();
 
@@ -23,6 +24,8 @@ const createChoreSchema = z.object({
   description: z.string().optional(),
   frequency: z.nativeEnum(ChoreFrequency).default('weekly'),
   assignedTo: z.string().nullable().optional(),
+  assignedToMany: z.array(z.string()).optional(),
+  rotation: z.boolean().optional(),
   days: z.array(z.nativeEnum(WeekDay)).default([]),
   isShared: z.boolean().default(true),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
@@ -36,6 +39,8 @@ const updateChoreSchema = z.object({
   description: z.string().nullable().optional(),
   frequency: z.nativeEnum(ChoreFrequency).optional(),
   assignedTo: z.string().nullable().optional(),
+  assignedToMany: z.array(z.string()).optional(),
+  rotation: z.boolean().optional(),
   days: z.array(z.nativeEnum(WeekDay)).optional(),
   isShared: z.boolean().optional(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
@@ -96,9 +101,12 @@ choresRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const derivedFreq = deriveFrequency(body.data.recurrenceType, body.data.recurrenceWeeks);
+  // Spegla assignedTo ↔ assignedToMany så fälten är konsekventa även från
+  // äldre klienter som bara skickar en av dem.
+  const synced = syncAssignedTo(body.data);
   const chore = await prisma.chore.create({
     data: {
-      ...body.data,
+      ...synced,
       frequency: derivedFreq ?? body.data.frequency,
       createdBy: (req as AuthenticatedRequest).clerkUserId,
     } as Prisma.ChoreUncheckedCreateInput,
@@ -116,9 +124,10 @@ choresRouter.patch('/:choreId', requireAuth, asyncHandler(async (req, res) => {
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const derivedFreq = deriveFrequency(body.data.recurrenceType, body.data.recurrenceWeeks);
+  const synced = syncAssignedTo(body.data);
   const updated = await prisma.chore.update({
     where: { id: chore.id },
-    data: { ...body.data, ...(derivedFreq ? { frequency: derivedFreq } : {}) },
+    data: { ...synced, ...(derivedFreq ? { frequency: derivedFreq } : {}) },
   });
   const actor = await actorName(updated.householdId, (req as AuthenticatedRequest).clerkUserId);
   wsBroadcast(`household:${updated.householdId}`, { type: 'chore_updated', data: updated, actor });

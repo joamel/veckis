@@ -8,6 +8,13 @@ export interface Chore {
   description: string | null;
   frequency: ChoreFrequency;
   assignedTo: string | null;
+  /** Multi-assign — alla medlems-id som är tilldelade sysslan (lokala profiler
+   *  eller Clerk-medlemmar). Hålls i sync med `assignedTo` (=[0]) via backend. */
+  assignedToMany: string[];
+  /** När true turas medlemmarna i `assignedToMany` om per tillfälle
+   *  (turn = list[occurrenceIndex % list.length], deterministiskt från
+   *  `startDate`/`createdAt`). Missade tillfällen flyttar inte turen. */
+  rotation: boolean;
   days: import('./schedule').WeekDay[];
   isShared: boolean;
   startDate: string | null;
