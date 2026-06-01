@@ -54,17 +54,9 @@ export default function ShoppingScreen() {
   const [newListStoreId, setNewListStoreId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  // Store management
+  // Stores administreras numera på /stores-routen — vi hämtar bara listan här
+  // för att kunna visa butik-koppling i "ny lista"-formuläret.
   const [stores, setStores] = useState<Store[]>([]);
-  const [showStoresModal, setShowStoresModal] = useState(false);
-  const [newStoreName, setNewStoreName] = useState('');
-  const [creatingStore, setCreatingStore] = useState(false);
-  const [editingStoreName, setEditingStoreName] = useState<string | null>(null);
-  const [editStoreNameValue, setEditStoreNameValue] = useState('');
-  const [savingStoreName, setSavingStoreName] = useState(false);
-  const [editingCategoryStore, setEditingCategoryStore] = useState<Store | null>(null);
-  const [editCategoryOrder, setEditCategoryOrder] = useState<StoreCategory[]>([]);
-  const [savingCategoryOrder, setSavingCategoryOrder] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
 
@@ -133,95 +125,7 @@ export default function ShoppingScreen() {
     }
   }
 
-  async function createStore() {
-    if (!householdId || !newStoreName.trim()) return;
-    setCreatingStore(true);
-    try {
-      const store = await client.createStore({ householdId, name: newStoreName.trim() });
-      setStores(prev => [...prev, store]);
-      setNewStoreName('');
-    } catch (e) {
-      showError(e, 'Kunde inte skapa butik');
-    } finally {
-      setCreatingStore(false);
-    }
-  }
-
-  async function saveStoreName(storeId: string) {
-    if (!editStoreNameValue.trim()) return;
-    setSavingStoreName(true);
-    try {
-      const updated = await client.updateStore(storeId, { name: editStoreNameValue.trim() });
-      setStores(prev => prev.map(s => s.id === updated.id ? updated : s));
-      setEditingStoreName(null);
-    } catch (e) {
-      showError(e, 'Kunde inte byta namn');
-    } finally {
-      setSavingStoreName(false);
-    }
-  }
-
-  function openCategoryEditor(store: Store) {
-    setEditingCategoryStore(store);
-    setEditCategoryOrder(
-      (store.categoryOrder as StoreCategory[]).length
-        ? store.categoryOrder as StoreCategory[]
-        : [...DEFAULT_CATEGORY_ORDER]
-    );
-  }
-
-  function moveCategoryUp(idx: number) {
-    if (idx === 0) return;
-    setEditCategoryOrder(prev => {
-      const next = [...prev];
-      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-      return next;
-    });
-  }
-
-  function moveCategoryDown(idx: number) {
-    setEditCategoryOrder(prev => {
-      if (idx >= prev.length - 1) return prev;
-      const next = [...prev];
-      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-      return next;
-    });
-  }
-
-  async function saveCategoryOrder() {
-    if (!editingCategoryStore) return;
-    setSavingCategoryOrder(true);
-    try {
-      const updated = await client.updateStore(editingCategoryStore.id, { categoryOrder: editCategoryOrder });
-      setStores(prev => prev.map(s => s.id === updated.id ? updated : s));
-      setEditingCategoryStore(null);
-    } catch (e) {
-      showError(e, 'Kunde inte spara ordning');
-    } finally {
-      setSavingCategoryOrder(false);
-    }
-  }
-
-  async function deleteStore(storeId: string, storeName: string) {
-    confirm({
-      title: 'Ta bort butik',
-      message: `Ta bort "${storeName}"?`,
-      buttons: [
-        {
-          label: 'Ta bort', style: 'destructive',
-          onPress: async () => {
-            try {
-              await client.deleteStore(storeId);
-              setStores(prev => prev.filter(s => s.id !== storeId));
-            } catch (e) {
-              showError(e, 'Kunde inte ta bort butiken');
-            }
-          },
-        },
-        { label: 'Avbryt', style: 'cancel' },
-      ],
-    });
-  }
+  // Stores CRUD flyttat till /stores-routen.
 
   async function deleteList(listId: string, listName: string) {
     confirm({
@@ -259,7 +163,7 @@ export default function ShoppingScreen() {
           <View ref={storesBtnRef} collapsable={false}>
             <Pressable
               style={styles.storesHeaderBtn}
-              onPress={() => setShowStoresModal(true)}
+              onPress={() => router.push('/stores' as never)}
               accessibilityRole="button"
               accessibilityLabel="Butiker"
             >
@@ -380,123 +284,6 @@ export default function ShoppingScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-      {/* Stores modal */}
-      <Modal visible={showStoresModal} transparent animationType="slide" onRequestClose={() => setShowStoresModal(false)}>
-        <Pressable style={styles.overlay} onPress={() => setShowStoresModal(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end' }}>
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Butiker</Text>
-          <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
-            {stores.length === 0 && (
-              <Text style={styles.storesEmpty}>Inga butiker tillagda än</Text>
-            )}
-            {stores.map(store => (
-              <View key={store.id} style={styles.storeRow}>
-                {editingStoreName === store.id ? (
-                  <TextInput
-                    style={[styles.input, { flex: 1 }]}
-                    value={editStoreNameValue}
-                    onChangeText={setEditStoreNameValue}
-                    autoFocus
-                    returnKeyType="done"
-                    onSubmitEditing={() => saveStoreName(store.id)}
-                  />
-                ) : (
-                  <Text style={styles.storeName}>{store.name}</Text>
-                )}
-                <View style={styles.storeActions}>
-                  {editingStoreName === store.id ? (
-                    <Pressable
-                      style={[styles.storeActionBtn, savingStoreName && { opacity: 0.4 }]}
-                      onPress={() => saveStoreName(store.id)}
-                      disabled={savingStoreName}
-                    >
-                      {savingStoreName
-                        ? <ActivityIndicator size="small" color="#4f46e5" />
-                        : <Ionicons name="checkmark" size={18} color="#4f46e5" />}
-                    </Pressable>
-                  ) : (
-                    <Pressable
-                      style={styles.storeActionBtn}
-                      onPress={() => { setEditingStoreName(store.id); setEditStoreNameValue(store.name); }}
-                    >
-                      <Ionicons name="pencil-outline" size={18} color="#6b7280" />
-                    </Pressable>
-                  )}
-                  <Pressable
-                    style={styles.storeActionBtn}
-                    onPress={() => { setShowStoresModal(false); openCategoryEditor(store); }}
-                  >
-                    <Ionicons name="options-outline" size={18} color="#6b7280" />
-                  </Pressable>
-                  <Pressable
-                    style={styles.storeActionBtn}
-                    onPress={() => deleteStore(store.id, store.name)}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                  </Pressable>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-          <View style={styles.newStoreRow}>
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              placeholder="Ny butik..."
-              placeholderTextColor="#9ca3af"
-              value={newStoreName}
-              onChangeText={setNewStoreName}
-              returnKeyType="done"
-              onSubmitEditing={createStore}
-              autoCapitalize="words"
-            />
-            <Pressable
-              style={[styles.addStoreBtn, (!newStoreName.trim() || creatingStore) && styles.addStoreBtnDisabled]}
-              onPress={createStore}
-              disabled={creatingStore || !newStoreName.trim()}
-            >
-              {creatingStore
-                ? <ActivityIndicator color="#fff" size="small" />
-                : <Ionicons name="add" size={22} color="#fff" />}
-            </Pressable>
-          </View>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Category order editor */}
-      <Modal visible={!!editingCategoryStore} transparent animationType="slide" onRequestClose={() => setEditingCategoryStore(null)}>
-        <Pressable style={styles.overlay} onPress={() => setEditingCategoryStore(null)} />
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>{editingCategoryStore?.name}</Text>
-          <Text style={styles.sheetSub}>Dra om ordningen med pilarna så den matchar butikens layout</Text>
-          <ScrollView style={{ maxHeight: 360 }}>
-            {editCategoryOrder.map((cat, idx) => (
-              <View key={cat} style={styles.catRow}>
-                <Text style={styles.catRowLabel}>{CATEGORY_LABELS[cat]}</Text>
-                <Pressable onPress={() => moveCategoryUp(idx)} disabled={idx === 0} style={styles.catArrow}>
-                  <Ionicons name="chevron-up" size={18} color={idx === 0 ? '#e5e7eb' : '#374151'} />
-                </Pressable>
-                <Pressable onPress={() => moveCategoryDown(idx)} disabled={idx === editCategoryOrder.length - 1} style={styles.catArrow}>
-                  <Ionicons name="chevron-down" size={18} color={idx === editCategoryOrder.length - 1 ? '#e5e7eb' : '#374151'} />
-                </Pressable>
-              </View>
-            ))}
-          </ScrollView>
-          <Pressable
-            style={[styles.button, savingCategoryOrder && styles.buttonDisabled]}
-            onPress={saveCategoryOrder}
-            disabled={savingCategoryOrder}
-          >
-            {savingCategoryOrder
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.buttonText}>Spara ordning</Text>}
-          </Pressable>
-        </View>
-      </Modal>
-
     </SafeAreaView>
   );
 }
