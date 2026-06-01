@@ -68,11 +68,25 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
   // Välkomst-gate: blockerar alla show()-anrop tills _layout har bekräftat att
   // välkomstmodalen är dismissad (eller var redan sedd). Ref:en speglar
   // state:en så synkrona show()-anrop ser senaste värdet.
+  //
+  // Buffer: när gaten "markeras klar" vi väntar 2s innan vi flippar
+  // welcomeReady — så användaren hinner se hela vyn utan dim-overlay innan
+  // första tipset poppar.
+  const POST_WELCOME_BUFFER_MS = 2000;
   const [welcomeReady, setWelcomeReady] = useState<boolean>(false);
   const welcomeReadyRef = useRef<boolean>(false);
+  const welcomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const markWelcomeReady = useCallback(() => {
-    welcomeReadyRef.current = true;
-    setWelcomeReady(true);
+    if (welcomeReadyRef.current) return;
+    if (welcomeTimerRef.current) return; // redan timed
+    welcomeTimerRef.current = setTimeout(() => {
+      welcomeReadyRef.current = true;
+      setWelcomeReady(true);
+      welcomeTimerRef.current = null;
+    }, POST_WELCOME_BUFFER_MS);
+  }, []);
+  useEffect(() => () => {
+    if (welcomeTimerRef.current) clearTimeout(welcomeTimerRef.current);
   }, []);
 
   useEffect(() => {
