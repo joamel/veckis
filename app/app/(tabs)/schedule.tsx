@@ -203,6 +203,10 @@ export default function ScheduleScreen() {
   // Wrapper view ref used by the calendar-swipe onboarding tip to measure /
   // light up the week-day row (FlatList ref doesn't support measureInWindow).
   const weekRowWrapRef = useRef<View | null>(null);
+  // Pre-measured rect captured via onLayout — measureInWindow on the wrapper
+  // returns 0×0 on Android (virtualised FlatList children don't propagate
+  // size up). onLayout fires after layout commits → measure works there.
+  const [weekRowRect, setWeekRowRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const weekPageW = Dimensions.get('window').width;
   const DAY_SPAN = 400; // ~13 months of days each way
   const WEEK_SPAN = 104; // ~2 years of weeks each way
@@ -355,15 +359,16 @@ export default function ScheduleScreen() {
   // ring, eftersom det är gester inte en knapp).
   useFocusEffect(useCallback(() => {
     if (calendarSwipeTip.seen !== false || calendarSwipeTipShownRef.current) return;
+    if (!weekRowRect) return; // vänta tills onLayout fångat rect (re-deps nedan)
     calendarSwipeTipShownRef.current = true;
     const shown = showTip({
       title: 'Två svep i kalendern',
       message: 'Svep på veckodags-raden (som lyser upp) för att byta vecka. Svep på själva dag-innehållet nedanför för att byta dag.',
-      targetRef: weekRowWrapRef,
+      targetRect: weekRowRect,
       swipeDemo: 'horizontal',
     });
     if (shown) calendarSwipeTip.markSeen();
-  }, [calendarSwipeTip.seen, calendarSwipeTip.markSeen, showTip]));
+  }, [calendarSwipeTip.seen, calendarSwipeTip.markSeen, showTip, weekRowRect]));
 
   // Filter-tip: använder useFocusEffect så det bara fyrar från den AKTIVA
   // fliken. Sysslor-fliken delar flagga `seen-filter-tip` — vem som ser
@@ -1026,7 +1031,16 @@ export default function ScheduleScreen() {
               FlatList:ens virtualiserade items har layoutats — annars
               returnerar measureInWindow 0×0 så onboarding-tipsets ring + finger
               hamnar fel. */}
-          <View ref={weekRowWrapRef} collapsable={false} style={{ minHeight: 75 }}>
+          <View
+            ref={weekRowWrapRef}
+            collapsable={false}
+            style={{ minHeight: 75 }}
+            onLayout={() => {
+              weekRowWrapRef.current?.measureInWindow((x, y, width, height) => {
+                if (width > 0 && height > 0) setWeekRowRect({ x, y, width, height });
+              });
+            }}
+          >
           <FlatList
             ref={weekRowListRef}
             data={weekRowIndices}
