@@ -1,5 +1,5 @@
 import { type RefObject, useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Rect { x: number; y: number; width: number; height: number }
@@ -14,9 +14,12 @@ export interface SpotlightOptions {
    *  — use when measureInWindow is unreliable (e.g. virtualised FlatList
    *  wrappers that report 0×0 on Android until items render). */
   targetRect?: { x: number; y: number; width: number; height: number };
-  /** When set, an animated finger gesture renders over the target rect to
-   *  visualise the swipe direction. No-op without a target. */
-  swipeDemo?: 'horizontal' | 'vertical';
+  /** When set, an animated finger gesture renders to visualise the gesture.
+   *  - "horizontal"/"vertical": svep i den riktningen (kräver targetRect)
+   *  - "drag": long-press + drag-rörelse — fingret pulsar för att indikera
+   *    hold, glider sen diagonalt, återgår. Fungerar även utan target
+   *    (renderas då centrerat ovanför tip-kortet). */
+  swipeDemo?: 'horizontal' | 'vertical' | 'drag';
   /** Label for the dismiss button. Defaults to "Förstått". */
   actionLabel?: string;
 }
@@ -83,7 +86,8 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
   // useNativeDriver:false on purpose — native-driver animations inside a
   // Modal can silently stop being committed on Android in some RN versions.
   useEffect(() => {
-    if (!visible || !swipeDemo || !rect) return;
+    if (!visible || !swipeDemo) return;
+    if (swipeDemo !== 'drag' && !rect) return; // svep behöver target; drag funkar centrerad
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(swipeAnim, { toValue: 1, duration: 1100, useNativeDriver: false }),
@@ -103,6 +107,9 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
   // Swipe finger sweeps ±35% of the target dimension, centered on the rect.
   const swipeAmpX = rect && swipeDemo === 'horizontal' ? rect.width * 0.35 : 0;
   const swipeAmpY = rect && swipeDemo === 'vertical' ? rect.height * 0.35 : 0;
+  // Drag-demo: pulsar (long-press indikator) sen glider diagonalt nedåt-höger
+  // för att visa "håll inne + dra". Renderas centrerat ovanför tip-kortet.
+  const dragCenter = { x: screen.width / 2, y: callout - 90 };
 
   // statusBarTranslucent OFF on purpose: Modal coords then start at the app
   // window top (below the status bar) and match measureInWindow's reference,
@@ -116,6 +123,21 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
           <View style={[s.dim, { top: rect.y + rect.height + PAD, left: 0, right: 0, bottom: 0 }]} />
           <View style={[s.dim, { top: Math.max(0, rect.y - PAD), left: 0, width: Math.max(0, rect.x - PAD), height: rect.height + 2 * PAD }]} />
           <View style={[s.dim, { top: Math.max(0, rect.y - PAD), left: rect.x + rect.width + PAD, right: 0, height: rect.height + 2 * PAD }]} />
+          {/* Static border around the hole — alltid synlig så användaren ser
+              gränsen mellan dim och target tydligt även när pulsen är på sin
+              låga punkt (#3 från backloggen). */}
+          <View
+            pointerEvents="none"
+            style={[
+              s.ring,
+              {
+                top: rect.y - PAD,
+                left: rect.x - PAD,
+                width: rect.width + 2 * PAD,
+                height: rect.height + 2 * PAD,
+              },
+            ]}
+          />
           <Animated.View
             pointerEvents="none"
             style={[
@@ -125,8 +147,8 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
                 left: rect.x - PAD,
                 width: rect.width + 2 * PAD,
                 height: rect.height + 2 * PAD,
-                opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }),
-                transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) }],
+                opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0, 0.7] }),
+                transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) }],
               },
             ]}
           />
@@ -136,9 +158,14 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
       )}
       {/* Tap outside the card dismisses (covers full screen, behind the card). */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
-      <View style={[s.card, { top: callout, left: 20, right: 20 }]} pointerEvents="box-none">
-        <Text style={s.title}>{title}</Text>
-        {message ? <Text style={s.message}>{message}</Text> : null}
+      <View style={[s.card, { top: callout, left: 20, right: 20, maxHeight: screen.height * 0.7 }]} pointerEvents="box-none">
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 4 }}
+        >
+          <Text style={s.title}>{title}</Text>
+          {message ? <Text style={s.message}>{message}</Text> : null}
+        </ScrollView>
         <Pressable style={s.btn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel={actionLabel}>
           <Text style={s.btnText}>{actionLabel}</Text>
         </Pressable>
@@ -146,7 +173,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
       {/* Swipe-finger demo: rendered LAST so it's guaranteed on top regardless
           of Android elevation quirks. Outside the rect-fragment so a re-mount
           when rect changes doesn't tear it down. */}
-      {rect && swipeDemo ? (
+      {rect && swipeDemo && swipeDemo !== 'drag' ? (
         <Animated.View
           pointerEvents="none"
           style={{
@@ -174,6 +201,32 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
           />
         </Animated.View>
       ) : null}
+      {swipeDemo === 'drag' ? (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: dragCenter.y - 28,
+            left: dragCenter.x - 28,
+            width: 56,
+            height: 56,
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            elevation: 30,
+            // 0→0.4: pulse-fas (long-press indikator, ingen translate);
+            // 0.4→1: drag-fas (diagonal förflyttning nedåt-höger).
+            transform: [
+              { translateX: swipeAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 60] }) },
+              { translateY: swipeAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 40] }) },
+              { scale: swipeAnim.interpolate({ inputRange: [0, 0.2, 0.4, 1], outputRange: [1, 1.2, 1, 1] }) },
+            ],
+          }}
+        >
+          <View style={s.fingerHalo} />
+          <Ionicons name="hand-left-outline" size={40} color="#fff" style={s.fingerIcon} />
+        </Animated.View>
+      ) : null}
     </Modal>
   );
 }
@@ -191,7 +244,7 @@ function computeCalloutTop(rect: Rect | null, screenH: number): number {
 }
 
 const s = StyleSheet.create({
-  dim: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.55)' },
+  dim: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.82)' },
   ring: {
     position: 'absolute',
     borderRadius: 18,

@@ -17,7 +17,9 @@ interface WeekNavProps {
 
 export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onPickDate }: WeekNavProps) {
   const { fs, sp } = useTablet();
-  const labelBtnRef = useRef<View>(null);
+  // Ring-target = bara texten "Vecka N", inte hela tryckytan (som är osynlig
+  // och spänner över hela raden). #6 från backloggen.
+  const labelTextRef = useRef<View>(null);
   const dateTip = useOnceFlag('seen-weeknav-date-tip');
   const dateTipShownRef = useRef(false);
   const showTip = useSpotlightTip();
@@ -35,7 +37,7 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
     const shown = showTip({
       title: 'Hoppa till annan vecka',
       message: 'Tryck på veckonumret för att öppna en kalender och hoppa till valfri vecka eller dag.',
-      targetRef: labelBtnRef,
+      targetRef: labelTextRef,
     });
     if (shown) dateTip.markSeen();
   }, [isFocused, onPickDate, dateTip.seen, dateTip.markSeen, showTip]);
@@ -43,8 +45,10 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
   return (
     <View style={[s.container, { paddingHorizontal: sp(12), paddingVertical: sp(10) }]}>
       {/* Rendered first so arrows appear on top of it in touch handling */}
-      <Pressable ref={labelBtnRef} style={s.labelBtn} onPress={onPickDate ?? onToday}>
-        <Text style={[s.label, { fontSize: fs(14) }, isCurrentWeek && s.labelCurrent]}>{weekLabel}</Text>
+      <Pressable style={s.labelBtn} onPress={onPickDate ?? onToday}>
+        <View ref={labelTextRef} collapsable={false}>
+          <Text style={[s.label, { fontSize: fs(14) }, isCurrentWeek && s.labelCurrent]}>{weekLabel}</Text>
+        </View>
       </Pressable>
       <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onPrev} accessibilityRole="button" accessibilityLabel="Föregående vecka">
         <Ionicons name="chevron-back" size={fs(18)} color="#4f46e5" />

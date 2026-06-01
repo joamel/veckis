@@ -21,8 +21,8 @@ import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe }
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
+import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { EmptyState } from '../../src/components/EmptyState';
 import { getISOWeek } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
@@ -45,10 +45,10 @@ export default function RecipesScreen() {
   const { householdId } = useHousehold();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
-  const showTip = useSpotlightTip();
-  const sortTip = useOnceFlag('seen-sort-tip');
-  const sortTipShownRef = useRef(false);
-  const sortBtnRef = useRef<View>(null);
+  // Sort-tipset togs bort (#11 backloggen) — det fyrade bara om recept fanns,
+  // och då behövde användaren ändå inte just det tipset. Ersatt med ett
+  // action-tip på "+"-knappen som förklarar hur man skapar recept första gången.
+  const wrapAddRecipeTip = useFirstActionTip('seen-recipe-add-tip');
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -252,19 +252,6 @@ export default function RecipesScreen() {
     if (params.create !== '1') createTriggeredRef.current = false;
   }, [params.create]);
 
-  // Sort-tip: visa när det finns recept att sortera, första gången.
-  useEffect(() => {
-    if (sortTip.seen !== false || sortTipShownRef.current) return;
-    if (recipes.length === 0) return;
-    sortTipShownRef.current = true;
-    const shown = showTip({
-      title: 'Sortera recepten',
-      message: 'Tryck här för att välja sortering: A–Ö, mest använda eller senast tillagda. Valet sparas mellan besök.',
-      targetRef: sortBtnRef,
-    });
-    if (shown) sortTip.markSeen();
-  }, [recipes.length, sortTip.seen, sortTip.markSeen, showTip]);
-
   function openModal() {
     setMode('manual');
     setTitle('');
@@ -286,7 +273,7 @@ export default function RecipesScreen() {
             </Pressable>
             <Text style={s.title}>Recept</Text>
           </View>
-          <Pressable ref={sortBtnRef} onPress={() => setShowSort(true)} hitSlop={8} style={s.sortBtn} accessibilityLabel="Sortera recept">
+          <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={s.sortBtn} accessibilityLabel="Sortera recept">
             <Ionicons name="swap-vertical" size={18} color="#4f46e5" />
           </Pressable>
         </View>
@@ -399,7 +386,10 @@ export default function RecipesScreen() {
           <Text style={s.editDoneBtnText}>Klar</Text>
         </Pressable>
       ) : (
-        <Pressable style={s.fab} onPress={openModal}>
+        <Pressable style={s.fab} onPress={wrapAddRecipeTip(
+          openModal,
+          { title: 'Skapa recept', message: 'Lägg till ett recept manuellt eller importera direkt från en webbsida — klistra bara in URL:en så scrapar appen titel, ingredienser, bild och instruktioner automatiskt.' },
+        )}>
           <Ionicons name="add" size={30} color="#fff" />
         </Pressable>
       )}

@@ -22,6 +22,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
+import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { useHaptics } from '../../src/hooks/useHaptics';
@@ -42,6 +43,7 @@ export default function ShoppingScreen() {
   const storesTip = useOnceFlag('seen-stores-tip');
   const storesTipShownRef = useRef(false);
   const storesBtnRef = useRef<View>(null);
+  const wrapNewListTip = useFirstActionTip('seen-shopping-add-tip');
   const { medium } = useHaptics();
   const { fs, sp } = useTablet();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
@@ -323,7 +325,10 @@ export default function ShoppingScreen() {
           <Text style={[styles.editDoneBtnText, { fontSize: fs(16) }]}>Klar</Text>
         </Pressable>
       ) : (
-        <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={() => setShowModal(true)}>
+        <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={wrapNewListTip(
+          () => setShowModal(true),
+          { title: 'Skapa inköpslista', message: 'En lista kan kopplas till en butik så att varorna sorteras efter butikens kategorier. Du kan lägga till varor manuellt eller överföra hela veckomenyn till listan från Meny-fliken.' },
+        )}>
           <Ionicons name="add" size={fs(30)} color="#fff" />
         </Pressable>
       )}

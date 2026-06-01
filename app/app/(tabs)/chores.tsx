@@ -235,6 +235,10 @@ export default function ChoresScreen() {
   const showTip = useSpotlightTip();
   const forgivingTip = useOnceFlag('seen-forgiving-tip');
   const tipShownRef = useRef(false);
+  // Intro-tip — vad fliken är till för. Fyrar EN gång, oavsett om det finns
+  // sysslor inlagda (så användaren förstår syftet med fliken direkt).
+  const choresIntroTip = useOnceFlag('seen-chores-intro-tip');
+  const choresIntroTipShownRef = useRef(false);
   const filterTip = useOnceFlag('seen-filter-tip');
   const filterTipShownRef = useRef(false);
   const filterBtnRef = useRef<View>(null);
@@ -354,16 +358,28 @@ export default function ChoresScreen() {
     }
   }, [deeplinkParams.choreId, chores, router]);
 
-  // First time the user sees a "förfallen" (overdue) recurring chore: show a
-  // one-time tip explaining the forgiving model so they don't think it's a bug
-  // that the app stops reminding them. Flag is persisted in secure-store via useOnceFlag.
+  // Intro-tip: vad fliken är till för. Fyrar först av allt så användaren
+  // förstår syftet direkt (även med tom lista).
+  useFocusEffect(useCallback(() => {
+    if (choresIntroTip.seen !== false || choresIntroTipShownRef.current) return;
+    const shown = showTip({
+      title: 'Sysslor',
+      message: 'Här strukturerar du återkommande sysslor — disk, sopor, dammsuga. Prova ett roterande schema så alla i hushållet turas om automatiskt, och bocka av allteftersom.',
+    });
+    if (shown) { choresIntroTipShownRef.current = true; choresIntroTip.markSeen(); }
+  }, [choresIntroTip.seen, choresIntroTip.markSeen, showTip]));
+
+  // Historik-tipset: visas när det finns en förfallen återkommande syssla så
+  // användaren förstår att utfällning visar historiken (klar/missad), inte att
+  // appen "glömt" påminna. (Tidigare hette tipset "Inga fler påminnelser..."
+  // vilket gav fel mental modell.)
   useFocusEffect(useCallback(() => {
     if (forgivingTip.seen !== false || tipShownRef.current) return;
     const hasOverdue = chores.some(c => !isOnce(c) && recurringStatus(c).state === 'overdue');
     if (!hasOverdue) return;
     const shown = showTip({
-      title: 'Inga fler påminnelser för missade sysslor',
-      message: 'En återkommande syssla som missades en dag stannar bara i historiken — du får ingen upprepad påminnelse om den. Nästa tillfälle dyker upp som vanligt. Fäll ut sysslan för att se historiken (✓ klar / – missad).',
+      title: 'Historik per syssla',
+      message: 'Fäll ut en återkommande syssla för att se historiken — vilka tillfällen som blev klara (✓) och vilka som missades (–). Missade dagar ger inga upprepade påminnelser; nästa tillfälle dyker upp som vanligt.',
     });
     if (shown) { tipShownRef.current = true; forgivingTip.markSeen(); }
   }, [chores, forgivingTip.seen, forgivingTip.markSeen, showTip]));

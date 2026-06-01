@@ -1,11 +1,20 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import * as SecureStore from 'expo-secure-store';
 import { SpotlightTip, type SpotlightOptions } from '../components/SpotlightTip';
+import { SKIP_ALL_FLAG } from '../lib/onboardingTips';
 
 /** Returns true when the tip is shown; false if another tip is already up (so
  *  callers can skip `markSeen` and retry on a future render / session). */
 type ShowTipFn = (opts: SpotlightOptions) => boolean;
 
-const SpotlightTipContext = createContext<ShowTipFn | null>(null);
+interface SpotlightContextValue {
+  show: ShowTipFn;
+  /** null while the flag is still loading from SecureStore. */
+  skipAll: boolean | null;
+  setSkipAll: (v: boolean) => Promise<void>;
+}
+
+const SpotlightTipContext = createContext<SpotlightContextValue | null>(null);
 
 /**
  * Open an onboarding tip — full-screen dim + optional spotlight ring around a
@@ -15,7 +24,15 @@ const SpotlightTipContext = createContext<ShowTipFn | null>(null);
 export function useSpotlightTip(): ShowTipFn {
   const ctx = useContext(SpotlightTipContext);
   if (!ctx) throw new Error('useSpotlightTip must be used within SpotlightTipProvider');
-  return ctx;
+  return ctx.show;
+}
+
+/** Master-toggle för hela onboarding-systemet. När `skipAll` är true fyrar
+ *  inga tips (välkomstskärmen + inställningar styr detta). */
+export function useOnboardingMaster() {
+  const ctx = useContext(SpotlightTipContext);
+  if (!ctx) throw new Error('useOnboardingMaster must be used within SpotlightTipProvider');
+  return { skipAll: ctx.skipAll, setSkipAll: ctx.setSkipAll };
 }
 
 export function SpotlightTipProvider({ children }: { children: ReactNode }) {
@@ -23,8 +40,27 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
   const [hasNext, setHasNext] = useState(false);
   const optsRef = useRef<SpotlightOptions | null>(null);
   const queueRef = useRef<SpotlightOptions[]>([]);
+  // Master-flagga: när true fyrar inga tips. null = laddar fortfarande.
+  const [skipAll, setSkipAllState] = useState<boolean | null>(null);
+  const skipAllRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    SecureStore.getItemAsync(SKIP_ALL_FLAG).then(v => {
+      const flag = v === '1';
+      skipAllRef.current = flag;
+      setSkipAllState(flag);
+    }).catch(() => { setSkipAllState(false); });
+  }, []);
+
+  const setSkipAll = useCallback(async (v: boolean) => {
+    skipAllRef.current = v;
+    setSkipAllState(v);
+    if (v) await SecureStore.setItemAsync(SKIP_ALL_FLAG, '1').catch(() => {});
+    else await SecureStore.deleteItemAsync(SKIP_ALL_FLAG).catch(() => {});
+  }, []);
 
   const show = useCallback<ShowTipFn>((o) => {
+    if (skipAllRef.current) return false; // master kill-switch
     if (optsRef.current?.title === o.title) return true;
     if (queueRef.current.some(q => q.title === o.title)) return true;
     if (optsRef.current === null) {
@@ -44,8 +80,10 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
     setHasNext(queueRef.current.length > 0);
   }, []);
 
+  const value = useMemo<SpotlightContextValue>(() => ({ show, skipAll, setSkipAll }), [show, skipAll, setSkipAll]);
+
   return (
-    <SpotlightTipContext.Provider value={show}>
+    <SpotlightTipContext.Provider value={value}>
       {children}
       <SpotlightTip
         visible={!!opts}
