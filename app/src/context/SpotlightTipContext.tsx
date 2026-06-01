@@ -73,6 +73,10 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
   const [hasNext, setHasNext] = useState(false);
   const optsRef = useRef<SpotlightOptions | null>(null);
   const queueRef = useRef<SpotlightOptions[]>([]);
+  // Position-indikator: hur många tips användaren redan dismissat i den
+  // pågående sviten + queue-längd ger "M av N" i kortet.
+  const [shownIndex, setShownIndex] = useState(0);
+  const [queueLen, setQueueLen] = useState(0);
   // Master-flagga: när true fyrar inga tips. null = laddar fortfarande.
   const [skipAll, setSkipAllState] = useState<boolean | null>(null);
   const skipAllRef = useRef<boolean>(false);
@@ -110,9 +114,11 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
     if (optsRef.current === null) {
       optsRef.current = o;
       setOpts(o);
+      setShownIndex(0); // ny svit startar — nollställ position
     } else {
       queueRef.current.push(o);
       setHasNext(true);
+      setQueueLen(queueRef.current.length);
     }
     return true;
   }, []);
@@ -122,6 +128,8 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
     optsRef.current = next;
     setOpts(next);
     setHasNext(queueRef.current.length > 0);
+    setQueueLen(queueRef.current.length);
+    setShownIndex(i => next ? i + 1 : 0);
   }, []);
 
   const value = useMemo<SpotlightContextValue>(
@@ -140,6 +148,8 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
         targetRect={opts?.targetRect}
         swipeDemo={opts?.swipeDemo}
         actionLabel={opts?.actionLabel ?? (hasNext ? 'Nästa tips →' : 'Förstått')}
+        position={shownIndex + 1}
+        total={shownIndex + 1 + queueLen}
         onDismiss={dismiss}
       />
     </SpotlightTipContext.Provider>

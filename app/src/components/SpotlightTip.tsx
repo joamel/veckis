@@ -27,11 +27,14 @@ export interface SpotlightOptions {
 interface Props extends SpotlightOptions {
   visible: boolean;
   onDismiss: () => void;
+  /** "M av N"-indikator när fler tips än ett är i pågående svit. */
+  position?: number;
+  total?: number;
 }
 
 const PAD = 10; // padding around the target inside the highlight ring
 
-export function SpotlightTip({ visible, targetRef, targetRect, title, message, actionLabel = 'Förstått', swipeDemo, onDismiss }: Props) {
+export function SpotlightTip({ visible, targetRef, targetRect, title, message, actionLabel = 'Förstått', swipeDemo, position, total, onDismiss }: Props) {
   const [measuredRect, setMeasuredRect] = useState<Rect | null>(null);
   const pulse = useRef(new Animated.Value(0)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
@@ -170,6 +173,9 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
         <Pressable style={s.btn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel={actionLabel}>
           <Text style={s.btnText}>{actionLabel}</Text>
         </Pressable>
+        {total && total > 1 ? (
+          <Text style={s.position}>{position} av {total}</Text>
+        ) : null}
       </View>
       {/* Swipe-finger demo: rendered LAST so it's guaranteed on top regardless
           of Android elevation quirks. Outside the rect-fragment so a re-mount
@@ -365,4 +371,5 @@ const s = StyleSheet.create({
   message: { fontSize: 14, color: '#374151', marginBottom: 14, textAlign: 'center', lineHeight: 20 },
   btn: { backgroundColor: '#4f46e5', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  position: { position: 'absolute', right: 14, bottom: 6, fontSize: 11, color: '#9ca3af', fontWeight: '600' },
 });
