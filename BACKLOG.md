@@ -43,21 +43,21 @@
 - [ ] Refaktorera och skapa fler filer för egna komponenter mm
 - [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**.
 - [ ] Migrera alla `Alert.alert` till nya `ConfirmDialog`/`useConfirm` så bekräftelse- och valdialoger får rundade hörn och appens stil i stället för native OS-alerts som sticker ut. **40 av 62 klara**: chores.tsx (3) + menu.tsx (11) + recipes/[recipeId].tsx (10) + recipes/index.tsx (9) + shopping/[listId].tsx (4) + (tabs)/shopping.tsx (3) + performer-pickern. **22 kvar**: settings (6), schedule (6), MenuTemplatesModal (2), household/setup (2), sign-in/up (4). Overlay-dismiss på dialogen anropar cancel-knappen så promise-konsumenter inte hänger.
-- [ ] Onboarding: välkomstskärm vid första app-start — "Välkommen till Veckis, här följer lite tips och trix — fortsätt/avbryt" + checkbox "Jag är fullärd / vill inte ha tips" som inaktiverar alla framtida tips
-- [ ] Onboarding: tip-kortet beskär innehållet — all text syns inte (justera höjd/scroll så hela meddelandet alltid är läsbart)
-- [ ] Onboarding: spotlight-hålet borde ha samma lila border som den pulserande ringen runt om (idag är hålets kant osynlig)
-- [ ] Onboarding: dim-overlay:n är för transparent — man läser igenom till underliggande UI och blir distraherad. Mörka dim:en eller ge target-elementet en solid bakgrund i hålet
+- [x] Onboarding: välkomstskärm vid första app-start — "Välkommen till Veckis, här följer lite tips och trix" + "Fortsätt"/"Jag är fullärd" där det andra valet inaktiverar alla framtida tips via master-flaggan
+- [x] Onboarding: tip-kortet beskär innehållet — innehållet ligger nu i ScrollView med maxHeight 70% av skärm
+- [x] Onboarding: spotlight-hålet har nu en statisk lila border (alltid synlig) + en pulserande overlay-ring för emphasis — tydlig gräns även när pulsen är på sin låga punkt
+- [x] Onboarding: dim-overlay mörkad från rgba(0,0,0,0.55) till 0.82 så underliggande UI inte är läsbart genom dim:en
 - [ ] Onboarding (meny): animering för drag-mellan-dagar (komplement till svep-fingret som redan finns på kalender-svep-tipset)
-- [ ] Onboarding (kalender + meny): WeekNav-date-tipset highlightar för stor yta — borde bara peka ut själva veckonumret, inte hela WeekNav-raden
-- [ ] Onboarding (kalender): tips om var maträtter och sysslor i kalendern KOMMER IFRÅN (recept-fliken respektive sysslor-fliken)
-- [ ] Onboarding (kalender): tip på "+" — "skapa aktivitet (återkommande, vem ska göra det, osv)"
-- [ ] Onboarding (sysslor): första tipset borde förklara vad fliken är till för — "Här strukturerar du återkommande sysslor — prova roterande schema så alla turas om", inte direkt forgiving-tipset
-- [ ] Onboarding (sysslor): omformulera "inga fler påminnelser"-tipset i utfälld syssla till "Här ser du historik (klar/missad) över återkommande sysslor"
-- [ ] Onboarding (recept): sortera-tipset är värdelöst utan recept inlagda — flytta tipset till första "+"-tryck och visa "skapa eget recept eller importera med URL"
-- [ ] Onboarding: knapp "Återställ tips" i inställningar även i prod (idag bara `__DEV__`) — familjemedlemmar kan vilja repetera, eller man vill se dem på nytt
-- [ ] Onboarding: master-toggle "Visa tips" (kopplad till "Jag är fullärd"-flaggan från välkomstskärmen) flyttas till en 3-prickar-meny i inställningar där även notiser, byta nickname m.m. samlas
-- [ ] Onboarding: lägg till kontextuella action-tips på FÖRSTA knapptryck (första "+"-tryck → skapa-tip; första long-press på rätt → "du kan dra mellan dagar"). Komplement till nuvarande mount-tips — de senare behålls för icke-uppenbara funktioner användaren annars aldrig hittar
-- [ ] Onboarding (inköp): tip på "+" (skapa lista / lägga till vara) — tomma vyer är svåra att förstå utan en knuff
+- [x] Onboarding (kalender + meny): WeekNav-date-tipset ringar nu bara in veckonumret-texten (separat ref runt Text), inte hela WeekNav-raden
+- [x] Onboarding (kalender): nytt `seen-calendar-origins-tip` förklarar att maträtter kommer från meny-fliken och sysslor från sysslor-fliken
+- [x] Onboarding (kalender): action-tip på "+"-FAB (`seen-calendar-add-tip`) som förklarar återkommande/vem/påminnelse vid första tryck
+- [x] Onboarding (sysslor): nytt `seen-chores-intro-tip` förklarar fliken ("strukturera återkommande sysslor — prova roterande schema") vid första focus, oberoende av om det finns sysslor inlagda
+- [x] Onboarding (sysslor): forgiving-tipset omformulerat till "Historik per syssla" med fokus på utfälld vy (klar/missad) istället för "Inga fler påminnelser..."
+- [x] Onboarding (recept): sort-tipset borttaget; ersatt med action-tip på "+"-FAB (`seen-recipe-add-tip`) som förklarar "skapa eget eller importera URL"
+- [x] Onboarding: "Återställ alla tips"-knapp tillgänglig i prod via 3-prickar-meny i inställningar (tidigare bara `__DEV__`)
+- [x] Onboarding: master-toggle "Visa onboarding-tips" + reset i 3-prickar-overflow på inställningssidan; styr `onboarding-skip-all`-flaggan som blockerar alla tips
+- [x] Onboarding: `useFirstActionTip(flagKey)`-hook wrappar en onPress och fyrar tip vid FÖRSTA knapptrycket. Använd för "+"-knappar och liknande där mount-tips skulle bli irrelevant. Mount-tips behållna för icke-uppenbara funktioner (swipes, long-press)
+- [x] Onboarding (inköp): action-tip på "+"-FAB (`seen-shopping-add-tip`) som förklarar butikskoppling + meny-överföring
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)

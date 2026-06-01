@@ -1,5 +1,5 @@
 import { type RefObject, useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Rect { x: number; y: number; width: number; height: number }
@@ -116,6 +116,21 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
           <View style={[s.dim, { top: rect.y + rect.height + PAD, left: 0, right: 0, bottom: 0 }]} />
           <View style={[s.dim, { top: Math.max(0, rect.y - PAD), left: 0, width: Math.max(0, rect.x - PAD), height: rect.height + 2 * PAD }]} />
           <View style={[s.dim, { top: Math.max(0, rect.y - PAD), left: rect.x + rect.width + PAD, right: 0, height: rect.height + 2 * PAD }]} />
+          {/* Static border around the hole — alltid synlig så användaren ser
+              gränsen mellan dim och target tydligt även när pulsen är på sin
+              låga punkt (#3 från backloggen). */}
+          <View
+            pointerEvents="none"
+            style={[
+              s.ring,
+              {
+                top: rect.y - PAD,
+                left: rect.x - PAD,
+                width: rect.width + 2 * PAD,
+                height: rect.height + 2 * PAD,
+              },
+            ]}
+          />
           <Animated.View
             pointerEvents="none"
             style={[
@@ -125,8 +140,8 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
                 left: rect.x - PAD,
                 width: rect.width + 2 * PAD,
                 height: rect.height + 2 * PAD,
-                opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }),
-                transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) }],
+                opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0, 0.7] }),
+                transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) }],
               },
             ]}
           />
@@ -136,9 +151,14 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
       )}
       {/* Tap outside the card dismisses (covers full screen, behind the card). */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
-      <View style={[s.card, { top: callout, left: 20, right: 20 }]} pointerEvents="box-none">
-        <Text style={s.title}>{title}</Text>
-        {message ? <Text style={s.message}>{message}</Text> : null}
+      <View style={[s.card, { top: callout, left: 20, right: 20, maxHeight: screen.height * 0.7 }]} pointerEvents="box-none">
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 4 }}
+        >
+          <Text style={s.title}>{title}</Text>
+          {message ? <Text style={s.message}>{message}</Text> : null}
+        </ScrollView>
         <Pressable style={s.btn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel={actionLabel}>
           <Text style={s.btnText}>{actionLabel}</Text>
         </Pressable>
@@ -191,7 +211,7 @@ function computeCalloutTop(rect: Rect | null, screenH: number): number {
 }
 
 const s = StyleSheet.create({
-  dim: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.55)' },
+  dim: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.82)' },
   ring: {
     position: 'absolute',
     borderRadius: 18,

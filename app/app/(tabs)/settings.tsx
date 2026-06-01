@@ -10,6 +10,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -23,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
-import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useSpotlightTip, useOnboardingMaster } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { TIP_FLAGS } from '../../src/lib/onboardingTips';
 import * as SecureStore from 'expo-secure-store';
@@ -39,6 +40,8 @@ export default function SettingsScreen() {
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
   const { showToast: showGlobalToast, showError } = useToast();
   const showTip = useSpotlightTip();
+  const { skipAll, setSkipAll } = useOnboardingMaster();
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const notifClockTip = useOnceFlag('seen-notif-clock-tip');
   const notifClockTipShownRef = useRef(false);
   const notifClockBtnRef = useRef<View>(null);
@@ -404,7 +407,10 @@ export default function SettingsScreen() {
 
   async function handleResetTips() {
     await Promise.all(TIP_FLAGS.map(k => SecureStore.deleteItemAsync(k).catch(() => {})));
-    showGlobalToast('Onboarding-tips återställda — visas igen i nästa session', 'neutral');
+    // Slå även PÅ master-toggle om den var av — annars skulle inget visas igen.
+    if (skipAll) await setSkipAll(false);
+    showGlobalToast('Tips återställda — visas igen i nästa session', 'neutral');
+    setShowOverflowMenu(false);
   }
 
   const expiresAt = invite ? new Date(invite.expiresAt) : null;
@@ -417,9 +423,14 @@ export default function SettingsScreen() {
       <ScreenHeader
         title="Inställningar"
         actionNode={
-          <Pressable ref={notifClockBtnRef} style={styles.headerIconBtn} onPress={() => setShowNotifModal(true)} accessibilityLabel="Notisinställningar">
-            <Ionicons name="notifications-outline" size={20} color="#4f46e5" />
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Pressable ref={notifClockBtnRef} style={styles.headerIconBtn} onPress={() => setShowNotifModal(true)} accessibilityLabel="Notisinställningar">
+              <Ionicons name="notifications-outline" size={20} color="#4f46e5" />
+            </Pressable>
+            <Pressable style={styles.headerIconBtn} onPress={() => setShowOverflowMenu(true)} accessibilityLabel="Fler alternativ">
+              <Ionicons name="ellipsis-vertical" size={20} color="#4f46e5" />
+            </Pressable>
+          </View>
         }
       />
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -597,16 +608,6 @@ export default function SettingsScreen() {
             <Text style={styles.actionBtnText}>Gå med i hushåll</Text>
           </Pressable>
         </View>
-
-        {/* Dev-only: rensa onboarding-tips så de visas igen vid testning. */}
-        {__DEV__ && (
-          <View style={styles.section}>
-            <Pressable style={styles.devBtn} onPress={handleResetTips}>
-              <Ionicons name="refresh-outline" size={18} color="#6b7280" />
-              <Text style={styles.devBtnText}>Återställ onboarding-tips (dev)</Text>
-            </Pressable>
-          </View>
-        )}
 
         {/* Logga ut */}
         <View style={styles.section}>
@@ -812,6 +813,34 @@ export default function SettingsScreen() {
 
       <NotificationsModal visible={showNotifModal} onClose={() => setShowNotifModal(false)} />
 
+      {/* Overflow-menyn (3-prickar) — onboarding-kontroller och plats för
+          framtida utilities (byt nickname etc skulle landa här). */}
+      <Modal visible={showOverflowMenu} transparent animationType="slide" onRequestClose={() => setShowOverflowMenu(false)}>
+        <Pressable style={styles.overlay} onPress={() => setShowOverflowMenu(false)} />
+        <View style={styles.sheet}>
+          <Text style={styles.sheetTitle}>Mer</Text>
+          <View style={styles.menuRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuRowLabel}>Visa onboarding-tips</Text>
+              <Text style={styles.menuRowSub}>Slå av om du inte vill se några tips alls</Text>
+            </View>
+            <Switch
+              value={skipAll === false}
+              onValueChange={v => setSkipAll(!v)}
+              trackColor={{ false: '#d1d5db', true: '#a5b4fc' }}
+              thumbColor={skipAll === false ? '#4f46e5' : '#f3f4f6'}
+            />
+          </View>
+          <Pressable style={styles.menuBtn} onPress={handleResetTips}>
+            <Ionicons name="refresh-outline" size={20} color="#4f46e5" />
+            <Text style={styles.menuBtnText}>Återställ alla tips</Text>
+          </Pressable>
+          <Pressable style={[styles.menuBtn, styles.menuBtnLast]} onPress={() => setShowOverflowMenu(false)}>
+            <Text style={[styles.menuBtnText, { color: '#6b7280' }]}>Stäng</Text>
+          </Pressable>
+        </View>
+      </Modal>
+
       <Animated.View style={[styles.toast, toastVariant === 'neutral' && styles.toastNeutral, { opacity: toastOpacity }]} pointerEvents="none">
         <Text style={styles.toastText}>{toastMessage}</Text>
       </Animated.View>
@@ -1013,6 +1042,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', paddingHorizontal: 20, marginBottom: 8 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, gap: 12, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  menuRowLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  menuRowSub: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  menuBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 16, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  menuBtnLast: { justifyContent: 'center', borderTopWidth: 0 },
+  menuBtnText: { fontSize: 15, fontWeight: '600', color: '#111827' },
   sheetDesc: { fontSize: 14, color: '#6b7280', paddingHorizontal: 20, marginBottom: 16, lineHeight: 20 },
   sheetScroll: { paddingHorizontal: 20, gap: 16 },
   input: {

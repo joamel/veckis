@@ -1,7 +1,7 @@
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,7 +11,8 @@ import { MemberFilterProvider } from '../src/context/MemberFilterContext';
 import { PendingRemovalProvider } from '../src/context/PendingRemovalContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { ConfirmProvider } from '../src/context/ConfirmContext';
-import { SpotlightTipProvider } from '../src/context/SpotlightTipContext';
+import { SpotlightTipProvider, useOnboardingMaster } from '../src/context/SpotlightTipContext';
+import { WelcomeModal } from '../src/components/WelcomeModal';
 
 // Lock app text to designed size regardless of OS "larger text" setting.
 // Tablet sizing is handled separately via useTablet().fs() so we don't lose tablet scaling.
@@ -47,6 +48,10 @@ function NavigationGuard() {
   const { householdId, isLoading: householdLoading } = useHousehold();
   const segments = useSegments();
   const router = useRouter();
+  const { setSkipAll } = useOnboardingMaster();
+  // Visa välkomst-modalen EN gång efter att användaren har signat in OCH valt
+  // hushåll. Flagga sparas i SecureStore (seen-welcome-tip).
+  const [welcomeState, setWelcomeState] = useState<'loading' | 'show' | 'done'>('loading');
 
   useEffect(() => {
     if (!isLoaded || householdLoading) return;
@@ -65,7 +70,31 @@ function NavigationGuard() {
     }
   }, [isLoaded, isSignedIn, householdId, householdLoading, segments]);
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  // Välkomstmodal — visa bara när användare är inne i appen (har hushåll, inte
+  // i auth/setup) och flaggan inte är satt.
+  useEffect(() => {
+    if (!isSignedIn || !householdId) return;
+    if (welcomeState !== 'loading') return;
+    SecureStore.getItemAsync('seen-welcome-tip').then(v => {
+      setWelcomeState(v === '1' ? 'done' : 'show');
+    }).catch(() => setWelcomeState('done'));
+  }, [isSignedIn, householdId, welcomeState]);
+
+  const markWelcomeSeen = async () => {
+    await SecureStore.setItemAsync('seen-welcome-tip', '1').catch(() => {});
+    setWelcomeState('done');
+  };
+
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+      <WelcomeModal
+        visible={welcomeState === 'show'}
+        onContinue={markWelcomeSeen}
+        onSkipAll={async () => { await setSkipAll(true); await markWelcomeSeen(); }}
+      />
+    </>
+  );
 }
 
 export default function RootLayout() {

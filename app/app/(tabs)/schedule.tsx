@@ -25,6 +25,7 @@ import { useApiClient, type WeekMenuItemWithRecipe } from '../../src/api/client'
 import { useToast } from '../../src/context/ToastContext';
 import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
+import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/clerk-expo';
 import { useHousehold } from '../../src/context/HouseholdContext';
@@ -155,6 +156,11 @@ export default function ScheduleScreen() {
   const filterBtnRef = useRef<View>(null);
   const calendarSwipeTip = useOnceFlag('seen-calendar-swipe-tip');
   const calendarSwipeTipShownRef = useRef(false);
+  // Origins-tipset: förklarar VARIFRÅN kalenderns innehåll kommer (recept-
+  // fliken + sysslor-fliken) så användaren förstår var de skapar grejer.
+  const originsTip = useOnceFlag('seen-calendar-origins-tip');
+  const originsTipShownRef = useRef(false);
+  const wrapAddTip = useFirstActionTip('seen-calendar-add-tip');
   const { getToken } = useAuth();
   const { householdId } = useHousehold();
 
@@ -367,6 +373,19 @@ export default function ScheduleScreen() {
     });
     if (shown) calendarSwipeTip.markSeen();
   }, [calendarSwipeTip.seen, calendarSwipeTip.markSeen, showTip, weekRowRect]));
+
+  // Origins-tip: kalendern visar saker som SKAPAS i andra flikar (recept → meny
+  // → här; sysslor-fliken → här). Förklaras EN gång efter att swipe-tipset är
+  // dismissat (queue:as via showTip's hasNext-knapp).
+  useFocusEffect(useCallback(() => {
+    if (originsTip.seen !== false || originsTipShownRef.current) return;
+    originsTipShownRef.current = true;
+    const shown = showTip({
+      title: 'Var kommer innehållet ifrån?',
+      message: 'Maträtter på kalendern kommer från veckomenyn (Meny-fliken), och sysslor från Sysslor-fliken. Skapa eller redigera dem där — de syns sedan automatiskt i kalendern.',
+    });
+    if (shown) originsTip.markSeen();
+  }, [originsTip.seen, originsTip.markSeen, showTip]));
 
   // Filter-tip: använder useFocusEffect så det bara fyrar från den AKTIVA
   // fliken. Sysslor-fliken delar flagga `seen-filter-tip` — vem som ser
@@ -1005,7 +1024,10 @@ export default function ScheduleScreen() {
                 />
               ) : renderDayDetail(cur)}
             </ScrollView>
-            <Pressable style={s.fab} onPress={() => { openNewEntry(selectedDay); }}>
+            <Pressable style={s.fab} onPress={wrapAddTip(
+            () => openNewEntry(selectedDay),
+            { title: 'Skapa aktivitet', message: 'Här lägger du till en aktivitet på den valda dagen. Du kan välja om den ska upprepas (dagligen, veckovis, månadsvis), vem som ska göra den och få en påminnelse innan starttiden.' },
+          )}>
               <Ionicons name="add" size={30} color="#fff" />
             </Pressable>
           </View>
@@ -1136,7 +1158,10 @@ export default function ScheduleScreen() {
             }}
           />
 
-          <Pressable style={s.fab} onPress={() => { openNewEntry(selectedDay); }}>
+          <Pressable style={s.fab} onPress={wrapAddTip(
+            () => openNewEntry(selectedDay),
+            { title: 'Skapa aktivitet', message: 'Här lägger du till en aktivitet på den valda dagen. Du kan välja om den ska upprepas (dagligen, veckovis, månadsvis), vem som ska göra den och få en påminnelse innan starttiden.' },
+          )}>
             <Ionicons name="add" size={30} color="#fff" />
           </Pressable>
         </>
