@@ -8,6 +8,7 @@ import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { learnIngredientAliases, getStoredCategory, storeIngredientCategory } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
 import { wsBroadcast } from '../lib/wsHub';
+import { inferSubCategory, parentForSub, type SubCategory } from '@veckis/shared';
 import { sendPush } from '../lib/sendPush';
 import { planFullUnmerge, findRoot } from '../lib/mergeLogic';
 import { planAutoMerge } from '../lib/importDedupe';
@@ -66,6 +67,7 @@ const addItemSchema = z.object({
   quantity: z.number().positive().default(1),
   unit: z.string().optional(),
   category: categoryEnum.default('other'),
+  subCategory: z.string().nullable().optional(),
   note: z.string().optional(),
 });
 
@@ -74,6 +76,7 @@ const updateItemSchema = z.object({
   quantity: z.number().positive().optional(),
   unit: z.string().nullable().optional(),
   category: categoryEnum.optional(),
+  subCategory: z.string().nullable().optional(),
   customCategory: z.string().max(40).nullable().optional(),
   note: z.string().nullable().optional(),
 });
@@ -262,9 +265,16 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
       data: { usageCount: { increment: 1 } },
     }).catch(() => {});
   }
-  const category = body.data.category === 'other'
-    ? (staplePref?.category ?? await getStoredCategory(normalizedName) ?? categorizeIngredient(normalizedName))
-    : body.data.category;
+  // SubCategory är källan till sanning i 2-nivå-taxonomin. Auto-infer från
+  // namnet om kallaren inte angav. Category härleds från sub:ens defaultParent
+  // — kallaren kan override:a via body.data.category om de redan vet.
+  const inferredSub = body.data.subCategory ?? inferSubCategory(normalizedName);
+  const subCategory = inferredSub ?? null;
+  const category = body.data.category !== 'other'
+    ? body.data.category
+    : subCategory
+      ? parentForSub(subCategory as SubCategory)
+      : (staplePref?.category ?? await getStoredCategory(normalizedName) ?? categorizeIngredient(normalizedName));
 
   // If an unchecked item with the same name+unit already exists, increment its quantity
   const existing = await prisma.shoppingItem.findFirst({
@@ -289,7 +299,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   }
 
   const item = await prisma.shoppingItem.create({
-    data: { listId: list.id, ...body.data, name: normalizedName, category, addedBy: (req as AuthenticatedRequest).clerkUserId },
+    data: { listId: list.id, ...body.data, name: normalizedName, category, subCategory, addedBy: (req as AuthenticatedRequest).clerkUserId },
   });
 
   learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
