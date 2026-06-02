@@ -272,6 +272,17 @@ export default function MenuScreen() {
     return n;
   });
 
+  // Nästa mätbara ingrediens efter en given key — för "Nästa"-knappen på
+  // tangentbordet. Returnerar null om aktuell rad är sista mätbara.
+  function findNextMeasuredKey(currentKey: string): string | null {
+    const idx = aggregatedInventory.findIndex(a => a.key === currentKey);
+    if (idx < 0) return null;
+    for (let i = idx + 1; i < aggregatedInventory.length; i++) {
+      if (aggregatedInventory[i].measured) return aggregatedInventory[i].key;
+    }
+    return null;
+  }
+
   // En rad i den nya inventerings-vyn. Mätbara ingredienser har:
   //  [Namn (+ behov)]  [Har: __ inputfält]  [✓ Allt-knapp]
   // Omätta ingredienser (qty=null, t.ex. salt) har bara ✓-knappen.
@@ -316,24 +327,39 @@ export default function MenuScreen() {
           </Text>
         </View>
         {isEditing ? (
-          <View style={s.invAmountWrapV2}>
-            <TextInput
-              style={s.invAmountInputV2}
-              keyboardType="numeric"
-              autoFocus
-              value={haveAmt ? fmtQty(haveAmt) : ''}
-              placeholder="0"
-              placeholderTextColor="#d1d5db"
-              onChangeText={t => {
-                const v = parseFloat(t.replace(',', '.'));
-                setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
-              }}
-              onBlur={() => setEditingAmountKey(null)}
-              onSubmitEditing={() => setEditingAmountKey(null)}
-              returnKeyType="done"
-            />
-            {agg.unit ? <Text style={s.invUnitV2}>{agg.unit}</Text> : null}
-          </View>
+          (() => {
+            const nextKey = findNextMeasuredKey(agg.key);
+            return (
+              <View style={s.invAmountWrapV2}>
+                <TextInput
+                  style={s.invAmountInputV2}
+                  keyboardType="numeric"
+                  autoFocus
+                  value={haveAmt ? fmtQty(haveAmt) : ''}
+                  placeholder="0"
+                  placeholderTextColor="#d1d5db"
+                  onChangeText={t => {
+                    const v = parseFloat(t.replace(',', '.'));
+                    setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
+                  }}
+                  onBlur={() => {
+                    // Bara stäng om vi inte är på väg att fokusera nästa rad
+                    // (då har editingAmountKey redan ändrats av onSubmitEditing).
+                    setEditingAmountKey(prev => prev === agg.key ? null : prev);
+                  }}
+                  // blurOnSubmit=false så tangentbordet stannar uppe när vi
+                  // hoppar till nästa input. Sista raden blurar normalt.
+                  blurOnSubmit={!nextKey}
+                  onSubmitEditing={() => {
+                    if (nextKey) setEditingAmountKey(nextKey);
+                    else setEditingAmountKey(null);
+                  }}
+                  returnKeyType={nextKey ? 'next' : 'done'}
+                />
+                {agg.unit ? <Text style={s.invUnitV2}>{agg.unit}</Text> : null}
+              </View>
+            );
+          })()
         ) : (
           <Pressable
             style={[s.invAmountWrapV2, haveAmt > 0 && s.invAmountWrapHas]}
@@ -1543,7 +1569,14 @@ export default function MenuScreen() {
       {/* Bulk transfer modal — choose recipes and list */}
       <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleBulkBack()}>
         <Pressable style={s.overlay} onPress={() => handleCancelBulkTransfer()} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          // Inventerings-steget hanterar tangentbordet själv via inre ScrollView
+          // — annars hoppar Nästa-/Tillbaka-knapparna upp ovanför tangentbordet.
+          enabled={bulkTransferStep !== 'ingredients'}
+          style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}
+          pointerEvents="box-none"
+        >
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
 
