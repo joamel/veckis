@@ -275,7 +275,16 @@
 
 ## Ej helt färdiga stories, idéstadie
 - [x] Eventuellt möjlighet att kopiera en veckomeny till en annan vecka (backend endpoint, UI återstår)
-- [ ] Borde finnas underkategorier till varukategorierna som varorna också tillhör (chark, ost, deli, kött, fågel, korv, fisk, allergi, glass, alkoholfritt, chips, etc) så att man om man vill kan slå isär en huvudkategori om det inte matchar affären
+- [ ] Kategorier — 2-nivå-taxonomi (story-headline; sub-punkter nedan). Idag har vi `category` (parent enum) + ad-hoc `customCategory: string`-override per vara och `customCategories: string[]` per butik. Custom-strängar förstör cross-household-data: "ost" blir olika sak i olika hushåll → AI-träning, central databas och statistik tappar grepp. Ny modell: standardiserade sub-kategorier (40-60 enum) under parents (10-12). Sub är källa-till-sanning; parent härleds vid skapande från sub:ens defaultParent men kan editeras per item.
+- [ ] Kategorier — definiera taxonomin: ny `SubCategory`-enum med ~50 värden i `shared/lib/taxonomy.ts`. Lookup-tabell `SUB_TAXONOMY[sub] = { defaultParent, alsoUnder }`. Sub har EN default-parent (många-till-många bor bara som info i taxonomin för konfigurations-UI:t).
+- [ ] Kategorier — datamodell: `ShoppingItem.subCategory: SubCategory | null` läggs till; `category` (parent) bevaras och defaultar till sub:ens defaultParent vid skapande men kan override:as per item. `customCategory` deprekeras (dold i UI, kvar i schema för migration). Prisma-migration + zod + shared-typer.
+- [ ] Kategorier — recept-import & autocomplete fyller i båda fälten: skrapern och autocomplete-förslagen mappar mot subCategory + härleder defaultParent. Bättre datakvalitet från start.
+- [ ] Kategorier — butikskonfig: under varje parent i `/stores/[storeId]`, fäll ut för att visa relaterade subs. Per sub: toggle "samla under parent" (default) eller "egen sektion". Konfigen styr BARA rendering; inga item-mutations.
+- [ ] Kategorier — per-item override: long-press vara → "Redigera" → byt parent + sub oberoende av varandra (även avvika från taxonomins default). Båda är full radio-pickers över respektive enum.
+- [ ] Kategorier — migration: string-similarity-matchning av befintliga `customCategory`-strängar mot bästa sub. Träff över threshold → auto. Resten flaggas för manuell granskning i admin-vy. När alla items konverterats: ta bort `customCategory`-kolumnen + `Store.customCategories`.
+- [ ] Kategorier — skafferi-minne får exakt matchning på subCategory (bygger på #283 nedan): "ost" i skafferi matchar bara items med subCategory='ost', inte hela mejeri-kategorin. Kräver att taxonomi-bygget är klart.
+- [ ] Kategorier — söklogik prioriterar subCategory-träff: sök "smör" matchar items med subCategory='smör_margarin' före LIKE-träff på name. Bygger på taxonomi.
+- [ ] Kategorier — koppla datakvalitet-städningen (rad 282 nedan) till sub-merge: admin-vy kan slå ihop duplicat-skapade subs eller mappa om ärvda customCategory-strängar.
 - [ ] Veckovyn i tablet borde kanske se likadan ut som i mobilen med allt under?
 - [ ] ha en sökbar databas på butiker som andra lagt till för att på så vis slippa skapa butiker som redan finns inlagda. Kanske ett premium-alternativ?
 - [ ] Statistik/insikter: lättviktsvy med "mest lagade rätter", "vem gör flest sysslor", "vanligaste inköp" — möjligt premium-läge tillsammans med butiksdatabasen

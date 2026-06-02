@@ -254,58 +254,10 @@ export default function StoreDetailScreen() {
           )}
         </View>
 
-        {customCategories.length > 0 && (
-          <>
-            <Text style={[s.sectionLabel, { marginTop: 24 }]}>EGNA KATEGORIER</Text>
-            <View style={s.catList}>
-              {customCategories.map((name, idx) => (
-                <View key={name} style={s.catRow}>
-                  <Text style={s.catName}>{name}</Text>
-                  <View style={{ flexDirection: 'row', gap: 6 }}>
-                    <Pressable
-                      style={[s.catBtn, idx === 0 && { opacity: 0.3 }]}
-                      disabled={idx === 0}
-                      onPress={() => moveCustomUp(idx)}
-                    >
-                      <Ionicons name="chevron-up" size={18} color="#4f46e5" />
-                    </Pressable>
-                    <Pressable
-                      style={[s.catBtn, idx === customCategories.length - 1 && { opacity: 0.3 }]}
-                      disabled={idx === customCategories.length - 1}
-                      onPress={() => moveCustomDown(idx)}
-                    >
-                      <Ionicons name="chevron-down" size={18} color="#4f46e5" />
-                    </Pressable>
-                    <Pressable style={s.catBtnDanger} onPress={() => removeCustom(name)}>
-                      <Ionicons name="close-circle-outline" size={18} color="#ef4444" />
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </>
-        )}
-
-        <Text style={[s.sectionLabel, { marginTop: 24 }]}>LÄGG TILL EGEN</Text>
-        <View style={s.addRow}>
-          <TextInput
-            style={s.addInput}
-            placeholder="t.ex. Specerier, Chark…"
-            placeholderTextColor="#9ca3af"
-            value={newCustom}
-            onChangeText={setNewCustom}
-            returnKeyType="done"
-            onSubmitEditing={addCustom}
-            autoCapitalize="words"
-          />
-          <Pressable
-            style={[s.addBtn, !newCustom.trim() && { opacity: 0.4 }]}
-            onPress={addCustom}
-            disabled={!newCustom.trim()}
-          >
-            <Ionicons name="add" size={22} color="#fff" />
-          </Pressable>
-        </View>
+        {/* "Egna kategorier"-UI dolt — feature ersätts av kommande 2-nivå-taxonomi
+            (se BACKLOG.md "Kategorier"-sektionen). Befintliga customCategories
+            kvar i schema och renderas fortfarande i list-grupperingar; bara
+            input-vägen är borttagen. */}
 
         {hiddenEnum.length > 0 && (
           <>

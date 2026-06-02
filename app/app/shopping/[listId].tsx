@@ -938,13 +938,14 @@ export default function ShoppingListScreen() {
     }
   }
 
-  // Öppna /stores i pick-läge och vänta på resultat.
+  // Öppna /stores i pick-läge och vänta på resultat. Skickar nuvarande
+  // butik som ?current=... så pickern kan markera den + visa rensa-X.
   async function openStorePicker() {
     const promise = pickStore();
-    router.push('/stores?pick=1' as never);
+    const currentParam = list?.storeId ? `&current=${list.storeId}` : '';
+    router.push(`/stores?pick=1${currentParam}` as never);
     const result = await promise;
     if (result === 'cancelled') return;
-    // null = "Ingen butik" (rensa); string = vald butik
     await selectStore(result);
   }
 
@@ -1371,20 +1372,10 @@ export default function ShoppingListScreen() {
                   </Pressable>
                 );
               })}
-              {customCategories.map(name => {
-                const active = editCustomCategory === name;
-                return (
-                  <Pressable
-                    key={`c:${name}`}
-                    style={[s.catChip, active && s.catChipActive]}
-                    onPress={() => setEditCustomCategory(active ? null : name)}
-                  >
-                    <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
-                      🏷️ {name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+              {/* "Egna kategorier"-chips dolda — ersätts av kommande
+                  2-nivå-taxonomi. Items med befintligt customCategory
+                  fortsätter renderas i sina grupper men nya items kan inte
+                  längre placeras där manuellt. */}
             </View>
           </ScrollView>
           </ScrollView>
@@ -1476,60 +1467,8 @@ export default function ShoppingListScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Category order editor */}
-      <Modal visible={!!editingStore} transparent animationType="slide" onRequestClose={() => setEditingStore(null)}>
-        <Pressable style={s.overlay} onPress={() => setEditingStore(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>{editingStore?.name} — kategoriordning</Text>
-          <ScrollView style={{ maxHeight: '70%' }} contentContainerStyle={{ paddingBottom: 12 }}>
-            <Text style={s.sheetSub}>Dra om ordningen med pilarna så den matchar butikens layout</Text>
-            {editCategoryOrder.map((cat, idx) => (
-              <View key={cat} style={s.catRow}>
-                <Text style={s.catRowLabel}>{CATEGORY_LABELS[cat]}</Text>
-                <Pressable onPress={() => moveCategoryUp(idx)} disabled={idx === 0} style={s.catArrow}>
-                  <Ionicons name="chevron-up" size={18} color={idx === 0 ? '#e5e7eb' : '#374151'} />
-                </Pressable>
-                <Pressable onPress={() => moveCategoryDown(idx)} disabled={idx === editCategoryOrder.length - 1} style={s.catArrow}>
-                  <Ionicons name="chevron-down" size={18} color={idx === editCategoryOrder.length - 1 ? '#e5e7eb' : '#374151'} />
-                </Pressable>
-              </View>
-            ))}
-            <Text style={[s.sheetSub, { marginTop: 16 }]}>Egna kategorier</Text>
-            {editCustomCategories.map(name => (
-              <View key={name} style={s.catRow}>
-                <Text style={s.catRowLabel}>🏷️ {name}</Text>
-                <Pressable onPress={() => removeCustomCategory(name)} style={s.catArrow} hitSlop={8}>
-                  <Ionicons name="close-circle" size={20} color="#ef4444" />
-                </Pressable>
-              </View>
-            ))}
-            <View style={s.newStoreRow}>
-              <TextInput
-                style={[s.addInput, { flex: 1 }]}
-                placeholder="Ny egen kategori"
-                placeholderTextColor="#9ca3af"
-                value={newCustomCategory}
-                onChangeText={setNewCustomCategory}
-                returnKeyType="done"
-                onSubmitEditing={addCustomCategory}
-              />
-              <Pressable
-                style={[s.addBtn, !newCustomCategory.trim() && s.addBtnDisabled]}
-                onPress={addCustomCategory}
-                disabled={!newCustomCategory.trim()}
-              >
-                <Ionicons name="add" size={22} color="#fff" />
-              </Pressable>
-            </View>
-          </ScrollView>
-          <Pressable style={[s.saveBtn, savingOrder && s.saveBtnDisabled]} onPress={saveCategoryOrder} disabled={savingOrder}>
-            {savingOrder ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>Spara</Text>}
-          </Pressable>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      {/* Tidigare in-list category-order editor + custom-kategorier är borttagen.
+          All butiks-konfig sker på /stores/[storeId]-routen istället. */}
       {/* Quantity sheet */}
       <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
         <Pressable style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.3)' }]} onPress={() => setQtySheet(null)} />

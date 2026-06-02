@@ -278,7 +278,8 @@ export default function ShoppingScreen() {
               style={styles.storePickBtn}
               onPress={async () => {
                 const promise = pickStore();
-                router.push('/stores?pick=1' as never);
+                const currentParam = newListStoreId ? `&current=${newListStoreId}` : '';
+                router.push(`/stores?pick=1${currentParam}` as never);
                 const result = await promise;
                 if (result === 'cancelled') return;
                 setNewListStoreId(result);
