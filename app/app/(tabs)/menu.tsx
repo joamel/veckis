@@ -265,6 +265,15 @@ export default function MenuScreen() {
   // Inventory: en flat lista där varje rad har Har-input + ✓-knapp. Cap höjden
   // så Överför-/Tillbaka-knapparna inte klipps på korta skärmar.
   const invMaxListH = Math.max(200, Dimensions.get('window').height * 0.8 - 300);
+  // Dölj Nästa/Tillbaka-knapparna när tangentbordet är uppe så de inte tar
+  // plats från inventeringen (de kommer tillbaka när användaren stänger
+  // tangentbordet eller trycker "Klar" på sista raden).
+  const [invKbdOpen, setInvKbdOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setInvKbdOpen(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setInvKbdOpen(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const toggleUnmeasured = (key: string) => setHadUnmeasured(prev => {
     const n = new Set(prev);
@@ -295,9 +304,6 @@ export default function MenuScreen() {
         <View key={agg.key} style={s.invRowV2}>
           <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={[s.invName, have && s.invNameDone]}>{agg.name}</Text>
-            <Text style={s.invProvenance} numberOfLines={1}>
-              {agg.recipeTitles.join(' · ')}
-            </Text>
           </View>
           <Pressable
             style={[s.invAllBtn, have && s.invAllBtnOn]}
@@ -320,11 +326,11 @@ export default function MenuScreen() {
           <Text style={[s.invName, covered && s.invNameDone]}>
             {fmtQty(total)}{unitLabel} {agg.name}
           </Text>
-          <Text style={s.invProvenance} numberOfLines={1}>
-            {partial
-              ? `köp ${fmtQty(total - haveAmt)}${unitLabel} · ${agg.recipeTitles.join(' · ')}`
-              : agg.recipeTitles.join(' · ')}
-          </Text>
+          {partial && (
+            <Text style={s.invProvenance} numberOfLines={1}>
+              köp {fmtQty(total - haveAmt)}{unitLabel}
+            </Text>
+          )}
         </View>
         {isEditing ? (
           (() => {
@@ -1705,27 +1711,31 @@ export default function MenuScreen() {
               >
                 {aggregatedInventory.map(agg => renderInventoryRow(agg))}
               </ScrollView>
-              <Pressable
-                style={s.button}
-                onPress={async () => {
-                  const origin = params.originListId;
-                  if (origin) {
-                    await executeBulkTransfer(origin);
-                    try {
-                      (router as { dismissTo?: (h: string) => void }).dismissTo?.(`/shopping/${origin}`);
-                    } catch {
-                      router.navigate(`/shopping/${origin}` as never);
-                    }
-                  } else {
-                    setBulkTransferStep('list');
-                  }
-                }}
-              >
-                <Text style={s.buttonText}>{params.originListId ? 'Överför' : 'Nästa'}</Text>
-              </Pressable>
-              <Pressable style={s.cancelBtn} onPress={() => setBulkTransferStep('recipe')}>
-                <Text style={s.cancelBtnText}>Tillbaka</Text>
-              </Pressable>
+              {!invKbdOpen && (
+                <>
+                  <Pressable
+                    style={s.button}
+                    onPress={async () => {
+                      const origin = params.originListId;
+                      if (origin) {
+                        await executeBulkTransfer(origin);
+                        try {
+                          (router as { dismissTo?: (h: string) => void }).dismissTo?.(`/shopping/${origin}`);
+                        } catch {
+                          router.navigate(`/shopping/${origin}` as never);
+                        }
+                      } else {
+                        setBulkTransferStep('list');
+                      }
+                    }}
+                  >
+                    <Text style={s.buttonText}>{params.originListId ? 'Överför' : 'Nästa'}</Text>
+                  </Pressable>
+                  <Pressable style={s.cancelBtn} onPress={() => setBulkTransferStep('recipe')}>
+                    <Text style={s.cancelBtnText}>Tillbaka</Text>
+                  </Pressable>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -1966,7 +1976,7 @@ const s = StyleSheet.create({
   invName: { fontSize: 15, color: '#111827', fontWeight: '500' },
   invNameDone: { color: '#9ca3af', textDecorationLine: 'line-through' },
   invProvenance: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  invAmountWrapV2: { flexDirection: 'row', alignItems: 'center', width: 88, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', gap: 4 },
+  invAmountWrapV2: { flexDirection: 'row', alignItems: 'center', width: 88, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff', gap: 4 },
   invAmountWrapHas: { borderColor: '#a5b4fc', backgroundColor: '#fff' },
   // Input får flex:1 så den krymper när enheten tar plats — och maxWidth-cap
   // för att enheten alltid får 26px på höger sida.
