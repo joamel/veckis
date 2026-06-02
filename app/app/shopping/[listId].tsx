@@ -1388,13 +1388,18 @@ export default function ShoppingListScreen() {
               matchar valt parent. Användaren kan när som helst byta parent
               ovan och då uppdateras sub-listan. */}
           <Text style={s.editLabel}>Underkategori (valfritt)</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={s.catChipScroll}
+            contentContainerStyle={{ paddingRight: 12 }}
+          >
             <View style={s.catChipRow}>
               <Pressable
                 style={[s.catChip, !editSubCategory && s.catChipActive]}
                 onPress={() => setEditSubCategory(null)}
               >
-                <Text style={[s.catChipText, !editSubCategory && s.catChipTextActive]} numberOfLines={1}>
+                <Text style={[s.catChipText, !editSubCategory && s.catChipTextActive]}>
                   Ingen
                 </Text>
               </Pressable>
@@ -1406,7 +1411,7 @@ export default function ShoppingListScreen() {
                     style={[s.catChip, active && s.catChipActive]}
                     onPress={() => setEditSubCategory(active ? null : sub)}
                   >
-                    <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
+                    <Text style={[s.catChipText, active && s.catChipTextActive]}>
                       {SUB_TAXONOMY[sub].label}
                     </Text>
                   </Pressable>
