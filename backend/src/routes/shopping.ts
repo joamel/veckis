@@ -8,6 +8,7 @@ import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { learnIngredientAliases, getStoredCategory, storeIngredientCategory } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
 import { wsBroadcast } from '../lib/wsHub';
+import { inferSubCategory, parentForSub, type SubCategory } from '@veckis/shared';
 import { sendPush } from '../lib/sendPush';
 import { planFullUnmerge, findRoot } from '../lib/mergeLogic';
 import { planAutoMerge } from '../lib/importDedupe';
@@ -66,6 +67,7 @@ const addItemSchema = z.object({
   quantity: z.number().positive().default(1),
   unit: z.string().optional(),
   category: categoryEnum.default('other'),
+  subCategory: z.string().nullable().optional(),
   note: z.string().optional(),
 });
 
@@ -74,6 +76,7 @@ const updateItemSchema = z.object({
   quantity: z.number().positive().optional(),
   unit: z.string().nullable().optional(),
   category: categoryEnum.optional(),
+  subCategory: z.string().nullable().optional(),
   customCategory: z.string().max(40).nullable().optional(),
   note: z.string().nullable().optional(),
 });
@@ -168,6 +171,51 @@ shoppingRouter.delete('/lists/:listId', requireAuth, asyncHandler(async (req, re
   res.status(204).send();
 }));
 
+// PATCH /api/shopping/lists/:listId/shopper — sätt eller rensa "jag handlar"-
+// presence på listan. Body: { memberId: string | null }. Broadcastas till
+// hushållet så alla enheter ser uppdateringen direkt.
+shoppingRouter.patch('/lists/:listId/shopper', requireAuth, asyncHandler(async (req, res) => {
+  const list = await getListAndVerifyMember(req.params.listId, (req as AuthenticatedRequest).clerkUserId, res);
+  if (!list) return;
+
+  const body = z.object({ memberId: z.string().nullable() }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  // Validera att memberId tillhör hushållet (om satt).
+  if (body.data.memberId) {
+    const member = await prisma.householdMember.findUnique({ where: { id: body.data.memberId } });
+    if (!member || member.householdId !== list.householdId) {
+      res.status(400).json({ error: 'Member not in this household' });
+      return;
+    }
+  }
+
+  const updated = await prisma.shoppingList.update({
+    where: { id: list.id },
+    data: {
+      activeShopperMemberId: body.data.memberId,
+      activeShopperSince: body.data.memberId ? new Date() : null,
+    },
+  });
+  const payload = {
+    type: 'shopping_presence',
+    data: {
+      listId: updated.id,
+      memberId: updated.activeShopperMemberId,
+      since: updated.activeShopperSince?.toISOString() ?? null,
+    },
+  };
+  // Broadcasta till båda kanalerna: hushållet (för list-översikten) + den
+  // specifika listan (för list-detalj-sidan som är ansluten till list-WS).
+  wsBroadcast(`household:${updated.householdId}`, payload);
+  bcast(updated, payload);
+  res.json({
+    listId: updated.id,
+    memberId: updated.activeShopperMemberId,
+    since: updated.activeShopperSince,
+  });
+}));
+
 // PATCH /api/shopping/lists/:listId
 shoppingRouter.patch('/lists/:listId', requireAuth, asyncHandler(async (req, res) => {
   const list = await getListAndVerifyMember(req.params.listId, (req as AuthenticatedRequest).clerkUserId, res);
@@ -179,10 +227,20 @@ shoppingRouter.patch('/lists/:listId', requireAuth, asyncHandler(async (req, res
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const updated = await prisma.shoppingList.update({
+  await prisma.shoppingList.update({ where: { id: list.id }, data: body.data });
+  // Hämta tillbaka med SAMMA filter som GET (mergedIntoId: null) så
+  // hopslagna sub-items inte dyker upp som "duplicates" i frontend när
+  // användaren byter butik/namn.
+  const updated = await prisma.shoppingList.findUnique({
     where: { id: list.id },
-    data: body.data,
-    include: { items: { include: { recipe: { select: { id: true, title: true } } } }, store: true },
+    include: {
+      items: {
+        where: { mergedIntoId: null },
+        orderBy: [{ isChecked: 'asc' }, { category: 'asc' }, { name: 'asc' }],
+        include: { recipe: { select: { id: true, title: true } } },
+      },
+      store: true,
+    },
   });
   res.json(updated);
 }));
@@ -207,9 +265,16 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
       data: { usageCount: { increment: 1 } },
     }).catch(() => {});
   }
-  const category = body.data.category === 'other'
-    ? (staplePref?.category ?? await getStoredCategory(normalizedName) ?? categorizeIngredient(normalizedName))
-    : body.data.category;
+  // SubCategory är källan till sanning i 2-nivå-taxonomin. Auto-infer från
+  // namnet om kallaren inte angav. Category härleds från sub:ens defaultParent
+  // — kallaren kan override:a via body.data.category om de redan vet.
+  const inferredSub = body.data.subCategory ?? inferSubCategory(normalizedName);
+  const subCategory = inferredSub ?? null;
+  const category = body.data.category !== 'other'
+    ? body.data.category
+    : subCategory
+      ? parentForSub(subCategory as SubCategory)
+      : (staplePref?.category ?? await getStoredCategory(normalizedName) ?? categorizeIngredient(normalizedName));
 
   // If an unchecked item with the same name+unit already exists, increment its quantity
   const existing = await prisma.shoppingItem.findFirst({
@@ -234,7 +299,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   }
 
   const item = await prisma.shoppingItem.create({
-    data: { listId: list.id, ...body.data, name: normalizedName, category, addedBy: (req as AuthenticatedRequest).clerkUserId },
+    data: { listId: list.id, ...body.data, name: normalizedName, category, subCategory, addedBy: (req as AuthenticatedRequest).clerkUserId },
   });
 
   learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
@@ -248,6 +313,20 @@ shoppingRouter.delete('/lists/:listId/items', requireAuth, asyncHandler(async (r
   const list = await getListAndVerifyMember(req.params.listId, clerkUserId, res);
   if (!list) return;
   await prisma.shoppingItem.deleteMany({ where: { listId: list.id } });
+  // Rensa "jag handlar"-presence när listan töms (annars hänger den kvar
+  // visuellt fast inget finns att handla).
+  if (list.activeShopperMemberId) {
+    await prisma.shoppingList.update({
+      where: { id: list.id },
+      data: { activeShopperMemberId: null, activeShopperSince: null },
+    });
+    const clearPayload = {
+      type: 'shopping_presence',
+      data: { listId: list.id, memberId: null, since: null },
+    };
+    wsBroadcast(`household:${list.householdId}`, clearPayload);
+    bcast(list, clearPayload);
+  }
   bcast(list, { type: 'list_cleared' });
   res.status(204).send();
 

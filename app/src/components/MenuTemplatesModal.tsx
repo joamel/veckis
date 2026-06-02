@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type MenuTemplate } from '../api/client';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 interface Props {
   visible: boolean;
@@ -18,6 +19,7 @@ interface Props {
 export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, weekNumber, weekHasItems, onApplied }: Props) {
   const client = useApiClient();
   const { showToast, showError } = useToast();
+  const confirm = useConfirm();
   const [templates, setTemplates] = useState<MenuTemplate[] | null>(null);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -60,32 +62,36 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
       }
     };
     if (weekHasItems) {
-      Alert.alert(
-        'Veckan har redan rätter',
-        `Vill du ersätta veckans meny med "${tpl.name}", eller lägga till utöver de befintliga?`,
-        [
-          { text: 'Avbryt', style: 'cancel' },
-          { text: 'Lägg till', onPress: () => run(false) },
-          { text: 'Ersätt', style: 'destructive', onPress: () => run(true) },
+      confirm({
+        title: 'Veckan har redan rätter',
+        message: `Vill du ersätta veckans meny med "${tpl.name}", eller lägga till utöver de befintliga?`,
+        buttons: [
+          { label: 'Lägg till', onPress: () => run(false) },
+          { label: 'Ersätt', style: 'destructive', onPress: () => run(true) },
+          { label: 'Avbryt', style: 'cancel' },
         ],
-      );
+      });
     } else {
       run(false);
     }
   }
 
   function confirmDelete(tpl: MenuTemplate) {
-    Alert.alert('Ta bort mall', `Ta bort mallen "${tpl.name}"?`, [
-      { text: 'Avbryt', style: 'cancel' },
-      {
-        text: 'Ta bort', style: 'destructive',
-        onPress: async () => {
-          setTemplates(prev => (prev ?? []).filter(t => t.id !== tpl.id));
-          try { await client.deleteMenuTemplate(tpl.id); }
-          catch (e) { showError(e, 'Kunde inte ta bort mallen'); }
+    confirm({
+      title: 'Ta bort mall',
+      message: `Ta bort mallen "${tpl.name}"?`,
+      buttons: [
+        {
+          label: 'Ta bort', style: 'destructive',
+          onPress: async () => {
+            setTemplates(prev => (prev ?? []).filter(t => t.id !== tpl.id));
+            try { await client.deleteMenuTemplate(tpl.id); }
+            catch (e) { showError(e, 'Kunde inte ta bort mallen'); }
+          },
         },
-      },
-    ]);
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   return (

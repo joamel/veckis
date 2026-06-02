@@ -2,7 +2,6 @@ import { useSignUp } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,10 +10,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useConfirm } from '../../src/context/ConfirmContext';
 
 export default function SignUpScreen() {
   const { signUp, setActive, isLoaded } = useSignUp();
   const router = useRouter();
+  const confirm = useConfirm();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +30,7 @@ export default function SignUpScreen() {
       setPendingVerification(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registrering misslyckades';
-      Alert.alert('Fel', msg);
+      confirm({ title: 'Fel', message: msg, buttons: [{ label: 'OK' }] });
     }
   }
 
@@ -40,7 +41,7 @@ export default function SignUpScreen() {
       await setActive({ session: result.createdSessionId });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Verifiering misslyckades';
-      Alert.alert('Fel', msg);
+      confirm({ title: 'Fel', message: msg, buttons: [{ label: 'OK' }] });
     }
   }
 

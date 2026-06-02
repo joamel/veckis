@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Clipboard,
   KeyboardAvoidingView,
@@ -24,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
+import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useOnboardingMaster, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { TIP_FLAGS } from '../../src/lib/onboardingTips';
@@ -39,6 +39,7 @@ export default function SettingsScreen() {
   const client = useApiClient();
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
   const { showToast: showGlobalToast, showError } = useToast();
+  const confirm = useConfirm();
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
   const { skipAll, setSkipAll } = useOnboardingMaster();
@@ -198,7 +199,7 @@ export default function SettingsScreen() {
   function copyCode() {
     if (!invite) return;
     Clipboard.setString(invite.code);
-    Alert.alert('Kopierat!', `Koden ${invite.code} är kopierad till urklipp`);
+    showGlobalToast(`Koden ${invite.code} kopierad`, 'success');
   }
 
   // Household editing
@@ -247,16 +248,15 @@ export default function SettingsScreen() {
   async function handleToggleAdmin(memberId: string, memberName: string, currentRole: 'admin' | 'member') {
     if (!householdId) return;
     const promote = currentRole !== 'admin';
-    Alert.alert(
-      promote ? 'Gör till admin' : 'Ta bort admin-rättigheter',
-      promote
+    confirm({
+      title: promote ? 'Gör till admin' : 'Ta bort admin-rättigheter',
+      message: promote
         ? `Vill du ge ${memberName} admin-rättigheter? Admins kan redigera hushållet och hantera medlemmar.`
         : `Vill du ta bort admin-rättigheterna från ${memberName}?`,
-      [
-        { text: 'Avbryt', style: 'cancel' },
+      buttons: [
         {
-          text: promote ? 'Gör till admin' : 'Ta bort',
-          style: promote ? 'default' : 'destructive',
+          label: promote ? 'Gör till admin' : 'Ta bort',
+          style: promote ? 'primary' : 'destructive',
           onPress: async () => {
             try {
               const updated = await client.updateMember(householdId, memberId, { role: promote ? 'admin' : 'member' });
@@ -267,8 +267,9 @@ export default function SettingsScreen() {
             }
           },
         },
+        { label: 'Avbryt', style: 'cancel' },
       ],
-    );
+    });
   }
 
   async function handleRemoveMember(memberId: string, memberName: string) {
@@ -288,22 +289,26 @@ export default function SettingsScreen() {
       // Non-fatal — fall back to a plain confirmation.
     }
 
-    Alert.alert('Ta bort medlem', `Är du säker på att du vill ta bort ${memberName}?${warning}`, [
-      { text: 'Avbryt', style: 'cancel' },
-      {
-        text: 'Ta bort ändå',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await client.removeMember(householdId, memberId);
-            setHousehold(h => h ? { ...h, members: h.members.filter(m => m.id !== memberId) } : null);
-            showToast(`${memberName} borttagen`);
-          } catch (e) {
-            showError(e, 'Kunde inte ta bort medlem');
-          }
+    confirm({
+      title: 'Ta bort medlem',
+      message: `Är du säker på att du vill ta bort ${memberName}?${warning}`,
+      buttons: [
+        {
+          label: 'Ta bort ändå',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await client.removeMember(householdId, memberId);
+              setHousehold(h => h ? { ...h, members: h.members.filter(m => m.id !== memberId) } : null);
+              showToast(`${memberName} borttagen`);
+            } catch (e) {
+              showError(e, 'Kunde inte ta bort medlem');
+            }
+          },
         },
-      },
-    ]);
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   // Create local profile
@@ -370,7 +375,7 @@ export default function SettingsScreen() {
       showToast('Ansluten till hushållet');
     } catch (err: any) {
       if (err?.message?.toLowerCase().includes('already')) {
-        Alert.alert('Redan med', 'Du är redan medlem i det hushållet.');
+        confirm({ title: 'Redan med', message: 'Du är redan medlem i det hushållet.', buttons: [{ label: 'OK' }] });
       } else {
         showError(err, 'Kunde inte ansluta till hushållet. Kontrollera koden.');
       }
@@ -383,27 +388,31 @@ export default function SettingsScreen() {
   async function handleSwitchHousehold(id: string) {
     if (id === householdId) return;
     const targetName = allMemberships.find(m => m.householdId === id)?.household.name ?? 'hushållet';
-    Alert.alert(
-      'Byt hushåll',
-      `Vill du byta till "${targetName}"?`,
-      [
-        { text: 'Avbryt', style: 'cancel' },
+    confirm({
+      title: 'Byt hushåll',
+      message: `Vill du byta till "${targetName}"?`,
+      buttons: [
         {
-          text: 'Byt',
+          label: 'Byt',
           onPress: async () => {
             await setActiveHouseholdId(id);
             setInvite(null);
           },
         },
-      ]
-    );
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   function handleSignOut() {
-    Alert.alert('Logga ut', 'Är du säker på att du vill logga ut?', [
-      { text: 'Avbryt', style: 'cancel' },
-      { text: 'Logga ut', style: 'destructive', onPress: () => signOut() },
-    ]);
+    confirm({
+      title: 'Logga ut',
+      message: 'Är du säker på att du vill logga ut?',
+      buttons: [
+        { label: 'Logga ut', style: 'destructive', onPress: () => signOut() },
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   async function handleResetTips() {

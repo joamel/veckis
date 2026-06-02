@@ -60,6 +60,10 @@ model Store {
   name              String
   categoryOrder     StoreCategory[]
   customCategories  String[]      @default([])
+  // Subs som hushållet brutit ut som egna sektioner under sin parent.
+  // Övriga items grupperas under parent som idag. Strängar refererar till
+  // SubCategory-värden i shared/lib/taxonomy.ts.
+  expandedSubs      String[]      @default([])
   createdAt         DateTime      @default(now())
 
   household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
@@ -75,6 +79,12 @@ model ShoppingList {
   createdBy   String
   createdAt   DateTime  @default(now())
   completedAt DateTime?
+  // "Jag handlar"-presence: vem som aktivt handlar listan just nu. Sätts av
+  // användaren själv via PATCH /shopping-lists/:id/shopper och rensas
+  // manuellt eller automatiskt vid clear/complete. Andra hushållsmedlemmar
+  // ser en markör så ingen råkar göra dubbla turer till affären.
+  activeShopperMemberId String?
+  activeShopperSince    DateTime?
 
   household Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
   store     Store?        @relation(fields: [storeId], references: [id], onDelete: SetNull)
@@ -90,7 +100,12 @@ model ShoppingItem {
   quantity     Float         @default(1)
   unit         String?
   category     StoreCategory @default(other)
-  customCategory String?
+  // 2-nivå-taxonomi: subCategory är källa till sanning för aggregering/AI/sök;
+  // category är parent (sub:ens defaultParent vid skapande, kan override:as
+  // per item). Skickas som string för att frikoppla från enum-deploys —
+  // shared/lib/taxonomy.ts håller listan över giltiga värden.
+  subCategory  String?
+  customCategory String?  // DEPREKERAD — migreras till subCategory; UI dolt
   isChecked    Boolean       @default(false)
   checkedBy    String?
   addedBy      String
@@ -332,12 +347,14 @@ enum MemberRole {
 enum StoreCategory {
   fruit_veg
   meat_fish
+  deli_charcuterie
   dairy_eggs
   bread_bakery
   frozen
   canned_dry
   snacks_sweets
   beverages
+  special_diet
   cleaning
   personal_care
   other

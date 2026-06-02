@@ -10,18 +10,21 @@ export const storesRouter = Router();
 const categoryEnum = z.nativeEnum(StoreCategory);
 const categoryOrderSchema = z.array(categoryEnum);
 const customCategoriesSchema = z.array(z.string().min(1).max(40)).max(40);
+const expandedSubsSchema = z.array(z.string().min(1).max(40)).max(100);
 
 const createStoreSchema = z.object({
   householdId: z.string(),
   name: z.string().min(1).max(100),
   categoryOrder: categoryOrderSchema.optional(),
   customCategories: customCategoriesSchema.optional(),
+  expandedSubs: expandedSubsSchema.optional(),
 });
 
 const updateStoreSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   categoryOrder: categoryOrderSchema.optional(),
   customCategories: customCategoriesSchema.optional(),
+  expandedSubs: expandedSubsSchema.optional(),
 });
 
 // GET /api/stores?householdId=

@@ -173,6 +173,13 @@ export function useApiClient() {
     completeShoppingList: (listId: string) =>
       request<ShoppingList>(`/api/shopping/lists/${listId}/complete`, { method: 'PATCH' }),
 
+    /** "Jag handlar"-presence: sätt memberId för att claima, null för att släppa. */
+    setListShopper: (listId: string, memberId: string | null) =>
+      request<{ listId: string; memberId: string | null; since: string | null }>(
+        `/api/shopping/lists/${listId}/shopper`,
+        { method: 'PATCH', body: JSON.stringify({ memberId }) },
+      ),
+
     clearShoppingList: (listId: string) =>
       request<void>(`/api/shopping/lists/${listId}/items`, { method: 'DELETE' }),
 
@@ -191,7 +198,7 @@ export function useApiClient() {
         body: JSON.stringify(data),
       }),
 
-    updateShoppingItem: (itemId: string, data: Partial<Pick<ShoppingItem, 'name' | 'quantity' | 'unit' | 'category' | 'customCategory' | 'note'>>) =>
+    updateShoppingItem: (itemId: string, data: Partial<Pick<ShoppingItem, 'name' | 'quantity' | 'unit' | 'category' | 'customCategory' | 'subCategory' | 'note'>>) =>
       request<ShoppingItem>(`/api/shopping/items/${itemId}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -210,10 +217,10 @@ export function useApiClient() {
     getStores: (householdId: string) =>
       request<Store[]>(`/api/stores?householdId=${householdId}`),
 
-    createStore: (data: { householdId: string; name: string; categoryOrder?: StoreCategory[]; customCategories?: string[] }) =>
+    createStore: (data: { householdId: string; name: string; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[] }) =>
       request<Store>('/api/stores', { method: 'POST', body: JSON.stringify(data) }),
 
-    updateStore: (storeId: string, data: { name?: string; categoryOrder?: StoreCategory[]; customCategories?: string[] }) =>
+    updateStore: (storeId: string, data: { name?: string; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[] }) =>
       request<Store>(`/api/stores/${storeId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteStore: (storeId: string) =>

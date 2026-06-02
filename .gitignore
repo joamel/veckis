@@ -4,6 +4,7 @@ dist/
 !app/.env
 .env.local
 .env*.local
+.env.test
 *.log
 .DS_Store
 

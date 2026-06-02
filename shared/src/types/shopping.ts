@@ -1,16 +1,17 @@
 export type StoreCategory =
   | 'fruit_veg'
   | 'meat_fish'
+  | 'deli_charcuterie'
   | 'dairy_eggs'
   | 'bread_bakery'
   | 'frozen'
   | 'canned_dry'
   | 'snacks_sweets'
   | 'beverages'
+  | 'special_diet'
   | 'cleaning'
   | 'personal_care'
   | 'other';
-
 export interface ShoppingList {
   id: string;
   householdId: string;
@@ -20,6 +21,11 @@ export interface ShoppingList {
   createdBy: string;
   createdAt: string;
   completedAt: string | null;
+  /** Vem som aktivt handlar listan just nu ("Jag handlar"-läge). null när
+   *  ingen markerat sig. Andra hushållsmedlemmar ser indikatorn så ingen gör
+   *  dubbla turer till affären. */
+  activeShopperMemberId: string | null;
+  activeShopperSince: string | null;
 }
 
 export interface ShoppingItem {
@@ -29,7 +35,11 @@ export interface ShoppingItem {
   quantity: number;
   unit: string | null;
   category: StoreCategory;
-  /** Overrides `category` for grouping when set. Must be one of the store's customCategories. */
+  /** Källa till sanning för aggregering/AI/sök i 2-nivå-taxonomin. `category`
+   *  härleds vid skapande från sub:ens defaultParent men kan override:as per
+   *  item. Värdet är en `SubCategory` från `shared/lib/taxonomy.ts`. */
+  subCategory: string | null;
+  /** DEPREKERAD — kvar för bakåtkompatibilitet, migreras till `subCategory`. */
   customCategory: string | null;
   isChecked: boolean;
   checkedBy: string | null;
@@ -44,6 +54,9 @@ export interface Store {
   householdId: string;
   name: string;
   categoryOrder: StoreCategory[];
+  /** Subs (taxonomi-id:n) som visas som egna sektioner istället för att
+   *  samlas under sin parent. */
+  expandedSubs: string[];
   /** User-defined category labels for this store (appended after the default categories). */
   customCategories: string[];
 }

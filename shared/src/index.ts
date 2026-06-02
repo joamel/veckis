@@ -6,3 +6,5 @@ export * from './types/recipe';
 export * from './types/staple';
 export * from './lib/recurrence';
 export * from './lib/choreRotation';
+export * from './lib/taxonomy';
+export * from './lib/inferSubCategory';

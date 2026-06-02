@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -23,6 +22,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
+import { pickStore } from '../../src/lib/storePicker';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { useHaptics } from '../../src/hooks/useHaptics';
@@ -54,29 +54,25 @@ export default function ShoppingScreen() {
   const [newListStoreId, setNewListStoreId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  // Store management
+  // Stores administreras numera på /stores-routen — vi hämtar bara listan här
+  // för att kunna visa butik-koppling i "ny lista"-formuläret.
   const [stores, setStores] = useState<Store[]>([]);
-  const [showStoresModal, setShowStoresModal] = useState(false);
-  const [newStoreName, setNewStoreName] = useState('');
-  const [creatingStore, setCreatingStore] = useState(false);
-  const [editingStoreName, setEditingStoreName] = useState<string | null>(null);
-  const [editStoreNameValue, setEditStoreNameValue] = useState('');
-  const [savingStoreName, setSavingStoreName] = useState(false);
-  const [editingCategoryStore, setEditingCategoryStore] = useState<Store | null>(null);
-  const [editCategoryOrder, setEditCategoryOrder] = useState<StoreCategory[]>([]);
-  const [savingCategoryOrder, setSavingCategoryOrder] = useState(false);
+  // Hushållsmedlemmar för "X handlar nu"-indikatorn på list-korten.
+  const [members, setMembers] = useState<Array<{ id: string; displayName: string }>>([]);
 
   const [editMode, setEditMode] = useState(false);
 
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
-      const [data, storeList] = await Promise.all([
+      const [data, storeList, household] = await Promise.all([
         client.getShoppingLists(householdId),
         client.getStores(householdId),
+        client.getHousehold(householdId).catch(() => null),
       ]);
       setLists(data);
       setStores(storeList);
+      if (household) setMembers(household.members);
     } catch {
       confirm({ title: 'Fel', message: 'Kunde inte ladda inköpslistor', buttons: [{ label: 'OK' }] });
     } finally {
@@ -114,6 +110,11 @@ export default function ShoppingScreen() {
     if (msg.type === 'shopping_list_updated') {
       if (reloadTimer.current) clearTimeout(reloadTimer.current);
       reloadTimer.current = setTimeout(() => load(), 350);
+    } else if (msg.type === 'shopping_presence') {
+      // Uppdatera bara presence-fältet på rätt lista (inget reload-behov).
+      setLists(prev => prev.map(l => l.id === msg.data.listId
+        ? { ...l, activeShopperMemberId: msg.data.memberId, activeShopperSince: msg.data.since }
+        : l));
     }
   });
 
@@ -133,95 +134,7 @@ export default function ShoppingScreen() {
     }
   }
 
-  async function createStore() {
-    if (!householdId || !newStoreName.trim()) return;
-    setCreatingStore(true);
-    try {
-      const store = await client.createStore({ householdId, name: newStoreName.trim() });
-      setStores(prev => [...prev, store]);
-      setNewStoreName('');
-    } catch (e) {
-      showError(e, 'Kunde inte skapa butik');
-    } finally {
-      setCreatingStore(false);
-    }
-  }
-
-  async function saveStoreName(storeId: string) {
-    if (!editStoreNameValue.trim()) return;
-    setSavingStoreName(true);
-    try {
-      const updated = await client.updateStore(storeId, { name: editStoreNameValue.trim() });
-      setStores(prev => prev.map(s => s.id === updated.id ? updated : s));
-      setEditingStoreName(null);
-    } catch (e) {
-      showError(e, 'Kunde inte byta namn');
-    } finally {
-      setSavingStoreName(false);
-    }
-  }
-
-  function openCategoryEditor(store: Store) {
-    setEditingCategoryStore(store);
-    setEditCategoryOrder(
-      (store.categoryOrder as StoreCategory[]).length
-        ? store.categoryOrder as StoreCategory[]
-        : [...DEFAULT_CATEGORY_ORDER]
-    );
-  }
-
-  function moveCategoryUp(idx: number) {
-    if (idx === 0) return;
-    setEditCategoryOrder(prev => {
-      const next = [...prev];
-      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-      return next;
-    });
-  }
-
-  function moveCategoryDown(idx: number) {
-    setEditCategoryOrder(prev => {
-      if (idx >= prev.length - 1) return prev;
-      const next = [...prev];
-      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-      return next;
-    });
-  }
-
-  async function saveCategoryOrder() {
-    if (!editingCategoryStore) return;
-    setSavingCategoryOrder(true);
-    try {
-      const updated = await client.updateStore(editingCategoryStore.id, { categoryOrder: editCategoryOrder });
-      setStores(prev => prev.map(s => s.id === updated.id ? updated : s));
-      setEditingCategoryStore(null);
-    } catch (e) {
-      showError(e, 'Kunde inte spara ordning');
-    } finally {
-      setSavingCategoryOrder(false);
-    }
-  }
-
-  async function deleteStore(storeId: string, storeName: string) {
-    confirm({
-      title: 'Ta bort butik',
-      message: `Ta bort "${storeName}"?`,
-      buttons: [
-        {
-          label: 'Ta bort', style: 'destructive',
-          onPress: async () => {
-            try {
-              await client.deleteStore(storeId);
-              setStores(prev => prev.filter(s => s.id !== storeId));
-            } catch (e) {
-              showError(e, 'Kunde inte ta bort butiken');
-            }
-          },
-        },
-        { label: 'Avbryt', style: 'cancel' },
-      ],
-    });
-  }
+  // Stores CRUD flyttat till /stores-routen.
 
   async function deleteList(listId: string, listName: string) {
     confirm({
@@ -259,7 +172,7 @@ export default function ShoppingScreen() {
           <View ref={storesBtnRef} collapsable={false}>
             <Pressable
               style={styles.storesHeaderBtn}
-              onPress={() => setShowStoresModal(true)}
+              onPress={() => router.push('/stores' as never)}
               accessibilityRole="button"
               accessibilityLabel="Butiker"
             >
@@ -289,6 +202,7 @@ export default function ShoppingScreen() {
         renderItem={({ item }) => {
           const unchecked = item.items.filter(i => !i.isChecked).length;
           const total = item.items.length;
+          const shopper = item.activeShopperMemberId ? members.find(m => m.id === item.activeShopperMemberId) : null;
           return (
             <View style={styles.cardWrap}>
               <Pressable
@@ -300,7 +214,15 @@ export default function ShoppingScreen() {
                   <Ionicons name="cart-outline" size={fs(20)} color="#4f46e5" />
                 </View>
                 <View style={styles.cardContent}>
-                  <Text style={[styles.cardTitle, { fontSize: fs(16) }]}>{item.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Text style={[styles.cardTitle, { fontSize: fs(16) }]}>{item.name}</Text>
+                    {shopper && (
+                      <View style={styles.shopperPill}>
+                        <Ionicons name="walk" size={11} color="#7c3aed" />
+                        <Text style={styles.shopperPillText}>{shopper.displayName} handlar</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={[styles.cardMeta, { fontSize: fs(13) }]}>
                     {item.store ? `${item.store.name} · ` : ''}
                     {total === 0 ? 'Tom' : unchecked === 0 ? 'Allt bockat' : `${unchecked} av ${total} kvar`}
@@ -350,24 +272,26 @@ export default function ShoppingScreen() {
               returnKeyType="done"
               onSubmitEditing={createList}
             />
-            {stores.length > 0 && (
-              <>
-                <Text style={styles.pickStoreLabel}>Butik (valfritt)</Text>
-                <View style={styles.storeChips}>
-                  {stores.map(store => (
-                    <Pressable
-                      key={store.id}
-                      style={[styles.storeChip, newListStoreId === store.id && styles.storeChipActive]}
-                      onPress={() => setNewListStoreId(prev => prev === store.id ? null : store.id)}
-                    >
-                      <Text style={[styles.storeChipText, newListStoreId === store.id && styles.storeChipTextActive]}>
-                        {store.name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </>
-            )}
+            <Text style={styles.pickStoreLabel}>Butik (valfritt)</Text>
+            <Pressable
+              style={styles.storePickBtn}
+              onPress={async () => {
+                const promise = pickStore();
+                const currentParam = newListStoreId ? `&current=${newListStoreId}` : '';
+                router.push(`/stores?pick=1${currentParam}` as never);
+                const result = await promise;
+                if (result === 'cancelled') return;
+                setNewListStoreId(result);
+              }}
+            >
+              <Ionicons name="storefront-outline" size={18} color="#4f46e5" />
+              <Text style={styles.storePickBtnText}>
+                {newListStoreId
+                  ? stores.find(s => s.id === newListStoreId)?.name ?? 'Vald butik'
+                  : 'Välj butik…'}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+            </Pressable>
             <Pressable
               style={[styles.button, !newListName.trim() && styles.buttonDisabled]}
               onPress={createList}
@@ -380,123 +304,6 @@ export default function ShoppingScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-      {/* Stores modal */}
-      <Modal visible={showStoresModal} transparent animationType="slide" onRequestClose={() => setShowStoresModal(false)}>
-        <Pressable style={styles.overlay} onPress={() => setShowStoresModal(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end' }}>
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Butiker</Text>
-          <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
-            {stores.length === 0 && (
-              <Text style={styles.storesEmpty}>Inga butiker tillagda än</Text>
-            )}
-            {stores.map(store => (
-              <View key={store.id} style={styles.storeRow}>
-                {editingStoreName === store.id ? (
-                  <TextInput
-                    style={[styles.input, { flex: 1 }]}
-                    value={editStoreNameValue}
-                    onChangeText={setEditStoreNameValue}
-                    autoFocus
-                    returnKeyType="done"
-                    onSubmitEditing={() => saveStoreName(store.id)}
-                  />
-                ) : (
-                  <Text style={styles.storeName}>{store.name}</Text>
-                )}
-                <View style={styles.storeActions}>
-                  {editingStoreName === store.id ? (
-                    <Pressable
-                      style={[styles.storeActionBtn, savingStoreName && { opacity: 0.4 }]}
-                      onPress={() => saveStoreName(store.id)}
-                      disabled={savingStoreName}
-                    >
-                      {savingStoreName
-                        ? <ActivityIndicator size="small" color="#4f46e5" />
-                        : <Ionicons name="checkmark" size={18} color="#4f46e5" />}
-                    </Pressable>
-                  ) : (
-                    <Pressable
-                      style={styles.storeActionBtn}
-                      onPress={() => { setEditingStoreName(store.id); setEditStoreNameValue(store.name); }}
-                    >
-                      <Ionicons name="pencil-outline" size={18} color="#6b7280" />
-                    </Pressable>
-                  )}
-                  <Pressable
-                    style={styles.storeActionBtn}
-                    onPress={() => { setShowStoresModal(false); openCategoryEditor(store); }}
-                  >
-                    <Ionicons name="options-outline" size={18} color="#6b7280" />
-                  </Pressable>
-                  <Pressable
-                    style={styles.storeActionBtn}
-                    onPress={() => deleteStore(store.id, store.name)}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                  </Pressable>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-          <View style={styles.newStoreRow}>
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              placeholder="Ny butik..."
-              placeholderTextColor="#9ca3af"
-              value={newStoreName}
-              onChangeText={setNewStoreName}
-              returnKeyType="done"
-              onSubmitEditing={createStore}
-              autoCapitalize="words"
-            />
-            <Pressable
-              style={[styles.addStoreBtn, (!newStoreName.trim() || creatingStore) && styles.addStoreBtnDisabled]}
-              onPress={createStore}
-              disabled={creatingStore || !newStoreName.trim()}
-            >
-              {creatingStore
-                ? <ActivityIndicator color="#fff" size="small" />
-                : <Ionicons name="add" size={22} color="#fff" />}
-            </Pressable>
-          </View>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Category order editor */}
-      <Modal visible={!!editingCategoryStore} transparent animationType="slide" onRequestClose={() => setEditingCategoryStore(null)}>
-        <Pressable style={styles.overlay} onPress={() => setEditingCategoryStore(null)} />
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>{editingCategoryStore?.name}</Text>
-          <Text style={styles.sheetSub}>Dra om ordningen med pilarna så den matchar butikens layout</Text>
-          <ScrollView style={{ maxHeight: 360 }}>
-            {editCategoryOrder.map((cat, idx) => (
-              <View key={cat} style={styles.catRow}>
-                <Text style={styles.catRowLabel}>{CATEGORY_LABELS[cat]}</Text>
-                <Pressable onPress={() => moveCategoryUp(idx)} disabled={idx === 0} style={styles.catArrow}>
-                  <Ionicons name="chevron-up" size={18} color={idx === 0 ? '#e5e7eb' : '#374151'} />
-                </Pressable>
-                <Pressable onPress={() => moveCategoryDown(idx)} disabled={idx === editCategoryOrder.length - 1} style={styles.catArrow}>
-                  <Ionicons name="chevron-down" size={18} color={idx === editCategoryOrder.length - 1 ? '#e5e7eb' : '#374151'} />
-                </Pressable>
-              </View>
-            ))}
-          </ScrollView>
-          <Pressable
-            style={[styles.button, savingCategoryOrder && styles.buttonDisabled]}
-            onPress={saveCategoryOrder}
-            disabled={savingCategoryOrder}
-          >
-            {savingCategoryOrder
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.buttonText}>Spara ordning</Text>}
-          </Pressable>
-        </View>
-      </Modal>
-
     </SafeAreaView>
   );
 }
@@ -534,6 +341,8 @@ const styles = StyleSheet.create({
   cardContent: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
   cardMeta: { fontSize: 13, color: '#6b7280', marginTop: 2 },
+  shopperPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ede9fe', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  shopperPillText: { fontSize: 11, color: '#5b21b6', fontWeight: '600' },
   fab: {
     position: 'absolute',
     right: 20,
@@ -592,11 +401,8 @@ const styles = StyleSheet.create({
   catRowLabel: { flex: 1, fontSize: 15, color: '#374151' },
   catArrow: { padding: 6 },
   pickStoreLabel: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: -6 },
-  storeChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  storeChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  storeChipActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
-  storeChipText: { fontSize: 14, color: '#6b7280' },
-  storeChipTextActive: { color: '#4f46e5', fontWeight: '600' },
+  storePickBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  storePickBtnText: { flex: 1, fontSize: 15, color: '#374151', fontWeight: '500' },
   cardWrap: { position: 'relative' },
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#111827', borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },

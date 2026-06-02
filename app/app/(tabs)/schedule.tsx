@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   FlatList,
   KeyboardAvoidingView,
@@ -23,6 +22,7 @@ import { useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
+import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
@@ -150,6 +150,7 @@ export default function ScheduleScreen() {
   const openedEntryParamRef = useRef<string | null>(null);
   const client = useApiClient();
   const { showToast, showError } = useToast();
+  const confirm = useConfirm();
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
   const filterTip = useOnceFlag('seen-filter-tip');
@@ -345,7 +346,7 @@ export default function ScheduleScreen() {
       setChores(choreData as ChoreWithCompletion[]);
       setMembers(household.members);
     } catch {
-      Alert.alert('Fel', 'Kunde inte ladda schemat');
+      confirm({ title: 'Fel', message: 'Kunde inte ladda schemat', buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -525,57 +526,65 @@ export default function ScheduleScreen() {
 
   async function deleteEntry(entry: ScheduleEntry, dateStr: string) {
     if (entry.recurrenceType !== 'none') {
-      Alert.alert('Ta bort aktivitet', `Ta bort "${entry.title}"?`, [
-        { text: 'Avbryt', style: 'cancel' },
-        {
-          text: 'Bara den här',
-          onPress: async () => {
-            try {
-              const result = await client.deleteScheduleEntry(entry.id, dateStr);
-              if (result) {
-                setEntries(prev => prev.map(e => e.id === entry.id ? result as ScheduleEntry : e));
+      confirm({
+        title: 'Ta bort aktivitet',
+        message: `Ta bort "${entry.title}"?`,
+        buttons: [
+          {
+            label: 'Bara den här',
+            onPress: async () => {
+              try {
+                const result = await client.deleteScheduleEntry(entry.id, dateStr);
+                if (result) {
+                  setEntries(prev => prev.map(e => e.id === entry.id ? result as ScheduleEntry : e));
+                }
+                setEditingEntry(null);
+              } catch (e) {
+                showError(e, 'Kunde inte ta bort');
               }
-              setEditingEntry(null);
-            } catch (e) {
-              showError(e, 'Kunde inte ta bort');
-            }
+            },
           },
-        },
-        {
-          text: 'Hela serien', style: 'destructive',
-          onPress: async () => {
-            try {
-              await client.deleteScheduleEntry(entry.id);
-              setEntries(prev => prev.filter(e => e.id !== entry.id));
-              setEditingEntry(null);
-            } catch (e) {
-              showError(e, 'Kunde inte ta bort');
-            }
+          {
+            label: 'Hela serien', style: 'destructive',
+            onPress: async () => {
+              try {
+                await client.deleteScheduleEntry(entry.id);
+                setEntries(prev => prev.filter(e => e.id !== entry.id));
+                setEditingEntry(null);
+              } catch (e) {
+                showError(e, 'Kunde inte ta bort');
+              }
+            },
           },
-        },
-      ]);
+          { label: 'Avbryt', style: 'cancel' },
+        ],
+      });
     } else {
-      Alert.alert('Ta bort', `Ta bort "${entry.title}"?`, [
-        { text: 'Avbryt', style: 'cancel' },
-        {
-          text: 'Ta bort', style: 'destructive',
-          onPress: () => {
-            const prev = entries;
-            setEntries(p => p.filter(e => e.id !== entry.id));
-            setEditingEntry(null);
-            let cancelled = false;
-            showToast('Aktivitet borttagen', 'neutral', {
-              label: 'Ångra',
-              onPress: () => { cancelled = true; setEntries(prev); },
-            });
-            setTimeout(async () => {
-              if (cancelled) return;
-              try { await client.deleteScheduleEntry(entry.id); }
-              catch (e) { setEntries(prev); showError(e, 'Kunde inte ta bort'); }
-            }, 5000);
+      confirm({
+        title: 'Ta bort',
+        message: `Ta bort "${entry.title}"?`,
+        buttons: [
+          {
+            label: 'Ta bort', style: 'destructive',
+            onPress: () => {
+              const prev = entries;
+              setEntries(p => p.filter(e => e.id !== entry.id));
+              setEditingEntry(null);
+              let cancelled = false;
+              showToast('Aktivitet borttagen', 'neutral', {
+                label: 'Ångra',
+                onPress: () => { cancelled = true; setEntries(prev); },
+              });
+              setTimeout(async () => {
+                if (cancelled) return;
+                try { await client.deleteScheduleEntry(entry.id); }
+                catch (e) { setEntries(prev); showError(e, 'Kunde inte ta bort'); }
+              }, 5000);
+            },
           },
-        },
-      ]);
+          { label: 'Avbryt', style: 'cancel' },
+        ],
+      });
     }
   }
 
@@ -597,26 +606,30 @@ export default function ScheduleScreen() {
   }
 
   async function deleteChoreCalendar(choreId: string, title: string) {
-    Alert.alert('Ta bort syssla', `Ta bort "${title}"?`, [
-      { text: 'Avbryt', style: 'cancel' },
-      {
-        text: 'Ta bort', style: 'destructive',
-        onPress: () => {
-          const prev = chores;
-          setChores(p => p.filter(c => c.id !== choreId));
-          let cancelled = false;
-          showToast('Syssla borttagen', 'neutral', {
-            label: 'Ångra',
-            onPress: () => { cancelled = true; setChores(prev); },
-          });
-          setTimeout(async () => {
-            if (cancelled) return;
-            try { await client.deleteChore(choreId); }
-            catch (e) { setChores(prev); showError(e, 'Kunde inte ta bort'); }
-          }, 5000);
+    confirm({
+      title: 'Ta bort syssla',
+      message: `Ta bort "${title}"?`,
+      buttons: [
+        {
+          label: 'Ta bort', style: 'destructive',
+          onPress: () => {
+            const prev = chores;
+            setChores(p => p.filter(c => c.id !== choreId));
+            let cancelled = false;
+            showToast('Syssla borttagen', 'neutral', {
+              label: 'Ångra',
+              onPress: () => { cancelled = true; setChores(prev); },
+            });
+            setTimeout(async () => {
+              if (cancelled) return;
+              try { await client.deleteChore(choreId); }
+              catch (e) { setChores(prev); showError(e, 'Kunde inte ta bort'); }
+            }, 5000);
+          },
         },
-      },
-    ]);
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   function doOpenEditEntry(entry: ScheduleEntry, mode: 'single' | 'series') {
@@ -648,11 +661,15 @@ export default function ScheduleScreen() {
 
   function openEditEntry(entry: ScheduleEntry) {
     if (entry.recurrenceType !== 'none') {
-      Alert.alert('Redigera aktivitet', 'Vilka tillfällen vill du redigera?', [
-        { text: 'Avbryt', style: 'cancel' },
-        { text: 'Bara det här', onPress: () => doOpenEditEntry(entry, 'single') },
-        { text: 'Hela serien', onPress: () => doOpenEditEntry(entry, 'series') },
-      ]);
+      confirm({
+        title: 'Redigera aktivitet',
+        message: 'Vilka tillfällen vill du redigera?',
+        buttons: [
+          { label: 'Bara det här', onPress: () => doOpenEditEntry(entry, 'single') },
+          { label: 'Hela serien', onPress: () => doOpenEditEntry(entry, 'series') },
+          { label: 'Avbryt', style: 'cancel' },
+        ],
+      });
     } else {
       doOpenEditEntry(entry, 'series');
     }
@@ -823,11 +840,14 @@ export default function ScheduleScreen() {
               onPress={() => router.push(`/recipes/${item.recipeId}` as never)}
               onLongPress={() => {
                 medium();
-                Alert.alert(item.recipe.title, undefined, [
-                  { text: 'Visa recept', onPress: () => router.push(`/recipes/${item.recipeId}` as never) },
-                  { text: 'Gå till Meny', onPress: () => router.push('/(tabs)/menu' as never) },
-                  { text: 'Avbryt', style: 'cancel' },
-                ]);
+                confirm({
+                  title: item.recipe.title,
+                  buttons: [
+                    { label: 'Visa recept', onPress: () => router.push(`/recipes/${item.recipeId}` as never) },
+                    { label: 'Gå till Meny', onPress: () => router.push('/(tabs)/menu' as never) },
+                    { label: 'Avbryt', style: 'cancel' },
+                  ],
+                });
               }}
             >
               <View style={s.menuIcon}>

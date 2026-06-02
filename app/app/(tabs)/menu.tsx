@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated as RNAnimated,
   Dimensions,
   FlatList,
@@ -142,14 +141,13 @@ export default function MenuScreen() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedRecipesForTransfer, setSelectedRecipesForTransfer] = useState<Set<string>>(new Set());
   const [bulkTransferStep, setBulkTransferStep] = useState<'week' | 'recipe' | 'ingredients' | 'list'>('recipe');
-  // Inventory step (aggregated across selected recipes). ONE source of truth that
-  // both tabs read/write: `haveAtHome` (amount on hand) for measured ingredients,
-  // `hadUnmeasured` (have it / not) for ingredients without a quantity. The tab is
-  // only a view/input switch — both always apply to the transfer.
-  const [inventoryMode, setInventoryMode] = useState<'check' | 'amount'>('check');
-  const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> amount on hand
-  const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // unmeasured ingredients marked "har hemma"
-  const [editingAmountKey, setEditingAmountKey] = useState<string | null>(null); // which amount cell is in edit mode
+  // Inventory step (aggregated across selected recipes). En enda interaktion
+  // per rad: "Har"-input för att ange mängd man har hemma + en "Allt"-knapp
+  // som snabbsätter Har = Behöver. För omätta ingredienser (salt, peppar):
+  // bara "Har"-toggle.
+  const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> mängd hemma
+  const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // omätta ingredienser markerade "har hemma"
+  const [editingAmountKey, setEditingAmountKey] = useState<string | null>(null); // vilken rad har input-läge
   const [allMenus, setAllMenus] = useState<WeekMenuItemWithRecipe[]>([]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
@@ -199,9 +197,9 @@ export default function MenuScreen() {
   const fmtQty = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',');
 
   function resetInventory() {
-    setInventoryMode('check');
     setHaveAtHome({});
     setHadUnmeasured(new Set());
+    setEditingAmountKey(null);
   }
 
   // Menu items already transferred — scoped to the target list when we came from
@@ -263,28 +261,18 @@ export default function MenuScreen() {
       .sort((a, b) => (catIdx(a.category) - catIdx(b.category)) || a.name.localeCompare(b.name, 'sv'));
   }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings, transferredMenuItemIds, ingredientCategories]);
 
-  // Inventory: names stay fixed on the left; only the right control column
-  // (checkbox ⇄ amount) is a narrow horizontal pager that swipes/tabs between
-  // the two modes, so it looks like only the right half moves.
-  const INV_ROW_H = 56;
-  const INV_CTRL_W = 140;
-  const INV_FULL_W = Dimensions.get('window').width - 48; // sheet padding 24 each side
-  // Cap the list to the space left inside the 80%-tall sheet after the header +
-  // Överför/Tillbaka-knapparna, so the buttons never get clipped on short screens.
-  const invMaxListH = Math.max(160, Dimensions.get('window').height * 0.8 - 300);
-  const invListHeight = Math.min(invMaxListH, Math.max(120, aggregatedInventory.length * INV_ROW_H));
-  const invPagerRef = useRef<ScrollView>(null);
-  // While a tab-tap scrolls programmatically, ignore onScroll so it doesn't flip
-  // the tab back and forth as the animation passes the midpoint.
-  const invScrollLock = useRef(false);
-  const goToInvMode = (mode: 'check' | 'amount') => {
-    invScrollLock.current = true;
-    setInventoryMode(mode);
-    invPagerRef.current?.scrollTo({ x: mode === 'amount' ? INV_FULL_W : 0, animated: true });
-    setTimeout(() => { invScrollLock.current = false; }, 400);
-  };
-  // "Bocka av" has no inputs — drop the keyboard + exit edit mode when switching to it.
-  useEffect(() => { if (inventoryMode === 'check') { Keyboard.dismiss(); setEditingAmountKey(null); } }, [inventoryMode]);
+  // Inventory: en flat lista där varje rad har Har-input + ✓-knapp. Cap höjden
+  // så Överför-/Tillbaka-knapparna inte klipps på korta skärmar.
+  const invMaxListH = Math.max(200, Dimensions.get('window').height * 0.8 - 300);
+  // Dölj Nästa/Tillbaka-knapparna när tangentbordet är uppe så de inte tar
+  // plats från inventeringen (de kommer tillbaka när användaren stänger
+  // tangentbordet eller trycker "Klar" på sista raden).
+  const [invKbdOpen, setInvKbdOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setInvKbdOpen(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setInvKbdOpen(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const toggleUnmeasured = (key: string) => setHadUnmeasured(prev => {
     const n = new Set(prev);
@@ -292,99 +280,110 @@ export default function MenuScreen() {
     return n;
   });
 
-  // Fixed left cell: the item name (+ "köp X"/"har hemma" line). Stays put while
-  // the right control swipes.
-  function renderNameCell(agg: AggIngredient) {
+  // Nästa mätbara ingrediens efter en given key — för "Nästa"-knappen på
+  // tangentbordet. Returnerar null om aktuell rad är sista mätbara.
+  function findNextMeasuredKey(currentKey: string): string | null {
+    const idx = aggregatedInventory.findIndex(a => a.key === currentKey);
+    if (idx < 0) return null;
+    for (let i = idx + 1; i < aggregatedInventory.length; i++) {
+      if (aggregatedInventory[i].measured) return aggregatedInventory[i].key;
+    }
+    return null;
+  }
+
+  // En rad i den nya inventerings-vyn. Mätbara ingredienser har:
+  //  [Namn (+ behov)]  [Har: __ inputfält]  [✓ Allt-knapp]
+  // Omätta ingredienser (qty=null, t.ex. salt) har bara ✓-knappen.
+  // När Har ≥ Behöver: rad gråmarkerad/struken + ✓ filled.
+  function renderInventoryRow(agg: AggIngredient) {
     const unitLabel = agg.unit ? ` ${agg.unit}` : '';
     if (!agg.measured) {
       const have = hadUnmeasured.has(agg.key);
       return (
-        <View key={agg.key} style={s.invCellLeft}>
-          <Text style={[s.invName, have && s.invNameDone]}>{agg.name}</Text>
-          {have ? <Text style={s.invProvenance}>har hemma</Text> : null}
-        </View>
-      );
-    }
-    const total = agg.totalQty ?? 0;
-    const haveAmt = haveAtHome[agg.key] ?? 0;
-    const toBuy = Math.max(0, Math.round((total - haveAmt) * 100) / 100);
-    const covered = toBuy <= 0;
-    const partial = haveAmt > 0 && !covered;
-    const secondLine = covered ? 'har hemma' : partial ? `köp ${fmtQty(toBuy)}${unitLabel}` : '';
-    return (
-      <View key={agg.key} style={s.invCellLeft}>
-        <Text style={[s.invName, covered && s.invNameDone]}>{fmtQty(total)}{unitLabel} {agg.name}</Text>
-        {secondLine ? <Text style={[s.invProvenance, partial && s.invBuy]}>{secondLine}</Text> : null}
-      </View>
-    );
-  }
-
-  // Right control cell for a given page: checkbox (Bocka av) or amount (Ange mängd).
-  function renderControlCell(agg: AggIngredient, mode: 'check' | 'amount') {
-    if (!agg.measured) {
-      const have = hadUnmeasured.has(agg.key);
-      // In "Ange mängd" a bare checkbox among the number fields looks off — use a
-      // "Har hemma"-pill instead. In "Bocka av" keep the plain checkbox.
-      if (mode === 'amount') {
-        return (
-          <Pressable key={agg.key} style={s.invCellRight} onPress={() => toggleUnmeasured(agg.key)}>
-            <View style={[s.invHavePill, have && s.invHavePillOn]}>
-              <Text style={[s.invHavePillText, have && s.invHavePillTextOn]}>Har hemma</Text>
-            </View>
+        <View key={agg.key} style={s.invRowV2}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={[s.invName, have && s.invNameDone]}>{agg.name}</Text>
+          </View>
+          <Pressable
+            style={[s.invAllBtn, have && s.invAllBtnOn]}
+            onPress={() => toggleUnmeasured(agg.key)}
+          >
+            <Ionicons name="checkmark" size={15} color={have ? '#fff' : '#9ca3af'} />
+            <Text style={[s.invAllBtnText, have && s.invAllBtnTextOn]}>Har</Text>
           </Pressable>
-        );
-      }
-      return (
-        <Pressable key={agg.key} style={s.invCellRight} onPress={() => toggleUnmeasured(agg.key)}>
-          <Ionicons name={have ? 'checkbox' : 'square-outline'} size={24} color={have ? '#10b981' : '#9ca3af'} />
-        </Pressable>
+        </View>
       );
     }
     const total = agg.totalQty ?? 0;
     const haveAmt = haveAtHome[agg.key] ?? 0;
-    const toBuy = Math.max(0, Math.round((total - haveAmt) * 100) / 100);
-    const covered = toBuy <= 0;
+    const covered = haveAmt >= total && total > 0;
     const partial = haveAmt > 0 && !covered;
-    if (mode === 'check') {
-      const icon = covered ? 'checkbox' : partial ? 'remove-circle' : 'square-outline';
-      const iconColor = covered ? '#10b981' : partial ? '#f59e0b' : '#9ca3af';
-      return (
-        <Pressable key={agg.key} style={s.invCellRight} onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}>
-          <Ionicons name={icon as never} size={24} color={iconColor} />
-        </Pressable>
-      );
-    }
-    // Live TextInput only for the cell being edited; otherwise a tappable display
-    // box so swipes/scrolls pass through (a real TextInput would trap the drag).
-    if (editingAmountKey === agg.key) {
-      return (
-        <View key={agg.key} style={[s.invCellRight, s.invAmountWrap]}>
-          <TextInput
-            style={s.invAmountInput}
-            keyboardType="numeric"
-            autoFocus
-            value={haveAmt ? fmtQty(haveAmt) : ''}
-            placeholder="0"
-            placeholderTextColor="#d1d5db"
-            onChangeText={t => {
-              const v = parseFloat(t.replace(',', '.'));
-              setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
-            }}
-            onBlur={() => setEditingAmountKey(null)}
-            returnKeyType="done"
-            onSubmitEditing={() => setEditingAmountKey(null)}
-          />
-          <Text style={s.invUnit}>{agg.unit ?? ''}</Text>
-        </View>
-      );
-    }
+    const isEditing = editingAmountKey === agg.key;
     return (
-      <Pressable key={agg.key} style={[s.invCellRight, s.invAmountWrap]} onPress={() => setEditingAmountKey(agg.key)}>
-        <View style={[s.invAmountInput, s.invAmountBox]}>
-          <Text style={haveAmt ? s.invAmountBoxText : s.invAmountBoxPlaceholder}>{haveAmt ? fmtQty(haveAmt) : '0'}</Text>
+      <View key={agg.key} style={s.invRowV2}>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text style={[s.invName, covered && s.invNameDone]}>
+            {fmtQty(total)}{unitLabel} {agg.name}
+          </Text>
+          {partial && (
+            <Text style={s.invProvenance} numberOfLines={1}>
+              köp {fmtQty(total - haveAmt)}{unitLabel}
+            </Text>
+          )}
         </View>
-        <Text style={s.invUnit}>{agg.unit ?? ''}</Text>
-      </Pressable>
+        {isEditing ? (
+          (() => {
+            const nextKey = findNextMeasuredKey(agg.key);
+            return (
+              <View style={s.invAmountWrapV2}>
+                <TextInput
+                  style={s.invAmountInputV2}
+                  keyboardType="numeric"
+                  autoFocus
+                  value={haveAmt ? fmtQty(haveAmt) : ''}
+                  placeholder="0"
+                  placeholderTextColor="#d1d5db"
+                  onChangeText={t => {
+                    const v = parseFloat(t.replace(',', '.'));
+                    setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
+                  }}
+                  onBlur={() => {
+                    // Bara stäng om vi inte är på väg att fokusera nästa rad
+                    // (då har editingAmountKey redan ändrats av onSubmitEditing).
+                    setEditingAmountKey(prev => prev === agg.key ? null : prev);
+                  }}
+                  // blurOnSubmit=false så tangentbordet stannar uppe när vi
+                  // hoppar till nästa input. Sista raden blurar normalt.
+                  blurOnSubmit={!nextKey}
+                  onSubmitEditing={() => {
+                    if (nextKey) setEditingAmountKey(nextKey);
+                    else setEditingAmountKey(null);
+                  }}
+                  returnKeyType={nextKey ? 'next' : 'done'}
+                />
+                {agg.unit ? <Text style={s.invUnitV2}>{agg.unit}</Text> : null}
+              </View>
+            );
+          })()
+        ) : (
+          <Pressable
+            style={[s.invAmountWrapV2, haveAmt > 0 && s.invAmountWrapHas]}
+            onPress={() => setEditingAmountKey(agg.key)}
+          >
+            <Text style={haveAmt > 0 ? s.invAmountTextV2 : s.invAmountTextPlaceholderV2}>
+              {haveAmt > 0 ? fmtQty(haveAmt) : 'Har'}
+            </Text>
+            {agg.unit && haveAmt > 0 ? <Text style={s.invUnitV2}>{agg.unit}</Text> : null}
+          </Pressable>
+        )}
+        <Pressable
+          style={[s.invAllBtn, covered && s.invAllBtnOn]}
+          onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}
+        >
+          <Ionicons name="checkmark" size={15} color={covered ? '#fff' : '#9ca3af'} />
+          <Text style={[s.invAllBtnText, covered && s.invAllBtnTextOn]}>Allt</Text>
+        </Pressable>
+      </View>
     );
   }
 
@@ -1575,7 +1574,14 @@ export default function MenuScreen() {
       {/* Bulk transfer modal — choose recipes and list */}
       <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleBulkBack()}>
         <Pressable style={s.overlay} onPress={() => handleCancelBulkTransfer()} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          // Inventerings-steget hanterar tangentbordet själv via inre ScrollView
+          // — annars hoppar Nästa-/Tillbaka-knapparna upp ovanför tangentbordet.
+          enabled={bulkTransferStep !== 'ingredients'}
+          style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}
+          pointerEvents="box-none"
+        >
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
 
@@ -1695,74 +1701,40 @@ export default function MenuScreen() {
           ) : bulkTransferStep === 'ingredients' ? (
             <>
               <Text style={s.sheetTitle}>Vad har du hemma?</Text>
-              <View style={s.segment}>
-                <Pressable style={[s.segmentBtn, inventoryMode === 'check' && s.segmentBtnActive]} onPress={() => goToInvMode('check')}>
-                  <Text style={[s.segmentText, inventoryMode === 'check' && s.segmentTextActive]}>Bocka av</Text>
-                </Pressable>
-                <Pressable style={[s.segmentBtn, inventoryMode === 'amount' && s.segmentBtnActive]} onPress={() => goToInvMode('amount')}>
-                  <Text style={[s.segmentText, inventoryMode === 'amount' && s.segmentTextActive]}>Ange mängd</Text>
-                </Pressable>
-              </View>
-              <Text style={s.invSub} numberOfLines={1}>
-                {inventoryMode === 'check' ? 'Bocka av det du har hemma' : 'Ange mängd du har hemma'}
+              <Text style={s.invSub}>
+                Skriv mängden du har eller tryck "Allt" om du har tillräckligt. Bristen läggs på listan.
               </Text>
-              <ScrollView style={{ height: invListHeight, marginBottom: 12 }} keyboardShouldPersistTaps="handled">
-                <View style={{ height: aggregatedInventory.length * INV_ROW_H }}>
-                  {/* Full-width native pager UNDERNEATH — swipe anywhere flips it.
-                      Each row: empty left spacer + the control on the right. */}
-                  <ScrollView
-                    ref={invPagerRef}
-                    horizontal
-                    pagingEnabled
-                    showsHorizontalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                    scrollEventThrottle={16}
-                    style={StyleSheet.absoluteFill}
-                    onScroll={e => {
-                      if (invScrollLock.current) return; // tab-tap is driving the scroll
-                      const mode = e.nativeEvent.contentOffset.x > INV_FULL_W / 2 ? 'amount' : 'check';
-                      setInventoryMode(prev => (prev === mode ? prev : mode));
+              <ScrollView
+                style={{ maxHeight: invMaxListH, marginBottom: 12 }}
+                keyboardShouldPersistTaps="handled"
+              >
+                {aggregatedInventory.map(agg => renderInventoryRow(agg))}
+              </ScrollView>
+              {!invKbdOpen && (
+                <>
+                  <Pressable
+                    style={s.button}
+                    onPress={async () => {
+                      const origin = params.originListId;
+                      if (origin) {
+                        await executeBulkTransfer(origin);
+                        try {
+                          (router as { dismissTo?: (h: string) => void }).dismissTo?.(`/shopping/${origin}`);
+                        } catch {
+                          router.navigate(`/shopping/${origin}` as never);
+                        }
+                      } else {
+                        setBulkTransferStep('list');
+                      }
                     }}
                   >
-                    {(['check', 'amount'] as const).map(mode => (
-                      <View key={mode} style={{ width: INV_FULL_W }}>
-                        {aggregatedInventory.map(agg => (
-                          <View key={agg.key} style={{ height: INV_ROW_H, flexDirection: 'row' }}>
-                            <View style={{ flex: 1 }} />
-                            {renderControlCell(agg, mode)}
-                          </View>
-                        ))}
-                      </View>
-                    ))}
-                  </ScrollView>
-                  {/* Static name overlay covering the left region (lets swipes/taps
-                      through to the pager; opaque so sliding controls hide behind it). */}
-                  <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, right: INV_CTRL_W, backgroundColor: '#fff' }} pointerEvents="none">
-                    {aggregatedInventory.map(agg => renderNameCell(agg))}
-                  </View>
-                </View>
-              </ScrollView>
-              <Pressable
-                style={s.button}
-                onPress={async () => {
-                  const origin = params.originListId;
-                  if (origin) {
-                    await executeBulkTransfer(origin);
-                    try {
-                      (router as { dismissTo?: (h: string) => void }).dismissTo?.(`/shopping/${origin}`);
-                    } catch {
-                      router.navigate(`/shopping/${origin}` as never);
-                    }
-                  } else {
-                    setBulkTransferStep('list');
-                  }
-                }}
-              >
-                <Text style={s.buttonText}>{params.originListId ? 'Överför' : 'Nästa'}</Text>
-              </Pressable>
-              <Pressable style={s.cancelBtn} onPress={() => setBulkTransferStep('recipe')}>
-                <Text style={s.cancelBtnText}>Tillbaka</Text>
-              </Pressable>
+                    <Text style={s.buttonText}>{params.originListId ? 'Överför' : 'Nästa'}</Text>
+                  </Pressable>
+                  <Pressable style={s.cancelBtn} onPress={() => setBulkTransferStep('recipe')}>
+                    <Text style={s.cancelBtnText}>Tillbaka</Text>
+                  </Pressable>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -1996,29 +1968,28 @@ const s = StyleSheet.create({
   headerActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
   headerActionText: { fontWeight: '600', color: '#4f46e5', fontSize: 13 },
   headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
-  segment: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 8, padding: 2, marginTop: 8 },
-  segmentBtn: { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: 6 },
-  segmentBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  segmentText: { fontSize: 13, fontWeight: '600', color: '#9ca3af' },
-  segmentTextActive: { color: '#4f46e5' },
-  invSub: { fontSize: 13, color: '#6b7280', textAlign: 'center', marginTop: 16, marginBottom: 10 },
-  invCellLeft: { height: 56, justifyContent: 'center', paddingRight: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
-  invCellRight: { width: 140, height: 56, justifyContent: 'center', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
+  invSub: { fontSize: 13, color: '#6b7280', textAlign: 'left', marginTop: 12, marginBottom: 10, lineHeight: 18 },
+  // En rad i den nya inventerings-vyn: namn + behov till vänster, "Har"-input
+  // + ✓ Allt-knapp till höger. Allt på samma rad, ingen mode-toggle.
+  invRowV2: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6', gap: 6 },
   invName: { fontSize: 15, color: '#111827', fontWeight: '500' },
   invNameDone: { color: '#9ca3af', textDecorationLine: 'line-through' },
   invProvenance: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  invBuy: { color: '#f59e0b', fontWeight: '600' },
-  invAmountWrap: { flexDirection: 'row', gap: 5 },
-  invAmountLabel: { fontSize: 12, color: '#9ca3af' },
-  invAmountInput: { width: 48, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#a5b4fc', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 7, fontSize: 15, color: '#111827', textAlign: 'right' },
-  invAmountBox: { justifyContent: 'center', alignItems: 'flex-end' },
-  invAmountBoxText: { fontSize: 15, color: '#111827' },
-  invAmountBoxPlaceholder: { fontSize: 15, color: '#d1d5db' },
-  invUnit: { width: 26, fontSize: 13, color: '#6b7280' },
-  invHavePill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db' },
-  invHavePillOn: { backgroundColor: '#10b981', borderColor: '#10b981' },
-  invHavePillText: { fontSize: 12, fontWeight: '600', color: '#9ca3af' },
-  invHavePillTextOn: { color: '#fff' },
+  // minWidth = baseline; växer automatiskt om enheten är lång (paket, påse…)
+  // så enheten alltid syns helt. paddingHorizontal lite mindre för att inte
+  // knappen ska bli onödigt bred.
+  invAmountWrapV2: { flexDirection: 'row', alignItems: 'center', minWidth: 88, paddingHorizontal: 8, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff', gap: 4 },
+  invAmountWrapHas: { borderColor: '#a5b4fc', backgroundColor: '#fff' },
+  invAmountInputV2: { fontSize: 14, color: '#111827', padding: 0, minWidth: 28, maxWidth: 60 },
+  invAmountTextV2: { fontSize: 14, color: '#111827', fontWeight: '600', minWidth: 28 },
+  invAmountTextPlaceholderV2: { fontSize: 13, color: '#9ca3af', fontWeight: '500', minWidth: 28 },
+  invUnitV2: { fontSize: 12, color: '#6b7280', flexShrink: 0 },
+  // Default-läge: NEUTRAL grå/vit så knappen INTE ser tryckt ut. Aktivt läge
+  // (tryckt) blir grön + ifylld.
+  invAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff' },
+  invAllBtnOn: { backgroundColor: '#10b981', borderColor: '#10b981' },
+  invAllBtnText: { fontSize: 12, fontWeight: '700', color: '#6b7280' },
+  invAllBtnTextOn: { color: '#fff' },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 10, paddingBottom: 80 },
   section: { gap: 6 },

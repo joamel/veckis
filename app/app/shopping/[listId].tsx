@@ -6,7 +6,6 @@ import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
   Animated,
-  Alert,
   Dimensions,
   GestureResponderEvent,
   Keyboard,
@@ -30,6 +29,7 @@ import RNAnimated, {
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { pickStore } from '../../src/lib/storePicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/clerk-expo';
@@ -41,13 +41,13 @@ import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type StapleItem, type Store } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, parentForSub, type StoreCategory, type SubCategory, type StapleItem, type Store } from '@veckis/shared';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
-  fruit_veg: '🥦', meat_fish: '🥩', dairy_eggs: '🥛',
+  fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', dairy_eggs: '🥛',
   bread_bakery: '🍞', frozen: '🧊', canned_dry: '🥫',
-  snacks_sweets: '🍫', beverages: '🥤', cleaning: '🧹',
-  personal_care: '🧴', other: '📦',
+  snacks_sweets: '🍫', beverages: '🥤', special_diet: '🌱',
+  cleaning: '🧹', personal_care: '🧴', other: '📦',
 };
 
 // Survives navigation within the session; resets on app restart
@@ -90,6 +90,13 @@ export default function ShoppingListScreen() {
   const [stores, setStores] = useState<Store[]>([]);
   const [staples, setStaples] = useState<StapleItem[]>([]);
   const [ingredientSuggestions, setIngredientSuggestions] = useState<{ name: string; category: string }[]>([]);
+  // Hushållsmedlemmar för "Jag handlar"-presence-indikatorn (vem är aktiv?).
+  const { userId: clerkUserId } = useAuth();
+  const [members, setMembers] = useState<Array<{ id: string; displayName: string; clerkUserId: string | null }>>([]);
+  const myMember = members.find(m => m.clerkUserId === clerkUserId) ?? null;
+  const activeShopper = list?.activeShopperMemberId ? members.find(m => m.id === list.activeShopperMemberId) ?? null : null;
+  const iAmShopping = !!myMember && list?.activeShopperMemberId === myMember.id;
+  const [togglingShopper, setTogglingShopper] = useState(false);
 
   // Quick-add quantity sheet (chip tap)
   const [qtySheet, setQtySheet] = useState<{ name: string; category?: StoreCategory } | null>(null);
@@ -119,6 +126,7 @@ export default function ShoppingListScreen() {
   const [editUnit, setEditUnit] = useState('');
   const [editCategory, setEditCategory] = useState<StoreCategory>('other');
   const [editCustomCategory, setEditCustomCategory] = useState<string | null>(null);
+  const [editSubCategory, setEditSubCategory] = useState<SubCategory | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Pure transform-only collapsing header (UI-thread, no layout = zero lag).
@@ -285,11 +293,34 @@ export default function ShoppingListScreen() {
           return { ...prev, items: prev.items.filter(i => i.id !== msg.data.id) };
         case 'list_cleared':
           return { ...prev, items: [] };
+        case 'shopping_presence':
+          return {
+            ...prev,
+            activeShopperMemberId: msg.data.memberId,
+            activeShopperSince: msg.data.since,
+          };
         default:
           return prev;
       }
     });
   });
+
+  async function toggleIAmShopping() {
+    if (!list || !myMember || togglingShopper) return;
+    setTogglingShopper(true);
+    const next = iAmShopping ? null : myMember.id;
+    // Optimistisk uppdatering — backend broadcastar tillbaka när det landat.
+    setList(prev => prev ? { ...prev, activeShopperMemberId: next, activeShopperSince: next ? new Date().toISOString() : null } : prev);
+    try {
+      await client.setListShopper(list.id, next);
+    } catch (e) {
+      // Rulla tillbaka
+      setList(prev => prev ? { ...prev, activeShopperMemberId: list.activeShopperMemberId, activeShopperSince: list.activeShopperSince } : prev);
+      showError(e, 'Kunde inte ändra "Jag handlar"-status');
+    } finally {
+      setTogglingShopper(false);
+    }
+  }
 
   const openMergeForDupes = useCallback((
     dupes: ShoppingItemWithRecipe[],
@@ -435,16 +466,18 @@ export default function ShoppingListScreen() {
   const load = useCallback(async () => {
     if (!listId || !householdId) return;
     try {
-      const [data, storeList, stapleList, suggestions] = await Promise.all([
+      const [data, storeList, stapleList, suggestions, household] = await Promise.all([
         client.getShoppingList(listId),
         client.getStores(householdId),
         client.getStaples(householdId),
         client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
+        client.getHousehold(householdId).catch(() => null),
       ]);
       setList(data);
       setStores(storeList);
       setStaples(stapleList);
       setIngredientSuggestions(suggestions);
+      if (household) setMembers(household.members);
     } catch {
       confirm({ title: 'Fel', message: 'Kunde inte ladda listan', buttons: [{ label: 'OK' }] });
     } finally {
@@ -484,6 +517,7 @@ export default function ShoppingListScreen() {
       unit: unit ?? null,
       category: category ?? 'other',
       customCategory: null,
+      subCategory: null,
       isChecked: false,
       checkedBy: null,
       addedBy: '',
@@ -676,6 +710,7 @@ export default function ShoppingListScreen() {
     setEditUnit(item.unit ?? '');
     setEditCategory(item.category as StoreCategory);
     setEditCustomCategory((item as { customCategory?: string | null }).customCategory ?? null);
+    setEditSubCategory(((item as { subCategory?: string | null }).subCategory as SubCategory | null) ?? null);
   }
 
   function openEditItem(item: ShoppingItemWithRecipe) {
@@ -700,7 +735,7 @@ export default function ShoppingListScreen() {
     const snapshot = editingItem;
     // Optimistic: update list + close modal before awaiting backend
     const optimisticItems = (list?.items ?? []).map(i =>
-      i.id === editingItem.id ? { ...i, name, quantity: qty, unit, category: editCategory, customCategory: editCustomCategory } : i
+      i.id === editingItem.id ? { ...i, name, quantity: qty, unit, category: editCategory, customCategory: editCustomCategory, subCategory: editSubCategory } : i
     );
     setList(prev => prev ? { ...prev, items: optimisticItems } : prev);
     setEditingItem(null);
@@ -711,6 +746,7 @@ export default function ShoppingListScreen() {
         unit,
         category: editCategory,
         customCategory: editCustomCategory,
+        subCategory: editSubCategory,
       });
       const savedRecipe = snapshot.recipe;
       const finalItems = optimisticItems.map(i =>
@@ -905,6 +941,17 @@ export default function ShoppingListScreen() {
     }
   }
 
+  // Öppna /stores i pick-läge och vänta på resultat. Skickar nuvarande
+  // butik som ?current=... så pickern kan markera den + visa rensa-X.
+  async function openStorePicker() {
+    const promise = pickStore();
+    const currentParam = list?.storeId ? `&current=${list.storeId}` : '';
+    router.push(`/stores?pick=1${currentParam}` as never);
+    const result = await promise;
+    if (result === 'cancelled') return;
+    await selectStore(result);
+  }
+
   async function createStore() {
     if (!householdId || !newStoreName.trim()) return;
     setCreatingStore(true);
@@ -989,7 +1036,8 @@ export default function ShoppingListScreen() {
   const checked = list.items.filter(i => i.isChecked);
   const allItems = [...unchecked, ...checked];
   const customCategories: string[] = (list?.store?.customCategories as string[] | undefined) ?? [];
-  const categoryGroups = buildCategoryGroups(unchecked, categoryOrder, customCategories);
+  const expandedSubs: string[] = (list?.store?.expandedSubs as string[] | undefined) ?? [];
+  const categoryGroups = buildCategoryGroups(unchecked, categoryOrder, customCategories, expandedSubs);
 
   return (
     <View style={s.container}>
@@ -1002,7 +1050,7 @@ export default function ShoppingListScreen() {
         {/* Butik + dubblettknapp som första scrollbara rad — försvinner upp
             tillsammans med kategorierna när användaren scrollar. */}
         <View style={s.scrollMeta}>
-          <Pressable onPress={() => setShowStorePicker(true)} style={s.storeBtn}>
+          <Pressable onPress={openStorePicker} style={s.storeBtn}>
             <Ionicons name="storefront-outline" size={16} color="#4f46e5" />
             <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
           </Pressable>
@@ -1033,15 +1081,21 @@ export default function ShoppingListScreen() {
 
         {/* Category groups */}
         {categoryGroups.map(group => {
-          const key = group.isCustom ? `c:${group.category}` : group.category as string;
+          const key = group.isCustom ? `c:${group.category}` : group.isSub ? `s:${group.category}` : group.category as string;
           const collapsed = collapsedCategories.has(key as StoreCategory | 'checked');
           const label = group.isCustom
             ? `🏷️ ${group.category}`
-            : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+            : group.isSub
+              ? group.label ?? String(group.category)
+              : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
           return (
             <View key={key} style={s.categoryGroup}>
-              <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed(key as StoreCategory | 'checked')} hitSlop={4}>
-                <Text style={s.categoryLabel}>
+              <Pressable
+                style={[s.categoryHeader, group.isSub && s.categorySubHeader]}
+                onPress={() => toggleCategoryCollapsed(key as StoreCategory | 'checked')}
+                hitSlop={4}
+              >
+                <Text style={[s.categoryLabel, group.isSub && s.categorySubLabel]} numberOfLines={2}>
                   {label}
                   {collapsed ? ` (${group.items.length})` : ''}
                 </Text>
@@ -1104,6 +1158,17 @@ export default function ShoppingListScreen() {
       {checked.length > 0 && unchecked.length > 0 && (
         <View style={[s.progressBar, { position: 'absolute', top: HEADER_TOP + NAVBAR_HEIGHT, left: 0, right: 0, zIndex: 35 }]}>
           <View style={[s.progressFill, { width: `${(checked.length / allItems.length) * 100}%` as `${number}%` }]} />
+        </View>
+      )}
+
+      {/* "Jag handlar"-presence-banner — synlig när någon (inkl. mig själv)
+          aktivt handlar listan. Förhindrar dubbla turer till affären. */}
+      {list.activeShopperMemberId && activeShopper && (
+        <View style={[s.shopperBanner, { top: HEADER_TOP + NAVBAR_HEIGHT + 4 }]} pointerEvents="none">
+          <Ionicons name="walk" size={14} color="#7c3aed" />
+          <Text style={s.shopperBannerText}>
+            {iAmShopping ? 'Du handlar nu' : `${activeShopper.displayName} handlar nu`}
+          </Text>
         </View>
       )}
 
@@ -1184,57 +1249,8 @@ export default function ShoppingListScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Store picker modal */}
-      <Modal visible={showStorePicker} transparent animationType="slide" onRequestClose={() => setShowStorePicker(false)}>
-        <Pressable style={s.overlay} onPress={() => setShowStorePicker(false)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Välj butik</Text>
-
-          <Pressable style={[s.storeOption, !list.storeId && s.storeOptionActive]} onPress={() => selectStore(null)}>
-            <Ionicons name="close-circle-outline" size={20} color="#6b7280" />
-            <Text style={s.storeOptionText}>Utan butik</Text>
-            {!list.storeId && <Ionicons name="checkmark" size={18} color="#4f46e5" />}
-          </Pressable>
-
-          {stores.map(store => (
-            <View key={store.id} style={s.storeRow}>
-              <Pressable
-                style={[s.storeOption, s.storeOptionFlex, list.storeId === store.id && s.storeOptionActive]}
-                onPress={() => selectStore(store.id)}
-                onLongPress={() => { setShowStorePicker(false); openCategoryEditor(store); }}
-                delayLongPress={350}
-              >
-                <Ionicons name="storefront-outline" size={20} color="#4f46e5" />
-                <Text style={[s.storeOptionText, { flex: 1 }]}>{store.name}</Text>
-                {list.storeId === store.id && <Ionicons name="checkmark" size={18} color="#4f46e5" />}
-              </Pressable>
-              <Pressable style={s.editStoreBtn} onPress={() => { setShowStorePicker(false); openCategoryEditor(store); }}>
-                <Ionicons name="options-outline" size={18} color="#6b7280" />
-              </Pressable>
-            </View>
-          ))}
-
-          <View style={s.newStoreRow}>
-            <TextInput
-              style={[s.addInput, { flex: 1 }]}
-              placeholder="Ny butik..."
-              placeholderTextColor="#9ca3af"
-              value={newStoreName}
-              onChangeText={setNewStoreName}
-              returnKeyType="done"
-              onSubmitEditing={createStore}
-            />
-            <Pressable
-              style={[s.addBtn, (!newStoreName.trim() || creatingStore) && s.addBtnDisabled]}
-              onPress={createStore}
-              disabled={creatingStore || !newStoreName.trim()}
-            >
-              {creatingStore ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="add" size={22} color="#fff" />}
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      {/* Butik-väljaren ligger nu på /stores-routen (full-screen) — caller:n
+          använder pickStore()-helpern och navigerar dit i ?pick=1-läge. */}
 
       {/* Category browser modal */}
       <Modal visible={showBrowser} transparent animationType="slide" onRequestClose={() => setShowBrowser(false)}>
@@ -1366,16 +1382,40 @@ export default function ShoppingListScreen() {
                   </Pressable>
                 );
               })}
-              {customCategories.map(name => {
-                const active = editCustomCategory === name;
+              {/* "Egna kategorier"-chips dolda — ersätts av 2-nivå-taxonomi.
+                  Items med befintligt customCategory fortsätter renderas men
+                  nya items kan inte längre placeras där manuellt. */}
+            </View>
+          </ScrollView>
+          {/* Underkategori (valfritt) — filtrerar mot subs vars defaultParent
+              matchar valt parent. Användaren kan när som helst byta parent
+              ovan och då uppdateras sub-listan. */}
+          <Text style={s.editLabel}>Underkategori (valfritt)</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={s.catChipScroll}
+            contentContainerStyle={{ paddingRight: 12 }}
+          >
+            <View style={s.catChipRow}>
+              <Pressable
+                style={[s.catChip, !editSubCategory && s.catChipActive]}
+                onPress={() => setEditSubCategory(null)}
+              >
+                <Text style={[s.catChipText, !editSubCategory && s.catChipTextActive]}>
+                  Ingen
+                </Text>
+              </Pressable>
+              {subsForParent(editCategory).map(sub => {
+                const active = editSubCategory === sub;
                 return (
                   <Pressable
-                    key={`c:${name}`}
+                    key={sub}
                     style={[s.catChip, active && s.catChipActive]}
-                    onPress={() => setEditCustomCategory(active ? null : name)}
+                    onPress={() => setEditSubCategory(active ? null : sub)}
                   >
-                    <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
-                      🏷️ {name}
+                    <Text style={[s.catChipText, active && s.catChipTextActive]}>
+                      {SUB_TAXONOMY[sub].label}
                     </Text>
                   </Pressable>
                 );
@@ -1471,60 +1511,8 @@ export default function ShoppingListScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Category order editor */}
-      <Modal visible={!!editingStore} transparent animationType="slide" onRequestClose={() => setEditingStore(null)}>
-        <Pressable style={s.overlay} onPress={() => setEditingStore(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>{editingStore?.name} — kategoriordning</Text>
-          <ScrollView style={{ maxHeight: '70%' }} contentContainerStyle={{ paddingBottom: 12 }}>
-            <Text style={s.sheetSub}>Dra om ordningen med pilarna så den matchar butikens layout</Text>
-            {editCategoryOrder.map((cat, idx) => (
-              <View key={cat} style={s.catRow}>
-                <Text style={s.catRowLabel}>{CATEGORY_LABELS[cat]}</Text>
-                <Pressable onPress={() => moveCategoryUp(idx)} disabled={idx === 0} style={s.catArrow}>
-                  <Ionicons name="chevron-up" size={18} color={idx === 0 ? '#e5e7eb' : '#374151'} />
-                </Pressable>
-                <Pressable onPress={() => moveCategoryDown(idx)} disabled={idx === editCategoryOrder.length - 1} style={s.catArrow}>
-                  <Ionicons name="chevron-down" size={18} color={idx === editCategoryOrder.length - 1 ? '#e5e7eb' : '#374151'} />
-                </Pressable>
-              </View>
-            ))}
-            <Text style={[s.sheetSub, { marginTop: 16 }]}>Egna kategorier</Text>
-            {editCustomCategories.map(name => (
-              <View key={name} style={s.catRow}>
-                <Text style={s.catRowLabel}>🏷️ {name}</Text>
-                <Pressable onPress={() => removeCustomCategory(name)} style={s.catArrow} hitSlop={8}>
-                  <Ionicons name="close-circle" size={20} color="#ef4444" />
-                </Pressable>
-              </View>
-            ))}
-            <View style={s.newStoreRow}>
-              <TextInput
-                style={[s.addInput, { flex: 1 }]}
-                placeholder="Ny egen kategori"
-                placeholderTextColor="#9ca3af"
-                value={newCustomCategory}
-                onChangeText={setNewCustomCategory}
-                returnKeyType="done"
-                onSubmitEditing={addCustomCategory}
-              />
-              <Pressable
-                style={[s.addBtn, !newCustomCategory.trim() && s.addBtnDisabled]}
-                onPress={addCustomCategory}
-                disabled={!newCustomCategory.trim()}
-              >
-                <Ionicons name="add" size={22} color="#fff" />
-              </Pressable>
-            </View>
-          </ScrollView>
-          <Pressable style={[s.saveBtn, savingOrder && s.saveBtnDisabled]} onPress={saveCategoryOrder} disabled={savingOrder}>
-            {savingOrder ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>Spara</Text>}
-          </Pressable>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      {/* Tidigare in-list category-order editor + custom-kategorier är borttagen.
+          All butiks-konfig sker på /stores/[storeId]-routen istället. */}
       {/* Quantity sheet */}
       <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
         <Pressable style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.3)' }]} onPress={() => setQtySheet(null)} />
@@ -1762,6 +1750,20 @@ export default function ShoppingListScreen() {
         <View style={s.actionsMenu}>
           <Pressable
             style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); toggleIAmShopping(); }}
+            disabled={togglingShopper || (!iAmShopping && !!list.activeShopperMemberId)}
+          >
+            <Ionicons name={iAmShopping ? 'pause-circle-outline' : 'walk-outline'} size={20} color="#7c3aed" />
+            <Text style={s.actionsMenuText}>
+              {iAmShopping
+                ? 'Sluta handla'
+                : list.activeShopperMemberId
+                  ? `${activeShopper?.displayName ?? 'Någon'} handlar nu`
+                  : 'Jag handlar nu'}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); setRenameValue(list.name); setShowRenameModal(true); }}
           >
             <Ionicons name="create-outline" size={20} color="#4f46e5" />
@@ -1769,7 +1771,7 @@ export default function ShoppingListScreen() {
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); setShowStorePicker(true); }}
+            onPress={() => { setShowActionsMenu(false); openStorePicker(); }}
           >
             <Ionicons name="storefront-outline" size={20} color="#4f46e5" />
             <Text style={s.actionsMenuText}>{list.store?.name ? `Butik: ${list.store.name}` : 'Välj butik'}</Text>
@@ -1894,25 +1896,47 @@ export default function ShoppingListScreen() {
   );
 }
 
-type CategoryGroup = { category: StoreCategory | string; isCustom: boolean; items: ShoppingItemWithRecipe[] };
+type CategoryGroup = {
+  /** Antingen en StoreCategory (parent), en custom-string ELLER en SubCategory
+   *  som hushållet har "expanderat" till egen sektion. */
+  category: StoreCategory | string;
+  isCustom: boolean;
+  /** Sant när gruppen är en sub som brutits ut. */
+  isSub?: boolean;
+  /** Label att visa i UI:t. */
+  label?: string;
+  items: ShoppingItemWithRecipe[];
+};
 
 function buildCategoryGroups(
   items: ShoppingItemWithRecipe[],
   order: StoreCategory[],
   customCategories: string[] = [],
+  expandedSubs: string[] = [],
 ): CategoryGroup[] {
-  // Items with customCategory go under that key; others under their enum category.
+  const expandedSet = new Set(expandedSubs);
+  // Items grupperas i tre buckets:
+  //  - customMap (customCategory-strängar — legacy)
+  //  - subMap (subCategory ∈ expandedSubs → egen sektion)
+  //  - enumMap (allt annat → samlas under parent)
   const enumMap = new Map<StoreCategory, ShoppingItemWithRecipe[]>();
   const customMap = new Map<string, ShoppingItemWithRecipe[]>();
+  const subMap = new Map<string, ShoppingItemWithRecipe[]>();
   for (const item of items) {
     if (item.customCategory) {
       if (!customMap.has(item.customCategory)) customMap.set(item.customCategory, []);
       customMap.get(item.customCategory)!.push(item);
-    } else {
-      const cat = item.category as StoreCategory;
-      if (!enumMap.has(cat)) enumMap.set(cat, []);
-      enumMap.get(cat)!.push(item);
+      continue;
     }
+    const sub = (item as { subCategory?: string | null }).subCategory ?? null;
+    if (sub && expandedSet.has(sub)) {
+      if (!subMap.has(sub)) subMap.set(sub, []);
+      subMap.get(sub)!.push(item);
+      continue;
+    }
+    const cat = item.category as StoreCategory;
+    if (!enumMap.has(cat)) enumMap.set(cat, []);
+    enumMap.get(cat)!.push(item);
   }
   const orderedEnum = [...order.filter(c => enumMap.has(c))];
   for (const cat of enumMap.keys()) {
@@ -1926,10 +1950,31 @@ function buildCategoryGroups(
     if (a.isChecked !== b.isChecked) return a.isChecked ? 1 : -1;
     return a.name.localeCompare(b.name, 'sv');
   });
-  return [
-    ...orderedEnum.map(cat => ({ category: cat, isCustom: false, items: sortItems(enumMap.get(cat)!) })),
-    ...orderedCustom.map(cat => ({ category: cat, isCustom: true, items: sortItems(customMap.get(cat)!) })),
-  ];
+
+  // Bygg slutgiltig lista. Sub-grupper läggs DIREKT EFTER sin parent så de
+  // hänger ihop visuellt i butikens ordning.
+  const result: CategoryGroup[] = [];
+  for (const parent of orderedEnum) {
+    result.push({ category: parent, isCustom: false, items: sortItems(enumMap.get(parent)!) });
+    for (const [sub, subItems] of subMap.entries()) {
+      const subInfo = SUB_TAXONOMY[sub as SubCategory];
+      if (subInfo && subInfo.defaultParent === parent) {
+        result.push({ category: sub, isCustom: false, isSub: true, label: subInfo.label, items: sortItems(subItems) });
+      }
+    }
+  }
+  // Sub-grupper vars parent inte fanns i orderedEnum (ovanligt) — append sist.
+  for (const [sub, subItems] of subMap.entries()) {
+    const subInfo = SUB_TAXONOMY[sub as SubCategory];
+    if (!subInfo) continue;
+    if (orderedEnum.includes(subInfo.defaultParent)) continue;
+    result.push({ category: sub, isCustom: false, isSub: true, label: subInfo.label, items: sortItems(subItems) });
+  }
+  // Custom-grupper sist
+  for (const cat of orderedCustom) {
+    result.push({ category: cat, isCustom: true, items: sortItems(customMap.get(cat)!) });
+  }
+  return result;
 }
 
 function ItemRow({ item, onToggle, onEdit, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; pending?: boolean }) {
@@ -1979,6 +2024,8 @@ const s = StyleSheet.create({
   storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   storeBtnText: { fontSize: 16, color: '#4f46e5', fontWeight: '600' },
   progressBar: { height: 3, backgroundColor: '#e5e7eb' },
+  shopperBanner: { position: 'absolute', left: 16, right: 16, zIndex: 36, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ede9fe', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'center' },
+  shopperBannerText: { fontSize: 12, color: '#5b21b6', fontWeight: '600' },
   progressFill: { height: 3, backgroundColor: '#10b981' },
   list: { padding: 16, gap: 16, paddingBottom: 8 },
   listEmpty: { flex: 1 },
@@ -1992,8 +2039,13 @@ const s = StyleSheet.create({
   mergeIgnoreBtnText: { fontSize: 14, color: '#9ca3af', textAlign: 'center' },
   mergeHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   categoryGroup: { gap: 4 },
-  categoryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2, paddingVertical: 4 },
-  categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4f46e5', textTransform: 'uppercase', letterSpacing: 0.6, flex: 1 },
+  categoryHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 2, paddingVertical: 4, gap: 8 },
+  categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4f46e5', textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 },
+  // Sub-grupp-rubriker: inget uppercase + ingen letterSpacing (annars klipps
+  // långa subnamn som "Toalett- & hushållspapper"); lite indenterad + dämpad
+  // för att visuellt tillhöra sin parent.
+  categorySubHeader: { paddingLeft: 14, paddingVertical: 2, marginTop: -4 },
+  categorySubLabel: { fontSize: 11, fontWeight: '600', textTransform: 'none', letterSpacing: 0.2, color: '#7c3aed' },
   categoryCount: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
   item: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   itemChecked: { opacity: 0.55 },
