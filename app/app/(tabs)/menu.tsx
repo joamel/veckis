@@ -292,7 +292,7 @@ export default function MenuScreen() {
             style={[s.invAllBtn, have && s.invAllBtnOn]}
             onPress={() => toggleUnmeasured(agg.key)}
           >
-            <Ionicons name="checkmark" size={15} color={have ? '#fff' : '#10b981'} />
+            <Ionicons name="checkmark" size={15} color={have ? '#fff' : '#9ca3af'} />
             <Text style={[s.invAllBtnText, have && s.invAllBtnTextOn]}>Har</Text>
           </Pressable>
         </View>
@@ -349,7 +349,7 @@ export default function MenuScreen() {
           style={[s.invAllBtn, covered && s.invAllBtnOn]}
           onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}
         >
-          <Ionicons name="checkmark" size={15} color={covered ? '#fff' : '#10b981'} />
+          <Ionicons name="checkmark" size={15} color={covered ? '#fff' : '#9ca3af'} />
           <Text style={[s.invAllBtnText, covered && s.invAllBtnTextOn]}>Allt</Text>
         </Pressable>
       </View>
@@ -1933,15 +1933,19 @@ const s = StyleSheet.create({
   invName: { fontSize: 15, color: '#111827', fontWeight: '500' },
   invNameDone: { color: '#9ca3af', textDecorationLine: 'line-through' },
   invProvenance: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  invAmountWrapV2: { flexDirection: 'row', alignItems: 'center', minWidth: 78, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', gap: 4 },
+  invAmountWrapV2: { flexDirection: 'row', alignItems: 'center', width: 88, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', gap: 4 },
   invAmountWrapHas: { borderColor: '#a5b4fc', backgroundColor: '#fff' },
-  invAmountInputV2: { minWidth: 28, fontSize: 14, color: '#111827', padding: 0 },
-  invAmountTextV2: { fontSize: 14, color: '#111827', fontWeight: '600' },
-  invAmountTextPlaceholderV2: { fontSize: 13, color: '#9ca3af', fontWeight: '500' },
-  invUnitV2: { fontSize: 12, color: '#6b7280' },
-  invAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#a7f3d0', backgroundColor: '#f0fdf4' },
+  // Input får flex:1 så den krymper när enheten tar plats — och maxWidth-cap
+  // för att enheten alltid får 26px på höger sida.
+  invAmountInputV2: { flex: 1, fontSize: 14, color: '#111827', padding: 0, minWidth: 20 },
+  invAmountTextV2: { flex: 1, fontSize: 14, color: '#111827', fontWeight: '600' },
+  invAmountTextPlaceholderV2: { flex: 1, fontSize: 13, color: '#9ca3af', fontWeight: '500' },
+  invUnitV2: { fontSize: 12, color: '#6b7280', flexShrink: 0 },
+  // Default-läge: NEUTRAL grå/vit så knappen INTE ser tryckt ut. Aktivt läge
+  // (tryckt) blir grön + ifylld.
+  invAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff' },
   invAllBtnOn: { backgroundColor: '#10b981', borderColor: '#10b981' },
-  invAllBtnText: { fontSize: 12, fontWeight: '700', color: '#047857' },
+  invAllBtnText: { fontSize: 12, fontWeight: '700', color: '#6b7280' },
   invAllBtnTextOn: { color: '#fff' },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 10, paddingBottom: 80 },
