@@ -1976,13 +1976,14 @@ const s = StyleSheet.create({
   invName: { fontSize: 15, color: '#111827', fontWeight: '500' },
   invNameDone: { color: '#9ca3af', textDecorationLine: 'line-through' },
   invProvenance: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  invAmountWrapV2: { flexDirection: 'row', alignItems: 'center', width: 88, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff', gap: 4 },
+  // minWidth = baseline; växer automatiskt om enheten är lång (paket, påse…)
+  // så enheten alltid syns helt. paddingHorizontal lite mindre för att inte
+  // knappen ska bli onödigt bred.
+  invAmountWrapV2: { flexDirection: 'row', alignItems: 'center', minWidth: 88, paddingHorizontal: 8, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff', gap: 4 },
   invAmountWrapHas: { borderColor: '#a5b4fc', backgroundColor: '#fff' },
-  // Input får flex:1 så den krymper när enheten tar plats — och maxWidth-cap
-  // för att enheten alltid får 26px på höger sida.
-  invAmountInputV2: { flex: 1, fontSize: 14, color: '#111827', padding: 0, minWidth: 20 },
-  invAmountTextV2: { flex: 1, fontSize: 14, color: '#111827', fontWeight: '600' },
-  invAmountTextPlaceholderV2: { flex: 1, fontSize: 13, color: '#9ca3af', fontWeight: '500' },
+  invAmountInputV2: { fontSize: 14, color: '#111827', padding: 0, minWidth: 28, maxWidth: 60 },
+  invAmountTextV2: { fontSize: 14, color: '#111827', fontWeight: '600', minWidth: 28 },
+  invAmountTextPlaceholderV2: { fontSize: 13, color: '#9ca3af', fontWeight: '500', minWidth: 28 },
   invUnitV2: { fontSize: 12, color: '#6b7280', flexShrink: 0 },
   // Default-läge: NEUTRAL grå/vit så knappen INTE ser tryckt ut. Aktivt läge
   // (tryckt) blir grön + ifylld.
