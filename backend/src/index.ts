@@ -86,6 +86,13 @@ const server = app.listen(PORT, () => {
 // Time-based push notifications (activity reminders, overdue chores).
 startNotificationScheduler();
 
+// Backfilla subCategory på befintliga items (idempotent, körs i bakgrunden).
+import('./jobs/backfillSubCategory').then(m => {
+  m.backfillSubCategory()
+    .then(r => { if (r.items > 0) console.log(`[subCategory backfill] uppdaterade ${r.items} items (${r.customMigrated} migrerade från customCategory)`); })
+    .catch(e => console.error('[subCategory backfill] fel:', e));
+});
+
 // WebSocket server for real-time shopping list updates
 const wss = new WebSocketServer({ noServer: true });
 

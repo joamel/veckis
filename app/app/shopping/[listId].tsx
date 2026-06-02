@@ -42,13 +42,13 @@ import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type StapleItem, type Store } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, parentForSub, type StoreCategory, type SubCategory, type StapleItem, type Store } from '@veckis/shared';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
-  fruit_veg: '🥦', meat_fish: '🥩', dairy_eggs: '🥛',
+  fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', dairy_eggs: '🥛',
   bread_bakery: '🍞', frozen: '🧊', canned_dry: '🥫',
-  snacks_sweets: '🍫', beverages: '🥤', cleaning: '🧹',
-  personal_care: '🧴', other: '📦',
+  snacks_sweets: '🍫', beverages: '🥤', special_diet: '🌱',
+  cleaning: '🧹', personal_care: '🧴', other: '📦',
 };
 
 // Survives navigation within the session; resets on app restart
@@ -127,6 +127,7 @@ export default function ShoppingListScreen() {
   const [editUnit, setEditUnit] = useState('');
   const [editCategory, setEditCategory] = useState<StoreCategory>('other');
   const [editCustomCategory, setEditCustomCategory] = useState<string | null>(null);
+  const [editSubCategory, setEditSubCategory] = useState<SubCategory | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Pure transform-only collapsing header (UI-thread, no layout = zero lag).
@@ -517,6 +518,7 @@ export default function ShoppingListScreen() {
       unit: unit ?? null,
       category: category ?? 'other',
       customCategory: null,
+      subCategory: null,
       isChecked: false,
       checkedBy: null,
       addedBy: '',
@@ -709,6 +711,7 @@ export default function ShoppingListScreen() {
     setEditUnit(item.unit ?? '');
     setEditCategory(item.category as StoreCategory);
     setEditCustomCategory((item as { customCategory?: string | null }).customCategory ?? null);
+    setEditSubCategory(((item as { subCategory?: string | null }).subCategory as SubCategory | null) ?? null);
   }
 
   function openEditItem(item: ShoppingItemWithRecipe) {
@@ -733,7 +736,7 @@ export default function ShoppingListScreen() {
     const snapshot = editingItem;
     // Optimistic: update list + close modal before awaiting backend
     const optimisticItems = (list?.items ?? []).map(i =>
-      i.id === editingItem.id ? { ...i, name, quantity: qty, unit, category: editCategory, customCategory: editCustomCategory } : i
+      i.id === editingItem.id ? { ...i, name, quantity: qty, unit, category: editCategory, customCategory: editCustomCategory, subCategory: editSubCategory } : i
     );
     setList(prev => prev ? { ...prev, items: optimisticItems } : prev);
     setEditingItem(null);
@@ -744,6 +747,7 @@ export default function ShoppingListScreen() {
         unit,
         category: editCategory,
         customCategory: editCustomCategory,
+        subCategory: editSubCategory,
       });
       const savedRecipe = snapshot.recipe;
       const finalItems = optimisticItems.map(i =>
@@ -1372,10 +1376,39 @@ export default function ShoppingListScreen() {
                   </Pressable>
                 );
               })}
-              {/* "Egna kategorier"-chips dolda — ersätts av kommande
-                  2-nivå-taxonomi. Items med befintligt customCategory
-                  fortsätter renderas i sina grupper men nya items kan inte
-                  längre placeras där manuellt. */}
+              {/* "Egna kategorier"-chips dolda — ersätts av 2-nivå-taxonomi.
+                  Items med befintligt customCategory fortsätter renderas men
+                  nya items kan inte längre placeras där manuellt. */}
+            </View>
+          </ScrollView>
+          {/* Underkategori (valfritt) — filtrerar mot subs vars defaultParent
+              matchar valt parent. Användaren kan när som helst byta parent
+              ovan och då uppdateras sub-listan. */}
+          <Text style={s.editLabel}>Underkategori (valfritt)</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
+            <View style={s.catChipRow}>
+              <Pressable
+                style={[s.catChip, !editSubCategory && s.catChipActive]}
+                onPress={() => setEditSubCategory(null)}
+              >
+                <Text style={[s.catChipText, !editSubCategory && s.catChipTextActive]} numberOfLines={1}>
+                  Ingen
+                </Text>
+              </Pressable>
+              {subsForParent(editCategory).map(sub => {
+                const active = editSubCategory === sub;
+                return (
+                  <Pressable
+                    key={sub}
+                    style={[s.catChip, active && s.catChipActive]}
+                    onPress={() => setEditSubCategory(active ? null : sub)}
+                  >
+                    <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
+                      {SUB_TAXONOMY[sub].label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </ScrollView>
           </ScrollView>
