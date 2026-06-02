@@ -417,7 +417,7 @@ const s = StyleSheet.create({
   catList: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#f3f4f6', overflow: 'hidden' },
   catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 8 },
   catRowMuted: { backgroundColor: '#f9fafb' },
-  catName: { fontSize: 15, color: '#111827', flexShrink: 1 },
+  catName: { fontSize: 15, color: '#111827', flex: 1, flexShrink: 1 },
   catNameMuted: { color: '#9ca3af' },
   catBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#eef2ff' },
   catBtnDanger: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fef2f2' },

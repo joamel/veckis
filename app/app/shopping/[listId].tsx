@@ -1087,12 +1087,16 @@ export default function ShoppingListScreen() {
           const label = group.isCustom
             ? `🏷️ ${group.category}`
             : group.isSub
-              ? `↳ ${group.label ?? group.category}`
+              ? group.label ?? String(group.category)
               : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
           return (
             <View key={key} style={s.categoryGroup}>
-              <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed(key as StoreCategory | 'checked')} hitSlop={4}>
-                <Text style={s.categoryLabel}>
+              <Pressable
+                style={[s.categoryHeader, group.isSub && s.categorySubHeader]}
+                onPress={() => toggleCategoryCollapsed(key as StoreCategory | 'checked')}
+                hitSlop={4}
+              >
+                <Text style={[s.categoryLabel, group.isSub && s.categorySubLabel]} numberOfLines={2}>
                   {label}
                   {collapsed ? ` (${group.items.length})` : ''}
                 </Text>
@@ -2036,8 +2040,13 @@ const s = StyleSheet.create({
   mergeIgnoreBtnText: { fontSize: 14, color: '#9ca3af', textAlign: 'center' },
   mergeHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   categoryGroup: { gap: 4 },
-  categoryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2, paddingVertical: 4 },
-  categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4f46e5', textTransform: 'uppercase', letterSpacing: 0.6, flex: 1 },
+  categoryHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 2, paddingVertical: 4, gap: 8 },
+  categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4f46e5', textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 },
+  // Sub-grupp-rubriker: inget uppercase + ingen letterSpacing (annars klipps
+  // långa subnamn som "Toalett- & hushållspapper"); lite indenterad + dämpad
+  // för att visuellt tillhöra sin parent.
+  categorySubHeader: { paddingLeft: 14, paddingVertical: 2, marginTop: -4 },
+  categorySubLabel: { fontSize: 11, fontWeight: '600', textTransform: 'none', letterSpacing: 0.2, color: '#7c3aed' },
   categoryCount: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
   item: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   itemChecked: { opacity: 0.55 },
