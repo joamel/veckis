@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated as RNAnimated,
   Dimensions,
   FlatList,

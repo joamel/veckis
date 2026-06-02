@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,12 +11,14 @@ import {
 } from 'react-native';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useConfirm } from '../../src/context/ConfirmContext';
 import { useUser } from '@clerk/clerk-expo';
 
 export default function HouseholdSetupScreen() {
   const client = useApiClient();
   const { refresh } = useHousehold();
   const { user } = useUser();
+  const confirm = useConfirm();
   const [tab, setTab] = useState<'create' | 'join'>('create');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -33,7 +34,7 @@ export default function HouseholdSetupScreen() {
       await client.createHousehold(name.trim(), nickname.trim());
       await refresh();
     } catch (err) {
-      Alert.alert('Fel', err instanceof Error ? err.message : 'Kunde inte skapa hushåll');
+      confirm({ title: 'Fel', message: err instanceof Error ? err.message : 'Kunde inte skapa hushåll', buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -46,7 +47,7 @@ export default function HouseholdSetupScreen() {
       await client.joinHousehold(code.trim().toUpperCase(), nickname.trim());
       await refresh();
     } catch (err) {
-      Alert.alert('Fel', err instanceof Error ? err.message : 'Ogiltig eller utgången kod');
+      confirm({ title: 'Fel', message: err instanceof Error ? err.message : 'Ogiltig eller utgången kod', buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }

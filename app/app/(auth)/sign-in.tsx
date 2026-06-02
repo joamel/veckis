@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,11 +12,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useConfirm } from '../../src/context/ConfirmContext';
 
 export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
   const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
   const router = useRouter();
+  const confirm = useConfirm();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,7 +32,7 @@ export default function SignInScreen() {
       await setActive({ session: result.createdSessionId });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Inloggning misslyckades';
-      Alert.alert('Fel', msg);
+      confirm({ title: 'Fel', message: msg, buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -47,7 +48,7 @@ export default function SignInScreen() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Google-inloggning misslyckades';
-      Alert.alert('Fel', msg);
+      confirm({ title: 'Fel', message: msg, buttons: [{ label: 'OK' }] });
     }
   }
 

@@ -6,7 +6,6 @@ import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
   Animated,
-  Alert,
   Dimensions,
   GestureResponderEvent,
   Keyboard,
