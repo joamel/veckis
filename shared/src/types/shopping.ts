@@ -54,6 +54,9 @@ export interface Store {
   householdId: string;
   name: string;
   categoryOrder: StoreCategory[];
+  /** Subs (taxonomi-id:n) som visas som egna sektioner istället för att
+   *  samlas under sin parent. */
+  expandedSubs: string[];
   /** User-defined category labels for this store (appended after the default categories). */
   customCategories: string[];
 }

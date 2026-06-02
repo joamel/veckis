@@ -18,7 +18,7 @@ import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type Store } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type Store } from '@veckis/shared';
 
 export default function StoreDetailScreen() {
   const { storeId } = useLocalSearchParams<{ storeId: string }>();
@@ -34,6 +34,10 @@ export default function StoreDetailScreen() {
   // alla DEFAULT_CATEGORY_ORDER och visibleEnum.
   const [visibleEnum, setVisibleEnum] = useState<StoreCategory[]>([]);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
+  // Subs som hushållet brutit ut som egna sektioner under sin parent.
+  const [expandedSubs, setExpandedSubs] = useState<string[]>([]);
+  // UI-state: vilka parents användaren har "fällt ut" lokalt för att se sub-listan.
+  const [openParents, setOpenParents] = useState<Set<StoreCategory>>(new Set());
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -59,6 +63,7 @@ export default function StoreDetailScreen() {
           : [...DEFAULT_CATEGORY_ORDER];
         setVisibleEnum(order);
         setCustomCategories([...((found.customCategories as string[] | undefined) ?? [])]);
+        setExpandedSubs([...((found as { expandedSubs?: string[] }).expandedSubs ?? [])]);
         setDirty(false);
       }
     } catch (e) {
@@ -119,6 +124,21 @@ export default function StoreDetailScreen() {
     setCustomCategories(prev => prev.filter(c => c !== name));
     setDirty(true);
   }
+  function toggleSubExpanded(sub: string) {
+    setExpandedSubs(prev =>
+      prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub],
+    );
+    setDirty(true);
+  }
+  function toggleParentOpen(p: StoreCategory) {
+    setOpenParents(prev => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
+  }
+
   function addCustom() {
     const trimmed = newCustom.trim();
     if (!trimmed) return;
@@ -138,6 +158,7 @@ export default function StoreDetailScreen() {
       const updated = await client.updateStore(store.id, {
         categoryOrder: visibleEnum,
         customCategories,
+        expandedSubs,
       });
       setStore(updated);
       setDirty(false);
@@ -227,30 +248,67 @@ export default function StoreDetailScreen() {
           {visibleEnum.length === 0 ? (
             <Text style={s.emptyHint}>Alla standardkategorier är dolda — du måste välja minst en.</Text>
           ) : (
-            visibleEnum.map((cat, idx) => (
-              <View key={cat} style={s.catRow}>
-                <Text style={s.catName}>{CATEGORY_LABELS[cat] ?? cat}</Text>
-                <View style={{ flexDirection: 'row', gap: 6 }}>
-                  <Pressable
-                    style={[s.catBtn, idx === 0 && { opacity: 0.3 }]}
-                    disabled={idx === 0}
-                    onPress={() => moveEnumUp(idx)}
-                  >
-                    <Ionicons name="chevron-up" size={18} color="#4f46e5" />
-                  </Pressable>
-                  <Pressable
-                    style={[s.catBtn, idx === visibleEnum.length - 1 && { opacity: 0.3 }]}
-                    disabled={idx === visibleEnum.length - 1}
-                    onPress={() => moveEnumDown(idx)}
-                  >
-                    <Ionicons name="chevron-down" size={18} color="#4f46e5" />
-                  </Pressable>
-                  <Pressable style={s.catBtnDanger} onPress={() => hideEnum(cat)}>
-                    <Ionicons name="eye-off-outline" size={16} color="#ef4444" />
-                  </Pressable>
+            visibleEnum.map((cat, idx) => {
+              const subs = subsForParent(cat);
+              const isOpen = openParents.has(cat);
+              const expandedHere = subs.filter(s => expandedSubs.includes(s)).length;
+              return (
+                <View key={cat}>
+                  <View style={s.catRow}>
+                    <Pressable
+                      onPress={() => toggleParentOpen(cat)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
+                      hitSlop={6}
+                    >
+                      <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color="#6b7280" />
+                      <Text style={s.catName}>{CATEGORY_LABELS[cat] ?? cat}</Text>
+                      {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
+                    </Pressable>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <Pressable
+                        style={[s.catBtn, idx === 0 && { opacity: 0.3 }]}
+                        disabled={idx === 0}
+                        onPress={() => moveEnumUp(idx)}
+                      >
+                        <Ionicons name="chevron-up" size={18} color="#4f46e5" />
+                      </Pressable>
+                      <Pressable
+                        style={[s.catBtn, idx === visibleEnum.length - 1 && { opacity: 0.3 }]}
+                        disabled={idx === visibleEnum.length - 1}
+                        onPress={() => moveEnumDown(idx)}
+                      >
+                        <Ionicons name="chevron-down" size={18} color="#4f46e5" />
+                      </Pressable>
+                      <Pressable style={s.catBtnDanger} onPress={() => hideEnum(cat)}>
+                        <Ionicons name="eye-off-outline" size={16} color="#ef4444" />
+                      </Pressable>
+                    </View>
+                  </View>
+                  {isOpen && subs.length > 0 && (
+                    <View style={s.subList}>
+                      <Text style={s.subListHint}>
+                        Slå på sub-kategorier som du vill se som egna sektioner i listan. Övriga samlas under {CATEGORY_LABELS[cat]}.
+                      </Text>
+                      {subs.map(sub => {
+                        const active = expandedSubs.includes(sub);
+                        return (
+                          <Pressable
+                            key={sub}
+                            style={s.subRow}
+                            onPress={() => toggleSubExpanded(sub)}
+                          >
+                            <Text style={[s.subName, active && s.subNameActive]}>{SUB_TAXONOMY[sub].label}</Text>
+                            <View style={[s.subToggle, active && s.subToggleActive]}>
+                              {active && <Ionicons name="checkmark" size={14} color="#fff" />}
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
 
@@ -363,6 +421,14 @@ const s = StyleSheet.create({
   catNameMuted: { color: '#9ca3af' },
   catBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#eef2ff' },
   catBtnDanger: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fef2f2' },
+  expandedBadge: { fontSize: 11, fontWeight: '700', color: '#7c3aed', backgroundColor: '#ede9fe', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  subList: { paddingLeft: 24, paddingRight: 14, paddingVertical: 8, backgroundColor: '#f9fafb', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  subListHint: { fontSize: 12, color: '#9ca3af', marginBottom: 8, lineHeight: 17 },
+  subRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
+  subName: { fontSize: 14, color: '#374151' },
+  subNameActive: { color: '#7c3aed', fontWeight: '600' },
+  subToggle: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  subToggleActive: { borderColor: '#7c3aed', backgroundColor: '#7c3aed' },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   addInput: { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: '#111827', backgroundColor: '#fff' },
   addBtn: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#4f46e5' },

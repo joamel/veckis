@@ -60,6 +60,10 @@ model Store {
   name              String
   categoryOrder     StoreCategory[]
   customCategories  String[]      @default([])
+  // Subs som hushållet brutit ut som egna sektioner under sin parent.
+  // Övriga items grupperas under parent som idag. Strängar refererar till
+  // SubCategory-värden i shared/lib/taxonomy.ts.
+  expandedSubs      String[]      @default([])
   createdAt         DateTime      @default(now())
 
   household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)

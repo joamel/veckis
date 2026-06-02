@@ -1037,7 +1037,8 @@ export default function ShoppingListScreen() {
   const checked = list.items.filter(i => i.isChecked);
   const allItems = [...unchecked, ...checked];
   const customCategories: string[] = (list?.store?.customCategories as string[] | undefined) ?? [];
-  const categoryGroups = buildCategoryGroups(unchecked, categoryOrder, customCategories);
+  const expandedSubs: string[] = (list?.store?.expandedSubs as string[] | undefined) ?? [];
+  const categoryGroups = buildCategoryGroups(unchecked, categoryOrder, customCategories, expandedSubs);
 
   return (
     <View style={s.container}>
@@ -1081,11 +1082,13 @@ export default function ShoppingListScreen() {
 
         {/* Category groups */}
         {categoryGroups.map(group => {
-          const key = group.isCustom ? `c:${group.category}` : group.category as string;
+          const key = group.isCustom ? `c:${group.category}` : group.isSub ? `s:${group.category}` : group.category as string;
           const collapsed = collapsedCategories.has(key as StoreCategory | 'checked');
           const label = group.isCustom
             ? `🏷️ ${group.category}`
-            : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+            : group.isSub
+              ? `↳ ${group.label ?? group.category}`
+              : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
           return (
             <View key={key} style={s.categoryGroup}>
               <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed(key as StoreCategory | 'checked')} hitSlop={4}>
@@ -1885,25 +1888,47 @@ export default function ShoppingListScreen() {
   );
 }
 
-type CategoryGroup = { category: StoreCategory | string; isCustom: boolean; items: ShoppingItemWithRecipe[] };
+type CategoryGroup = {
+  /** Antingen en StoreCategory (parent), en custom-string ELLER en SubCategory
+   *  som hushållet har "expanderat" till egen sektion. */
+  category: StoreCategory | string;
+  isCustom: boolean;
+  /** Sant när gruppen är en sub som brutits ut. */
+  isSub?: boolean;
+  /** Label att visa i UI:t. */
+  label?: string;
+  items: ShoppingItemWithRecipe[];
+};
 
 function buildCategoryGroups(
   items: ShoppingItemWithRecipe[],
   order: StoreCategory[],
   customCategories: string[] = [],
+  expandedSubs: string[] = [],
 ): CategoryGroup[] {
-  // Items with customCategory go under that key; others under their enum category.
+  const expandedSet = new Set(expandedSubs);
+  // Items grupperas i tre buckets:
+  //  - customMap (customCategory-strängar — legacy)
+  //  - subMap (subCategory ∈ expandedSubs → egen sektion)
+  //  - enumMap (allt annat → samlas under parent)
   const enumMap = new Map<StoreCategory, ShoppingItemWithRecipe[]>();
   const customMap = new Map<string, ShoppingItemWithRecipe[]>();
+  const subMap = new Map<string, ShoppingItemWithRecipe[]>();
   for (const item of items) {
     if (item.customCategory) {
       if (!customMap.has(item.customCategory)) customMap.set(item.customCategory, []);
       customMap.get(item.customCategory)!.push(item);
-    } else {
-      const cat = item.category as StoreCategory;
-      if (!enumMap.has(cat)) enumMap.set(cat, []);
-      enumMap.get(cat)!.push(item);
+      continue;
     }
+    const sub = (item as { subCategory?: string | null }).subCategory ?? null;
+    if (sub && expandedSet.has(sub)) {
+      if (!subMap.has(sub)) subMap.set(sub, []);
+      subMap.get(sub)!.push(item);
+      continue;
+    }
+    const cat = item.category as StoreCategory;
+    if (!enumMap.has(cat)) enumMap.set(cat, []);
+    enumMap.get(cat)!.push(item);
   }
   const orderedEnum = [...order.filter(c => enumMap.has(c))];
   for (const cat of enumMap.keys()) {
@@ -1917,10 +1942,31 @@ function buildCategoryGroups(
     if (a.isChecked !== b.isChecked) return a.isChecked ? 1 : -1;
     return a.name.localeCompare(b.name, 'sv');
   });
-  return [
-    ...orderedEnum.map(cat => ({ category: cat, isCustom: false, items: sortItems(enumMap.get(cat)!) })),
-    ...orderedCustom.map(cat => ({ category: cat, isCustom: true, items: sortItems(customMap.get(cat)!) })),
-  ];
+
+  // Bygg slutgiltig lista. Sub-grupper läggs DIREKT EFTER sin parent så de
+  // hänger ihop visuellt i butikens ordning.
+  const result: CategoryGroup[] = [];
+  for (const parent of orderedEnum) {
+    result.push({ category: parent, isCustom: false, items: sortItems(enumMap.get(parent)!) });
+    for (const [sub, subItems] of subMap.entries()) {
+      const subInfo = SUB_TAXONOMY[sub as SubCategory];
+      if (subInfo && subInfo.defaultParent === parent) {
+        result.push({ category: sub, isCustom: false, isSub: true, label: subInfo.label, items: sortItems(subItems) });
+      }
+    }
+  }
+  // Sub-grupper vars parent inte fanns i orderedEnum (ovanligt) — append sist.
+  for (const [sub, subItems] of subMap.entries()) {
+    const subInfo = SUB_TAXONOMY[sub as SubCategory];
+    if (!subInfo) continue;
+    if (orderedEnum.includes(subInfo.defaultParent)) continue;
+    result.push({ category: sub, isCustom: false, isSub: true, label: subInfo.label, items: sortItems(subItems) });
+  }
+  // Custom-grupper sist
+  for (const cat of orderedCustom) {
+    result.push({ category: cat, isCustom: true, items: sortItems(customMap.get(cat)!) });
+  }
+  return result;
 }
 
 function ItemRow({ item, onToggle, onEdit, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; pending?: boolean }) {
