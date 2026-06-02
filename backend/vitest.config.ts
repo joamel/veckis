@@ -7,9 +7,7 @@ export default defineConfig({
     // läcker state till varandra. Pure helpers utan DB-beroende fungerar
     // fortfarande utan setup (setup:n laddar bara prisma vid behov).
     setupFiles: ['./src/test/setup.ts'],
-    // En vitest-worker → en delad DB-connection. Annars konkurrerar parallella
-    // tester om samma tabeller och resetar för varandra.
-    pool: 'forks',
-    poolOptions: { forks: { singleFork: true } },
+    // En vitest-worker så test-filer inte konkurrerar om samma tabeller.
+    fileParallelism: false,
   },
 });
