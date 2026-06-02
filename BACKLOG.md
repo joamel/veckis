@@ -148,8 +148,8 @@
 - [x] Kanske det krävs att en vara blivit tillagd mer än 1 gång för att återfinnas i söket. Ett sätt för en felstavad eller inskriven basvara av misstag att inte komma med i söket (staple-söket kräver usageCount >= 2; kurerade ingrediensförslag täcker ändå vanliga namn)
 - [x] Inköpsfliken rendar inte om när man tar bort en maträtt från menyn utan att man byter flik eller uppdaterar sidan
 - [x] Dubbletter: Enhetsfältet skymt när man klickar i enhet (vid fokus mäts mängd/enhet-radens position mot tangentbordets topp och listan scrollas exakt så raden hamnar precis ovanför tangentbordet; ihopslagnings-knapparna (utanför scrollytan) göms medan tangentbordet är uppe så de inte flyter ovanför det och äter höjd)
-- [ ] "Jag handlar"-läge: markera att du handlar en lista just nu så andra hushållsmedlemmar ser att den är på gång (presence-markör i realtid) — undviker dubbelköp och dubbla turer till affären
-- [ ] Butiker borde se ut som recept-vyn, med sök och sortera
+- [x] "Jag handlar"-läge: ny ShoppingList.activeShopperMemberId + activeShopperSince. PATCH /shopping/lists/:id/shopper claim:ar/släpper. Broadcasts på både list- och hushållskanalen så list-detalj och översikt uppdaterar i realtid. 3-prickar-menyn växlar status + lila banner i list-headern + "X handlar"-pill på översiktskorten. Auto-rensar när listan rensas.
+- [x] Butiker som recept-vyn: ny /stores route med sök, sortera (A-Ö/tilläggsordning), kortvy + FAB. Långtryck/penn-knapp för byt namn + ta bort. Tap → kategori-editor i bottom-sheet. Knappen "Butiker" i inköpsfliken navigerar dit.
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd

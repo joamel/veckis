@@ -30,6 +30,7 @@ import RNAnimated, {
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { pickStore } from '../../src/lib/storePicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/clerk-expo';
@@ -90,6 +91,13 @@ export default function ShoppingListScreen() {
   const [stores, setStores] = useState<Store[]>([]);
   const [staples, setStaples] = useState<StapleItem[]>([]);
   const [ingredientSuggestions, setIngredientSuggestions] = useState<{ name: string; category: string }[]>([]);
+  // Hushållsmedlemmar för "Jag handlar"-presence-indikatorn (vem är aktiv?).
+  const { userId: clerkUserId } = useAuth();
+  const [members, setMembers] = useState<Array<{ id: string; displayName: string; clerkUserId: string | null }>>([]);
+  const myMember = members.find(m => m.clerkUserId === clerkUserId) ?? null;
+  const activeShopper = list?.activeShopperMemberId ? members.find(m => m.id === list.activeShopperMemberId) ?? null : null;
+  const iAmShopping = !!myMember && list?.activeShopperMemberId === myMember.id;
+  const [togglingShopper, setTogglingShopper] = useState(false);
 
   // Quick-add quantity sheet (chip tap)
   const [qtySheet, setQtySheet] = useState<{ name: string; category?: StoreCategory } | null>(null);
@@ -285,11 +293,34 @@ export default function ShoppingListScreen() {
           return { ...prev, items: prev.items.filter(i => i.id !== msg.data.id) };
         case 'list_cleared':
           return { ...prev, items: [] };
+        case 'shopping_presence':
+          return {
+            ...prev,
+            activeShopperMemberId: msg.data.memberId,
+            activeShopperSince: msg.data.since,
+          };
         default:
           return prev;
       }
     });
   });
+
+  async function toggleIAmShopping() {
+    if (!list || !myMember || togglingShopper) return;
+    setTogglingShopper(true);
+    const next = iAmShopping ? null : myMember.id;
+    // Optimistisk uppdatering — backend broadcastar tillbaka när det landat.
+    setList(prev => prev ? { ...prev, activeShopperMemberId: next, activeShopperSince: next ? new Date().toISOString() : null } : prev);
+    try {
+      await client.setListShopper(list.id, next);
+    } catch (e) {
+      // Rulla tillbaka
+      setList(prev => prev ? { ...prev, activeShopperMemberId: list.activeShopperMemberId, activeShopperSince: list.activeShopperSince } : prev);
+      showError(e, 'Kunde inte ändra "Jag handlar"-status');
+    } finally {
+      setTogglingShopper(false);
+    }
+  }
 
   const openMergeForDupes = useCallback((
     dupes: ShoppingItemWithRecipe[],
@@ -435,16 +466,18 @@ export default function ShoppingListScreen() {
   const load = useCallback(async () => {
     if (!listId || !householdId) return;
     try {
-      const [data, storeList, stapleList, suggestions] = await Promise.all([
+      const [data, storeList, stapleList, suggestions, household] = await Promise.all([
         client.getShoppingList(listId),
         client.getStores(householdId),
         client.getStaples(householdId),
         client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
+        client.getHousehold(householdId).catch(() => null),
       ]);
       setList(data);
       setStores(storeList);
       setStaples(stapleList);
       setIngredientSuggestions(suggestions);
+      if (household) setMembers(household.members);
     } catch {
       confirm({ title: 'Fel', message: 'Kunde inte ladda listan', buttons: [{ label: 'OK' }] });
     } finally {
@@ -905,6 +938,16 @@ export default function ShoppingListScreen() {
     }
   }
 
+  // Öppna /stores i pick-läge och vänta på resultat.
+  async function openStorePicker() {
+    const promise = pickStore();
+    router.push('/stores?pick=1' as never);
+    const result = await promise;
+    if (result === 'cancelled') return;
+    // null = "Ingen butik" (rensa); string = vald butik
+    await selectStore(result);
+  }
+
   async function createStore() {
     if (!householdId || !newStoreName.trim()) return;
     setCreatingStore(true);
@@ -1002,7 +1045,7 @@ export default function ShoppingListScreen() {
         {/* Butik + dubblettknapp som första scrollbara rad — försvinner upp
             tillsammans med kategorierna när användaren scrollar. */}
         <View style={s.scrollMeta}>
-          <Pressable onPress={() => setShowStorePicker(true)} style={s.storeBtn}>
+          <Pressable onPress={openStorePicker} style={s.storeBtn}>
             <Ionicons name="storefront-outline" size={16} color="#4f46e5" />
             <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
           </Pressable>
@@ -1107,6 +1150,17 @@ export default function ShoppingListScreen() {
         </View>
       )}
 
+      {/* "Jag handlar"-presence-banner — synlig när någon (inkl. mig själv)
+          aktivt handlar listan. Förhindrar dubbla turer till affären. */}
+      {list.activeShopperMemberId && activeShopper && (
+        <View style={[s.shopperBanner, { top: HEADER_TOP + NAVBAR_HEIGHT + 4 }]} pointerEvents="none">
+          <Ionicons name="walk" size={14} color="#7c3aed" />
+          <Text style={s.shopperBannerText}>
+            {iAmShopping ? 'Du handlar nu' : `${activeShopper.displayName} handlar nu`}
+          </Text>
+        </View>
+      )}
+
       {/* Navbar buttons — rendered last so they always sit on top */}
       <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
         <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Tillbaka">
@@ -1184,57 +1238,8 @@ export default function ShoppingListScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Store picker modal */}
-      <Modal visible={showStorePicker} transparent animationType="slide" onRequestClose={() => setShowStorePicker(false)}>
-        <Pressable style={s.overlay} onPress={() => setShowStorePicker(false)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Välj butik</Text>
-
-          <Pressable style={[s.storeOption, !list.storeId && s.storeOptionActive]} onPress={() => selectStore(null)}>
-            <Ionicons name="close-circle-outline" size={20} color="#6b7280" />
-            <Text style={s.storeOptionText}>Utan butik</Text>
-            {!list.storeId && <Ionicons name="checkmark" size={18} color="#4f46e5" />}
-          </Pressable>
-
-          {stores.map(store => (
-            <View key={store.id} style={s.storeRow}>
-              <Pressable
-                style={[s.storeOption, s.storeOptionFlex, list.storeId === store.id && s.storeOptionActive]}
-                onPress={() => selectStore(store.id)}
-                onLongPress={() => { setShowStorePicker(false); openCategoryEditor(store); }}
-                delayLongPress={350}
-              >
-                <Ionicons name="storefront-outline" size={20} color="#4f46e5" />
-                <Text style={[s.storeOptionText, { flex: 1 }]}>{store.name}</Text>
-                {list.storeId === store.id && <Ionicons name="checkmark" size={18} color="#4f46e5" />}
-              </Pressable>
-              <Pressable style={s.editStoreBtn} onPress={() => { setShowStorePicker(false); openCategoryEditor(store); }}>
-                <Ionicons name="options-outline" size={18} color="#6b7280" />
-              </Pressable>
-            </View>
-          ))}
-
-          <View style={s.newStoreRow}>
-            <TextInput
-              style={[s.addInput, { flex: 1 }]}
-              placeholder="Ny butik..."
-              placeholderTextColor="#9ca3af"
-              value={newStoreName}
-              onChangeText={setNewStoreName}
-              returnKeyType="done"
-              onSubmitEditing={createStore}
-            />
-            <Pressable
-              style={[s.addBtn, (!newStoreName.trim() || creatingStore) && s.addBtnDisabled]}
-              onPress={createStore}
-              disabled={creatingStore || !newStoreName.trim()}
-            >
-              {creatingStore ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="add" size={22} color="#fff" />}
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      {/* Butik-väljaren ligger nu på /stores-routen (full-screen) — caller:n
+          använder pickStore()-helpern och navigerar dit i ?pick=1-läge. */}
 
       {/* Category browser modal */}
       <Modal visible={showBrowser} transparent animationType="slide" onRequestClose={() => setShowBrowser(false)}>
@@ -1762,6 +1767,20 @@ export default function ShoppingListScreen() {
         <View style={s.actionsMenu}>
           <Pressable
             style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); toggleIAmShopping(); }}
+            disabled={togglingShopper || (!iAmShopping && !!list.activeShopperMemberId)}
+          >
+            <Ionicons name={iAmShopping ? 'pause-circle-outline' : 'walk-outline'} size={20} color="#7c3aed" />
+            <Text style={s.actionsMenuText}>
+              {iAmShopping
+                ? 'Sluta handla'
+                : list.activeShopperMemberId
+                  ? `${activeShopper?.displayName ?? 'Någon'} handlar nu`
+                  : 'Jag handlar nu'}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); setRenameValue(list.name); setShowRenameModal(true); }}
           >
             <Ionicons name="create-outline" size={20} color="#4f46e5" />
@@ -1769,7 +1788,7 @@ export default function ShoppingListScreen() {
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); setShowStorePicker(true); }}
+            onPress={() => { setShowActionsMenu(false); openStorePicker(); }}
           >
             <Ionicons name="storefront-outline" size={20} color="#4f46e5" />
             <Text style={s.actionsMenuText}>{list.store?.name ? `Butik: ${list.store.name}` : 'Välj butik'}</Text>
@@ -1979,6 +1998,8 @@ const s = StyleSheet.create({
   storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   storeBtnText: { fontSize: 16, color: '#4f46e5', fontWeight: '600' },
   progressBar: { height: 3, backgroundColor: '#e5e7eb' },
+  shopperBanner: { position: 'absolute', left: 16, right: 16, zIndex: 36, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ede9fe', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'center' },
+  shopperBannerText: { fontSize: 12, color: '#5b21b6', fontWeight: '600' },
   progressFill: { height: 3, backgroundColor: '#10b981' },
   list: { padding: 16, gap: 16, paddingBottom: 8 },
   listEmpty: { flex: 1 },

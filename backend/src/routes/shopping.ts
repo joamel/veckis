@@ -168,6 +168,51 @@ shoppingRouter.delete('/lists/:listId', requireAuth, asyncHandler(async (req, re
   res.status(204).send();
 }));
 
+// PATCH /api/shopping/lists/:listId/shopper — sätt eller rensa "jag handlar"-
+// presence på listan. Body: { memberId: string | null }. Broadcastas till
+// hushållet så alla enheter ser uppdateringen direkt.
+shoppingRouter.patch('/lists/:listId/shopper', requireAuth, asyncHandler(async (req, res) => {
+  const list = await getListAndVerifyMember(req.params.listId, (req as AuthenticatedRequest).clerkUserId, res);
+  if (!list) return;
+
+  const body = z.object({ memberId: z.string().nullable() }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  // Validera att memberId tillhör hushållet (om satt).
+  if (body.data.memberId) {
+    const member = await prisma.householdMember.findUnique({ where: { id: body.data.memberId } });
+    if (!member || member.householdId !== list.householdId) {
+      res.status(400).json({ error: 'Member not in this household' });
+      return;
+    }
+  }
+
+  const updated = await prisma.shoppingList.update({
+    where: { id: list.id },
+    data: {
+      activeShopperMemberId: body.data.memberId,
+      activeShopperSince: body.data.memberId ? new Date() : null,
+    },
+  });
+  const payload = {
+    type: 'shopping_presence',
+    data: {
+      listId: updated.id,
+      memberId: updated.activeShopperMemberId,
+      since: updated.activeShopperSince?.toISOString() ?? null,
+    },
+  };
+  // Broadcasta till båda kanalerna: hushållet (för list-översikten) + den
+  // specifika listan (för list-detalj-sidan som är ansluten till list-WS).
+  wsBroadcast(`household:${updated.householdId}`, payload);
+  bcast(updated, payload);
+  res.json({
+    listId: updated.id,
+    memberId: updated.activeShopperMemberId,
+    since: updated.activeShopperSince,
+  });
+}));
+
 // PATCH /api/shopping/lists/:listId
 shoppingRouter.patch('/lists/:listId', requireAuth, asyncHandler(async (req, res) => {
   const list = await getListAndVerifyMember(req.params.listId, (req as AuthenticatedRequest).clerkUserId, res);
@@ -179,10 +224,20 @@ shoppingRouter.patch('/lists/:listId', requireAuth, asyncHandler(async (req, res
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const updated = await prisma.shoppingList.update({
+  await prisma.shoppingList.update({ where: { id: list.id }, data: body.data });
+  // Hämta tillbaka med SAMMA filter som GET (mergedIntoId: null) så
+  // hopslagna sub-items inte dyker upp som "duplicates" i frontend när
+  // användaren byter butik/namn.
+  const updated = await prisma.shoppingList.findUnique({
     where: { id: list.id },
-    data: body.data,
-    include: { items: { include: { recipe: { select: { id: true, title: true } } } }, store: true },
+    include: {
+      items: {
+        where: { mergedIntoId: null },
+        orderBy: [{ isChecked: 'asc' }, { category: 'asc' }, { name: 'asc' }],
+        include: { recipe: { select: { id: true, title: true } } },
+      },
+      store: true,
+    },
   });
   res.json(updated);
 }));
@@ -248,6 +303,20 @@ shoppingRouter.delete('/lists/:listId/items', requireAuth, asyncHandler(async (r
   const list = await getListAndVerifyMember(req.params.listId, clerkUserId, res);
   if (!list) return;
   await prisma.shoppingItem.deleteMany({ where: { listId: list.id } });
+  // Rensa "jag handlar"-presence när listan töms (annars hänger den kvar
+  // visuellt fast inget finns att handla).
+  if (list.activeShopperMemberId) {
+    await prisma.shoppingList.update({
+      where: { id: list.id },
+      data: { activeShopperMemberId: null, activeShopperSince: null },
+    });
+    const clearPayload = {
+      type: 'shopping_presence',
+      data: { listId: list.id, memberId: null, since: null },
+    };
+    wsBroadcast(`household:${list.householdId}`, clearPayload);
+    bcast(list, clearPayload);
+  }
   bcast(list, { type: 'list_cleared' });
   res.status(204).send();
 

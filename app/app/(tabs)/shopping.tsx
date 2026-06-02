@@ -23,6 +23,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
+import { pickStore } from '../../src/lib/storePicker';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { useHaptics } from '../../src/hooks/useHaptics';
@@ -57,18 +58,22 @@ export default function ShoppingScreen() {
   // Stores administreras numera på /stores-routen — vi hämtar bara listan här
   // för att kunna visa butik-koppling i "ny lista"-formuläret.
   const [stores, setStores] = useState<Store[]>([]);
+  // Hushållsmedlemmar för "X handlar nu"-indikatorn på list-korten.
+  const [members, setMembers] = useState<Array<{ id: string; displayName: string }>>([]);
 
   const [editMode, setEditMode] = useState(false);
 
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
-      const [data, storeList] = await Promise.all([
+      const [data, storeList, household] = await Promise.all([
         client.getShoppingLists(householdId),
         client.getStores(householdId),
+        client.getHousehold(householdId).catch(() => null),
       ]);
       setLists(data);
       setStores(storeList);
+      if (household) setMembers(household.members);
     } catch {
       confirm({ title: 'Fel', message: 'Kunde inte ladda inköpslistor', buttons: [{ label: 'OK' }] });
     } finally {
@@ -106,6 +111,11 @@ export default function ShoppingScreen() {
     if (msg.type === 'shopping_list_updated') {
       if (reloadTimer.current) clearTimeout(reloadTimer.current);
       reloadTimer.current = setTimeout(() => load(), 350);
+    } else if (msg.type === 'shopping_presence') {
+      // Uppdatera bara presence-fältet på rätt lista (inget reload-behov).
+      setLists(prev => prev.map(l => l.id === msg.data.listId
+        ? { ...l, activeShopperMemberId: msg.data.memberId, activeShopperSince: msg.data.since }
+        : l));
     }
   });
 
@@ -193,6 +203,7 @@ export default function ShoppingScreen() {
         renderItem={({ item }) => {
           const unchecked = item.items.filter(i => !i.isChecked).length;
           const total = item.items.length;
+          const shopper = item.activeShopperMemberId ? members.find(m => m.id === item.activeShopperMemberId) : null;
           return (
             <View style={styles.cardWrap}>
               <Pressable
@@ -204,7 +215,15 @@ export default function ShoppingScreen() {
                   <Ionicons name="cart-outline" size={fs(20)} color="#4f46e5" />
                 </View>
                 <View style={styles.cardContent}>
-                  <Text style={[styles.cardTitle, { fontSize: fs(16) }]}>{item.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Text style={[styles.cardTitle, { fontSize: fs(16) }]}>{item.name}</Text>
+                    {shopper && (
+                      <View style={styles.shopperPill}>
+                        <Ionicons name="walk" size={11} color="#7c3aed" />
+                        <Text style={styles.shopperPillText}>{shopper.displayName} handlar</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={[styles.cardMeta, { fontSize: fs(13) }]}>
                     {item.store ? `${item.store.name} · ` : ''}
                     {total === 0 ? 'Tom' : unchecked === 0 ? 'Allt bockat' : `${unchecked} av ${total} kvar`}
@@ -254,24 +273,25 @@ export default function ShoppingScreen() {
               returnKeyType="done"
               onSubmitEditing={createList}
             />
-            {stores.length > 0 && (
-              <>
-                <Text style={styles.pickStoreLabel}>Butik (valfritt)</Text>
-                <View style={styles.storeChips}>
-                  {stores.map(store => (
-                    <Pressable
-                      key={store.id}
-                      style={[styles.storeChip, newListStoreId === store.id && styles.storeChipActive]}
-                      onPress={() => setNewListStoreId(prev => prev === store.id ? null : store.id)}
-                    >
-                      <Text style={[styles.storeChipText, newListStoreId === store.id && styles.storeChipTextActive]}>
-                        {store.name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </>
-            )}
+            <Text style={styles.pickStoreLabel}>Butik (valfritt)</Text>
+            <Pressable
+              style={styles.storePickBtn}
+              onPress={async () => {
+                const promise = pickStore();
+                router.push('/stores?pick=1' as never);
+                const result = await promise;
+                if (result === 'cancelled') return;
+                setNewListStoreId(result);
+              }}
+            >
+              <Ionicons name="storefront-outline" size={18} color="#4f46e5" />
+              <Text style={styles.storePickBtnText}>
+                {newListStoreId
+                  ? stores.find(s => s.id === newListStoreId)?.name ?? 'Vald butik'
+                  : 'Välj butik…'}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+            </Pressable>
             <Pressable
               style={[styles.button, !newListName.trim() && styles.buttonDisabled]}
               onPress={createList}
@@ -321,6 +341,8 @@ const styles = StyleSheet.create({
   cardContent: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
   cardMeta: { fontSize: 13, color: '#6b7280', marginTop: 2 },
+  shopperPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ede9fe', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  shopperPillText: { fontSize: 11, color: '#5b21b6', fontWeight: '600' },
   fab: {
     position: 'absolute',
     right: 20,
@@ -379,11 +401,8 @@ const styles = StyleSheet.create({
   catRowLabel: { flex: 1, fontSize: 15, color: '#374151' },
   catArrow: { padding: 6 },
   pickStoreLabel: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: -6 },
-  storeChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  storeChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  storeChipActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
-  storeChipText: { fontSize: 14, color: '#6b7280' },
-  storeChipTextActive: { color: '#4f46e5', fontWeight: '600' },
+  storePickBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  storePickBtnText: { flex: 1, fontSize: 15, color: '#374151', fontWeight: '500' },
   cardWrap: { position: 'relative' },
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#111827', borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },

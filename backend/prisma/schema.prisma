@@ -75,6 +75,12 @@ model ShoppingList {
   createdBy   String
   createdAt   DateTime  @default(now())
   completedAt DateTime?
+  // "Jag handlar"-presence: vem som aktivt handlar listan just nu. Sätts av
+  // användaren själv via PATCH /shopping-lists/:id/shopper och rensas
+  // manuellt eller automatiskt vid clear/complete. Andra hushållsmedlemmar
+  // ser en markör så ingen råkar göra dubbla turer till affären.
+  activeShopperMemberId String?
+  activeShopperSince    DateTime?
 
   household Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
   store     Store?        @relation(fields: [storeId], references: [id], onDelete: SetNull)

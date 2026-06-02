@@ -20,6 +20,11 @@ export interface ShoppingList {
   createdBy: string;
   createdAt: string;
   completedAt: string | null;
+  /** Vem som aktivt handlar listan just nu ("Jag handlar"-läge). null när
+   *  ingen markerat sig. Andra hushållsmedlemmar ser indikatorn så ingen gör
+   *  dubbla turer till affären. */
+  activeShopperMemberId: string | null;
+  activeShopperSince: string | null;
 }
 
 export interface ShoppingItem {
