@@ -9,7 +9,7 @@
 // - API-requests (api/, /trpc/, /ws/) → network-only. Vi cachar aldrig data.
 //
 // När du ändrar i denna fil — bumpa CACHE_VERSION så gamla cacheen rensas.
-const CACHE_VERSION = 'veckis-v1';
+const CACHE_VERSION = 'veckis-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 
@@ -60,8 +60,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigations-request (HTML): network-first.
-  if (req.mode === 'navigate') {
+  // Navigations-request (HTML): network-first. Detekterar via mode === 'navigate'
+  // *eller* Accept-header som börjar med text/html — prefetch + speculation-
+  // load skickar inte alltid mode='navigate' men frågar fortfarande efter HTML,
+  // och vi vill inte hamna i cacheFirst för en HTML-route som inte finns som
+  // statisk fil (t.ex. /sign-in som är client-side route).
+  const accept = req.headers.get('accept') || '';
+  if (req.mode === 'navigate' || accept.includes('text/html')) {
     event.respondWith(networkFirst(req));
     return;
   }
@@ -91,7 +96,14 @@ async function cacheFirst(req) {
   const cache = await caches.open(STATIC_CACHE);
   const cached = await cache.match(req);
   if (cached) return cached;
-  const fresh = await fetch(req);
-  if (fresh.ok) cache.put(req, fresh.clone());
-  return fresh;
+  try {
+    const fresh = await fetch(req);
+    if (fresh.ok) cache.put(req, fresh.clone());
+    return fresh;
+  } catch (_err) {
+    // Nät nere och inget i cache — släng tillbaka en harmlös 504 istället
+    // för att kasta ett rejected promise (som loggar "Failed to fetch" i
+    // konsolen utan att vi kan fånga det).
+    return new Response('', { status: 504, statusText: 'Network error' });
+  }
 }
