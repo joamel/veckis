@@ -27,7 +27,7 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useOnboardingMaster, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { TIP_FLAGS } from '../../src/lib/onboardingTips';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '../../src/lib/secureStorage';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { NotificationsModal } from '../../src/components/NotificationsModal';
 import type { InviteCode } from '@veckis/shared';

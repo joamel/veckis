@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '../lib/secureStorage';
 
 /**
  * Persisted "have we shown this tip yet?" flag. Returns `seen: null` while the
