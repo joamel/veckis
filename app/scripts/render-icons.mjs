@@ -14,6 +14,13 @@ const renders = [
   { src: 'adaptive-icon.svg', out: 'adaptive-icon.png', size: 1024 },
   { src: 'splash-icon.svg',   out: 'splash-icon.png',   size: 1024 },
   { src: 'icon.svg',          out: 'favicon.png',       size: 48   },
+  // PWA-ikoner — manifest.json refererar 192 + 512. apple-touch (180) krävs
+  // för iOS Safari "Add to Home Screen". Maskable-flaggan på manifest gör
+  // att 512:an också används som Android adaptive när installerad.
+  { src: 'icon.svg',          out: '../public/icon-192.png',         size: 192 },
+  { src: 'icon.svg',          out: '../public/icon-512.png',         size: 512 },
+  { src: 'icon.svg',          out: '../public/apple-touch-icon.png', size: 180 },
+  { src: 'icon.svg',          out: '../public/favicon.png',          size: 48  },
 ];
 
 for (const r of renders) {

@@ -24,3 +24,32 @@ services:
         sync: false
       - key: CORS_ORIGIN
         value: "*"
+
+  # PWA-frontend som statisk site. Build kör expo export --platform web och
+  # publicerar dist/. SPA-rewrite gör att direct-URL till en route som inte
+  # genererats (t.ex. /shopping/<id>) faller tillbaka till index.html, som
+  # klient-side router sen läser path från.
+  - type: web
+    name: veckis-web
+    env: static
+    region: frankfurt
+    rootDir: app
+    buildCommand: npm install && npm run build:web
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /sw.js
+        name: Service-Worker-Allowed
+        value: /
+      - path: /sw.js
+        name: Cache-Control
+        value: "public, max-age=0, must-revalidate"
+      - path: /manifest.json
+        name: Cache-Control
+        value: "public, max-age=3600"
+      - path: /_expo/static/*
+        name: Cache-Control
+        value: "public, max-age=31536000, immutable"
