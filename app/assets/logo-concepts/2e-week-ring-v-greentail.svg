@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 2e: Veckoringen kvar. V:et i mitten är ett SYMMETRISKT V i full
+     lila (#7c3aed), och från högra spetsen fortsätter rörelsen i en kort
+     grön tail (#10b981) uppåt-höger — den extra delen som gör formen till
+     en checkmark. V = bokstaven, tail = "klart". Båda fetare stroke (88)
+     än tidigare för att balansera mot den feta ringen. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg2e" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5f3ff"/>
+      <stop offset="100%" stop-color="#ede9fe"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg2e)"/>
+
+  <!-- 7 ring-segment — original indigo→lila. -->
+  <g fill="none" stroke-width="96" stroke-linecap="butt">
+    <circle cx="512" cy="512" r="320" stroke="#4f46e5"
+            stroke-dasharray="195 1815" stroke-dashoffset="0"
+            transform="rotate(-90 512 512)"/>
+    <circle cx="512" cy="512" r="320" stroke="#5d4ee6"
+            stroke-dasharray="195 1815" stroke-dashoffset="-204"
+            transform="rotate(-90 512 512)"/>
+    <circle cx="512" cy="512" r="320" stroke="#6d57e7"
+            stroke-dasharray="195 1815" stroke-dashoffset="-408"
+            transform="rotate(-90 512 512)"/>
+    <circle cx="512" cy="512" r="320" stroke="#7c63eb"
+            stroke-dasharray="195 1815" stroke-dashoffset="-612"
+            transform="rotate(-90 512 512)"/>
+    <circle cx="512" cy="512" r="320" stroke="#8b6fee"
+            stroke-dasharray="195 1815" stroke-dashoffset="-816"
+            transform="rotate(-90 512 512)"/>
+    <circle cx="512" cy="512" r="320" stroke="#a78bfa"
+            stroke-dasharray="195 1815" stroke-dashoffset="-1020"
+            transform="rotate(-90 512 512)"/>
+    <circle cx="512" cy="512" r="320" stroke="#c4b5fd"
+            stroke-dasharray="195 1815" stroke-dashoffset="-1224"
+            transform="rotate(-90 512 512)"/>
+  </g>
+
+  <!-- Lila V — symmetriskt, fetare stroke. En path med linejoin=round så
+       botten-spetsen är mjukt rundad. -->
+  <path d="M 340 400 L 512 670 L 684 400"
+        stroke="#7c3aed" stroke-width="88"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Grön tail — fortsätter i samma riktning som högra V-benet, ovan i
+       högra spetsen. Den kortare gröna delen är det som ger checkmark-känsla. -->
+  <path d="M 684 400 L 760 280"
+        stroke="#10b981" stroke-width="88"
+        stroke-linecap="round" fill="none"/>
+</svg>

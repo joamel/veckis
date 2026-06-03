@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 2b: Veckoring som drar mot rosa på slutet. Mjukare hue-progression,
+     mindre neon/mer kontrollerad gradient. Alla färger har snarlik energi
+     (saturation/lightness) så bara hue ändras — det är vad som ger en behaglig
+     progression istället för att se "krockande" ut. Slutpunkten är en mjukare
+     rosa (#e972a3) snarare än ett mättat pink-500. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg2b" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5f3ff"/>
+      <stop offset="100%" stop-color="#fdf2f8"/>
+    </linearGradient>
+    <linearGradient id="vgrad2b" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c5fe8"/>
+      <stop offset="100%" stop-color="#e972a3"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg2b)"/>
+
+  <!-- 7 ring-segment. Smooth hue-progression från indigo till mjuk rosa.
+       Färgerna ligger på en jämn perceptuell linje så övergångarna inte ser
+       krockande ut. -->
+  <g fill="none" stroke-width="96" stroke-linecap="butt">
+    <!-- Mån — indigo -->
+    <circle cx="512" cy="512" r="320" stroke="#4f46e5"
+            stroke-dasharray="195 1815" stroke-dashoffset="0"
+            transform="rotate(-90 512 512)"/>
+    <!-- Tis -->
+    <circle cx="512" cy="512" r="320" stroke="#6c52ea"
+            stroke-dasharray="195 1815" stroke-dashoffset="-204"
+            transform="rotate(-90 512 512)"/>
+    <!-- Ons -->
+    <circle cx="512" cy="512" r="320" stroke="#8861ed"
+            stroke-dasharray="195 1815" stroke-dashoffset="-408"
+            transform="rotate(-90 512 512)"/>
+    <!-- Tors -->
+    <circle cx="512" cy="512" r="320" stroke="#a366ef"
+            stroke-dasharray="195 1815" stroke-dashoffset="-612"
+            transform="rotate(-90 512 512)"/>
+    <!-- Fre -->
+    <circle cx="512" cy="512" r="320" stroke="#c068e1"
+            stroke-dasharray="195 1815" stroke-dashoffset="-816"
+            transform="rotate(-90 512 512)"/>
+    <!-- Lör — mjuk lila-rosa -->
+    <circle cx="512" cy="512" r="320" stroke="#d96bc5"
+            stroke-dasharray="195 1815" stroke-dashoffset="-1020"
+            transform="rotate(-90 512 512)"/>
+    <!-- Sön — mjuk rosa (inte mättad pink-500) -->
+    <circle cx="512" cy="512" r="320" stroke="#e972a3"
+            stroke-dasharray="195 1815" stroke-dashoffset="-1224"
+            transform="rotate(-90 512 512)"/>
+  </g>
+
+  <!-- V/checkmark i mitten i violet→mjuk-rosa gradient -->
+  <path d="M 380 460 L 480 600 L 660 380"
+        stroke="url(#vgrad2b)" stroke-width="56"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

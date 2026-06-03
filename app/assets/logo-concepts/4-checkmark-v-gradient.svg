@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 4: V som checkmark, lila→rosa linjär gradient. Bokstav + bock i samma form. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg4" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#faf5ff"/>
+      <stop offset="100%" stop-color="#fce7f3"/>
+    </linearGradient>
+    <!-- Lila → rosa diagonalt över V:et -->
+    <linearGradient id="vgrad4" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="50%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg4)"/>
+
+  <!-- Asymmetriskt V — checkmark-formen där vänstra benet är kortare och börjar lägre ned.
+       Klassisk bock: kort streck ner till vänster, längre streck upp till höger.
+       Detta är samtidigt ett tydligt V — bokstav och symbol i samma form. -->
+  <path d="M 280 540 L 460 740 L 800 320"
+        stroke="url(#vgrad4)" stroke-width="140"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

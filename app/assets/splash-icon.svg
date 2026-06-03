@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Splash-icon: motivet centrerat, ingen bakgrund (sätts via app.json
+     splash.backgroundColor). Lite mer luft än adaptive-icon för att inte
+     ta över hela splashen. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="vgrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c5fe8"/>
+      <stop offset="100%" stop-color="#e972a3"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(512 512) scale(0.78) translate(-512 -512)">
+    <g fill="none" stroke-width="96" stroke-linecap="butt">
+      <circle cx="512" cy="512" r="320" stroke="#4f46e5"
+              stroke-dasharray="195 1815" stroke-dashoffset="0"
+              transform="rotate(-90 512 512)"/>
+      <circle cx="512" cy="512" r="320" stroke="#6c52ea"
+              stroke-dasharray="195 1815" stroke-dashoffset="-204"
+              transform="rotate(-90 512 512)"/>
+      <circle cx="512" cy="512" r="320" stroke="#8861ed"
+              stroke-dasharray="195 1815" stroke-dashoffset="-408"
+              transform="rotate(-90 512 512)"/>
+      <circle cx="512" cy="512" r="320" stroke="#a366ef"
+              stroke-dasharray="195 1815" stroke-dashoffset="-612"
+              transform="rotate(-90 512 512)"/>
+      <circle cx="512" cy="512" r="320" stroke="#c068e1"
+              stroke-dasharray="195 1815" stroke-dashoffset="-816"
+              transform="rotate(-90 512 512)"/>
+      <circle cx="512" cy="512" r="320" stroke="#d96bc5"
+              stroke-dasharray="195 1815" stroke-dashoffset="-1020"
+              transform="rotate(-90 512 512)"/>
+      <circle cx="512" cy="512" r="320" stroke="#e972a3"
+              stroke-dasharray="195 1815" stroke-dashoffset="-1224"
+              transform="rotate(-90 512 512)"/>
+    </g>
+    <path d="M 380 460 L 480 600 L 660 380"
+          stroke="url(#vgrad)" stroke-width="56"
+          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

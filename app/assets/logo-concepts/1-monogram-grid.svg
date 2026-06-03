@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 1: Monogram-V av veckorutor. 7 rutor i V-form. Söndag (botten) är grön avbockad. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5f3ff"/>
+      <stop offset="100%" stop-color="#ede9fe"/>
+    </linearGradient>
+  </defs>
+  <!-- Squircle-bakgrund för förhandsvisning. På riktiga icon-export tas bakgrunden bort om vi vill ha adaptive-foreground. -->
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg1)"/>
+
+  <!-- 7 rutor i V-form. Vänster ben: 4 rutor uppifrån-ned. Höger ben: 3 rutor + delar botten med vänster. -->
+  <!-- Använder rundade rutor i indigo. Söndag (botten) i grön med vit bock. -->
+  <g>
+    <!-- Vänster ben (mån → bottom) -->
+    <rect x="220" y="232" width="120" height="120" rx="28" fill="#4f46e5"/>
+    <rect x="300" y="378" width="120" height="120" rx="28" fill="#5b52e6"/>
+    <rect x="380" y="524" width="120" height="120" rx="28" fill="#6b5fe8"/>
+    <!-- Söndag — den nedersta, gemensamma rutan i V:ets spets -->
+    <rect x="452" y="670" width="120" height="120" rx="28" fill="#10b981"/>
+    <!-- Vit bock i söndag-rutan -->
+    <path d="M 478 730 L 506 758 L 552 706" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <!-- Höger ben (uppåt från botten till sön → fre) -->
+    <rect x="524" y="524" width="120" height="120" rx="28" fill="#6b5fe8"/>
+    <rect x="604" y="378" width="120" height="120" rx="28" fill="#7c63eb"/>
+    <rect x="684" y="232" width="120" height="120" rx="28" fill="#8b6fee"/>
+  </g>
+</svg>
