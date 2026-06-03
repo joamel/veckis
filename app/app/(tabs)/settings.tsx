@@ -958,7 +958,7 @@ export default function SettingsScreen() {
           toggle:n nollställer tipsen vid varje växling. */}
       <Modal visible={showOverflowMenu} transparent animationType="fade" onRequestClose={() => setShowOverflowMenu(false)}>
         <Pressable style={styles.overlay} onPress={() => setShowOverflowMenu(false)} />
-        <View style={[styles.overflowPopover, { top: insets.top + 56 }]} pointerEvents="box-none">
+        <View style={[styles.overflowPopover, { top: insets.top + 4 }]} pointerEvents="box-none">
           <View style={styles.overflowPopoverInner}>
             <View style={styles.overflowRow}>
               <View style={{ flex: 1 }}>
