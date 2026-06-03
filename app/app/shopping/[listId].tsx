@@ -1767,7 +1767,7 @@ export default function ShoppingListScreen() {
       {/* Actions menu (3-dot) */}
       <Modal visible={showActionsMenu} transparent animationType="fade" onRequestClose={() => setShowActionsMenu(false)}>
         <Pressable style={s.overlay} onPress={() => setShowActionsMenu(false)} />
-        <View style={[s.actionsMenu, { top: insets.top }]}>
+        <View style={[s.actionsMenu, { top: 0 }]}>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); toggleIAmShopping(); }}

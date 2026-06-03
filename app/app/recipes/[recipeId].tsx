@@ -763,7 +763,7 @@ export default function RecipeDetailScreen() {
       {/* 3-prickar-meny */}
       <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
         <Pressable style={s.menuOverlay} onPress={() => setShowMenu(false)}>
-          <View style={[s.menuSheet, { top: insets.top }]}>
+          <View style={[s.menuSheet, { top: 0 }]}>
             <Pressable style={s.menuItem} onPress={() => { setShowMenu(false); startEdit(); }}>
               <Ionicons name="create-outline" size={18} color="#111827" />
               <Text style={s.menuItemText}>Redigera recept</Text>
