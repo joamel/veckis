@@ -82,8 +82,8 @@
 - [x] tydligare indikera vem som är jag (Du) i medlemmar
 - [x] Notisinställningar uppe till höger som en klocka istället
 - [x] Sätt admin-loggan bredvid "Admin" för admins under Medlemmar
-- [ ] Byta hushåll borde komma upp som förslag om man trycker på Hushållets namn
-- [ ] Skapa och gå med i hushåll borde göras under 3 prickarna eller under hushållets namn
+- [x] Byta hushåll borde komma upp som förslag om man trycker på Hushållets namn — tap på hushållskortet öppnar en bottom-sheet med alla mina hushåll (aktivt markerat grönt) + Skapa nytt + Gå med. Den separata MINA HUSHÅLL-sektionen är borttagen.
+- [x] Skapa och gå med i hushåll borde göras under 3 prickarna eller under hushållets namn — flyttat in i samma bottom-sheet under hushållskortet (avskilt med tjock divider).
 
 
 ### Inköpslistan
