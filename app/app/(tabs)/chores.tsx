@@ -322,7 +322,6 @@ export default function ChoresScreen() {
     }
   });
   const [loading, setLoading] = useState(true);
-  const [editMode, setEditMode] = useState(false);
   const { filterMemberIds, setFilterMemberIds } = useMemberFilter();
   const [showFilterModal, setShowFilterModal] = useState(false);
   // "Min tur"-snabbfilter: visa bara roterande sysslor där JAG har tur just nu.
@@ -402,7 +401,7 @@ export default function ChoresScreen() {
     }
   }, [householdId]);
 
-  useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   // Deep link from a tapped chore notification (L45): open that chore's edit
   // dialog once chores have loaded, then clear the param so it won't re-fire.
@@ -856,69 +855,71 @@ export default function ChoresScreen() {
           const overdue = rec?.state === 'overdue';
           const assignedLabel = buildAssignedLabel(item);
           const expanded = expandedChores.has(item.id);
-          const metaParts: (string | null)[] = [
+          // Kompakt rad: "vem · när". Resten (frekvens, dagar, fullständig
+          // status) bor i utfällt läge.
+          // När en återkommande syssla just klarmarkerats vill vi visa nästa
+          // datum direkt — boxen ska kännas "klar och vidare", inte fastlåst.
+          const dateLabel = once
+            ? (item.completions[0] ? daysSince(item.completions[0].completedAt) : null)
+            : (rec?.state === 'overdue' ? `förfallen ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
+              : rec?.state === 'done' && rec.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
+              : rec?.state === 'today' ? 'idag'
+              : rec?.current ? formatOcc(rec.current.date)
+              : rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
+              : null);
+          const compactMeta = [assignedLabel, dateLabel].filter(Boolean).join(' · ');
+          const expandedMetaParts: (string | null)[] = [
             FREQ_LABELS[item.frequency],
             item.frequency !== 'daily' && item.days.length > 0
               ? item.days.map(d => DAYS.find(x => x.key === d)?.short).join(', ')
               : null,
-            assignedLabel,
           ];
-          if (once) metaParts.push(item.completions[0] ? daysSince(item.completions[0].completedAt) : null);
-          const statusText = rec
+          const expandedStatusText = rec
             ? (rec.state === 'overdue' ? `Förfallen sedan ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
               : rec.state === 'today' ? 'Att göra idag'
               : rec.state === 'done' ? (rec.nextDate ? `Klar · nästa ${formatOcc(rec.nextDate)}` : 'Klar') : null)
             : null;
-          const showCheck = !editMode && (once || !!rec?.current);
+          const showCheck = once || !!rec?.current;
+          // För återkommande: visa boxen tom även när tillfället är klart
+          // — det signalerar att man är "vidare till nästa", men trycket
+          // är fortfarande aktivt så man kan ångra (uncompleteOccurrence).
+          const checkVisualDone = once ? done : false;
+          const toggleExpand = wrapExpandTip(
+            () => setExpandedChores(prev => { const n = new Set(prev); if (n.has(item.id)) n.delete(item.id); else n.add(item.id); return n; }),
+            {
+              title: 'Detaljer per syssla',
+              message: 'Här ser du frekvens, full status och historik (klara/missade tillfällen). Härifrån når du också Redigera och Ta bort.',
+            },
+          );
           return (
             <View style={s.cardWrap}>
-              {editMode && (
-                <Pressable
-                  style={s.cardDeleteBtn}
-                  onPress={() => deleteChore(item.id, item.title)}
-                  hitSlop={10}
-                >
-                  <Ionicons name="remove-circle" size={fs(22)} color="#6b7280" />
-                </Pressable>
-              )}
               <Pressable
                 style={[s.card, { padding: sp(14), gap: sp(12) }, finishedLook && s.cardDone, overdue && s.cardOverdue]}
-                onPress={() => { if (!editMode) openEdit(item); }}
-                onLongPress={() => { medium(); setEditMode(true); }}
+                onPress={toggleExpand}
               >
                 <View style={s.cardIcon}>
                   <Ionicons name="sparkles-outline" size={fs(16)} color="#7c3aed" />
                 </View>
                 <View style={s.cardContent}>
                   <Text style={[s.cardTitle, { fontSize: fs(16) }, finishedLook && s.cardTitleDone]}>{item.title}</Text>
-                  <Text style={[s.cardMeta, { fontSize: fs(12) }]}>{metaParts.filter(Boolean).join(' · ')}</Text>
-                  {statusText && (
-                    <Text style={[s.choreStatus, { fontSize: fs(12) }, overdue && s.choreStatusOverdue, rec?.state === 'done' && s.choreStatusDone]}>
-                      {statusText}
-                    </Text>
+                  {compactMeta.length > 0 && (
+                    <Text style={[s.cardMeta, { fontSize: fs(12) }, overdue && s.choreStatusOverdue]}>{compactMeta}</Text>
                   )}
                 </View>
-                {rec && !editMode && (
-                  <Pressable
-                    onPress={wrapExpandTip(
-                      () => setExpandedChores(prev => { const n = new Set(prev); if (n.has(item.id)) n.delete(item.id); else n.add(item.id); return n; }),
-                      {
-                        title: 'Historik per syssla',
-                        message: 'Här ser du vilka tillfällen som blev klara (✓) och vilka som missades (–). Missade dagar ger inga upprepade påminnelser; nästa tillfälle dyker upp som vanligt.',
-                      },
-                    )}
-                    hitSlop={8}
-                    style={s.expandBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel={expanded ? 'Dölj historik' : 'Visa historik'}
-                  >
-                    <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={fs(18)} color="#9ca3af" />
-                  </Pressable>
-                )}
+                <Pressable
+                  onPress={toggleExpand}
+                  hitSlop={8}
+                  style={s.expandBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={expanded ? 'Dölj detaljer' : 'Visa detaljer'}
+                >
+                  <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={fs(18)} color="#9ca3af" />
+                </Pressable>
                 {showCheck && (
                   <Pressable
-                    style={[s.checkBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }, done && s.checkBtnDone]}
-                    onPress={() => {
+                    style={[s.checkBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }, checkVisualDone && s.checkBtnDone]}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
                       if (once) {
                         if (done) uncompleteChore(item);
                         else pickPerformer(item, performer => completeChore(item, performer));
@@ -929,13 +930,27 @@ export default function ChoresScreen() {
                       }
                     }}
                   >
-                    {done && <Ionicons name="checkmark" size={fs(20)} color="#fff" />}
+                    {checkVisualDone && <Ionicons name="checkmark" size={fs(20)} color="#fff" />}
                   </Pressable>
                 )}
               </Pressable>
-              {expanded && rec && (
+              {expanded && (
                 <View style={s.historyBox}>
-                  {rec.occurrences.length === 0 ? (
+                  {(expandedMetaParts.filter(Boolean).length > 0 || expandedStatusText) && (
+                    <View style={s.expandedHeader}>
+                      {expandedMetaParts.filter(Boolean).length > 0 && (
+                        <Text style={[s.expandedMeta, { fontSize: fs(12) }]}>
+                          {expandedMetaParts.filter(Boolean).join(' · ')}
+                        </Text>
+                      )}
+                      {expandedStatusText && (
+                        <Text style={[s.choreStatus, { fontSize: fs(12) }, overdue && s.choreStatusOverdue, rec?.state === 'done' && s.choreStatusDone]}>
+                          {expandedStatusText}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                  {rec && (rec.occurrences.length === 0 ? (
                     <Text style={s.historyEmpty}>Inga tillfällen den senaste tiden</Text>
                   ) : (() => {
                     // För rotation: vems tur vid varje historisk occurrence.
@@ -972,7 +987,17 @@ export default function ChoresScreen() {
                       </View>
                       );
                     });
-                  })()}
+                  })())}
+                  <View style={s.expandedActions}>
+                    <Pressable style={s.expandedActionBtn} onPress={() => openEdit(item)}>
+                      <Ionicons name="create-outline" size={fs(16)} color="#4f46e5" />
+                      <Text style={[s.expandedActionText, { fontSize: fs(13) }]}>Redigera</Text>
+                    </Pressable>
+                    <Pressable style={s.expandedActionBtn} onPress={() => deleteChore(item.id, item.title)}>
+                      <Ionicons name="trash-outline" size={fs(16)} color="#ef4444" />
+                      <Text style={[s.expandedActionText, { fontSize: fs(13), color: '#ef4444' }]}>Ta bort</Text>
+                    </Pressable>
+                  </View>
                 </View>
               )}
             </View>
@@ -980,15 +1005,9 @@ export default function ChoresScreen() {
         }}
       />
 
-      {editMode ? (
-        <Pressable style={s.editDoneBtn} onPress={() => setEditMode(false)}>
-          <Text style={[s.editDoneBtnText, { fontSize: fs(16) }]}>Klar</Text>
-        </Pressable>
-      ) : (
-        <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={openCreate}>
-          <Ionicons name="add" size={fs(30)} color="#fff" />
-        </Pressable>
-      )}
+      <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={openCreate}>
+        <Ionicons name="add" size={fs(30)} color="#fff" />
+      </Pressable>
 
       <Animated.View style={[s.toast, { opacity: toastOpacity }]} pointerEvents="none">
         <Ionicons name="checkmark-circle" size={20} color="#fff" />
@@ -1230,7 +1249,7 @@ const s = StyleSheet.create({
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#111827', borderRadius: 24, zIndex: 20 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#ddd6fe', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c4b5fd', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   cardDone: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
   cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#f5f3ff', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1, minWidth: 0 },
@@ -1242,11 +1261,16 @@ const s = StyleSheet.create({
   choreStatusOverdue: { color: '#b45309' },
   choreStatusDone: { color: '#10b981' },
   expandBtn: { padding: 4, flexShrink: 0 },
-  historyBox: { backgroundColor: '#fff', borderRadius: 12, marginTop: -4, marginHorizontal: 4, paddingHorizontal: 16, paddingVertical: 10, gap: 8, borderWidth: 1, borderColor: '#f3f4f6' },
+  historyBox: { backgroundColor: '#fafafa', borderRadius: 12, marginTop: 6, marginHorizontal: 4, paddingHorizontal: 16, paddingVertical: 12, gap: 8, borderWidth: 1, borderColor: '#f3f4f6' },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   historyDate: { fontSize: 13, color: '#374151', flex: 1 },
   historyMissed: { color: '#9ca3af' },
   historyEmpty: { fontSize: 13, color: '#9ca3af', fontStyle: 'italic' },
+  expandedHeader: { gap: 4, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', marginBottom: 4 },
+  expandedMeta: { fontSize: 12, color: '#6b7280' },
+  expandedActions: { flexDirection: 'row', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  expandedActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#f9fafb' },
+  expandedActionText: { fontSize: 13, fontWeight: '600', color: '#4f46e5' },
   historyDoBtn: { backgroundColor: '#7c3aed', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5 },
   historyDoBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   checkBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#d1d5db', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },

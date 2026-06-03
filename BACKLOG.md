@@ -82,6 +82,9 @@
 - [x] tydligare indikera vem som är jag (Du) i medlemmar
 - [x] Notisinställningar uppe till höger som en klocka istället
 - [x] Sätt admin-loggan bredvid "Admin" för admins under Medlemmar
+- [x] Byta hushåll borde komma upp som förslag om man trycker på Hushållets namn — tap på hushållskortet fäller ut listan inline (samma mönster som sysslor). Chevron visas bara om man har 2+ hushåll.
+- [x] Skapa och gå med i hushåll borde göras under 3 prickarna eller under hushållets namn — egen "ANDRA HUSHÅLL"-sektion längst ner med Skapa nytt + Gå med via kod.
+- [x] Inställningar-fliken döpt om till "Profil" med personikon. Konto-kortet är tryckbart och fäller ut Byt nickname + Logga ut (separata logga-ut-knappen borttagen). Hushållets rename/delete bor i en egen 3-prickar-knapp på hushållskortet (alltid synlig för admin, oberoende av "Hantera"-toggle:n som nu bara styr medlemmar).
 
 
 ### Inköpslistan
@@ -270,7 +273,6 @@
 - [x] Sysslor – rotation-action-tip: när användaren har 2+ medlemmar valda i editorn (i create eller edit) fyrar "Turas om automatiskt"-tipset en gång (seen-rotation-toggle-tip) som förklarar toggle:n.
 
 
-
 ---
 
 ## Agent
@@ -295,7 +297,7 @@
 - [ ] Streckkodsläsare för att direkt lägga till en vara — **utredd & nedprioriterad**: OpenFoodFacts (enda realistiska gratis-källa) testad manuellt på vanliga svenska/butiks-egna varor (ekologiskt äppelmos, soltorkade tomater, bostongurka) → ingen träff. Täckningen är god för internationella märkesvaror men svag där svenska hushåll faktiskt handlar. Scannern skulle hjälpa exakt där OFF är svagast och är överflödig där OFF är stark (vanliga repeaters klaras redan av autocomplete + stapleItems). Native-modul + EAS-build + scan-UI + error-states bedömt inte värt det. Återupptas om en bättre datakälla dyker upp (t.ex. svensk butikspartnerskap eller paid API med bra svensk täckning).
 - [x] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt (parseInstructions flattenar JSON-LD recipeInstructions — sträng/array/HowToStep/HowToSection — till numrerade rader; from-url returnerar instructions och receptet skapas med dem)
 - [x] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp) — sorter-knapp i recept-headern med radioval: A–Ö / Mest använda / Senast tillagda; valet sparas (gäller även välj-läget). "Mest använda" = livstidsräknare Recipe.timesUsed som ökar varje gång receptet läggs i en meny (backfilld från nuvarande förekomster)
-- [ ] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd..
+- [x] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd — byggd om till enhetlig rad-vy: namn + behov + "Har"-input + "✓ Allt"-knapp per rad. Mode-toggle/segment borttagen, sub-pager utan, KAV gated i ingredients-steget, Nästa/Tillbaka döljs när tangentbordet är uppe, returnKeyType="next" hoppar mellan mätbara rader.
 - [ ] Radikalt alternativ för återkommande sysslor: flexibelt intervall per syssla — nästa förfallodag räknas från när man senast gjorde sysslan ("var 3:e dag" från senaste utförandet) istället för fast kalender. Ingen förfallet-hög alls; passar rytm-sysslor (vattna/dammsuga), sämre för fasta dagar (sopor på måndag). Skulle vara ett val per syssla: "fast dag" vs "ungefär var X:e dag". (Subsumerar tidigare "klarmarkera bakåt"-idén — täcks nu av förlåtande-modellen i Sysslor-sektionen.)
 
 ## Backlog (prioriterade features)
@@ -337,8 +339,8 @@
 
 All JS-kod är plattformsneutral (Expo/RN) och `app.json` har `ios.bundleIdentifier: com.veckis.app` + `supportsTablet: true`. Allt vi byggt hittills följer med automatiskt vid första iOS-build. Det som saknas för att faktiskt köra på iOS-device/TestFlight:
 
-- [ ] **iOS-buildprofil i `app/eas.json`** — `preview` har bara `android.buildType: apk`. Lägg till `ios`-block (simulator-build för internt test, signerad för TestFlight). Eventuellt egen profil `preview-ios`.
+- [x] **iOS-buildprofil i `app/eas.json`** — `preview` har nu `ios.simulator=false` + `buildConfiguration=Release`. Tre profiler totalt: `preview` (device, internal-share QR), `preview-simulator` (snabb simulator-build, ingen signering), `production` (app-store). `submit.production.ios.ascAppId` är placeholder tills App Store Connect-id finns. app.json `ios.infoPlist`: `UIBackgroundModes: ["remote-notification"]` + `ITSAppUsesNonExemptEncryption: false`.
 - [ ] **Apple Developer-konto + bundle-registrering** — registrera `com.veckis.app` i App Store Connect / Developer Portal innan första `eas build --platform ios`.
 - [ ] **APNs-uppsättning för push på iOS** — APNs-nyckel (.p8) uppladdad till EAS-credentials + Push capability på app-ID:t. Utan detta returnerar `registerForPush` (`app/src/lib/registerPush.ts`) `denied`/`error` på iOS. Alternativt `GoogleService-Info.plist` om FCM ska användas även på iOS (motsvarighet till `google-services.json` för Android, satt i `app.json` under `ios.googleServicesFile`).
 - [ ] **Första TestFlight-build + smoketest** — verifiera att meny, recept, inköpslistor, sysslor, kalender, realtime, deeplinks och push faktiskt fungerar på iOS-device (inte bara simulator). Kontrollera särskilt KeyboardAvoidingView-`padding`-grenarna och Dynamic Island/safe-area-beteendet.
-- [ ] **iOS-specifika finputs vid behov** — `Platform.OS === 'android'`-grenar (notification channel i `registerPush.ts:26`, vibration i `schedule.tsx:66`) har redan rätt fallback för iOS; bekräfta att inga andra Android-only-anrop smugit in.
+- [x] **iOS-specifika finputs vid behov** — audit klar 2026-06-02. Alla `Platform.OS === 'android'`-grenar har korrekta iOS-fallbacks: KAV behavior 'padding'/'height' (12+ ställen), notification channel-setup i registerPush.ts gated, Vibration.vibrate gated, expo push token-fetch använder projectId (fungerar för båda plattformar via Expo:s push service). Inga Android-only-anrop som skulle krascha på iOS.

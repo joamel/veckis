@@ -857,6 +857,26 @@ export default function ShoppingListScreen() {
     });
   }
 
+  async function deleteEntireList() {
+    if (!listId || !list) return;
+    confirm({
+      title: 'Ta bort lista',
+      message: `Ta bort "${list.name}"? Listan och alla varor försvinner.`,
+      buttons: [
+        { label: 'Ta bort', style: 'destructive', onPress: async () => {
+          try {
+            await client.deleteShoppingList(listId);
+            emitShoppingChanged();
+            router.back();
+          } catch (e) {
+            showError(e, 'Kunde inte ta bort listan');
+          }
+        }},
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
+  }
+
   function openStapleEditor(suggestion: StapleItem) {
     // Suggestion chips include both real staples (DB row, has cuid id) and ingredient
     // suggestions (synthetic id "suggestion:<name>", no DB row yet). For the latter we
@@ -1747,7 +1767,7 @@ export default function ShoppingListScreen() {
       {/* Actions menu (3-dot) */}
       <Modal visible={showActionsMenu} transparent animationType="fade" onRequestClose={() => setShowActionsMenu(false)}>
         <Pressable style={s.overlay} onPress={() => setShowActionsMenu(false)} />
-        <View style={s.actionsMenu}>
+        <View style={[s.actionsMenu, { top: 0 }]}>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); toggleIAmShopping(); }}
@@ -1778,13 +1798,6 @@ export default function ShoppingListScreen() {
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); checkAllUnchecked(); }}
-          >
-            <Ionicons name="checkbox-outline" size={20} color="#4f46e5" />
-            <Text style={s.actionsMenuText}>Klarmarkera alla</Text>
-          </Pressable>
-          <Pressable
-            style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); goToBulkTransfer(); }}
           >
             <Ionicons name="restaurant-outline" size={20} color="#4f46e5" />
@@ -1803,13 +1816,27 @@ export default function ShoppingListScreen() {
               Hantera dubbletter{duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ''}
             </Text>
           </Pressable>
+          <Pressable
+            style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); checkAllUnchecked(); }}
+          >
+            <Ionicons name="checkbox-outline" size={20} color="#4f46e5" />
+            <Text style={s.actionsMenuText}>Klarmarkera alla</Text>
+          </Pressable>
           <View style={s.actionsMenuDivider} />
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); completeList(); }}
           >
-            <Ionicons name="trash-outline" size={20} color="#ef4444" />
+            <Ionicons name="sparkles-outline" size={20} color="#ef4444" />
             <Text style={[s.actionsMenuText, { color: '#ef4444' }]}>Rensa lista</Text>
+          </Pressable>
+          <Pressable
+            style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); deleteEntireList(); }}
+          >
+            <Ionicons name="trash-outline" size={20} color="#ef4444" />
+            <Text style={[s.actionsMenuText, { color: '#ef4444' }]}>Ta bort lista</Text>
           </Pressable>
         </View>
       </Modal>
@@ -2011,7 +2038,7 @@ const s = StyleSheet.create({
   titleTextWrap: { position: 'absolute', left: 20, right: 20, justifyContent: 'center', alignItems: 'flex-start', zIndex: 25 },
   headerNavPinned: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   headerTitleAbs: { position: 'absolute', left: 0, right: 0, zIndex: 10, paddingHorizontal: 20, backgroundColor: '#fff', overflow: 'hidden' },
-  actionsMenu: { position: 'absolute', top: 56, right: 12, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  actionsMenu: { position: 'absolute', right: 0, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   actionsMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   actionsMenuText: { fontSize: 15, color: '#111827', fontWeight: '500' },
   actionsMenuDivider: { height: 1, backgroundColor: '#f3f4f6', marginVertical: 4 },

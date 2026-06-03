@@ -1897,7 +1897,7 @@ function MenuCard({
               <Text style={[s.cardTitle, { fontSize: fs(15) }, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
             </View>
             {isTransferred && (
-              <Ionicons name="checkmark-circle" size={fs(16)} color="#10b981" />
+              <Ionicons name="cart" size={fs(16)} color="#10b981" />
             )}
             <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color="#9ca3af" />
           </Pressable>
@@ -1913,7 +1913,7 @@ function MenuCard({
               </Text>
               {isTransferred && (
                 <View style={[s.transferredBadge, { marginBottom: sp(8) }]}>
-                  <Ionicons name="checkmark-circle" size={fs(14)} color="#10b981" />
+                  <Ionicons name="cart" size={fs(14)} color="#10b981" />
                   <Text style={[s.transferredText, { fontSize: fs(11) }]}>I inköpslistan</Text>
                 </View>
               )}
@@ -2016,7 +2016,7 @@ const s = StyleSheet.create({
   emptyDayText: { fontSize: 13, color: '#9ca3af', paddingVertical: 8 },
   emptyDayTap: { paddingVertical: 4, alignItems: 'flex-start' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  card: { borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c7d2fe', backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  card: { borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c7d2fe', backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   cardInner: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden' },
   cardMain: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
   cardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },

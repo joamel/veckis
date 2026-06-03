@@ -60,7 +60,6 @@ export default function ShoppingScreen() {
   // Hushållsmedlemmar för "X handlar nu"-indikatorn på list-korten.
   const [members, setMembers] = useState<Array<{ id: string; displayName: string }>>([]);
 
-  const [editMode, setEditMode] = useState(false);
 
   const load = useCallback(async () => {
     if (!householdId) return;
@@ -80,7 +79,7 @@ export default function ShoppingScreen() {
     }
   }, [householdId]);
 
-  useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
+  useFocusEffect(useCallback(() => { load(); }, [load]));
   // Refresh when a list changes elsewhere (e.g. deferred clear in the detail view).
   useEffect(() => onShoppingChanged(load), [load]);
 
@@ -135,28 +134,7 @@ export default function ShoppingScreen() {
   }
 
   // Stores CRUD flyttat till /stores-routen.
-
-  async function deleteList(listId: string, listName: string) {
-    confirm({
-      title: 'Ta bort lista',
-      message: `Ta bort "${listName}"?`,
-      buttons: [
-        {
-          label: 'Ta bort',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await client.deleteShoppingList(listId);
-              setLists(prev => prev.filter(l => l.id !== listId));
-            } catch (e) {
-              showError(e, 'Kunde inte ta bort lista');
-            }
-          },
-        },
-        { label: 'Avbryt', style: 'cancel' },
-      ],
-    });
-  }
+  // Borttagning av lista sker inuti listans tre-prickar-meny (/shopping/[listId]).
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
@@ -186,7 +164,6 @@ export default function ShoppingScreen() {
       <FlatList
         data={lists}
         keyExtractor={item => item.id}
-        extraData={editMode}
         contentContainerStyle={[styles.list, lists.length === 0 && styles.listEmpty]}
         onRefresh={load}
         refreshing={loading}
@@ -207,11 +184,10 @@ export default function ShoppingScreen() {
             <View style={styles.cardWrap}>
               <Pressable
                 style={styles.card}
-                onPress={() => { if (!editMode) router.push(`/shopping/${item.id}` as never); }}
-                onLongPress={() => { medium(); setEditMode(true); }}
+                onPress={() => router.push(`/shopping/${item.id}` as never)}
               >
                 <View style={styles.cardLeft}>
-                  <Ionicons name="cart-outline" size={fs(20)} color="#4f46e5" />
+                  <Ionicons name="cart-outline" size={fs(20)} color="#7c3aed" />
                 </View>
                 <View style={styles.cardContent}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -231,30 +207,19 @@ export default function ShoppingScreen() {
                 {unchecked === 0 && total > 0 && (
                   <Ionicons name="checkmark-circle" size={fs(20)} color="#10b981" />
                 )}
-                {!editMode && <Ionicons name="chevron-forward" size={fs(18)} color="#d1d5db" />}
+                <Ionicons name="chevron-forward" size={fs(18)} color="#d1d5db" />
               </Pressable>
-              {editMode && (
-                <Pressable style={styles.cardDeleteBtn} onPress={() => deleteList(item.id, item.name)}>
-                  <Ionicons name="remove-circle" size={fs(22)} color="#ef4444" />
-                </Pressable>
-              )}
             </View>
           );
         }}
       />
 
-      {editMode ? (
-        <Pressable style={styles.editDoneBtn} onPress={() => setEditMode(false)}>
-          <Text style={[styles.editDoneBtnText, { fontSize: fs(16) }]}>Klar</Text>
-        </Pressable>
-      ) : (
-        <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={wrapNewListTip(
-          () => setShowModal(true),
-          { title: 'Skapa inköpslista', message: 'En lista kan kopplas till en butik så att varorna sorteras efter butikens kategorier. Du kan lägga till varor manuellt eller överföra hela veckomenyn till listan från Meny-fliken.' },
-        )}>
-          <Ionicons name="add" size={fs(30)} color="#fff" />
-        </Pressable>
-      )}
+      <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={wrapNewListTip(
+        () => setShowModal(true),
+        { title: 'Skapa inköpslista', message: 'En lista kan kopplas till en butik så att varorna sorteras efter butikens kategorier. Du kan lägga till varor manuellt eller överföra hela veckomenyn till listan från Meny-fliken.' },
+      )}>
+        <Ionicons name="add" size={fs(30)} color="#fff" />
+      </Pressable>
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setNewListStoreId(null); }}>
         <Pressable style={styles.overlay} onPress={() => { setShowModal(false); setNewListStoreId(null); }} />
@@ -321,20 +286,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#bbf7d0',
+    borderLeftColor: '#c4b5fd',
     padding: 14,
     gap: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 1 },
-    elevation: 3,
+    elevation: 1,
   },
   cardLeft: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#eef2ff',
+    backgroundColor: '#f5f3ff',
     alignItems: 'center',
     justifyContent: 'center',
   },

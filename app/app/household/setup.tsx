@@ -59,11 +59,11 @@ export default function HouseholdSetupScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Text style={styles.title}>Välkommen till Veckis</Text>
-      <Text style={styles.subtitle}>Välj ett smeknamn — det syns för andra i hushållet</Text>
+      <Text style={styles.subtitle}>Välj ett namn — det syns för andra i hushållet</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="Ditt smeknamn"
+        placeholder="Ditt namn"
         placeholderTextColor="#9ca3af"
         value={nickname}
         onChangeText={setNickname}
