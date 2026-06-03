@@ -857,6 +857,26 @@ export default function ShoppingListScreen() {
     });
   }
 
+  async function deleteEntireList() {
+    if (!listId || !list) return;
+    confirm({
+      title: 'Ta bort lista',
+      message: `Ta bort "${list.name}"? Listan och alla varor försvinner.`,
+      buttons: [
+        { label: 'Ta bort', style: 'destructive', onPress: async () => {
+          try {
+            await client.deleteShoppingList(listId);
+            emitShoppingChanged();
+            router.back();
+          } catch (e) {
+            showError(e, 'Kunde inte ta bort listan');
+          }
+        }},
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
+  }
+
   function openStapleEditor(suggestion: StapleItem) {
     // Suggestion chips include both real staples (DB row, has cuid id) and ingredient
     // suggestions (synthetic id "suggestion:<name>", no DB row yet). For the latter we
@@ -1778,13 +1798,6 @@ export default function ShoppingListScreen() {
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); checkAllUnchecked(); }}
-          >
-            <Ionicons name="checkbox-outline" size={20} color="#4f46e5" />
-            <Text style={s.actionsMenuText}>Klarmarkera alla</Text>
-          </Pressable>
-          <Pressable
-            style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); goToBulkTransfer(); }}
           >
             <Ionicons name="restaurant-outline" size={20} color="#4f46e5" />
@@ -1803,13 +1816,27 @@ export default function ShoppingListScreen() {
               Hantera dubbletter{duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ''}
             </Text>
           </Pressable>
+          <Pressable
+            style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); checkAllUnchecked(); }}
+          >
+            <Ionicons name="checkbox-outline" size={20} color="#4f46e5" />
+            <Text style={s.actionsMenuText}>Klarmarkera alla</Text>
+          </Pressable>
           <View style={s.actionsMenuDivider} />
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); completeList(); }}
           >
-            <Ionicons name="trash-outline" size={20} color="#ef4444" />
+            <Ionicons name="sparkles-outline" size={20} color="#ef4444" />
             <Text style={[s.actionsMenuText, { color: '#ef4444' }]}>Rensa lista</Text>
+          </Pressable>
+          <Pressable
+            style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); deleteEntireList(); }}
+          >
+            <Ionicons name="trash-outline" size={20} color="#ef4444" />
+            <Text style={[s.actionsMenuText, { color: '#ef4444' }]}>Ta bort lista</Text>
           </Pressable>
         </View>
       </Modal>

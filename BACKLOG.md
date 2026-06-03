@@ -82,6 +82,8 @@
 - [x] tydligare indikera vem som är jag (Du) i medlemmar
 - [x] Notisinställningar uppe till höger som en klocka istället
 - [x] Sätt admin-loggan bredvid "Admin" för admins under Medlemmar
+- [ ] Byta hushåll borde komma upp som förslag om man trycker på Hushållets namn
+- [ ] Skapa och gå med i hushåll borde göras under 3 prickarna eller under hushållets namn
 
 
 ### Inköpslistan
@@ -270,7 +272,6 @@
 - [x] Sysslor – rotation-action-tip: när användaren har 2+ medlemmar valda i editorn (i create eller edit) fyrar "Turas om automatiskt"-tipset en gång (seen-rotation-toggle-tip) som förklarar toggle:n.
 
 
-
 ---
 
 ## Agent
@@ -295,7 +296,7 @@
 - [ ] Streckkodsläsare för att direkt lägga till en vara — **utredd & nedprioriterad**: OpenFoodFacts (enda realistiska gratis-källa) testad manuellt på vanliga svenska/butiks-egna varor (ekologiskt äppelmos, soltorkade tomater, bostongurka) → ingen träff. Täckningen är god för internationella märkesvaror men svag där svenska hushåll faktiskt handlar. Scannern skulle hjälpa exakt där OFF är svagast och är överflödig där OFF är stark (vanliga repeaters klaras redan av autocomplete + stapleItems). Native-modul + EAS-build + scan-UI + error-states bedömt inte värt det. Återupptas om en bättre datakälla dyker upp (t.ex. svensk butikspartnerskap eller paid API med bra svensk täckning).
 - [x] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt (parseInstructions flattenar JSON-LD recipeInstructions — sträng/array/HowToStep/HowToSection — till numrerade rader; from-url returnerar instructions och receptet skapas med dem)
 - [x] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp) — sorter-knapp i recept-headern med radioval: A–Ö / Mest använda / Senast tillagda; valet sparas (gäller även välj-läget). "Mest använda" = livstidsräknare Recipe.timesUsed som ökar varje gång receptet läggs i en meny (backfilld från nuvarande förekomster)
-- [ ] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd..
+- [x] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd — byggd om till enhetlig rad-vy: namn + behov + "Har"-input + "✓ Allt"-knapp per rad. Mode-toggle/segment borttagen, sub-pager utan, KAV gated i ingredients-steget, Nästa/Tillbaka döljs när tangentbordet är uppe, returnKeyType="next" hoppar mellan mätbara rader.
 - [ ] Radikalt alternativ för återkommande sysslor: flexibelt intervall per syssla — nästa förfallodag räknas från när man senast gjorde sysslan ("var 3:e dag" från senaste utförandet) istället för fast kalender. Ingen förfallet-hög alls; passar rytm-sysslor (vattna/dammsuga), sämre för fasta dagar (sopor på måndag). Skulle vara ett val per syssla: "fast dag" vs "ungefär var X:e dag". (Subsumerar tidigare "klarmarkera bakåt"-idén — täcks nu av förlåtande-modellen i Sysslor-sektionen.)
 
 ## Backlog (prioriterade features)

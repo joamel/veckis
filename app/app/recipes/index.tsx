@@ -523,7 +523,7 @@ const s = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 15, color: '#111827', padding: 0 },
   list: { padding: 16, gap: 10 },
   listEmpty: { flex: 1 },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#fde68a', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   cardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
