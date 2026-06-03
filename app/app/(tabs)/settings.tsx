@@ -14,7 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useFocusEffect } from 'expo-router';
@@ -34,6 +34,7 @@ import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
 
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const { signOut, getToken } = useAuth();
   const { user, isSignedIn } = useUser();
   const client = useApiClient();
@@ -952,33 +953,29 @@ export default function SettingsScreen() {
 
       <NotificationsModal visible={showNotifModal} onClose={() => setShowNotifModal(false)} />
 
-      {/* Overflow-menyn (3-prickar) — onboarding-kontroller och plats för
-          framtida utilities. */}
-      <Modal visible={showOverflowMenu} transparent animationType="slide" onRequestClose={() => setShowOverflowMenu(false)}>
+      {/* Overflow-popover (3-prickar) — landar uppe till höger under
+          ikonen, som standardmönstret för header-overflow. Onboarding-
+          toggle:n nollställer tipsen vid varje växling. */}
+      <Modal visible={showOverflowMenu} transparent animationType="fade" onRequestClose={() => setShowOverflowMenu(false)}>
         <Pressable style={styles.overlay} onPress={() => setShowOverflowMenu(false)} />
-        <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>Mer</Text>
-          <View style={styles.menuRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.menuRowLabel}>Visa onboarding-tips</Text>
-              <Text style={styles.menuRowSub}>Slå av om du inte vill se några tips alls</Text>
+        <View style={[styles.overflowPopover, { top: insets.top + 56 }]} pointerEvents="box-none">
+          <View style={styles.overflowPopoverInner}>
+            <View style={styles.overflowRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuRowLabel}>Visa onboarding-tips</Text>
+                <Text style={styles.menuRowSub}>Nollställs vid varje växling.</Text>
+              </View>
+              <Switch
+                value={skipAll === false}
+                onValueChange={v => { setSkipAll(!v); handleResetTips(); }}
+                trackColor={{ false: '#d1d5db', true: '#a5b4fc' }}
+                thumbColor={skipAll === false ? '#4f46e5' : '#f3f4f6'}
+              />
             </View>
-            <Switch
-              value={skipAll === false}
-              onValueChange={v => setSkipAll(!v)}
-              trackColor={{ false: '#d1d5db', true: '#a5b4fc' }}
-              thumbColor={skipAll === false ? '#4f46e5' : '#f3f4f6'}
-            />
           </View>
-          <Pressable style={styles.menuBtn} onPress={handleResetTips}>
-            <Ionicons name="refresh-outline" size={20} color="#4f46e5" />
-            <Text style={styles.menuBtnText}>Återställ alla tips</Text>
-          </Pressable>
-          <Pressable style={[styles.menuBtn, styles.menuBtnLast]} onPress={() => setShowOverflowMenu(false)}>
-            <Text style={[styles.menuBtnText, { color: '#6b7280' }]}>Stäng</Text>
-          </Pressable>
         </View>
       </Modal>
+
 
       <Animated.View style={[styles.toast, toastVariant === 'neutral' && styles.toastNeutral, { opacity: toastOpacity }]} pointerEvents="none">
         <Text style={styles.toastText}>{toastMessage}</Text>
@@ -1102,6 +1099,9 @@ const styles = StyleSheet.create({
   },
   inviteBtnDisabled: { opacity: 0.4 },
   inviteBtnText: { fontSize: 15, fontWeight: '600', color: '#4f46e5' },
+  overflowPopover: { position: 'absolute', right: 12, alignItems: 'flex-end' },
+  overflowPopoverInner: { backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 4, width: 280, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
+  overflowRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   memberActionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 16 },
   memberActionRowBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
   memberActionRowText: { flex: 1, fontSize: 15, color: '#111827', fontWeight: '500' },
@@ -1144,6 +1144,11 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingBottom: 30,
     minHeight: 300,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 16,
   },
   sheetHandle: {
     alignSelf: 'center',
