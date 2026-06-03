@@ -127,11 +127,9 @@ export default function SettingsScreen() {
   const [showJoinHouseholdModal, setShowJoinHouseholdModal] = useState(false);
   // Profil- och hushållskorten kan fällas ut inline (i samma stil som
   // sysslor) för att visa sekundära handlingar — byt nickname/logga ut
-  // resp. byt aktivt hushåll. Admin-handlingar på hushållet (rename/ta
-  // bort) ligger i en egen overflow-sheet, oberoende av medlems-edit.
+  // resp. byt aktivt hushåll.
   const [expandedAccount, setExpandedAccount] = useState(false);
   const [expandedHouseholds, setExpandedHouseholds] = useState(false);
-  const [showHouseholdAdminSheet, setShowHouseholdAdminSheet] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [loadingJoinHousehold, setLoadingJoinHousehold] = useState(false);
 
@@ -505,7 +503,14 @@ export default function SettingsScreen() {
 
         {/* Hushållet */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>HUSHÅLLET</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>HUSHÅLLET</Text>
+            <Pressable ref={adminEditBtnRef} onPress={() => setEditMode(v => !v)} hitSlop={8}>
+              <Text style={[styles.editModeBtn, editMode && styles.editModeBtnActive]}>
+                {editMode ? 'Klar' : 'Hantera'}
+              </Text>
+            </Pressable>
+          </View>
           <Pressable
             style={styles.card}
             onPress={() => { if (allMemberships.length > 1) setExpandedHouseholds(v => !v); }}
@@ -523,19 +528,24 @@ export default function SettingsScreen() {
                   : 'Aktivt hushåll'}
               </Text>
             </View>
-            {allMemberships.length > 1 && (
+            {editMode && isAdmin ? (
+              <View style={styles.cardActions}>
+                <Pressable
+                  style={styles.memberActionBtn}
+                  onPress={(e) => { e.stopPropagation?.(); setEditingHouseholdName(householdName || ''); setShowEditHouseholdModal(true); }}
+                >
+                  <Ionicons name="pencil-outline" size={16} color="#4f46e5" />
+                </Pressable>
+                <Pressable
+                  style={styles.memberActionBtn}
+                  onPress={(e) => { e.stopPropagation?.(); setDeleteConfirmText(''); setShowDeleteHouseholdModal(true); }}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                </Pressable>
+              </View>
+            ) : allMemberships.length > 1 ? (
               <Ionicons name={expandedHouseholds ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" />
-            )}
-            {isAdmin && (
-              <Pressable
-                style={styles.cardOverflowBtn}
-                onPress={(e) => { e.stopPropagation?.(); setShowHouseholdAdminSheet(true); }}
-                hitSlop={8}
-                accessibilityLabel="Hushållsalternativ"
-              >
-                <Ionicons name="ellipsis-vertical" size={18} color="#6b7280" />
-              </Pressable>
-            )}
+            ) : null}
           </Pressable>
           {expandedHouseholds && allMemberships.length > 1 && (
             <View style={styles.inlineExpand}>
@@ -568,19 +578,12 @@ export default function SettingsScreen() {
           <View style={styles.membersBox}>
             <View style={styles.membersHeader}>
               <Text style={styles.membersTitle}>Medlemmar</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                {editMode && isAdmin && (
-                  <Pressable style={styles.addMemberBtn} onPress={() => setShowCreateLocalModal(true)}>
-                    <Ionicons name="add-circle-outline" size={15} color="#4f46e5" />
-                    <Text style={styles.addMemberBtnText}>Lokal profil</Text>
-                  </Pressable>
-                )}
-                <Pressable ref={adminEditBtnRef} onPress={() => setEditMode(v => !v)} hitSlop={8}>
-                  <Text style={[styles.editModeBtn, editMode && styles.editModeBtnActive]}>
-                    {editMode ? 'Klar' : 'Hantera'}
-                  </Text>
+              {editMode && isAdmin && (
+                <Pressable style={styles.addMemberBtn} onPress={() => setShowCreateLocalModal(true)}>
+                  <Ionicons name="add-circle-outline" size={15} color="#4f46e5" />
+                  <Text style={styles.addMemberBtnText}>Lokal profil</Text>
                 </Pressable>
-              </View>
+              )}
             </View>
             {loadingHousehold && <ActivityIndicator size="small" color="#4f46e5" style={{ marginVertical: 8 }} />}
             {householdMembers.map((member, idx) => (
@@ -680,29 +683,6 @@ export default function SettingsScreen() {
           </View>
         </View>
       </ScrollView>
-
-      {/* Hushållsadmin-overflow: rename / ta bort hushåll */}
-      <Modal visible={showHouseholdAdminSheet} transparent animationType="slide" onRequestClose={() => setShowHouseholdAdminSheet(false)}>
-        <Pressable style={styles.overlay} onPress={() => setShowHouseholdAdminSheet(false)} />
-        <View style={[styles.sheet, { paddingBottom: 32 }]}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>{householdName ?? 'Hushållet'}</Text>
-          <Pressable
-            style={styles.householdSheetRow}
-            onPress={() => { setShowHouseholdAdminSheet(false); setEditingHouseholdName(householdName || ''); setShowEditHouseholdModal(true); }}
-          >
-            <Ionicons name="create-outline" size={18} color="#4f46e5" />
-            <Text style={styles.householdSheetRowText}>Byt namn på hushållet</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.householdSheetRow, styles.householdSheetRowBorder]}
-            onPress={() => { setShowHouseholdAdminSheet(false); setDeleteConfirmText(''); setShowDeleteHouseholdModal(true); }}
-          >
-            <Ionicons name="trash-outline" size={18} color="#ef4444" />
-            <Text style={[styles.householdSheetRowText, { color: '#ef4444' }]}>Ta bort hushållet</Text>
-          </Pressable>
-        </View>
-      </Modal>
 
       {/* Edit Household Name Modal */}
       <Modal visible={showEditHouseholdModal} transparent animationType="slide">
@@ -1013,9 +993,6 @@ const styles = StyleSheet.create({
   memberAdminBadge: { color: '#7c3aed' },
   memberActions: { flexDirection: 'row', gap: 4 },
   memberActionBtn: { padding: 7 },
-  householdSheetRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4, paddingVertical: 14 },
-  householdSheetRowBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  householdSheetRowText: { flex: 1, fontSize: 15, color: '#111827', fontWeight: '500' },
   inviteBox: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -1060,7 +1037,6 @@ const styles = StyleSheet.create({
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   linkRowBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
   linkRowText: { flex: 1, fontSize: 15, color: '#111827', fontWeight: '500' },
-  cardOverflowBtn: { padding: 6, marginLeft: 4 },
   devBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, backgroundColor: '#f3f4f6', borderRadius: 12 },
   devBtnText: { fontSize: 14, fontWeight: '500', color: '#6b7280' },
   toast: {
