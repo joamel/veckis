@@ -125,10 +125,13 @@ export default function SettingsScreen() {
 
   // Join household
   const [showJoinHouseholdModal, setShowJoinHouseholdModal] = useState(false);
-  // Bottom-sheet som öppnas vid tap på hushållskortet: lista över andra
-  // hushåll man tillhör + skapa nytt / gå med. Samlar tre ingångar som
-  // tidigare låg utspridda som egna sektioner.
-  const [showHouseholdSheet, setShowHouseholdSheet] = useState(false);
+  // Profil- och hushållskorten kan fällas ut inline (i samma stil som
+  // sysslor) för att visa sekundära handlingar — byt nickname/logga ut
+  // resp. byt aktivt hushåll. Admin-handlingar på hushållet (rename/ta
+  // bort) ligger i en egen overflow-sheet, oberoende av medlems-edit.
+  const [expandedAccount, setExpandedAccount] = useState(false);
+  const [expandedHouseholds, setExpandedHouseholds] = useState(false);
+  const [showHouseholdAdminSheet, setShowHouseholdAdminSheet] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [loadingJoinHousehold, setLoadingJoinHousehold] = useState(false);
 
@@ -435,7 +438,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScreenHeader
-        title="Inställningar"
+        title="Profil"
         actionNode={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Pressable ref={notifClockBtnRef} style={styles.headerIconBtn} onPress={() => setShowNotifModal(true)} accessibilityLabel="Notisinställningar">
@@ -452,7 +455,12 @@ export default function SettingsScreen() {
         {/* Konto */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>KONTO</Text>
-          <View style={styles.card}>
+          <Pressable
+            style={styles.card}
+            onPress={() => setExpandedAccount(v => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={expandedAccount ? 'Dölj kontoval' : 'Visa kontoval'}
+          >
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
             </View>
@@ -468,24 +476,41 @@ export default function SettingsScreen() {
               </View>
               {email && <Text style={styles.userEmail}>{email}</Text>}
             </View>
-          </View>
+            <Ionicons name={expandedAccount ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" />
+          </Pressable>
+          {expandedAccount && (
+            <View style={styles.inlineExpand}>
+              {(() => {
+                const me = householdMembers.find(m => m.clerkUserId === clerkUserId);
+                return me ? (
+                  <Pressable
+                    style={styles.inlineRow}
+                    onPress={() => { setExpandedAccount(false); openEditMember(me.id, me.displayName); }}
+                  >
+                    <Ionicons name="create-outline" size={16} color="#4f46e5" />
+                    <Text style={styles.inlineRowText}>Byt nickname</Text>
+                  </Pressable>
+                ) : null;
+              })()}
+              <Pressable
+                style={[styles.inlineRow, styles.inlineRowBorder]}
+                onPress={() => { setExpandedAccount(false); handleSignOut(); }}
+              >
+                <Ionicons name="log-out-outline" size={16} color="#ef4444" />
+                <Text style={[styles.inlineRowText, { color: '#ef4444' }]}>Logga ut</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
 
         {/* Hushållet */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionLabel}>HUSHÅLLET</Text>
-            <Pressable ref={adminEditBtnRef} onPress={() => setEditMode(v => !v)} hitSlop={8}>
-              <Text style={[styles.editModeBtn, editMode && styles.editModeBtnActive]}>
-                {editMode ? 'Klar' : 'Redigera'}
-              </Text>
-            </Pressable>
-          </View>
+          <Text style={styles.sectionLabel}>HUSHÅLLET</Text>
           <Pressable
             style={styles.card}
-            onPress={() => setShowHouseholdSheet(true)}
+            onPress={() => { if (allMemberships.length > 1) setExpandedHouseholds(v => !v); }}
             accessibilityRole="button"
-            accessibilityLabel="Byt hushåll, skapa eller gå med"
+            accessibilityLabel={allMemberships.length > 1 ? 'Byt aktivt hushåll' : 'Aktivt hushåll'}
           >
             <View style={styles.householdIcon}>
               <Ionicons name="home-outline" size={20} color="#4f46e5" />
@@ -495,38 +520,67 @@ export default function SettingsScreen() {
               <Text style={styles.userEmail}>
                 {allMemberships.length > 1
                   ? `${allMemberships.length} hushåll · tryck för att byta`
-                  : 'Tryck för att byta eller skapa nytt'}
+                  : 'Aktivt hushåll'}
               </Text>
             </View>
-            {editMode && isAdmin ? (
-              <View style={styles.cardActions}>
-                <Pressable
-                  style={styles.memberActionBtn}
-                  onPress={() => { setEditingHouseholdName(householdName || ''); setShowEditHouseholdModal(true); }}
-                >
-                  <Ionicons name="pencil-outline" size={16} color="#4f46e5" />
-                </Pressable>
-                <Pressable
-                  style={styles.memberActionBtn}
-                  onPress={() => { setDeleteConfirmText(''); setShowDeleteHouseholdModal(true); }}
-                >
-                  <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                </Pressable>
-              </View>
-            ) : (
-              <Ionicons name="chevron-down" size={18} color="#9ca3af" />
+            {allMemberships.length > 1 && (
+              <Ionicons name={expandedHouseholds ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" />
+            )}
+            {isAdmin && (
+              <Pressable
+                style={styles.cardOverflowBtn}
+                onPress={(e) => { e.stopPropagation?.(); setShowHouseholdAdminSheet(true); }}
+                hitSlop={8}
+                accessibilityLabel="Hushållsalternativ"
+              >
+                <Ionicons name="ellipsis-vertical" size={18} color="#6b7280" />
+              </Pressable>
             )}
           </Pressable>
+          {expandedHouseholds && allMemberships.length > 1 && (
+            <View style={styles.inlineExpand}>
+              {allMemberships.map((membership, idx) => {
+                const active = membership.householdId === householdId;
+                return (
+                  <Pressable
+                    key={membership.householdId}
+                    style={[styles.inlineRow, idx > 0 && styles.inlineRowBorder]}
+                    onPress={() => {
+                      setExpandedHouseholds(false);
+                      if (!active) handleSwitchHousehold(membership.householdId);
+                    }}
+                  >
+                    <Ionicons
+                      name={active ? 'home' : 'home-outline'}
+                      size={16}
+                      color={active ? '#10b981' : '#6b7280'}
+                    />
+                    <Text style={[styles.inlineRowText, active && { color: '#10b981', fontWeight: '700' }]}>
+                      {membership.household.name}
+                    </Text>
+                    {active && <Ionicons name="checkmark-circle" size={16} color="#10b981" />}
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
 
           <View style={styles.membersBox}>
             <View style={styles.membersHeader}>
               <Text style={styles.membersTitle}>Medlemmar</Text>
-              {editMode && isAdmin && (
-                <Pressable style={styles.addMemberBtn} onPress={() => setShowCreateLocalModal(true)}>
-                  <Ionicons name="add-circle-outline" size={15} color="#4f46e5" />
-                  <Text style={styles.addMemberBtnText}>Lokal profil</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                {editMode && isAdmin && (
+                  <Pressable style={styles.addMemberBtn} onPress={() => setShowCreateLocalModal(true)}>
+                    <Ionicons name="add-circle-outline" size={15} color="#4f46e5" />
+                    <Text style={styles.addMemberBtnText}>Lokal profil</Text>
+                  </Pressable>
+                )}
+                <Pressable ref={adminEditBtnRef} onPress={() => setEditMode(v => !v)} hitSlop={8}>
+                  <Text style={[styles.editModeBtn, editMode && styles.editModeBtnActive]}>
+                    {editMode ? 'Klar' : 'Hantera'}
+                  </Text>
                 </Pressable>
-              )}
+              </View>
             </View>
             {loadingHousehold && <ActivityIndicator size="small" color="#4f46e5" style={{ marginVertical: 8 }} />}
             {householdMembers.map((member, idx) => (
@@ -609,57 +663,43 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Logga ut */}
+        {/* Andra hushåll: skapa nytt eller gå med via kod */}
         <View style={styles.section}>
-          <Pressable style={styles.signOutBtn} onPress={handleSignOut}>
-            <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-            <Text style={styles.signOutText}>Logga ut</Text>
-          </Pressable>
+          <Text style={styles.sectionLabel}>ANDRA HUSHÅLL</Text>
+          <View style={styles.linkBox}>
+            <Pressable style={styles.linkRow} onPress={() => setShowCreateHouseholdModal(true)}>
+              <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
+              <Text style={styles.linkRowText}>Skapa nytt hushåll</Text>
+              <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+            </Pressable>
+            <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={() => setShowJoinHouseholdModal(true)}>
+              <Ionicons name="log-in-outline" size={18} color="#4f46e5" />
+              <Text style={styles.linkRowText}>Gå med i hushåll</Text>
+              <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
 
-      {/* Hushålls-bottom-sheet: byt aktivt hushåll + skapa/gå med */}
-      <Modal visible={showHouseholdSheet} transparent animationType="slide" onRequestClose={() => setShowHouseholdSheet(false)}>
-        <Pressable style={styles.overlay} onPress={() => setShowHouseholdSheet(false)} />
+      {/* Hushållsadmin-overflow: rename / ta bort hushåll */}
+      <Modal visible={showHouseholdAdminSheet} transparent animationType="slide" onRequestClose={() => setShowHouseholdAdminSheet(false)}>
+        <Pressable style={styles.overlay} onPress={() => setShowHouseholdAdminSheet(false)} />
         <View style={[styles.sheet, { paddingBottom: 32 }]}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Hushåll</Text>
-          <View style={{ marginTop: 4 }}>
-            {allMemberships.map((membership, idx) => {
-              const active = membership.householdId === householdId;
-              return (
-                <Pressable
-                  key={membership.householdId}
-                  style={[styles.householdSheetRow, idx > 0 && styles.householdSheetRowBorder]}
-                  onPress={() => { setShowHouseholdSheet(false); if (!active) handleSwitchHousehold(membership.householdId); }}
-                >
-                  <Ionicons
-                    name={active ? 'home' : 'home-outline'}
-                    size={18}
-                    color={active ? '#10b981' : '#6b7280'}
-                  />
-                  <Text style={[styles.householdSheetRowText, active && { color: '#10b981', fontWeight: '700' }]}>
-                    {membership.household.name}
-                  </Text>
-                  {active && <Ionicons name="checkmark-circle" size={18} color="#10b981" />}
-                </Pressable>
-              );
-            })}
-          </View>
-          <View style={styles.householdSheetDivider} />
+          <Text style={styles.sheetTitle}>{householdName ?? 'Hushållet'}</Text>
           <Pressable
             style={styles.householdSheetRow}
-            onPress={() => { setShowHouseholdSheet(false); setShowCreateHouseholdModal(true); }}
+            onPress={() => { setShowHouseholdAdminSheet(false); setEditingHouseholdName(householdName || ''); setShowEditHouseholdModal(true); }}
           >
-            <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
-            <Text style={[styles.householdSheetRowText, { color: '#4f46e5', fontWeight: '600' }]}>Skapa nytt hushåll</Text>
+            <Ionicons name="create-outline" size={18} color="#4f46e5" />
+            <Text style={styles.householdSheetRowText}>Byt namn på hushållet</Text>
           </Pressable>
           <Pressable
             style={[styles.householdSheetRow, styles.householdSheetRowBorder]}
-            onPress={() => { setShowHouseholdSheet(false); setShowJoinHouseholdModal(true); }}
+            onPress={() => { setShowHouseholdAdminSheet(false); setDeleteConfirmText(''); setShowDeleteHouseholdModal(true); }}
           >
-            <Ionicons name="log-in-outline" size={18} color="#4f46e5" />
-            <Text style={[styles.householdSheetRowText, { color: '#4f46e5', fontWeight: '600' }]}>Gå med i hushåll</Text>
+            <Ionicons name="trash-outline" size={18} color="#ef4444" />
+            <Text style={[styles.householdSheetRowText, { color: '#ef4444' }]}>Ta bort hushållet</Text>
           </Pressable>
         </View>
       </Modal>
@@ -976,7 +1016,6 @@ const styles = StyleSheet.create({
   householdSheetRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4, paddingVertical: 14 },
   householdSheetRowBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
   householdSheetRowText: { flex: 1, fontSize: 15, color: '#111827', fontWeight: '500' },
-  householdSheetDivider: { height: 8, backgroundColor: '#f3f4f6', marginHorizontal: -20, marginVertical: 8 },
   inviteBox: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -1013,23 +1052,15 @@ const styles = StyleSheet.create({
   },
   inviteBtnDisabled: { opacity: 0.4 },
   inviteBtnText: { fontSize: 15, fontWeight: '600', color: '#4f46e5' },
-  signOutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#fecaca',
-    padding: 16,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  signOutText: { fontSize: 16, fontWeight: '600', color: '#ef4444' },
+  inlineExpand: { backgroundColor: '#fafafa', borderRadius: 12, marginTop: 6, marginHorizontal: 4, paddingHorizontal: 14, paddingVertical: 4, borderWidth: 1, borderColor: '#f3f4f6' },
+  inlineRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+  inlineRowBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  inlineRowText: { flex: 1, fontSize: 14, color: '#111827', fontWeight: '500' },
+  linkBox: { backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#cbd5e1', paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
+  linkRowBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  linkRowText: { flex: 1, fontSize: 15, color: '#111827', fontWeight: '500' },
+  cardOverflowBtn: { padding: 6, marginLeft: 4 },
   devBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, backgroundColor: '#f3f4f6', borderRadius: 12 },
   devBtnText: { fontSize: 14, fontWeight: '500', color: '#6b7280' },
   toast: {
