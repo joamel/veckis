@@ -958,7 +958,7 @@ export default function SettingsScreen() {
           toggle:n nollställer tipsen vid varje växling. */}
       <Modal visible={showOverflowMenu} transparent animationType="fade" onRequestClose={() => setShowOverflowMenu(false)}>
         <Pressable style={styles.overlay} onPress={() => setShowOverflowMenu(false)} />
-        <View style={[styles.overflowPopover, { top: insets.top + 4 }]} pointerEvents="box-none">
+        <View style={[styles.overflowPopover, { top: insets.top }]} pointerEvents="box-none">
           <View style={styles.overflowPopoverInner}>
             <View style={styles.overflowRow}>
               <View style={{ flex: 1 }}>
@@ -1099,7 +1099,7 @@ const styles = StyleSheet.create({
   },
   inviteBtnDisabled: { opacity: 0.4 },
   inviteBtnText: { fontSize: 15, fontWeight: '600', color: '#4f46e5' },
-  overflowPopover: { position: 'absolute', right: 12, alignItems: 'flex-end' },
+  overflowPopover: { position: 'absolute', right: 0, alignItems: 'flex-end' },
   overflowPopoverInner: { backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 4, width: 280, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   overflowRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   memberActionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 16 },

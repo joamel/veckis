@@ -1767,7 +1767,7 @@ export default function ShoppingListScreen() {
       {/* Actions menu (3-dot) */}
       <Modal visible={showActionsMenu} transparent animationType="fade" onRequestClose={() => setShowActionsMenu(false)}>
         <Pressable style={s.overlay} onPress={() => setShowActionsMenu(false)} />
-        <View style={s.actionsMenu}>
+        <View style={[s.actionsMenu, { top: insets.top }]}>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); toggleIAmShopping(); }}
@@ -2038,7 +2038,7 @@ const s = StyleSheet.create({
   titleTextWrap: { position: 'absolute', left: 20, right: 20, justifyContent: 'center', alignItems: 'flex-start', zIndex: 25 },
   headerNavPinned: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   headerTitleAbs: { position: 'absolute', left: 0, right: 0, zIndex: 10, paddingHorizontal: 20, backgroundColor: '#fff', overflow: 'hidden' },
-  actionsMenu: { position: 'absolute', top: 56, right: 12, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  actionsMenu: { position: 'absolute', right: 0, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   actionsMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   actionsMenuText: { fontSize: 15, color: '#111827', fontWeight: '500' },
   actionsMenuDivider: { height: 1, backgroundColor: '#f3f4f6', marginVertical: 4 },

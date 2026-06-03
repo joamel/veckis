@@ -15,7 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -33,6 +33,7 @@ import type { RecipeIngredient } from '@veckis/shared';
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
 export default function RecipeDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { recipeId, transfer, edit, forMenuDay } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string }>();
   const router = useRouter();
   const client = useApiClient();
@@ -762,7 +763,7 @@ export default function RecipeDetailScreen() {
       {/* 3-prickar-meny */}
       <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
         <Pressable style={s.menuOverlay} onPress={() => setShowMenu(false)}>
-          <View style={s.menuSheet}>
+          <View style={[s.menuSheet, { top: insets.top }]}>
             <Pressable style={s.menuItem} onPress={() => { setShowMenu(false); startEdit(); }}>
               <Ionicons name="create-outline" size={18} color="#111827" />
               <Text style={s.menuItemText}>Redigera recept</Text>
@@ -870,7 +871,7 @@ const s = StyleSheet.create({
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '85%' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' },
-  menuSheet: { position: 'absolute', top: 56, right: 12, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  menuSheet: { position: 'absolute', right: 0, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 16 },
   menuItemText: { fontSize: 15, color: '#111827', fontWeight: '500' },
   renameTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16 },
