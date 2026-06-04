@@ -33,6 +33,7 @@ import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
+import { buildAssignedLabel } from '../../src/lib/buildAssignedLabel';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import type { Chore, ChoreCompletion, ChoreFrequency, RecurrenceType, WeekDay } from '@veckis/shared';
 import { occursOn, weekdayOf, computeCurrentTurn, computeTurnHistory, type RecurrencePattern } from '@veckis/shared';
@@ -486,22 +487,8 @@ export default function ChoresScreen() {
   //  - flera utan rotation → "Anna · Bo · Carl" (kommatecken-separerad)
   //  - en medlem → "Anna"
   //  - ingen → null (visas inte)
-  function buildAssignedLabel(chore: ChoreWithCompletion): string | null {
-    const ids = chore.assignedToMany?.length ? chore.assignedToMany : (chore.assignedTo ? [chore.assignedTo] : []);
-    if (ids.length === 0) return null;
-    const names = ids.map(id => getMemberName(id) ?? '').filter(Boolean);
-    if (names.length === 0) return null;
-    if (chore.rotation && ids.length >= 2) {
-      const currentId = computeCurrentTurn({ rotation: true, assignedToMany: ids }, chore.completions.length);
-      const nextId = computeCurrentTurn({ rotation: true, assignedToMany: ids }, chore.completions.length + 1);
-      const currentName = currentId ? getMemberName(currentId) : null;
-      const nextName = nextId && nextId !== currentId ? getMemberName(nextId) : null;
-      return currentName
-        ? (nextName ? `${currentName}s tur · Nästa: ${nextName}` : `${currentName}s tur`)
-        : names.join(' · ');
-    }
-    return names.join(' · ');
-  }
+  // Tunn wrapper kring src/lib/buildAssignedLabel — där bor logiken + tester.
+  const buildLabel = (chore: ChoreWithCompletion) => buildAssignedLabel(chore, members);
 
   // Who completed an occurrence (completedBy is a clerkUserId; local profiles
   // can't complete so this is always a logged-in account).
@@ -853,7 +840,7 @@ export default function ChoresScreen() {
           // the greyed/strikethrough look; only one-off chores get that.
           const finishedLook = once && done;
           const overdue = rec?.state === 'overdue';
-          const assignedLabel = buildAssignedLabel(item);
+          const assignedLabel = buildLabel(item);
           const expanded = expandedChores.has(item.id);
           // Kompakt rad: "vem · när". Resten (frekvens, dagar, fullständig
           // status) bor i utfällt läge.

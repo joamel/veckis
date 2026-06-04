@@ -60,6 +60,10 @@ function NavigationGuard() {
 
     const inAuthGroup = segments[0] === '(auth)';
     const inSetup = segments[0] === 'household';
+    // /install är publik landningssida (APK-nedladdning + PWA-instruktioner)
+    // — NavigationGuard ska inte tvinga inloggning där.
+    const isPublic = segments[0] === 'install';
+    if (isPublic) return;
 
     if (!isSignedIn && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
