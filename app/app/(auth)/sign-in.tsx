@@ -24,12 +24,13 @@ export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  // Tre inloggnings-lägen:
-  // - 'password' (default): klassisk e-post + lösenord
-  // - 'email-code': lösenordsfri inlogg via 6-siffrig kod skickad till e-post
-  //   (Clerk-strategi 'email_code'; samma infra som verifierings-/reset-kod)
-  // - 'reset': glömt-lösenord-flow via 'reset_password_email_code'
-  const [mode, setMode] = useState<'password' | 'email-code' | 'reset'>('password');
+  // Tre inloggnings-lägen — 'email-code' är default (säkrare än lösen för
+  // medianvändaren som inte aktiverar 2FA, och eliminerar lösen-återanvändnings-
+  // attacken). Lösen + Google finns kvar som alternativ.
+  // - 'email-code' (default): lösenordsfri 6-siffrig kod till e-post
+  // - 'password': klassisk e-post + lösen
+  // - 'reset': glömt-lösen-flow via 'reset_password_email_code'
+  const [mode, setMode] = useState<'password' | 'email-code' | 'reset'>('email-code');
   const [codeSent, setCodeSent] = useState(false);
   const [code, setCode] = useState('');
   const [resetNewPassword, setResetNewPassword] = useState('');
@@ -163,21 +164,13 @@ export default function SignInScreen() {
           </Pressable>
 
           <View style={styles.altRow}>
-            <Pressable onPress={() => switchMode('email-code')} hitSlop={6}>
-              <Text style={styles.linkSmall}>Logga in med kod via e-post</Text>
-            </Pressable>
-            <Text style={styles.altSep}>·</Text>
             <Pressable onPress={() => switchMode('reset')} hitSlop={6}>
               <Text style={styles.linkSmall}>Glömt lösenord?</Text>
             </Pressable>
           </View>
 
-          <Pressable style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
-            <Text style={styles.buttonText}>Fortsätt med Google</Text>
-          </Pressable>
-
-          <Pressable onPress={() => router.push('/(auth)/sign-up')}>
-            <Text style={styles.link}>Inget konto? Skapa ett</Text>
+          <Pressable onPress={() => switchMode('email-code')}>
+            <Text style={styles.link}>← Logga in med kod istället</Text>
           </Pressable>
         </>
       )}
@@ -188,7 +181,7 @@ export default function SignInScreen() {
             <>
               <Text style={styles.helpText}>
                 {mode === 'email-code'
-                  ? 'Skriv din e-post så skickar vi en engångskod.'
+                  ? 'Skriv din e-post så skickar vi en engångskod — säkrare än lösenord.'
                   : 'Skriv din e-post så skickar vi en återställningskod.'}
               </Text>
               <TextInput
@@ -233,9 +226,30 @@ export default function SignInScreen() {
               </Pressable>
             </>
           )}
-          <Pressable onPress={() => switchMode('password')}>
-            <Text style={styles.link}>← Tillbaka till inloggning</Text>
-          </Pressable>
+
+          {mode === 'email-code' && !codeSent && (
+            <>
+              <Pressable style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
+                <Text style={styles.buttonText}>Fortsätt med Google</Text>
+              </Pressable>
+
+              <View style={styles.altRow}>
+                <Pressable onPress={() => switchMode('password')} hitSlop={6}>
+                  <Text style={styles.linkSmall}>Logga in med lösen istället</Text>
+                </Pressable>
+              </View>
+
+              <Pressable onPress={() => router.push('/(auth)/sign-up')}>
+                <Text style={styles.link}>Inget konto? Skapa ett</Text>
+              </Pressable>
+            </>
+          )}
+
+          {mode === 'reset' && (
+            <Pressable onPress={() => switchMode('email-code')}>
+              <Text style={styles.link}>← Tillbaka till inloggning</Text>
+            </Pressable>
+          )}
         </>
       )}
     </KeyboardAvoidingView>

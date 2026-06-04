@@ -468,6 +468,25 @@ export default function SettingsScreen() {
     });
   }
 
+  /** Öppna Clerks user-profile där 2FA (TOTP) kan aktiveras. På web öppnas
+   *  Clerks egen modal; på native öppnar vi Account Portal i in-app-browser.
+   *  TOTP är gratis i Clerks Hobby-plan — bara backup-koder + recovery genereras
+   *  där, ingen extra kostnad per inlogg. */
+  async function handleOpen2FA() {
+    setShowOverflowMenu(false);
+    const portalUrl = 'https://new-oarfish-48.accounts.dev/user/security';
+    try {
+      if (Platform.OS === 'web') {
+        window.open(portalUrl, '_blank', 'noopener');
+      } else {
+        const WebBrowser = await import('expo-web-browser');
+        await WebBrowser.openBrowserAsync(portalUrl);
+      }
+    } catch (e) {
+      showError(e, 'Kunde inte öppna säkerhetsinställningar');
+    }
+  }
+
   async function handleResetTips() {
     await Promise.all(TIP_FLAGS.map(k => SecureStore.deleteItemAsync(k).catch(() => {})));
     // Slå även PÅ master-toggle om den var av — annars skulle inget visas igen.
@@ -1042,6 +1061,14 @@ export default function SettingsScreen() {
                 thumbColor={skipAll === false ? '#4f46e5' : '#f3f4f6'}
               />
             </View>
+            <Pressable style={styles.overflowAction} onPress={handleOpen2FA}>
+              <Ionicons name="shield-checkmark-outline" size={18} color="#7c3aed" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuRowLabel}>Tvåfaktorsautentisering</Text>
+                <Text style={styles.menuRowSub}>Lägg till en authenticator-app som extra säkerhet.</Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color="#9ca3af" />
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -1174,6 +1201,7 @@ const styles = StyleSheet.create({
   overflowPopover: { position: 'absolute', right: 0, alignItems: 'flex-end' },
   overflowPopoverInner: { backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 4, width: 280, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   overflowRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  overflowAction: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
   memberActionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 16 },
   memberActionRowBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
   memberActionRowText: { flex: 1, fontSize: 15, color: '#111827', fontWeight: '500' },
