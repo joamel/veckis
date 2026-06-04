@@ -30,6 +30,7 @@ import { TIP_FLAGS } from '../../src/lib/onboardingTips';
 import * as SecureStore from '../../src/lib/secureStorage';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { NotificationsModal } from '../../src/components/NotificationsModal';
+import { AuditLogSection } from '../../src/components/AuditLogSection';
 import { shareInviteLink } from '../../src/lib/inviteLink';
 import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
@@ -642,6 +643,9 @@ export default function SettingsScreen() {
               </View>
             ))}
           </View>
+
+          {/* Aktivitetslogg — admin only, lazy-load vid expand */}
+          {isAdmin && householdId && <AuditLogSection householdId={householdId} />}
         </View>
 
         {/* Bjud in */}
