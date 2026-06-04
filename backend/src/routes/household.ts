@@ -195,6 +195,19 @@ householdRouter.patch('/:householdId/members/:memberId', requireAuth, asyncHandl
     return;
   }
 
+  // Sista-admin-skydd: om target är admin och rollen byts till member,
+  // måste minst en annan admin finnas kvar. Annars hamnar hushållet i ett
+  // tillstånd där ingen kan administrera det.
+  if (body.data.role === 'member' && target.role === 'admin') {
+    const otherAdmins = await prisma.householdMember.count({
+      where: { householdId: req.params.householdId, role: 'admin', NOT: { id: target.id } },
+    });
+    if (otherAdmins === 0) {
+      res.status(400).json({ error: 'Hushållet måste ha minst en admin' });
+      return;
+    }
+  }
+
   const updated = await prisma.householdMember.update({
     where: { id: target.id },
     data: {
@@ -233,6 +246,30 @@ householdRouter.post('/:householdId/members', requireAuth, requireAdmin, asyncHa
   res.status(201).json(member);
 }));
 
+// GET /api/households/:householdId/audit
+// Returnerar senaste audit-events för hushållet, nyaste först. Admin-only —
+// audit-loggen visar känsliga handlingar som ingen vanlig medlem behöver se
+// (vem som ändrade roller, vem som tog bort vem). Cursor-paginering via
+// ?before=<timestamp> för "ladda fler".
+householdRouter.get('/:householdId/audit', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const limitRaw = z.coerce.number().int().min(1).max(200).safeParse(req.query.limit);
+  const limit = limitRaw.success ? limitRaw.data : 50;
+  const beforeRaw = typeof req.query.before === 'string'
+    ? z.string().datetime().safeParse(req.query.before)
+    : null;
+  const before = beforeRaw?.success ? new Date(beforeRaw.data) : null;
+
+  const events = await prisma.auditLog.findMany({
+    where: {
+      householdId: req.params.householdId,
+      ...(before ? { createdAt: { lt: before } } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  });
+  res.json(events);
+}));
+
 // GET /api/households/:householdId/members/:memberId/assignments
 // Count chores + activities assigned to a member, for the removal warning.
 householdRouter.get('/:householdId/members/:memberId/assignments', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
@@ -258,6 +295,18 @@ householdRouter.delete('/:householdId/members/:memberId', requireAuth, requireAd
   if (target.clerkUserId === (req as AuthenticatedRequest).clerkUserId) {
     res.status(400).json({ error: 'Cannot remove yourself' });
     return;
+  }
+  // Sista-admin-skydd: om target är admin, måste minst en annan admin
+  // finnas kvar. Lokala profiler kan inte vara admins så detta gäller
+  // bara riktiga konton.
+  if (target.role === 'admin') {
+    const otherAdmins = await prisma.householdMember.count({
+      where: { householdId: target.householdId, role: 'admin', NOT: { id: target.id } },
+    });
+    if (otherAdmins === 0) {
+      res.status(400).json({ error: 'Hushållet måste ha minst en admin' });
+      return;
+    }
   }
   // Rensa medlemmen från alla assignedToMany-arrays innan vi raderar raden så
   // ingen syssla/aktivitet pekar på en död id. assignedTo nullas i en separat

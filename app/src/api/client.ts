@@ -72,6 +72,19 @@ export interface MenuTemplate {
 }
 
 export type HouseholdWithMembers = Household & { members: HouseholdMember[]; stores: Store[] };
+
+export interface AuditLogEntry {
+  id: string;
+  householdId: string | null;
+  actorClerkUserId: string;
+  actorName: string | null;
+  action: string; // 'household.update' | 'household.delete' | 'member.role_change' | 'member.remove'
+  targetType: string | null;
+  targetId: string | null;
+  targetName: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
 export type MembershipWithHousehold = HouseholdMember & { household: Household };
 export type ShoppingItemWithRecipe = ShoppingItem & { recipe: { id: string; title: string } | null };
 export type ShoppingListWithItems = ShoppingList & { items: ShoppingItemWithRecipe[]; store: Store | null };
@@ -141,6 +154,16 @@ export function useApiClient() {
 
     getMemberAssignments: (householdId: string, memberId: string) =>
       request<{ chores: number; activities: number }>(`/api/households/${householdId}/members/${memberId}/assignments`),
+
+    /** Audit-events för hushållet, nyaste först. Admin-only på backend.
+     *  before-cursor: skickar in createdAt från sista raden för "ladda fler". */
+    getAuditLog: (householdId: string, opts: { limit?: number; before?: string } = {}) => {
+      const params = new URLSearchParams();
+      if (opts.limit) params.set('limit', String(opts.limit));
+      if (opts.before) params.set('before', opts.before);
+      const qs = params.toString();
+      return request<AuditLogEntry[]>(`/api/households/${householdId}/audit${qs ? '?' + qs : ''}`);
+    },
 
     removeMember: (householdId: string, memberId: string) =>
       request<void>(`/api/households/${householdId}/members/${memberId}`, { method: 'DELETE' }),
