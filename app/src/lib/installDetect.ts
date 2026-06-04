@@ -16,23 +16,32 @@ export type InstallTarget =
   | 'desktop-other'   // okänd desktop
   | 'unknown';        // SSR / utan navigator
 
-export function detectInstallTarget(): InstallTarget {
-  if (typeof navigator === 'undefined' || typeof window === 'undefined') return 'unknown';
-
-  const ua = navigator.userAgent.toLowerCase();
-  const isAndroid = /android/.test(ua);
-  const isIOS = /iphone|ipad|ipod/.test(ua) || (/(macintosh).*safari/.test(ua) && navigator.maxTouchPoints > 1);
-  const isFirefox = /firefox\//.test(ua);
-  const isSafari = /safari\//.test(ua) && !/chrome|crios|edg|opr/.test(ua);
+/**
+ * Bestäm install-target från en user agent + ev. maxTouchPoints. Ren funktion
+ * så den är trivial att testa — `detectInstallTarget()` (utan args) plockar
+ * upp navigator-state automatiskt och delegerar hit.
+ */
+export function detectInstallTargetFor(ua: string | undefined, maxTouchPoints = 0): InstallTarget {
+  if (!ua) return 'unknown';
+  const lc = ua.toLowerCase();
+  const isAndroid = /android/.test(lc);
+  const isIOS = /iphone|ipad|ipod/.test(lc) || (/(macintosh).*safari/.test(lc) && maxTouchPoints > 1);
+  const isFirefox = /firefox\//.test(lc);
+  const isSafari = /safari\//.test(lc) && !/chrome|crios|edg|opr/.test(lc);
   // Chromium-baserade browsers stödjer beforeinstallprompt och PWA-install.
-  const isChromium = /chrome|crios|edg|opr|samsungbrowser/.test(ua);
+  const isChromium = /chrome|crios|edg|opr|samsungbrowser/.test(lc);
 
   if (isAndroid) return isChromium ? 'android-chrome' : 'android-other';
-  if (isIOS) return /safari/.test(ua) && !/crios|fxios|edgios/.test(ua) ? 'ios-safari' : 'ios-other';
+  if (isIOS) return /safari/.test(lc) && !/crios|fxios|edgios/.test(lc) ? 'ios-safari' : 'ios-other';
   if (isFirefox) return 'desktop-firefox';
   if (isSafari) return 'desktop-safari';
   if (isChromium) return 'desktop-chromium';
   return 'desktop-other';
+}
+
+export function detectInstallTarget(): InstallTarget {
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') return 'unknown';
+  return detectInstallTargetFor(navigator.userAgent, navigator.maxTouchPoints);
 }
 
 /** True om webbappen redan körs som installerad PWA (display-mode standalone). */
