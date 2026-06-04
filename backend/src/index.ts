@@ -5,6 +5,7 @@ config({ path: resolve(__dirname, '../.env') });
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { parseAllowlist, makeOriginCheck } from './lib/corsAllowlist';
+import { checkWsRateLimit, startWsRateLimitGc } from './lib/wsRateLimit';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
@@ -123,8 +124,24 @@ const heartbeatInterval = setInterval(() => {
 
 wss.on('close', () => clearInterval(heartbeatInterval));
 
+// Räkna WS-connections per IP i ett 1-min-fönster. GC städar bort tysta IPs.
+startWsRateLimitGc();
+
 server.on('upgrade', async (req, socket, head) => {
   try {
+    // Per-IP rate limit innan vi gör tunga DB-lookups. Render sätter
+    // X-Forwarded-For; vi tog 'trust proxy' i app:en ovan, men för WS
+    // måste vi läsa headern direkt eftersom socket.remoteAddress är
+    // Renders interna proxy-IP.
+    const fwd = req.headers['x-forwarded-for'];
+    const ip = (typeof fwd === 'string' ? fwd.split(',')[0].trim() : '') || req.socket.remoteAddress || 'unknown';
+    if (!checkWsRateLimit(ip)) {
+      console.warn(`[WS] Rate-limited connection from ${ip}`);
+      socket.write('HTTP/1.1 429 Too Many Requests\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
     const url = new URL(req.url ?? '', 'http://localhost');
     const shoppingMatch = url.pathname.match(/^\/ws\/shopping\/([^/]+)$/);
     const householdMatch = url.pathname.match(/^\/ws\/household\/([^/]+)$/);

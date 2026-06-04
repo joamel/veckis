@@ -339,6 +339,28 @@ model NotificationLog {
   @@index([sentAt])
 }
 
+// Auditspår för känsliga handlingar — vem raderade hushållet, vem
+// tog bort en medlem, vem ändrade en roll. Sökbart per hushåll/aktör
+// så vi kan svara på "vem gjorde vad" om en användare ifrågasätter.
+//
+// Ingen FK till Household/HouseholdMember för att raderingar fortsatt
+// ska kunna logga — vi behöver loggraden EFTER att target raderats.
+model AuditLog {
+  id          String   @id @default(cuid())
+  householdId String?  // null för system-events utanför ett hushåll
+  actorClerkUserId String  // vem som utförde
+  actorName   String?  // snapshot av display-namn vid handlingen
+  action      String   // ex: "household.delete", "member.remove", "member.role_change"
+  targetType  String?  // "household" | "member" | osv
+  targetId    String?  // id på det som ändrades
+  targetName  String?  // snapshot (för bortagna entiteter)
+  metadata    Json?    // valfri extra info: gammalt/nytt värde, anledning
+  createdAt   DateTime @default(now())
+
+  @@index([householdId, createdAt])
+  @@index([actorClerkUserId, createdAt])
+}
+
 enum MemberRole {
   admin
   member
