@@ -4,6 +4,7 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, requireAdmin, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { createHouseholdLimiter, joinHouseholdLimiter } from '../lib/rateLimits';
+import { audit, lookupActorName } from '../lib/auditLog';
 import { randomBytes } from 'crypto';
 import { wsBroadcast } from '../lib/wsHub';
 import { sendPush } from '../lib/sendPush';
@@ -114,9 +115,19 @@ householdRouter.patch('/:householdId', requireAuth, requireAdmin, asyncHandler(a
   const body = z.object({ name: z.string().min(1).max(100) }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
+  const householdId = req.params.householdId;
+  const before = await prisma.household.findUnique({ where: { id: householdId } });
   const household = await prisma.household.update({
-    where: { id: req.params.householdId },
+    where: { id: householdId },
     data: { name: body.data.name },
+  });
+  const actorId = (req as AuthenticatedRequest).clerkUserId;
+  const actorName = await lookupActorName(householdId, actorId);
+  void audit({
+    householdId, actorClerkUserId: actorId, actorName,
+    action: 'household.update', targetType: 'household', targetId: householdId,
+    targetName: household.name,
+    metadata: { oldName: before?.name ?? null, newName: household.name },
   });
   broadcastHousehold(household.id, 'household_updated', household);
   res.json(household);
@@ -124,9 +135,19 @@ householdRouter.patch('/:householdId', requireAuth, requireAdmin, asyncHandler(a
 
 // DELETE /api/households/:householdId
 householdRouter.delete('/:householdId', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
-  const existing = await prisma.household.findUnique({ where: { id: req.params.householdId } });
+  const householdId = req.params.householdId;
+  const existing = await prisma.household.findUnique({ where: { id: householdId } });
   if (!existing) { res.status(404).json({ error: 'Household not found' }); return; }
-  await prisma.household.delete({ where: { id: req.params.householdId } });
+  const actorId = (req as AuthenticatedRequest).clerkUserId;
+  const actorName = await lookupActorName(householdId, actorId);
+  await prisma.household.delete({ where: { id: householdId } });
+  // Audit EFTER delete eftersom AuditLog inte har FK till Household — raden
+  // överlever även när hushållet är borta. Snapshot:ar namnet i targetName.
+  void audit({
+    householdId, actorClerkUserId: actorId, actorName,
+    action: 'household.delete', targetType: 'household', targetId: householdId,
+    targetName: existing.name,
+  });
   res.status(204).send();
 }));
 
@@ -181,6 +202,17 @@ householdRouter.patch('/:householdId/members/:memberId', requireAuth, asyncHandl
       ...(body.data.role !== undefined ? { role: body.data.role } : {}),
     },
   });
+  // Role-changes är sällsynta + viktiga — auditas. Namnändringar loggas inte
+  // (för triviala för att vara värdefulla i log).
+  if (body.data.role !== undefined && body.data.role !== target.role) {
+    const actorName = await lookupActorName(req.params.householdId, clerkUserId);
+    void audit({
+      householdId: req.params.householdId, actorClerkUserId: clerkUserId, actorName,
+      action: 'member.role_change', targetType: 'member', targetId: target.id,
+      targetName: target.displayName,
+      metadata: { oldRole: target.role, newRole: body.data.role },
+    });
+  }
   broadcastHousehold(updated.householdId, 'member_updated', updated);
   res.json(updated);
 }));
@@ -263,6 +295,14 @@ householdRouter.delete('/:householdId/members/:memberId', requireAuth, requireAd
       data: { assignedTo: null },
     });
     await tx.householdMember.delete({ where: { id: target.id } });
+  });
+  const actorId = (req as AuthenticatedRequest).clerkUserId;
+  const actorName = await lookupActorName(target.householdId, actorId);
+  void audit({
+    householdId: target.householdId, actorClerkUserId: actorId, actorName,
+    action: 'member.remove', targetType: 'member', targetId: target.id,
+    targetName: target.displayName,
+    metadata: { wasRole: target.role, wasClerkUser: target.clerkUserId ?? null },
   });
   broadcastHousehold(target.householdId, 'member_deleted', { id: target.id });
   res.status(204).send();
