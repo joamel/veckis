@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
@@ -19,10 +20,31 @@ export default function HouseholdSetupScreen() {
   const { refresh } = useHousehold();
   const { user } = useUser();
   const confirm = useConfirm();
-  const [tab, setTab] = useState<'create' | 'join'>('create');
+  // Inbjudningslänk: ?code=XXXXXXXX förfyller koden och växlar till
+  // "Gå med"-fliken. Persisteras tillfälligt i localStorage på web så
+  // koden överlever ev. sign-in-redirect via Clerk.
+  const params = useLocalSearchParams<{ code?: string }>();
+  const [tab, setTab] = useState<'create' | 'join'>(params.code ? 'join' : 'create');
   const [name, setName] = useState('');
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState((params.code ?? '').toUpperCase().slice(0, 8));
   const [loading, setLoading] = useState(false);
+
+  // Cache + restore: om användaren klickat invite-länk innan inlogg, sparar vi
+  // koden i localStorage. Den hämtas tillbaka när hen landar här efter sign-in.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    if (params.code) {
+      try { window.localStorage.setItem('pending_invite_code', String(params.code).toUpperCase()); } catch { /* best-effort */ }
+      return;
+    }
+    try {
+      const stored = window.localStorage.getItem('pending_invite_code');
+      if (stored && stored.length === 8) {
+        setCode(stored);
+        setTab('join');
+      }
+    } catch { /* best-effort */ }
+  }, [params.code]);
 
   const defaultName = user?.firstName ?? user?.fullName ?? user?.emailAddresses[0]?.emailAddress?.split('@')[0] ?? 'Användare';
   const [nickname, setNickname] = useState(defaultName);
@@ -45,6 +67,9 @@ export default function HouseholdSetupScreen() {
     setLoading(true);
     try {
       await client.joinHousehold(code.trim().toUpperCase(), nickname.trim());
+      if (Platform.OS === 'web') {
+        try { window.localStorage.removeItem('pending_invite_code'); } catch { /* best-effort */ }
+      }
       await refresh();
     } catch (err) {
       confirm({ title: 'Fel', message: err instanceof Error ? err.message : 'Ogiltig eller utgången kod', buttons: [{ label: 'OK' }] });

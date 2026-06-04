@@ -30,6 +30,7 @@ import { TIP_FLAGS } from '../../src/lib/onboardingTips';
 import * as SecureStore from '../../src/lib/secureStorage';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { NotificationsModal } from '../../src/components/NotificationsModal';
+import { shareInviteLink } from '../../src/lib/inviteLink';
 import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
 
@@ -214,6 +215,18 @@ export default function SettingsScreen() {
     if (!invite) return;
     Clipboard.setString(invite.code);
     showGlobalToast(`Koden ${invite.code} kopierad`, 'success');
+  }
+
+  async function shareInvite() {
+    if (!invite || !householdName) return;
+    try {
+      const res = await shareInviteLink(householdName, invite.code);
+      if (res.outcome === 'copied') {
+        showGlobalToast('Inbjudningslänk kopierad', 'success');
+      }
+    } catch (e) {
+      showError(e, 'Kunde inte dela länk');
+    }
   }
 
   // Household editing
@@ -634,12 +647,18 @@ export default function SettingsScreen() {
               Generera en engångskod som en annan person kan använda för att gå med i hushållet.
             </Text>
             {invite ? (
-              <View style={styles.codeRow}>
-                <Text style={styles.codeText}>{invite.code}</Text>
-                <Pressable style={styles.copyBtn} onPress={copyCode}>
-                  <Ionicons name="copy-outline" size={18} color="#4f46e5" />
+              <>
+                <View style={styles.codeRow}>
+                  <Text style={styles.codeText}>{invite.code}</Text>
+                  <Pressable style={styles.copyBtn} onPress={copyCode}>
+                    <Ionicons name="copy-outline" size={18} color="#4f46e5" />
+                  </Pressable>
+                </View>
+                <Pressable style={styles.shareLinkBtn} onPress={shareInvite}>
+                  <Ionicons name="share-outline" size={18} color="#fff" />
+                  <Text style={styles.shareLinkBtnText}>Dela länk</Text>
                 </Pressable>
-              </View>
+              </>
             ) : null}
             {expiresStr && <Text style={styles.expiresText}>Går ut: {expiresStr}</Text>}
             <Pressable
@@ -1099,6 +1118,8 @@ const styles = StyleSheet.create({
   },
   inviteBtnDisabled: { opacity: 0.4 },
   inviteBtnText: { fontSize: 15, fontWeight: '600', color: '#4f46e5' },
+  shareLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#7c3aed', borderRadius: 10, paddingVertical: 12, marginTop: 4 },
+  shareLinkBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
   overflowPopover: { position: 'absolute', right: 0, alignItems: 'flex-end' },
   overflowPopoverInner: { backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 4, width: 280, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   overflowRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
