@@ -151,6 +151,70 @@ householdRouter.delete('/:householdId', requireAuth, requireAdmin, asyncHandler(
   res.status(204).send();
 }));
 
+// POST /api/households/:householdId/leave — lämna hushållet själv.
+// Skiljt från admin-driven member.remove: aktören tar bort SIG SJÄLV.
+// Sista-admin-skydd gäller: sista admin kan inte lämna utan att först
+// göra någon annan till admin.
+householdRouter.post('/:householdId/leave', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
+  const householdId = req.params.householdId;
+  const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId, clerkUserId } },
+  });
+  if (!member) { res.status(404).json({ error: 'Not a member' }); return; }
+
+  if (member.role === 'admin') {
+    const otherAdmins = await prisma.householdMember.count({
+      where: { householdId, role: 'admin', NOT: { id: member.id } },
+    });
+    if (otherAdmins === 0) {
+      res.status(400).json({
+        error: 'Du är ende admin. Gör någon annan till admin innan du lämnar, eller ta bort hela hushållet.',
+      });
+      return;
+    }
+  }
+
+  // Samma cleanup som admin-driven member.remove: rensa id:t från
+  // alla assignedToMany-arrays + nolla legacy assignedTo.
+  await prisma.$transaction(async (tx) => {
+    const chores = await tx.chore.findMany({
+      where: { householdId, assignedToMany: { has: member.id } },
+      select: { id: true, assignedToMany: true },
+    });
+    for (const c of chores) {
+      const next = c.assignedToMany.filter(id => id !== member.id);
+      await tx.chore.update({
+        where: { id: c.id },
+        data: { assignedToMany: next, assignedTo: next[0] ?? null },
+      });
+    }
+    const entries = await tx.scheduleEntry.findMany({
+      where: { householdId, assignedToMany: { has: member.id } },
+      select: { id: true, assignedToMany: true },
+    });
+    for (const e of entries) {
+      const next = e.assignedToMany.filter(id => id !== member.id);
+      await tx.scheduleEntry.update({
+        where: { id: e.id },
+        data: { assignedToMany: next, assignedTo: next[0] ?? null },
+      });
+    }
+    await tx.chore.updateMany({ where: { householdId, assignedTo: member.id }, data: { assignedTo: null } });
+    await tx.scheduleEntry.updateMany({ where: { householdId, assignedTo: member.id }, data: { assignedTo: null } });
+    await tx.householdMember.delete({ where: { id: member.id } });
+  });
+
+  void audit({
+    householdId, actorClerkUserId: clerkUserId, actorName: member.displayName,
+    action: 'member.leave', targetType: 'member', targetId: member.id,
+    targetName: member.displayName,
+    metadata: { wasRole: member.role },
+  });
+  broadcastHousehold(householdId, 'member_deleted', { id: member.id });
+  res.status(204).send();
+}));
+
 // POST /api/households/:householdId/invite
 householdRouter.post('/:householdId/invite', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
   const code = randomBytes(4).toString('hex').toUpperCase();

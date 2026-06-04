@@ -17,7 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
@@ -37,6 +37,7 @@ import type { HouseholdWithMembers } from '../../src/api/client';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { signOut, getToken } = useAuth();
   const { user, isSignedIn } = useUser();
   const client = useApiClient();
@@ -448,6 +449,25 @@ export default function SettingsScreen() {
     });
   }
 
+  function handleLeaveHousehold() {
+    if (!householdId || !householdName) return;
+    confirm({
+      title: `Lämna ${householdName}?`,
+      message: 'Du tas bort från hushållet. Sysslor och aktiviteter som var tilldelade dig blir otilldelade. Detta kan inte ångras — be admin bjuda in dig på nytt om du ångrar dig.',
+      buttons: [
+        { label: 'Lämna', style: 'destructive', onPress: async () => {
+          try {
+            await client.leaveHousehold(householdId);
+            await refresh();
+          } catch (e) {
+            showError(e, 'Kunde inte lämna hushållet');
+          }
+        }},
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
+  }
+
   async function handleResetTips() {
     await Promise.all(TIP_FLAGS.map(k => SecureStore.deleteItemAsync(k).catch(() => {})));
     // Slå även PÅ master-toggle om den var av — annars skulle inget visas igen.
@@ -694,6 +714,28 @@ export default function SettingsScreen() {
             <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={() => setShowJoinHouseholdModal(true)}>
               <Ionicons name="log-in-outline" size={18} color="#4f46e5" />
               <Text style={styles.linkRowText}>Gå med i hushåll</Text>
+              <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Lämna hushåll + juridik längst ner */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>ÖVRIGT</Text>
+          <View style={styles.linkBox}>
+            <Pressable style={styles.linkRow} onPress={handleLeaveHousehold}>
+              <Ionicons name="exit-outline" size={18} color="#ef4444" />
+              <Text style={[styles.linkRowText, { color: '#ef4444' }]}>Lämna hushållet</Text>
+              <Ionicons name="chevron-forward" size={16} color="#fca5a5" />
+            </Pressable>
+            <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={() => router.push('/privacy' as never)}>
+              <Ionicons name="shield-outline" size={18} color="#6b7280" />
+              <Text style={styles.linkRowText}>Integritetspolicy</Text>
+              <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+            </Pressable>
+            <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={() => router.push('/terms' as never)}>
+              <Ionicons name="document-text-outline" size={18} color="#6b7280" />
+              <Text style={styles.linkRowText}>Användarvillkor</Text>
               <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
             </Pressable>
           </View>

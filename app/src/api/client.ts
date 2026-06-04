@@ -155,6 +155,10 @@ export function useApiClient() {
     getMemberAssignments: (householdId: string, memberId: string) =>
       request<{ chores: number; activities: number }>(`/api/households/${householdId}/members/${memberId}/assignments`),
 
+    /** Användaren lämnar hushållet själv. Sista admin blockeras med 400. */
+    leaveHousehold: (householdId: string) =>
+      request<void>(`/api/households/${householdId}/leave`, { method: 'POST' }),
+
     /** Audit-events för hushållet, nyaste först. Admin-only på backend.
      *  before-cursor: skickar in createdAt från sista raden för "ladda fler". */
     getAuditLog: (householdId: string, opts: { limit?: number; before?: string } = {}) => {
