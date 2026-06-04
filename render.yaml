@@ -22,8 +22,10 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      # Komma-separerad whitelist. Native appar (Expo iOS/Android) skickar
+      # ingen Origin-header och släpps alltid igenom — gäller bara web/PWA.
       - key: CORS_ORIGIN
-        value: "*"
+        value: "https://veckis-web.onrender.com,http://localhost:3000,http://localhost:19006,http://localhost:8081"
 
   # PWA-frontend som statisk site. Build kör expo export --platform web och
   # publicerar dist/. SPA-rewrite gör att direct-URL till en route som inte

@@ -34,7 +34,23 @@ const PORT = process.env.PORT ?? 3000;
 const isDev = process.env.NODE_ENV !== 'production';
 
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN ?? '*' }));
+
+// CORS — komma-separerad whitelist via CORS_ORIGIN, t.ex.
+//   "https://veckis-web.onrender.com,http://localhost:3000".
+// "*" tillåts som wildcard (för utveckling). Native appar (Expo iOS/Android)
+// skickar ingen Origin-header och släpps alltid igenom — CORS gäller bara
+// browser-anrop, så det är säkert att tillåta.
+const corsList = (process.env.CORS_ORIGIN ?? '*').split(',').map(o => o.trim()).filter(Boolean);
+const allowAllCors = corsList.includes('*');
+app.use(cors({
+  origin: allowAllCors
+    ? '*'
+    : (origin, cb) => {
+        if (!origin) return cb(null, true); // native/CLI/non-browser
+        cb(null, corsList.includes(origin));
+      },
+  credentials: false,
+}));
 app.use(express.json());
 app.use(morgan(isDev ? 'dev' : 'combined'));
 if (!isDev) {

@@ -8,14 +8,27 @@ import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
 import { uploadRecipeImage, deleteRecipeImage } from '../lib/imageUpload';
+import { recipeAbuseLimiter } from '../lib/rateLimits';
 
 // In-memory upload — files are forwarded to Cloudinary, never hit disk. 10 MB
 // max keeps us safe against accidental huge uploads.
+// Säker mime-whitelist — `image/*` släpper igenom SVG, som kan innehålla
+// inbäddat JavaScript och servas tillbaka som same-origin. Vi accepterar
+// bara bildformat Cloudinary kan transformera utan risk för code execution.
+const ALLOWED_IMAGE_MIME = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/gif',
+]);
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files are allowed'));
+    if (!ALLOWED_IMAGE_MIME.has(file.mimetype)) return cb(new Error('Image type not allowed (jpeg, png, webp, heic, gif)'));
     cb(null, true);
   },
 });
@@ -152,7 +165,7 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
 }));
 
 // POST /api/recipes/:recipeId/image — multipart upload to Cloudinary, persist URL.
-recipesRouter.post('/:recipeId/image', requireAuth, upload.single('image'), asyncHandler(async (req, res) => {
+recipesRouter.post('/:recipeId/image', recipeAbuseLimiter, requireAuth, upload.single('image'), asyncHandler(async (req, res) => {
   const recipe = await prisma.recipe.findUnique({ where: { id: req.params.recipeId } });
   if (!recipe) { res.status(404).json({ error: 'Recipe not found' }); return; }
 
@@ -197,7 +210,7 @@ recipesRouter.delete('/:recipeId', requireAuth, asyncHandler(async (req, res) =>
 }));
 
 // POST /api/recipes/from-url
-recipesRouter.post('/from-url', requireAuth, asyncHandler(async (req, res) => {
+recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({ url: z.string().url() }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: 'Invalid URL' }); return; }
 
