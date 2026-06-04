@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { InstallBanner } from '../../src/components/InstallBanner';
 
 export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
@@ -59,6 +60,8 @@ export default function SignInScreen() {
     >
       <Text style={styles.title}>Veckis</Text>
       <Text style={styles.subtitle}>Logga in på ditt hushåll</Text>
+
+      <InstallBanner />
 
       <TextInput
         style={styles.input}
