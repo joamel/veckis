@@ -9,7 +9,7 @@
 // - API-requests (api/, /trpc/, /ws/) → network-only. Vi cachar aldrig data.
 //
 // När du ändrar i denna fil — bumpa CACHE_VERSION så gamla cacheen rensas.
-const CACHE_VERSION = 'veckis-v7';
+const CACHE_VERSION = 'veckis-v8';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 
