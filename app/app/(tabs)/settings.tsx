@@ -344,7 +344,12 @@ export default function SettingsScreen() {
     setLoadingLocalProfile(true);
     try {
       const newMember = await client.createLocalMember(householdId, localProfileName);
-      setHousehold(h => h ? { ...h, members: [...h.members, newMember] } : null);
+      // Dedup: backend broadcastar 'member_added' parallellt med att vi
+      // får response — om socket-eventet hann före är medlemmen redan i
+      // listan, och en blind push skulle ge dubblett.
+      setHousehold(h => h
+        ? { ...h, members: h.members.some(m => m.id === newMember.id) ? h.members : [...h.members, newMember] }
+        : null);
       setShowCreateLocalModal(false);
       setLocalProfileName('');
       showToast(`${localProfileName} tillagd som lokal profil`);
