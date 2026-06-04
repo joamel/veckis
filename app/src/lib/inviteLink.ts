@@ -3,14 +3,11 @@
 // På web (PWA): Web Share API om browsern stödjer, annars Clipboard +
 // "länk kopierad"-toast som fallback. På native: react-native Share-API.
 import { Clipboard, Platform, Share } from 'react-native';
+import { buildInviteUrl } from './inviteUrl';
 
-// Domänen där PWA hostas. Kan flyttas till en env var senare när vi byter
-// till custom domain — för nu hardcoded.
-const WEB_BASE_URL = 'https://veckis-web.onrender.com';
-
-export function buildInviteUrl(code: string): string {
-  return `${WEB_BASE_URL}/household/setup?code=${encodeURIComponent(code)}`;
-}
+// Re-export så befintliga callers fortsätter funka. Den verkliga funktionen
+// bor i inviteUrl.ts (utan react-native-beroende, testbar i vitest).
+export { buildInviteUrl };
 
 interface ShareResult {
   /** 'shared' | 'copied' — så caller kan visa rätt toast. */
