@@ -4,6 +4,7 @@ config({ path: resolve(__dirname, '../.env') });
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import { parseAllowlist, makeOriginCheck } from './lib/corsAllowlist';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
@@ -37,20 +38,18 @@ app.use(helmet());
 
 // CORS — komma-separerad whitelist via CORS_ORIGIN, t.ex.
 //   "https://veckis-web.onrender.com,http://localhost:3000".
-// "*" tillåts som wildcard (för utveckling). Native appar (Expo iOS/Android)
-// skickar ingen Origin-header och släpps alltid igenom — CORS gäller bara
-// browser-anrop, så det är säkert att tillåta.
-const corsList = (process.env.CORS_ORIGIN ?? '*').split(',').map(o => o.trim()).filter(Boolean);
-const allowAllCors = corsList.includes('*');
+// "*" tillåter alla origins (för utveckling). Native appar (Expo iOS/Android)
+// skickar ingen Origin-header och släpps alltid igenom. Förlåtande matchning
+// (lowercase + strip trailing slash) + log av blockade origins så typsnaiva
+// fel i env-värdet inte blir silent fail i prod.
+const corsAllowlist = parseAllowlist(process.env.CORS_ORIGIN);
 app.use(cors({
-  origin: allowAllCors
-    ? '*'
-    : (origin, cb) => {
-        if (!origin) return cb(null, true); // native/CLI/non-browser
-        cb(null, corsList.includes(origin));
-      },
+  origin: makeOriginCheck(corsAllowlist),
   credentials: false,
 }));
+if (!corsAllowlist.includes('*')) {
+  console.log(`[CORS] Whitelist active: ${JSON.stringify(corsAllowlist)}`);
+}
 app.use(express.json());
 app.use(morgan(isDev ? 'dev' : 'combined'));
 if (!isDev) {
