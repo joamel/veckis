@@ -12,6 +12,12 @@
     "orientation": "portrait",
     "scheme": "veckis",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f5f3ff"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.veckis.app",
@@ -23,7 +29,11 @@
     },
     "android": {
       "package": "com.veckis.app",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ede9fe"
+      }
     },
     "androidStatusBar": {
       "backgroundColor": "#111827",
@@ -31,7 +41,8 @@
       "translucent": false
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",

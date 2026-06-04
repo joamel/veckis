@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 
@@ -39,6 +40,11 @@ export function useNotificationRouting(): void {
   const lastId = useRef<string | null>(null);
 
   useEffect(() => {
+    // Push notifications hanteras inte i web-PWA — alla ExpoNotifications-
+    // anrop kastar "not available on web". Routing baseras på native-tap;
+    // på web finns det inget motsvarande att lyssna på.
+    if (Platform.OS === 'web') return;
+
     const handle = (res: Notifications.NotificationResponse) => {
       const id = res.notification.request.identifier;
       if (id && id === lastId.current) return;

@@ -4,12 +4,13 @@ import { prisma } from '../db';
 import { requireAuth } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { stripIngredient } from '../lib/stripIngredient';
+import { adminSyncLimiter } from '../lib/rateLimits';
 
 export const adminRouter = Router();
 
 // POST /api/admin/sync-ingredients
 // Scrapes a list of recipe URLs, extracts ingredient strings and learns aliases.
-adminRouter.post('/sync-ingredients', requireAuth, asyncHandler(async (req, res) => {
+adminRouter.post('/sync-ingredients', adminSyncLimiter, requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({
     urls: z.array(z.string().url()).min(1).max(50),
   }).safeParse(req.body);

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 2: Cirkulär veckoring med 7 segment (indigo→lila gradient). V/bock i mitten. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5f3ff"/>
+      <stop offset="100%" stop-color="#ede9fe"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg2)"/>
+
+  <!-- 7 ring-segment. Cirkel center (512,512), radius 320, stroke-width 96.
+       Varje segment är ~360/7 = 51.43°, med liten lucka mellan. -->
+  <!-- Färgskala: indigo → violet → lila → rosa-lila -->
+  <g fill="none" stroke-width="96" stroke-linecap="butt">
+    <!-- Segment 1: 0–49° (måndag) - indigo -->
+    <circle cx="512" cy="512" r="320" stroke="#4f46e5"
+            stroke-dasharray="195 1815" stroke-dashoffset="0"
+            transform="rotate(-90 512 512)"/>
+    <!-- Segment 2: ~52–101° (tisdag) -->
+    <circle cx="512" cy="512" r="320" stroke="#5d4ee6"
+            stroke-dasharray="195 1815" stroke-dashoffset="-204"
+            transform="rotate(-90 512 512)"/>
+    <!-- Segment 3 (ons) -->
+    <circle cx="512" cy="512" r="320" stroke="#6d57e7"
+            stroke-dasharray="195 1815" stroke-dashoffset="-408"
+            transform="rotate(-90 512 512)"/>
+    <!-- Segment 4 (tors) -->
+    <circle cx="512" cy="512" r="320" stroke="#7c63eb"
+            stroke-dasharray="195 1815" stroke-dashoffset="-612"
+            transform="rotate(-90 512 512)"/>
+    <!-- Segment 5 (fre) -->
+    <circle cx="512" cy="512" r="320" stroke="#8b6fee"
+            stroke-dasharray="195 1815" stroke-dashoffset="-816"
+            transform="rotate(-90 512 512)"/>
+    <!-- Segment 6 (lör) -->
+    <circle cx="512" cy="512" r="320" stroke="#a78bfa"
+            stroke-dasharray="195 1815" stroke-dashoffset="-1020"
+            transform="rotate(-90 512 512)"/>
+    <!-- Segment 7 (sön) - lila/rosa accent -->
+    <circle cx="512" cy="512" r="320" stroke="#c4b5fd"
+            stroke-dasharray="195 1815" stroke-dashoffset="-1224"
+            transform="rotate(-90 512 512)"/>
+  </g>
+
+  <!-- V/checkmark i mitten -->
+  <path d="M 380 460 L 480 600 L 660 380"
+        stroke="#4f46e5" stroke-width="56"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

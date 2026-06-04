@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '../lib/secureStorage';
 import { useIsFocused } from '@react-navigation/native';
 import { SpotlightTip, type SpotlightOptions } from '../components/SpotlightTip';
 import { SKIP_ALL_FLAG } from '../lib/onboardingTips';

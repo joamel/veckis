@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, requireAdmin, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
+import { createHouseholdLimiter, joinHouseholdLimiter } from '../lib/rateLimits';
 import { randomBytes } from 'crypto';
 import { wsBroadcast } from '../lib/wsHub';
 import { sendPush } from '../lib/sendPush';
@@ -17,7 +18,7 @@ const createSchema = z.object({ name: z.string().min(1).max(100), displayName: z
 const joinSchema = z.object({ code: z.string().length(8), displayName: z.string().min(1).max(100).optional() });
 
 // POST /api/households
-householdRouter.post('/', requireAuth, asyncHandler(async (req, res) => {
+householdRouter.post('/', createHouseholdLimiter, requireAuth, asyncHandler(async (req, res) => {
   const body = createSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
@@ -38,7 +39,7 @@ householdRouter.post('/', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // POST /api/households/join
-householdRouter.post('/join', requireAuth, asyncHandler(async (req, res) => {
+householdRouter.post('/join', joinHouseholdLimiter, requireAuth, asyncHandler(async (req, res) => {
   const body = joinSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 

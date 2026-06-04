@@ -27,9 +27,10 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useOnboardingMaster, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { TIP_FLAGS } from '../../src/lib/onboardingTips';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '../../src/lib/secureStorage';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { NotificationsModal } from '../../src/components/NotificationsModal';
+import { shareInviteLink } from '../../src/lib/inviteLink';
 import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
 
@@ -216,6 +217,18 @@ export default function SettingsScreen() {
     showGlobalToast(`Koden ${invite.code} kopierad`, 'success');
   }
 
+  async function shareInvite() {
+    if (!invite || !householdName) return;
+    try {
+      const res = await shareInviteLink(householdName, invite.code);
+      if (res.outcome === 'copied') {
+        showGlobalToast('Inbjudningslänk kopierad', 'success');
+      }
+    } catch (e) {
+      showError(e, 'Kunde inte dela länk');
+    }
+  }
+
   // Household editing
   async function handleSaveHouseholdName() {
     if (!householdId || !editingHouseholdName.trim()) return;
@@ -331,7 +344,12 @@ export default function SettingsScreen() {
     setLoadingLocalProfile(true);
     try {
       const newMember = await client.createLocalMember(householdId, localProfileName);
-      setHousehold(h => h ? { ...h, members: [...h.members, newMember] } : null);
+      // Dedup: backend broadcastar 'member_added' parallellt med att vi
+      // får response — om socket-eventet hann före är medlemmen redan i
+      // listan, och en blind push skulle ge dubblett.
+      setHousehold(h => h
+        ? { ...h, members: h.members.some(m => m.id === newMember.id) ? h.members : [...h.members, newMember] }
+        : null);
       setShowCreateLocalModal(false);
       setLocalProfileName('');
       showToast(`${localProfileName} tillagd som lokal profil`);
@@ -634,12 +652,18 @@ export default function SettingsScreen() {
               Generera en engångskod som en annan person kan använda för att gå med i hushållet.
             </Text>
             {invite ? (
-              <View style={styles.codeRow}>
-                <Text style={styles.codeText}>{invite.code}</Text>
-                <Pressable style={styles.copyBtn} onPress={copyCode}>
-                  <Ionicons name="copy-outline" size={18} color="#4f46e5" />
+              <>
+                <View style={styles.codeRow}>
+                  <Text style={styles.codeText}>{invite.code}</Text>
+                  <Pressable style={styles.copyBtn} onPress={copyCode}>
+                    <Ionicons name="copy-outline" size={18} color="#4f46e5" />
+                  </Pressable>
+                </View>
+                <Pressable style={styles.shareLinkBtn} onPress={shareInvite}>
+                  <Ionicons name="share-outline" size={18} color="#fff" />
+                  <Text style={styles.shareLinkBtnText}>Dela länk</Text>
                 </Pressable>
-              </View>
+              </>
             ) : null}
             {expiresStr && <Text style={styles.expiresText}>Går ut: {expiresStr}</Text>}
             <Pressable
@@ -1099,6 +1123,8 @@ const styles = StyleSheet.create({
   },
   inviteBtnDisabled: { opacity: 0.4 },
   inviteBtnText: { fontSize: 15, fontWeight: '600', color: '#4f46e5' },
+  shareLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#7c3aed', borderRadius: 10, paddingVertical: 12, marginTop: 4 },
+  shareLinkBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
   overflowPopover: { position: 'absolute', right: 0, alignItems: 'flex-end' },
   overflowPopoverInner: { backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 4, width: 280, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   overflowRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
