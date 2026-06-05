@@ -1095,10 +1095,7 @@ export default function SettingsScreen() {
         <View style={[styles.overflowPopover, { top: 0 }]} pointerEvents="box-none">
           <View style={styles.overflowPopoverInner}>
             <View style={styles.overflowRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuRowLabel}>Visa onboarding-tips</Text>
-                <Text style={styles.menuRowSub}>Nollställs vid varje växling.</Text>
-              </View>
+              <Text style={[styles.menuRowLabel, { flex: 1 }]}>Visa onboarding-tips</Text>
               <Switch
                 value={skipAll === false}
                 onValueChange={v => { setSkipAll(!v); handleResetTips(); }}
@@ -1108,18 +1105,12 @@ export default function SettingsScreen() {
             </View>
             <Pressable style={styles.overflowAction} onPress={handleOpen2FA}>
               <Ionicons name="shield-checkmark-outline" size={18} color="#7c3aed" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuRowLabel}>Tvåfaktorsautentisering</Text>
-                <Text style={styles.menuRowSub}>Lägg till en authenticator-app som extra säkerhet.</Text>
-              </View>
+              <Text style={[styles.menuRowLabel, { flex: 1 }]}>Tvåfaktorsautentisering</Text>
               <Ionicons name="open-outline" size={16} color="#9ca3af" />
             </Pressable>
             <Pressable style={styles.overflowAction} onPress={handleContactSupport}>
               <Ionicons name="mail-outline" size={18} color="#4f46e5" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuRowLabel}>Kontakta support</Text>
-                <Text style={styles.menuRowSub}>support@veckis.app — versionsinfo förfylls.</Text>
-              </View>
+              <Text style={[styles.menuRowLabel, { flex: 1 }]}>Kontakta support</Text>
               <Ionicons name="open-outline" size={16} color="#9ca3af" />
             </Pressable>
           </View>
