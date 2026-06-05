@@ -13,6 +13,7 @@ import { ToastProvider } from '../src/context/ToastContext';
 import { ConfirmProvider } from '../src/context/ConfirmContext';
 import { SpotlightTipProvider, useOnboardingMaster, useWelcomeGate } from '../src/context/SpotlightTipContext';
 import { WelcomeModal } from '../src/components/WelcomeModal';
+import { VersionBanner } from '../src/components/VersionBanner';
 
 // Lock app text to designed size regardless of OS "larger text" setting.
 // Tablet sizing is handled separately via useTablet().fs() so we don't lose tablet scaling.
@@ -60,9 +61,13 @@ function NavigationGuard() {
 
     const inAuthGroup = segments[0] === '(auth)';
     const inSetup = segments[0] === 'household';
-    // /install är publik landningssida (APK-nedladdning + PWA-instruktioner)
-    // — NavigationGuard ska inte tvinga inloggning där.
-    const isPublic = segments[0] === 'install';
+    // Publika sidor — NavigationGuard ska inte tvinga inloggning där.
+    // /install: APK-nedladdning + PWA-instruktioner.
+    // /privacy, /terms: juridiska sidor som måste vara läsbara utan konto.
+    // Cast:ar segments[0] till string eftersom Expo Routers auto-genererade
+    // typer inte plockar upp nya filer förrän en build körts.
+    const root = segments[0] as string;
+    const isPublic = root === 'install' || root === 'privacy' || root === 'terms';
     if (isPublic) return;
 
     if (!isSignedIn && !inAuthGroup) {
@@ -101,6 +106,7 @@ function NavigationGuard() {
 
   return (
     <>
+      <VersionBanner />
       <Stack screenOptions={{ headerShown: false }} />
       <WelcomeModal
         visible={welcomeState === 'show'}
