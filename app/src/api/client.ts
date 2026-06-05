@@ -1,5 +1,4 @@
 import { useAuth } from '@clerk/clerk-expo';
-import { trackBackendRequest } from '../lib/backendWakeup';
 import type {
   Household,
   HouseholdMember,
@@ -94,33 +93,31 @@ export function useApiClient() {
   const { getToken } = useAuth();
 
   async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    return trackBackendRequest((async () => {
-      const token = await getToken();
-      const url = `${BASE_URL}${path}`;
-      let res: Response;
-      try {
-        res = await fetch(url, {
-          ...options,
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-            ...options.headers,
-          },
-        });
-      } catch {
-        // fetch rejects (rather than resolving with !ok) when the request never
-        // reached the server: no connectivity, DNS failure, server down, etc.
-        throw new ApiError('Network request failed', null, true);
-      }
+    const token = await getToken();
+    const url = `${BASE_URL}${path}`;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...options.headers,
+        },
+      });
+    } catch {
+      // fetch rejects (rather than resolving with !ok) when the request never
+      // reached the server: no connectivity, DNS failure, server down, etc.
+      throw new ApiError('Network request failed', null, true);
+    }
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw new ApiError(err.error ?? `HTTP ${res.status}`, res.status, false);
-      }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new ApiError(err.error ?? `HTTP ${res.status}`, res.status, false);
+    }
 
-      if (res.status === 204) return undefined as T;
-      return res.json() as Promise<T>;
-    })());
+    if (res.status === 204) return undefined as T;
+    return res.json() as Promise<T>;
   }
 
   return {

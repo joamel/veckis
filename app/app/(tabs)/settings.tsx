@@ -9,7 +9,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -543,71 +542,30 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScreenHeader
-        title="Profil"
+        title="Hushållet"
         actionNode={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Pressable ref={notifClockBtnRef} style={styles.headerIconBtn} onPress={() => setShowNotifModal(true)} accessibilityLabel="Notisinställningar">
-              <Ionicons name="notifications-outline" size={20} color="#4f46e5" />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable
+              onPress={() => router.push('/account' as never)}
+              hitSlop={6}
+              accessibilityLabel="Konto"
+              style={styles.headerAvatar}
+            >
+              <Text style={styles.headerAvatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+              {isAdmin && <View style={styles.headerAvatarAdminDot} />}
             </Pressable>
-            <Pressable style={styles.headerIconBtn} onPress={() => setShowOverflowMenu(true)} accessibilityLabel="Fler alternativ">
-              <Ionicons name="ellipsis-vertical" size={20} color="#4f46e5" />
+            <Pressable
+              ref={notifClockBtnRef}
+              style={styles.headerIconBtn}
+              onPress={() => router.push('/preferences' as never)}
+              accessibilityLabel="Inställningar"
+            >
+              <Ionicons name="settings-outline" size={20} color="#4f46e5" />
             </Pressable>
           </View>
         }
       />
       <ScrollView contentContainerStyle={styles.scroll}>
-
-        {/* Konto */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>KONTO</Text>
-          <Pressable
-            style={styles.card}
-            onPress={() => setExpandedAccount(v => !v)}
-            accessibilityRole="button"
-            accessibilityLabel={expandedAccount ? 'Dölj kontoval' : 'Visa kontoval'}
-          >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
-            </View>
-            <View style={styles.userInfo}>
-              <View style={styles.nameRow}>
-                <Text style={styles.userName}>{displayName}</Text>
-                {isAdmin && (
-                  <View style={styles.adminBadge}>
-                    <Ionicons name="shield-checkmark" size={11} color="#4f46e5" />
-                    <Text style={styles.adminBadgeText}>Admin</Text>
-                  </View>
-                )}
-              </View>
-              {email && <Text style={styles.userEmail}>{email}</Text>}
-            </View>
-            <Ionicons name={expandedAccount ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" />
-          </Pressable>
-          {expandedAccount && (
-            <View style={styles.inlineExpand}>
-              {(() => {
-                const me = householdMembers.find(m => m.clerkUserId === clerkUserId);
-                return me ? (
-                  <Pressable
-                    style={styles.inlineRow}
-                    onPress={() => { setExpandedAccount(false); openEditMember(me.id, me.displayName); }}
-                  >
-                    <Ionicons name="create-outline" size={16} color="#4f46e5" />
-                    <Text style={styles.inlineRowText}>Byt namn</Text>
-                  </Pressable>
-                ) : null;
-              })()}
-              <Pressable
-                style={[styles.inlineRow, styles.inlineRowBorder]}
-                onPress={() => { setExpandedAccount(false); handleSignOut(); }}
-              >
-                <Ionicons name="log-out-outline" size={16} color="#ef4444" />
-                <Text style={[styles.inlineRowText, { color: '#ef4444' }]}>Logga ut</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-
         {/* Hushållet */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -635,11 +593,11 @@ export default function SettingsScreen() {
                   : 'Aktivt hushåll'}
               </Text>
             </View>
-            {editMode && isAdmin ? (
+            {editMode ? (
               <Pressable
                 style={styles.memberActionBtn}
                 onPress={(e) => { e.stopPropagation?.(); setShowHouseholdActionSheet(true); }}
-                accessibilityLabel="Redigera hushållet"
+                accessibilityLabel="Hushållsalternativ"
               >
                 <Ionicons name="create-outline" size={16} color="#4f46e5" />
               </Pressable>
@@ -778,32 +736,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Lämna hushåll + juridik längst ner */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>ÖVRIGT</Text>
-          <View style={styles.linkBox}>
-            <Pressable style={styles.linkRow} onPress={handleLeaveHousehold}>
-              <Ionicons name="exit-outline" size={18} color="#ef4444" />
-              <Text style={[styles.linkRowText, { color: '#ef4444' }]}>Lämna hushållet</Text>
-              <Ionicons name="chevron-forward" size={16} color="#fca5a5" />
-            </Pressable>
-            <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={() => router.push('/privacy' as never)}>
-              <Ionicons name="shield-outline" size={18} color="#6b7280" />
-              <Text style={styles.linkRowText}>Integritetspolicy</Text>
-              <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
-            </Pressable>
-            <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={() => router.push('/terms' as never)}>
-              <Ionicons name="document-text-outline" size={18} color="#6b7280" />
-              <Text style={styles.linkRowText}>Användarvillkor</Text>
-              <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
-            </Pressable>
-            <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={handleDeleteAccount}>
-              <Ionicons name="trash-outline" size={18} color="#ef4444" />
-              <Text style={[styles.linkRowText, { color: '#ef4444' }]}>Ta bort kontot</Text>
-              <Ionicons name="chevron-forward" size={16} color="#fca5a5" />
-            </Pressable>
-          </View>
-        </View>
       </ScrollView>
 
       {/* Medlemsåtgärder: penna-knappen på en medlem öppnar denna sheet */}
@@ -871,20 +803,31 @@ export default function SettingsScreen() {
         <View style={[styles.sheet, { paddingBottom: 32 }]}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>{householdName ?? 'Hushållet'}</Text>
+          {isAdmin && (
+            <Pressable
+              style={styles.memberActionRow}
+              onPress={() => { setShowHouseholdActionSheet(false); setEditingHouseholdName(householdName || ''); setShowEditHouseholdModal(true); }}
+            >
+              <Ionicons name="create-outline" size={18} color="#4f46e5" />
+              <Text style={styles.memberActionRowText}>Byt namn</Text>
+            </Pressable>
+          )}
           <Pressable
-            style={styles.memberActionRow}
-            onPress={() => { setShowHouseholdActionSheet(false); setEditingHouseholdName(householdName || ''); setShowEditHouseholdModal(true); }}
+            style={[styles.memberActionRow, isAdmin && styles.memberActionRowBorder]}
+            onPress={() => { setShowHouseholdActionSheet(false); handleLeaveHousehold(); }}
           >
-            <Ionicons name="create-outline" size={18} color="#4f46e5" />
-            <Text style={styles.memberActionRowText}>Byt namn</Text>
+            <Ionicons name="exit-outline" size={18} color="#ef4444" />
+            <Text style={[styles.memberActionRowText, { color: '#ef4444' }]}>Lämna hushållet</Text>
           </Pressable>
-          <Pressable
-            style={[styles.memberActionRow, styles.memberActionRowBorder]}
-            onPress={() => { setShowHouseholdActionSheet(false); setDeleteConfirmText(''); setShowDeleteHouseholdModal(true); }}
-          >
-            <Ionicons name="trash-outline" size={18} color="#ef4444" />
-            <Text style={[styles.memberActionRowText, { color: '#ef4444' }]}>Ta bort hushållet</Text>
-          </Pressable>
+          {isAdmin && (
+            <Pressable
+              style={[styles.memberActionRow, styles.memberActionRowBorder]}
+              onPress={() => { setShowHouseholdActionSheet(false); setDeleteConfirmText(''); setShowDeleteHouseholdModal(true); }}
+            >
+              <Ionicons name="trash-outline" size={18} color="#ef4444" />
+              <Text style={[styles.memberActionRowText, { color: '#ef4444' }]}>Ta bort hushållet</Text>
+            </Pressable>
+          )}
         </View>
       </Modal>
 
@@ -1087,46 +1030,6 @@ export default function SettingsScreen() {
 
       <NotificationsModal visible={showNotifModal} onClose={() => setShowNotifModal(false)} />
 
-      {/* Overflow-popover (3-prickar) — landar uppe till höger under
-          ikonen, som standardmönstret för header-overflow. Onboarding-
-          toggle:n nollställer tipsen vid varje växling. */}
-      <Modal visible={showOverflowMenu} transparent animationType="fade" onRequestClose={() => setShowOverflowMenu(false)}>
-        <Pressable style={styles.overlay} onPress={() => setShowOverflowMenu(false)} />
-        <View style={[styles.overflowPopover, { top: 0 }]} pointerEvents="box-none">
-          <View style={styles.overflowPopoverInner}>
-            <View style={styles.overflowRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuRowLabel}>Visa onboarding-tips</Text>
-                <Text style={styles.menuRowSub}>Nollställs vid varje växling.</Text>
-              </View>
-              <Switch
-                value={skipAll === false}
-                onValueChange={v => { setSkipAll(!v); handleResetTips(); }}
-                trackColor={{ false: '#d1d5db', true: '#a5b4fc' }}
-                thumbColor={skipAll === false ? '#4f46e5' : '#f3f4f6'}
-              />
-            </View>
-            <Pressable style={styles.overflowAction} onPress={handleOpen2FA}>
-              <Ionicons name="shield-checkmark-outline" size={18} color="#7c3aed" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuRowLabel}>Tvåfaktorsautentisering</Text>
-                <Text style={styles.menuRowSub}>Lägg till en authenticator-app som extra säkerhet.</Text>
-              </View>
-              <Ionicons name="open-outline" size={16} color="#9ca3af" />
-            </Pressable>
-            <Pressable style={styles.overflowAction} onPress={handleContactSupport}>
-              <Ionicons name="mail-outline" size={18} color="#4f46e5" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuRowLabel}>Kontakta support</Text>
-                <Text style={styles.menuRowSub}>support@veckis.app — versionsinfo förfylls.</Text>
-              </View>
-              <Ionicons name="open-outline" size={16} color="#9ca3af" />
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-
       <Animated.View style={[styles.toast, toastVariant === 'neutral' && styles.toastNeutral, { opacity: toastOpacity }]} pointerEvents="none">
         <Text style={styles.toastText}>{toastMessage}</Text>
       </Animated.View>
@@ -1228,6 +1131,9 @@ const styles = StyleSheet.create({
   },
   inviteDesc: { fontSize: 14, color: '#6b7280', lineHeight: 20 },
   headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
+  headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center' },
+  headerAvatarText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  headerAvatarAdminDot: { position: 'absolute', bottom: -2, right: -2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#7c3aed', borderWidth: 2, borderColor: '#fff' },
   codeRow: {
     flexDirection: 'row',
     alignItems: 'center',

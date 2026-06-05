@@ -69,7 +69,10 @@ function NavigationGuard() {
     // typer inte plockar upp nya filer förrän en build körts.
     const root = segments[0] as string;
     const isPublic = root === 'install' || root === 'privacy' || root === 'terms';
-    if (isPublic) return;
+    // /account + /preferences är djup-vyer öppnade från Profil-headern;
+    // kräver login men ska inte redirect:as till tabs när hen är där.
+    const isAuthedDeepRoute = (root === 'account' || root === 'preferences') && isSignedIn;
+    if (isPublic || isAuthedDeepRoute) return;
 
     if (!isSignedIn && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
