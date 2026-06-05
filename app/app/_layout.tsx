@@ -14,6 +14,7 @@ import { ConfirmProvider } from '../src/context/ConfirmContext';
 import { SpotlightTipProvider, useOnboardingMaster, useWelcomeGate } from '../src/context/SpotlightTipContext';
 import { WelcomeModal } from '../src/components/WelcomeModal';
 import { VersionBanner } from '../src/components/VersionBanner';
+import { WakeupIndicator } from '../src/components/WakeupIndicator';
 
 // Lock app text to designed size regardless of OS "larger text" setting.
 // Tablet sizing is handled separately via useTablet().fs() so we don't lose tablet scaling.
@@ -107,6 +108,7 @@ function NavigationGuard() {
   return (
     <>
       <VersionBanner />
+      <WakeupIndicator />
       <Stack screenOptions={{ headerShown: false }} />
       <WelcomeModal
         visible={welcomeState === 'show'}

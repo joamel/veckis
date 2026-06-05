@@ -474,7 +474,13 @@ export default function SettingsScreen() {
    *  där, ingen extra kostnad per inlogg. */
   async function handleOpen2FA() {
     setShowOverflowMenu(false);
-    const portalUrl = 'https://new-oarfish-48.accounts.dev/user/security';
+    await openClerkPortal('/user/security', 'Kunde inte öppna säkerhetsinställningar');
+  }
+
+  /** Gemensam helper som öppnar Clerks Account Portal i in-app-browser (native)
+   *  eller ny tab (web). Path:en pekar på en specifik sektion av portalen. */
+  async function openClerkPortal(path: string, errLabel: string) {
+    const portalUrl = `https://new-oarfish-48.accounts.dev${path}`;
     try {
       if (Platform.OS === 'web') {
         window.open(portalUrl, '_blank', 'noopener');
@@ -483,8 +489,42 @@ export default function SettingsScreen() {
         await WebBrowser.openBrowserAsync(portalUrl);
       }
     } catch (e) {
-      showError(e, 'Kunde inte öppna säkerhetsinställningar');
+      showError(e, errLabel);
     }
+  }
+
+  /** Kontakta support: mailto med subject + body förfylld med versionsinfo.
+   *  Sänker tröskeln att höra av sig — vi får viktig debug-info ovh från
+   *  start istället för att fråga "vilken version har du?" i tre rundor. */
+  function handleContactSupport() {
+    setShowOverflowMenu(false);
+    const Constants = require('expo-constants').default;
+    const version = Constants.expoConfig?.version ?? 'okänd';
+    const subject = encodeURIComponent('Veckis-support');
+    const body = encodeURIComponent(
+      `\n\n---\nVersion: ${version}\nPlattform: ${Platform.OS}\n`,
+    );
+    const url = `mailto:support@veckis.app?subject=${subject}&body=${body}`;
+    if (Platform.OS === 'web') {
+      window.location.href = url;
+    } else {
+      const { Linking } = require('react-native');
+      Linking.openURL(url).catch((e: unknown) => showError(e, 'Kunde inte öppna mailprogrammet'));
+    }
+  }
+
+  /** Radera Clerk-konto: öppnar Clerks user-profile där användaren kan
+   *  trigga kontot-borttagning. Inline-flöde inom appen kan komma senare —
+   *  länken räcker som start för symmetri med "Lämna hushållet". */
+  function handleDeleteAccount() {
+    confirm({
+      title: 'Ta bort kontot?',
+      message: 'Du skickas till säkerhetsinställningarna där du kan radera ditt konto permanent. Alla dina hushållsmedlemskap tas också bort. Detta kan inte ångras.',
+      buttons: [
+        { label: 'Fortsätt', style: 'destructive', onPress: () => openClerkPortal('/user', 'Kunde inte öppna kontoinställningar') },
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
   }
 
   async function handleResetTips() {
@@ -756,6 +796,11 @@ export default function SettingsScreen() {
               <Ionicons name="document-text-outline" size={18} color="#6b7280" />
               <Text style={styles.linkRowText}>Användarvillkor</Text>
               <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+            </Pressable>
+            <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={handleDeleteAccount}>
+              <Ionicons name="trash-outline" size={18} color="#ef4444" />
+              <Text style={[styles.linkRowText, { color: '#ef4444' }]}>Ta bort kontot</Text>
+              <Ionicons name="chevron-forward" size={16} color="#fca5a5" />
             </Pressable>
           </View>
         </View>
@@ -1066,6 +1111,14 @@ export default function SettingsScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.menuRowLabel}>Tvåfaktorsautentisering</Text>
                 <Text style={styles.menuRowSub}>Lägg till en authenticator-app som extra säkerhet.</Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color="#9ca3af" />
+            </Pressable>
+            <Pressable style={styles.overflowAction} onPress={handleContactSupport}>
+              <Ionicons name="mail-outline" size={18} color="#4f46e5" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuRowLabel}>Kontakta support</Text>
+                <Text style={styles.menuRowSub}>support@veckis.app — versionsinfo förfylls.</Text>
               </View>
               <Ionicons name="open-outline" size={16} color="#9ca3af" />
             </Pressable>
