@@ -31,19 +31,11 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   const [allMemberships, setAllMemberships] = useState<MembershipWithHousehold[]>([]);
   const [activeMembershipId, setActiveMembershipId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  // hasFetchedWhileSignedIn: false tills load() faktiskt körts MED isSignedIn=true.
-  // Behövs eftersom isLoading kan vippa false-true-false när Clerk växlar
-  // från false → true (logged-out branch sätter false snabbt, sen async load
-  // sätter true igen). I det glipa-fönstret läser NavigationGuard
-  // 'isLoading=false, householdId=null' och tror felaktigt att hen saknar
-  // hushåll → router.replace('/household/setup') trots att hen har ett.
-  const [hasFetchedWhileSignedIn, setHasFetchedWhileSignedIn] = useState(false);
 
   const load = useCallback(async () => {
     if (!isSignedIn) {
       setAllMemberships([]);
       setActiveMembershipId(null);
-      setHasFetchedWhileSignedIn(false);
       setIsLoading(false);
       return;
     }
@@ -58,7 +50,6 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       setAllMemberships([]);
       setActiveMembershipId(null);
     } finally {
-      setHasFetchedWhileSignedIn(true);
       setIsLoading(false);
     }
   }, [isSignedIn]);
@@ -67,11 +58,6 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     load();
   }, [load]);
-
-  // Trots isLoading=false-flagga räknar vi som "fortfarande lastande" för
-  // konsumenter (NavigationGuard m.fl.) om hen är signed in men load inte
-  // har körts med signed-in-flagga ännu. Hindrar gap-tolkningen ovan.
-  const effectiveLoading = isLoading || (!!isSignedIn && !hasFetchedWhileSignedIn);
 
   const setActiveHouseholdId = useCallback(async (householdId: string) => {
     const membership = allMemberships.find(m => m.householdId === householdId);
@@ -91,7 +77,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
         householdEmoji: activeMembership?.household.emoji ?? null,
         memberRole: (activeMembership?.role as 'admin' | 'member' | null) ?? null,
         allMemberships,
-        isLoading: effectiveLoading,
+        isLoading,
         setActiveHouseholdId,
         refresh: load,
       }}

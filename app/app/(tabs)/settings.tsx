@@ -9,7 +9,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -545,14 +544,9 @@ export default function SettingsScreen() {
       <ScreenHeader
         title="Profil"
         actionNode={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Pressable ref={notifClockBtnRef} style={styles.headerIconBtn} onPress={() => setShowNotifModal(true)} accessibilityLabel="Notisinställningar">
-              <Ionicons name="notifications-outline" size={20} color="#4f46e5" />
-            </Pressable>
-            <Pressable style={styles.headerIconBtn} onPress={() => setShowOverflowMenu(true)} accessibilityLabel="Fler alternativ">
-              <Ionicons name="ellipsis-vertical" size={20} color="#4f46e5" />
-            </Pressable>
-          </View>
+          <Pressable ref={notifClockBtnRef} style={styles.headerIconBtn} onPress={() => setShowOverflowMenu(true)} accessibilityLabel="Fler alternativ">
+            <Ionicons name="ellipsis-vertical" size={20} color="#4f46e5" />
+          </Pressable>
         }
       />
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -786,16 +780,6 @@ export default function SettingsScreen() {
               <Ionicons name="exit-outline" size={18} color="#ef4444" />
               <Text style={[styles.linkRowText, { color: '#ef4444' }]}>Lämna hushållet</Text>
               <Ionicons name="chevron-forward" size={16} color="#fca5a5" />
-            </Pressable>
-            <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={() => router.push('/privacy' as never)}>
-              <Ionicons name="shield-outline" size={18} color="#6b7280" />
-              <Text style={styles.linkRowText}>Integritetspolicy</Text>
-              <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
-            </Pressable>
-            <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={() => router.push('/terms' as never)}>
-              <Ionicons name="document-text-outline" size={18} color="#6b7280" />
-              <Text style={styles.linkRowText}>Användarvillkor</Text>
-              <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
             </Pressable>
             <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={handleDeleteAccount}>
               <Ionicons name="trash-outline" size={18} color="#ef4444" />
@@ -1094,15 +1078,16 @@ export default function SettingsScreen() {
         <Pressable style={styles.overlay} onPress={() => setShowOverflowMenu(false)} />
         <View style={[styles.overflowPopover, { top: 0 }]} pointerEvents="box-none">
           <View style={styles.overflowPopoverInner}>
-            <View style={styles.overflowRow}>
+            <Pressable style={[styles.overflowAction, { borderTopWidth: 0 }]} onPress={() => { setShowOverflowMenu(false); setShowNotifModal(true); }}>
+              <Ionicons name="notifications-outline" size={18} color="#4f46e5" />
+              <Text style={[styles.menuRowLabel, { flex: 1 }]}>Aviseringar</Text>
+              <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+            </Pressable>
+            <Pressable style={styles.overflowAction} onPress={() => { setSkipAll(skipAll !== true); handleResetTips(); }}>
+              <Ionicons name="bulb-outline" size={18} color="#7c3aed" />
               <Text style={[styles.menuRowLabel, { flex: 1 }]}>Visa onboarding-tips</Text>
-              <Switch
-                value={skipAll === false}
-                onValueChange={v => { setSkipAll(!v); handleResetTips(); }}
-                trackColor={{ false: '#d1d5db', true: '#a5b4fc' }}
-                thumbColor={skipAll === false ? '#4f46e5' : '#f3f4f6'}
-              />
-            </View>
+              <Ionicons name={skipAll === true ? 'toggle-outline' : 'toggle'} size={22} color={skipAll === true ? '#9ca3af' : '#7c3aed'} />
+            </Pressable>
             <Pressable style={styles.overflowAction} onPress={handleOpen2FA}>
               <Ionicons name="shield-checkmark-outline" size={18} color="#7c3aed" />
               <Text style={[styles.menuRowLabel, { flex: 1 }]}>Tvåfaktorsautentisering</Text>
@@ -1112,6 +1097,16 @@ export default function SettingsScreen() {
               <Ionicons name="mail-outline" size={18} color="#4f46e5" />
               <Text style={[styles.menuRowLabel, { flex: 1 }]}>Kontakta support</Text>
               <Ionicons name="open-outline" size={16} color="#9ca3af" />
+            </Pressable>
+            <Pressable style={styles.overflowAction} onPress={() => { setShowOverflowMenu(false); router.push('/privacy' as never); }}>
+              <Ionicons name="shield-outline" size={18} color="#6b7280" />
+              <Text style={[styles.menuRowLabel, { flex: 1 }]}>Integritetspolicy</Text>
+              <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+            </Pressable>
+            <Pressable style={styles.overflowAction} onPress={() => { setShowOverflowMenu(false); router.push('/terms' as never); }}>
+              <Ionicons name="document-text-outline" size={18} color="#6b7280" />
+              <Text style={[styles.menuRowLabel, { flex: 1 }]}>Användarvillkor</Text>
+              <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
             </Pressable>
           </View>
         </View>

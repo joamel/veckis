@@ -7,6 +7,8 @@ interface Rect { x: number; y: number; width: number; height: number }
 export interface SpotlightOptions {
   title: string;
   message?: string;
+  /** Emoji visad i lila badge ovanför titeln. Default 💡. */
+  emoji?: string;
   /** When given, the dim creates a "hole" around the target and a pulsing ring
    *  highlights it. Without a target, the tip appears centered on a full dim. */
   targetRef?: RefObject<View | null>;
@@ -34,7 +36,7 @@ interface Props extends SpotlightOptions {
 
 const PAD = 10; // padding around the target inside the highlight ring
 
-export function SpotlightTip({ visible, targetRef, targetRect, title, message, actionLabel = 'Förstått', swipeDemo, position, total, onDismiss }: Props) {
+export function SpotlightTip({ visible, targetRef, targetRect, title, message, emoji = '💡', actionLabel = 'Förstått', swipeDemo, position, total, onDismiss }: Props) {
   const [measuredRect, setMeasuredRect] = useState<Rect | null>(null);
   const pulse = useRef(new Animated.Value(0)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
@@ -167,6 +169,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, a
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 4 }}
         >
+          <View style={s.emojiBadge}><Text style={s.emojiText}>{emoji}</Text></View>
           <Text style={s.title}>{title}</Text>
           {message ? <Text style={s.message}>{message}</Text> : null}
         </ScrollView>
@@ -323,6 +326,8 @@ const s = StyleSheet.create({
     position: 'absolute',
     backgroundColor: '#fff',
     borderRadius: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#c4b5fd',
     padding: 18,
     shadowColor: '#000',
     shadowOpacity: 0.25,
@@ -330,6 +335,14 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 10,
   },
+  emojiBadge: {
+    alignSelf: 'center',
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: '#f5f3ff',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 10,
+  },
+  emojiText: { fontSize: 24 },
   fingerHalo: {
     position: 'absolute',
     top: 0,
