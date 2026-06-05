@@ -32,9 +32,32 @@ const META = `
       #root { height: 100%; }
     </style>
     <script>
+      // SW-registrering + version-banner. När en ny SW tar över sätter vi
+      // en global flagga som UI:t kan lyssna på (window.__veckisNewVersion).
+      // VersionBanner-komponenten pollar flaggan via storage-event eller
+      // visibility-change så användaren får 'Ny version · Ladda om'-prompt
+      // istället för att fastna på gammal cache.
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
-          navigator.serviceWorker.register('/sw.js').catch(function (e) {
+          navigator.serviceWorker.register('/sw.js').then(function (reg) {
+            // controllerchange: en ny SW har aktiverat sig + tagit över sidan.
+            navigator.serviceWorker.addEventListener('controllerchange', function () {
+              window.__veckisNewVersion = true;
+              window.dispatchEvent(new CustomEvent('veckis-new-version'));
+            });
+            // updatefound: ny SW är på väg in. När den blir 'installed' +
+            // det redan finns en aktiv controller = uppdatering är klar.
+            reg.addEventListener('updatefound', function () {
+              var newSw = reg.installing;
+              if (!newSw) return;
+              newSw.addEventListener('statechange', function () {
+                if (newSw.state === 'installed' && navigator.serviceWorker.controller) {
+                  window.__veckisNewVersion = true;
+                  window.dispatchEvent(new CustomEvent('veckis-new-version'));
+                }
+              });
+            });
+          }).catch(function (e) {
             console.warn('SW-registrering misslyckades:', e);
           });
         });

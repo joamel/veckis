@@ -8,7 +8,6 @@ export default function TabLayout() {
   useNotificationRouting();
   return (
     <Tabs
-      initialRouteName="schedule"
       screenOptions={{
         tabBarActiveTintColor: '#4f46e5',
         tabBarInactiveTintColor: '#999',
