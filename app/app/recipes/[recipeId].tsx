@@ -562,7 +562,7 @@ export default function RecipeDetailScreen() {
                         if (idx < editIngredients.length - 1) getRowRef(idx + 1).name?.focus();
                       }}
                     />
-                    <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove}>
+                    <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove} accessibilityRole="button" accessibilityLabel="Ta bort ingrediens">
                       <Ionicons name="close-circle" size={20} color="#d1d5db" />
                     </Pressable>
                   </View>

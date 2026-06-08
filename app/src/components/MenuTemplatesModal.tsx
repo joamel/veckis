@@ -101,7 +101,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
         <View style={s.handle} />
         <View style={s.header}>
           <Text style={s.title}>Veckomeny-mallar</Text>
-          <Pressable onPress={onClose} hitSlop={10}><Ionicons name="close" size={24} color="#6b7280" /></Pressable>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Stäng"><Ionicons name="close" size={24} color="#6b7280" /></Pressable>
         </View>
 
         <ScrollView contentContainerStyle={s.body}>
@@ -139,7 +139,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
                     ? <ActivityIndicator color="#4f46e5" size="small" />
                     : <Ionicons name="add-circle-outline" size={22} color="#4f46e5" />}
                 </Pressable>
-                <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8}>
+                <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Ta bort mall ${tpl.name}`}>
                   <Ionicons name="trash-outline" size={18} color="#9ca3af" />
                 </Pressable>
               </View>

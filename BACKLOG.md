@@ -24,7 +24,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 13. ~~Sortera sysslor efter tidigast förfallodatum (Sysslor)~~ ✅
 
 **P3 — uppstädning som inte brinner:**
-14. Tillgänglighet — slutför penna/x/dubblett-labels + filterknappar (Generellt, ~50% klar)
+14. ~~Tillgänglighet — slutför penna/x/dubblett-labels + filterknappar (Generellt)~~ ✅ (long-press borta → synliga knappar redan på plats; labels på ikon-only-knappar tillagda)
 15. Städa upp legacy-kod + refaktorera komponenter (Generellt)
 16. Designpass — skuggor/dialoger/grön-mot-skugga (Generellt)
 17. Frontend render-tester (RNTL) (Generellt)
@@ -94,7 +94,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [x] Render free-tier wake-up-indikator: `src/lib/backendWakeup.ts` pub/sub-modul som wrap:ar varje request via `trackBackendRequest`. Om första anropet tar > 3 sek fyras 'waking' → `WakeupIndicator` (lila topplist) visar "Servern vaknar… det här tar ofta 10–20 sek första gången". När anropet lyckas markeras backend som vaken permanent — toast spammar inte efterföljande anrop. Failade requests resettar inte vakenheten (en fail betyder inte att backend är vaken).
 - [x] Frontend test-infra: vitest + 48 gröna pure-function-tester. Täcker week.ts (ISO-vecka edge cases inkl år 2020 v53 + 31 dec → v1/nästa år), text.ts (capitalize), buildAssignedLabel (extraherad ur chores.tsx; null-fall, legacy assignedTo, rotation med 2/3 personer + cykling, borttagna medlemmar), inviteUrl (URL-encoding, tom kod), installDetect (parsa UA för Android Chrome/Samsung/Firefox, iOS Safari/Chrome, desktop Chrome/Edge/Firefox/Safari, iPad-maskerade-som-Mac via touch-points).
 - [ ] möjligt med horisontell-vy i tablet
-- [ ] Tillgänglighet: allt som nås via long-press ska även ha en synlig knapp + accessibility-labels på ikonknappar (penna/x/dubblett) så VoiceOver/TalkBack fungerar (delvis: navigations-/åtgärds-ikoner har labels — WeekNav-pilar, tillbaka-knappar, 3-prickar, kundvagn-FAB; kvar: penna/x/dubblett i listraderna + filterknappar)
+- [x] Tillgänglighet: ~~allt som nås via long-press ska även ha en synlig knapp~~ + accessibility-labels på ikonknappar. "Synlig knapp"-delen är obsolet: long-press är borttaget och ersatt av 3-prickar-menyer + synliga text-knappar (Redigera/Ta bort med text läses redan av VoiceOver/TalkBack). Slutförde label-passet på de få **ikon-only**-knapparna utan text — sök-rensa (recept + butiker), ta-bort-ingrediens, samt close/ta-bort i MenuTemplatesModal/NotificationsModal. (Navigations-/åtgärds-ikoner hade redan labels.) Inga visuella ändringar.
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [ ] Städa upp legacy-kod
 - [ ] Refaktorera och skapa fler filer för egna komponenter mm
