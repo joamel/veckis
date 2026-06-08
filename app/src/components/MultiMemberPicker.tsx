@@ -7,6 +7,9 @@ export interface MultiMemberPickerProps {
   rotation: boolean;
   onChange: (ids: string[]) => void;
   onRotationChange: (v: boolean) => void;
+  /** När false (t.ex. engångssyssla utan upprepning) visas rotation-raden
+   *  utgråad med en förklaring i stället för att vara valbar. Default true. */
+  rotationAllowed?: boolean;
 }
 
 /**
@@ -14,7 +17,7 @@ export interface MultiMemberPickerProps {
  * dyker upp först när 2+ personer är valda. Utbruten ur chores.tsx för
  * återanvändning + isolerad render-testning.
  */
-export function MultiMemberPicker({ members, selected, rotation, onChange, onRotationChange }: MultiMemberPickerProps) {
+export function MultiMemberPicker({ members, selected, rotation, onChange, onRotationChange, rotationAllowed = true }: MultiMemberPickerProps) {
   if (members.length === 0) return null;
   const toggle = (id: string) => {
     if (selected.includes(id)) onChange(selected.filter(x => x !== id));
@@ -44,24 +47,34 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
         })}
       </ScrollView>
       {selected.length >= 2 ? (
-        <Pressable
-          style={s.rotationRow}
-          onPress={() => onRotationChange(!rotation)}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: rotation }}
-        >
-          <View style={[s.rotationBox, rotation && s.rotationBoxActive]}>
-            {rotation ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+        rotationAllowed ? (
+          <Pressable
+            style={s.rotationRow}
+            onPress={() => onRotationChange(!rotation)}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: rotation }}
+          >
+            <View style={[s.rotationBox, rotation && s.rotationBoxActive]}>
+              {rotation ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.rotationLabel}>Turas om automatiskt</Text>
+              <Text style={s.rotationSub}>
+                {rotation
+                  ? 'Tur byts efter varje avbockning — alla turas om i listan.'
+                  : 'Alla i listan är gemensamt ansvariga (ingen rotation).'}
+              </Text>
+            </View>
+          </Pressable>
+        ) : (
+          <View style={[s.rotationRow, s.rotationRowDisabled]} accessibilityState={{ disabled: true }}>
+            <View style={s.rotationBox} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.rotationLabel}>Turas om automatiskt</Text>
+              <Text style={s.rotationSub}>Välj en upprepning först — en engångssyssla kan inte turas om.</Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.rotationLabel}>Turas om automatiskt</Text>
-            <Text style={s.rotationSub}>
-              {rotation
-                ? 'Tur byts efter varje avbockning — alla turas om i listan.'
-                : 'Alla i listan är gemensamt ansvariga (ingen rotation).'}
-            </Text>
-          </View>
-        </Pressable>
+        )
       ) : null}
     </>
   );
@@ -75,6 +88,7 @@ const s = StyleSheet.create({
   memberChipText: { fontSize: 14, color: '#374151', fontWeight: '500' },
   memberChipTextActive: { color: '#7c3aed', fontWeight: '600' },
   rotationRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 4, marginTop: 8 },
+  rotationRowDisabled: { opacity: 0.45 },
   rotationBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   rotationBoxActive: { borderColor: '#7c3aed', backgroundColor: '#7c3aed' },
   rotationLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },

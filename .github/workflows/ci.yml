@@ -80,17 +80,26 @@ jobs:
         working-directory: app
 
   deploy:
-    name: Deploy backend (Render)
+    name: Deploy (Render: backend + web)
     runs-on: ubuntu-latest
     needs: [backend, app]
     # Only after tests pass, only on a push to main (not PRs/develop).
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - name: Trigger Render deploy hook
+      - name: Trigger backend deploy hook
         run: |
           if [ -z "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
             echo "::error::RENDER_DEPLOY_HOOK secret saknas — sätt den i repo Settings → Secrets → Actions"
             exit 1
           fi
           curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
-          echo "Render deploy hook triggad."
+          echo "Backend-deploy triggad."
+
+      - name: Trigger web (PWA) deploy hook
+        run: |
+          if [ -z "${{ secrets.RENDER_WEB_DEPLOY_HOOK }}" ]; then
+            echo "::warning::RENDER_WEB_DEPLOY_HOOK saknas — webb-PWA:n (veckis-web) deployades INTE. Lägg till hooken (Render → veckis-web → Settings → Deploy Hook) i repo Settings → Secrets → Actions."
+          else
+            curl -fsSL -X POST "${{ secrets.RENDER_WEB_DEPLOY_HOOK }}"
+            echo "Webb-deploy triggad."
+          fi

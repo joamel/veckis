@@ -36,7 +36,10 @@ Om fel: rapportera och stanna.
    - `git checkout develop`
    - `git stash pop` (en eller två gånger beroende på hur många stash:ar som skapats)
 
-**7. Verifiera prod-deploy:** Vänta ~2-3 min och pinga `https://veckis.onrender.com/health` (PowerShell `Invoke-WebRequest`, timeout 60s). Om 200/ok = backend live med ny migration. Om timeout: render kan vara mitt i bygget — pinga igen om 1-2 min.
+**7. Verifiera prod-deploy:** Push till main triggar GitHub Actions → Render-hooks för **både backend och webb-PWA** (`veckis-web`). Vänta ~2-3 min och pinga:
+- `https://veckis.onrender.com/health` (PowerShell `Invoke-WebRequest`, timeout 60s) → 200/ok = backend live.
+- `https://veckis-web.onrender.com` → 200 = webb-PWA live (static rebuild från `npm run build:web`).
+Om timeout: Render kan vara mitt i bygget — pinga igen om 1-2 min. (Webb-hooken kräver secret `RENDER_WEB_DEPLOY_HOOK`; saknas den loggar Actions en varning och webben deployas inte — lägg då till hooken från Render → veckis-web → Settings → Deploy Hook.)
 
 **8. Skicka OTA till mobilappen** (om frontend-ändringar finns):
    - `cd app && npm run update:preview`

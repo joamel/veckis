@@ -15,6 +15,8 @@ import { SpotlightTipProvider, useOnboardingMaster, useWelcomeGate } from '../sr
 import { WelcomeModal } from '../src/components/WelcomeModal';
 import { VersionBanner } from '../src/components/VersionBanner';
 import { WakeupIndicator } from '../src/components/WakeupIndicator';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { installGlobalErrorHandler } from '../src/lib/errorReport';
 
 // Lock app text to designed size regardless of OS "larger text" setting.
 // Tablet sizing is handled separately via useTablet().fs() so we don't lose tablet scaling.
@@ -123,8 +125,11 @@ function NavigationGuard() {
 }
 
 export default function RootLayout() {
+  // Fånga ouppfångade JS-fel app-brett (utöver render-fel som ErrorBoundary tar).
+  useEffect(() => { installGlobalErrorHandler(); }, []);
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
       <SafeAreaProvider>
         <StatusBar style="light" />
         <StatusBarBackdrop />
@@ -147,6 +152,7 @@ export default function RootLayout() {
           </HouseholdProvider>
         </ClerkProvider>
       </SafeAreaProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }

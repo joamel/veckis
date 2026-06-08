@@ -469,7 +469,7 @@ export default function ChoresScreen() {
         title: newTitle.trim(),
         assignedTo: newAssignedToMany[0] ?? null,
         assignedToMany: newAssignedToMany,
-        rotation: newAssignedToMany.length >= 2 ? newRotation : false,
+        rotation: (newRecurrenceType !== 'none' && newAssignedToMany.length >= 2) ? newRotation : false,
         days,
         startDate,
         endDate: newEndDate,
@@ -525,7 +525,7 @@ export default function ChoresScreen() {
         title: editTitle.trim(),
         assignedTo: editAssignedToMany[0] ?? null,
         assignedToMany: editAssignedToMany,
-        rotation: editAssignedToMany.length >= 2 ? editRotation : false,
+        rotation: (editRecurrenceType !== 'none' && editAssignedToMany.length >= 2) ? editRotation : false,
         days,
         startDate,
         endDate: editEndDate,
@@ -947,6 +947,7 @@ export default function ChoresScreen() {
               rotation={newRotation}
               onChange={setNewAssignedToMany}
               onRotationChange={setNewRotation}
+              rotationAllowed={newRecurrenceType !== 'none'}
             />
 
             {newRecurrenceType === 'none' && (
@@ -1035,6 +1036,7 @@ export default function ChoresScreen() {
               rotation={editRotation}
               onChange={setEditAssignedToMany}
               onRotationChange={setEditRotation}
+              rotationAllowed={editRecurrenceType !== 'none'}
             />
 
             {editRecurrenceType === 'none' && (
