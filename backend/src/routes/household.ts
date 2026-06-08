@@ -5,6 +5,7 @@ import { requireAuth, requireHouseholdMember, requireAdmin, AuthenticatedRequest
 import { asyncHandler } from '../lib/asyncHandler';
 import { createHouseholdLimiter, joinHouseholdLimiter } from '../lib/rateLimits';
 import { audit, lookupActorName } from '../lib/auditLog';
+import { cascadeRemoveMember } from '../lib/memberCleanup';
 import { randomBytes } from 'crypto';
 import { wsBroadcast } from '../lib/wsHub';
 import { sendPush } from '../lib/sendPush';
@@ -175,35 +176,9 @@ householdRouter.post('/:householdId/leave', requireAuth, requireHouseholdMember,
     }
   }
 
-  // Samma cleanup som admin-driven member.remove: rensa id:t från
-  // alla assignedToMany-arrays + nolla legacy assignedTo.
-  await prisma.$transaction(async (tx) => {
-    const chores = await tx.chore.findMany({
-      where: { householdId, assignedToMany: { has: member.id } },
-      select: { id: true, assignedToMany: true },
-    });
-    for (const c of chores) {
-      const next = c.assignedToMany.filter(id => id !== member.id);
-      await tx.chore.update({
-        where: { id: c.id },
-        data: { assignedToMany: next, assignedTo: next[0] ?? null },
-      });
-    }
-    const entries = await tx.scheduleEntry.findMany({
-      where: { householdId, assignedToMany: { has: member.id } },
-      select: { id: true, assignedToMany: true },
-    });
-    for (const e of entries) {
-      const next = e.assignedToMany.filter(id => id !== member.id);
-      await tx.scheduleEntry.update({
-        where: { id: e.id },
-        data: { assignedToMany: next, assignedTo: next[0] ?? null },
-      });
-    }
-    await tx.chore.updateMany({ where: { householdId, assignedTo: member.id }, data: { assignedTo: null } });
-    await tx.scheduleEntry.updateMany({ where: { householdId, assignedTo: member.id }, data: { assignedTo: null } });
-    await tx.householdMember.delete({ where: { id: member.id } });
-  });
+  // Samma cleanup som admin-driven member.remove + Clerk-webhooken: rensa id:t
+  // ur alla assignedToMany-arrays, nolla legacy assignedTo, radera raden.
+  await prisma.$transaction((tx) => cascadeRemoveMember(tx, householdId, member.id));
 
   void audit({
     householdId, actorClerkUserId: clerkUserId, actorName: member.displayName,
