@@ -1181,23 +1181,23 @@ export default function ShoppingListScreen() {
         </View>
       )}
 
-      {/* "Jag handlar"-presence-banner — synlig när någon (inkl. mig själv)
-          aktivt handlar listan. Förhindrar dubbla turer till affären. */}
-      {list.activeShopperMemberId && activeShopper && (
-        <View style={[s.shopperBanner, { top: HEADER_TOP + NAVBAR_HEIGHT + 4 }]} pointerEvents="none">
-          <Ionicons name="walk" size={14} color="#7c3aed" />
-          <Text style={s.shopperBannerText}>
-            {iAmShopping ? 'Du handlar nu' : `${activeShopper.displayName} handlar nu`}
-          </Text>
-        </View>
-      )}
-
-      {/* Navbar buttons — rendered last so they always sit on top */}
+      {/* Navbar buttons — rendered last so they always sit on top. "Jag handlar"-
+          presence visas som en rosa pill i navbarens mitt (i st. f. en banner som
+          la sig ovanpå rubriken). Förhindrar dubbla turer till affären. */}
       <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
         <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Tillbaka">
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
-        <View style={{ flex: 1 }} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} pointerEvents="none">
+          {list.activeShopperMemberId && activeShopper && (
+            <View style={s.shopperPill}>
+              <Ionicons name="walk" size={14} color="#db2777" />
+              <Text style={s.shopperPillText} numberOfLines={1}>
+                {iAmShopping ? 'Du handlar' : `${activeShopper.displayName} handlar`}
+              </Text>
+            </View>
+          )}
+        </View>
         <Pressable ref={listActionsBtnRef} onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fler åtgärder">
           <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
@@ -2063,8 +2063,8 @@ const s = StyleSheet.create({
   storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   storeBtnText: { fontSize: 16, color: '#4f46e5', fontWeight: '600' },
   progressBar: { height: 3, backgroundColor: '#e5e7eb' },
-  shopperBanner: { position: 'absolute', left: 16, right: 16, zIndex: 36, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ede9fe', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'center' },
-  shopperBannerText: { fontSize: 12, color: '#5b21b6', fontWeight: '600' },
+  shopperPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#fce7f3', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, maxWidth: 200 },
+  shopperPillText: { fontSize: 12, color: '#db2777', fontWeight: '600' },
   progressFill: { height: 3, backgroundColor: '#10b981' },
   list: { padding: 16, gap: 16, paddingBottom: 8 },
   listEmpty: { flex: 1 },
