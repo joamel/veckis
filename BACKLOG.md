@@ -9,7 +9,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 2. ~~Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald (Kalendern)~~ ✅
 3. ~~Maträtt på tidigare vecka läggs in på nuvarande vecka (Meny)~~ ✅
 4. ~~Planera en rätt-knappen lägger in på fel vecka (Meny)~~ ✅
-5. Flytta upp specialkost-kategori funkar inte i en butik (Inköp)
+5. ~~Flytta upp specialkost-kategori funkar inte i en butik (Inköp)~~ ✅
 
 **P1 — tydliga UX-bugar:**
 6. Tar man bort en maträtt och flyttar en annan till samma dag → felaktig dubbel-varning (Meny)
@@ -204,7 +204,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [x] Kategorier — butikskonfig (Store.expandedSubs + UI i /stores/[storeId] med fäll-ut per parent + toggle per sub; buildCategoryGroups renderar expanderade subs som egna sektioner direkt efter sin parent): under varje parent i `/stores/[storeId]`, fäll ut för att visa relaterade subs. Per sub: toggle "samla under parent" (default) eller "egen sektion". Konfigen styr BARA rendering; inga item-mutations.
 - [x] Kategorier — per-item override (item-editorn har sub-chips filtrerade på valt parent; editSubCategory-state hydreras + skickas till backend tillsammans med editCategory): long-press vara → "Redigera" → byt parent + sub oberoende av varandra (även avvika från taxonomins default). Båda är full radio-pickers över respektive enum.
 - [x] Kategorier — migration (backend/jobs/backfillSubCategory.ts kör vid start; försöker matcha customCategory-strängen först sen item.name via inferSubCategory; idempotent. Schema-cleanup av customCategory-fältet återstår tills alla items konverterats): string-similarity-matchning av befintliga `customCategory`-strängar mot bästa sub. Träff över threshold → auto. Resten flaggas för manuell granskning i admin-vy. När alla items konverterats: ta bort `customCategory`-kolumnen + `Store.customCategories`.
-- [ ] Flytta upp specialkost kategori i en butik funkar inte i praktiken. Ligger fortfarande längst ned i inköpslistan
+- [x] Flytta upp specialkost-kategori i en butik funkar inte i praktiken (låg kvar längst ned): `buildCategoryGroups` lade bara en parent i `orderedEnum` om den hade *direkta* items. När alla special-diet-items brutits ut i expanderade subs (vegan/glutenfritt/övrig specialkost) saknade `special_diet` direkta items → hamnade aldrig i ordningen → sub-sektionerna orphan:ades sist oavsett butiksordning. Nu inkluderas parents som har expanderade subs i `orderedEnum` (på sin butiksordnings-position); parent-headern hoppas över när den saknar direkta items men sub-sektionerna renderas i rätt slot. Den döda orphan-loopen borttagen.
 - [ ] "Du handlar nu" bannern lägger sig ovanpå rubriken vilket inte är så snyggt. Hade kanske räckt med själva gubbe-ikonen som lyser rosa högst upp i inköpslistan
 - [ ] Vyn för att markera dubbletter själv borde kunna se ut som vanliga inköpslistan för att enklare välja rätt dubbletter. Den som kommer nu i en dialog är otydlig och i boktavsordning. Hade varit enklare att "Markera själv" -> få upp "vanliga" inköpslistan och bocka i de man vill slå ihop
 - [ ] Kunna ta swipa höger för att ta bort en vara från inköpslistan helt (med ångra toast)

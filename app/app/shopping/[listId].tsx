@@ -1965,8 +1965,22 @@ function buildCategoryGroups(
     if (!enumMap.has(cat)) enumMap.set(cat, []);
     enumMap.get(cat)!.push(item);
   }
-  const orderedEnum = [...order.filter(c => enumMap.has(c))];
+  // Parents whose items are all broken out into expanded subs (no direct items)
+  // still need a slot in the order, otherwise their sub-sections get appended at
+  // the very bottom and reordering the parent has no visible effect.
+  const subParents = new Set<StoreCategory>();
+  for (const sub of subMap.keys()) {
+    const info = SUB_TAXONOMY[sub as SubCategory];
+    if (info) subParents.add(info.defaultParent);
+  }
+  const orderedEnum: StoreCategory[] = [];
+  for (const cat of order) {
+    if (enumMap.has(cat) || subParents.has(cat)) orderedEnum.push(cat);
+  }
   for (const cat of enumMap.keys()) {
+    if (!orderedEnum.includes(cat)) orderedEnum.push(cat);
+  }
+  for (const cat of subParents) {
     if (!orderedEnum.includes(cat)) orderedEnum.push(cat);
   }
   const orderedCustom = [...customCategories.filter(c => customMap.has(c))];
@@ -1982,20 +1996,18 @@ function buildCategoryGroups(
   // hänger ihop visuellt i butikens ordning.
   const result: CategoryGroup[] = [];
   for (const parent of orderedEnum) {
-    result.push({ category: parent, isCustom: false, items: sortItems(enumMap.get(parent)!) });
+    // Skip the parent header when it has no direct items (everything is broken
+    // out into expanded subs) — but still emit its subs in this slot.
+    const direct = enumMap.get(parent);
+    if (direct && direct.length) {
+      result.push({ category: parent, isCustom: false, items: sortItems(direct) });
+    }
     for (const [sub, subItems] of subMap.entries()) {
       const subInfo = SUB_TAXONOMY[sub as SubCategory];
       if (subInfo && subInfo.defaultParent === parent) {
         result.push({ category: sub, isCustom: false, isSub: true, label: subInfo.label, items: sortItems(subItems) });
       }
     }
-  }
-  // Sub-grupper vars parent inte fanns i orderedEnum (ovanligt) — append sist.
-  for (const [sub, subItems] of subMap.entries()) {
-    const subInfo = SUB_TAXONOMY[sub as SubCategory];
-    if (!subInfo) continue;
-    if (orderedEnum.includes(subInfo.defaultParent)) continue;
-    result.push({ category: sub, isCustom: false, isSub: true, label: subInfo.label, items: sortItems(subItems) });
   }
   // Custom-grupper sist
   for (const cat of orderedCustom) {
