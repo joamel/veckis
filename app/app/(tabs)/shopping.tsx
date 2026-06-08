@@ -58,7 +58,7 @@ export default function ShoppingScreen() {
   // för att kunna visa butik-koppling i "ny lista"-formuläret.
   const [stores, setStores] = useState<Store[]>([]);
   // Hushållsmedlemmar för "X handlar nu"-indikatorn på list-korten.
-  const [members, setMembers] = useState<Array<{ id: string; displayName: string }>>([]);
+  const [members, setMembers] = useState<Array<{ id: string; displayName: string; clerkUserId: string | null }>>([]);
 
 
   const load = useCallback(async () => {
@@ -103,7 +103,7 @@ export default function ShoppingScreen() {
   // Live cross-device refresh: the backend emits shopping_list_updated on the
   // household socket when any list's items change, so the overview counts update
   // without waiting for tab focus. Debounced — one mutation can emit several events.
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useHouseholdSocket(householdId, getToken, (msg) => {
     if (msg.type === 'shopping_list_updated') {
@@ -180,6 +180,7 @@ export default function ShoppingScreen() {
           const unchecked = item.items.filter(i => !i.isChecked).length;
           const total = item.items.length;
           const shopper = item.activeShopperMemberId ? members.find(m => m.id === item.activeShopperMemberId) : null;
+          const iAmShopper = !!shopper && !!userId && shopper.clerkUserId === userId;
           return (
             <View style={styles.cardWrap}>
               <Pressable
@@ -195,7 +196,7 @@ export default function ShoppingScreen() {
                     {shopper && (
                       <View style={styles.shopperPill}>
                         <Ionicons name="walk" size={11} color="#7c3aed" />
-                        <Text style={styles.shopperPillText}>{shopper.displayName} handlar</Text>
+                        <Text style={styles.shopperPillText}>{iAmShopper ? 'Du handlar' : `${shopper.displayName} handlar`}</Text>
                       </View>
                     )}
                   </View>
