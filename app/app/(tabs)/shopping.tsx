@@ -6,7 +6,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -25,13 +24,12 @@ import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { pickStore } from '../../src/lib/storePicker';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { EmptyState } from '../../src/components/EmptyState';
-import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { onShoppingChanged } from '../../src/lib/shoppingEvents';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/clerk-expo';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, type StoreCategory, type Store } from '@veckis/shared';
+import { type Store } from '@veckis/shared';
 
 export default function ShoppingScreen() {
   const router = useRouter();
@@ -45,7 +43,6 @@ export default function ShoppingScreen() {
   const storesTipShownRef = useRef(false);
   const storesBtnRef = useRef<View>(null);
   const wrapNewListTip = useFirstActionTip('seen-shopping-add-tip');
-  const { medium } = useHaptics();
   const { fs, sp } = useTablet();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
   const [loading, setLoading] = useState(true);

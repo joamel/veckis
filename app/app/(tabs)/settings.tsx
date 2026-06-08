@@ -13,7 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -25,8 +25,6 @@ import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useOnboardingMaster, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
-import { TIP_FLAGS } from '../../src/lib/onboardingTips';
-import * as SecureStore from '../../src/lib/secureStorage';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { NotificationsModal } from '../../src/components/NotificationsModal';
 import { AuditLogSection } from '../../src/components/AuditLogSection';
@@ -35,10 +33,9 @@ import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
 
 export default function SettingsScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { signOut, getToken } = useAuth();
-  const { user, isSignedIn } = useUser();
+  const { getToken } = useAuth();
+  const { user } = useUser();
   const client = useApiClient();
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
   const { showToast: showGlobalToast, showError } = useToast();
@@ -46,7 +43,6 @@ export default function SettingsScreen() {
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
   const { skipAll, setSkipAll } = useOnboardingMaster();
-  const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const notifClockTip = useOnceFlag('seen-notif-clock-tip');
   const notifClockTipShownRef = useRef(false);
   const notifClockBtnRef = useRef<View>(null);
@@ -131,7 +127,6 @@ export default function SettingsScreen() {
   // Profil- och hushållskorten kan fällas ut inline (i samma stil som
   // sysslor) för att visa sekundära handlingar — byt namn/logga ut
   // resp. byt aktivt hushåll.
-  const [expandedAccount, setExpandedAccount] = useState(false);
   const [expandedHouseholds, setExpandedHouseholds] = useState(false);
   // Klick på penna-knappen vid en medlem öppnar en åtgärdssheet med
   // relevanta val (byt namn, ge/ta bort admin, ta bort profilen) baserat
@@ -177,7 +172,6 @@ export default function SettingsScreen() {
   const [showNotifModal, setShowNotifModal] = useState(false);
 
   const displayName = user?.fullName ?? user?.emailAddresses[0]?.emailAddress ?? 'Användare';
-  const email = user?.emailAddresses[0]?.emailAddress;
   const clerkUserId = user?.id;
   const isAdmin = memberRole === 'admin';
   const householdMembers = household?.members ?? [];
@@ -437,17 +431,6 @@ export default function SettingsScreen() {
     });
   }
 
-  function handleSignOut() {
-    confirm({
-      title: 'Logga ut',
-      message: 'Är du säker på att du vill logga ut?',
-      buttons: [
-        { label: 'Logga ut', style: 'destructive', onPress: () => signOut() },
-        { label: 'Avbryt', style: 'cancel' },
-      ],
-    });
-  }
-
   function handleLeaveHousehold() {
     if (!householdId || !householdName) return;
     confirm({
@@ -465,73 +448,6 @@ export default function SettingsScreen() {
         { label: 'Avbryt', style: 'cancel' },
       ],
     });
-  }
-
-  /** Öppna Clerks user-profile där 2FA (TOTP) kan aktiveras. På web öppnas
-   *  Clerks egen modal; på native öppnar vi Account Portal i in-app-browser.
-   *  TOTP är gratis i Clerks Hobby-plan — bara backup-koder + recovery genereras
-   *  där, ingen extra kostnad per inlogg. */
-  async function handleOpen2FA() {
-    setShowOverflowMenu(false);
-    await openClerkPortal('/user/security', 'Kunde inte öppna säkerhetsinställningar');
-  }
-
-  /** Gemensam helper som öppnar Clerks Account Portal i in-app-browser (native)
-   *  eller ny tab (web). Path:en pekar på en specifik sektion av portalen. */
-  async function openClerkPortal(path: string, errLabel: string) {
-    const portalUrl = `https://new-oarfish-48.accounts.dev${path}`;
-    try {
-      if (Platform.OS === 'web') {
-        window.open(portalUrl, '_blank', 'noopener');
-      } else {
-        const WebBrowser = await import('expo-web-browser');
-        await WebBrowser.openBrowserAsync(portalUrl);
-      }
-    } catch (e) {
-      showError(e, errLabel);
-    }
-  }
-
-  /** Kontakta support: mailto med subject + body förfylld med versionsinfo.
-   *  Sänker tröskeln att höra av sig — vi får viktig debug-info ovh från
-   *  start istället för att fråga "vilken version har du?" i tre rundor. */
-  function handleContactSupport() {
-    setShowOverflowMenu(false);
-    const Constants = require('expo-constants').default;
-    const version = Constants.expoConfig?.version ?? 'okänd';
-    const subject = encodeURIComponent('Veckis-support');
-    const body = encodeURIComponent(
-      `\n\n---\nVersion: ${version}\nPlattform: ${Platform.OS}\n`,
-    );
-    const url = `mailto:veckis.support@gmail.com?subject=${subject}&body=${body}`;
-    if (Platform.OS === 'web') {
-      window.location.href = url;
-    } else {
-      const { Linking } = require('react-native');
-      Linking.openURL(url).catch((e: unknown) => showError(e, 'Kunde inte öppna mailprogrammet'));
-    }
-  }
-
-  /** Radera Clerk-konto: öppnar Clerks user-profile där användaren kan
-   *  trigga kontot-borttagning. Inline-flöde inom appen kan komma senare —
-   *  länken räcker som start för symmetri med "Lämna hushållet". */
-  function handleDeleteAccount() {
-    confirm({
-      title: 'Ta bort kontot?',
-      message: 'Du skickas till säkerhetsinställningarna där du kan radera ditt konto permanent. Alla dina hushållsmedlemskap tas också bort. Detta kan inte ångras.',
-      buttons: [
-        { label: 'Fortsätt', style: 'destructive', onPress: () => openClerkPortal('/user', 'Kunde inte öppna kontoinställningar') },
-        { label: 'Avbryt', style: 'cancel' },
-      ],
-    });
-  }
-
-  async function handleResetTips() {
-    await Promise.all(TIP_FLAGS.map(k => SecureStore.deleteItemAsync(k).catch(() => {})));
-    // Slå även PÅ master-toggle om den var av — annars skulle inget visas igen.
-    if (skipAll) await setSkipAll(false);
-    showGlobalToast('Tips återställda — visas igen i nästa session', 'neutral');
-    setShowOverflowMenu(false);
   }
 
   const expiresAt = invite ? new Date(invite.expiresAt) : null;

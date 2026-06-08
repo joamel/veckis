@@ -21,7 +21,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, { runOnJS } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
@@ -53,7 +53,6 @@ const DAYS: { key: WeekDay; label: string; short: string }[] = [
   { key: 'sun', label: 'Söndag', short: 'Sön' },
 ];
 
-const MONTH_NAMES = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'];
 
 function getWeekMonday(weekOffset: number): Date {
   const d = addWeeks(new Date(), weekOffset);
@@ -1138,20 +1137,6 @@ export default function MenuScreen() {
     } catch (e) {
       setMenuItems(prev => prev.map(i => i.id === item.id ? item : i));
       showError(e, 'Kunde inte flytta rätten');
-    }
-  }
-
-  async function removeFromShoppingList(menuItemId: string) {
-    const menuItem = menuItems.find(i => i.id === menuItemId);
-    if (!menuItem) return;
-    const lists = recipeListMap[menuItemId] ?? [];
-    if (lists.length === 0) return;
-
-    if (lists.length === 1) {
-      await executeCleanup(menuItem, [lists[0].listId]);
-    } else {
-      setCleanupPrompt({ menuItem, lists });
-      setSelectedCleanupLists(new Set(lists.map(l => l.listId)));
     }
   }
 

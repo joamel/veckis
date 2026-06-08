@@ -25,7 +25,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 
 **P3 — uppstädning som inte brinner:**
 14. ~~Tillgänglighet — slutför penna/x/dubblett-labels + filterknappar (Generellt)~~ ✅ (long-press borta → synliga knappar redan på plats; labels på ikon-only-knappar tillagda)
-15. Städa upp legacy-kod + refaktorera komponenter (Generellt)
+15. Städa upp legacy-kod ✅ + refaktorera komponenter ⬜ (Generellt) — legacy-städning klar; komponent-refaktor kvar
 16. Designpass — skuggor/dialoger/grön-mot-skugga (Generellt)
 17. Frontend render-tester (RNTL) (Generellt)
 
@@ -96,8 +96,8 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [ ] möjligt med horisontell-vy i tablet
 - [x] Tillgänglighet: ~~allt som nås via long-press ska även ha en synlig knapp~~ + accessibility-labels på ikonknappar. "Synlig knapp"-delen är obsolet: long-press är borttaget och ersatt av 3-prickar-menyer + synliga text-knappar (Redigera/Ta bort med text läses redan av VoiceOver/TalkBack). Slutförde label-passet på de få **ikon-only**-knapparna utan text — sök-rensa (recept + butiker), ta-bort-ingrediens, samt close/ta-bort i MenuTemplatesModal/NotificationsModal. (Navigations-/åtgärds-ikoner hade redan labels.) Inga visuella ändringar.
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
-- [ ] Städa upp legacy-kod
-- [ ] Refaktorera och skapa fler filer för egna komponenter mm
+- [x] Städa upp legacy-kod: tog bort död kod i app:en (verifierat med `tsc --noUnusedLocals/--noUnusedParameters` + 48 gröna tester). Bl.a.: hel död inline-butikseditor i `shopping/[listId]` (state + 7 funktioner) **plus en bortkastad `getStores`-hämtning i load()**; oanvänd `DayPicker`-komponent + `toggleDay` i chores; döda Profil-refaktor-rester i settings (`handleSignOut/Open2FA/ContactSupport/DeleteAccount/ResetTips` + `openClerkPortal` + tillhörande state/imports); döda custom-kategori-funktioner i `stores/[storeId]`; samt ~20 oanvända imports/lokaler i 9 filer. Inga beteendeförändringar.
+- [ ] Refaktorera och skapa fler filer för egna komponenter mm (separat från legacy-städningen ovan — kräver att bryta ut komponenter ur de stora skärmfilerna, görs bäst riktat)
 - [ ] Frontend render-tester (RNTL) — kräver setup av jsdom + react-native-web + mocks av Clerk/AsyncStorage/WebSocket. ~30 min setup, sen ~30 min per komponent. Prioritet: MultiMemberPicker (chip-toggle + rotation-row dyker upp vid 2+), performer-pickern, SpotlightTip-gate.
 - [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**.
 - [x] ⚠️ Innan go-live: fixa support-mailadressen. **LÖST (2026-06-08): bytt `support@veckis.app` → `veckis.support@gmail.com`** (gratis dedikerad Gmail, ingen domän att köpa). Clerk ger ingen inkorg och forward kräver ägd domän, så gratis-Gmail var enda no-cost-vägen. Ändrat i terms.tsx (2), privacy.tsx (2), preferences.tsx (mailto) och settings.tsx (mailto). Adressen når användarna vid nästa OTA/PWA-deploy. **Kvar för dig:** skapa själva Gmail-kontot `veckis.support@gmail.com` så mailen tas emot.

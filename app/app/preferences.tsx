@@ -8,7 +8,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { NotificationsModal } from '../src/components/NotificationsModal';
 import { useOnboardingMaster } from '../src/context/SpotlightTipContext';
-import { useOnceFlag } from '../src/hooks/useOnceFlag';
 import { TIP_FLAGS } from '../src/lib/onboardingTips';
 import * as SecureStore from '../src/lib/secureStorage';
 import { useToast } from '../src/context/ToastContext';

@@ -815,7 +815,6 @@ export default function ScheduleScreen() {
   const isCurrentMonth = monthRef.getMonth() === now.getMonth() && monthRef.getFullYear() === now.getFullYear();
 
   const visibleEntries = entries.filter(e => e.isShared || e.createdBy === userId);
-  const addDays = (date: Date, n: number) => new Date(date.getTime() + n * 86400000);
   const weekdayKeyOf = (date: Date): WeekDay =>
     (['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()]) as WeekDay;
   const toIsoLocal = (d: Date): string =>

@@ -29,7 +29,6 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
-import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
@@ -175,27 +174,6 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
 
 type Member = { id: string; clerkUserId: string | null; displayName: string };
 
-function toggleDay(days: WeekDay[], day: WeekDay): WeekDay[] {
-  return days.includes(day) ? days.filter(d => d !== day) : [...days, day];
-}
-
-function DayPicker({ selected, onChange }: { selected: WeekDay[]; onChange: (days: WeekDay[]) => void }) {
-  return (
-    <View style={s.dayRow}>
-      {DAYS.map(d => (
-        <Pressable
-          key={d.key}
-          style={[s.dayOption, selected.includes(d.key) && s.dayOptionActive]}
-          onPress={() => onChange(toggleDay(selected, d.key))}
-        >
-          <Text style={[s.dayOptionText, selected.includes(d.key) && s.dayOptionTextActive]}>
-            {d.short}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
 
 interface MultiMemberPickerProps {
   members: Member[];
@@ -261,7 +239,6 @@ export default function ChoresScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { getToken, userId } = useAuth();
-  const { medium } = useHaptics();
   const { fs, sp } = useTablet();
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
@@ -472,10 +449,6 @@ export default function ChoresScreen() {
     [chores]
   );
 
-  function getMemberName(memberId: string | null) {
-    if (!memberId) return null;
-    return members.find(m => m.id === memberId)?.displayName ?? null;
-  }
 
   // Etikett för "tilldelad" på syssla-kortet:
   //  - rotation=true + 2+ medlemmar → "Annas tur · Nästa: Bo"

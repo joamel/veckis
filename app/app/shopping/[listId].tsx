@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
-  GestureResponderEvent,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -33,7 +32,7 @@ import RNAnimated, {
   withDelay,
   runOnJS,
 } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { pickStore } from '../../src/lib/storePicker';
 import { useFocusEffect } from '@react-navigation/native';
@@ -47,7 +46,7 @@ import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, parentForSub, type StoreCategory, type SubCategory, type StapleItem, type Store } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem } from '@veckis/shared';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
   fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', dairy_eggs: '🥛',
@@ -93,7 +92,6 @@ export default function ShoppingListScreen() {
   const [loading, setLoading] = useState(true);
   const [newItem, setNewItem] = useState('');
   const [adding, setAdding] = useState(false);
-  const [stores, setStores] = useState<Store[]>([]);
   const [staples, setStaples] = useState<StapleItem[]>([]);
   const [ingredientSuggestions, setIngredientSuggestions] = useState<{ name: string; category: string }[]>([]);
   // Hushållsmedlemmar för "Jag handlar"-presence-indikatorn (vem är aktiv?).
@@ -248,8 +246,6 @@ export default function ShoppingListScreen() {
   const [stapleCategory, setStapleCategory] = useState<StoreCategory>('other');
   const [savingStaple, setSavingStaple] = useState(false);
 
-  // Store picker modal
-  const [showStorePicker, setShowStorePicker] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState('');
@@ -272,15 +268,6 @@ export default function ShoppingListScreen() {
       setRenaming(false);
     }
   }
-  const [creatingStore, setCreatingStore] = useState(false);
-  const [newStoreName, setNewStoreName] = useState('');
-
-  // Category order editor
-  const [editingStore, setEditingStore] = useState<Store | null>(null);
-  const [editCategoryOrder, setEditCategoryOrder] = useState<StoreCategory[]>([]);
-  const [editCustomCategories, setEditCustomCategories] = useState<string[]>([]);
-  const [newCustomCategory, setNewCustomCategory] = useState('');
-  const [savingOrder, setSavingOrder] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const editQtyRef = useRef<TextInput>(null);
@@ -525,15 +512,13 @@ export default function ShoppingListScreen() {
   const load = useCallback(async () => {
     if (!listId || !householdId) return;
     try {
-      const [data, storeList, stapleList, suggestions, household] = await Promise.all([
+      const [data, stapleList, suggestions, household] = await Promise.all([
         client.getShoppingList(listId),
-        client.getStores(householdId),
         client.getStaples(householdId),
         client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
         client.getHousehold(householdId).catch(() => null),
       ]);
       setList(data);
-      setStores(storeList);
       setStaples(stapleList);
       setIngredientSuggestions(suggestions);
       if (household) setMembers(household.members);
@@ -1014,7 +999,6 @@ export default function ShoppingListScreen() {
     try {
       const updated = await client.updateShoppingList(listId, { storeId });
       setList(updated);
-      setShowStorePicker(false);
     } catch (e) {
       showError(e, 'Kunde inte byta butik');
     }
@@ -1029,80 +1013,6 @@ export default function ShoppingListScreen() {
     const result = await promise;
     if (result === 'cancelled') return;
     await selectStore(result);
-  }
-
-  async function createStore() {
-    if (!householdId || !newStoreName.trim()) return;
-    setCreatingStore(true);
-    try {
-      const store = await client.createStore({ householdId, name: newStoreName.trim() });
-      setStores(prev => [...prev, store]);
-      await selectStore(store.id);
-      setNewStoreName('');
-    } catch (e) {
-      showError(e, 'Kunde inte skapa butik');
-    } finally {
-      setCreatingStore(false);
-    }
-  }
-
-  function openCategoryEditor(store: Store) {
-    setEditingStore(store);
-    setEditCategoryOrder((store.categoryOrder as StoreCategory[]).length
-      ? store.categoryOrder as StoreCategory[]
-      : [...DEFAULT_CATEGORY_ORDER]);
-    setEditCustomCategories([...((store.customCategories as string[] | undefined) ?? [])]);
-    setNewCustomCategory('');
-  }
-
-  function addCustomCategory() {
-    const trimmed = newCustomCategory.trim();
-    if (!trimmed) return;
-    if (editCustomCategories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
-      confirm({ title: 'Finns redan', message: `Kategorin "${trimmed}" finns redan.`, buttons: [{ label: 'OK' }] });
-      return;
-    }
-    setEditCustomCategories(prev => [...prev, trimmed]);
-    setNewCustomCategory('');
-  }
-
-  function removeCustomCategory(name: string) {
-    setEditCustomCategories(prev => prev.filter(c => c !== name));
-  }
-
-  function moveCategoryUp(idx: number) {
-    if (idx === 0) return;
-    setEditCategoryOrder(prev => {
-      const next = [...prev];
-      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-      return next;
-    });
-  }
-
-  function moveCategoryDown(idx: number) {
-    setEditCategoryOrder(prev => {
-      if (idx >= prev.length - 1) return prev;
-      const next = [...prev];
-      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-      return next;
-    });
-  }
-
-  async function saveCategoryOrder() {
-    if (!editingStore) return;
-    setSavingOrder(true);
-    try {
-      const updated = await client.updateStore(editingStore.id, { categoryOrder: editCategoryOrder, customCategories: editCustomCategories });
-      setStores(prev => prev.map(s => s.id === updated.id ? updated : s));
-      if (list?.store?.id === updated.id) {
-        setList(prev => prev ? { ...prev, store: updated } : prev);
-      }
-      setEditingStore(null);
-    } catch (e) {
-      showError(e, 'Kunde inte spara ordning');
-    } finally {
-      setSavingOrder(false);
-    }
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;

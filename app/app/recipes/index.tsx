@@ -20,7 +20,6 @@ import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe }
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { EmptyState } from '../../src/components/EmptyState';
 import { getISOWeek } from '../../src/lib/week';

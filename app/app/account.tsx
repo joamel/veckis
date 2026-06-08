@@ -22,7 +22,6 @@ export default function AccountScreen() {
   const confirm = useConfirm();
 
   // Hitta MIN medlemskap i nuvarande hushåll så vi kan ändra mitt egen namn
-  const clerkUserId = user?.id;
   const myMember = household.allMemberships.find(m => m.householdId === householdId);
   const myMemberId = myMember?.id;
   const displayName = myMember?.displayName ?? user?.firstName ?? user?.emailAddresses[0]?.emailAddress.split('@')[0] ?? 'Användare';
