@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import Fuse from 'fuse.js';
 import { capitalize } from '../../src/lib/text';
+import { normalizeQtyInput } from '../../src/lib/qty';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
@@ -200,6 +201,11 @@ export default function ShoppingListScreen() {
     return { opacity: t, maxWidth: t * 170, marginRight: t * 6 };
   });
   const shopperIconAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: shopperPulse.value }] }));
+  // Butiks-ikonen i navbaren tonas in när butiksknappen (första scroll-raden)
+  // försvunnit upp, så man fortsatt ser vilken butik listan gäller.
+  const storeIconAnimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, COLLAPSE_RANGE], [0, 1], Extrapolation.CLAMP),
+  }));
 
   // Collapsed categories — tap category header to fold/unfold its items.
   const [collapsedCategories, setCollapsedCategories] = useState<Set<StoreCategory | 'checked'>>(new Set());
@@ -1218,6 +1224,11 @@ export default function ShoppingListScreen() {
         <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Tillbaka">
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
+        {list.store && (
+          <RNAnimated.View style={[s.navStoreIcon, storeIconAnimStyle]} pointerEvents="none">
+            <Ionicons name="storefront" size={18} color="#4f46e5" />
+          </RNAnimated.View>
+        )}
         <View style={{ flex: 1 }} />
         {list.activeShopperMemberId && activeShopper && (
           <Pressable
@@ -1394,7 +1405,7 @@ export default function ShoppingListScreen() {
           <View style={s.qtyStepper}>
             <Pressable
               style={s.qtyBtn}
-              onPress={() => setEditQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)))}
+              onPress={() => setEditQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
             >
               <Ionicons name="remove" size={22} color="#4f46e5" />
             </Pressable>
@@ -1402,7 +1413,7 @@ export default function ShoppingListScreen() {
               ref={editQtyRef}
               style={s.qtyInput}
               value={editQty}
-              onChangeText={setEditQty}
+              onChangeText={t => setEditQty(normalizeQtyInput(t))}
               keyboardType="decimal-pad"
               placeholder="1"
               placeholderTextColor="#9ca3af"
@@ -1413,7 +1424,7 @@ export default function ShoppingListScreen() {
             />
             <Pressable
               style={s.qtyBtn}
-              onPress={() => setEditQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1))}
+              onPress={() => setEditQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ','))}
             >
               <Ionicons name="add" size={22} color="#4f46e5" />
             </Pressable>
@@ -1595,14 +1606,14 @@ export default function ShoppingListScreen() {
             <View style={s.qtyStepper}>
               <Pressable
                 style={s.qtyBtn}
-                onPress={() => setQtyValue(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)))}
+                onPress={() => setQtyValue(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
               >
                 <Ionicons name="remove" size={22} color="#4f46e5" />
               </Pressable>
               <TextInput
                 style={s.qtyInput}
                 value={qtyValue}
-                onChangeText={setQtyValue}
+                onChangeText={t => setQtyValue(normalizeQtyInput(t))}
                 keyboardType="decimal-pad"
                 selectTextOnFocus
                 returnKeyType="next"
@@ -1611,7 +1622,7 @@ export default function ShoppingListScreen() {
               />
               <Pressable
                 style={s.qtyBtn}
-                onPress={() => setQtyValue(v => String((parseFloat(v.replace(',', '.')) || 0) + 1))}
+                onPress={() => setQtyValue(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ','))}
               >
                 <Ionicons name="add" size={22} color="#4f46e5" />
               </Pressable>
@@ -1728,7 +1739,7 @@ export default function ShoppingListScreen() {
                 <TextInput
                   style={[s.qtyInput, { fontSize: 16, fontWeight: '600', paddingVertical: 6 }]}
                   value={mergeQty}
-                  onChangeText={setMergeQty}
+                  onChangeText={t => setMergeQty(normalizeQtyInput(t))}
                   keyboardType="decimal-pad"
                   selectTextOnFocus
                   onFocus={scrollMergeRowIntoView}
@@ -2132,6 +2143,7 @@ const s = StyleSheet.create({
   storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   storeBtnText: { fontSize: 16, color: '#4f46e5', fontWeight: '600' },
   progressBar: { height: 3, backgroundColor: '#e5e7eb' },
+  navStoreIcon: { marginLeft: 6, padding: 4 },
   shopperWrap: { flexDirection: 'row', alignItems: 'center' },
   shopperTextWrap: { overflow: 'hidden', justifyContent: 'center' },
   shopperText: { fontSize: 13, color: '#db2777', fontWeight: '600' },

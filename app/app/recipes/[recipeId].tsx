@@ -23,6 +23,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
+import { normalizeQtyInput } from '../../src/lib/qty';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
@@ -217,7 +218,7 @@ export default function RecipeDetailScreen() {
     setEditImage(recipe.imageUrl ?? '');
     setEditIngredients(recipe.ingredients.map(i => ({
       name: i.name,
-      quantity: i.quantity != null ? String(i.quantity) : '',
+      quantity: i.quantity != null ? String(i.quantity).replace('.', ',') : '',
       unit: i.unit ?? '',
     })));
     setShowMenu(false);
@@ -532,7 +533,7 @@ export default function RecipeDetailScreen() {
                       placeholder="Mängd"
                       placeholderTextColor="#9ca3af"
                       value={row.quantity}
-                      onChangeText={v => updateEditRow(idx, 'quantity', v)}
+                      onChangeText={v => updateEditRow(idx, 'quantity', normalizeQtyInput(v))}
                       keyboardType="decimal-pad"
                       returnKeyType="next"
                       blurOnSubmit={false}

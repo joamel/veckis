@@ -326,7 +326,7 @@ export default function MenuScreen() {
             onPress={() => toggleUnmeasured(agg.key)}
           >
             <Ionicons name="checkmark" size={15} color={have ? '#fff' : '#9ca3af'} />
-            <Text style={[s.invAllBtnText, have && s.invAllBtnTextOn]}>Har</Text>
+            <Text style={[s.invAllBtnText, have && s.invAllBtnTextOn]}>Finns</Text>
           </Pressable>
         </View>
       );
@@ -406,7 +406,7 @@ export default function MenuScreen() {
           onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}
         >
           <Ionicons name="checkmark" size={15} color={covered ? '#fff' : '#9ca3af'} />
-          <Text style={[s.invAllBtnText, covered && s.invAllBtnTextOn]}>Allt</Text>
+          <Text style={[s.invAllBtnText, covered && s.invAllBtnTextOn]}>Finns</Text>
         </Pressable>
       </View>
     );
