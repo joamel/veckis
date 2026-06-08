@@ -4,7 +4,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -30,6 +29,7 @@ import { onShoppingChanged } from '../../src/lib/shoppingEvents';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/clerk-expo';
 import { type Store } from '@veckis/shared';
+import { kavBehavior } from '../../src/lib/platform';
 
 export default function ShoppingScreen() {
   const router = useRouter();
@@ -222,7 +222,7 @@ export default function ShoppingScreen() {
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setNewListStoreId(null); }}>
         <Pressable style={styles.overlay} onPress={() => { setShowModal(false); setNewListStoreId(null); }} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <View style={styles.sheet}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Ny inköpslista</Text>

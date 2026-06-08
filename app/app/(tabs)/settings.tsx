@@ -5,7 +5,6 @@ import {
   Clipboard,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,7 +22,7 @@ import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { useSpotlightTip, useOnboardingMaster, useTipsReady } from '../../src/context/SpotlightTipContext';
+import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { NotificationsModal } from '../../src/components/NotificationsModal';
@@ -31,6 +30,7 @@ import { AuditLogSection } from '../../src/components/AuditLogSection';
 import { shareInviteLink } from '../../src/lib/inviteLink';
 import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
+import { kavBehavior } from '../../src/lib/platform';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -42,7 +42,6 @@ export default function SettingsScreen() {
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
-  const { skipAll, setSkipAll } = useOnboardingMaster();
   const notifClockTip = useOnceFlag('seen-notif-clock-tip');
   const notifClockTipShownRef = useRef(false);
   const notifClockBtnRef = useRef<View>(null);
@@ -750,7 +749,7 @@ export default function SettingsScreen() {
       {/* Edit Household Name Modal */}
       <Modal visible={showEditHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowEditHouseholdModal(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Byt namn på hushållet</Text>
@@ -783,7 +782,7 @@ export default function SettingsScreen() {
       {/* Delete Household Confirmation Modal */}
       <Modal visible={showDeleteHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowDeleteHouseholdModal(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Ta bort hushållet</Text>
@@ -818,7 +817,7 @@ export default function SettingsScreen() {
       {/* Edit Member Modal */}
       <Modal visible={showEditMemberModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowEditMemberModal(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Byt namn</Text>
@@ -851,7 +850,7 @@ export default function SettingsScreen() {
       {/* Create Local Profile Modal */}
       <Modal visible={showCreateLocalModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowCreateLocalModal(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Lägg till lokal profil</Text>
@@ -883,7 +882,7 @@ export default function SettingsScreen() {
       {/* Create Household Modal */}
       <Modal visible={showCreateHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowCreateHouseholdModal(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Skapa nytt hushåll</Text>
@@ -914,7 +913,7 @@ export default function SettingsScreen() {
       {/* Join Household Modal */}
       <Modal visible={showJoinHouseholdModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setShowJoinHouseholdModal(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Gå med i hushåll</Text>

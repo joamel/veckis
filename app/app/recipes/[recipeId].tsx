@@ -7,7 +7,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
+import { kavBehavior } from '../../src/lib/platform';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
@@ -384,7 +385,7 @@ export default function RecipeDetailScreen() {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1 }}>
       <ScrollView
         ref={mainScrollRef}
         contentContainerStyle={s.scroll}

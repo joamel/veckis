@@ -6,7 +6,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -42,6 +41,7 @@ import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay } from '@veckis/shared';
 import { DEFAULT_CATEGORY_ORDER } from '@veckis/shared';
+import { kavBehavior } from '../../src/lib/platform';
 
 const DAYS: { key: WeekDay; label: string; short: string }[] = [
   { key: 'mon', label: 'Måndag', short: 'Mån' },
@@ -1546,7 +1546,7 @@ export default function MenuScreen() {
       {/* Transfer to shopping list modal */}
       <Modal visible={!!transferSheet} transparent animationType="slide" onRequestClose={() => setTransferSheet(null)}>
         <Pressable style={s.overlay} onPress={() => setTransferSheet(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Välj inköpslista</Text>
@@ -1599,12 +1599,12 @@ export default function MenuScreen() {
       <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleBulkBack()}>
         <Pressable style={s.overlay} onPress={() => handleCancelBulkTransfer()} />
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={kavBehavior}
           // Inventerings-steget hanterar tangentbordet själv via inre ScrollView
           // — annars hoppar Nästa-/Tillbaka-knapparna upp ovanför tangentbordet.
           enabled={bulkTransferStep !== 'ingredients'}
           style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}
-          pointerEvents="box-none"
+         
         >
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
@@ -1849,7 +1849,6 @@ function MenuCard({
   isPending,
   onRemove,
   onViewRecipe,
-  onMoveToDay,
   onReplace,
   onDragStart,
   onDragMove,
