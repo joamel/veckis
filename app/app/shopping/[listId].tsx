@@ -31,6 +31,7 @@ import RNAnimated, {
   withRepeat,
   withSequence,
   withDelay,
+  runOnJS,
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -147,8 +148,26 @@ export default function ShoppingListScreen() {
   const screenW = Dimensions.get('window').width;
   const [titleWidth, setTitleWidth] = useState(0);
   const scrollY = useSharedValue(0);
+  // Sticky kategori-rubrik: pinnas precis under navbaren och visar den kategori
+  // vars rad just nu passerar navbar-linjen. Drivs från scroll-offset + per-grupp
+  // onLayout-y (relativt scroll-innehållet).
+  const catLayouts = useRef<Record<string, number>>({});
+  const catOrderRef = useRef<Array<{ key: string; label: string }>>([]);
+  const [stickyCat, setStickyCat] = useState<string | null>(null);
+  const updateSticky = useCallback((y: number) => {
+    const top = y + HEADER_TOP + NAVBAR_HEIGHT;
+    let cur: { key: string; label: string } | null = null;
+    for (const g of catOrderRef.current) {
+      const gy = catLayouts.current[g.key];
+      if (gy == null) continue;
+      if (gy <= top + 1) cur = g; else break;
+    }
+    const next = y > TITLE_AREA_HEIGHT * 0.5 && cur ? cur.label : null;
+    setStickyCat(prev => (prev === next ? prev : next));
+  }, [HEADER_TOP, NAVBAR_HEIGHT, TITLE_AREA_HEIGHT]);
   const scrollHandler = useAnimatedScrollHandler(e => {
     scrollY.value = e.contentOffset.y;
+    runOnJS(updateSticky)(e.contentOffset.y);
   });
   // Whole title-area slides up so its background disappears under the navbar.
   const titleAreaAnimStyle = useAnimatedStyle(() => ({
@@ -165,7 +184,10 @@ export default function ShoppingListScreen() {
     : 0;
   const titleTextAnimStyle = useAnimatedStyle(() => {
     const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [0, 1], Extrapolation.CLAMP);
-    const adjustY = (NAVBAR_HEIGHT - TITLE_AREA_HEIGHT) / 2;
+    // Titel-boxen (höjd TITLE_AREA_HEIGHT) glider upp till navbarens position.
+    // Dess mitt hamnar TITLE_AREA_HEIGHT/2 under boxens topp; för att centrera
+    // texten vertikalt i navbaren justerar vi med halva höjdskillnaden.
+    const adjustY = (TITLE_AREA_HEIGHT - NAVBAR_HEIGHT) / 2;
     return {
       // Cast: reanimated 4's transform typing rejects the inferred union of
       // single-key objects; runtime is unaffected.
@@ -201,11 +223,13 @@ export default function ShoppingListScreen() {
     return { opacity: t, maxWidth: t * 170, marginRight: t * 6 };
   });
   const shopperIconAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: shopperPulse.value }] }));
-  // Butiks-ikonen i navbaren tonas in när butiksknappen (första scroll-raden)
-  // försvunnit upp, så man fortsatt ser vilken butik listan gäller.
-  const storeIconAnimStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, COLLAPSE_RANGE], [0, 1], Extrapolation.CLAMP),
-  }));
+  // Butiken ligger alltid i navbaren (vänster). Ikonen syns alltid; namnet
+  // kollapsar (opacity + maxWidth) när rubriken fälls upp till mitten, så det
+  // inte krockar med den centrerade rubriken.
+  const storeNameAnimStyle = useAnimatedStyle(() => {
+    const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [1, 0], Extrapolation.CLAMP);
+    return { opacity: t, maxWidth: t * 160, marginLeft: t * 6 };
+  });
 
   // Collapsed categories — tap category header to fold/unfold its items.
   const [collapsedCategories, setCollapsedCategories] = useState<Set<StoreCategory | 'checked'>>(new Set());
@@ -1093,6 +1117,16 @@ export default function ShoppingListScreen() {
   const customCategories: string[] = (list?.store?.customCategories as string[] | undefined) ?? [];
   const expandedSubs: string[] = (list?.store?.expandedSubs as string[] | undefined) ?? [];
   const categoryGroups = buildCategoryGroups(unchecked, categoryOrder, customCategories, expandedSubs);
+  const groupLabel = (group: CategoryGroup) =>
+    group.isCustom
+      ? `🏷️ ${group.category}`
+      : group.isSub
+        ? group.label ?? String(group.category)
+        : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+  const groupKey = (group: CategoryGroup) =>
+    group.isCustom ? `c:${group.category}` : group.isSub ? `s:${group.category}` : group.category as string;
+  // Ordnad lista (= visuell ordning = stigande y) som sticky-beräkningen läser.
+  catOrderRef.current = categoryGroups.map(g => ({ key: groupKey(g), label: groupLabel(g) }));
 
   return (
     <View style={s.container}>
@@ -1102,14 +1136,10 @@ export default function ShoppingListScreen() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
       >
-        {/* Butik + dubblettknapp som första scrollbara rad — försvinner upp
-            tillsammans med kategorierna när användaren scrollar. */}
-        <View style={s.scrollMeta}>
-          <Pressable onPress={openStorePicker} style={s.storeBtn}>
-            <Ionicons name="storefront-outline" size={16} color="#4f46e5" />
-            <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
-          </Pressable>
-          {duplicateGroups.length > 0 && (
+        {/* Dubblettknapp som första scrollbara rad — försvinner upp tillsammans
+            med kategorierna när användaren scrollar. (Butiken bor nu i navbaren.) */}
+        {duplicateGroups.length > 0 && (
+          <View style={s.scrollMeta}>
             <Animated.View ref={dupeBadgeRef} style={{ transform: [{ scale: dupeButtonScale }] }}>
               <Pressable
                 style={s.dupeBadge}
@@ -1122,8 +1152,8 @@ export default function ShoppingListScreen() {
                 </Text>
               </Pressable>
             </Animated.View>
-          )}
-        </View>
+          </View>
+        )}
         {allItems.length === 0 && (
           <View style={s.emptyContainer}>
             <Pressable onPress={goToBulkTransfer} style={s.emptyImportBtn} hitSlop={12}>
@@ -1136,15 +1166,15 @@ export default function ShoppingListScreen() {
 
         {/* Category groups */}
         {categoryGroups.map(group => {
-          const key = group.isCustom ? `c:${group.category}` : group.isSub ? `s:${group.category}` : group.category as string;
+          const key = groupKey(group);
           const collapsed = collapsedCategories.has(key as StoreCategory | 'checked');
-          const label = group.isCustom
-            ? `🏷️ ${group.category}`
-            : group.isSub
-              ? group.label ?? String(group.category)
-              : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+          const label = groupLabel(group);
           return (
-            <View key={key} style={s.categoryGroup}>
+            <View
+              key={key}
+              style={s.categoryGroup}
+              onLayout={e => { catLayouts.current[key] = e.nativeEvent.layout.y; }}
+            >
               <Pressable
                 style={[s.categoryHeader, group.isSub && s.categorySubHeader]}
                 onPress={() => toggleCategoryCollapsed(key as StoreCategory | 'checked')}
@@ -1209,6 +1239,14 @@ export default function ShoppingListScreen() {
         </RNAnimated.View>
       </RNAnimated.View>
 
+      {/* Sticky kategori-rubrik — pinnad precis under navbaren, visar kategorin
+          vars rad just nu passerar navbar-linjen (uppdateras från scroll). */}
+      {stickyCat && (
+        <View style={[s.stickyCat, { top: HEADER_TOP + NAVBAR_HEIGHT }]} pointerEvents="none">
+          <Text style={s.categoryLabel} numberOfLines={1}>{stickyCat}</Text>
+        </View>
+      )}
+
       {/* Progress bar — pinned under the navbar so it's always visible */}
       {checked.length > 0 && unchecked.length > 0 && (
         <View style={[s.progressBar, { position: 'absolute', top: HEADER_TOP + NAVBAR_HEIGHT, left: 0, right: 0, zIndex: 35 }]}>
@@ -1224,11 +1262,12 @@ export default function ShoppingListScreen() {
         <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Tillbaka">
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
-        {list.store && (
-          <RNAnimated.View style={[s.navStoreIcon, storeIconAnimStyle]} pointerEvents="none">
-            <Ionicons name="storefront" size={18} color="#4f46e5" />
+        <Pressable onPress={openStorePicker} hitSlop={8} style={s.navStoreBtn} accessibilityRole="button" accessibilityLabel={list.store ? `Butik: ${list.store.name}` : 'Välj butik'}>
+          <Ionicons name="storefront" size={18} color="#4f46e5" />
+          <RNAnimated.View style={[s.navStoreNameWrap, storeNameAnimStyle]}>
+            <Text style={s.navStoreName} numberOfLines={1}>{list.store?.name ?? 'Välj butik'}</Text>
           </RNAnimated.View>
-        )}
+        </Pressable>
         <View style={{ flex: 1 }} />
         {list.activeShopperMemberId && activeShopper && (
           <Pressable
@@ -2123,7 +2162,7 @@ const s = StyleSheet.create({
   headerNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6 },
   headerStack: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   titleSlide: { paddingHorizontal: 20, paddingBottom: 6 },
-  scrollMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 8, paddingTop: 4, gap: 8 },
+  scrollMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: 8, paddingTop: 4, gap: 8 },
   titleAreaAbs: { position: 'absolute', left: 0, right: 0, backgroundColor: '#f9fafb', zIndex: 10 },
   navbarBgAbs: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: '#f9fafb', zIndex: 5 },
   navbarButtonsAbs: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, zIndex: 30 },
@@ -2140,10 +2179,11 @@ const s = StyleSheet.create({
   doneBtn: { padding: 4 },
   title: { fontSize: 26, fontWeight: '700', color: '#111827' },
   titleCompact: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: '#111827', paddingHorizontal: 8 },
-  storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  storeBtnText: { fontSize: 16, color: '#4f46e5', fontWeight: '600' },
   progressBar: { height: 3, backgroundColor: '#e5e7eb' },
-  navStoreIcon: { marginLeft: 6, padding: 4 },
+  stickyCat: { position: 'absolute', left: 0, right: 0, zIndex: 20, backgroundColor: '#f9fafb', paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 6, paddingVertical: 4 },
+  navStoreNameWrap: { overflow: 'hidden', justifyContent: 'center' },
+  navStoreName: { fontSize: 15, color: '#4f46e5', fontWeight: '600' },
   shopperWrap: { flexDirection: 'row', alignItems: 'center' },
   shopperTextWrap: { overflow: 'hidden', justifyContent: 'center' },
   shopperText: { fontSize: 13, color: '#db2777', fontWeight: '600' },
