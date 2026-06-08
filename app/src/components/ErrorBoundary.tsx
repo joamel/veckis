@@ -41,8 +41,8 @@ export class ErrorBoundary extends Component<Props, State> {
         <Text style={s.emoji}>😵</Text>
         <Text style={s.title}>Hoppsan, något gick fel</Text>
         <Text style={s.body}>
-          Ett oväntat fel inträffade. Det har rapporterats automatiskt så vi kan
-          titta på det — du behöver inte göra något.
+          Ett oväntat fel inträffade. Det har rapporterats automatiskt så att vi kan
+          titta på det.
         </Text>
         <Pressable style={s.btn} onPress={this.reset} accessibilityRole="button" accessibilityLabel="Försök igen">
           <Text style={s.btnText}>Försök igen</Text>
@@ -52,7 +52,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <Text style={s.btnSecondaryText}>Ladda om sidan</Text>
           </Pressable>
         ) : (
-          <Text style={s.hint}>Hjälper det inte? Prova att stänga och starta om appen.</Text>
+          <Text style={s.hint}>Hjälpte det inte? Prova att stänga och starta om appen.</Text>
         )}
       </View>
     );
