@@ -2,7 +2,6 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   Animated as RNAnimated,
-  Dimensions,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -14,6 +13,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -121,6 +121,7 @@ export default function MenuScreen() {
   const { getToken } = useAuth();
   const { markPending, clearPending, cancelAllPending, pendingMenuItemRemovals, pendingCount } = usePendingRemoval();
   const { fs, sp } = useTablet();
+  const { width: weekPageW, height: windowHeight } = useWindowDimensions();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [showWeekPicker, setShowWeekPicker] = useState(false);
@@ -279,7 +280,7 @@ export default function MenuScreen() {
 
   // Inventory: en flat lista där varje rad har Har-input + ✓-knapp. Cap höjden
   // så Överför-/Tillbaka-knapparna inte klipps på korta skärmar.
-  const invMaxListH = Math.max(200, Dimensions.get('window').height * 0.8 - 300);
+  const invMaxListH = Math.max(200, windowHeight * 0.8 - 300);
   // Dölj Nästa/Tillbaka-knapparna när tangentbordet är uppe så de inte tar
   // plats från inventeringen (de kommer tillbaka när användaren stänger
   // tangentbordet eller trycker "Klar" på sista raden).
@@ -435,7 +436,6 @@ export default function MenuScreen() {
   // Auto-scroll during drag near screen edges
   const menuScrollRef = useRef<ScrollView | null>(null);
   const weekListRef = useRef<FlatList<number>>(null);
-  const weekPageW = Dimensions.get('window').width;
   // Virtualised week pager: a long list of week offsets so swiping never has to
   // recenter (which is what caused the flash). The arrows just scrollToIndex.
   const WEEK_SPAN = 104; // ±2 years of weeks
@@ -770,7 +770,7 @@ export default function MenuScreen() {
   function onDragMove(_x: number, y: number) {
     setDragState(prev => prev ? { ...prev, y } : null);
     // Auto-scroll the menu list when finger nears screen edge
-    const { height: screenH } = Dimensions.get('window');
+    const screenH = windowHeight;
     ensureAutoScroll(y, screenH);
     // Find which day section we're hovering over
     let found: WeekDay | null | 'unscheduled' | undefined = undefined;

@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -12,6 +11,7 @@ import {
   Switch,
   Text,
   TextInput,
+  useWindowDimensions,
   Vibration,
   View,
 } from 'react-native';
@@ -214,7 +214,7 @@ export default function ScheduleScreen() {
   // on the dayRow itself (measureInWindow on the FlatList wrapper reports
   // wrong dimensions on Android virtualised content).
   const [weekRowRect, setWeekRowRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const weekPageW = Dimensions.get('window').width;
+  const { width: weekPageW } = useWindowDimensions();
   const DAY_SPAN = 400; // ~13 months of days each way
   const WEEK_SPAN = 104; // ~2 years of weeks each way
   const dayIndices = useMemo(() => Array.from({ length: DAY_SPAN * 2 + 1 }, (_, i) => i - DAY_SPAN), []);

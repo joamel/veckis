@@ -164,7 +164,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
       )}
       {/* Tap outside the card dismisses (covers full screen, behind the card). */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
-      <View style={[s.card, { top: callout, left: 20, right: 20, maxHeight: screen.height * 0.7 }]} pointerEvents="box-none">
+      <View style={[s.card, { top: callout, left: 20, right: 20, maxHeight: screen.height * 0.7 }]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 4 }}

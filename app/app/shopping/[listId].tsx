@@ -8,7 +8,6 @@ import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -18,6 +17,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -144,7 +144,7 @@ export default function ShoppingListScreen() {
   const HEADER_TOP = insets.top;
   const TITLE_SCALE = 0.62;
   const TITLE_LEFT_PADDING = 20;
-  const screenW = Dimensions.get('window').width;
+  const { width: screenW, height: windowHeight } = useWindowDimensions();
   const [titleWidth, setTitleWidth] = useState(0);
   const scrollY = useSharedValue(0);
   // Sticky kategori-rubrik: pinnas precis under navbaren och visar den kategori
@@ -1341,7 +1341,7 @@ export default function ShoppingListScreen() {
       {/* Item edit modal */}
       <Modal visible={!!editingItem} transparent animationType="slide" onRequestClose={() => setEditingItem(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
@@ -1477,8 +1477,8 @@ export default function ShoppingListScreen() {
       {/* Staple edit modal (from long-press on suggestion chip) */}
       <Modal visible={!!editingStaple} transparent animationType="slide" onRequestClose={() => setEditingStaple(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingStaple(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
-        <View style={s.sheet}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap}>
+        <View style={[s.sheet, { maxHeight: windowHeight * 0.75 }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>
             {editingStaple?.id.startsWith('suggestion:') ? 'Spara som basvara' : 'Redigera basvara'}
@@ -1554,7 +1554,7 @@ export default function ShoppingListScreen() {
       {/* Quantity sheet */}
       <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
         <Pressable style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.3)' }]} onPress={() => setQtySheet(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{capitalize(qtySheet?.name)}</Text>
@@ -1635,7 +1635,7 @@ export default function ShoppingListScreen() {
       {/* Merge duplicates sheet */}
       <Modal visible={!!mergeSheet} transparent animationType="slide" onRequestClose={() => setMergeSheet(null)}>
         <Pressable style={s.overlay} onPress={() => setMergeSheet(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap}>
         <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <View style={s.mergeHeaderRow}>
@@ -1862,7 +1862,7 @@ export default function ShoppingListScreen() {
       {/* Rename list modal */}
       <Modal visible={showRenameModal} transparent animationType="slide" onRequestClose={() => setShowRenameModal(false)}>
         <Pressable style={s.overlay} onPress={() => setShowRenameModal(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>Byt namn på listan</Text>

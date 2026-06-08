@@ -2,6 +2,23 @@
 
 ## UI-förbättringar/buggar
 
+### Feedback från pwa Iphone-användare
+- [x] Skärmen för smal i veckomenyn: `Dimensions.get('window').width` statiskt → `useWindowDimensions()` i menu.tsx + schedule.tsx; FlatList-sidor fick rätt bredd
+- [x] Samma veckonummer när man swipar mellan veckor: rot-orsak = statisk `weekPageW` → fel snapping → weekOffset uppdaterades inte; fixat med `useWindowDimensions()`
+- [x] Går inte att trycka på "+" i veckomenyn: knappar hamnade utanför rätt area pga fel sidbredd; fixat med `useWindowDimensions()`
+- [x] La in en rätt på en dag men den försvann: statisk sidbredd → FlatList renderade fel vecksida → menyn tycktes tom; fixat med `useWindowDimensions()`
+- [x] menyn beter sig märkligt som att den "laddar in massa versioner av sidan samtidigt": statisk `weekPageW` → FlatList-sidor inte korrekt justerade på iOS PWA; fixat
+- [ ] Aktivitet överstruken trots heldagsaktivitet i framtiden: logiken ser korrekt ut (d.dateStr > todayStr → isPast=false) — behöver reproduktionsfall för att bekräfta rot-orsak
+- [ ] Går inte att redigera eller ta bort en aktivitet, inget händer när man trycker på redigera: kan vara iOS touch-delay; touch-action + tap-highlight fix via CSS i patch-index-html.mjs; om kvarstår behövs mer utredning
+- [x] trycker man på "idag"-knappen blir sidan blank ibland: statisk `weekPageW` → `scrollToIndex` scrollade till fel position; fixat med `useWindowDimensions()`
+- [x] går inte att trycka på knappar ibland, bl.a. "förstått" i tipsen och "butiker" i inköp: (a) `pointerEvents="box-none"` på SpotlightTip card-View → på iOS Safari web blockeras child-klick; borttagen (b) `pointerEvents="box-none"` borttaget från KAV-wrappare i shopping/[listId].tsx + recipes/index.tsx (c) CSS: `-webkit-tap-highlight-color: transparent` + `touch-action: manipulation` på interaktiva element i patch-index-html.mjs
+- [ ] la till ett recept, sedan hoppade halva sidan utanför bild och fastnade: troligen KAV `height`-behavior på iOS PWA; CSS-fix kan hjälpa men behöver bekräftas i verkligheten
+- [x] veckomenyn blir tom när man lagt in recept, måste toggla: statisk `weekPageW` → FlatList landade på fel sida; fixat med `useWindowDimensions()`
+- [x] Lägga till en basvara i inköpslista öppnar en jättemodal som är dubbelt så stor: `maxHeight: '85%'` → nu `windowHeight * 0.75` via `useWindowDimensions()` + `pointerEvents="box-none"` borttagen på KAV
+- [x] "+" i inköpslistan får inte riktigt plats i skärmen: FAB `bottom: 20` ignorerade home-indicator; nu `bottom: 20 + insets.bottom`
+- [ ] bilder i recept laggar som bara den: Cloudinary-bilder saknar explicit storleksparameter för mobile; utreds separat (inte funktionell blockare)
+- [x] går inte att scrolla i veckomenyn: statisk `weekPageW` → FlatList-scroll fungerade inte rätt på iOS PWA; fixat med `useWindowDimensions()`
+
 ### Generellt
 - [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)
 - [x] Skärmen borde hoppa upp när man ska skriva in något så man ser vad man skriver
@@ -292,7 +309,8 @@
 - [x] Idag-knappen hoppar inte till rätt dag (endast rätt vecka)
 - [x] Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald: tillfällen renderades på `e.day === veckodag` utan att respektera `recurrenceType`, och engångstillfällen skapades med `startDate: null` → ingen veckoinformation → visades varje matchande veckodag. Nu (a) ankras engångstillfällen vid skapande till det faktiska datumet (`startDate`/`endDate` = vald dag i visad vecka), och (b) renderingen går via ny `entryVisibleOnDate`-helper som speglar `choreVisibleOnDay` och delegerar till `occursOn`. Fixar på köpet latenta buggar för befintliga tillfällen (varannan-vecka, flera veckodagar, dagliga/månatliga renderades tidigare fel)
 - [x] Klickar man på en aktivitet borde man inte hamna direkt i redigeringsläge utan bara read-vy med sammanfattning + redigering under 3 prickar: ny `viewingEntry`-läsvy (modal) som visar titel + datum/veckodag, tid/heldag, upprepning (ny `recurrenceSummary`-helper), tilldelade personer, gemensam/privat och beskrivning. 3-prickar i headern (`openEntryActions`) → Redigera/Ta bort. Tap på kortet öppnar nu läsvyn (long-press → 3-prickar-menyn direkt); tablet-månadsvyn öppnar också läsvyn. (Testfix v2: bottensheet:en klipptes fortfarande → byggd om till **helskärmsvy** med egen nav-rad (tillbaka + 3-prickar) och scrollbar kropp.)
-- [x] Aktivitetsdialogen (testfynd): (a) ingen toast vid spara/skapa — nu `showToast('Aktivitet sparad'/'skapad', 'success')`; (b) gick inte att trycka på andra knappar (t.ex. tilldela personer) med tangentbordet uppe — `keyboardShouldPersistTaps="handled"` på både de yttre (vertikala) OCH de nästlade horisontella medlemsväljar-ScrollView:erna (den nästlade var kvar-buggen i v1).
+- [x] Aktivitetsdialogen (testfynd): (a) ingen toast vid spara/skapa — nu `showToast('Aktivitet sparad'/'skapad', 'success')`; (b) gick inte att trycka på andra knappar (t.ex. tilldela personer) med tangentbordet uppe — `keyboardShouldPersistTaps="handled"` på både de yttre (vertikala) OCH de nästlade horisontella medlemsväljar-ScrollView:erna (den nästlade var kvar-buggen i v1)
+
 
 ### Sysslor
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.
