@@ -1182,22 +1182,25 @@ export default function ShoppingListScreen() {
       )}
 
       {/* Navbar buttons — rendered last so they always sit on top. "Jag handlar"-
-          presence visas som en rosa pill i navbarens mitt (i st. f. en banner som
-          la sig ovanpå rubriken). Förhindrar dubbla turer till affären. */}
+          presence visas som en rosa gubbe-ikon till höger (en banner/centrerad
+          pill krockade med rubriken när den fälls upp till mitten vid scroll).
+          Tryck på ikonen → toast med vem som handlar. */}
       <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
         <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Tillbaka">
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} pointerEvents="none">
-          {list.activeShopperMemberId && activeShopper && (
-            <View style={s.shopperPill}>
-              <Ionicons name="walk" size={14} color="#db2777" />
-              <Text style={s.shopperPillText} numberOfLines={1}>
-                {iAmShopping ? 'Du handlar' : `${activeShopper.displayName} handlar`}
-              </Text>
-            </View>
-          )}
-        </View>
+        <View style={{ flex: 1 }} />
+        {list.activeShopperMemberId && activeShopper && (
+          <Pressable
+            style={s.shopperIconBtn}
+            hitSlop={8}
+            onPress={() => showGlobalToast(iAmShopping ? 'Du handlar nu' : `${activeShopper.displayName} handlar nu`)}
+            accessibilityRole="button"
+            accessibilityLabel={iAmShopping ? 'Du handlar nu' : `${activeShopper.displayName} handlar nu`}
+          >
+            <Ionicons name="walk" size={20} color="#db2777" />
+          </Pressable>
+        )}
         <Pressable ref={listActionsBtnRef} onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fler åtgärder">
           <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
@@ -2063,8 +2066,7 @@ const s = StyleSheet.create({
   storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   storeBtnText: { fontSize: 16, color: '#4f46e5', fontWeight: '600' },
   progressBar: { height: 3, backgroundColor: '#e5e7eb' },
-  shopperPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#fce7f3', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, maxWidth: 200 },
-  shopperPillText: { fontSize: 12, color: '#db2777', fontWeight: '600' },
+  shopperIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#fce7f3', alignItems: 'center', justifyContent: 'center', marginRight: 4 },
   progressFill: { height: 3, backgroundColor: '#10b981' },
   list: { padding: 16, gap: 16, paddingBottom: 8 },
   listEmpty: { flex: 1 },

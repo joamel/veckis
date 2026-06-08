@@ -15,7 +15,7 @@ import {
   Vibration,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useUser } from '@clerk/clerk-expo';
@@ -200,6 +200,7 @@ export default function ScheduleScreen() {
   const { user } = useUser();
   const { medium } = useHaptics();
   const { isTablet, fs, sp } = useTablet();
+  const insets = useSafeAreaInsets();
   const userId = user?.id;
 
   const [weekRef, setWeekRef] = useState(new Date());
@@ -523,6 +524,7 @@ export default function ScheduleScreen() {
       setEntries(prev => prev.some(e => e.id === entry.id) ? prev : [...prev, entry]);
       setShowModal(false);
       resetNewEntryForm();
+      showToast('Aktivitet skapad', 'success');
     } catch (e: any) {
       showError(e, e?.message ?? 'Kunde inte skapa schemapost');
     } finally {
@@ -762,6 +764,7 @@ export default function ScheduleScreen() {
         setEntries(prev => prev.map(e => e.id === updated.id ? updated : e));
       }
       setEditingEntry(null);
+      showToast('Aktivitet sparad', 'success');
     } catch (e) {
       showError(e, 'Kunde inte spara aktiviteten');
     } finally {
@@ -1254,7 +1257,7 @@ export default function ScheduleScreen() {
       <Modal visible={!!viewingEntry} transparent animationType="slide" onRequestClose={() => setViewingEntry(null)}>
         <Pressable style={s.overlay} onPress={() => setViewingEntry(null)} />
         <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
-          <View style={s.sheet}>
+          <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={s.sheetHandle} />
             {viewingEntry && (() => {
               const e = viewingEntry;
@@ -1320,7 +1323,7 @@ export default function ScheduleScreen() {
             message={entryConflict?.msg ?? null}
             onShowLatest={entryConflict ? () => { doOpenEditEntry(entryConflict.latest, editMode); setEntryConflict(null); } : undefined}
           />
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Titel"
@@ -1546,7 +1549,7 @@ export default function ScheduleScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny aktivitet</Text>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Titel, t.ex. Träning"
