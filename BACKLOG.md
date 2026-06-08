@@ -12,7 +12,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 5. ~~Flytta upp specialkost-kategori funkar inte i en butik (Inköp)~~ ✅
 
 **P1 — tydliga UX-bugar:**
-6. Tar man bort en maträtt och flyttar en annan till samma dag → felaktig dubbel-varning (Meny)
+6. ~~Tar man bort en maträtt och flyttar en annan till samma dag → felaktig dubbel-varning (Meny)~~ ✅
 7. Klick på aktivitet → hamnar direkt i redigeringsläge, borde vara read-vy (Kalendern)
 8. Notis-tap hamnar i redigeringsläget — räcker att hamna på rätt flik (Generellt)
 9. "Du handlar nu"-bannern lägger sig ovanpå rubriken (Inköp)
@@ -267,7 +267,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [x] Möjlighet att kopiera en veckomeny till en annan vecka (backend endpoint, UI återstår)
 - [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
 - [ ] Borde kunna klistra in ett recept (kopierade ingredienser) manuellt om inte url funkar, som gör om till en ingredienslista
-- [ ] Tar man bort en maträtt och flyttar en annan rätt till den dagen får man en varning att dagen redan är planerad trots att man tagit bort den tidigare maträtten
+- [x] Tar man bort en maträtt och flyttar en annan rätt till den dagen får man en varning att dagen redan är planerad trots att man tagit bort den tidigare maträtten: dag-upptagen-kollarna räknade items i pending-removal (5s ångra-fönster) som listan redan döljer. Nu exkluderas `pendingMenuItemRemovals` i alla tre dubbelkollarna (moveToDay, addRecipeToDay dag-kollen + recipeId-kollen).
 - [x] Lägger man in en maträtt på en tidigare/framtida vecka läggs den in på nuvarande vecka: rotorsak = receptväljaren navigerar via `router.replace('/(tabs)/menu?addRecipeId=...')` som återställer menyns `weekOffset`. Nu trådas den visade veckan genom navigeringen (`forMenuWeek=YYYY-WW`) via alla hopp (openPicker, startReplaceRecipe, create-flödet, recipes/index, recipes/[recipeId]); vid retur återställs `weekOffset` till målveckan och tillägget väntar tills rätt veckas meny laddats (korrekta dubbelkollar + optimistisk insert). (Produktfrågan "borde man kunna lägga på tidigare vecka alls" kvarstår som separat val.)
 - [x] Trycker man "planera en rätt" i framtida vecka hamnar den i nuvarande veckas meny: samma rotorsak/fix som ovan (vecka trådas genom receptväljaren)
 - [ ] Lägga in automatiskt en "0" om man skriver ","

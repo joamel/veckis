@@ -815,7 +815,7 @@ export default function MenuScreen() {
 
     const day = dayOverride !== undefined ? dayOverride : pickingForDay;
 
-    if (day !== null && menuItems.some(i => i.day === day)) {
+    if (day !== null && menuItems.some(i => i.day === day && !pendingMenuItemRemovals.has(i.id))) {
       const dayLabel = DAYS.find(d => d.key === day)?.label ?? day;
       const confirmed = await new Promise<boolean>(resolve =>
         confirm({
@@ -830,7 +830,7 @@ export default function MenuScreen() {
       if (!confirmed) { closePicker(); return; }
     }
 
-    if (menuItems.some(i => i.recipeId === recipe.id)) {
+    if (menuItems.some(i => i.recipeId === recipe.id && !pendingMenuItemRemovals.has(i.id))) {
       const confirmed = await new Promise<boolean>(resolve =>
         confirm({
           title: 'Rätt redan tillagd',
@@ -1106,7 +1106,9 @@ export default function MenuScreen() {
   }
 
   async function moveToDay(item: WeekMenuItemWithRecipe, day: WeekDay | null) {
-    if (day !== null && menuItems.some(i => i.day === day && i.id !== item.id)) {
+    // Ignore dishes pending removal (5s undo window) — the user already removed
+    // them, so the day shouldn't count as occupied.
+    if (day !== null && menuItems.some(i => i.day === day && i.id !== item.id && !pendingMenuItemRemovals.has(i.id))) {
       const dayLabel = DAYS.find(d => d.key === day)?.label ?? day;
       const confirmed = await new Promise<boolean>(resolve =>
         confirm({
