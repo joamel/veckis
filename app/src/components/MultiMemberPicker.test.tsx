@@ -76,4 +76,12 @@ describe('MultiMemberPicker', () => {
     fireEvent.click(screen.getByText('Turas om automatiskt'));
     expect(onRotationChange).toHaveBeenCalledWith(true);
   });
+
+  it('rotationAllowed=false: rotation-raden visas utgråad med förklaring och går inte att toggla', () => {
+    const { onRotationChange } = renderPicker({ selected: ['a', 'b'], rotationAllowed: false });
+    expect(screen.getByText('Turas om automatiskt')).toBeInTheDocument();
+    expect(screen.getByText(/Välj en upprepning först/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Turas om automatiskt'));
+    expect(onRotationChange).not.toHaveBeenCalled();
+  });
 });
