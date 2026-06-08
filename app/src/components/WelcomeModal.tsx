@@ -22,7 +22,7 @@ export function WelcomeModal({ visible, onContinue, onSkipAll }: Props) {
   return (
     <Modal visible transparent animationType="fade">
       <View style={s.dim} />
-      <View style={s.cardWrap} pointerEvents="box-none">
+      <View style={s.cardWrap}>
         <View style={s.card}>
           <View style={s.iconBubble}>
             <Ionicons name="sparkles" size={32} color="#fff" />

@@ -30,6 +30,11 @@ const META = `
     <style>
       html, body { margin: 0; padding: 0; height: 100%; background: #f5f3ff; }
       #root { height: 100%; }
+      /* iOS Safari PWA: ta bort 300ms tap-fördröjning och blå tryck-highlight */
+      * { -webkit-tap-highlight-color: transparent; }
+      /* Interaktiva element: slå av tap-delay utan att störa scroll-containers */
+      [role="button"], button, a, input, select, textarea,
+      [data-focusable="true"] { touch-action: manipulation; }
     </style>
     <script>
       // SW-registrering + version-banner. När en ny SW tar över sätter vi

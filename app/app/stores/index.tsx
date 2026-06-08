@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,6 +20,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { type Store, type StoreCategory } from '@veckis/shared';
+import { kavBehavior } from '../../src/lib/platform';
 
 type SortMode = 'name' | 'created';
 
@@ -210,7 +210,7 @@ export default function StoresScreen() {
       {/* Skapa-modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
         <Pressable style={s.overlay} onPress={() => setShowCreate(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ justifyContent: 'flex-end' }}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>Ny butik</Text>

@@ -4,14 +4,13 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +29,7 @@ import { onShoppingChanged } from '../../src/lib/shoppingEvents';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/clerk-expo';
 import { type Store } from '@veckis/shared';
+import { kavBehavior } from '../../src/lib/platform';
 
 export default function ShoppingScreen() {
   const router = useRouter();
@@ -44,6 +44,7 @@ export default function ShoppingScreen() {
   const storesBtnRef = useRef<View>(null);
   const wrapNewListTip = useFirstActionTip('seen-shopping-add-tip');
   const { fs, sp } = useTablet();
+  const insets = useSafeAreaInsets();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -212,7 +213,7 @@ export default function ShoppingScreen() {
         }}
       />
 
-      <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={wrapNewListTip(
+      <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28), bottom: 20 + insets.bottom }]} onPress={wrapNewListTip(
         () => setShowModal(true),
         { title: 'Skapa inköpslista', message: 'En lista kan kopplas till en butik så att varorna sorteras efter butikens kategorier. Du kan lägga till varor manuellt eller överföra hela veckomenyn till listan från Meny-fliken.' },
       )}>
@@ -221,7 +222,7 @@ export default function ShoppingScreen() {
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setNewListStoreId(null); }}>
         <Pressable style={styles.overlay} onPress={() => { setShowModal(false); setNewListStoreId(null); }} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <View style={styles.sheet}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Ny inköpslista</Text>
@@ -309,7 +310,6 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 20,
     width: 56,
     height: 56,
     borderRadius: 28,
