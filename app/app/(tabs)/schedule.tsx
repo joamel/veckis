@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -12,6 +11,7 @@ import {
   Switch,
   Text,
   TextInput,
+  useWindowDimensions,
   Vibration,
   View,
 } from 'react-native';
@@ -42,6 +42,7 @@ import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { getISOWeek, addWeeks } from '../../src/lib/week';
 import { occursOn } from '@veckis/shared';
 import type { ScheduleEntry, WeekDay, Chore, ChoreCompletion } from '@veckis/shared';
+import { kavBehavior } from '../../src/lib/platform';
 
 const DAYS: { key: WeekDay; label: string; short: string }[] = [
   { key: 'mon', label: 'Måndag', short: 'Mån' },
@@ -214,7 +215,7 @@ export default function ScheduleScreen() {
   // on the dayRow itself (measureInWindow on the FlatList wrapper reports
   // wrong dimensions on Android virtualised content).
   const [weekRowRect, setWeekRowRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const weekPageW = Dimensions.get('window').width;
+  const { width: weekPageW } = useWindowDimensions();
   const DAY_SPAN = 400; // ~13 months of days each way
   const WEEK_SPAN = 104; // ~2 years of weeks each way
   const dayIndices = useMemo(() => Array.from({ length: DAY_SPAN * 2 + 1 }, (_, i) => i - DAY_SPAN), []);
@@ -1316,7 +1317,7 @@ export default function ScheduleScreen() {
       {/* Edit entry modal */}
       <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera aktivitet</Text>
@@ -1420,7 +1421,7 @@ export default function ScheduleScreen() {
       {/* Edit chore from calendar modal */}
       <Modal visible={!!editingCalChore} transparent animationType="slide" onRequestClose={() => setEditingCalChore(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera syssla</Text>
@@ -1546,7 +1547,7 @@ export default function ScheduleScreen() {
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny aktivitet</Text>

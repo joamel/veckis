@@ -1,7 +1,7 @@
 // Kontosida — namn, byt namn, ta bort konto, logga ut. Egen route med
 // tillbaka-pil. Avatar-tap på Profil-flikens header öppnar denna vy.
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -10,6 +10,7 @@ import { useApiClient } from '../src/api/client';
 import { useHousehold } from '../src/context/HouseholdContext';
 import { useToast } from '../src/context/ToastContext';
 import { useConfirm } from '../src/context/ConfirmContext';
+import { kavBehavior } from '../src/lib/platform';
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -126,7 +127,7 @@ export default function AccountScreen() {
       {/* Byt namn-modal */}
       <Modal visible={showRename} transparent animationType="slide" onRequestClose={() => setShowRename(false)}>
         <Pressable style={s.overlay} onPress={() => setShowRename(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.kavWrap} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={kavBehavior} style={s.kavWrap}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>Byt namn</Text>

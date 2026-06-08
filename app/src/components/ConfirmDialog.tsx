@@ -36,7 +36,7 @@ export function ConfirmDialog({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
       <Pressable style={s.overlay} onPress={dismiss} />
-      <View style={s.sheetWrap} pointerEvents="box-none">
+      <View style={s.sheetWrap}>
         <View style={s.sheet}>
           <View style={s.handle} />
           <Text style={s.title}>{options.title}</Text>

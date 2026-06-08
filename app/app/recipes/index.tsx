@@ -4,7 +4,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -24,6 +23,7 @@ import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { EmptyState } from '../../src/components/EmptyState';
 import { getISOWeek } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
+import { kavBehavior } from '../../src/lib/platform';
 
 const MENU_DAYS: { key: WeekDay; label: string }[] = [
   { key: 'mon', label: 'Måndag' },
@@ -397,7 +397,7 @@ export default function RecipesScreen() {
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Nytt recept</Text>

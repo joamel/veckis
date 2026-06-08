@@ -21,9 +21,11 @@ accountRouter.delete('/', requireAuth, asyncHandler(async (req, res) => {
   for (const r of removed) {
     wsBroadcast(`household:${r.householdId}`, { type: 'member_deleted', data: { id: r.memberId } });
   }
+  console.log(`[ACCOUNT DELETE] clerkUserId=${clerkUserId} städade ${removed.length} medlemskap, raderar Clerk-kontot…`);
 
   const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
   await clerk.users.deleteUser(clerkUserId);
+  console.log(`[ACCOUNT DELETE] Clerk-kontot ${clerkUserId} raderat.`);
 
   res.status(204).send();
 }));

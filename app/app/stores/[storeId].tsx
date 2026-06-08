@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type Store } from '@veckis/shared';
+import { kavBehavior } from '../../src/lib/platform';
 
 export default function StoreDetailScreen() {
   const { storeId } = useLocalSearchParams<{ storeId: string }>();
@@ -342,7 +342,7 @@ export default function StoreDetailScreen() {
       {/* Byt namn-modal */}
       <Modal visible={showRename} transparent animationType="slide" onRequestClose={() => setShowRename(false)}>
         <Pressable style={s.overlay} onPress={() => setShowRename(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ justifyContent: 'flex-end' }}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>Byt namn</Text>
