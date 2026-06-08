@@ -1,34 +1,5 @@
 # Veckis — Backlog
 
-## 🔥 Prioritet nu — buggar & fix
-
-Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskrivning finns kvar i sin sektion.
-
-**P0 — go-live-blockare eller datakorruption:**
-1. ~~⚠️ Support-mail före go-live~~ ✅ bytt till `veckis.support@gmail.com` (gratis, ingen domän)
-2. ~~Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald (Kalendern)~~ ✅
-3. ~~Maträtt på tidigare vecka läggs in på nuvarande vecka (Meny)~~ ✅
-4. ~~Planera en rätt-knappen lägger in på fel vecka (Meny)~~ ✅
-5. ~~Flytta upp specialkost-kategori funkar inte i en butik (Inköp)~~ ✅
-
-**P1 — tydliga UX-bugar:**
-6. ~~Tar man bort en maträtt och flyttar en annan till samma dag → felaktig dubbel-varning (Meny)~~ ✅
-7. ~~Klick på aktivitet → hamnar direkt i redigeringsläge, borde vara read-vy (Kalendern)~~ ✅
-8. ~~Notis-tap hamnar i redigeringsläget — räcker att hamna på rätt flik (Generellt)~~ ✅
-9. ~~"Du handlar nu"-bannern lägger sig ovanpå rubriken (Inköp)~~ ✅
-
-**P2 — mindre fix/polish:**
-10. ~~Lägg in en "0" automatiskt om man skriver "," först (Meny)~~ ✅
-11. ~~Markera dubbletter själv: visa som vanlig inköpslista istället för dialog (Inköp)~~ ✅
-12. ~~"Min tur" — överflödig knapp, ta bort (Sysslor)~~ ✅
-13. ~~Sortera sysslor efter tidigast förfallodatum (Sysslor)~~ ✅
-
-**P3 — uppstädning som inte brinner:**
-14. ~~Tillgänglighet — slutför penna/x/dubblett-labels + filterknappar (Generellt)~~ ✅ (long-press borta → synliga knappar redan på plats; labels på ikon-only-knappar tillagda)
-15. Städa upp legacy-kod ✅ + refaktorera komponenter ⬜ (Generellt) — legacy-städning klar; komponent-refaktor kvar
-16. Designpass — skuggor/dialoger/grön-mot-skugga (Generellt)
-17. ~~Frontend render-tester (RNTL) — infra + första komponent~~ ✅ (inline-komponenterna kräver utbrytning först)
-
 ## UI-förbättringar/buggar
 
 ### Generellt
@@ -95,14 +66,17 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [x] Frontend test-infra: vitest + 48 gröna pure-function-tester. Täcker week.ts (ISO-vecka edge cases inkl år 2020 v53 + 31 dec → v1/nästa år), text.ts (capitalize), buildAssignedLabel (extraherad ur chores.tsx; null-fall, legacy assignedTo, rotation med 2/3 personer + cykling, borttagna medlemmar), inviteUrl (URL-encoding, tom kod), installDetect (parsa UA för Android Chrome/Samsung/Firefox, iOS Safari/Chrome, desktop Chrome/Edge/Firefox/Safari, iPad-maskerade-som-Mac via touch-points).
 - [x] Städa upp legacy-kod: tog bort död kod i app:en (verifierat med `tsc --noUnusedLocals/--noUnusedParameters` + 48 gröna tester). Bl.a.: hel död inline-butikseditor i `shopping/[listId]` (state + 7 funktioner) **plus en bortkastad `getStores`-hämtning i load()**; oanvänd `DayPicker`-komponent + `toggleDay` i chores; döda Profil-refaktor-rester i settings (`handleSignOut/Open2FA/ContactSupport/DeleteAccount/ResetTips` + `openClerkPortal` + tillhörande state/imports); döda custom-kategori-funktioner i `stores/[storeId]`; samt ~20 oanvända imports/lokaler i 9 filer. Inga beteendeförändringar.
 - [x] Tillgänglighet: ~~allt som nås via long-press ska även ha en synlig knapp~~ + accessibility-labels på ikonknappar. "Synlig knapp"-delen är obsolet: long-press är borttaget och ersatt av 3-prickar-menyer + synliga text-knappar (Redigera/Ta bort med text läses redan av VoiceOver/TalkBack). Slutförde label-passet på de få **ikon-only**-knapparna utan text — sök-rensa (recept + butiker), ta-bort-ingrediens, samt close/ta-bort i MenuTemplatesModal/NotificationsModal. (Navigations-/åtgärds-ikoner hade redan labels.) Inga visuella ändringar.
-- [~] Refaktorera och skapa fler filer för egna komponenter mm (separat från legacy-städningen ovan — bryta ut komponenter/logik ur de stora skärmfilerna). **Påbörjad** (branch `refactor/extract-components`): (1) `MultiMemberPicker` utbruten ur chores.tsx → egen fil + egen StyleSheet + 8 render-tester; (2) performer-väljarens logik → `lib/performerOptions.ts` (`buildPerformerOptions`) + 7 tester; (3) SpotlightTip-gaten → `lib/tipGate.ts` (`evaluateTipGate`) + 7 tester; (4) `buildCategoryGroups` (kärn-grupperingen i inköpslistan, tidigare buggfixad #5/#11) → `lib/categoryGroups.ts`, generisk + 6 tester inkl. #5-regression. `pickPerformer`/`show()` är nu tunna wrappers; grupperingen är frikopplad från skärmfilen. 81 gröna totalt. Kvar: ev. fler tunga skärm-komponenter vid behov.
+- [x] Refaktorera och skapa fler filer för egna komponenter mm (separat från legacy-städningen ovan — bryta ut komponenter/logik ur de stora skärmfilerna): (1) `MultiMemberPicker` utbruten ur chores.tsx → egen fil + egen StyleSheet + 8 render-tester; (2) performer-väljarens logik → `lib/performerOptions.ts` (`buildPerformerOptions`) + 7 tester; (3) SpotlightTip-gaten → `lib/tipGate.ts` (`evaluateTipGate`) + 7 tester; (4) `buildCategoryGroups` (kärn-grupperingen i inköpslistan) → `lib/categoryGroups.ts`, generisk + 6 tester inkl. regression. `pickPerformer`/`show()` är nu tunna wrappers; grupperingen är frikopplad från skärmfilen. 81 gröna totalt, mergat till prod. Vidare utbrytning görs opportunistiskt vid behov.
 - [x] Frontend render-tester (RNTL) — **infra klar**: vitest med `react-native`→`react-native-web`-alias, jsdom opt-in per testfil (`// @vitest-environment jsdom`), Ionicons-mock. Deps: jsdom + @testing-library/react/jest-dom/dom (installerade med `--legacy-peer-deps` pga befintlig react/react-dom-versionsavvikelse). Första render-testet: `RecurrencePicker.test.tsx` (5 tester). Totalt 53 gröna. **Kvar:** de prioriterade inline-komponenterna (MultiMemberPicker, performer-pickern, SpotlightTip-gate) ligger i `chores.tsx` och är kopplade till den filens StyleSheet — måste brytas ut till egna filer (= komponent-refaktor-punkten) innan de kan render-testas isolerat. Infran är redo för dem då.
 - [x] ⚠️ Innan go-live: fixa support-mailadressen. **LÖST (2026-06-08): bytt `support@veckis.app` → `veckis.support@gmail.com`** (gratis dedikerad Gmail, ingen domän att köpa). Clerk ger ingen inkorg och forward kräver ägd domän, så gratis-Gmail var enda no-cost-vägen. Ändrat i terms.tsx (2), privacy.tsx (2), preferences.tsx (mailto) och settings.tsx (mailto). Adressen når användarna vid nästa OTA/PWA-deploy. **Kvar för dig:** skapa själva Gmail-kontot `veckis.support@gmail.com` så mailen tas emot.
 - [x] Trycker man på en notis hamnar man inne i redigeringsläget. Räcker att hamna i sysslor/kalender-fliken etc: notis-deep-link öppnade `doOpenEditEntry`/`openEdit` (redigering). Nu öppnar aktivitetsnotisen läsvyn (`setViewingEntry`, se #7) på kalenderfliken, och syssel-notisen landar bara på sysslor-fliken (paramet konsumeras utan att öppna editor).
-- [ ] möjligt med horisontell-vy i tablet
+- [ ] Horisontell-vy (landskap) i tablet funkar fortfarande inte i praktiken trots tablet-stöd (bugg, inte feature-önskemål)
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**
 - [ ] Byt ut "Vanliga husemojin" under rubriken i flikarna till en hus-ikon
+- [ ] Prod-felsynlighet: React error-boundary med vänlig "något gick fel"-vy + lättvikts felrapportering (Sentry free tier eller egen backend-logg-endpoint) så krascher/fel hos användare faktiskt syns nu när appen är live. Idag är vi blinda för prod-fel.
+- [ ] Enhetligt beslut om att lägga in saker bakåt i tiden: meny på tidigare vecka, sysslor bakåt och aktiviteter bakåt bör behandlas konsekvent (tillåt / varna / blockera). Idag spretar beteendet — ta ett gemensamt produktbeslut och applicera på alla tre.
+- [ ] "Ny version laddad"-prompt på native efter OTA: PWA har VersionBanner, men native-användare måste själva gissa att de ska stänga/öppna appen för att få uppdateringen. Diskret prompt när en OTA hämtats ("ny version klar — starta om").
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -213,6 +187,10 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [x] Butik alltid i navbaren: butiken bor nu permanent i navbaren (vänster, efter bakåt-knappen, tryckbar → byt butik). Namnet visas innan scroll och kollapsar (opacity + maxWidth via `scrollY`) till bara `storefront`-ikonen när rubriken fälls upp till mitten. Den gamla butiksknappen i scroll-raden borttagen (dubblett-badgen kvar). Bonus: fixade rubrikens vertikala centrering i navbaren vid kollaps (`adjustY` hade fel tecken → låg ~4px för lågt).
 - [x] Sticky kategori-rubrik: aktuell kategorirubrik fastnar nu precis under navbaren tills nästa kategori når dit. Löst med en manuell pinnad overlay (`stickyCat`) som uppdateras från scroll-offset (`runOnJS` i scroll-handlern) + per-grupp `onLayout`-y; visar kategorin vars rad passerar navbar-linjen, döljs överst.
 - [ ] Kunna ta swipa höger för att ta bort en vara från inköpslistan helt (med ångra toast)
+- [ ] För långt butiksnamn och "Du handlar" tar mycket plats i navbaren
+- [ ] Byt namn på "Bockat" till "Klart"
+- [ ] "Klart" kategorin borde haka i toppen när man scrollar in på den sektionen
+- [ ] Push till hushållet när någon tar "Jag handlar": presence-indikatorn syns bara inne i appen. En notis ("Anna handlar nu") förhindrar dubbelturer till affären på riktigt.
 
 
 ### Meny
@@ -339,6 +317,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [ ] Borde kunna välja turordning (om turas om)
 - [ ] Borde aldrig skapa sysslor bakåt i tiden, endast från idag och framåt
 - [ ] Utfällda sysslor borde se ut mer som att de hör till rubriken, nu har de en grå border som knappt syns och sitter inte ihop med rubriken. Borde se ut som en utfälld maträtt i veckomenyn
+- [ ] Läsvy-symmetri för sysslor: kalenderaktiviteter öppnar nu en read-vy (tap → sammanfattning, redigering under 3-prickar), men en syssla öppnar fortfarande direkt redigering/utfälld vy. Överväg samma läs-först-mönster för konsekvens.
 
 
 ---
