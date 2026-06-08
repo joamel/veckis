@@ -80,7 +80,8 @@
 - [ ] Synliggör/aggregera klientfelen: vi loggar nu `[CLIENT ERROR]` till Render-loggarna (se prod-felsynlighet), men måste gräva manuellt. Persistera de senaste felen (liten tabell eller in-memory-ring) + enkel admin-vy/endpoint så man ser dem dagligen. Ev. Sentry-koppling när en native-build ändå görs (stack-symbolisering + aggregering).
 - [ ] Offline-/nätverksindikator: diskret banner när appen tappar anslutning, så användaren förstår varför saker inte syncar (relevant i butiken med dålig täckning). OBS: förklarar bara läget — löser inte offline-redigering (se "Offline-tålig synk" i Inköpslistan).
 - [ ] "Kom igång"-vägledning för nya hushåll: efter setup, en kort checklista (lägg till första receptet / inköpslistan / sysslan) som hjälper adoption nu när riktiga användare signar upp
-- [ ] ersätt "scrapar" med hämtar eller annat mer trevligt och okonventionellt ord
+- [x] ersätt "scrapar" med hämtar eller annat mer trevligt och okonventionellt ord: recept-import-tipset säger nu "så hämtar appen titel, ingredienser…" (matchar "Hämta recept"-knappen). Var enda synliga förekomsten; `scraping`-state m.m. är internt.
+- [x] Byta plats på sysslor och meny-fliken: ny flik-ordning Inköp · Meny · Kalender · Sysslor · Hushållet (chores ↔ menu bytta i `(tabs)/_layout.tsx`, Kalender kvar i mitten).
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
