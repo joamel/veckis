@@ -1037,7 +1037,12 @@ export default function ShoppingListScreen() {
   const groupKey = (group: CategoryGroup<ShoppingItemWithRecipe>) =>
     group.isCustom ? `c:${group.category}` : group.isSub ? `s:${group.category}` : group.category as string;
   // Ordnad lista (= visuell ordning = stigande y) som sticky-beräkningen läser.
-  catOrderRef.current = categoryGroups.map(g => ({ key: groupKey(g), label: groupLabel(g) }));
+  // "Klart"-sektionen ligger sist (efter de obockade grupperna) och ska också
+  // haka i toppen när man scrollar in på den.
+  catOrderRef.current = [
+    ...categoryGroups.map(g => ({ key: groupKey(g), label: groupLabel(g) })),
+    ...(checked.length > 0 ? [{ key: 'checked', label: 'Klart' }] : []),
+  ];
 
   return (
     <View style={s.container}>
@@ -1108,10 +1113,10 @@ export default function ShoppingListScreen() {
         {checked.length > 0 && (() => {
           const collapsed = collapsedCategories.has('checked');
           return (
-            <View style={s.categoryGroup}>
+            <View style={s.categoryGroup} onLayout={e => { catLayouts.current['checked'] = e.nativeEvent.layout.y; }}>
               <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={4}>
                 <Text style={[s.categoryLabel, { color: '#9ca3af' }]}>
-                  Bockat{collapsed ? ` (${checked.length})` : ''}
+                  Klart{collapsed ? ` (${checked.length})` : ''}
                 </Text>
                 <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#d1d5db" />
               </Pressable>

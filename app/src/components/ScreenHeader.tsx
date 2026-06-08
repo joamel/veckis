@@ -21,7 +21,14 @@ export function ScreenHeader({ title, actionIcon, actionLabel, onActionPress, ac
       <View style={[s.headerTop, { paddingHorizontal: sp(20), paddingTop: sp(20), paddingBottom: sp(10) }]}>
         <View style={s.headerTitleSection}>
           <Text style={[s.title, { fontSize: fs(28) }]}>{title}</Text>
-          {householdName && <Text style={[s.subtitle, { fontSize: fs(13) }]}>{householdEmoji || '🏠'} {householdName}</Text>}
+          {householdName && (
+            <View style={s.subtitleRow}>
+              {householdEmoji
+                ? <Text style={[s.subtitle, { fontSize: fs(13), marginTop: 0 }]}>{householdEmoji}</Text>
+                : <Ionicons name="home" size={fs(13)} color="#6b7280" />}
+              <Text style={[s.subtitle, { fontSize: fs(13), marginTop: 0 }]}>{householdName}</Text>
+            </View>
+          )}
         </View>
         {actionNode ? actionNode : (actionIcon && actionLabel && onActionPress && (
           <Pressable
@@ -45,6 +52,7 @@ const s = StyleSheet.create({
   headerTitleSection: { flex: 1 },
   title: { fontWeight: '700', color: '#111827' },
   subtitle: { color: '#6b7280', marginTop: 2 },
+  subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eef2ff', borderRadius: 20 },
   actionBtnText: { fontWeight: '600', color: '#4f46e5' },
 });

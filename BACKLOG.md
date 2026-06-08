@@ -73,13 +73,14 @@
 - [ ] Horisontell-vy (landskap) i tablet funkar fortfarande inte i praktiken trots tablet-stöd (bugg, inte feature-önskemål)
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**
-- [ ] Byt ut "Vanliga husemojin" under rubriken i flikarna till en hus-ikon
+- [x] Byt ut "Vanliga husemojin" under rubriken i flikarna till en hus-ikon: `ScreenHeader` visar nu en `home`-Ionicon i stället för default-🏠 (custom `householdEmoji` visas fortfarande om hushållet satt en).
 - [x] Prod-felsynlighet: `ErrorBoundary` (app/src/components) fångar render-fel app-brett → vänlig "Något gick fel"-vy + "Försök igen"; global `ErrorUtils`-handler (`installGlobalErrorHandler`) fångar ouppfångade JS-fel. Båda rapporterar via `reportClientError` (best-effort, dedupad) till ny oautentiserad `POST /api/client-errors` som loggar strukturerat (`[CLIENT ERROR] {...}`) till Render-loggarna → prod-fel blir synliga. Ren `buildErrorReport`-helper + tester (4 unit + 3 RNTL). Lättvikt (ingen native-modul/Sentry) så det når via OTA. Framtida: skicka till Sentry/DB + aggregering.
 - [ ] Enhetligt beslut om att lägga in saker bakåt i tiden: meny på tidigare vecka, sysslor bakåt och aktiviteter bakåt bör behandlas konsekvent (tillåt / varna / blockera). Idag spretar beteendet — ta ett gemensamt produktbeslut och applicera på alla tre.
 - [ ] "Ny version laddad"-prompt på native efter OTA: PWA har VersionBanner, men native-användare måste själva gissa att de ska stänga/öppna appen för att få uppdateringen. Diskret prompt när en OTA hämtats ("ny version klar — starta om").
 - [ ] Synliggör/aggregera klientfelen: vi loggar nu `[CLIENT ERROR]` till Render-loggarna (se prod-felsynlighet), men måste gräva manuellt. Persistera de senaste felen (liten tabell eller in-memory-ring) + enkel admin-vy/endpoint så man ser dem dagligen. Ev. Sentry-koppling när en native-build ändå görs (stack-symbolisering + aggregering).
 - [ ] Offline-/nätverksindikator: diskret banner när appen tappar anslutning, så användaren förstår varför saker inte syncar (relevant i butiken med dålig täckning). OBS: förklarar bara läget — löser inte offline-redigering (se "Offline-tålig synk" i Inköpslistan).
-- [ ] "Kom igång"-vägledning för nya hushåll: efter setup, en kort checklista (lägg till första receptet / inköpslistan / sysslan) som hjälper adoption nu när riktiga användare signar upp.
+- [ ] "Kom igång"-vägledning för nya hushåll: efter setup, en kort checklista (lägg till första receptet / inköpslistan / sysslan) som hjälper adoption nu när riktiga användare signar upp
+- [ ] ersätt "scrapar" med hämtar eller annat mer trevligt och okonventionellt ord
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -191,8 +192,8 @@
 - [x] Sticky kategori-rubrik: aktuell kategorirubrik fastnar nu precis under navbaren tills nästa kategori når dit. Löst med en manuell pinnad overlay (`stickyCat`) som uppdateras från scroll-offset (`runOnJS` i scroll-handlern) + per-grupp `onLayout`-y; visar kategorin vars rad passerar navbar-linjen, döljs överst.
 - [ ] Kunna ta swipa höger för att ta bort en vara från inköpslistan helt (med ångra toast)
 - [ ] För långt butiksnamn och "Du handlar" tar mycket plats i navbaren
-- [ ] Byt namn på "Bockat" till "Klart"
-- [ ] "Klart" kategorin borde haka i toppen när man scrollar in på den sektionen
+- [x] Byt namn på "Bockat" till "Klart"
+- [x] "Klart" kategorin hakar i toppen när man scrollar in på den sektionen: "Klart"-sektionen ingår nu i sticky-spårningen (`catOrderRef` + `onLayout`-y), så sticky-overlayn visar "Klart" precis under navbaren när man scrollat ned till de avbockade varorna.
 - [ ] Push till hushållet när någon tar "Jag handlar": presence-indikatorn syns bara inne i appen. En notis ("Anna handlar nu") förhindrar dubbelturer till affären på riktigt.
 - [ ] "Jag handlar"-läge auto-utgång: om någon claim:ar och glömmer släppa fastnar "Anna handlar" i dagar. Auto-släpp efter inaktivitet (t.ex. 2 h) utöver dagens auto-rensning vid list-rensning.
 - [ ] Offline-tålig synk för inköp (stor): idag är avbockning optimistisk MED rollback — offline failar request:en → bocken rullas tillbaka och tappas (toast "kunde inte bocka av"). I butiken med dålig täckning blir listan oanvändbar. Riktig fix = lokal persistens + mutations-kö som spelas upp vid återanslutning, med konflikthantering mot realtids-/last-write-wins-modellen. Större arkitektur-grej (AsyncStorage/SQLite + queue + replay).
@@ -319,7 +320,7 @@
 - [x] Sysslor – rotation-action-tip: när användaren har 2+ medlemmar valda i editorn (i create eller edit) fyrar "Turas om automatiskt"-tipset en gång (seen-rotation-toggle-tip) som förklarar toggle:n
 - [x] "Min tur" är överflödig knapp: borttagen (chip + `myTurnOnly`-state + turn-filtret i `sortedChores`). `computeCurrentTurn` används fortfarande för rotation-beräkningen i editorn.
 - [x] Sysslor borde sorteras efter tidigast förfallodatum: ej-klara sorteras nu på effektivt förfallodatum (överförfallna/dagens datum först via `recurringStatus`, nästa tillfälle annars; engångssysslor = idag). Klara hamnar fortsatt sist.
-- [ ] Om engångstillfälle borde man inte kunna välja "turas om automatiskt" då det bara händer en gång -> utgråad med "välj upprepning först" alternativt "Upprening - ingen" byts till "Dag"
+- [x] Om engångstillfälle borde man inte kunna välja "turas om automatiskt" då det bara händer en gång: `MultiMemberPicker` fick en `rotationAllowed`-prop (false när `recurrenceType === 'none'`) → rotation-raden visas utgråad med förklaringen "Välj en upprepning först — en engångssyssla kan inte turas om". Save-logiken tvingar dessutom `rotation: false` för engångssysslor. + test.
 - [ ] Borde kunna välja turordning (om turas om)
 - [ ] Borde aldrig skapa sysslor bakåt i tiden, endast från idag och framåt
 - [ ] Utfällda sysslor borde se ut mer som att de hör till rubriken, nu har de en grå border som knappt syns och sitter inte ihop med rubriken. Borde se ut som en utfälld maträtt i veckomenyn
