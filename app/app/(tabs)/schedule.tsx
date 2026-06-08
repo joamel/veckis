@@ -1253,30 +1253,32 @@ export default function ScheduleScreen() {
         </>
       )}
 
-      {/* View entry modal — read-only summary; edit/delete sit under the 3-dot */}
-      <Modal visible={!!viewingEntry} transparent animationType="slide" onRequestClose={() => setViewingEntry(null)}>
-        <Pressable style={s.overlay} onPress={() => setViewingEntry(null)} />
-        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
-          <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
-            <View style={s.sheetHandle} />
-            {viewingEntry && (() => {
-              const e = viewingEntry;
-              const ids = e.assignedToMany?.length ? e.assignedToMany : e.assignedTo ? [e.assignedTo] : [];
-              const names = ids.map(id => getMemberName(id)).filter(Boolean) as string[];
-              let dateLabel = DAYS.find(d => d.key === e.day)?.label ?? '';
-              if (e.recurrenceType === 'none' && e.startDate) {
-                const [yy, mm, dd] = e.startDate.split('-').map(Number);
-                const months = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
-                dateLabel = `${dateLabel} ${dd} ${months[mm - 1]} ${yy}`;
-              }
-              return (
-                <>
-                  <View style={s.viewHeader}>
-                    <Text style={[s.sheetTitle, { flex: 1, marginBottom: 0 }]} numberOfLines={2}>{e.title}</Text>
-                    <Pressable style={s.viewMenuBtn} hitSlop={8} onPress={() => openEntryActions(e)} accessibilityLabel="Fler val">
-                      <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
-                    </Pressable>
-                  </View>
+      {/* View entry — full-screen read-only view; edit/delete under the 3-dot */}
+      <Modal visible={!!viewingEntry} animationType="slide" onRequestClose={() => setViewingEntry(null)}>
+        <View style={[s.viewFull, { paddingTop: insets.top }]}>
+          {viewingEntry && (() => {
+            const e = viewingEntry;
+            const ids = e.assignedToMany?.length ? e.assignedToMany : e.assignedTo ? [e.assignedTo] : [];
+            const names = ids.map(id => getMemberName(id)).filter(Boolean) as string[];
+            let dateLabel = DAYS.find(d => d.key === e.day)?.label ?? '';
+            if (e.recurrenceType === 'none' && e.startDate) {
+              const [yy, mm, dd] = e.startDate.split('-').map(Number);
+              const months = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+              dateLabel = `${dateLabel} ${dd} ${months[mm - 1]} ${yy}`;
+            }
+            return (
+              <>
+                <View style={s.viewNav}>
+                  <Pressable onPress={() => setViewingEntry(null)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Stäng">
+                    <Ionicons name="arrow-back" size={24} color="#111827" />
+                  </Pressable>
+                  <View style={{ flex: 1 }} />
+                  <Pressable onPress={() => openEntryActions(e)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                    <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
+                  </Pressable>
+                </View>
+                <ScrollView contentContainerStyle={[s.viewBody, { paddingBottom: insets.bottom + 24 }]}>
+                  <Text style={s.viewTitle}>{e.title}</Text>
                   <View style={s.viewRow}>
                     <Ionicons name="calendar-outline" size={18} color="#6b7280" />
                     <Text style={s.viewRowText}>{dateLabel}</Text>
@@ -1300,15 +1302,15 @@ export default function ScheduleScreen() {
                     <Text style={s.viewRowText}>{e.isShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
                   </View>
                   {!!e.description && (
-                    <View style={s.viewRow}>
-                      <Ionicons name="document-text-outline" size={18} color="#6b7280" />
+                    <View style={[s.viewRow, { alignItems: 'flex-start' }]}>
+                      <Ionicons name="document-text-outline" size={18} color="#6b7280" style={{ marginTop: 2 }} />
                       <Text style={s.viewRowText}>{e.description}</Text>
                     </View>
                   )}
-                </>
-              );
-            })()}
-          </View>
+                </ScrollView>
+              </>
+            );
+          })()}
         </View>
       </Modal>
 
@@ -1382,7 +1384,7 @@ export default function ScheduleScreen() {
             {members.length > 0 && editEntryIsShared && (
               <>
                 <Text style={s.label}>Tilldela personer (valfritt)</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberPickerRow}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.memberPickerRow}>
                   {members.map(m => {
                     const active = editEntryAssignedToMany.includes(m.id);
                     return (
@@ -1593,7 +1595,7 @@ export default function ScheduleScreen() {
             {members.length > 0 && newIsShared && (
               <>
                 <Text style={s.label}>Tilldela personer (valfritt)</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberPickerRow}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.memberPickerRow}>
                   {members.map(m => {
                     const active = newAssignedToMany.includes(m.id);
                     return (
@@ -1778,10 +1780,13 @@ const s = StyleSheet.create({
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '92%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },
-  viewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 10 },
-  viewMenuBtn: { padding: 4, marginTop: -2 },
-  viewRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  viewRowText: { flex: 1, fontSize: 15, color: '#374151' },
+  viewFull: { flex: 1, backgroundColor: '#fff' },
+  viewNav: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8 },
+  viewNavBtn: { padding: 8 },
+  viewBody: { paddingHorizontal: 20, paddingTop: 8, gap: 4 },
+  viewTitle: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  viewRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
+  viewRowText: { flex: 1, fontSize: 16, color: '#374151' },
   sheetScroll: { gap: 14, paddingBottom: 40 },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#f9fafb' },
   label: { fontSize: 14, fontWeight: '600', color: '#374151' },

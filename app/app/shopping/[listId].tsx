@@ -26,6 +26,10 @@ import RNAnimated, {
   useAnimatedStyle,
   interpolate,
   Extrapolation,
+  withTiming,
+  withRepeat,
+  withSequence,
+  withDelay,
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -171,6 +175,31 @@ export default function ShoppingListScreen() {
       ],
     } as never;
   });
+
+  // "Jag handlar"-indikatorn: full text innan scroll, kollapsar till bara
+  // gubbe-ikonen när rubriken fälls upp till mitten (annars krockar de). En
+  // diskret puls var ~10:e sekund påminner om att läget är aktivt.
+  const shopperPulse = useSharedValue(1);
+  const shopperActive = !!list?.activeShopperMemberId && !!activeShopper;
+  useEffect(() => {
+    if (shopperActive) {
+      shopperPulse.value = withRepeat(
+        withSequence(
+          withDelay(9000, withTiming(1.18, { duration: 250 })),
+          withTiming(1, { duration: 250 }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      shopperPulse.value = withTiming(1, { duration: 150 });
+    }
+  }, [shopperActive, shopperPulse]);
+  const shopperTextAnimStyle = useAnimatedStyle(() => {
+    const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [1, 0], Extrapolation.CLAMP);
+    return { opacity: t, maxWidth: t * 170, marginRight: t * 6 };
+  });
+  const shopperIconAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: shopperPulse.value }] }));
 
   // Collapsed categories — tap category header to fold/unfold its items.
   const [collapsedCategories, setCollapsedCategories] = useState<Set<StoreCategory | 'checked'>>(new Set());
@@ -1182,9 +1211,9 @@ export default function ShoppingListScreen() {
       )}
 
       {/* Navbar buttons — rendered last so they always sit on top. "Jag handlar"-
-          presence visas som en rosa gubbe-ikon till höger (en banner/centrerad
-          pill krockade med rubriken när den fälls upp till mitten vid scroll).
-          Tryck på ikonen → toast med vem som handlar. */}
+          presence: full text till höger innan scroll, kollapsar till bara den
+          rosa gubbe-ikonen när rubriken fälls upp till mitten (annars krockar
+          de). Ikonen pulserar var ~10:e sekund. Tryck → toast med vem som handlar. */}
       <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
         <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Tillbaka">
           <Ionicons name="arrow-back" size={22} color="#111827" />
@@ -1192,13 +1221,33 @@ export default function ShoppingListScreen() {
         <View style={{ flex: 1 }} />
         {list.activeShopperMemberId && activeShopper && (
           <Pressable
-            style={s.shopperIconBtn}
+            style={s.shopperWrap}
             hitSlop={8}
-            onPress={() => showGlobalToast(iAmShopping ? 'Du handlar nu' : `${activeShopper.displayName} handlar nu`)}
+            onPress={() => {
+              if (iAmShopping) {
+                confirm({
+                  title: 'Du handlar nu',
+                  message: 'Vill du avsluta handla-läget?',
+                  buttons: [
+                    { label: 'Avsluta handla-läge', style: 'destructive', onPress: () => { toggleIAmShopping(); } },
+                    { label: 'Avbryt', style: 'cancel' },
+                  ],
+                });
+              } else {
+                showGlobalToast(`${activeShopper.displayName} handlar nu`);
+              }
+            }}
             accessibilityRole="button"
             accessibilityLabel={iAmShopping ? 'Du handlar nu' : `${activeShopper.displayName} handlar nu`}
           >
-            <Ionicons name="walk" size={20} color="#db2777" />
+            <RNAnimated.View style={[s.shopperTextWrap, shopperTextAnimStyle]}>
+              <Text style={s.shopperText} numberOfLines={1}>
+                {iAmShopping ? 'Du handlar' : `${activeShopper.displayName} handlar`}
+              </Text>
+            </RNAnimated.View>
+            <RNAnimated.View style={[s.shopperIconBtn, shopperIconAnimStyle]}>
+              <Ionicons name="walk" size={20} color="#db2777" />
+            </RNAnimated.View>
           </Pressable>
         )}
         <Pressable ref={listActionsBtnRef} onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fler åtgärder">
@@ -2066,6 +2115,9 @@ const s = StyleSheet.create({
   storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   storeBtnText: { fontSize: 16, color: '#4f46e5', fontWeight: '600' },
   progressBar: { height: 3, backgroundColor: '#e5e7eb' },
+  shopperWrap: { flexDirection: 'row', alignItems: 'center' },
+  shopperTextWrap: { overflow: 'hidden', justifyContent: 'center' },
+  shopperText: { fontSize: 13, color: '#db2777', fontWeight: '600' },
   shopperIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#fce7f3', alignItems: 'center', justifyContent: 'center', marginRight: 4 },
   progressFill: { height: 3, backgroundColor: '#10b981' },
   list: { padding: 16, gap: 16, paddingBottom: 8 },
