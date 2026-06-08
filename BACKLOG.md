@@ -81,6 +81,7 @@
 - [ ] Offline-/nätverksindikator: diskret banner när appen tappar anslutning, så användaren förstår varför saker inte syncar (relevant i butiken med dålig täckning). OBS: förklarar bara läget — löser inte offline-redigering (se "Offline-tålig synk" i Inköpslistan).
 - [ ] "Kom igång"-vägledning för nya hushåll: efter setup, en kort checklista (lägg till första receptet / inköpslistan / sysslan) som hjälper adoption nu när riktiga användare signar upp
 - [ ] ersätt "scrapar" med hämtar eller annat mer trevligt och okonventionellt ord
+- [ ] Byta plats på sysslor och meny-fliken
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
