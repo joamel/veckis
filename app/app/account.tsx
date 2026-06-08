@@ -30,6 +30,7 @@ export default function AccountScreen() {
   const [showRename, setShowRename] = useState(false);
   const [renameValue, setRenameValue] = useState(displayName);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function handleSaveName() {
     if (!householdId || !myMemberId || !renameValue.trim()) return;
@@ -46,26 +47,23 @@ export default function AccountScreen() {
     }
   }
 
-  async function openClerkPortal(path: string, errLabel: string) {
-    const portalUrl = `https://new-oarfish-48.accounts.dev${path}`;
+  async function doDeleteAccount() {
+    setDeleting(true);
     try {
-      if (Platform.OS === 'web') {
-        window.open(portalUrl, '_blank', 'noopener');
-      } else {
-        const WebBrowser = await import('expo-web-browser');
-        await WebBrowser.openBrowserAsync(portalUrl);
-      }
+      await client.deleteAccount();
+      await signOut(); // kontot är borta → logga ut, NavigationGuard tar till sign-in
     } catch (e) {
-      showError(e, errLabel);
+      setDeleting(false);
+      showError(e, 'Kunde inte ta bort kontot');
     }
   }
 
   function handleDeleteAccount() {
     confirm({
       title: 'Ta bort kontot?',
-      message: 'Du skickas till säkerhetsinställningarna där du kan radera ditt konto permanent. Alla dina hushållsmedlemskap tas också bort. Detta kan inte ångras.',
+      message: 'Ditt konto och alla dina hushållsmedlemskap tas bort permanent. Detta kan inte ångras.',
       buttons: [
-        { label: 'Fortsätt', style: 'destructive', onPress: () => openClerkPortal('/user', 'Kunde inte öppna kontoinställningar') },
+        { label: 'Ta bort kontot', style: 'destructive', onPress: doDeleteAccount },
         { label: 'Avbryt', style: 'cancel' },
       ],
     });
@@ -117,10 +115,10 @@ export default function AccountScreen() {
             <Text style={[s.rowText, { color: '#ef4444' }]}>Logga ut</Text>
             <Ionicons name="chevron-forward" size={16} color="#fca5a5" />
           </Pressable>
-          <Pressable style={[s.row, s.rowBorder]} onPress={handleDeleteAccount}>
+          <Pressable style={[s.row, s.rowBorder]} onPress={handleDeleteAccount} disabled={deleting}>
             <Ionicons name="trash-outline" size={18} color="#ef4444" />
             <Text style={[s.rowText, { color: '#ef4444' }]}>Ta bort kontot</Text>
-            <Ionicons name="chevron-forward" size={16} color="#fca5a5" />
+            {deleting ? <ActivityIndicator size="small" color="#ef4444" /> : <Ionicons name="chevron-forward" size={16} color="#fca5a5" />}
           </Pressable>
         </View>
       </ScrollView>
