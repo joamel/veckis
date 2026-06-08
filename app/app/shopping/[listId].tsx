@@ -1,13 +1,14 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import Fuse from 'fuse.js';
 import { capitalize } from '../../src/lib/text';
+import { normalizeQtyInput } from '../../src/lib/qty';
+import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
   Animated,
   Dimensions,
-  GestureResponderEvent,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -26,8 +27,13 @@ import RNAnimated, {
   useAnimatedStyle,
   interpolate,
   Extrapolation,
+  withTiming,
+  withRepeat,
+  withSequence,
+  withDelay,
+  runOnJS,
 } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { pickStore } from '../../src/lib/storePicker';
 import { useFocusEffect } from '@react-navigation/native';
@@ -41,7 +47,7 @@ import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, parentForSub, type StoreCategory, type SubCategory, type StapleItem, type Store } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem } from '@veckis/shared';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
   fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', dairy_eggs: '🥛',
@@ -87,7 +93,6 @@ export default function ShoppingListScreen() {
   const [loading, setLoading] = useState(true);
   const [newItem, setNewItem] = useState('');
   const [adding, setAdding] = useState(false);
-  const [stores, setStores] = useState<Store[]>([]);
   const [staples, setStaples] = useState<StapleItem[]>([]);
   const [ingredientSuggestions, setIngredientSuggestions] = useState<{ name: string; category: string }[]>([]);
   // Hushållsmedlemmar för "Jag handlar"-presence-indikatorn (vem är aktiv?).
@@ -142,8 +147,26 @@ export default function ShoppingListScreen() {
   const screenW = Dimensions.get('window').width;
   const [titleWidth, setTitleWidth] = useState(0);
   const scrollY = useSharedValue(0);
+  // Sticky kategori-rubrik: pinnas precis under navbaren och visar den kategori
+  // vars rad just nu passerar navbar-linjen. Drivs från scroll-offset + per-grupp
+  // onLayout-y (relativt scroll-innehållet).
+  const catLayouts = useRef<Record<string, number>>({});
+  const catOrderRef = useRef<Array<{ key: string; label: string }>>([]);
+  const [stickyCat, setStickyCat] = useState<string | null>(null);
+  const updateSticky = useCallback((y: number) => {
+    const top = y + HEADER_TOP + NAVBAR_HEIGHT;
+    let cur: { key: string; label: string } | null = null;
+    for (const g of catOrderRef.current) {
+      const gy = catLayouts.current[g.key];
+      if (gy == null) continue;
+      if (gy <= top + 1) cur = g; else break;
+    }
+    const next = y > TITLE_AREA_HEIGHT * 0.5 && cur ? cur.label : null;
+    setStickyCat(prev => (prev === next ? prev : next));
+  }, [HEADER_TOP, NAVBAR_HEIGHT, TITLE_AREA_HEIGHT]);
   const scrollHandler = useAnimatedScrollHandler(e => {
     scrollY.value = e.contentOffset.y;
+    runOnJS(updateSticky)(e.contentOffset.y);
   });
   // Whole title-area slides up so its background disappears under the navbar.
   const titleAreaAnimStyle = useAnimatedStyle(() => ({
@@ -160,7 +183,10 @@ export default function ShoppingListScreen() {
     : 0;
   const titleTextAnimStyle = useAnimatedStyle(() => {
     const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [0, 1], Extrapolation.CLAMP);
-    const adjustY = (NAVBAR_HEIGHT - TITLE_AREA_HEIGHT) / 2;
+    // Titel-boxen (höjd TITLE_AREA_HEIGHT) glider upp till navbarens position.
+    // Dess mitt hamnar TITLE_AREA_HEIGHT/2 under boxens topp; för att centrera
+    // texten vertikalt i navbaren justerar vi med halva höjdskillnaden.
+    const adjustY = (TITLE_AREA_HEIGHT - NAVBAR_HEIGHT) / 2;
     return {
       // Cast: reanimated 4's transform typing rejects the inferred union of
       // single-key objects; runtime is unaffected.
@@ -170,6 +196,38 @@ export default function ShoppingListScreen() {
         { scale: 1 - (1 - TITLE_SCALE) * t },
       ],
     } as never;
+  });
+
+  // "Jag handlar"-indikatorn: full text innan scroll, kollapsar till bara
+  // gubbe-ikonen när rubriken fälls upp till mitten (annars krockar de). En
+  // diskret puls var ~10:e sekund påminner om att läget är aktivt.
+  const shopperPulse = useSharedValue(1);
+  const shopperActive = !!list?.activeShopperMemberId && !!activeShopper;
+  useEffect(() => {
+    if (shopperActive) {
+      shopperPulse.value = withRepeat(
+        withSequence(
+          withDelay(9000, withTiming(1.18, { duration: 250 })),
+          withTiming(1, { duration: 250 }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      shopperPulse.value = withTiming(1, { duration: 150 });
+    }
+  }, [shopperActive, shopperPulse]);
+  const shopperTextAnimStyle = useAnimatedStyle(() => {
+    const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [1, 0], Extrapolation.CLAMP);
+    return { opacity: t, maxWidth: t * 170, marginRight: t * 6 };
+  });
+  const shopperIconAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: shopperPulse.value }] }));
+  // Butiken ligger alltid i navbaren (vänster). Ikonen syns alltid; namnet
+  // kollapsar (opacity + maxWidth) när rubriken fälls upp till mitten, så det
+  // inte krockar med den centrerade rubriken.
+  const storeNameAnimStyle = useAnimatedStyle(() => {
+    const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [1, 0], Extrapolation.CLAMP);
+    return { opacity: t, maxWidth: t * 160, marginLeft: t * 6 };
   });
 
   // Collapsed categories — tap category header to fold/unfold its items.
@@ -189,8 +247,6 @@ export default function ShoppingListScreen() {
   const [stapleCategory, setStapleCategory] = useState<StoreCategory>('other');
   const [savingStaple, setSavingStaple] = useState(false);
 
-  // Store picker modal
-  const [showStorePicker, setShowStorePicker] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState('');
@@ -213,15 +269,6 @@ export default function ShoppingListScreen() {
       setRenaming(false);
     }
   }
-  const [creatingStore, setCreatingStore] = useState(false);
-  const [newStoreName, setNewStoreName] = useState('');
-
-  // Category order editor
-  const [editingStore, setEditingStore] = useState<Store | null>(null);
-  const [editCategoryOrder, setEditCategoryOrder] = useState<StoreCategory[]>([]);
-  const [editCustomCategories, setEditCustomCategories] = useState<string[]>([]);
-  const [newCustomCategory, setNewCustomCategory] = useState('');
-  const [savingOrder, setSavingOrder] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const editQtyRef = useRef<TextInput>(null);
@@ -466,15 +513,13 @@ export default function ShoppingListScreen() {
   const load = useCallback(async () => {
     if (!listId || !householdId) return;
     try {
-      const [data, storeList, stapleList, suggestions, household] = await Promise.all([
+      const [data, stapleList, suggestions, household] = await Promise.all([
         client.getShoppingList(listId),
-        client.getStores(householdId),
         client.getStaples(householdId),
         client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
         client.getHousehold(householdId).catch(() => null),
       ]);
       setList(data);
-      setStores(storeList);
       setStaples(stapleList);
       setIngredientSuggestions(suggestions);
       if (household) setMembers(household.members);
@@ -955,7 +1000,6 @@ export default function ShoppingListScreen() {
     try {
       const updated = await client.updateShoppingList(listId, { storeId });
       setList(updated);
-      setShowStorePicker(false);
     } catch (e) {
       showError(e, 'Kunde inte byta butik');
     }
@@ -972,80 +1016,6 @@ export default function ShoppingListScreen() {
     await selectStore(result);
   }
 
-  async function createStore() {
-    if (!householdId || !newStoreName.trim()) return;
-    setCreatingStore(true);
-    try {
-      const store = await client.createStore({ householdId, name: newStoreName.trim() });
-      setStores(prev => [...prev, store]);
-      await selectStore(store.id);
-      setNewStoreName('');
-    } catch (e) {
-      showError(e, 'Kunde inte skapa butik');
-    } finally {
-      setCreatingStore(false);
-    }
-  }
-
-  function openCategoryEditor(store: Store) {
-    setEditingStore(store);
-    setEditCategoryOrder((store.categoryOrder as StoreCategory[]).length
-      ? store.categoryOrder as StoreCategory[]
-      : [...DEFAULT_CATEGORY_ORDER]);
-    setEditCustomCategories([...((store.customCategories as string[] | undefined) ?? [])]);
-    setNewCustomCategory('');
-  }
-
-  function addCustomCategory() {
-    const trimmed = newCustomCategory.trim();
-    if (!trimmed) return;
-    if (editCustomCategories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
-      confirm({ title: 'Finns redan', message: `Kategorin "${trimmed}" finns redan.`, buttons: [{ label: 'OK' }] });
-      return;
-    }
-    setEditCustomCategories(prev => [...prev, trimmed]);
-    setNewCustomCategory('');
-  }
-
-  function removeCustomCategory(name: string) {
-    setEditCustomCategories(prev => prev.filter(c => c !== name));
-  }
-
-  function moveCategoryUp(idx: number) {
-    if (idx === 0) return;
-    setEditCategoryOrder(prev => {
-      const next = [...prev];
-      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-      return next;
-    });
-  }
-
-  function moveCategoryDown(idx: number) {
-    setEditCategoryOrder(prev => {
-      if (idx >= prev.length - 1) return prev;
-      const next = [...prev];
-      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-      return next;
-    });
-  }
-
-  async function saveCategoryOrder() {
-    if (!editingStore) return;
-    setSavingOrder(true);
-    try {
-      const updated = await client.updateStore(editingStore.id, { categoryOrder: editCategoryOrder, customCategories: editCustomCategories });
-      setStores(prev => prev.map(s => s.id === updated.id ? updated : s));
-      if (list?.store?.id === updated.id) {
-        setList(prev => prev ? { ...prev, store: updated } : prev);
-      }
-      setEditingStore(null);
-    } catch (e) {
-      showError(e, 'Kunde inte spara ordning');
-    } finally {
-      setSavingOrder(false);
-    }
-  }
-
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
   if (!list) return null;
 
@@ -1058,6 +1028,16 @@ export default function ShoppingListScreen() {
   const customCategories: string[] = (list?.store?.customCategories as string[] | undefined) ?? [];
   const expandedSubs: string[] = (list?.store?.expandedSubs as string[] | undefined) ?? [];
   const categoryGroups = buildCategoryGroups(unchecked, categoryOrder, customCategories, expandedSubs);
+  const groupLabel = (group: CategoryGroup<ShoppingItemWithRecipe>) =>
+    group.isCustom
+      ? `🏷️ ${group.category}`
+      : group.isSub
+        ? group.label ?? String(group.category)
+        : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+  const groupKey = (group: CategoryGroup<ShoppingItemWithRecipe>) =>
+    group.isCustom ? `c:${group.category}` : group.isSub ? `s:${group.category}` : group.category as string;
+  // Ordnad lista (= visuell ordning = stigande y) som sticky-beräkningen läser.
+  catOrderRef.current = categoryGroups.map(g => ({ key: groupKey(g), label: groupLabel(g) }));
 
   return (
     <View style={s.container}>
@@ -1067,14 +1047,10 @@ export default function ShoppingListScreen() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
       >
-        {/* Butik + dubblettknapp som första scrollbara rad — försvinner upp
-            tillsammans med kategorierna när användaren scrollar. */}
-        <View style={s.scrollMeta}>
-          <Pressable onPress={openStorePicker} style={s.storeBtn}>
-            <Ionicons name="storefront-outline" size={16} color="#4f46e5" />
-            <Text style={s.storeBtnText}>{list.store?.name ?? 'Välj butik'}</Text>
-          </Pressable>
-          {duplicateGroups.length > 0 && (
+        {/* Dubblettknapp som första scrollbara rad — försvinner upp tillsammans
+            med kategorierna när användaren scrollar. (Butiken bor nu i navbaren.) */}
+        {duplicateGroups.length > 0 && (
+          <View style={s.scrollMeta}>
             <Animated.View ref={dupeBadgeRef} style={{ transform: [{ scale: dupeButtonScale }] }}>
               <Pressable
                 style={s.dupeBadge}
@@ -1087,8 +1063,8 @@ export default function ShoppingListScreen() {
                 </Text>
               </Pressable>
             </Animated.View>
-          )}
-        </View>
+          </View>
+        )}
         {allItems.length === 0 && (
           <View style={s.emptyContainer}>
             <Pressable onPress={goToBulkTransfer} style={s.emptyImportBtn} hitSlop={12}>
@@ -1101,15 +1077,15 @@ export default function ShoppingListScreen() {
 
         {/* Category groups */}
         {categoryGroups.map(group => {
-          const key = group.isCustom ? `c:${group.category}` : group.isSub ? `s:${group.category}` : group.category as string;
+          const key = groupKey(group);
           const collapsed = collapsedCategories.has(key as StoreCategory | 'checked');
-          const label = group.isCustom
-            ? `🏷️ ${group.category}`
-            : group.isSub
-              ? group.label ?? String(group.category)
-              : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+          const label = groupLabel(group);
           return (
-            <View key={key} style={s.categoryGroup}>
+            <View
+              key={key}
+              style={s.categoryGroup}
+              onLayout={e => { catLayouts.current[key] = e.nativeEvent.layout.y; }}
+            >
               <Pressable
                 style={[s.categoryHeader, group.isSub && s.categorySubHeader]}
                 onPress={() => toggleCategoryCollapsed(key as StoreCategory | 'checked')}
@@ -1174,6 +1150,14 @@ export default function ShoppingListScreen() {
         </RNAnimated.View>
       </RNAnimated.View>
 
+      {/* Sticky kategori-rubrik — pinnad precis under navbaren, visar kategorin
+          vars rad just nu passerar navbar-linjen (uppdateras från scroll). */}
+      {stickyCat && (
+        <View style={[s.stickyCat, { top: HEADER_TOP + NAVBAR_HEIGHT }]} pointerEvents="none">
+          <Text style={s.categoryLabel} numberOfLines={1}>{stickyCat}</Text>
+        </View>
+      )}
+
       {/* Progress bar — pinned under the navbar so it's always visible */}
       {checked.length > 0 && unchecked.length > 0 && (
         <View style={[s.progressBar, { position: 'absolute', top: HEADER_TOP + NAVBAR_HEIGHT, left: 0, right: 0, zIndex: 35 }]}>
@@ -1181,23 +1165,52 @@ export default function ShoppingListScreen() {
         </View>
       )}
 
-      {/* "Jag handlar"-presence-banner — synlig när någon (inkl. mig själv)
-          aktivt handlar listan. Förhindrar dubbla turer till affären. */}
-      {list.activeShopperMemberId && activeShopper && (
-        <View style={[s.shopperBanner, { top: HEADER_TOP + NAVBAR_HEIGHT + 4 }]} pointerEvents="none">
-          <Ionicons name="walk" size={14} color="#7c3aed" />
-          <Text style={s.shopperBannerText}>
-            {iAmShopping ? 'Du handlar nu' : `${activeShopper.displayName} handlar nu`}
-          </Text>
-        </View>
-      )}
-
-      {/* Navbar buttons — rendered last so they always sit on top */}
+      {/* Navbar buttons — rendered last so they always sit on top. "Jag handlar"-
+          presence: full text till höger innan scroll, kollapsar till bara den
+          rosa gubbe-ikonen när rubriken fälls upp till mitten (annars krockar
+          de). Ikonen pulserar var ~10:e sekund. Tryck → toast med vem som handlar. */}
       <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
         <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Tillbaka">
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
+        <Pressable onPress={openStorePicker} hitSlop={8} style={s.navStoreBtn} accessibilityRole="button" accessibilityLabel={list.store ? `Butik: ${list.store.name}` : 'Välj butik'}>
+          <Ionicons name="storefront" size={18} color="#4f46e5" />
+          <RNAnimated.View style={[s.navStoreNameWrap, storeNameAnimStyle]}>
+            <Text style={s.navStoreName} numberOfLines={1}>{list.store?.name ?? 'Välj butik'}</Text>
+          </RNAnimated.View>
+        </Pressable>
         <View style={{ flex: 1 }} />
+        {list.activeShopperMemberId && activeShopper && (
+          <Pressable
+            style={s.shopperWrap}
+            hitSlop={8}
+            onPress={() => {
+              if (iAmShopping) {
+                confirm({
+                  title: 'Du handlar nu',
+                  message: 'Vill du avsluta handla-läget?',
+                  buttons: [
+                    { label: 'Avsluta handla-läge', style: 'destructive', onPress: () => { toggleIAmShopping(); } },
+                    { label: 'Avbryt', style: 'cancel' },
+                  ],
+                });
+              } else {
+                showGlobalToast(`${activeShopper.displayName} handlar nu`);
+              }
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={iAmShopping ? 'Du handlar nu' : `${activeShopper.displayName} handlar nu`}
+          >
+            <RNAnimated.View style={[s.shopperTextWrap, shopperTextAnimStyle]}>
+              <Text style={s.shopperText} numberOfLines={1}>
+                {iAmShopping ? 'Du handlar' : `${activeShopper.displayName} handlar`}
+              </Text>
+            </RNAnimated.View>
+            <RNAnimated.View style={[s.shopperIconBtn, shopperIconAnimStyle]}>
+              <Ionicons name="walk" size={20} color="#db2777" />
+            </RNAnimated.View>
+          </Pressable>
+        )}
         <Pressable ref={listActionsBtnRef} onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fler åtgärder">
           <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
@@ -1342,7 +1355,7 @@ export default function ShoppingListScreen() {
           <View style={s.qtyStepper}>
             <Pressable
               style={s.qtyBtn}
-              onPress={() => setEditQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)))}
+              onPress={() => setEditQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
             >
               <Ionicons name="remove" size={22} color="#4f46e5" />
             </Pressable>
@@ -1350,7 +1363,7 @@ export default function ShoppingListScreen() {
               ref={editQtyRef}
               style={s.qtyInput}
               value={editQty}
-              onChangeText={setEditQty}
+              onChangeText={t => setEditQty(normalizeQtyInput(t))}
               keyboardType="decimal-pad"
               placeholder="1"
               placeholderTextColor="#9ca3af"
@@ -1361,7 +1374,7 @@ export default function ShoppingListScreen() {
             />
             <Pressable
               style={s.qtyBtn}
-              onPress={() => setEditQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1))}
+              onPress={() => setEditQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ','))}
             >
               <Ionicons name="add" size={22} color="#4f46e5" />
             </Pressable>
@@ -1543,14 +1556,14 @@ export default function ShoppingListScreen() {
             <View style={s.qtyStepper}>
               <Pressable
                 style={s.qtyBtn}
-                onPress={() => setQtyValue(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)))}
+                onPress={() => setQtyValue(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
               >
                 <Ionicons name="remove" size={22} color="#4f46e5" />
               </Pressable>
               <TextInput
                 style={s.qtyInput}
                 value={qtyValue}
-                onChangeText={setQtyValue}
+                onChangeText={t => setQtyValue(normalizeQtyInput(t))}
                 keyboardType="decimal-pad"
                 selectTextOnFocus
                 returnKeyType="next"
@@ -1559,7 +1572,7 @@ export default function ShoppingListScreen() {
               />
               <Pressable
                 style={s.qtyBtn}
-                onPress={() => setQtyValue(v => String((parseFloat(v.replace(',', '.')) || 0) + 1))}
+                onPress={() => setQtyValue(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ','))}
               >
                 <Ionicons name="add" size={22} color="#4f46e5" />
               </Pressable>
@@ -1676,7 +1689,7 @@ export default function ShoppingListScreen() {
                 <TextInput
                   style={[s.qtyInput, { fontSize: 16, fontWeight: '600', paddingVertical: 6 }]}
                   value={mergeQty}
-                  onChangeText={setMergeQty}
+                  onChangeText={t => setMergeQty(normalizeQtyInput(t))}
                   keyboardType="decimal-pad"
                   selectTextOnFocus
                   onFocus={scrollMergeRowIntoView}
@@ -1875,34 +1888,51 @@ export default function ShoppingListScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Markera dubbletter själv</Text>
-          <Text style={s.sheetSub}>Välj minst två varor som ska slås ihop</Text>
-          <ScrollView style={s.mergeList} showsVerticalScrollIndicator={false}>
-            {list?.items
-              .filter(i => !i.isChecked && !i.id.startsWith('optimistic-'))
-              .sort((a, b) => a.name.localeCompare(b.name, 'sv'))
-              .map(item => {
-                const checked = manualPickerSelected.has(item.id);
-                return (
-                  <Pressable
-                    key={item.id}
-                    style={s.mergeItem}
-                    onPress={() => setManualPickerSelected(prev => {
-                      const next = new Set(prev);
-                      if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
-                      return next;
-                    })}
-                  >
-                    <Ionicons
-                      name={checked ? 'checkbox' : 'square-outline'}
-                      size={22}
-                      color={checked ? '#4f46e5' : '#9ca3af'}
-                    />
-                    <Text style={s.mergeItemText} numberOfLines={1}>
-                      {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+          <Text style={s.sheetSub}>Bocka i minst två varor som ska slås ihop</Text>
+          {/* Samma kategori-gruppering som den vanliga listan så det är lätt att
+              hitta rätt varor (i st. f. en platt bokstavsordnad lista). */}
+          <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
+            {buildCategoryGroups(
+              (list?.items ?? []).filter(i => !i.isChecked && !i.id.startsWith('optimistic-')),
+              categoryOrder, customCategories, expandedSubs,
+            ).map(group => {
+              const key = group.isCustom ? `c:${group.category}` : group.isSub ? `s:${group.category}` : group.category as string;
+              const label = group.isCustom
+                ? `🏷️ ${group.category}`
+                : group.isSub
+                  ? group.label ?? String(group.category)
+                  : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+              return (
+                <View key={key} style={s.categoryGroup}>
+                  <View style={[s.categoryHeader, group.isSub && s.categorySubHeader]}>
+                    <Text style={[s.categoryLabel, group.isSub && s.categorySubLabel]} numberOfLines={2}>{label}</Text>
+                  </View>
+                  {group.items.map(item => {
+                    const checked = manualPickerSelected.has(item.id);
+                    return (
+                      <Pressable
+                        key={item.id}
+                        style={s.mergeItem}
+                        onPress={() => setManualPickerSelected(prev => {
+                          const next = new Set(prev);
+                          if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                          return next;
+                        })}
+                      >
+                        <Ionicons
+                          name={checked ? 'checkbox' : 'square-outline'}
+                          size={22}
+                          color={checked ? '#4f46e5' : '#9ca3af'}
+                        />
+                        <Text style={s.mergeItemText} numberOfLines={1}>
+                          {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              );
+            })}
           </ScrollView>
           <Pressable
             style={[s.qtyConfirm, manualPickerSelected.size < 2 && s.saveBtnDisabled]}
@@ -1921,87 +1951,6 @@ export default function ShoppingListScreen() {
       </Modal>
     </View>
   );
-}
-
-type CategoryGroup = {
-  /** Antingen en StoreCategory (parent), en custom-string ELLER en SubCategory
-   *  som hushållet har "expanderat" till egen sektion. */
-  category: StoreCategory | string;
-  isCustom: boolean;
-  /** Sant när gruppen är en sub som brutits ut. */
-  isSub?: boolean;
-  /** Label att visa i UI:t. */
-  label?: string;
-  items: ShoppingItemWithRecipe[];
-};
-
-function buildCategoryGroups(
-  items: ShoppingItemWithRecipe[],
-  order: StoreCategory[],
-  customCategories: string[] = [],
-  expandedSubs: string[] = [],
-): CategoryGroup[] {
-  const expandedSet = new Set(expandedSubs);
-  // Items grupperas i tre buckets:
-  //  - customMap (customCategory-strängar — legacy)
-  //  - subMap (subCategory ∈ expandedSubs → egen sektion)
-  //  - enumMap (allt annat → samlas under parent)
-  const enumMap = new Map<StoreCategory, ShoppingItemWithRecipe[]>();
-  const customMap = new Map<string, ShoppingItemWithRecipe[]>();
-  const subMap = new Map<string, ShoppingItemWithRecipe[]>();
-  for (const item of items) {
-    if (item.customCategory) {
-      if (!customMap.has(item.customCategory)) customMap.set(item.customCategory, []);
-      customMap.get(item.customCategory)!.push(item);
-      continue;
-    }
-    const sub = (item as { subCategory?: string | null }).subCategory ?? null;
-    if (sub && expandedSet.has(sub)) {
-      if (!subMap.has(sub)) subMap.set(sub, []);
-      subMap.get(sub)!.push(item);
-      continue;
-    }
-    const cat = item.category as StoreCategory;
-    if (!enumMap.has(cat)) enumMap.set(cat, []);
-    enumMap.get(cat)!.push(item);
-  }
-  const orderedEnum = [...order.filter(c => enumMap.has(c))];
-  for (const cat of enumMap.keys()) {
-    if (!orderedEnum.includes(cat)) orderedEnum.push(cat);
-  }
-  const orderedCustom = [...customCategories.filter(c => customMap.has(c))];
-  for (const cat of customMap.keys()) {
-    if (!orderedCustom.includes(cat)) orderedCustom.push(cat);
-  }
-  const sortItems = (arr: ShoppingItemWithRecipe[]) => arr.sort((a, b) => {
-    if (a.isChecked !== b.isChecked) return a.isChecked ? 1 : -1;
-    return a.name.localeCompare(b.name, 'sv');
-  });
-
-  // Bygg slutgiltig lista. Sub-grupper läggs DIREKT EFTER sin parent så de
-  // hänger ihop visuellt i butikens ordning.
-  const result: CategoryGroup[] = [];
-  for (const parent of orderedEnum) {
-    result.push({ category: parent, isCustom: false, items: sortItems(enumMap.get(parent)!) });
-    for (const [sub, subItems] of subMap.entries()) {
-      const subInfo = SUB_TAXONOMY[sub as SubCategory];
-      if (subInfo && subInfo.defaultParent === parent) {
-        result.push({ category: sub, isCustom: false, isSub: true, label: subInfo.label, items: sortItems(subItems) });
-      }
-    }
-  }
-  // Sub-grupper vars parent inte fanns i orderedEnum (ovanligt) — append sist.
-  for (const [sub, subItems] of subMap.entries()) {
-    const subInfo = SUB_TAXONOMY[sub as SubCategory];
-    if (!subInfo) continue;
-    if (orderedEnum.includes(subInfo.defaultParent)) continue;
-    result.push({ category: sub, isCustom: false, isSub: true, label: subInfo.label, items: sortItems(subItems) });
-  }
-  // Custom-grupper sist
-  for (const cat of orderedCustom) {
-    result.push({ category: cat, isCustom: true, items: sortItems(customMap.get(cat)!) });
-  }
-  return result;
 }
 
 function ItemRow({ item, onToggle, onEdit, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; pending?: boolean }) {
@@ -2031,7 +1980,7 @@ const s = StyleSheet.create({
   headerNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6 },
   headerStack: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   titleSlide: { paddingHorizontal: 20, paddingBottom: 6 },
-  scrollMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 8, paddingTop: 4, gap: 8 },
+  scrollMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: 8, paddingTop: 4, gap: 8 },
   titleAreaAbs: { position: 'absolute', left: 0, right: 0, backgroundColor: '#f9fafb', zIndex: 10 },
   navbarBgAbs: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: '#f9fafb', zIndex: 5 },
   navbarButtonsAbs: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, zIndex: 30 },
@@ -2048,11 +1997,15 @@ const s = StyleSheet.create({
   doneBtn: { padding: 4 },
   title: { fontSize: 26, fontWeight: '700', color: '#111827' },
   titleCompact: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: '#111827', paddingHorizontal: 8 },
-  storeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  storeBtnText: { fontSize: 16, color: '#4f46e5', fontWeight: '600' },
   progressBar: { height: 3, backgroundColor: '#e5e7eb' },
-  shopperBanner: { position: 'absolute', left: 16, right: 16, zIndex: 36, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ede9fe', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'center' },
-  shopperBannerText: { fontSize: 12, color: '#5b21b6', fontWeight: '600' },
+  stickyCat: { position: 'absolute', left: 0, right: 0, zIndex: 20, backgroundColor: '#f9fafb', paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: '#ddd6fe', borderRadius: 999, backgroundColor: '#f5f3ff' },
+  navStoreNameWrap: { overflow: 'hidden', justifyContent: 'center' },
+  navStoreName: { fontSize: 15, color: '#4f46e5', fontWeight: '600' },
+  shopperWrap: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
+  shopperTextWrap: { overflow: 'hidden', justifyContent: 'center' },
+  shopperText: { fontSize: 13, color: '#db2777', fontWeight: '600' },
+  shopperIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#fce7f3', alignItems: 'center', justifyContent: 'center', marginRight: 4 },
   progressFill: { height: 3, backgroundColor: '#10b981' },
   list: { padding: 16, gap: 16, paddingBottom: 8 },
   listEmpty: { flex: 1 },

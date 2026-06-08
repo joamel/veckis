@@ -15,7 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -23,6 +23,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
+import { normalizeQtyInput } from '../../src/lib/qty';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
@@ -33,8 +34,7 @@ import type { RecipeIngredient } from '@veckis/shared';
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
 export default function RecipeDetailScreen() {
-  const insets = useSafeAreaInsets();
-  const { recipeId, transfer, edit, forMenuDay } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string }>();
+  const { recipeId, transfer, edit, forMenuDay, forMenuWeek } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string }>();
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -217,7 +217,7 @@ export default function RecipeDetailScreen() {
     setEditImage(recipe.imageUrl ?? '');
     setEditIngredients(recipe.ingredients.map(i => ({
       name: i.name,
-      quantity: i.quantity != null ? String(i.quantity) : '',
+      quantity: i.quantity != null ? String(i.quantity).replace('.', ',') : '',
       unit: i.unit ?? '',
     })));
     setShowMenu(false);
@@ -261,7 +261,8 @@ export default function RecipeDetailScreen() {
       setRecipe(updated);
       setEditMode(false);
       if (forMenuDay !== undefined) {
-        router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}` as never);
+        const weekSuffix = forMenuWeek ? `&forMenuWeek=${forMenuWeek}` : '';
+        router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}${weekSuffix}` as never);
       }
     } catch {
       confirm({ title: 'Fel', message: 'Kunde inte spara receptet', buttons: [{ label: 'OK' }] });
@@ -531,7 +532,7 @@ export default function RecipeDetailScreen() {
                       placeholder="Mängd"
                       placeholderTextColor="#9ca3af"
                       value={row.quantity}
-                      onChangeText={v => updateEditRow(idx, 'quantity', v)}
+                      onChangeText={v => updateEditRow(idx, 'quantity', normalizeQtyInput(v))}
                       keyboardType="decimal-pad"
                       returnKeyType="next"
                       blurOnSubmit={false}
@@ -560,7 +561,7 @@ export default function RecipeDetailScreen() {
                         if (idx < editIngredients.length - 1) getRowRef(idx + 1).name?.focus();
                       }}
                     />
-                    <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove}>
+                    <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove} accessibilityRole="button" accessibilityLabel="Ta bort ingrediens">
                       <Ionicons name="close-circle" size={20} color="#d1d5db" />
                     </Pressable>
                   </View>

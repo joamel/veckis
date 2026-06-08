@@ -53,14 +53,14 @@ export default function PrivacyScreen() {
       <Text style={s.h2}>Dina rättigheter (GDPR)</Text>
       <Text style={s.p}>
         Du har rätt att få tillgång till, rätta eller radera dina uppgifter.
-        Kontakta oss på <Text style={s.link}>support@veckis.app</Text> så
+        Kontakta oss på <Text style={s.link}>veckis.support@gmail.com</Text> så
         hjälper vi dig. Du kan också radera ditt konto direkt i Profil →
         Lämna hushåll, eller be admin ta bort hela hushållet.
       </Text>
 
       <Text style={s.h2}>Kontakt</Text>
       <Text style={s.p}>
-        Frågor om denna policy? <Text style={s.link}>support@veckis.app</Text>
+        Frågor om denna policy? <Text style={s.link}>veckis.support@gmail.com</Text>
       </Text>
     </LegalPage>
   );

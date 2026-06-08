@@ -136,7 +136,7 @@ export default function StoresScreen() {
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Rensa sökning">
               <Ionicons name="close-circle" size={16} color="#9ca3af" />
             </Pressable>
           )}

@@ -19,6 +19,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
 import { RecurrencePicker } from '../../src/components/RecurrencePicker';
+import { MultiMemberPicker } from '../../src/components/MultiMemberPicker';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/clerk-expo';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
@@ -29,14 +30,14 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
-import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { buildAssignedLabel } from '../../src/lib/buildAssignedLabel';
+import { buildPerformerOptions } from '../../src/lib/performerOptions';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import type { Chore, ChoreCompletion, ChoreFrequency, RecurrenceType, WeekDay } from '@veckis/shared';
-import { occursOn, weekdayOf, computeCurrentTurn, computeTurnHistory, type RecurrencePattern } from '@veckis/shared';
+import { occursOn, weekdayOf, computeTurnHistory, type RecurrencePattern } from '@veckis/shared';
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 
@@ -175,93 +176,11 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
 
 type Member = { id: string; clerkUserId: string | null; displayName: string };
 
-function toggleDay(days: WeekDay[], day: WeekDay): WeekDay[] {
-  return days.includes(day) ? days.filter(d => d !== day) : [...days, day];
-}
-
-function DayPicker({ selected, onChange }: { selected: WeekDay[]; onChange: (days: WeekDay[]) => void }) {
-  return (
-    <View style={s.dayRow}>
-      {DAYS.map(d => (
-        <Pressable
-          key={d.key}
-          style={[s.dayOption, selected.includes(d.key) && s.dayOptionActive]}
-          onPress={() => onChange(toggleDay(selected, d.key))}
-        >
-          <Text style={[s.dayOptionText, selected.includes(d.key) && s.dayOptionTextActive]}>
-            {d.short}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
-interface MultiMemberPickerProps {
-  members: Member[];
-  selected: string[];
-  rotation: boolean;
-  onChange: (ids: string[]) => void;
-  onRotationChange: (v: boolean) => void;
-}
-function MultiMemberPicker({ members, selected, rotation, onChange, onRotationChange }: MultiMemberPickerProps) {
-  if (members.length === 0) return null;
-  const toggle = (id: string) => {
-    if (selected.includes(id)) onChange(selected.filter(x => x !== id));
-    else onChange([...selected, id]);
-  };
-  return (
-    <>
-      <Text style={s.label}>Tilldela person{selected.length > 1 ? 'er' : ''}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberChipRow}>
-        <Pressable
-          style={[s.memberChip, selected.length === 0 && s.memberChipActive]}
-          onPress={() => onChange([])}
-        >
-          <Text style={[s.memberChipText, selected.length === 0 && s.memberChipTextActive]}>Ingen</Text>
-        </Pressable>
-        {members.map(m => {
-          const isActive = selected.includes(m.id);
-          return (
-            <Pressable
-              key={m.id}
-              style={[s.memberChip, isActive && s.memberChipActive]}
-              onPress={() => toggle(m.id)}
-            >
-              <Text style={[s.memberChipText, isActive && s.memberChipTextActive]}>{m.displayName}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-      {selected.length >= 2 ? (
-        <Pressable
-          style={s.rotationRow}
-          onPress={() => onRotationChange(!rotation)}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: rotation }}
-        >
-          <View style={[s.rotationBox, rotation && s.rotationBoxActive]}>
-            {rotation ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.rotationLabel}>Turas om automatiskt</Text>
-            <Text style={s.rotationSub}>
-              {rotation
-                ? 'Tur byts efter varje avbockning — alla turas om i listan.'
-                : 'Alla i listan är gemensamt ansvariga (ingen rotation).'}
-            </Text>
-          </View>
-        </Pressable>
-      ) : null}
-    </>
-  );
-}
 
 export default function ChoresScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { getToken, userId } = useAuth();
-  const { medium } = useHaptics();
   const { fs, sp } = useTablet();
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
@@ -325,9 +244,6 @@ export default function ChoresScreen() {
   const [loading, setLoading] = useState(true);
   const { filterMemberIds, setFilterMemberIds } = useMemberFilter();
   const [showFilterModal, setShowFilterModal] = useState(false);
-  // "Min tur"-snabbfilter: visa bara roterande sysslor där JAG har tur just nu.
-  // Sysslor utan rotation där jag är med inkluderas alltid (de är "alla mina").
-  const [myTurnOnly, setMyTurnOnly] = useState(false);
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -404,18 +320,15 @@ export default function ChoresScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // Deep link from a tapped chore notification (L45): open that chore's edit
-  // dialog once chores have loaded, then clear the param so it won't re-fire.
+  // Deep link from a tapped chore notification (L45): landing on the chores tab
+  // is enough — don't pop the edit dialog. Just consume the param so it won't
+  // re-fire (the navigation itself already brought us to the right tab).
   useEffect(() => {
     const id = deeplinkParams.choreId;
-    if (!id || chores.length === 0 || openedChoreParamRef.current === id) return;
-    const chore = chores.find(c => c.id === id);
-    if (chore) {
-      openedChoreParamRef.current = id;
-      openEdit(chore);
-      router.setParams({ choreId: undefined });
-    }
-  }, [deeplinkParams.choreId, chores, router]);
+    if (!id || openedChoreParamRef.current === id) return;
+    openedChoreParamRef.current = id;
+    router.setParams({ choreId: undefined });
+  }, [deeplinkParams.choreId, router]);
 
   // Intro-tip: vad fliken är till för. Fyrar först av allt så användaren
   // förstår syftet direkt (även med tom lista).
@@ -444,7 +357,8 @@ export default function ChoresScreen() {
     if (shown) { filterTipShownRef.current = true; filterTip.markSeen(); }
   }, [tipsReady, members.length, filterTip.seen, filterTip.markSeen, showTip]));
 
-  // Completed chores sorted to the bottom, with optional member filter
+  // Not-done chores sorted by earliest due date (most overdue first), completed
+  // chores at the bottom, with optional member filter.
   const sortedChores = useMemo(() => {
     // Multi-assign matchning: filter slår om någon i assignedToMany finns i
     // filtret. Fallback till legacy single assignedTo om many-arrayen är tom.
@@ -452,35 +366,31 @@ export default function ChoresScreen() {
       const ids = c.assignedToMany?.length ? c.assignedToMany : (c.assignedTo ? [c.assignedTo] : []);
       return filterMemberIds.length === 0 || ids.some(id => filterMemberIds.includes(id));
     };
-    // "Min tur"-filter: bara rotation-sysslor där jag är aktuell turperson.
-    // Icke-roterande sysslor jag är med i räknas också som "mina" och hänger
-    // med. Sysslor jag inte är med i alls filtreras bort.
-    const myMemberId = userId ? members.find(m => m.clerkUserId === userId)?.id ?? null : null;
-    const turnFilter = (c: ChoreWithCompletion) => {
-      if (!myTurnOnly) return true;
-      if (!myMemberId) return false;
-      const ids = c.assignedToMany?.length ? c.assignedToMany : (c.assignedTo ? [c.assignedTo] : []);
-      if (!ids.includes(myMemberId)) return false;
-      if (!c.rotation || ids.length < 2) return true;
-      return computeCurrentTurn({ rotation: true, assignedToMany: ids }, c.completions.length) === myMemberId;
-    };
-    const filtered = chores.filter(c => memberFilter(c) && turnFilter(c));
+    const filtered = chores.filter(memberFilter);
     // Match the card's notion of "done": occurrence-based for recurring chores.
     const choreDone = (c: ChoreWithCompletion) => isOnce(c) ? isFullyDone(c) : recurringStatus(c).state === 'done';
+    // Effektivt förfallodatum för sortering: överförfallna/dagens datum för
+    // återkommande, nästa tillfälle annars; engångssysslor utan datum behandlas
+    // som "att göra nu" (idag) så de hamnar bland dagens uppgifter.
+    const todayStr = isoDateStr(new Date());
+    const dueKey = (c: ChoreWithCompletion): string => {
+      if (isOnce(c)) return todayStr;
+      const rs = recurringStatus(c);
+      if (rs.current && !rs.current.done) return rs.current.date; // overdue/today
+      return rs.nextDate ?? '9999-12-31';
+    };
     const done = filtered.filter(choreDone);
-    const notDone = filtered.filter(c => !choreDone(c));
+    const notDone = filtered
+      .filter(c => !choreDone(c))
+      .sort((a, b) => dueKey(a).localeCompare(dueKey(b)));
     return [...notDone, ...done];
-  }, [chores, filterMemberIds, myTurnOnly, userId, members]);
+  }, [chores, filterMemberIds]);
 
   const completedOnce = useMemo(
     () => chores.filter(c => isOnce(c) && c.completions.length > 0),
     [chores]
   );
 
-  function getMemberName(memberId: string | null) {
-    if (!memberId) return null;
-    return members.find(m => m.id === memberId)?.displayName ?? null;
-  }
 
   // Etikett för "tilldelad" på syssla-kortet:
   //  - rotation=true + 2+ medlemmar → "Annas tur · Nästa: Bo"
@@ -681,34 +591,12 @@ export default function ChoresScreen() {
   //  - 1 tilldelad lokal profil → fråga (gamla beteendet)
   //  - 1 tilldelad Clerk-user eller ingen tilldelad → skippa, kreditera tapparen
   function pickPerformer(chore: ChoreWithCompletion, onPick: (performedByMemberId: string | null) => void) {
-    const assignedIds = chore.assignedToMany?.length ? chore.assignedToMany : (chore.assignedTo ? [chore.assignedTo] : []);
-    const assignedMembers = assignedIds.map(id => members.find(m => m.id === id)).filter((m): m is NonNullable<typeof m> => !!m);
-    const hasLocalProfile = assignedMembers.some(m => m.clerkUserId === null);
-    const isRotating = !!chore.rotation && assignedMembers.length >= 2;
-
-    // Skip-fall: ingen tilldelad ELLER en enskild Clerk-user (utan rotation).
-    if (assignedMembers.length === 0) { onPick(null); return; }
-    if (!isRotating && !hasLocalProfile && assignedMembers.length === 1) { onPick(null); return; }
-
-    const selfMember = userId ? members.find(m => m.clerkUserId === userId) : null;
-    const turnId = isRotating
-      ? computeCurrentTurn({ rotation: true, assignedToMany: assignedIds }, chore.completions.length)
-      : null;
-
-    // Bygg knappar: turperson överst (vid rotation), sen övriga tilldelade,
-    // sen "jag" om jag inte redan är med, sen avbryt.
-    const seen = new Set<string>();
-    const buttons: Parameters<typeof confirm>[0]['buttons'] = [];
-    const pushMember = (id: string, suffix = '') => {
-      if (seen.has(id)) return;
-      seen.add(id);
-      const m = members.find(x => x.id === id);
-      if (!m) return;
-      buttons.push({ label: m.displayName + suffix, onPress: () => onPick(m.id) });
-    };
-    if (turnId) pushMember(turnId, ' (tur)');
-    for (const m of assignedMembers) pushMember(m.id);
-    if (selfMember) pushMember(selfMember.id, ' (du)');
+    const choice = buildPerformerOptions(chore, members, userId);
+    if (choice.kind === 'auto') { onPick(null); return; }
+    const buttons: Parameters<typeof confirm>[0]['buttons'] = choice.options.map(o => ({
+      label: o.label,
+      onPress: () => onPick(o.id),
+    }));
     buttons.push({ label: 'Avbryt', style: 'cancel' });
     confirm({ title: `Vem gjorde "${chore.title}"?`, buttons });
   }
@@ -800,17 +688,6 @@ export default function ChoresScreen() {
                     <Text style={s.filterBadgeText}>{filterMemberIds.length}</Text>
                   </View>
                 )}
-              </Pressable>
-            )}
-            {chores.some(c => c.rotation && c.assignedToMany?.length >= 2) && (
-              <Pressable
-                style={[s.filterBtn, myTurnOnly && s.filterBtnActive]}
-                onPress={() => setMyTurnOnly(v => !v)}
-                accessibilityRole="switch"
-                accessibilityState={{ checked: myTurnOnly }}
-              >
-                <Ionicons name="person-circle-outline" size={14} color={myTurnOnly ? '#7c3aed' : '#6b7280'} />
-                <Text style={[s.filterBtnText, myTurnOnly && s.filterBtnTextActive]}>Min tur</Text>
               </Pressable>
             )}
           </View>
@@ -1277,16 +1154,6 @@ const s = StyleSheet.create({
   freqOptionText: { fontSize: 13, color: '#6b7280' },
   freqOptionTextActive: { color: '#4f46e5', fontWeight: '600' },
   freqChevron: { fontSize: 9 },
-  memberChipRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
-  memberChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', flexShrink: 0 },
-  memberChipActive: { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' },
-  memberChipText: { fontSize: 14, color: '#374151', fontWeight: '500' },
-  memberChipTextActive: { color: '#7c3aed', fontWeight: '600' },
-  rotationRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 4, marginTop: 8 },
-  rotationBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  rotationBoxActive: { borderColor: '#7c3aed', backgroundColor: '#7c3aed' },
-  rotationLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  rotationSub: { fontSize: 12, color: '#6b7280', marginTop: 2, lineHeight: 17 },
   dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   dayOption: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
   dayOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },

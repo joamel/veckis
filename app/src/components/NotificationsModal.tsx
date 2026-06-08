@@ -72,7 +72,7 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
         <View style={s.handle} />
         <View style={s.header}>
           <Text style={s.title}>Notiser</Text>
-          <Pressable onPress={onClose} hitSlop={10}>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Stäng">
             <Ionicons name="close" size={24} color="#6b7280" />
           </Pressable>
         </View>

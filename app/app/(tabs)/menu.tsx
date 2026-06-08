@@ -21,7 +21,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, { runOnJS } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
@@ -53,7 +53,6 @@ const DAYS: { key: WeekDay; label: string; short: string }[] = [
   { key: 'sun', label: 'Söndag', short: 'Sön' },
 ];
 
-const MONTH_NAMES = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'];
 
 function getWeekMonday(weekOffset: number): Date {
   const d = addWeeks(new Date(), weekOffset);
@@ -63,6 +62,22 @@ function getWeekMonday(weekOffset: number): Date {
   monday.setDate(d.getDate() - daysFromMonday);
   monday.setHours(0, 0, 0, 0);
   return monday;
+}
+
+// weekOffset (relative to today) that lands on the given absolute ISO week.
+// Used to restore the viewed week after the recipe-picker navigation round-trip.
+function weekOffsetForWeek(weekYear: number, weekNumber: number): number {
+  const target = getISOWeekMonday(weekYear, weekNumber).getTime();
+  const today = getWeekMonday(0).getTime();
+  return Math.round((target - today) / (7 * 86400000));
+}
+
+// Parse a "YYYY-WW" week param (threaded through the recipe picker so the dish
+// lands in the week the user was viewing, not the current week).
+function parseWeekParam(s?: string): { weekYear: number; weekNumber: number } | null {
+  if (!s) return null;
+  const m = /^(\d+)-(\d+)$/.exec(s);
+  return m ? { weekYear: Number(m[1]), weekNumber: Number(m[2]) } : null;
 }
 
 interface AggIngredient {
@@ -78,7 +93,7 @@ interface AggIngredient {
 
 export default function MenuScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string; replaceMenuItemId?: string }>();
+  const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string; replaceMenuItemId?: string; forMenuWeek?: string }>();
   const addRecipeTriggeredRef = useRef(false);
   const bulkTransferTriggeredRef = useRef(false);
   const client = useApiClient();
@@ -148,6 +163,7 @@ export default function MenuScreen() {
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> mängd hemma
   const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // omätta ingredienser markerade "har hemma"
   const [editingAmountKey, setEditingAmountKey] = useState<string | null>(null); // vilken rad har input-läge
+  const [amountDraft, setAmountDraft] = useState(''); // rå inmatningstext för aktiv "Har"-input (tillåter "0," under skrivning)
   const [allMenus, setAllMenus] = useState<WeekMenuItemWithRecipe[]>([]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
@@ -309,7 +325,7 @@ export default function MenuScreen() {
             onPress={() => toggleUnmeasured(agg.key)}
           >
             <Ionicons name="checkmark" size={15} color={have ? '#fff' : '#9ca3af'} />
-            <Text style={[s.invAllBtnText, have && s.invAllBtnTextOn]}>Har</Text>
+            <Text style={[s.invAllBtnText, have && s.invAllBtnTextOn]}>Finns</Text>
           </Pressable>
         </View>
       );
@@ -340,11 +356,16 @@ export default function MenuScreen() {
                   style={s.invAmountInputV2}
                   keyboardType="numeric"
                   autoFocus
-                  value={haveAmt ? fmtQty(haveAmt) : ''}
+                  value={amountDraft}
                   placeholder="0"
                   placeholderTextColor="#d1d5db"
                   onChangeText={t => {
-                    const v = parseFloat(t.replace(',', '.'));
+                    // Tillåt fri inmatning av decimaler: normalisera "." → "," och
+                    // lägg automatiskt en ledande "0" om man börjar med "," → "0,".
+                    let txt = t.replace('.', ',').replace(/[^0-9,]/g, '');
+                    if (txt.startsWith(',')) txt = '0' + txt;
+                    setAmountDraft(txt);
+                    const v = parseFloat(txt.replace(',', '.'));
                     setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
                   }}
                   onBlur={() => {
@@ -356,8 +377,11 @@ export default function MenuScreen() {
                   // hoppar till nästa input. Sista raden blurar normalt.
                   blurOnSubmit={!nextKey}
                   onSubmitEditing={() => {
-                    if (nextKey) setEditingAmountKey(nextKey);
-                    else setEditingAmountKey(null);
+                    if (nextKey) {
+                      const nv = haveAtHome[nextKey] ?? 0;
+                      setAmountDraft(nv > 0 ? fmtQty(nv) : '');
+                      setEditingAmountKey(nextKey);
+                    } else setEditingAmountKey(null);
                   }}
                   returnKeyType={nextKey ? 'next' : 'done'}
                 />
@@ -368,7 +392,7 @@ export default function MenuScreen() {
         ) : (
           <Pressable
             style={[s.invAmountWrapV2, haveAmt > 0 && s.invAmountWrapHas]}
-            onPress={() => setEditingAmountKey(agg.key)}
+            onPress={() => { setAmountDraft(haveAmt > 0 ? fmtQty(haveAmt) : ''); setEditingAmountKey(agg.key); }}
           >
             <Text style={haveAmt > 0 ? s.invAmountTextV2 : s.invAmountTextPlaceholderV2}>
               {haveAmt > 0 ? fmtQty(haveAmt) : 'Har'}
@@ -381,7 +405,7 @@ export default function MenuScreen() {
           onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}
         >
           <Ionicons name="checkmark" size={15} color={covered ? '#fff' : '#9ca3af'} />
-          <Text style={[s.invAllBtnText, covered && s.invAllBtnTextOn]}>Allt</Text>
+          <Text style={[s.invAllBtnText, covered && s.invAllBtnTextOn]}>Finns</Text>
         </Pressable>
       </View>
     );
@@ -621,21 +645,33 @@ export default function MenuScreen() {
   // When returning from "Skapa nytt recept"-flödet, auto-add the new recipe
   // to the requested day so the user doesn't have to re-open the picker.
   useEffect(() => {
-    if (params.addRecipeId && recipes.length > 0 && !addRecipeTriggeredRef.current) {
-      const recipe = recipes.find(r => r.id === params.addRecipeId);
-      if (recipe) {
-        addRecipeTriggeredRef.current = true;
-        if (params.replaceMenuItemId) {
-          replaceMenuItem(params.replaceMenuItemId, recipe);
-        } else {
-          const day = (params.day && DAYS.some(d => d.key === params.day) ? params.day : null) as WeekDay | null;
-          addRecipeToDay(recipe, day);
-        }
-        router.setParams({ addRecipeId: undefined, day: undefined, replaceMenuItemId: undefined });
-      }
+    if (!params.addRecipeId) { addRecipeTriggeredRef.current = false; return; }
+    if (recipes.length === 0 || addRecipeTriggeredRef.current) return;
+
+    // The picker carries the week the user was viewing. The recipe-picker
+    // round-trip can reset weekOffset to the current week, so restore the
+    // viewed week first, then wait until its menu is loaded — otherwise the
+    // duplicate checks and optimistic insert run against the wrong week.
+    const target = parseWeekParam(params.forMenuWeek);
+    if (target && (target.weekYear !== weekYear || target.weekNumber !== weekNumber)) {
+      setWeekOffset(weekOffsetForWeek(target.weekYear, target.weekNumber));
+      return; // re-runs once weekYear/weekNumber match the target
     }
-    if (!params.addRecipeId) addRecipeTriggeredRef.current = false;
-  }, [params.addRecipeId, recipes]);
+    const lw = loadedWeekRef.current;
+    if (!lw || lw.wy !== weekYear || lw.wn !== weekNumber) return; // wait for load()
+
+    const recipe = recipes.find(r => r.id === params.addRecipeId);
+    if (recipe) {
+      addRecipeTriggeredRef.current = true;
+      if (params.replaceMenuItemId) {
+        replaceMenuItem(params.replaceMenuItemId, recipe);
+      } else {
+        const day = (params.day && DAYS.some(d => d.key === params.day) ? params.day : null) as WeekDay | null;
+        addRecipeToDay(recipe, day);
+      }
+      router.setParams({ addRecipeId: undefined, day: undefined, replaceMenuItemId: undefined, forMenuWeek: undefined });
+    }
+  }, [params.addRecipeId, params.forMenuWeek, recipes, weekYear, weekNumber, menuItems]);
 
   function handleCancelBulkTransfer() {
     const originListId = params.originListId;
@@ -683,12 +719,12 @@ export default function MenuScreen() {
   // with ?addRecipeId&day, which the addRecipeId effect below applies to the
   // currently shown week.
   function openPicker(day: WeekDay | null) {
-    router.push(`/recipes?forMenuDay=${day ?? 'none'}` as never);
+    router.push(`/recipes?forMenuDay=${day ?? 'none'}&forMenuWeek=${weekYear}-${weekNumber}` as never);
   }
 
   // Replace flow now uses the full recipe view (select mode), like "+".
   function startReplaceRecipe(item: WeekMenuItemWithRecipe) {
-    router.push(`/recipes?replaceMenuItemId=${item.id}&replaceTitle=${encodeURIComponent(item.recipe.title)}` as never);
+    router.push(`/recipes?replaceMenuItemId=${item.id}&replaceTitle=${encodeURIComponent(item.recipe.title)}&forMenuWeek=${weekYear}-${weekNumber}` as never);
   }
 
   // Swap a menu item for another recipe on the same day/week (returned from the
@@ -787,7 +823,7 @@ export default function MenuScreen() {
 
     const day = dayOverride !== undefined ? dayOverride : pickingForDay;
 
-    if (day !== null && menuItems.some(i => i.day === day)) {
+    if (day !== null && menuItems.some(i => i.day === day && !pendingMenuItemRemovals.has(i.id))) {
       const dayLabel = DAYS.find(d => d.key === day)?.label ?? day;
       const confirmed = await new Promise<boolean>(resolve =>
         confirm({
@@ -802,7 +838,7 @@ export default function MenuScreen() {
       if (!confirmed) { closePicker(); return; }
     }
 
-    if (menuItems.some(i => i.recipeId === recipe.id)) {
+    if (menuItems.some(i => i.recipeId === recipe.id && !pendingMenuItemRemovals.has(i.id))) {
       const confirmed = await new Promise<boolean>(resolve =>
         confirm({
           title: 'Rätt redan tillagd',
@@ -1078,7 +1114,9 @@ export default function MenuScreen() {
   }
 
   async function moveToDay(item: WeekMenuItemWithRecipe, day: WeekDay | null) {
-    if (day !== null && menuItems.some(i => i.day === day && i.id !== item.id)) {
+    // Ignore dishes pending removal (5s undo window) — the user already removed
+    // them, so the day shouldn't count as occupied.
+    if (day !== null && menuItems.some(i => i.day === day && i.id !== item.id && !pendingMenuItemRemovals.has(i.id))) {
       const dayLabel = DAYS.find(d => d.key === day)?.label ?? day;
       const confirmed = await new Promise<boolean>(resolve =>
         confirm({
@@ -1099,20 +1137,6 @@ export default function MenuScreen() {
     } catch (e) {
       setMenuItems(prev => prev.map(i => i.id === item.id ? item : i));
       showError(e, 'Kunde inte flytta rätten');
-    }
-  }
-
-  async function removeFromShoppingList(menuItemId: string) {
-    const menuItem = menuItems.find(i => i.id === menuItemId);
-    if (!menuItem) return;
-    const lists = recipeListMap[menuItemId] ?? [];
-    if (lists.length === 0) return;
-
-    if (lists.length === 1) {
-      await executeCleanup(menuItem, [lists[0].listId]);
-    } else {
-      setCleanupPrompt({ menuItem, lists });
-      setSelectedCleanupLists(new Set(lists.map(l => l.listId)));
     }
   }
 
@@ -1422,7 +1446,7 @@ export default function MenuScreen() {
                       onPress={() => {
                         const day = pickingForDay ?? '';
                         setShowPicker(false);
-                        router.push(`/recipes?create=1&forMenuDay=${day}` as never);
+                        router.push(`/recipes?create=1&forMenuDay=${day}&forMenuWeek=${weekYear}-${weekNumber}` as never);
                       }}
                     >
                       <View style={[s.recipeCardIcon, { backgroundColor: '#eef2ff' }]}>

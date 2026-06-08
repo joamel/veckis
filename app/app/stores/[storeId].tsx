@@ -11,17 +11,16 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type Store } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type Store } from '@veckis/shared';
 
 export default function StoreDetailScreen() {
-  const insets = useSafeAreaInsets();
   const { storeId } = useLocalSearchParams<{ storeId: string }>();
   const router = useRouter();
   const client = useApiClient();
@@ -45,7 +44,6 @@ export default function StoreDetailScreen() {
   const [showRename, setShowRename] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [renaming, setRenaming] = useState(false);
-  const [newCustom, setNewCustom] = useState('');
 
   const hiddenEnum = useMemo(
     () => DEFAULT_CATEGORY_ORDER.filter(c => !visibleEnum.includes(c)),
@@ -103,28 +101,6 @@ export default function StoreDetailScreen() {
     setDirty(true);
   }
 
-  function moveCustomUp(idx: number) {
-    if (idx === 0) return;
-    setCustomCategories(prev => {
-      const next = [...prev];
-      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-      return next;
-    });
-    setDirty(true);
-  }
-  function moveCustomDown(idx: number) {
-    setCustomCategories(prev => {
-      if (idx >= prev.length - 1) return prev;
-      const next = [...prev];
-      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-      return next;
-    });
-    setDirty(true);
-  }
-  function removeCustom(name: string) {
-    setCustomCategories(prev => prev.filter(c => c !== name));
-    setDirty(true);
-  }
   function toggleSubExpanded(sub: string) {
     setExpandedSubs(prev =>
       prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub],
@@ -140,17 +116,6 @@ export default function StoreDetailScreen() {
     });
   }
 
-  function addCustom() {
-    const trimmed = newCustom.trim();
-    if (!trimmed) return;
-    if (customCategories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
-      confirm({ title: 'Finns redan', message: `Kategorin "${trimmed}" finns redan.`, buttons: [{ label: 'OK' }] });
-      return;
-    }
-    setCustomCategories(prev => [...prev, trimmed]);
-    setNewCustom('');
-    setDirty(true);
-  }
 
   async function save() {
     if (!store) return;

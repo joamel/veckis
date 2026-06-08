@@ -8,7 +8,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { NotificationsModal } from '../src/components/NotificationsModal';
 import { useOnboardingMaster } from '../src/context/SpotlightTipContext';
-import { useOnceFlag } from '../src/hooks/useOnceFlag';
 import { TIP_FLAGS } from '../src/lib/onboardingTips';
 import * as SecureStore from '../src/lib/secureStorage';
 import { useToast } from '../src/context/ToastContext';
@@ -44,7 +43,7 @@ export default function PreferencesScreen() {
     const version = Constants.expoConfig?.version ?? 'okänd';
     const subject = encodeURIComponent('Veckis-support');
     const body = encodeURIComponent(`\n\n---\nVersion: ${version}\nPlattform: ${Platform.OS}\n`);
-    const url = `mailto:support@veckis.app?subject=${subject}&body=${body}`;
+    const url = `mailto:veckis.support@gmail.com?subject=${subject}&body=${body}`;
     if (Platform.OS === 'web') {
       window.location.href = url;
     } else {

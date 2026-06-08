@@ -15,7 +15,7 @@ import {
   Vibration,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useUser } from '@clerk/clerk-expo';
@@ -200,6 +200,7 @@ export default function ScheduleScreen() {
   const { user } = useUser();
   const { medium } = useHaptics();
   const { isTablet, fs, sp } = useTablet();
+  const insets = useSafeAreaInsets();
   const userId = user?.id;
 
   const [weekRef, setWeekRef] = useState(new Date());
@@ -289,6 +290,7 @@ export default function ScheduleScreen() {
 
   // Edit entry modal
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
+  const [viewingEntry, setViewingEntry] = useState<ScheduleEntry | null>(null);
   const [entryConflict, setEntryConflict] = useState<{ msg: string; latest: ScheduleEntry } | null>(null);
   const [editEntryTitle, setEditEntryTitle] = useState('');
   const [editEntryTimeEnabled, setEditEntryTimeEnabled] = useState(false);
@@ -405,15 +407,16 @@ export default function ScheduleScreen() {
     if (shown) { filterTipShownRef.current = true; filterTip.markSeen(); }
   }, [tipsReady, members.length, filterTip.seen, filterTip.markSeen, showTip]));
 
-  // Deep link from a tapped activity notification (L45): open that entry's edit
-  // dialog once the entries have loaded, then clear the param so it won't re-fire.
+  // Deep link from a tapped activity notification (L45): land on the calendar
+  // tab and show the entry's read-only summary (not the edit dialog), then clear
+  // the param so it won't re-fire.
   useEffect(() => {
     const id = deeplinkParams.entryId;
     if (!id || entries.length === 0 || openedEntryParamRef.current === id) return;
     const entry = entries.find(e => e.id === id);
     if (entry) {
       openedEntryParamRef.current = id;
-      doOpenEditEntry(entry, 'series');
+      setViewingEntry(entry);
       router.setParams({ entryId: undefined });
     }
   }, [deeplinkParams.entryId, entries, router]);
@@ -496,6 +499,10 @@ export default function ScheduleScreen() {
     if (!householdId || !newTitle.trim()) return;
     setCreating(true);
     try {
+      // Anchor one-offs to the concrete date of newDay in the viewed week, so
+      // they render only that day instead of every matching weekday.
+      const newDayIdx = DAYS.findIndex(d => d.key === newDay);
+      const newDayDateStr = toIsoLocal(new Date(weekMonday.getTime() + newDayIdx * DAY_MS));
       const entry = await client.createScheduleEntry({
         householdId,
         title: newTitle.trim(),
@@ -511,12 +518,13 @@ export default function ScheduleScreen() {
         recurrenceWeeks: newRecurrenceType !== 'none' ? newRecurrenceWeeks : undefined,
         monthlyType: newRecurrenceType === 'monthly' ? newMonthlyType : undefined,
         recurrenceWeekOfMonth: newRecurrenceType === 'monthly' && newMonthlyType === 'weekday_of_month' ? newRecurrenceWeekOfMonth : undefined,
-        startDate: newStartDate,
-        endDate: newEndDate,
+        startDate: newRecurrenceType === 'none' ? newDayDateStr : newStartDate,
+        endDate: newRecurrenceType === 'none' ? newDayDateStr : newEndDate,
       });
       setEntries(prev => prev.some(e => e.id === entry.id) ? prev : [...prev, entry]);
       setShowModal(false);
       resetNewEntryForm();
+      showToast('Aktivitet skapad', 'success');
     } catch (e: any) {
       showError(e, e?.message ?? 'Kunde inte skapa schemapost');
     } finally {
@@ -675,6 +683,42 @@ export default function ScheduleScreen() {
     }
   }
 
+  // 3-prickar-meny i läsvyn: redigera eller ta bort utan att klicket direkt
+  // hamnar i redigeringsläget.
+  function openEntryActions(entry: ScheduleEntry) {
+    confirm({
+      title: entry.title,
+      buttons: [
+        { label: 'Redigera', onPress: () => { setViewingEntry(null); openEditEntry(entry); } },
+        { label: 'Ta bort', style: 'destructive', onPress: () => { setViewingEntry(null); deleteEntry(entry, selectedDayDateStr); } },
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
+  }
+
+  // Mänsklig sammanfattning av upprepningen för läsvyn.
+  function recurrenceSummary(entry: ScheduleEntry): string {
+    const every = entry.recurrenceWeeks > 1 ? `var ${entry.recurrenceWeeks}:e ` : 'varje ';
+    switch (entry.recurrenceType) {
+      case 'none':
+        return 'Engångstillfälle';
+      case 'daily':
+        return entry.recurrenceWeeks > 1 ? `Var ${entry.recurrenceWeeks}:e dag` : 'Varje dag';
+      case 'weekly':
+      case 'custom_days': {
+        const days = (entry.recurrenceDays?.length ? entry.recurrenceDays : [entry.day])
+          .map(k => DAYS.find(d => d.key === k)?.label ?? k);
+        return `${every}vecka${days.length ? ` (${days.join(', ')})` : ''}`;
+      }
+      case 'monthly':
+        return `${every}månad`;
+      case 'yearly':
+        return `${every}år`;
+      default:
+        return '';
+    }
+  }
+
   async function saveEditEntry() {
     if (!editingEntry || !editEntryTitle.trim()) return;
     setSavingEntry(true);
@@ -720,6 +764,7 @@ export default function ScheduleScreen() {
         setEntries(prev => prev.map(e => e.id === updated.id ? updated : e));
       }
       setEditingEntry(null);
+      showToast('Aktivitet sparad', 'success');
     } catch (e) {
       showError(e, 'Kunde inte spara aktiviteten');
     } finally {
@@ -770,9 +815,33 @@ export default function ScheduleScreen() {
   const isCurrentMonth = monthRef.getMonth() === now.getMonth() && monthRef.getFullYear() === now.getFullYear();
 
   const visibleEntries = entries.filter(e => e.isShared || e.createdBy === userId);
-  const addDays = (date: Date, n: number) => new Date(date.getTime() + n * 86400000);
   const weekdayKeyOf = (date: Date): WeekDay =>
     (['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()]) as WeekDay;
+  const toIsoLocal = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  // Whether a schedule entry should render on a given absolute date. One-time
+  // entries ('none') are anchored to their startDate; recurring entries delegate
+  // to the shared occursOn() so the rule matches chores exactly. Matching on
+  // weekday alone (the old behaviour) made one-offs repeat every week.
+  const entryVisibleOnDate = (e: ScheduleEntry, date: Date): boolean => {
+    const ds = toIsoLocal(date);
+    if (e.exceptions?.includes(ds)) return false;
+    if (e.recurrenceType === 'none') {
+      // Date-anchored one-off. Legacy entries created before anchoring have no
+      // startDate — fall back to weekday match so they don't silently vanish.
+      return e.startDate ? e.startDate === ds : e.day === weekdayKeyOf(date);
+    }
+    return occursOn({
+      recurrenceType: e.recurrenceType,
+      recurrenceWeeks: e.recurrenceWeeks,
+      recurrenceDays: e.recurrenceDays && e.recurrenceDays.length > 0 ? e.recurrenceDays : [e.day],
+      monthlyType: e.monthlyType,
+      recurrenceWeekOfMonth: e.recurrenceWeekOfMonth,
+      startDate: e.startDate,
+      endDate: e.endDate,
+    }, date);
+  };
 
   // Day data for an arbitrary absolute date — filters by THAT date's weekday so
   // the content day-pager can render the previous/next day (even across a week
@@ -781,10 +850,7 @@ export default function ScheduleScreen() {
     const wd = weekdayKeyOf(date);
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     const dEntries = visibleEntries.filter(e =>
-      e.day === wd &&
-      !e.exceptions?.includes(dateStr) &&
-      (!e.startDate || dateStr >= e.startDate) &&
-      (!e.endDate || dateStr <= e.endDate) &&
+      entryVisibleOnDate(e, date) &&
       (filterMemberIds.length === 0 || ((e.assignedToMany && e.assignedToMany.some(id => filterMemberIds.includes(id))) || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo))))
     ).sort((a, b) => {
       if (!a.startTime && b.startTime) return -1;
@@ -808,13 +874,9 @@ export default function ScheduleScreen() {
   const totalPerDayOn = (pageMonday: Date, day: WeekDay) => {
     const idx = DAYS.findIndex(d => d.key === day);
     const dt = new Date(pageMonday.getTime() + idx * 86400000);
-    const dtStr = dt.toISOString().slice(0, 10);
     const filterActive = filterMemberIds.length > 0;
     return visibleEntries.filter(e =>
-      e.day === day &&
-      !e.exceptions?.includes(dtStr) &&
-      (!e.startDate || dtStr >= e.startDate) &&
-      (!e.endDate || dtStr <= e.endDate) &&
+      entryVisibleOnDate(e, dt) &&
       (!filterActive || ((e.assignedToMany && e.assignedToMany.some(id => filterMemberIds.includes(id))) || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo))))
     ).length +
       (filterActive ? 0 : menuItems.filter(i => i.day === day).length) +
@@ -910,8 +972,8 @@ export default function ScheduleScreen() {
             <Pressable
               key={entry.id}
               style={[s.entryCard, isPast && { opacity: 0.5 }]}
-              onPress={() => openEditEntry(entry)}
-              onLongPress={() => { medium(); openEditEntry(entry); }}
+              onPress={() => setViewingEntry(entry)}
+              onLongPress={() => { medium(); openEntryActions(entry); }}
             >
               <View style={[s.menuIcon, { backgroundColor: '#ecfeff' }]}>
                 <Ionicons name="calendar-outline" size={fs(16)} color="#0891b2" />
@@ -984,7 +1046,7 @@ export default function ScheduleScreen() {
                 chores={chores}
                 userId={userId}
                 onSelectDay={handleSelectDayFromMonth}
-                onEditEntry={(entry) => setEditingEntry(entry)}
+                onEditEntry={(entry) => setViewingEntry(entry)}
                 onEditChore={(chore) => setEditingCalChore(chore)}
                 onToday={!isCurrentMonth ? () => { setMonthRef(new Date()); setWeekRef(new Date()); setSelectedDay(weekdayKeyOf(new Date())); } : undefined}
                 selectedDate={selectedDayDate}
@@ -1190,6 +1252,67 @@ export default function ScheduleScreen() {
         </>
       )}
 
+      {/* View entry — full-screen read-only view; edit/delete under the 3-dot */}
+      <Modal visible={!!viewingEntry} animationType="slide" onRequestClose={() => setViewingEntry(null)}>
+        <View style={[s.viewFull, { paddingTop: insets.top }]}>
+          {viewingEntry && (() => {
+            const e = viewingEntry;
+            const ids = e.assignedToMany?.length ? e.assignedToMany : e.assignedTo ? [e.assignedTo] : [];
+            const names = ids.map(id => getMemberName(id)).filter(Boolean) as string[];
+            let dateLabel = DAYS.find(d => d.key === e.day)?.label ?? '';
+            if (e.recurrenceType === 'none' && e.startDate) {
+              const [yy, mm, dd] = e.startDate.split('-').map(Number);
+              const months = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+              dateLabel = `${dateLabel} ${dd} ${months[mm - 1]} ${yy}`;
+            }
+            return (
+              <>
+                <View style={s.viewNav}>
+                  <Pressable onPress={() => setViewingEntry(null)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Stäng">
+                    <Ionicons name="arrow-back" size={24} color="#111827" />
+                  </Pressable>
+                  <View style={{ flex: 1 }} />
+                  <Pressable onPress={() => openEntryActions(e)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                    <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
+                  </Pressable>
+                </View>
+                <ScrollView contentContainerStyle={[s.viewBody, { paddingBottom: insets.bottom + 24 }]}>
+                  <Text style={s.viewTitle}>{e.title}</Text>
+                  <View style={s.viewRow}>
+                    <Ionicons name="calendar-outline" size={18} color="#6b7280" />
+                    <Text style={s.viewRowText}>{dateLabel}</Text>
+                  </View>
+                  <View style={s.viewRow}>
+                    <Ionicons name="time-outline" size={18} color="#6b7280" />
+                    <Text style={s.viewRowText}>{e.startTime ?? 'Heldag'}</Text>
+                  </View>
+                  <View style={s.viewRow}>
+                    <Ionicons name="repeat-outline" size={18} color="#6b7280" />
+                    <Text style={s.viewRowText}>{recurrenceSummary(e)}</Text>
+                  </View>
+                  {names.length > 0 && (
+                    <View style={s.viewRow}>
+                      <Ionicons name="people-outline" size={18} color="#6b7280" />
+                      <Text style={s.viewRowText}>{names.join(', ')}</Text>
+                    </View>
+                  )}
+                  <View style={s.viewRow}>
+                    <Ionicons name={e.isShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color="#6b7280" />
+                    <Text style={s.viewRowText}>{e.isShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
+                  </View>
+                  {!!e.description && (
+                    <View style={[s.viewRow, { alignItems: 'flex-start' }]}>
+                      <Ionicons name="document-text-outline" size={18} color="#6b7280" style={{ marginTop: 2 }} />
+                      <Text style={s.viewRowText}>{e.description}</Text>
+                    </View>
+                  )}
+                </ScrollView>
+              </>
+            );
+          })()}
+        </View>
+      </Modal>
+
       {/* Edit entry modal */}
       <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
@@ -1201,7 +1324,7 @@ export default function ScheduleScreen() {
             message={entryConflict?.msg ?? null}
             onShowLatest={entryConflict ? () => { doOpenEditEntry(entryConflict.latest, editMode); setEntryConflict(null); } : undefined}
           />
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Titel"
@@ -1260,7 +1383,7 @@ export default function ScheduleScreen() {
             {members.length > 0 && editEntryIsShared && (
               <>
                 <Text style={s.label}>Tilldela personer (valfritt)</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberPickerRow}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.memberPickerRow}>
                   {members.map(m => {
                     const active = editEntryAssignedToMany.includes(m.id);
                     return (
@@ -1427,7 +1550,7 @@ export default function ScheduleScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny aktivitet</Text>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Titel, t.ex. Träning"
@@ -1471,7 +1594,7 @@ export default function ScheduleScreen() {
             {members.length > 0 && newIsShared && (
               <>
                 <Text style={s.label}>Tilldela personer (valfritt)</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberPickerRow}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.memberPickerRow}>
                   {members.map(m => {
                     const active = newAssignedToMany.includes(m.id);
                     return (
@@ -1656,6 +1779,13 @@ const s = StyleSheet.create({
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '92%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },
+  viewFull: { flex: 1, backgroundColor: '#fff' },
+  viewNav: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8 },
+  viewNavBtn: { padding: 8 },
+  viewBody: { paddingHorizontal: 20, paddingTop: 8, gap: 4 },
+  viewTitle: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  viewRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
+  viewRowText: { flex: 1, fontSize: 16, color: '#374151' },
   sheetScroll: { gap: 14, paddingBottom: 40 },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#f9fafb' },
   label: { fontSize: 14, fontWeight: '600', color: '#374151' },
