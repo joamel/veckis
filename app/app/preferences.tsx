@@ -44,7 +44,7 @@ export default function PreferencesScreen() {
     const version = Constants.expoConfig?.version ?? 'okänd';
     const subject = encodeURIComponent('Veckis-support');
     const body = encodeURIComponent(`\n\n---\nVersion: ${version}\nPlattform: ${Platform.OS}\n`);
-    const url = `mailto:support@veckis.app?subject=${subject}&body=${body}`;
+    const url = `mailto:veckis.support@gmail.com?subject=${subject}&body=${body}`;
     if (Platform.OS === 'web') {
       window.location.href = url;
     } else {

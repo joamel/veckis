@@ -5,7 +5,7 @@
 Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskrivning finns kvar i sin sektion.
 
 **P0 — go-live-blockare eller datakorruption:**
-1. ⚠️ Support-mail före go-live — BESLUT: registrera `veckis.app` (manuell åtgärd, ej kod; se Generellt)
+1. ~~⚠️ Support-mail före go-live~~ ✅ bytt till `veckis.support@gmail.com` (gratis, ingen domän)
 2. ~~Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald (Kalendern)~~ ✅
 3. ~~Maträtt på tidigare vecka läggs in på nuvarande vecka (Meny)~~ ✅
 4. ~~Planera en rätt-knappen lägger in på fel vecka (Meny)~~ ✅
@@ -100,7 +100,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [ ] Refaktorera och skapa fler filer för egna komponenter mm
 - [ ] Frontend render-tester (RNTL) — kräver setup av jsdom + react-native-web + mocks av Clerk/AsyncStorage/WebSocket. ~30 min setup, sen ~30 min per komponent. Prioritet: MultiMemberPicker (chip-toggle + rotation-row dyker upp vid 2+), performer-pickern, SpotlightTip-gate.
 - [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**.
-- [ ] ⚠️ Innan go-live: fixa support-mailadressen. **BESLUT (2026-06-08): behåll `support@veckis.app` och registrera domänen** (i st. f. att byta till gmail). Adressen används i privacy.tsx, terms.tsx och `handleContactSupport` i preferences.tsx — koden är alltså redan rätt. **Manuell åtgärd kvar (ej kod):** köp `veckis.app` + sätt upp mailbox/forward så adressen faktiskt tar emot mail. Ingen Render/OTA/PWA-rebuild krävs eftersom adressen inte ändras. Bockas av när domänen + mailboxen är på plats.
+- [x] ⚠️ Innan go-live: fixa support-mailadressen. **LÖST (2026-06-08): bytt `support@veckis.app` → `veckis.support@gmail.com`** (gratis dedikerad Gmail, ingen domän att köpa). Clerk ger ingen inkorg och forward kräver ägd domän, så gratis-Gmail var enda no-cost-vägen. Ändrat i terms.tsx (2), privacy.tsx (2), preferences.tsx (mailto) och settings.tsx (mailto). Adressen når användarna vid nästa OTA/PWA-deploy. **Kvar för dig:** skapa själva Gmail-kontot `veckis.support@gmail.com` så mailen tas emot.
 - [ ] Trycker man på en notis hamnar man inne i redigeringsläget. Räcker att hamna i sysslor/kalender-fliken etc
 
 ### Inställningar
