@@ -3,6 +3,7 @@ import * as SecureStore from '../lib/secureStorage';
 import { useIsFocused } from '@react-navigation/native';
 import { SpotlightTip, type SpotlightOptions } from '../components/SpotlightTip';
 import { SKIP_ALL_FLAG } from '../lib/onboardingTips';
+import { evaluateTipGate } from '../lib/tipGate';
 
 /** Returns true when the tip is shown; false if another tip is already up (so
  *  callers can skip `markSeen` and retry on a future render / session). */
@@ -107,10 +108,15 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const show = useCallback<ShowTipFn>((o) => {
-    if (!welcomeReadyRef.current) return false; // välkomstmodalen blockerar
-    if (skipAllRef.current) return false; // master kill-switch
-    if (optsRef.current?.title === o.title) return true;
-    if (queueRef.current.some(q => q.title === o.title)) return true;
+    const gate = evaluateTipGate({
+      welcomeReady: welcomeReadyRef.current,
+      skipAll: skipAllRef.current,
+      activeTitle: optsRef.current?.title ?? null,
+      queuedTitles: queueRef.current.map(q => q.title),
+      title: o.title,
+    });
+    if (gate === 'blocked') return false;
+    if (gate === 'duplicate') return true;
     if (optsRef.current === null) {
       optsRef.current = o;
       setOpts(o);
