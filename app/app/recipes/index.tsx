@@ -389,7 +389,7 @@ export default function RecipesScreen() {
       ) : (
         <Pressable style={s.fab} onPress={wrapAddRecipeTip(
           openModal,
-          { title: 'Skapa recept', message: 'Lägg till ett recept manuellt eller importera direkt från en webbsida — klistra bara in URL:en så scrapar appen titel, ingredienser, bild och instruktioner automatiskt.' },
+          { title: 'Skapa recept', message: 'Lägg till ett recept manuellt eller importera direkt från en webbsida — klistra bara in URL:en så hämtar appen titel, ingredienser, bild och instruktioner automatiskt.' },
         )}>
           <Ionicons name="add" size={30} color="#fff" />
         </Pressable>
