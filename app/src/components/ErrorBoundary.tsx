@@ -1,5 +1,5 @@
 import { Component, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { reportClientError } from '../lib/errorReport';
 
 interface Props {
@@ -27,6 +27,17 @@ export class ErrorBoundary extends Component<Props, State> {
 
   reset = () => this.setState({ hasError: false });
 
+  // Hård omladdning — hjälper vid ihållande fel där "Försök igen" (re-render)
+  // skulle kasta igen. Web: ladda om sidan. Native: ladda om JS-bundlen via
+  // expo-updates (dynamisk import så web/test inte drar in native-modulen).
+  reload = () => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') window.location.reload();
+      return;
+    }
+    import('expo-updates').then(U => U.reloadAsync?.().catch(() => {})).catch(() => {});
+  };
+
   render() {
     if (!this.state.hasError) return this.props.children;
     return (
@@ -38,6 +49,9 @@ export class ErrorBoundary extends Component<Props, State> {
         </Text>
         <Pressable style={s.btn} onPress={this.reset} accessibilityRole="button" accessibilityLabel="Försök igen">
           <Text style={s.btnText}>Försök igen</Text>
+        </Pressable>
+        <Pressable style={s.btnSecondary} onPress={this.reload} accessibilityRole="button" accessibilityLabel="Ladda om appen">
+          <Text style={s.btnSecondaryText}>Ladda om appen</Text>
         </Pressable>
       </View>
     );
@@ -51,4 +65,6 @@ const s = StyleSheet.create({
   body: { fontSize: 15, color: '#6b7280', textAlign: 'center', lineHeight: 21 },
   btn: { marginTop: 8, backgroundColor: '#4f46e5', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 28 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnSecondary: { paddingVertical: 10, paddingHorizontal: 20 },
+  btnSecondaryText: { color: '#4f46e5', fontSize: 15, fontWeight: '600' },
 });
