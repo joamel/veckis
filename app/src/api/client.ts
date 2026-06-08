@@ -159,6 +159,10 @@ export function useApiClient() {
     leaveHousehold: (householdId: string) =>
       request<void>(`/api/households/${householdId}/leave`, { method: 'POST' }),
 
+    /** Raderar det inloggade Clerk-kontot + städar alla medlemskap (backend). */
+    deleteAccount: () =>
+      request<void>('/api/account', { method: 'DELETE' }),
+
     /** Audit-events för hushållet, nyaste först. Admin-only på backend.
      *  before-cursor: skickar in createdAt från sista raden för "ladda fler". */
     getAuditLog: (householdId: string, opts: { limit?: number; before?: string } = {}) => {
