@@ -6,7 +6,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 
 **P0 — go-live-blockare eller datakorruption:**
 1. ⚠️ Support-mail före go-live (se Generellt)
-2. Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald (Kalendern)
+2. ~~Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald (Kalendern)~~ ✅
 3. Maträtt på tidigare vecka läggs in på nuvarande vecka (Meny)
 4. Planera en rätt-knappen lägger in på fel vecka (Meny)
 5. Flytta upp specialkost-kategori funkar inte i en butik (Inköp)
@@ -298,7 +298,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [x] Datepickern borde visa datumet man är på och väljer man ett datum i datepickern borde kalendern uppdatera så att det är den dagen som väljs i veckovyn
 - [x] Använda samma veckonummer-bar som i menyfliken (kalenderns WeekNav visar nu "Vecka {nr}" utan år, som menyn)
 - [x] Idag-knappen hoppar inte till rätt dag (endast rätt vecka)
-- [ ] Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald
+- [x] Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald: tillfällen renderades på `e.day === veckodag` utan att respektera `recurrenceType`, och engångstillfällen skapades med `startDate: null` → ingen veckoinformation → visades varje matchande veckodag. Nu (a) ankras engångstillfällen vid skapande till det faktiska datumet (`startDate`/`endDate` = vald dag i visad vecka), och (b) renderingen går via ny `entryVisibleOnDate`-helper som speglar `choreVisibleOnDay` och delegerar till `occursOn`. Fixar på köpet latenta buggar för befintliga tillfällen (varannan-vecka, flera veckodagar, dagliga/månatliga renderades tidigare fel)
 - [ ] Klickar man på en aktivitet borde man inte hamna direkt i redigeringsläge utan bara read-vy med sammanfattning av aktiviteten och sedan ha redigeringsmöjlighet under 3 prickar
 
 ### Sysslor

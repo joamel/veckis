@@ -496,6 +496,10 @@ export default function ScheduleScreen() {
     if (!householdId || !newTitle.trim()) return;
     setCreating(true);
     try {
+      // Anchor one-offs to the concrete date of newDay in the viewed week, so
+      // they render only that day instead of every matching weekday.
+      const newDayIdx = DAYS.findIndex(d => d.key === newDay);
+      const newDayDateStr = toIsoLocal(new Date(weekMonday.getTime() + newDayIdx * DAY_MS));
       const entry = await client.createScheduleEntry({
         householdId,
         title: newTitle.trim(),
@@ -511,8 +515,8 @@ export default function ScheduleScreen() {
         recurrenceWeeks: newRecurrenceType !== 'none' ? newRecurrenceWeeks : undefined,
         monthlyType: newRecurrenceType === 'monthly' ? newMonthlyType : undefined,
         recurrenceWeekOfMonth: newRecurrenceType === 'monthly' && newMonthlyType === 'weekday_of_month' ? newRecurrenceWeekOfMonth : undefined,
-        startDate: newStartDate,
-        endDate: newEndDate,
+        startDate: newRecurrenceType === 'none' ? newDayDateStr : newStartDate,
+        endDate: newRecurrenceType === 'none' ? newDayDateStr : newEndDate,
       });
       setEntries(prev => prev.some(e => e.id === entry.id) ? prev : [...prev, entry]);
       setShowModal(false);
@@ -773,6 +777,31 @@ export default function ScheduleScreen() {
   const addDays = (date: Date, n: number) => new Date(date.getTime() + n * 86400000);
   const weekdayKeyOf = (date: Date): WeekDay =>
     (['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()]) as WeekDay;
+  const toIsoLocal = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  // Whether a schedule entry should render on a given absolute date. One-time
+  // entries ('none') are anchored to their startDate; recurring entries delegate
+  // to the shared occursOn() so the rule matches chores exactly. Matching on
+  // weekday alone (the old behaviour) made one-offs repeat every week.
+  const entryVisibleOnDate = (e: ScheduleEntry, date: Date): boolean => {
+    const ds = toIsoLocal(date);
+    if (e.exceptions?.includes(ds)) return false;
+    if (e.recurrenceType === 'none') {
+      // Date-anchored one-off. Legacy entries created before anchoring have no
+      // startDate — fall back to weekday match so they don't silently vanish.
+      return e.startDate ? e.startDate === ds : e.day === weekdayKeyOf(date);
+    }
+    return occursOn({
+      recurrenceType: e.recurrenceType,
+      recurrenceWeeks: e.recurrenceWeeks,
+      recurrenceDays: e.recurrenceDays && e.recurrenceDays.length > 0 ? e.recurrenceDays : [e.day],
+      monthlyType: e.monthlyType,
+      recurrenceWeekOfMonth: e.recurrenceWeekOfMonth,
+      startDate: e.startDate,
+      endDate: e.endDate,
+    }, date);
+  };
 
   // Day data for an arbitrary absolute date — filters by THAT date's weekday so
   // the content day-pager can render the previous/next day (even across a week
@@ -781,10 +810,7 @@ export default function ScheduleScreen() {
     const wd = weekdayKeyOf(date);
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     const dEntries = visibleEntries.filter(e =>
-      e.day === wd &&
-      !e.exceptions?.includes(dateStr) &&
-      (!e.startDate || dateStr >= e.startDate) &&
-      (!e.endDate || dateStr <= e.endDate) &&
+      entryVisibleOnDate(e, date) &&
       (filterMemberIds.length === 0 || ((e.assignedToMany && e.assignedToMany.some(id => filterMemberIds.includes(id))) || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo))))
     ).sort((a, b) => {
       if (!a.startTime && b.startTime) return -1;
@@ -808,13 +834,9 @@ export default function ScheduleScreen() {
   const totalPerDayOn = (pageMonday: Date, day: WeekDay) => {
     const idx = DAYS.findIndex(d => d.key === day);
     const dt = new Date(pageMonday.getTime() + idx * 86400000);
-    const dtStr = dt.toISOString().slice(0, 10);
     const filterActive = filterMemberIds.length > 0;
     return visibleEntries.filter(e =>
-      e.day === day &&
-      !e.exceptions?.includes(dtStr) &&
-      (!e.startDate || dtStr >= e.startDate) &&
-      (!e.endDate || dtStr <= e.endDate) &&
+      entryVisibleOnDate(e, dt) &&
       (!filterActive || ((e.assignedToMany && e.assignedToMany.some(id => filterMemberIds.includes(id))) || (e.assignedTo != null && filterMemberIds.includes(e.assignedTo))))
     ).length +
       (filterActive ? 0 : menuItems.filter(i => i.day === day).length) +
