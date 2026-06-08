@@ -404,18 +404,15 @@ export default function ChoresScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // Deep link from a tapped chore notification (L45): open that chore's edit
-  // dialog once chores have loaded, then clear the param so it won't re-fire.
+  // Deep link from a tapped chore notification (L45): landing on the chores tab
+  // is enough — don't pop the edit dialog. Just consume the param so it won't
+  // re-fire (the navigation itself already brought us to the right tab).
   useEffect(() => {
     const id = deeplinkParams.choreId;
-    if (!id || chores.length === 0 || openedChoreParamRef.current === id) return;
-    const chore = chores.find(c => c.id === id);
-    if (chore) {
-      openedChoreParamRef.current = id;
-      openEdit(chore);
-      router.setParams({ choreId: undefined });
-    }
-  }, [deeplinkParams.choreId, chores, router]);
+    if (!id || openedChoreParamRef.current === id) return;
+    openedChoreParamRef.current = id;
+    router.setParams({ choreId: undefined });
+  }, [deeplinkParams.choreId, router]);
 
   // Intro-tip: vad fliken är till för. Fyrar först av allt så användaren
   // förstår syftet direkt (även med tom lista).

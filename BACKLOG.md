@@ -14,7 +14,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 **P1 — tydliga UX-bugar:**
 6. ~~Tar man bort en maträtt och flyttar en annan till samma dag → felaktig dubbel-varning (Meny)~~ ✅
 7. ~~Klick på aktivitet → hamnar direkt i redigeringsläge, borde vara read-vy (Kalendern)~~ ✅
-8. Notis-tap hamnar i redigeringsläget — räcker att hamna på rätt flik (Generellt)
+8. ~~Notis-tap hamnar i redigeringsläget — räcker att hamna på rätt flik (Generellt)~~ ✅
 9. "Du handlar nu"-bannern lägger sig ovanpå rubriken (Inköp)
 
 **P2 — mindre fix/polish:**
@@ -101,7 +101,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [ ] Frontend render-tester (RNTL) — kräver setup av jsdom + react-native-web + mocks av Clerk/AsyncStorage/WebSocket. ~30 min setup, sen ~30 min per komponent. Prioritet: MultiMemberPicker (chip-toggle + rotation-row dyker upp vid 2+), performer-pickern, SpotlightTip-gate.
 - [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**.
 - [x] ⚠️ Innan go-live: fixa support-mailadressen. **LÖST (2026-06-08): bytt `support@veckis.app` → `veckis.support@gmail.com`** (gratis dedikerad Gmail, ingen domän att köpa). Clerk ger ingen inkorg och forward kräver ägd domän, så gratis-Gmail var enda no-cost-vägen. Ändrat i terms.tsx (2), privacy.tsx (2), preferences.tsx (mailto) och settings.tsx (mailto). Adressen når användarna vid nästa OTA/PWA-deploy. **Kvar för dig:** skapa själva Gmail-kontot `veckis.support@gmail.com` så mailen tas emot.
-- [ ] Trycker man på en notis hamnar man inne i redigeringsläget. Räcker att hamna i sysslor/kalender-fliken etc
+- [x] Trycker man på en notis hamnar man inne i redigeringsläget. Räcker att hamna i sysslor/kalender-fliken etc: notis-deep-link öppnade `doOpenEditEntry`/`openEdit` (redigering). Nu öppnar aktivitetsnotisen läsvyn (`setViewingEntry`, se #7) på kalenderfliken, och syssel-notisen landar bara på sysslor-fliken (paramet konsumeras utan att öppna editor).
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)

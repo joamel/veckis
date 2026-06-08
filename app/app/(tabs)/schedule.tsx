@@ -406,15 +406,16 @@ export default function ScheduleScreen() {
     if (shown) { filterTipShownRef.current = true; filterTip.markSeen(); }
   }, [tipsReady, members.length, filterTip.seen, filterTip.markSeen, showTip]));
 
-  // Deep link from a tapped activity notification (L45): open that entry's edit
-  // dialog once the entries have loaded, then clear the param so it won't re-fire.
+  // Deep link from a tapped activity notification (L45): land on the calendar
+  // tab and show the entry's read-only summary (not the edit dialog), then clear
+  // the param so it won't re-fire.
   useEffect(() => {
     const id = deeplinkParams.entryId;
     if (!id || entries.length === 0 || openedEntryParamRef.current === id) return;
     const entry = entries.find(e => e.id === id);
     if (entry) {
       openedEntryParamRef.current = id;
-      doOpenEditEntry(entry, 'series');
+      setViewingEntry(entry);
       router.setParams({ entryId: undefined });
     }
   }, [deeplinkParams.entryId, entries, router]);
