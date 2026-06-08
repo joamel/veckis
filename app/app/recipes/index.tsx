@@ -38,7 +38,7 @@ const MENU_DAYS: { key: WeekDay; label: string }[] = [
 
 export default function RecipesScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ create?: string; forMenuDay?: string; replaceMenuItemId?: string; replaceTitle?: string }>();
+  const params = useLocalSearchParams<{ create?: string; forMenuDay?: string; replaceMenuItemId?: string; replaceTitle?: string; forMenuWeek?: string }>();
   const createTriggeredRef = useRef(false);
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -109,20 +109,23 @@ export default function RecipesScreen() {
     ? MENU_DAYS.find(d => d.key === params.forMenuDay)?.label
     : 'utan dag';
 
+  // Carry the viewed week back so the dish lands there, not in the current week.
+  const weekSuffix = params.forMenuWeek ? `&forMenuWeek=${params.forMenuWeek}` : '';
+
   function selectRecipeForMenu(recipe: RecipeWithIngredients) {
     if (replaceMode) {
       confirm({
         title: 'Byt ut rätt',
         message: `Ersätt "${params.replaceTitle ?? 'rätten'}" med "${recipe.title}"?`,
         buttons: [
-          { label: 'Byt ut', style: 'destructive', onPress: () => router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&replaceMenuItemId=${params.replaceMenuItemId}` as never) },
+          { label: 'Byt ut', style: 'destructive', onPress: () => router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&replaceMenuItemId=${params.replaceMenuItemId}${weekSuffix}` as never) },
           { label: 'Avbryt', style: 'cancel' },
         ],
       });
       return;
     }
     const day = params.forMenuDay === 'none' ? '' : (params.forMenuDay ?? '');
-    router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${day}` as never);
+    router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${day}${weekSuffix}` as never);
   }
 
   const filteredRecipes = useMemo(() => {
@@ -232,7 +235,7 @@ export default function RecipesScreen() {
       setShowModal(false);
       setTitle('');
       const forMenuDay = params.forMenuDay;
-      const suffix = forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '';
+      const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
       router.push(`/recipes/${recipe.id}?edit=1${suffix}` as never);
     } catch {
       confirm({ title: 'Fel', message: 'Kunde inte skapa recept', buttons: [{ label: 'OK' }] });

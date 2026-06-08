@@ -7,8 +7,8 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 **P0 — go-live-blockare eller datakorruption:**
 1. ⚠️ Support-mail före go-live (se Generellt)
 2. ~~Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald (Kalendern)~~ ✅
-3. Maträtt på tidigare vecka läggs in på nuvarande vecka (Meny)
-4. Planera en rätt-knappen lägger in på fel vecka (Meny)
+3. ~~Maträtt på tidigare vecka läggs in på nuvarande vecka (Meny)~~ ✅
+4. ~~Planera en rätt-knappen lägger in på fel vecka (Meny)~~ ✅
 5. Flytta upp specialkost-kategori funkar inte i en butik (Inköp)
 
 **P1 — tydliga UX-bugar:**
@@ -268,8 +268,8 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
 - [ ] Borde kunna klistra in ett recept (kopierade ingredienser) manuellt om inte url funkar, som gör om till en ingredienslista
 - [ ] Tar man bort en maträtt och flyttar en annan rätt till den dagen får man en varning att dagen redan är planerad trots att man tagit bort den tidigare maträtten
-- [ ] Lägger man in en maträtt på en tidigare vecka läggs den in på nuvarande vecka.. Ev borde man inte kunna lägga in maträtter på en tidigare vecka
-- [ ] Trycker man "planera  en rätt" i framtida vecka hamnar den i nuvarande veckas meny
+- [x] Lägger man in en maträtt på en tidigare/framtida vecka läggs den in på nuvarande vecka: rotorsak = receptväljaren navigerar via `router.replace('/(tabs)/menu?addRecipeId=...')` som återställer menyns `weekOffset`. Nu trådas den visade veckan genom navigeringen (`forMenuWeek=YYYY-WW`) via alla hopp (openPicker, startReplaceRecipe, create-flödet, recipes/index, recipes/[recipeId]); vid retur återställs `weekOffset` till målveckan och tillägget väntar tills rätt veckas meny laddats (korrekta dubbelkollar + optimistisk insert). (Produktfrågan "borde man kunna lägga på tidigare vecka alls" kvarstår som separat val.)
+- [x] Trycker man "planera en rätt" i framtida vecka hamnar den i nuvarande veckas meny: samma rotorsak/fix som ovan (vecka trådas genom receptväljaren)
 - [ ] Lägga in automatiskt en "0" om man skriver ","
 
 ### Kalendern

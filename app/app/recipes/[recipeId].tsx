@@ -34,7 +34,7 @@ const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', '
 
 export default function RecipeDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { recipeId, transfer, edit, forMenuDay } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string }>();
+  const { recipeId, transfer, edit, forMenuDay, forMenuWeek } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string }>();
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -261,7 +261,8 @@ export default function RecipeDetailScreen() {
       setRecipe(updated);
       setEditMode(false);
       if (forMenuDay !== undefined) {
-        router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}` as never);
+        const weekSuffix = forMenuWeek ? `&forMenuWeek=${forMenuWeek}` : '';
+        router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}${weekSuffix}` as never);
       }
     } catch {
       confirm({ title: 'Fel', message: 'Kunde inte spara receptet', buttons: [{ label: 'OK' }] });

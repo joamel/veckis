@@ -65,6 +65,22 @@ function getWeekMonday(weekOffset: number): Date {
   return monday;
 }
 
+// weekOffset (relative to today) that lands on the given absolute ISO week.
+// Used to restore the viewed week after the recipe-picker navigation round-trip.
+function weekOffsetForWeek(weekYear: number, weekNumber: number): number {
+  const target = getISOWeekMonday(weekYear, weekNumber).getTime();
+  const today = getWeekMonday(0).getTime();
+  return Math.round((target - today) / (7 * 86400000));
+}
+
+// Parse a "YYYY-WW" week param (threaded through the recipe picker so the dish
+// lands in the week the user was viewing, not the current week).
+function parseWeekParam(s?: string): { weekYear: number; weekNumber: number } | null {
+  if (!s) return null;
+  const m = /^(\d+)-(\d+)$/.exec(s);
+  return m ? { weekYear: Number(m[1]), weekNumber: Number(m[2]) } : null;
+}
+
 interface AggIngredient {
   key: string;
   name: string;
@@ -78,7 +94,7 @@ interface AggIngredient {
 
 export default function MenuScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string; replaceMenuItemId?: string }>();
+  const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string; replaceMenuItemId?: string; forMenuWeek?: string }>();
   const addRecipeTriggeredRef = useRef(false);
   const bulkTransferTriggeredRef = useRef(false);
   const client = useApiClient();
@@ -621,21 +637,33 @@ export default function MenuScreen() {
   // When returning from "Skapa nytt recept"-flödet, auto-add the new recipe
   // to the requested day so the user doesn't have to re-open the picker.
   useEffect(() => {
-    if (params.addRecipeId && recipes.length > 0 && !addRecipeTriggeredRef.current) {
-      const recipe = recipes.find(r => r.id === params.addRecipeId);
-      if (recipe) {
-        addRecipeTriggeredRef.current = true;
-        if (params.replaceMenuItemId) {
-          replaceMenuItem(params.replaceMenuItemId, recipe);
-        } else {
-          const day = (params.day && DAYS.some(d => d.key === params.day) ? params.day : null) as WeekDay | null;
-          addRecipeToDay(recipe, day);
-        }
-        router.setParams({ addRecipeId: undefined, day: undefined, replaceMenuItemId: undefined });
-      }
+    if (!params.addRecipeId) { addRecipeTriggeredRef.current = false; return; }
+    if (recipes.length === 0 || addRecipeTriggeredRef.current) return;
+
+    // The picker carries the week the user was viewing. The recipe-picker
+    // round-trip can reset weekOffset to the current week, so restore the
+    // viewed week first, then wait until its menu is loaded — otherwise the
+    // duplicate checks and optimistic insert run against the wrong week.
+    const target = parseWeekParam(params.forMenuWeek);
+    if (target && (target.weekYear !== weekYear || target.weekNumber !== weekNumber)) {
+      setWeekOffset(weekOffsetForWeek(target.weekYear, target.weekNumber));
+      return; // re-runs once weekYear/weekNumber match the target
     }
-    if (!params.addRecipeId) addRecipeTriggeredRef.current = false;
-  }, [params.addRecipeId, recipes]);
+    const lw = loadedWeekRef.current;
+    if (!lw || lw.wy !== weekYear || lw.wn !== weekNumber) return; // wait for load()
+
+    const recipe = recipes.find(r => r.id === params.addRecipeId);
+    if (recipe) {
+      addRecipeTriggeredRef.current = true;
+      if (params.replaceMenuItemId) {
+        replaceMenuItem(params.replaceMenuItemId, recipe);
+      } else {
+        const day = (params.day && DAYS.some(d => d.key === params.day) ? params.day : null) as WeekDay | null;
+        addRecipeToDay(recipe, day);
+      }
+      router.setParams({ addRecipeId: undefined, day: undefined, replaceMenuItemId: undefined, forMenuWeek: undefined });
+    }
+  }, [params.addRecipeId, params.forMenuWeek, recipes, weekYear, weekNumber, menuItems]);
 
   function handleCancelBulkTransfer() {
     const originListId = params.originListId;
@@ -683,12 +711,12 @@ export default function MenuScreen() {
   // with ?addRecipeId&day, which the addRecipeId effect below applies to the
   // currently shown week.
   function openPicker(day: WeekDay | null) {
-    router.push(`/recipes?forMenuDay=${day ?? 'none'}` as never);
+    router.push(`/recipes?forMenuDay=${day ?? 'none'}&forMenuWeek=${weekYear}-${weekNumber}` as never);
   }
 
   // Replace flow now uses the full recipe view (select mode), like "+".
   function startReplaceRecipe(item: WeekMenuItemWithRecipe) {
-    router.push(`/recipes?replaceMenuItemId=${item.id}&replaceTitle=${encodeURIComponent(item.recipe.title)}` as never);
+    router.push(`/recipes?replaceMenuItemId=${item.id}&replaceTitle=${encodeURIComponent(item.recipe.title)}&forMenuWeek=${weekYear}-${weekNumber}` as never);
   }
 
   // Swap a menu item for another recipe on the same day/week (returned from the
@@ -1422,7 +1450,7 @@ export default function MenuScreen() {
                       onPress={() => {
                         const day = pickingForDay ?? '';
                         setShowPicker(false);
-                        router.push(`/recipes?create=1&forMenuDay=${day}` as never);
+                        router.push(`/recipes?create=1&forMenuDay=${day}&forMenuWeek=${weekYear}-${weekNumber}` as never);
                       }}
                     >
                       <View style={[s.recipeCardIcon, { backgroundColor: '#eef2ff' }]}>
