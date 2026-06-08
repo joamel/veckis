@@ -1927,34 +1927,51 @@ export default function ShoppingListScreen() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Markera dubbletter själv</Text>
-          <Text style={s.sheetSub}>Välj minst två varor som ska slås ihop</Text>
-          <ScrollView style={s.mergeList} showsVerticalScrollIndicator={false}>
-            {list?.items
-              .filter(i => !i.isChecked && !i.id.startsWith('optimistic-'))
-              .sort((a, b) => a.name.localeCompare(b.name, 'sv'))
-              .map(item => {
-                const checked = manualPickerSelected.has(item.id);
-                return (
-                  <Pressable
-                    key={item.id}
-                    style={s.mergeItem}
-                    onPress={() => setManualPickerSelected(prev => {
-                      const next = new Set(prev);
-                      if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
-                      return next;
-                    })}
-                  >
-                    <Ionicons
-                      name={checked ? 'checkbox' : 'square-outline'}
-                      size={22}
-                      color={checked ? '#4f46e5' : '#9ca3af'}
-                    />
-                    <Text style={s.mergeItemText} numberOfLines={1}>
-                      {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+          <Text style={s.sheetSub}>Bocka i minst två varor som ska slås ihop</Text>
+          {/* Samma kategori-gruppering som den vanliga listan så det är lätt att
+              hitta rätt varor (i st. f. en platt bokstavsordnad lista). */}
+          <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
+            {buildCategoryGroups(
+              (list?.items ?? []).filter(i => !i.isChecked && !i.id.startsWith('optimistic-')),
+              categoryOrder, customCategories, expandedSubs,
+            ).map(group => {
+              const key = group.isCustom ? `c:${group.category}` : group.isSub ? `s:${group.category}` : group.category as string;
+              const label = group.isCustom
+                ? `🏷️ ${group.category}`
+                : group.isSub
+                  ? group.label ?? String(group.category)
+                  : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+              return (
+                <View key={key} style={s.categoryGroup}>
+                  <View style={[s.categoryHeader, group.isSub && s.categorySubHeader]}>
+                    <Text style={[s.categoryLabel, group.isSub && s.categorySubLabel]} numberOfLines={2}>{label}</Text>
+                  </View>
+                  {group.items.map(item => {
+                    const checked = manualPickerSelected.has(item.id);
+                    return (
+                      <Pressable
+                        key={item.id}
+                        style={s.mergeItem}
+                        onPress={() => setManualPickerSelected(prev => {
+                          const next = new Set(prev);
+                          if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                          return next;
+                        })}
+                      >
+                        <Ionicons
+                          name={checked ? 'checkbox' : 'square-outline'}
+                          size={22}
+                          color={checked ? '#4f46e5' : '#9ca3af'}
+                        />
+                        <Text style={s.mergeItemText} numberOfLines={1}>
+                          {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              );
+            })}
           </ScrollView>
           <Pressable
             style={[s.qtyConfirm, manualPickerSelected.size < 2 && s.saveBtnDisabled]}

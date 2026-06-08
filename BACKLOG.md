@@ -19,7 +19,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 
 **P2 — mindre fix/polish:**
 10. ~~Lägg in en "0" automatiskt om man skriver "," först (Meny)~~ ✅
-11. Markera dubbletter själv: visa som vanlig inköpslista istället för dialog (Inköp)
+11. ~~Markera dubbletter själv: visa som vanlig inköpslista istället för dialog (Inköp)~~ ✅
 12. ~~"Min tur" — överflödig knapp, ta bort (Sysslor)~~ ✅
 13. ~~Sortera sysslor efter tidigast förfallodatum (Sysslor)~~ ✅
 
@@ -206,7 +206,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [x] Kategorier — migration (backend/jobs/backfillSubCategory.ts kör vid start; försöker matcha customCategory-strängen först sen item.name via inferSubCategory; idempotent. Schema-cleanup av customCategory-fältet återstår tills alla items konverterats): string-similarity-matchning av befintliga `customCategory`-strängar mot bästa sub. Träff över threshold → auto. Resten flaggas för manuell granskning i admin-vy. När alla items konverterats: ta bort `customCategory`-kolumnen + `Store.customCategories`.
 - [x] Flytta upp specialkost-kategori i en butik funkar inte i praktiken (låg kvar längst ned): `buildCategoryGroups` lade bara en parent i `orderedEnum` om den hade *direkta* items. När alla special-diet-items brutits ut i expanderade subs (vegan/glutenfritt/övrig specialkost) saknade `special_diet` direkta items → hamnade aldrig i ordningen → sub-sektionerna orphan:ades sist oavsett butiksordning. Nu inkluderas parents som har expanderade subs i `orderedEnum` (på sin butiksordnings-position); parent-headern hoppas över när den saknar direkta items men sub-sektionerna renderas i rätt slot. Den döda orphan-loopen borttagen.
 - [x] "Du handlar nu" bannern lägger sig ovanpå rubriken: bannern var absolut-positionerad i titel-områdets position. Först flyttad till en centrerad pill i navbaren, men den krockade med rubriken när den fälls upp till mitten vid scroll. Slutlig lösning (v3): full text "X handlar" till höger innan scroll som kollapsar (opacity + maxWidth via `scrollY`-interpolation) till bara den rosa gubbe-ikonen när rubriken fälls upp till mitten. Ikonen pulserar diskret var ~10:e sekund (Reanimated withRepeat/withSequence/withDelay) som påminnelse. Tryck på den när jag själv handlar → dialog "Avsluta handla-läge"; tryck när någon annan handlar → toast med vem.
-- [ ] Vyn för att markera dubbletter själv borde kunna se ut som vanliga inköpslistan för att enklare välja rätt dubbletter. Den som kommer nu i en dialog är otydlig och i boktavsordning. Hade varit enklare att "Markera själv" -> få upp "vanliga" inköpslistan och bocka i de man vill slå ihop
+- [x] Vyn för att markera dubbletter själv ser nu ut som vanliga inköpslistan: den manuella väljaren visade en platt, bokstavsordnad lista. Nu grupperas varorna med samma `buildCategoryGroups` + kategori-headers (emoji + label, subs) som huvudlistan, och listan får växa (flexShrink istället för fast maxHeight 200) så det känns som den vanliga listan. Bocka i ≥2 → Fortsätt.
 - [ ] Kunna ta swipa höger för att ta bort en vara från inköpslistan helt (med ångra toast)
 
 
