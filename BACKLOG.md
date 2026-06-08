@@ -13,7 +13,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 
 **P1 — tydliga UX-bugar:**
 6. ~~Tar man bort en maträtt och flyttar en annan till samma dag → felaktig dubbel-varning (Meny)~~ ✅
-7. Klick på aktivitet → hamnar direkt i redigeringsläge, borde vara read-vy (Kalendern)
+7. ~~Klick på aktivitet → hamnar direkt i redigeringsläge, borde vara read-vy (Kalendern)~~ ✅
 8. Notis-tap hamnar i redigeringsläget — räcker att hamna på rätt flik (Generellt)
 9. "Du handlar nu"-bannern lägger sig ovanpå rubriken (Inköp)
 
@@ -299,7 +299,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [x] Använda samma veckonummer-bar som i menyfliken (kalenderns WeekNav visar nu "Vecka {nr}" utan år, som menyn)
 - [x] Idag-knappen hoppar inte till rätt dag (endast rätt vecka)
 - [x] Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald: tillfällen renderades på `e.day === veckodag` utan att respektera `recurrenceType`, och engångstillfällen skapades med `startDate: null` → ingen veckoinformation → visades varje matchande veckodag. Nu (a) ankras engångstillfällen vid skapande till det faktiska datumet (`startDate`/`endDate` = vald dag i visad vecka), och (b) renderingen går via ny `entryVisibleOnDate`-helper som speglar `choreVisibleOnDay` och delegerar till `occursOn`. Fixar på köpet latenta buggar för befintliga tillfällen (varannan-vecka, flera veckodagar, dagliga/månatliga renderades tidigare fel)
-- [ ] Klickar man på en aktivitet borde man inte hamna direkt i redigeringsläge utan bara read-vy med sammanfattning av aktiviteten och sedan ha redigeringsmöjlighet under 3 prickar
+- [x] Klickar man på en aktivitet borde man inte hamna direkt i redigeringsläge utan bara read-vy med sammanfattning + redigering under 3 prickar: ny `viewingEntry`-läsvy (modal) som visar titel + datum/veckodag, tid/heldag, upprepning (ny `recurrenceSummary`-helper), tilldelade personer, gemensam/privat och beskrivning. 3-prickar i headern (`openEntryActions`) → Redigera/Ta bort. Tap på kortet öppnar nu läsvyn (long-press → 3-prickar-menyn direkt); tablet-månadsvyn öppnar också läsvyn.
 
 ### Sysslor
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.

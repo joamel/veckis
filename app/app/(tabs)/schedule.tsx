@@ -289,6 +289,7 @@ export default function ScheduleScreen() {
 
   // Edit entry modal
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
+  const [viewingEntry, setViewingEntry] = useState<ScheduleEntry | null>(null);
   const [entryConflict, setEntryConflict] = useState<{ msg: string; latest: ScheduleEntry } | null>(null);
   const [editEntryTitle, setEditEntryTitle] = useState('');
   const [editEntryTimeEnabled, setEditEntryTimeEnabled] = useState(false);
@@ -679,6 +680,42 @@ export default function ScheduleScreen() {
     }
   }
 
+  // 3-prickar-meny i läsvyn: redigera eller ta bort utan att klicket direkt
+  // hamnar i redigeringsläget.
+  function openEntryActions(entry: ScheduleEntry) {
+    confirm({
+      title: entry.title,
+      buttons: [
+        { label: 'Redigera', onPress: () => { setViewingEntry(null); openEditEntry(entry); } },
+        { label: 'Ta bort', style: 'destructive', onPress: () => { setViewingEntry(null); deleteEntry(entry, selectedDayDateStr); } },
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
+  }
+
+  // Mänsklig sammanfattning av upprepningen för läsvyn.
+  function recurrenceSummary(entry: ScheduleEntry): string {
+    const every = entry.recurrenceWeeks > 1 ? `var ${entry.recurrenceWeeks}:e ` : 'varje ';
+    switch (entry.recurrenceType) {
+      case 'none':
+        return 'Engångstillfälle';
+      case 'daily':
+        return entry.recurrenceWeeks > 1 ? `Var ${entry.recurrenceWeeks}:e dag` : 'Varje dag';
+      case 'weekly':
+      case 'custom_days': {
+        const days = (entry.recurrenceDays?.length ? entry.recurrenceDays : [entry.day])
+          .map(k => DAYS.find(d => d.key === k)?.label ?? k);
+        return `${every}vecka${days.length ? ` (${days.join(', ')})` : ''}`;
+      }
+      case 'monthly':
+        return `${every}månad`;
+      case 'yearly':
+        return `${every}år`;
+      default:
+        return '';
+    }
+  }
+
   async function saveEditEntry() {
     if (!editingEntry || !editEntryTitle.trim()) return;
     setSavingEntry(true);
@@ -932,8 +969,8 @@ export default function ScheduleScreen() {
             <Pressable
               key={entry.id}
               style={[s.entryCard, isPast && { opacity: 0.5 }]}
-              onPress={() => openEditEntry(entry)}
-              onLongPress={() => { medium(); openEditEntry(entry); }}
+              onPress={() => setViewingEntry(entry)}
+              onLongPress={() => { medium(); openEntryActions(entry); }}
             >
               <View style={[s.menuIcon, { backgroundColor: '#ecfeff' }]}>
                 <Ionicons name="calendar-outline" size={fs(16)} color="#0891b2" />
@@ -1006,7 +1043,7 @@ export default function ScheduleScreen() {
                 chores={chores}
                 userId={userId}
                 onSelectDay={handleSelectDayFromMonth}
-                onEditEntry={(entry) => setEditingEntry(entry)}
+                onEditEntry={(entry) => setViewingEntry(entry)}
                 onEditChore={(chore) => setEditingCalChore(chore)}
                 onToday={!isCurrentMonth ? () => { setMonthRef(new Date()); setWeekRef(new Date()); setSelectedDay(weekdayKeyOf(new Date())); } : undefined}
                 selectedDate={selectedDayDate}
@@ -1211,6 +1248,65 @@ export default function ScheduleScreen() {
           </Pressable>
         </>
       )}
+
+      {/* View entry modal — read-only summary; edit/delete sit under the 3-dot */}
+      <Modal visible={!!viewingEntry} transparent animationType="slide" onRequestClose={() => setViewingEntry(null)}>
+        <Pressable style={s.overlay} onPress={() => setViewingEntry(null)} />
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
+          <View style={s.sheet}>
+            <View style={s.sheetHandle} />
+            {viewingEntry && (() => {
+              const e = viewingEntry;
+              const ids = e.assignedToMany?.length ? e.assignedToMany : e.assignedTo ? [e.assignedTo] : [];
+              const names = ids.map(id => getMemberName(id)).filter(Boolean) as string[];
+              let dateLabel = DAYS.find(d => d.key === e.day)?.label ?? '';
+              if (e.recurrenceType === 'none' && e.startDate) {
+                const [yy, mm, dd] = e.startDate.split('-').map(Number);
+                const months = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+                dateLabel = `${dateLabel} ${dd} ${months[mm - 1]} ${yy}`;
+              }
+              return (
+                <>
+                  <View style={s.viewHeader}>
+                    <Text style={[s.sheetTitle, { flex: 1, marginBottom: 0 }]} numberOfLines={2}>{e.title}</Text>
+                    <Pressable style={s.viewMenuBtn} hitSlop={8} onPress={() => openEntryActions(e)} accessibilityLabel="Fler val">
+                      <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
+                    </Pressable>
+                  </View>
+                  <View style={s.viewRow}>
+                    <Ionicons name="calendar-outline" size={18} color="#6b7280" />
+                    <Text style={s.viewRowText}>{dateLabel}</Text>
+                  </View>
+                  <View style={s.viewRow}>
+                    <Ionicons name="time-outline" size={18} color="#6b7280" />
+                    <Text style={s.viewRowText}>{e.startTime ?? 'Heldag'}</Text>
+                  </View>
+                  <View style={s.viewRow}>
+                    <Ionicons name="repeat-outline" size={18} color="#6b7280" />
+                    <Text style={s.viewRowText}>{recurrenceSummary(e)}</Text>
+                  </View>
+                  {names.length > 0 && (
+                    <View style={s.viewRow}>
+                      <Ionicons name="people-outline" size={18} color="#6b7280" />
+                      <Text style={s.viewRowText}>{names.join(', ')}</Text>
+                    </View>
+                  )}
+                  <View style={s.viewRow}>
+                    <Ionicons name={e.isShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color="#6b7280" />
+                    <Text style={s.viewRowText}>{e.isShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
+                  </View>
+                  {!!e.description && (
+                    <View style={s.viewRow}>
+                      <Ionicons name="document-text-outline" size={18} color="#6b7280" />
+                      <Text style={s.viewRowText}>{e.description}</Text>
+                    </View>
+                  )}
+                </>
+              );
+            })()}
+          </View>
+        </View>
+      </Modal>
 
       {/* Edit entry modal */}
       <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
@@ -1678,6 +1774,10 @@ const s = StyleSheet.create({
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '92%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },
+  viewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 10 },
+  viewMenuBtn: { padding: 4, marginTop: -2 },
+  viewRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  viewRowText: { flex: 1, fontSize: 15, color: '#374151' },
   sheetScroll: { gap: 14, paddingBottom: 40 },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#f9fafb' },
   label: { fontSize: 14, fontWeight: '600', color: '#374151' },
