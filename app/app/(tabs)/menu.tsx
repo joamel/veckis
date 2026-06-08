@@ -164,6 +164,7 @@ export default function MenuScreen() {
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> mängd hemma
   const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // omätta ingredienser markerade "har hemma"
   const [editingAmountKey, setEditingAmountKey] = useState<string | null>(null); // vilken rad har input-läge
+  const [amountDraft, setAmountDraft] = useState(''); // rå inmatningstext för aktiv "Har"-input (tillåter "0," under skrivning)
   const [allMenus, setAllMenus] = useState<WeekMenuItemWithRecipe[]>([]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
@@ -356,11 +357,16 @@ export default function MenuScreen() {
                   style={s.invAmountInputV2}
                   keyboardType="numeric"
                   autoFocus
-                  value={haveAmt ? fmtQty(haveAmt) : ''}
+                  value={amountDraft}
                   placeholder="0"
                   placeholderTextColor="#d1d5db"
                   onChangeText={t => {
-                    const v = parseFloat(t.replace(',', '.'));
+                    // Tillåt fri inmatning av decimaler: normalisera "." → "," och
+                    // lägg automatiskt en ledande "0" om man börjar med "," → "0,".
+                    let txt = t.replace('.', ',').replace(/[^0-9,]/g, '');
+                    if (txt.startsWith(',')) txt = '0' + txt;
+                    setAmountDraft(txt);
+                    const v = parseFloat(txt.replace(',', '.'));
                     setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
                   }}
                   onBlur={() => {
@@ -372,8 +378,11 @@ export default function MenuScreen() {
                   // hoppar till nästa input. Sista raden blurar normalt.
                   blurOnSubmit={!nextKey}
                   onSubmitEditing={() => {
-                    if (nextKey) setEditingAmountKey(nextKey);
-                    else setEditingAmountKey(null);
+                    if (nextKey) {
+                      const nv = haveAtHome[nextKey] ?? 0;
+                      setAmountDraft(nv > 0 ? fmtQty(nv) : '');
+                      setEditingAmountKey(nextKey);
+                    } else setEditingAmountKey(null);
                   }}
                   returnKeyType={nextKey ? 'next' : 'done'}
                 />
@@ -384,7 +393,7 @@ export default function MenuScreen() {
         ) : (
           <Pressable
             style={[s.invAmountWrapV2, haveAmt > 0 && s.invAmountWrapHas]}
-            onPress={() => setEditingAmountKey(agg.key)}
+            onPress={() => { setAmountDraft(haveAmt > 0 ? fmtQty(haveAmt) : ''); setEditingAmountKey(agg.key); }}
           >
             <Text style={haveAmt > 0 ? s.invAmountTextV2 : s.invAmountTextPlaceholderV2}>
               {haveAmt > 0 ? fmtQty(haveAmt) : 'Har'}

@@ -18,10 +18,10 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 9. ~~"Du handlar nu"-bannern lägger sig ovanpå rubriken (Inköp)~~ ✅
 
 **P2 — mindre fix/polish:**
-10. Lägg in en "0" automatiskt om man skriver "," först (Meny)
+10. ~~Lägg in en "0" automatiskt om man skriver "," först (Meny)~~ ✅
 11. Markera dubbletter själv: visa som vanlig inköpslista istället för dialog (Inköp)
-12. "Min tur" — överflödig knapp, ta bort (Sysslor)
-13. Sortera sysslor efter tidigast förfallodatum (Sysslor)
+12. ~~"Min tur" — överflödig knapp, ta bort (Sysslor)~~ ✅
+13. ~~Sortera sysslor efter tidigast förfallodatum (Sysslor)~~ ✅
 
 **P3 — uppstädning som inte brinner:**
 14. Tillgänglighet — slutför penna/x/dubblett-labels + filterknappar (Generellt, ~50% klar)
@@ -270,7 +270,7 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [x] Tar man bort en maträtt och flyttar en annan rätt till den dagen får man en varning att dagen redan är planerad trots att man tagit bort den tidigare maträtten: dag-upptagen-kollarna räknade items i pending-removal (5s ångra-fönster) som listan redan döljer. Nu exkluderas `pendingMenuItemRemovals` i alla tre dubbelkollarna (moveToDay, addRecipeToDay dag-kollen + recipeId-kollen).
 - [x] Lägger man in en maträtt på en tidigare/framtida vecka läggs den in på nuvarande vecka: rotorsak = receptväljaren navigerar via `router.replace('/(tabs)/menu?addRecipeId=...')` som återställer menyns `weekOffset`. Nu trådas den visade veckan genom navigeringen (`forMenuWeek=YYYY-WW`) via alla hopp (openPicker, startReplaceRecipe, create-flödet, recipes/index, recipes/[recipeId]); vid retur återställs `weekOffset` till målveckan och tillägget väntar tills rätt veckas meny laddats (korrekta dubbelkollar + optimistisk insert). (Produktfrågan "borde man kunna lägga på tidigare vecka alls" kvarstår som separat val.)
 - [x] Trycker man "planera en rätt" i framtida vecka hamnar den i nuvarande veckas meny: samma rotorsak/fix som ovan (vecka trådas genom receptväljaren)
-- [ ] Lägga in automatiskt en "0" om man skriver ","
+- [x] Lägga in automatiskt en "0" om man skriver ",": "Har"-inputen i inventeringssteget var bunden till ett tal → man kunde inte skriva ett inledande "," (blev NaN → nollställdes). Nu en draft-sträng (`amountDraft`) för aktivt fält som normaliserar "." → "," och prependar "0" vid inledande "," (→ "0,").
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -327,8 +327,8 @@ Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskriv
 - [x] Sysslor – historik visar tur-vs-utförare: utfälld historik räknar fram turn per occurrence (done-count flyttar turen, missade gör inte). När performer ≠ turperson visas "Anna (hoppade in för Bo)". Missade tillfällen visar "Bo missade".
 - [x] Sysslor – "min tur"-snabbfilter: ny chip "Min tur" bredvid Filter-knappen, visas bara när hushållet har en eller flera roterande sysslor. När aktiv visas sysslor där jag är aktuell turperson (eller där rotation är av men jag är med).
 - [x] Sysslor – rotation-action-tip: när användaren har 2+ medlemmar valda i editorn (i create eller edit) fyrar "Turas om automatiskt"-tipset en gång (seen-rotation-toggle-tip) som förklarar toggle:n
-- [ ] "Min tur" är överflödig knapp
-- [ ] Sysslor borde sorteras efter tidigast förfallodatum
+- [x] "Min tur" är överflödig knapp: borttagen (chip + `myTurnOnly`-state + turn-filtret i `sortedChores`). `computeCurrentTurn` används fortfarande för rotation-beräkningen i editorn.
+- [x] Sysslor borde sorteras efter tidigast förfallodatum: ej-klara sorteras nu på effektivt förfallodatum (överförfallna/dagens datum först via `recurringStatus`, nästa tillfälle annars; engångssysslor = idag). Klara hamnar fortsatt sist.
 
 
 ---

@@ -325,9 +325,6 @@ export default function ChoresScreen() {
   const [loading, setLoading] = useState(true);
   const { filterMemberIds, setFilterMemberIds } = useMemberFilter();
   const [showFilterModal, setShowFilterModal] = useState(false);
-  // "Min tur"-snabbfilter: visa bara roterande sysslor där JAG har tur just nu.
-  // Sysslor utan rotation där jag är med inkluderas alltid (de är "alla mina").
-  const [myTurnOnly, setMyTurnOnly] = useState(false);
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -441,7 +438,8 @@ export default function ChoresScreen() {
     if (shown) { filterTipShownRef.current = true; filterTip.markSeen(); }
   }, [tipsReady, members.length, filterTip.seen, filterTip.markSeen, showTip]));
 
-  // Completed chores sorted to the bottom, with optional member filter
+  // Not-done chores sorted by earliest due date (most overdue first), completed
+  // chores at the bottom, with optional member filter.
   const sortedChores = useMemo(() => {
     // Multi-assign matchning: filter slår om någon i assignedToMany finns i
     // filtret. Fallback till legacy single assignedTo om many-arrayen är tom.
@@ -449,25 +447,25 @@ export default function ChoresScreen() {
       const ids = c.assignedToMany?.length ? c.assignedToMany : (c.assignedTo ? [c.assignedTo] : []);
       return filterMemberIds.length === 0 || ids.some(id => filterMemberIds.includes(id));
     };
-    // "Min tur"-filter: bara rotation-sysslor där jag är aktuell turperson.
-    // Icke-roterande sysslor jag är med i räknas också som "mina" och hänger
-    // med. Sysslor jag inte är med i alls filtreras bort.
-    const myMemberId = userId ? members.find(m => m.clerkUserId === userId)?.id ?? null : null;
-    const turnFilter = (c: ChoreWithCompletion) => {
-      if (!myTurnOnly) return true;
-      if (!myMemberId) return false;
-      const ids = c.assignedToMany?.length ? c.assignedToMany : (c.assignedTo ? [c.assignedTo] : []);
-      if (!ids.includes(myMemberId)) return false;
-      if (!c.rotation || ids.length < 2) return true;
-      return computeCurrentTurn({ rotation: true, assignedToMany: ids }, c.completions.length) === myMemberId;
-    };
-    const filtered = chores.filter(c => memberFilter(c) && turnFilter(c));
+    const filtered = chores.filter(memberFilter);
     // Match the card's notion of "done": occurrence-based for recurring chores.
     const choreDone = (c: ChoreWithCompletion) => isOnce(c) ? isFullyDone(c) : recurringStatus(c).state === 'done';
+    // Effektivt förfallodatum för sortering: överförfallna/dagens datum för
+    // återkommande, nästa tillfälle annars; engångssysslor utan datum behandlas
+    // som "att göra nu" (idag) så de hamnar bland dagens uppgifter.
+    const todayStr = isoDateStr(new Date());
+    const dueKey = (c: ChoreWithCompletion): string => {
+      if (isOnce(c)) return todayStr;
+      const rs = recurringStatus(c);
+      if (rs.current && !rs.current.done) return rs.current.date; // overdue/today
+      return rs.nextDate ?? '9999-12-31';
+    };
     const done = filtered.filter(choreDone);
-    const notDone = filtered.filter(c => !choreDone(c));
+    const notDone = filtered
+      .filter(c => !choreDone(c))
+      .sort((a, b) => dueKey(a).localeCompare(dueKey(b)));
     return [...notDone, ...done];
-  }, [chores, filterMemberIds, myTurnOnly, userId, members]);
+  }, [chores, filterMemberIds]);
 
   const completedOnce = useMemo(
     () => chores.filter(c => isOnce(c) && c.completions.length > 0),
@@ -797,17 +795,6 @@ export default function ChoresScreen() {
                     <Text style={s.filterBadgeText}>{filterMemberIds.length}</Text>
                   </View>
                 )}
-              </Pressable>
-            )}
-            {chores.some(c => c.rotation && c.assignedToMany?.length >= 2) && (
-              <Pressable
-                style={[s.filterBtn, myTurnOnly && s.filterBtnActive]}
-                onPress={() => setMyTurnOnly(v => !v)}
-                accessibilityRole="switch"
-                accessibilityState={{ checked: myTurnOnly }}
-              >
-                <Ionicons name="person-circle-outline" size={14} color={myTurnOnly ? '#7c3aed' : '#6b7280'} />
-                <Text style={[s.filterBtnText, myTurnOnly && s.filterBtnTextActive]}>Min tur</Text>
               </Pressable>
             )}
           </View>
