@@ -34,9 +34,10 @@ import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { buildAssignedLabel } from '../../src/lib/buildAssignedLabel';
+import { buildPerformerOptions } from '../../src/lib/performerOptions';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import type { Chore, ChoreCompletion, ChoreFrequency, RecurrenceType, WeekDay } from '@veckis/shared';
-import { occursOn, weekdayOf, computeCurrentTurn, computeTurnHistory, type RecurrencePattern } from '@veckis/shared';
+import { occursOn, weekdayOf, computeTurnHistory, type RecurrencePattern } from '@veckis/shared';
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 
@@ -590,34 +591,12 @@ export default function ChoresScreen() {
   //  - 1 tilldelad lokal profil → fråga (gamla beteendet)
   //  - 1 tilldelad Clerk-user eller ingen tilldelad → skippa, kreditera tapparen
   function pickPerformer(chore: ChoreWithCompletion, onPick: (performedByMemberId: string | null) => void) {
-    const assignedIds = chore.assignedToMany?.length ? chore.assignedToMany : (chore.assignedTo ? [chore.assignedTo] : []);
-    const assignedMembers = assignedIds.map(id => members.find(m => m.id === id)).filter((m): m is NonNullable<typeof m> => !!m);
-    const hasLocalProfile = assignedMembers.some(m => m.clerkUserId === null);
-    const isRotating = !!chore.rotation && assignedMembers.length >= 2;
-
-    // Skip-fall: ingen tilldelad ELLER en enskild Clerk-user (utan rotation).
-    if (assignedMembers.length === 0) { onPick(null); return; }
-    if (!isRotating && !hasLocalProfile && assignedMembers.length === 1) { onPick(null); return; }
-
-    const selfMember = userId ? members.find(m => m.clerkUserId === userId) : null;
-    const turnId = isRotating
-      ? computeCurrentTurn({ rotation: true, assignedToMany: assignedIds }, chore.completions.length)
-      : null;
-
-    // Bygg knappar: turperson överst (vid rotation), sen övriga tilldelade,
-    // sen "jag" om jag inte redan är med, sen avbryt.
-    const seen = new Set<string>();
-    const buttons: Parameters<typeof confirm>[0]['buttons'] = [];
-    const pushMember = (id: string, suffix = '') => {
-      if (seen.has(id)) return;
-      seen.add(id);
-      const m = members.find(x => x.id === id);
-      if (!m) return;
-      buttons.push({ label: m.displayName + suffix, onPress: () => onPick(m.id) });
-    };
-    if (turnId) pushMember(turnId, ' (tur)');
-    for (const m of assignedMembers) pushMember(m.id);
-    if (selfMember) pushMember(selfMember.id, ' (du)');
+    const choice = buildPerformerOptions(chore, members, userId);
+    if (choice.kind === 'auto') { onPick(null); return; }
+    const buttons: Parameters<typeof confirm>[0]['buttons'] = choice.options.map(o => ({
+      label: o.label,
+      onPress: () => onPick(o.id),
+    }));
     buttons.push({ label: 'Avbryt', style: 'cancel' });
     confirm({ title: `Vem gjorde "${chore.title}"?`, buttons });
   }
