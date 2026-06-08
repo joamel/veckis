@@ -35,13 +35,13 @@ describe('ErrorBoundary', () => {
 
   it('visar fallback + rapporterar när ett barn kastar', () => {
     render(<ErrorBoundary><Boom /></ErrorBoundary>);
-    expect(screen.getByText('Något gick fel')).toBeInTheDocument();
+    expect(screen.getByText('Hoppsan, något gick fel')).toBeInTheDocument();
     expect(reportClientError).toHaveBeenCalledTimes(1);
   });
 
   it('"Försök igen" återställer och visar barnen när felet är borta', () => {
     render(<ErrorBoundary><Boom /></ErrorBoundary>);
-    expect(screen.getByText('Något gick fel')).toBeInTheDocument();
+    expect(screen.getByText('Hoppsan, något gick fel')).toBeInTheDocument();
     shouldThrow = false; // nästa render kastar inte
     fireEvent.click(screen.getByText('Försök igen'));
     expect(screen.getByText('återhämtad')).toBeInTheDocument();

@@ -27,15 +27,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
   reset = () => this.setState({ hasError: false });
 
-  // Hård omladdning — hjälper vid ihållande fel där "Försök igen" (re-render)
-  // skulle kasta igen. Web: ladda om sidan. Native: ladda om JS-bundlen via
-  // expo-updates (dynamisk import så web/test inte drar in native-modulen).
-  reload = () => {
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined') window.location.reload();
-      return;
-    }
-    import('expo-updates').then(U => U.reloadAsync?.().catch(() => {})).catch(() => {});
+  // Web: en hård sid-omladdning funkar pålitligt. På native finns ingen pålitlig
+  // JS-reload (expo-updates reloadAsync funkar inte i Expo Go) — där visar vi
+  // istället ett råd om att starta om appen manuellt.
+  reloadWeb = () => {
+    if (typeof window !== 'undefined' && window.location) window.location.reload();
   };
 
   render() {
@@ -43,16 +39,21 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <View style={s.container}>
         <Text style={s.emoji}>😵</Text>
-        <Text style={s.title}>Något gick fel</Text>
+        <Text style={s.title}>Hoppsan, något gick fel</Text>
         <Text style={s.body}>
-          Ett oväntat fel inträffade. Försök igen — felet har rapporterats så vi kan fixa det.
+          Ett oväntat fel inträffade. Det har rapporterats automatiskt så vi kan
+          titta på det — du behöver inte göra något.
         </Text>
         <Pressable style={s.btn} onPress={this.reset} accessibilityRole="button" accessibilityLabel="Försök igen">
           <Text style={s.btnText}>Försök igen</Text>
         </Pressable>
-        <Pressable style={s.btnSecondary} onPress={this.reload} accessibilityRole="button" accessibilityLabel="Ladda om appen">
-          <Text style={s.btnSecondaryText}>Ladda om appen</Text>
-        </Pressable>
+        {Platform.OS === 'web' ? (
+          <Pressable style={s.btnSecondary} onPress={this.reloadWeb} accessibilityRole="button" accessibilityLabel="Ladda om sidan">
+            <Text style={s.btnSecondaryText}>Ladda om sidan</Text>
+          </Pressable>
+        ) : (
+          <Text style={s.hint}>Hjälper det inte? Prova att stänga och starta om appen.</Text>
+        )}
       </View>
     );
   }
@@ -67,4 +68,5 @@ const s = StyleSheet.create({
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   btnSecondary: { paddingVertical: 10, paddingHorizontal: 20 },
   btnSecondaryText: { color: '#4f46e5', fontSize: 15, fontWeight: '600' },
+  hint: { marginTop: 4, fontSize: 13, color: '#9ca3af', textAlign: 'center' },
 });
