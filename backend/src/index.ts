@@ -22,6 +22,7 @@ import { staplesRouter } from './routes/staples';
 import { adminRouter } from './routes/admin';
 import { pushRouter } from './routes/push';
 import { clientErrorsRouter } from './routes/clientErrors';
+import { clerkWebhookRouter } from './routes/clerkWebhook';
 import { prisma } from './db';
 import { asyncHandler } from './lib/asyncHandler';
 import { wsSubscribe, wsUnsubscribe } from './lib/wsHub';
@@ -52,6 +53,9 @@ app.use(cors({
 if (!corsAllowlist.includes('*')) {
   console.log(`[CORS] Whitelist active: ${JSON.stringify(corsAllowlist)}`);
 }
+// Clerk-webhooken MÅSTE monteras med rå body FÖRE express.json() — Svix-
+// signaturverifieringen kräver den oparsade body:n.
+app.use('/api/webhooks/clerk', express.raw({ type: 'application/json' }), clerkWebhookRouter);
 app.use(express.json());
 app.use(morgan(isDev ? 'dev' : 'combined'));
 if (!isDev) {
