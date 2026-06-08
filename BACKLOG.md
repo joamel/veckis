@@ -1,5 +1,34 @@
 # Veckis — Backlog
 
+## 🔥 Prioritet nu — buggar & fix
+
+Sorterat efter risk × insats. Bocka av här när punkten är klar; full beskrivning finns kvar i sin sektion.
+
+**P0 — go-live-blockare eller datakorruption:**
+1. ⚠️ Support-mail före go-live (se Generellt)
+2. Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald (Kalendern)
+3. Maträtt på tidigare vecka läggs in på nuvarande vecka (Meny)
+4. Planera en rätt-knappen lägger in på fel vecka (Meny)
+5. Flytta upp specialkost-kategori funkar inte i en butik (Inköp)
+
+**P1 — tydliga UX-bugar:**
+6. Tar man bort en maträtt och flyttar en annan till samma dag → felaktig dubbel-varning (Meny)
+7. Klick på aktivitet → hamnar direkt i redigeringsläge, borde vara read-vy (Kalendern)
+8. Notis-tap hamnar i redigeringsläget — räcker att hamna på rätt flik (Generellt)
+9. "Du handlar nu"-bannern lägger sig ovanpå rubriken (Inköp)
+
+**P2 — mindre fix/polish:**
+10. Lägg in en "0" automatiskt om man skriver "," först (Meny)
+11. Markera dubbletter själv: visa som vanlig inköpslista istället för dialog (Inköp)
+12. "Min tur" — överflödig knapp, ta bort (Sysslor)
+13. Sortera sysslor efter tidigast förfallodatum (Sysslor)
+
+**P3 — uppstädning som inte brinner:**
+14. Tillgänglighet — slutför penna/x/dubblett-labels + filterknappar (Generellt, ~50% klar)
+15. Städa upp legacy-kod + refaktorera komponenter (Generellt)
+16. Designpass — skuggor/dialoger/grön-mot-skugga (Generellt)
+17. Frontend render-tester (RNTL) (Generellt)
+
 ## UI-förbättringar/buggar
 
 ### Generellt
@@ -53,14 +82,6 @@
 - [x] Onboarding (inköp): action-tip på "+"-FAB (`seen-shopping-add-tip`) som förklarar butikskoppling + meny-överföring
 - [x] Backend integration-tester — vitest med isolerad test-DB (`veckis_test`) + truncate-per-test för deterministisk state. Setup-fil med säkerhetsspärr (kräver `veckis_test` i URL:n). Tester täcker: medlem-borttagning rensar assignedToMany på chores + scheduleEntries, orphan-count räknar både fält (3 tester); chore create/update med syncAssignedTo, rotation cyklar deterministiskt på completions.length, cascade-delete av completions (5 tester); shopping item auto-inferrar subCategory + category, mergedIntoId-filter döljer underordnade rader vid GET/PATCH, "jag handlar"-presence, store-konfig defaults + expandedSubs persistens (8 tester). 76 → 108 gröna tester.
 - [x] Migrera alla `Alert.alert` till nya `ConfirmDialog`/`useConfirm`: 62 av 62 klara. Sista omgången migrerade settings (6), schedule (6), MenuTemplatesModal (2), household/setup (2), sign-in/up (4). Kopierat-/bekräftade info-toast:as nu istället för att öppna en alert. Alert-importerna städade i 6 filer.
-- [ ] möjligt med horisontell-vy i tablet
-- [ ] Tillgänglighet: allt som nås via long-press ska även ha en synlig knapp + accessibility-labels på ikonknappar (penna/x/dubblett) så VoiceOver/TalkBack fungerar (delvis: navigations-/åtgärds-ikoner har labels — WeekNav-pilar, tillbaka-knappar, 3-prickar, kundvagn-FAB; kvar: penna/x/dubblett i listraderna + filterknappar)
-- [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
-- [ ] Städa upp legacy-kod
-- [ ] Refaktorera och skapa fler filer för egna komponenter mm
-- [x] Frontend test-infra: vitest + 48 gröna pure-function-tester. Täcker week.ts (ISO-vecka edge cases inkl år 2020 v53 + 31 dec → v1/nästa år), text.ts (capitalize), buildAssignedLabel (extraherad ur chores.tsx; null-fall, legacy assignedTo, rotation med 2/3 personer + cykling, borttagna medlemmar), inviteUrl (URL-encoding, tom kod), installDetect (parsa UA för Android Chrome/Samsung/Firefox, iOS Safari/Chrome, desktop Chrome/Edge/Firefox/Safari, iPad-maskerade-som-Mac via touch-points).
-- [ ] Frontend render-tester (RNTL) — kräver setup av jsdom + react-native-web + mocks av Clerk/AsyncStorage/WebSocket. ~30 min setup, sen ~30 min per komponent. Prioritet: MultiMemberPicker (chip-toggle + rotation-row dyker upp vid 2+), performer-pickern, SpotlightTip-gate.
-- [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**.
 - [x] Fixa en snygg app-logga — veckoring med 7 segment (indigo→lila→rosa) + V/bock i mitten i lila→rosa-gradient. Genererad från SVG (`app/assets/*.svg`) till PNG via `app/scripts/render-icons.mjs` (resvg). app.json refererar nu icon/splash/adaptiveIcon/favicon. Splash bg `#f5f3ff`, Android adaptive bg `#ede9fe`. Native build krävs för att icon syns i appen.
 - [x] Bjuda in via länk — "Dela länk"-knapp i bjud-in-sektionen genererar `https://veckis-web.onrender.com/household/setup?code=XXX`. På web: Web Share API där det stödjs, annars clipboard-kopiering. På native: systemets share-sheet. Setup-skärmen läser ?code från URL och växlar till "Gå med"-fliken med koden förfylld; persisterar tillfälligt i localStorage så koden överlever sign-in-redirects.
 - [x] Distribution: `/install`-landningssida som detekterar OS/browser (Android Chrome/Samsung/Firefox, iOS Safari/Chrome, desktop Chrome/Edge/Firefox/Safari) och visar rätt instruktion + APK-knapp + PWA-install-knapp via beforeinstallprompt. Plus `InstallBanner` på sign-in som triggar Chromes egen prompt eller iOS-hint (e.preventDefault() tystar Chromes auto-prompt så det inte blir kaka på kaka). 7-dagars dismiss-flag. iOS App Store är fortfarande beroende av Apple Dev-konto + TestFlight.
@@ -71,7 +92,16 @@
 - [x] Snäva CORS från `*` till en faktisk whitelist — `backend/src/lib/corsAllowlist.ts` har förlåtande matchning (lowercase + strip trailing slash via `normalizeOrigin`) + loggar varje unik blockad origin en gång till Render logs (`[CORS] Blocked origin: ...`). 14 tester på normalizeOrigin/parseAllowlist/makeOriginCheck. Aktiveras genom att sätta `CORS_ORIGIN` på Render till t.ex. `https://veckis-web.onrender.com,http://localhost:3000,http://localhost:19006,http://localhost:8081`. Vid start loggar backend `[CORS] Whitelist active: [...]` så man ser exakt vad som plockades upp.
 - [x] 404-route: `app/+not-found.tsx` med vänlig "Sidan hittades inte"-vy + lila ikon-cirkel + Tillbaka-/Till kalendern-knappar. Visar felaktiga path:en. Fångar typos i delade länkar och okända deep-links.
 - [x] Render free-tier wake-up-indikator: `src/lib/backendWakeup.ts` pub/sub-modul som wrap:ar varje request via `trackBackendRequest`. Om första anropet tar > 3 sek fyras 'waking' → `WakeupIndicator` (lila topplist) visar "Servern vaknar… det här tar ofta 10–20 sek första gången". När anropet lyckas markeras backend som vaken permanent — toast spammar inte efterföljande anrop. Failade requests resettar inte vakenheten (en fail betyder inte att backend är vaken).
-- [ ] ⚠️ Innan go-live: fixa support-mailadressen. `support@veckis.app` används idag i privacy.tsx, terms.tsx och `handleContactSupport` i preferences.tsx, men vi äger inte veckis.app-domänen. Antingen registrera domänen + sätt upp en mailbox/forward, eller byt till en adress vi faktiskt äger (t.ex. en gmail-alias eller annan domän vi kontrollerar). Ändra på alla tre ställen + ev. Render-deploy + OTA + PWA-rebuild.
+- [x] Frontend test-infra: vitest + 48 gröna pure-function-tester. Täcker week.ts (ISO-vecka edge cases inkl år 2020 v53 + 31 dec → v1/nästa år), text.ts (capitalize), buildAssignedLabel (extraherad ur chores.tsx; null-fall, legacy assignedTo, rotation med 2/3 personer + cykling, borttagna medlemmar), inviteUrl (URL-encoding, tom kod), installDetect (parsa UA för Android Chrome/Samsung/Firefox, iOS Safari/Chrome, desktop Chrome/Edge/Firefox/Safari, iPad-maskerade-som-Mac via touch-points).
+- [ ] möjligt med horisontell-vy i tablet
+- [ ] Tillgänglighet: allt som nås via long-press ska även ha en synlig knapp + accessibility-labels på ikonknappar (penna/x/dubblett) så VoiceOver/TalkBack fungerar (delvis: navigations-/åtgärds-ikoner har labels — WeekNav-pilar, tillbaka-knappar, 3-prickar, kundvagn-FAB; kvar: penna/x/dubblett i listraderna + filterknappar)
+- [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
+- [ ] Städa upp legacy-kod
+- [ ] Refaktorera och skapa fler filer för egna komponenter mm
+- [ ] Frontend render-tester (RNTL) — kräver setup av jsdom + react-native-web + mocks av Clerk/AsyncStorage/WebSocket. ~30 min setup, sen ~30 min per komponent. Prioritet: MultiMemberPicker (chip-toggle + rotation-row dyker upp vid 2+), performer-pickern, SpotlightTip-gate.
+- [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**.
+- [ ] ⚠️ Innan go-live: fixa support-mailadressen. `support@veckis.app` används idag i privacy.tsx, terms.tsx och `handleContactSupport` i preferences.tsx, men vi äger inte veckis.app-domänen. Antingen registrera domänen + sätt upp en mailbox/forward, eller byt till en adress vi faktiskt äger (t.ex. en gmail-alias eller annan domän vi kontrollerar). Ändra på alla tre ställen + ev. Render-deploy + OTA + PWA-rebuild
+- [ ] Trycker man på en notis hamnar man inne i redigeringsläget. Räcker att hamna i sysslor/kalender-fliken etc
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -174,6 +204,11 @@
 - [x] Kategorier — butikskonfig (Store.expandedSubs + UI i /stores/[storeId] med fäll-ut per parent + toggle per sub; buildCategoryGroups renderar expanderade subs som egna sektioner direkt efter sin parent): under varje parent i `/stores/[storeId]`, fäll ut för att visa relaterade subs. Per sub: toggle "samla under parent" (default) eller "egen sektion". Konfigen styr BARA rendering; inga item-mutations.
 - [x] Kategorier — per-item override (item-editorn har sub-chips filtrerade på valt parent; editSubCategory-state hydreras + skickas till backend tillsammans med editCategory): long-press vara → "Redigera" → byt parent + sub oberoende av varandra (även avvika från taxonomins default). Båda är full radio-pickers över respektive enum.
 - [x] Kategorier — migration (backend/jobs/backfillSubCategory.ts kör vid start; försöker matcha customCategory-strängen först sen item.name via inferSubCategory; idempotent. Schema-cleanup av customCategory-fältet återstår tills alla items konverterats): string-similarity-matchning av befintliga `customCategory`-strängar mot bästa sub. Träff över threshold → auto. Resten flaggas för manuell granskning i admin-vy. När alla items konverterats: ta bort `customCategory`-kolumnen + `Store.customCategories`.
+- [ ] Flytta upp specialkost kategori i en butik funkar inte i praktiken. Ligger fortfarande längst ned i inköpslistan
+- [ ] "Du handlar nu" bannern lägger sig ovanpå rubriken vilket inte är så snyggt. Hade kanske räckt med själva gubbe-ikonen som lyser rosa högst upp i inköpslistan
+- [ ] Vyn för att markera dubbletter själv borde kunna se ut som vanliga inköpslistan för att enklare välja rätt dubbletter. Den som kommer nu i en dialog är otydlig och i boktavsordning. Hade varit enklare att "Markera själv" -> få upp "vanliga" inköpslistan och bocka i de man vill slå ihop
+- [ ] Kunna ta swipa höger för att ta bort en vara från inköpslistan helt (med ångra toast)
+
 
 ### Meny
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
@@ -231,7 +266,11 @@
 - [x] Persistera portionsskalning per menyrätt: skalningen (−/+ på menykortet) sparades bara i lokal state → tappades vid reload och syncade inte mellan enheter. Nu sparas `servings` på WeekMenuItem (fält + migration), PATCH:as debounced vid skalning (null = recept-default), och getScaleRatio/inköpsöverföringen läser det persisterade värdet. menu_updated-broadcasten gör att andra enheter laddar om med rätt portioner.
 - [x] Möjlighet att kopiera en veckomeny till en annan vecka (backend endpoint, UI återstår)
 - [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
-
+- [ ] Borde kunna klistra in ett recept (kopierade ingredienser) manuellt om inte url funkar, som gör om till en ingredienslista
+- [ ] Tar man bort en maträtt och flyttar en annan rätt till den dagen får man en varning att dagen redan är planerad trots att man tagit bort den tidigare maträtten
+- [ ] Lägger man in en maträtt på en tidigare vecka läggs den in på nuvarande vecka.. Ev borde man inte kunna lägga in maträtter på en tidigare vecka
+- [ ] Trycker man "planera  en rätt" i framtida vecka hamnar den i nuvarande veckas meny
+- [ ] Lägga in automatiskt en "0" om man skriver ","
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -259,6 +298,8 @@
 - [x] Datepickern borde visa datumet man är på och väljer man ett datum i datepickern borde kalendern uppdatera så att det är den dagen som väljs i veckovyn
 - [x] Använda samma veckonummer-bar som i menyfliken (kalenderns WeekNav visar nu "Vecka {nr}" utan år, som menyn)
 - [x] Idag-knappen hoppar inte till rätt dag (endast rätt vecka)
+- [ ] Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald
+- [ ] Klickar man på en aktivitet borde man inte hamna direkt i redigeringsläge utan bara read-vy med sammanfattning av aktiviteten och sedan ha redigeringsmöjlighet under 3 prickar
 
 ### Sysslor
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.
@@ -284,7 +325,9 @@
 - [x] Sysslor – realtidsuppdatering av rotation: redan automatiskt löst — chore_completed-broadcasten lägger till en completion på alla enheter och computeCurrentTurn räknar deterministiskt om från completions.length. Ingen extra payload behövs.
 - [x] Sysslor – historik visar tur-vs-utförare: utfälld historik räknar fram turn per occurrence (done-count flyttar turen, missade gör inte). När performer ≠ turperson visas "Anna (hoppade in för Bo)". Missade tillfällen visar "Bo missade".
 - [x] Sysslor – "min tur"-snabbfilter: ny chip "Min tur" bredvid Filter-knappen, visas bara när hushållet har en eller flera roterande sysslor. När aktiv visas sysslor där jag är aktuell turperson (eller där rotation är av men jag är med).
-- [x] Sysslor – rotation-action-tip: när användaren har 2+ medlemmar valda i editorn (i create eller edit) fyrar "Turas om automatiskt"-tipset en gång (seen-rotation-toggle-tip) som förklarar toggle:n.
+- [x] Sysslor – rotation-action-tip: när användaren har 2+ medlemmar valda i editorn (i create eller edit) fyrar "Turas om automatiskt"-tipset en gång (seen-rotation-toggle-tip) som förklarar toggle:n
+- [ ] "Min tur" är överflödig knapp
+- [ ] Sysslor borde sorteras efter tidigast förfallodatum
 
 
 ---
@@ -293,11 +336,16 @@
 - [x] Identifiera storleksordning på mått så att den alltid går på det största måttet när den ska slå ihop samma vara (helper + tester, integration återstår)
 - [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori när den importerar recept.
 - [ ] kanske en agent som lär sig hur användaren brukar lägga till basvaror, aktiviteter etc för att få en bättre UI experience?
-- [ ] Bli ännu smartare på ihopslagning av dubbletter. Så att den förstår att 400 g + 1 paket --> 2 paket istället för 401 g etc.
+- [ ] Bli ännu smartare på ihopslagning av dubbletter. Så att den förstår att 400 g + 1 paket --> 2 paket istället för 401 g etc
 
 ---
 
 ## Ej helt färdiga stories, idéstadie
+- [x] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt (parseInstructions flattenar JSON-LD recipeInstructions — sträng/array/HowToStep/HowToSection — till numrerade rader; from-url returnerar instructions och receptet skapas med dem)
+- [x] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp) — sorter-knapp i recept-headern med radioval: A–Ö / Mest använda / Senast tillagda; valet sparas (gäller även välj-läget). "Mest använda" = livstidsräknare Recipe.timesUsed som ökar varje gång receptet läggs i en meny (backfilld från nuvarande förekomster)
+- [x] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd — byggd om till enhetlig rad-vy: namn + behov + "Har"-input + "✓ Allt"-knapp per rad. Mode-toggle/segment borttagen, sub-pager utan, KAV gated i ingredients-steget, Nästa/Tillbaka döljs när tangentbordet är uppe, returnKeyType="next" hoppar mellan mätbara rader.
+- [x] bygga en pwa — hostas på `veckis-web.onrender.com` via Render static site. Manifest.json, service worker (cache-first static + network-first HTML + network-only API + dedup-blockerings-logg), index.html-patch-script som injekterar PWA-meta, ikoner (192/512/180/48), `/install`-landningssida med OS-detection, `InstallBanner` på sign-in som tystar Chromes auto-prompt, `VersionBanner` på controllerchange. Native fortfarande primärt distributionssätt — PWA är "gratis-vägen" för folk utan EAS-build.
+- [ ] Streckkodsläsare för att direkt lägga till en vara — **utredd & nedprioriterad**: OpenFoodFacts (enda realistiska gratis-källa) testad manuellt på vanliga svenska/butiks-egna varor (ekologiskt äppelmos, soltorkade tomater, bostongurka) → ingen träff. Täckningen är god för internationella märkesvaror men svag där svenska hushåll faktiskt handlar. Scannern skulle hjälpa exakt där OFF är svagast och är överflödig där OFF är stark (vanliga repeaters klaras redan av autocomplete + stapleItems). Native-modul + EAS-build + scan-UI + error-states bedömt inte värt det. Återupptas om en bättre datakälla dyker upp (t.ex. svensk butikspartnerskap eller paid API med bra svensk täckning).
 - [ ] Kategorier — skafferi-minne får exakt matchning på subCategory (bygger på #283 nedan): "ost" i skafferi matchar bara items med subCategory='ost', inte hela mejeri-kategorin. Kräver att taxonomi-bygget är klart.
 - [ ] Kategorier — söklogik prioriterar subCategory-träff: sök "smör" matchar items med subCategory='smör_margarin' före LIKE-träff på name. Bygger på taxonomi.
 - [ ] Kategorier — koppla datakvalitet-städningen (rad 282 nedan) till sub-merge: admin-vy kan slå ihop duplicat-skapade subs eller mappa om ärvda customCategory-strängar.
@@ -307,11 +355,6 @@
 - [ ] Datakvalitet-städning: admin-vy för att slå ihop/städa basvaror & kategorier så normaliserade namn och delade kategori-minnen inte driftar över tid
 - [ ] Skafferi-minne: persistent "har hemma" som minns över sessioner (eget skafferi per hushåll) så återkommande basvaror inte behöver inventeras varje gång. Bygger vidare på den hopslagna inventeringen.
 - [ ] Utnyttja större skärm likt kalender-vyn att saker öppnas bredvid istället för under mm.
-- [x] bygga en pwa — hostas på `veckis-web.onrender.com` via Render static site. Manifest.json, service worker (cache-first static + network-first HTML + network-only API + dedup-blockerings-logg), index.html-patch-script som injekterar PWA-meta, ikoner (192/512/180/48), `/install`-landningssida med OS-detection, `InstallBanner` på sign-in som tystar Chromes auto-prompt, `VersionBanner` på controllerchange. Native fortfarande primärt distributionssätt — PWA är "gratis-vägen" för folk utan EAS-build.
-- [ ] Streckkodsläsare för att direkt lägga till en vara — **utredd & nedprioriterad**: OpenFoodFacts (enda realistiska gratis-källa) testad manuellt på vanliga svenska/butiks-egna varor (ekologiskt äppelmos, soltorkade tomater, bostongurka) → ingen träff. Täckningen är god för internationella märkesvaror men svag där svenska hushåll faktiskt handlar. Scannern skulle hjälpa exakt där OFF är svagast och är överflödig där OFF är stark (vanliga repeaters klaras redan av autocomplete + stapleItems). Native-modul + EAS-build + scan-UI + error-states bedömt inte värt det. Återupptas om en bättre datakälla dyker upp (t.ex. svensk butikspartnerskap eller paid API med bra svensk täckning).
-- [x] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt (parseInstructions flattenar JSON-LD recipeInstructions — sträng/array/HowToStep/HowToSection — till numrerade rader; from-url returnerar instructions och receptet skapas med dem)
-- [x] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp) — sorter-knapp i recept-headern med radioval: A–Ö / Mest använda / Senast tillagda; valet sparas (gäller även välj-läget). "Mest använda" = livstidsräknare Recipe.timesUsed som ökar varje gång receptet läggs i en meny (backfilld från nuvarande förekomster)
-- [x] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd — byggd om till enhetlig rad-vy: namn + behov + "Har"-input + "✓ Allt"-knapp per rad. Mode-toggle/segment borttagen, sub-pager utan, KAV gated i ingredients-steget, Nästa/Tillbaka döljs när tangentbordet är uppe, returnKeyType="next" hoppar mellan mätbara rader.
 - [ ] Radikalt alternativ för återkommande sysslor: flexibelt intervall per syssla — nästa förfallodag räknas från när man senast gjorde sysslan ("var 3:e dag" från senaste utförandet) istället för fast kalender. Ingen förfallet-hög alls; passar rytm-sysslor (vattna/dammsuga), sämre för fasta dagar (sopor på måndag). Skulle vara ett val per syssla: "fast dag" vs "ungefär var X:e dag". (Subsumerar tidigare "klarmarkera bakåt"-idén — täcks nu av förlåtande-modellen i Sysslor-sektionen.)
 
 ## Backlog (prioriterade features)
