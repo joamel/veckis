@@ -1322,7 +1322,7 @@ export default function MenuScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        style={s.content}
+        style={[s.content, (Platform.OS === 'web' ? { scrollSnapType: 'x mandatory' } : null) as any]}
         scrollEnabled={!dragState}
         initialScrollIndex={weekOffset + WEEK_SPAN}
         getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
@@ -1351,6 +1351,7 @@ export default function MenuScreen() {
             <ScrollView
               ref={isCenter ? menuScrollRef : undefined}
               style={{ width: weekPageW }}
+              {...((Platform.OS === 'web' ? { dataSet: { weekpage: '' } } : {}) as any)}
               contentContainerStyle={s.contentInner}
               refreshControl={isCenter ? <RefreshControl refreshing={false} onRefresh={load} /> : undefined}
               onScroll={isCenter ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }) : undefined}
