@@ -1262,7 +1262,7 @@ export default function ShoppingListScreen() {
             </View>
           </View>
         ) : null}
-        <View style={s.addBar}>
+        <View style={[s.addBar, { paddingBottom: Math.max(12, insets.bottom) }]}>
           <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
             <Ionicons name="grid-outline" size={22} color="#4f46e5" />
           </Pressable>
@@ -1342,8 +1342,8 @@ export default function ShoppingListScreen() {
       {/* Item edit modal */}
       <Modal visible={!!editingItem} transparent animationType="slide" onRequestClose={() => setEditingItem(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={s.kavWrap}>
-        <View style={s.sheet}>
+        <KeyboardAvoidingView behavior={kavBehavior}>
+        <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
           <View style={s.sheetHandle} />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
           <ConflictBanner message={editConflict?.msg ?? null} onShowLatest={editConflict?.latest ? applyLatestEdit : undefined} />
@@ -1478,7 +1478,7 @@ export default function ShoppingListScreen() {
       {/* Staple edit modal (from long-press on suggestion chip) */}
       <Modal visible={!!editingStaple} transparent animationType="slide" onRequestClose={() => setEditingStaple(null)}>
         <Pressable style={s.overlay} onPress={() => setEditingStaple(null)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={s.kavWrap}>
+        <KeyboardAvoidingView behavior={kavBehavior}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.75 }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>
@@ -1554,9 +1554,10 @@ export default function ShoppingListScreen() {
           All butiks-konfig sker på /stores/[storeId]-routen istället. */}
       {/* Quantity sheet */}
       <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
-        <Pressable style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.3)' }]} onPress={() => setQtySheet(null)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={s.kavWrap}>
-          <View style={s.sheet}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <Pressable style={{ flex: 1 }} onPress={() => setQtySheet(null)} />
+          <KeyboardAvoidingView behavior={kavBehavior}>
+          <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{capitalize(qtySheet?.name)}</Text>
             <View style={s.qtyStepper}>
@@ -1625,7 +1626,8 @@ export default function ShoppingListScreen() {
                 : <Text style={s.qtyConfirmText}>Lägg till</Text>}
             </Pressable>
           </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       <Animated.View style={[s.toast, { opacity: toastOpacity }]} pointerEvents="none">
@@ -1636,8 +1638,8 @@ export default function ShoppingListScreen() {
       {/* Merge duplicates sheet */}
       <Modal visible={!!mergeSheet} transparent animationType="slide" onRequestClose={() => setMergeSheet(null)}>
         <Pressable style={s.overlay} onPress={() => setMergeSheet(null)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={s.kavWrap}>
-        <View style={s.sheet}>
+        <KeyboardAvoidingView behavior={kavBehavior}>
+        <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
             <View style={s.sheetHandle} />
             <View style={s.mergeHeaderRow}>
               <Text style={s.sheetTitle}>Dubbletter</Text>
@@ -1863,7 +1865,7 @@ export default function ShoppingListScreen() {
       {/* Rename list modal */}
       <Modal visible={showRenameModal} transparent animationType="slide" onRequestClose={() => setShowRenameModal(false)}>
         <Pressable style={s.overlay} onPress={() => setShowRenameModal(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={s.kavWrap}>
+        <KeyboardAvoidingView behavior={kavBehavior}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>Byt namn på listan</Text>
@@ -2054,7 +2056,6 @@ const s = StyleSheet.create({
   addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center' },
   addBtnDisabled: { opacity: 0.4 },
   overlay: { flex: 1, backgroundColor: 'rgba(17,24,39,0.7)' },
-  kavWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, top: 0, justifyContent: 'flex-end' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '85%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
