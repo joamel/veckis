@@ -1353,6 +1353,7 @@ export default function ScheduleScreen() {
       {/* Edit entry modal */}
       <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
         <View style={{ flex: 1 }}>
+          <View pointerEvents="none" style={s.overlayDim} />
           <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
           <KeyboardAvoidingView behavior={kavBehavior}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
@@ -1459,6 +1460,7 @@ export default function ScheduleScreen() {
       {/* Edit chore from calendar modal */}
       <Modal visible={!!editingCalChore} transparent animationType="slide" onRequestClose={() => setEditingCalChore(null)}>
         <View style={{ flex: 1 }}>
+          <View pointerEvents="none" style={s.overlayDim} />
           <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
           <KeyboardAvoidingView behavior={kavBehavior}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
@@ -1521,6 +1523,7 @@ export default function ScheduleScreen() {
       </Modal>
 
       <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowFilterModal(false)} />
         <View style={s.filterSheet}>
           <View style={s.sheetHandle} />
@@ -1587,6 +1590,7 @@ export default function ScheduleScreen() {
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <View style={{ flex: 1 }}>
+          <View pointerEvents="none" style={s.overlayDim} />
           <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
           <KeyboardAvoidingView behavior={kavBehavior}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
@@ -1818,7 +1822,9 @@ const s = StyleSheet.create({
   entryTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
   entryDesc: { fontSize: 13, color: '#6b7280', marginTop: 2 },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+  // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
+  overlay: { flex: 1 },
+  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '92%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },

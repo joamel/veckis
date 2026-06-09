@@ -209,6 +209,7 @@ export default function StoresScreen() {
 
       {/* Skapa-modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowCreate(false)} />
         <KeyboardAvoidingView behavior={kavBehavior} style={{ justifyContent: 'flex-end' }}>
           <View style={s.sheet}>
@@ -237,6 +238,7 @@ export default function StoresScreen() {
 
       {/* Sort-modal */}
       <Modal visible={showSort} transparent animationType="slide" onRequestClose={() => setShowSort(false)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowSort(false)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
@@ -282,7 +284,10 @@ const s = StyleSheet.create({
   cardMetaCurrent: { color: '#7c3aed', fontWeight: '600' },
   cardClearBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fef2f2' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' },
+  // flex:1 (inte absolut) så den transparenta Pressablen puttar ner sheeten till
+  // botten; dim ligger på eget absolut lager (overlayDim) bakom de rundade hörnen.
+  overlay: { flex: 1 },
+  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
   sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#d1d5db', marginBottom: 12 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },

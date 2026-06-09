@@ -882,6 +882,7 @@ export default function ChoresScreen() {
       </Animated.View>
 
       <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowFilterModal(false)} />
         <View style={s.filterSheet}>
           <View style={s.sheetHandle} />
@@ -929,6 +930,7 @@ export default function ChoresScreen() {
       {/* Create modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
         <View style={{ flex: 1 }}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowCreate(false)} />
         <KeyboardAvoidingView behavior={kavBehavior}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
@@ -1017,6 +1019,7 @@ export default function ChoresScreen() {
       {/* Edit modal */}
       <Modal visible={!!editingChore} transparent animationType="slide" onRequestClose={() => setEditingChore(null)}>
         <View style={{ flex: 1 }}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setEditingChore(null)} />
         <KeyboardAvoidingView behavior={kavBehavior}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
@@ -1149,7 +1152,9 @@ const s = StyleSheet.create({
   checkBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#d1d5db', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   checkBtnDone: { backgroundColor: '#10b981', borderColor: '#10b981' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+  // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
+  overlay: { flex: 1 },
+  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '92%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 12 },

@@ -221,6 +221,7 @@ export default function ShoppingScreen() {
       </Pressable>
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setNewListStoreId(null); }}>
+        <View pointerEvents="none" style={styles.overlayDim} />
         <Pressable style={styles.overlay} onPress={() => { setShowModal(false); setNewListStoreId(null); }} />
         <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <View style={styles.sheet}>
@@ -242,8 +243,12 @@ export default function ShoppingScreen() {
               onPress={async () => {
                 const promise = pickStore();
                 const currentParam = newListStoreId ? `&current=${newListStoreId}` : '';
+                // Dölj dialogen medan man väljer butik så den inte ligger kvar och
+                // skymmer butikslistan; återställ den (med namnet kvar) efteråt.
+                setShowModal(false);
                 router.push(`/stores?pick=1${currentParam}` as never);
                 const result = await promise;
+                setShowModal(true);
                 if (result === 'cancelled') return;
                 setNewListStoreId(result);
               }}
@@ -322,7 +327,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+  // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
+  overlay: { flex: 1 },
+  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,

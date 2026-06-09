@@ -341,6 +341,7 @@ export default function StoreDetailScreen() {
 
       {/* Byt namn-modal */}
       <Modal visible={showRename} transparent animationType="slide" onRequestClose={() => setShowRename(false)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowRename(false)} />
         <KeyboardAvoidingView behavior={kavBehavior} style={{ justifyContent: 'flex-end' }}>
           <View style={s.sheet}>
@@ -405,7 +406,10 @@ const s = StyleSheet.create({
   menuSheet: { position: 'absolute', right: 0, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
   menuItemText: { fontSize: 15, color: '#111827', fontWeight: '500' },
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' },
+  // flex:1 + eget dim-lager: transparent Pressable puttar ner sheeten till botten
+  // (annars hamnar den i toppen) och dimmen täcker bakom de rundade hörnen.
+  overlay: { flex: 1 },
+  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
   sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#d1d5db', marginBottom: 12 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 10 },
