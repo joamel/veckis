@@ -210,12 +210,14 @@ export default function ScheduleScreen() {
   // never recenter (recentering is what made the old 3-page pagers flash).
   const dayListRef = useRef<FlatList<number>>(null);
   const weekRowListRef = useRef<FlatList<number>>(null);
+  const weekScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dayScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Pre-measured window-rect of the day-row for the onboarding swipe tip's
   // spotlight ring + finger animation. Captured one-shot via a callback ref
   // on the dayRow itself (measureInWindow on the FlatList wrapper reports
   // wrong dimensions on Android virtualised content).
   const [weekRowRect, setWeekRowRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const { width: weekPageW } = useWindowDimensions();
+  const { width: weekPageW, height: windowHeight } = useWindowDimensions();
   const DAY_SPAN = 400; // ~13 months of days each way
   const WEEK_SPAN = 104; // ~2 years of weeks each way
   const dayIndices = useMemo(() => Array.from({ length: DAY_SPAN * 2 + 1 }, (_, i) => i - DAY_SPAN), []);
@@ -264,8 +266,8 @@ export default function ScheduleScreen() {
   useEffect(() => {
     const di = Math.min(DAY_SPAN, Math.max(-DAY_SPAN, dayIndexForDate(selectedDayDate))) + DAY_SPAN;
     const wi = Math.min(WEEK_SPAN, Math.max(-WEEK_SPAN, weekIndexForMonday(weekMonday))) + WEEK_SPAN;
-    dayListRef.current?.scrollToIndex({ index: di, animated: false });
-    weekRowListRef.current?.scrollToIndex({ index: wi, animated: false });
+    dayListRef.current?.scrollToOffset({ offset: di * weekPageW, animated: false });
+    weekRowListRef.current?.scrollToOffset({ offset: wi * weekPageW, animated: false });
   }, [weekRef, selectedDay, weekPageW]);
 
   // Filter
@@ -1150,10 +1152,14 @@ export default function ScheduleScreen() {
               const pm = mondayForWeekIndex(wi);
               if (weekIndexForMonday(weekMonday) !== wi) setWeekRef(pm);
             }}
-            onScrollEndDrag={e => {
-              const wi = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
-              const pm = mondayForWeekIndex(wi);
-              if (weekIndexForMonday(weekMonday) !== wi) setWeekRef(pm);
+            onScroll={e => {
+              const x = e.nativeEvent.contentOffset.x;
+              if (weekScrollTimer.current) clearTimeout(weekScrollTimer.current);
+              weekScrollTimer.current = setTimeout(() => {
+                const wi = Math.round(x / weekPageW) - WEEK_SPAN;
+                const pm = mondayForWeekIndex(wi);
+                if (weekIndexForMonday(weekMonday) !== wi) setWeekRef(pm);
+              }, 80);
             }}
             renderItem={({ item: wi }) => {
               const pm = mondayForWeekIndex(wi);
@@ -1228,13 +1234,17 @@ export default function ScheduleScreen() {
                 setWeekRef(nd);
               }
             }}
-            onScrollEndDrag={e => {
-              const di = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - DAY_SPAN;
-              const nd = dateForDayIndex(di);
-              if (dayIndexForDate(selectedDayDate) !== di) {
-                setSelectedDay(weekdayKeyOf(nd));
-                setWeekRef(nd);
-              }
+            onScroll={e => {
+              const x = e.nativeEvent.contentOffset.x;
+              if (dayScrollTimer.current) clearTimeout(dayScrollTimer.current);
+              dayScrollTimer.current = setTimeout(() => {
+                const di = Math.round(x / weekPageW) - DAY_SPAN;
+                const nd = dateForDayIndex(di);
+                if (dayIndexForDate(selectedDayDate) !== di) {
+                  setSelectedDay(weekdayKeyOf(nd));
+                  setWeekRef(nd);
+                }
+              }, 80);
             }}
             renderItem={({ item: di }) => {
               const d = dayDataForDate(dateForDayIndex(di));
@@ -1329,9 +1339,10 @@ export default function ScheduleScreen() {
 
       {/* Edit entry modal */}
       <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
-        <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={s.sheet}>
+        <View style={{ flex: 1 }}>
+          <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
+          <KeyboardAvoidingView behavior={kavBehavior}>
+          <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera aktivitet</Text>
           <ConflictBanner
@@ -1427,15 +1438,17 @@ export default function ScheduleScreen() {
               </Pressable>
             </View>
           </ScrollView>
+          </View>
+          </KeyboardAvoidingView>
         </View>
-        </KeyboardAvoidingView>
       </Modal>
 
       {/* Edit chore from calendar modal */}
       <Modal visible={!!editingCalChore} transparent animationType="slide" onRequestClose={() => setEditingCalChore(null)}>
-        <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={s.sheet}>
+        <View style={{ flex: 1 }}>
+          <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
+          <KeyboardAvoidingView behavior={kavBehavior}>
+          <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera syssla</Text>
           <ConflictBanner
@@ -1489,8 +1502,9 @@ export default function ScheduleScreen() {
               </Pressable>
             </View>
           </View>
+          </View>
+          </KeyboardAvoidingView>
         </View>
-        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
@@ -1559,9 +1573,10 @@ export default function ScheduleScreen() {
       <DatePickerModal value={editEntryEndDate} onChange={setEditEntryEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} />
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
-        <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={s.sheet}>
+        <View style={{ flex: 1 }}>
+          <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
+          <KeyboardAvoidingView behavior={kavBehavior}>
+          <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny aktivitet</Text>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
@@ -1741,8 +1756,9 @@ export default function ScheduleScreen() {
               {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Lägg till</Text>}
             </Pressable>
           </ScrollView>
+          </View>
+          </KeyboardAvoidingView>
         </View>
-        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
