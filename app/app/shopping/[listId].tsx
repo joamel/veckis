@@ -2067,7 +2067,9 @@ const s = StyleSheet.create({
   chipText: { fontSize: 13, color: '#4f46e5', fontWeight: '500' },
   addBar: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6', gap: 10, alignItems: 'center' },
   browseBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
-  addInput: { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
+  // minWidth:0 så input:en får krympa under sin intrinsiska content-bredd på web
+  // (annars trycks "+"-knappen ut utanför högerkanten — min-width:auto på <input>).
+  addInput: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
   addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center' },
   addBtnDisabled: { opacity: 0.4 },
   // Dim ligger på ett eget absolut lager (overlayDim) så det täcker HELA skärmen
