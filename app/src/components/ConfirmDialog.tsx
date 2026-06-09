@@ -35,8 +35,11 @@ export function ConfirmDialog({
   };
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
-      <Pressable style={s.overlay} onPress={dismiss} />
-      <View style={s.sheetWrap}>
+      {/* flex-column: Pressable fills space above the sheet so it only covers
+          the dim area — no overlapping siblings that could absorb taps on iOS
+          Safari web (absoluteFillObject + sibling sheet is unreliable there). */}
+      <View style={{ flex: 1 }}>
+        <Pressable style={{ flex: 1 }} onPress={dismiss} />
         <View style={s.sheet}>
           <View style={s.handle} />
           <Text style={s.title}>{options.title}</Text>
@@ -47,7 +50,10 @@ export function ConfirmDialog({
               <Pressable
                 key={i}
                 style={[s.btn, i > 0 && s.btnTopBorder]}
-                onPress={() => { b.onPress?.(); onClose(); }}
+                // onClose BEFORE b.onPress: React batches state updates, so if
+                // b.onPress calls confirm() (another setOpts) it must come last
+                // to avoid setOpts(null) overwriting the new opts.
+                onPress={() => { onClose(); b.onPress?.(); }}
                 accessibilityRole="button"
                 accessibilityLabel={b.label}
               >
@@ -71,8 +77,6 @@ export function ConfirmDialog({
 }
 
 const s = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheetWrap: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   sheet: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,

@@ -18,6 +18,10 @@
 - [x] "+" i inköpslistan får inte riktigt plats i skärmen: FAB `bottom: 20` ignorerade home-indicator; nu `bottom: 20 + insets.bottom`
 - [ ] bilder i recept laggar som bara den: Cloudinary-bilder saknar explicit storleksparameter för mobile; utreds separat (inte funktionell blockare)
 - [x] går inte att scrolla i veckomenyn: statisk `weekPageW` → FlatList-scroll fungerade inte rätt på iOS PWA; fixat med `useWindowDimensions()`
+- [x] ta bort aktivitet fungerar fortfarande inte i PWA: ConfirmDialog race condition — React 18 batchar state-uppdateringar i samma handler, så `b.onPress()→setOpts(deleteOpts)` skrevs omedelbart över av `onClose()→setOpts(null)`; fixat genom att kalla `onClose()` FÖRE `b.onPress()` + overlay omstrukturerades från `absoluteFillObject+sheetWrap` till flex-1-kolumn (Pressable fyller ytan ovanför sheet) för att eliminera iOS Safari stacking-context-risk
+- [x] dialoger visar inte allt innehåll i PWA (t.ex. lägga till ny basvara): `kavWrap: { position:'absolute', top:0, bottom:0 }` på KAV-wrappern i alla shopping/[listId].tsx-modaler — absolut-positionerat KAV täckte hela skärmen och lade sig ovanpå overlay-Pressable → oförutsägbart beteende på iOS Safari; nu flex-1-mönster (Pressable flex:1 + KAV i normalflöde) + `maxHeight: windowHeight * 0.85` i absoluta pixlar
+- [x] '+' syns inte helt i inköpslistan (PWA): `addBar` saknade bottom safe area — home indicator (~34px) dolde addBtn; nu `paddingBottom: Math.max(12, insets.bottom)` på addBar-View
+- [x] swipa i kalendern uppdaterar inte veckonumret (PWA): `onMomentumScrollEnd` fyrar inte tillförlitligt på iOS Safari för `pagingEnabled` horisontell FlatList; lade till `onScrollEndDrag` med identisk handler på båda FlatLists i schedule.tsx (vecko-rad + dag-innehålls-pager)
 
 ### Generellt
 - [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)
@@ -344,6 +348,7 @@
 - [ ] Borde aldrig skapa sysslor bakåt i tiden, endast från idag och framåt
 - [ ] Utfällda sysslor borde se ut mer som att de hör till rubriken, nu har de en grå border som knappt syns och sitter inte ihop med rubriken. Borde se ut som en utfälld maträtt i veckomenyn
 - [ ] Läsvy-symmetri för sysslor: kalenderaktiviteter öppnar nu en read-vy (tap → sammanfattning, redigering under 3-prickar), men en syssla öppnar fortfarande direkt redigering/utfälld vy. Överväg samma läs-först-mönster för konsekvens.
+- [ ] Avcheckad återkommande syssla (den 1a varje månad) visar samma datum som varit som nästa
 
 
 ---

@@ -1150,6 +1150,11 @@ export default function ScheduleScreen() {
               const pm = mondayForWeekIndex(wi);
               if (weekIndexForMonday(weekMonday) !== wi) setWeekRef(pm);
             }}
+            onScrollEndDrag={e => {
+              const wi = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
+              const pm = mondayForWeekIndex(wi);
+              if (weekIndexForMonday(weekMonday) !== wi) setWeekRef(pm);
+            }}
             renderItem={({ item: wi }) => {
               const pm = mondayForWeekIndex(wi);
               return (
@@ -1216,6 +1221,14 @@ export default function ScheduleScreen() {
             onScrollToIndexFailed={() => {}}
             scrollEventThrottle={16}
             onMomentumScrollEnd={e => {
+              const di = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - DAY_SPAN;
+              const nd = dateForDayIndex(di);
+              if (dayIndexForDate(selectedDayDate) !== di) {
+                setSelectedDay(weekdayKeyOf(nd));
+                setWeekRef(nd);
+              }
+            }}
+            onScrollEndDrag={e => {
               const di = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - DAY_SPAN;
               const nd = dateForDayIndex(di);
               if (dayIndexForDate(selectedDayDate) !== di) {
