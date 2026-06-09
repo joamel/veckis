@@ -10,9 +10,10 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -215,6 +216,8 @@ export default function ChoresScreen() {
     ]).start();
   }
 
+  const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [chores, setChores] = useState<ChoreWithCompletion[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
 
@@ -925,12 +928,13 @@ export default function ChoresScreen() {
 
       {/* Create modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
+        <View style={{ flex: 1 }}>
         <Pressable style={s.overlay} onPress={() => setShowCreate(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={s.sheet}>
+        <KeyboardAvoidingView behavior={kavBehavior}>
+        <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny syssla</Text>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Sysslans namn, t.ex. Damma"
@@ -1002,6 +1006,7 @@ export default function ChoresScreen() {
           </ScrollView>
         </View>
         </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} />
@@ -1011,16 +1016,17 @@ export default function ChoresScreen() {
 
       {/* Edit modal */}
       <Modal visible={!!editingChore} transparent animationType="slide" onRequestClose={() => setEditingChore(null)}>
+        <View style={{ flex: 1 }}>
         <Pressable style={s.overlay} onPress={() => setEditingChore(null)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={s.sheet}>
+        <KeyboardAvoidingView behavior={kavBehavior}>
+        <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera syssla</Text>
           <ConflictBanner
             message={choreConflict?.msg ?? null}
             onShowLatest={choreConflict ? () => { openEdit(choreConflict.latest); setChoreConflict(null); } : undefined}
           />
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Sysslans namn"
@@ -1099,6 +1105,7 @@ export default function ChoresScreen() {
           </ScrollView>
         </View>
         </KeyboardAvoidingView>
+        </View>
       </Modal>
     </SafeAreaView>
   );

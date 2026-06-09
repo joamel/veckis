@@ -29,6 +29,7 @@
 - [x] swipa veckor i kalendern fastnar på närlgliggande veckor (Android native): debounced `onScroll` kördes på native och triggade state-updates mitt i momentum-animationen → jank; `onScroll` är nu web-only (`Platform.OS === 'web'`) i schedule.tsx + menu.tsx; native använder enbart `onMomentumScrollEnd`
 - [x] veckorna flyger iväg vid swipe i kalender-PWA: `setWeekRef` i scroll-handlern triggade `useEffect → scrollToOffset(animated:false)` som avbröt CSS scroll-snap-animationen; `weekScrollFromUser`/`dayScrollFromUser`-refs sätts true i scroll-handlers → useEffect hoppar över scrollToOffset när användaren svepte
 - [x] måste zooma ut för att se hela redigera-aktivitet-dialogen (fortfarande): `maxHeight` sänkt till 0.80, `paddingBottom: insets.bottom` tillagd (home indicator-overlap), `flex: 1` på ScrollViews i editingEntry + showModal (fick CSS att respektera maxHeight-gränsen på iOS Safari web)
+- [x] kan inte trycka utanför dialogen i redigera syssla + saknade rundade hörn: `position:'absolute'` KAV i showCreate + editingChore (chores.tsx) bytt till flex-1-mönster; `maxHeight: windowHeight * 0.80, paddingBottom: insets.bottom` + `flex: 1` på ScrollViews tillagda
 
 ### Generellt
 - [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)
