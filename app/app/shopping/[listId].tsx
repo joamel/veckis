@@ -1234,21 +1234,25 @@ export default function ShoppingListScreen() {
         enabled={keyboardVisible}
       >
         {suggestions.length > 0 ? (
-          <View style={s.chipScroll}>
-            <View style={s.chipRow}>
-              {suggestions.map(s2 => (
-                <TouchableOpacity
-                  key={s2.id}
-                  style={s.chip}
-                  onPress={() => openQtySheet(s2.name, s2.category as StoreCategory)}
-                  onLongPress={() => openStapleEditor(s2)}
-                  delayLongPress={350}
-                >
-                  <Text style={s.chipText}>{capitalize(s2.name)}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            style={s.chipScroll}
+            contentContainerStyle={s.chipRow}
+          >
+            {suggestions.map(s2 => (
+              <TouchableOpacity
+                key={s2.id}
+                style={s.chip}
+                onPress={() => openQtySheet(s2.name, s2.category as StoreCategory)}
+                onLongPress={() => openStapleEditor(s2)}
+                delayLongPress={350}
+              >
+                <Text style={s.chipText}>{capitalize(s2.name)}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         ) : keyboardVisible && newItem.trim().length === 0 && topStaples.length > 0 ? (
           <View style={s.commonScroll}>
             <Text style={s.chipHint}>Dina vanligaste</Text>
@@ -1391,18 +1395,17 @@ export default function ShoppingListScreen() {
             >
               <Ionicons name="add" size={22} color="#4f46e5" />
             </Pressable>
+            <TextInput
+              ref={editUnitRef}
+              style={s.qtyUnitInput}
+              value={editUnit}
+              onChangeText={v => setEditUnit(v.toLowerCase())}
+              placeholder="enhet"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="none"
+              returnKeyType="done"
+            />
           </View>
-          {/* Enhet på egen rad (se qty-sheet) — undviker hopträngd rad. */}
-          <TextInput
-            ref={editUnitRef}
-            style={s.qtyUnitInput}
-            value={editUnit}
-            onChangeText={v => setEditUnit(v.toLowerCase())}
-            placeholder="enhet"
-            placeholderTextColor="#9ca3af"
-            autoCapitalize="none"
-            returnKeyType="done"
-          />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
             <View style={s.unitChipRow}>
               {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
@@ -1592,20 +1595,18 @@ export default function ShoppingListScreen() {
               >
                 <Ionicons name="add" size={22} color="#4f46e5" />
               </Pressable>
+              <TextInput
+                ref={qtyUnitRef}
+                style={s.qtyUnitInput}
+                value={qtyUnit}
+                onChangeText={v => setQtyUnit(v.toLowerCase())}
+                placeholder="enhet"
+                placeholderTextColor="#9ca3af"
+                autoCapitalize="none"
+                returnKeyType="done"
+                onSubmitEditing={confirmQtySheet}
+              />
             </View>
-            {/* Enhet på egen rad — i samma rad som antal-steppern blev den
-                hopträngd och hamnade utanför skärmkanten på smala skärmar. */}
-            <TextInput
-              ref={qtyUnitRef}
-              style={s.qtyUnitInput}
-              value={qtyUnit}
-              onChangeText={v => setQtyUnit(v.toLowerCase())}
-              placeholder="enhet"
-              placeholderTextColor="#9ca3af"
-              autoCapitalize="none"
-              returnKeyType="done"
-              onSubmitEditing={confirmQtySheet}
-            />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
               <View style={s.unitChipRow}>
                 {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
@@ -2077,7 +2078,9 @@ const s = StyleSheet.create({
   // sköter bara tap-to-dismiss + att putta ner sheeten (flex:1).
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(17,24,39,0.55)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '85%' },
+  // width:100% + maxWidth + alignSelf:center → full bredd på telefon (<480), men
+  // capad och centrerad på bred/webb-viewport så sheeten inte blir "fullscreen".
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '85%', width: '100%', maxWidth: 480, alignSelf: 'center' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   sheetSub: { fontSize: 13, color: '#6b7280', marginTop: -4 },
@@ -2120,8 +2123,9 @@ const s = StyleSheet.create({
   browserItemText: { flex: 1, fontSize: 16, color: '#111827' },
   qtyStepper: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
   qtyBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
-  qtyInput: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '700', color: '#111827', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 8 },
-  qtyUnitInput: { flex: 1, fontSize: 16, color: '#111827', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
+  // Litet antalsfält (inte flex) så enhet får plats på samma rad som i native-appen.
+  qtyInput: { width: 70, textAlign: 'center', fontSize: 22, fontWeight: '700', color: '#111827', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 8 },
+  qtyUnitInput: { flex: 1, minWidth: 0, fontSize: 16, color: '#111827', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
   qtyConfirm: { backgroundColor: '#4f46e5', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   qtyConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
