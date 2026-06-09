@@ -80,7 +80,7 @@ jobs:
         working-directory: app
 
   deploy:
-    name: Deploy (Render: backend + web)
+    name: "Deploy (Render: backend + web)"
     runs-on: ubuntu-latest
     needs: [backend, app]
     # Only after tests pass, only on a push to main (not PRs/develop).
