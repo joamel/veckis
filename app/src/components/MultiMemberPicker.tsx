@@ -83,7 +83,7 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
 const s = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', color: '#374151' },
   memberChipRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
-  memberChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', flexShrink: 0 },
+  memberChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', flexShrink: 0 },
   memberChipActive: { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' },
   memberChipText: { fontSize: 14, color: '#374151', fontWeight: '500' },
   memberChipTextActive: { color: '#7c3aed', fontWeight: '600' },

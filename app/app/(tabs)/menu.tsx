@@ -1864,6 +1864,7 @@ function MenuCard({
   onRemove,
   onViewRecipe,
   onReplace,
+  onMoveToDay,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -1915,8 +1916,12 @@ function MenuCard({
     setExpanded(e => !e);
   }
 
-  return (
-    <GestureDetector gesture={panGesture}>
+  // På web sätter RNGH:s GestureDetector `touch-action: none` på kortet, vilket
+  // blockerar webbläsarens horisontella sid-svep (kan inte byta vecka när det
+  // ligger maträtter). Drag-flytt finns bara på native; på web renderas kortet
+  // utan GestureDetector och flytt görs via dag-chipsen i utfällda vyn.
+  const isWeb = Platform.OS === 'web';
+  const cardBody = (
       <View style={[s.card, isDragging && s.cardDragging, isPending && s.cardPending]}>
         <View style={s.cardInner}>
           <Pressable style={[s.cardMain, { padding: sp(10), gap: sp(10) }]} onPress={handlePress}>
@@ -1991,12 +1996,33 @@ function MenuCard({
                 </Pressable>
               </View>
 
+              {/* Web saknar drag (touch-action) → flytta via dag-chips i stället */}
+              {isWeb && (
+                <View style={s.moveRow}>
+                  <Text style={s.moveLabel}>Flytta till dag</Text>
+                  <View style={s.moveChips}>
+                    {DAYS.map(d => {
+                      const active = item.day === d.key;
+                      return (
+                        <Pressable
+                          key={d.key}
+                          style={[s.moveChip, active && s.moveChipActive]}
+                          onPress={() => { if (!active) onMoveToDay(d.key); }}
+                        >
+                          <Text style={[s.moveChipText, active && s.moveChipTextActive]}>{d.short}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
             </View>
           )}
         </View>
       </View>
-    </GestureDetector>
   );
+
+  return isWeb ? cardBody : <GestureDetector gesture={panGesture}>{cardBody}</GestureDetector>;
 }
 
 const s = StyleSheet.create({
@@ -2070,6 +2096,13 @@ const s = StyleSheet.create({
   servingScalerValue: { fontSize: 15, fontWeight: '700', color: '#111827', minWidth: 24, textAlign: 'center' },
   servingScalerReset: { fontSize: 12, color: '#9ca3af', textDecorationLine: 'underline' },
   cardActions: { flexDirection: 'row', gap: 0, paddingTop: 10, pointerEvents: 'auto' },
+  moveRow: { paddingTop: 10, gap: 6 },
+  moveLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280' },
+  moveChips: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
+  moveChip: { flexGrow: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  moveChipActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  moveChipText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
+  moveChipTextActive: { color: '#4f46e5', fontWeight: '700' },
   cardAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, pointerEvents: 'auto' },
   cardActionText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
   assignDayRow: { marginTop: 8, gap: 6 },

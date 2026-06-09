@@ -37,8 +37,13 @@
 - [x] Svep hörn-dim-fixen över alla återstående sheets: alla `<Pressable s.overlay/><sheet/>`-modaler bytte till transparent `overlay` (flex:1) + eget absolut `overlayDim`-lager (täcker bakom de rundade hörnen utan att röra closing-tags eller sheet-position). Klart i shopping/[listId].tsx (browser, editingItem, editingStaple, mergeSheet, actionsMenu, rename, manualPicker), shopping.tsx, menu.tsx (4), chores.tsx (3), schedule.tsx (4), recipes/index.tsx (3), recipes/[recipeId].tsx (showTransfer). settings.tsx hade absolut botten-sheet men saknade dim → la till `rgba(0,0,0,0.4)` på overlayn (dimmar alla 8). account.tsx var redan rätt (absolut dim + botten). stores/[storeId].tsx rename byttes till flex:1+overlayDim (låg i toppen).
 - [x] Qty/redigera-vara-dialogerna: enhets-fältet låg i samma rad som antal-steppern ([−][mängd][+][enhet]) och trängdes ut utanför skärmkanten ("enhet syns inte"). Flyttade enhets-inputen till egen rad i båda dialogerna. (Den upplevda "inzoomningen" kom av den överbreda raden; verifiera på device efter deploy.)
 - [x] Sticky kategori-rubrik visade fel namn ("KLART" ovanför obockad "Bröd"): `updateSticky` bröt loopen vid första gruppen ovanför navbar-linjen → fel rubrik om en grupps onLayout-y ännu inte mätts/kom i annan ordning på web. Nu väljs rubriken vars y ligger *närmast ovanför* linjen (ordnings-oberoende). Verifiera på device.
-- [ ] "Lägg till vara"-baren (grid · input · +) hoppar upp / +-knappen kläms vid högerkanten när tangentbordet öppnas i PWA (KAV `behavior='padding'` + `keyboardVerticalOffset 90`). Behöver device-test: troligen dubbelhantering (browserns visual-viewport-resize + KAV-padding). Experimentera med `interactive-widget=resizes-content` i viewport-metan + ta bort KAV-padding på web för bottenbaren (koordinerad ändring, kan inte verifieras utan device).
+- [x] "+"-knappen i "Lägg till vara"-baren syns inte helt (kläms utanför högerkanten, även utan tangentbord): `addInput` (flex `<TextInput>`) saknade `minWidth: 0` → på web hindrade `min-width:auto` input:en från att krympa → raden blev bredare än skärmen och tryckte ut "+". Tillagt `minWidth: 0`.
+- [ ] "Lägg till vara"-baren hoppar upp när tangentbordet öppnas i PWA (separat från +-klämningen ovan): troligen dubbelhantering (browserns visual-viewport-resize + KAV-padding). Behöver device-test: experimentera med `interactive-widget=resizes-content` i viewport-metan + ta bort KAV-padding på web för bottenbaren.
 - [ ] "ej klickbart": Filter-knappen i Sysslor ligger bakom Redigera syssla-dialogen — förväntat modal-beteende, låg prio. Lämnas.
+
+#### Feedback-omgång 2 (2026-06-09, Android PWA)
+- [x] Tilldela-person-knapparna ("user-knapparna") onödigt tjocka i syssla/aktivitet-editorn: `MultiMemberPicker.memberChip` slimmad (`paddingVertical 8→6`, `borderRadius 20→16`) så de matchar upprepnings-knapparnas höjd.
+- [x] Går inte att swipa mellan veckor i menyn när det ligger maträtter inlagda: RNGH:s `GestureDetector` (long-press-drag för att flytta maträtt mellan dagar) sätter `touch-action: none` på varje kort på web → blockerar browserns horisontella sid-svep (tomma listor gick att swipa, fulla inte). Native opåverkat. På web renderas korten nu utan `GestureDetector` (svep funkar) + flytt-mellan-dagar görs via nya dag-chips ("Flytta till dag") i det utfällda kortet. Native behåller drag.
 
 ### Generellt
 - [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)
@@ -240,6 +245,7 @@
 - [x] Skapa ny lista-dialogen skuggade inte all bakgrund (ljus text syntes bakom de rundade hörnen): dim flyttad till eget absolut `overlayDim`-lager (rgba(0,0,0,0.4)) som täcker hela skärmen inkl. bakom hörnen. (shopping.tsx)
 - [x] Trycker man "Välj butik" i skapa-lista-dialogen låg dialogen kvar och skymde butikslistan: dialogen döljs nu (`setShowModal(false)`) medan man väljer butik och återställs (`setShowModal(true)`, namnet kvar i state) när valet är klart/avbrutet. (shopping.tsx)
 - [x] Ny butik-dialogen hamnade i toppen i stället för botten: rotorsak = `overlay` var `position:absolute` → ingen flex-sibling puttade ner sheeten. Bytt till `overlay: flex:1` (transparent Pressable puttar ner) + `overlayDim`. (stores/index.tsx; samma fix på stores/[storeId].tsx rename.)
+- [ ] Inga varor hör till chark och deli just nu. måste nog göras om i databasen
 
 
 ### Meny
