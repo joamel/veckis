@@ -6,6 +6,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -1336,14 +1337,14 @@ export default function MenuScreen() {
           const o = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
           if (o !== weekOffset) setWeekOffset(o);
         }}
-        onScroll={e => {
+        onScroll={Platform.OS === 'web' ? e => {
           const x = e.nativeEvent.contentOffset.x;
           if (weekScrollTimer.current) clearTimeout(weekScrollTimer.current);
           weekScrollTimer.current = setTimeout(() => {
             const o = Math.round(x / weekPageW) - WEEK_SPAN;
             if (o !== weekOffset) setWeekOffset(o);
           }, 80);
-        }}
+        } : undefined}
         renderItem={({ item: o }) => {
           const isCenter = o === weekOffset;
           return (

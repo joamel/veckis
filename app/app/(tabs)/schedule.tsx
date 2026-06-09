@@ -212,6 +212,11 @@ export default function ScheduleScreen() {
   const weekRowListRef = useRef<FlatList<number>>(null);
   const weekScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dayScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set true in scroll handlers before calling setWeekRef/setSelectedDay so the
+  // useEffect below skips calling scrollToOffset (which would interrupt CSS snap
+  // on iOS Safari web — the "flyger iväg" bug).
+  const weekScrollFromUser = useRef(false);
+  const dayScrollFromUser = useRef(false);
   // Pre-measured window-rect of the day-row for the onboarding swipe tip's
   // spotlight ring + finger animation. Captured one-shot via a callback ref
   // on the dayRow itself (measureInWindow on the FlatList wrapper reports
@@ -266,8 +271,12 @@ export default function ScheduleScreen() {
   useEffect(() => {
     const di = Math.min(DAY_SPAN, Math.max(-DAY_SPAN, dayIndexForDate(selectedDayDate))) + DAY_SPAN;
     const wi = Math.min(WEEK_SPAN, Math.max(-WEEK_SPAN, weekIndexForMonday(weekMonday))) + WEEK_SPAN;
-    dayListRef.current?.scrollToOffset({ offset: di * weekPageW, animated: false });
-    weekRowListRef.current?.scrollToOffset({ offset: wi * weekPageW, animated: false });
+    // Skip scrollToOffset when the user's own swipe triggered the state change —
+    // calling it mid-CSS-snap on iOS Safari web causes the "flyger iväg" jump.
+    if (!dayScrollFromUser.current) dayListRef.current?.scrollToOffset({ offset: di * weekPageW, animated: false });
+    if (!weekScrollFromUser.current) weekRowListRef.current?.scrollToOffset({ offset: wi * weekPageW, animated: false });
+    weekScrollFromUser.current = false;
+    dayScrollFromUser.current = false;
   }, [weekRef, selectedDay, weekPageW]);
 
   // Filter
@@ -1148,19 +1157,21 @@ export default function ScheduleScreen() {
             onScrollToIndexFailed={() => {}}
             scrollEventThrottle={16}
             onMomentumScrollEnd={e => {
+              weekScrollFromUser.current = true;
               const wi = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
               const pm = mondayForWeekIndex(wi);
               if (weekIndexForMonday(weekMonday) !== wi) setWeekRef(pm);
             }}
-            onScroll={e => {
+            onScroll={Platform.OS === 'web' ? e => {
               const x = e.nativeEvent.contentOffset.x;
               if (weekScrollTimer.current) clearTimeout(weekScrollTimer.current);
               weekScrollTimer.current = setTimeout(() => {
+                weekScrollFromUser.current = true;
                 const wi = Math.round(x / weekPageW) - WEEK_SPAN;
                 const pm = mondayForWeekIndex(wi);
                 if (weekIndexForMonday(weekMonday) !== wi) setWeekRef(pm);
               }, 80);
-            }}
+            } : undefined}
             renderItem={({ item: wi }) => {
               const pm = mondayForWeekIndex(wi);
               return (
@@ -1227,6 +1238,7 @@ export default function ScheduleScreen() {
             onScrollToIndexFailed={() => {}}
             scrollEventThrottle={16}
             onMomentumScrollEnd={e => {
+              dayScrollFromUser.current = true;
               const di = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - DAY_SPAN;
               const nd = dateForDayIndex(di);
               if (dayIndexForDate(selectedDayDate) !== di) {
@@ -1234,10 +1246,11 @@ export default function ScheduleScreen() {
                 setWeekRef(nd);
               }
             }}
-            onScroll={e => {
+            onScroll={Platform.OS === 'web' ? e => {
               const x = e.nativeEvent.contentOffset.x;
               if (dayScrollTimer.current) clearTimeout(dayScrollTimer.current);
               dayScrollTimer.current = setTimeout(() => {
+                dayScrollFromUser.current = true;
                 const di = Math.round(x / weekPageW) - DAY_SPAN;
                 const nd = dateForDayIndex(di);
                 if (dayIndexForDate(selectedDayDate) !== di) {
@@ -1245,7 +1258,7 @@ export default function ScheduleScreen() {
                   setWeekRef(nd);
                 }
               }, 80);
-            }}
+            } : undefined}
             renderItem={({ item: di }) => {
               const d = dayDataForDate(dateForDayIndex(di));
               return (
@@ -1342,14 +1355,14 @@ export default function ScheduleScreen() {
         <View style={{ flex: 1 }}>
           <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
           <KeyboardAvoidingView behavior={kavBehavior}>
-          <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
+          <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera aktivitet</Text>
           <ConflictBanner
             message={entryConflict?.msg ?? null}
             onShowLatest={entryConflict ? () => { doOpenEditEntry(entryConflict.latest, editMode); setEntryConflict(null); } : undefined}
           />
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Titel"
@@ -1448,7 +1461,7 @@ export default function ScheduleScreen() {
         <View style={{ flex: 1 }}>
           <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
           <KeyboardAvoidingView behavior={kavBehavior}>
-          <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
+          <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera syssla</Text>
           <ConflictBanner
@@ -1576,10 +1589,10 @@ export default function ScheduleScreen() {
         <View style={{ flex: 1 }}>
           <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
           <KeyboardAvoidingView behavior={kavBehavior}>
-          <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
+          <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny aktivitet</Text>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Titel, t.ex. Träning"

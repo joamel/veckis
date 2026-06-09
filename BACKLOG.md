@@ -26,6 +26,9 @@
 - [x] kan inte trycka utanför redigera-aktivitet-dialogen (PWA + Android): samma `position:'absolute'` KAV lade sig ovanpå overlay-Pressable → taps nådde aldrig dismiss-handlern; fixat i samma ändring ovan
 - [x] swipar man bort ett par veckor och trycker 'idag' blir innehållet i veckan tomt (PWA + Android): `scrollToIndex` misslyckas tyst när target-index ligger utanför FlatLists render-window (`onScrollToIndexFailed={() => {}}` slukar felet); ersatt med `scrollToOffset(index * weekPageW)` som alltid fungerar
 - [x] swipa veckor i meny och kalendern uppdaterar fortfarande inte veckonumren (PWA + Android): varken `onMomentumScrollEnd` eller `onScrollEndDrag` fyrar tillförlitligt på alla plattformar; ersatt med debounced `onScroll` (80 ms) på FlatList i schedule.tsx (vecko-rad + dag-pager) och menu.tsx; `onMomentumScrollEnd` behållen som backup
+- [x] swipa veckor i kalendern fastnar på närlgliggande veckor (Android native): debounced `onScroll` kördes på native och triggade state-updates mitt i momentum-animationen → jank; `onScroll` är nu web-only (`Platform.OS === 'web'`) i schedule.tsx + menu.tsx; native använder enbart `onMomentumScrollEnd`
+- [x] veckorna flyger iväg vid swipe i kalender-PWA: `setWeekRef` i scroll-handlern triggade `useEffect → scrollToOffset(animated:false)` som avbröt CSS scroll-snap-animationen; `weekScrollFromUser`/`dayScrollFromUser`-refs sätts true i scroll-handlers → useEffect hoppar över scrollToOffset när användaren svepte
+- [x] måste zooma ut för att se hela redigera-aktivitet-dialogen (fortfarande): `maxHeight` sänkt till 0.80, `paddingBottom: insets.bottom` tillagd (home indicator-overlap), `flex: 1` på ScrollViews i editingEntry + showModal (fick CSS att respektera maxHeight-gränsen på iOS Safari web)
 
 ### Generellt
 - [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)
@@ -224,7 +227,9 @@
 - [ ] Push till hushållet när någon tar "Jag handlar": presence-indikatorn syns bara inne i appen. En notis ("Anna handlar nu") förhindrar dubbelturer till affären på riktigt.
 - [ ] "Jag handlar"-läge auto-utgång: om någon claim:ar och glömmer släppa fastnar "Anna handlar" i dagar. Auto-släpp efter inaktivitet (t.ex. 2 h) utöver dagens auto-rensning vid list-rensning.
 - [ ] Offline-tålig synk för inköp (stor): idag är avbockning optimistisk MED rollback — offline failar request:en → bocken rullas tillbaka och tappas (toast "kunde inte bocka av"). I butiken med dålig täckning blir listan oanvändbar. Riktig fix = lokal persistens + mutations-kö som spelas upp vid återanslutning, med konflikthantering mot realtids-/last-write-wins-modellen. Större arkitektur-grej (AsyncStorage/SQLite + queue + replay)
-- [ ] Skapa ny lista-dialogen skuggar inte all bakgrund. Man ser delvis texten bakom i ljus färg vilket förvirrar. Trycker man dessutom på "Välj butik" ligger dialogen kvar och butiker öppnas i bakgrunden -> dialogen borde döljas tills man har valt butik och sedan komma tillbaka till dialogen när man valt
+- [ ] Skapa ny lista-dialogen skuggar inte all bakgrund. Man ser delvis texten bakom i ljus färg vilket förvirrar.Borde skugga allt bakom de rundande hörnen på dialogen
+- [ ] Trycker man på "Välj butik" vid skapa ny lista-dialogen ligger dialogen kvar och butiker öppnas i bakgrunden -> dialogen borde döljas tills man har valt butik och sedan komma tillbaka till dialogen när man valt
+- [ ] Ny butik dialogen hamnar i toppen istället för botten av appen
 
 
 ### Meny
