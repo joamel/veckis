@@ -22,6 +22,10 @@
 - [x] dialoger visar inte allt innehåll i PWA (t.ex. lägga till ny basvara): `kavWrap: { position:'absolute', top:0, bottom:0 }` på KAV-wrappern i alla shopping/[listId].tsx-modaler — absolut-positionerat KAV täckte hela skärmen och lade sig ovanpå overlay-Pressable → oförutsägbart beteende på iOS Safari; nu flex-1-mönster (Pressable flex:1 + KAV i normalflöde) + `maxHeight: windowHeight * 0.85` i absoluta pixlar
 - [x] '+' syns inte helt i inköpslistan (PWA): `addBar` saknade bottom safe area — home indicator (~34px) dolde addBtn; nu `paddingBottom: Math.max(12, insets.bottom)` på addBar-View
 - [x] swipa i kalendern uppdaterar inte veckonumret (PWA): `onMomentumScrollEnd` fyrar inte tillförlitligt på iOS Safari för `pagingEnabled` horisontell FlatList; lade till `onScrollEndDrag` med identisk handler på båda FlatLists i schedule.tsx (vecko-rad + dag-innehålls-pager)
+- [x] måste zooma ut för att se hela redigera-aktivitet-dialogen (PWA + Android): `position:'absolute'` på KAV i editingEntry/editingCalChore/showModal fyllde hela skärmen → sheet tog 92% av skärmhöjden; fixat med flex-1-kolumn-mönster (som ConfirmDialog) + `maxHeight: windowHeight * 0.85` i absoluta pixlar
+- [x] kan inte trycka utanför redigera-aktivitet-dialogen (PWA + Android): samma `position:'absolute'` KAV lade sig ovanpå overlay-Pressable → taps nådde aldrig dismiss-handlern; fixat i samma ändring ovan
+- [x] swipar man bort ett par veckor och trycker 'idag' blir innehållet i veckan tomt (PWA + Android): `scrollToIndex` misslyckas tyst när target-index ligger utanför FlatLists render-window (`onScrollToIndexFailed={() => {}}` slukar felet); ersatt med `scrollToOffset(index * weekPageW)` som alltid fungerar
+- [x] swipa veckor i meny och kalendern uppdaterar fortfarande inte veckonumren (PWA + Android): varken `onMomentumScrollEnd` eller `onScrollEndDrag` fyrar tillförlitligt på alla plattformar; ersatt med debounced `onScroll` (80 ms) på FlatList i schedule.tsx (vecko-rad + dag-pager) och menu.tsx; `onMomentumScrollEnd` behållen som backup
 
 ### Generellt
 - [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)
@@ -103,6 +107,7 @@
 - [ ] Synliggör/aggregera klientfelen: vi loggar nu `[CLIENT ERROR]` till Render-loggarna (se prod-felsynlighet), men måste gräva manuellt. Persistera de senaste felen (liten tabell eller in-memory-ring) + enkel admin-vy/endpoint så man ser dem dagligen. Ev. Sentry-koppling när en native-build ändå görs (stack-symbolisering + aggregering).
 - [ ] Offline-/nätverksindikator: diskret banner när appen tappar anslutning, så användaren förstår varför saker inte syncar (relevant i butiken med dålig täckning). OBS: förklarar bara läget — löser inte offline-redigering (se "Offline-tålig synk" i Inköpslistan).
 - [ ] "Kom igång"-vägledning för nya hushåll: efter setup, en kort checklista (lägg till första receptet / inköpslistan / sysslan) som hjälper adoption nu när riktiga användare signar upp
+- [ ] Tar man bort sitt konto fastnar man på "Välkommen till Veckis" med endast val att välja "Skapa/Gå med" knappar. Borde komma till logga in-sidan istället 
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -218,7 +223,8 @@
 - [x] "Klart" kategorin hakar i toppen när man scrollar in på den sektionen: "Klart"-sektionen ingår nu i sticky-spårningen (`catOrderRef` + `onLayout`-y), så sticky-overlayn visar "Klart" precis under navbaren när man scrollat ned till de avbockade varorna.
 - [ ] Push till hushållet när någon tar "Jag handlar": presence-indikatorn syns bara inne i appen. En notis ("Anna handlar nu") förhindrar dubbelturer till affären på riktigt.
 - [ ] "Jag handlar"-läge auto-utgång: om någon claim:ar och glömmer släppa fastnar "Anna handlar" i dagar. Auto-släpp efter inaktivitet (t.ex. 2 h) utöver dagens auto-rensning vid list-rensning.
-- [ ] Offline-tålig synk för inköp (stor): idag är avbockning optimistisk MED rollback — offline failar request:en → bocken rullas tillbaka och tappas (toast "kunde inte bocka av"). I butiken med dålig täckning blir listan oanvändbar. Riktig fix = lokal persistens + mutations-kö som spelas upp vid återanslutning, med konflikthantering mot realtids-/last-write-wins-modellen. Större arkitektur-grej (AsyncStorage/SQLite + queue + replay).
+- [ ] Offline-tålig synk för inköp (stor): idag är avbockning optimistisk MED rollback — offline failar request:en → bocken rullas tillbaka och tappas (toast "kunde inte bocka av"). I butiken med dålig täckning blir listan oanvändbar. Riktig fix = lokal persistens + mutations-kö som spelas upp vid återanslutning, med konflikthantering mot realtids-/last-write-wins-modellen. Större arkitektur-grej (AsyncStorage/SQLite + queue + replay)
+- [ ] Skapa ny lista-dialogen skuggar inte all bakgrund. Man ser delvis texten bakom i ljus färg vilket förvirrar. Trycker man dessutom på "Välj butik" ligger dialogen kvar och butiker öppnas i bakgrunden -> dialogen borde döljas tills man har valt butik och sedan komma tillbaka till dialogen när man valt
 
 
 ### Meny

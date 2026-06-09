@@ -436,6 +436,7 @@ export default function MenuScreen() {
   // Auto-scroll during drag near screen edges
   const menuScrollRef = useRef<ScrollView | null>(null);
   const weekListRef = useRef<FlatList<number>>(null);
+  const weekScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Virtualised week pager: a long list of week offsets so swiping never has to
   // recenter (which is what caused the flash). The arrows just scrollToIndex.
   const WEEK_SPAN = 104; // ±2 years of weeks
@@ -1334,6 +1335,14 @@ export default function MenuScreen() {
         onMomentumScrollEnd={e => {
           const o = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
           if (o !== weekOffset) setWeekOffset(o);
+        }}
+        onScroll={e => {
+          const x = e.nativeEvent.contentOffset.x;
+          if (weekScrollTimer.current) clearTimeout(weekScrollTimer.current);
+          weekScrollTimer.current = setTimeout(() => {
+            const o = Math.round(x / weekPageW) - WEEK_SPAN;
+            if (o !== weekOffset) setWeekOffset(o);
+          }, 80);
         }}
         renderItem={({ item: o }) => {
           const isCenter = o === weekOffset;
