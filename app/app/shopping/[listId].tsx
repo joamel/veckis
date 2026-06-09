@@ -156,11 +156,16 @@ export default function ShoppingListScreen() {
   const [stickyCat, setStickyCat] = useState<string | null>(null);
   const updateSticky = useCallback((y: number) => {
     const top = y + HEADER_TOP + NAVBAR_HEIGHT;
+    // Välj rubriken vars y ligger närmast OVANFÖR navbar-linjen. Tidigare bröts
+    // loopen vid första gruppen ovanför linjen, vilket gav fel rubrik (t.ex.
+    // "Klart" ovanför en obockad vara) om en grupps onLayout-y ännu inte mätts
+    // eller kom i annan ordning på web.
     let cur: { key: string; label: string } | null = null;
+    let bestY = -Infinity;
     for (const g of catOrderRef.current) {
       const gy = catLayouts.current[g.key];
       if (gy == null) continue;
-      if (gy <= top + 1) cur = g; else break;
+      if (gy <= top + 1 && gy > bestY) { bestY = gy; cur = g; }
     }
     const next = y > TITLE_AREA_HEIGHT * 0.5 && cur ? cur.label : null;
     setStickyCat(prev => (prev === next ? prev : next));
@@ -1293,6 +1298,7 @@ export default function ShoppingListScreen() {
 
       {/* Category browser modal */}
       <Modal visible={showBrowser} transparent animationType="slide" onRequestClose={() => setShowBrowser(false)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowBrowser(false)} />
         <View style={[s.sheet, s.browserSheet]}>
           <View style={s.sheetHandle} />
@@ -1341,6 +1347,7 @@ export default function ShoppingListScreen() {
 
       {/* Item edit modal */}
       <Modal visible={!!editingItem} transparent animationType="slide" onRequestClose={() => setEditingItem(null)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
         <KeyboardAvoidingView behavior={kavBehavior}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
@@ -1384,17 +1391,18 @@ export default function ShoppingListScreen() {
             >
               <Ionicons name="add" size={22} color="#4f46e5" />
             </Pressable>
-            <TextInput
-              ref={editUnitRef}
-              style={s.qtyUnitInput}
-              value={editUnit}
-              onChangeText={v => setEditUnit(v.toLowerCase())}
-              placeholder="enhet"
-              placeholderTextColor="#9ca3af"
-              autoCapitalize="none"
-              returnKeyType="done"
-            />
           </View>
+          {/* Enhet på egen rad (se qty-sheet) — undviker hopträngd rad. */}
+          <TextInput
+            ref={editUnitRef}
+            style={s.qtyUnitInput}
+            value={editUnit}
+            onChangeText={v => setEditUnit(v.toLowerCase())}
+            placeholder="enhet"
+            placeholderTextColor="#9ca3af"
+            autoCapitalize="none"
+            returnKeyType="done"
+          />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
             <View style={s.unitChipRow}>
               {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
@@ -1477,6 +1485,7 @@ export default function ShoppingListScreen() {
 
       {/* Staple edit modal (from long-press on suggestion chip) */}
       <Modal visible={!!editingStaple} transparent animationType="slide" onRequestClose={() => setEditingStaple(null)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setEditingStaple(null)} />
         <KeyboardAvoidingView behavior={kavBehavior}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.75 }]}>
@@ -1583,18 +1592,20 @@ export default function ShoppingListScreen() {
               >
                 <Ionicons name="add" size={22} color="#4f46e5" />
               </Pressable>
-              <TextInput
-                ref={qtyUnitRef}
-                style={s.qtyUnitInput}
-                value={qtyUnit}
-                onChangeText={v => setQtyUnit(v.toLowerCase())}
-                placeholder="enhet"
-                placeholderTextColor="#9ca3af"
-                autoCapitalize="none"
-                returnKeyType="done"
-                onSubmitEditing={confirmQtySheet}
-              />
             </View>
+            {/* Enhet på egen rad — i samma rad som antal-steppern blev den
+                hopträngd och hamnade utanför skärmkanten på smala skärmar. */}
+            <TextInput
+              ref={qtyUnitRef}
+              style={s.qtyUnitInput}
+              value={qtyUnit}
+              onChangeText={v => setQtyUnit(v.toLowerCase())}
+              placeholder="enhet"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="none"
+              returnKeyType="done"
+              onSubmitEditing={confirmQtySheet}
+            />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
               <View style={s.unitChipRow}>
                 {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
@@ -1637,6 +1648,7 @@ export default function ShoppingListScreen() {
 
       {/* Merge duplicates sheet */}
       <Modal visible={!!mergeSheet} transparent animationType="slide" onRequestClose={() => setMergeSheet(null)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setMergeSheet(null)} />
         <KeyboardAvoidingView behavior={kavBehavior}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
@@ -1787,6 +1799,7 @@ export default function ShoppingListScreen() {
 
       {/* Actions menu (3-dot) */}
       <Modal visible={showActionsMenu} transparent animationType="fade" onRequestClose={() => setShowActionsMenu(false)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowActionsMenu(false)} />
         <View style={[s.actionsMenu, { top: 0 }]}>
           <Pressable
@@ -1864,6 +1877,7 @@ export default function ShoppingListScreen() {
 
       {/* Rename list modal */}
       <Modal visible={showRenameModal} transparent animationType="slide" onRequestClose={() => setShowRenameModal(false)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowRenameModal(false)} />
         <KeyboardAvoidingView behavior={kavBehavior}>
           <View style={s.sheet}>
@@ -1892,6 +1906,7 @@ export default function ShoppingListScreen() {
 
       {/* Manual duplicate picker */}
       <Modal visible={manualPickerOpen} transparent animationType="slide" onRequestClose={() => setManualPickerOpen(false)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setManualPickerOpen(false)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
@@ -2055,7 +2070,11 @@ const s = StyleSheet.create({
   addInput: { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
   addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center' },
   addBtnDisabled: { opacity: 0.4 },
-  overlay: { flex: 1, backgroundColor: 'rgba(17,24,39,0.7)' },
+  // Dim ligger på ett eget absolut lager (overlayDim) så det täcker HELA skärmen
+  // inkl. bakom sheetens rundade hörn; overlay-Pressablen är transparent och
+  // sköter bara tap-to-dismiss + att putta ner sheeten (flex:1).
+  overlay: { flex: 1 },
+  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(17,24,39,0.55)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '85%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },

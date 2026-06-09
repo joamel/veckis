@@ -1107,7 +1107,7 @@ const styles = StyleSheet.create({
   },
   toastText: { fontSize: 14, fontWeight: '600', color: '#fff' },
   toastNeutral: { backgroundColor: '#374151' },
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flex: 1 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
     position: 'absolute',
     bottom: 0,

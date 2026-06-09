@@ -31,6 +31,15 @@
 - [x] måste zooma ut för att se hela redigera-aktivitet-dialogen (fortfarande): `maxHeight` sänkt till 0.80, `paddingBottom: insets.bottom` tillagd (home indicator-overlap), `flex: 1` på ScrollViews i editingEntry + showModal (fick CSS att respektera maxHeight-gränsen på iOS Safari web)
 - [x] kan inte trycka utanför dialogen i redigera syssla + saknade rundade hörn: `position:'absolute'` KAV i showCreate + editingChore (chores.tsx) bytt till flex-1-mönster; `maxHeight: windowHeight * 0.80, paddingBottom: insets.bottom` + `flex: 1` på ScrollViews tillagda
 
+#### Feedback-omgång 2026-06-09 (Android PWA)
+- [x] "Ingen skugga bakom dialog" på action-sheets (Ta bort-bekräftelse, "Du handlar nu", redigera/ta bort aktivitet): `ConfirmDialog` overlay-Pressablen var transparent (flex:1 ovanför sheeten) → ingen dimning alls. Flyttade dimningen till ytter-containern (`s.overlay { flex:1, rgba(17,24,39,0.55) }`) så den även täcker bakom de rundade övre hörnen; behöll flex-kolumn-strukturen + transparent dismiss-Pressable (iOS Safari tap-säker).
+- [x] "Skuggar inte hörnen" på basvaru-browsern (välj per kategori, t.ex. Kött & fisk / Frukt & grönt): dim-Pressablen låg bara *ovanför* sheeten → de rundade övre hörnen visade osuddad sidbakgrund. Wrappade i dim-container (`s.overlay`) med transparent flex:1-Pressable inuti (shopping/[listId].tsx showBrowser).
+- [x] Svep hörn-dim-fixen över alla återstående sheets: alla `<Pressable s.overlay/><sheet/>`-modaler bytte till transparent `overlay` (flex:1) + eget absolut `overlayDim`-lager (täcker bakom de rundade hörnen utan att röra closing-tags eller sheet-position). Klart i shopping/[listId].tsx (browser, editingItem, editingStaple, mergeSheet, actionsMenu, rename, manualPicker), shopping.tsx, menu.tsx (4), chores.tsx (3), schedule.tsx (4), recipes/index.tsx (3), recipes/[recipeId].tsx (showTransfer). settings.tsx hade absolut botten-sheet men saknade dim → la till `rgba(0,0,0,0.4)` på overlayn (dimmar alla 8). account.tsx var redan rätt (absolut dim + botten). stores/[storeId].tsx rename byttes till flex:1+overlayDim (låg i toppen).
+- [x] Qty/redigera-vara-dialogerna: enhets-fältet låg i samma rad som antal-steppern ([−][mängd][+][enhet]) och trängdes ut utanför skärmkanten ("enhet syns inte"). Flyttade enhets-inputen till egen rad i båda dialogerna. (Den upplevda "inzoomningen" kom av den överbreda raden; verifiera på device efter deploy.)
+- [x] Sticky kategori-rubrik visade fel namn ("KLART" ovanför obockad "Bröd"): `updateSticky` bröt loopen vid första gruppen ovanför navbar-linjen → fel rubrik om en grupps onLayout-y ännu inte mätts/kom i annan ordning på web. Nu väljs rubriken vars y ligger *närmast ovanför* linjen (ordnings-oberoende). Verifiera på device.
+- [ ] "Lägg till vara"-baren (grid · input · +) hoppar upp / +-knappen kläms vid högerkanten när tangentbordet öppnas i PWA (KAV `behavior='padding'` + `keyboardVerticalOffset 90`). Behöver device-test: troligen dubbelhantering (browserns visual-viewport-resize + KAV-padding). Experimentera med `interactive-widget=resizes-content` i viewport-metan + ta bort KAV-padding på web för bottenbaren (koordinerad ändring, kan inte verifieras utan device).
+- [ ] "ej klickbart": Filter-knappen i Sysslor ligger bakom Redigera syssla-dialogen — förväntat modal-beteende, låg prio. Lämnas.
+
 ### Generellt
 - [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)
 - [x] Skärmen borde hoppa upp när man ska skriva in något så man ser vad man skriver
@@ -228,9 +237,9 @@
 - [ ] Push till hushållet när någon tar "Jag handlar": presence-indikatorn syns bara inne i appen. En notis ("Anna handlar nu") förhindrar dubbelturer till affären på riktigt.
 - [ ] "Jag handlar"-läge auto-utgång: om någon claim:ar och glömmer släppa fastnar "Anna handlar" i dagar. Auto-släpp efter inaktivitet (t.ex. 2 h) utöver dagens auto-rensning vid list-rensning.
 - [ ] Offline-tålig synk för inköp (stor): idag är avbockning optimistisk MED rollback — offline failar request:en → bocken rullas tillbaka och tappas (toast "kunde inte bocka av"). I butiken med dålig täckning blir listan oanvändbar. Riktig fix = lokal persistens + mutations-kö som spelas upp vid återanslutning, med konflikthantering mot realtids-/last-write-wins-modellen. Större arkitektur-grej (AsyncStorage/SQLite + queue + replay)
-- [ ] Skapa ny lista-dialogen skuggar inte all bakgrund. Man ser delvis texten bakom i ljus färg vilket förvirrar.Borde skugga allt bakom de rundande hörnen på dialogen
-- [ ] Trycker man på "Välj butik" vid skapa ny lista-dialogen ligger dialogen kvar och butiker öppnas i bakgrunden -> dialogen borde döljas tills man har valt butik och sedan komma tillbaka till dialogen när man valt
-- [ ] Ny butik dialogen hamnar i toppen istället för botten av appen
+- [x] Skapa ny lista-dialogen skuggade inte all bakgrund (ljus text syntes bakom de rundade hörnen): dim flyttad till eget absolut `overlayDim`-lager (rgba(0,0,0,0.4)) som täcker hela skärmen inkl. bakom hörnen. (shopping.tsx)
+- [x] Trycker man "Välj butik" i skapa-lista-dialogen låg dialogen kvar och skymde butikslistan: dialogen döljs nu (`setShowModal(false)`) medan man väljer butik och återställs (`setShowModal(true)`, namnet kvar i state) när valet är klart/avbrutet. (shopping.tsx)
+- [x] Ny butik-dialogen hamnade i toppen i stället för botten: rotorsak = `overlay` var `position:absolute` → ingen flex-sibling puttade ner sheeten. Bytt till `overlay: flex:1` (transparent Pressable puttar ner) + `overlayDim`. (stores/index.tsx; samma fix på stores/[storeId].tsx rename.)
 
 
 ### Meny

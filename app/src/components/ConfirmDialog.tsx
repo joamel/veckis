@@ -35,10 +35,12 @@ export function ConfirmDialog({
   };
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
-      {/* flex-column: Pressable fills space above the sheet so it only covers
-          the dim area — no overlapping siblings that could absorb taps on iOS
-          Safari web (absoluteFillObject + sibling sheet is unreliable there). */}
-      <View style={{ flex: 1 }}>
+      {/* flex-column: the dim lives on the outer container (so it also shows
+          BEHIND the sheet's rounded top corners), and a transparent Pressable
+          fills the space above the sheet for tap-to-dismiss — no overlapping
+          siblings that could absorb taps on iOS Safari web (absoluteFillObject
+          + sibling sheet is unreliable there). */}
+      <View style={s.overlay}>
         <Pressable style={{ flex: 1 }} onPress={dismiss} />
         <View style={s.sheet}>
           <View style={s.handle} />
@@ -77,6 +79,7 @@ export function ConfirmDialog({
 }
 
 const s = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(17,24,39,0.55)' },
   sheet: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,

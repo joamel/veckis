@@ -1396,6 +1396,7 @@ export default function MenuScreen() {
       />
 
       <Modal visible={showPicker} transparent animationType="slide" onRequestClose={closePicker}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={closePicker} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
@@ -1501,6 +1502,7 @@ export default function MenuScreen() {
 
       {/* Shopping list cleanup modal */}
       <Modal visible={!!cleanupPrompt} transparent animationType="slide" onRequestClose={() => setCleanupPrompt(null)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setCleanupPrompt(null)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
@@ -1555,6 +1557,7 @@ export default function MenuScreen() {
       </Modal>
       {/* Transfer to shopping list modal */}
       <Modal visible={!!transferSheet} transparent animationType="slide" onRequestClose={() => setTransferSheet(null)}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setTransferSheet(null)} />
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={s.sheet}>
@@ -1607,6 +1610,7 @@ export default function MenuScreen() {
 
       {/* Bulk transfer modal — choose recipes and list */}
       <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleBulkBack()}>
+        <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => handleCancelBulkTransfer()} />
         <KeyboardAvoidingView
           behavior={kavBehavior}
@@ -2075,7 +2079,9 @@ const s = StyleSheet.create({
   assignDayBtnActive: { backgroundColor: '#4f46e5' },
   assignDayBtnText: { fontSize: 12, color: '#374151', fontWeight: '500' },
   assignDayBtnTextActive: { color: '#fff', fontWeight: '600' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+  // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
+  overlay: { flex: 1 },
+  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '80%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 12 },
   sheetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
