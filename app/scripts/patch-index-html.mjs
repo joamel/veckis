@@ -35,6 +35,10 @@ const META = `
       /* Interaktiva element: slå av tap-delay utan att störa scroll-containers */
       [role="button"], button, a, input, select, textarea,
       [data-focusable="true"] { touch-action: manipulation; }
+      /* Vecko-/dag-svep: tvinga snap till EN sida per svep (annars flyger
+         veckorna förbi med momentum på web — native pagar en sida i taget).
+         Containern får scroll-snap-type via pagingEnabled/style. */
+      [data-weekpage] { scroll-snap-align: start; scroll-snap-stop: always; }
     </style>
     <script>
       // SW-registrering + version-banner. När en ny SW tar över sätter vi

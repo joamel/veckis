@@ -44,6 +44,7 @@
 #### Feedback-omgång 2 (2026-06-09, Android PWA)
 - [x] Tilldela-person-knapparna ("user-knapparna") onödigt tjocka i syssla/aktivitet-editorn: `MultiMemberPicker.memberChip` slimmad (`paddingVertical 8→6`, `borderRadius 20→16`) så de matchar upprepnings-knapparnas höjd.
 - [x] Går inte att swipa mellan veckor i menyn när det ligger maträtter inlagda: RNGH:s `GestureDetector` (long-press-drag för att flytta maträtt mellan dagar) sätter `touch-action: none` på varje kort på web → blockerar browserns horisontella sid-svep (tomma listor gick att swipa, fulla inte). Native opåverkat. På web renderas korten nu utan `GestureDetector` (svep funkar) + flytt-mellan-dagar görs via nya dag-chips ("Flytta till dag") i det utfällda kortet. Native behåller drag.
+- [x] Veckorna "flyger förbi" när man swipar i webbappen (momentum hoppar flera veckor i stället för att fastna på intilliggande som i native): web-pagern hade `scroll-snap-type` men sid-elementen saknade `scroll-snap-align`/`scroll-snap-stop` → momentum seglar förbi snap-punkterna. La till `data-weekpage` på varje sid-element + CSS `scroll-snap-align: start; scroll-snap-stop: always` (patch-index-html.mjs) + explicit `scroll-snap-type: x mandatory` på containern. Gäller meny-pagern OCH kalenderns vecko-rad + dag-pager. Web-only (native pagar redan rätt). **Kräver web-rebuild** (CSS i index.html), inte bara OTA.
 
 ### Generellt
 - [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)

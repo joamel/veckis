@@ -1148,7 +1148,7 @@ export default function ScheduleScreen() {
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            style={s.dayRowPager}
+            style={[s.dayRowPager, (Platform.OS === 'web' ? { scrollSnapType: 'x mandatory' } : null) as any]}
             initialScrollIndex={weekIndexForMonday(weekMonday) + WEEK_SPAN}
             getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
             windowSize={5}
@@ -1191,6 +1191,7 @@ export default function ScheduleScreen() {
                     }, 200);
                   }}
                   style={[s.dayRow, { width: weekPageW }]}
+                  {...((Platform.OS === 'web' ? { dataSet: { weekpage: '' } } : {}) as any)}
                   collapsable={false}
                 >
                   {DAYS.map((day, i) => {
@@ -1228,7 +1229,7 @@ export default function ScheduleScreen() {
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            style={s.content}
+            style={[s.content, (Platform.OS === 'web' ? { scrollSnapType: 'x mandatory' } : null) as any]}
             initialScrollIndex={dayIndexForDate(selectedDayDate) + DAY_SPAN}
             getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
             windowSize={15}
@@ -1264,6 +1265,7 @@ export default function ScheduleScreen() {
               return (
                 <ScrollView
                   style={{ width: weekPageW }}
+                  {...((Platform.OS === 'web' ? { dataSet: { weekpage: '' } } : {}) as any)}
                   contentContainerStyle={[s.contentInner, d.isEmpty && s.contentEmpty]}
                 >
                   {d.isEmpty ? (
