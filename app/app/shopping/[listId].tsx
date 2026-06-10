@@ -2029,17 +2029,22 @@ export default function ShoppingListScreen() {
   );
 }
 
-function SwipeDeleteAction({ progress, width }: {
+function SwipeDeleteAction({ progress, width, iconZoneWidth }: {
   progress: SharedValue<number>;
   width: number;
+  iconZoneWidth: number;
 }) {
+  // progress = 0 → 1 mappad mot hela bredden (windowWidth), ej bara 1/3
+  // Röd vid ~1/3 av skärmen = progress ≈ 0.33
   const redStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0.6, 1], [0, 1], Extrapolation.CLAMP),
+    opacity: interpolate(progress.value, [0.15, 0.33], [0, 1], Extrapolation.CLAMP),
   }));
   return (
     <View style={[s.swipeDeleteBtn, { width }]}>
       <RNAnimated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#ef4444' }, redStyle]} />
-      <Ionicons name="trash-outline" size={22} color="#fff" />
+      <View style={{ position: 'absolute', left: 0, width: iconZoneWidth, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+        <Ionicons name="trash-outline" size={22} color="#fff" />
+      </View>
     </View>
   );
 }
@@ -2070,8 +2075,9 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
   return (
     <ReanimatedSwipeable
       rightThreshold={deleteThreshold}
+      overshootRight={false}
       renderRightActions={(progress) => (
-        <SwipeDeleteAction progress={progress} width={deleteThreshold} />
+        <SwipeDeleteAction progress={progress} width={windowWidth} iconZoneWidth={deleteThreshold} />
       )}
       onSwipeableOpen={direction => { if (direction === 'left') onDelete(); }}
     >
