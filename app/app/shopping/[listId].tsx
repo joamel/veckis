@@ -5,7 +5,7 @@ import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
-import { Swipeable } from 'react-native-gesture-handler';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
@@ -34,6 +34,7 @@ import RNAnimated, {
   withSequence,
   withDelay,
   runOnJS,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -2028,6 +2029,31 @@ export default function ShoppingListScreen() {
   );
 }
 
+function SwipeDeleteAction({ progress, drag, windowWidth }: {
+  progress: SharedValue<number>;
+  drag: SharedValue<number>;
+  windowWidth: number;
+}) {
+  const containerStyle = useAnimatedStyle(() => ({
+    width: Math.min(-drag.value, windowWidth),
+  }));
+  const redStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0.6, 1], [0, 1], Extrapolation.CLAMP),
+  }));
+  const iconStyle = useAnimatedStyle(() => {
+    const revealed = Math.min(-drag.value, windowWidth);
+    return { transform: [{ translateX: Math.max(0, revealed / 2 - 11) }] };
+  });
+  return (
+    <RNAnimated.View style={[s.swipeDeleteBtn, containerStyle]}>
+      <RNAnimated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#ef4444' }, redStyle]} />
+      <RNAnimated.View style={iconStyle}>
+        <Ionicons name="trash-outline" size={22} color="#fff" />
+      </RNAnimated.View>
+    </RNAnimated.View>
+  );
+}
+
 function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; onDelete?: () => void; pending?: boolean }) {
   const { width: windowWidth } = useWindowDimensions();
   const deleteThreshold = windowWidth / 3;
@@ -2052,31 +2078,15 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
   if (Platform.OS === 'web' || !onDelete || pending) return row;
 
   return (
-    <Swipeable
+    <ReanimatedSwipeable
       rightThreshold={deleteThreshold}
-      renderRightActions={(progress, drag) => {
-        // drag är negativt (svep åt vänster) → negate för bredd
-        const containerWidth = drag.interpolate({
-          inputRange: [-windowWidth, 0],
-          outputRange: [windowWidth, 0],
-          extrapolate: 'clamp',
-        });
-        const redOpacity = progress.interpolate({
-          inputRange: [0.6, 1],
-          outputRange: [0, 1],
-          extrapolate: 'clamp',
-        });
-        return (
-          <Animated.View style={[s.swipeDeleteBtn, { width: containerWidth }]}>
-            <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#ef4444', opacity: redOpacity }]} />
-            <Ionicons name="trash-outline" size={22} color="#fff" />
-          </Animated.View>
-        );
-      }}
+      renderRightActions={(progress, drag) => (
+        <SwipeDeleteAction progress={progress} drag={drag} windowWidth={windowWidth} />
+      )}
       onSwipeableOpen={direction => { if (direction === 'right') onDelete(); }}
     >
       {row}
-    </Swipeable>
+    </ReanimatedSwipeable>
   );
 }
 
