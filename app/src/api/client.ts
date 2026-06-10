@@ -60,6 +60,7 @@ export interface NotificationPreferences {
   choreOverdue: boolean;
   listCleared: boolean;
   newMember: boolean;
+  shopperClaimed: boolean;
   reminderMinutes: number;
 }
 
