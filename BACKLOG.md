@@ -250,7 +250,7 @@
 - [x] Ny butik-dialogen hamnade i toppen i stället för botten: rotorsak = `overlay` var `position:absolute` → ingen flex-sibling puttade ner sheeten. Bytt till `overlay: flex:1` (transparent Pressable puttar ner) + `overlayDim`. (stores/index.tsx; samma fix på stores/[storeId].tsx rename.)
 - [ ] Inga varor hör till chark och deli just nu. måste nog göras om i databasen
 - [ ] Bocka av hel kategori med ett tryck: tryck på kategorirubriken → "Markera alla som klara" — minskar tryck vid hyllan
-- [ ] Emoji per inköpslista: likt sysslor och aktiviteter kunna sätta en emoji på listan (🛒 Willys, 🏕️ Campingtur, 🎄 Julmat) för bättre igenkänning i översikten
+- [x] Emoji per inköpslista: likt sysslor och aktiviteter kunna sätta en emoji på listan (🛒 Willys, 🏕️ Campingtur, 🎄 Julmat) för bättre igenkänning i översikten
 
 
 ### Meny

@@ -16,6 +16,7 @@ export interface ShoppingList {
   id: string;
   householdId: string;
   name: string;
+  emoji: string | null;
   storeId: string | null;
   isShared: boolean;
   createdBy: string;

@@ -4,6 +4,7 @@ import { capitalize } from '../../src/lib/text';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
+import { EmojiPicker } from '../../src/components/EmojiPicker';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
@@ -256,6 +257,7 @@ export default function ShoppingListScreen() {
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+  const [renameEmoji, setRenameEmoji] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
 
   async function saveRename() {
@@ -263,13 +265,13 @@ export default function ShoppingListScreen() {
     const newName = renameValue.trim();
     if (!newName) return;
     setRenaming(true);
-    const prev = list?.name;
-    setList(p => p ? { ...p, name: newName } : p);
+    const prev = { name: list?.name, emoji: list?.emoji };
+    setList(p => p ? { ...p, name: newName, emoji: renameEmoji } : p);
     setShowRenameModal(false);
     try {
-      await client.updateShoppingList(listId, { name: newName });
+      await client.updateShoppingList(listId, { name: newName, emoji: renameEmoji });
     } catch (e) {
-      setList(p => p && prev !== undefined ? { ...p, name: prev } : p);
+      setList(p => p && prev.name !== undefined ? { ...p, name: prev.name!, emoji: prev.emoji ?? null } : p);
       showError(e, 'Kunde inte byta namn');
     } finally {
       setRenaming(false);
@@ -1819,7 +1821,7 @@ export default function ShoppingListScreen() {
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); setRenameValue(list.name); setShowRenameModal(true); }}
+            onPress={() => { setShowActionsMenu(false); setRenameValue(list.name); setRenameEmoji(list.emoji ?? null); setShowRenameModal(true); }}
           >
             <Ionicons name="create-outline" size={20} color="#4f46e5" />
             <Text style={s.actionsMenuText}>Byt namn på listan</Text>
@@ -1894,6 +1896,7 @@ export default function ShoppingListScreen() {
               returnKeyType="done"
               onSubmitEditing={saveRename}
             />
+            <EmojiPicker value={renameEmoji} onChange={setRenameEmoji} />
             <Pressable
               style={[s.saveBtn, (!renameValue.trim() || renaming) && s.saveBtnDisabled]}
               onPress={saveRename}

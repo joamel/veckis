@@ -58,6 +58,7 @@ const categoryEnum = z.nativeEnum(StoreCategory);
 const createListSchema = z.object({
   householdId: z.string(),
   name: z.string().min(1).max(100),
+  emoji: z.string().max(8).nullable().optional(),
   storeId: z.string().optional(),
   isShared: z.boolean().default(true),
 });
@@ -244,6 +245,7 @@ shoppingRouter.patch('/lists/:listId', requireAuth, asyncHandler(async (req, res
 
   const body = z.object({
     name: z.string().min(1).max(100).optional(),
+    emoji: z.string().max(8).nullable().optional(),
     storeId: z.string().nullable().optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }

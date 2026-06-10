@@ -30,6 +30,7 @@ import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/clerk-expo';
 import { type Store } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
+import { EmojiPicker } from '../../src/components/EmojiPicker';
 
 export default function ShoppingScreen() {
   const router = useRouter();
@@ -49,6 +50,7 @@ export default function ShoppingScreen() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [newListName, setNewListName] = useState('');
+  const [newListEmoji, setNewListEmoji] = useState<string | null>(null);
   const [newListStoreId, setNewListStoreId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -119,9 +121,10 @@ export default function ShoppingScreen() {
     if (!householdId || !newListName.trim()) return;
     setCreating(true);
     try {
-      const list = await client.createShoppingList({ householdId, name: newListName.trim(), storeId: newListStoreId ?? undefined });
+      const list = await client.createShoppingList({ householdId, name: newListName.trim(), emoji: newListEmoji, storeId: newListStoreId ?? undefined });
       setShowModal(false);
       setNewListName('');
+      setNewListEmoji(null);
       setNewListStoreId(null);
       router.push(`/shopping/${list.id}` as never);
     } catch (e) {
@@ -186,7 +189,9 @@ export default function ShoppingScreen() {
                 onPress={() => router.push(`/shopping/${item.id}` as never)}
               >
                 <View style={styles.cardLeft}>
-                  <Ionicons name="cart-outline" size={fs(20)} color="#7c3aed" />
+                  {item.emoji
+                    ? <Text style={{ fontSize: fs(22) }}>{item.emoji}</Text>
+                    : <Ionicons name="cart-outline" size={fs(20)} color="#7c3aed" />}
                 </View>
                 <View style={styles.cardContent}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -220,9 +225,9 @@ export default function ShoppingScreen() {
         <Ionicons name="add" size={fs(30)} color="#fff" />
       </Pressable>
 
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setNewListStoreId(null); }}>
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setNewListEmoji(null); setNewListStoreId(null); }}>
         <View pointerEvents="none" style={styles.overlayDim} />
-        <Pressable style={styles.overlay} onPress={() => { setShowModal(false); setNewListStoreId(null); }} />
+        <Pressable style={styles.overlay} onPress={() => { setShowModal(false); setNewListEmoji(null); setNewListStoreId(null); }} />
         <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <View style={styles.sheet}>
             <View style={styles.sheetHandle} />
@@ -237,6 +242,7 @@ export default function ShoppingScreen() {
               returnKeyType="done"
               onSubmitEditing={createList}
             />
+            <EmojiPicker value={newListEmoji} onChange={setNewListEmoji} />
             <Text style={styles.pickStoreLabel}>Butik (valfritt)</Text>
             <Pressable
               style={styles.storePickBtn}

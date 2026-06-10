@@ -196,7 +196,7 @@ export function useApiClient() {
     getShoppingList: (listId: string) =>
       request<ShoppingListWithItems>(`/api/shopping/lists/${listId}`),
 
-    createShoppingList: (data: { householdId: string; name: string; storeId?: string; isShared?: boolean }) =>
+    createShoppingList: (data: { householdId: string; name: string; emoji?: string | null; storeId?: string; isShared?: boolean }) =>
       request<ShoppingListWithItems>('/api/shopping/lists', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -383,7 +383,7 @@ export function useApiClient() {
     getIngredientSuggestions: (householdId: string) =>
       request<{ name: string; category: string }[]>(`/api/staples/suggestions?householdId=${householdId}`),
 
-    updateShoppingList: (listId: string, data: { name?: string; storeId?: string | null }) =>
+    updateShoppingList: (listId: string, data: { name?: string; emoji?: string | null; storeId?: string | null }) =>
       request<ShoppingListWithItems>(`/api/shopping/lists/${listId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     // Push notifications
