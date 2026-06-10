@@ -5,6 +5,7 @@ import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
+import { Swipeable } from 'react-native-gesture-handler';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
@@ -892,6 +893,28 @@ export default function ShoppingListScreen() {
     }
   }
 
+  function deleteItemWithUndo(item: ShoppingItemWithRecipe) {
+    setList(prev => prev ? { ...prev, items: prev.items.filter(i => i.id !== item.id) } : prev);
+    let cancelled = false;
+    showGlobalToast(`${capitalize(item.name)} borttagen`, 'neutral', {
+      label: 'Ångra',
+      onPress: () => {
+        cancelled = true;
+        setList(prev => prev ? { ...prev, items: [...prev.items, item] } : prev);
+      },
+    });
+    setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        await client.deleteShoppingItem(item.id);
+        emitShoppingChanged();
+      } catch (e) {
+        setList(prev => prev ? { ...prev, items: [...prev.items, item] } : prev);
+        showError(e, 'Kunde inte ta bort vara');
+      }
+    }, 5000);
+  }
+
   async function completeList() {
     if (!listId) return;
     confirm({
@@ -1136,7 +1159,7 @@ export default function ShoppingListScreen() {
                 <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#9ca3af" />
               </Pressable>
               {!collapsed && group.items.map(item => (
-                <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
+                <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />
               ))}
             </View>
           );
@@ -1154,7 +1177,7 @@ export default function ShoppingListScreen() {
                 <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#d1d5db" />
               </Pressable>
               {!collapsed && checked.map(item => (
-                <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
+                <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />
               ))}
             </View>
           );
@@ -2005,8 +2028,8 @@ export default function ShoppingListScreen() {
   );
 }
 
-function ItemRow({ item, onToggle, onEdit, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; pending?: boolean }) {
-  return (
+function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; onDelete?: () => void; pending?: boolean }) {
+  const row = (
     <Pressable
       style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
       onPress={pending ? undefined : onToggle}
@@ -2022,6 +2045,21 @@ function ItemRow({ item, onToggle, onEdit, pending }: { item: ShoppingItemWithRe
         </View>
       </View>
     </Pressable>
+  );
+
+  if (Platform.OS === 'web' || !onDelete || pending) return row;
+
+  return (
+    <Swipeable
+      renderRightActions={() => (
+        <Pressable style={s.swipeDeleteBtn} onPress={onDelete} accessibilityLabel="Ta bort">
+          <Ionicons name="trash-outline" size={22} color="#fff" />
+        </Pressable>
+      )}
+      onSwipeableOpen={direction => { if (direction === 'right') onDelete(); }}
+    >
+      {row}
+    </Swipeable>
   );
 }
 
@@ -2137,6 +2175,7 @@ const s = StyleSheet.create({
   editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
+  swipeDeleteBtn: { width: 72, backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', marginVertical: 2, borderRadius: 8 },
   browserSheet: { maxHeight: '90%', gap: 0 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },

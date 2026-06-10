@@ -238,7 +238,7 @@
 - [x] Mängd-inmatning överallt: auto-"0" vid inledande "," + visa alltid "," (inte "."). Gemensam `normalizeQtyInput`-helper (`app/src/lib/qty.ts`) på alla qty-fält (inköp: lägg till/redigera/slå ihop, recept-ingredienser, meny-inventering). Stegknapparna (+/−) producerade tidigare "."-strängar — nu normaliserade till ",".
 - [x] Butik alltid i navbaren: butiken bor nu permanent i navbaren (vänster, efter bakåt-knappen, tryckbar → byt butik). Namnet visas innan scroll och kollapsar (opacity + maxWidth via `scrollY`) till bara `storefront`-ikonen när rubriken fälls upp till mitten. Den gamla butiksknappen i scroll-raden borttagen (dubblett-badgen kvar). Bonus: fixade rubrikens vertikala centrering i navbaren vid kollaps (`adjustY` hade fel tecken → låg ~4px för lågt).
 - [x] Sticky kategori-rubrik: aktuell kategorirubrik fastnar nu precis under navbaren tills nästa kategori når dit. Löst med en manuell pinnad overlay (`stickyCat`) som uppdateras från scroll-offset (`runOnJS` i scroll-handlern) + per-grupp `onLayout`-y; visar kategorin vars rad passerar navbar-linjen, döljs överst.
-- [ ] Kunna ta swipa höger för att ta bort en vara från inköpslistan helt (med ångra toast)
+- [x] Kunna ta swipa höger för att ta bort en vara från inköpslistan helt (med ångra toast)
 - [x] För långt butiksnamn och "Du handlar" tar mycket plats i navbaren
 - [x] Byt namn på "Bockat" till "Klart"
 - [x] "Klart" kategorin hakar i toppen när man scrollar in på den sektionen: "Klart"-sektionen ingår nu i sticky-spårningen (`catOrderRef` + `onLayout`-y), så sticky-overlayn visar "Klart" precis under navbaren när man scrollat ned till de avbockade varorna.
