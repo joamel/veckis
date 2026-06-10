@@ -881,14 +881,13 @@ export default function ChoresScreen() {
 
       {/* Create modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
-        <View style={{ flex: 1 }}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowCreate(false)} />
         <KeyboardAvoidingView behavior={kavBehavior}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny syssla</Text>
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Sysslans namn, t.ex. Damma"
@@ -960,7 +959,6 @@ export default function ChoresScreen() {
           </ScrollView>
         </View>
         </KeyboardAvoidingView>
-        </View>
       </Modal>
 
       <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} minimumDate={isoDateStr(new Date())} />
@@ -1073,7 +1071,6 @@ export default function ChoresScreen() {
 
       {/* Edit modal */}
       <Modal visible={!!editingChore} transparent animationType="slide" onRequestClose={() => setEditingChore(null)}>
-        <View style={{ flex: 1 }}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setEditingChore(null)} />
         <KeyboardAvoidingView behavior={kavBehavior}>
@@ -1084,7 +1081,7 @@ export default function ChoresScreen() {
             message={choreConflict?.msg ?? null}
             onShowLatest={choreConflict ? () => { openEdit(choreConflict.latest); setChoreConflict(null); } : undefined}
           />
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Sysslans namn"
@@ -1163,7 +1160,6 @@ export default function ChoresScreen() {
           </ScrollView>
         </View>
         </KeyboardAvoidingView>
-        </View>
       </Modal>
     </SafeAreaView>
   );
