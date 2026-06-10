@@ -10,6 +10,8 @@ interface DatePickerModalProps {
   visible: boolean;
   /** Show a "Rensa" button that clears the date. Default false. */
   clearable?: boolean;
+  /** Dates before this (YYYY-MM-DD) are shown greyed out and unselectable. */
+  minimumDate?: string;
 }
 
 function toDateStr(d: Date): string {
@@ -24,7 +26,7 @@ function isoWeek(d: Date): number {
   return Math.ceil((((t.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
-export function DatePickerModal({ value, onChange, onClose, title, visible, clearable = false }: DatePickerModalProps) {
+export function DatePickerModal({ value, onChange, onClose, title, visible, clearable = false, minimumDate }: DatePickerModalProps) {
   const initial = value ? new Date(value + 'T00:00:00') : new Date();
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
@@ -77,13 +79,14 @@ export function DatePickerModal({ value, onChange, onClose, title, visible, clea
               const isCurrentMonth = day.getMonth() === viewMonth;
               const isSelected = ds === value;
               const isToday = ds === todayStr;
+              const isDisabled = !!minimumDate && ds < minimumDate;
               return (
                 <Pressable
                   key={ds}
-                  style={[s.day, !isCurrentMonth && s.dayOther, isToday && !isSelected && s.dayToday, isSelected && s.daySelected]}
-                  onPress={() => { onChange(ds); onClose(); }}
+                  style={[s.day, isDisabled && s.dayDisabled, !isCurrentMonth && !isDisabled && s.dayOther, isToday && !isSelected && !isDisabled && s.dayToday, isSelected && s.daySelected]}
+                  onPress={isDisabled ? undefined : () => { onChange(ds); onClose(); }}
                 >
-                  <Text style={[s.dayNum, !isCurrentMonth && s.dayNumOther, isSelected && s.dayNumSelected]}>
+                  <Text style={[s.dayNum, (isDisabled || (!isCurrentMonth && !isDisabled)) && s.dayNumOther, isSelected && !isDisabled && s.dayNumSelected]}>
                     {day.getDate()}
                   </Text>
                 </Pressable>
@@ -120,6 +123,7 @@ const s = StyleSheet.create({
   week: { flexDirection: 'row', marginBottom: 2 },
   day: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 8, margin: 2 },
   dayOther: { opacity: 0.3 },
+  dayDisabled: { opacity: 0.2 },
   dayToday: { backgroundColor: '#eef2ff' },
   daySelected: { backgroundColor: '#4f46e5' },
   dayNum: { fontSize: 14, fontWeight: '600', color: '#111827' },

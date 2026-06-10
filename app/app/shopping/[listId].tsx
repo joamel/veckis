@@ -225,7 +225,7 @@ export default function ShoppingListScreen() {
   }, [shopperActive, shopperPulse]);
   const shopperTextAnimStyle = useAnimatedStyle(() => {
     const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [1, 0], Extrapolation.CLAMP);
-    return { opacity: t, maxWidth: t * 170, marginRight: t * 6 };
+    return { opacity: t, maxWidth: t * 80, marginRight: t * 6 };
   });
   const shopperIconAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: shopperPulse.value }] }));
   // Butiken ligger alltid i navbaren (vänster). Ikonen syns alltid; namnet
@@ -233,7 +233,7 @@ export default function ShoppingListScreen() {
   // inte krockar med den centrerade rubriken.
   const storeNameAnimStyle = useAnimatedStyle(() => {
     const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [1, 0], Extrapolation.CLAMP);
-    return { opacity: t, maxWidth: t * 160, marginLeft: t * 6 };
+    return { opacity: t, maxWidth: t * 80, marginLeft: t * 6 };
   });
 
   // Collapsed categories — tap category header to fold/unfold its items.
