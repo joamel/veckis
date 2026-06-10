@@ -96,6 +96,31 @@ function formatOcc(dateStr: string): string {
   return `${short} ${d.getDate()}/${d.getMonth() + 1}`;
 }
 
+function choreSummary(c: ChoreWithCompletion): string {
+  const rt = c.recurrenceType;
+  const dayNames = c.days.map(d => DAYS.find(x => x.key === d)?.short).filter(Boolean).join(', ');
+  if (rt === 'none') return 'En gång';
+  if (rt === 'daily') return 'Varje dag';
+  if (rt === 'weekly' || rt === 'custom_days') {
+    const weeks = c.recurrenceWeeks ?? 1;
+    const prefix = weeks === 1 ? 'Varje vecka' : `Var ${weeks}:e vecka`;
+    return dayNames ? `${prefix} · ${dayNames}` : prefix;
+  }
+  if (rt === 'monthly') {
+    if (c.monthlyType === 'day_of_month') {
+      const day = c.startDate ? parseInt(c.startDate.split('-')[2], 10) : null;
+      return day ? `Den ${day}:e varje månad` : 'Varje månad';
+    }
+    const weekNo = c.recurrenceWeekOfMonth;
+    const weekDay = c.days[0] ? DAYS.find(x => x.key === c.days[0])?.short?.toLowerCase() : null;
+    const ordinals = ['1:a', '2:a', '3:e', '4:e', '5:e'];
+    if (weekNo && weekDay) return `${ordinals[weekNo - 1]} ${weekDay} varje månad`;
+    return 'Varje månad';
+  }
+  if (rt === 'yearly') return 'En gång per år';
+  return FREQ_LABELS[c.frequency];
+}
+
 function choreToPattern(c: ChoreWithCompletion): RecurrencePattern {
   return {
     recurrenceType: c.recurrenceType,
@@ -156,7 +181,7 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
     if (occurrences[i].date <= todayStr) { occurrences[i].isCurrent = true; current = occurrences[i]; break; }
   }
   let nextDate: string | null = null;
-  for (let i = 1; i <= 90; i++) {
+  for (let i = 1; i <= 400; i++) {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
     if (occursOn(pattern, d)) { nextDate = isoDateStr(d); break; }
   }
@@ -262,9 +287,9 @@ export default function ChoresScreen() {
   const [newWeekday, setNewWeekday] = useState<WeekDay>('mon');
   const [creating, setCreating] = useState(false);
 
-  // Edit modal
+  // Modals
   const [editingChore, setEditingChore] = useState<ChoreWithCompletion | null>(null);
-  const [expandedChores, setExpandedChores] = useState<Set<string>>(new Set());
+  const [viewingChore, setViewingChore] = useState<ChoreWithCompletion | null>(null);
   const [choreConflict, setChoreConflict] = useState<{ msg: string; latest: ChoreWithCompletion } | null>(null);
   // Clear the conflict banner when the opened chore changes (open/switch/close);
   // a socket update to the same open chore keeps the id, so the banner survives.
@@ -570,6 +595,17 @@ export default function ChoresScreen() {
     });
   }
 
+  function openChoreActions(chore: ChoreWithCompletion) {
+    confirm({
+      title: chore.title,
+      buttons: [
+        { label: 'Redigera', onPress: () => { setViewingChore(null); openEdit(chore); } },
+        { label: 'Ta bort', style: 'destructive', onPress: () => { setViewingChore(null); deleteChore(chore.id, chore.title); } },
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
+  }
+
   async function completeChore(chore: ChoreWithCompletion, performedByMemberId: string | null = null) {
     const fakeId = '__opt__';
     const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note: null, day: null, date: null };
@@ -721,9 +757,7 @@ export default function ChoresScreen() {
           const finishedLook = once && done;
           const overdue = rec?.state === 'overdue';
           const assignedLabel = buildLabel(item);
-          const expanded = expandedChores.has(item.id);
-          // Kompakt rad: "vem · när". Resten (frekvens, dagar, fullständig
-          // status) bor i utfällt läge.
+          // Kompakt rad: "vem · när".
           // När en återkommande syssla just klarmarkerats vill vi visa nästa
           // datum direkt — boxen ska kännas "klar och vidare", inte fastlåst.
           const dateLabel = once
@@ -731,28 +765,17 @@ export default function ChoresScreen() {
             : (rec?.state === 'overdue' ? `förfallen ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
               : rec?.state === 'done' && rec.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
               : rec?.state === 'today' ? 'idag'
-              : rec?.current ? formatOcc(rec.current.date)
+              : rec?.state !== 'done' && rec?.current ? formatOcc(rec.current.date)
               : rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
               : null);
           const compactMeta = [assignedLabel, dateLabel].filter(Boolean).join(' · ');
-          const expandedMetaParts: (string | null)[] = [
-            FREQ_LABELS[item.frequency],
-            item.frequency !== 'daily' && item.days.length > 0
-              ? item.days.map(d => DAYS.find(x => x.key === d)?.short).join(', ')
-              : null,
-          ];
-          const expandedStatusText = rec
-            ? (rec.state === 'overdue' ? `Förfallen sedan ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
-              : rec.state === 'today' ? 'Att göra idag'
-              : rec.state === 'done' ? (rec.nextDate ? `Klar · nästa ${formatOcc(rec.nextDate)}` : 'Klar') : null)
-            : null;
           const showCheck = once || !!rec?.current;
           // För återkommande: visa boxen tom även när tillfället är klart
           // — det signalerar att man är "vidare till nästa", men trycket
           // är fortfarande aktivt så man kan ångra (uncompleteOccurrence).
           const checkVisualDone = once ? done : false;
-          const toggleExpand = wrapExpandTip(
-            () => setExpandedChores(prev => { const n = new Set(prev); if (n.has(item.id)) n.delete(item.id); else n.add(item.id); return n; }),
+          const openView = wrapExpandTip(
+            () => setViewingChore(item),
             {
               title: 'Detaljer per syssla',
               message: 'Här ser du frekvens, full status och historik (klara/missade tillfällen). Härifrån når du också Redigera och Ta bort.',
@@ -760,9 +783,11 @@ export default function ChoresScreen() {
           );
           return (
             <View style={s.cardWrap}>
+              <View style={[s.card, finishedLook && s.cardDone, overdue && s.cardOverdue]}>
+              <View style={s.cardInner}>
               <Pressable
-                style={[s.card, { padding: sp(14), gap: sp(12) }, finishedLook && s.cardDone, overdue && s.cardOverdue]}
-                onPress={toggleExpand}
+                style={[s.cardMain, { padding: sp(14), gap: sp(12) }]}
+                onPress={openView}
               >
                 <View style={s.cardIcon}>
                   <Ionicons name="sparkles-outline" size={fs(16)} color="#7c3aed" />
@@ -773,15 +798,6 @@ export default function ChoresScreen() {
                     <Text style={[s.cardMeta, { fontSize: fs(12) }, overdue && s.choreStatusOverdue]}>{compactMeta}</Text>
                   )}
                 </View>
-                <Pressable
-                  onPress={toggleExpand}
-                  hitSlop={8}
-                  style={s.expandBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel={expanded ? 'Dölj detaljer' : 'Visa detaljer'}
-                >
-                  <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={fs(18)} color="#9ca3af" />
-                </Pressable>
                 {showCheck && (
                   <Pressable
                     style={[s.checkBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }, checkVisualDone && s.checkBtnDone]}
@@ -801,72 +817,8 @@ export default function ChoresScreen() {
                   </Pressable>
                 )}
               </Pressable>
-              {expanded && (
-                <View style={s.historyBox}>
-                  {(expandedMetaParts.filter(Boolean).length > 0 || expandedStatusText) && (
-                    <View style={s.expandedHeader}>
-                      {expandedMetaParts.filter(Boolean).length > 0 && (
-                        <Text style={[s.expandedMeta, { fontSize: fs(12) }]}>
-                          {expandedMetaParts.filter(Boolean).join(' · ')}
-                        </Text>
-                      )}
-                      {expandedStatusText && (
-                        <Text style={[s.choreStatus, { fontSize: fs(12) }, overdue && s.choreStatusOverdue, rec?.state === 'done' && s.choreStatusDone]}>
-                          {expandedStatusText}
-                        </Text>
-                      )}
-                    </View>
-                  )}
-                  {rec && (rec.occurrences.length === 0 ? (
-                    <Text style={s.historyEmpty}>Inga tillfällen den senaste tiden</Text>
-                  ) : (() => {
-                    // För rotation: vems tur vid varje historisk occurrence.
-                    // Helper:n i shared räknar likadant både här och i tester.
-                    const isRotating = !!item.rotation && (item.assignedToMany?.length ?? 0) >= 2;
-                    const turnByDate = isRotating
-                      ? computeTurnHistory({ rotation: true, assignedToMany: item.assignedToMany }, rec.occurrences)
-                      : new Map<string, string>();
-                    return [...rec.occurrences].reverse().slice(0, 8).map(o => {
-                      const performerName = o.performedByMemberId
-                        ? (members.find(m => m.id === o.performedByMemberId)?.displayName ?? null)
-                        : memberNameByClerkId(o.completedBy);
-                      const turnId = turnByDate.get(o.date);
-                      const turnName = turnId ? (members.find(m => m.id === turnId)?.displayName ?? null) : null;
-                      const isHopIn = o.done && turnName && performerName && performerName !== turnName;
-                      return (
-                      <View key={o.date} style={s.historyRow}>
-                        <Ionicons
-                          name={o.done ? 'checkmark-circle' : o.isCurrent ? 'ellipse-outline' : 'close-circle-outline'}
-                          size={fs(15)}
-                          color={o.done ? '#10b981' : o.isCurrent ? '#7c3aed' : '#d1d5db'}
-                        />
-                        <Text style={[s.historyDate, { fontSize: fs(13) }, !o.done && !o.isCurrent && s.historyMissed]}>
-                          {formatOcc(o.date)}{o.done
-                            ? (isHopIn
-                              ? ` · ${performerName} (hoppade in för ${turnName})`
-                              : performerName
-                                ? ` · ${performerName}`
-                                : '')
-                            : o.isCurrent
-                              ? (turnName ? ` · ${turnName}s tur` : ' · att göra')
-                              : (turnName ? ` · ${turnName} missade` : ' · missad')}
-                        </Text>
-                      </View>
-                      );
-                    });
-                  })())}
-                  <View style={s.expandedActions}>
-                    <Pressable style={s.expandedActionBtn} onPress={() => openEdit(item)}>
-                      <Ionicons name="create-outline" size={fs(16)} color="#4f46e5" />
-                      <Text style={[s.expandedActionText, { fontSize: fs(13) }]}>Redigera</Text>
-                    </Pressable>
-                    <Pressable style={s.expandedActionBtn} onPress={() => deleteChore(item.id, item.title)}>
-                      <Ionicons name="trash-outline" size={fs(16)} color="#ef4444" />
-                      <Text style={[s.expandedActionText, { fontSize: fs(13), color: '#ef4444' }]}>Ta bort</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              )}
+              </View>
+              </View>
             </View>
           );
         }}
@@ -1016,6 +968,109 @@ export default function ChoresScreen() {
       <DatePickerModal value={editStartDate} onChange={setEditStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} />
       <DatePickerModal value={editEndDate} onChange={setEditEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} />
 
+      {/* View chore — read-only; edit/delete via 3-dot */}
+      <Modal visible={!!viewingChore} animationType="slide" onRequestClose={() => setViewingChore(null)}>
+        <View style={[s.viewFull, { paddingTop: insets.top }]}>
+          {viewingChore && (() => {
+            const c = viewingChore;
+            const once = isOnce(c);
+            const rec = once ? null : recurringStatus(c);
+            const ids = c.assignedToMany?.length ? c.assignedToMany : c.assignedTo ? [c.assignedTo] : [];
+            const names = ids.map(id => members.find(m => m.id === id)?.displayName).filter(Boolean) as string[];
+            const freqText = choreSummary(c);
+            const statusText = rec
+              ? (rec.state === 'overdue' ? `Förfallen sedan ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
+                : rec.state === 'today' ? 'Att göra idag'
+                : rec.state === 'done' ? (rec.nextDate ? `Klar · nästa ${formatOcc(rec.nextDate)}` : 'Klar') : null)
+              : null;
+            const isRotating = !!c.rotation && (c.assignedToMany?.length ?? 0) >= 2;
+            const turnByDate = isRotating
+              ? computeTurnHistory({ rotation: true, assignedToMany: c.assignedToMany }, rec?.occurrences ?? [])
+              : new Map<string, string>();
+            return (
+              <>
+                <View style={s.viewNav}>
+                  <Pressable onPress={() => setViewingChore(null)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Stäng">
+                    <Ionicons name="arrow-back" size={24} color="#111827" />
+                  </Pressable>
+                  <View style={{ flex: 1 }} />
+                  <Pressable onPress={() => openChoreActions(c)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                    <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
+                  </Pressable>
+                </View>
+                <ScrollView contentContainerStyle={[s.viewBody, { paddingBottom: insets.bottom + 24 }]}>
+                  <Text style={s.viewTitle}>{c.emoji ? `${c.emoji} ${c.title}` : c.title}</Text>
+                  <View style={s.viewRow}>
+                    <Ionicons name="repeat-outline" size={18} color="#6b7280" />
+                    <Text style={s.viewRowText}>{freqText}</Text>
+                  </View>
+                  {names.length > 0 && (
+                    <View style={s.viewRow}>
+                      <Ionicons name="people-outline" size={18} color="#6b7280" />
+                      <Text style={s.viewRowText}>{names.join(', ')}{isRotating ? ' (rotation)' : ''}</Text>
+                    </View>
+                  )}
+                  {statusText && (
+                    <View style={s.viewRow}>
+                      <Ionicons
+                        name={rec?.state === 'done' ? 'checkmark-circle-outline' : rec?.state === 'overdue' ? 'alert-circle-outline' : 'time-outline'}
+                        size={18}
+                        color={rec?.state === 'overdue' ? '#b45309' : rec?.state === 'done' ? '#10b981' : '#6b7280'}
+                      />
+                      <Text style={[s.viewRowText, rec?.state === 'overdue' && { color: '#b45309' }, rec?.state === 'done' && { color: '#10b981' }]}>
+                        {statusText}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={s.viewRow}>
+                    <Ionicons name={c.isShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color="#6b7280" />
+                    <Text style={s.viewRowText}>{c.isShared ? 'Gemensam' : 'Bara för mig'}</Text>
+                  </View>
+                  {!!c.description && (
+                    <View style={[s.viewRow, { alignItems: 'flex-start' }]}>
+                      <Ionicons name="document-text-outline" size={18} color="#6b7280" style={{ marginTop: 2 }} />
+                      <Text style={s.viewRowText}>{c.description}</Text>
+                    </View>
+                  )}
+                  {rec && rec.occurrences.length > 0 && (
+                    <>
+                      <View style={s.viewDivider} />
+                      <Text style={s.viewSectionTitle}>Historik</Text>
+                      {[...rec.occurrences].reverse().slice(0, 8).map(o => {
+                        const performerName = o.performedByMemberId
+                          ? (members.find(m => m.id === o.performedByMemberId)?.displayName ?? null)
+                          : memberNameByClerkId(o.completedBy);
+                        const turnId = turnByDate.get(o.date);
+                        const turnName = turnId ? (members.find(m => m.id === turnId)?.displayName ?? null) : null;
+                        const isHopIn = o.done && turnName && performerName && performerName !== turnName;
+                        return (
+                          <View key={o.date} style={s.historyRow}>
+                            <Ionicons
+                              name={o.done ? 'checkmark-circle' : o.isCurrent ? 'ellipse-outline' : 'close-circle-outline'}
+                              size={16}
+                              color={o.done ? '#10b981' : o.isCurrent ? '#7c3aed' : '#d1d5db'}
+                            />
+                            <Text style={[s.historyDate, !o.done && !o.isCurrent && s.historyMissed]}>
+                              {formatOcc(o.date)}{o.done
+                                ? (isHopIn
+                                  ? ` · ${performerName} (hoppade in för ${turnName})`
+                                  : performerName ? ` · ${performerName}` : '')
+                                : o.isCurrent
+                                  ? (turnName ? ` · ${turnName}s tur` : ' · att göra')
+                                  : (turnName ? ` · ${turnName} missade` : ' · missad')}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </>
+                  )}
+                </ScrollView>
+              </>
+            );
+          })()}
+        </View>
+      </Modal>
+
       {/* Edit modal */}
       <Modal visible={!!editingChore} transparent animationType="slide" onRequestClose={() => setEditingChore(null)}>
         <View style={{ flex: 1 }}>
@@ -1125,7 +1180,9 @@ const s = StyleSheet.create({
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#111827', borderRadius: 24, zIndex: 20 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c4b5fd', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  card: { backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c4b5fd', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  cardInner: { borderRadius: 12, overflow: 'hidden' },
+  cardMain: { flexDirection: 'row', alignItems: 'center' },
   cardDone: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
   cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#f5f3ff', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1, minWidth: 0 },
@@ -1137,7 +1194,7 @@ const s = StyleSheet.create({
   choreStatusOverdue: { color: '#b45309' },
   choreStatusDone: { color: '#10b981' },
   expandBtn: { padding: 4, flexShrink: 0 },
-  historyBox: { backgroundColor: '#fafafa', borderRadius: 12, marginTop: 6, marginHorizontal: 4, paddingHorizontal: 16, paddingVertical: 12, gap: 8, borderWidth: 1, borderColor: '#f3f4f6' },
+  historyBox: { borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, gap: 8 },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   historyDate: { fontSize: 13, color: '#374151', flex: 1 },
   historyMissed: { color: '#9ca3af' },
@@ -1195,4 +1252,13 @@ const s = StyleSheet.create({
   filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   filterMemberName: { fontSize: 16, color: '#374151', flex: 1, marginRight: 12 },
   filterMemberNameActive: { color: '#7c3aed', fontWeight: '600' },
+  viewFull: { flex: 1, backgroundColor: '#fff' },
+  viewNav: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8 },
+  viewNavBtn: { padding: 8 },
+  viewBody: { paddingHorizontal: 20, paddingTop: 8, gap: 4 },
+  viewTitle: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  viewRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
+  viewRowText: { flex: 1, fontSize: 16, color: '#374151' },
+  viewDivider: { height: 1, backgroundColor: '#f3f4f6', marginVertical: 12 },
+  viewSectionTitle: { fontSize: 14, fontWeight: '600', color: '#6b7280', marginBottom: 4 },
 });
