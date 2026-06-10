@@ -2198,7 +2198,7 @@ const s = StyleSheet.create({
   editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
-  swipeDeleteBtn: { justifyContent: 'center', alignItems: 'center', marginVertical: 2, backgroundColor: '#9ca3af', overflow: 'hidden' },
+  swipeDeleteBtn: { justifyContent: 'center', alignItems: 'center', marginVertical: 2, backgroundColor: '#9ca3af', borderRadius: 10, overflow: 'hidden' },
   browserSheet: { maxHeight: '90%', gap: 0 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },
