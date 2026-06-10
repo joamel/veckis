@@ -2029,6 +2029,8 @@ export default function ShoppingListScreen() {
 }
 
 function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; onDelete?: () => void; pending?: boolean }) {
+  const { width: windowWidth } = useWindowDimensions();
+  const deleteThreshold = windowWidth / 3;
   const row = (
     <Pressable
       style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
@@ -2051,23 +2053,23 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
 
   return (
     <Swipeable
-      rightThreshold={72}
-      renderRightActions={(progress) => {
-        const bgColor = progress.interpolate({
-          inputRange: [0.5, 1],
-          outputRange: ['#9ca3af', '#ef4444'],
+      rightThreshold={deleteThreshold}
+      renderRightActions={(progress, drag) => {
+        // drag är negativt (svep åt vänster) → negate för bredd
+        const containerWidth = drag.interpolate({
+          inputRange: [-windowWidth, 0],
+          outputRange: [windowWidth, 0],
           extrapolate: 'clamp',
         });
-        const scale = progress.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.8, 1],
+        const redOpacity = progress.interpolate({
+          inputRange: [0.6, 1],
+          outputRange: [0, 1],
           extrapolate: 'clamp',
         });
         return (
-          <Animated.View style={[s.swipeDeleteBtn, { backgroundColor: bgColor }]}>
-            <Animated.View style={{ transform: [{ scale }] }}>
-              <Ionicons name="trash-outline" size={22} color="#fff" />
-            </Animated.View>
+          <Animated.View style={[s.swipeDeleteBtn, { width: containerWidth }]}>
+            <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#ef4444', opacity: redOpacity }]} />
+            <Ionicons name="trash-outline" size={22} color="#fff" />
           </Animated.View>
         );
       }}
@@ -2190,7 +2192,7 @@ const s = StyleSheet.create({
   editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
-  swipeDeleteBtn: { width: 72, justifyContent: 'center', alignItems: 'center', marginVertical: 2, borderRadius: 8 },
+  swipeDeleteBtn: { justifyContent: 'center', alignItems: 'center', marginVertical: 2, backgroundColor: '#9ca3af', overflow: 'hidden' },
   browserSheet: { maxHeight: '90%', gap: 0 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },
