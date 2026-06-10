@@ -757,6 +757,22 @@ export default function ShoppingListScreen() {
     }
   }
 
+  async function markAllInCategory(items: ShoppingItemWithRecipe[]) {
+    const unchecked = items.filter(i => !i.isChecked);
+    if (unchecked.length === 0) return;
+    setList(prev =>
+      prev ? { ...prev, items: prev.items.map(i => unchecked.some(u => u.id === i.id) ? { ...i, isChecked: true } : i) } : prev
+    );
+    await Promise.all(unchecked.map(async item => {
+      try {
+        const updated = await client.checkShoppingItem(item.id, true);
+        setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: item.recipe } : i) } : prev);
+      } catch {
+        setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? item : i) } : prev);
+      }
+    }));
+  }
+
   function fillEditForm(item: ShoppingItemWithRecipe) {
     setEditName(capitalize(item.name));
     setEditQty(item.quantity !== 1 || item.unit ? String(item.quantity) : '');
@@ -1108,6 +1124,15 @@ export default function ShoppingListScreen() {
                   {label}
                   {collapsed ? ` (${group.items.length})` : ''}
                 </Text>
+                {group.items.some(i => !i.isChecked) && (
+                  <Pressable
+                    onPress={e => { e.stopPropagation(); void markAllInCategory(group.items); }}
+                    hitSlop={8}
+                    accessibilityLabel="Markera alla som klara"
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={20} color="#10b981" />
+                  </Pressable>
+                )}
                 <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#9ca3af" />
               </Pressable>
               {!collapsed && group.items.map(item => (
