@@ -1,5 +1,4 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type ConfirmButtonStyle = 'primary' | 'destructive' | 'cancel';
 export interface ConfirmButton {
@@ -25,7 +24,6 @@ export function ConfirmDialog({
   options: ConfirmOptions | null;
   onClose: () => void;
 }) {
-  const insets = useSafeAreaInsets();
   if (!options) return null;
 
   const dismiss = () => {
@@ -36,8 +34,8 @@ export function ConfirmDialog({
   if (options.variant === 'menu') {
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={dismiss} />
-        <Pressable style={[s.menuCard, { top: insets.top }]} onPress={() => {}}>
+        <Pressable style={{ flex: 1 }} onPress={dismiss} />
+        <View style={[s.menuCard, { top: 0 }]}>
           {options.title ? (
             <Text style={s.menuTitle}>{options.title}</Text>
           ) : null}
@@ -58,7 +56,7 @@ export function ConfirmDialog({
               </Pressable>
             );
           })}
-        </Pressable>
+        </View>
       </Modal>
     );
   }
