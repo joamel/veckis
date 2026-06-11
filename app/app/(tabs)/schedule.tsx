@@ -59,6 +59,13 @@ const TODAY_DAY = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1].
 const DRUM_H = 44;
 const HOUR_VALS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const MIN_VALS = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
+const REMIND_OPTS = [
+  { value: 5, label: '5 min' },
+  { value: 10, label: '10 min' },
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min' },
+  { value: 60, label: '1 tim' },
+];
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 type Member = { id: string; clerkUserId: string | null; displayName: string };
@@ -293,6 +300,7 @@ export default function ScheduleScreen() {
   const [newDay, setNewDay] = useState<WeekDay>(TODAY_DAY);
   const [newIsShared, setNewIsShared] = useState(true);
   const [newRemind, setNewRemind] = useState(true);
+  const [newRemindMinutes, setNewRemindMinutes] = useState(30);
   const [newAssignedToMany, setNewAssignedToMany] = useState<string[]>([]);
   const [newRecurrenceType, setNewRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('none');
   const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
@@ -311,6 +319,7 @@ export default function ScheduleScreen() {
   const [editEntryDay, setEditEntryDay] = useState<WeekDay>(TODAY_DAY);
   const [editEntryIsShared, setEditEntryIsShared] = useState(true);
   const [editEntryRemind, setEditEntryRemind] = useState(true);
+  const [editEntryRemindMinutes, setEditEntryRemindMinutes] = useState(30);
   const [editEntryAssignedToMany, setEditEntryAssignedToMany] = useState<string[]>([]);
   const [savingEntry, setSavingEntry] = useState(false);
 
@@ -490,6 +499,7 @@ export default function ScheduleScreen() {
     setNewMinute(0);
     setNewIsShared(true);
     setNewRemind(true);
+    setNewRemindMinutes(30);
     setNewAssignedToMany([]);
     setNewRecurrenceType('none');
     setNewRecurrenceDays([]);
@@ -525,6 +535,7 @@ export default function ScheduleScreen() {
         assignedToMany: newAssignedToMany,
         isShared: newIsShared,
         remind: timeEnabled && newRemind,
+        remindMinutes: timeEnabled && newRemind ? newRemindMinutes : null,
         recurrenceType: newRecurrenceType,
         recurrenceDays: newRecurrenceType === 'weekly' ? newRecurrenceDays : undefined,
         recurrenceWeeks: newRecurrenceType !== 'none' ? newRecurrenceWeeks : undefined,
@@ -659,6 +670,7 @@ export default function ScheduleScreen() {
     setEditEntryDay(entry.day);
     setEditEntryIsShared(entry.isShared);
     setEditEntryRemind(entry.remind ?? true);
+    setEditEntryRemindMinutes(entry.remindMinutes ?? 30);
     setEditEntryAssignedToMany(entry.assignedToMany && entry.assignedToMany.length > 0 ? entry.assignedToMany : (entry.assignedTo ? [entry.assignedTo] : []));
     setEditEntryRecurrenceType(entry.recurrenceType as any);
     setEditEntryRecurrenceDays(entry.recurrenceDays as WeekDay[]);
@@ -753,6 +765,7 @@ export default function ScheduleScreen() {
           startTime: startTime ?? undefined,
           isShared: editEntryIsShared,
           remind: editEntryRemind,
+          remindMinutes: editEntryTimeEnabled && editEntryRemind ? editEntryRemindMinutes : null,
           recurrenceType: 'none',
           startDate: selectedDayDateStr,
           endDate: selectedDayDateStr,
@@ -765,6 +778,7 @@ export default function ScheduleScreen() {
           startTime,
           isShared: editEntryIsShared,
           remind: editEntryRemind,
+          remindMinutes: editEntryTimeEnabled && editEntryRemind ? editEntryRemindMinutes : null,
           assignedToMany: editEntryAssignedToMany,
           recurrenceType: editEntryRecurrenceType,
           recurrenceDays: editEntryRecurrenceType === 'weekly' ? editEntryRecurrenceDays : [],
@@ -1385,14 +1399,25 @@ export default function ScheduleScreen() {
               </View>
             )}
             {editEntryTimeEnabled && (
-              <Pressable style={s.sharedRow} onPress={() => setEditEntryRemind(v => !v)}>
-                <Ionicons name={editEntryRemind ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={editEntryRemind ? '#4f46e5' : '#9ca3af'} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.sharedLabel}>Påminnelse</Text>
-                  <Text style={s.sharedSub}>{editEntryRemind ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
-                </View>
-                <Switch value={editEntryRemind} onValueChange={setEditEntryRemind} trackColor={{ true: '#4f46e5' }} />
-              </Pressable>
+              <>
+                <Pressable style={s.sharedRow} onPress={() => setEditEntryRemind(v => !v)}>
+                  <Ionicons name={editEntryRemind ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={editEntryRemind ? '#4f46e5' : '#9ca3af'} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.sharedLabel}>Påminnelse</Text>
+                    <Text style={s.sharedSub}>{editEntryRemind ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
+                  </View>
+                  <Switch value={editEntryRemind} onValueChange={setEditEntryRemind} trackColor={{ true: '#4f46e5' }} />
+                </Pressable>
+                {editEntryRemind && (
+                  <View style={s.remindChips}>
+                    {REMIND_OPTS.map(opt => (
+                      <Pressable key={opt.value} style={[s.remindChip, editEntryRemindMinutes === opt.value && s.remindChipSel]} onPress={() => setEditEntryRemindMinutes(opt.value)}>
+                        <Text style={[s.remindChipText, editEntryRemindMinutes === opt.value && s.remindChipTextSel]}>{opt.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </>
             )}
             {editMode === 'series' && (
               <RecurrencePicker
@@ -1616,14 +1641,25 @@ export default function ScheduleScreen() {
               </View>
             )}
             {timeEnabled && (
-              <Pressable style={s.sharedRow} onPress={() => setNewRemind(v => !v)}>
-                <Ionicons name={newRemind ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={newRemind ? '#4f46e5' : '#9ca3af'} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.sharedLabel}>Påminnelse</Text>
-                  <Text style={s.sharedSub}>{newRemind ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
-                </View>
-                <Switch value={newRemind} onValueChange={setNewRemind} trackColor={{ true: '#4f46e5' }} />
-              </Pressable>
+              <>
+                <Pressable style={s.sharedRow} onPress={() => setNewRemind(v => !v)}>
+                  <Ionicons name={newRemind ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={newRemind ? '#4f46e5' : '#9ca3af'} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.sharedLabel}>Påminnelse</Text>
+                    <Text style={s.sharedSub}>{newRemind ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
+                  </View>
+                  <Switch value={newRemind} onValueChange={setNewRemind} trackColor={{ true: '#4f46e5' }} />
+                </Pressable>
+                {newRemind && (
+                  <View style={s.remindChips}>
+                    {REMIND_OPTS.map(opt => (
+                      <Pressable key={opt.value} style={[s.remindChip, newRemindMinutes === opt.value && s.remindChipSel]} onPress={() => setNewRemindMinutes(opt.value)}>
+                        <Text style={[s.remindChipText, newRemindMinutes === opt.value && s.remindChipTextSel]}>{opt.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </>
             )}
 
             <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => { if (v) setNewAssignedToMany([]); return !v; })}>
@@ -1903,4 +1939,9 @@ const s = StyleSheet.create({
   filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   filterMemberName: { fontSize: 16, color: '#374151', flex: 1, marginRight: 12 },
   filterMemberNameActive: { color: '#7c3aed', fontWeight: '600' },
+  remindChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 4 },
+  remindChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  remindChipSel: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  remindChipText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  remindChipTextSel: { color: '#4f46e5', fontWeight: '700' },
 });

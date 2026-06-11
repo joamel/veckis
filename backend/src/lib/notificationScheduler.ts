@@ -128,7 +128,7 @@ async function runActivityReminders(now: LocalNow): Promise<void> {
     recipients = [...new Set(recipients)];
 
     for (const userId of recipients) {
-      const window = reminderMin.get(userId) ?? 30;
+      const window = e.remindMinutes ?? reminderMin.get(userId) ?? 30;
       if (delta > window) continue;
       const key = `activity:${e.id}:${now.dateStr}:${userId}`;
       if (await claimNotification(key)) {

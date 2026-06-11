@@ -352,7 +352,7 @@
 - [x] Aktivitetsdialogen (testfynd): (a) ingen toast vid spara/skapa — nu `showToast('Aktivitet sparad'/'skapad', 'success')`; (b) gick inte att trycka på andra knappar (t.ex. tilldela personer) med tangentbordet uppe — `keyboardShouldPersistTaps="handled"` på både de yttre (vertikala) OCH de nästlade horisontella medlemsväljar-ScrollView:erna (den nästlade var kvar-buggen i v1)
 - [x] Skapa ny aktivitet saknar påminnelse-val: påminnelse-toggle visas nu i skapa-flödet när tid är aktiverad (dold när ingen tid är vald — samma beteende som redigera). `remind` skickas som false om ingen tid är angiven.
 - [x] Syssla-läsvy (viewingChore) och aktivitets-läsvy (viewingEntry): pil + 3-prickar hamnade för långt ned på Android/web — Modal renderar redan under statusbaren, `paddingTop: insets.top` dubbel-paddade. Nu `paddingTop: Platform.OS === 'ios' ? insets.top : 0` (iOS behöver padding för notch, Android/web inte).
-- [ ] Kunna välja påminnelsetid — hur lång tid innan aktiviteten notisen ska skickas (t.ex. 5, 10, 15, 30, 60 min); idag är det bara på/av
+- [x] Kunna välja påminnelsetid — hur lång tid innan aktiviteten notisen ska skickas (t.ex. 5, 10, 15, 30, 60 min); idag är det bara på/av. Per aktivitet via chips (5/10/15/30/60 min); fallback på hushållets globala inställning (reminderMinutes). Schema-fält `remindMinutes Int?` på ScheduleEntry + migration + backend Zod + scheduler-logik uppdaterad.
 
 
 ### Sysslor
@@ -396,6 +396,7 @@
 - [ ] Avcheckad återkommande syssla (den 1a varje månad) visar samma datum som varit som nästa
 - [x] Datum står som valfritt men har man väl valt ett datum kan man inte ta bort det: ×-knapp dyker upp till höger om datumknappen när datum är satt (gäller alla 4 kombinationer: skapa/redigera × engång/startdatum)
 - [ ] Rensa avklarade återkommande sysslor — möjlighet att dölja eller ta bort klarmarkerings-historik (t.ex. alla klar-markeringar äldre än X veckor) så listan inte växer i all oändlighet
+- [ ] Saknas en "första gången"-knapp som finns i andra flikar1
 
 
 ---
