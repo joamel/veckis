@@ -142,8 +142,9 @@ interface ChoreOccurrence {
   date: string;
   done: boolean;
   isCurrent: boolean;
-  completedBy: string | null;          // clerkUserId who pressed Klar
-  performedByMemberId: string | null;  // who actually did it (may be a local profile)
+  completedBy: string | null;
+  performedByMemberId: string | null;
+  note: string | null;
 }
 interface RecurringStatus {
   occurrences: ChoreOccurrence[]; // ascending, recent window
@@ -173,6 +174,7 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
         isCurrent: false,
         completedBy: comp?.completedBy ?? null,
         performedByMemberId: comp?.performedByMemberId ?? null,
+        note: comp?.note ?? null,
       });
     }
   }
@@ -319,6 +321,30 @@ export default function ChoresScreen() {
   const [editMonthDay, setEditMonthDay] = useState(1);
   const [editWeekday, setEditWeekday] = useState<WeekDay>('mon');
   const [saving, setSaving] = useState(false);
+
+  // Note modal — shown after performer is picked, before completing
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [noteInput, setNoteInput] = useState('');
+  const [pendingComplete, setPendingComplete] = useState<((note: string | null) => void) | null>(null);
+
+  function askNote(onConfirm: (note: string | null) => void) {
+    setNoteInput('');
+    setPendingComplete(() => onConfirm);
+    setShowNoteModal(true);
+  }
+
+  function submitNote() {
+    const note = noteInput.trim() || null;
+    setShowNoteModal(false);
+    pendingComplete?.(note);
+    setPendingComplete(null);
+  }
+
+  function skipNote() {
+    setShowNoteModal(false);
+    pendingComplete?.(null);
+    setPendingComplete(null);
+  }
 
   // Date range state
   const [newStartDate, setNewStartDate] = useState<string | null>(null);
@@ -595,10 +621,33 @@ export default function ChoresScreen() {
     });
   }
 
+  function copyChore(chore: ChoreWithCompletion) {
+    const rt: RecurrenceType = chore.recurrenceType
+      ?? (chore.frequency === 'once' ? 'none'
+        : chore.frequency === 'daily' ? 'daily'
+        : chore.frequency === 'monthly' ? 'monthly'
+        : 'weekly');
+    const derived = deriveMonthlyFromStartDate(chore.startDate ?? null);
+    setNewTitle(chore.title);
+    setNewAssignedToMany(chore.assignedToMany?.length ? chore.assignedToMany : (chore.assignedTo ? [chore.assignedTo] : []));
+    setNewRotation(!!chore.rotation);
+    setNewRecurrenceType(rt);
+    setNewRecurrenceWeeks(chore.recurrenceWeeks ?? (chore.frequency === 'biweekly' ? 2 : 1));
+    setNewRecurrenceDays([...chore.days]);
+    setNewMonthlyType((chore.monthlyType as 'day_of_month' | 'weekday_of_month') ?? 'day_of_month');
+    setNewRecurrenceWeekOfMonth(chore.recurrenceWeekOfMonth ?? 1);
+    setNewMonthDay(derived.dayOfMonth);
+    setNewWeekday(derived.weekday);
+    setNewStartDate(null);
+    setNewEndDate(chore.endDate ?? null);
+    setShowCreate(true);
+  }
+
   function openChoreActions(chore: ChoreWithCompletion) {
     confirm({
       title: chore.title,
       buttons: [
+        { label: 'Kopiera', onPress: () => { setViewingChore(null); copyChore(chore); } },
         { label: 'Redigera', onPress: () => { setViewingChore(null); openEdit(chore); } },
         { label: 'Ta bort', style: 'destructive', onPress: () => { setViewingChore(null); deleteChore(chore.id, chore.title); } },
         { label: 'Avbryt', style: 'cancel' },
@@ -606,12 +655,12 @@ export default function ChoresScreen() {
     });
   }
 
-  async function completeChore(chore: ChoreWithCompletion, performedByMemberId: string | null = null) {
+  async function completeChore(chore: ChoreWithCompletion, performedByMemberId: string | null = null, note: string | null = null) {
     const fakeId = '__opt__';
-    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note: null, day: null, date: null };
+    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note, day: null, date: null };
     setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
     try {
-      const completion = await client.completeChore(chore.id, null, undefined, null, performedByMemberId);
+      const completion = await client.completeChore(chore.id, null, note ?? undefined, null, performedByMemberId);
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
         : c));
@@ -641,12 +690,12 @@ export default function ChoresScreen() {
   }
 
   // Forgiving model: complete/uncomplete a specific occurrence date.
-  async function completeOccurrence(chore: ChoreWithCompletion, date: string, performedByMemberId: string | null = null) {
+  async function completeOccurrence(chore: ChoreWithCompletion, date: string, performedByMemberId: string | null = null, note: string | null = null) {
     const fakeId = '__occ__' + date;
-    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note: null, day: null, date };
+    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note, day: null, date };
     setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
     try {
-      const completion = await client.completeChore(chore.id, null, undefined, date, performedByMemberId);
+      const completion = await client.completeChore(chore.id, null, note ?? undefined, date, performedByMemberId);
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
         : c));
@@ -805,11 +854,11 @@ export default function ChoresScreen() {
                       e.stopPropagation?.();
                       if (once) {
                         if (done) uncompleteChore(item);
-                        else pickPerformer(item, performer => completeChore(item, performer));
+                        else pickPerformer(item, performer => askNote(note => completeChore(item, performer, note)));
                       } else {
                         const cur = rec!.current!;
                         if (cur.done) uncompleteOccurrence(item, cur.date);
-                        else pickPerformer(item, performer => completeOccurrence(item, cur.date, performer));
+                        else pickPerformer(item, performer => askNote(note => completeOccurrence(item, cur.date, performer, note)));
                       }
                     }}
                   >
@@ -961,6 +1010,35 @@ export default function ChoresScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* Note modal — optional note after marking a chore done */}
+      <Modal visible={showNoteModal} transparent animationType="slide" onRequestClose={skipNote}>
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={skipNote} />
+        <KeyboardAvoidingView behavior={kavBehavior}>
+          <View style={[s.sheet, { paddingBottom: Math.max(16, insets.bottom) }]}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>Lägg till anteckning</Text>
+            <Text style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>Valfritt — visas i historiken</Text>
+            <TextInput
+              style={[s.input, { minHeight: 72, textAlignVertical: 'top' }]}
+              placeholder="t.ex. behöver nytt rengöringsmedel"
+              placeholderTextColor="#9ca3af"
+              value={noteInput}
+              onChangeText={setNoteInput}
+              autoFocus
+              multiline
+              maxLength={200}
+              returnKeyType="done"
+              blurOnSubmit
+              onSubmitEditing={submitNote}
+            />
+            <Pressable style={[s.button, { marginTop: 8 }]} onPress={submitNote}>
+              <Text style={s.buttonText}>{noteInput.trim() ? 'Spara anteckning' : 'Hoppa över'}</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} minimumDate={isoDateStr(new Date())} />
       <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} minimumDate={newStartDate ?? isoDateStr(new Date())} />
       <DatePickerModal value={editStartDate} onChange={setEditStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} minimumDate={isoDateStr(new Date())} />
@@ -1047,16 +1125,20 @@ export default function ChoresScreen() {
                               name={o.done ? 'checkmark-circle' : o.isCurrent ? 'ellipse-outline' : 'close-circle-outline'}
                               size={16}
                               color={o.done ? '#10b981' : o.isCurrent ? '#7c3aed' : '#d1d5db'}
+                              style={{ marginTop: o.note ? 2 : 0 }}
                             />
-                            <Text style={[s.historyDate, !o.done && !o.isCurrent && s.historyMissed]}>
-                              {formatOcc(o.date)}{o.done
-                                ? (isHopIn
-                                  ? ` · ${performerName} (hoppade in för ${turnName})`
-                                  : performerName ? ` · ${performerName}` : '')
-                                : o.isCurrent
-                                  ? (turnName ? ` · ${turnName}s tur` : ' · att göra')
-                                  : (turnName ? ` · ${turnName} missade` : ' · missad')}
-                            </Text>
+                            <View style={{ flex: 1 }}>
+                              <Text style={[s.historyDate, !o.done && !o.isCurrent && s.historyMissed]}>
+                                {formatOcc(o.date)}{o.done
+                                  ? (isHopIn
+                                    ? ` · ${performerName} (hoppade in för ${turnName})`
+                                    : performerName ? ` · ${performerName}` : '')
+                                  : o.isCurrent
+                                    ? (turnName ? ` · ${turnName}s tur` : ' · att göra')
+                                    : (turnName ? ` · ${turnName} missade` : ' · missad')}
+                              </Text>
+                              {o.note && <Text style={s.historyNote}>{o.note}</Text>}
+                            </View>
                           </View>
                         );
                       })}
@@ -1194,6 +1276,7 @@ const s = StyleSheet.create({
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   historyDate: { fontSize: 13, color: '#374151', flex: 1 },
   historyMissed: { color: '#9ca3af' },
+  historyNote: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic', marginTop: 1 },
   historyEmpty: { fontSize: 13, color: '#9ca3af', fontStyle: 'italic' },
   expandedHeader: { gap: 4, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', marginBottom: 4 },
   expandedMeta: { fontSize: 12, color: '#6b7280' },

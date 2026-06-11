@@ -377,8 +377,8 @@
 - [x] Sysslor borde sorteras efter tidigast förfallodatum: ej-klara sorteras nu på effektivt förfallodatum (överförfallna/dagens datum först via `recurringStatus`, nästa tillfälle annars; engångssysslor = idag). Klara hamnar fortsatt sist.
 - [x] Om engångstillfälle borde man inte kunna välja "turas om automatiskt" då det bara händer en gång: `MultiMemberPicker` fick en `rotationAllowed`-prop (false när `recurrenceType === 'none'`) → rotation-raden visas utgråad med förklaringen "Välj en upprepning först — en engångssyssla kan inte turas om". Save-logiken tvingar dessutom `rotation: false` för engångssysslor. + test.
 - [x] Borde kunna välja turordning (om turas om)
-- [ ] Kopiera syssla: "Kopiera" i 3-prickar-läsvyn skapar ett utkast med samma titel, frekvens, dagar och tilldelade — undviker att fylla i allt för liknande sysslor
-- [ ] Notat vid klarmarkering av syssla: note-fältet finns redan i ChoreCompletion-schemat, UI saknas — kort fritext vid avbockning visas i historiken (t.ex. "behöver nytt rengöringsmedel")
+- [x] Kopiera syssla: "Kopiera" i 3-prickar-läsvyn skapar ett utkast med samma titel, frekvens, dagar och tilldelade — undviker att fylla i allt för liknande sysslor
+- [x] Anteckning vid klarmarkering av syssla: note-fältet finns redan i ChoreCompletion-schemat, UI saknas — kort fritext vid avbockning visas i historiken (t.ex. "behöver nytt rengöringsmedel")
 - [ ] Push-notis vid avbockning av syssla: "Joakim dammsög ✓" till övriga — community-känsla och svar på "har det blivit gjort?" (utbyggnad av befintlig notis-infrastruktur)
 - [x] Borde aldrig skapa sysslor bakåt i tiden, endast från idag och framåt
 - [x] Utfällda sysslor borde se ut mer som att de hör till rubriken, nu har de en grå border som knappt syns och sitter inte ihop med rubriken. Borde se ut som en utfälld maträtt i veckomenyn
