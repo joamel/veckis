@@ -38,7 +38,7 @@ export function ConfirmDialog({
       <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
         <Pressable style={s.menuOverlay} onPress={dismiss}>
           <Pressable
-            style={[s.menuCard, { top: insets.top + 4 }]}
+            style={[s.menuCard, { top: insets.top }]}
             onPress={e => e.stopPropagation?.()}
           >
             {options.title ? (
@@ -129,7 +129,7 @@ const s = StyleSheet.create({
   menuOverlay: { flex: 1 },
   menuCard: {
     position: 'absolute',
-    right: 8,
+    right: 0,
     backgroundColor: '#fff',
     borderRadius: 12,
     minWidth: 180,
