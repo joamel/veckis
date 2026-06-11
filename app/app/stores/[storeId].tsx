@@ -194,7 +194,7 @@ export default function StoreDetailScreen() {
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
         <Text style={[s.title, { flex: 1 }]} numberOfLines={1}>{store.name}</Text>
-        <Pressable onPress={(ev) => confirm({ title: store.name, variant: 'menu', anchorY: ev.nativeEvent.pageY, buttons: [{ label: 'Byt namn', onPress: () => { setRenameValue(store.name); setShowRename(true); } }, { label: 'Ta bort butik', style: 'destructive', onPress: deleteStore }, { label: 'Avbryt', style: 'cancel' }] })} hitSlop={8} style={s.navBtn} accessibilityLabel="Mer">
+        <Pressable onPress={() => confirm({ title: store.name, variant: 'menu', buttons: [{ label: 'Byt namn', onPress: () => { setRenameValue(store.name); setShowRename(true); } }, { label: 'Ta bort butik', style: 'destructive', onPress: deleteStore }, { label: 'Avbryt', style: 'cancel' }] })} hitSlop={8} style={s.navBtn} accessibilityLabel="Mer">
           <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
         </Pressable>
       </View>

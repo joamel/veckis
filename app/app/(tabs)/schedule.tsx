@@ -697,11 +697,10 @@ export default function ScheduleScreen() {
 
   // 3-prickar-meny i läsvyn: redigera eller ta bort utan att klicket direkt
   // hamnar i redigeringsläget.
-  function openEntryActions(entry: ScheduleEntry, anchorY?: number) {
+  function openEntryActions(entry: ScheduleEntry) {
     confirm({
       title: entry.title,
       variant: 'menu',
-      anchorY,
       buttons: [
         { label: 'Redigera', onPress: () => { setViewingEntry(null); openEditEntry(entry); } },
         { label: 'Ta bort', style: 'destructive', onPress: () => { setViewingEntry(null); deleteEntry(entry, selectedDayDateStr); } },
@@ -987,7 +986,7 @@ export default function ScheduleScreen() {
               key={entry.id}
               style={[s.entryCard, isPast && { opacity: 0.5 }]}
               onPress={() => setViewingEntry(entry)}
-              onLongPress={(ev) => { medium(); openEntryActions(entry, ev.nativeEvent.pageY); }}
+              onLongPress={() => { medium(); openEntryActions(entry); }}
             >
               <View style={[s.menuIcon, { backgroundColor: '#ecfeff' }]}>
                 <Ionicons name="calendar-outline" size={fs(16)} color="#0891b2" />
@@ -1313,7 +1312,7 @@ export default function ScheduleScreen() {
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                   </Pressable>
                   <View style={{ flex: 1 }} />
-                  <Pressable onPress={(ev) => openEntryActions(e, ev.nativeEvent.pageY)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                  <Pressable onPress={() => openEntryActions(e)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
                     <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
                   </Pressable>
                 </View>

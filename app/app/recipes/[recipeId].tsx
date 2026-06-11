@@ -186,12 +186,11 @@ export default function RecipeDetailScreen() {
     setScaledServings(prev => Math.max(1, (prev ?? recipe.servings) + delta));
   }
 
-  function openRecipeActions(anchorY?: number) {
+  function openRecipeActions() {
     if (!recipe) return;
     confirm({
       title: recipe.title,
       variant: 'menu',
-      anchorY,
       buttons: [
         { label: 'Redigera recept', onPress: startEdit },
         { label: 'Ta bort recept', style: 'destructive', onPress: confirmDeleteRecipe },
@@ -392,7 +391,7 @@ export default function RecipeDetailScreen() {
         ) : (
           <Text style={s.headerTitle} numberOfLines={1}>{recipe.title}</Text>
         )}
-        <Pressable onPress={(ev) => openRecipeActions(ev.nativeEvent.pageY)} style={s.transferBtn} accessibilityLabel="Mer">
+        <Pressable onPress={openRecipeActions} style={s.transferBtn} accessibilityLabel="Mer">
           <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
       </View>

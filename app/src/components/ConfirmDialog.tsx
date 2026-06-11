@@ -13,8 +13,6 @@ export interface ConfirmOptions {
   /** 'menu' renders as a small popup at the top-right (for 3-dot action menus).
    *  Default 'sheet' is the standard bottom sheet. */
   variant?: 'sheet' | 'menu';
-  /** Y coordinate (pageY) of the trigger button — positions the popup near the button instead of top-right corner. */
-  anchorY?: number;
 }
 
 export function ConfirmDialog({
@@ -37,7 +35,7 @@ export function ConfirmDialog({
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
         <Pressable style={{ flex: 1 }} onPress={dismiss} />
-        <View style={[s.menuCard, { top: options.anchorY ?? 0 }]}>
+        <View style={[s.menuCard, { top: 0 }]}>
           {options.title ? (
             <Text style={s.menuTitle}>{options.title}</Text>
           ) : null}

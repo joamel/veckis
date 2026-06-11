@@ -679,11 +679,10 @@ export default function ChoresScreen() {
     setShowCreate(true);
   }
 
-  function openChoreActions(chore: ChoreWithCompletion, anchorY?: number) {
+  function openChoreActions(chore: ChoreWithCompletion) {
     confirm({
       title: chore.title,
       variant: 'menu',
-      anchorY,
       buttons: [
         { label: 'Kopiera', onPress: () => { setViewingChore(null); copyChore(chore); } },
         { label: 'Redigera', onPress: () => { setViewingChore(null); openEdit(chore); } },
@@ -1132,7 +1131,7 @@ export default function ChoresScreen() {
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                   </Pressable>
                   <View style={{ flex: 1 }} />
-                  <Pressable onPress={(ev) => openChoreActions(c, ev.nativeEvent.pageY)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                  <Pressable onPress={() => openChoreActions(c)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
                     <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
                   </Pressable>
                 </View>
