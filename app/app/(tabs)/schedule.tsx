@@ -179,6 +179,8 @@ const DIAL_HAND_R = DIAL_R - 26;
 const PIE_COLOR = '#e0e7ff';
 
 function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: number) => void }) {
+  const dialRef = useRef<View>(null);
+  const centerRef = useRef({ x: 0, y: 0 });
   const totalAngleSV = useSharedValue(minutesToTotalAngle(minutes));
   const lastAngleRef = useRef<number | null>(null);
   const lastEmittedRef = useRef(minutes);
@@ -197,19 +199,22 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
     }
   }, [minutes]);
 
-  // PanResponder wins over parent ScrollView via onStartShouldSetPanResponder.
-  // totalAngleSV is set directly (no setState per frame) so Reanimated renders
-  // smooth visuals on the UI thread without JS re-renders.
+  // pageX/pageY are absolute screen coords — stable even when layout re-renders shift
+  // the view. totalAngleSV is set directly (no setState per frame) so Reanimated
+  // renders smooth visuals on the UI thread.
   const panResponder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (e) => {
-      const { locationX, locationY } = e.nativeEvent;
-      lastAngleRef.current = Math.atan2(locationY - DIAL_R, locationX - DIAL_R) * (180 / Math.PI);
+      dialRef.current?.measure((_, __, w, h, px, py) => {
+        centerRef.current = { x: px + w / 2, y: py + h / 2 };
+      });
+      const { pageX, pageY } = e.nativeEvent;
+      lastAngleRef.current = Math.atan2(pageY - centerRef.current.y, pageX - centerRef.current.x) * (180 / Math.PI);
     },
     onPanResponderMove: (e) => {
-      const { locationX, locationY } = e.nativeEvent;
-      const a = Math.atan2(locationY - DIAL_R, locationX - DIAL_R) * (180 / Math.PI);
+      const { pageX, pageY } = e.nativeEvent;
+      const a = Math.atan2(pageY - centerRef.current.y, pageX - centerRef.current.x) * (180 / Math.PI);
       if (lastAngleRef.current !== null) {
         let delta = a - lastAngleRef.current;
         if (delta > 180) delta -= 360;
@@ -259,7 +264,16 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
 
   return (
     <View style={{ alignItems: 'center', gap: 10 }}>
-      <View style={s.remindDial} {...panResponder.panHandlers}>
+      <View
+        ref={dialRef}
+        style={s.remindDial}
+        onLayout={() => {
+          dialRef.current?.measure((_, __, w, h, px, py) => {
+            centerRef.current = { x: px + w / 2, y: py + h / 2 };
+          });
+        }}
+        {...panResponder.panHandlers}
+      >
           {/* Pie fill: right D-shape, clipped to right half */}
           <View style={{ position: 'absolute', left: DIAL_R, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
             <Animated.View style={[{
