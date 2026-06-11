@@ -51,7 +51,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem } from '@veckis/shared';
-import { kavBehavior } from '../../src/lib/platform';
+import { kavBehavior, isIOSLike } from '../../src/lib/platform';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
   fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', dairy_eggs: '🥛',
@@ -1278,11 +1278,14 @@ export default function ShoppingListScreen() {
         </Pressable>
       </View>
 
-      {/* Autocomplete chips + add bar */}
+      {/* Autocomplete chips + add bar.
+          Android Chrome PWA: browser resizes viewport → bar floats up naturally.
+          KAV would double-push (bar "jumps"). Disable on non-iOS web.
+          iOS Safari PWA: viewport doesn't resize → KAV needed to clear keyboard. */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-        enabled={keyboardVisible}
+        behavior="padding"
+        keyboardVerticalOffset={isIOSLike ? 90 : 0}
+        enabled={keyboardVisible && (Platform.OS !== 'web' || isIOSLike)}
       >
         {suggestions.length > 0 ? (
           <ScrollView
