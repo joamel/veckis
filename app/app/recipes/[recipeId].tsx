@@ -436,7 +436,7 @@ export default function RecipeDetailScreen() {
         ) : recipe.imageUrl ? (
           <View style={s.heroImage}>
             <Image
-              source={{ uri: recipe.imageUrl }}
+              source={{ uri: cloudinaryOptimized(recipe.imageUrl) }}
               style={StyleSheet.absoluteFill}
               resizeMode="cover"
               onLoadStart={() => { setHeroLoading(true); setHeroError(false); }}
@@ -780,6 +780,12 @@ export default function RecipeDetailScreen() {
       </Modal>
     </SafeAreaView>
   );
+}
+
+function cloudinaryOptimized(url: string, width = 800): string {
+  const idx = url.indexOf('/upload/');
+  if (idx === -1) return url;
+  return url.slice(0, idx + 8) + `w_${width},q_auto,f_auto/` + url.slice(idx + 8);
 }
 
 function deduplicateIngredients(ingredients: RecipeIngredient[], scaleRatio: number) {
