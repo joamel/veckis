@@ -50,7 +50,7 @@ export default function RecipeDetailScreen() {
   const [recipe, setRecipe] = useState<RecipeWithIngredients | null>(null);
   const [loading, setLoading] = useState(true);
   const [scaledServings, setScaledServings] = useState<number | null>(null);
-  const [showMenu, setShowMenu] = useState(false);
+
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editInstr, setEditInstr] = useState('');
@@ -186,9 +186,21 @@ export default function RecipeDetailScreen() {
     setScaledServings(prev => Math.max(1, (prev ?? recipe.servings) + delta));
   }
 
+  function openRecipeActions() {
+    if (!recipe) return;
+    confirm({
+      title: recipe.title,
+      variant: 'menu',
+      buttons: [
+        { label: 'Redigera recept', onPress: startEdit },
+        { label: 'Ta bort recept', style: 'destructive', onPress: confirmDeleteRecipe },
+        { label: 'Avbryt', style: 'cancel' },
+      ],
+    });
+  }
+
   function confirmDeleteRecipe() {
     if (!recipe) return;
-    setShowMenu(false);
     confirm({
       title: 'Ta bort recept',
       message: `Ta bort "${recipe.title}"? Detta går inte att ångra.`,
@@ -221,7 +233,6 @@ export default function RecipeDetailScreen() {
       quantity: i.quantity != null ? String(i.quantity).replace('.', ',') : '',
       unit: i.unit ?? '',
     })));
-    setShowMenu(false);
     setEditMode(true);
   }
 
@@ -380,7 +391,7 @@ export default function RecipeDetailScreen() {
         ) : (
           <Text style={s.headerTitle} numberOfLines={1}>{recipe.title}</Text>
         )}
-        <Pressable onPress={() => setShowMenu(true)} style={s.transferBtn} accessibilityLabel="Mer">
+        <Pressable onPress={openRecipeActions} style={s.transferBtn} accessibilityLabel="Mer">
           <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
       </View>
@@ -763,21 +774,6 @@ export default function RecipeDetailScreen() {
         </Pressable>
       )}
 
-      {/* 3-prickar-meny */}
-      <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
-        <Pressable style={s.menuOverlay} onPress={() => setShowMenu(false)}>
-          <View style={[s.menuSheet, { top: 0 }]}>
-            <Pressable style={s.menuItem} onPress={() => { setShowMenu(false); startEdit(); }}>
-              <Ionicons name="create-outline" size={18} color="#111827" />
-              <Text style={s.menuItemText}>Redigera recept</Text>
-            </Pressable>
-            <Pressable style={s.menuItem} onPress={confirmDeleteRecipe}>
-              <Ionicons name="trash-outline" size={18} color="#ef4444" />
-              <Text style={[s.menuItemText, { color: '#ef4444' }]}>Ta bort recept</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -881,10 +877,6 @@ const s = StyleSheet.create({
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '85%' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' },
-  menuSheet: { position: 'absolute', right: 0, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 16 },
-  menuItemText: { fontSize: 15, color: '#111827', fontWeight: '500' },
   renameTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16 },
   renameInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: '#f9fafb', color: '#111827' },
   editLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280', marginBottom: 6, marginTop: 14 },

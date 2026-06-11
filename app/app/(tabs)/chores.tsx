@@ -185,7 +185,11 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
   let nextDate: string | null = null;
   for (let i = 1; i <= 400; i++) {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
-    if (occursOn(pattern, d)) { nextDate = isoDateStr(d); break; }
+    if (occursOn(pattern, d)) {
+      const ds = isoDateStr(d);
+      // Skip future dates already pre-completed so the upcoming card advances.
+      if (!completionByDate.has(ds)) { nextDate = ds; break; }
+    }
   }
   let state: RecurringStatus['state'] = 'none';
   let overdueDays = 0;
@@ -856,7 +860,7 @@ export default function ChoresScreen() {
                 : null);
           }
           const compactMeta = [assignedLabel, dateLabel].filter(Boolean).join(' · ');
-          const showCheck = variant !== 'upcoming' && (once || !!rec?.current);
+          const showCheck = once || !!rec?.current || (variant === 'upcoming' && !!rec?.nextDate);
           const checkVisualDone = variant === 'done';
           const openView = wrapExpandTip(
             () => setViewingChore(item),
@@ -894,6 +898,8 @@ export default function ChoresScreen() {
                       if (variant === 'done') {
                         if (once) uncompleteChore(item);
                         else uncompleteOccurrence(item, rec!.current!.date);
+                      } else if (variant === 'upcoming') {
+                        pickPerformer(item, performer => askNote(note => completeOccurrence(item, rec!.nextDate!, performer, note)));
                       } else {
                         if (once) pickPerformer(item, performer => askNote(note => completeChore(item, performer, note)));
                         else {

@@ -40,7 +40,7 @@ export default function StoreDetailScreen() {
   const [openParents, setOpenParents] = useState<Set<StoreCategory>>(new Set());
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
+
   const [showRename, setShowRename] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [renaming, setRenaming] = useState(false);
@@ -197,7 +197,7 @@ export default function StoreDetailScreen() {
             </Pressable>
             <Text style={s.title} numberOfLines={1}>{store.name}</Text>
           </View>
-          <Pressable onPress={() => setShowMenu(true)} hitSlop={8} style={s.menuBtn} accessibilityLabel="Mer">
+          <Pressable onPress={() => confirm({ title: store.name, variant: 'menu', buttons: [{ label: 'Byt namn', onPress: () => { setRenameValue(store.name); setShowRename(true); } }, { label: 'Ta bort butik', style: 'destructive', onPress: deleteStore }, { label: 'Avbryt', style: 'cancel' }] })} hitSlop={8} style={s.menuBtn} accessibilityLabel="Mer">
             <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
           </Pressable>
         </View>
@@ -317,28 +317,6 @@ export default function StoreDetailScreen() {
         </View>
       )}
 
-      {/* 3-prickar-meny */}
-      <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
-        <Pressable style={s.menuOverlay} onPress={() => setShowMenu(false)}>
-          <View style={[s.menuSheet, { top: 0 }]}>
-            <Pressable
-              style={s.menuItem}
-              onPress={() => { setShowMenu(false); setRenameValue(store.name); setShowRename(true); }}
-            >
-              <Ionicons name="create-outline" size={18} color="#111827" />
-              <Text style={s.menuItemText}>Byt namn</Text>
-            </Pressable>
-            <Pressable
-              style={s.menuItem}
-              onPress={() => { setShowMenu(false); deleteStore(); }}
-            >
-              <Ionicons name="trash-outline" size={18} color="#ef4444" />
-              <Text style={[s.menuItemText, { color: '#ef4444' }]}>Ta bort butik</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
-
       {/* Byt namn-modal */}
       <Modal visible={showRename} transparent animationType="slide" onRequestClose={() => setShowRename(false)}>
         <View pointerEvents="none" style={s.overlayDim} />
@@ -402,10 +380,6 @@ const s = StyleSheet.create({
   saveBar: { position: 'absolute', left: 16, right: 16, bottom: 20 },
   primaryBtn: { backgroundColor: '#4f46e5', borderRadius: 12, paddingVertical: 14, alignItems: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  menuOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.2)' },
-  menuSheet: { position: 'absolute', right: 0, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
-  menuItemText: { fontSize: 15, color: '#111827', fontWeight: '500' },
   // flex:1 + eget dim-lager: transparent Pressable puttar ner sheeten till botten
   // (annars hamnar den i toppen) och dimmen täcker bakom de rundade hörnen.
   overlay: { flex: 1 },
