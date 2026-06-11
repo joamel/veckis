@@ -132,7 +132,7 @@
 - [ ] Enhetligt beslut om att lägga in saker bakåt i tiden: meny på tidigare vecka, sysslor bakåt och aktiviteter bakåt bör behandlas konsekvent (tillåt / varna / blockera). Idag spretar beteendet — ta ett gemensamt produktbeslut och applicera på alla tre.
 - [ ] Synliggör/aggregera klientfelen: vi loggar nu `[CLIENT ERROR]` till Render-loggarna (se prod-felsynlighet), men måste gräva manuellt. Persistera de senaste felen (liten tabell eller in-memory-ring) + enkel admin-vy/endpoint så man ser dem dagligen. Ev. Sentry-koppling när en native-build ändå görs (stack-symbolisering + aggregering).
 - [ ] "Kom igång"-vägledning för nya hushåll: efter setup, en kort checklista (lägg till första receptet / inköpslistan / sysslan) som hjälper adoption nu när riktiga användare signar upp
-- [ ] ConfirmDialog `variant:'menu'`-popup positioneras alltid i övre hörnet (`top: 0, right: 0`). Om 3-prickar-knappen sitter mitt på skärmen syns popup:en långt ifrån triggern. Förbättring: acceptera valfri `anchorY?: number` prop (från triggerkomponentens `.measure()`) och använd den om den ges för att placera popup nära knappen
+- [x] ConfirmDialog `variant:'menu'`-popup positioneras alltid i övre hörnet (`top: 0, right: 0`). Om 3-prickar-knappen sitter mitt på skärmen syns popup:en långt ifrån triggern. Fixat: `anchorY?: number` i `ConfirmOptions`; alla callers (sysslor, kalender, recept, butiker) skickar `ev.nativeEvent.pageY` → popup placeras vid knappens Y-position
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
