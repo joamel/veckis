@@ -1365,7 +1365,7 @@ export default function ScheduleScreen() {
             message={entryConflict?.msg ?? null}
             onShowLatest={entryConflict ? () => { doOpenEditEntry(entryConflict.latest, editMode); setEntryConflict(null); } : undefined}
           />
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Titel"
@@ -1594,7 +1594,7 @@ export default function ScheduleScreen() {
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny aktivitet</Text>
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Titel, t.ex. Träning"
