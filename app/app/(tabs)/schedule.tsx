@@ -2093,5 +2093,5 @@ const s = StyleSheet.create({
   filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   filterMemberName: { fontSize: 16, color: '#374151', flex: 1, marginRight: 12 },
   filterMemberNameActive: { color: '#7c3aed', fontWeight: '600' },
-  remindDial: { width: DIAL_SIZE, height: DIAL_SIZE, borderRadius: DIAL_R, borderWidth: 2, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', position: 'relative' },
+  remindDial: { width: DIAL_SIZE, height: DIAL_SIZE, borderRadius: DIAL_R, borderWidth: 2, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', position: 'relative', overflow: 'hidden' },
 });
