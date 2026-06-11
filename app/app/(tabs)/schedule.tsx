@@ -4,6 +4,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -59,41 +60,30 @@ const TODAY_DAY = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1].
 const DRUM_H = 44;
 const HOUR_VALS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const MIN_VALS = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
-const REMIND_DRUM_ENTRIES = [
-  { label: '1 min',    minutes: 1 },
-  { label: '2 min',    minutes: 2 },
-  { label: '3 min',    minutes: 3 },
-  { label: '5 min',    minutes: 5 },
-  { label: '10 min',   minutes: 10 },
-  { label: '15 min',   minutes: 15 },
-  { label: '20 min',   minutes: 20 },
-  { label: '30 min',   minutes: 30 },
-  { label: '45 min',   minutes: 45 },
-  { label: '1 tim',    minutes: 60 },
-  { label: '2 tim',    minutes: 120 },
-  { label: '3 tim',    minutes: 180 },
-  { label: '6 tim',    minutes: 360 },
-  { label: '12 tim',   minutes: 720 },
-  { label: '1 dag',    minutes: 1440 },
-  { label: '2 dagar',  minutes: 2880 },
-  { label: '3 dagar',  minutes: 4320 },
-  { label: '4 dagar',  minutes: 5760 },
-  { label: '5 dagar',  minutes: 7200 },
-  { label: '6 dagar',  minutes: 8640 },
-  { label: '1 vecka',  minutes: 10080 },
-  { label: '2 veckor', minutes: 20160 },
-  { label: '3 veckor', minutes: 30240 },
-  { label: '4 veckor', minutes: 40320 },
-];
-const REMIND_DRUM_LABELS = REMIND_DRUM_ENTRIES.map(e => e.label);
-function closestRemindIdx(minutes: number): number {
-  let best = 0;
-  let bestDiff = Infinity;
-  for (let i = 0; i < REMIND_DRUM_ENTRIES.length; i++) {
-    const diff = Math.abs(REMIND_DRUM_ENTRIES[i].minutes - minutes);
-    if (diff < bestDiff) { bestDiff = diff; best = i; }
-  }
-  return best;
+// Varv 1: 0°-360° = 1-60 min (6°/min)
+// Varv 2: 360°-720° = 1-24 tim (15°/tim)
+// Varv 3: 720°-1080° = 1-14 dagar (~25.7°/dag)
+// Varv 4: 1080°-1440° = 1-8 veckor (45°/vecka)
+function minutesToTotalAngle(m: number): number {
+  if (m <= 60) return m * 6;
+  if (m <= 1440) return 360 + (m / 60) * 15;
+  if (m <= 14 * 1440) return 720 + (m / 1440) * (360 / 14);
+  return 1080 + (m / 10080) * 45;
+}
+function totalAngleToMinutes(a: number): number {
+  if (a <= 360) return Math.max(1, Math.round(a / 6));
+  if (a <= 720) return Math.max(1, Math.round((a - 360) / 15)) * 60;
+  if (a <= 1080) return Math.max(1, Math.round((a - 720) / (360 / 14))) * 1440;
+  return Math.max(1, Math.round((a - 1080) / 45)) * 10080;
+}
+function formatRemindTime(m: number): string {
+  if (m < 60) return `${m} min`;
+  const h = Math.round(m / 60);
+  if (m < 1440) return `${h} tim`;
+  const d = Math.round(m / 1440);
+  if (m < 10080) return d === 1 ? '1 dag' : `${d} dagar`;
+  const w = Math.round(m / 10080);
+  return w === 1 ? '1 vecka' : `${w} veckor`;
 }
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
@@ -177,6 +167,115 @@ function Drum({ values, selected, onSelect }: { values: string[]; selected: numb
           borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#e5e7eb',
         }}
       />
+    </View>
+  );
+}
+
+const DIAL_SIZE = 200;
+const DIAL_R = DIAL_SIZE / 2;
+const DIAL_HAND_R = DIAL_R - 26;
+
+function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: number) => void }) {
+  const dialRef = useRef<View>(null);
+  const centerRef = useRef({ x: 0, y: 0 });
+  const lastAngleRef = useRef<number | null>(null);
+  const lastEmittedRef = useRef(minutes);
+  const [totalAngle, setTotalAngle] = useState(() => minutesToTotalAngle(minutes));
+  const totalAngleRef = useRef(totalAngle);
+
+  useEffect(() => {
+    if (minutes !== totalAngleToMinutes(totalAngleRef.current)) {
+      const target = minutesToTotalAngle(minutes);
+      totalAngleRef.current = target;
+      setTotalAngle(target);
+      lastEmittedRef.current = minutes;
+    }
+  }, [minutes]);
+
+  const panResponder = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (e) => {
+      dialRef.current?.measure((_, __, w, h, px, py) => {
+        centerRef.current = { x: px + w / 2, y: py + h / 2 };
+      });
+      const { pageX, pageY } = e.nativeEvent;
+      lastAngleRef.current = Math.atan2(pageY - centerRef.current.y, pageX - centerRef.current.x) * (180 / Math.PI);
+    },
+    onPanResponderMove: (e) => {
+      const { pageX, pageY } = e.nativeEvent;
+      const angle = Math.atan2(pageY - centerRef.current.y, pageX - centerRef.current.x) * (180 / Math.PI);
+      if (lastAngleRef.current !== null) {
+        let delta = angle - lastAngleRef.current;
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+        const newTotal = Math.max(6, Math.min(1440, totalAngleRef.current + delta));
+        totalAngleRef.current = newTotal;
+        setTotalAngle(newTotal);
+        const m = totalAngleToMinutes(newTotal);
+        if (m !== lastEmittedRef.current) {
+          lastEmittedRef.current = m;
+          hapticTick();
+          onChange(m);
+        }
+      }
+      lastAngleRef.current = angle;
+    },
+    onPanResponderRelease: () => { lastAngleRef.current = null; },
+  })).current;
+
+  const handAngleDeg = totalAngle % 360;
+  const handAngleRad = (handAngleDeg - 90) * Math.PI / 180;
+  const indX = DIAL_R + DIAL_HAND_R * Math.cos(handAngleRad);
+  const indY = DIAL_R + DIAL_HAND_R * Math.sin(handAngleRad);
+  const zone = Math.min(3, Math.floor(totalAngle / 360));
+
+  return (
+    <View style={{ alignItems: 'center', gap: 10 }}>
+      <View
+        ref={dialRef}
+        style={s.remindDial}
+        onLayout={() => dialRef.current?.measure((_, __, w, h, px, py) => {
+          centerRef.current = { x: px + w / 2, y: py + h / 2 };
+        })}
+        {...panResponder.panHandlers}
+      >
+        {/* Tick marks */}
+        {Array.from({ length: 12 }, (_, i) => {
+          const a = (i * 30 - 90) * Math.PI / 180;
+          return (
+            <View key={i} style={{
+              position: 'absolute',
+              left: DIAL_R + (DIAL_R - 10) * Math.cos(a) - 3,
+              top: DIAL_R + (DIAL_R - 10) * Math.sin(a) - 3,
+              width: 6, height: 6, borderRadius: 3,
+              backgroundColor: i * 30 <= handAngleDeg ? '#6366f1' : '#e5e7eb',
+            }} />
+          );
+        })}
+        {/* Clock hand */}
+        <View pointerEvents="none" style={{ position: 'absolute', left: DIAL_R - 1, top: DIAL_R - DIAL_HAND_R, width: 2, height: DIAL_HAND_R * 2, transform: [{ rotate: `${handAngleDeg}deg` }] }}>
+          <View style={{ width: 2, height: DIAL_HAND_R, backgroundColor: '#c7d2fe' }} />
+        </View>
+        {/* Indicator dot */}
+        <View style={{ position: 'absolute', left: indX - 12, top: indY - 12, width: 24, height: 24, borderRadius: 12, backgroundColor: '#4f46e5' }} />
+        {/* Center pivot */}
+        <View style={{ position: 'absolute', left: DIAL_R - 5, top: DIAL_R - 5, width: 10, height: 10, borderRadius: 5, backgroundColor: '#4f46e5' }} />
+        {/* Center time text */}
+        <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 28, fontWeight: '700', color: '#111827' }}>{formatRemindTime(minutes)}</Text>
+          <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>innan</Text>
+        </View>
+      </View>
+      {/* Zone dots */}
+      <View style={{ flexDirection: 'row', gap: 14 }}>
+        {(['min', 'tim', 'dagar', 'veckor'] as const).map((z, i) => (
+          <View key={z} style={{ alignItems: 'center', gap: 3 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: zone === i ? '#4f46e5' : '#e5e7eb' }} />
+            <Text style={{ fontSize: 10, color: zone === i ? '#4f46e5' : '#9ca3af' }}>{z}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -1438,13 +1537,7 @@ export default function ScheduleScreen() {
                   <Switch value={editEntryRemind} onValueChange={setEditEntryRemind} trackColor={{ true: '#4f46e5' }} />
                 </Pressable>
                 {editEntryRemind && (
-                  <View style={s.remindDrumWrap}>
-                    <Drum
-                      values={REMIND_DRUM_LABELS}
-                      selected={closestRemindIdx(editEntryRemindMinutes)}
-                      onSelect={i => setEditEntryRemindMinutes(REMIND_DRUM_ENTRIES[i].minutes)}
-                    />
-                  </View>
+                  <RemindDial minutes={editEntryRemindMinutes} onChange={setEditEntryRemindMinutes} />
                 )}
               </>
             )}
@@ -1680,13 +1773,7 @@ export default function ScheduleScreen() {
                   <Switch value={newRemind} onValueChange={setNewRemind} trackColor={{ true: '#4f46e5' }} />
                 </Pressable>
                 {newRemind && (
-                  <View style={s.remindDrumWrap}>
-                    <Drum
-                      values={REMIND_DRUM_LABELS}
-                      selected={closestRemindIdx(newRemindMinutes)}
-                      onSelect={i => setNewRemindMinutes(REMIND_DRUM_ENTRIES[i].minutes)}
-                    />
-                  </View>
+                  <RemindDial minutes={newRemindMinutes} onChange={setNewRemindMinutes} />
                 )}
               </>
             )}
@@ -1968,5 +2055,5 @@ const s = StyleSheet.create({
   filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   filterMemberName: { fontSize: 16, color: '#374151', flex: 1, marginRight: 12 },
   filterMemberNameActive: { color: '#7c3aed', fontWeight: '600' },
-  remindDrumWrap: { flexDirection: 'row', alignSelf: 'center', width: 160, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden' },
+  remindDial: { width: DIAL_SIZE, height: DIAL_SIZE, borderRadius: DIAL_R, borderWidth: 2, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', position: 'relative' },
 });
