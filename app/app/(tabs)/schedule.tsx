@@ -4,7 +4,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
-  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -16,6 +15,8 @@ import {
   Vibration,
   View,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -175,98 +176,152 @@ const DIAL_SIZE = 200;
 const DIAL_R = DIAL_SIZE / 2;
 const DIAL_HAND_R = DIAL_R - 26;
 
+const PIE_COLOR = '#e0e7ff';
+
 function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: number) => void }) {
   const dialRef = useRef<View>(null);
-  const centerRef = useRef({ x: 0, y: 0 });
-  const lastAngleRef = useRef<number | null>(null);
-  const lastEmittedRef = useRef(minutes);
-  const [totalAngle, setTotalAngle] = useState(() => minutesToTotalAngle(minutes));
-  const totalAngleRef = useRef(totalAngle);
+  const totalAngleSV = useSharedValue(minutesToTotalAngle(minutes));
+  const lastTouchAngleSV = useSharedValue<number | null>(null);
+  const lastEmittedSV = useSharedValue(minutes);
+  const centerXSV = useSharedValue(0);
+  const centerYSV = useSharedValue(0);
+  const [displayMinutes, setDisplayMinutes] = useState(minutes);
+  const [zone, setZone] = useState(() => Math.min(3, Math.floor(minutesToTotalAngle(minutes) / 360)));
 
   useEffect(() => {
-    if (minutes !== totalAngleToMinutes(totalAngleRef.current)) {
+    if (minutes !== lastEmittedSV.value) {
       const target = minutesToTotalAngle(minutes);
-      totalAngleRef.current = target;
-      setTotalAngle(target);
-      lastEmittedRef.current = minutes;
+      totalAngleSV.value = target;
+      lastEmittedSV.value = minutes;
+      setDisplayMinutes(minutes);
+      setZone(Math.min(3, Math.floor(target / 360)));
     }
   }, [minutes]);
 
-  const panResponder = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: (e) => {
-      dialRef.current?.measure((_, __, w, h, px, py) => {
-        centerRef.current = { x: px + w / 2, y: py + h / 2 };
-      });
-      const { pageX, pageY } = e.nativeEvent;
-      lastAngleRef.current = Math.atan2(pageY - centerRef.current.y, pageX - centerRef.current.x) * (180 / Math.PI);
-    },
-    onPanResponderMove: (e) => {
-      const { pageX, pageY } = e.nativeEvent;
-      const angle = Math.atan2(pageY - centerRef.current.y, pageX - centerRef.current.x) * (180 / Math.PI);
-      if (lastAngleRef.current !== null) {
-        let delta = angle - lastAngleRef.current;
+  const measureCenter = useCallback(() => {
+    dialRef.current?.measure((_, __, w, h, px, py) => {
+      centerXSV.value = px + w / 2;
+      centerYSV.value = py + h / 2;
+    });
+  }, []);
+
+  const notifyChange = useCallback((m: number, z: number) => {
+    setDisplayMinutes(m);
+    setZone(z);
+    hapticTick();
+    onChange(m);
+  }, [onChange]);
+
+  const gesture = Gesture.Pan()
+    .onBegin((e) => {
+      runOnJS(measureCenter)();
+      lastTouchAngleSV.value = Math.atan2(e.absoluteY - centerYSV.value, e.absoluteX - centerXSV.value) * (180 / Math.PI);
+    })
+    .onUpdate((e) => {
+      const a = Math.atan2(e.absoluteY - centerYSV.value, e.absoluteX - centerXSV.value) * (180 / Math.PI);
+      if (lastTouchAngleSV.value !== null) {
+        let delta = a - lastTouchAngleSV.value;
         if (delta > 180) delta -= 360;
         if (delta < -180) delta += 360;
-        const newTotal = Math.max(6, Math.min(1440, totalAngleRef.current + delta));
-        totalAngleRef.current = newTotal;
-        setTotalAngle(newTotal);
+        const newTotal = Math.max(6, Math.min(1440, totalAngleSV.value + delta));
+        totalAngleSV.value = newTotal;
         const m = totalAngleToMinutes(newTotal);
-        if (m !== lastEmittedRef.current) {
-          lastEmittedRef.current = m;
-          hapticTick();
-          onChange(m);
+        if (m !== lastEmittedSV.value) {
+          lastEmittedSV.value = m;
+          runOnJS(notifyChange)(m, Math.min(3, Math.floor(newTotal / 360)));
         }
       }
-      lastAngleRef.current = angle;
-    },
-    onPanResponderRelease: () => { lastAngleRef.current = null; },
-  })).current;
+      lastTouchAngleSV.value = a;
+    })
+    .onEnd(() => {
+      lastTouchAngleSV.value = null;
+    });
 
-  const handAngleDeg = totalAngle % 360;
-  const handAngleRad = (handAngleDeg - 90) * Math.PI / 180;
-  const indX = DIAL_R + DIAL_HAND_R * Math.cos(handAngleRad);
-  const indY = DIAL_R + DIAL_HAND_R * Math.sin(handAngleRad);
-  const zone = Math.min(3, Math.floor(totalAngle / 360));
+  // Pie fill — right half (arc 0°→180°): D-shape rotates around its flat left edge (dial center)
+  const rightFillStyle = useAnimatedStyle(() => {
+    const ha = totalAngleSV.value % 360;
+    const rot = Math.min(ha, 180) - 180;
+    return { transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
+  });
+
+  // Pie fill — left half (arc 180°→360°): D-shape rotates around its flat right edge (dial center)
+  const leftFillStyle = useAnimatedStyle(() => {
+    const ha = totalAngleSV.value % 360;
+    const rot = Math.max(ha - 180, 0) - 180;
+    return { transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
+  });
+
+  // Clock hand rotates around dial center
+  const handStyle = useAnimatedStyle(() => {
+    const ha = totalAngleSV.value % 360;
+    return { transform: [{ rotate: `${ha}deg` }] };
+  });
+
+  // Indicator dot moves along the hand radius
+  const indicatorStyle = useAnimatedStyle(() => {
+    const ha = totalAngleSV.value % 360;
+    const rad = (ha - 90) * Math.PI / 180;
+    return { transform: [{ translateX: DIAL_HAND_R * Math.cos(rad) }, { translateY: DIAL_HAND_R * Math.sin(rad) }] };
+  });
 
   return (
     <View style={{ alignItems: 'center', gap: 10 }}>
-      <View
-        ref={dialRef}
-        style={s.remindDial}
-        onLayout={() => dialRef.current?.measure((_, __, w, h, px, py) => {
-          centerRef.current = { x: px + w / 2, y: py + h / 2 };
-        })}
-        {...panResponder.panHandlers}
-      >
-        {/* Tick marks */}
-        {Array.from({ length: 12 }, (_, i) => {
-          const a = (i * 30 - 90) * Math.PI / 180;
-          return (
-            <View key={i} style={{
-              position: 'absolute',
-              left: DIAL_R + (DIAL_R - 10) * Math.cos(a) - 3,
-              top: DIAL_R + (DIAL_R - 10) * Math.sin(a) - 3,
-              width: 6, height: 6, borderRadius: 3,
-              backgroundColor: i * 30 <= handAngleDeg ? '#6366f1' : '#e5e7eb',
-            }} />
-          );
-        })}
-        {/* Clock hand */}
-        <View pointerEvents="none" style={{ position: 'absolute', left: DIAL_R - 1, top: DIAL_R - DIAL_HAND_R, width: 2, height: DIAL_HAND_R * 2, transform: [{ rotate: `${handAngleDeg}deg` }] }}>
-          <View style={{ width: 2, height: DIAL_HAND_R, backgroundColor: '#c7d2fe' }} />
+      <GestureDetector gesture={gesture}>
+        <View
+          ref={dialRef}
+          style={s.remindDial}
+          onLayout={() => {
+            dialRef.current?.measure((_, __, w, h, px, py) => {
+              centerXSV.value = px + w / 2;
+              centerYSV.value = py + h / 2;
+            });
+          }}
+        >
+          {/* Pie fill: right D-shape, clipped to right half */}
+          <View style={{ position: 'absolute', left: DIAL_R, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
+            <Animated.View style={[{
+              position: 'absolute', left: 0, top: 0,
+              width: DIAL_R, height: DIAL_SIZE,
+              borderTopRightRadius: DIAL_R, borderBottomRightRadius: DIAL_R,
+              backgroundColor: PIE_COLOR,
+            }, rightFillStyle]} />
+          </View>
+          {/* Pie fill: left D-shape, clipped to left half */}
+          <View style={{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
+            <Animated.View style={[{
+              position: 'absolute', left: 0, top: 0,
+              width: DIAL_R, height: DIAL_SIZE,
+              borderTopLeftRadius: DIAL_R, borderBottomLeftRadius: DIAL_R,
+              backgroundColor: PIE_COLOR,
+            }, leftFillStyle]} />
+          </View>
+          {/* Inner white mask (donut hole for text) */}
+          <View style={{
+            position: 'absolute', left: DIAL_R - 62, top: DIAL_R - 62,
+            width: 124, height: 124, borderRadius: 62,
+            backgroundColor: '#f9fafb',
+          }} />
+          {/* Clock hand — rotates around dial center */}
+          <Animated.View
+            pointerEvents="none"
+            style={[{ position: 'absolute', left: DIAL_R - 1, top: DIAL_R - DIAL_HAND_R, width: 2, height: DIAL_HAND_R * 2 }, handStyle]}
+          >
+            <View style={{ width: 2, height: DIAL_HAND_R, backgroundColor: '#818cf8' }} />
+          </Animated.View>
+          {/* Indicator dot */}
+          <Animated.View style={[{
+            position: 'absolute', left: DIAL_R - 12, top: DIAL_R - 12,
+            width: 24, height: 24, borderRadius: 12, backgroundColor: '#4f46e5',
+          }, indicatorStyle]} />
+          {/* Center pivot */}
+          <View style={{ position: 'absolute', left: DIAL_R - 5, top: DIAL_R - 5, width: 10, height: 10, borderRadius: 5, backgroundColor: '#4f46e5' }} />
+          {/* Center time text */}
+          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 28, fontWeight: '700', color: '#111827' }}>{formatRemindTime(displayMinutes)}</Text>
+            <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>innan</Text>
+          </View>
         </View>
-        {/* Indicator dot */}
-        <View style={{ position: 'absolute', left: indX - 12, top: indY - 12, width: 24, height: 24, borderRadius: 12, backgroundColor: '#4f46e5' }} />
-        {/* Center pivot */}
-        <View style={{ position: 'absolute', left: DIAL_R - 5, top: DIAL_R - 5, width: 10, height: 10, borderRadius: 5, backgroundColor: '#4f46e5' }} />
-        {/* Center time text */}
-        <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 28, fontWeight: '700', color: '#111827' }}>{formatRemindTime(minutes)}</Text>
-          <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>innan</Text>
-        </View>
-      </View>
+      </GestureDetector>
       {/* Zone dots */}
       <View style={{ flexDirection: 'row', gap: 14 }}>
         {(['min', 'tim', 'dagar', 'veckor'] as const).map((z, i) => (
