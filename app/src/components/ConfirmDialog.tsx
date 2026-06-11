@@ -38,7 +38,7 @@ export function ConfirmDialog({
       <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
         <Pressable style={s.menuOverlay} onPress={dismiss}>
           <Pressable
-            style={[s.menuCard, { top: insets.top + 56 }]}
+            style={[s.menuCard, { top: insets.top + 4 }]}
             onPress={e => e.stopPropagation?.()}
           >
             {options.title ? (
