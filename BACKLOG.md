@@ -48,6 +48,9 @@
 - [x] Sökresultat-chipsen (förslag medan man skriver) hamnade utanför skärmkanten: raden var en vanlig `View` (`chipRow`) utan scroll. Bytt till horisontell `ScrollView` (`keyboardShouldPersistTaps="handled"`) → swipa höger för fler. ("Dina vanligaste" har redan wrap.)
 - [ ] (utredning, behöver device) App-innehållet renderas ibland i en smal vänsterkolumn (~halva bredden) i PWA medan modalen går kant-till-kant. Det finns INGEN maxWidth/frame i koden — allt är `flex:1` full bredd — så detta är sannolikt ett browser-zoom/visual-viewport-tillstånd (samma misstänkta orsak som tidigare "delvis inzoomad"). Repro-steg: hård omladdning + nollställ sidzoom. Ev. överväg centrerad max-bredd-frame för web (krockar dock med tablet-split-vyer i kalender/meny).
 
+#### Regressions 2026-06-10
+- [x] Aktivitets-/sysslomodaler (schedule.tsx) hamnade under viewport på PWA: `<View style={{ flex: 1 }}>`-wrapper runt modal-innehållet tvingade overlay-Pressablen (flex:1) att fylla hela wrapphöjden → sheet puttades under skärmen. `ScrollView flex:1` i editingEntry + showModal gav 0-höjd i auto-höjd KAV-förälder utan definierad höjd på web. Båda borttagna — matchar nu inköpslistans flex-mönster.
+
 ### Generellt
 - [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)
 - [x] Skärmen borde hoppa upp när man ska skriva in något så man ser vad man skriver
@@ -120,15 +123,16 @@
 - [x] Prod-felsynlighet: `ErrorBoundary` (app/src/components) fångar render-fel app-brett → vänlig "Något gick fel"-vy + "Försök igen"; global `ErrorUtils`-handler (`installGlobalErrorHandler`) fångar ouppfångade JS-fel. Båda rapporterar via `reportClientError` (best-effort, dedupad) till ny oautentiserad `POST /api/client-errors` som loggar strukturerat (`[CLIENT ERROR] {...}`) till Render-loggarna → prod-fel blir synliga. Ren `buildErrorReport`-helper + tester (4 unit + 3 RNTL). Lättvikt (ingen native-modul/Sentry) så det når via OTA. Framtida: skicka till Sentry/DB + aggregering.
 - [x] ersätt "scrapar" med hämtar eller annat mer trevligt och okonventionellt ord: recept-import-tipset säger nu "så hämtar appen titel, ingredienser…" (matchar "Hämta recept"-knappen). Var enda synliga förekomsten; `scraping`-state m.m. är internt.
 - [x] Byta plats på sysslor och meny-fliken: ny flik-ordning Inköp · Meny · Kalender · Sysslor · Hushållet (chores ↔ menu bytta i `(tabs)/_layout.tsx`, Kalender kvar i mitten).
+- [x] "Ny version laddad"-prompt på native efter OTA: PWA har VersionBanner, men native-användare måste själva gissa att de ska stänga/öppna appen för att få uppdateringen. Diskret prompt när en OTA hämtats ("ny version klar — starta om").
+- [x] Offline-/nätverksindikator: diskret grå banner (OfflineBanner) när appen tappar anslutning — använder navigator.onLine + browser-events på web/PWA; native kräver @react-native-community/netinfo + EAS-build (anteckning i koden, graceful fallback = alltid online på native tills vidare).
+- [x] Tar man bort sitt konto fastnar man på "Välkommen till Veckis" med endast val att välja "Skapa/Gå med" knappar. Borde komma till logga in-sidan istället 
 - [ ] Horisontell-vy (landskap) i tablet funkar fortfarande inte i praktiken trots tablet-stöd (bugg, inte feature-önskemål)
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**
 - [ ] Enhetligt beslut om att lägga in saker bakåt i tiden: meny på tidigare vecka, sysslor bakåt och aktiviteter bakåt bör behandlas konsekvent (tillåt / varna / blockera). Idag spretar beteendet — ta ett gemensamt produktbeslut och applicera på alla tre.
-- [x] "Ny version laddad"-prompt på native efter OTA: PWA har VersionBanner, men native-användare måste själva gissa att de ska stänga/öppna appen för att få uppdateringen. Diskret prompt när en OTA hämtats ("ny version klar — starta om").
 - [ ] Synliggör/aggregera klientfelen: vi loggar nu `[CLIENT ERROR]` till Render-loggarna (se prod-felsynlighet), men måste gräva manuellt. Persistera de senaste felen (liten tabell eller in-memory-ring) + enkel admin-vy/endpoint så man ser dem dagligen. Ev. Sentry-koppling när en native-build ändå görs (stack-symbolisering + aggregering).
-- [x] Offline-/nätverksindikator: diskret grå banner (OfflineBanner) när appen tappar anslutning — använder navigator.onLine + browser-events på web/PWA; native kräver @react-native-community/netinfo + EAS-build (anteckning i koden, graceful fallback = alltid online på native tills vidare).
 - [ ] "Kom igång"-vägledning för nya hushåll: efter setup, en kort checklista (lägg till första receptet / inköpslistan / sysslan) som hjälper adoption nu när riktiga användare signar upp
-- [x] Tar man bort sitt konto fastnar man på "Välkommen till Veckis" med endast val att välja "Skapa/Gå med" knappar. Borde komma till logga in-sidan istället 
+- [ ] ConfirmDialog `variant:'menu'`-popup positioneras alltid i övre hörnet (`top: 0, right: 0`). Om 3-prickar-knappen sitter mitt på skärmen syns popup:en långt ifrån triggern. Förbättring: acceptera valfri `anchorY?: number` prop (från triggerkomponentens `.measure()`) och använd den om den ges för att placera popup nära knappen
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -245,13 +249,13 @@
 - [x] "Klart" kategorin hakar i toppen när man scrollar in på den sektionen: "Klart"-sektionen ingår nu i sticky-spårningen (`catOrderRef` + `onLayout`-y), så sticky-overlayn visar "Klart" precis under navbaren när man scrollat ned till de avbockade varorna.
 - [x] Push till hushållet när någon tar "Jag handlar": presence-indikatorn syns bara inne i appen. En notis ("Anna handlar nu") förhindrar dubbelturer till affären på riktigt.
 - [x] "Jag handlar"-läge auto-utgång: om någon claim:ar och glömmer släppa fastnar "Anna handlar" i dagar. Auto-släpp efter inaktivitet (t.ex. 2 h) utöver dagens auto-rensning vid list-rensning.
-- [ ] Offline-tålig synk för inköp (stor): idag är avbockning optimistisk MED rollback — offline failar request:en → bocken rullas tillbaka och tappas (toast "kunde inte bocka av"). I butiken med dålig täckning blir listan oanvändbar. Riktig fix = lokal persistens + mutations-kö som spelas upp vid återanslutning, med konflikthantering mot realtids-/last-write-wins-modellen. Större arkitektur-grej (AsyncStorage/SQLite + queue + replay)
 - [x] Skapa ny lista-dialogen skuggade inte all bakgrund (ljus text syntes bakom de rundade hörnen): dim flyttad till eget absolut `overlayDim`-lager (rgba(0,0,0,0.4)) som täcker hela skärmen inkl. bakom hörnen. (shopping.tsx)
 - [x] Trycker man "Välj butik" i skapa-lista-dialogen låg dialogen kvar och skymde butikslistan: dialogen döljs nu (`setShowModal(false)`) medan man väljer butik och återställs (`setShowModal(true)`, namnet kvar i state) när valet är klart/avbrutet. (shopping.tsx)
 - [x] Ny butik-dialogen hamnade i toppen i stället för botten: rotorsak = `overlay` var `position:absolute` → ingen flex-sibling puttade ner sheeten. Bytt till `overlay: flex:1` (transparent Pressable puttar ner) + `overlayDim`. (stores/index.tsx; samma fix på stores/[storeId].tsx rename.)
-- [ ] Inga varor hör till chark och deli just nu. måste nog göras om i databasen
 - [x] Bocka av hel kategori med ett tryck: tryck på kategorirubriken → "Markera alla som klara" — minskar tryck vid hyllan
 - [x] Emoji per inköpslista: likt sysslor och aktiviteter kunna sätta en emoji på listan (🛒 Willys, 🏕️ Campingtur, 🎄 Julmat) för bättre igenkänning i översikten
+- [x] Inga varor hör till chark och deli just nu: `inferSubCategory` saknade "korv" (generiskt), "wienerkorv", "grillkorv", "bratwurst", "prosciutto", "blodpudding" m.fl. Tillagda i `shared/src/lib/inferSubCategory.ts`. `backfillSubCategory` körs vid serverstart och omklassificerar befintliga DB-rader.
+- [ ] Offline-tålig synk för inköp (stor): idag är avbockning optimistisk MED rollback — offline failar request:en → bocken rullas tillbaka och tappas (toast "kunde inte bocka av"). I butiken med dålig täckning blir listan oanvändbar. Riktig fix = lokal persistens + mutations-kö som spelas upp vid återanslutning, med konflikthantering mot realtids-/last-write-wins-modellen. Större arkitektur-grej (AsyncStorage/SQLite + queue + replay)
 
 
 ### Meny
@@ -309,14 +313,14 @@
 - [x] Inventeringsdialogen går inte hela vägen ned (inventeringslistans höjd capades till fast 400px → på korta skärmar trängdes Överför/Tillbaka-knapparna ut under sheetens maxHeight 80%; höjden är nu skärmhöjds-medveten så knapparna alltid får plats)
 - [x] Persistera portionsskalning per menyrätt: skalningen (−/+ på menykortet) sparades bara i lokal state → tappades vid reload och syncade inte mellan enheter. Nu sparas `servings` på WeekMenuItem (fält + migration), PATCH:as debounced vid skalning (null = recept-default), och getScaleRatio/inköpsöverföringen läser det persisterade värdet. menu_updated-broadcasten gör att andra enheter laddar om med rätt portioner.
 - [x] Möjlighet att kopiera en veckomeny till en annan vecka (backend endpoint, UI återstår)
-- [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
-- [ ] Borde kunna klistra in ett recept (kopierade ingredienser) manuellt om inte url funkar, som gör om till en ingredienslista
-- [ ] "Laga nu"-läge i receptvyn: steg-för-steg-visning av instruktionerna (vi skrapar dem redan vid URL-import) med skärmen tänd medan man lagar. Naturlig användning av instruktions-fältet.
 - [x] Tar man bort en maträtt och flyttar en annan rätt till den dagen får man en varning att dagen redan är planerad trots att man tagit bort den tidigare maträtten: dag-upptagen-kollarna räknade items i pending-removal (5s ångra-fönster) som listan redan döljer. Nu exkluderas `pendingMenuItemRemovals` i alla tre dubbelkollarna (moveToDay, addRecipeToDay dag-kollen + recipeId-kollen).
 - [x] Lägger man in en maträtt på en tidigare/framtida vecka läggs den in på nuvarande vecka: rotorsak = receptväljaren navigerar via `router.replace('/(tabs)/menu?addRecipeId=...')` som återställer menyns `weekOffset`. Nu trådas den visade veckan genom navigeringen (`forMenuWeek=YYYY-WW`) via alla hopp (openPicker, startReplaceRecipe, create-flödet, recipes/index, recipes/[recipeId]); vid retur återställs `weekOffset` till målveckan och tillägget väntar tills rätt veckas meny laddats (korrekta dubbelkollar + optimistisk insert). (Produktfrågan "borde man kunna lägga på tidigare vecka alls" kvarstår som separat val.)
 - [x] Trycker man "planera en rätt" i framtida vecka hamnar den i nuvarande veckas meny: samma rotorsak/fix som ovan (vecka trådas genom receptväljaren)
 - [x] Lägga in automatiskt en "0" om man skriver ",": "Har"-inputen i inventeringssteget var bunden till ett tal → man kunde inte skriva ett inledande "," (blev NaN → nollställdes). Nu en draft-sträng (`amountDraft`) för aktivt fält som normaliserar "." → "," och prependar "0" vid inledande "," (→ "0,"). (Samma normalisering nu på ALLA qty-fält i appen via delad `normalizeQtyInput`.)
 - [x] Inventering: "Allt"/"Har"-knappen heter nu "Finns" (både mätbara och omätta rader) — tydligare att den markerar att varan finns hemma.
+- [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
+- [ ] Borde kunna klistra in ett recept (kopierade ingredienser) manuellt om inte url funkar, som gör om till en ingredienslista
+- [ ] "Laga nu"-läge i receptvyn: steg-för-steg-visning av instruktionerna (vi skrapar dem redan vid URL-import) med skärmen tänd medan man lagar. Naturlig användning av instruktions-fältet.
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -347,6 +351,7 @@
 - [x] Engångstillfälle upprepas ändå varje vecka trots ingen upprepning vald: tillfällen renderades på `e.day === veckodag` utan att respektera `recurrenceType`, och engångstillfällen skapades med `startDate: null` → ingen veckoinformation → visades varje matchande veckodag. Nu (a) ankras engångstillfällen vid skapande till det faktiska datumet (`startDate`/`endDate` = vald dag i visad vecka), och (b) renderingen går via ny `entryVisibleOnDate`-helper som speglar `choreVisibleOnDay` och delegerar till `occursOn`. Fixar på köpet latenta buggar för befintliga tillfällen (varannan-vecka, flera veckodagar, dagliga/månatliga renderades tidigare fel)
 - [x] Klickar man på en aktivitet borde man inte hamna direkt i redigeringsläge utan bara read-vy med sammanfattning + redigering under 3 prickar: ny `viewingEntry`-läsvy (modal) som visar titel + datum/veckodag, tid/heldag, upprepning (ny `recurrenceSummary`-helper), tilldelade personer, gemensam/privat och beskrivning. 3-prickar i headern (`openEntryActions`) → Redigera/Ta bort. Tap på kortet öppnar nu läsvyn (long-press → 3-prickar-menyn direkt); tablet-månadsvyn öppnar också läsvyn. (Testfix v2: bottensheet:en klipptes fortfarande → byggd om till **helskärmsvy** med egen nav-rad (tillbaka + 3-prickar) och scrollbar kropp.)
 - [x] Aktivitetsdialogen (testfynd): (a) ingen toast vid spara/skapa — nu `showToast('Aktivitet sparad'/'skapad', 'success')`; (b) gick inte att trycka på andra knappar (t.ex. tilldela personer) med tangentbordet uppe — `keyboardShouldPersistTaps="handled"` på både de yttre (vertikala) OCH de nästlade horisontella medlemsväljar-ScrollView:erna (den nästlade var kvar-buggen i v1)
+- [x] Skapa ny aktivitet saknar påminnelse-val: `timeEnabled` var false som default → reminder-toggle dolt i skapa-flödet. Nu visas toggle alltid i skapa-dialogen; utgråad med "Lägg till tid för att aktivera" när ingen tid är satt, interaktiv direkt när tid aktiveras (default on = opt-out). `remind` skickas som false om ingen tid är angiven.
 
 
 ### Sysslor
@@ -380,14 +385,15 @@
 - [x] Borde kunna välja turordning (om turas om)
 - [x] Kopiera syssla: "Kopiera" i 3-prickar-läsvyn skapar ett utkast med samma titel, frekvens, dagar och tilldelade — undviker att fylla i allt för liknande sysslor
 - [x] Anteckning vid klarmarkering av syssla: note-fältet finns redan i ChoreCompletion-schemat, UI saknas — kort fritext vid avbockning visas i historiken (t.ex. "behöver nytt rengöringsmedel")
-- [ ] Push-notis vid avbockning av syssla: "Joakim dammsög ✓" till övriga — community-känsla och svar på "har det blivit gjort?" (utbyggnad av befintlig notis-infrastruktur)
 - [x] 3-prickar-menyn i sysslor och kalender visas nu uppe till höger (fade-popup-card) istället för som bottom sheet — `variant: 'menu'` i `ConfirmDialog`, same top-right position på alla ställen
 - [x] Klarmarkera återkommande syssla → delat kort: avbockad syssla visas överstruken längst ned (kan ångras) + ett "uppkommande"-kort med nästa datum dyker upp bland de aktiva. Sorteras rätt efter nästa datum.
 - [x] Sortering av sysslor: pre-computade statuser i `sortedChores`, recurring done sorteras efter nextDate (snarast = högst upp bland avklarade), once-done hamnar sist
 - [x] Borde aldrig skapa sysslor bakåt i tiden, endast från idag och framåt
 - [x] Utfällda sysslor borde se ut mer som att de hör till rubriken, nu har de en grå border som knappt syns och sitter inte ihop med rubriken. Borde se ut som en utfälld maträtt i veckomenyn
 - [x] Läsvy-symmetri för sysslor: kalenderaktiviteter öppnar nu en read-vy (tap → sammanfattning, redigering under 3-prickar), men en syssla öppnar fortfarande direkt redigering/utfälld vy. Överväg samma läs-först-mönster för konsekvens.
+- [ ] Push-notis vid avbockning av syssla: "Joakim dammsög ✓" till övriga — community-känsla och svar på "har det blivit gjort?" (utbyggnad av befintlig notis-infrastruktur)
 - [ ] Avcheckad återkommande syssla (den 1a varje månad) visar samma datum som varit som nästa
+- [ ] Datum står som valfritt men har man väl valt ett datum kan man inte ta bort det
 
 
 ---
