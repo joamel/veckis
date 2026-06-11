@@ -126,7 +126,7 @@
 - [ ] Enhetligt beslut om att lägga in saker bakåt i tiden: meny på tidigare vecka, sysslor bakåt och aktiviteter bakåt bör behandlas konsekvent (tillåt / varna / blockera). Idag spretar beteendet — ta ett gemensamt produktbeslut och applicera på alla tre.
 - [x] "Ny version laddad"-prompt på native efter OTA: PWA har VersionBanner, men native-användare måste själva gissa att de ska stänga/öppna appen för att få uppdateringen. Diskret prompt när en OTA hämtats ("ny version klar — starta om").
 - [ ] Synliggör/aggregera klientfelen: vi loggar nu `[CLIENT ERROR]` till Render-loggarna (se prod-felsynlighet), men måste gräva manuellt. Persistera de senaste felen (liten tabell eller in-memory-ring) + enkel admin-vy/endpoint så man ser dem dagligen. Ev. Sentry-koppling när en native-build ändå görs (stack-symbolisering + aggregering).
-- [ ] Offline-/nätverksindikator: diskret banner när appen tappar anslutning, så användaren förstår varför saker inte syncar (relevant i butiken med dålig täckning). OBS: förklarar bara läget — löser inte offline-redigering (se "Offline-tålig synk" i Inköpslistan).
+- [x] Offline-/nätverksindikator: diskret grå banner (OfflineBanner) när appen tappar anslutning — använder navigator.onLine + browser-events på web/PWA; native kräver @react-native-community/netinfo + EAS-build (anteckning i koden, graceful fallback = alltid online på native tills vidare).
 - [ ] "Kom igång"-vägledning för nya hushåll: efter setup, en kort checklista (lägg till första receptet / inköpslistan / sysslan) som hjälper adoption nu när riktiga användare signar upp
 - [x] Tar man bort sitt konto fastnar man på "Välkommen till Veckis" med endast val att välja "Skapa/Gå med" knappar. Borde komma till logga in-sidan istället 
 
