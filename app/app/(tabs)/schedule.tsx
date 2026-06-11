@@ -63,19 +63,19 @@ const HOUR_VALS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, 
 const MIN_VALS = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
 // Varv 1: 0°-360° = 1-60 min (6°/min)
 // Varv 2: 360°-720° = 1-24 tim (15°/tim)
-// Varv 3: 720°-1080° = 1-14 dagar (~25.7°/dag)
+// Varv 3: 720°-1080° = 1-7 dagar (60°/dag)
 // Varv 4: 1080°-1440° = 1-8 veckor (45°/vecka)
 function minutesToTotalAngle(m: number): number {
   if (m <= 60) return m * 6;
   if (m <= 1440) return 360 + (m / 60) * 15;
-  if (m <= 14 * 1440) return 720 + (m / 1440) * (360 / 14);
+  if (m <= 7 * 1440) return 660 + m / 24;  // 1 dag=720°, 7 dagar=1080°
   return 1080 + (m / 10080) * 45;
 }
 function totalAngleToMinutes(a: number): number {
   'worklet';
   if (a <= 360) return Math.max(1, Math.round(a / 6));
   if (a <= 720) return Math.max(1, Math.round((a - 360) / 15)) * 60;
-  if (a <= 1080) return Math.max(1, Math.round((a - 720) / (360 / 14))) * 1440;
+  if (a <= 1080) return Math.max(1, Math.min(7, Math.round((a - 720) / 60) + 1)) * 1440;
   return Math.max(1, Math.round((a - 1080) / 45)) * 10080;
 }
 function formatRemindTime(m: number): string {
@@ -192,7 +192,6 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
   const lastEmittedRef = useRef(minutes);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-  const [zone, setZone] = useState(() => Math.min(3, Math.floor(minutesToTotalAngle(minutes) / 360)));
 
   useEffect(() => {
     if (minutes !== lastEmittedRef.current) {
@@ -200,7 +199,6 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
       totalAngleSV.value = target;
       lastEmittedRef.current = minutes;
       lastHapticRef.current = minutes;
-      setZone(Math.min(3, Math.floor(target / 360)));
     }
   }, [minutes]);
 
@@ -236,10 +234,8 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
     },
     onPanResponderRelease: () => {
       lastAngleRef.current = null;
-      const newTotal = totalAngleSV.value;
-      const m = totalAngleToMinutes(newTotal);
+      const m = totalAngleToMinutes(totalAngleSV.value);
       lastEmittedRef.current = m;
-      setZone(Math.min(3, Math.floor(newTotal / 360)));
       onChangeRef.current(m);
     },
   })).current;
@@ -341,15 +337,6 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
             <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>innan</Text>
           </View>
         </View>
-      {/* Zone dots */}
-      <View style={{ flexDirection: 'row', gap: 14 }}>
-        {(['min', 'tim', 'dagar', 'veckor'] as const).map((z, i) => (
-          <View key={z} style={{ alignItems: 'center', gap: 3 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: zone === i ? '#4f46e5' : '#e5e7eb' }} />
-            <Text style={{ fontSize: 10, color: zone === i ? '#4f46e5' : '#9ca3af' }}>{z}</Text>
-          </View>
-        ))}
-      </View>
     </View>
   );
 }
@@ -492,6 +479,9 @@ export default function ScheduleScreen() {
   const { filterMemberIds, setFilterMemberIds } = useMemberFilter();
   const [tabletCalendarView, setTabletCalendarView] = useState<'month' | 'week'>('month');
   const [showFilterModal, setShowFilterModal] = useState(false);
+
+  const newModalScrollRef = useRef<ScrollView>(null);
+  const editModalScrollRef = useRef<ScrollView>(null);
 
   // New entry modal
   const [showModal, setShowModal] = useState(false);
@@ -1581,7 +1571,7 @@ export default function ScheduleScreen() {
             message={entryConflict?.msg ?? null}
             onShowLatest={entryConflict ? () => { doOpenEditEntry(entryConflict.latest, editMode); setEntryConflict(null); } : undefined}
           />
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
+          <ScrollView ref={editModalScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Titel"
@@ -1591,7 +1581,14 @@ export default function ScheduleScreen() {
             />
             <View style={s.timeToggleRow}>
               <Text style={s.label}>Tid (valfritt)</Text>
-              <Switch value={editEntryTimeEnabled} onValueChange={setEditEntryTimeEnabled} trackColor={{ true: '#4f46e5' }} />
+              <Switch
+                value={editEntryTimeEnabled}
+                onValueChange={v => {
+                  setEditEntryTimeEnabled(v);
+                  if (v) setTimeout(() => editModalScrollRef.current?.scrollTo({ y: 0, animated: true }), 50);
+                }}
+                trackColor={{ true: '#4f46e5' }}
+              />
             </View>
             {editEntryTimeEnabled && (
               <View style={s.drumRow}>
@@ -1815,7 +1812,7 @@ export default function ScheduleScreen() {
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny aktivitet</Text>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
+          <ScrollView ref={newModalScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Titel, t.ex. Träning"
@@ -1827,7 +1824,14 @@ export default function ScheduleScreen() {
 
             <View style={s.timeToggleRow}>
               <Text style={s.label}>Tid (valfritt)</Text>
-              <Switch value={timeEnabled} onValueChange={setTimeEnabled} trackColor={{ true: '#4f46e5' }} />
+              <Switch
+                value={timeEnabled}
+                onValueChange={v => {
+                  setTimeEnabled(v);
+                  if (v) setTimeout(() => newModalScrollRef.current?.scrollTo({ y: 0, animated: true }), 50);
+                }}
+                trackColor={{ true: '#4f46e5' }}
+              />
             </View>
             {timeEnabled && (
               <View style={s.drumRow}>
