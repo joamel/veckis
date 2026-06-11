@@ -1150,7 +1150,18 @@ export default function ShoppingListScreen() {
                 </Text>
                 {group.items.some(i => !i.isChecked) && (
                   <Pressable
-                    onPress={e => { e.stopPropagation(); void markAllInCategory(group.items); }}
+                    onPress={e => {
+                      e.stopPropagation();
+                      const uncheckedCount = group.items.filter(i => !i.isChecked).length;
+                      confirm({
+                        title: 'Klarmarkera hela kategorin?',
+                        message: `${uncheckedCount} vara${uncheckedCount === 1 ? '' : 'r'} markeras som klar${uncheckedCount === 1 ? '' : 'a'}.`,
+                        buttons: [
+                          { label: 'Klarmarkera', onPress: () => void markAllInCategory(group.items) },
+                          { label: 'Avbryt', style: 'cancel' },
+                        ],
+                      });
+                    }}
                     hitSlop={8}
                     accessibilityLabel="Markera alla som klara"
                   >

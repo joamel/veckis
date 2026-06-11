@@ -700,6 +700,7 @@ export default function ScheduleScreen() {
   function openEntryActions(entry: ScheduleEntry) {
     confirm({
       title: entry.title,
+      variant: 'menu',
       buttons: [
         { label: 'Redigera', onPress: () => { setViewingEntry(null); openEditEntry(entry); } },
         { label: 'Ta bort', style: 'destructive', onPress: () => { setViewingEntry(null); deleteEntry(entry, selectedDayDateStr); } },

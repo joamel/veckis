@@ -1,4 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type ConfirmButtonStyle = 'primary' | 'destructive' | 'cancel';
 export interface ConfirmButton {
@@ -10,13 +11,11 @@ export interface ConfirmOptions {
   title: string;
   message?: string;
   buttons: ConfirmButton[];
+  /** 'menu' renders as a small popup at the top-right (for 3-dot action menus).
+   *  Default 'sheet' is the standard bottom sheet. */
+  variant?: 'sheet' | 'menu';
 }
 
-/**
- * App-styled replacement for the native Alert.alert — bottom sheet with rounded
- * top corners, matches the rest of the app's modals. Buttons stack vertically
- * with thin separators; styles convey intent (primary/destructive/cancel).
- */
 export function ConfirmDialog({
   visible,
   options,
@@ -26,20 +25,50 @@ export function ConfirmDialog({
   options: ConfirmOptions | null;
   onClose: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   if (!options) return null;
-  // Dismiss via overlay/back acts like the cancel button so promise-based
-  // consumers don't hang waiting for a resolve from an explicit tap.
+
   const dismiss = () => {
     options.buttons.find(b => b.style === 'cancel')?.onPress?.();
     onClose();
   };
+
+  if (options.variant === 'menu') {
+    return (
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
+        <Pressable style={s.menuOverlay} onPress={dismiss}>
+          <Pressable
+            style={[s.menuCard, { top: insets.top + 56 }]}
+            onPress={e => e.stopPropagation?.()}
+          >
+            {options.title ? (
+              <Text style={s.menuTitle}>{options.title}</Text>
+            ) : null}
+            {options.buttons.filter(b => b.style !== 'cancel').map((b, i) => {
+              const bStyle = b.style ?? 'primary';
+              const isFirst = i === 0;
+              return (
+                <Pressable
+                  key={i}
+                  style={[s.menuBtn, !isFirst && s.menuBtnBorder]}
+                  onPress={() => { onClose(); b.onPress?.(); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={b.label}
+                >
+                  <Text style={[s.menuBtnText, bStyle === 'destructive' && s.menuBtnDestructive]}>
+                    {b.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
+    );
+  }
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
-      {/* flex-column: the dim lives on the outer container (so it also shows
-          BEHIND the sheet's rounded top corners), and a transparent Pressable
-          fills the space above the sheet for tap-to-dismiss — no overlapping
-          siblings that could absorb taps on iOS Safari web (absoluteFillObject
-          + sibling sheet is unreliable there). */}
       <View style={s.overlay}>
         <Pressable style={{ flex: 1 }} onPress={dismiss} />
         <View style={s.sheet}>
@@ -52,9 +81,6 @@ export function ConfirmDialog({
               <Pressable
                 key={i}
                 style={[s.btn, i > 0 && s.btnTopBorder]}
-                // onClose BEFORE b.onPress: React batches state updates, so if
-                // b.onPress calls confirm() (another setOpts) it must come last
-                // to avoid setOpts(null) overwriting the new opts.
                 onPress={() => { onClose(); b.onPress?.(); }}
                 accessibilityRole="button"
                 accessibilityLabel={b.label}
@@ -79,6 +105,7 @@ export function ConfirmDialog({
 }
 
 const s = StyleSheet.create({
+  // Sheet variant (default)
   overlay: { flex: 1, backgroundColor: 'rgba(17,24,39,0.55)' },
   sheet: {
     backgroundColor: '#fff',
@@ -97,4 +124,34 @@ const s = StyleSheet.create({
   btnTextPrimary: { color: '#4f46e5' },
   btnTextDestructive: { color: '#ef4444' },
   btnTextCancel: { color: '#6b7280', fontWeight: '500' },
+
+  // Menu variant
+  menuOverlay: { flex: 1 },
+  menuCard: {
+    position: 'absolute',
+    right: 8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 12,
+    overflow: 'hidden',
+  },
+  menuTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9ca3af',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  menuBtn: { paddingVertical: 13, paddingHorizontal: 16 },
+  menuBtnBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  menuBtnText: { fontSize: 15, fontWeight: '500', color: '#111827' },
+  menuBtnDestructive: { color: '#ef4444' },
 });

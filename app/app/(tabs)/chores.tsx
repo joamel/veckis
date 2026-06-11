@@ -203,6 +203,8 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
 }
 
 type Member = { id: string; clerkUserId: string | null; displayName: string };
+// 'active' = not done; 'done' = completed (strikethrough, bottom); 'upcoming' = next occurrence of a done recurring chore
+type ChoreEntry = { chore: ChoreWithCompletion; variant: 'active' | 'done' | 'upcoming' };
 
 
 export default function ChoresScreen() {
@@ -412,32 +414,62 @@ export default function ChoresScreen() {
   }, [tipsReady, members.length, filterTip.seen, filterTip.markSeen, showTip]));
 
   // Not-done chores sorted by earliest due date (most overdue first), completed
-  // chores at the bottom, with optional member filter.
-  const sortedChores = useMemo(() => {
-    // Multi-assign matchning: filter slår om någon i assignedToMany finns i
-    // filtret. Fallback till legacy single assignedTo om many-arrayen är tom.
+  // chores at the bottom. Done recurring chores get a split card: one 'done' entry
+  // (strikethrough, at bottom) + one 'upcoming' entry (shows next date, among actives).
+  const sortedChores = useMemo((): ChoreEntry[] => {
     const memberFilter = (c: ChoreWithCompletion) => {
       const ids = c.assignedToMany?.length ? c.assignedToMany : (c.assignedTo ? [c.assignedTo] : []);
       return filterMemberIds.length === 0 || ids.some(id => filterMemberIds.includes(id));
     };
     const filtered = chores.filter(memberFilter);
-    // Match the card's notion of "done": occurrence-based for recurring chores.
-    const choreDone = (c: ChoreWithCompletion) => isOnce(c) ? isFullyDone(c) : recurringStatus(c).state === 'done';
-    // Effektivt förfallodatum för sortering: överförfallna/dagens datum för
-    // återkommande, nästa tillfälle annars; engångssysslor utan datum behandlas
-    // som "att göra nu" (idag) så de hamnar bland dagens uppgifter.
     const todayStr = isoDateStr(new Date());
-    const dueKey = (c: ChoreWithCompletion): string => {
-      if (isOnce(c)) return todayStr;
-      const rs = recurringStatus(c);
-      if (rs.current && !rs.current.done) return rs.current.date; // overdue/today
+
+    // Pre-compute recurring statuses once to avoid O(n²) calls during sort.
+    const statuses = new Map<string, RecurringStatus>();
+    for (const c of filtered) {
+      if (!isOnce(c)) statuses.set(c.id, recurringStatus(c));
+    }
+
+    const doneEntries: ChoreEntry[] = [];
+    const activeEntries: ChoreEntry[] = [];
+
+    for (const chore of filtered) {
+      const once = isOnce(chore);
+      const rs = once ? null : statuses.get(chore.id)!;
+      const isDone = once ? chore.completions.length > 0 : rs!.state === 'done';
+      if (isDone) {
+        doneEntries.push({ chore, variant: 'done' });
+        if (!once) activeEntries.push({ chore, variant: 'upcoming' });
+      } else {
+        activeEntries.push({ chore, variant: 'active' });
+      }
+    }
+
+    const entryDueKey = (entry: ChoreEntry): string => {
+      const { chore, variant } = entry;
+      if (isOnce(chore)) return todayStr;
+      const rs = statuses.get(chore.id)!;
+      if (variant === 'upcoming') return rs.nextDate ?? '9999-12-31';
+      if (rs.current && !rs.current.done) return rs.current.date;
       return rs.nextDate ?? '9999-12-31';
     };
-    const done = filtered.filter(choreDone);
-    const notDone = filtered
-      .filter(c => !choreDone(c))
-      .sort((a, b) => dueKey(a).localeCompare(dueKey(b)));
-    return [...notDone, ...done];
+
+    activeEntries.sort((a, b) => entryDueKey(a).localeCompare(entryDueKey(b)));
+
+    // Recurring done sorted by next date (soonest = highest priority to resurface),
+    // once-done at very bottom.
+    doneEntries.sort((a, b) => {
+      const aOnce = isOnce(a.chore);
+      const bOnce = isOnce(b.chore);
+      if (aOnce && bOnce) return 0;
+      if (aOnce) return 1;
+      if (bOnce) return -1;
+      const aNext = statuses.get(a.chore.id)?.nextDate ?? '9999-12-31';
+      const bNext = statuses.get(b.chore.id)?.nextDate ?? '9999-12-31';
+      return aNext.localeCompare(bNext);
+    });
+
+    return [...activeEntries, ...doneEntries];
   }, [chores, filterMemberIds]);
 
   const completedOnce = useMemo(
@@ -646,6 +678,7 @@ export default function ChoresScreen() {
   function openChoreActions(chore: ChoreWithCompletion) {
     confirm({
       title: chore.title,
+      variant: 'menu',
       buttons: [
         { label: 'Kopiera', onPress: () => { setViewingChore(null); copyChore(chore); } },
         { label: 'Redigera', onPress: () => { setViewingChore(null); openEdit(chore); } },
@@ -784,7 +817,7 @@ export default function ChoresScreen() {
 
       <FlatList
         data={sortedChores}
-        keyExtractor={item => item.id}
+        keyExtractor={entry => entry.chore.id + '-' + entry.variant}
         contentContainerStyle={[s.list, sortedChores.length === 0 && s.listEmpty]}
         onRefresh={load}
         refreshing={loading}
@@ -797,32 +830,34 @@ export default function ChoresScreen() {
             onAction={openCreate}
           />
         }
-        renderItem={({ item }) => {
+        renderItem={({ item: entry }) => {
+          const { chore: item, variant } = entry;
           const once = isOnce(item);
           const rec = once ? null : recurringStatus(item);
-          const done = once ? isFullyDone(item) : rec!.state === 'done';
-          // A recurring chore is never "finished" — it returns — so don't give it
-          // the greyed/strikethrough look; only one-off chores get that.
-          const finishedLook = once && done;
-          const overdue = rec?.state === 'overdue';
+          // Both once-done and recurring-done get strikethrough look.
+          const finishedLook = variant === 'done';
+          const overdue = variant === 'active' && rec?.state === 'overdue';
           const assignedLabel = buildLabel(item);
-          // Kompakt rad: "vem · när".
-          // När en återkommande syssla just klarmarkerats vill vi visa nästa
-          // datum direkt — boxen ska kännas "klar och vidare", inte fastlåst.
-          const dateLabel = once
-            ? (item.completions[0] ? daysSince(item.completions[0].completedAt) : null)
-            : (rec?.state === 'overdue' ? `förfallen ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
-              : rec?.state === 'done' && rec.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
-              : rec?.state === 'today' ? 'idag'
-              : rec?.state !== 'done' && rec?.current ? formatOcc(rec.current.date)
-              : rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
-              : null);
+          let dateLabel: string | null = null;
+          if (variant === 'done') {
+            dateLabel = once
+              ? (item.completions[0] ? daysSince(item.completions[0].completedAt) : null)
+              : (rec?.current ? `klar ${formatOcc(rec.current.date)}` : 'klar');
+          } else if (variant === 'upcoming') {
+            dateLabel = rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}` : null;
+          } else {
+            // active
+            dateLabel = once
+              ? null
+              : (rec?.state === 'overdue' ? `förfallen ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
+                : rec?.state === 'today' ? 'idag'
+                : rec?.current ? formatOcc(rec.current.date)
+                : rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
+                : null);
+          }
           const compactMeta = [assignedLabel, dateLabel].filter(Boolean).join(' · ');
-          const showCheck = once || !!rec?.current;
-          // För återkommande: visa boxen tom även när tillfället är klart
-          // — det signalerar att man är "vidare till nästa", men trycket
-          // är fortfarande aktivt så man kan ångra (uncompleteOccurrence).
-          const checkVisualDone = once ? done : false;
+          const showCheck = variant !== 'upcoming' && (once || !!rec?.current);
+          const checkVisualDone = variant === 'done';
           const openView = wrapExpandTip(
             () => setViewingChore(item),
             {
@@ -832,14 +867,18 @@ export default function ChoresScreen() {
           );
           return (
             <View style={s.cardWrap}>
-              <View style={[s.card, finishedLook && s.cardDone, overdue && s.cardOverdue]}>
+              <View style={[s.card, finishedLook && s.cardDone, overdue && s.cardOverdue, variant === 'upcoming' && s.cardUpcoming]}>
               <View style={s.cardInner}>
               <Pressable
                 style={[s.cardMain, { padding: sp(14), gap: sp(12) }]}
                 onPress={openView}
               >
                 <View style={s.cardIcon}>
-                  <Ionicons name="sparkles-outline" size={fs(16)} color="#7c3aed" />
+                  <Ionicons
+                    name={variant === 'upcoming' ? 'calendar-outline' : 'sparkles-outline'}
+                    size={fs(16)}
+                    color={variant === 'upcoming' ? '#9ca3af' : '#7c3aed'}
+                  />
                 </View>
                 <View style={s.cardContent}>
                   <Text style={[s.cardTitle, { fontSize: fs(16) }, finishedLook && s.cardTitleDone]}>{item.title}</Text>
@@ -852,13 +891,15 @@ export default function ChoresScreen() {
                     style={[s.checkBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }, checkVisualDone && s.checkBtnDone]}
                     onPress={(e) => {
                       e.stopPropagation?.();
-                      if (once) {
-                        if (done) uncompleteChore(item);
-                        else pickPerformer(item, performer => askNote(note => completeChore(item, performer, note)));
+                      if (variant === 'done') {
+                        if (once) uncompleteChore(item);
+                        else uncompleteOccurrence(item, rec!.current!.date);
                       } else {
-                        const cur = rec!.current!;
-                        if (cur.done) uncompleteOccurrence(item, cur.date);
-                        else pickPerformer(item, performer => askNote(note => completeOccurrence(item, cur.date, performer, note)));
+                        if (once) pickPerformer(item, performer => askNote(note => completeChore(item, performer, note)));
+                        else {
+                          const cur = rec!.current!;
+                          pickPerformer(item, performer => askNote(note => completeOccurrence(item, cur.date, performer, note)));
+                        }
                       }
                     }}
                   >
@@ -1262,6 +1303,7 @@ const s = StyleSheet.create({
   cardInner: { borderRadius: 12, overflow: 'hidden' },
   cardMain: { flexDirection: 'row', alignItems: 'center' },
   cardDone: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
+  cardUpcoming: { borderLeftColor: '#9ca3af' },
   cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#f5f3ff', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1, minWidth: 0 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
