@@ -36,32 +36,28 @@ export function ConfirmDialog({
   if (options.variant === 'menu') {
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
-        <Pressable style={s.menuOverlay} onPress={dismiss}>
-          <Pressable
-            style={[s.menuCard, { top: insets.top }]}
-            onPress={e => e.stopPropagation?.()}
-          >
-            {options.title ? (
-              <Text style={s.menuTitle}>{options.title}</Text>
-            ) : null}
-            {options.buttons.filter(b => b.style !== 'cancel').map((b, i) => {
-              const bStyle = b.style ?? 'primary';
-              const isFirst = i === 0;
-              return (
-                <Pressable
-                  key={i}
-                  style={[s.menuBtn, !isFirst && s.menuBtnBorder]}
-                  onPress={() => { onClose(); b.onPress?.(); }}
-                  accessibilityRole="button"
-                  accessibilityLabel={b.label}
-                >
-                  <Text style={[s.menuBtnText, bStyle === 'destructive' && s.menuBtnDestructive]}>
-                    {b.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </Pressable>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={dismiss} />
+        <Pressable style={[s.menuCard, { top: insets.top }]} onPress={() => {}}>
+          {options.title ? (
+            <Text style={s.menuTitle}>{options.title}</Text>
+          ) : null}
+          {options.buttons.filter(b => b.style !== 'cancel').map((b, i) => {
+            const bStyle = b.style ?? 'primary';
+            const isFirst = i === 0;
+            return (
+              <Pressable
+                key={i}
+                style={[s.menuBtn, !isFirst && s.menuBtnBorder]}
+                onPress={() => { onClose(); b.onPress?.(); }}
+                accessibilityRole="button"
+                accessibilityLabel={b.label}
+              >
+                <Text style={[s.menuBtnText, bStyle === 'destructive' && s.menuBtnDestructive]}>
+                  {b.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </Pressable>
       </Modal>
     );
@@ -126,7 +122,6 @@ const s = StyleSheet.create({
   btnTextCancel: { color: '#6b7280', fontWeight: '500' },
 
   // Menu variant
-  menuOverlay: { flex: 1 },
   menuCard: {
     position: 'absolute',
     right: 0,
