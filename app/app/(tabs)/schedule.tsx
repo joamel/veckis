@@ -59,13 +59,15 @@ const TODAY_DAY = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1].
 const DRUM_H = 44;
 const HOUR_VALS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const MIN_VALS = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
-const REMIND_OPTS = [
+const REMIND_PRESET_OPTS = [
   { value: 5, label: '5 min' },
-  { value: 10, label: '10 min' },
-  { value: 15, label: '15 min' },
   { value: 30, label: '30 min' },
   { value: 60, label: '1 tim' },
+  { value: 1440, label: '1 dygn' },
 ];
+function remindLabel(minutes: number): string {
+  return REMIND_PRESET_OPTS.find(o => o.value === minutes)?.label ?? `${minutes} min`;
+}
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 type Member = { id: string; clerkUserId: string | null; displayName: string };
@@ -301,6 +303,8 @@ export default function ScheduleScreen() {
   const [newIsShared, setNewIsShared] = useState(true);
   const [newRemind, setNewRemind] = useState(true);
   const [newRemindMinutes, setNewRemindMinutes] = useState(30);
+  const [newRemindOpen, setNewRemindOpen] = useState(false);
+  const [newRemindCustom, setNewRemindCustom] = useState('');
   const [newAssignedToMany, setNewAssignedToMany] = useState<string[]>([]);
   const [newRecurrenceType, setNewRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('none');
   const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
@@ -320,6 +324,8 @@ export default function ScheduleScreen() {
   const [editEntryIsShared, setEditEntryIsShared] = useState(true);
   const [editEntryRemind, setEditEntryRemind] = useState(true);
   const [editEntryRemindMinutes, setEditEntryRemindMinutes] = useState(30);
+  const [editRemindOpen, setEditRemindOpen] = useState(false);
+  const [editRemindCustom, setEditRemindCustom] = useState('');
   const [editEntryAssignedToMany, setEditEntryAssignedToMany] = useState<string[]>([]);
   const [savingEntry, setSavingEntry] = useState(false);
 
@@ -500,6 +506,8 @@ export default function ScheduleScreen() {
     setNewIsShared(true);
     setNewRemind(true);
     setNewRemindMinutes(30);
+    setNewRemindOpen(false);
+    setNewRemindCustom('');
     setNewAssignedToMany([]);
     setNewRecurrenceType('none');
     setNewRecurrenceDays([]);
@@ -671,6 +679,8 @@ export default function ScheduleScreen() {
     setEditEntryIsShared(entry.isShared);
     setEditEntryRemind(entry.remind ?? true);
     setEditEntryRemindMinutes(entry.remindMinutes ?? 30);
+    setEditRemindOpen(false);
+    setEditRemindCustom(!REMIND_PRESET_OPTS.some(o => o.value === (entry.remindMinutes ?? 30)) ? String(entry.remindMinutes ?? '') : '');
     setEditEntryAssignedToMany(entry.assignedToMany && entry.assignedToMany.length > 0 ? entry.assignedToMany : (entry.assignedTo ? [entry.assignedTo] : []));
     setEditEntryRecurrenceType(entry.recurrenceType as any);
     setEditEntryRecurrenceDays(entry.recurrenceDays as WeekDay[]);
@@ -1409,13 +1419,35 @@ export default function ScheduleScreen() {
                   <Switch value={editEntryRemind} onValueChange={setEditEntryRemind} trackColor={{ true: '#4f46e5' }} />
                 </Pressable>
                 {editEntryRemind && (
-                  <View style={s.remindChips}>
-                    {REMIND_OPTS.map(opt => (
-                      <Pressable key={opt.value} style={[s.remindChip, editEntryRemindMinutes === opt.value && s.remindChipSel]} onPress={() => setEditEntryRemindMinutes(opt.value)}>
-                        <Text style={[s.remindChipText, editEntryRemindMinutes === opt.value && s.remindChipTextSel]}>{opt.label}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                  <>
+                    <Pressable style={s.remindPickerRow} onPress={() => setEditRemindOpen(v => !v)}>
+                      <Ionicons name="time-outline" size={16} color="#6b7280" />
+                      <Text style={s.remindPickerVal}>{remindLabel(editEntryRemindMinutes)} innan</Text>
+                      <Ionicons name={editRemindOpen ? 'chevron-up' : 'chevron-down'} size={14} color="#9ca3af" />
+                    </Pressable>
+                    {editRemindOpen && (
+                      <View style={s.remindDropdown}>
+                        {REMIND_PRESET_OPTS.map(opt => (
+                          <Pressable key={opt.value} style={s.remindDropdownRow} onPress={() => { setEditEntryRemindMinutes(opt.value); setEditRemindCustom(''); setEditRemindOpen(false); }}>
+                            <Ionicons name={editEntryRemindMinutes === opt.value ? 'radio-button-on' : 'radio-button-off'} size={18} color={editEntryRemindMinutes === opt.value ? '#4f46e5' : '#d1d5db'} />
+                            <Text style={[s.remindDropdownText, editEntryRemindMinutes === opt.value && s.remindDropdownTextSel]}>{opt.label}</Text>
+                          </Pressable>
+                        ))}
+                        <View style={s.remindDropdownRow}>
+                          <Ionicons name={!REMIND_PRESET_OPTS.some(o => o.value === editEntryRemindMinutes) ? 'radio-button-on' : 'radio-button-off'} size={18} color={!REMIND_PRESET_OPTS.some(o => o.value === editEntryRemindMinutes) ? '#4f46e5' : '#d1d5db'} />
+                          <Text style={[s.remindDropdownText, !REMIND_PRESET_OPTS.some(o => o.value === editEntryRemindMinutes) && s.remindDropdownTextSel]}>Anpassat</Text>
+                          <TextInput
+                            style={s.remindCustomInput}
+                            value={editRemindCustom}
+                            onChangeText={t => { const c = t.replace(/[^0-9]/g, ''); setEditRemindCustom(c); const n = parseInt(c, 10); if (n >= 1 && n <= 10080) setEditEntryRemindMinutes(n); }}
+                            keyboardType="numeric"
+                            placeholder="min"
+                            maxLength={5}
+                          />
+                        </View>
+                      </View>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -1651,13 +1683,35 @@ export default function ScheduleScreen() {
                   <Switch value={newRemind} onValueChange={setNewRemind} trackColor={{ true: '#4f46e5' }} />
                 </Pressable>
                 {newRemind && (
-                  <View style={s.remindChips}>
-                    {REMIND_OPTS.map(opt => (
-                      <Pressable key={opt.value} style={[s.remindChip, newRemindMinutes === opt.value && s.remindChipSel]} onPress={() => setNewRemindMinutes(opt.value)}>
-                        <Text style={[s.remindChipText, newRemindMinutes === opt.value && s.remindChipTextSel]}>{opt.label}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                  <>
+                    <Pressable style={s.remindPickerRow} onPress={() => setNewRemindOpen(v => !v)}>
+                      <Ionicons name="time-outline" size={16} color="#6b7280" />
+                      <Text style={s.remindPickerVal}>{remindLabel(newRemindMinutes)} innan</Text>
+                      <Ionicons name={newRemindOpen ? 'chevron-up' : 'chevron-down'} size={14} color="#9ca3af" />
+                    </Pressable>
+                    {newRemindOpen && (
+                      <View style={s.remindDropdown}>
+                        {REMIND_PRESET_OPTS.map(opt => (
+                          <Pressable key={opt.value} style={s.remindDropdownRow} onPress={() => { setNewRemindMinutes(opt.value); setNewRemindCustom(''); setNewRemindOpen(false); }}>
+                            <Ionicons name={newRemindMinutes === opt.value ? 'radio-button-on' : 'radio-button-off'} size={18} color={newRemindMinutes === opt.value ? '#4f46e5' : '#d1d5db'} />
+                            <Text style={[s.remindDropdownText, newRemindMinutes === opt.value && s.remindDropdownTextSel]}>{opt.label}</Text>
+                          </Pressable>
+                        ))}
+                        <View style={s.remindDropdownRow}>
+                          <Ionicons name={!REMIND_PRESET_OPTS.some(o => o.value === newRemindMinutes) ? 'radio-button-on' : 'radio-button-off'} size={18} color={!REMIND_PRESET_OPTS.some(o => o.value === newRemindMinutes) ? '#4f46e5' : '#d1d5db'} />
+                          <Text style={[s.remindDropdownText, !REMIND_PRESET_OPTS.some(o => o.value === newRemindMinutes) && s.remindDropdownTextSel]}>Anpassat</Text>
+                          <TextInput
+                            style={s.remindCustomInput}
+                            value={newRemindCustom}
+                            onChangeText={t => { const c = t.replace(/[^0-9]/g, ''); setNewRemindCustom(c); const n = parseInt(c, 10); if (n >= 1 && n <= 10080) setNewRemindMinutes(n); }}
+                            keyboardType="numeric"
+                            placeholder="min"
+                            maxLength={5}
+                          />
+                        </View>
+                      </View>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -1939,9 +1993,11 @@ const s = StyleSheet.create({
   filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   filterMemberName: { fontSize: 16, color: '#374151', flex: 1, marginRight: 12 },
   filterMemberNameActive: { color: '#7c3aed', fontWeight: '600' },
-  remindChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 4 },
-  remindChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  remindChipSel: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
-  remindChipText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
-  remindChipTextSel: { color: '#4f46e5', fontWeight: '700' },
+  remindPickerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  remindPickerVal: { flex: 1, fontSize: 14, color: '#374151', fontWeight: '500' },
+  remindDropdown: { borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fff', overflow: 'hidden' },
+  remindDropdownRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  remindDropdownText: { flex: 1, fontSize: 14, color: '#374151' },
+  remindDropdownTextSel: { color: '#4f46e5', fontWeight: '600' },
+  remindCustomInput: { width: 72, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10, fontSize: 14, color: '#111827', textAlign: 'center' },
 });
