@@ -4,6 +4,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -15,8 +16,7 @@ import {
   Vibration,
   View,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -180,54 +180,55 @@ const PIE_COLOR = '#e0e7ff';
 
 function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: number) => void }) {
   const totalAngleSV = useSharedValue(minutesToTotalAngle(minutes));
-  const lastTouchAngleSV = useSharedValue<number | null>(null);
-  const lastEmittedSV = useSharedValue(minutes);
+  const lastAngleRef = useRef<number | null>(null);
+  const lastEmittedRef = useRef(minutes);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
   const [displayMinutes, setDisplayMinutes] = useState(minutes);
   const [zone, setZone] = useState(() => Math.min(3, Math.floor(minutesToTotalAngle(minutes) / 360)));
 
   useEffect(() => {
-    if (minutes !== lastEmittedSV.value) {
+    if (minutes !== lastEmittedRef.current) {
       const target = minutesToTotalAngle(minutes);
       totalAngleSV.value = target;
-      lastEmittedSV.value = minutes;
+      lastEmittedRef.current = minutes;
       setDisplayMinutes(minutes);
       setZone(Math.min(3, Math.floor(target / 360)));
     }
   }, [minutes]);
 
-  const notifyChange = useCallback((m: number, z: number) => {
-    setDisplayMinutes(m);
-    setZone(z);
-    hapticTick();
-    onChange(m);
-  }, [onChange]);
-
-  // e.x / e.y are relative to the GestureDetector's view — center is always (DIAL_R, DIAL_R)
-  const gesture = Gesture.Pan()
-    .minDistance(0)
-    .shouldCancelWhenOutside(false)
-    .onBegin((e) => {
-      lastTouchAngleSV.value = Math.atan2(e.y - DIAL_R, e.x - DIAL_R) * (180 / Math.PI);
-    })
-    .onUpdate((e) => {
-      const a = Math.atan2(e.y - DIAL_R, e.x - DIAL_R) * (180 / Math.PI);
-      if (lastTouchAngleSV.value !== null) {
-        let delta = a - lastTouchAngleSV.value;
+  // PanResponder wins over parent ScrollView via onStartShouldSetPanResponder.
+  // totalAngleSV is set directly (no setState per frame) so Reanimated renders
+  // smooth visuals on the UI thread without JS re-renders.
+  const panResponder = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (e) => {
+      const { locationX, locationY } = e.nativeEvent;
+      lastAngleRef.current = Math.atan2(locationY - DIAL_R, locationX - DIAL_R) * (180 / Math.PI);
+    },
+    onPanResponderMove: (e) => {
+      const { locationX, locationY } = e.nativeEvent;
+      const a = Math.atan2(locationY - DIAL_R, locationX - DIAL_R) * (180 / Math.PI);
+      if (lastAngleRef.current !== null) {
+        let delta = a - lastAngleRef.current;
         if (delta > 180) delta -= 360;
         if (delta < -180) delta += 360;
         const newTotal = Math.max(6, Math.min(1440, totalAngleSV.value + delta));
         totalAngleSV.value = newTotal;
         const m = totalAngleToMinutes(newTotal);
-        if (m !== lastEmittedSV.value) {
-          lastEmittedSV.value = m;
-          runOnJS(notifyChange)(m, Math.min(3, Math.floor(newTotal / 360)));
+        if (m !== lastEmittedRef.current) {
+          lastEmittedRef.current = m;
+          hapticTick();
+          setDisplayMinutes(m);
+          setZone(Math.min(3, Math.floor(newTotal / 360)));
+          onChangeRef.current(m);
         }
       }
-      lastTouchAngleSV.value = a;
-    })
-    .onEnd(() => {
-      lastTouchAngleSV.value = null;
-    });
+      lastAngleRef.current = a;
+    },
+    onPanResponderRelease: () => { lastAngleRef.current = null; },
+  })).current;
 
   // Pie fill — right half (arc 0°→180°): D-shape rotates around its flat left edge (dial center)
   const rightFillStyle = useAnimatedStyle(() => {
@@ -258,8 +259,7 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
 
   return (
     <View style={{ alignItems: 'center', gap: 10 }}>
-      <GestureDetector gesture={gesture}>
-        <View style={s.remindDial}>
+      <View style={s.remindDial} {...panResponder.panHandlers}>
           {/* Pie fill: right D-shape, clipped to right half */}
           <View style={{ position: 'absolute', left: DIAL_R, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
             <Animated.View style={[{
@@ -304,7 +304,6 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
             <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>innan</Text>
           </View>
         </View>
-      </GestureDetector>
       {/* Zone dots */}
       <View style={{ flexDirection: 'row', gap: 14 }}>
         {(['min', 'tim', 'dagar', 'veckor'] as const).map((z, i) => (
