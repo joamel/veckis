@@ -1007,10 +1007,17 @@ export default function ChoresScreen() {
             {newRecurrenceType === 'none' && (
               <>
                 <Text style={s.label}>Datum (valfritt)</Text>
-                <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
-                  <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
-                  <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Välj datum'}</Text>
-                </Pressable>
+                <View style={s.dateRow}>
+                  <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
+                    <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Välj datum'}</Text>
+                  </Pressable>
+                  {newStartDate && (
+                    <Pressable onPress={() => setNewStartDate(null)} hitSlop={8} accessibilityLabel="Rensa datum">
+                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                    </Pressable>
+                  )}
+                </View>
               </>
             )}
 
@@ -1037,10 +1044,17 @@ export default function ChoresScreen() {
             {newRecurrenceType !== 'none' && (
               <>
                 <Text style={s.label}>Startdatum (valfritt)</Text>
-                <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
-                  <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
-                  <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Välj startdatum'}</Text>
-                </Pressable>
+                <View style={s.dateRow}>
+                  <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
+                    <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Välj startdatum'}</Text>
+                  </Pressable>
+                  {newStartDate && (
+                    <Pressable onPress={() => setNewStartDate(null)} hitSlop={8} accessibilityLabel="Rensa startdatum">
+                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                    </Pressable>
+                  )}
+                </View>
               </>
             )}
 
@@ -1233,10 +1247,17 @@ export default function ChoresScreen() {
             {editRecurrenceType === 'none' && (
               <>
                 <Text style={s.label}>Datum (valfritt)</Text>
-                <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
-                  <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
-                  <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Välj datum'}</Text>
-                </Pressable>
+                <View style={s.dateRow}>
+                  <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
+                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Välj datum'}</Text>
+                  </Pressable>
+                  {editStartDate && (
+                    <Pressable onPress={() => setEditStartDate(null)} hitSlop={8} accessibilityLabel="Rensa datum">
+                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                    </Pressable>
+                  )}
+                </View>
               </>
             )}
 
@@ -1263,10 +1284,17 @@ export default function ChoresScreen() {
             {editRecurrenceType !== 'none' && (
               <>
                 <Text style={s.label}>Startdatum (valfritt)</Text>
-                <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
-                  <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
-                  <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Välj startdatum'}</Text>
-                </Pressable>
+                <View style={s.dateRow}>
+                  <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
+                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Välj startdatum'}</Text>
+                  </Pressable>
+                  {editStartDate && (
+                    <Pressable onPress={() => setEditStartDate(null)} hitSlop={8} accessibilityLabel="Rensa startdatum">
+                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                    </Pressable>
+                  )}
+                </View>
               </>
             )}
 
@@ -1365,6 +1393,7 @@ const s = StyleSheet.create({
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   deleteBtnText: { color: '#ef4444', fontSize: 14, fontWeight: '500' },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
   dateBtnSet: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
   dateBtnText: { fontSize: 13, color: '#9ca3af', flex: 1 },

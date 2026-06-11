@@ -394,7 +394,7 @@
 - [x] Läsvy-symmetri för sysslor: kalenderaktiviteter öppnar nu en read-vy (tap → sammanfattning, redigering under 3-prickar), men en syssla öppnar fortfarande direkt redigering/utfälld vy. Överväg samma läs-först-mönster för konsekvens.
 - [ ] Push-notis vid avbockning av syssla: "Joakim dammsög ✓" till övriga — community-känsla och svar på "har det blivit gjort?" (utbyggnad av befintlig notis-infrastruktur)
 - [ ] Avcheckad återkommande syssla (den 1a varje månad) visar samma datum som varit som nästa
-- [ ] Datum står som valfritt men har man väl valt ett datum kan man inte ta bort det
+- [x] Datum står som valfritt men har man väl valt ett datum kan man inte ta bort det: ×-knapp dyker upp till höger om datumknappen när datum är satt (gäller alla 4 kombinationer: skapa/redigera × engång/startdatum)
 - [ ] Rensa avklarade återkommande sysslor — möjlighet att dölja eller ta bort klarmarkerings-historik (t.ex. alla klar-markeringar äldre än X veckor) så listan inte växer i all oändlighet
 
 
