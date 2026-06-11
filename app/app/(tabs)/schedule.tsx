@@ -179,12 +179,9 @@ const DIAL_HAND_R = DIAL_R - 26;
 const PIE_COLOR = '#e0e7ff';
 
 function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: number) => void }) {
-  const dialRef = useRef<View>(null);
   const totalAngleSV = useSharedValue(minutesToTotalAngle(minutes));
   const lastTouchAngleSV = useSharedValue<number | null>(null);
   const lastEmittedSV = useSharedValue(minutes);
-  const centerXSV = useSharedValue(0);
-  const centerYSV = useSharedValue(0);
   const [displayMinutes, setDisplayMinutes] = useState(minutes);
   const [zone, setZone] = useState(() => Math.min(3, Math.floor(minutesToTotalAngle(minutes) / 360)));
 
@@ -198,13 +195,6 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
     }
   }, [minutes]);
 
-  const measureCenter = useCallback(() => {
-    dialRef.current?.measure((_, __, w, h, px, py) => {
-      centerXSV.value = px + w / 2;
-      centerYSV.value = py + h / 2;
-    });
-  }, []);
-
   const notifyChange = useCallback((m: number, z: number) => {
     setDisplayMinutes(m);
     setZone(z);
@@ -212,13 +202,15 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
     onChange(m);
   }, [onChange]);
 
+  // e.x / e.y are relative to the GestureDetector's view — center is always (DIAL_R, DIAL_R)
   const gesture = Gesture.Pan()
+    .minDistance(0)
+    .shouldCancelWhenOutside(false)
     .onBegin((e) => {
-      runOnJS(measureCenter)();
-      lastTouchAngleSV.value = Math.atan2(e.absoluteY - centerYSV.value, e.absoluteX - centerXSV.value) * (180 / Math.PI);
+      lastTouchAngleSV.value = Math.atan2(e.y - DIAL_R, e.x - DIAL_R) * (180 / Math.PI);
     })
     .onUpdate((e) => {
-      const a = Math.atan2(e.absoluteY - centerYSV.value, e.absoluteX - centerXSV.value) * (180 / Math.PI);
+      const a = Math.atan2(e.y - DIAL_R, e.x - DIAL_R) * (180 / Math.PI);
       if (lastTouchAngleSV.value !== null) {
         let delta = a - lastTouchAngleSV.value;
         if (delta > 180) delta -= 360;
@@ -267,16 +259,7 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
   return (
     <View style={{ alignItems: 'center', gap: 10 }}>
       <GestureDetector gesture={gesture}>
-        <View
-          ref={dialRef}
-          style={s.remindDial}
-          onLayout={() => {
-            dialRef.current?.measure((_, __, w, h, px, py) => {
-              centerXSV.value = px + w / 2;
-              centerYSV.value = py + h / 2;
-            });
-          }}
-        >
+        <View style={s.remindDial}>
           {/* Pie fill: right D-shape, clipped to right half */}
           <View style={{ position: 'absolute', left: DIAL_R, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
             <Animated.View style={[{
@@ -483,7 +466,7 @@ export default function ScheduleScreen() {
   const [newDay, setNewDay] = useState<WeekDay>(TODAY_DAY);
   const [newIsShared, setNewIsShared] = useState(true);
   const [newRemind, setNewRemind] = useState(true);
-  const [newRemindMinutes, setNewRemindMinutes] = useState(30);
+  const [newRemindMinutes, setNewRemindMinutes] = useState(5);
   const [newAssignedToMany, setNewAssignedToMany] = useState<string[]>([]);
   const [newRecurrenceType, setNewRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('none');
   const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
@@ -502,7 +485,7 @@ export default function ScheduleScreen() {
   const [editEntryDay, setEditEntryDay] = useState<WeekDay>(TODAY_DAY);
   const [editEntryIsShared, setEditEntryIsShared] = useState(true);
   const [editEntryRemind, setEditEntryRemind] = useState(true);
-  const [editEntryRemindMinutes, setEditEntryRemindMinutes] = useState(30);
+  const [editEntryRemindMinutes, setEditEntryRemindMinutes] = useState(5);
   const [editEntryAssignedToMany, setEditEntryAssignedToMany] = useState<string[]>([]);
   const [savingEntry, setSavingEntry] = useState(false);
 
@@ -682,7 +665,7 @@ export default function ScheduleScreen() {
     setNewMinute(0);
     setNewIsShared(true);
     setNewRemind(true);
-    setNewRemindMinutes(30);
+    setNewRemindMinutes(5);
     setNewAssignedToMany([]);
     setNewRecurrenceType('none');
     setNewRecurrenceDays([]);
@@ -853,7 +836,7 @@ export default function ScheduleScreen() {
     setEditEntryDay(entry.day);
     setEditEntryIsShared(entry.isShared);
     setEditEntryRemind(entry.remind ?? true);
-    setEditEntryRemindMinutes(entry.remindMinutes ?? 30);
+    setEditEntryRemindMinutes(entry.remindMinutes ?? 5);
     setEditEntryAssignedToMany(entry.assignedToMany && entry.assignedToMany.length > 0 ? entry.assignedToMany : (entry.assignedTo ? [entry.assignedTo] : []));
     setEditEntryRecurrenceType(entry.recurrenceType as any);
     setEditEntryRecurrenceDays(entry.recurrenceDays as WeekDay[]);
