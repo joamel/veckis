@@ -1355,9 +1355,8 @@ export default function ScheduleScreen() {
 
       {/* Edit entry modal */}
       <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
-        <View style={{ flex: 1 }}>
-          <View pointerEvents="none" style={s.overlayDim} />
-          <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
           <KeyboardAvoidingView behavior={kavBehavior}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
@@ -1457,14 +1456,12 @@ export default function ScheduleScreen() {
           </ScrollView>
           </View>
           </KeyboardAvoidingView>
-        </View>
       </Modal>
 
       {/* Edit chore from calendar modal */}
       <Modal visible={!!editingCalChore} transparent animationType="slide" onRequestClose={() => setEditingCalChore(null)}>
-        <View style={{ flex: 1 }}>
-          <View pointerEvents="none" style={s.overlayDim} />
-          <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
           <KeyboardAvoidingView behavior={kavBehavior}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
@@ -1522,7 +1519,6 @@ export default function ScheduleScreen() {
           </View>
           </View>
           </KeyboardAvoidingView>
-        </View>
       </Modal>
 
       <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
@@ -1592,9 +1588,8 @@ export default function ScheduleScreen() {
       <DatePickerModal value={editEntryEndDate} onChange={setEditEntryEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} />
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
-        <View style={{ flex: 1 }}>
-          <View pointerEvents="none" style={s.overlayDim} />
-          <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
           <KeyboardAvoidingView behavior={kavBehavior}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
@@ -1778,7 +1773,6 @@ export default function ScheduleScreen() {
           </ScrollView>
           </View>
           </KeyboardAvoidingView>
-        </View>
       </Modal>
     </SafeAreaView>
   );
