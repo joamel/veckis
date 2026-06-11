@@ -244,18 +244,20 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
     },
   })).current;
 
-  // Pie fill — right half (arc 0°→180°): D-shape rotates around its flat left edge (dial center)
+  // Pie fill — right half (arc 0°→180°): D-shape rotates around its flat left edge (= dial center).
+  // To rotate around pivot px=-DIAL_R/2 relative to element center: T(px)·R·T(-px)
   const rightFillStyle = useAnimatedStyle(() => {
     const ha = totalAngleSV.value % 360;
     const rot = Math.min(ha, 180) - 180;
-    return { transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
+    return { transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
   });
 
-  // Pie fill — left half (arc 180°→360°): D-shape rotates around its flat right edge (dial center)
+  // Pie fill — left half (arc 180°→360°): D-shape rotates around its flat right edge (= dial center).
+  // To rotate around pivot px=+DIAL_R/2 relative to element center: T(px)·R·T(-px)
   const leftFillStyle = useAnimatedStyle(() => {
     const ha = totalAngleSV.value % 360;
     const rot = Math.max(ha - 180, 0) - 180;
-    return { transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
+    return { transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
   });
 
   // Clock hand rotates around dial center
