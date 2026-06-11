@@ -5,6 +5,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -1107,7 +1108,7 @@ export default function ChoresScreen() {
 
       {/* View chore — read-only; edit/delete via 3-dot */}
       <Modal visible={!!viewingChore} animationType="slide" onRequestClose={() => setViewingChore(null)}>
-        <View style={[s.viewFull, { paddingTop: insets.top }]}>
+        <View style={[s.viewFull, { paddingTop: Platform.OS === 'ios' ? insets.top : 0 }]}>
           {viewingChore && (() => {
             const c = viewingChore;
             const once = isOnce(c);

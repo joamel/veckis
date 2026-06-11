@@ -1294,7 +1294,7 @@ export default function ScheduleScreen() {
 
       {/* View entry — full-screen read-only view; edit/delete under the 3-dot */}
       <Modal visible={!!viewingEntry} animationType="slide" onRequestClose={() => setViewingEntry(null)}>
-        <View style={[s.viewFull, { paddingTop: insets.top }]}>
+        <View style={[s.viewFull, { paddingTop: Platform.OS === 'ios' ? insets.top : 0 }]}>
           {viewingEntry && (() => {
             const e = viewingEntry;
             const ids = e.assignedToMany?.length ? e.assignedToMany : e.assignedTo ? [e.assignedTo] : [];
@@ -1615,14 +1615,16 @@ export default function ScheduleScreen() {
                 <Drum values={MIN_VALS} selected={newMinute} onSelect={setNewMinute} />
               </View>
             )}
-            <Pressable style={[s.sharedRow, !timeEnabled && { opacity: 0.45 }]} onPress={() => { if (timeEnabled) setNewRemind(v => !v); }}>
-              <Ionicons name={newRemind && timeEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={newRemind && timeEnabled ? '#4f46e5' : '#9ca3af'} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.sharedLabel}>Påminnelse</Text>
-                <Text style={s.sharedSub}>{!timeEnabled ? 'Lägg till tid för att aktivera' : newRemind ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
-              </View>
-              <Switch value={newRemind && timeEnabled} onValueChange={v => { if (timeEnabled) setNewRemind(v); }} disabled={!timeEnabled} trackColor={{ true: '#4f46e5' }} />
-            </Pressable>
+            {timeEnabled && (
+              <Pressable style={s.sharedRow} onPress={() => setNewRemind(v => !v)}>
+                <Ionicons name={newRemind ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={newRemind ? '#4f46e5' : '#9ca3af'} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.sharedLabel}>Påminnelse</Text>
+                  <Text style={s.sharedSub}>{newRemind ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
+                </View>
+                <Switch value={newRemind} onValueChange={setNewRemind} trackColor={{ true: '#4f46e5' }} />
+              </Pressable>
+            )}
 
             <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => { if (v) setNewAssignedToMany([]); return !v; })}>
               <Ionicons name={newIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={newIsShared ? '#4f46e5' : '#9ca3af'} />
