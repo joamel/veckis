@@ -352,6 +352,7 @@
 - [x] Klickar man på en aktivitet borde man inte hamna direkt i redigeringsläge utan bara read-vy med sammanfattning + redigering under 3 prickar: ny `viewingEntry`-läsvy (modal) som visar titel + datum/veckodag, tid/heldag, upprepning (ny `recurrenceSummary`-helper), tilldelade personer, gemensam/privat och beskrivning. 3-prickar i headern (`openEntryActions`) → Redigera/Ta bort. Tap på kortet öppnar nu läsvyn (long-press → 3-prickar-menyn direkt); tablet-månadsvyn öppnar också läsvyn. (Testfix v2: bottensheet:en klipptes fortfarande → byggd om till **helskärmsvy** med egen nav-rad (tillbaka + 3-prickar) och scrollbar kropp.)
 - [x] Aktivitetsdialogen (testfynd): (a) ingen toast vid spara/skapa — nu `showToast('Aktivitet sparad'/'skapad', 'success')`; (b) gick inte att trycka på andra knappar (t.ex. tilldela personer) med tangentbordet uppe — `keyboardShouldPersistTaps="handled"` på både de yttre (vertikala) OCH de nästlade horisontella medlemsväljar-ScrollView:erna (den nästlade var kvar-buggen i v1)
 - [x] Skapa ny aktivitet saknar påminnelse-val: `timeEnabled` var false som default → reminder-toggle dolt i skapa-flödet. Nu visas toggle alltid i skapa-dialogen; utgråad med "Lägg till tid för att aktivera" när ingen tid är satt, interaktiv direkt när tid aktiveras (default on = opt-out). `remind` skickas som false om ingen tid är angiven.
+- [ ] Kunna välja påminnelsetid — hur lång tid innan aktiviteten notisen ska skickas (t.ex. 5, 10, 15, 30, 60 min); idag är det bara på/av
 
 
 ### Sysslor
@@ -394,6 +395,7 @@
 - [ ] Push-notis vid avbockning av syssla: "Joakim dammsög ✓" till övriga — community-känsla och svar på "har det blivit gjort?" (utbyggnad av befintlig notis-infrastruktur)
 - [ ] Avcheckad återkommande syssla (den 1a varje månad) visar samma datum som varit som nästa
 - [ ] Datum står som valfritt men har man väl valt ett datum kan man inte ta bort det
+- [ ] Rensa avklarade återkommande sysslor — möjlighet att dölja eller ta bort klarmarkerings-historik (t.ex. alla klar-markeringar äldre än X veckor) så listan inte växer i all oändlighet
 
 
 ---

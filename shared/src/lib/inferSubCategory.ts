@@ -34,7 +34,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   // Chark & Deli
   { sub: 'skinka_pålägg', patterns: ['parmaskinka', 'serranoskinka', 'prosciutto', 'rökt skinka', 'kalkonpålägg', 'rökt kalkon', 'kycklingpålägg', 'blodpudding', 'leverpastej', 'skinka', 'pålägg'] },
   { sub: 'korv_charcuteri', patterns: ['salami', 'pepperoni', 'chorizo', 'medisterkorv', 'falukorv', 'wienerkorv', 'grillkorv', 'bratwurst', 'isterband', 'prinskorv', 'kabanoss', 'mortadella', 'merguez', 'blodkorv', 'kycklingkorv', 'korv'] },
-  { sub: 'delikatessost', patterns: ['brie', 'camembert', 'feta', 'mozzarella (färsk)', 'mozzarella', 'parmesan', 'manchego', 'pecorino', 'gorgonzola', 'roquefort', 'chèvre', 'halloumi', 'burrata', 'ricotta (deli)', 'taleggio'] },
+  { sub: 'delikatessost', patterns: ['brie', 'camembert', 'feta', 'mozzarella (färsk)', 'mozzarella', 'parmesan', 'manchego', 'pecorino', 'gorgonzola', 'roquefort', 'chèvre', 'halloumi', 'burrata', 'ricotta (deli)', 'taleggio', 'gouda', 'gruyère', 'gruyere', 'comté', 'comte', 'färskost', 'kvarg', 'krämost'] },
   { sub: 'pâté_terrin', patterns: ['paté', 'pâté', 'terrin', 'rillette', 'mousse (chark)'] },
   { sub: 'oliver_antipasto', patterns: ['gröna oliver', 'svarta oliver', 'oliver', 'antipasto', 'soltorkade tomater', 'kapris', 'cornichoner', 'inlagda paprika', 'pepparoni (inlagda)'] },
   // Mejeri & ägg
