@@ -16,7 +16,7 @@ import {
   Vibration,
   View,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, useAnimatedProps } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -72,12 +72,14 @@ function minutesToTotalAngle(m: number): number {
   return 1080 + (m / 10080) * 45;
 }
 function totalAngleToMinutes(a: number): number {
+  'worklet';
   if (a <= 360) return Math.max(1, Math.round(a / 6));
   if (a <= 720) return Math.max(1, Math.round((a - 360) / 15)) * 60;
   if (a <= 1080) return Math.max(1, Math.round((a - 720) / (360 / 14))) * 1440;
   return Math.max(1, Math.round((a - 1080) / 45)) * 10080;
 }
 function formatRemindTime(m: number): string {
+  'worklet';
   if (m < 60) return `${m} min`;
   const h = Math.round(m / 60);
   if (m < 1440) return `${h} tim`;
@@ -178,15 +180,18 @@ const DIAL_HAND_R = DIAL_R - 26;
 
 const PIE_COLOR = '#e0e7ff';
 
+// Needed to animate TextInput.text on the UI thread (standard Reanimated text pattern)
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+
 function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: number) => void }) {
   const dialRef = useRef<View>(null);
   const centerRef = useRef({ x: 0, y: 0 });
   const totalAngleSV = useSharedValue(minutesToTotalAngle(minutes));
   const lastAngleRef = useRef<number | null>(null);
+  const lastHapticRef = useRef(minutes);
   const lastEmittedRef = useRef(minutes);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-  const [displayMinutes, setDisplayMinutes] = useState(minutes);
   const [zone, setZone] = useState(() => Math.min(3, Math.floor(minutesToTotalAngle(minutes) / 360)));
 
   useEffect(() => {
@@ -194,14 +199,13 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
       const target = minutesToTotalAngle(minutes);
       totalAngleSV.value = target;
       lastEmittedRef.current = minutes;
-      setDisplayMinutes(minutes);
+      lastHapticRef.current = minutes;
       setZone(Math.min(3, Math.floor(target / 360)));
     }
   }, [minutes]);
 
-  // pageX/pageY are absolute screen coords — stable even when layout re-renders shift
-  // the view. totalAngleSV is set directly (no setState per frame) so Reanimated
-  // renders smooth visuals on the UI thread.
+  // No setState inside onPanResponderMove — zero React re-renders during gesture.
+  // Text updates via useAnimatedProps worklet on UI thread; setZone+onChange on release only.
   const panResponder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
@@ -221,18 +225,23 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
         if (delta < -180) delta += 360;
         const newTotal = Math.max(6, Math.min(1440, totalAngleSV.value + delta));
         totalAngleSV.value = newTotal;
+        // Vibration.vibrate is a fire-and-forget native call — safe to call per tick without re-render
         const m = totalAngleToMinutes(newTotal);
-        if (m !== lastEmittedRef.current) {
-          lastEmittedRef.current = m;
+        if (m !== lastHapticRef.current) {
+          lastHapticRef.current = m;
           hapticTick();
-          setDisplayMinutes(m);
-          setZone(Math.min(3, Math.floor(newTotal / 360)));
-          onChangeRef.current(m);
         }
       }
       lastAngleRef.current = a;
     },
-    onPanResponderRelease: () => { lastAngleRef.current = null; },
+    onPanResponderRelease: () => {
+      lastAngleRef.current = null;
+      const newTotal = totalAngleSV.value;
+      const m = totalAngleToMinutes(newTotal);
+      lastEmittedRef.current = m;
+      setZone(Math.min(3, Math.floor(newTotal / 360)));
+      onChangeRef.current(m);
+    },
   })).current;
 
   // Pie fill — right half (arc 0°→180°): D-shape rotates around its flat left edge (dial center)
@@ -261,6 +270,11 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
     const rad = (ha - 90) * Math.PI / 180;
     return { transform: [{ translateX: DIAL_HAND_R * Math.cos(rad) }, { translateY: DIAL_HAND_R * Math.sin(rad) }] };
   });
+
+  // Center time text — runs as worklet on UI thread, no React re-render during drag
+  const centerTextProps = useAnimatedProps(() => ({
+    text: formatRemindTime(totalAngleToMinutes(totalAngleSV.value)),
+  } as any));
 
   return (
     <View style={{ alignItems: 'center', gap: 10 }}>
@@ -312,9 +326,16 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
           }, indicatorStyle]} />
           {/* Center pivot */}
           <View style={{ position: 'absolute', left: DIAL_R - 5, top: DIAL_R - 5, width: 10, height: 10, borderRadius: 5, backgroundColor: '#4f46e5' }} />
-          {/* Center time text */}
+          {/* Center time text — AnimatedTextInput updates on UI thread without React re-render */}
           <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 28, fontWeight: '700', color: '#111827' }}>{formatRemindTime(displayMinutes)}</Text>
+            <AnimatedTextInput
+              style={{ fontSize: 28, fontWeight: '700', color: '#111827', textAlign: 'center', padding: 0, backgroundColor: 'transparent' }}
+              editable={false}
+              caretHidden
+              underlineColorAndroid="transparent"
+              animatedProps={centerTextProps}
+              defaultValue={formatRemindTime(minutes)}
+            />
             <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>innan</Text>
           </View>
         </View>
