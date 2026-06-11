@@ -15,6 +15,7 @@ import { SpotlightTipProvider, useOnboardingMaster, useWelcomeGate } from '../sr
 import { WelcomeModal } from '../src/components/WelcomeModal';
 import { VersionBanner } from '../src/components/VersionBanner';
 import { WakeupIndicator } from '../src/components/WakeupIndicator';
+import { OfflineBanner } from '../src/components/OfflineBanner';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { installGlobalErrorHandler } from '../src/lib/errorReport';
 
@@ -114,6 +115,7 @@ function NavigationGuard() {
     <>
       <VersionBanner />
       <WakeupIndicator />
+      <OfflineBanner />
       <Stack screenOptions={{ headerShown: false }} />
       <WelcomeModal
         visible={welcomeState === 'show'}

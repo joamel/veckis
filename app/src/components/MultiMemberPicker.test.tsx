@@ -84,4 +84,31 @@ describe('MultiMemberPicker', () => {
     fireEvent.click(screen.getByText('Turas om automatiskt'));
     expect(onRotationChange).not.toHaveBeenCalled();
   });
+
+  it('visar inte turordning-sektion när rotation är av', () => {
+    renderPicker({ selected: ['a', 'b'], rotation: false });
+    expect(screen.queryByText('Turordning')).not.toBeInTheDocument();
+  });
+
+  it('visar turordning-sektion med numrerade namn när rotation är på', () => {
+    renderPicker({ selected: ['a', 'b', 'c'], rotation: true });
+    expect(screen.getByText('Turordning')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  it('flytta-upp byter plats på member med föregående', () => {
+    const { onChange } = renderPicker({ selected: ['a', 'b', 'c'], rotation: true });
+    const upBtns = screen.getAllByLabelText('Flytta upp');
+    fireEvent.click(upBtns[1]); // Bo → flytta upp (index 1 → 0)
+    expect(onChange).toHaveBeenCalledWith(['b', 'a', 'c']);
+  });
+
+  it('flytta-ned byter plats på member med nästa', () => {
+    const { onChange } = renderPicker({ selected: ['a', 'b', 'c'], rotation: true });
+    const downBtns = screen.getAllByLabelText('Flytta ned');
+    fireEvent.click(downBtns[0]); // Anna → flytta ned (index 0 → 1)
+    expect(onChange).toHaveBeenCalledWith(['b', 'a', 'c']);
+  });
 });

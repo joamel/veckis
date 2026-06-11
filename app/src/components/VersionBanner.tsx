@@ -1,21 +1,37 @@
-// "Ny version tillgänglig"-banner. Triggas av SW:s controllerchange-/updatefound-
-// event som patch-index-html.mjs registrerar i <head>. Bannern ligger högst upp
-// i app-trädet och visas bara på web (PWA) — native får uppdateringar via OTA
-// som hanteras av Expo Updates.
-//
-// Klick på 'Ladda om' = window.location.reload(). Då plockas nya bundle:n.
+// "Ny version tillgänglig/laddad"-banner.
+// - Web (PWA): triggas av SW:s controllerchange-/updatefound-event.
+// - Native: använder expo-updates useUpdates() — visas när en OTA-uppdatering
+//   laddats ned och appen behöver startas om för att den ska aktiveras.
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Updates from 'expo-updates';
 
-export function VersionBanner() {
+function SharedBanner({ text, actionLabel, onAction, onDismiss }: {
+  text: string;
+  actionLabel: string;
+  onAction: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <View style={s.banner}>
+      <Ionicons name="sparkles-outline" size={16} color="#fff" />
+      <Text style={s.text}>{text}</Text>
+      <Pressable style={s.btn} onPress={onAction}>
+        <Text style={s.btnText}>{actionLabel}</Text>
+      </Pressable>
+      <Pressable onPress={onDismiss} hitSlop={8} accessibilityLabel="Stäng">
+        <Ionicons name="close" size={16} color="#ddd6fe" />
+      </Pressable>
+    </View>
+  );
+}
+
+function WebVersionBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
     if (typeof window === 'undefined') return;
-
-    // Om SW redan flaggade innan mount:
     if ((window as { __veckisNewVersion?: boolean }).__veckisNewVersion) {
       setVisible(true);
     }
@@ -24,20 +40,35 @@ export function VersionBanner() {
     return () => window.removeEventListener('veckis-new-version', handler);
   }, []);
 
-  if (!visible || Platform.OS !== 'web') return null;
-
+  if (!visible) return null;
   return (
-    <View style={s.banner}>
-      <Ionicons name="sparkles-outline" size={16} color="#fff" />
-      <Text style={s.text}>Ny version av Veckis tillgänglig</Text>
-      <Pressable style={s.btn} onPress={() => window.location.reload()}>
-        <Text style={s.btnText}>Ladda om</Text>
-      </Pressable>
-      <Pressable onPress={() => setVisible(false)} hitSlop={8} accessibilityLabel="Stäng">
-        <Ionicons name="close" size={16} color="#ddd6fe" />
-      </Pressable>
-    </View>
+    <SharedBanner
+      text="Ny version av Veckis tillgänglig"
+      actionLabel="Ladda om"
+      onAction={() => window.location.reload()}
+      onDismiss={() => setVisible(false)}
+    />
   );
+}
+
+function NativeVersionBanner() {
+  const { isUpdateAvailable } = Updates.useUpdates();
+  const [dismissed, setDismissed] = useState(false);
+
+  if (!isUpdateAvailable || dismissed) return null;
+  return (
+    <SharedBanner
+      text="Ny version av Veckis laddad"
+      actionLabel="Starta om"
+      onAction={() => { void Updates.reloadAsync(); }}
+      onDismiss={() => setDismissed(true)}
+    />
+  );
+}
+
+export function VersionBanner() {
+  if (Platform.OS === 'web') return <WebVersionBanner />;
+  return <NativeVersionBanner />;
 }
 
 const s = StyleSheet.create({

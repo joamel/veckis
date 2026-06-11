@@ -14,6 +14,7 @@ export interface ScheduleEntry {
   assignedToMany: string[];
   isShared: boolean;
   remind: boolean;
+  remindMinutes: number[];
   recurrenceType: RecurrenceType;
   recurrenceDays: WeekDay[];
   recurrenceWeeks: number;

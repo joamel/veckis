@@ -1,0 +1,1 @@
+ALTER TABLE "ShoppingList" ADD COLUMN IF NOT EXISTS "emoji" TEXT;

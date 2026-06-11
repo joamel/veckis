@@ -58,6 +58,7 @@ const categoryEnum = z.nativeEnum(StoreCategory);
 const createListSchema = z.object({
   householdId: z.string(),
   name: z.string().min(1).max(100),
+  emoji: z.string().max(8).nullable().optional(),
   storeId: z.string().optional(),
   isShared: z.boolean().default(true),
 });
@@ -182,12 +183,14 @@ shoppingRouter.patch('/lists/:listId/shopper', requireAuth, asyncHandler(async (
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   // Validera att memberId tillhör hushållet (om satt).
+  let shopperName: string | null = null;
   if (body.data.memberId) {
     const member = await prisma.householdMember.findUnique({ where: { id: body.data.memberId } });
     if (!member || member.householdId !== list.householdId) {
       res.status(400).json({ error: 'Member not in this household' });
       return;
     }
+    shopperName = member.displayName;
   }
 
   const updated = await prisma.shoppingList.update({
@@ -214,6 +217,25 @@ shoppingRouter.patch('/lists/:listId/shopper', requireAuth, asyncHandler(async (
     memberId: updated.activeShopperMemberId,
     since: updated.activeShopperSince,
   });
+
+  // Push till övriga i hushållet när någon tar "Jag handlar".
+  if (shopperName) {
+    const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+    const members = await prisma.householdMember.findMany({
+      where: { householdId: list.householdId },
+      select: { clerkUserId: true },
+    });
+    const others = members
+      .map(m => m.clerkUserId)
+      .filter((id): id is string => !!id && id !== clerkUserId);
+    if (others.length > 0) {
+      void sendPush(others, 'shopperClaimed', {
+        title: 'Handlar nu',
+        body: `${shopperName} handlar från "${list.name}"`,
+        data: { type: 'shopperClaimed', listId: list.id },
+      });
+    }
+  }
 }));
 
 // PATCH /api/shopping/lists/:listId
@@ -223,6 +245,7 @@ shoppingRouter.patch('/lists/:listId', requireAuth, asyncHandler(async (req, res
 
   const body = z.object({
     name: z.string().min(1).max(100).optional(),
+    emoji: z.string().max(8).nullable().optional(),
     storeId: z.string().nullable().optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }

@@ -4,6 +4,8 @@ import { capitalize } from '../../src/lib/text';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
+import { EmojiPicker } from '../../src/components/EmojiPicker';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
@@ -32,6 +34,7 @@ import RNAnimated, {
   withSequence,
   withDelay,
   runOnJS,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -48,7 +51,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem } from '@veckis/shared';
-import { kavBehavior } from '../../src/lib/platform';
+import { kavBehavior, isIOSLike } from '../../src/lib/platform';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
   fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', dairy_eggs: '🥛',
@@ -225,7 +228,7 @@ export default function ShoppingListScreen() {
   }, [shopperActive, shopperPulse]);
   const shopperTextAnimStyle = useAnimatedStyle(() => {
     const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [1, 0], Extrapolation.CLAMP);
-    return { opacity: t, maxWidth: t * 170, marginRight: t * 6 };
+    return { opacity: t, maxWidth: t * 80, marginRight: t * 6 };
   });
   const shopperIconAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: shopperPulse.value }] }));
   // Butiken ligger alltid i navbaren (vänster). Ikonen syns alltid; namnet
@@ -233,7 +236,7 @@ export default function ShoppingListScreen() {
   // inte krockar med den centrerade rubriken.
   const storeNameAnimStyle = useAnimatedStyle(() => {
     const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [1, 0], Extrapolation.CLAMP);
-    return { opacity: t, maxWidth: t * 160, marginLeft: t * 6 };
+    return { opacity: t, maxWidth: t * 80, marginLeft: t * 6 };
   });
 
   // Collapsed categories — tap category header to fold/unfold its items.
@@ -256,6 +259,7 @@ export default function ShoppingListScreen() {
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+  const [renameEmoji, setRenameEmoji] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
 
   async function saveRename() {
@@ -263,13 +267,13 @@ export default function ShoppingListScreen() {
     const newName = renameValue.trim();
     if (!newName) return;
     setRenaming(true);
-    const prev = list?.name;
-    setList(p => p ? { ...p, name: newName } : p);
+    const prev = { name: list?.name, emoji: list?.emoji };
+    setList(p => p ? { ...p, name: newName, emoji: renameEmoji } : p);
     setShowRenameModal(false);
     try {
-      await client.updateShoppingList(listId, { name: newName });
+      await client.updateShoppingList(listId, { name: newName, emoji: renameEmoji });
     } catch (e) {
-      setList(p => p && prev !== undefined ? { ...p, name: prev } : p);
+      setList(p => p && prev.name !== undefined ? { ...p, name: prev.name!, emoji: prev.emoji ?? null } : p);
       showError(e, 'Kunde inte byta namn');
     } finally {
       setRenaming(false);
@@ -755,6 +759,22 @@ export default function ShoppingListScreen() {
     }
   }
 
+  async function markAllInCategory(items: ShoppingItemWithRecipe[]) {
+    const unchecked = items.filter(i => !i.isChecked);
+    if (unchecked.length === 0) return;
+    setList(prev =>
+      prev ? { ...prev, items: prev.items.map(i => unchecked.some(u => u.id === i.id) ? { ...i, isChecked: true } : i) } : prev
+    );
+    await Promise.all(unchecked.map(async item => {
+      try {
+        const updated = await client.checkShoppingItem(item.id, true);
+        setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: item.recipe } : i) } : prev);
+      } catch {
+        setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? item : i) } : prev);
+      }
+    }));
+  }
+
   function fillEditForm(item: ShoppingItemWithRecipe) {
     setEditName(capitalize(item.name));
     setEditQty(item.quantity !== 1 || item.unit ? String(item.quantity) : '');
@@ -872,6 +892,28 @@ export default function ShoppingListScreen() {
       showError(e, 'Kunde inte ta bort vara');
       load();
     }
+  }
+
+  function deleteItemWithUndo(item: ShoppingItemWithRecipe) {
+    setList(prev => prev ? { ...prev, items: prev.items.filter(i => i.id !== item.id) } : prev);
+    let cancelled = false;
+    showGlobalToast(`${capitalize(item.name)} borttagen`, 'neutral', {
+      label: 'Ångra',
+      onPress: () => {
+        cancelled = true;
+        setList(prev => prev ? { ...prev, items: [...prev.items, item] } : prev);
+      },
+    });
+    setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        await client.deleteShoppingItem(item.id);
+        emitShoppingChanged();
+      } catch (e) {
+        setList(prev => prev ? { ...prev, items: [...prev.items, item] } : prev);
+        showError(e, 'Kunde inte ta bort vara');
+      }
+    }, 5000);
   }
 
   async function completeList() {
@@ -1106,10 +1148,30 @@ export default function ShoppingListScreen() {
                   {label}
                   {collapsed ? ` (${group.items.length})` : ''}
                 </Text>
+                {group.items.some(i => !i.isChecked) && (
+                  <Pressable
+                    onPress={e => {
+                      e.stopPropagation();
+                      const uncheckedCount = group.items.filter(i => !i.isChecked).length;
+                      confirm({
+                        title: 'Klarmarkera hela kategorin?',
+                        message: `${uncheckedCount} vara${uncheckedCount === 1 ? '' : 'r'} markeras som klar${uncheckedCount === 1 ? '' : 'a'}.`,
+                        buttons: [
+                          { label: 'Klarmarkera', onPress: () => void markAllInCategory(group.items) },
+                          { label: 'Avbryt', style: 'cancel' },
+                        ],
+                      });
+                    }}
+                    hitSlop={8}
+                    accessibilityLabel="Markera alla som klara"
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={20} color="#10b981" />
+                  </Pressable>
+                )}
                 <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#9ca3af" />
               </Pressable>
               {!collapsed && group.items.map(item => (
-                <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
+                <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />
               ))}
             </View>
           );
@@ -1127,7 +1189,7 @@ export default function ShoppingListScreen() {
                 <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#d1d5db" />
               </Pressable>
               {!collapsed && checked.map(item => (
-                <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} />
+                <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />
               ))}
             </View>
           );
@@ -1227,11 +1289,14 @@ export default function ShoppingListScreen() {
         </Pressable>
       </View>
 
-      {/* Autocomplete chips + add bar */}
+      {/* Autocomplete chips + add bar.
+          Android Chrome PWA: browser resizes viewport → bar floats up naturally.
+          KAV would double-push (bar "jumps"). Disable on non-iOS web.
+          iOS Safari PWA: viewport doesn't resize → KAV needed to clear keyboard. */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-        enabled={keyboardVisible}
+        behavior="padding"
+        keyboardVerticalOffset={isIOSLike ? 90 : 0}
+        enabled={keyboardVisible && (Platform.OS !== 'web' || isIOSLike)}
       >
         {suggestions.length > 0 ? (
           <ScrollView
@@ -1819,7 +1884,7 @@ export default function ShoppingListScreen() {
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); setRenameValue(list.name); setShowRenameModal(true); }}
+            onPress={() => { setShowActionsMenu(false); setRenameValue(list.name); setRenameEmoji(list.emoji ?? null); setShowRenameModal(true); }}
           >
             <Ionicons name="create-outline" size={20} color="#4f46e5" />
             <Text style={s.actionsMenuText}>Byt namn på listan</Text>
@@ -1894,6 +1959,7 @@ export default function ShoppingListScreen() {
               returnKeyType="done"
               onSubmitEditing={saveRename}
             />
+            <EmojiPicker value={renameEmoji} onChange={setRenameEmoji} />
             <Pressable
               style={[s.saveBtn, (!renameValue.trim() || renaming) && s.saveBtnDisabled]}
               onPress={saveRename}
@@ -1977,8 +2043,30 @@ export default function ShoppingListScreen() {
   );
 }
 
-function ItemRow({ item, onToggle, onEdit, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; pending?: boolean }) {
+function SwipeDeleteAction({ progress, width, iconZoneWidth }: {
+  progress: SharedValue<number>;
+  width: number;
+  iconZoneWidth: number;
+}) {
+  // progress = 0 → 1 mappad mot hela bredden (windowWidth), ej bara 1/3
+  // Röd vid ~1/3 av skärmen = progress ≈ 0.33
+  const redStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0.15, 0.33], [0, 1], Extrapolation.CLAMP),
+  }));
   return (
+    <View style={[s.swipeDeleteBtn, { width }]}>
+      <RNAnimated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#ef4444' }, redStyle]} />
+      <View style={{ position: 'absolute', left: 0, width: iconZoneWidth, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+        <Ionicons name="trash-outline" size={22} color="#fff" />
+      </View>
+    </View>
+  );
+}
+
+function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; onDelete?: () => void; pending?: boolean }) {
+  const { width: windowWidth } = useWindowDimensions();
+  const deleteThreshold = windowWidth / 3;
+  const row = (
     <Pressable
       style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
       onPress={pending ? undefined : onToggle}
@@ -1994,6 +2082,21 @@ function ItemRow({ item, onToggle, onEdit, pending }: { item: ShoppingItemWithRe
         </View>
       </View>
     </Pressable>
+  );
+
+  if (Platform.OS === 'web' || !onDelete || pending) return row;
+
+  return (
+    <ReanimatedSwipeable
+      rightThreshold={deleteThreshold}
+      overshootRight={false}
+      renderRightActions={(progress) => (
+        <SwipeDeleteAction progress={progress} width={windowWidth} iconZoneWidth={deleteThreshold} />
+      )}
+      onSwipeableOpen={direction => { if (direction === 'left') onDelete(); }}
+    >
+      {row}
+    </ReanimatedSwipeable>
   );
 }
 
@@ -2109,6 +2212,7 @@ const s = StyleSheet.create({
   editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
+  swipeDeleteBtn: { justifyContent: 'center', alignItems: 'center', marginVertical: 2, backgroundColor: '#9ca3af', borderRadius: 10, overflow: 'hidden' },
   browserSheet: { maxHeight: '90%', gap: 0 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },

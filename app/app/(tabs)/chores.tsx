@@ -5,6 +5,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -142,8 +143,9 @@ interface ChoreOccurrence {
   date: string;
   done: boolean;
   isCurrent: boolean;
-  completedBy: string | null;          // clerkUserId who pressed Klar
-  performedByMemberId: string | null;  // who actually did it (may be a local profile)
+  completedBy: string | null;
+  performedByMemberId: string | null;
+  note: string | null;
 }
 interface RecurringStatus {
   occurrences: ChoreOccurrence[]; // ascending, recent window
@@ -173,6 +175,7 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
         isCurrent: false,
         completedBy: comp?.completedBy ?? null,
         performedByMemberId: comp?.performedByMemberId ?? null,
+        note: comp?.note ?? null,
       });
     }
   }
@@ -183,7 +186,11 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
   let nextDate: string | null = null;
   for (let i = 1; i <= 400; i++) {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
-    if (occursOn(pattern, d)) { nextDate = isoDateStr(d); break; }
+    if (occursOn(pattern, d)) {
+      const ds = isoDateStr(d);
+      // Skip future dates already pre-completed so the upcoming card advances.
+      if (!completionByDate.has(ds)) { nextDate = ds; break; }
+    }
   }
   let state: RecurringStatus['state'] = 'none';
   let overdueDays = 0;
@@ -201,6 +208,8 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
 }
 
 type Member = { id: string; clerkUserId: string | null; displayName: string };
+// 'active' = not done; 'done' = completed (strikethrough, bottom); 'upcoming' = next occurrence of a done recurring chore
+type ChoreEntry = { chore: ChoreWithCompletion; variant: 'active' | 'done' | 'upcoming' };
 
 
 export default function ChoresScreen() {
@@ -320,6 +329,30 @@ export default function ChoresScreen() {
   const [editWeekday, setEditWeekday] = useState<WeekDay>('mon');
   const [saving, setSaving] = useState(false);
 
+  // Note modal — shown after performer is picked, before completing
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [noteInput, setNoteInput] = useState('');
+  const [pendingComplete, setPendingComplete] = useState<((note: string | null) => void) | null>(null);
+
+  function askNote(onConfirm: (note: string | null) => void) {
+    setNoteInput('');
+    setPendingComplete(() => onConfirm);
+    setShowNoteModal(true);
+  }
+
+  function submitNote() {
+    const note = noteInput.trim() || null;
+    setShowNoteModal(false);
+    pendingComplete?.(note);
+    setPendingComplete(null);
+  }
+
+  function skipNote() {
+    setShowNoteModal(false);
+    pendingComplete?.(null);
+    setPendingComplete(null);
+  }
+
   // Date range state
   const [newStartDate, setNewStartDate] = useState<string | null>(null);
   const [newEndDate, setNewEndDate] = useState<string | null>(null);
@@ -386,32 +419,62 @@ export default function ChoresScreen() {
   }, [tipsReady, members.length, filterTip.seen, filterTip.markSeen, showTip]));
 
   // Not-done chores sorted by earliest due date (most overdue first), completed
-  // chores at the bottom, with optional member filter.
-  const sortedChores = useMemo(() => {
-    // Multi-assign matchning: filter slår om någon i assignedToMany finns i
-    // filtret. Fallback till legacy single assignedTo om many-arrayen är tom.
+  // chores at the bottom. Done recurring chores get a split card: one 'done' entry
+  // (strikethrough, at bottom) + one 'upcoming' entry (shows next date, among actives).
+  const sortedChores = useMemo((): ChoreEntry[] => {
     const memberFilter = (c: ChoreWithCompletion) => {
       const ids = c.assignedToMany?.length ? c.assignedToMany : (c.assignedTo ? [c.assignedTo] : []);
       return filterMemberIds.length === 0 || ids.some(id => filterMemberIds.includes(id));
     };
     const filtered = chores.filter(memberFilter);
-    // Match the card's notion of "done": occurrence-based for recurring chores.
-    const choreDone = (c: ChoreWithCompletion) => isOnce(c) ? isFullyDone(c) : recurringStatus(c).state === 'done';
-    // Effektivt förfallodatum för sortering: överförfallna/dagens datum för
-    // återkommande, nästa tillfälle annars; engångssysslor utan datum behandlas
-    // som "att göra nu" (idag) så de hamnar bland dagens uppgifter.
     const todayStr = isoDateStr(new Date());
-    const dueKey = (c: ChoreWithCompletion): string => {
-      if (isOnce(c)) return todayStr;
-      const rs = recurringStatus(c);
-      if (rs.current && !rs.current.done) return rs.current.date; // overdue/today
+
+    // Pre-compute recurring statuses once to avoid O(n²) calls during sort.
+    const statuses = new Map<string, RecurringStatus>();
+    for (const c of filtered) {
+      if (!isOnce(c)) statuses.set(c.id, recurringStatus(c));
+    }
+
+    const doneEntries: ChoreEntry[] = [];
+    const activeEntries: ChoreEntry[] = [];
+
+    for (const chore of filtered) {
+      const once = isOnce(chore);
+      const rs = once ? null : statuses.get(chore.id)!;
+      const isDone = once ? chore.completions.length > 0 : rs!.state === 'done';
+      if (isDone) {
+        doneEntries.push({ chore, variant: 'done' });
+        if (!once) activeEntries.push({ chore, variant: 'upcoming' });
+      } else {
+        activeEntries.push({ chore, variant: 'active' });
+      }
+    }
+
+    const entryDueKey = (entry: ChoreEntry): string => {
+      const { chore, variant } = entry;
+      if (isOnce(chore)) return todayStr;
+      const rs = statuses.get(chore.id)!;
+      if (variant === 'upcoming') return rs.nextDate ?? '9999-12-31';
+      if (rs.current && !rs.current.done) return rs.current.date;
       return rs.nextDate ?? '9999-12-31';
     };
-    const done = filtered.filter(choreDone);
-    const notDone = filtered
-      .filter(c => !choreDone(c))
-      .sort((a, b) => dueKey(a).localeCompare(dueKey(b)));
-    return [...notDone, ...done];
+
+    activeEntries.sort((a, b) => entryDueKey(a).localeCompare(entryDueKey(b)));
+
+    // Recurring done sorted by next date (soonest = highest priority to resurface),
+    // once-done at very bottom.
+    doneEntries.sort((a, b) => {
+      const aOnce = isOnce(a.chore);
+      const bOnce = isOnce(b.chore);
+      if (aOnce && bOnce) return 0;
+      if (aOnce) return 1;
+      if (bOnce) return -1;
+      const aNext = statuses.get(a.chore.id)?.nextDate ?? '9999-12-31';
+      const bNext = statuses.get(b.chore.id)?.nextDate ?? '9999-12-31';
+      return aNext.localeCompare(bNext);
+    });
+
+    return [...activeEntries, ...doneEntries];
   }, [chores, filterMemberIds]);
 
   const completedOnce = useMemo(
@@ -595,10 +658,34 @@ export default function ChoresScreen() {
     });
   }
 
+  function copyChore(chore: ChoreWithCompletion) {
+    const rt: RecurrenceType = chore.recurrenceType
+      ?? (chore.frequency === 'once' ? 'none'
+        : chore.frequency === 'daily' ? 'daily'
+        : chore.frequency === 'monthly' ? 'monthly'
+        : 'weekly');
+    const derived = deriveMonthlyFromStartDate(chore.startDate ?? null);
+    setNewTitle(chore.title);
+    setNewAssignedToMany(chore.assignedToMany?.length ? chore.assignedToMany : (chore.assignedTo ? [chore.assignedTo] : []));
+    setNewRotation(!!chore.rotation);
+    setNewRecurrenceType(rt);
+    setNewRecurrenceWeeks(chore.recurrenceWeeks ?? (chore.frequency === 'biweekly' ? 2 : 1));
+    setNewRecurrenceDays([...chore.days]);
+    setNewMonthlyType((chore.monthlyType as 'day_of_month' | 'weekday_of_month') ?? 'day_of_month');
+    setNewRecurrenceWeekOfMonth(chore.recurrenceWeekOfMonth ?? 1);
+    setNewMonthDay(derived.dayOfMonth);
+    setNewWeekday(derived.weekday);
+    setNewStartDate(null);
+    setNewEndDate(chore.endDate ?? null);
+    setShowCreate(true);
+  }
+
   function openChoreActions(chore: ChoreWithCompletion) {
     confirm({
       title: chore.title,
+      variant: 'menu',
       buttons: [
+        { label: 'Kopiera', onPress: () => { setViewingChore(null); copyChore(chore); } },
         { label: 'Redigera', onPress: () => { setViewingChore(null); openEdit(chore); } },
         { label: 'Ta bort', style: 'destructive', onPress: () => { setViewingChore(null); deleteChore(chore.id, chore.title); } },
         { label: 'Avbryt', style: 'cancel' },
@@ -606,12 +693,12 @@ export default function ChoresScreen() {
     });
   }
 
-  async function completeChore(chore: ChoreWithCompletion, performedByMemberId: string | null = null) {
+  async function completeChore(chore: ChoreWithCompletion, performedByMemberId: string | null = null, note: string | null = null) {
     const fakeId = '__opt__';
-    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note: null, day: null, date: null };
+    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note, day: null, date: null };
     setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
     try {
-      const completion = await client.completeChore(chore.id, null, undefined, null, performedByMemberId);
+      const completion = await client.completeChore(chore.id, null, note ?? undefined, null, performedByMemberId);
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
         : c));
@@ -641,12 +728,12 @@ export default function ChoresScreen() {
   }
 
   // Forgiving model: complete/uncomplete a specific occurrence date.
-  async function completeOccurrence(chore: ChoreWithCompletion, date: string, performedByMemberId: string | null = null) {
+  async function completeOccurrence(chore: ChoreWithCompletion, date: string, performedByMemberId: string | null = null, note: string | null = null) {
     const fakeId = '__occ__' + date;
-    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note: null, day: null, date };
+    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note, day: null, date };
     setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
     try {
-      const completion = await client.completeChore(chore.id, null, undefined, date, performedByMemberId);
+      const completion = await client.completeChore(chore.id, null, note ?? undefined, date, performedByMemberId);
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
         : c));
@@ -735,7 +822,7 @@ export default function ChoresScreen() {
 
       <FlatList
         data={sortedChores}
-        keyExtractor={item => item.id}
+        keyExtractor={entry => entry.chore.id + '-' + entry.variant}
         contentContainerStyle={[s.list, sortedChores.length === 0 && s.listEmpty]}
         onRefresh={load}
         refreshing={loading}
@@ -748,32 +835,34 @@ export default function ChoresScreen() {
             onAction={openCreate}
           />
         }
-        renderItem={({ item }) => {
+        renderItem={({ item: entry }) => {
+          const { chore: item, variant } = entry;
           const once = isOnce(item);
           const rec = once ? null : recurringStatus(item);
-          const done = once ? isFullyDone(item) : rec!.state === 'done';
-          // A recurring chore is never "finished" — it returns — so don't give it
-          // the greyed/strikethrough look; only one-off chores get that.
-          const finishedLook = once && done;
-          const overdue = rec?.state === 'overdue';
+          // Both once-done and recurring-done get strikethrough look.
+          const finishedLook = variant === 'done';
+          const overdue = variant === 'active' && rec?.state === 'overdue';
           const assignedLabel = buildLabel(item);
-          // Kompakt rad: "vem · när".
-          // När en återkommande syssla just klarmarkerats vill vi visa nästa
-          // datum direkt — boxen ska kännas "klar och vidare", inte fastlåst.
-          const dateLabel = once
-            ? (item.completions[0] ? daysSince(item.completions[0].completedAt) : null)
-            : (rec?.state === 'overdue' ? `förfallen ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
-              : rec?.state === 'done' && rec.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
-              : rec?.state === 'today' ? 'idag'
-              : rec?.state !== 'done' && rec?.current ? formatOcc(rec.current.date)
-              : rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
-              : null);
+          let dateLabel: string | null = null;
+          if (variant === 'done') {
+            dateLabel = once
+              ? (item.completions[0] ? daysSince(item.completions[0].completedAt) : null)
+              : (rec?.current ? `klar ${formatOcc(rec.current.date)}` : 'klar');
+          } else if (variant === 'upcoming') {
+            dateLabel = rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}` : null;
+          } else {
+            // active
+            dateLabel = once
+              ? null
+              : (rec?.state === 'overdue' ? `förfallen ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
+                : rec?.state === 'today' ? 'idag'
+                : rec?.current ? formatOcc(rec.current.date)
+                : rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
+                : null);
+          }
           const compactMeta = [assignedLabel, dateLabel].filter(Boolean).join(' · ');
-          const showCheck = once || !!rec?.current;
-          // För återkommande: visa boxen tom även när tillfället är klart
-          // — det signalerar att man är "vidare till nästa", men trycket
-          // är fortfarande aktivt så man kan ångra (uncompleteOccurrence).
-          const checkVisualDone = once ? done : false;
+          const showCheck = once || !!rec?.current || (variant === 'upcoming' && !!rec?.nextDate);
+          const checkVisualDone = variant === 'done';
           const openView = wrapExpandTip(
             () => setViewingChore(item),
             {
@@ -783,14 +872,18 @@ export default function ChoresScreen() {
           );
           return (
             <View style={s.cardWrap}>
-              <View style={[s.card, finishedLook && s.cardDone, overdue && s.cardOverdue]}>
+              <View style={[s.card, finishedLook && s.cardDone, overdue && s.cardOverdue, variant === 'upcoming' && s.cardUpcoming]}>
               <View style={s.cardInner}>
               <Pressable
                 style={[s.cardMain, { padding: sp(14), gap: sp(12) }]}
                 onPress={openView}
               >
                 <View style={s.cardIcon}>
-                  <Ionicons name="sparkles-outline" size={fs(16)} color="#7c3aed" />
+                  <Ionicons
+                    name={variant === 'upcoming' ? 'calendar-outline' : 'sparkles-outline'}
+                    size={fs(16)}
+                    color={variant === 'upcoming' ? '#9ca3af' : '#7c3aed'}
+                  />
                 </View>
                 <View style={s.cardContent}>
                   <Text style={[s.cardTitle, { fontSize: fs(16) }, finishedLook && s.cardTitleDone]}>{item.title}</Text>
@@ -803,13 +896,17 @@ export default function ChoresScreen() {
                     style={[s.checkBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }, checkVisualDone && s.checkBtnDone]}
                     onPress={(e) => {
                       e.stopPropagation?.();
-                      if (once) {
-                        if (done) uncompleteChore(item);
-                        else pickPerformer(item, performer => completeChore(item, performer));
+                      if (variant === 'done') {
+                        if (once) uncompleteChore(item);
+                        else uncompleteOccurrence(item, rec!.current!.date);
+                      } else if (variant === 'upcoming') {
+                        pickPerformer(item, performer => askNote(note => completeOccurrence(item, rec!.nextDate!, performer, note)));
                       } else {
-                        const cur = rec!.current!;
-                        if (cur.done) uncompleteOccurrence(item, cur.date);
-                        else pickPerformer(item, performer => completeOccurrence(item, cur.date, performer));
+                        if (once) pickPerformer(item, performer => askNote(note => completeChore(item, performer, note)));
+                        else {
+                          const cur = rec!.current!;
+                          pickPerformer(item, performer => askNote(note => completeOccurrence(item, cur.date, performer, note)));
+                        }
                       }
                     }}
                   >
@@ -881,14 +978,13 @@ export default function ChoresScreen() {
 
       {/* Create modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
-        <View style={{ flex: 1 }}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowCreate(false)} />
         <KeyboardAvoidingView behavior={kavBehavior}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny syssla</Text>
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Sysslans namn, t.ex. Damma"
@@ -911,10 +1007,17 @@ export default function ChoresScreen() {
             {newRecurrenceType === 'none' && (
               <>
                 <Text style={s.label}>Datum (valfritt)</Text>
-                <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
-                  <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
-                  <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Välj datum'}</Text>
-                </Pressable>
+                <View style={s.dateRow}>
+                  <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
+                    <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Välj datum'}</Text>
+                  </Pressable>
+                  {newStartDate && (
+                    <Pressable onPress={() => setNewStartDate(null)} hitSlop={8} accessibilityLabel="Rensa datum">
+                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                    </Pressable>
+                  )}
+                </View>
               </>
             )}
 
@@ -941,10 +1044,17 @@ export default function ChoresScreen() {
             {newRecurrenceType !== 'none' && (
               <>
                 <Text style={s.label}>Startdatum (valfritt)</Text>
-                <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
-                  <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
-                  <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Välj startdatum'}</Text>
-                </Pressable>
+                <View style={s.dateRow}>
+                  <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
+                    <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Välj startdatum'}</Text>
+                  </Pressable>
+                  {newStartDate && (
+                    <Pressable onPress={() => setNewStartDate(null)} hitSlop={8} accessibilityLabel="Rensa startdatum">
+                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                    </Pressable>
+                  )}
+                </View>
               </>
             )}
 
@@ -960,17 +1070,45 @@ export default function ChoresScreen() {
           </ScrollView>
         </View>
         </KeyboardAvoidingView>
-        </View>
       </Modal>
 
-      <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} />
-      <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} />
-      <DatePickerModal value={editStartDate} onChange={setEditStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} />
-      <DatePickerModal value={editEndDate} onChange={setEditEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} />
+      {/* Note modal — optional note after marking a chore done */}
+      <Modal visible={showNoteModal} transparent animationType="slide" onRequestClose={skipNote}>
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={skipNote} />
+        <KeyboardAvoidingView behavior={kavBehavior}>
+          <View style={[s.sheet, { paddingBottom: Math.max(16, insets.bottom) }]}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>Lägg till anteckning</Text>
+            <Text style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>Valfritt — visas i historiken</Text>
+            <TextInput
+              style={[s.input, { minHeight: 72, textAlignVertical: 'top' }]}
+              placeholder="t.ex. behöver nytt rengöringsmedel"
+              placeholderTextColor="#9ca3af"
+              value={noteInput}
+              onChangeText={setNoteInput}
+              autoFocus
+              multiline
+              maxLength={200}
+              returnKeyType="done"
+              blurOnSubmit
+              onSubmitEditing={submitNote}
+            />
+            <Pressable style={[s.button, { marginTop: 8 }]} onPress={submitNote}>
+              <Text style={s.buttonText}>{noteInput.trim() ? 'Spara anteckning' : 'Hoppa över'}</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} minimumDate={isoDateStr(new Date())} />
+      <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} minimumDate={newStartDate ?? isoDateStr(new Date())} />
+      <DatePickerModal value={editStartDate} onChange={setEditStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} minimumDate={isoDateStr(new Date())} />
+      <DatePickerModal value={editEndDate} onChange={setEditEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} minimumDate={editStartDate ?? isoDateStr(new Date())} />
 
       {/* View chore — read-only; edit/delete via 3-dot */}
       <Modal visible={!!viewingChore} animationType="slide" onRequestClose={() => setViewingChore(null)}>
-        <View style={[s.viewFull, { paddingTop: insets.top }]}>
+        <View style={[s.viewFull, { paddingTop: Platform.OS === 'ios' ? insets.top : 0 }]}>
           {viewingChore && (() => {
             const c = viewingChore;
             const once = isOnce(c);
@@ -1049,16 +1187,20 @@ export default function ChoresScreen() {
                               name={o.done ? 'checkmark-circle' : o.isCurrent ? 'ellipse-outline' : 'close-circle-outline'}
                               size={16}
                               color={o.done ? '#10b981' : o.isCurrent ? '#7c3aed' : '#d1d5db'}
+                              style={{ marginTop: o.note ? 2 : 0 }}
                             />
-                            <Text style={[s.historyDate, !o.done && !o.isCurrent && s.historyMissed]}>
-                              {formatOcc(o.date)}{o.done
-                                ? (isHopIn
-                                  ? ` · ${performerName} (hoppade in för ${turnName})`
-                                  : performerName ? ` · ${performerName}` : '')
-                                : o.isCurrent
-                                  ? (turnName ? ` · ${turnName}s tur` : ' · att göra')
-                                  : (turnName ? ` · ${turnName} missade` : ' · missad')}
-                            </Text>
+                            <View style={{ flex: 1 }}>
+                              <Text style={[s.historyDate, !o.done && !o.isCurrent && s.historyMissed]}>
+                                {formatOcc(o.date)}{o.done
+                                  ? (isHopIn
+                                    ? ` · ${performerName} (hoppade in för ${turnName})`
+                                    : performerName ? ` · ${performerName}` : '')
+                                  : o.isCurrent
+                                    ? (turnName ? ` · ${turnName}s tur` : ' · att göra')
+                                    : (turnName ? ` · ${turnName} missade` : ' · missad')}
+                              </Text>
+                              {o.note && <Text style={s.historyNote}>{o.note}</Text>}
+                            </View>
                           </View>
                         );
                       })}
@@ -1073,7 +1215,6 @@ export default function ChoresScreen() {
 
       {/* Edit modal */}
       <Modal visible={!!editingChore} transparent animationType="slide" onRequestClose={() => setEditingChore(null)}>
-        <View style={{ flex: 1 }}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setEditingChore(null)} />
         <KeyboardAvoidingView behavior={kavBehavior}>
@@ -1084,7 +1225,7 @@ export default function ChoresScreen() {
             message={choreConflict?.msg ?? null}
             onShowLatest={choreConflict ? () => { openEdit(choreConflict.latest); setChoreConflict(null); } : undefined}
           />
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Sysslans namn"
@@ -1106,10 +1247,17 @@ export default function ChoresScreen() {
             {editRecurrenceType === 'none' && (
               <>
                 <Text style={s.label}>Datum (valfritt)</Text>
-                <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
-                  <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
-                  <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Välj datum'}</Text>
-                </Pressable>
+                <View style={s.dateRow}>
+                  <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
+                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Välj datum'}</Text>
+                  </Pressable>
+                  {editStartDate && (
+                    <Pressable onPress={() => setEditStartDate(null)} hitSlop={8} accessibilityLabel="Rensa datum">
+                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                    </Pressable>
+                  )}
+                </View>
               </>
             )}
 
@@ -1136,10 +1284,17 @@ export default function ChoresScreen() {
             {editRecurrenceType !== 'none' && (
               <>
                 <Text style={s.label}>Startdatum (valfritt)</Text>
-                <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
-                  <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
-                  <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Välj startdatum'}</Text>
-                </Pressable>
+                <View style={s.dateRow}>
+                  <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
+                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Välj startdatum'}</Text>
+                  </Pressable>
+                  {editStartDate && (
+                    <Pressable onPress={() => setEditStartDate(null)} hitSlop={8} accessibilityLabel="Rensa startdatum">
+                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                    </Pressable>
+                  )}
+                </View>
               </>
             )}
 
@@ -1163,7 +1318,6 @@ export default function ChoresScreen() {
           </ScrollView>
         </View>
         </KeyboardAvoidingView>
-        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1184,6 +1338,7 @@ const s = StyleSheet.create({
   cardInner: { borderRadius: 12, overflow: 'hidden' },
   cardMain: { flexDirection: 'row', alignItems: 'center' },
   cardDone: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
+  cardUpcoming: { borderLeftColor: '#9ca3af' },
   cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#f5f3ff', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1, minWidth: 0 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
@@ -1198,6 +1353,7 @@ const s = StyleSheet.create({
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   historyDate: { fontSize: 13, color: '#374151', flex: 1 },
   historyMissed: { color: '#9ca3af' },
+  historyNote: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic', marginTop: 1 },
   historyEmpty: { fontSize: 13, color: '#9ca3af', fontStyle: 'italic' },
   expandedHeader: { gap: 4, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', marginBottom: 4 },
   expandedMeta: { fontSize: 12, color: '#6b7280' },
@@ -1237,6 +1393,7 @@ const s = StyleSheet.create({
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   deleteBtnText: { color: '#ef4444', fontSize: 14, fontWeight: '500' },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
   dateBtnSet: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
   dateBtnText: { fontSize: 13, color: '#9ca3af', flex: 1 },

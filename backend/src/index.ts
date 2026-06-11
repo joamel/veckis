@@ -28,6 +28,7 @@ import { prisma } from './db';
 import { asyncHandler } from './lib/asyncHandler';
 import { wsSubscribe, wsUnsubscribe } from './lib/wsHub';
 import { startNotificationScheduler } from './lib/notificationScheduler';
+import { startShopperExpiry } from './lib/shopperExpiry';
 
 const app = express();
 app.disable('etag');
@@ -109,6 +110,9 @@ const server = app.listen(PORT, () => {
 
 // Time-based push notifications (activity reminders, overdue chores).
 startNotificationScheduler();
+
+// Auto-rensa "Jag handlar"-presence efter 2h inaktivitet.
+startShopperExpiry();
 
 // Backfilla subCategory på befintliga items (idempotent, körs i bakgrunden).
 import('./jobs/backfillSubCategory').then(m => {

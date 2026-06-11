@@ -60,6 +60,7 @@ export interface NotificationPreferences {
   choreOverdue: boolean;
   listCleared: boolean;
   newMember: boolean;
+  shopperClaimed: boolean;
   reminderMinutes: number;
 }
 
@@ -195,7 +196,7 @@ export function useApiClient() {
     getShoppingList: (listId: string) =>
       request<ShoppingListWithItems>(`/api/shopping/lists/${listId}`),
 
-    createShoppingList: (data: { householdId: string; name: string; storeId?: string; isShared?: boolean }) =>
+    createShoppingList: (data: { householdId: string; name: string; emoji?: string | null; storeId?: string; isShared?: boolean }) =>
       request<ShoppingListWithItems>('/api/shopping/lists', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -288,7 +289,7 @@ export function useApiClient() {
     getSchedule: (householdId: string) =>
       request<ScheduleEntry[]>(`/api/schedule?householdId=${householdId}`),
 
-    createScheduleEntry: (data: { householdId: string; title: string; emoji?: string | null; day: WeekDay; description?: string; startTime?: string; endTime?: string; assignedTo?: string; assignedToMany?: string[]; isShared?: boolean; remind?: boolean; recurrenceType?: RecurrenceType; recurrenceDays?: WeekDay[]; recurrenceWeeks?: number; monthlyType?: string; recurrenceWeekOfMonth?: number | null; startDate?: string | null; endDate?: string | null }) =>
+    createScheduleEntry: (data: { householdId: string; title: string; emoji?: string | null; day: WeekDay; description?: string; startTime?: string; endTime?: string; assignedTo?: string; assignedToMany?: string[]; isShared?: boolean; remind?: boolean; remindMinutes?: number[]; recurrenceType?: RecurrenceType; recurrenceDays?: WeekDay[]; recurrenceWeeks?: number; monthlyType?: string; recurrenceWeekOfMonth?: number | null; startDate?: string | null; endDate?: string | null }) =>
       request<ScheduleEntry>('/api/schedule', { method: 'POST', body: JSON.stringify(data) }),
 
     updateScheduleEntry: (entryId: string, data: Partial<Omit<ScheduleEntry, 'id' | 'householdId' | 'createdBy'>>) =>
@@ -382,7 +383,7 @@ export function useApiClient() {
     getIngredientSuggestions: (householdId: string) =>
       request<{ name: string; category: string }[]>(`/api/staples/suggestions?householdId=${householdId}`),
 
-    updateShoppingList: (listId: string, data: { name?: string; storeId?: string | null }) =>
+    updateShoppingList: (listId: string, data: { name?: string; emoji?: string | null; storeId?: string | null }) =>
       request<ShoppingListWithItems>(`/api/shopping/lists/${listId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     // Push notifications

@@ -52,7 +52,8 @@ export default function AccountScreen() {
     setDeleting(true);
     try {
       await client.deleteAccount();
-      await signOut(); // kontot är borta → logga ut, NavigationGuard tar till sign-in
+      await signOut();
+      router.replace('/(auth)/sign-in');
     } catch (e) {
       setDeleting(false);
       showError(e, 'Kunde inte ta bort kontot');

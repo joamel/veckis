@@ -128,16 +128,22 @@ async function runActivityReminders(now: LocalNow): Promise<void> {
     recipients = [...new Set(recipients)];
 
     for (const userId of recipients) {
-      const window = reminderMin.get(userId) ?? 30;
-      if (delta > window) continue;
-      const key = `activity:${e.id}:${now.dateStr}:${userId}`;
-      if (await claimNotification(key)) {
-        const when = delta <= 0 ? 'nu' : `om ${delta} min`;
-        await sendPush([userId], 'activityReminder', {
-          title: `${e.emoji ? e.emoji + ' ' : ''}${e.title}`,
-          body: `Börjar ${when} (${e.startTime})`,
-          data: { type: 'activityReminder', entryId: e.id },
-        });
+      // Use entry's remindMinutes array; fall back to user pref or 30 min default
+      const windows = e.remindMinutes.length > 0
+        ? e.remindMinutes
+        : [reminderMin.get(userId) ?? 30];
+      for (const window of windows) {
+        if (delta > window || delta <= 0) continue;
+        // Dedupe key includes window so each reminder fires independently
+        const key = `activity:${e.id}:${now.dateStr}:${userId}:${window}`;
+        if (await claimNotification(key)) {
+          const when = `om ${delta} min`;
+          await sendPush([userId], 'activityReminder', {
+            title: `${e.emoji ? e.emoji + ' ' : ''}${e.title}`,
+            body: `Börjar ${when} (${e.startTime})`,
+            data: { type: 'activityReminder', entryId: e.id },
+          });
+        }
       }
     }
   }

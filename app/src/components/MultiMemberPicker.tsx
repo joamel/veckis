@@ -48,24 +48,69 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
       </ScrollView>
       {selected.length >= 2 ? (
         rotationAllowed ? (
-          <Pressable
-            style={s.rotationRow}
-            onPress={() => onRotationChange(!rotation)}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: rotation }}
-          >
-            <View style={[s.rotationBox, rotation && s.rotationBoxActive]}>
-              {rotation ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.rotationLabel}>Turas om automatiskt</Text>
-              <Text style={s.rotationSub}>
-                {rotation
-                  ? 'Tur byts efter varje avbockning — alla turas om i listan.'
-                  : 'Alla i listan är gemensamt ansvariga (ingen rotation).'}
-              </Text>
-            </View>
-          </Pressable>
+          <>
+            <Pressable
+              style={s.rotationRow}
+              onPress={() => onRotationChange(!rotation)}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: rotation }}
+            >
+              <View style={[s.rotationBox, rotation && s.rotationBoxActive]}>
+                {rotation ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.rotationLabel}>Turas om automatiskt</Text>
+                <Text style={s.rotationSub}>
+                  {rotation
+                    ? 'Tur byts efter varje avbockning — alla turas om i listan.'
+                    : 'Alla i listan är gemensamt ansvariga (ingen rotation).'}
+                </Text>
+              </View>
+            </Pressable>
+            {rotation && (
+              <View style={s.orderSection}>
+                <Text style={s.orderLabel}>Turordning</Text>
+                {selected.map((id, i) => {
+                  const m = members.find(x => x.id === id);
+                  if (!m) return null;
+                  const moveUp = () => {
+                    const a = [...selected];
+                    [a[i - 1], a[i]] = [a[i], a[i - 1]];
+                    onChange(a);
+                  };
+                  const moveDown = () => {
+                    const a = [...selected];
+                    [a[i], a[i + 1]] = [a[i + 1], a[i]];
+                    onChange(a);
+                  };
+                  return (
+                    <View key={id} style={s.orderRow}>
+                      <Text style={s.orderNum}>{i + 1}</Text>
+                      <Text style={s.orderName}>{m.displayName}</Text>
+                      <View style={s.orderBtns}>
+                        <Pressable
+                          onPress={moveUp}
+                          disabled={i === 0}
+                          style={s.orderBtn}
+                          accessibilityLabel="Flytta upp"
+                        >
+                          <Ionicons name="chevron-up" size={18} color={i === 0 ? '#d1d5db' : '#6b7280'} />
+                        </Pressable>
+                        <Pressable
+                          onPress={moveDown}
+                          disabled={i === selected.length - 1}
+                          style={s.orderBtn}
+                          accessibilityLabel="Flytta ned"
+                        >
+                          <Ionicons name="chevron-down" size={18} color={i === selected.length - 1 ? '#d1d5db' : '#6b7280'} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </>
         ) : (
           <View style={[s.rotationRow, s.rotationRowDisabled]} accessibilityState={{ disabled: true }}>
             <View style={s.rotationBox} />
@@ -93,4 +138,11 @@ const s = StyleSheet.create({
   rotationBoxActive: { borderColor: '#7c3aed', backgroundColor: '#7c3aed' },
   rotationLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
   rotationSub: { fontSize: 12, color: '#6b7280', marginTop: 2, lineHeight: 17 },
+  orderSection: { marginTop: 10, gap: 4 },
+  orderLabel: { fontSize: 12, fontWeight: '600', color: '#9ca3af', letterSpacing: 0.5, marginBottom: 4 },
+  orderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#f5f3ff', borderRadius: 10, borderWidth: 1, borderColor: '#ede9fe' },
+  orderNum: { fontSize: 13, fontWeight: '700', color: '#7c3aed', width: 18, textAlign: 'center' },
+  orderName: { flex: 1, fontSize: 14, fontWeight: '500', color: '#111827' },
+  orderBtns: { flexDirection: 'row', gap: 2 },
+  orderBtn: { padding: 4 },
 });

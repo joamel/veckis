@@ -4,6 +4,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -15,6 +16,7 @@ import {
   Vibration,
   View,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, useAnimatedProps } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -59,6 +61,33 @@ const TODAY_DAY = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1].
 const DRUM_H = 44;
 const HOUR_VALS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const MIN_VALS = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
+// Varv 1: 0°-360° = 1-60 min (6°/min)
+// Varv 2: 360°-720° = 1-24 tim (15°/tim)
+// Varv 3: 720°-1080° = 1-7 dagar (60°/dag)
+// Varv 4: 1080°-1440° = 1-8 veckor (45°/vecka)
+function minutesToTotalAngle(m: number): number {
+  if (m <= 60) return m * 6;
+  if (m <= 1440) return 360 + (m / 60) * 15;
+  if (m <= 7 * 1440) return 660 + m / 24;  // 1 dag=720°, 7 dagar=1080°
+  return 1080 + (m / 10080) * 45;
+}
+function totalAngleToMinutes(a: number): number {
+  'worklet';
+  if (a <= 360) return Math.max(1, Math.round(a / 6));
+  if (a <= 720) return Math.max(1, Math.round((a - 360) / 15)) * 60;
+  if (a <= 1080) return Math.max(1, Math.min(7, Math.round((a - 720) / 60) + 1)) * 1440;
+  return Math.max(1, Math.round((a - 1080) / 45)) * 10080;
+}
+function formatRemindTime(m: number): string {
+  'worklet';
+  if (m < 60) return `${m} min`;
+  const h = Math.round(m / 60);
+  if (m < 1440) return `${h} tim`;
+  const d = Math.round(m / 1440);
+  if (m < 10080) return d === 1 ? '1 dag' : `${d} dagar`;
+  const w = Math.round(m / 10080);
+  return w === 1 ? '1 vecka' : `${w} veckor`;
+}
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 type Member = { id: string; clerkUserId: string | null; displayName: string };
@@ -141,6 +170,173 @@ function Drum({ values, selected, onSelect }: { values: string[]; selected: numb
           borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#e5e7eb',
         }}
       />
+    </View>
+  );
+}
+
+const DIAL_SIZE = 200;
+const DIAL_R = DIAL_SIZE / 2;
+const DIAL_HAND_R = DIAL_R - 26;
+
+const PIE_COLOR = '#e0e7ff';
+
+// Needed to animate TextInput.text on the UI thread (standard Reanimated text pattern)
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+
+function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: number) => void }) {
+  const dialRef = useRef<View>(null);
+  const centerRef = useRef({ x: 0, y: 0 });
+  const totalAngleSV = useSharedValue(minutesToTotalAngle(minutes));
+  const lastAngleRef = useRef<number | null>(null);
+  const lastHapticRef = useRef(minutes);
+  const lastEmittedRef = useRef(minutes);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  useEffect(() => {
+    if (minutes !== lastEmittedRef.current) {
+      const target = minutesToTotalAngle(minutes);
+      totalAngleSV.value = target;
+      lastEmittedRef.current = minutes;
+      lastHapticRef.current = minutes;
+    }
+  }, [minutes]);
+
+  // No setState inside onPanResponderMove — zero React re-renders during gesture.
+  // Text updates via useAnimatedProps worklet on UI thread; setZone+onChange on release only.
+  const panResponder = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (e) => {
+      dialRef.current?.measure((_, __, w, h, px, py) => {
+        centerRef.current = { x: px + w / 2, y: py + h / 2 };
+      });
+      const { pageX, pageY } = e.nativeEvent;
+      lastAngleRef.current = Math.atan2(pageY - centerRef.current.y, pageX - centerRef.current.x) * (180 / Math.PI);
+    },
+    onPanResponderMove: (e) => {
+      const { pageX, pageY } = e.nativeEvent;
+      const a = Math.atan2(pageY - centerRef.current.y, pageX - centerRef.current.x) * (180 / Math.PI);
+      if (lastAngleRef.current !== null) {
+        let delta = a - lastAngleRef.current;
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+        const newTotal = Math.max(6, Math.min(1440, totalAngleSV.value + delta));
+        totalAngleSV.value = newTotal;
+        // Vibration.vibrate is a fire-and-forget native call — safe to call per tick without re-render
+        const m = totalAngleToMinutes(newTotal);
+        if (m !== lastHapticRef.current) {
+          lastHapticRef.current = m;
+          hapticTick();
+        }
+      }
+      lastAngleRef.current = a;
+    },
+    onPanResponderRelease: () => {
+      lastAngleRef.current = null;
+      const m = totalAngleToMinutes(totalAngleSV.value);
+      lastEmittedRef.current = m;
+      onChangeRef.current(m);
+    },
+  })).current;
+
+  // Pie fill — right half (arc 0°→180°): D-shape rotates around its flat left edge (= dial center).
+  // To rotate around pivot px=-DIAL_R/2 relative to element center: T(px)·R·T(-px)
+  const rightFillStyle = useAnimatedStyle(() => {
+    const ha = totalAngleSV.value % 360;
+    const rot = Math.min(ha, 180) - 180;
+    return { transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
+  });
+
+  // Pie fill — left half (arc 180°→360°): D-shape rotates around its flat right edge (= dial center).
+  // To rotate around pivot px=+DIAL_R/2 relative to element center: T(px)·R·T(-px)
+  const leftFillStyle = useAnimatedStyle(() => {
+    const ha = totalAngleSV.value % 360;
+    const rot = Math.max(ha - 180, 0) - 180;
+    return { transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
+  });
+
+  // Clock hand rotates around dial center
+  const handStyle = useAnimatedStyle(() => {
+    const ha = totalAngleSV.value % 360;
+    return { transform: [{ rotate: `${ha}deg` }] };
+  });
+
+  // Indicator dot moves along the hand radius
+  const indicatorStyle = useAnimatedStyle(() => {
+    const ha = totalAngleSV.value % 360;
+    const rad = (ha - 90) * Math.PI / 180;
+    return { transform: [{ translateX: DIAL_HAND_R * Math.cos(rad) }, { translateY: DIAL_HAND_R * Math.sin(rad) }] };
+  });
+
+  // Center time text — runs as worklet on UI thread, no React re-render during drag
+  const centerTextProps = useAnimatedProps(() => ({
+    text: formatRemindTime(totalAngleToMinutes(totalAngleSV.value)),
+  } as any));
+
+  return (
+    <View style={{ alignItems: 'center', gap: 10 }}>
+      <View
+        ref={dialRef}
+        style={s.remindDial}
+        onLayout={() => {
+          dialRef.current?.measure((_, __, w, h, px, py) => {
+            centerRef.current = { x: px + w / 2, y: py + h / 2 };
+          });
+        }}
+        {...panResponder.panHandlers}
+      >
+          {/* Pie fill: right D-shape, clipped to right half */}
+          <View style={{ position: 'absolute', left: DIAL_R, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
+            <Animated.View style={[{
+              position: 'absolute', left: 0, top: 0,
+              width: DIAL_R, height: DIAL_SIZE,
+              borderTopRightRadius: DIAL_R, borderBottomRightRadius: DIAL_R,
+              backgroundColor: PIE_COLOR,
+            }, rightFillStyle]} />
+          </View>
+          {/* Pie fill: left D-shape, clipped to left half */}
+          <View style={{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
+            <Animated.View style={[{
+              position: 'absolute', left: 0, top: 0,
+              width: DIAL_R, height: DIAL_SIZE,
+              borderTopLeftRadius: DIAL_R, borderBottomLeftRadius: DIAL_R,
+              backgroundColor: PIE_COLOR,
+            }, leftFillStyle]} />
+          </View>
+          {/* Inner white mask (donut hole for text) */}
+          <View style={{
+            position: 'absolute', left: DIAL_R - 62, top: DIAL_R - 62,
+            width: 124, height: 124, borderRadius: 62,
+            backgroundColor: '#f9fafb',
+          }} />
+          {/* Clock hand — rotates around dial center */}
+          <Animated.View
+            pointerEvents="none"
+            style={[{ position: 'absolute', left: DIAL_R - 1, top: DIAL_R - DIAL_HAND_R, width: 2, height: DIAL_HAND_R * 2 }, handStyle]}
+          >
+            <View style={{ width: 2, height: DIAL_HAND_R, backgroundColor: '#818cf8' }} />
+          </Animated.View>
+          {/* Indicator dot */}
+          <Animated.View style={[{
+            position: 'absolute', left: DIAL_R - 12, top: DIAL_R - 12,
+            width: 24, height: 24, borderRadius: 12, backgroundColor: '#4f46e5',
+          }, indicatorStyle]} />
+          {/* Center pivot */}
+          <View style={{ position: 'absolute', left: DIAL_R - 5, top: DIAL_R - 5, width: 10, height: 10, borderRadius: 5, backgroundColor: '#4f46e5' }} />
+          {/* Center time text — AnimatedTextInput updates on UI thread without React re-render */}
+          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+            <AnimatedTextInput
+              style={{ fontSize: 28, fontWeight: '700', color: '#111827', textAlign: 'center', padding: 0, backgroundColor: 'transparent' }}
+              editable={false}
+              caretHidden
+              underlineColorAndroid="transparent"
+              animatedProps={centerTextProps}
+              defaultValue={formatRemindTime(minutes)}
+            />
+            <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>innan</Text>
+          </View>
+        </View>
     </View>
   );
 }
@@ -284,6 +480,11 @@ export default function ScheduleScreen() {
   const [tabletCalendarView, setTabletCalendarView] = useState<'month' | 'week'>('month');
   const [showFilterModal, setShowFilterModal] = useState(false);
 
+  const newModalScrollRef = useRef<ScrollView>(null);
+  const newTimeSectionY = useRef(0);
+  const editModalScrollRef = useRef<ScrollView>(null);
+  const editTimeSectionY = useRef(0);
+
   // New entry modal
   const [showModal, setShowModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -292,7 +493,7 @@ export default function ScheduleScreen() {
   const [newMinute, setNewMinute] = useState(0);
   const [newDay, setNewDay] = useState<WeekDay>(TODAY_DAY);
   const [newIsShared, setNewIsShared] = useState(true);
-  const [newRemind, setNewRemind] = useState(true);
+  const [newRemindMinutes, setNewRemindMinutes] = useState<number[]>([5]);
   const [newAssignedToMany, setNewAssignedToMany] = useState<string[]>([]);
   const [newRecurrenceType, setNewRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('none');
   const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
@@ -310,7 +511,7 @@ export default function ScheduleScreen() {
   const [editEntryMinute, setEditEntryMinute] = useState(0);
   const [editEntryDay, setEditEntryDay] = useState<WeekDay>(TODAY_DAY);
   const [editEntryIsShared, setEditEntryIsShared] = useState(true);
-  const [editEntryRemind, setEditEntryRemind] = useState(true);
+  const [editEntryRemindMinutes, setEditEntryRemindMinutes] = useState<number[]>([5]);
   const [editEntryAssignedToMany, setEditEntryAssignedToMany] = useState<string[]>([]);
   const [savingEntry, setSavingEntry] = useState(false);
 
@@ -489,7 +690,7 @@ export default function ScheduleScreen() {
     setNewHour(12);
     setNewMinute(0);
     setNewIsShared(true);
-    setNewRemind(true);
+    setNewRemindMinutes([5]);
     setNewAssignedToMany([]);
     setNewRecurrenceType('none');
     setNewRecurrenceDays([]);
@@ -524,7 +725,8 @@ export default function ScheduleScreen() {
           : undefined,
         assignedToMany: newAssignedToMany,
         isShared: newIsShared,
-        remind: newRemind,
+        remind: timeEnabled && newRemindMinutes.length > 0,
+        remindMinutes: timeEnabled ? newRemindMinutes : [],
         recurrenceType: newRecurrenceType,
         recurrenceDays: newRecurrenceType === 'weekly' ? newRecurrenceDays : undefined,
         recurrenceWeeks: newRecurrenceType !== 'none' ? newRecurrenceWeeks : undefined,
@@ -658,7 +860,7 @@ export default function ScheduleScreen() {
     setEditEntryTitle(entry.title);
     setEditEntryDay(entry.day);
     setEditEntryIsShared(entry.isShared);
-    setEditEntryRemind(entry.remind ?? true);
+    setEditEntryRemindMinutes(entry.remindMinutes?.length ? entry.remindMinutes : (entry.remind ? [5] : []));
     setEditEntryAssignedToMany(entry.assignedToMany && entry.assignedToMany.length > 0 ? entry.assignedToMany : (entry.assignedTo ? [entry.assignedTo] : []));
     setEditEntryRecurrenceType(entry.recurrenceType as any);
     setEditEntryRecurrenceDays(entry.recurrenceDays as WeekDay[]);
@@ -700,6 +902,7 @@ export default function ScheduleScreen() {
   function openEntryActions(entry: ScheduleEntry) {
     confirm({
       title: entry.title,
+      variant: 'menu',
       buttons: [
         { label: 'Redigera', onPress: () => { setViewingEntry(null); openEditEntry(entry); } },
         { label: 'Ta bort', style: 'destructive', onPress: () => { setViewingEntry(null); deleteEntry(entry, selectedDayDateStr); } },
@@ -751,7 +954,8 @@ export default function ScheduleScreen() {
           day: editEntryDay,
           startTime: startTime ?? undefined,
           isShared: editEntryIsShared,
-          remind: editEntryRemind,
+          remind: editEntryTimeEnabled && editEntryRemindMinutes.length > 0,
+          remindMinutes: editEntryTimeEnabled ? editEntryRemindMinutes : [],
           recurrenceType: 'none',
           startDate: selectedDayDateStr,
           endDate: selectedDayDateStr,
@@ -763,7 +967,8 @@ export default function ScheduleScreen() {
           day: editEntryDay,
           startTime,
           isShared: editEntryIsShared,
-          remind: editEntryRemind,
+          remind: editEntryTimeEnabled && editEntryRemindMinutes.length > 0,
+          remindMinutes: editEntryTimeEnabled ? editEntryRemindMinutes : [],
           assignedToMany: editEntryAssignedToMany,
           recurrenceType: editEntryRecurrenceType,
           recurrenceDays: editEntryRecurrenceType === 'weekly' ? editEntryRecurrenceDays : [],
@@ -1293,7 +1498,7 @@ export default function ScheduleScreen() {
 
       {/* View entry — full-screen read-only view; edit/delete under the 3-dot */}
       <Modal visible={!!viewingEntry} animationType="slide" onRequestClose={() => setViewingEntry(null)}>
-        <View style={[s.viewFull, { paddingTop: insets.top }]}>
+        <View style={[s.viewFull, { paddingTop: Platform.OS === 'ios' ? insets.top : 0 }]}>
           {viewingEntry && (() => {
             const e = viewingEntry;
             const ids = e.assignedToMany?.length ? e.assignedToMany : e.assignedTo ? [e.assignedTo] : [];
@@ -1354,9 +1559,8 @@ export default function ScheduleScreen() {
 
       {/* Edit entry modal */}
       <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
-        <View style={{ flex: 1 }}>
-          <View pointerEvents="none" style={s.overlayDim} />
-          <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
           <KeyboardAvoidingView behavior={kavBehavior}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
@@ -1365,7 +1569,7 @@ export default function ScheduleScreen() {
             message={entryConflict?.msg ?? null}
             onShowLatest={entryConflict ? () => { doOpenEditEntry(entryConflict.latest, editMode); setEntryConflict(null); } : undefined}
           />
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
+          <ScrollView ref={editModalScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Titel"
@@ -1373,9 +1577,17 @@ export default function ScheduleScreen() {
               value={editEntryTitle}
               onChangeText={setEditEntryTitle}
             />
+            <View onLayout={e => { editTimeSectionY.current = e.nativeEvent.layout.y; }}>
             <View style={s.timeToggleRow}>
               <Text style={s.label}>Tid (valfritt)</Text>
-              <Switch value={editEntryTimeEnabled} onValueChange={setEditEntryTimeEnabled} trackColor={{ true: '#4f46e5' }} />
+              <Switch
+                value={editEntryTimeEnabled}
+                onValueChange={v => {
+                  setEditEntryTimeEnabled(v);
+                  if (v) setTimeout(() => editModalScrollRef.current?.scrollTo({ y: editTimeSectionY.current, animated: true }), 100);
+                }}
+                trackColor={{ true: '#4f46e5' }}
+              />
             </View>
             {editEntryTimeEnabled && (
               <View style={s.drumRow}>
@@ -1385,15 +1597,34 @@ export default function ScheduleScreen() {
               </View>
             )}
             {editEntryTimeEnabled && (
-              <Pressable style={s.sharedRow} onPress={() => setEditEntryRemind(v => !v)}>
-                <Ionicons name={editEntryRemind ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={editEntryRemind ? '#4f46e5' : '#9ca3af'} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.sharedLabel}>Påminnelse</Text>
-                  <Text style={s.sharedSub}>{editEntryRemind ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
-                </View>
-                <Switch value={editEntryRemind} onValueChange={setEditEntryRemind} trackColor={{ true: '#4f46e5' }} />
-              </Pressable>
+              <>
+                <Pressable style={s.sharedRow} onPress={() => setEditEntryRemindMinutes(v => v.length > 0 ? [] : [5])}>
+                  <Ionicons name={editEntryRemindMinutes.length > 0 ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={editEntryRemindMinutes.length > 0 ? '#4f46e5' : '#9ca3af'} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.sharedLabel}>Påminnelse</Text>
+                    <Text style={s.sharedSub}>{editEntryRemindMinutes.length > 0 ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
+                  </View>
+                  <Switch value={editEntryRemindMinutes.length > 0} onValueChange={v => setEditEntryRemindMinutes(v ? [5] : [])} trackColor={{ true: '#4f46e5' }} />
+                </Pressable>
+                {editEntryRemindMinutes.map((m, i) => (
+                  <View key={i} style={{ position: 'relative' }}>
+                    <RemindDial minutes={m} onChange={val => setEditEntryRemindMinutes(prev => prev.map((x, j) => j === i ? val : x))} />
+                    {editEntryRemindMinutes.length > 1 && (
+                      <Pressable onPress={() => setEditEntryRemindMinutes(prev => prev.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 0, right: 0, padding: 8 }} hitSlop={8}>
+                        <Ionicons name="close-circle" size={22} color="#9ca3af" />
+                      </Pressable>
+                    )}
+                  </View>
+                ))}
+                {editEntryRemindMinutes.length > 0 && editEntryRemindMinutes.length < 3 && (
+                  <Pressable onPress={() => setEditEntryRemindMinutes(prev => [...prev, 30])} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 }}>
+                    <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
+                    <Text style={{ color: '#4f46e5', fontSize: 14, fontWeight: '600' }}>Lägg till påminnelse</Text>
+                  </Pressable>
+                )}
+              </>
             )}
+            </View>
             {editMode === 'series' && (
               <RecurrencePicker
                 recurrenceType={editEntryRecurrenceType}
@@ -1456,14 +1687,12 @@ export default function ScheduleScreen() {
           </ScrollView>
           </View>
           </KeyboardAvoidingView>
-        </View>
       </Modal>
 
       {/* Edit chore from calendar modal */}
       <Modal visible={!!editingCalChore} transparent animationType="slide" onRequestClose={() => setEditingCalChore(null)}>
-        <View style={{ flex: 1 }}>
-          <View pointerEvents="none" style={s.overlayDim} />
-          <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
           <KeyboardAvoidingView behavior={kavBehavior}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
@@ -1521,7 +1750,6 @@ export default function ScheduleScreen() {
           </View>
           </View>
           </KeyboardAvoidingView>
-        </View>
       </Modal>
 
       <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
@@ -1591,14 +1819,13 @@ export default function ScheduleScreen() {
       <DatePickerModal value={editEntryEndDate} onChange={setEditEntryEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} />
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
-        <View style={{ flex: 1 }}>
-          <View pointerEvents="none" style={s.overlayDim} />
-          <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
           <KeyboardAvoidingView behavior={kavBehavior}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny aktivitet</Text>
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
+          <ScrollView ref={newModalScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
               placeholder="Titel, t.ex. Träning"
@@ -1608,9 +1835,17 @@ export default function ScheduleScreen() {
               autoFocus
             />
 
+            <View onLayout={e => { newTimeSectionY.current = e.nativeEvent.layout.y; }}>
             <View style={s.timeToggleRow}>
               <Text style={s.label}>Tid (valfritt)</Text>
-              <Switch value={timeEnabled} onValueChange={setTimeEnabled} trackColor={{ true: '#4f46e5' }} />
+              <Switch
+                value={timeEnabled}
+                onValueChange={v => {
+                  setTimeEnabled(v);
+                  if (v) setTimeout(() => newModalScrollRef.current?.scrollTo({ y: newTimeSectionY.current, animated: true }), 100);
+                }}
+                trackColor={{ true: '#4f46e5' }}
+              />
             </View>
             {timeEnabled && (
               <View style={s.drumRow}>
@@ -1620,15 +1855,34 @@ export default function ScheduleScreen() {
               </View>
             )}
             {timeEnabled && (
-              <Pressable style={s.sharedRow} onPress={() => setNewRemind(v => !v)}>
-                <Ionicons name={newRemind ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={newRemind ? '#4f46e5' : '#9ca3af'} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.sharedLabel}>Påminnelse</Text>
-                  <Text style={s.sharedSub}>{newRemind ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
-                </View>
-                <Switch value={newRemind} onValueChange={setNewRemind} trackColor={{ true: '#4f46e5' }} />
-              </Pressable>
+              <>
+                <Pressable style={s.sharedRow} onPress={() => setNewRemindMinutes(v => v.length > 0 ? [] : [5])}>
+                  <Ionicons name={newRemindMinutes.length > 0 ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={newRemindMinutes.length > 0 ? '#4f46e5' : '#9ca3af'} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.sharedLabel}>Påminnelse</Text>
+                    <Text style={s.sharedSub}>{newRemindMinutes.length > 0 ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
+                  </View>
+                  <Switch value={newRemindMinutes.length > 0} onValueChange={v => setNewRemindMinutes(v ? [5] : [])} trackColor={{ true: '#4f46e5' }} />
+                </Pressable>
+                {newRemindMinutes.map((m, i) => (
+                  <View key={i} style={{ position: 'relative' }}>
+                    <RemindDial minutes={m} onChange={val => setNewRemindMinutes(prev => prev.map((x, j) => j === i ? val : x))} />
+                    {newRemindMinutes.length > 1 && (
+                      <Pressable onPress={() => setNewRemindMinutes(prev => prev.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 0, right: 0, padding: 8 }} hitSlop={8}>
+                        <Ionicons name="close-circle" size={22} color="#9ca3af" />
+                      </Pressable>
+                    )}
+                  </View>
+                ))}
+                {newRemindMinutes.length > 0 && newRemindMinutes.length < 3 && (
+                  <Pressable onPress={() => setNewRemindMinutes(prev => [...prev, 30])} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 }}>
+                    <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
+                    <Text style={{ color: '#4f46e5', fontSize: 14, fontWeight: '600' }}>Lägg till påminnelse</Text>
+                  </Pressable>
+                )}
+              </>
             )}
+            </View>
 
             <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => { if (v) setNewAssignedToMany([]); return !v; })}>
               <Ionicons name={newIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={newIsShared ? '#4f46e5' : '#9ca3af'} />
@@ -1777,7 +2031,6 @@ export default function ScheduleScreen() {
           </ScrollView>
           </View>
           </KeyboardAvoidingView>
-        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1908,4 +2161,5 @@ const s = StyleSheet.create({
   filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   filterMemberName: { fontSize: 16, color: '#374151', flex: 1, marginRight: 12 },
   filterMemberNameActive: { color: '#7c3aed', fontWeight: '600' },
+  remindDial: { width: DIAL_SIZE, height: DIAL_SIZE, borderRadius: DIAL_R, borderWidth: 2, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', position: 'relative', overflow: 'hidden' },
 });
