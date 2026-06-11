@@ -481,7 +481,9 @@ export default function ScheduleScreen() {
   const [showFilterModal, setShowFilterModal] = useState(false);
 
   const newModalScrollRef = useRef<ScrollView>(null);
+  const newTimeSectionY = useRef(0);
   const editModalScrollRef = useRef<ScrollView>(null);
+  const editTimeSectionY = useRef(0);
 
   // New entry modal
   const [showModal, setShowModal] = useState(false);
@@ -1579,13 +1581,14 @@ export default function ScheduleScreen() {
               value={editEntryTitle}
               onChangeText={setEditEntryTitle}
             />
+            <View onLayout={e => { editTimeSectionY.current = e.nativeEvent.layout.y; }}>
             <View style={s.timeToggleRow}>
               <Text style={s.label}>Tid (valfritt)</Text>
               <Switch
                 value={editEntryTimeEnabled}
                 onValueChange={v => {
                   setEditEntryTimeEnabled(v);
-                  if (v) setTimeout(() => editModalScrollRef.current?.scrollTo({ y: 0, animated: true }), 50);
+                  if (v) setTimeout(() => editModalScrollRef.current?.scrollTo({ y: editTimeSectionY.current, animated: true }), 100);
                 }}
                 trackColor={{ true: '#4f46e5' }}
               />
@@ -1612,6 +1615,7 @@ export default function ScheduleScreen() {
                 )}
               </>
             )}
+            </View>
             {editMode === 'series' && (
               <RecurrencePicker
                 recurrenceType={editEntryRecurrenceType}
@@ -1822,13 +1826,14 @@ export default function ScheduleScreen() {
               autoFocus
             />
 
+            <View onLayout={e => { newTimeSectionY.current = e.nativeEvent.layout.y; }}>
             <View style={s.timeToggleRow}>
               <Text style={s.label}>Tid (valfritt)</Text>
               <Switch
                 value={timeEnabled}
                 onValueChange={v => {
                   setTimeEnabled(v);
-                  if (v) setTimeout(() => newModalScrollRef.current?.scrollTo({ y: 0, animated: true }), 50);
+                  if (v) setTimeout(() => newModalScrollRef.current?.scrollTo({ y: newTimeSectionY.current, animated: true }), 100);
                 }}
                 trackColor={{ true: '#4f46e5' }}
               />
@@ -1855,6 +1860,7 @@ export default function ScheduleScreen() {
                 )}
               </>
             )}
+            </View>
 
             <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => { if (v) setNewAssignedToMany([]); return !v; })}>
               <Ionicons name={newIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={newIsShared ? '#4f46e5' : '#9ca3af'} />
