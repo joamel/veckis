@@ -979,8 +979,8 @@ export default function ChoresScreen() {
       {/* Create modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowCreate(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowCreate(false)} />
+        <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny syssla</Text>
@@ -1075,8 +1075,8 @@ export default function ChoresScreen() {
       {/* Note modal — optional note after marking a chore done */}
       <Modal visible={showNoteModal} transparent animationType="slide" onRequestClose={skipNote}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={skipNote} />
-        <KeyboardAvoidingView behavior={kavBehavior}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={skipNote} />
+        <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
           <View style={[s.sheet, { paddingBottom: Math.max(16, insets.bottom) }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>Lägg till anteckning</Text>
@@ -1216,8 +1216,8 @@ export default function ChoresScreen() {
       {/* Edit modal */}
       <Modal visible={!!editingChore} transparent animationType="slide" onRequestClose={() => setEditingChore(null)}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setEditingChore(null)} />
-        <KeyboardAvoidingView behavior={kavBehavior}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEditingChore(null)} />
+        <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera syssla</Text>

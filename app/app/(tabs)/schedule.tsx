@@ -254,12 +254,6 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
     return { transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
   });
 
-  // Clock hand rotates around dial center
-  const handStyle = useAnimatedStyle(() => {
-    const ha = totalAngleSV.value % 360;
-    return { transform: [{ rotate: `${ha}deg` }] };
-  });
-
   // Indicator dot moves along the hand radius
   const indicatorStyle = useAnimatedStyle(() => {
     const ha = totalAngleSV.value % 360;
@@ -303,20 +297,11 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
             width: 124, height: 124, borderRadius: 62,
             backgroundColor: '#f9fafb',
           }} />
-          {/* Clock hand — rotates around dial center */}
-          <Animated.View
-            pointerEvents="none"
-            style={[{ position: 'absolute', left: DIAL_R - 1, top: DIAL_R - DIAL_HAND_R, width: 2, height: DIAL_HAND_R * 2 }, handStyle]}
-          >
-            <View style={{ width: 2, height: DIAL_HAND_R, backgroundColor: '#818cf8' }} />
-          </Animated.View>
           {/* Indicator dot */}
           <Animated.View style={[{
             position: 'absolute', left: DIAL_R - 12, top: DIAL_R - 12,
             width: 24, height: 24, borderRadius: 12, backgroundColor: '#4f46e5',
           }, indicatorStyle]} />
-          {/* Center pivot */}
-          <View style={{ position: 'absolute', left: DIAL_R - 5, top: DIAL_R - 5, width: 10, height: 10, borderRadius: 5, backgroundColor: '#4f46e5' }} />
           {/* Center time text — updates when displayed value changes (same cadence as haptic) */}
           <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontSize: 28, fontWeight: '700', color: '#111827', textAlign: 'center' }}>{displayText}</Text>
@@ -479,7 +464,10 @@ export default function ScheduleScreen() {
   const [newMinute, setNewMinute] = useState(0);
   const [newDay, setNewDay] = useState<WeekDay>(TODAY_DAY);
   const [newIsShared, setNewIsShared] = useState(true);
-  const [newRemindMinutes, setNewRemindMinutes] = useState<number[]>([5]);
+  const [newRemindEnabled, setNewRemindEnabled] = useState(false);
+  const [newRemindMinutes, setNewRemindMinutes] = useState<number[]>([]);
+  const [newRemindDialValue, setNewRemindDialValue] = useState(5);
+  const [showNewRemindDial, setShowNewRemindDial] = useState(false);
   const [newAssignedToMany, setNewAssignedToMany] = useState<string[]>([]);
   const [newRecurrenceType, setNewRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('none');
   const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
@@ -497,7 +485,10 @@ export default function ScheduleScreen() {
   const [editEntryMinute, setEditEntryMinute] = useState(0);
   const [editEntryDay, setEditEntryDay] = useState<WeekDay>(TODAY_DAY);
   const [editEntryIsShared, setEditEntryIsShared] = useState(true);
-  const [editEntryRemindMinutes, setEditEntryRemindMinutes] = useState<number[]>([5]);
+  const [editRemindEnabled, setEditRemindEnabled] = useState(false);
+  const [editEntryRemindMinutes, setEditEntryRemindMinutes] = useState<number[]>([]);
+  const [editRemindDialValue, setEditRemindDialValue] = useState(5);
+  const [showEditRemindDial, setShowEditRemindDial] = useState(false);
   const [editEntryAssignedToMany, setEditEntryAssignedToMany] = useState<string[]>([]);
   const [savingEntry, setSavingEntry] = useState(false);
 
@@ -676,7 +667,10 @@ export default function ScheduleScreen() {
     setNewHour(12);
     setNewMinute(0);
     setNewIsShared(true);
-    setNewRemindMinutes([5]);
+    setNewRemindEnabled(false);
+    setNewRemindMinutes([]);
+    setNewRemindDialValue(5);
+    setShowNewRemindDial(false);
     setNewAssignedToMany([]);
     setNewRecurrenceType('none');
     setNewRecurrenceDays([]);
@@ -711,8 +705,10 @@ export default function ScheduleScreen() {
           : undefined,
         assignedToMany: newAssignedToMany,
         isShared: newIsShared,
-        remind: timeEnabled && newRemindMinutes.length > 0,
-        remindMinutes: timeEnabled ? newRemindMinutes : [],
+        remind: timeEnabled && newRemindEnabled,
+        remindMinutes: timeEnabled && newRemindEnabled
+          ? (newRemindMinutes.length > 0 ? newRemindMinutes : [newRemindDialValue])
+          : [],
         recurrenceType: newRecurrenceType,
         recurrenceDays: newRecurrenceType === 'weekly' ? newRecurrenceDays : undefined,
         recurrenceWeeks: newRecurrenceType !== 'none' ? newRecurrenceWeeks : undefined,
@@ -846,7 +842,11 @@ export default function ScheduleScreen() {
     setEditEntryTitle(entry.title);
     setEditEntryDay(entry.day);
     setEditEntryIsShared(entry.isShared);
-    setEditEntryRemindMinutes(entry.remindMinutes?.length ? entry.remindMinutes : (entry.remind ? [5] : []));
+    const loadedRemind = entry.remindMinutes?.length ? entry.remindMinutes : (entry.remind ? [5] : []);
+    setEditRemindEnabled(loadedRemind.length > 0);
+    setEditEntryRemindMinutes(loadedRemind);
+    setEditRemindDialValue(5);
+    setShowEditRemindDial(loadedRemind.length === 0);
     setEditEntryAssignedToMany(entry.assignedToMany && entry.assignedToMany.length > 0 ? entry.assignedToMany : (entry.assignedTo ? [entry.assignedTo] : []));
     setEditEntryRecurrenceType(entry.recurrenceType as any);
     setEditEntryRecurrenceDays(entry.recurrenceDays as WeekDay[]);
@@ -940,8 +940,10 @@ export default function ScheduleScreen() {
           day: editEntryDay,
           startTime: startTime ?? undefined,
           isShared: editEntryIsShared,
-          remind: editEntryTimeEnabled && editEntryRemindMinutes.length > 0,
-          remindMinutes: editEntryTimeEnabled ? editEntryRemindMinutes : [],
+          remind: editEntryTimeEnabled && editRemindEnabled,
+          remindMinutes: editEntryTimeEnabled && editRemindEnabled
+            ? (editEntryRemindMinutes.length > 0 ? editEntryRemindMinutes : [editRemindDialValue])
+            : [],
           recurrenceType: 'none',
           startDate: selectedDayDateStr,
           endDate: selectedDayDateStr,
@@ -953,8 +955,10 @@ export default function ScheduleScreen() {
           day: editEntryDay,
           startTime,
           isShared: editEntryIsShared,
-          remind: editEntryTimeEnabled && editEntryRemindMinutes.length > 0,
-          remindMinutes: editEntryTimeEnabled ? editEntryRemindMinutes : [],
+          remind: editEntryTimeEnabled && editRemindEnabled,
+          remindMinutes: editEntryTimeEnabled && editRemindEnabled
+            ? (editEntryRemindMinutes.length > 0 ? editEntryRemindMinutes : [editRemindDialValue])
+            : [],
           assignedToMany: editEntryAssignedToMany,
           recurrenceType: editEntryRecurrenceType,
           recurrenceDays: editEntryRecurrenceType === 'weekly' ? editEntryRecurrenceDays : [],
@@ -1516,6 +1520,12 @@ export default function ScheduleScreen() {
                     <Ionicons name="time-outline" size={18} color="#6b7280" />
                     <Text style={s.viewRowText}>{e.startTime ?? 'Heldag'}</Text>
                   </View>
+                  {!!(e.remindMinutes?.length) && (
+                    <View style={s.viewRow}>
+                      <Ionicons name="notifications-outline" size={18} color="#6b7280" />
+                      <Text style={s.viewRowText}>{e.remindMinutes.map(m => formatRemindTime(m)).join(', ')} innan</Text>
+                    </View>
+                  )}
                   <View style={s.viewRow}>
                     <Ionicons name="repeat-outline" size={18} color="#6b7280" />
                     <Text style={s.viewRowText}>{recurrenceSummary(e)}</Text>
@@ -1546,8 +1556,8 @@ export default function ScheduleScreen() {
       {/* Edit entry modal */}
       <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setEditingEntry(null)} />
-          <KeyboardAvoidingView behavior={kavBehavior}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEditingEntry(null)} />
+        <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera aktivitet</Text>
@@ -1584,29 +1594,46 @@ export default function ScheduleScreen() {
             )}
             {editEntryTimeEnabled && (
               <>
-                <Pressable style={s.sharedRow} onPress={() => setEditEntryRemindMinutes(v => v.length > 0 ? [] : [5])}>
-                  <Ionicons name={editEntryRemindMinutes.length > 0 ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={editEntryRemindMinutes.length > 0 ? '#4f46e5' : '#9ca3af'} />
+                <Pressable style={s.sharedRow} onPress={() => setEditRemindEnabled(v => !v)}>
+                  <Ionicons name={editRemindEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={editRemindEnabled ? '#4f46e5' : '#9ca3af'} />
                   <View style={{ flex: 1 }}>
                     <Text style={s.sharedLabel}>Påminnelse</Text>
-                    <Text style={s.sharedSub}>{editEntryRemindMinutes.length > 0 ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
+                    <Text style={s.sharedSub}>{editRemindEnabled ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
                   </View>
-                  <Switch value={editEntryRemindMinutes.length > 0} onValueChange={v => setEditEntryRemindMinutes(v ? [5] : [])} trackColor={{ true: '#4f46e5' }} />
+                  <Switch value={editRemindEnabled} onValueChange={v => { setEditRemindEnabled(v); if (!v) { setEditEntryRemindMinutes([]); setShowEditRemindDial(false); } else { setShowEditRemindDial(true); } }} trackColor={{ true: '#4f46e5' }} />
                 </Pressable>
-                {editEntryRemindMinutes.map((m, i) => (
-                  <View key={i} style={{ position: 'relative' }}>
-                    <RemindDial minutes={m} onChange={val => setEditEntryRemindMinutes(prev => prev.map((x, j) => j === i ? val : x))} />
-                    {editEntryRemindMinutes.length > 1 && (
-                      <Pressable onPress={() => setEditEntryRemindMinutes(prev => prev.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 0, right: 0, padding: 8 }} hitSlop={8}>
-                        <Ionicons name="close-circle" size={22} color="#9ca3af" />
-                      </Pressable>
+                {editRemindEnabled && (
+                  <>
+                    {editEntryRemindMinutes.length > 0 && (
+                      <View style={s.remindChips}>
+                        {editEntryRemindMinutes.map((m, i) => (
+                          <View key={i} style={s.remindChip}>
+                            <Text style={s.remindChipText}>{formatRemindTime(m)}</Text>
+                            <Pressable onPress={() => setEditEntryRemindMinutes(prev => prev.filter((_, j) => j !== i))} hitSlop={8}>
+                              <Ionicons name="close" size={14} color="#4f46e5" />
+                            </Pressable>
+                          </View>
+                        ))}
+                      </View>
                     )}
-                  </View>
-                ))}
-                {editEntryRemindMinutes.length > 0 && editEntryRemindMinutes.length < 3 && (
-                  <Pressable onPress={() => setEditEntryRemindMinutes(prev => [...prev, 30])} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 }}>
-                    <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
-                    <Text style={{ color: '#4f46e5', fontSize: 14, fontWeight: '600' }}>Lägg till påminnelse</Text>
-                  </Pressable>
+                    {showEditRemindDial ? (
+                      <View style={{ alignItems: 'center', gap: 8 }}>
+                        <RemindDial minutes={editRemindDialValue} onChange={setEditRemindDialValue} />
+                        <Pressable
+                          style={s.remindAddBtn}
+                          onPress={() => { setEditEntryRemindMinutes(prev => [...prev, editRemindDialValue]); setEditRemindDialValue(5); setShowEditRemindDial(false); }}
+                        >
+                          <Ionicons name="add" size={16} color="#fff" />
+                          <Text style={s.remindAddBtnText}>Lägg till</Text>
+                        </Pressable>
+                      </View>
+                    ) : editEntryRemindMinutes.length < 3 ? (
+                      <Pressable style={s.remindMoreBtn} onPress={() => { setEditRemindDialValue(5); setShowEditRemindDial(true); }}>
+                        <Ionicons name="add-circle-outline" size={16} color="#4f46e5" />
+                        <Text style={s.remindMoreBtnText}>Lägg till påminnelse</Text>
+                      </Pressable>
+                    ) : null}
+                  </>
                 )}
               </>
             )}
@@ -1678,8 +1705,8 @@ export default function ScheduleScreen() {
       {/* Edit chore from calendar modal */}
       <Modal visible={!!editingCalChore} transparent animationType="slide" onRequestClose={() => setEditingCalChore(null)}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setEditingCalChore(null)} />
-          <KeyboardAvoidingView behavior={kavBehavior}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEditingCalChore(null)} />
+        <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Redigera syssla</Text>
@@ -1806,8 +1833,8 @@ export default function ScheduleScreen() {
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
-          <KeyboardAvoidingView behavior={kavBehavior}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowModal(false)} />
+        <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Ny aktivitet</Text>
@@ -1842,29 +1869,46 @@ export default function ScheduleScreen() {
             )}
             {timeEnabled && (
               <>
-                <Pressable style={s.sharedRow} onPress={() => setNewRemindMinutes(v => v.length > 0 ? [] : [5])}>
-                  <Ionicons name={newRemindMinutes.length > 0 ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={newRemindMinutes.length > 0 ? '#4f46e5' : '#9ca3af'} />
+                <Pressable style={s.sharedRow} onPress={() => setNewRemindEnabled(v => !v)}>
+                  <Ionicons name={newRemindEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={newRemindEnabled ? '#4f46e5' : '#9ca3af'} />
                   <View style={{ flex: 1 }}>
                     <Text style={s.sharedLabel}>Påminnelse</Text>
-                    <Text style={s.sharedSub}>{newRemindMinutes.length > 0 ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
+                    <Text style={s.sharedSub}>{newRemindEnabled ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
                   </View>
-                  <Switch value={newRemindMinutes.length > 0} onValueChange={v => setNewRemindMinutes(v ? [5] : [])} trackColor={{ true: '#4f46e5' }} />
+                  <Switch value={newRemindEnabled} onValueChange={v => { setNewRemindEnabled(v); if (!v) { setNewRemindMinutes([]); setShowNewRemindDial(false); } else { setShowNewRemindDial(true); } }} trackColor={{ true: '#4f46e5' }} />
                 </Pressable>
-                {newRemindMinutes.map((m, i) => (
-                  <View key={i} style={{ position: 'relative' }}>
-                    <RemindDial minutes={m} onChange={val => setNewRemindMinutes(prev => prev.map((x, j) => j === i ? val : x))} />
-                    {newRemindMinutes.length > 1 && (
-                      <Pressable onPress={() => setNewRemindMinutes(prev => prev.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 0, right: 0, padding: 8 }} hitSlop={8}>
-                        <Ionicons name="close-circle" size={22} color="#9ca3af" />
-                      </Pressable>
+                {newRemindEnabled && (
+                  <>
+                    {newRemindMinutes.length > 0 && (
+                      <View style={s.remindChips}>
+                        {newRemindMinutes.map((m, i) => (
+                          <View key={i} style={s.remindChip}>
+                            <Text style={s.remindChipText}>{formatRemindTime(m)}</Text>
+                            <Pressable onPress={() => setNewRemindMinutes(prev => prev.filter((_, j) => j !== i))} hitSlop={8}>
+                              <Ionicons name="close" size={14} color="#4f46e5" />
+                            </Pressable>
+                          </View>
+                        ))}
+                      </View>
                     )}
-                  </View>
-                ))}
-                {newRemindMinutes.length > 0 && newRemindMinutes.length < 3 && (
-                  <Pressable onPress={() => setNewRemindMinutes(prev => [...prev, 30])} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 }}>
-                    <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
-                    <Text style={{ color: '#4f46e5', fontSize: 14, fontWeight: '600' }}>Lägg till påminnelse</Text>
-                  </Pressable>
+                    {showNewRemindDial ? (
+                      <View style={{ alignItems: 'center', gap: 8 }}>
+                        <RemindDial minutes={newRemindDialValue} onChange={setNewRemindDialValue} />
+                        <Pressable
+                          style={s.remindAddBtn}
+                          onPress={() => { setNewRemindMinutes(prev => [...prev, newRemindDialValue]); setNewRemindDialValue(5); setShowNewRemindDial(false); }}
+                        >
+                          <Ionicons name="add" size={16} color="#fff" />
+                          <Text style={s.remindAddBtnText}>Lägg till</Text>
+                        </Pressable>
+                      </View>
+                    ) : newRemindMinutes.length < 3 ? (
+                      <Pressable style={s.remindMoreBtn} onPress={() => { setNewRemindDialValue(5); setShowNewRemindDial(true); }}>
+                        <Ionicons name="add-circle-outline" size={16} color="#4f46e5" />
+                        <Text style={s.remindMoreBtnText}>Lägg till påminnelse</Text>
+                      </Pressable>
+                    ) : null}
+                  </>
                 )}
               </>
             )}
@@ -2148,4 +2192,11 @@ const s = StyleSheet.create({
   filterMemberName: { fontSize: 16, color: '#374151', flex: 1, marginRight: 12 },
   filterMemberNameActive: { color: '#7c3aed', fontWeight: '600' },
   remindDial: { width: DIAL_SIZE, height: DIAL_SIZE, borderRadius: DIAL_R, borderWidth: 2, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', position: 'relative', overflow: 'hidden' },
+  remindChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 },
+  remindChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ede9fe', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  remindChipText: { fontSize: 13, fontWeight: '600' as const, color: '#4f46e5' },
+  remindAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#4f46e5', borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
+  remindAddBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' as const },
+  remindMoreBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
+  remindMoreBtnText: { color: '#4f46e5', fontSize: 14, fontWeight: '600' as const },
 });
