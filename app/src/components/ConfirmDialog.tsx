@@ -38,7 +38,7 @@ export function ConfirmDialog({
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
         <Pressable style={{ flex: 1 }} onPress={dismiss} />
-        <View style={[s.menuCard, { top: insets.top + 4 }]}>
+        <View style={[s.menuCard, { top: 0 }]}>
           {options.title ? (
             <Text style={s.menuTitle}>{options.title}</Text>
           ) : null}
