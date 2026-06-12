@@ -240,10 +240,12 @@ recipesRouter.post('/parse-text', recipeAbuseLimiter, requireAuth, asyncHandler(
   if (!body.success) { res.status(400).json({ error: 'Invalid text' }); return; }
   if (!anthropic) { res.status(503).json({ error: 'AI parsing not available' }); return; }
 
-  const msg = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 2048,
-    system: `Du är ett system som extraherar receptinformation från fri text på svenska eller engelska.
+  let parsed: { title: string | null; description: string | null; instructions: string | null; servings?: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
+      system: `Du är ett system som extraherar receptinformation från fri text på svenska eller engelska.
 Returnera ENBART giltig JSON utan förklaringar eller markdown-kodblock.
 
 JSON-schema:
@@ -258,19 +260,17 @@ JSON-schema:
 Regler:
 - quantity är ett tal (float) eller null om ingen mängd anges
 - unit ska vara EN av: dl, l, liter, ml, cl, msk, tsk, krm, g, kg, st, knippe, näve, nypa, klyfta — eller null
-- Extrahera ALLA ingredienser och steg du ser
+- Extrahera ALLA ingredienser och steg du ser, ignorera navigation, annonser och annat sidinnehåll
 - Ingrediensnamn på svenska (översätt om texten är på engelska)
-- instructions: om steg finns, nummrera dem "1. ... 2. ..." — annars null`,
-    messages: [{ role: 'user', content: body.data.text }],
-  });
-
-  const raw = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
-  const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '');
-  let parsed: { title: string | null; description: string | null; instructions: string | null; servings?: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
-  try {
+- instructions: om steg finns, numrera dem "1. ... 2. ..." — annars null`,
+      messages: [{ role: 'user', content: body.data.text.slice(0, 15000) }],
+    });
+    const raw = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
+    const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '');
     parsed = JSON.parse(clean);
-  } catch {
-    res.status(422).json({ error: 'Could not parse AI response' });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'AI-anropet misslyckades';
+    res.status(422).json({ error: msg });
     return;
   }
 
