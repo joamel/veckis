@@ -236,7 +236,7 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, asyncHandler(as
 
 // POST /api/recipes/parse-text
 recipesRouter.post('/parse-text', recipeAbuseLimiter, requireAuth, asyncHandler(async (req, res) => {
-  const body = z.object({ text: z.string().min(1).max(20000) }).safeParse(req.body);
+  const body = z.object({ text: z.string().min(1).max(100000) }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: 'Invalid text' }); return; }
   if (!anthropic) { res.status(503).json({ error: 'AI parsing not available' }); return; }
 
@@ -263,7 +263,7 @@ Regler:
 - Extrahera ALLA ingredienser och steg du ser, ignorera navigation, annonser och annat sidinnehåll
 - Ingrediensnamn på svenska (översätt om texten är på engelska)
 - instructions: om steg finns, numrera dem "1. ... 2. ..." — annars null`,
-      messages: [{ role: 'user', content: body.data.text.slice(0, 15000) }],
+      messages: [{ role: 'user', content: body.data.text.slice(0, 80000) }],
     });
     const raw = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
     const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '');
