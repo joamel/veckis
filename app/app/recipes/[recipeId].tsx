@@ -394,9 +394,11 @@ export default function RecipeDetailScreen() {
         ) : (
           <Text style={s.headerTitle} numberOfLines={1}>{recipe.title}</Text>
         )}
-        <Pressable ref={recipeDotsRef} onPress={() => recipeDotsRef.current?.measureInWindow((_x, y, _w, h) => openRecipeActions(y + h))} style={s.transferBtn} accessibilityLabel="Mer">
-          <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
-        </Pressable>
+        <View ref={recipeDotsRef} collapsable={false}>
+          <Pressable onPress={() => recipeDotsRef.current?.measureInWindow((_x, y, _w, h) => openRecipeActions(y + h))} style={s.transferBtn} accessibilityLabel="Mer">
+            <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
+          </Pressable>
+        </View>
       </View>
 
       <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1 }}>

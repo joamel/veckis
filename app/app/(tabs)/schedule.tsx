@@ -1596,9 +1596,11 @@ export default function ScheduleScreen() {
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                   </Pressable>
                   <View style={{ flex: 1 }} />
-                  <Pressable ref={viewEntryDotsRef} onPress={() => viewEntryDotsRef.current?.measureInWindow((_x, y, _w, h) => openEntryActions(e, y + h))} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
-                    <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
-                  </Pressable>
+                  <View ref={viewEntryDotsRef} collapsable={false}>
+                    <Pressable onPress={() => viewEntryDotsRef.current?.measureInWindow((_x, y, _w, h) => openEntryActions(e, y + h))} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                      <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
+                    </Pressable>
+                  </View>
                 </View>
                 <ScrollView contentContainerStyle={[s.viewBody, { paddingBottom: insets.bottom + 24 }]}>
                   <Text style={s.viewTitle}>{e.title}</Text>
