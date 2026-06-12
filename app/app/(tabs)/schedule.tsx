@@ -972,13 +972,10 @@ export default function ScheduleScreen() {
     }
   }
 
-  const viewEntryDotsRef = useRef<View>(null);
-
-  function openEntryActions(entry: ScheduleEntry, menuTop?: number) {
+  function openEntryActions(entry: ScheduleEntry) {
     confirm({
       title: entry.title,
       variant: 'menu',
-      menuTop,
       buttons: [
         { label: 'Redigera', onPress: () => { setViewingEntry(null); openEditEntry(entry); } },
         { label: 'Ta bort', style: 'destructive', onPress: () => { setViewingEntry(null); deleteEntry(entry, selectedDayDateStr); } },
@@ -1596,11 +1593,9 @@ export default function ScheduleScreen() {
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                   </Pressable>
                   <View style={{ flex: 1 }} />
-                  <View ref={viewEntryDotsRef} collapsable={false}>
-                    <Pressable onPress={() => viewEntryDotsRef.current?.measureInWindow((_x, y, _w, h) => openEntryActions(e, y + h))} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
-                      <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
-                    </Pressable>
-                  </View>
+                  <Pressable onPress={() => openEntryActions(e)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                    <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
+                  </Pressable>
                 </View>
                 <ScrollView contentContainerStyle={[s.viewBody, { paddingBottom: insets.bottom + 24 }]}>
                   <Text style={s.viewTitle}>{e.title}</Text>

@@ -690,13 +690,10 @@ export default function ChoresScreen() {
     setShowCreate(true);
   }
 
-  const viewChoreDotsRef = useRef<View>(null);
-
-  function openChoreActions(chore: ChoreWithCompletion, menuTop?: number) {
+  function openChoreActions(chore: ChoreWithCompletion) {
     confirm({
       title: chore.title,
       variant: 'menu',
-      menuTop,
       buttons: [
         { label: 'Kopiera', onPress: () => { setViewingChore(null); copyChore(chore); } },
         { label: 'Redigera', onPress: () => { setViewingChore(null); openEdit(chore); } },
@@ -1156,11 +1153,9 @@ export default function ChoresScreen() {
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                   </Pressable>
                   <View style={{ flex: 1 }} />
-                  <View ref={viewChoreDotsRef} collapsable={false}>
-                    <Pressable onPress={() => viewChoreDotsRef.current?.measureInWindow((_x, y, _w, h) => openChoreActions(c, y + h))} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
-                      <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
-                    </Pressable>
-                  </View>
+                  <Pressable onPress={() => openChoreActions(c)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                    <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
+                  </Pressable>
                 </View>
                 <ScrollView contentContainerStyle={[s.viewBody, { paddingBottom: insets.bottom + 24 }]}>
                   <Text style={s.viewTitle}>{c.emoji ? `${c.emoji} ${c.title}` : c.title}</Text>

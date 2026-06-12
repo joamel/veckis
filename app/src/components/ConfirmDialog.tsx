@@ -14,10 +14,6 @@ export interface ConfirmOptions {
   /** 'menu' renders as a small popup at the top-right (for 3-dot action menus).
    *  Default 'sheet' is the standard bottom sheet. */
   variant?: 'sheet' | 'menu';
-  /** Screen Y coordinate where the menu card's top edge should appear (below the trigger button).
-   *  Pass `pageY + height` from measure() on the three-dots button.
-   *  Falls back to safe-area inset + 48 if omitted. */
-  menuTop?: number;
 }
 
 export function ConfirmDialog({
@@ -39,11 +35,10 @@ export function ConfirmDialog({
   };
 
   if (options.variant === 'menu') {
-    const top = options.menuTop ?? insets.top + 48;
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
         <Pressable style={{ flex: 1 }} onPress={dismiss} />
-        <View style={[s.menuCard, { top }]}>
+        <View style={[s.menuCard, { top: insets.top + 4 }]}>
           {options.title ? (
             <Text style={s.menuTitle}>{options.title}</Text>
           ) : null}
