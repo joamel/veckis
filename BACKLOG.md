@@ -402,7 +402,7 @@
 - [x] Borde aldrig skapa sysslor bakåt i tiden, endast från idag och framåt
 - [x] Utfällda sysslor borde se ut mer som att de hör till rubriken, nu har de en grå border som knappt syns och sitter inte ihop med rubriken. Borde se ut som en utfälld maträtt i veckomenyn
 - [x] Läsvy-symmetri för sysslor: kalenderaktiviteter öppnar nu en read-vy (tap → sammanfattning, redigering under 3-prickar), men en syssla öppnar fortfarande direkt redigering/utfälld vy. Överväg samma läs-först-mönster för konsekvens.
-- [ ] Push-notis vid avbockning av syssla: "Joakim dammsög ✓" till övriga — community-känsla och svar på "har det blivit gjort?" (utbyggnad av befintlig notis-infrastruktur)
+- [x] Push-notis vid avbockning av syssla: "Joakim dammsög ✓" skickas till övriga hushållsmedlemmar; ny `choreCompleted`-preferens (default på) i notis-inställningarna; migration + sendPush + backend Zod uppdaterade
 - [x] Avcheckad återkommande syssla (den 1a varje månad) visar samma datum som varit som nästa
 - [x] Datum står som valfritt men har man väl valt ett datum kan man inte ta bort det: ×-knapp dyker upp till höger om datumknappen när datum är satt (gäller alla 4 kombinationer: skapa/redigera × engång/startdatum)
 - [x] Rensa avklarade återkommande sysslor — "Rensa"-knapp i sysslo-headern raderar engångssysslor + nollställer avbockade återkommande (uncomplete) i samma operation med confirm-dialog som räknar upp exakt vad som rensas

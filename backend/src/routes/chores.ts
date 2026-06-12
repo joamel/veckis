@@ -7,6 +7,7 @@ import { asyncHandler } from '../lib/asyncHandler';
 import { wsBroadcast } from '../lib/wsHub';
 import { actorName } from '../lib/actor';
 import { syncAssignedTo } from '../lib/assignedToSync';
+import { sendPush } from '../lib/sendPush';
 
 export const choresRouter = Router();
 
@@ -179,6 +180,34 @@ choresRouter.post('/:choreId/complete', requireAuth, asyncHandler(async (req, re
     },
   });
   wsBroadcast(`household:${chore.householdId}`, { type: 'chore_completed', data: completion });
+
+  // Push to everyone else in the household (best-effort, don't await)
+  const callerClerkId = (req as AuthenticatedRequest).clerkUserId;
+  Promise.resolve().then(async () => {
+    const members = await prisma.householdMember.findMany({
+      where: { householdId: chore.householdId, clerkUserId: { not: null, notIn: [callerClerkId] } },
+      select: { clerkUserId: true },
+    });
+    const others = members.map(m => m.clerkUserId!).filter(Boolean);
+    if (others.length === 0) return;
+
+    // Resolve performer display name: prefer named member, else caller's member name
+    let performerName = 'Någon';
+    if (completion.performedByMemberId) {
+      const m = await prisma.householdMember.findUnique({ where: { id: completion.performedByMemberId }, select: { displayName: true } });
+      if (m?.displayName) performerName = m.displayName;
+    } else {
+      const m = await prisma.householdMember.findFirst({ where: { householdId: chore.householdId, clerkUserId: callerClerkId }, select: { displayName: true } });
+      if (m?.displayName) performerName = m.displayName;
+    }
+
+    await sendPush(others, 'choreCompleted', {
+      title: chore.title,
+      body: `${performerName} ✓`,
+      data: { type: 'choreCompleted', choreId: chore.id },
+    });
+  }).catch(() => {});
+
   res.status(201).json(completion);
 }));
 

@@ -328,6 +328,7 @@ model NotificationPreference {
   listCleared      Boolean  @default(true)
   newMember        Boolean  @default(true)
   shopperClaimed   Boolean  @default(true)
+  choreCompleted   Boolean  @default(true)
   reminderMinutes  Int      @default(30) // minutes before an activity start to remind
   updatedAt        DateTime @updatedAt
 }

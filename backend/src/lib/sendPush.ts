@@ -3,7 +3,7 @@ import { prisma } from '../db';
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 /** Preference keys on NotificationPreference — one per notification type. */
-export type NotificationType = 'activityReminder' | 'choreOverdue' | 'listCleared' | 'newMember' | 'shopperClaimed';
+export type NotificationType = 'activityReminder' | 'choreOverdue' | 'listCleared' | 'newMember' | 'shopperClaimed' | 'choreCompleted';
 
 interface PushPayload {
   title: string;
