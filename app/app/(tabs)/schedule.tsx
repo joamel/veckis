@@ -16,7 +16,7 @@ import {
   Vibration,
   View,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -72,12 +72,13 @@ function minutesToTotalAngle(m: number): number {
   return 1080 + (m / 10080) * 45;
 }
 function totalAngleToMinutes(a: number): number {
-  if (a <= 360) return Math.max(1, Math.round(a / 6));
+  if (a <= 360) return Math.max(0, Math.round(a / 6));
   if (a <= 720) return Math.max(1, Math.round((a - 360) / 15)) * 60;
   if (a <= 1080) return Math.max(1, Math.min(7, Math.round((a - 720) / 60) + 1)) * 1440;
   return Math.max(1, Math.round((a - 1080) / 45)) * 10080;
 }
 function formatRemindTime(m: number): string {
+  if (m === 0) return 'Vid start';
   if (m < 60) return `${m} min`;
   const h = Math.round(m / 60);
   if (m < 1440) return `${h} tim`;
@@ -178,7 +179,7 @@ const DIAL_HAND_R = DIAL_R - 26;
 
 const PIE_COLOR = '#e0e7ff';
 
-function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: number) => void }) {
+function RemindDial({ minutes, onChange, onAdd }: { minutes: number; onChange: (m: number) => void; onAdd?: () => void }) {
   const [displayText, setDisplayText] = useState(() => formatRemindTime(minutes));
   const dialRef = useRef<View>(null);
   const centerRef = useRef({ x: 0, y: 0 });
@@ -188,6 +189,9 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
   const lastEmittedRef = useRef(minutes);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onAddRef = useRef(onAdd);
+  onAddRef.current = onAdd;
+  const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
 
   useEffect(() => {
     if (minutes !== lastEmittedRef.current) {
@@ -199,16 +203,20 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
     }
   }, [minutes]);
 
+  // Center button scale — declared before PanResponder so release handler can trigger it.
+  const pulseScale = useSharedValue(1);
+
   // Rotation/pie-fill runs on UI thread via Reanimated shared values (no re-renders during drag).
   // Display text updates only when the displayed value changes (same cadence as haptic feedback).
   const panResponder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (e) => {
+      const { pageX, pageY } = e.nativeEvent;
+      touchStartRef.current = { x: pageX, y: pageY, time: Date.now() };
       dialRef.current?.measure((_, __, w, h, px, py) => {
         centerRef.current = { x: px + w / 2, y: py + h / 2 };
       });
-      const { pageX, pageY } = e.nativeEvent;
       lastAngleRef.current = Math.atan2(pageY - centerRef.current.y, pageX - centerRef.current.x) * (180 / Math.PI);
     },
     onPanResponderMove: (e) => {
@@ -218,7 +226,7 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
         let delta = a - lastAngleRef.current;
         if (delta > 180) delta -= 360;
         if (delta < -180) delta += 360;
-        const newTotal = Math.max(6, Math.min(1440, totalAngleSV.value + delta));
+        const newTotal = Math.max(0, Math.min(1440, totalAngleSV.value + delta));
         totalAngleSV.value = newTotal;
         const m = totalAngleToMinutes(newTotal);
         if (m !== lastHapticRef.current) {
@@ -229,30 +237,30 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
       }
       lastAngleRef.current = a;
     },
-    onPanResponderRelease: () => {
+    onPanResponderRelease: (e) => {
       lastAngleRef.current = null;
       const m = totalAngleToMinutes(totalAngleSV.value);
       lastEmittedRef.current = m;
       setDisplayText(formatRemindTime(m));
       onChangeRef.current(m);
+      // Tap detection: short press, little movement, touch started in center area → add
+      const elapsed = Date.now() - touchStartRef.current.time;
+      const dx = e.nativeEvent.pageX - touchStartRef.current.x;
+      const dy = e.nativeEvent.pageY - touchStartRef.current.y;
+      if (elapsed < 350 && Math.sqrt(dx * dx + dy * dy) < 12) {
+        const cx = touchStartRef.current.x - centerRef.current.x;
+        const cy = touchStartRef.current.y - centerRef.current.y;
+        if (Math.sqrt(cx * cx + cy * cy) < 62) onAddRef.current?.();
+      } else {
+        // Pulse on drag release to signal the value was set
+        pulseScale.value = withSequence(
+          withTiming(1.12, { duration: 120 }),
+          withTiming(0.96, { duration: 100 }),
+          withTiming(1, { duration: 100 }),
+        );
+      }
     },
   })).current;
-
-  // Pie fill — right half (arc 0°→180°): D-shape rotates around its flat left edge (= dial center).
-  // To rotate around pivot px=-DIAL_R/2 relative to element center: T(px)·R·T(-px)
-  const rightFillStyle = useAnimatedStyle(() => {
-    const ha = totalAngleSV.value % 360;
-    const rot = Math.min(ha, 180) - 180;
-    return { transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
-  });
-
-  // Pie fill — left half (arc 180°→360°): D-shape rotates around its flat right edge (= dial center).
-  // To rotate around pivot px=+DIAL_R/2 relative to element center: T(px)·R·T(-px)
-  const leftFillStyle = useAnimatedStyle(() => {
-    const ha = totalAngleSV.value % 360;
-    const rot = Math.max(ha - 180, 0) - 180;
-    return { transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
-  });
 
   // Indicator dot moves along the hand radius
   const indicatorStyle = useAnimatedStyle(() => {
@@ -260,6 +268,79 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
     const rad = (ha - 90) * Math.PI / 180;
     return { transform: [{ translateX: DIAL_HAND_R * Math.cos(rad) }, { translateY: DIAL_HAND_R * Math.sin(rad) }] };
   });
+
+  // Snake arc: 4 layers rendered bottom→top for seamless revolution carry-over.
+  // Layer 1 (carry): full circle filled with previous zone's tail color — persists across revolution boundary.
+  // Layer 2 (bg cover): 0→min(210+ha, 360)° with dial bg, erases the "empty" region and the carry-over below it.
+  // Layer 3 (head): 0→ha° with current zone dark color, painted on top of bg cover.
+  // Layer 4 (tail): 0→max(0,ha-60)° with current zone light color, lightens the tail portion of head.
+  // Result: snake tip is always 150° visible regardless of revolution boundary.
+  const snakeCarryRightStyle = useAnimatedStyle(() => {
+    const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
+    const c = zone === 0 ? '#f9fafb' : zone === 1 ? '#c4b5fd' : zone === 2 ? '#818cf8' : '#6366f1';
+    return { backgroundColor: c };
+  });
+  const snakeCarryLeftStyle = useAnimatedStyle(() => {
+    const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
+    const c = zone === 0 ? '#f9fafb' : zone === 1 ? '#c4b5fd' : zone === 2 ? '#818cf8' : '#6366f1';
+    return { backgroundColor: c };
+  });
+  const snakeBgRightStyle = useAnimatedStyle(() => {
+    const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
+    const ha = totalAngleSV.value >= 1440 ? 360 : totalAngleSV.value % 360;
+    const coverAngle = Math.min(210 + ha, 360);
+    const rot = Math.min(coverAngle, 180) - 180;
+    // Zone 0: erase to dial bg → worm effect on blank ring.
+    // Zone 1+: erase to carry color → ring stays colored, no white flash.
+    const c = zone === 0 ? '#f9fafb' : zone === 1 ? '#c4b5fd' : zone === 2 ? '#818cf8' : '#6366f1';
+    return { backgroundColor: c, transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
+  });
+  const snakeBgLeftStyle = useAnimatedStyle(() => {
+    const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
+    const ha = totalAngleSV.value >= 1440 ? 360 : totalAngleSV.value % 360;
+    const coverAngle = Math.min(210 + ha, 360);
+    const rot = Math.max(coverAngle - 180, 0) - 180;
+    const c = zone === 0 ? '#f9fafb' : zone === 1 ? '#c4b5fd' : zone === 2 ? '#818cf8' : '#6366f1';
+    return { backgroundColor: c, transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
+  });
+  const snakeHeadRightStyle = useAnimatedStyle(() => {
+    const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
+    const ha = totalAngleSV.value >= 1440 ? 360 : totalAngleSV.value % 360;
+    const rot = Math.min(ha, 180) - 180;
+    const c = zone === 0 ? '#818cf8' : zone === 1 ? '#6366f1' : zone === 2 ? '#4f46e5' : '#3730a3';
+    return { backgroundColor: c, transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
+  });
+  const snakeHeadLeftStyle = useAnimatedStyle(() => {
+    const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
+    const ha = totalAngleSV.value >= 1440 ? 360 : totalAngleSV.value % 360;
+    const rot = Math.max(ha - 180, 0) - 180;
+    const c = zone === 0 ? '#818cf8' : zone === 1 ? '#6366f1' : zone === 2 ? '#4f46e5' : '#3730a3';
+    return { backgroundColor: c, transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
+  });
+  const snakeTailRightStyle = useAnimatedStyle(() => {
+    const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
+    const ha = Math.max(0, (totalAngleSV.value >= 1440 ? 360 : totalAngleSV.value % 360) - 60);
+    const rot = Math.min(ha, 180) - 180;
+    const c = zone === 0 ? '#c4b5fd' : zone === 1 ? '#818cf8' : zone === 2 ? '#6366f1' : '#4f46e5';
+    return { backgroundColor: c, transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
+  });
+  const snakeTailLeftStyle = useAnimatedStyle(() => {
+    const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
+    const ha = Math.max(0, (totalAngleSV.value >= 1440 ? 360 : totalAngleSV.value % 360) - 60);
+    const rot = Math.max(ha - 180, 0) - 180;
+    const c = zone === 0 ? '#c4b5fd' : zone === 1 ? '#818cf8' : zone === 2 ? '#6366f1' : '#4f46e5';
+    return { backgroundColor: c, transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
+  });
+
+  const centerScaleStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
+  useEffect(() => {
+    pulseScale.value = withSequence(
+      withTiming(1.18, { duration: 180 }),
+      withTiming(0.94, { duration: 140 }),
+      withTiming(1.1, { duration: 130 }),
+      withTiming(1, { duration: 130 }),
+    );
+  }, []);
 
   return (
     <View style={{ alignItems: 'center', gap: 10 }}>
@@ -273,40 +354,48 @@ function RemindDial({ minutes, onChange }: { minutes: number; onChange: (m: numb
         }}
         {...panResponder.panHandlers}
       >
-          {/* Pie fill: right D-shape, clipped to right half */}
+          {/* Snake layer 1 (bottom) — carry-over: full circle in previous zone's tail color */}
           <View style={{ position: 'absolute', left: DIAL_R, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
-            <Animated.View style={[{
-              position: 'absolute', left: 0, top: 0,
-              width: DIAL_R, height: DIAL_SIZE,
-              borderTopRightRadius: DIAL_R, borderBottomRightRadius: DIAL_R,
-              backgroundColor: PIE_COLOR,
-            }, rightFillStyle]} />
+            <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, borderTopRightRadius: DIAL_R, borderBottomRightRadius: DIAL_R }, snakeCarryRightStyle]} />
           </View>
-          {/* Pie fill: left D-shape, clipped to left half */}
           <View style={{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
-            <Animated.View style={[{
-              position: 'absolute', left: 0, top: 0,
-              width: DIAL_R, height: DIAL_SIZE,
-              borderTopLeftRadius: DIAL_R, borderBottomLeftRadius: DIAL_R,
-              backgroundColor: PIE_COLOR,
-            }, leftFillStyle]} />
+            <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, borderTopLeftRadius: DIAL_R, borderBottomLeftRadius: DIAL_R }, snakeCarryLeftStyle]} />
           </View>
-          {/* Inner white mask (donut hole for text) */}
-          <View style={{
-            position: 'absolute', left: DIAL_R - 62, top: DIAL_R - 62,
-            width: 124, height: 124, borderRadius: 62,
-            backgroundColor: '#f9fafb',
-          }} />
+          {/* Snake layer 2 — bg cover: 0→min(210+ha,360)°, erases the empty region */}
+          <View style={{ position: 'absolute', left: DIAL_R, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
+            <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, borderTopRightRadius: DIAL_R, borderBottomRightRadius: DIAL_R }, snakeBgRightStyle]} />
+          </View>
+          <View style={{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
+            <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, borderTopLeftRadius: DIAL_R, borderBottomLeftRadius: DIAL_R }, snakeBgLeftStyle]} />
+          </View>
+          {/* Snake layer 3 — head: 0→ha° with dark color, on top of bg cover */}
+          <View style={{ position: 'absolute', left: DIAL_R, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
+            <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, borderTopRightRadius: DIAL_R, borderBottomRightRadius: DIAL_R }, snakeHeadRightStyle]} />
+          </View>
+          <View style={{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
+            <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, borderTopLeftRadius: DIAL_R, borderBottomLeftRadius: DIAL_R }, snakeHeadLeftStyle]} />
+          </View>
+          {/* Snake layer 4 (top) — tail: 0→max(0,ha-60)° with light color, lightens tail portion */}
+          <View style={{ position: 'absolute', left: DIAL_R, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
+            <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, borderTopRightRadius: DIAL_R, borderBottomRightRadius: DIAL_R }, snakeTailRightStyle]} />
+          </View>
+          <View style={{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, overflow: 'hidden' }}>
+            <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: DIAL_R, height: DIAL_SIZE, borderTopLeftRadius: DIAL_R, borderBottomLeftRadius: DIAL_R }, snakeTailLeftStyle]} />
+          </View>
           {/* Indicator dot */}
           <Animated.View style={[{
             position: 'absolute', left: DIAL_R - 12, top: DIAL_R - 12,
-            width: 24, height: 24, borderRadius: 12, backgroundColor: '#4f46e5',
+            width: 24, height: 24, borderRadius: 12, backgroundColor: '#312e81',
           }, indicatorStyle]} />
-          {/* Center time text — updates when displayed value changes (same cadence as haptic) */}
-          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 28, fontWeight: '700', color: '#111827', textAlign: 'center' }}>{displayText}</Text>
-            <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>innan</Text>
-          </View>
+          {/* Center — fixed indigo button; tap here (detected in PanResponder) to add; pulses once on mount */}
+          <Animated.View style={[{
+            position: 'absolute', left: DIAL_R - 62, top: DIAL_R - 62,
+            width: 124, height: 124, borderRadius: 62,
+            alignItems: 'center', justifyContent: 'center',
+            backgroundColor: '#312e81',
+          }, centerScaleStyle]}>
+            <Text style={{ fontSize: 28, fontWeight: '700', textAlign: 'center', color: '#ffffff' }}>{displayText}</Text>
+          </Animated.View>
         </View>
     </View>
   );
@@ -466,7 +555,7 @@ export default function ScheduleScreen() {
   const [newIsShared, setNewIsShared] = useState(true);
   const [newRemindEnabled, setNewRemindEnabled] = useState(false);
   const [newRemindMinutes, setNewRemindMinutes] = useState<number[]>([]);
-  const [newRemindDialValue, setNewRemindDialValue] = useState(5);
+  const [newRemindDialValue, setNewRemindDialValue] = useState(0);
   const [showNewRemindDial, setShowNewRemindDial] = useState(false);
   const [newAssignedToMany, setNewAssignedToMany] = useState<string[]>([]);
   const [newRecurrenceType, setNewRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('none');
@@ -487,7 +576,7 @@ export default function ScheduleScreen() {
   const [editEntryIsShared, setEditEntryIsShared] = useState(true);
   const [editRemindEnabled, setEditRemindEnabled] = useState(false);
   const [editEntryRemindMinutes, setEditEntryRemindMinutes] = useState<number[]>([]);
-  const [editRemindDialValue, setEditRemindDialValue] = useState(5);
+  const [editRemindDialValue, setEditRemindDialValue] = useState(0);
   const [showEditRemindDial, setShowEditRemindDial] = useState(false);
   const [editEntryAssignedToMany, setEditEntryAssignedToMany] = useState<string[]>([]);
   const [savingEntry, setSavingEntry] = useState(false);
@@ -669,7 +758,7 @@ export default function ScheduleScreen() {
     setNewIsShared(true);
     setNewRemindEnabled(false);
     setNewRemindMinutes([]);
-    setNewRemindDialValue(5);
+    setNewRemindDialValue(0);
     setShowNewRemindDial(false);
     setNewAssignedToMany([]);
     setNewRecurrenceType('none');
@@ -842,11 +931,11 @@ export default function ScheduleScreen() {
     setEditEntryTitle(entry.title);
     setEditEntryDay(entry.day);
     setEditEntryIsShared(entry.isShared);
-    const loadedRemind = entry.remindMinutes?.length ? entry.remindMinutes : (entry.remind ? [5] : []);
+    const loadedRemind = [...(entry.remindMinutes?.length ? entry.remindMinutes : (entry.remind ? [5] : []))].sort((a, b) => a - b);
     setEditRemindEnabled(loadedRemind.length > 0);
     setEditEntryRemindMinutes(loadedRemind);
-    setEditRemindDialValue(5);
-    setShowEditRemindDial(loadedRemind.length === 0);
+    setEditRemindDialValue(0);
+    setShowEditRemindDial(false);
     setEditEntryAssignedToMany(entry.assignedToMany && entry.assignedToMany.length > 0 ? entry.assignedToMany : (entry.assignedTo ? [entry.assignedTo] : []));
     setEditEntryRecurrenceType(entry.recurrenceType as any);
     setEditEntryRecurrenceDays(entry.recurrenceDays as WeekDay[]);
@@ -1523,7 +1612,7 @@ export default function ScheduleScreen() {
                   {!!(e.remindMinutes?.length) && (
                     <View style={s.viewRow}>
                       <Ionicons name="notifications-outline" size={18} color="#6b7280" />
-                      <Text style={s.viewRowText}>{e.remindMinutes.map(m => formatRemindTime(m)).join(', ')} innan</Text>
+                      <Text style={s.viewRowText}>{(() => { const times = [...e.remindMinutes].sort((a, b) => a - b).map(m => formatRemindTime(m)); return times.every(t => t === 'Vid start') ? times.join(', ') : times.join(', ') + ' innan'; })()}</Text>
                     </View>
                   )}
                   <View style={s.viewRow}>
@@ -1606,33 +1695,28 @@ export default function ScheduleScreen() {
                   <>
                     {editEntryRemindMinutes.length > 0 && (
                       <View style={s.remindChips}>
-                        {editEntryRemindMinutes.map((m, i) => (
-                          <View key={i} style={s.remindChip}>
+                        {editEntryRemindMinutes.map((m) => (
+                          <View key={m} style={s.remindChip}>
                             <Text style={s.remindChipText}>{formatRemindTime(m)}</Text>
-                            <Pressable onPress={() => setEditEntryRemindMinutes(prev => prev.filter((_, j) => j !== i))} hitSlop={8}>
+                            <Pressable onPress={() => setEditEntryRemindMinutes(prev => prev.filter(x => x !== m))} hitSlop={8}>
                               <Ionicons name="close" size={14} color="#4f46e5" />
                             </Pressable>
                           </View>
                         ))}
                       </View>
                     )}
-                    {showEditRemindDial ? (
-                      <View style={{ alignItems: 'center', gap: 8 }}>
-                        <RemindDial minutes={editRemindDialValue} onChange={setEditRemindDialValue} />
-                        <Pressable
-                          style={s.remindAddBtn}
-                          onPress={() => { setEditEntryRemindMinutes(prev => [...prev, editRemindDialValue]); setEditRemindDialValue(5); setShowEditRemindDial(false); }}
-                        >
-                          <Ionicons name="add" size={16} color="#fff" />
-                          <Text style={s.remindAddBtnText}>Lägg till</Text>
+                    {editEntryRemindMinutes.length < 5 && (
+                      showEditRemindDial ? (
+                        <View style={{ alignItems: 'center', marginVertical: 12 }}>
+                          <RemindDial minutes={editRemindDialValue} onChange={setEditRemindDialValue} onAdd={() => { setEditEntryRemindMinutes(prev => prev.includes(editRemindDialValue) ? prev : [...prev, editRemindDialValue].sort((a, b) => a - b)); setEditRemindDialValue(0); setShowEditRemindDial(false); }} />
+                        </View>
+                      ) : (
+                        <Pressable style={s.remindMoreBtn} onPress={() => setShowEditRemindDial(true)}>
+                          <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
+                          <Text style={s.remindMoreBtnText}>Lägg till påminnelse</Text>
                         </Pressable>
-                      </View>
-                    ) : editEntryRemindMinutes.length < 3 ? (
-                      <Pressable style={s.remindMoreBtn} onPress={() => { setEditRemindDialValue(5); setShowEditRemindDial(true); }}>
-                        <Ionicons name="add-circle-outline" size={16} color="#4f46e5" />
-                        <Text style={s.remindMoreBtnText}>Lägg till påminnelse</Text>
-                      </Pressable>
-                    ) : null}
+                      )
+                    )}
                   </>
                 )}
               </>
@@ -1881,33 +1965,28 @@ export default function ScheduleScreen() {
                   <>
                     {newRemindMinutes.length > 0 && (
                       <View style={s.remindChips}>
-                        {newRemindMinutes.map((m, i) => (
-                          <View key={i} style={s.remindChip}>
+                        {newRemindMinutes.map((m) => (
+                          <View key={m} style={s.remindChip}>
                             <Text style={s.remindChipText}>{formatRemindTime(m)}</Text>
-                            <Pressable onPress={() => setNewRemindMinutes(prev => prev.filter((_, j) => j !== i))} hitSlop={8}>
+                            <Pressable onPress={() => setNewRemindMinutes(prev => prev.filter(x => x !== m))} hitSlop={8}>
                               <Ionicons name="close" size={14} color="#4f46e5" />
                             </Pressable>
                           </View>
                         ))}
                       </View>
                     )}
-                    {showNewRemindDial ? (
-                      <View style={{ alignItems: 'center', gap: 8 }}>
-                        <RemindDial minutes={newRemindDialValue} onChange={setNewRemindDialValue} />
-                        <Pressable
-                          style={s.remindAddBtn}
-                          onPress={() => { setNewRemindMinutes(prev => [...prev, newRemindDialValue]); setNewRemindDialValue(5); setShowNewRemindDial(false); }}
-                        >
-                          <Ionicons name="add" size={16} color="#fff" />
-                          <Text style={s.remindAddBtnText}>Lägg till</Text>
+                    {newRemindMinutes.length < 5 && (
+                      showNewRemindDial ? (
+                        <View style={{ alignItems: 'center', marginVertical: 12 }}>
+                          <RemindDial minutes={newRemindDialValue} onChange={setNewRemindDialValue} onAdd={() => { setNewRemindMinutes(prev => prev.includes(newRemindDialValue) ? prev : [...prev, newRemindDialValue].sort((a, b) => a - b)); setNewRemindDialValue(0); setShowNewRemindDial(false); }} />
+                        </View>
+                      ) : (
+                        <Pressable style={s.remindMoreBtn} onPress={() => setShowNewRemindDial(true)}>
+                          <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
+                          <Text style={s.remindMoreBtnText}>Lägg till påminnelse</Text>
                         </Pressable>
-                      </View>
-                    ) : newRemindMinutes.length < 3 ? (
-                      <Pressable style={s.remindMoreBtn} onPress={() => { setNewRemindDialValue(5); setShowNewRemindDial(true); }}>
-                        <Ionicons name="add-circle-outline" size={16} color="#4f46e5" />
-                        <Text style={s.remindMoreBtnText}>Lägg till påminnelse</Text>
-                      </Pressable>
-                    ) : null}
+                      )
+                    )}
                   </>
                 )}
               </>
