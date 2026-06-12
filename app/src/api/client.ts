@@ -87,6 +87,18 @@ export interface AuditLogEntry {
   metadata: Record<string, unknown> | null;
   createdAt: string;
 }
+export interface ClientErrorEntry {
+  id: number;
+  name: string;
+  message: string;
+  stack?: string | null;
+  platform?: string;
+  appVersion?: string;
+  context?: Record<string, unknown>;
+  at?: string;
+  receivedAt: string;
+}
+
 export type MembershipWithHousehold = HouseholdMember & { household: Household };
 export type ShoppingItemWithRecipe = ShoppingItem & { recipe: { id: string; title: string } | null };
 export type ShoppingListWithItems = ShoppingList & { items: ShoppingItemWithRecipe[]; store: Store | null };
@@ -405,5 +417,8 @@ export function useApiClient() {
 
     sendTestPush: () =>
       request<{ tokens: number; errors: string[] }>('/api/push/test', { method: 'POST' }),
+
+    getClientErrors: () =>
+      request<ClientErrorEntry[]>('/api/client-errors'),
   };
 }
