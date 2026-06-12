@@ -254,7 +254,7 @@
 - [x] Bocka av hel kategori med ett tryck: tryck på kategorirubriken → "Markera alla som klara" — minskar tryck vid hyllan
 - [x] Emoji per inköpslista: likt sysslor och aktiviteter kunna sätta en emoji på listan (🛒 Willys, 🏕️ Campingtur, 🎄 Julmat) för bättre igenkänning i översikten
 - [x] Inga varor hör till chark och deli just nu: `inferSubCategory` saknade "korv" (generiskt), "wienerkorv", "grillkorv", "bratwurst", "prosciutto", "blodpudding" m.fl. Tillagda i `shared/src/lib/inferSubCategory.ts`. `backfillSubCategory` körs vid serverstart och omklassificerar befintliga DB-rader.
-- [ ] Offline-tålig synk för inköp (stor): idag är avbockning optimistisk MED rollback — offline failar request:en → bocken rullas tillbaka och tappas (toast "kunde inte bocka av"). I butiken med dålig täckning blir listan oanvändbar. Riktig fix = lokal persistens + mutations-kö som spelas upp vid återanslutning, med konflikthantering mot realtids-/last-write-wins-modellen. Större arkitektur-grej (AsyncStorage/SQLite + queue + replay)
+- [x] Offline-tålig synk för inköp: avbockning offline rullas inte längre tillbaka — nätverksfel köar mutationen i `shoppingOfflineQueue` (module-level Map, överlever navigering). Vid nästa `load()` (focus/reconnect) appliceras kön ovanpå server-datan och spolas upp mot API:et. `markAllInCategory` hanteras likadant. Serverfel (4xx/5xx) rullar fortfarande tillbaka och visar fel.
 
 
 ### Meny
