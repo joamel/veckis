@@ -153,9 +153,12 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
         targetRef={opts?.targetRef}
         targetRect={opts?.targetRect}
         swipeDemo={opts?.swipeDemo}
-        actionLabel={opts?.actionLabel ?? (hasNext ? 'Nästa tips →' : 'Förstått')}
+        actionLabel={opts?.actionLabel ?? 'Förstått'}
         position={shownIndex + 1}
         total={shownIndex + 1 + queueLen}
+        hasNext={hasNext}
+        onToggleSkipAll={() => setSkipAll(!skipAllRef.current)}
+        skipAllActive={skipAll === true}
         onDismiss={dismiss}
       />
     </SpotlightTipContext.Provider>

@@ -32,11 +32,15 @@ interface Props extends SpotlightOptions {
   /** "M av N"-indikator när fler tips än ett är i pågående svit. */
   position?: number;
   total?: number;
+  hasNext?: boolean;
+  /** Kallas när användaren trycker "Stäng av tips" på kortet. */
+  onToggleSkipAll?: () => void;
+  skipAllActive?: boolean;
 }
 
 const PAD = 10; // padding around the target inside the highlight ring
 
-export function SpotlightTip({ visible, targetRef, targetRect, title, message, emoji = '💡', actionLabel = 'Förstått', swipeDemo, position, total, onDismiss }: Props) {
+export function SpotlightTip({ visible, targetRef, targetRect, title, message, emoji = '💡', actionLabel = 'Förstått', swipeDemo, position, total, hasNext, onToggleSkipAll, skipAllActive, onDismiss }: Props) {
   const [measuredRect, setMeasuredRect] = useState<Rect | null>(null);
   const pulse = useRef(new Animated.Value(0)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
@@ -165,6 +169,21 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
       {/* Tap outside the card dismisses (covers full screen, behind the card). */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
       <View style={[s.card, { top: callout, left: 20, right: 20, maxHeight: screen.height * 0.7 }]}>
+        {/* Toprad: position-pill + nästa-pil */}
+        {total && total > 1 ? (
+          <View style={s.topRow}>
+            <View style={s.positionPill}>
+              <Text style={s.positionText}>{position} av {total}</Text>
+            </View>
+            {hasNext ? (
+              <Pressable onPress={onDismiss} style={s.nextBtn} hitSlop={10} accessibilityLabel="Nästa tips">
+                <Text style={s.nextBtnText}>Nästa</Text>
+                <Ionicons name="arrow-forward" size={13} color="#7c3aed" />
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 4 }}
@@ -173,11 +192,22 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
           <Text style={s.title}>{title}</Text>
           {message ? <Text style={s.message}>{message}</Text> : null}
         </ScrollView>
+
         <Pressable style={s.btn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel={actionLabel}>
           <Text style={s.btnText}>{actionLabel}</Text>
         </Pressable>
-        {total && total > 1 ? (
-          <Text style={s.position}>{position} av {total}</Text>
+
+        {onToggleSkipAll ? (
+          <Pressable style={s.skipRow} onPress={onToggleSkipAll} hitSlop={6}>
+            <Ionicons
+              name={skipAllActive ? 'eye-outline' : 'eye-off-outline'}
+              size={14}
+              color="#9ca3af"
+            />
+            <Text style={s.skipText}>
+              {skipAllActive ? 'Tips avstängda — slå på' : 'Stäng av onboarding-tips'}
+            </Text>
+          </Pressable>
         ) : null}
       </View>
       {/* Swipe-finger demo: rendered LAST so it's guaranteed on top regardless
@@ -384,5 +414,11 @@ const s = StyleSheet.create({
   message: { fontSize: 14, color: '#374151', marginBottom: 14, textAlign: 'center', lineHeight: 20 },
   btn: { backgroundColor: '#4f46e5', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  position: { position: 'absolute', right: 14, bottom: 6, fontSize: 11, color: '#9ca3af', fontWeight: '600' },
+  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  positionPill: { backgroundColor: '#ede9fe', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  positionText: { fontSize: 12, fontWeight: '700', color: '#6d28d9' },
+  nextBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 'auto' as any },
+  nextBtnText: { fontSize: 12, fontWeight: '600', color: '#7c3aed' },
+  skipRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 10, paddingVertical: 4 },
+  skipText: { fontSize: 12, color: '#9ca3af' },
 });
