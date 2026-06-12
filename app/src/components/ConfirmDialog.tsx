@@ -1,4 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type ConfirmButtonStyle = 'primary' | 'destructive' | 'cancel';
 export interface ConfirmButton {
@@ -13,6 +14,10 @@ export interface ConfirmOptions {
   /** 'menu' renders as a small popup at the top-right (for 3-dot action menus).
    *  Default 'sheet' is the standard bottom sheet. */
   variant?: 'sheet' | 'menu';
+  /** Screen Y coordinate where the menu card's top edge should appear (below the trigger button).
+   *  Pass `pageY + height` from measure() on the three-dots button.
+   *  Falls back to safe-area inset + 48 if omitted. */
+  menuTop?: number;
 }
 
 export function ConfirmDialog({
@@ -24,6 +29,8 @@ export function ConfirmDialog({
   options: ConfirmOptions | null;
   onClose: () => void;
 }) {
+  const insets = useSafeAreaInsets();
+
   if (!options) return null;
 
   const dismiss = () => {
@@ -32,10 +39,11 @@ export function ConfirmDialog({
   };
 
   if (options.variant === 'menu') {
+    const top = options.menuTop ?? insets.top + 48;
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
         <Pressable style={{ flex: 1 }} onPress={dismiss} />
-        <View style={[s.menuCard, { top: 0 }]}>
+        <View style={[s.menuCard, { top }]}>
           {options.title ? (
             <Text style={s.menuTitle}>{options.title}</Text>
           ) : null}

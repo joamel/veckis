@@ -142,9 +142,10 @@ export default function RecipesScreen() {
   }, [recipes, searchQuery, sortMode]);
 
   // New recipe form
-  const [mode, setMode] = useState<'manual' | 'url'>('manual');
+  const [mode, setMode] = useState<'manual' | 'url' | 'paste'>('manual');
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
+  const [pasteText, setPasteText] = useState('');
   const [scraping, setScraping] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -221,6 +222,54 @@ export default function RecipesScreen() {
       });
     } finally {
       setScraping(false);
+      setCreating(false);
+    }
+  }
+
+  function parseIngredientText(text: string): { name: string; quantity: number | null; unit: string | null }[] {
+    const KNOWN_UNITS = ['dl', 'l', 'liter', 'ml', 'cl', 'msk', 'tsk', 'krm', 'g', 'kg', 'st', 'mätare', 'burk', 'förpackning', 'paket', 'port', 'skiva', 'skivor', 'bit', 'bitar', 'knippe', 'knippen', 'näve', 'nypa', 'nypor', 'klyfta', 'klyftor'];
+    const unitPattern = new RegExp(`^(${KNOWN_UNITS.join('|')})\\b\\.?\\s*`, 'i');
+    return text.split('\n').map(l => l.trim()).filter(l => /[a-zåäöA-ZÅÄÖ]/.test(l)).flatMap(line => {
+      const clean = line.replace(/^[-–—•*\d+\.]+\s*/, m => /^\d/.test(m) ? m : '').trim();
+      const qtyMatch = clean.match(/^(\d+(?:[,.]\d+)?(?:\s*\/\s*\d+)?)\s+(.+)$/);
+      let qty: number | null = null;
+      let unit: string | null = null;
+      let name = clean;
+      if (qtyMatch) {
+        const qStr = qtyMatch[1].replace(',', '.').replace(/\s/g, '');
+        if (qStr.includes('/')) { const [n, d] = qStr.split('/').map(Number); qty = n / d; }
+        else qty = parseFloat(qStr);
+        if (isNaN(qty)) qty = null;
+        const rest = qtyMatch[2].trim();
+        const um = rest.match(unitPattern);
+        if (um) { unit = um[1].toLowerCase(); name = rest.slice(um[0].length).trim(); }
+        else name = rest;
+      }
+      name = name.replace(/^[-–—•*]\s*/, '').trim();
+      return name ? [{ name, quantity: qty, unit }] : [];
+    });
+  }
+
+  async function handlePaste() {
+    if (!householdId || !title.trim()) return;
+    setCreating(true);
+    try {
+      const ingredients = parseIngredientText(pasteText);
+      const recipe = await client.createRecipe({
+        householdId,
+        title: title.trim(),
+        ingredients,
+      });
+      setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
+      setShowModal(false);
+      setTitle('');
+      setPasteText('');
+      const forMenuDay = params.forMenuDay;
+      const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
+      router.push(`/recipes/${recipe.id}${ingredients.length > 0 ? '' : '?edit=1'}${suffix}` as never);
+    } catch {
+      confirm({ title: 'Fel', message: 'Kunde inte skapa recept', buttons: [{ label: 'OK' }] });
+    } finally {
       setCreating(false);
     }
   }
@@ -395,9 +444,9 @@ export default function RecipesScreen() {
         </Pressable>
       )}
 
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setPasteText(''); }}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
+        <Pressable style={s.overlay} onPress={() => { setShowModal(false); setPasteText(''); }} />
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
@@ -406,6 +455,9 @@ export default function RecipesScreen() {
           <View style={s.modeTabs}>
             <Pressable style={[s.modeTab, mode === 'manual' && s.modeTabActive]} onPress={() => setMode('manual')}>
               <Text style={[s.modeTabText, mode === 'manual' && s.modeTabTextActive]}>Manuellt</Text>
+            </Pressable>
+            <Pressable style={[s.modeTab, mode === 'paste' && s.modeTabActive]} onPress={() => setMode('paste')}>
+              <Text style={[s.modeTabText, mode === 'paste' && s.modeTabTextActive]}>Klistra in</Text>
             </Pressable>
             <Pressable style={[s.modeTab, mode === 'url' && s.modeTabActive]} onPress={() => setMode('url')}>
               <Text style={[s.modeTabText, mode === 'url' && s.modeTabTextActive]}>Från URL</Text>
@@ -428,6 +480,35 @@ export default function RecipesScreen() {
               <Pressable
                 style={[s.button, !title.trim() && s.buttonDisabled]}
                 onPress={handleCreateManual}
+                disabled={creating || !title.trim()}
+              >
+                {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Skapa recept</Text>}
+              </Pressable>
+            </>
+          ) : mode === 'paste' ? (
+            <>
+              <TextInput
+                style={s.input}
+                placeholder="Receptets namn"
+                placeholderTextColor="#9ca3af"
+                value={title}
+                onChangeText={setTitle}
+                autoFocus
+                returnKeyType="next"
+              />
+              <TextInput
+                style={[s.input, { height: 140, textAlignVertical: 'top', paddingTop: 10 }]}
+                placeholder={"Klistra in ingredienslistan här\n\nT.ex.:\n2 dl mjöl\n1 ägg\n200 g smör"}
+                placeholderTextColor="#9ca3af"
+                value={pasteText}
+                onChangeText={setPasteText}
+                multiline
+                scrollEnabled
+              />
+              <Text style={s.createHint}>Ingredienser parsas automatiskt från texten. Du kan justera dem i nästa steg.</Text>
+              <Pressable
+                style={[s.button, !title.trim() && s.buttonDisabled]}
+                onPress={handlePaste}
                 disabled={creating || !title.trim()}
               >
                 {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Skapa recept</Text>}

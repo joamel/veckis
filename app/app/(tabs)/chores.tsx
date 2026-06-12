@@ -294,6 +294,8 @@ export default function ChoresScreen() {
   const [newRecurrenceWeekOfMonth, setNewRecurrenceWeekOfMonth] = useState(1);
   const [newMonthDay, setNewMonthDay] = useState(1);
   const [newWeekday, setNewWeekday] = useState<WeekDay>('mon');
+  const [newLastDoneDate, setNewLastDoneDate] = useState<string | null>(null);
+  const [showNewLastDonePicker, setShowNewLastDonePicker] = useState(false);
   const [creating, setCreating] = useState(false);
 
   // Modals
@@ -482,6 +484,16 @@ export default function ChoresScreen() {
     [chores]
   );
 
+  const completedRecurring = useMemo(
+    () => sortedChores
+      .filter(e => e.variant === 'done' && !isOnce(e.chore))
+      .map(e => {
+        const rs = recurringStatus(e.chore);
+        return { chore: e.chore, currentDate: rs.current?.date ?? isoDateStr(new Date()) };
+      }),
+    [sortedChores]
+  );
+
 
   // Etikett för "tilldelad" på syssla-kortet:
   //  - rotation=true + 2+ medlemmar → "Annas tur · Nästa: Bo"
@@ -539,6 +551,7 @@ export default function ChoresScreen() {
     setNewWeekday('mon');
     setNewStartDate(null);
     setNewEndDate(null);
+    setNewLastDoneDate(null);
   }
 
   // Always open a fresh dialog so an abandoned (cancelled) syssla doesn't reappear.
@@ -569,7 +582,12 @@ export default function ChoresScreen() {
         monthlyType: newMonthlyType,
         recurrenceWeekOfMonth: newRecurrenceType === 'monthly' && newMonthlyType === 'weekday_of_month' ? newRecurrenceWeekOfMonth : null,
       });
-      setChores(prev => prev.some(c => c.id === chore.id) ? prev : [...prev, { ...chore, completions: [] }]);
+      let completions: import('@veckis/shared').ChoreCompletion[] = [];
+      if (newLastDoneDate && chore.recurrenceType !== 'none') {
+        const comp = await client.completeChore(chore.id, null, undefined, newLastDoneDate).catch(() => null);
+        if (comp) completions = [comp];
+      }
+      setChores(prev => prev.some(c => c.id === chore.id) ? prev : [...prev, { ...chore, completions }]);
       setShowCreate(false);
       showToast('Syssla skapad');
       resetCreateForm();
@@ -680,10 +698,13 @@ export default function ChoresScreen() {
     setShowCreate(true);
   }
 
-  function openChoreActions(chore: ChoreWithCompletion) {
+  const viewChoreDotsRef = useRef<View>(null);
+
+  function openChoreActions(chore: ChoreWithCompletion, menuTop?: number) {
     confirm({
       title: chore.title,
       variant: 'menu',
+      menuTop,
       buttons: [
         { label: 'Kopiera', onPress: () => { setViewingChore(null); copyChore(chore); } },
         { label: 'Redigera', onPress: () => { setViewingChore(null); openEdit(chore); } },
@@ -772,16 +793,27 @@ export default function ChoresScreen() {
   }
 
   async function clearCompleted() {
-    if (completedOnce.length === 0) return;
+    if (completedOnce.length === 0 && completedRecurring.length === 0) return;
+    const parts: string[] = [];
+    if (completedOnce.length > 0) parts.push(`${completedOnce.length} engångssyssla${completedOnce.length > 1 ? 'r' : ''} tas bort`);
+    if (completedRecurring.length > 0) parts.push(`${completedRecurring.length} återkommande avprickning${completedRecurring.length > 1 ? 'ar' : ''} nollställs`);
     confirm({
       title: 'Rensa klara sysslor',
-      message: `Ta bort ${completedOnce.length} avklarade engångssyssla${completedOnce.length > 1 ? 'r' : ''}?`,
+      message: parts.join('\n'),
       buttons: [
         {
           label: 'Rensa', style: 'destructive',
           onPress: async () => {
             await Promise.all(completedOnce.map(c => client.deleteChore(c.id).catch(() => {})));
             setChores(prev => prev.filter(c => !completedOnce.find(d => d.id === c.id)));
+            await Promise.all(completedRecurring.map(({ chore, currentDate }) =>
+              client.uncompleteChore(chore.id, null, currentDate).catch(() => {})
+            ));
+            setChores(prev => prev.map(c => {
+              const entry = completedRecurring.find(r => r.chore.id === c.id);
+              if (!entry) return c;
+              return { ...c, completions: c.completions.filter(x => x.date !== entry.currentDate) };
+            }));
           },
         },
         { label: 'Avbryt', style: 'cancel' },
@@ -799,10 +831,10 @@ export default function ChoresScreen() {
         title="Sysslor"
         actionNode={
           <View style={s.headerActions}>
-            {completedOnce.length > 0 && (
+            {(completedOnce.length > 0 || completedRecurring.length > 0) && (
               <Pressable style={s.clearBtn} onPress={clearCompleted}>
                 <Ionicons name="trash-outline" size={14} color="#ef4444" />
-                <Text style={s.clearBtnText}>Rensa klara ({completedOnce.length})</Text>
+                <Text style={s.clearBtnText}>Rensa klara ({completedOnce.length + completedRecurring.length})</Text>
               </Pressable>
             )}
             {members.length > 0 && (
@@ -1055,6 +1087,18 @@ export default function ChoresScreen() {
                     </Pressable>
                   )}
                 </View>
+                <Text style={s.label}>Senast gjord (valfritt)</Text>
+                <View style={s.dateRow}>
+                  <Pressable style={[s.dateBtn, newLastDoneDate && s.dateBtnSet]} onPress={() => setShowNewLastDonePicker(true)}>
+                    <Ionicons name="checkmark-circle-outline" size={14} color={newLastDoneDate ? '#4f46e5' : '#9ca3af'} />
+                    <Text style={[s.dateBtnText, newLastDoneDate && s.dateBtnTextSet]}>{newLastDoneDate ?? 'Ej gjord ännu'}</Text>
+                  </Pressable>
+                  {newLastDoneDate && (
+                    <Pressable onPress={() => setNewLastDoneDate(null)} hitSlop={8} accessibilityLabel="Rensa senast gjord">
+                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                    </Pressable>
+                  )}
+                </View>
               </>
             )}
 
@@ -1103,6 +1147,7 @@ export default function ChoresScreen() {
 
       <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} minimumDate={isoDateStr(new Date())} />
       <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} minimumDate={newStartDate ?? isoDateStr(new Date())} />
+      <DatePickerModal value={newLastDoneDate} onChange={setNewLastDoneDate} onClose={() => setShowNewLastDonePicker(false)} title="Senast gjord" visible={showNewLastDonePicker} maximumDate={isoDateStr(new Date())} />
       <DatePickerModal value={editStartDate} onChange={setEditStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} minimumDate={isoDateStr(new Date())} />
       <DatePickerModal value={editEndDate} onChange={setEditEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} minimumDate={editStartDate ?? isoDateStr(new Date())} />
 
@@ -1132,7 +1177,7 @@ export default function ChoresScreen() {
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                   </Pressable>
                   <View style={{ flex: 1 }} />
-                  <Pressable onPress={() => openChoreActions(c)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                  <Pressable ref={viewChoreDotsRef} onPress={() => viewChoreDotsRef.current?.measure((_, __, _w, h, _px, py) => openChoreActions(c, py + h))} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
                     <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
                   </Pressable>
                 </View>

@@ -972,12 +972,13 @@ export default function ScheduleScreen() {
     }
   }
 
-  // 3-prickar-meny i läsvyn: redigera eller ta bort utan att klicket direkt
-  // hamnar i redigeringsläget.
-  function openEntryActions(entry: ScheduleEntry) {
+  const viewEntryDotsRef = useRef<View>(null);
+
+  function openEntryActions(entry: ScheduleEntry, menuTop?: number) {
     confirm({
       title: entry.title,
       variant: 'menu',
+      menuTop,
       buttons: [
         { label: 'Redigera', onPress: () => { setViewingEntry(null); openEditEntry(entry); } },
         { label: 'Ta bort', style: 'destructive', onPress: () => { setViewingEntry(null); deleteEntry(entry, selectedDayDateStr); } },
@@ -1595,7 +1596,7 @@ export default function ScheduleScreen() {
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                   </Pressable>
                   <View style={{ flex: 1 }} />
-                  <Pressable onPress={() => openEntryActions(e)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                  <Pressable ref={viewEntryDotsRef} onPress={() => viewEntryDotsRef.current?.measure((_, __, _w, h, _px, py) => openEntryActions(e, py + h))} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
                     <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
                   </Pressable>
                 </View>

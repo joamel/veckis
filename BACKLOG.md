@@ -318,7 +318,7 @@
 - [x] Lägga in automatiskt en "0" om man skriver ",": "Har"-inputen i inventeringssteget var bunden till ett tal → man kunde inte skriva ett inledande "," (blev NaN → nollställdes). Nu en draft-sträng (`amountDraft`) för aktivt fält som normaliserar "." → "," och prependar "0" vid inledande "," (→ "0,"). (Samma normalisering nu på ALLA qty-fält i appen via delad `normalizeQtyInput`.)
 - [x] Inventering: "Allt"/"Har"-knappen heter nu "Finns" (både mätbara och omätta rader) — tydligare att den markerar att varan finns hemma.
 - [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
-- [ ] Borde kunna klistra in ett recept (kopierade ingredienser) manuellt om inte url funkar, som gör om till en ingredienslista
+- [ ] Klistra in ett recept i manuellt-läget vid skapande av recept: om man inte har en URL borde man kunna klistra in kopierad ingredienslista/recepttext och få den parsad till strukturerade ingredienser direkt i redigeringsgränssnittet
 - [ ] "Laga nu"-läge i receptvyn: steg-för-steg-visning av instruktionerna (vi skrapar dem redan vid URL-import) med skärmen tänd medan man lagar. Naturlig användning av instruktions-fältet.
 
 ### Kalendern
@@ -361,6 +361,7 @@
 - [x] RemindDial startar vid 0 ("Vid start"): `formatRemindTime(0)` returnerar "Vid start" (inte "0 min"); urskivan tillåter nu 0° (Math.max(0,...)); initial state + reset efter lägg-till sätts till 0 i både skapa- och redigeringsläge; klockan får marginVertical:12 för andrum.
 - [x] RemindDial center som knapp + max 5 påminnelser: center-cirkeln är nu en `Pressable` — snurra på ytterringen för att välja tid, tryck i mitten för att lägga till; centret animerar vitt→mörkblått (indigo) med vit text medan man drar (visuell ledtråd att den är tryckbar); den separata "Lägg till"-knappen under klockan borttagen; max antal höjt från 3 till 5. Pie-fyllningen nollställs inte längre vid zonövergångar (min→tim→dag) — `ha = Math.min(totalAngle, 360)` håller tårtan full från zon 2 och uppåt.
 - [x] RemindDial orm-arc + pulsknapp: tårtbiten ersatt med en "orm"/worm-arc (3-lager D-shape-teknik — mörkt huvud, ljus svans, bakgrundstäckning) som åker runt vid snurrning; synligt segment ~150° med gradient-känsla (ljusare → mörkare indigo). Center-knappen har fast indigo-färg (#4f46e5) och pulserar en gång (scale-sekvens) när klockan visas så man förstår att den är tryckbar. Tap-detection sker i PanResponder release (ingen `Pressable` inuti pan-handler). Färgen intensifieras per varv (zone 0–3: #818cf8→#6366f1→#4f46e5→#3730a3).
+- [x] RemindDial finputs: carry-lager (4:e D-shape) gör att ringen förblir färgad vid varv-gränser — bakgrundstäckning använder carry-färgen i zon 1+ (aldrig vit igen); max-gräns (8 veckor/1440°) behandlar ha=360 istället för 0 så sista varvet inte återgår till dagsfärg; center-knapp alltid mörkast (#312e81 indigo-900, mörkare än ormens max #3730a3); pulsering triggas även vid release av drag (inte bara vid visning av klockan); duplikat-påminnelse ignoreras tyst — includes-check i onAdd-callback stänger klockan utan att lägga in samma tid en gång till.
 
 
 ### Sysslor
@@ -395,15 +396,16 @@
 - [x] Kopiera syssla: "Kopiera" i 3-prickar-läsvyn skapar ett utkast med samma titel, frekvens, dagar och tilldelade — undviker att fylla i allt för liknande sysslor
 - [x] Anteckning vid klarmarkering av syssla: note-fältet finns redan i ChoreCompletion-schemat, UI saknas — kort fritext vid avbockning visas i historiken (t.ex. "behöver nytt rengöringsmedel")
 - [x] 3-prickar-menyn i sysslor och kalender visas nu uppe till höger (fade-popup-card) istället för som bottom sheet — `variant: 'menu'` i `ConfirmDialog`, same top-right position på alla ställen
+- [x] 3-prickar-menyn positioneras nu direkt under trigger-knappen istället för fast i skärmhörnet — `ref.measure()` på Pressable ger `pageY + height` som skickas som `menuTop` till confirm(); ConfirmDialog tar emot `menuTop?: number` och sätter det som `top` på menu-kortet (fallback: `insets.top + 48`). Uppdaterat på alla 4 call sites: schedule, chores, recipes, stores.
 - [x] Klarmarkera återkommande syssla → delat kort: avbockad syssla visas överstruken längst ned (kan ångras) + ett "uppkommande"-kort med nästa datum dyker upp bland de aktiva. Sorteras rätt efter nästa datum.
 - [x] Sortering av sysslor: pre-computade statuser i `sortedChores`, recurring done sorteras efter nextDate (snarast = högst upp bland avklarade), once-done hamnar sist
 - [x] Borde aldrig skapa sysslor bakåt i tiden, endast från idag och framåt
 - [x] Utfällda sysslor borde se ut mer som att de hör till rubriken, nu har de en grå border som knappt syns och sitter inte ihop med rubriken. Borde se ut som en utfälld maträtt i veckomenyn
 - [x] Läsvy-symmetri för sysslor: kalenderaktiviteter öppnar nu en read-vy (tap → sammanfattning, redigering under 3-prickar), men en syssla öppnar fortfarande direkt redigering/utfälld vy. Överväg samma läs-först-mönster för konsekvens.
 - [ ] Push-notis vid avbockning av syssla: "Joakim dammsög ✓" till övriga — community-känsla och svar på "har det blivit gjort?" (utbyggnad av befintlig notis-infrastruktur)
-- [ ] Avcheckad återkommande syssla (den 1a varje månad) visar samma datum som varit som nästa
+- [x] Avcheckad återkommande syssla (den 1a varje månad) visar samma datum som varit som nästa
 - [x] Datum står som valfritt men har man väl valt ett datum kan man inte ta bort det: ×-knapp dyker upp till höger om datumknappen när datum är satt (gäller alla 4 kombinationer: skapa/redigera × engång/startdatum)
-- [ ] Rensa avklarade återkommande sysslor — möjlighet att dölja eller ta bort klarmarkerings-historik (t.ex. alla klar-markeringar äldre än X veckor) så listan inte växer i all oändlighet
+- [ ] Rensa avklarade återkommande sysslor — avklarade återkommande sysslor blir kvar längst ned i listan för alltid; behöver rensas antingen manuellt (knapp i sysslo-inställningar) eller automatiskt (historik äldre än X veckor tas bort) så listan inte växer i all oändlighet
 - [ ] Saknas en "första gången"-knapp som finns i andra flikar
 
 
