@@ -318,8 +318,8 @@
 - [x] Lägga in automatiskt en "0" om man skriver ",": "Har"-inputen i inventeringssteget var bunden till ett tal → man kunde inte skriva ett inledande "," (blev NaN → nollställdes). Nu en draft-sträng (`amountDraft`) för aktivt fält som normaliserar "." → "," och prependar "0" vid inledande "," (→ "0,"). (Samma normalisering nu på ALLA qty-fält i appen via delad `normalizeQtyInput`.)
 - [x] Inventering: "Allt"/"Har"-knappen heter nu "Finns" (både mätbara och omätta rader) — tydligare att den markerar att varan finns hemma.
 - [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
-- [ ] Klistra in ett recept i manuellt-läget vid skapande av recept: om man inte har en URL borde man kunna klistra in kopierad ingredienslista/recepttext och få den parsad till strukturerade ingredienser direkt i redigeringsgränssnittet
-- [ ] "Laga nu"-läge i receptvyn: steg-för-steg-visning av instruktionerna (vi skrapar dem redan vid URL-import) med skärmen tänd medan man lagar. Naturlig användning av instruktions-fältet.
+- [x] Klistra in ett recept i manuellt-läget vid skapande av recept: "Klistra in recepttext (AI tolkar)"-toggle i manuellt-läge expanderar en TextInput + "Tolka och skapa recept"-knapp; backend POST /api/recipes/parse-text (Claude Haiku) extraherar titel, ingredienser, instruktioner och beskrivning ur godtycklig text (upp till 80 000 tecken) — klarar hela webbsidor, råa recepttexter m.m.
+- [x] "Laga nu"-läge i receptvyn: "Laga nu"-chip i instruktions-headern öppnar helskärmsläge med mörk bakgrund; instruktionerna parsas till steg (numrerade rader → separata steg); navigering Föregående/Nästa + progress-dots; sista steget avslutar med "Klart!"-knapp.
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -396,7 +396,7 @@
 - [x] Kopiera syssla: "Kopiera" i 3-prickar-läsvyn skapar ett utkast med samma titel, frekvens, dagar och tilldelade — undviker att fylla i allt för liknande sysslor
 - [x] Anteckning vid klarmarkering av syssla: note-fältet finns redan i ChoreCompletion-schemat, UI saknas — kort fritext vid avbockning visas i historiken (t.ex. "behöver nytt rengöringsmedel")
 - [x] 3-prickar-menyn i sysslor och kalender visas nu uppe till höger (fade-popup-card) istället för som bottom sheet — `variant: 'menu'` i `ConfirmDialog`, same top-right position på alla ställen
-- [x] 3-prickar-menyn positioneras nu direkt under trigger-knappen istället för fast i skärmhörnet — `ref.measure()` på Pressable ger `pageY + height` som skickas som `menuTop` till confirm(); ConfirmDialog tar emot `menuTop?: number` och sätter det som `top` på menu-kortet (fallback: `insets.top + 48`). Uppdaterat på alla 4 call sites: schedule, chores, recipes, stores.
+- [x] 3-prickar-menyn positioneras i övre höger hörnet (top:0, right:0) — samma position som inköpslistans actionsMenu; measureInWindow-ansatsen avvecklades (insets.top returnerade fel värde inuti Modal på Android); alla 4 call sites (schedule, chores, recipes, stores) förenklade till direktanrop utan ref/mätning.
 - [x] Klarmarkera återkommande syssla → delat kort: avbockad syssla visas överstruken längst ned (kan ångras) + ett "uppkommande"-kort med nästa datum dyker upp bland de aktiva. Sorteras rätt efter nästa datum.
 - [x] Sortering av sysslor: pre-computade statuser i `sortedChores`, recurring done sorteras efter nextDate (snarast = högst upp bland avklarade), once-done hamnar sist
 - [x] Borde aldrig skapa sysslor bakåt i tiden, endast från idag och framåt
@@ -405,7 +405,7 @@
 - [ ] Push-notis vid avbockning av syssla: "Joakim dammsög ✓" till övriga — community-känsla och svar på "har det blivit gjort?" (utbyggnad av befintlig notis-infrastruktur)
 - [x] Avcheckad återkommande syssla (den 1a varje månad) visar samma datum som varit som nästa
 - [x] Datum står som valfritt men har man väl valt ett datum kan man inte ta bort det: ×-knapp dyker upp till höger om datumknappen när datum är satt (gäller alla 4 kombinationer: skapa/redigera × engång/startdatum)
-- [ ] Rensa avklarade återkommande sysslor — avklarade återkommande sysslor blir kvar längst ned i listan för alltid; behöver rensas antingen manuellt (knapp i sysslo-inställningar) eller automatiskt (historik äldre än X veckor tas bort) så listan inte växer i all oändlighet
+- [x] Rensa avklarade återkommande sysslor — "Rensa"-knapp i sysslo-headern raderar engångssysslor + nollställer avbockade återkommande (uncomplete) i samma operation med confirm-dialog som räknar upp exakt vad som rensas
 - [ ] Saknas en "första gången"-knapp som finns i andra flikar
 
 

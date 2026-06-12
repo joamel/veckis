@@ -56,6 +56,10 @@ export default function RecipeDetailScreen() {
   const [editInstr, setEditInstr] = useState('');
   const [editImage, setEditImage] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Cooking mode
+  const [cookMode, setCookMode] = useState(false);
+  const [cookStep, setCookStep] = useState(0);
   const [heroLoading, setHeroLoading] = useState(false);
   const [heroError, setHeroError] = useState(false);
 
@@ -681,6 +685,13 @@ export default function RecipeDetailScreen() {
           <View style={s.section}>
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>Instruktioner</Text>
+              <Pressable
+                style={s.cookBtn}
+                onPress={() => { setCookStep(0); setCookMode(true); }}
+              >
+                <Ionicons name="restaurant-outline" size={14} color="#4f46e5" />
+                <Text style={s.cookBtnText}>Laga nu</Text>
+              </Pressable>
             </View>
             <Text style={s.instructionsText}>{recipe.instructions}</Text>
           </View>
@@ -774,8 +785,62 @@ export default function RecipeDetailScreen() {
         </Pressable>
       )}
 
+      {/* Cooking mode */}
+      {recipe.instructions ? (() => {
+        const steps = parseSteps(recipe.instructions!);
+        const step = steps[cookStep] ?? '';
+        return (
+          <Modal visible={cookMode} transparent={false} animationType="slide" onRequestClose={() => setCookMode(false)}>
+            <SafeAreaView style={s.cookContainer}>
+              <View style={s.cookHeader}>
+                <Text style={s.cookRecipeTitle} numberOfLines={1}>{recipe.title}</Text>
+                <Pressable onPress={() => setCookMode(false)} style={s.cookClose} accessibilityLabel="Avsluta">
+                  <Ionicons name="close" size={24} color="#9ca3af" />
+                </Pressable>
+              </View>
+              <View style={s.cookProgress}>
+                {steps.map((_, i) => (
+                  <View key={i} style={[s.cookDot, i === cookStep && s.cookDotActive]} />
+                ))}
+              </View>
+              <View style={s.cookBody}>
+                <Text style={s.cookStepLabel}>Steg {cookStep + 1} av {steps.length}</Text>
+                <Text style={s.cookStepText}>{step}</Text>
+              </View>
+              <View style={s.cookNav}>
+                <Pressable
+                  style={[s.cookNavBtn, cookStep === 0 && s.cookNavBtnDisabled]}
+                  onPress={() => setCookStep(p => Math.max(0, p - 1))}
+                  disabled={cookStep === 0}
+                >
+                  <Ionicons name="arrow-back" size={20} color={cookStep === 0 ? '#d1d5db' : '#111827'} />
+                  <Text style={[s.cookNavText, cookStep === 0 && { color: '#d1d5db' }]}>Föregående</Text>
+                </Pressable>
+                {cookStep < steps.length - 1 ? (
+                  <Pressable style={s.cookNavBtnPrimary} onPress={() => setCookStep(p => p + 1)}>
+                    <Text style={s.cookNavTextPrimary}>Nästa</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#fff" />
+                  </Pressable>
+                ) : (
+                  <Pressable style={s.cookNavBtnPrimary} onPress={() => setCookMode(false)}>
+                    <Ionicons name="checkmark" size={20} color="#fff" />
+                    <Text style={s.cookNavTextPrimary}>Klart!</Text>
+                  </Pressable>
+                )}
+              </View>
+            </SafeAreaView>
+          </Modal>
+        );
+      })() : null}
+
     </SafeAreaView>
   );
+}
+
+function parseSteps(instructions: string): string[] {
+  const lines = instructions.split(/\n+/).map(l => l.trim()).filter(Boolean);
+  if (lines.length <= 1) return [instructions.trim()];
+  return lines.map(l => l.replace(/^\d+[.)]\s*/, ''));
 }
 
 function cloudinaryOptimized(url: string, width = 800): string {
@@ -885,6 +950,24 @@ const s = StyleSheet.create({
   instructionsText: { fontSize: 15, color: '#374151', lineHeight: 22 },
   renameSave: { marginTop: 16, backgroundColor: '#4f46e5', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   renameSaveText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  cookBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, backgroundColor: '#eef2ff' },
+  cookBtnText: { fontSize: 13, fontWeight: '600', color: '#4f46e5' },
+  cookContainer: { flex: 1, backgroundColor: '#0f172a' },
+  cookHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
+  cookRecipeTitle: { flex: 1, fontSize: 14, color: '#94a3b8', fontWeight: '500' },
+  cookClose: { padding: 8 },
+  cookProgress: { flexDirection: 'row', gap: 5, paddingHorizontal: 20, marginBottom: 8, flexWrap: 'wrap' },
+  cookDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#334155' },
+  cookDotActive: { backgroundColor: '#818cf8', width: 20 },
+  cookBody: { flex: 1, justifyContent: 'center', paddingHorizontal: 32, gap: 20 },
+  cookStepLabel: { fontSize: 13, fontWeight: '600', color: '#6366f1', textTransform: 'uppercase', letterSpacing: 1 },
+  cookStepText: { fontSize: 22, color: '#f1f5f9', lineHeight: 34, fontWeight: '400' },
+  cookNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16, gap: 12 },
+  cookNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 14, backgroundColor: '#1e293b' },
+  cookNavBtnDisabled: { opacity: 0.35 },
+  cookNavText: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  cookNavBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: '#4f46e5' },
+  cookNavTextPrimary: { fontSize: 15, fontWeight: '700', color: '#fff' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 12 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   sheetSub: { fontSize: 13, color: '#6b7280', marginTop: 2, marginBottom: 8 },
