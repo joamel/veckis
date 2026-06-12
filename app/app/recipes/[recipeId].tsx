@@ -803,10 +803,10 @@ export default function RecipeDetailScreen() {
                   <View key={i} style={[s.cookDot, i === cookStep && s.cookDotActive]} />
                 ))}
               </View>
-              <View style={s.cookBody}>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={s.cookBody} showsVerticalScrollIndicator={false}>
                 <Text style={s.cookStepLabel}>Steg {cookStep + 1} av {steps.length}</Text>
                 <Text style={s.cookStepText}>{step}</Text>
-              </View>
+              </ScrollView>
               <View style={s.cookNav}>
                 <Pressable
                   style={[s.cookNavBtn, cookStep === 0 && s.cookNavBtnDisabled]}
@@ -959,7 +959,7 @@ const s = StyleSheet.create({
   cookProgress: { flexDirection: 'row', gap: 5, paddingHorizontal: 20, marginBottom: 8, flexWrap: 'wrap' },
   cookDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#334155' },
   cookDotActive: { backgroundColor: '#818cf8', width: 20 },
-  cookBody: { flex: 1, justifyContent: 'center', paddingHorizontal: 32, gap: 20 },
+  cookBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 32, gap: 20 },
   cookStepLabel: { fontSize: 13, fontWeight: '600', color: '#6366f1', textTransform: 'uppercase', letterSpacing: 1 },
   cookStepText: { fontSize: 22, color: '#f1f5f9', lineHeight: 34, fontWeight: '400' },
   cookNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16, gap: 12 },

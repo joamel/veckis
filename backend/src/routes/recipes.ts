@@ -252,7 +252,7 @@ JSON-schema:
 {
   "title": "receptnamn (string, null om okänt)",
   "description": "kort beskrivning/ingress om den finns, annars null",
-  "instructions": "tillagningssteg som sammanhängande text eller numrerade steg, null om inga steg finns",
+  "instructions": "tillagningssteg numrerade på separata rader: \"1. Gör X\\n2. Gör Y\\n3. Gör Z\", null om inga steg finns",
   "servings": 4,
   "ingredients": [{ "name": "ingrediensnamn", "quantity": 2.5, "unit": "dl" }]
 }
@@ -262,7 +262,7 @@ Regler:
 - unit ska vara EN av: dl, l, liter, ml, cl, msk, tsk, krm, g, kg, st, knippe, näve, nypa, klyfta — eller null
 - Extrahera ALLA ingredienser och steg du ser, ignorera navigation, annonser och annat sidinnehåll
 - Ingrediensnamn på svenska (översätt om texten är på engelska)
-- instructions: om steg finns, numrera dem "1. ... 2. ..." — annars null`,
+- instructions: om steg finns, ett steg per rad, "1. Förbered X\n2. Stek Y\n3. Servera" — varje steg på egen rad med \n emellan, annars null`,
       messages: [{ role: 'user', content: body.data.text.slice(0, 80000) }],
     });
     const raw = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
