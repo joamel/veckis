@@ -394,7 +394,7 @@ export default function RecipeDetailScreen() {
         ) : (
           <Text style={s.headerTitle} numberOfLines={1}>{recipe.title}</Text>
         )}
-        <Pressable ref={recipeDotsRef} onPress={() => recipeDotsRef.current?.measure((_, __, _w, h, _px, py) => openRecipeActions(py + h))} style={s.transferBtn} accessibilityLabel="Mer">
+        <Pressable ref={recipeDotsRef} onPress={() => recipeDotsRef.current?.measureInWindow((_x, y, _w, h) => openRecipeActions(y + h))} style={s.transferBtn} accessibilityLabel="Mer">
           <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
       </View>

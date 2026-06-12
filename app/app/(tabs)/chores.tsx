@@ -1156,7 +1156,7 @@ export default function ChoresScreen() {
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                   </Pressable>
                   <View style={{ flex: 1 }} />
-                  <Pressable ref={viewChoreDotsRef} onPress={() => viewChoreDotsRef.current?.measure((_, __, _w, h, _px, py) => openChoreActions(c, py + h))} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                  <Pressable ref={viewChoreDotsRef} onPress={() => viewChoreDotsRef.current?.measureInWindow((_x, y, _w, h) => openChoreActions(c, y + h))} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
                     <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
                   </Pressable>
                 </View>
