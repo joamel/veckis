@@ -294,8 +294,6 @@ export default function ChoresScreen() {
   const [newRecurrenceWeekOfMonth, setNewRecurrenceWeekOfMonth] = useState(1);
   const [newMonthDay, setNewMonthDay] = useState(1);
   const [newWeekday, setNewWeekday] = useState<WeekDay>('mon');
-  const [newLastDoneDate, setNewLastDoneDate] = useState<string | null>(null);
-  const [showNewLastDonePicker, setShowNewLastDonePicker] = useState(false);
   const [creating, setCreating] = useState(false);
 
   // Modals
@@ -551,7 +549,6 @@ export default function ChoresScreen() {
     setNewWeekday('mon');
     setNewStartDate(null);
     setNewEndDate(null);
-    setNewLastDoneDate(null);
   }
 
   // Always open a fresh dialog so an abandoned (cancelled) syssla doesn't reappear.
@@ -582,12 +579,7 @@ export default function ChoresScreen() {
         monthlyType: newMonthlyType,
         recurrenceWeekOfMonth: newRecurrenceType === 'monthly' && newMonthlyType === 'weekday_of_month' ? newRecurrenceWeekOfMonth : null,
       });
-      let completions: import('@veckis/shared').ChoreCompletion[] = [];
-      if (newLastDoneDate && chore.recurrenceType !== 'none') {
-        const comp = await client.completeChore(chore.id, null, undefined, newLastDoneDate).catch(() => null);
-        if (comp) completions = [comp];
-      }
-      setChores(prev => prev.some(c => c.id === chore.id) ? prev : [...prev, { ...chore, completions }]);
+      setChores(prev => prev.some(c => c.id === chore.id) ? prev : [...prev, { ...chore, completions: [] }]);
       setShowCreate(false);
       showToast('Syssla skapad');
       resetCreateForm();
@@ -1087,18 +1079,6 @@ export default function ChoresScreen() {
                     </Pressable>
                   )}
                 </View>
-                <Text style={s.label}>Senast gjord (valfritt)</Text>
-                <View style={s.dateRow}>
-                  <Pressable style={[s.dateBtn, newLastDoneDate && s.dateBtnSet]} onPress={() => setShowNewLastDonePicker(true)}>
-                    <Ionicons name="checkmark-circle-outline" size={14} color={newLastDoneDate ? '#4f46e5' : '#9ca3af'} />
-                    <Text style={[s.dateBtnText, newLastDoneDate && s.dateBtnTextSet]}>{newLastDoneDate ?? 'Ej gjord ännu'}</Text>
-                  </Pressable>
-                  {newLastDoneDate && (
-                    <Pressable onPress={() => setNewLastDoneDate(null)} hitSlop={8} accessibilityLabel="Rensa senast gjord">
-                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
-                    </Pressable>
-                  )}
-                </View>
               </>
             )}
 
@@ -1147,7 +1127,6 @@ export default function ChoresScreen() {
 
       <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} minimumDate={isoDateStr(new Date())} />
       <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} minimumDate={newStartDate ?? isoDateStr(new Date())} />
-      <DatePickerModal value={newLastDoneDate} onChange={setNewLastDoneDate} onClose={() => setShowNewLastDonePicker(false)} title="Senast gjord" visible={showNewLastDonePicker} maximumDate={isoDateStr(new Date())} />
       <DatePickerModal value={editStartDate} onChange={setEditStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} minimumDate={isoDateStr(new Date())} />
       <DatePickerModal value={editEndDate} onChange={setEditEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} minimumDate={editStartDate ?? isoDateStr(new Date())} />
 

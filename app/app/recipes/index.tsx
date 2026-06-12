@@ -142,10 +142,12 @@ export default function RecipesScreen() {
   }, [recipes, searchQuery, sortMode]);
 
   // New recipe form
-  const [mode, setMode] = useState<'manual' | 'url' | 'paste'>('manual');
+  const [mode, setMode] = useState<'manual' | 'url'>('manual');
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [pasteText, setPasteText] = useState('');
+  const [showPaste, setShowPaste] = useState(false);
+  const [parsing, setParsing] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -226,50 +228,33 @@ export default function RecipesScreen() {
     }
   }
 
-  function parseIngredientText(text: string): { name: string; quantity: number | null; unit: string | null }[] {
-    const KNOWN_UNITS = ['dl', 'l', 'liter', 'ml', 'cl', 'msk', 'tsk', 'krm', 'g', 'kg', 'st', 'mätare', 'burk', 'förpackning', 'paket', 'port', 'skiva', 'skivor', 'bit', 'bitar', 'knippe', 'knippen', 'näve', 'nypa', 'nypor', 'klyfta', 'klyftor'];
-    const unitPattern = new RegExp(`^(${KNOWN_UNITS.join('|')})\\b\\.?\\s*`, 'i');
-    return text.split('\n').map(l => l.trim()).filter(l => /[a-zåäöA-ZÅÄÖ]/.test(l)).flatMap(line => {
-      const clean = line.replace(/^[-–—•*\d+\.]+\s*/, m => /^\d/.test(m) ? m : '').trim();
-      const qtyMatch = clean.match(/^(\d+(?:[,.]\d+)?(?:\s*\/\s*\d+)?)\s+(.+)$/);
-      let qty: number | null = null;
-      let unit: string | null = null;
-      let name = clean;
-      if (qtyMatch) {
-        const qStr = qtyMatch[1].replace(',', '.').replace(/\s/g, '');
-        if (qStr.includes('/')) { const [n, d] = qStr.split('/').map(Number); qty = n / d; }
-        else qty = parseFloat(qStr);
-        if (isNaN(qty)) qty = null;
-        const rest = qtyMatch[2].trim();
-        const um = rest.match(unitPattern);
-        if (um) { unit = um[1].toLowerCase(); name = rest.slice(um[0].length).trim(); }
-        else name = rest;
-      }
-      name = name.replace(/^[-–—•*]\s*/, '').trim();
-      return name ? [{ name, quantity: qty, unit }] : [];
-    });
-  }
-
-  async function handlePaste() {
-    if (!householdId || !title.trim()) return;
-    setCreating(true);
+  async function handleParseAndCreate() {
+    if (!householdId) return;
+    setParsing(true);
     try {
-      const ingredients = parseIngredientText(pasteText);
+      const parsed = await client.parseRecipeText(pasteText.trim());
+      const usedTitle = title.trim() || parsed.title;
+      setCreating(true);
       const recipe = await client.createRecipe({
         householdId,
-        title: title.trim(),
-        ingredients,
+        title: usedTitle,
+        description: parsed.description,
+        instructions: parsed.instructions,
+        servings: parsed.servings,
+        ingredients: parsed.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
       });
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
       setShowModal(false);
       setTitle('');
       setPasteText('');
+      setShowPaste(false);
       const forMenuDay = params.forMenuDay;
       const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
-      router.push(`/recipes/${recipe.id}${ingredients.length > 0 ? '' : '?edit=1'}${suffix}` as never);
-    } catch {
-      confirm({ title: 'Fel', message: 'Kunde inte skapa recept', buttons: [{ label: 'OK' }] });
+      router.push(`/recipes/${recipe.id}${parsed.ingredients.length === 0 ? '?edit=1' : ''}${suffix}` as never);
+    } catch (err) {
+      confirm({ title: 'Fel', message: err instanceof Error ? err.message : 'Kunde inte tolka receptet', buttons: [{ label: 'OK' }] });
     } finally {
+      setParsing(false);
       setCreating(false);
     }
   }
@@ -444,9 +429,9 @@ export default function RecipesScreen() {
         </Pressable>
       )}
 
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setPasteText(''); }}>
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setPasteText(''); setShowPaste(false); }}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => { setShowModal(false); setPasteText(''); }} />
+        <Pressable style={s.overlay} onPress={() => { setShowModal(false); setPasteText(''); setShowPaste(false); }} />
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
@@ -455,9 +440,6 @@ export default function RecipesScreen() {
           <View style={s.modeTabs}>
             <Pressable style={[s.modeTab, mode === 'manual' && s.modeTabActive]} onPress={() => setMode('manual')}>
               <Text style={[s.modeTabText, mode === 'manual' && s.modeTabTextActive]}>Manuellt</Text>
-            </Pressable>
-            <Pressable style={[s.modeTab, mode === 'paste' && s.modeTabActive]} onPress={() => setMode('paste')}>
-              <Text style={[s.modeTabText, mode === 'paste' && s.modeTabTextActive]}>Klistra in</Text>
             </Pressable>
             <Pressable style={[s.modeTab, mode === 'url' && s.modeTabActive]} onPress={() => setMode('url')}>
               <Text style={[s.modeTabText, mode === 'url' && s.modeTabTextActive]}>Från URL</Text>
@@ -468,51 +450,50 @@ export default function RecipesScreen() {
             <>
               <TextInput
                 style={s.input}
-                placeholder="Receptets namn"
+                placeholder="Receptets namn (valfritt om du klistrar in)"
                 placeholderTextColor="#9ca3af"
                 value={title}
                 onChangeText={setTitle}
-                autoFocus
+                autoFocus={!showPaste}
                 returnKeyType="done"
-                onSubmitEditing={handleCreateManual}
+                onSubmitEditing={showPaste ? undefined : handleCreateManual}
               />
-              <Text style={s.createHint}>Du fyller i beskrivning, ingredienser och instruktioner i nästa steg.</Text>
-              <Pressable
-                style={[s.button, !title.trim() && s.buttonDisabled]}
-                onPress={handleCreateManual}
-                disabled={creating || !title.trim()}
-              >
-                {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Skapa recept</Text>}
+              <Pressable style={s.pasteToggle} onPress={() => { setShowPaste(p => !p); setPasteText(''); }}>
+                <Ionicons name={showPaste ? 'chevron-down' : 'clipboard-outline'} size={14} color="#6b7280" />
+                <Text style={s.pasteToggleText}>{showPaste ? 'Dölj recepttext' : 'Klistra in recepttext (AI tolkar)'}</Text>
               </Pressable>
-            </>
-          ) : mode === 'paste' ? (
-            <>
-              <TextInput
-                style={s.input}
-                placeholder="Receptets namn"
-                placeholderTextColor="#9ca3af"
-                value={title}
-                onChangeText={setTitle}
-                autoFocus
-                returnKeyType="next"
-              />
-              <TextInput
-                style={[s.input, { height: 140, textAlignVertical: 'top', paddingTop: 10 }]}
-                placeholder={"Klistra in ingredienslistan här\n\nT.ex.:\n2 dl mjöl\n1 ägg\n200 g smör"}
-                placeholderTextColor="#9ca3af"
-                value={pasteText}
-                onChangeText={setPasteText}
-                multiline
-                scrollEnabled
-              />
-              <Text style={s.createHint}>Ingredienser parsas automatiskt från texten. Du kan justera dem i nästa steg.</Text>
-              <Pressable
-                style={[s.button, !title.trim() && s.buttonDisabled]}
-                onPress={handlePaste}
-                disabled={creating || !title.trim()}
-              >
-                {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Skapa recept</Text>}
-              </Pressable>
+              {showPaste ? (
+                <>
+                  <TextInput
+                    style={[s.input, { height: 160, textAlignVertical: 'top', paddingTop: 10 }]}
+                    placeholder={"Klistra in recept, ingredienslista eller hela receptsidan här — AI:n plockar ut titel, ingredienser och tillvägagångssätt automatiskt."}
+                    placeholderTextColor="#9ca3af"
+                    value={pasteText}
+                    onChangeText={setPasteText}
+                    multiline
+                    scrollEnabled
+                    autoFocus
+                  />
+                  <Pressable
+                    style={[s.button, !pasteText.trim() && s.buttonDisabled]}
+                    onPress={handleParseAndCreate}
+                    disabled={parsing || creating || !pasteText.trim()}
+                  >
+                    {parsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Tolka och skapa recept</Text>}
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Text style={s.createHint}>Du fyller i beskrivning, ingredienser och instruktioner i nästa steg.</Text>
+                  <Pressable
+                    style={[s.button, !title.trim() && s.buttonDisabled]}
+                    onPress={handleCreateManual}
+                    disabled={creating || !title.trim()}
+                  >
+                    {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Skapa recept</Text>}
+                  </Pressable>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -641,6 +622,8 @@ const s = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#f9fafb' },
   createHint: { fontSize: 13, color: '#9ca3af', marginTop: -4 },
   urlHint: { fontSize: 12, color: '#9ca3af', marginTop: -6 },
+  pasteToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, marginBottom: 4 },
+  pasteToggleText: { fontSize: 13, color: '#6b7280' },
   button: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
