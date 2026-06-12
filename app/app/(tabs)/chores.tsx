@@ -227,6 +227,7 @@ export default function ChoresScreen() {
   // när användaren faktiskt fäller ut en återkommande syssla (där historiken
   // syns) istället för passivt vid fokus.
   const wrapExpandTip = useFirstActionTip('seen-forgiving-tip');
+  const wrapChoreAddTip = useFirstActionTip('seen-chores-add-tip');
   // Rotation-tipset fyrar när användaren för första gången har 2+ medlemmar
   // valda i editorn — då dyker rotation-toggle:n upp och behöver förklaras.
   const rotationTip = useOnceFlag('seen-rotation-toggle-tip');
@@ -942,7 +943,7 @@ export default function ChoresScreen() {
         }}
       />
 
-      <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={openCreate}>
+      <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={wrapChoreAddTip(openCreate, { title: 'Skapa syssla', message: 'Här lägger du till en återkommande syssla — välj frekvens (dagligen, veckovis, månadsvis), vem som ska göra den och om ni ska turas om automatiskt.' })}>
         <Ionicons name="add" size={fs(30)} color="#fff" />
       </Pressable>
 

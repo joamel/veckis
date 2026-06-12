@@ -406,7 +406,7 @@
 - [x] Avcheckad återkommande syssla (den 1a varje månad) visar samma datum som varit som nästa
 - [x] Datum står som valfritt men har man väl valt ett datum kan man inte ta bort det: ×-knapp dyker upp till höger om datumknappen när datum är satt (gäller alla 4 kombinationer: skapa/redigera × engång/startdatum)
 - [x] Rensa avklarade återkommande sysslor — "Rensa"-knapp i sysslo-headern raderar engångssysslor + nollställer avbockade återkommande (uncomplete) i samma operation med confirm-dialog som räknar upp exakt vad som rensas
-- [ ] Saknas en "första gången"-knapp som finns i andra flikar
+- [x] Saknas en "första gången"-knapp som finns i andra flikar: `wrapChoreAddTip` (seen-chores-add-tip) lagt till på sysslors FAB — förklarar frekvens, tilldelning och rotation vid första trycket
 
 
 ---
