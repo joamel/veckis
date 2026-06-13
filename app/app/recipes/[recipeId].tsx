@@ -128,7 +128,7 @@ export default function RecipeDetailScreen() {
     if (!recipe || recipe.ingredients.length === 0) return;
     const shown = showTip({
       title: 'Lägg ingredienser i inköpslistan',
-      message: 'Kundvagnen längst ned till höger låter dig välja ingredienser och skicka dem direkt till en inköpslista — utan att gå via veckomenyn.',
+      message: '"Lägg i lista"-knappen bredvid Ingredienser låter dig välja vad du vill ha och skicka det direkt till en inköpslista.',
       targetRef: recipeCartRef,
     });
     if (shown) { recipeCartTipShownRef.current = true; recipeCartTip.markSeen(); }
@@ -516,6 +516,12 @@ export default function RecipeDetailScreen() {
         <View style={s.section}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>Ingredienser</Text>
+            {!editMode && recipe.ingredients.length > 0 && (
+              <Pressable ref={recipeCartRef} style={s.cookBtn} onPress={() => openTransfer()} accessibilityLabel="Lägg i inköpslista">
+                <Ionicons name="cart-outline" size={14} color="#4f46e5" />
+                <Text style={s.cookBtnText}>Lägg i lista</Text>
+              </Pressable>
+            )}
           </View>
 
           {editMode ? (
@@ -685,13 +691,6 @@ export default function RecipeDetailScreen() {
           <View style={s.section}>
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>Instruktioner</Text>
-              <Pressable
-                style={s.cookBtn}
-                onPress={() => { setCookStep(0); setCookMode(true); }}
-              >
-                <Ionicons name="restaurant-outline" size={14} color="#4f46e5" />
-                <Text style={s.cookBtnText}>Laga nu</Text>
-              </Pressable>
             </View>
             <Text style={s.instructionsText}>{recipe.instructions}</Text>
           </View>
@@ -778,10 +777,10 @@ export default function RecipeDetailScreen() {
         </View>
       </Modal>
 
-      {/* Kundvagn-FAB — överför ingredienser till inköpslista (likt andra flikar) */}
-      {!editMode && (
-        <Pressable ref={recipeCartRef} style={s.fab} onPress={() => openTransfer()} accessibilityLabel="Lägg ingredienser i inköpslista">
-          <Ionicons name="cart-outline" size={26} color="#fff" />
+      {/* Laga nu-FAB — fastnålad nere till höger när instruktioner finns */}
+      {!editMode && recipe?.instructions && (
+        <Pressable style={s.fab} onPress={() => { setCookStep(0); setCookMode(true); }} accessibilityLabel="Laga nu">
+          <Ionicons name="restaurant-outline" size={26} color="#fff" />
         </Pressable>
       )}
 
@@ -804,6 +803,18 @@ export default function RecipeDetailScreen() {
                 ))}
               </View>
               <ScrollView style={{ flex: 1 }} contentContainerStyle={s.cookBody} showsVerticalScrollIndicator={false}>
+                {recipe.ingredients.length > 0 && (
+                  <View style={s.cookIngredients}>
+                    {recipe.ingredients.map(ing => (
+                      <Text key={ing.id} style={s.cookIngredient}>
+                        {ing.quantity != null && ing.quantity !== 1 || ing.unit
+                          ? `${ing.quantity != null ? ing.quantity : ''}${ing.unit ? ' ' + ing.unit : ''} `.trimStart()
+                          : ''}
+                        {ing.name}
+                      </Text>
+                    ))}
+                  </View>
+                )}
                 <Text style={s.cookStepLabel}>Steg {cookStep + 1} av {steps.length}</Text>
                 <Text style={s.cookStepText}>{step}</Text>
               </ScrollView>
@@ -960,6 +971,8 @@ const s = StyleSheet.create({
   cookDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#334155' },
   cookDotActive: { backgroundColor: '#818cf8', width: 20 },
   cookBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 32, gap: 20 },
+  cookIngredients: { borderRadius: 10, backgroundColor: '#1e293b', paddingHorizontal: 14, paddingVertical: 10, gap: 4 },
+  cookIngredient: { fontSize: 13, color: '#94a3b8', lineHeight: 20 },
   cookStepLabel: { fontSize: 13, fontWeight: '600', color: '#6366f1', textTransform: 'uppercase', letterSpacing: 1 },
   cookStepText: { fontSize: 22, color: '#f1f5f9', lineHeight: 34, fontWeight: '400' },
   cookNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16, gap: 12 },
