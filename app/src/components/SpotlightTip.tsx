@@ -169,18 +169,12 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
       {/* Tap outside the card dismisses (covers full screen, behind the card). */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
       <View style={[s.card, { top: callout, left: 20, right: 20, maxHeight: screen.height * 0.7 }]}>
-        {/* Toprad: position-pill + nästa-pil */}
+        {/* Toprad: position-pill */}
         {total && total > 1 ? (
           <View style={s.topRow}>
             <View style={s.positionPill}>
               <Text style={s.positionText}>{position} av {total}</Text>
             </View>
-            {hasNext ? (
-              <Pressable onPress={onDismiss} style={s.nextBtn} hitSlop={10} accessibilityLabel="Nästa tips">
-                <Text style={s.nextBtnText}>Nästa</Text>
-                <Ionicons name="arrow-forward" size={13} color="#7c3aed" />
-              </Pressable>
-            ) : null}
           </View>
         ) : null}
 
@@ -193,20 +187,19 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
           {message ? <Text style={s.message}>{message}</Text> : null}
         </ScrollView>
 
-        <Pressable style={s.btn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel={actionLabel}>
-          <Text style={s.btnText}>{actionLabel}</Text>
+        <Pressable style={s.btn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel={hasNext ? 'Nästa' : actionLabel}>
+          <Text style={s.btnText}>{hasNext ? 'Nästa' : actionLabel}</Text>
         </Pressable>
 
         {onToggleSkipAll ? (
-          <Pressable style={s.skipRow} onPress={onToggleSkipAll} hitSlop={6}>
+          <Pressable style={s.skipRow} onPress={onToggleSkipAll}>
+            <Ionicons name="bulb-outline" size={16} color="#7c3aed" />
+            <Text style={s.skipText}>Visa onboarding-tips</Text>
             <Ionicons
-              name={skipAllActive ? 'eye-outline' : 'eye-off-outline'}
-              size={14}
-              color="#9ca3af"
+              name={skipAllActive ? 'toggle-outline' : 'toggle'}
+              size={24}
+              color={skipAllActive ? '#9ca3af' : '#7c3aed'}
             />
-            <Text style={s.skipText}>
-              {skipAllActive ? 'Tips avstängda — slå på' : 'Stäng av onboarding-tips'}
-            </Text>
           </Pressable>
         ) : null}
       </View>
@@ -414,11 +407,9 @@ const s = StyleSheet.create({
   message: { fontSize: 14, color: '#374151', marginBottom: 14, textAlign: 'center', lineHeight: 20 },
   btn: { backgroundColor: '#4f46e5', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  positionPill: { backgroundColor: '#ede9fe', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  topRow: { marginBottom: 10 },
+  positionPill: { alignSelf: 'flex-start', backgroundColor: '#ede9fe', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   positionText: { fontSize: 12, fontWeight: '700', color: '#6d28d9' },
-  nextBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 'auto' as any },
-  nextBtnText: { fontSize: 12, fontWeight: '600', color: '#7c3aed' },
-  skipRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 10, paddingVertical: 4 },
-  skipText: { fontSize: 12, color: '#9ca3af' },
+  skipRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  skipText: { flex: 1, fontSize: 14, fontWeight: '500', color: '#111827' },
 });
