@@ -96,6 +96,9 @@ export default function MenuScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string; replaceMenuItemId?: string; forMenuWeek?: string }>();
   const addRecipeTriggeredRef = useRef(false);
+  // Always current — updated in render so it's available when useFocusEffect fires.
+  const incomingAddRecipeRef = useRef(params.addRecipeId);
+  incomingAddRecipeRef.current = params.addRecipeId;
   const bulkTransferTriggeredRef = useRef(false);
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
@@ -526,7 +529,15 @@ export default function MenuScreen() {
     }
   }, [householdId, weekYear, weekNumber]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    // When returning from the recipe picker (addRecipeId present), state is intact
+    // from before navigation — skip load() to avoid a FlatList re-render that would
+    // race with the addRecipeId effect's optimistic insert and wipe it from state.
+    // loadedWeekRef guards the "first mount" case: if no data has ever been loaded
+    // we always load, regardless of addRecipeId.
+    if (incomingAddRecipeRef.current && loadedWeekRef.current) return;
+    load();
+  }, [load]));
   // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
   // transfer filters stay in sync (e.g. after clearing/removing items in a list).
   useEffect(() => onShoppingChanged(load), [load]);
@@ -621,8 +632,13 @@ export default function MenuScreen() {
   // Live menu updates: another device added/removed/moved a meal. load() refreshes
   // both the visible week and the allMenus snapshot that feeds neighbour pages.
   const menuReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Count of our own pending menu mutations. Each local mutation increments this
+  // before the API call; the socket echo decrements it and skips the reload so
+  // we don't get a FlatList re-render from our own broadcast.
+  const suppressMenuReloadRef = useRef(0);
   useHouseholdSocket(householdId, getToken, (msg) => {
     if (msg.type !== 'menu_updated') return;
+    if (suppressMenuReloadRef.current > 0) { suppressMenuReloadRef.current -= 1; return; }
     if (menuReloadTimer.current) clearTimeout(menuReloadTimer.current);
     menuReloadTimer.current = setTimeout(() => { load(); }, 350);
   });
@@ -814,6 +830,7 @@ export default function MenuScreen() {
       const day = replaceTarget.day;
       const oldId = replaceTarget.id;
       try {
+        suppressMenuReloadRef.current += 2; // delete + add — set before any calls so both socket echos are caught
         await client.deleteWeekMenuItem(oldId);
         const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
         setMenuItems(prev => prev.filter(i => i.id !== oldId).concat(item));
@@ -870,6 +887,7 @@ export default function MenuScreen() {
     } as WeekMenuItemWithRecipe;
     setMenuItems(prev => [...prev, optimistic]);
     try {
+      suppressMenuReloadRef.current += 1;
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
       setMenuItems(prev => prev.map(m => m.id === tempId ? item : m));
       showToast('Recept tillagd till menyn');
@@ -907,6 +925,7 @@ export default function MenuScreen() {
     setTimeout(async () => {
       if (cancelled) return;
       try {
+        suppressMenuReloadRef.current += 1;
         await client.deleteWeekMenuItem(item.id);
         const linked = recipeListMap[item.id] ?? [];
         if (linked.length > 0) await executeCleanup(item, linked.map(l => l.listId));
@@ -1133,6 +1152,7 @@ export default function MenuScreen() {
       if (!confirmed) return;
     }
     setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, day } : i));
+    suppressMenuReloadRef.current += 1;
     try {
       const updated = await client.updateWeekMenuItem(item.id, { day });
       setMenuItems(prev => prev.map(i => i.id === updated.id ? updated : i));

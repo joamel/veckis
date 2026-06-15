@@ -15,9 +15,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@clerk/clerk-expo';
 import * as SecureStore from '../../src/lib/secureStorage';
 import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
@@ -42,6 +44,7 @@ export default function RecipesScreen() {
   const createTriggeredRef = useRef(false);
   const client = useApiClient();
   const { householdId } = useHousehold();
+  const { getToken } = useAuth();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
   // Sort-tipset togs bort (#11 backloggen) — det fyrade bara om recept fanns,
@@ -68,15 +71,35 @@ export default function RecipesScreen() {
   // Quick "add to menu" from the recipe list.
   const [addToMenuFor, setAddToMenuFor] = useState<RecipeWithIngredients | null>(null);
   const [addToMenuWeekStr, setAddToMenuWeekStr] = useState('');
+  const [addToMenuWeekItems, setAddToMenuWeekItems] = useState<WeekMenuItemWithRecipe[]>([]);
   const [weekMenu, setWeekMenu] = useState<WeekMenuItemWithRecipe[]>([]);
+
+  useEffect(() => {
+    if (!addToMenuWeekStr || !householdId || !addToMenuFor) {
+      setAddToMenuWeekItems([]);
+      return;
+    }
+    let stale = false;
+    const [y, w] = addToMenuWeekStr.split('-').map(Number);
+    client.getWeekMenu(householdId, y, w)
+      .then(items => { if (!stale) setAddToMenuWeekItems(items); })
+      .catch(() => { if (!stale) setAddToMenuWeekItems([]); });
+    return () => { stale = true; };
+  }, [addToMenuWeekStr, addToMenuFor, householdId]);
+
+  useHouseholdSocket(householdId, getToken, (msg) => {
+    if (msg.type !== 'menu_updated') return;
+    if (!addToMenuFor || !addToMenuWeekStr) return;
+    const [y, w] = addToMenuWeekStr.split('-').map(Number);
+    if (msg.data.weekYear === y && msg.data.weekNumber === w) {
+      client.getWeekMenu(householdId!, y, w).then(setAddToMenuWeekItems).catch(() => {});
+    }
+  });
 
   function addRecipeToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
     setAddToMenuFor(null);
     if (!householdId) return;
-    const todayW = getISOWeek(new Date());
-    const [selY, selW] = addToMenuWeekStr.split('-').map(Number);
-    const isCurrentWeek = selY === todayW.weekYear && selW === todayW.weekNumber;
-    if (day && isCurrentWeek && weekMenu.some(m => m.day === day)) {
+    if (day && addToMenuWeekItems.some(m => m.day === day)) {
       const label = MENU_DAYS.find(d => d.key === day)?.label;
       confirm({
         title: 'Dag redan planerad',
@@ -99,6 +122,7 @@ export default function RecipesScreen() {
     try {
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
       setWeekMenu(prev => [...prev, item]);
+      setAddToMenuWeekItems(prev => [...prev, item]);
       const dayLabel = day ? MENU_DAYS.find(d => d.key === day)?.label.toLowerCase() : null;
       const todayW = getISOWeek(new Date());
       const weekLabel = weekYear === todayW.weekYear && weekNumber === todayW.weekNumber ? 'denna vecka' : `v.${weekNumber}`;
@@ -573,10 +597,7 @@ export default function RecipesScreen() {
 
           <View style={s.dayGrid}>
             {MENU_DAYS.map(d => {
-              const todayW = getISOWeek(new Date());
-              const [selY, selW] = addToMenuWeekStr.split('-').map(Number);
-              const isCurrentWeek = selY === todayW.weekYear && selW === todayW.weekNumber;
-              const taken = isCurrentWeek && weekMenu.some(m => m.day === d.key);
+              const taken = addToMenuWeekItems.some(m => m.day === d.key);
               return (
                 <Pressable
                   key={d.key}

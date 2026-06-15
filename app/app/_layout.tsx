@@ -118,7 +118,7 @@ function NavigationGuard() {
       <VersionBanner />
       <WakeupIndicator />
       <OfflineBanner />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#f9fafb' } }} />
       <WelcomeModal
         visible={welcomeState === 'show'}
         onContinue={markWelcomeSeen}
