@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -21,7 +22,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { EmptyState } from '../../src/components/EmptyState';
-import { getISOWeek } from '../../src/lib/week';
+import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 
@@ -64,14 +65,18 @@ export default function RecipesScreen() {
     setShowSort(false);
     SecureStore.setItemAsync('recipeSort', m).catch(() => {});
   }
-  // Quick "add to this week's menu" from the recipe list.
+  // Quick "add to menu" from the recipe list.
   const [addToMenuFor, setAddToMenuFor] = useState<RecipeWithIngredients | null>(null);
+  const [addToMenuWeekStr, setAddToMenuWeekStr] = useState('');
   const [weekMenu, setWeekMenu] = useState<WeekMenuItemWithRecipe[]>([]);
 
   function addRecipeToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
     setAddToMenuFor(null);
     if (!householdId) return;
-    if (day && weekMenu.some(m => m.day === day)) {
+    const todayW = getISOWeek(new Date());
+    const [selY, selW] = addToMenuWeekStr.split('-').map(Number);
+    const isCurrentWeek = selY === todayW.weekYear && selW === todayW.weekNumber;
+    if (day && isCurrentWeek && weekMenu.some(m => m.day === day)) {
       const label = MENU_DAYS.find(d => d.key === day)?.label;
       confirm({
         title: 'Dag redan planerad',
@@ -88,12 +93,16 @@ export default function RecipesScreen() {
 
   async function doAddToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
     if (!householdId) return;
-    const { weekYear, weekNumber } = getISOWeek(new Date());
+    const [weekYear, weekNumber] = addToMenuWeekStr
+      ? addToMenuWeekStr.split('-').map(Number)
+      : [getISOWeek(new Date()).weekYear, getISOWeek(new Date()).weekNumber];
     try {
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
       setWeekMenu(prev => [...prev, item]);
       const dayLabel = day ? MENU_DAYS.find(d => d.key === day)?.label.toLowerCase() : null;
-      showToast(dayLabel ? `${recipe.title} tillagd på ${dayLabel} (denna vecka)` : `${recipe.title} tillagd i menyn`, 'success');
+      const todayW = getISOWeek(new Date());
+      const weekLabel = weekYear === todayW.weekYear && weekNumber === todayW.weekNumber ? 'denna vecka' : `v.${weekNumber}`;
+      showToast(dayLabel ? `${recipe.title} tillagd på ${dayLabel} (${weekLabel})` : `${recipe.title} tillagd i menyn (${weekLabel})`, 'success');
     } catch (e) {
       showError(e, 'Kunde inte lägga till i menyn');
     }
@@ -384,7 +393,11 @@ export default function RecipesScreen() {
               {selectionMode ? (
                 <Ionicons name="add-circle" size={22} color="#4f46e5" />
               ) : !editMode && (
-                <Pressable style={s.addMenuBtn} onPress={() => setAddToMenuFor(item)} hitSlop={8} accessibilityLabel="Lägg till i meny">
+                <Pressable style={s.addMenuBtn} onPress={() => {
+                  const { weekYear, weekNumber } = getISOWeek(new Date());
+                  setAddToMenuWeekStr(`${weekYear}-${String(weekNumber).padStart(2, '0')}`);
+                  setAddToMenuFor(item);
+                }} hitSlop={8} accessibilityLabel="Lägg till i meny">
                   <Ionicons name="calendar-outline" size={20} color="#4f46e5" />
                 </Pressable>
               )}
@@ -525,17 +538,45 @@ export default function RecipesScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Quick add-to-menu day picker (current week) */}
+      {/* Quick add-to-menu week+day picker */}
       <Modal visible={!!addToMenuFor} transparent animationType="slide" onRequestClose={() => setAddToMenuFor(null)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setAddToMenuFor(null)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Lägg till i meny</Text>
-          <Text style={s.daySheetSub} numberOfLines={2}>{addToMenuFor?.title} · denna vecka</Text>
+          <Text style={s.daySheetSub} numberOfLines={1}>{addToMenuFor?.title}</Text>
+
+          {/* Week chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: -4 }}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
+              {(() => {
+                const todayWeek = getISOWeek(new Date());
+                const thisMonday = getISOWeekMonday(todayWeek.weekYear, todayWeek.weekNumber);
+                return Array.from({ length: 5 }, (_, i) => {
+                  const mon = addWeeks(thisMonday, i);
+                  const { weekYear, weekNumber } = getISOWeek(mon);
+                  const str = `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
+                  const active = addToMenuWeekStr === str;
+                  const label = i === 0 ? `v.${weekNumber} · nu` : `v.${weekNumber}`;
+                  const sub = `${mon.getDate()}/${mon.getMonth() + 1}`;
+                  return (
+                    <Pressable key={str} style={[s.weekChip, active && s.weekChipActive]} onPress={() => setAddToMenuWeekStr(str)}>
+                      <Text style={[s.weekChipText, active && s.weekChipTextActive]}>{label}</Text>
+                      <Text style={[s.weekChipSub, active && s.weekChipSubActive]}>{sub}</Text>
+                    </Pressable>
+                  );
+                });
+              })()}
+            </View>
+          </ScrollView>
+
           <View style={s.dayGrid}>
             {MENU_DAYS.map(d => {
-              const taken = weekMenu.some(m => m.day === d.key);
+              const todayW = getISOWeek(new Date());
+              const [selY, selW] = addToMenuWeekStr.split('-').map(Number);
+              const isCurrentWeek = selY === todayW.weekYear && selW === todayW.weekNumber;
+              const taken = isCurrentWeek && weekMenu.some(m => m.day === d.key);
               return (
                 <Pressable
                   key={d.key}
@@ -631,4 +672,10 @@ const s = StyleSheet.create({
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#111827', borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center' },
+  weekChipActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
+  weekChipText: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  weekChipTextActive: { color: '#4f46e5' },
+  weekChipSub: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+  weekChipSubActive: { color: '#818cf8' },
 });
