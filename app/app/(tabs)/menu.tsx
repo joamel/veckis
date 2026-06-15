@@ -630,7 +630,7 @@ export default function MenuScreen() {
   // the arrows / "Idag" / week-picker scroll the list so they behave exactly
   // like a swipe instead of an instant jump.
   const goToWeek = useCallback((target: number, animated: boolean) => {
-    const clamped = Math.max(0, Math.min(WEEK_SPAN, target));
+    const clamped = Math.max(-WEEK_SPAN, Math.min(WEEK_SPAN, target));
     setWeekOffset(clamped);
     weekListRef.current?.scrollToIndex({ index: clamped + WEEK_SPAN, animated });
   }, []);
@@ -1305,8 +1305,7 @@ export default function MenuScreen() {
       <WeekNav
         weekLabel={weekLabel}
         isCurrentWeek={weekOffset === 0}
-        disablePrev={weekOffset === 0}
-        onPrev={() => goToWeek(Math.max(0, weekOffset - 1), true)}
+        onPrev={() => goToWeek(weekOffset - 1, true)}
         onNext={() => goToWeek(weekOffset + 1, true)}
         onToday={() => goToWeek(0, true)}
         onPickDate={() => setShowWeekPicker(true)}
@@ -1336,8 +1335,7 @@ export default function MenuScreen() {
         onScrollToIndexFailed={() => {}}
         onMomentumScrollEnd={e => {
           const o = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
-          const clamped = Math.max(0, o);
-          if (clamped !== weekOffset) setWeekOffset(clamped);
+          if (o !== weekOffset) setWeekOffset(o);
         }}
         onScroll={Platform.OS === 'web' ? e => {
           const x = e.nativeEvent.contentOffset.x;
@@ -1368,7 +1366,7 @@ export default function MenuScreen() {
 
       {/* Overför-FAB (kundkorg) — visas bara när minst en rätt i veckan inte är
           överförd än; dold annars (✓-taggen på korten visar redan status). */}
-      {!dragState && menuItems.some(m => !recipeListMap[m.id]?.length) && (
+      {!dragState && weekOffset >= 0 && menuItems.some(m => !recipeListMap[m.id]?.length) && (
         <Pressable ref={cartFabRef} style={s.fab} onPress={transferWeekMenu} accessibilityLabel="Överför veckomeny till inköpslista">
           <Ionicons name="cart-outline" size={26} color="#fff" />
         </Pressable>
