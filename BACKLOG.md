@@ -394,7 +394,7 @@
 - [x] Om engångstillfälle borde man inte kunna välja "turas om automatiskt" då det bara händer en gång: `MultiMemberPicker` fick en `rotationAllowed`-prop (false när `recurrenceType === 'none'`) → rotation-raden visas utgråad med förklaringen "Välj en upprepning först — en engångssyssla kan inte turas om". Save-logiken tvingar dessutom `rotation: false` för engångssysslor. + test.
 - [x] Borde kunna välja turordning (om turas om)
 - [x] Kopiera syssla: "Kopiera" i 3-prickar-läsvyn skapar ett utkast med samma titel, frekvens, dagar och tilldelade — undviker att fylla i allt för liknande sysslor
-- [x] Anteckning vid klarmarkering av syssla: note-fältet finns redan i ChoreCompletion-schemat, UI saknas — kort fritext vid avbockning visas i historiken (t.ex. "behöver nytt rengöringsmedel")
+- [x] Anteckning vid klarmarkering av syssla: borttagen — upplevdes som överflödig och irriterande (note-fältet finns kvar i schemat för framtida bruk)
 - [x] 3-prickar-menyn i sysslor och kalender visas nu uppe till höger (fade-popup-card) istället för som bottom sheet — `variant: 'menu'` i `ConfirmDialog`, same top-right position på alla ställen
 - [x] 3-prickar-menyn positioneras i övre höger hörnet (top:0, right:0) — samma position som inköpslistans actionsMenu; measureInWindow-ansatsen avvecklades (insets.top returnerade fel värde inuti Modal på Android); alla 4 call sites (schedule, chores, recipes, stores) förenklade till direktanrop utan ref/mätning.
 - [x] Klarmarkera återkommande syssla → delat kort: avbockad syssla visas överstruken längst ned (kan ångras) + ett "uppkommande"-kort med nästa datum dyker upp bland de aktiva. Sorteras rätt efter nästa datum.

@@ -330,30 +330,6 @@ export default function ChoresScreen() {
   const [editWeekday, setEditWeekday] = useState<WeekDay>('mon');
   const [saving, setSaving] = useState(false);
 
-  // Note modal — shown after performer is picked, before completing
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [noteInput, setNoteInput] = useState('');
-  const [pendingComplete, setPendingComplete] = useState<((note: string | null) => void) | null>(null);
-
-  function askNote(onConfirm: (note: string | null) => void) {
-    setNoteInput('');
-    setPendingComplete(() => onConfirm);
-    setShowNoteModal(true);
-  }
-
-  function submitNote() {
-    const note = noteInput.trim() || null;
-    setShowNoteModal(false);
-    pendingComplete?.(note);
-    setPendingComplete(null);
-  }
-
-  function skipNote() {
-    setShowNoteModal(false);
-    pendingComplete?.(null);
-    setPendingComplete(null);
-  }
-
   // Date range state
   const [newStartDate, setNewStartDate] = useState<string | null>(null);
   const [newEndDate, setNewEndDate] = useState<string | null>(null);
@@ -922,12 +898,12 @@ export default function ChoresScreen() {
                         if (once) uncompleteChore(item);
                         else uncompleteOccurrence(item, rec!.current!.date);
                       } else if (variant === 'upcoming') {
-                        pickPerformer(item, performer => askNote(note => completeOccurrence(item, rec!.nextDate!, performer, note)));
+                        pickPerformer(item, performer => completeOccurrence(item, rec!.nextDate!, performer, null));
                       } else {
-                        if (once) pickPerformer(item, performer => askNote(note => completeChore(item, performer, note)));
+                        if (once) pickPerformer(item, performer => completeChore(item, performer, null));
                         else {
                           const cur = rec!.current!;
-                          pickPerformer(item, performer => askNote(note => completeOccurrence(item, cur.date, performer, note)));
+                          pickPerformer(item, performer => completeOccurrence(item, cur.date, performer, null));
                         }
                       }
                     }}
@@ -1094,34 +1070,6 @@ export default function ChoresScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Note modal — optional note after marking a chore done */}
-      <Modal visible={showNoteModal} transparent animationType="slide" onRequestClose={skipNote}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={skipNote} />
-        <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
-          <View style={[s.sheet, { paddingBottom: Math.max(16, insets.bottom) }]}>
-            <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Lägg till anteckning</Text>
-            <Text style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>Valfritt — visas i historiken</Text>
-            <TextInput
-              style={[s.input, { minHeight: 72, textAlignVertical: 'top' }]}
-              placeholder="t.ex. behöver nytt rengöringsmedel"
-              placeholderTextColor="#9ca3af"
-              value={noteInput}
-              onChangeText={setNoteInput}
-              autoFocus
-              multiline
-              maxLength={200}
-              returnKeyType="done"
-              blurOnSubmit
-              onSubmitEditing={submitNote}
-            />
-            <Pressable style={[s.button, { marginTop: 8 }]} onPress={submitNote}>
-              <Text style={s.buttonText}>{noteInput.trim() ? 'Spara anteckning' : 'Hoppa över'}</Text>
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
 
       <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} minimumDate={isoDateStr(new Date())} />
       <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} minimumDate={newStartDate ?? isoDateStr(new Date())} />
