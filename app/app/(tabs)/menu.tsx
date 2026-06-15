@@ -656,7 +656,7 @@ export default function MenuScreen() {
     // duplicate checks and optimistic insert run against the wrong week.
     const target = parseWeekParam(params.forMenuWeek);
     if (target && (target.weekYear !== weekYear || target.weekNumber !== weekNumber)) {
-      setWeekOffset(weekOffsetForWeek(target.weekYear, target.weekNumber));
+      goToWeek(weekOffsetForWeek(target.weekYear, target.weekNumber), false);
       return; // re-runs once weekYear/weekNumber match the target
     }
     const lw = loadedWeekRef.current;

@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 
 import { kavBehavior } from '../../src/lib/platform';
+import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
@@ -31,7 +32,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
-import type { RecipeIngredient } from '@veckis/shared';
+import type { RecipeIngredient, WeekDay } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
@@ -153,6 +154,11 @@ export default function RecipeDetailScreen() {
   const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<ReturnType<typeof deduplicateIngredients>>([]);
 
+  // Plan in menu modal
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [planWeekStr, setPlanWeekStr] = useState('');
+  const [planDay, setPlanDay] = useState<WeekDay | null>(null);
+
   // Recipe-cart-tip: visa när receptet är laddat och har ingredienser så
   // kundvagn-FAB:en faktiskt syns och är meningsfull att förklara.
   useEffect(() => {
@@ -223,12 +229,21 @@ export default function RecipeDetailScreen() {
     setScaledServings(prev => Math.max(1, (prev ?? recipe.servings) + delta));
   }
 
+  function openPlanModal() {
+    const todayWeek = getISOWeek(new Date());
+    const defaultWeek = forMenuWeek ?? `${todayWeek.weekYear}-${String(todayWeek.weekNumber).padStart(2, '0')}`;
+    setPlanWeekStr(defaultWeek);
+    setPlanDay(null);
+    setShowPlanModal(true);
+  }
+
   function openRecipeActions() {
     if (!recipe) return;
     confirm({
       title: recipe.title,
       variant: 'menu',
       buttons: [
+        { label: 'Planera i meny', onPress: openPlanModal },
         { label: 'Redigera recept', onPress: startEdit },
         { label: 'Ta bort recept', style: 'destructive', onPress: confirmDeleteRecipe },
         { label: 'Avbryt', style: 'cancel' },
@@ -810,6 +825,74 @@ export default function RecipeDetailScreen() {
         </View>
       </Modal>
 
+      {/* Plan in menu modal */}
+      <Modal visible={showPlanModal} transparent animationType="slide" onRequestClose={() => setShowPlanModal(false)}>
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={() => setShowPlanModal(false)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Planera i meny</Text>
+          <Text style={s.sheetSub}>Välj vecka och dag</Text>
+
+          <Text style={s.planSectionLabel}>Vecka</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
+              {(() => {
+                const todayWeek = getISOWeek(new Date());
+                const thisMonday = getISOWeekMonday(todayWeek.weekYear, todayWeek.weekNumber);
+                return Array.from({ length: 5 }, (_, i) => {
+                  const mon = addWeeks(thisMonday, i);
+                  const { weekYear, weekNumber } = getISOWeek(mon);
+                  const str = `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
+                  const active = planWeekStr === str;
+                  const label = i === 0 ? `v.${weekNumber} · nu` : `v.${weekNumber}`;
+                  const sub = `${mon.getDate()}/${mon.getMonth() + 1}`;
+                  return (
+                    <Pressable key={str} style={[s.planChip, active && s.planChipActive]} onPress={() => setPlanWeekStr(str)}>
+                      <Text style={[s.planChipText, active && s.planChipTextActive]}>{label}</Text>
+                      <Text style={[s.planChipSub, active && s.planChipSubActive]}>{sub}</Text>
+                    </Pressable>
+                  );
+                });
+              })()}
+            </View>
+          </ScrollView>
+
+          <Text style={s.planSectionLabel}>Dag</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
+              {([
+                { label: 'Ingen', value: null },
+                { label: 'Mån', value: 'mon' },
+                { label: 'Tis', value: 'tue' },
+                { label: 'Ons', value: 'wed' },
+                { label: 'Tor', value: 'thu' },
+                { label: 'Fre', value: 'fri' },
+                { label: 'Lör', value: 'sat' },
+                { label: 'Sön', value: 'sun' },
+              ] as { label: string; value: WeekDay | null }[]).map(d => {
+                const active = planDay === d.value;
+                return (
+                  <Pressable key={d.label} style={[s.planChip, active && s.planChipActive]} onPress={() => setPlanDay(d.value)}>
+                    <Text style={[s.planChipText, active && s.planChipTextActive]}>{d.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+
+          <Pressable
+            style={s.saveBtn}
+            onPress={() => {
+              setShowPlanModal(false);
+              router.replace(`/(tabs)/menu?addRecipeId=${recipe!.id}&day=${planDay ?? ''}&forMenuWeek=${planWeekStr}` as never);
+            }}
+          >
+            <Text style={s.saveBtnText}>Lägg till i meny</Text>
+          </Pressable>
+        </View>
+      </Modal>
+
       {/* FAB — Laga nu från kalender, kundkorg från menyn */}
       {!editMode && (
         from === 'calendar'
@@ -1046,4 +1129,11 @@ const s = StyleSheet.create({
   listPicker: {},
   listPickerItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: '#f9fafb', borderRadius: 10, marginBottom: 6 },
   listPickerItemText: { fontSize: 15, fontWeight: '600', color: '#111827', flex: 1 },
+  planSectionLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280', marginBottom: 4 },
+  planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center' },
+  planChipActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
+  planChipText: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  planChipTextActive: { color: '#4f46e5' },
+  planChipSub: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+  planChipSubActive: { color: '#818cf8' },
 });
