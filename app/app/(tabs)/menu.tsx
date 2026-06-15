@@ -1161,7 +1161,7 @@ export default function MenuScreen() {
   // One week's day-sections + unscheduled + transfer button. Only the centre
   // page is interactive (drag-and-drop, drop-zone measuring, edit/transfer);
   // neighbour pages are read-only previews.
-  const renderWeekContent = (weekItems: WeekMenuItemWithRecipe[], weekMon: Date, isCenter: boolean) => {
+  const renderWeekContent = (weekItems: WeekMenuItemWithRecipe[], weekMon: Date, isCenter: boolean, isPastWeek: boolean) => {
     // Stable order (createdAt, then id) so a day's recipes render identically
     // whether they come from the allMenus snapshot or the live menuItems — no
     // reordering "jump" when swiping between weeks.
@@ -1191,7 +1191,7 @@ export default function MenuScreen() {
             >
               {items.length === 0 ? (
                 <Pressable
-                  onPress={isCenter ? (() => openPicker(day.key)) : noop}
+                  onPress={isCenter && !isPastWeek ? (() => openPicker(day.key)) : noop}
                   style={s.daySlotEmptyRow}
                 >
                   <View style={[s.dayLabelBox, s.dayLabelBoxMuted, { width: sp(36), height: sp(36) }]}>
@@ -1199,7 +1199,7 @@ export default function MenuScreen() {
                     <Text style={[s.dayLabelDate, s.dayLabelDateMuted, { fontSize: fs(13) }]}>{dayLabel.date}</Text>
                   </View>
                   <View style={{ flex: 1, alignItems: 'center' }}>
-                    <Ionicons name="add" size={fs(22)} color="#9ca3af" />
+                    {!isPastWeek && <Ionicons name="add" size={fs(22)} color="#9ca3af" />}
                   </View>
                   <View style={{ width: sp(36) }} />
                 </Pressable>
@@ -1212,16 +1212,17 @@ export default function MenuScreen() {
                     collapsedForDrag={dragging}
                     isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
                     isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
-                    onRemove={isCenter ? (() => removeFromMenu(item)) : noop}
+                    isPastWeek={isPastWeek}
+                    onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
                     onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
-                    onMoveToDay={isCenter ? (d => moveToDay(item, d)) : noop}
-                    onReplace={isCenter ? (() => startReplaceRecipe(item)) : noop}
-                    onDragStart={isCenter ? ((x, y) => onDragStart(item, x, y)) : noop}
+                    onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
+                    onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
+                    onDragStart={isCenter && !isPastWeek ? ((x, y) => onDragStart(item, x, y)) : noop}
                     onDragMove={isCenter ? onDragMove : noop}
                     onDragEnd={isCenter ? onDragEnd : noop}
                     isDragging={isCenter && dragState?.item.id === item.id}
                     scaledServings={scaledServingsOf(item)}
-                    onScaleServings={isCenter ? (n => scaleServings(item, n)) : noop}
+                    onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
                   />
                 ))
               )}
@@ -1236,7 +1237,7 @@ export default function MenuScreen() {
         >
           <View style={s.sectionRow}>
             <Text style={s.sectionLabel}>EJ SCHEMALAGDA</Text>
-            {isCenter && (
+            {isCenter && !isPastWeek && (
               <Pressable onPress={() => openPicker(null)}>
                 <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
               </Pressable>
@@ -1252,16 +1253,17 @@ export default function MenuScreen() {
                 collapsedForDrag={isCenter && !!dragState}
                 isTransferred={!!recipeListMap[item.id]?.length}
                 isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
-                onRemove={isCenter ? (() => removeFromMenu(item)) : noop}
+                isPastWeek={isPastWeek}
+                onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
                 onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
-                onMoveToDay={isCenter ? (d => moveToDay(item, d)) : noop}
-                onReplace={isCenter ? (() => startReplaceRecipe(item)) : noop}
-                onDragStart={isCenter ? ((x, y) => onDragStart(item, x, y)) : noop}
+                onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
+                onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
+                onDragStart={isCenter && !isPastWeek ? ((x, y) => onDragStart(item, x, y)) : noop}
                 onDragMove={isCenter ? onDragMove : noop}
                 onDragEnd={isCenter ? onDragEnd : noop}
                 isDragging={isCenter && dragState?.item.id === item.id}
                 scaledServings={scaledServingsOf(item)}
-                onScaleServings={isCenter ? (n => scaleServings(item, n)) : noop}
+                onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
               />
             ))
           )}
@@ -1271,9 +1273,9 @@ export default function MenuScreen() {
           <EmptyState
             icon="restaurant-outline"
             title="Inga rätter planerade"
-            subtitle="Planera veckans måltider så kan ni föra över ingredienserna till inköpslistan."
-            actionLabel="Planera en rätt"
-            onAction={() => openPicker(null)}
+            subtitle={isPastWeek ? 'Inga rätter var planerade denna vecka.' : 'Planera veckans måltider så kan ni föra över ingredienserna till inköpslistan.'}
+            actionLabel={isPastWeek ? undefined : 'Planera en rätt'}
+            onAction={isPastWeek ? undefined : () => openPicker(null)}
           />
         )}
       </>
@@ -1305,6 +1307,7 @@ export default function MenuScreen() {
       <WeekNav
         weekLabel={weekLabel}
         isCurrentWeek={weekOffset === 0}
+        isPastWeek={weekOffset < 0}
         onPrev={() => goToWeek(weekOffset - 1, true)}
         onNext={() => goToWeek(weekOffset + 1, true)}
         onToday={() => goToWeek(0, true)}
@@ -1357,18 +1360,24 @@ export default function MenuScreen() {
               onScroll={isCenter ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }) : undefined}
               scrollEventThrottle={32}
             >
-              {renderWeekContent(weekItemsForOffset(o), getWeekMonday(o), isCenter)}
+              {renderWeekContent(weekItemsForOffset(o), getWeekMonday(o), isCenter, o < 0)}
             </ScrollView>
           );
         }}
       />
 
 
-      {/* Overför-FAB (kundkorg) — visas bara när minst en rätt i veckan inte är
-          överförd än; dold annars (✓-taggen på korten visar redan status). */}
+      {/* Overför-FAB (kundkorg) — visas bara för nuvarande/framtida veckor
+          när minst en rätt inte är överförd än. */}
       {!dragState && weekOffset >= 0 && menuItems.some(m => !recipeListMap[m.id]?.length) && (
         <Pressable ref={cartFabRef} style={s.fab} onPress={transferWeekMenu} accessibilityLabel="Överför veckomeny till inköpslista">
           <Ionicons name="cart-outline" size={26} color="#fff" />
+        </Pressable>
+      )}
+      {/* Mall-FAB — visas för gamla veckor med rätter så de lätt kan sparas som mall */}
+      {!dragState && weekOffset < 0 && menuItems.length > 0 && (
+        <Pressable style={s.fab} onPress={() => setShowTemplates(true)} accessibilityLabel="Spara vecka som mall">
+          <Ionicons name="bookmark-outline" size={24} color="#fff" />
         </Pressable>
       )}
 
@@ -1862,6 +1871,7 @@ function MenuCard({
   item,
   isTransferred,
   isPending,
+  isPastWeek,
   onRemove,
   onViewRecipe,
   onReplace,
@@ -1878,6 +1888,7 @@ function MenuCard({
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
   isPending?: boolean;
+  isPastWeek?: boolean;
   dayLabel?: { abbr: string; date: number };
   onRemove: () => void;
   onViewRecipe: () => void;
@@ -1987,18 +1998,22 @@ function MenuCard({
                   <Ionicons name="open-outline" size={15} color="#6b7280" />
                   <Text style={s.cardActionText}>Visa</Text>
                 </Pressable>
-                <Pressable style={s.cardAction} onPress={onReplace}>
-                  <Ionicons name="swap-horizontal-outline" size={15} color="#6b7280" />
-                  <Text style={s.cardActionText}>Byt ut</Text>
-                </Pressable>
-                <Pressable style={s.cardAction} onPress={onRemove}>
-                  <Ionicons name="trash-outline" size={15} color="#ef4444" />
-                  <Text style={[s.cardActionText, { color: '#ef4444' }]}>Ta bort</Text>
-                </Pressable>
+                {!isPastWeek && (
+                  <Pressable style={s.cardAction} onPress={onReplace}>
+                    <Ionicons name="swap-horizontal-outline" size={15} color="#6b7280" />
+                    <Text style={s.cardActionText}>Byt ut</Text>
+                  </Pressable>
+                )}
+                {!isPastWeek && (
+                  <Pressable style={s.cardAction} onPress={onRemove}>
+                    <Ionicons name="trash-outline" size={15} color="#ef4444" />
+                    <Text style={[s.cardActionText, { color: '#ef4444' }]}>Ta bort</Text>
+                  </Pressable>
+                )}
               </View>
 
               {/* Web saknar drag (touch-action) → flytta via dag-chips i stället */}
-              {isWeb && (
+              {isWeb && !isPastWeek && (
                 <View style={s.moveRow}>
                   <Text style={s.moveLabel}>Flytta till dag</Text>
                   <View style={s.moveChips}>

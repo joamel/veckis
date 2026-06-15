@@ -14,9 +14,10 @@ interface WeekNavProps {
   onToday: () => void;
   onPickDate?: () => void;
   disablePrev?: boolean;
+  isPastWeek?: boolean;
 }
 
-export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onPickDate, disablePrev }: WeekNavProps) {
+export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onPickDate, disablePrev, isPastWeek }: WeekNavProps) {
   const { fs, sp } = useTablet();
   // Ring-target = bara texten "Vecka N", inte hela tryckytan (som är osynlig
   // och spänner över hela raden). #6 från backloggen.
@@ -49,7 +50,7 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
       {/* Rendered first so arrows appear on top of it in touch handling */}
       <Pressable style={s.labelBtn} onPress={onPickDate ?? onToday}>
         <View ref={labelTextRef} collapsable={false}>
-          <Text style={[s.label, { fontSize: fs(14) }, isCurrentWeek && s.labelCurrent]}>{weekLabel}</Text>
+          <Text style={[s.label, { fontSize: fs(14) }, isCurrentWeek && s.labelCurrent, isPastWeek && s.labelPast]}>{weekLabel}</Text>
         </View>
       </Pressable>
       <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={disablePrev ? undefined : onPrev} accessibilityRole="button" accessibilityLabel="Föregående vecka" disabled={disablePrev}>
@@ -81,6 +82,7 @@ const s = StyleSheet.create({
   labelBtn: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingVertical: 4 },
   label: { fontWeight: '600', color: '#4f46e5' },
   labelCurrent: { color: '#4f46e5' },
+  labelPast: { color: '#9ca3af' },
   todayBtn: { backgroundColor: '#4f46e5', borderRadius: 6, marginRight: 16 },
   todayBtnText: { fontWeight: '600', color: '#fff' },
 });
