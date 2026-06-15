@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Dimensions,
   FlatList,
   Image,
@@ -35,7 +36,7 @@ import type { RecipeIngredient } from '@veckis/shared';
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
 export default function RecipeDetailScreen() {
-  const { recipeId, transfer, edit, forMenuDay, forMenuWeek } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string }>();
+  const { recipeId, transfer, edit, forMenuDay, forMenuWeek, from } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string }>();
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -76,6 +77,38 @@ export default function RecipeDetailScreen() {
   const rowRefs = useRef<RowRef[]>([]);
   const mainScrollRef = useRef<ScrollView>(null);
   const scrollOffsetY = useRef(0);
+
+  // Cooking mode ingredient auto-scroll
+  const cookIngredScrollRef = useRef<ScrollView>(null);
+  const cookIngredContentH = useRef(0);
+  const cookIngredAnim = useRef(new Animated.Value(0)).current;
+  const cookModeRef = useRef(false);
+  const cookIngredStarted = useRef(false);
+
+  useEffect(() => {
+    cookModeRef.current = cookMode;
+    if (!cookMode) {
+      cookIngredAnim.stopAnimation();
+      cookIngredAnim.setValue(0);
+      cookIngredStarted.current = false;
+    }
+  }, [cookMode]);
+
+  const startCookIngredAnim = useCallback(() => {
+    if (!cookModeRef.current || cookIngredStarted.current) return;
+    const maxScroll = Math.max(0, cookIngredContentH.current - 130);
+    if (maxScroll <= 0) return;
+    cookIngredStarted.current = true;
+    const listenerId = cookIngredAnim.addListener(({ value }) => {
+      cookIngredScrollRef.current?.scrollTo({ y: value, animated: false });
+    });
+    Animated.timing(cookIngredAnim, {
+      toValue: maxScroll,
+      duration: (maxScroll / 18) * 1000,
+      useNativeDriver: false,
+      easing: (x) => x,
+    }).start(() => cookIngredAnim.removeListener(listenerId));
+  }, []);
 
   const keyboardH = useRef(0);
   useEffect(() => {
@@ -777,11 +810,19 @@ export default function RecipeDetailScreen() {
         </View>
       </Modal>
 
-      {/* Laga nu-FAB — fastnålad nere till höger när instruktioner finns */}
-      {!editMode && recipe?.instructions && (
-        <Pressable style={s.fab} onPress={() => { setCookStep(0); setCookMode(true); }} accessibilityLabel="Laga nu">
-          <Ionicons name="restaurant-outline" size={26} color="#fff" />
-        </Pressable>
+      {/* FAB — Laga nu från kalender, kundkorg från menyn */}
+      {!editMode && (
+        from === 'calendar'
+          ? recipe?.instructions && (
+              <Pressable style={s.fab} onPress={() => { setCookStep(0); setCookMode(true); }} accessibilityLabel="Laga nu">
+                <Ionicons name="restaurant-outline" size={26} color="#fff" />
+              </Pressable>
+            )
+          : recipe?.ingredients && recipe.ingredients.length > 0 && (
+              <Pressable style={s.fab} onPress={() => openTransfer()} accessibilityLabel="Lägg i inköpslista">
+                <Ionicons name="cart-outline" size={26} color="#fff" />
+              </Pressable>
+            )
       )}
 
       {/* Cooking mode */}
@@ -804,16 +845,26 @@ export default function RecipeDetailScreen() {
               </View>
               <ScrollView style={{ flex: 1 }} contentContainerStyle={s.cookBody} showsVerticalScrollIndicator={false}>
                 {recipe.ingredients.length > 0 && (
-                  <View style={s.cookIngredients}>
+                  <ScrollView
+                    ref={cookIngredScrollRef}
+                    style={s.cookIngredWrap}
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled
+                    fadingEdgeLength={20}
+                    scrollEventThrottle={16}
+                    onContentSizeChange={(_, h) => {
+                      cookIngredContentH.current = h;
+                      startCookIngredAnim();
+                    }}
+                    onTouchStart={() => cookIngredAnim.stopAnimation()}
+                    onScrollBeginDrag={() => cookIngredAnim.stopAnimation()}
+                  >
                     {recipe.ingredients.map(ing => (
-                      <Text key={ing.id} style={s.cookIngredient}>
-                        {ing.quantity != null && ing.quantity !== 1 || ing.unit
-                          ? `${ing.quantity != null ? ing.quantity : ''}${ing.unit ? ' ' + ing.unit : ''} `.trimStart()
-                          : ''}
-                        {ing.name}
+                      <Text key={ing.id} style={s.cookIngredItem}>
+                        {formatIngredient(ing, 1)}
                       </Text>
                     ))}
-                  </View>
+                  </ScrollView>
                 )}
                 <Text style={s.cookStepLabel}>Steg {cookStep + 1} av {steps.length}</Text>
                 <Text style={s.cookStepText}>{step}</Text>
@@ -965,15 +1016,15 @@ const s = StyleSheet.create({
   cookBtnText: { fontSize: 13, fontWeight: '600', color: '#4f46e5' },
   cookContainer: { flex: 1, backgroundColor: '#0f172a' },
   cookHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
-  cookRecipeTitle: { flex: 1, fontSize: 14, color: '#94a3b8', fontWeight: '500' },
+  cookRecipeTitle: { flex: 1, fontSize: 19, color: '#e2e8f0', fontWeight: '700' },
   cookClose: { padding: 8 },
   cookProgress: { flexDirection: 'row', gap: 5, paddingHorizontal: 20, marginBottom: 8, flexWrap: 'wrap' },
   cookDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#334155' },
   cookDotActive: { backgroundColor: '#818cf8', width: 20 },
   cookBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 32, gap: 20 },
-  cookIngredients: { borderRadius: 10, backgroundColor: '#1e293b', paddingHorizontal: 14, paddingVertical: 10, gap: 4 },
-  cookIngredient: { fontSize: 13, color: '#94a3b8', lineHeight: 20 },
-  cookStepLabel: { fontSize: 13, fontWeight: '600', color: '#6366f1', textTransform: 'uppercase', letterSpacing: 1 },
+  cookIngredWrap: { maxHeight: 130 },
+  cookIngredItem: { fontSize: 18, color: '#475569', lineHeight: 28, paddingVertical: 1 },
+  cookStepLabel: { fontSize: 17, fontWeight: '700', color: '#818cf8' },
   cookStepText: { fontSize: 22, color: '#f1f5f9', lineHeight: 34, fontWeight: '400' },
   cookNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16, gap: 12 },
   cookNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 14, backgroundColor: '#1e293b' },

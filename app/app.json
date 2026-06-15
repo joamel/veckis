@@ -9,7 +9,7 @@
     "updates": {
       "url": "https://u.expo.dev/37425b58-c8af-45be-aac8-c26bbdfaa3d1"
     },
-    "orientation": "portrait",
+    "orientation": "default",
     "scheme": "veckis",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
@@ -46,6 +46,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-screen-orientation",
       "expo-secure-store",
       "expo-web-browser",
       "expo-notifications",

@@ -46,8 +46,9 @@ describe('Scenario 2 — transfer veckomeny to list with same ingredients/units'
     const groups = planAutoMerge([eA, eB]);
     expect(groups).toHaveLength(1);
     expect(groups[0].ids.sort()).toEqual(['eA', 'eB']);
-    expect(groups[0].totalQty).toBe(3);
-    expect(groups[0].unit).toBe('tsk');
+    // 2 tsk + 1 tsk = 15 ml = 1 msk (combineQuantities normalises to largest unit)
+    expect(groups[0].totalQty).toBe(1);
+    expect(groups[0].unit).toBe('msk');
   });
 });
 
@@ -75,7 +76,8 @@ describe('Scenario 3 — direct recipe transfer to list with same ingredients', 
     const after = [tagged, existing({ id: 'new', quantity: 1 })];
     const groups = planAutoMerge(after);
     expect(groups[0].ids.sort()).toEqual(['new', 'tA']);
-    expect(groups[0].totalQty).toBe(3);
+    // 2 tsk + 1 tsk = 15 ml = 1 msk
+    expect(groups[0].totalQty).toBe(1);
   });
 });
 
@@ -132,10 +134,20 @@ describe('Scenario 6 — extra edge cases', () => {
     expect(planAutoMerge([visible, hidden, checked])).toEqual([]);
   });
 
-  it('different units do NOT merge', () => {
+  it('compatible volume units merge via combineQuantities', () => {
+    const tsk = existing({ id: 'a', unit: 'tsk' });  // 1 tsk = 5 ml
+    const msk = existing({ id: 'b', unit: 'msk' });  // 1 msk = 15 ml → total 20 ml = 1.33 msk
+    const groups = planAutoMerge([tsk, msk]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].ids.sort()).toEqual(['a', 'b']);
+    expect(groups[0].totalQty).toBe(1.33);
+    expect(groups[0].unit).toBe('msk');
+  });
+
+  it('incompatible units (volume vs piece) do NOT merge', () => {
     const tsk = existing({ id: 'a', unit: 'tsk' });
-    const msk = existing({ id: 'b', unit: 'msk' });
-    expect(planAutoMerge([tsk, msk])).toEqual([]);
+    const st  = existing({ id: 'b', unit: 'st' });
+    expect(planAutoMerge([tsk, st])).toEqual([]);
   });
 
   it('case-insensitive name and unit matching by default', () => {

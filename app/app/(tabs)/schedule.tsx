@@ -1193,13 +1193,13 @@ export default function ScheduleScreen() {
             <Pressable
               key={item.id}
               style={s.menuCard}
-              onPress={() => router.push(`/recipes/${item.recipeId}` as never)}
+              onPress={() => router.push(`/recipes/${item.recipeId}?from=calendar` as never)}
               onLongPress={() => {
                 medium();
                 confirm({
                   title: item.recipe.title,
                   buttons: [
-                    { label: 'Visa recept', onPress: () => router.push(`/recipes/${item.recipeId}` as never) },
+                    { label: 'Visa recept', onPress: () => router.push(`/recipes/${item.recipeId}?from=calendar` as never) },
                     { label: 'Gå till Meny', onPress: () => router.push('/(tabs)/menu' as never) },
                     { label: 'Avbryt', style: 'cancel' },
                   ],

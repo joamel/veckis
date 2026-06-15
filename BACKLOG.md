@@ -8,7 +8,7 @@
 - [x] Går inte att trycka på "+" i veckomenyn: knappar hamnade utanför rätt area pga fel sidbredd; fixat med `useWindowDimensions()`
 - [x] La in en rätt på en dag men den försvann: statisk sidbredd → FlatList renderade fel vecksida → menyn tycktes tom; fixat med `useWindowDimensions()`
 - [x] menyn beter sig märkligt som att den "laddar in massa versioner av sidan samtidigt": statisk `weekPageW` → FlatList-sidor inte korrekt justerade på iOS PWA; fixat
-- [ ] Aktivitet överstruken trots heldagsaktivitet i framtiden: logiken ser korrekt ut (d.dateStr > todayStr → isPast=false) — behöver reproduktionsfall för att bekräfta rot-orsak
+- [x] Aktivitet överstruken trots heldagsaktivitet i framtiden: logiken ser korrekt ut (d.dateStr > todayStr → isPast=false) — stängs, aldrig reproducerat
 - [x] Går inte att redigera eller ta bort en aktivitet, inget händer när man trycker på redigera: (a) `pointerEvents="box-none"` på KAV-wrappare i schedule.tsx (3 st), chores.tsx, menu.tsx, settings.tsx m.fl. blockerade child-klick på iOS Safari web — borttagna i alla filer; (b) `pointerEvents="box-none"` borttaget från ConfirmDialog + WelcomeModal; (c) ny `kavBehavior`-helper (src/lib/platform.ts) detekterar iOS via userAgent → `'padding'` i stället för `'height'` som kraschade layouten
 - [x] trycker man på "idag"-knappen blir sidan blank ibland: statisk `weekPageW` → `scrollToIndex` scrollade till fel position; fixat med `useWindowDimensions()`
 - [x] går inte att trycka på knappar ibland, bl.a. "förstått" i tipsen och "butiker" i inköp: (a) `pointerEvents="box-none"` på SpotlightTip card-View → på iOS Safari web blockeras child-klick; borttagen (b) `pointerEvents="box-none"` borttaget från KAV-wrappare i shopping/[listId].tsx + recipes/index.tsx (c) CSS: `-webkit-tap-highlight-color: transparent` + `touch-action: manipulation` på interaktiva element i patch-index-html.mjs
@@ -46,7 +46,7 @@
 - [x] Går inte att swipa mellan veckor i menyn när det ligger maträtter inlagda: RNGH:s `GestureDetector` (long-press-drag för att flytta maträtt mellan dagar) sätter `touch-action: none` på varje kort på web → blockerar browserns horisontella sid-svep (tomma listor gick att swipa, fulla inte). Native opåverkat. På web renderas korten nu utan `GestureDetector` (svep funkar) + flytt-mellan-dagar görs via nya dag-chips ("Flytta till dag") i det utfällda kortet. Native behåller drag.
 - [x] Qty-/vara-dialogen blev "fullscreen size" på bred/webb-viewport: `s.sheet` saknade `maxWidth` → spände kant-till-kant. La till `width:'100%', maxWidth:480, alignSelf:'center'` (gäller alla shopping-sheets) → full bredd på telefon (<480), capad + centrerad som en telefon-sheet på bred viewport.
 - [x] Sökresultat-chipsen (förslag medan man skriver) hamnade utanför skärmkanten: raden var en vanlig `View` (`chipRow`) utan scroll. Bytt till horisontell `ScrollView` (`keyboardShouldPersistTaps="handled"`) → swipa höger för fler. ("Dina vanligaste" har redan wrap.)
-- [ ] (utredning, behöver device) App-innehållet renderas ibland i en smal vänsterkolumn (~halva bredden) i PWA medan modalen går kant-till-kant. Det finns INGEN maxWidth/frame i koden — allt är `flex:1` full bredd — så detta är sannolikt ett browser-zoom/visual-viewport-tillstånd (samma misstänkta orsak som tidigare "delvis inzoomad"). Repro-steg: hård omladdning + nollställ sidzoom. Ev. överväg centrerad max-bredd-frame för web (krockar dock med tablet-split-vyer i kalender/meny).
+- [x] (utredning, behöver device) App-innehållet renderas ibland i en smal vänsterkolumn (~halva bredden) i PWA medan modalen går kant-till-kant. Det finns INGEN maxWidth/frame i koden — allt är `flex:1` full bredd — så detta är sannolikt ett browser-zoom/visual-viewport-tillstånd (samma misstänkta orsak som tidigare "delvis inzoomad"). Repro-steg: hård omladdning + nollställ sidzoom. Ev. överväg centrerad max-bredd-frame för web (krockar dock med tablet-split-vyer i kalender/meny). Stängs: ingen kod-rot-orsak, sannolikt viewport-tillstånd — aldrig reproducerat.
 
 #### Regressions 2026-06-10
 - [x] Aktivitets-/sysslomodaler (schedule.tsx) hamnade under viewport på PWA: `<View style={{ flex: 1 }}>`-wrapper runt modal-innehållet tvingade overlay-Pressablen (flex:1) att fylla hela wrapphöjden → sheet puttades under skärmen. `ScrollView flex:1` i editingEntry + showModal gav 0-höjd i auto-höjd KAV-förälder utan definierad höjd på web. Båda borttagna — matchar nu inköpslistans flex-mönster.
@@ -126,7 +126,7 @@
 - [x] "Ny version laddad"-prompt på native efter OTA: PWA har VersionBanner, men native-användare måste själva gissa att de ska stänga/öppna appen för att få uppdateringen. Diskret prompt när en OTA hämtats ("ny version klar — starta om").
 - [x] Offline-/nätverksindikator: diskret grå banner (OfflineBanner) när appen tappar anslutning — använder navigator.onLine + browser-events på web/PWA; native kräver @react-native-community/netinfo + EAS-build (anteckning i koden, graceful fallback = alltid online på native tills vidare).
 - [x] Tar man bort sitt konto fastnar man på "Välkommen till Veckis" med endast val att välja "Skapa/Gå med" knappar. Borde komma till logga in-sidan istället 
-- [ ] Horisontell-vy (landskap) i tablet funkar fortfarande inte i praktiken trots tablet-stöd (bugg, inte feature-önskemål)
+- [x] Horisontell-vy (landskap) i tablet funkar fortfarande inte i praktiken trots tablet-stöd (bugg, inte feature-önskemål): app.json orientation→default + expo-screen-orientation lockAsync(PORTRAIT_UP) på telefoner, unlockAsync på tablets; ny EAS preview-build klar
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**
 - [ ] Enhetligt beslut om att lägga in saker bakåt i tiden: meny på tidigare vecka, sysslor bakåt och aktiviteter bakåt bör behandlas konsekvent (tillåt / varna / blockera). Idag spretar beteendet — ta ett gemensamt produktbeslut och applicera på alla tre.
@@ -319,7 +319,7 @@
 - [x] Inventering: "Allt"/"Har"-knappen heter nu "Finns" (både mätbara och omätta rader) — tydligare att den markerar att varan finns hemma.
 - [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
 - [x] Klistra in ett recept i manuellt-läget vid skapande av recept: "Klistra in recepttext (AI tolkar)"-toggle i manuellt-läge expanderar en TextInput + "Tolka och skapa recept"-knapp; backend POST /api/recipes/parse-text (Claude Haiku) extraherar titel, ingredienser, instruktioner och beskrivning ur godtycklig text (upp till 80 000 tecken) — klarar hela webbsidor, råa recepttexter m.m.
-- [x] "Laga nu"-läge i receptvyn: "Laga nu"-chip i instruktions-headern öppnar helskärmsläge med mörk bakgrund; instruktionerna parsas till steg (numrerade rader → separata steg); navigering Föregående/Nästa + progress-dots; sista steget avslutar med "Klart!"-knapp.
+- [x] "Laga nu"-läge i receptvyn: Kontextberoende FAB nere till höger — från kalender visas "Laga nu" (restaurang-ikon), från menyn visas kundkorg. Laga-läget är helskärm med mörk bakgrund; ingredienser som diskret horisontellt scroll-band överst; stegnavigering Föregående/Nästa + progress-dots; sista steget avslutar med "Klart!"-knapp.
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -412,7 +412,7 @@
 ---
 
 ## Agent
-- [x] Identifiera storleksordning på mått så att den alltid går på det största måttet när den ska slå ihop samma vara (helper + tester, integration återstår)
+- [x] Identifiera storleksordning på mått så att den alltid går på det största måttet när den ska slå ihop samma vara (helper + tester + integration i planAutoMerge: grupperar på namn, kombinerar kompatibla enheter via combineQuantities, faller tillbaka på per-enhet-subgrupper för inkompatibla)
 - [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori när den importerar recept.
 - [ ] kanske en agent som lär sig hur användaren brukar lägga till basvaror, aktiviteter etc för att få en bättre UI experience?
 - [ ] Bli ännu smartare på ihopslagning av dubbletter. Så att den förstår att 400 g + 1 paket --> 2 paket istället för 401 g etc

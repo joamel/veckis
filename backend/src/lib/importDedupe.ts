@@ -4,10 +4,14 @@
 //      rows. Same menuItemId match wins. Otherwise fall back to a same
 //      name+unit match against unbound items.
 //   2) planAutoMerge      — after creates and updates, find groups of visible
-//      items sharing name+unit and propose soft-merge containers.
+//      items sharing the same name and propose soft-merge containers.
+//      Compatible units (volume ↔ volume, mass ↔ mass) are summed via
+//      combineQuantities; incompatible units fall back to per-unit sub-groups.
 //
 // "Unit" comparison is case-insensitive and trimmed. Name comparison uses the
 // `normalize` callback (defaults to identity) so callers can pass a stripper.
+
+import { combineQuantities } from './unitOrder';
 
 export interface IncomingIngredient {
   name: string;
@@ -117,30 +121,59 @@ export function planIncomingMatch(
 
 /**
  * After creates/updates have landed, find groups of visible items that share
- * name+unit. Each group with ≥2 entries should be wrapped in a soft-merge
- * container so the list stays clean.
+ * the same name. Groups are first attempted with cross-unit merging via
+ * combineQuantities (e.g. 1 dl + 2 msk → 1.13 dl). If units are incompatible
+ * (e.g. "paket" vs "g"), the name-group falls back to per-unit sub-groups.
+ * Each resulting group with ≥2 entries becomes a soft-merge container.
  */
 export function planAutoMerge(
   visibleItems: ExistingItem[],
   normalize: (s: string) => string = (s) => s.toLowerCase().trim(),
 ): MergeGroup[] {
-  const groups = new Map<string, ExistingItem[]>();
+  const byName = new Map<string, ExistingItem[]>();
   for (const v of visibleItems) {
     if (v.mergedIntoId || v.isChecked) continue;
-    const k = keyOf(v.name, v.unit, normalize);
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k)!.push(v);
+    const normName = normalize(v.name);
+    if (!byName.has(normName)) byName.set(normName, []);
+    byName.get(normName)!.push(v);
   }
+
   const out: MergeGroup[] = [];
-  for (const [, group] of groups) {
-    if (group.length < 2) continue;
-    out.push({
-      ids: group.map(g => g.id),
-      totalQty: group.reduce((sum, g) => sum + g.quantity, 0),
-      name: group[0].name,
-      unit: group[0].unit,
-      category: group[0].category,
-    });
+
+  for (const [, nameGroup] of byName) {
+    if (nameGroup.length < 2) continue;
+
+    const combined = combineQuantities(nameGroup.map(g => ({ quantity: g.quantity, unit: g.unit })));
+
+    if (combined !== null) {
+      out.push({
+        ids: nameGroup.map(g => g.id),
+        totalQty: combined.quantity,
+        name: nameGroup[0].name,
+        unit: combined.unit,
+        category: nameGroup[0].category,
+      });
+    } else {
+      // Incompatible units — sub-group by unit key and merge within each sub-group.
+      const byUnit = new Map<string, ExistingItem[]>();
+      for (const item of nameGroup) {
+        const unitKey = (item.unit ?? '').toLowerCase().trim();
+        if (!byUnit.has(unitKey)) byUnit.set(unitKey, []);
+        byUnit.get(unitKey)!.push(item);
+      }
+      for (const [, unitGroup] of byUnit) {
+        if (unitGroup.length < 2) continue;
+        const unitCombined = combineQuantities(unitGroup.map(g => ({ quantity: g.quantity, unit: g.unit })));
+        out.push({
+          ids: unitGroup.map(g => g.id),
+          totalQty: unitCombined?.quantity ?? unitGroup.reduce((sum, g) => sum + g.quantity, 0),
+          name: unitGroup[0].name,
+          unit: unitCombined?.unit ?? unitGroup[0].unit,
+          category: unitGroup[0].category,
+        });
+      }
+    }
   }
+
   return out;
 }
