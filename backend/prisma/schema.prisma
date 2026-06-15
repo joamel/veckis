@@ -249,7 +249,8 @@ model WeekMenuItem {
   weekYear    Int
   weekNumber  Int
   note        String?
-  servings    Int?     // per-placement portion scaling; null = use recipe default
+  servings     Int?     // per-placement portion scaling; null = use recipe default
+  transferred  Boolean  @default(false) // set when ingredients have been sent to a shopping list
   createdBy   String
   createdAt   DateTime @default(now())
 

@@ -129,7 +129,7 @@
 - [x] Horisontell-vy (landskap) i tablet funkar fortfarande inte i praktiken trots tablet-stöd (bugg, inte feature-önskemål): app.json orientation→default + expo-screen-orientation lockAsync(PORTRAIT_UP) på telefoner, unlockAsync på tablets; ny EAS preview-build klar
 - [ ] Ljud för toasts eller liknande. Avcheckning inköpslistan eller överföring av meny
 - [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**
-- [ ] Enhetligt beslut om att lägga in saker bakåt i tiden: meny på tidigare vecka, sysslor bakåt och aktiviteter bakåt bör behandlas konsekvent (tillåt / varna / blockera). Idag spretar beteendet — ta ett gemensamt produktbeslut och applicera på alla tre.
+- [x] Enhetligt beslut om bakåt i tid: meny tillåter inte längre tidigare veckor (weekOffset ≥ 0, WeekNav backa-pil gråad vid nuvarande vecka); återkommande aktiviteter antar startdatum = idag om inget väljs, men användaren kan sätta ett datum bakåt manuellt; sysslor blockeras sedan tidigare (kan ej skapa bakåt i tid). Konsekvens: blockera navigering bakåt för meny, frivillig möjlighet bakåt för aktiviteter/sysslor.
 - [x] Synliggör/aggregera klientfelen: in-memory ring-buffer (max 200 fel) i backend — `POST /api/client-errors` sparar nu + loggar; `GET /api/client-errors` (requireAuth) returnerar de senaste (nyast först). Expanderbar `ClientErrorsSection` i Hushållet-fliken (admin only) visar lista med namn, meddelande, platform, version och tid; tryck på rad för att se stack trace.
 - [ ] "Kom igång"-vägledning för nya hushåll: efter setup, en kort checklista (lägg till första receptet / inköpslistan / sysslan) som hjälper adoption nu när riktiga användare signar upp. **Implementation finns i `feature/getting-started-card`** — utvärderas mot befintliga onboarding-tips.
 
@@ -460,6 +460,7 @@
 - [x] **Varning vid dubbel dag** — Om det redan finns en maträtt på en dag varnas användaren (men kan ändå lägga till)
 - [x] **Datepicker för annan vecka** — Möjlighet att planera meny för valfri vecka, inte bara innevarande
 - [x] **Smarter "till inköpslistan"** — Om maträtten redan är tillagd i aktiv inköpslista visas inte "till inköpslistan". Vid borttagning visas "ta bort från inköpslistan" om den finns där
+- [x] Persistera "överförd till inköpslista"-status per veckomenyrätt: `WeekMenuItem.transferred Boolean @default(false)` sätts vid `POST /api/menus/to-shopping`; frontend visar checkmark-badge om `item.transferred || !!recipeListMap[item.id]?.length` — rensning av inköpslistan tar inte bort badgen
 
 ### Inköpslistan
 

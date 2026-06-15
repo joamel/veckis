@@ -35,6 +35,7 @@ export interface WeekMenuItem {
   weekNumber: number;
   note: string | null;
   servings: number | null;
+  transferred: boolean;
   createdBy: string;
   createdAt: string;
 }

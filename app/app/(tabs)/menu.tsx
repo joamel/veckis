@@ -630,7 +630,7 @@ export default function MenuScreen() {
   // the arrows / "Idag" / week-picker scroll the list so they behave exactly
   // like a swipe instead of an instant jump.
   const goToWeek = useCallback((target: number, animated: boolean) => {
-    const clamped = Math.max(-WEEK_SPAN, Math.min(WEEK_SPAN, target));
+    const clamped = Math.max(0, Math.min(WEEK_SPAN, target));
     setWeekOffset(clamped);
     weekListRef.current?.scrollToIndex({ index: clamped + WEEK_SPAN, animated });
   }, []);
@@ -1210,7 +1210,7 @@ export default function MenuScreen() {
                     item={item}
                     dayLabel={dayLabel}
                     collapsedForDrag={dragging}
-                    isTransferred={!!recipeListMap[item.id]?.length}
+                    isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
                     isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
                     onRemove={isCenter ? (() => removeFromMenu(item)) : noop}
                     onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
@@ -1305,7 +1305,8 @@ export default function MenuScreen() {
       <WeekNav
         weekLabel={weekLabel}
         isCurrentWeek={weekOffset === 0}
-        onPrev={() => goToWeek(weekOffset - 1, true)}
+        disablePrev={weekOffset === 0}
+        onPrev={() => goToWeek(Math.max(0, weekOffset - 1), true)}
         onNext={() => goToWeek(weekOffset + 1, true)}
         onToday={() => goToWeek(0, true)}
         onPickDate={() => setShowWeekPicker(true)}
@@ -1335,7 +1336,8 @@ export default function MenuScreen() {
         onScrollToIndexFailed={() => {}}
         onMomentumScrollEnd={e => {
           const o = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
-          if (o !== weekOffset) setWeekOffset(o);
+          const clamped = Math.max(0, o);
+          if (clamped !== weekOffset) setWeekOffset(clamped);
         }}
         onScroll={Platform.OS === 'web' ? e => {
           const x = e.nativeEvent.contentOffset.x;

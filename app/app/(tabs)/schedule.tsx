@@ -803,7 +803,7 @@ export default function ScheduleScreen() {
         recurrenceWeeks: newRecurrenceType !== 'none' ? newRecurrenceWeeks : undefined,
         monthlyType: newRecurrenceType === 'monthly' ? newMonthlyType : undefined,
         recurrenceWeekOfMonth: newRecurrenceType === 'monthly' && newMonthlyType === 'weekday_of_month' ? newRecurrenceWeekOfMonth : undefined,
-        startDate: newRecurrenceType === 'none' ? newDayDateStr : newStartDate,
+        startDate: newRecurrenceType === 'none' ? newDayDateStr : (newStartDate ?? toIsoLocal(new Date())),
         endDate: newRecurrenceType === 'none' ? newDayDateStr : newEndDate,
       });
       setEntries(prev => prev.some(e => e.id === entry.id) ? prev : [...prev, entry]);
