@@ -1,7 +1,7 @@
 // Inställningar för appen — egen route med tillbaka-pil. Innehåller saker
 // man sällan ändrar (notiser, 2FA, juridik, support) och som inte hör hemma
 // på Profil-fliken där fokus är hushållet + dess medlemmar.
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,12 +11,20 @@ import { useOnboardingMaster } from '../src/context/SpotlightTipContext';
 import { TIP_FLAGS } from '../src/lib/onboardingTips';
 import * as SecureStore from '../src/lib/secureStorage';
 import { useToast } from '../src/context/ToastContext';
+import { HAPTIC_CHECKOUT_KEY } from '../src/hooks/useCheckHaptic';
 
 export default function PreferencesScreen() {
   const router = useRouter();
   const { skipAll, setSkipAll } = useOnboardingMaster();
   const { showToast, showError } = useToast();
   const [showNotifModal, setShowNotifModal] = useState(false);
+  const [hapticEnabled, setHapticEnabled] = useState(true);
+
+  useEffect(() => {
+    SecureStore.getItemAsync(HAPTIC_CHECKOUT_KEY).then(v => {
+      setHapticEnabled(v !== '0');
+    }).catch(() => {});
+  }, []);
 
   async function handleResetTips() {
     await Promise.all(TIP_FLAGS.map(k => SecureStore.deleteItemAsync(k).catch(() => {})));
@@ -74,7 +82,16 @@ export default function PreferencesScreen() {
 
         <Text style={s.sectionLabel}>APP</Text>
         <View style={s.group}>
-          <Pressable style={s.row} onPress={() => { setSkipAll(skipAll !== true); handleResetTips(); }}>
+          <Pressable style={s.row} onPress={async () => {
+            const next = !hapticEnabled;
+            setHapticEnabled(next);
+            await SecureStore.setItemAsync(HAPTIC_CHECKOUT_KEY, next ? '1' : '0').catch(() => {});
+          }}>
+            <Ionicons name="phone-portrait-outline" size={18} color="#7c3aed" />
+            <Text style={s.rowText}>Vibration vid avcheckning</Text>
+            <Ionicons name={hapticEnabled ? 'toggle' : 'toggle-outline'} size={22} color={hapticEnabled ? '#7c3aed' : '#9ca3af'} />
+          </Pressable>
+          <Pressable style={[s.row, s.rowBorder]} onPress={() => { setSkipAll(skipAll !== true); handleResetTips(); }}>
             <Ionicons name="bulb-outline" size={18} color="#7c3aed" />
             <Text style={s.rowText}>Visa onboarding-tips</Text>
             <Ionicons name={skipAll === true ? 'toggle-outline' : 'toggle'} size={22} color={skipAll === true ? '#9ca3af' : '#7c3aed'} />

@@ -1,6 +1,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import * as Haptics from 'expo-haptics';
 import Fuse from 'fuse.js';
 import { capitalize } from '../../src/lib/text';
+import { useCheckHaptic } from '../../src/hooks/useCheckHaptic';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
@@ -76,6 +78,7 @@ export default function ShoppingListScreen() {
     else router.replace('/(tabs)/shopping' as never);
   }, [router]);
   const client = useApiClient();
+  const triggerCheckHaptic = useCheckHaptic();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
@@ -772,6 +775,7 @@ export default function ShoppingListScreen() {
 
   async function toggleItem(item: ShoppingItemWithRecipe) {
     const newChecked = !item.isChecked;
+    if (newChecked) triggerCheckHaptic();
     setList(prev =>
       prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, isChecked: newChecked } : i) } : prev
     );
@@ -796,6 +800,7 @@ export default function ShoppingListScreen() {
   async function markAllInCategory(items: ShoppingItemWithRecipe[]) {
     const unchecked = items.filter(i => !i.isChecked);
     if (unchecked.length === 0) return;
+    triggerCheckHaptic(Haptics.ImpactFeedbackStyle.Medium);
     setList(prev =>
       prev ? { ...prev, items: prev.items.map(i => unchecked.some(u => u.id === i.id) ? { ...i, isChecked: true } : i) } : prev
     );
