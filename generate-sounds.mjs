@@ -15,22 +15,24 @@ function makeWav(samples) {
   return buf;
 }
 
-// check.wav — Dubbel-ding: C6 (1047 Hz) + E6 (1319 Hz), 600ms
-// Mobiloptimerad: mellanhög frekvens med mjuk svans
+// check.wav — Dubbel-ding: C6 (1047 Hz) + E6 (1319 Hz), 650ms
+// Fade-out de sista 15% för ett rent avslut utan abrupt klipp
 {
-  const n = Math.floor(SR * 0.6);
+  const n = Math.floor(SR * 0.65);
+  const fadeStart = 0.85; // fade börjar vid 85% av längden
   const samples = Array.from({length: n}, (_, i) => {
     const tN = i / n;
     const t = i / SR;
     const attack = Math.min(t / 0.002, 1);
     const a1 = attack * Math.exp(-3.5 * tN);
     const t2 = Math.max(0, t - 0.09);
-    const n2 = Math.max(0, tN - 0.15);
+    const n2 = Math.max(0, tN - 0.138);
     const a2 = (t > 0.09 ? Math.min(t2 / 0.002, 1) : 0) * Math.exp(-3.5 * n2);
-    return 19000 * (a1 * Math.sin(2 * Math.PI * 1047 * t) + a2 * Math.sin(2 * Math.PI * 1319 * t2));
+    const fadeOut = tN > fadeStart ? 1 - (tN - fadeStart) / (1 - fadeStart) : 1;
+    return 19000 * fadeOut * (a1 * Math.sin(2 * Math.PI * 1047 * t) + a2 * Math.sin(2 * Math.PI * 1319 * t2));
   });
   writeFileSync('app/assets/sounds/check.wav', makeWav(samples));
-  console.log('check.wav — Dubbel-ding C6+E6, 600ms');
+  console.log('check.wav — Dubbel-ding C6+E6, 650ms med fade-out');
 }
 
 // delete.wav — Nedåtnota: E4 (330 Hz) → E3 (165 Hz), ren ton med övertoner, 280ms
