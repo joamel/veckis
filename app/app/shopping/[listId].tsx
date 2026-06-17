@@ -78,7 +78,7 @@ export default function ShoppingListScreen() {
     else router.replace('/(tabs)/shopping' as never);
   }, [router]);
   const client = useApiClient();
-  const triggerCheckHaptic = useCheckHaptic();
+  const { triggerCheck: triggerCheckHaptic, triggerDelete: triggerDeleteHaptic } = useCheckHaptic();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
@@ -939,6 +939,7 @@ export default function ShoppingListScreen() {
   }
 
   function deleteItemWithUndo(item: ShoppingItemWithRecipe) {
+    triggerDeleteHaptic();
     setList(prev => prev ? { ...prev, items: prev.items.filter(i => i.id !== item.id) } : prev);
     let cancelled = false;
     showGlobalToast(`${capitalize(item.name)} borttagen`, 'neutral', {
