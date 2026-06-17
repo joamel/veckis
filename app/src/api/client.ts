@@ -61,6 +61,7 @@ export interface NotificationPreferences {
   listCleared: boolean;
   newMember: boolean;
   shopperClaimed: boolean;
+  choreCompleted: boolean;
   reminderMinutes: number;
 }
 
@@ -86,6 +87,18 @@ export interface AuditLogEntry {
   metadata: Record<string, unknown> | null;
   createdAt: string;
 }
+export interface ClientErrorEntry {
+  id: number;
+  name: string;
+  message: string;
+  stack?: string | null;
+  platform?: string;
+  appVersion?: string;
+  context?: Record<string, unknown>;
+  at?: string;
+  receivedAt: string;
+}
+
 export type MembershipWithHousehold = HouseholdMember & { household: Household };
 export type ShoppingItemWithRecipe = ShoppingItem & { recipe: { id: string; title: string } | null };
 export type ShoppingListWithItems = ShoppingList & { items: ShoppingItemWithRecipe[]; store: Store | null };
@@ -336,6 +349,9 @@ export function useApiClient() {
     scrapeRecipe: (url: string) =>
       request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }>('/api/recipes/from-url', { method: 'POST', body: JSON.stringify({ url }) }),
 
+    parseRecipeText: (text: string) =>
+      request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }>('/api/recipes/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
+
     // Menus
     getWeekMenu: (householdId: string, weekYear: number, weekNumber: number) =>
       request<WeekMenuItemWithRecipe[]>(`/api/menus?householdId=${householdId}&weekYear=${weekYear}&weekNumber=${weekNumber}`),
@@ -401,5 +417,8 @@ export function useApiClient() {
 
     sendTestPush: () =>
       request<{ tokens: number; errors: string[] }>('/api/push/test', { method: 'POST' }),
+
+    getClientErrors: () =>
+      request<ClientErrorEntry[]>('/api/client-errors'),
   };
 }

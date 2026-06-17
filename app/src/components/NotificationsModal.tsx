@@ -10,6 +10,7 @@ const TYPES: { key: keyof NotificationPreferences; title: string; desc: string }
   { key: 'choreOverdue', title: 'Förfallen syssla', desc: 'När en syssla inte hunnit bli klar' },
   { key: 'listCleared', title: 'Inköpslista rensad', desc: 'När någon rensar en aktiv lista' },
   { key: 'shopperClaimed', title: '"Jag handlar"', desc: 'När någon i hushållet börjar handla' },
+  { key: 'choreCompleted', title: 'Syssla avbockad', desc: 'När någon bockar av en syssla' },
   { key: 'newMember', title: 'Ny medlem', desc: 'När någon går med i hushållet' },
 ];
 

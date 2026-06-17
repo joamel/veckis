@@ -2,7 +2,9 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
 import { useEffect, useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { Platform, Text, TextInput, View } from 'react-native';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import { useTablet } from '../src/hooks/useTablet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -116,7 +118,7 @@ function NavigationGuard() {
       <VersionBanner />
       <WakeupIndicator />
       <OfflineBanner />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#f9fafb' } }} />
       <WelcomeModal
         visible={welcomeState === 'show'}
         onContinue={markWelcomeSeen}
@@ -127,8 +129,19 @@ function NavigationGuard() {
 }
 
 export default function RootLayout() {
-  // Fånga ouppfångade JS-fel app-brett (utöver render-fel som ErrorBoundary tar).
+  const { isTablet } = useTablet();
+
   useEffect(() => { installGlobalErrorHandler(); }, []);
+
+  // Lås telefoner till portrait; tablets får rotera fritt.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (isTablet) {
+      ScreenOrientation.unlockAsync().catch(() => {});
+    } else {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    }
+  }, [isTablet]);
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>

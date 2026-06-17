@@ -1,6 +1,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import * as Haptics from 'expo-haptics';
 import Fuse from 'fuse.js';
 import { capitalize } from '../../src/lib/text';
+import { useCheckHaptic } from '../../src/hooks/useCheckHaptic';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
@@ -52,6 +54,7 @@ import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem } from '@veckis/shared';
 import { kavBehavior, isIOSLike } from '../../src/lib/platform';
+import { enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError } from '../../src/lib/shoppingOfflineQueue';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
   fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', dairy_eggs: '🥛',
@@ -75,6 +78,7 @@ export default function ShoppingListScreen() {
     else router.replace('/(tabs)/shopping' as never);
   }, [router]);
   const client = useApiClient();
+  const { triggerCheck: triggerCheckHaptic, triggerDelete: triggerDeleteHaptic } = useCheckHaptic();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
@@ -529,10 +533,35 @@ export default function ShoppingListScreen() {
         client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
         client.getHousehold(householdId).catch(() => null),
       ]);
+
+      // Applicera väntande offline-mutationer ovanpå server-datan så att
+      // optimistiska bockar inte skrivs över vid nästa focus/reload.
+      const pending = getPendingToggles(listId);
+      if (pending.size > 0) {
+        data.items = data.items.map(i => {
+          const q = pending.get(i.id);
+          return q !== undefined ? { ...i, isChecked: q } : i;
+        });
+      }
       setList(data);
       setStaples(stapleList);
       setIngredientSuggestions(suggestions);
       if (household) setMembers(household.members);
+
+      // Nu är vi online — spela upp kön
+      if (pending.size > 0) {
+        for (const [itemId, checked] of pending) {
+          client.checkShoppingItem(itemId, checked)
+            .then(updated => {
+              clearPendingToggle(listId, itemId);
+              setList(prev => prev ? {
+                ...prev,
+                items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: i.recipe } : i),
+              } : prev);
+            })
+            .catch(() => {}); // fortfarande offline — lämna kvar i kön
+        }
+      }
     } catch {
       confirm({ title: 'Fel', message: 'Kunde inte ladda listan', buttons: [{ label: 'OK' }] });
     } finally {
@@ -745,32 +774,47 @@ export default function ShoppingListScreen() {
   }
 
   async function toggleItem(item: ShoppingItemWithRecipe) {
+    const newChecked = !item.isChecked;
+    if (newChecked) triggerCheckHaptic();
     setList(prev =>
-      prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, isChecked: !i.isChecked } : i) } : prev
+      prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, isChecked: newChecked } : i) } : prev
     );
     try {
-      const updated = await client.checkShoppingItem(item.id, !item.isChecked);
+      const updated = await client.checkShoppingItem(item.id, newChecked);
+      clearPendingToggle(listId!, item.id);
       setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: item.recipe } : i) } : prev);
     } catch (e) {
-      setList(prev =>
-        prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? item : i) } : prev
-      );
-      showError(e, 'Kunde inte bocka av varan');
+      if (isNetworkError(e)) {
+        // Offline — behåll optimistisk bockning och köa för replay vid reconnect
+        enqueueToggle(listId!, item.id, newChecked);
+      } else {
+        // Serverfel — rulla tillbaka och visa fel
+        setList(prev =>
+          prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? item : i) } : prev
+        );
+        showError(e, 'Kunde inte bocka av varan');
+      }
     }
   }
 
   async function markAllInCategory(items: ShoppingItemWithRecipe[]) {
     const unchecked = items.filter(i => !i.isChecked);
     if (unchecked.length === 0) return;
+    triggerCheckHaptic(Haptics.ImpactFeedbackStyle.Medium);
     setList(prev =>
       prev ? { ...prev, items: prev.items.map(i => unchecked.some(u => u.id === i.id) ? { ...i, isChecked: true } : i) } : prev
     );
     await Promise.all(unchecked.map(async item => {
       try {
         const updated = await client.checkShoppingItem(item.id, true);
+        clearPendingToggle(listId!, item.id);
         setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: item.recipe } : i) } : prev);
-      } catch {
-        setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? item : i) } : prev);
+      } catch (e) {
+        if (isNetworkError(e)) {
+          enqueueToggle(listId!, item.id, true);
+        } else {
+          setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? item : i) } : prev);
+        }
       }
     }));
   }
@@ -895,6 +939,7 @@ export default function ShoppingListScreen() {
   }
 
   function deleteItemWithUndo(item: ShoppingItemWithRecipe) {
+    triggerDeleteHaptic();
     setList(prev => prev ? { ...prev, items: prev.items.filter(i => i.id !== item.id) } : prev);
     let cancelled = false;
     showGlobalToast(`${capitalize(item.name)} borttagen`, 'neutral', {

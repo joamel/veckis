@@ -12,6 +12,8 @@ interface DatePickerModalProps {
   clearable?: boolean;
   /** Dates before this (YYYY-MM-DD) are shown greyed out and unselectable. */
   minimumDate?: string;
+  /** Dates after this (YYYY-MM-DD) are shown greyed out and unselectable. */
+  maximumDate?: string;
 }
 
 function toDateStr(d: Date): string {
@@ -26,7 +28,7 @@ function isoWeek(d: Date): number {
   return Math.ceil((((t.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
-export function DatePickerModal({ value, onChange, onClose, title, visible, clearable = false, minimumDate }: DatePickerModalProps) {
+export function DatePickerModal({ value, onChange, onClose, title, visible, clearable = false, minimumDate, maximumDate }: DatePickerModalProps) {
   const initial = value ? new Date(value + 'T00:00:00') : new Date();
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
@@ -79,7 +81,7 @@ export function DatePickerModal({ value, onChange, onClose, title, visible, clea
               const isCurrentMonth = day.getMonth() === viewMonth;
               const isSelected = ds === value;
               const isToday = ds === todayStr;
-              const isDisabled = !!minimumDate && ds < minimumDate;
+              const isDisabled = (!!minimumDate && ds < minimumDate) || (!!maximumDate && ds > maximumDate);
               return (
                 <Pressable
                   key={ds}

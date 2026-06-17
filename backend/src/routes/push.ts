@@ -13,6 +13,7 @@ const DEFAULT_PREFS = {
   listCleared: true,
   newMember: true,
   shopperClaimed: true,
+  choreCompleted: true,
   reminderMinutes: 30,
 };
 
@@ -71,6 +72,7 @@ pushRouter.patch('/preferences', requireAuth, asyncHandler(async (req, res) => {
     listCleared: z.boolean().optional(),
     newMember: z.boolean().optional(),
     shopperClaimed: z.boolean().optional(),
+    choreCompleted: z.boolean().optional(),
     reminderMinutes: z.number().int().min(0).max(1440).optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }

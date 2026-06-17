@@ -803,7 +803,7 @@ export default function ScheduleScreen() {
         recurrenceWeeks: newRecurrenceType !== 'none' ? newRecurrenceWeeks : undefined,
         monthlyType: newRecurrenceType === 'monthly' ? newMonthlyType : undefined,
         recurrenceWeekOfMonth: newRecurrenceType === 'monthly' && newMonthlyType === 'weekday_of_month' ? newRecurrenceWeekOfMonth : undefined,
-        startDate: newRecurrenceType === 'none' ? newDayDateStr : newStartDate,
+        startDate: newRecurrenceType === 'none' ? newDayDateStr : (newStartDate ?? toIsoLocal(new Date())),
         endDate: newRecurrenceType === 'none' ? newDayDateStr : newEndDate,
       });
       setEntries(prev => prev.some(e => e.id === entry.id) ? prev : [...prev, entry]);
@@ -972,8 +972,6 @@ export default function ScheduleScreen() {
     }
   }
 
-  // 3-prickar-meny i läsvyn: redigera eller ta bort utan att klicket direkt
-  // hamnar i redigeringsläget.
   function openEntryActions(entry: ScheduleEntry) {
     confirm({
       title: entry.title,
@@ -1195,13 +1193,13 @@ export default function ScheduleScreen() {
             <Pressable
               key={item.id}
               style={s.menuCard}
-              onPress={() => router.push(`/recipes/${item.recipeId}` as never)}
+              onPress={() => router.push(`/recipes/${item.recipeId}?from=calendar` as never)}
               onLongPress={() => {
                 medium();
                 confirm({
                   title: item.recipe.title,
                   buttons: [
-                    { label: 'Visa recept', onPress: () => router.push(`/recipes/${item.recipeId}` as never) },
+                    { label: 'Visa recept', onPress: () => router.push(`/recipes/${item.recipeId}?from=calendar` as never) },
                     { label: 'Gå till Meny', onPress: () => router.push('/(tabs)/menu' as never) },
                     { label: 'Avbryt', style: 'cancel' },
                   ],

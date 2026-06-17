@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Dimensions,
   FlatList,
   Image,
@@ -16,6 +17,7 @@ import {
 } from 'react-native';
 
 import { kavBehavior } from '../../src/lib/platform';
+import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
@@ -30,12 +32,12 @@ import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
-import type { RecipeIngredient } from '@veckis/shared';
+import type { RecipeIngredient, WeekDay } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
 export default function RecipeDetailScreen() {
-  const { recipeId, transfer, edit, forMenuDay, forMenuWeek } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string }>();
+  const { recipeId, transfer, edit, forMenuDay, forMenuWeek, from } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string }>();
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -56,6 +58,10 @@ export default function RecipeDetailScreen() {
   const [editInstr, setEditInstr] = useState('');
   const [editImage, setEditImage] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Cooking mode
+  const [cookMode, setCookMode] = useState(false);
+  const [cookStep, setCookStep] = useState(0);
   const [heroLoading, setHeroLoading] = useState(false);
   const [heroError, setHeroError] = useState(false);
 
@@ -72,6 +78,38 @@ export default function RecipeDetailScreen() {
   const rowRefs = useRef<RowRef[]>([]);
   const mainScrollRef = useRef<ScrollView>(null);
   const scrollOffsetY = useRef(0);
+
+  // Cooking mode ingredient auto-scroll
+  const cookIngredScrollRef = useRef<ScrollView>(null);
+  const cookIngredContentH = useRef(0);
+  const cookIngredAnim = useRef(new Animated.Value(0)).current;
+  const cookModeRef = useRef(false);
+  const cookIngredStarted = useRef(false);
+
+  useEffect(() => {
+    cookModeRef.current = cookMode;
+    if (!cookMode) {
+      cookIngredAnim.stopAnimation();
+      cookIngredAnim.setValue(0);
+      cookIngredStarted.current = false;
+    }
+  }, [cookMode]);
+
+  const startCookIngredAnim = useCallback(() => {
+    if (!cookModeRef.current || cookIngredStarted.current) return;
+    const maxScroll = Math.max(0, cookIngredContentH.current - 130);
+    if (maxScroll <= 0) return;
+    cookIngredStarted.current = true;
+    const listenerId = cookIngredAnim.addListener(({ value }) => {
+      cookIngredScrollRef.current?.scrollTo({ y: value, animated: false });
+    });
+    Animated.timing(cookIngredAnim, {
+      toValue: maxScroll,
+      duration: (maxScroll / 18) * 1000,
+      useNativeDriver: false,
+      easing: (x) => x,
+    }).start(() => cookIngredAnim.removeListener(listenerId));
+  }, []);
 
   const keyboardH = useRef(0);
   useEffect(() => {
@@ -116,6 +154,11 @@ export default function RecipeDetailScreen() {
   const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<ReturnType<typeof deduplicateIngredients>>([]);
 
+  // Plan in menu modal
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [planWeekStr, setPlanWeekStr] = useState('');
+  const [planDay, setPlanDay] = useState<WeekDay | null>(null);
+
   // Recipe-cart-tip: visa när receptet är laddat och har ingredienser så
   // kundvagn-FAB:en faktiskt syns och är meningsfull att förklara.
   useEffect(() => {
@@ -124,7 +167,7 @@ export default function RecipeDetailScreen() {
     if (!recipe || recipe.ingredients.length === 0) return;
     const shown = showTip({
       title: 'Lägg ingredienser i inköpslistan',
-      message: 'Kundvagnen längst ned till höger låter dig välja ingredienser och skicka dem direkt till en inköpslista — utan att gå via veckomenyn.',
+      message: '"Lägg i lista"-knappen bredvid Ingredienser låter dig välja vad du vill ha och skicka det direkt till en inköpslista.',
       targetRef: recipeCartRef,
     });
     if (shown) { recipeCartTipShownRef.current = true; recipeCartTip.markSeen(); }
@@ -186,12 +229,21 @@ export default function RecipeDetailScreen() {
     setScaledServings(prev => Math.max(1, (prev ?? recipe.servings) + delta));
   }
 
+  function openPlanModal() {
+    const todayWeek = getISOWeek(new Date());
+    const defaultWeek = forMenuWeek ?? `${todayWeek.weekYear}-${String(todayWeek.weekNumber).padStart(2, '0')}`;
+    setPlanWeekStr(defaultWeek);
+    setPlanDay(null);
+    setShowPlanModal(true);
+  }
+
   function openRecipeActions() {
     if (!recipe) return;
     confirm({
       title: recipe.title,
       variant: 'menu',
       buttons: [
+        { label: 'Planera i meny', onPress: openPlanModal },
         { label: 'Redigera recept', onPress: startEdit },
         { label: 'Ta bort recept', style: 'destructive', onPress: confirmDeleteRecipe },
         { label: 'Avbryt', style: 'cancel' },
@@ -512,6 +564,12 @@ export default function RecipeDetailScreen() {
         <View style={s.section}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>Ingredienser</Text>
+            {!editMode && recipe.ingredients.length > 0 && (
+              <Pressable ref={recipeCartRef} style={s.cookBtn} onPress={() => openTransfer()} accessibilityLabel="Lägg i inköpslista">
+                <Ionicons name="cart-outline" size={14} color="#4f46e5" />
+                <Text style={s.cookBtnText}>Lägg i lista</Text>
+              </Pressable>
+            )}
           </View>
 
           {editMode ? (
@@ -767,15 +825,167 @@ export default function RecipeDetailScreen() {
         </View>
       </Modal>
 
-      {/* Kundvagn-FAB — överför ingredienser till inköpslista (likt andra flikar) */}
+      {/* Plan in menu modal */}
+      <Modal visible={showPlanModal} transparent animationType="slide" onRequestClose={() => setShowPlanModal(false)}>
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={() => setShowPlanModal(false)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Planera i meny</Text>
+          <Text style={s.sheetSub}>Välj vecka och dag</Text>
+
+          <Text style={s.planSectionLabel}>Vecka</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
+              {(() => {
+                const todayWeek = getISOWeek(new Date());
+                const thisMonday = getISOWeekMonday(todayWeek.weekYear, todayWeek.weekNumber);
+                return Array.from({ length: 5 }, (_, i) => {
+                  const mon = addWeeks(thisMonday, i);
+                  const { weekYear, weekNumber } = getISOWeek(mon);
+                  const str = `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
+                  const active = planWeekStr === str;
+                  const label = i === 0 ? `v.${weekNumber} · nu` : `v.${weekNumber}`;
+                  const sub = `${mon.getDate()}/${mon.getMonth() + 1}`;
+                  return (
+                    <Pressable key={str} style={[s.planChip, active && s.planChipActive]} onPress={() => setPlanWeekStr(str)}>
+                      <Text style={[s.planChipText, active && s.planChipTextActive]}>{label}</Text>
+                      <Text style={[s.planChipSub, active && s.planChipSubActive]}>{sub}</Text>
+                    </Pressable>
+                  );
+                });
+              })()}
+            </View>
+          </ScrollView>
+
+          <Text style={s.planSectionLabel}>Dag</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
+              {([
+                { label: 'Ingen', value: null },
+                { label: 'Mån', value: 'mon' },
+                { label: 'Tis', value: 'tue' },
+                { label: 'Ons', value: 'wed' },
+                { label: 'Tor', value: 'thu' },
+                { label: 'Fre', value: 'fri' },
+                { label: 'Lör', value: 'sat' },
+                { label: 'Sön', value: 'sun' },
+              ] as { label: string; value: WeekDay | null }[]).map(d => {
+                const active = planDay === d.value;
+                return (
+                  <Pressable key={d.label} style={[s.planChip, active && s.planChipActive]} onPress={() => setPlanDay(d.value)}>
+                    <Text style={[s.planChipText, active && s.planChipTextActive]}>{d.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+
+          <Pressable
+            style={s.saveBtn}
+            onPress={() => {
+              setShowPlanModal(false);
+              router.replace(`/(tabs)/menu?addRecipeId=${recipe!.id}&day=${planDay ?? ''}&forMenuWeek=${planWeekStr}` as never);
+            }}
+          >
+            <Text style={s.saveBtnText}>Lägg till i meny</Text>
+          </Pressable>
+        </View>
+      </Modal>
+
+      {/* FAB — Laga nu från kalender, kundkorg från menyn */}
       {!editMode && (
-        <Pressable ref={recipeCartRef} style={s.fab} onPress={() => openTransfer()} accessibilityLabel="Lägg ingredienser i inköpslista">
-          <Ionicons name="cart-outline" size={26} color="#fff" />
-        </Pressable>
+        from === 'calendar'
+          ? recipe?.instructions && (
+              <Pressable style={s.fab} onPress={() => { setCookStep(0); setCookMode(true); }} accessibilityLabel="Laga nu">
+                <Ionicons name="restaurant-outline" size={26} color="#fff" />
+              </Pressable>
+            )
+          : recipe?.ingredients && recipe.ingredients.length > 0 && (
+              <Pressable style={s.fab} onPress={() => openTransfer()} accessibilityLabel="Lägg i inköpslista">
+                <Ionicons name="cart-outline" size={26} color="#fff" />
+              </Pressable>
+            )
       )}
+
+      {/* Cooking mode */}
+      {recipe.instructions ? (() => {
+        const steps = parseSteps(recipe.instructions!);
+        const step = steps[cookStep] ?? '';
+        return (
+          <Modal visible={cookMode} transparent={false} animationType="slide" onRequestClose={() => setCookMode(false)}>
+            <SafeAreaView style={s.cookContainer}>
+              <View style={s.cookHeader}>
+                <Text style={s.cookRecipeTitle} numberOfLines={1}>{recipe.title}</Text>
+                <Pressable onPress={() => setCookMode(false)} style={s.cookClose} accessibilityLabel="Avsluta">
+                  <Ionicons name="close" size={24} color="#9ca3af" />
+                </Pressable>
+              </View>
+              <View style={s.cookProgress}>
+                {steps.map((_, i) => (
+                  <View key={i} style={[s.cookDot, i === cookStep && s.cookDotActive]} />
+                ))}
+              </View>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={s.cookBody} showsVerticalScrollIndicator={false}>
+                {recipe.ingredients.length > 0 && (
+                  <ScrollView
+                    ref={cookIngredScrollRef}
+                    style={s.cookIngredWrap}
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled
+                    fadingEdgeLength={20}
+                    scrollEventThrottle={16}
+                    onContentSizeChange={(_, h) => {
+                      cookIngredContentH.current = h;
+                      startCookIngredAnim();
+                    }}
+                    onTouchStart={() => cookIngredAnim.stopAnimation()}
+                    onScrollBeginDrag={() => cookIngredAnim.stopAnimation()}
+                  >
+                    {recipe.ingredients.map(ing => (
+                      <Text key={ing.id} style={s.cookIngredItem}>
+                        {formatIngredient(ing, 1)}
+                      </Text>
+                    ))}
+                  </ScrollView>
+                )}
+                <Text style={s.cookStepLabel}>Steg {cookStep + 1} av {steps.length}</Text>
+                <Text style={s.cookStepText}>{step}</Text>
+              </ScrollView>
+              <View style={s.cookNav}>
+                <Pressable
+                  style={[s.cookNavBtn, cookStep === 0 && s.cookNavBtnDisabled]}
+                  onPress={() => setCookStep(p => Math.max(0, p - 1))}
+                  disabled={cookStep === 0}
+                >
+                  <Ionicons name="arrow-back" size={20} color={cookStep === 0 ? '#d1d5db' : '#111827'} />
+                  <Text style={[s.cookNavText, cookStep === 0 && { color: '#d1d5db' }]}>Föregående</Text>
+                </Pressable>
+                {cookStep < steps.length - 1 ? (
+                  <Pressable style={s.cookNavBtnPrimary} onPress={() => setCookStep(p => p + 1)}>
+                    <Text style={s.cookNavTextPrimary}>Nästa</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#fff" />
+                  </Pressable>
+                ) : (
+                  <Pressable style={s.cookNavBtnPrimary} onPress={() => setCookMode(false)}>
+                    <Ionicons name="checkmark" size={20} color="#fff" />
+                    <Text style={s.cookNavTextPrimary}>Klart!</Text>
+                  </Pressable>
+                )}
+              </View>
+            </SafeAreaView>
+          </Modal>
+        );
+      })() : null}
 
     </SafeAreaView>
   );
+}
+
+function parseSteps(instructions: string): string[] {
+  const lines = instructions.split(/\n+/).map(l => l.trim()).filter(Boolean);
+  if (lines.length <= 1) return [instructions.trim()];
+  return lines.map(l => l.replace(/^\d+[.)]\s*/, ''));
 }
 
 function cloudinaryOptimized(url: string, width = 800): string {
@@ -885,6 +1095,26 @@ const s = StyleSheet.create({
   instructionsText: { fontSize: 15, color: '#374151', lineHeight: 22 },
   renameSave: { marginTop: 16, backgroundColor: '#4f46e5', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   renameSaveText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  cookBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, backgroundColor: '#eef2ff' },
+  cookBtnText: { fontSize: 13, fontWeight: '600', color: '#4f46e5' },
+  cookContainer: { flex: 1, backgroundColor: '#0f172a' },
+  cookHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
+  cookRecipeTitle: { flex: 1, fontSize: 19, color: '#e2e8f0', fontWeight: '700' },
+  cookClose: { padding: 8 },
+  cookProgress: { flexDirection: 'row', gap: 5, paddingHorizontal: 20, marginBottom: 8, flexWrap: 'wrap' },
+  cookDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#334155' },
+  cookDotActive: { backgroundColor: '#818cf8', width: 20 },
+  cookBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 32, gap: 20 },
+  cookIngredWrap: { maxHeight: 130 },
+  cookIngredItem: { fontSize: 18, color: '#475569', lineHeight: 28, paddingVertical: 1 },
+  cookStepLabel: { fontSize: 17, fontWeight: '700', color: '#818cf8' },
+  cookStepText: { fontSize: 22, color: '#f1f5f9', lineHeight: 34, fontWeight: '400' },
+  cookNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16, gap: 12 },
+  cookNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 14, backgroundColor: '#1e293b' },
+  cookNavBtnDisabled: { opacity: 0.35 },
+  cookNavText: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  cookNavBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: '#4f46e5' },
+  cookNavTextPrimary: { fontSize: 15, fontWeight: '700', color: '#fff' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 12 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   sheetSub: { fontSize: 13, color: '#6b7280', marginTop: 2, marginBottom: 8 },
@@ -899,4 +1129,11 @@ const s = StyleSheet.create({
   listPicker: {},
   listPickerItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: '#f9fafb', borderRadius: 10, marginBottom: 6 },
   listPickerItemText: { fontSize: 15, fontWeight: '600', color: '#111827', flex: 1 },
+  planSectionLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280', marginBottom: 4 },
+  planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center' },
+  planChipActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
+  planChipText: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  planChipTextActive: { color: '#4f46e5' },
+  planChipSub: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+  planChipSubActive: { color: '#818cf8' },
 });

@@ -27,7 +27,6 @@ export default function StoreDetailScreen() {
   const { householdId } = useHousehold();
   const { showError, showToast } = useToast();
   const confirm = useConfirm();
-
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
   // Synliga enum-kategorier (i ordning) + dolda räknas ut från diffen mellan

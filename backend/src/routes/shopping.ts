@@ -570,20 +570,20 @@ shoppingRouter.delete('/items/:itemId', requireAuth, asyncHandler(async (req, re
   const list = await getListAndVerifyMember(existing.listId, (req as AuthenticatedRequest).clerkUserId, res);
   if (!list) return;
 
-  // If this is a merge container (has children), fullyUnmerge handles deletion + restoration
+  // If this is a merge container (has children), delete the whole group — don't restore leaves.
+  // Restoring would be confusing: the user deleted a merged item and expects everything gone.
   const hasChildren = await prisma.shoppingItem.findFirst({ where: { mergedIntoId: existing.id }, select: { id: true } });
   if (hasChildren) {
-    const { leaves, containers } = await fullyUnmerge(existing.listId, existing.id);
-    for (const id of containers) {
-      bcast(list, { type: 'item_deleted', data: { id } });
+    const all = await prisma.shoppingItem.findMany({ where: { listId: existing.listId }, select: { id: true, mergedIntoId: true } });
+    const groupIds: string[] = [existing.id];
+    let frontier = [existing.id];
+    while (frontier.length > 0) {
+      const children = all.filter(x => x.mergedIntoId && frontier.includes(x.mergedIntoId)).map(x => x.id);
+      groupIds.push(...children);
+      frontier = children;
     }
-    const survivors = await prisma.shoppingItem.findMany({
-      where: { id: { in: leaves } },
-      include: { recipe: { select: { id: true, title: true } } },
-    });
-    for (const s of survivors) {
-      bcast(list, { type: 'item_added', data: s });
-    }
+    await prisma.shoppingItem.deleteMany({ where: { id: { in: groupIds } } });
+    bcast(list, { type: 'item_deleted', data: { id: existing.id } });
     res.status(204).send();
     return;
   }

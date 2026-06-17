@@ -216,7 +216,7 @@ export default function ChoresScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { getToken, userId } = useAuth();
-  const { fs, sp } = useTablet();
+  const { fs, sp, isTablet } = useTablet();
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
   const { showError } = useToast();
@@ -227,6 +227,7 @@ export default function ChoresScreen() {
   // när användaren faktiskt fäller ut en återkommande syssla (där historiken
   // syns) istället för passivt vid fokus.
   const wrapExpandTip = useFirstActionTip('seen-forgiving-tip');
+  const wrapChoreAddTip = useFirstActionTip('seen-chores-add-tip');
   // Rotation-tipset fyrar när användaren för första gången har 2+ medlemmar
   // valda i editorn — då dyker rotation-toggle:n upp och behöver förklaras.
   const rotationTip = useOnceFlag('seen-rotation-toggle-tip');
@@ -328,30 +329,6 @@ export default function ChoresScreen() {
   const [editMonthDay, setEditMonthDay] = useState(1);
   const [editWeekday, setEditWeekday] = useState<WeekDay>('mon');
   const [saving, setSaving] = useState(false);
-
-  // Note modal — shown after performer is picked, before completing
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [noteInput, setNoteInput] = useState('');
-  const [pendingComplete, setPendingComplete] = useState<((note: string | null) => void) | null>(null);
-
-  function askNote(onConfirm: (note: string | null) => void) {
-    setNoteInput('');
-    setPendingComplete(() => onConfirm);
-    setShowNoteModal(true);
-  }
-
-  function submitNote() {
-    const note = noteInput.trim() || null;
-    setShowNoteModal(false);
-    pendingComplete?.(note);
-    setPendingComplete(null);
-  }
-
-  function skipNote() {
-    setShowNoteModal(false);
-    pendingComplete?.(null);
-    setPendingComplete(null);
-  }
 
   // Date range state
   const [newStartDate, setNewStartDate] = useState<string | null>(null);
@@ -480,6 +457,16 @@ export default function ChoresScreen() {
   const completedOnce = useMemo(
     () => chores.filter(c => isOnce(c) && c.completions.length > 0),
     [chores]
+  );
+
+  const completedRecurring = useMemo(
+    () => sortedChores
+      .filter(e => e.variant === 'done' && !isOnce(e.chore))
+      .map(e => {
+        const rs = recurringStatus(e.chore);
+        return { chore: e.chore, currentDate: rs.current?.date ?? isoDateStr(new Date()) };
+      }),
+    [sortedChores]
   );
 
 
@@ -772,16 +759,27 @@ export default function ChoresScreen() {
   }
 
   async function clearCompleted() {
-    if (completedOnce.length === 0) return;
+    if (completedOnce.length === 0 && completedRecurring.length === 0) return;
+    const parts: string[] = [];
+    if (completedOnce.length > 0) parts.push(`${completedOnce.length} engångssyssla${completedOnce.length > 1 ? 'r' : ''} tas bort`);
+    if (completedRecurring.length > 0) parts.push(`${completedRecurring.length} återkommande avprickning${completedRecurring.length > 1 ? 'ar' : ''} nollställs`);
     confirm({
       title: 'Rensa klara sysslor',
-      message: `Ta bort ${completedOnce.length} avklarade engångssyssla${completedOnce.length > 1 ? 'r' : ''}?`,
+      message: parts.join('\n'),
       buttons: [
         {
           label: 'Rensa', style: 'destructive',
           onPress: async () => {
             await Promise.all(completedOnce.map(c => client.deleteChore(c.id).catch(() => {})));
             setChores(prev => prev.filter(c => !completedOnce.find(d => d.id === c.id)));
+            await Promise.all(completedRecurring.map(({ chore, currentDate }) =>
+              client.uncompleteChore(chore.id, null, currentDate).catch(() => {})
+            ));
+            setChores(prev => prev.map(c => {
+              const entry = completedRecurring.find(r => r.chore.id === c.id);
+              if (!entry) return c;
+              return { ...c, completions: c.completions.filter(x => x.date !== entry.currentDate) };
+            }));
           },
         },
         { label: 'Avbryt', style: 'cancel' },
@@ -799,10 +797,10 @@ export default function ChoresScreen() {
         title="Sysslor"
         actionNode={
           <View style={s.headerActions}>
-            {completedOnce.length > 0 && (
+            {(completedOnce.length > 0 || completedRecurring.length > 0) && (
               <Pressable style={s.clearBtn} onPress={clearCompleted}>
                 <Ionicons name="trash-outline" size={14} color="#ef4444" />
-                <Text style={s.clearBtnText}>Rensa klara ({completedOnce.length})</Text>
+                <Text style={s.clearBtnText}>Rensa klara ({completedOnce.length + completedRecurring.length})</Text>
               </Pressable>
             )}
             {members.length > 0 && (
@@ -824,6 +822,9 @@ export default function ChoresScreen() {
         data={sortedChores}
         keyExtractor={entry => entry.chore.id + '-' + entry.variant}
         contentContainerStyle={[s.list, sortedChores.length === 0 && s.listEmpty]}
+        numColumns={isTablet ? 2 : 1}
+        key={isTablet ? '2col' : '1col'}
+        columnWrapperStyle={isTablet ? s.columnWrapper : undefined}
         onRefresh={load}
         refreshing={loading}
         ListEmptyComponent={
@@ -871,7 +872,7 @@ export default function ChoresScreen() {
             },
           );
           return (
-            <View style={s.cardWrap}>
+            <View style={[s.cardWrap, isTablet && s.cardWrapTablet]}>
               <View style={[s.card, finishedLook && s.cardDone, overdue && s.cardOverdue, variant === 'upcoming' && s.cardUpcoming]}>
               <View style={s.cardInner}>
               <Pressable
@@ -900,12 +901,12 @@ export default function ChoresScreen() {
                         if (once) uncompleteChore(item);
                         else uncompleteOccurrence(item, rec!.current!.date);
                       } else if (variant === 'upcoming') {
-                        pickPerformer(item, performer => askNote(note => completeOccurrence(item, rec!.nextDate!, performer, note)));
+                        pickPerformer(item, performer => completeOccurrence(item, rec!.nextDate!, performer, null));
                       } else {
-                        if (once) pickPerformer(item, performer => askNote(note => completeChore(item, performer, note)));
+                        if (once) pickPerformer(item, performer => completeChore(item, performer, null));
                         else {
                           const cur = rec!.current!;
-                          pickPerformer(item, performer => askNote(note => completeOccurrence(item, cur.date, performer, note)));
+                          pickPerformer(item, performer => completeOccurrence(item, cur.date, performer, null));
                         }
                       }
                     }}
@@ -921,7 +922,7 @@ export default function ChoresScreen() {
         }}
       />
 
-      <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={openCreate}>
+      <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={wrapChoreAddTip(openCreate, { title: 'Skapa syssla', message: 'Här lägger du till en återkommande syssla — välj frekvens (dagligen, veckovis, månadsvis), vem som ska göra den och om ni ska turas om automatiskt.' })}>
         <Ionicons name="add" size={fs(30)} color="#fff" />
       </Pressable>
 
@@ -1072,34 +1073,6 @@ export default function ChoresScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Note modal — optional note after marking a chore done */}
-      <Modal visible={showNoteModal} transparent animationType="slide" onRequestClose={skipNote}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={skipNote} />
-        <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
-          <View style={[s.sheet, { paddingBottom: Math.max(16, insets.bottom) }]}>
-            <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Lägg till anteckning</Text>
-            <Text style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>Valfritt — visas i historiken</Text>
-            <TextInput
-              style={[s.input, { minHeight: 72, textAlignVertical: 'top' }]}
-              placeholder="t.ex. behöver nytt rengöringsmedel"
-              placeholderTextColor="#9ca3af"
-              value={noteInput}
-              onChangeText={setNoteInput}
-              autoFocus
-              multiline
-              maxLength={200}
-              returnKeyType="done"
-              blurOnSubmit
-              onSubmitEditing={submitNote}
-            />
-            <Pressable style={[s.button, { marginTop: 8 }]} onPress={submitNote}>
-              <Text style={s.buttonText}>{noteInput.trim() ? 'Spara anteckning' : 'Hoppa över'}</Text>
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
 
       <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} minimumDate={isoDateStr(new Date())} />
       <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} minimumDate={newStartDate ?? isoDateStr(new Date())} />
@@ -1329,6 +1302,8 @@ const s = StyleSheet.create({
   clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#fecaca', backgroundColor: '#fff5f5' },
   clearBtnText: { fontSize: 12, color: '#ef4444', fontWeight: '500' },
   list: { padding: 16, gap: 10 },
+  columnWrapper: { gap: 10 },
+  cardWrapTablet: { flex: 1 },
   listEmpty: { flex: 1 },
   cardWrap: { position: 'relative' },
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },

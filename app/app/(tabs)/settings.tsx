@@ -27,6 +27,7 @@ import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { NotificationsModal } from '../../src/components/NotificationsModal';
 import { AuditLogSection } from '../../src/components/AuditLogSection';
+import { ClientErrorsSection } from '../../src/components/ClientErrorsSection';
 import { shareInviteLink } from '../../src/lib/inviteLink';
 import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
@@ -50,6 +51,7 @@ export default function SettingsScreen() {
   const adminEditBtnRef = useRef<View>(null);
   const [invite, setInvite] = useState<InviteCode | null>(null);
   const [loadingInvite, setLoadingInvite] = useState(false);
+  const [showAdminLogs, setShowAdminLogs] = useState(false);
 
   // Admin edit mode
   const [editMode, setEditMode] = useState(false);
@@ -469,6 +471,15 @@ export default function SettingsScreen() {
               <Text style={styles.headerAvatarText}>{displayName.charAt(0).toUpperCase()}</Text>
               {isAdmin && <View style={styles.headerAvatarAdminDot} />}
             </Pressable>
+            {isAdmin && (
+              <Pressable
+                style={styles.headerIconBtn}
+                onPress={() => setShowAdminLogs(true)}
+                accessibilityLabel="Adminloggar"
+              >
+                <Ionicons name="bar-chart-outline" size={20} color="#4f46e5" />
+              </Pressable>
+            )}
             <Pressable
               ref={notifClockBtnRef}
               style={styles.headerIconBtn}
@@ -480,6 +491,24 @@ export default function SettingsScreen() {
           </View>
         }
       />
+
+      {/* Admin-loggar — aktivitetslogg + klientfel som fullskärmsvy */}
+      <Modal visible={showAdminLogs} animationType="slide" onRequestClose={() => setShowAdminLogs(false)}>
+        <SafeAreaView style={styles.adminLogsContainer}>
+          <View style={styles.adminLogsHeader}>
+            <Pressable onPress={() => setShowAdminLogs(false)} hitSlop={10} accessibilityLabel="Stäng">
+              <Ionicons name="arrow-back" size={24} color="#111827" />
+            </Pressable>
+            <Text style={styles.adminLogsTitle}>Adminloggar</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView contentContainerStyle={styles.adminLogsBody} showsVerticalScrollIndicator={false}>
+            {householdId && <AuditLogSection householdId={householdId} />}
+            <ClientErrorsSection />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Hushållet */}
         <View style={styles.section}>
@@ -596,8 +625,6 @@ export default function SettingsScreen() {
             ))}
           </View>
 
-          {/* Aktivitetslogg — admin only, lazy-load vid expand */}
-          {isAdmin && householdId && <AuditLogSection householdId={householdId} />}
         </View>
 
         {/* Bjud in */}
@@ -1167,4 +1194,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteBtnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  adminLogsContainer: { flex: 1, backgroundColor: '#f9fafb' },
+  adminLogsHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  adminLogsTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
+  adminLogsBody: { padding: 16, paddingBottom: 40 },
 });

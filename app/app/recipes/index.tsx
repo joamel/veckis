@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,14 +15,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@clerk/clerk-expo';
 import * as SecureStore from '../../src/lib/secureStorage';
 import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { EmptyState } from '../../src/components/EmptyState';
-import { getISOWeek } from '../../src/lib/week';
+import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 
@@ -41,6 +44,7 @@ export default function RecipesScreen() {
   const createTriggeredRef = useRef(false);
   const client = useApiClient();
   const { householdId } = useHousehold();
+  const { getToken } = useAuth();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
   // Sort-tipset togs bort (#11 backloggen) — det fyrade bara om recept fanns,
@@ -64,14 +68,38 @@ export default function RecipesScreen() {
     setShowSort(false);
     SecureStore.setItemAsync('recipeSort', m).catch(() => {});
   }
-  // Quick "add to this week's menu" from the recipe list.
+  // Quick "add to menu" from the recipe list.
   const [addToMenuFor, setAddToMenuFor] = useState<RecipeWithIngredients | null>(null);
+  const [addToMenuWeekStr, setAddToMenuWeekStr] = useState('');
+  const [addToMenuWeekItems, setAddToMenuWeekItems] = useState<WeekMenuItemWithRecipe[]>([]);
   const [weekMenu, setWeekMenu] = useState<WeekMenuItemWithRecipe[]>([]);
+
+  useEffect(() => {
+    if (!addToMenuWeekStr || !householdId || !addToMenuFor) {
+      setAddToMenuWeekItems([]);
+      return;
+    }
+    let stale = false;
+    const [y, w] = addToMenuWeekStr.split('-').map(Number);
+    client.getWeekMenu(householdId, y, w)
+      .then(items => { if (!stale) setAddToMenuWeekItems(items); })
+      .catch(() => { if (!stale) setAddToMenuWeekItems([]); });
+    return () => { stale = true; };
+  }, [addToMenuWeekStr, addToMenuFor, householdId]);
+
+  useHouseholdSocket(householdId, getToken, (msg) => {
+    if (msg.type !== 'menu_updated') return;
+    if (!addToMenuFor || !addToMenuWeekStr) return;
+    const [y, w] = addToMenuWeekStr.split('-').map(Number);
+    if (msg.data.weekYear === y && msg.data.weekNumber === w) {
+      client.getWeekMenu(householdId!, y, w).then(setAddToMenuWeekItems).catch(() => {});
+    }
+  });
 
   function addRecipeToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
     setAddToMenuFor(null);
     if (!householdId) return;
-    if (day && weekMenu.some(m => m.day === day)) {
+    if (day && addToMenuWeekItems.some(m => m.day === day)) {
       const label = MENU_DAYS.find(d => d.key === day)?.label;
       confirm({
         title: 'Dag redan planerad',
@@ -88,12 +116,17 @@ export default function RecipesScreen() {
 
   async function doAddToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
     if (!householdId) return;
-    const { weekYear, weekNumber } = getISOWeek(new Date());
+    const [weekYear, weekNumber] = addToMenuWeekStr
+      ? addToMenuWeekStr.split('-').map(Number)
+      : [getISOWeek(new Date()).weekYear, getISOWeek(new Date()).weekNumber];
     try {
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
       setWeekMenu(prev => [...prev, item]);
+      setAddToMenuWeekItems(prev => [...prev, item]);
       const dayLabel = day ? MENU_DAYS.find(d => d.key === day)?.label.toLowerCase() : null;
-      showToast(dayLabel ? `${recipe.title} tillagd på ${dayLabel} (denna vecka)` : `${recipe.title} tillagd i menyn`, 'success');
+      const todayW = getISOWeek(new Date());
+      const weekLabel = weekYear === todayW.weekYear && weekNumber === todayW.weekNumber ? 'denna vecka' : `v.${weekNumber}`;
+      showToast(dayLabel ? `${recipe.title} tillagd på ${dayLabel} (${weekLabel})` : `${recipe.title} tillagd i menyn (${weekLabel})`, 'success');
     } catch (e) {
       showError(e, 'Kunde inte lägga till i menyn');
     }
@@ -145,6 +178,9 @@ export default function RecipesScreen() {
   const [mode, setMode] = useState<'manual' | 'url'>('manual');
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
+  const [pasteText, setPasteText] = useState('');
+  const [showPaste, setShowPaste] = useState(false);
+  const [parsing, setParsing] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -221,6 +257,37 @@ export default function RecipesScreen() {
       });
     } finally {
       setScraping(false);
+      setCreating(false);
+    }
+  }
+
+  async function handleParseAndCreate() {
+    if (!householdId) return;
+    setParsing(true);
+    try {
+      const parsed = await client.parseRecipeText(pasteText.trim());
+      const usedTitle = title.trim() || parsed.title;
+      setCreating(true);
+      const recipe = await client.createRecipe({
+        householdId,
+        title: usedTitle,
+        description: parsed.description,
+        instructions: parsed.instructions,
+        servings: parsed.servings,
+        ingredients: parsed.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+      });
+      setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
+      setShowModal(false);
+      setTitle('');
+      setPasteText('');
+      setShowPaste(false);
+      const forMenuDay = params.forMenuDay;
+      const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
+      router.push(`/recipes/${recipe.id}${parsed.ingredients.length === 0 ? '?edit=1' : ''}${suffix}` as never);
+    } catch (err) {
+      confirm({ title: 'Fel', message: err instanceof Error ? err.message : 'Kunde inte tolka receptet', buttons: [{ label: 'OK' }] });
+    } finally {
+      setParsing(false);
       setCreating(false);
     }
   }
@@ -350,7 +417,11 @@ export default function RecipesScreen() {
               {selectionMode ? (
                 <Ionicons name="add-circle" size={22} color="#4f46e5" />
               ) : !editMode && (
-                <Pressable style={s.addMenuBtn} onPress={() => setAddToMenuFor(item)} hitSlop={8} accessibilityLabel="Lägg till i meny">
+                <Pressable style={s.addMenuBtn} onPress={() => {
+                  const { weekYear, weekNumber } = getISOWeek(new Date());
+                  setAddToMenuWeekStr(`${weekYear}-${String(weekNumber).padStart(2, '0')}`);
+                  setAddToMenuFor(item);
+                }} hitSlop={8} accessibilityLabel="Lägg till i meny">
                   <Ionicons name="calendar-outline" size={20} color="#4f46e5" />
                 </Pressable>
               )}
@@ -395,9 +466,9 @@ export default function RecipesScreen() {
         </Pressable>
       )}
 
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setPasteText(''); setShowPaste(false); }}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowModal(false)} />
+        <Pressable style={s.overlay} onPress={() => { setShowModal(false); setPasteText(''); setShowPaste(false); }} />
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
@@ -416,22 +487,50 @@ export default function RecipesScreen() {
             <>
               <TextInput
                 style={s.input}
-                placeholder="Receptets namn"
+                placeholder="Receptets namn (valfritt om du klistrar in)"
                 placeholderTextColor="#9ca3af"
                 value={title}
                 onChangeText={setTitle}
-                autoFocus
+                autoFocus={!showPaste}
                 returnKeyType="done"
-                onSubmitEditing={handleCreateManual}
+                onSubmitEditing={showPaste ? undefined : handleCreateManual}
               />
-              <Text style={s.createHint}>Du fyller i beskrivning, ingredienser och instruktioner i nästa steg.</Text>
-              <Pressable
-                style={[s.button, !title.trim() && s.buttonDisabled]}
-                onPress={handleCreateManual}
-                disabled={creating || !title.trim()}
-              >
-                {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Skapa recept</Text>}
+              <Pressable style={s.pasteToggle} onPress={() => { setShowPaste(p => !p); setPasteText(''); }}>
+                <Ionicons name={showPaste ? 'chevron-down' : 'clipboard-outline'} size={14} color="#6b7280" />
+                <Text style={s.pasteToggleText}>{showPaste ? 'Dölj recepttext' : 'Klistra in recepttext (AI tolkar)'}</Text>
               </Pressable>
+              {showPaste ? (
+                <>
+                  <TextInput
+                    style={[s.input, { height: 160, textAlignVertical: 'top', paddingTop: 10 }]}
+                    placeholder={"Klistra in recept, ingredienslista eller hela receptsidan här — AI:n plockar ut titel, ingredienser och tillvägagångssätt automatiskt."}
+                    placeholderTextColor="#9ca3af"
+                    value={pasteText}
+                    onChangeText={setPasteText}
+                    multiline
+                    scrollEnabled
+                    autoFocus
+                  />
+                  <Pressable
+                    style={[s.button, !pasteText.trim() && s.buttonDisabled]}
+                    onPress={handleParseAndCreate}
+                    disabled={parsing || creating || !pasteText.trim()}
+                  >
+                    {parsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Tolka och skapa recept</Text>}
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Text style={s.createHint}>Du fyller i beskrivning, ingredienser och instruktioner i nästa steg.</Text>
+                  <Pressable
+                    style={[s.button, !title.trim() && s.buttonDisabled]}
+                    onPress={handleCreateManual}
+                    disabled={creating || !title.trim()}
+                  >
+                    {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Skapa recept</Text>}
+                  </Pressable>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -463,17 +562,42 @@ export default function RecipesScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Quick add-to-menu day picker (current week) */}
+      {/* Quick add-to-menu week+day picker */}
       <Modal visible={!!addToMenuFor} transparent animationType="slide" onRequestClose={() => setAddToMenuFor(null)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setAddToMenuFor(null)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Lägg till i meny</Text>
-          <Text style={s.daySheetSub} numberOfLines={2}>{addToMenuFor?.title} · denna vecka</Text>
+          <Text style={s.daySheetSub} numberOfLines={1}>{addToMenuFor?.title}</Text>
+
+          {/* Week chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: -4 }}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
+              {(() => {
+                const todayWeek = getISOWeek(new Date());
+                const thisMonday = getISOWeekMonday(todayWeek.weekYear, todayWeek.weekNumber);
+                return Array.from({ length: 5 }, (_, i) => {
+                  const mon = addWeeks(thisMonday, i);
+                  const { weekYear, weekNumber } = getISOWeek(mon);
+                  const str = `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
+                  const active = addToMenuWeekStr === str;
+                  const label = i === 0 ? `v.${weekNumber} · nu` : `v.${weekNumber}`;
+                  const sub = `${mon.getDate()}/${mon.getMonth() + 1}`;
+                  return (
+                    <Pressable key={str} style={[s.weekChip, active && s.weekChipActive]} onPress={() => setAddToMenuWeekStr(str)}>
+                      <Text style={[s.weekChipText, active && s.weekChipTextActive]}>{label}</Text>
+                      <Text style={[s.weekChipSub, active && s.weekChipSubActive]}>{sub}</Text>
+                    </Pressable>
+                  );
+                });
+              })()}
+            </View>
+          </ScrollView>
+
           <View style={s.dayGrid}>
             {MENU_DAYS.map(d => {
-              const taken = weekMenu.some(m => m.day === d.key);
+              const taken = addToMenuWeekItems.some(m => m.day === d.key);
               return (
                 <Pressable
                   key={d.key}
@@ -560,6 +684,8 @@ const s = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#f9fafb' },
   createHint: { fontSize: 13, color: '#9ca3af', marginTop: -4 },
   urlHint: { fontSize: 12, color: '#9ca3af', marginTop: -6 },
+  pasteToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, marginBottom: 4 },
+  pasteToggleText: { fontSize: 13, color: '#6b7280' },
   button: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
@@ -567,4 +693,10 @@ const s = StyleSheet.create({
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#111827', borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center' },
+  weekChipActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
+  weekChipText: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  weekChipTextActive: { color: '#4f46e5' },
+  weekChipSub: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+  weekChipSubActive: { color: '#818cf8' },
 });

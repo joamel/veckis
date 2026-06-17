@@ -3,12 +3,17 @@ import { z } from 'zod';
 import { StoreCategory, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import multer from 'multer';
+import Anthropic from '@anthropic-ai/sdk';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
 import { uploadRecipeImage, deleteRecipeImage } from '../lib/imageUpload';
 import { recipeAbuseLimiter } from '../lib/rateLimits';
+
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null;
 
 // In-memory upload — files are forwarded to Cloudinary, never hit disk. 10 MB
 // max keeps us safe against accidental huge uploads.
@@ -227,6 +232,61 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, asyncHandler(as
     const msg = err instanceof Error ? err.message : 'Could not scrape recipe';
     res.status(422).json({ error: msg });
   }
+}));
+
+// POST /api/recipes/parse-text
+recipesRouter.post('/parse-text', recipeAbuseLimiter, requireAuth, asyncHandler(async (req, res) => {
+  const body = z.object({ text: z.string().min(1).max(100000) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: 'Invalid text' }); return; }
+  if (!anthropic) { res.status(503).json({ error: 'AI parsing not available' }); return; }
+
+  let parsed: { title: string | null; description: string | null; instructions: string | null; servings?: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
+      system: `Du är ett system som extraherar receptinformation från fri text på svenska eller engelska.
+Returnera ENBART giltig JSON utan förklaringar eller markdown-kodblock.
+
+JSON-schema:
+{
+  "title": "receptnamn (string, null om okänt)",
+  "description": "kort beskrivning/ingress om den finns, annars null",
+  "instructions": "tillagningssteg numrerade på separata rader: \"1. Gör X\\n2. Gör Y\\n3. Gör Z\", null om inga steg finns",
+  "servings": 4,
+  "ingredients": [{ "name": "ingrediensnamn", "quantity": 2.5, "unit": "dl" }]
+}
+
+Regler:
+- quantity är ett tal (float) eller null om ingen mängd anges
+- unit ska vara EN av: dl, l, liter, ml, cl, msk, tsk, krm, g, kg, st, knippe, näve, nypa, klyfta — eller null
+- Extrahera ALLA ingredienser och steg du ser, ignorera navigation, annonser och annat sidinnehåll
+- Ingrediensnamn på svenska (översätt om texten är på engelska)
+- instructions: om steg finns, ett steg per rad, "1. Förbered X\n2. Stek Y\n3. Servera" — varje steg på egen rad med \n emellan, annars null`,
+      messages: [{ role: 'user', content: body.data.text.slice(0, 80000) }],
+    });
+    const raw = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
+    const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '');
+    parsed = JSON.parse(clean);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'AI-anropet misslyckades';
+    res.status(422).json({ error: msg });
+    return;
+  }
+
+  const result: ScrapedRecipe = {
+    title: typeof parsed.title === 'string' && parsed.title.trim() ? parsed.title.trim() : 'Okänt recept',
+    description: typeof parsed.description === 'string' ? parsed.description : null,
+    instructions: typeof parsed.instructions === 'string' ? parsed.instructions : null,
+    imageUrl: null,
+    servings: typeof parsed.servings === 'number' && parsed.servings > 0 ? parsed.servings : 4,
+    ingredients: Array.isArray(parsed.ingredients)
+      ? parsed.ingredients
+          .filter((i): i is { name: string; quantity: number | null; unit: string | null } => typeof i?.name === 'string' && i.name.trim().length > 0)
+          .map(i => ({ name: i.name.trim(), quantity: typeof i.quantity === 'number' ? i.quantity : null, unit: typeof i.unit === 'string' && i.unit ? i.unit : null }))
+      : [],
+  };
+  res.json(result);
 }));
 
 interface ScrapedRecipe {

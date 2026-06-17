@@ -1,4 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type ConfirmButtonStyle = 'primary' | 'destructive' | 'cancel';
 export interface ConfirmButton {
@@ -24,6 +25,8 @@ export function ConfirmDialog({
   options: ConfirmOptions | null;
   onClose: () => void;
 }) {
+  const insets = useSafeAreaInsets();
+
   if (!options) return null;
 
   const dismiss = () => {

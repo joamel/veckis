@@ -32,11 +32,15 @@ interface Props extends SpotlightOptions {
   /** "M av N"-indikator när fler tips än ett är i pågående svit. */
   position?: number;
   total?: number;
+  hasNext?: boolean;
+  /** Kallas när användaren trycker "Stäng av tips" på kortet. */
+  onToggleSkipAll?: () => void;
+  skipAllActive?: boolean;
 }
 
 const PAD = 10; // padding around the target inside the highlight ring
 
-export function SpotlightTip({ visible, targetRef, targetRect, title, message, emoji = '💡', actionLabel = 'Förstått', swipeDemo, position, total, onDismiss }: Props) {
+export function SpotlightTip({ visible, targetRef, targetRect, title, message, emoji = '💡', actionLabel = 'Förstått', swipeDemo, position, total, hasNext, onToggleSkipAll, skipAllActive, onDismiss }: Props) {
   const [measuredRect, setMeasuredRect] = useState<Rect | null>(null);
   const pulse = useRef(new Animated.Value(0)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
@@ -165,6 +169,15 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
       {/* Tap outside the card dismisses (covers full screen, behind the card). */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
       <View style={[s.card, { top: callout, left: 20, right: 20, maxHeight: screen.height * 0.7 }]}>
+        {/* Toprad: position-pill */}
+        {total && total > 1 ? (
+          <View style={s.topRow}>
+            <View style={s.positionPill}>
+              <Text style={s.positionText}>{position} av {total}</Text>
+            </View>
+          </View>
+        ) : null}
+
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 4 }}
@@ -173,11 +186,21 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
           <Text style={s.title}>{title}</Text>
           {message ? <Text style={s.message}>{message}</Text> : null}
         </ScrollView>
-        <Pressable style={s.btn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel={actionLabel}>
-          <Text style={s.btnText}>{actionLabel}</Text>
+
+        <Pressable style={s.btn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel={hasNext ? 'Nästa' : actionLabel}>
+          <Text style={s.btnText}>{hasNext ? 'Nästa' : actionLabel}</Text>
         </Pressable>
-        {total && total > 1 ? (
-          <Text style={s.position}>{position} av {total}</Text>
+
+        {onToggleSkipAll ? (
+          <Pressable style={s.skipRow} onPress={onToggleSkipAll}>
+            <Ionicons name="bulb-outline" size={16} color="#7c3aed" />
+            <Text style={s.skipText}>Visa onboarding-tips</Text>
+            <Ionicons
+              name={skipAllActive ? 'toggle-outline' : 'toggle'}
+              size={24}
+              color={skipAllActive ? '#9ca3af' : '#7c3aed'}
+            />
+          </Pressable>
         ) : null}
       </View>
       {/* Swipe-finger demo: rendered LAST so it's guaranteed on top regardless
@@ -384,5 +407,9 @@ const s = StyleSheet.create({
   message: { fontSize: 14, color: '#374151', marginBottom: 14, textAlign: 'center', lineHeight: 20 },
   btn: { backgroundColor: '#4f46e5', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  position: { position: 'absolute', right: 14, bottom: 6, fontSize: 11, color: '#9ca3af', fontWeight: '600' },
+  topRow: { marginBottom: 10 },
+  positionPill: { alignSelf: 'flex-start', backgroundColor: '#ede9fe', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  positionText: { fontSize: 12, fontWeight: '700', color: '#6d28d9' },
+  skipRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  skipText: { flex: 1, fontSize: 14, fontWeight: '500', color: '#111827' },
 });

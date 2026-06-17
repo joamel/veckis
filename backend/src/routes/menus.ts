@@ -445,5 +445,16 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
     }
   }
 
+  // Persist transferred state on WeekMenuItems so the badge survives list-clear.
+  const transferredMenuItemIds = [...new Set(
+    body.data.ingredients.map(i => i.menuItemId).filter((id): id is string => !!id)
+  )];
+  if (transferredMenuItemIds.length > 0) {
+    await prisma.weekMenuItem.updateMany({
+      where: { id: { in: transferredMenuItemIds }, householdId: list.householdId },
+      data: { transferred: true },
+    });
+  }
+
   res.status(201).json([...updatedItems, ...createdItems]);
 }));
