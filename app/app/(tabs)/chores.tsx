@@ -216,7 +216,7 @@ export default function ChoresScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { getToken, userId } = useAuth();
-  const { fs, sp } = useTablet();
+  const { fs, sp, isTablet } = useTablet();
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
   const { showError } = useToast();
@@ -822,6 +822,9 @@ export default function ChoresScreen() {
         data={sortedChores}
         keyExtractor={entry => entry.chore.id + '-' + entry.variant}
         contentContainerStyle={[s.list, sortedChores.length === 0 && s.listEmpty]}
+        numColumns={isTablet ? 2 : 1}
+        key={isTablet ? '2col' : '1col'}
+        columnWrapperStyle={isTablet ? s.columnWrapper : undefined}
         onRefresh={load}
         refreshing={loading}
         ListEmptyComponent={
@@ -869,7 +872,7 @@ export default function ChoresScreen() {
             },
           );
           return (
-            <View style={s.cardWrap}>
+            <View style={[s.cardWrap, isTablet && s.cardWrapTablet]}>
               <View style={[s.card, finishedLook && s.cardDone, overdue && s.cardOverdue, variant === 'upcoming' && s.cardUpcoming]}>
               <View style={s.cardInner}>
               <Pressable
@@ -1299,6 +1302,8 @@ const s = StyleSheet.create({
   clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#fecaca', backgroundColor: '#fff5f5' },
   clearBtnText: { fontSize: 12, color: '#ef4444', fontWeight: '500' },
   list: { padding: 16, gap: 10 },
+  columnWrapper: { gap: 10 },
+  cardWrapTablet: { flex: 1 },
   listEmpty: { flex: 1 },
   cardWrap: { position: 'relative' },
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },

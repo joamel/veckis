@@ -124,7 +124,7 @@ export default function MenuScreen() {
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
   const { markPending, clearPending, cancelAllPending, pendingMenuItemRemovals, pendingCount } = usePendingRemoval();
-  const { fs, sp } = useTablet();
+  const { fs, sp, isTablet } = useTablet();
   const { width: weekPageW, height: windowHeight } = useWindowDimensions();
 
   const [weekOffset, setWeekOffset] = useState(0);
@@ -1194,61 +1194,113 @@ export default function MenuScreen() {
     const unsched = weekItems.filter(i => i.day === null && visible(i)).sort(byCreated);
     const anyScheduled = weekItems.some(i => i.day !== null && visible(i));
     const noop = () => {};
+    const isWide = isTablet;
     return (
       <>
-        {DAYS.map((day, i) => {
-          const items = weekItems.filter(m => m.day === day.key && visible(m)).sort(byCreated);
-          const date = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + i);
-          const isHovered = isCenter && hoverDay === day.key;
-          const dragging = isCenter && !!dragState;
-          const dayLabel = { abbr: day.short.toLowerCase(), date: date.getDate() };
-          return (
-            <View
-              key={day.key}
-              style={[s.daySlot, items.length > 0 && s.daySlotFilled, items.length === 0 && s.daySlotEmpty, dragging && s.daySlotDropTarget, isHovered && s.daySlotHovered]}
-              ref={isCenter ? (ref => measureDaySection(day.key, ref)) : undefined}
-              onLayout={isCenter ? (() => measureDaySection(day.key, daySectionRefs.current[day.key] ?? null)) : undefined}
-            >
-              {items.length === 0 ? (
-                <Pressable
-                  onPress={isCenter && !isPastWeek ? (() => openPicker(day.key)) : noop}
-                  style={s.daySlotEmptyRow}
-                >
-                  <View style={[s.dayLabelBox, s.dayLabelBoxMuted, { width: sp(36), height: sp(36) }]}>
-                    <Text style={[s.dayLabelAbbr, s.dayLabelAbbrMuted, { fontSize: fs(11) }]}>{dayLabel.abbr}</Text>
-                    <Text style={[s.dayLabelDate, s.dayLabelDateMuted, { fontSize: fs(13) }]}>{dayLabel.date}</Text>
-                  </View>
-                  <View style={{ flex: 1, alignItems: 'center' }}>
-                    {!isPastWeek && <Ionicons name="add" size={fs(22)} color="#9ca3af" />}
-                  </View>
-                  <View style={{ width: sp(36) }} />
-                </Pressable>
-              ) : (
-                items.map(item => (
-                  <MenuCard
-                    key={item.id}
-                    item={item}
-                    dayLabel={dayLabel}
-                    collapsedForDrag={dragging}
-                    isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
-                    isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
-                    isPastWeek={isPastWeek}
-                    onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
-                    onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
-                    onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
-                    onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
-                    onDragStart={isCenter && !isPastWeek ? ((x, y) => onDragStart(item, x, y)) : noop}
-                    onDragMove={isCenter ? onDragMove : noop}
-                    onDragEnd={isCenter ? onDragEnd : noop}
-                    isDragging={isCenter && dragState?.item.id === item.id}
-                    scaledServings={scaledServingsOf(item)}
-                    onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
-                  />
-                ))
-              )}
-            </View>
-          );
-        })}
+        <View style={isWide ? s.daysRow : undefined}>
+          {DAYS.map((day, i) => {
+            const items = weekItems.filter(m => m.day === day.key && visible(m)).sort(byCreated);
+            const date = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + i);
+            const isHovered = isCenter && hoverDay === day.key;
+            const dragging = isCenter && !!dragState;
+            const dayLabel = { abbr: day.short.toLowerCase(), date: date.getDate() };
+            const filled = items.length > 0;
+            return (
+              <View
+                key={day.key}
+                style={[
+                  s.daySlot,
+                  isWide && s.daySlotWide,
+                  !isWide && filled && s.daySlotFilled,
+                  !isWide && !filled && s.daySlotEmpty,
+                  isWide && !filled && s.daySlotEmptyWide,
+                  dragging && s.daySlotDropTarget,
+                  isHovered && s.daySlotHovered,
+                ]}
+                ref={isCenter ? (ref => measureDaySection(day.key, ref)) : undefined}
+                onLayout={isCenter ? (() => measureDaySection(day.key, daySectionRefs.current[day.key] ?? null)) : undefined}
+              >
+                {isWide ? (
+                  // Tablet: column layout — header always visible, content below
+                  <>
+                    <View style={s.dayColHeader}>
+                      <Text style={[s.dayLabelAbbr, !filled && s.dayLabelAbbrMuted, { fontSize: 10 }]}>{dayLabel.abbr}</Text>
+                      <Text style={[s.dayLabelDate, !filled && s.dayLabelDateMuted, { fontSize: 13 }]}>{dayLabel.date}</Text>
+                    </View>
+                    {!filled ? (
+                      <Pressable
+                        onPress={isCenter && !isPastWeek ? (() => openPicker(day.key)) : noop}
+                        style={s.dayColEmptyTap}
+                      >
+                        {!isPastWeek && <Ionicons name="add" size={18} color="#c4b5fd" />}
+                      </Pressable>
+                    ) : (
+                      items.map(item => (
+                        <MenuCard
+                          key={item.id}
+                          item={item}
+                          collapsedForDrag={dragging}
+                          isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
+                          isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
+                          isPastWeek={isPastWeek}
+                          onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
+                          onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
+                          onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
+                          onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
+                          onDragStart={isCenter && !isPastWeek ? ((x, y) => onDragStart(item, x, y)) : noop}
+                          onDragMove={isCenter ? onDragMove : noop}
+                          onDragEnd={isCenter ? onDragEnd : noop}
+                          isDragging={isCenter && dragState?.item.id === item.id}
+                          scaledServings={scaledServingsOf(item)}
+                          onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
+                        />
+                      ))
+                    )}
+                  </>
+                ) : (
+                  // Phone: existing horizontal layout
+                  items.length === 0 ? (
+                    <Pressable
+                      onPress={isCenter && !isPastWeek ? (() => openPicker(day.key)) : noop}
+                      style={s.daySlotEmptyRow}
+                    >
+                      <View style={[s.dayLabelBox, s.dayLabelBoxMuted, { width: sp(36), height: sp(36) }]}>
+                        <Text style={[s.dayLabelAbbr, s.dayLabelAbbrMuted, { fontSize: fs(11) }]}>{dayLabel.abbr}</Text>
+                        <Text style={[s.dayLabelDate, s.dayLabelDateMuted, { fontSize: fs(13) }]}>{dayLabel.date}</Text>
+                      </View>
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        {!isPastWeek && <Ionicons name="add" size={fs(22)} color="#9ca3af" />}
+                      </View>
+                      <View style={{ width: sp(36) }} />
+                    </Pressable>
+                  ) : (
+                    items.map(item => (
+                      <MenuCard
+                        key={item.id}
+                        item={item}
+                        dayLabel={dayLabel}
+                        collapsedForDrag={dragging}
+                        isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
+                        isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
+                        isPastWeek={isPastWeek}
+                        onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
+                        onViewRecipe={() => router.push(`/recipes/${item.recipeId}` as never)}
+                        onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
+                        onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
+                        onDragStart={isCenter && !isPastWeek ? ((x, y) => onDragStart(item, x, y)) : noop}
+                        onDragMove={isCenter ? onDragMove : noop}
+                        onDragEnd={isCenter ? onDragEnd : noop}
+                        isDragging={isCenter && dragState?.item.id === item.id}
+                        scaledServings={scaledServingsOf(item)}
+                        onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
+                      />
+                    ))
+                  )
+                )}
+              </View>
+            );
+          })}
+        </View>
 
         {/* Unscheduled */}
         <View
@@ -1375,7 +1427,7 @@ export default function MenuScreen() {
               ref={isCenter ? menuScrollRef : undefined}
               style={{ width: weekPageW }}
               {...((Platform.OS === 'web' ? { dataSet: { weekpage: '' } } : {}) as any)}
-              contentContainerStyle={s.contentInner}
+              contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet]}
               refreshControl={isCenter ? <RefreshControl refreshing={false} onRefresh={load} /> : undefined}
               onScroll={isCenter ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }) : undefined}
               scrollEventThrottle={32}
@@ -2091,6 +2143,12 @@ const s = StyleSheet.create({
   invAllBtnTextOn: { color: '#fff' },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 10, paddingBottom: 80 },
+  contentInnerTablet: { padding: 8, gap: 8 },
+  daysRow: { flexDirection: 'row', gap: 6, alignItems: 'stretch' },
+  daySlotWide: { flex: 1, minWidth: 0, minHeight: 80 },
+  daySlotEmptyWide: { borderStyle: 'dashed', borderColor: '#d1d5db', backgroundColor: 'transparent' },
+  dayColHeader: { alignItems: 'center', paddingTop: 4, paddingBottom: 2 },
+  dayColEmptyTap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40 },
   section: { gap: 6 },
   dayLabelBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   dayLabelAbbr: { fontSize: 11, fontWeight: '800', color: '#7c3aed', letterSpacing: 0.3, lineHeight: 13 },

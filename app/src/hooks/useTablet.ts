@@ -9,5 +9,5 @@ export function useTablet() {
   const scale = largeTablet ? 1.8 : isTablet ? 1.6 : 1;
   const fs = (n: number) => Math.round(n * scale);
   const sp = (n: number) => Math.round(n * scale);
-  return { isTablet, scale, fs, sp };
+  return { isTablet, largeTablet, scale, fs, sp };
 }
