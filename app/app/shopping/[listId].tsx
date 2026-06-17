@@ -2165,7 +2165,7 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
       renderRightActions={(progress) => (
         <SwipeDeleteAction progress={progress} width={windowWidth} iconZoneWidth={deleteThreshold} />
       )}
-      onSwipeableOpen={direction => { if (direction === 'left') onDelete(); }}
+      onSwipeableOpen={direction => { if (direction === 'right') onDelete(); }}
     >
       {row}
     </ReanimatedSwipeable>

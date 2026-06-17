@@ -11,7 +11,6 @@ export function useCheckHaptic() {
   const hapticEnabledRef = useRef(true);
   const soundEnabledRef = useRef(true);
   const checkSoundRef = useRef<Audio.Sound | null>(null);
-  const deleteSoundRef = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
     SecureStore.getItemAsync(HAPTIC_CHECKOUT_KEY).then(v => {
@@ -27,16 +26,10 @@ export function useCheckHaptic() {
         require('../../assets/sounds/check.wav'),
         { shouldPlay: false, volume: 0.7 },
       ).then(({ sound }) => { checkSoundRef.current = sound; }).catch(() => {});
-
-      Audio.Sound.createAsync(
-        require('../../assets/sounds/delete.wav'),
-        { shouldPlay: false, volume: 0.55 },
-      ).then(({ sound }) => { deleteSoundRef.current = sound; }).catch(() => {});
     }
 
     return () => {
       checkSoundRef.current?.unloadAsync().catch(() => {});
-      deleteSoundRef.current?.unloadAsync().catch(() => {});
     };
   }, []);
 
@@ -56,7 +49,6 @@ export function useCheckHaptic() {
   const triggerDelete = () => {
     if (Platform.OS === 'web') return;
     if (hapticEnabledRef.current) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    play(deleteSoundRef);
   };
 
   return { triggerCheck, triggerDelete };
