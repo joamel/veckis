@@ -15,30 +15,41 @@ function makeWav(samples) {
   return buf;
 }
 
-// check.wav — Kristall A6 full volym (1760 Hz, 650ms)
+// check.wav — Dubbel-ding: C6 (1047 Hz) + E6 (1319 Hz), 600ms
+// Mobiloptimerad: mellanhög frekvens med mjuk svans
 {
-  const n = Math.floor(SR * 0.65);
+  const n = Math.floor(SR * 0.6);
   const samples = Array.from({length: n}, (_, i) => {
     const tN = i / n;
     const t = i / SR;
-    return 20000 * Math.min(t / 0.001, 1) * Math.exp(-3.5 * tN) * Math.sin(2 * Math.PI * 1760 * t);
+    const attack = Math.min(t / 0.002, 1);
+    const a1 = attack * Math.exp(-3.5 * tN);
+    const t2 = Math.max(0, t - 0.09);
+    const n2 = Math.max(0, tN - 0.15);
+    const a2 = (t > 0.09 ? Math.min(t2 / 0.002, 1) : 0) * Math.exp(-3.5 * n2);
+    return 19000 * (a1 * Math.sin(2 * Math.PI * 1047 * t) + a2 * Math.sin(2 * Math.PI * 1319 * t2));
   });
   writeFileSync('app/assets/sounds/check.wav', makeWav(samples));
-  console.log('check.wav — Kristall A6, 1760 Hz, 650ms');
+  console.log('check.wav — Dubbel-ding C6+E6, 600ms');
 }
 
-// delete.wav — Reverse-cymbal längre (400ms, stiger sedan klipps)
+// delete.wav — Nedåtnota: E4 (330 Hz) → E3 (165 Hz), ren ton med övertoner, 280ms
+// Klassisk "dismiss/ta bort"-känsla, mobiloptimerad mellanlåg frekvens
 {
-  const totalSamples = Math.floor(SR * 0.4);
-  let lp = 0;
-  const samples = Array.from({length: totalSamples}, (_, i) => {
-    const tN = i / totalSamples;
-    const cutoff = 600 + 9000 * tN;
-    const a = 1 / (1 + SR / (2 * Math.PI * cutoff));
-    lp = lp + a * ((Math.random() * 2 - 1) - lp);
-    const env = tN < 0.78 ? tN / 0.78 : Math.exp(-30 * (tN - 0.78));
-    return 20000 * env * lp;
+  const n = Math.floor(SR * 0.28);
+  let phase = 0;
+  const samples = Array.from({length: n}, (_, i) => {
+    const tN = i / n;
+    const t = i / SR;
+    const freq = 330 * Math.pow(165 / 330, tN);
+    phase += 2 * Math.PI * freq / SR;
+    const env = Math.min(t / 0.008, 1) * Math.exp(-5 * tN);
+    const wave = Math.sin(phase) * 0.60
+               + Math.sin(phase * 2) * 0.25
+               + Math.sin(phase * 3) * 0.10
+               + Math.sin(phase * 4) * 0.05;
+    return 20000 * env * wave;
   });
   writeFileSync('app/assets/sounds/delete.wav', makeWav(samples));
-  console.log('delete.wav — Reverse-cymbal längre, 400ms');
+  console.log('delete.wav — Nedåtnota E4→E3, 280ms');
 }

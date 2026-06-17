@@ -2111,12 +2111,10 @@ function SwipeDeleteAction({ progress, width, iconZoneWidth }: {
 function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; onDelete?: () => void; pending?: boolean }) {
   const { width: windowWidth } = useWindowDimensions();
   const deleteThreshold = windowWidth / 3;
-  const row = (
-    <Pressable
-      style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
-      onPress={pending ? undefined : onToggle}
-      onLongPress={pending ? undefined : onEdit}
-    >
+  const isWeb = Platform.OS === 'web';
+
+  const rowContent = (
+    <>
       <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? '#10b981' : '#4f46e5'} />
       <View style={s.itemContent}>
         <View style={s.itemRow}>
@@ -2126,10 +2124,39 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
           )}
         </View>
       </View>
+    </>
+  );
+
+  if (isWeb) {
+    return (
+      <View style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending, s.itemWebWrap]}>
+        <Pressable
+          style={s.itemWebContent}
+          onPress={pending ? undefined : onToggle}
+          onLongPress={pending ? undefined : onEdit}
+        >
+          {rowContent}
+        </Pressable>
+        {onDelete && !pending && (
+          <Pressable onPress={onDelete} style={s.itemWebDelete}>
+            <Ionicons name="trash-outline" size={18} color="#d1d5db" />
+          </Pressable>
+        )}
+      </View>
+    );
+  }
+
+  const row = (
+    <Pressable
+      style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
+      onPress={pending ? undefined : onToggle}
+      onLongPress={pending ? undefined : onEdit}
+    >
+      {rowContent}
     </Pressable>
   );
 
-  if (Platform.OS === 'web' || !onDelete || pending) return row;
+  if (!onDelete || pending) return row;
 
   return (
     <ReanimatedSwipeable
@@ -2258,6 +2285,9 @@ const s = StyleSheet.create({
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
   swipeDeleteBtn: { justifyContent: 'center', alignItems: 'center', marginVertical: 2, backgroundColor: '#9ca3af', borderRadius: 10, overflow: 'hidden' },
+  itemWebWrap: { padding: 0, flexDirection: 'row' },
+  itemWebContent: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  itemWebDelete: { paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' },
   browserSheet: { maxHeight: '90%', gap: 0 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },
