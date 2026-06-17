@@ -5,7 +5,9 @@
   "main": "expo-router/entry",
   "expo": {
     "install": {
-      "exclude": ["expo-router"]
+      "exclude": [
+        "expo-router"
+      ]
     }
   },
   "scripts": {
@@ -27,6 +29,7 @@
     "@veckis/shared": "*",
     "expo": "~54.0.34",
     "expo-auth-session": "~7.0.11",
+    "expo-av": "^16.0.8",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.9",
     "expo-device": "~8.0.10",

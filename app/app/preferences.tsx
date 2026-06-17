@@ -11,7 +11,7 @@ import { useOnboardingMaster } from '../src/context/SpotlightTipContext';
 import { TIP_FLAGS } from '../src/lib/onboardingTips';
 import * as SecureStore from '../src/lib/secureStorage';
 import { useToast } from '../src/context/ToastContext';
-import { HAPTIC_CHECKOUT_KEY } from '../src/hooks/useCheckHaptic';
+import { HAPTIC_CHECKOUT_KEY, SOUND_CHECKOUT_KEY } from '../src/hooks/useCheckHaptic';
 
 export default function PreferencesScreen() {
   const router = useRouter();
@@ -19,10 +19,14 @@ export default function PreferencesScreen() {
   const { showToast, showError } = useToast();
   const [showNotifModal, setShowNotifModal] = useState(false);
   const [hapticEnabled, setHapticEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   useEffect(() => {
     SecureStore.getItemAsync(HAPTIC_CHECKOUT_KEY).then(v => {
       setHapticEnabled(v !== '0');
+    }).catch(() => {});
+    SecureStore.getItemAsync(SOUND_CHECKOUT_KEY).then(v => {
+      setSoundEnabled(v !== '0');
     }).catch(() => {});
   }, []);
 
@@ -83,6 +87,15 @@ export default function PreferencesScreen() {
         <Text style={s.sectionLabel}>APP</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={async () => {
+            const next = !soundEnabled;
+            setSoundEnabled(next);
+            await SecureStore.setItemAsync(SOUND_CHECKOUT_KEY, next ? '1' : '0').catch(() => {});
+          }}>
+            <Ionicons name="musical-note-outline" size={18} color="#7c3aed" />
+            <Text style={s.rowText}>Ljud vid avcheckning</Text>
+            <Ionicons name={soundEnabled ? 'toggle' : 'toggle-outline'} size={22} color={soundEnabled ? '#7c3aed' : '#9ca3af'} />
+          </Pressable>
+          <Pressable style={[s.row, s.rowBorder]} onPress={async () => {
             const next = !hapticEnabled;
             setHapticEnabled(next);
             await SecureStore.setItemAsync(HAPTIC_CHECKOUT_KEY, next ? '1' : '0').catch(() => {});
