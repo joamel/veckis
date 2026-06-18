@@ -8,6 +8,7 @@ import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryG
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { TouchableOpacity as GHTouchableOpacity } from 'react-native-gesture-handler';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
@@ -2147,13 +2148,14 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
   }
 
   const row = (
-    <Pressable
+    <GHTouchableOpacity
       style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
       onPress={pending ? undefined : onToggle}
       onLongPress={pending ? undefined : onEdit}
+      activeOpacity={0.7}
     >
       {rowContent}
-    </Pressable>
+    </GHTouchableOpacity>
   );
 
   if (!onDelete || pending) return row;
