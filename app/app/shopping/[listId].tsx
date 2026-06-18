@@ -7,8 +7,7 @@ import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
-import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
-import { TouchableOpacity as GHTouchableOpacity } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
@@ -36,8 +35,8 @@ import RNAnimated, {
   withRepeat,
   withSequence,
   withDelay,
+  withSpring,
   runOnJS,
-  type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -2089,30 +2088,37 @@ export default function ShoppingListScreen() {
   );
 }
 
-function SwipeDeleteAction({ progress, width, iconZoneWidth }: {
-  progress: SharedValue<number>;
-  width: number;
-  iconZoneWidth: number;
-}) {
-  // progress = 0 → 1 mappad mot hela bredden (windowWidth), ej bara 1/3
-  // Röd vid ~1/3 av skärmen = progress ≈ 0.33
-  const redStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0.15, 0.33], [0, 1], Extrapolation.CLAMP),
-  }));
-  return (
-    <View style={[s.swipeDeleteBtn, { width }]}>
-      <RNAnimated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#ef4444' }, redStyle]} />
-      <View style={{ position: 'absolute', left: 0, width: iconZoneWidth, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
-        <Ionicons name="trash-outline" size={22} color="#fff" />
-      </View>
-    </View>
-  );
-}
-
 function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; onDelete?: () => void; pending?: boolean }) {
   const { width: windowWidth } = useWindowDimensions();
-  const deleteThreshold = windowWidth / 3;
   const isWeb = Platform.OS === 'web';
+  const translateX = useSharedValue(0);
+  const THRESHOLD = windowWidth * 0.35;
+
+  const doDelete = useCallback(() => { onDelete?.(); }, [onDelete]);
+
+  const panGesture = Gesture.Pan()
+    .enabled(!isWeb && !!onDelete && !pending)
+    .activeOffsetX([-10, 10])
+    .failOffsetY([-15, 15])
+    .onUpdate((e) => {
+      translateX.value = Math.min(0, e.translationX);
+    })
+    .onEnd((e) => {
+      if (-translateX.value > THRESHOLD || e.velocityX < -800) {
+        translateX.value = withSpring(-windowWidth);
+        runOnJS(doDelete)();
+      } else {
+        translateX.value = withSpring(0);
+      }
+    });
+
+  const rowAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const bgStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(-translateX.value, [0, THRESHOLD * 0.5], [0, 1], Extrapolation.CLAMP),
+  }));
 
   const rowContent = (
     <>
@@ -2147,30 +2153,23 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
     );
   }
 
-  const row = (
-    <GHTouchableOpacity
-      style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
-      onPress={pending ? undefined : onToggle}
-      onLongPress={pending ? undefined : onEdit}
-      activeOpacity={0.7}
-    >
-      {rowContent}
-    </GHTouchableOpacity>
-  );
-
-  if (!onDelete || pending) return row;
-
   return (
-    <ReanimatedSwipeable
-      rightThreshold={deleteThreshold}
-      overshootRight={false}
-      renderRightActions={(progress) => (
-        <SwipeDeleteAction progress={progress} width={windowWidth} iconZoneWidth={deleteThreshold} />
-      )}
-      onSwipeableOpen={() => onDelete()}
-    >
-      {row}
-    </ReanimatedSwipeable>
+    <View style={s.swipeRowWrap}>
+      <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeDeleteBg, bgStyle]}>
+        <Ionicons name="trash-outline" size={22} color="#fff" />
+      </RNAnimated.View>
+      <GestureDetector gesture={panGesture}>
+        <RNAnimated.View style={rowAnimStyle}>
+          <Pressable
+            style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
+            onPress={pending ? undefined : onToggle}
+            onLongPress={pending ? undefined : onEdit}
+          >
+            {rowContent}
+          </Pressable>
+        </RNAnimated.View>
+      </GestureDetector>
+    </View>
   );
 }
 
@@ -2286,7 +2285,8 @@ const s = StyleSheet.create({
   editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
-  swipeDeleteBtn: { justifyContent: 'center', alignItems: 'center', marginVertical: 2, backgroundColor: '#9ca3af', borderRadius: 10, overflow: 'hidden' },
+  swipeRowWrap: { borderRadius: 10, overflow: 'hidden', marginVertical: 2 },
+  swipeDeleteBg: { backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
   itemWebWrap: { padding: 0, flexDirection: 'row' },
   itemWebContent: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
   itemWebDelete: { paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' },
