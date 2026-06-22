@@ -24,6 +24,7 @@ import { pickStore } from '../../src/lib/storePicker';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { useTablet } from '../../src/hooks/useTablet';
+import { ShoppingListDetail } from '../shopping/[listId]';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { onShoppingChanged } from '../../src/lib/shoppingEvents';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
@@ -44,7 +45,7 @@ export default function ShoppingScreen() {
   const storesTipShownRef = useRef(false);
   const storesBtnRef = useRef<View>(null);
   const wrapNewListTip = useFirstActionTip('seen-shopping-add-tip');
-  const { fs, sp, isTablet } = useTablet();
+  const { fs, sp, isTablet, isSplitView, largeTablet } = useTablet();
   const insets = useSafeAreaInsets();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +60,7 @@ export default function ShoppingScreen() {
   const [stores, setStores] = useState<Store[]>([]);
   // Hushållsmedlemmar för "X handlar nu"-indikatorn på list-korten.
   const [members, setMembers] = useState<Array<{ id: string; displayName: string; clerkUserId: string | null }>>([]);
+  const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
 
   const load = useCallback(async () => {
@@ -82,6 +84,14 @@ export default function ShoppingScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
   // Refresh when a list changes elsewhere (e.g. deferred clear in the detail view).
   useEffect(() => onShoppingChanged(load), [load]);
+
+  // Split-view: auto-välj första listan i landscape; rensa när portrait återkommer.
+  useEffect(() => {
+    if (isSplitView && lists.length > 0 && !selectedListId) {
+      setSelectedListId(lists[0].id);
+    }
+    if (!isSplitView) setSelectedListId(null);
+  }, [isSplitView, lists.length]);
 
   // Butiker-tip: useFocusEffect så det bara fyrar när inköp-fliken faktiskt
   // är aktiv. useEffect skulle fyra direkt när tabben mountar i bakgrunden
@@ -126,7 +136,8 @@ export default function ShoppingScreen() {
       setNewListName('');
       setNewListEmoji(null);
       setNewListStoreId(null);
-      router.push(`/shopping/${list.id}` as never);
+      if (isSplitView) setSelectedListId(list.id);
+      else router.push(`/shopping/${list.id}` as never);
     } catch (e) {
       showError(e, 'Kunde inte skapa lista');
     } finally {
@@ -141,8 +152,10 @@ export default function ShoppingScreen() {
     return <View style={styles.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
   }
 
+  const leftWidth = largeTablet ? 400 : 360;
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={isSplitView ? { flex: 1, flexDirection: 'row', backgroundColor: '#f9fafb' } : { flex: 1 }}>
+      <SafeAreaView style={[styles.container, isSplitView && { width: leftWidth, flex: 0 }]}>
       <ScreenHeader
         title="Inköp"
         actionNode={
@@ -188,8 +201,8 @@ export default function ShoppingScreen() {
           return (
             <View style={[styles.cardWrap, isTablet && styles.cardWrapTablet]}>
               <Pressable
-                style={styles.card}
-                onPress={() => router.push(`/shopping/${item.id}` as never)}
+                style={[styles.card, isSplitView && item.id === selectedListId && styles.cardSelected]}
+                onPress={() => isSplitView ? setSelectedListId(item.id) : router.push(`/shopping/${item.id}` as never)}
               >
                 <View style={styles.cardLeft}>
                   {item.emoji
@@ -282,7 +295,19 @@ export default function ShoppingScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+      {isSplitView && (
+        <>
+          <View style={{ width: 1, backgroundColor: '#e5e7eb' }} />
+          <View style={{ flex: 1 }}>
+            {selectedListId
+              ? <ShoppingListDetail key={selectedListId} listId={selectedListId} onClose={() => setSelectedListId(null)} />
+              : <View style={styles.center}><Text style={{ color: '#9ca3af', fontSize: 15 }}>Välj en inköpslista</Text></View>
+            }
+          </View>
+        </>
+      )}
+    </View>
   );
 }
 
@@ -293,6 +318,10 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { padding: 16, gap: 10 },
   listEmpty: { flex: 1 },
+  cardSelected: {
+    backgroundColor: '#eef2ff',
+    borderLeftColor: '#4f46e5',
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
