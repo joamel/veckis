@@ -1197,10 +1197,10 @@ export default function MenuScreen() {
     const unsched = weekItems.filter(i => i.day === null && visible(i)).sort(byCreated);
     const anyScheduled = weekItems.some(i => i.day !== null && visible(i));
     const noop = () => {};
-    const isWide = isTablet;
+    const isWide = false;
     return (
       <>
-        <View style={isWide ? s.daysRow : undefined}>
+        <View style={isWide ? s.daysRow : s.daysCol}>
           {DAYS.map((day, i) => {
             const items = weekItems.filter(m => m.day === day.key && visible(m)).sort(byCreated);
             const date = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + i);
@@ -1378,13 +1378,13 @@ export default function MenuScreen() {
         title="Meny"
         actionNode={
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable ref={templatesBtnRef} style={s.headerIconBtn} onPress={() => setShowTemplates(true)} accessibilityLabel="Veckomeny-mallar">
-              <Ionicons name="bookmarks-outline" size={18} color="#4f46e5" />
+            <Pressable ref={templatesBtnRef} style={[s.headerIconBtn, { paddingHorizontal: sp(10), paddingVertical: sp(7) }]} onPress={() => setShowTemplates(true)} accessibilityLabel="Veckomeny-mallar">
+              <Ionicons name="bookmarks-outline" size={fs(18)} color="#4f46e5" />
             </Pressable>
             <View ref={recipesBtnRef} collapsable={false}>
-              <Pressable style={s.headerActionBtn} onPress={() => router.push('/recipes' as never)}>
-                <Ionicons name="book-outline" size={16} color="#4f46e5" />
-                <Text style={s.headerActionText}>Recept</Text>
+              <Pressable style={[s.headerActionBtn, { paddingHorizontal: sp(12), paddingVertical: sp(7) }]} onPress={() => router.push('/recipes' as never)}>
+                <Ionicons name="book-outline" size={fs(16)} color="#4f46e5" />
+                <Text style={[s.headerActionText, { fontSize: fs(13) }]}>Recept</Text>
               </Pressable>
             </View>
           </View>
@@ -2034,7 +2034,7 @@ function MenuCard({
   const cardBody = (
       <View style={[s.card, isDragging && s.cardDragging, isPending && s.cardPending]}>
         <View style={s.cardInner}>
-          <Pressable style={[s.cardMain, { padding: sp(10), gap: sp(10) }]} onPress={handlePress}>
+          <Pressable style={[s.cardMain, { padding: sp(14), gap: sp(12) }]} onPress={handlePress}>
             {dayLabel ? (
               <View style={[s.dayLabelBox, { width: sp(36), height: sp(36) }]}>
                 <Text style={[s.dayLabelAbbr, { fontSize: fs(11) }]}>{dayLabel.abbr}</Text>
@@ -2046,7 +2046,7 @@ function MenuCard({
               </View>
             )}
             <View style={s.cardContent}>
-              <Text style={[s.cardTitle, { fontSize: fs(15) }, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
+              <Text style={[s.cardTitle, { fontSize: fs(16) }, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
             </View>
             {isTransferred && (
               <Ionicons name="cart" size={fs(16)} color="#10b981" />
@@ -2171,14 +2171,15 @@ const s = StyleSheet.create({
   contentInner: { padding: 16, gap: 10, paddingBottom: 80 },
   contentInnerTablet: { padding: 8, gap: 8 },
   daysRow: { flexDirection: 'row', gap: 6, alignItems: 'stretch' },
+  daysCol: { gap: 10 },
   daySlotWide: { flex: 1, minWidth: 0, minHeight: 80 },
   daySlotEmptyWide: { borderStyle: 'dashed', borderColor: '#d1d5db', backgroundColor: 'transparent' },
   dayColHeader: { alignItems: 'center', paddingTop: 4, paddingBottom: 2 },
   dayColEmptyTap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40 },
   section: { gap: 6 },
   dayLabelBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
-  dayLabelAbbr: { fontSize: 11, fontWeight: '800', color: '#7c3aed', letterSpacing: 0.3, lineHeight: 13 },
-  dayLabelDate: { fontSize: 13, fontWeight: '700', color: '#4f46e5', lineHeight: 15 },
+  dayLabelAbbr: { fontSize: 11, fontWeight: '800', color: '#7c3aed', letterSpacing: 0.3 },
+  dayLabelDate: { fontSize: 13, fontWeight: '700', color: '#4f46e5' },
   dayLabelBoxMuted: { backgroundColor: '#f3f4f6' },
   dayLabelAbbrMuted: { color: '#9ca3af' },
   dayLabelDateMuted: { color: '#6b7280' },
