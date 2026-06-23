@@ -887,10 +887,8 @@ export default function ChoresScreen() {
                   />
                 </View>
                 <View style={s.cardContent}>
-                  <Text style={[s.cardTitle, { fontSize: fs(16) }, finishedLook && s.cardTitleDone]}>{item.title}</Text>
-                  {compactMeta.length > 0 && (
-                    <Text style={[s.cardMeta, { fontSize: fs(12) }, overdue && s.choreStatusOverdue]}>{compactMeta}</Text>
-                  )}
+                  <Text style={[s.cardTitle, { fontSize: fs(16) }, finishedLook && s.cardTitleDone]} numberOfLines={1}>{item.title}</Text>
+                  <Text style={[s.cardMeta, { fontSize: fs(12) }, overdue && s.choreStatusOverdue]} numberOfLines={1}>{compactMeta || ' '}</Text>
                 </View>
                 {showCheck && (
                   <Pressable
@@ -1318,7 +1316,7 @@ const s = StyleSheet.create({
   cardContent: { flex: 1, minWidth: 0 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
   cardTitleDone: { textDecorationLine: 'line-through', color: '#9ca3af' },
-  cardMeta: { fontSize: 12, color: '#6b7280', marginTop: 4, flexWrap: 'wrap' },
+  cardMeta: { fontSize: 12, color: '#6b7280', marginTop: 4 },
   cardOverdue: { borderLeftColor: '#f59e0b' },
   choreStatus: { fontSize: 12, fontWeight: '600', marginTop: 3, color: '#6b7280' },
   choreStatusOverdue: { color: '#b45309' },

@@ -1787,9 +1787,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                     size={22}
                     color={mergeSelected.has(item.id) ? '#4f46e5' : '#9ca3af'}
                   />
-                  <Text style={s.mergeItemText} numberOfLines={1}>
-                    {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}
-                  </Text>
+                  <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(item.name)}</Text>
+                  {(item.quantity !== 1 || item.unit) && (
+                    <Text style={s.mergeItemQty}>{String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}</Text>
+                  )}
                 </Pressable>
               ))}
               {mergeSheet && mergeSheet.items.length > 0 && (<>
@@ -2056,9 +2057,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                           size={22}
                           color={checked ? '#4f46e5' : '#9ca3af'}
                         />
-                        <Text style={s.mergeItemText} numberOfLines={1}>
-                          {capitalize(item.name)} — {String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}
-                        </Text>
+                        <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(item.name)}</Text>
+                        {(item.quantity !== 1 || item.unit) && (
+                          <Text style={s.mergeItemQty}>{String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}</Text>
+                        )}
                       </Pressable>
                     );
                   })}
@@ -2316,7 +2318,8 @@ const s = StyleSheet.create({
   unitChipText: { fontSize: 13, color: '#374151', fontWeight: '500' },
   unitChipTextActive: { color: '#4f46e5', fontWeight: '600' },
   mergeItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  mergeItemText: { fontSize: 16, color: '#374151', flex: 1 },
+  mergeItemName: { fontSize: 16, color: '#374151', flex: 1 },
+  mergeItemQty: { fontSize: 14, color: '#6b7280' },
   mergeDivider: { height: 1, backgroundColor: '#e5e7eb', marginTop: 4 },
   itemWrap: { position: 'relative' },
   itemDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },

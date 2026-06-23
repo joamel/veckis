@@ -179,9 +179,7 @@ export default function ShoppingScreen() {
         data={lists}
         keyExtractor={item => item.id}
         contentContainerStyle={[styles.list, lists.length === 0 && styles.listEmpty]}
-        numColumns={isTablet ? 2 : 1}
-        key={isTablet ? '2col' : '1col'}
-        columnWrapperStyle={isTablet ? styles.columnWrapper : undefined}
+        numColumns={1}
         onRefresh={load}
         refreshing={loading}
         ListEmptyComponent={
@@ -199,7 +197,7 @@ export default function ShoppingScreen() {
           const shopper = item.activeShopperMemberId ? members.find(m => m.id === item.activeShopperMemberId) : null;
           const iAmShopper = !!shopper && !!userId && shopper.clerkUserId === userId;
           return (
-            <View style={[styles.cardWrap, isTablet && styles.cardWrapTablet]}>
+            <View style={styles.cardWrap}>
               <Pressable
                 style={[styles.card, isSplitView && item.id === selectedListId && styles.cardSelected]}
                 onPress={() => isSplitView ? setSelectedListId(item.id) : router.push(`/shopping/${item.id}` as never)}
@@ -412,8 +410,6 @@ const styles = StyleSheet.create({
   storePickBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
   storePickBtnText: { flex: 1, fontSize: 15, color: '#374151', fontWeight: '500' },
   cardWrap: { position: 'relative' },
-  cardWrapTablet: { flex: 1 },
-  columnWrapper: { gap: 10 },
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#111827', borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
