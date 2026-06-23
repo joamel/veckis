@@ -34,7 +34,6 @@ import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
-import { RecipeDetail } from '../recipes/[recipeId]';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
@@ -125,9 +124,7 @@ export default function MenuScreen() {
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
   const { markPending, clearPending, cancelAllPending, pendingMenuItemRemovals, pendingCount } = usePendingRemoval();
-  const { fs, sp, isTablet, isSplitView, largeTablet } = useTablet();
-  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
-  const [selectedForMenuWeek, setSelectedForMenuWeek] = useState<string | undefined>(undefined);
+  const { fs, sp, isTablet } = useTablet();
   const { width: weekPageW, height: windowHeight } = useWindowDimensions();
 
   const [weekOffset, setWeekOffset] = useState(0);
@@ -1248,8 +1245,7 @@ export default function MenuScreen() {
                           isPastWeek={isPastWeek}
                           onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
                           onViewRecipe={() => {
-                          if (isSplitView) { setSelectedRecipeId(item.recipeId); setSelectedForMenuWeek(`${weekYear}-${String(weekNumber).padStart(2, '0')}`); }
-                          else router.push(`/recipes/${item.recipeId}` as never);
+                          router.push(`/recipes/${item.recipeId}` as never);
                         }}
                           onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
                           onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
@@ -1291,8 +1287,7 @@ export default function MenuScreen() {
                         isPastWeek={isPastWeek}
                         onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
                         onViewRecipe={() => {
-                          if (isSplitView) { setSelectedRecipeId(item.recipeId); setSelectedForMenuWeek(`${weekYear}-${String(weekNumber).padStart(2, '0')}`); }
-                          else router.push(`/recipes/${item.recipeId}` as never);
+                          router.push(`/recipes/${item.recipeId}` as never);
                         }}
                         onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
                         onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
@@ -1337,8 +1332,7 @@ export default function MenuScreen() {
                 isPastWeek={isPastWeek}
                 onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
                 onViewRecipe={() => {
-                          if (isSplitView) { setSelectedRecipeId(item.recipeId); setSelectedForMenuWeek(`${weekYear}-${String(weekNumber).padStart(2, '0')}`); }
-                          else router.push(`/recipes/${item.recipeId}` as never);
+                          router.push(`/recipes/${item.recipeId}` as never);
                         }}
                 onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
                 onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
@@ -1370,10 +1364,9 @@ export default function MenuScreen() {
     return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
   }
 
-  const leftWidth = largeTablet ? 400 : 360;
   return (
-    <View style={isSplitView ? { flex: 1, flexDirection: 'row', backgroundColor: '#f9fafb' } : { flex: 1 }}>
-      <SafeAreaView style={[s.container, isSplitView && { width: leftWidth, flex: 0 }]}>
+    <View style={{ flex: 1 }}>
+      <SafeAreaView style={s.container}>
       <ScreenHeader
         title="Meny"
         actionNode={
@@ -1950,17 +1943,6 @@ export default function MenuScreen() {
         <Text style={s.toastText}>{toastMessage}</Text>
       </RNAnimated.View>
       </SafeAreaView>
-      {isSplitView && (
-        <>
-          <View style={{ width: 1, backgroundColor: '#e5e7eb' }} />
-          <View style={{ flex: 1 }}>
-            {selectedRecipeId
-              ? <RecipeDetail key={selectedRecipeId} recipeId={selectedRecipeId} forMenuWeek={selectedForMenuWeek} onClose={() => setSelectedRecipeId(null)} />
-              : <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: '#9ca3af', fontSize: 15 }}>Välj ett recept</Text></View>
-            }
-          </View>
-        </>
-      )}
     </View>
   );
 }
