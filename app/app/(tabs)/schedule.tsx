@@ -456,7 +456,7 @@ export default function ScheduleScreen() {
   });
   const { user } = useUser();
   const { medium } = useHaptics();
-  const { isTablet, fs, sp } = useTablet();
+  const { isTablet, fs, sp, isSplitView } = useTablet();
   const insets = useSafeAreaInsets();
   const userId = user?.id;
 
@@ -1209,8 +1209,8 @@ export default function ScheduleScreen() {
               <View style={s.menuIcon}>
                 <Ionicons name="restaurant-outline" size={fs(16)} color="#4f46e5" />
               </View>
-              <Text style={[s.menuTitle, { fontSize: fs(15) }]}>{item.recipe.title}</Text>
-              <Text style={[s.menuMeta, { fontSize: fs(12) }]}>{item.recipe.servings} port</Text>
+              <Text style={s.menuTitle}>{item.recipe.title}</Text>
+              <Text style={s.menuMeta}>{item.recipe.servings} port</Text>
             </Pressable>
           ))}
         </View>
@@ -1315,72 +1315,36 @@ export default function ScheduleScreen() {
         ) : undefined}
       />
 
-      {isTablet ? (
+      {isSplitView && tabletCalendarView === 'month' ? (
         <View style={s.tabletLayout}>
           <View style={s.tabletLeft}>
             <View style={s.tabletViewToggle}>
               <Pressable
-                style={[s.viewToggleBtn, tabletCalendarView === 'month' && s.viewToggleBtnActive]}
+                style={[s.viewToggleBtn, s.viewToggleBtnActive]}
                 onPress={() => setTabletCalendarView('month')}
               >
-                <Text style={[s.viewToggleText, tabletCalendarView === 'month' && s.viewToggleTextActive]}>Månad</Text>
+                <Text style={[s.viewToggleText, s.viewToggleTextActive]}>Månad</Text>
               </Pressable>
               <Pressable
-                style={[s.viewToggleBtn, tabletCalendarView === 'week' && s.viewToggleBtnActive]}
+                style={s.viewToggleBtn}
                 onPress={() => setTabletCalendarView('week')}
               >
-                <Text style={[s.viewToggleText, tabletCalendarView === 'week' && s.viewToggleTextActive]}>Vecka</Text>
+                <Text style={s.viewToggleText}>Vecka</Text>
               </Pressable>
             </View>
-            {tabletCalendarView === 'month' ? (
-              <MonthView
-                date={monthRef}
-                onMonthChange={setMonthRef}
-                entries={visibleEntries}
-                chores={chores}
-                userId={userId}
-                onSelectDay={handleSelectDayFromMonth}
-                onEditEntry={(entry) => setViewingEntry(entry)}
-                onEditChore={(chore) => setEditingCalChore(chore)}
-                onToday={!isCurrentMonth ? () => { setMonthRef(new Date()); setWeekRef(new Date()); setSelectedDay(weekdayKeyOf(new Date())); } : undefined}
-                selectedDate={selectedDayDate}
-                filterMemberIds={filterMemberIds}
-              />
-            ) : (
-              <>
-                <WeekNav
-                  weekLabel={`Vecka ${weekNumber}`}
-                  isCurrentWeek={isCurrentWeek}
-                  onPrev={() => setWeekRef(w => addWeeks(w, -1))}
-                  onNext={() => setWeekRef(w => addWeeks(w, 1))}
-                  onToday={() => { setWeekRef(new Date()); setSelectedDay(weekdayKeyOf(new Date())); }}
-                  onPickDate={() => setShowWeekPicker(true)}
-                />
-                <View style={s.dayRow}>
-                  {DAYS.map((day, i) => {
-                    const count = totalPerDay(day.key);
-                    const dayDate = new Date(weekMonday.getTime() + i * 86400000);
-                    const now = new Date();
-                    const isToday = dayDate.getDate() === now.getDate() &&
-                      dayDate.getMonth() === now.getMonth() &&
-                      dayDate.getFullYear() === now.getFullYear();
-                    const isActive = selectedDay === day.key;
-                    const dateNum = dayDate.getDate();
-                    return (
-                      <Pressable
-                        key={day.key}
-                        style={[s.dayTab, isActive && s.dayTabActive, !isActive && count > 0 && s.dayTabHasContent]}
-                        onPress={() => setSelectedDay(day.key)}
-                      >
-                        <Text style={[s.dayTabShort, isActive && s.dayTabTextActive]}>{day.short}</Text>
-                        <Text style={[s.dayTabDate, isActive && s.dayTabTextActive]}>{dateNum}</Text>
-                        <View style={[s.todayDot, isActive && s.todayDotActive, !isToday && s.todayDotHidden]} />
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </>
-            )}
+            <MonthView
+              date={monthRef}
+              onMonthChange={setMonthRef}
+              entries={visibleEntries}
+              chores={chores}
+              userId={userId}
+              onSelectDay={handleSelectDayFromMonth}
+              onEditEntry={(entry) => setViewingEntry(entry)}
+              onEditChore={(chore) => setEditingCalChore(chore)}
+              onToday={!isCurrentMonth ? () => { setMonthRef(new Date()); setWeekRef(new Date()); setSelectedDay(weekdayKeyOf(new Date())); } : undefined}
+              selectedDate={selectedDayDate}
+              filterMemberIds={filterMemberIds}
+            />
           </View>
           <View style={s.tabletRight}>
             <View style={s.tabletDayHeader}>
@@ -1411,6 +1375,22 @@ export default function ScheduleScreen() {
         </View>
       ) : (
         <>
+          {isSplitView && (
+            <View style={s.tabletViewToggle}>
+              <Pressable
+                style={s.viewToggleBtn}
+                onPress={() => setTabletCalendarView('month')}
+              >
+                <Text style={s.viewToggleText}>Månad</Text>
+              </Pressable>
+              <Pressable
+                style={[s.viewToggleBtn, s.viewToggleBtnActive]}
+                onPress={() => setTabletCalendarView('week')}
+              >
+                <Text style={[s.viewToggleText, s.viewToggleTextActive]}>Vecka</Text>
+              </Pressable>
+            </View>
+          )}
           <WeekNav
             weekLabel={`Vecka ${weekNumber}`}
             isCurrentWeek={isCurrentWeek}
