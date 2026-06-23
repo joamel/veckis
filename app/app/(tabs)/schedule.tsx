@@ -1206,11 +1206,11 @@ export default function ScheduleScreen() {
                 });
               }}
             >
-              <View style={s.menuIcon}>
+              <View style={[s.menuIcon, { width: sp(32), height: sp(32) }]}>
                 <Ionicons name="restaurant-outline" size={fs(16)} color="#4f46e5" />
               </View>
-              <Text style={s.menuTitle}>{item.recipe.title}</Text>
-              <Text style={s.menuMeta}>{item.recipe.servings} port</Text>
+              <Text style={[s.menuTitle, { fontSize: fs(15) }]}>{item.recipe.title}</Text>
+              <Text style={[s.menuMeta, { fontSize: fs(12) }]}>{item.recipe.servings} port</Text>
             </Pressable>
           ))}
         </View>
