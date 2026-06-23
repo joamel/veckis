@@ -13,7 +13,7 @@ interface ScreenHeaderProps {
 }
 
 export function ScreenHeader({ title, actionIcon, actionLabel, onActionPress, actionNode }: ScreenHeaderProps) {
-  const { householdName, householdEmoji } = useHousehold();
+  const { householdName } = useHousehold();
   const { fs, sp } = useTablet();
 
   return (
@@ -23,9 +23,7 @@ export function ScreenHeader({ title, actionIcon, actionLabel, onActionPress, ac
           <Text style={[s.title, { fontSize: fs(28) }]}>{title}</Text>
           {householdName && (
             <View style={s.subtitleRow}>
-              {householdEmoji
-                ? <Text style={[s.subtitle, { fontSize: fs(13), marginTop: 0 }]}>{householdEmoji}</Text>
-                : <Ionicons name="home" size={fs(13)} color="#6b7280" />}
+              <Ionicons name="home-outline" size={fs(13)} color="#6b7280" />
               <Text style={[s.subtitle, { fontSize: fs(13), marginTop: 0 }]}>{householdName}</Text>
             </View>
           )}

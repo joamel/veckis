@@ -1370,7 +1370,7 @@ export default function MenuScreen() {
       <ScreenHeader
         title="Meny"
         actionNode={
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <Pressable ref={templatesBtnRef} style={[s.headerIconBtn, { paddingHorizontal: sp(10), paddingVertical: sp(7) }]} onPress={() => setShowTemplates(true)} accessibilityLabel="Veckomeny-mallar">
               <Ionicons name="bookmarks-outline" size={fs(18)} color="#4f46e5" />
             </Pressable>

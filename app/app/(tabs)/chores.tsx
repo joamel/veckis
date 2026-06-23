@@ -773,13 +773,8 @@ export default function ChoresScreen() {
             await Promise.all(completedOnce.map(c => client.deleteChore(c.id).catch(() => {})));
             setChores(prev => prev.filter(c => !completedOnce.find(d => d.id === c.id)));
             await Promise.all(completedRecurring.map(({ chore, currentDate }) =>
-              client.uncompleteChore(chore.id, null, currentDate).catch(() => {})
+              uncompleteOccurrence(chore, currentDate)
             ));
-            setChores(prev => prev.map(c => {
-              const entry = completedRecurring.find(r => r.chore.id === c.id);
-              if (!entry) return c;
-              return { ...c, completions: c.completions.filter(x => x.date !== entry.currentDate) };
-            }));
           },
         },
         { label: 'Avbryt', style: 'cancel' },
