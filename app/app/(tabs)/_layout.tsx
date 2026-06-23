@@ -2,16 +2,21 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { usePushRegistration } from '../../src/hooks/usePushRegistration';
 import { useNotificationRouting } from '../../src/hooks/useNotificationRouting';
+import { useTablet } from '../../src/hooks/useTablet';
 
 export default function TabLayout() {
   usePushRegistration();
   useNotificationRouting();
+  const { fs, sp } = useTablet();
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#4f46e5',
         tabBarInactiveTintColor: '#999',
         headerShown: false,
+        tabBarLabelStyle: { fontSize: fs(11) },
+        tabBarStyle: { height: sp(60) },
+        tabBarIconStyle: { marginTop: sp(2) },
       }}
     >
       <Tabs.Screen

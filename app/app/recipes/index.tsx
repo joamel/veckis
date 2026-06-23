@@ -27,6 +27,7 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
+import { useTablet } from '../../src/hooks/useTablet';
 
 const MENU_DAYS: { key: WeekDay; label: string }[] = [
   { key: 'mon', label: 'Måndag' },
@@ -58,6 +59,7 @@ export default function RecipesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<'name' | 'used' | 'recent'>('name');
   const [showSort, setShowSort] = useState(false);
+  const { fs, sp } = useTablet();
   useEffect(() => {
     SecureStore.getItemAsync('recipeSort').then(v => {
       if (v === 'name' || v === 'used' || v === 'recent') setSortMode(v);
@@ -341,8 +343,8 @@ export default function RecipesScreen() {
             </Pressable>
             <Text style={s.title}>Recept</Text>
           </View>
-          <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={s.sortBtn} accessibilityLabel="Sortera recept">
-            <Ionicons name="swap-vertical" size={18} color="#4f46e5" />
+          <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={[s.sortBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }]} accessibilityLabel="Sortera recept">
+            <Ionicons name="swap-vertical" size={fs(18)} color="#4f46e5" />
           </Pressable>
         </View>
         <View style={s.searchRow}>

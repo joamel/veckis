@@ -56,6 +56,8 @@ export type RecurrencePickerProps = RecurrencePickerValue & {
   /** Om satt: visa veckodag-rad för weekday-of-month. Annars: härled från referenceDay. */
   weekday?: WeekDay;
   onChangeWeekday?: (day: WeekDay) => void;
+  /** Dölj slutdatum-raden (Upphör aldrig / Välj datum). Default: true (visas). */
+  showEndDate?: boolean;
 };
 
 const WEEKDAY_FROM_JS: WeekDay[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -202,7 +204,7 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
         </>
       )}
 
-      {props.recurrenceType !== 'none' && (
+      {props.recurrenceType !== 'none' && props.showEndDate !== false && (
         <>
           <Text style={s.label}>Slutar</Text>
           <View style={s.endRow}>

@@ -333,6 +333,8 @@ export default function ChoresScreen() {
   // Date range state
   const [newStartDate, setNewStartDate] = useState<string | null>(null);
   const [newEndDate, setNewEndDate] = useState<string | null>(null);
+  const [showNewAdvanced, setShowNewAdvanced] = useState(false);
+  const [showEditAdvanced, setShowEditAdvanced] = useState(false);
   const [showNewStartPicker, setShowNewStartPicker] = useState(false);
   const [showNewEndPicker, setShowNewEndPicker] = useState(false);
   const [editStartDate, setEditStartDate] = useState<string | null>(null);
@@ -526,6 +528,7 @@ export default function ChoresScreen() {
     setNewWeekday('mon');
     setNewStartDate(null);
     setNewEndDate(null);
+    setShowNewAdvanced(false);
   }
 
   // Always open a fresh dialog so an abandoned (cancelled) syssla doesn't reappear.
@@ -586,6 +589,7 @@ export default function ChoresScreen() {
     setEditRecurrenceWeekOfMonth(chore.recurrenceWeekOfMonth ?? 1);
     setEditStartDate(chore.startDate ?? null);
     setEditEndDate(chore.endDate ?? null);
+    setShowEditAdvanced(false);
     const derived = deriveMonthlyFromStartDate(chore.startDate ?? null);
     setEditMonthDay(derived.dayOfMonth);
     setEditWeekday(derived.weekday);
@@ -773,13 +777,8 @@ export default function ChoresScreen() {
             await Promise.all(completedOnce.map(c => client.deleteChore(c.id).catch(() => {})));
             setChores(prev => prev.filter(c => !completedOnce.find(d => d.id === c.id)));
             await Promise.all(completedRecurring.map(({ chore, currentDate }) =>
-              client.uncompleteChore(chore.id, null, currentDate).catch(() => {})
+              uncompleteOccurrence(chore, currentDate)
             ));
-            setChores(prev => prev.map(c => {
-              const entry = completedRecurring.find(r => r.chore.id === c.id);
-              if (!entry) return c;
-              return { ...c, completions: c.completions.filter(x => x.date !== entry.currentDate) };
-            }));
           },
         },
         { label: 'Avbryt', style: 'cancel' },
@@ -798,15 +797,15 @@ export default function ChoresScreen() {
         actionNode={
           <View style={s.headerActions}>
             {(completedOnce.length > 0 || completedRecurring.length > 0) && (
-              <Pressable style={s.clearBtn} onPress={clearCompleted}>
-                <Ionicons name="trash-outline" size={14} color="#ef4444" />
-                <Text style={s.clearBtnText}>Rensa klara ({completedOnce.length + completedRecurring.length})</Text>
+              <Pressable style={[s.clearBtn, { paddingHorizontal: sp(10), paddingVertical: sp(6) }]} onPress={clearCompleted}>
+                <Ionicons name="trash-outline" size={fs(14)} color="#ef4444" />
+                <Text style={[s.clearBtnText, { fontSize: fs(12) }]}>Rensa klara ({completedOnce.length + completedRecurring.length})</Text>
               </Pressable>
             )}
             {members.length > 0 && (
-              <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive]} onPress={() => setShowFilterModal(true)}>
-                <Ionicons name="person-outline" size={14} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
-                <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive]}>Filter</Text>
+              <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive, { paddingHorizontal: sp(10), paddingVertical: sp(6) }]} onPress={() => setShowFilterModal(true)}>
+                <Ionicons name="person-outline" size={fs(14)} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
+                <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive, { fontSize: fs(12) }]}>Filter</Text>
                 {filterMemberIds.length > 0 && (
                   <View style={s.filterBadge}>
                     <Text style={s.filterBadgeText}>{filterMemberIds.length}</Text>
@@ -1001,6 +1000,7 @@ export default function ChoresScreen() {
               onChange={setNewAssignedToMany}
               onRotationChange={setNewRotation}
               rotationAllowed={newRecurrenceType !== 'none'}
+              showOrderSection={showNewAdvanced}
             />
 
             {newRecurrenceType === 'none' && (
@@ -1038,6 +1038,7 @@ export default function ChoresScreen() {
               onChangeWeekOfMonth={setNewRecurrenceWeekOfMonth}
               onChangeEndDate={setNewEndDate}
               onOpenEndPicker={() => setShowNewEndPicker(true)}
+              showEndDate={showNewAdvanced}
             />
 
             {newRecurrenceType !== 'none' && (
@@ -1055,6 +1056,22 @@ export default function ChoresScreen() {
                   )}
                 </View>
               </>
+            )}
+
+            {(newRecurrenceType !== 'none' || (newRotation && newAssignedToMany.length >= 3)) && (
+              <Pressable
+                style={s.advancedToggle}
+                onPress={() => setShowNewAdvanced(v => !v)}
+              >
+                <Text style={s.advancedToggleText}>
+                  {showNewAdvanced ? 'Färre inställningar' : 'Fler inställningar'}
+                </Text>
+                <Ionicons
+                  name={showNewAdvanced ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color="#6b7280"
+                />
+              </Pressable>
             )}
 
             <Pressable
@@ -1213,6 +1230,7 @@ export default function ChoresScreen() {
               onChange={setEditAssignedToMany}
               onRotationChange={setEditRotation}
               rotationAllowed={editRecurrenceType !== 'none'}
+              showOrderSection={showEditAdvanced}
             />
 
             {editRecurrenceType === 'none' && (
@@ -1250,6 +1268,7 @@ export default function ChoresScreen() {
               onChangeWeekOfMonth={setEditRecurrenceWeekOfMonth}
               onChangeEndDate={setEditEndDate}
               onOpenEndPicker={() => setShowEditEndPicker(true)}
+              showEndDate={showEditAdvanced}
             />
 
             {editRecurrenceType !== 'none' && (
@@ -1267,6 +1286,22 @@ export default function ChoresScreen() {
                   )}
                 </View>
               </>
+            )}
+
+            {(editRecurrenceType !== 'none' || (editRotation && editAssignedToMany.length >= 3)) && (
+              <Pressable
+                style={s.advancedToggle}
+                onPress={() => setShowEditAdvanced(v => !v)}
+              >
+                <Text style={s.advancedToggleText}>
+                  {showEditAdvanced ? 'Färre inställningar' : 'Fler inställningar'}
+                </Text>
+                <Ionicons
+                  name={showEditAdvanced ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color="#6b7280"
+                />
+              </Pressable>
             )}
 
             <Pressable
@@ -1371,6 +1406,8 @@ const s = StyleSheet.create({
   dateBtnSet: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
   dateBtnText: { fontSize: 13, color: '#9ca3af', flex: 1 },
   dateBtnTextSet: { color: '#4f46e5', fontWeight: '600' },
+  advancedToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 10 },
+  advancedToggleText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
   filterBtnActive: { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' },

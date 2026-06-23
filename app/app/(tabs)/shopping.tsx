@@ -163,13 +163,13 @@ export default function ShoppingScreen() {
           // den ur native-hierarkin (annars returnerar measureInWindow 0).
           <View ref={storesBtnRef} collapsable={false}>
             <Pressable
-              style={styles.storesHeaderBtn}
+              style={[styles.storesHeaderBtn, { paddingHorizontal: sp(12), paddingVertical: sp(7) }]}
               onPress={() => router.push('/stores' as never)}
               accessibilityRole="button"
               accessibilityLabel="Butiker"
             >
-              <Ionicons name="storefront-outline" size={16} color="#4f46e5" />
-              <Text style={styles.storesHeaderBtnText}>Butiker</Text>
+              <Ionicons name="storefront-outline" size={fs(16)} color="#4f46e5" />
+              <Text style={[styles.storesHeaderBtnText, { fontSize: fs(13) }]}>Butiker</Text>
             </Pressable>
           </View>
         }

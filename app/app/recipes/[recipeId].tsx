@@ -234,7 +234,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     const defaultWeek = forMenuWeek ?? `${todayWeek.weekYear}-${String(todayWeek.weekNumber).padStart(2, '0')}`;
     setPlanWeekStr(defaultWeek);
     setPlanDay(null);
-    setShowPlanModal(true);
+    // Delay to let the ConfirmDialog modal finish closing before opening a new modal
+    setTimeout(() => setShowPlanModal(true), 350);
   }
 
   function openRecipeActions() {
@@ -739,6 +740,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           <View style={s.section}>
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>Instruktioner</Text>
+              <Pressable style={s.lagaBtn} onPress={() => { setCookStep(0); setCookMode(true); }}>
+                <Ionicons name="restaurant-outline" size={14} color="#4f46e5" />
+                <Text style={s.lagaBtnText}>Laga</Text>
+              </Pressable>
             </View>
             <Text style={s.instructionsText}>{recipe.instructions}</Text>
           </View>
@@ -914,6 +919,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         const step = steps[cookStep] ?? '';
         return (
           <Modal visible={cookMode} transparent={false} animationType="slide" onRequestClose={() => setCookMode(false)}>
+            <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
             <SafeAreaView style={s.cookContainer}>
               <View style={s.cookHeader}>
                 <Text style={s.cookRecipeTitle} numberOfLines={1}>{recipe.title}</Text>
@@ -974,6 +980,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 )}
               </View>
             </SafeAreaView>
+            </View>
           </Modal>
         );
       })() : null}
@@ -1054,6 +1061,8 @@ const s = StyleSheet.create({
   section: { gap: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
+  lagaBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#eef2ff' },
+  lagaBtnText: { fontSize: 13, fontWeight: '600', color: '#4f46e5' },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   editBtnText: { fontSize: 14, color: '#4f46e5', fontWeight: '500' },
   ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
@@ -1085,7 +1094,7 @@ const s = StyleSheet.create({
   // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '85%' },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '85%' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   renameTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16 },
   renameInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: '#f9fafb', color: '#111827' },
