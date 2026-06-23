@@ -36,8 +36,8 @@ import type { RecipeIngredient, WeekDay } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
-export default function RecipeDetailScreen() {
-  const { recipeId, transfer, edit, forMenuDay, forMenuWeek, from } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string }>();
+export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; onClose?: () => void }) {
+  const edit = editParam;
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -209,7 +209,7 @@ export default function RecipeDetailScreen() {
         setEditImage(r.imageUrl ?? '');
         setEditIngredients([{ name: '', quantity: '', unit: '' }]);
         setEditMode(true);
-        router.setParams({ edit: undefined });
+        if (!onClose) router.setParams({ edit: undefined });
         setTimeout(() => getRowRef(0).name?.focus(), 250);
       }
     } catch {
@@ -260,7 +260,7 @@ export default function RecipeDetailScreen() {
       { label: 'Ta bort', style: 'destructive', onPress: async () => {
         try {
           await client.deleteRecipe(recipe.id);
-          router.back();
+          if (onClose) onClose(); else router.back();
         } catch {
           confirm({ title: 'Fel', message: 'Kunde inte ta bort receptet', buttons: [{ label: 'OK' }] });
         }
@@ -429,7 +429,7 @@ export default function RecipeDetailScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Tillbaka">
+        <Pressable onPress={() => { if (onClose) onClose(); else router.back(); }} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Tillbaka">
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
         {editMode ? (
@@ -1137,3 +1137,8 @@ const s = StyleSheet.create({
   planChipSub: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
   planChipSubActive: { color: '#818cf8' },
 });
+
+export default function RecipeDetailScreen() {
+  const { recipeId, transfer, edit, forMenuDay, forMenuWeek, from } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string }>();
+  return <RecipeDetail recipeId={recipeId} transfer={transfer} edit={edit} forMenuDay={forMenuDay} forMenuWeek={forMenuWeek} from={from} />;
+}

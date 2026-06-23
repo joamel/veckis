@@ -67,16 +67,13 @@ const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
 const dismissedDupesStore = new Map<string, Set<string>>();
 
 
-export default function ShoppingListScreen() {
-  const { listId } = useLocalSearchParams<{ listId: string }>();
+export function ShoppingListDetail({ listId, onClose }: { listId: string; onClose?: () => void }) {
   const router = useRouter();
-  // From a list we always want to land on the lists overview. After the
-  // import-from-menu flow (dismissTo) the back stack can be empty, so back()
-  // would throw "GO_BACK was not handled" — fall back to the shopping tab.
   const goBack = useCallback(() => {
+    if (onClose) { onClose(); return; }
     if (router.canGoBack()) router.back();
     else router.replace('/(tabs)/shopping' as never);
-  }, [router]);
+  }, [router, onClose]);
   const client = useApiClient();
   const { triggerCheck: triggerCheckHaptic, triggerDelete: triggerDeleteHaptic } = useCheckHaptic();
   const { showToast: showGlobalToast, showError } = useToast();
@@ -1005,7 +1002,7 @@ export default function ShoppingListScreen() {
           try {
             await client.deleteShoppingList(listId);
             emitShoppingChanged();
-            router.back();
+            if (onClose) onClose(); else router.back();
           } catch (e) {
             showError(e, 'Kunde inte ta bort listan');
           }
@@ -2326,3 +2323,8 @@ const s = StyleSheet.create({
   editDoneBtn: { backgroundColor: '#111827', padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#e5e7eb' },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
+
+export default function ShoppingListScreen() {
+  const { listId } = useLocalSearchParams<{ listId: string }>();
+  return <ShoppingListDetail listId={listId} />;
+}
