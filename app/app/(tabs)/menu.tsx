@@ -1449,14 +1449,14 @@ export default function MenuScreen() {
       {/* Overför-FAB (kundkorg) — visas bara för nuvarande/framtida veckor
           när minst en rätt inte är överförd än. */}
       {!dragState && weekOffset >= 0 && menuItems.some(m => !recipeListMap[m.id]?.length) && (
-        <Pressable ref={cartFabRef} style={s.fab} onPress={transferWeekMenu} accessibilityLabel="Överför veckomeny till inköpslista">
-          <Ionicons name="cart-outline" size={26} color="#fff" />
+        <Pressable ref={cartFabRef} style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={transferWeekMenu} accessibilityLabel="Överför veckomeny till inköpslista">
+          <Ionicons name="cart-outline" size={fs(26)} color="#fff" />
         </Pressable>
       )}
       {/* Mall-FAB — visas för gamla veckor med rätter så de lätt kan sparas som mall */}
       {!dragState && weekOffset < 0 && menuItems.length > 0 && (
-        <Pressable style={s.fab} onPress={() => setShowTemplates(true)} accessibilityLabel="Spara vecka som mall">
-          <Ionicons name="bookmark-outline" size={24} color="#fff" />
+        <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={() => setShowTemplates(true)} accessibilityLabel="Spara vecka som mall">
+          <Ionicons name="bookmark-outline" size={fs(24)} color="#fff" />
         </Pressable>
       )}
 

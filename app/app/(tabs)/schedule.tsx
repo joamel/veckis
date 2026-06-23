@@ -77,6 +77,14 @@ function totalAngleToMinutes(a: number): number {
   if (a <= 1080) return Math.max(1, Math.min(7, Math.round((a - 720) / 60) + 1)) * 1440;
   return Math.max(1, Math.round((a - 1080) / 45)) * 10080;
 }
+const REMIND_PRESETS: { label: string; value: number }[] = [
+  { label: '5 min', value: 5 },
+  { label: '15 min', value: 15 },
+  { label: '30 min', value: 30 },
+  { label: '1 tim', value: 60 },
+  { label: 'Dagen innan', value: 1440 },
+];
+
 function formatRemindTime(m: number): string {
   if (m === 0) return 'Vid start';
   if (m < 60) return `${m} min`;
@@ -557,6 +565,7 @@ export default function ScheduleScreen() {
   const [newRemindMinutes, setNewRemindMinutes] = useState<number[]>([]);
   const [newRemindDialValue, setNewRemindDialValue] = useState(0);
   const [showNewRemindDial, setShowNewRemindDial] = useState(false);
+  const [showNewQuickPick, setShowNewQuickPick] = useState(false);
   const [newAssignedToMany, setNewAssignedToMany] = useState<string[]>([]);
   const [newRecurrenceType, setNewRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('none');
   const [newRecurrenceDays, setNewRecurrenceDays] = useState<WeekDay[]>([]);
@@ -578,6 +587,7 @@ export default function ScheduleScreen() {
   const [editEntryRemindMinutes, setEditEntryRemindMinutes] = useState<number[]>([]);
   const [editRemindDialValue, setEditRemindDialValue] = useState(0);
   const [showEditRemindDial, setShowEditRemindDial] = useState(false);
+  const [showEditQuickPick, setShowEditQuickPick] = useState(false);
   const [editEntryAssignedToMany, setEditEntryAssignedToMany] = useState<string[]>([]);
   const [savingEntry, setSavingEntry] = useState(false);
 
@@ -760,6 +770,7 @@ export default function ScheduleScreen() {
     setNewRemindMinutes([]);
     setNewRemindDialValue(0);
     setShowNewRemindDial(false);
+    setShowNewQuickPick(false);
     setNewAssignedToMany([]);
     setNewRecurrenceType('none');
     setNewRecurrenceDays([]);
@@ -936,6 +947,7 @@ export default function ScheduleScreen() {
     setEditEntryRemindMinutes(loadedRemind);
     setEditRemindDialValue(0);
     setShowEditRemindDial(false);
+    setShowEditQuickPick(false);
     setEditEntryAssignedToMany(entry.assignedToMany && entry.assignedToMany.length > 0 ? entry.assignedToMany : (entry.assignedTo ? [entry.assignedTo] : []));
     setEditEntryRecurrenceType(entry.recurrenceType as any);
     setEditEntryRecurrenceDays(entry.recurrenceDays as WeekDay[]);
@@ -1365,11 +1377,11 @@ export default function ScheduleScreen() {
                 />
               ) : renderDayDetail(cur)}
             </ScrollView>
-            <Pressable style={s.fab} onPress={wrapAddTip(
+            <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={wrapAddTip(
             () => openNewEntry(selectedDay),
             { title: 'Skapa aktivitet', message: 'Här lägger du till en aktivitet på den valda dagen. Du kan välja om den ska upprepas (dagligen, veckovis, månadsvis), vem som ska göra den och få en påminnelse innan starttiden.' },
           )}>
-              <Ionicons name="add" size={30} color="#fff" />
+              <Ionicons name="add" size={fs(30)} color="#fff" />
             </Pressable>
           </View>
         </View>
@@ -1667,7 +1679,7 @@ export default function ScheduleScreen() {
                     <Text style={s.sharedLabel}>Påminnelse</Text>
                     <Text style={s.sharedSub}>{editRemindEnabled ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
                   </View>
-                  <Switch value={editRemindEnabled} onValueChange={v => { setEditRemindEnabled(v); if (!v) { setEditEntryRemindMinutes([]); setShowEditRemindDial(false); } else { setShowEditRemindDial(true); } }} trackColor={{ true: '#4f46e5' }} />
+                  <Switch value={editRemindEnabled} onValueChange={v => { setEditRemindEnabled(v); if (!v) { setEditEntryRemindMinutes([]); setShowEditRemindDial(false); setShowEditQuickPick(false); } else { setShowEditQuickPick(true); } }} trackColor={{ true: '#4f46e5' }} />
                 </Pressable>
                 {editRemindEnabled && (
                   <>
@@ -1683,18 +1695,31 @@ export default function ScheduleScreen() {
                         ))}
                       </View>
                     )}
-                    {editEntryRemindMinutes.length < 5 && (
-                      showEditRemindDial ? (
-                        <View style={{ alignItems: 'center', marginVertical: 12 }}>
-                          <RemindDial minutes={editRemindDialValue} onChange={setEditRemindDialValue} onAdd={() => { setEditEntryRemindMinutes(prev => prev.includes(editRemindDialValue) ? prev : [...prev, editRemindDialValue].sort((a, b) => a - b)); setEditRemindDialValue(0); setShowEditRemindDial(false); }} />
-                        </View>
-                      ) : (
-                        <Pressable style={s.remindMoreBtn} onPress={() => setShowEditRemindDial(true)}>
-                          <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
-                          <Text style={s.remindMoreBtnText}>Lägg till påminnelse</Text>
+                    {showEditRemindDial ? (
+                      <View style={{ alignItems: 'center', marginVertical: 12 }}>
+                        <RemindDial minutes={editRemindDialValue} onChange={setEditRemindDialValue} onAdd={() => { setEditEntryRemindMinutes(prev => prev.includes(editRemindDialValue) ? prev : [...prev, editRemindDialValue].sort((a, b) => a - b)); setEditRemindDialValue(0); setShowEditRemindDial(false); }} />
+                      </View>
+                    ) : showEditQuickPick && editEntryRemindMinutes.length < 5 ? (
+                      <View style={s.remindQuickRow}>
+                        {REMIND_PRESETS.filter(p => !editEntryRemindMinutes.includes(p.value)).map(p => (
+                          <Pressable
+                            key={p.value}
+                            style={s.remindQuickChip}
+                            onPress={() => { setEditEntryRemindMinutes(prev => [...prev, p.value].sort((a, b) => a - b)); setShowEditQuickPick(false); }}
+                          >
+                            <Text style={s.remindQuickChipText}>{p.label}</Text>
+                          </Pressable>
+                        ))}
+                        <Pressable onPress={() => { setShowEditRemindDial(true); setShowEditQuickPick(false); }}>
+                          <Text style={s.remindCustomLink}>Välj annan tid</Text>
                         </Pressable>
-                      )
-                    )}
+                      </View>
+                    ) : editEntryRemindMinutes.length > 0 && editEntryRemindMinutes.length < 5 ? (
+                      <Pressable style={s.remindMoreBtn} onPress={() => setShowEditQuickPick(true)}>
+                        <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
+                        <Text style={s.remindMoreBtnText}>Lägg till påminnelse</Text>
+                      </Pressable>
+                    ) : null}
                   </>
                 )}
               </>
@@ -1937,7 +1962,7 @@ export default function ScheduleScreen() {
                     <Text style={s.sharedLabel}>Påminnelse</Text>
                     <Text style={s.sharedSub}>{newRemindEnabled ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
                   </View>
-                  <Switch value={newRemindEnabled} onValueChange={v => { setNewRemindEnabled(v); if (!v) { setNewRemindMinutes([]); setShowNewRemindDial(false); } else { setShowNewRemindDial(true); } }} trackColor={{ true: '#4f46e5' }} />
+                  <Switch value={newRemindEnabled} onValueChange={v => { setNewRemindEnabled(v); if (!v) { setNewRemindMinutes([]); setShowNewRemindDial(false); setShowNewQuickPick(false); } else { setShowNewQuickPick(true); } }} trackColor={{ true: '#4f46e5' }} />
                 </Pressable>
                 {newRemindEnabled && (
                   <>
@@ -1953,18 +1978,31 @@ export default function ScheduleScreen() {
                         ))}
                       </View>
                     )}
-                    {newRemindMinutes.length < 5 && (
-                      showNewRemindDial ? (
-                        <View style={{ alignItems: 'center', marginVertical: 12 }}>
-                          <RemindDial minutes={newRemindDialValue} onChange={setNewRemindDialValue} onAdd={() => { setNewRemindMinutes(prev => prev.includes(newRemindDialValue) ? prev : [...prev, newRemindDialValue].sort((a, b) => a - b)); setNewRemindDialValue(0); setShowNewRemindDial(false); }} />
-                        </View>
-                      ) : (
-                        <Pressable style={s.remindMoreBtn} onPress={() => setShowNewRemindDial(true)}>
-                          <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
-                          <Text style={s.remindMoreBtnText}>Lägg till påminnelse</Text>
+                    {showNewRemindDial ? (
+                      <View style={{ alignItems: 'center', marginVertical: 12 }}>
+                        <RemindDial minutes={newRemindDialValue} onChange={setNewRemindDialValue} onAdd={() => { setNewRemindMinutes(prev => prev.includes(newRemindDialValue) ? prev : [...prev, newRemindDialValue].sort((a, b) => a - b)); setNewRemindDialValue(0); setShowNewRemindDial(false); }} />
+                      </View>
+                    ) : showNewQuickPick && newRemindMinutes.length < 5 ? (
+                      <View style={s.remindQuickRow}>
+                        {REMIND_PRESETS.filter(p => !newRemindMinutes.includes(p.value)).map(p => (
+                          <Pressable
+                            key={p.value}
+                            style={s.remindQuickChip}
+                            onPress={() => { setNewRemindMinutes(prev => [...prev, p.value].sort((a, b) => a - b)); setShowNewQuickPick(false); }}
+                          >
+                            <Text style={s.remindQuickChipText}>{p.label}</Text>
+                          </Pressable>
+                        ))}
+                        <Pressable onPress={() => { setShowNewRemindDial(true); setShowNewQuickPick(false); }}>
+                          <Text style={s.remindCustomLink}>Välj annan tid</Text>
                         </Pressable>
-                      )
-                    )}
+                      </View>
+                    ) : newRemindMinutes.length > 0 && newRemindMinutes.length < 5 ? (
+                      <Pressable style={s.remindMoreBtn} onPress={() => setShowNewQuickPick(true)}>
+                        <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
+                        <Text style={s.remindMoreBtnText}>Lägg till påminnelse</Text>
+                      </Pressable>
+                    ) : null}
                   </>
                 )}
               </>
@@ -2256,4 +2294,8 @@ const s = StyleSheet.create({
   remindAddBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' as const },
   remindMoreBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   remindMoreBtnText: { color: '#4f46e5', fontSize: 14, fontWeight: '600' as const },
+  remindQuickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 6, alignItems: 'center' },
+  remindQuickChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#c4b5fd', backgroundColor: '#f5f3ff' },
+  remindQuickChipText: { fontSize: 13, fontWeight: '600' as const, color: '#7c3aed' },
+  remindCustomLink: { fontSize: 13, color: '#4f46e5', fontWeight: '500' as const, paddingHorizontal: 4, paddingVertical: 7, textDecorationLine: 'underline' },
 });
