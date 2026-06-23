@@ -798,15 +798,15 @@ export default function ChoresScreen() {
         actionNode={
           <View style={s.headerActions}>
             {(completedOnce.length > 0 || completedRecurring.length > 0) && (
-              <Pressable style={s.clearBtn} onPress={clearCompleted}>
-                <Ionicons name="trash-outline" size={14} color="#ef4444" />
-                <Text style={s.clearBtnText}>Rensa klara ({completedOnce.length + completedRecurring.length})</Text>
+              <Pressable style={[s.clearBtn, { paddingHorizontal: sp(10), paddingVertical: sp(6) }]} onPress={clearCompleted}>
+                <Ionicons name="trash-outline" size={fs(14)} color="#ef4444" />
+                <Text style={[s.clearBtnText, { fontSize: fs(12) }]}>Rensa klara ({completedOnce.length + completedRecurring.length})</Text>
               </Pressable>
             )}
             {members.length > 0 && (
-              <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive]} onPress={() => setShowFilterModal(true)}>
-                <Ionicons name="person-outline" size={14} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
-                <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive]}>Filter</Text>
+              <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive, { paddingHorizontal: sp(10), paddingVertical: sp(6) }]} onPress={() => setShowFilterModal(true)}>
+                <Ionicons name="person-outline" size={fs(14)} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
+                <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive, { fontSize: fs(12) }]}>Filter</Text>
                 {filterMemberIds.length > 0 && (
                   <View style={s.filterBadge}>
                     <Text style={s.filterBadgeText}>{filterMemberIds.length}</Text>

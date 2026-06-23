@@ -1303,9 +1303,9 @@ export default function ScheduleScreen() {
       <ScreenHeader
         title="Kalender"
         actionNode={members.length > 0 ? (
-          <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive]} onPress={() => setShowFilterModal(true)}>
-            <Ionicons name="person-outline" size={14} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
-            <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive]}>Filter</Text>
+          <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive, { paddingHorizontal: sp(10), paddingVertical: sp(6) }]} onPress={() => setShowFilterModal(true)}>
+            <Ionicons name="person-outline" size={fs(14)} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
+            <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive, { fontSize: fs(12) }]}>Filter</Text>
             {filterMemberIds.length > 0 && (
               <View style={s.filterBadge}>
                 <Text style={s.filterBadgeText}>{filterMemberIds.length}</Text>
@@ -1320,16 +1320,16 @@ export default function ScheduleScreen() {
           <View style={s.tabletLeft}>
             <View style={s.tabletViewToggle}>
               <Pressable
-                style={[s.viewToggleBtn, s.viewToggleBtnActive]}
+                style={[s.viewToggleBtn, s.viewToggleBtnActive, { paddingHorizontal: sp(14), paddingVertical: sp(6) }]}
                 onPress={() => setTabletCalendarView('month')}
               >
-                <Text style={[s.viewToggleText, s.viewToggleTextActive]}>Månad</Text>
+                <Text style={[s.viewToggleText, s.viewToggleTextActive, { fontSize: fs(13) }]}>Månad</Text>
               </Pressable>
               <Pressable
-                style={s.viewToggleBtn}
+                style={[s.viewToggleBtn, { paddingHorizontal: sp(14), paddingVertical: sp(6) }]}
                 onPress={() => setTabletCalendarView('week')}
               >
-                <Text style={s.viewToggleText}>Vecka</Text>
+                <Text style={[s.viewToggleText, { fontSize: fs(13) }]}>Vecka</Text>
               </Pressable>
             </View>
             <MonthView
@@ -1378,16 +1378,16 @@ export default function ScheduleScreen() {
           {isSplitView && (
             <View style={s.tabletViewToggle}>
               <Pressable
-                style={s.viewToggleBtn}
+                style={[s.viewToggleBtn, { paddingHorizontal: sp(14), paddingVertical: sp(6) }]}
                 onPress={() => setTabletCalendarView('month')}
               >
-                <Text style={s.viewToggleText}>Månad</Text>
+                <Text style={[s.viewToggleText, { fontSize: fs(13) }]}>Månad</Text>
               </Pressable>
               <Pressable
-                style={[s.viewToggleBtn, s.viewToggleBtnActive]}
+                style={[s.viewToggleBtn, s.viewToggleBtnActive, { paddingHorizontal: sp(14), paddingVertical: sp(6) }]}
                 onPress={() => setTabletCalendarView('week')}
               >
-                <Text style={[s.viewToggleText, s.viewToggleTextActive]}>Vecka</Text>
+                <Text style={[s.viewToggleText, s.viewToggleTextActive, { fontSize: fs(13) }]}>Vecka</Text>
               </Pressable>
             </View>
           )}
