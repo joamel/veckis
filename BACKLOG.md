@@ -131,7 +131,7 @@
 - [ ] Designpass — visuell konsekvens i ett svep (kräver visuellt omdöme, görs bäst samlat): (a) **skuggor på kort** är inkonsekventa genom hela appen; (b) **dialog-rutor** ska vara rundade upptill och inte genomskinliga nedtill — butiker, filter, veckomenymallar och notiser saknar rundade hörn upptill (audit: alla sheets är redan rundade upptill, paddingBottom-variansen är strukturell, och de grå modalerna MenuTemplatesModal/NotificationsModal är ev. avsiktligt grå); (c) **grönt passar dåligt mot skuggan**
 - [x] Enhetligt beslut om bakåt i tid: meny tillåter navigering till tidigare veckor men cart-FAB ("Överför veckomeny") döljs — man kan se historik men inte överföra; återkommande aktiviteter antar startdatum = idag om inget väljs, men användaren kan sätta ett datum bakåt manuellt; sysslor blockeras sedan tidigare (kan ej skapa bakåt i tid).
 - [x] Synliggör/aggregera klientfelen: in-memory ring-buffer (max 200 fel) i backend — `POST /api/client-errors` sparar nu + loggar; `GET /api/client-errors` (requireAuth) returnerar de senaste (nyast först). Expanderbar `ClientErrorsSection` i Hushållet-fliken (admin only) visar lista med namn, meddelande, platform, version och tid; tryck på rad för att se stack trace.
-- [ ] ha en svenska-fil (på sikt andra språk) så att det är enkelt att ändra texter och ha allt samlat på ett ställe
+- [x] ha en svenska-fil (på sikt andra språk) så att det är enkelt att ändra texter och ha allt samlat på ett ställe — `app/src/lib/strings.ts` samlar alla UI-texter (actions, toasts, felmeddelanden, tips, formulärtexter) per skärm/komponent med typade dynamiska strängar som funktioner
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)

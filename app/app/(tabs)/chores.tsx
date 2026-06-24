@@ -40,6 +40,7 @@ import { ConflictBanner } from '../../src/components/ConflictBanner';
 import type { Chore, ChoreCompletion, ChoreFrequency, RecurrenceType, WeekDay } from '@veckis/shared';
 import { occursOn, weekdayOf, computeTurnHistory, type RecurrencePattern } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
+import { chores as str, common } from '../../src/lib/strings';
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 
@@ -575,10 +576,10 @@ export default function ChoresScreen() {
       });
       setChores(prev => prev.some(c => c.id === chore.id) ? prev : [...prev, { ...chore, completions: [] }]);
       setShowCreate(false);
-      showToast('Syssla skapad');
+      showToast(str.toasts.created);
       resetCreateForm();
     } catch (e) {
-      showError(e, 'Kunde inte skapa syssla');
+      showError(e, str.toasts.errorCreate);
     } finally {
       setCreating(false);
     }
@@ -632,9 +633,9 @@ export default function ChoresScreen() {
       });
       setChores(prev => prev.map(c => c.id === editingChore.id ? { ...c, ...updated } : c));
       setEditingChore(null);
-      showToast('Syssla sparad');
+      showToast(str.toasts.saved);
     } catch (e) {
-      showError(e, 'Kunde inte spara ändringarna');
+      showError(e, str.toasts.errorSave);
     } finally {
       setSaving(false);
     }
@@ -642,11 +643,11 @@ export default function ChoresScreen() {
 
   async function deleteChore(choreId: string, title: string) {
     confirm({
-      title: 'Ta bort syssla',
-      message: `Ta bort "${title}"?`,
+      title: str.delete.title,
+      message: str.delete.message(title),
       buttons: [
       {
-        label: 'Ta bort',
+        label: str.delete.confirm,
         style: 'destructive',
         onPress: async () => {
           try {
@@ -654,11 +655,11 @@ export default function ChoresScreen() {
             setChores(prev => prev.filter(c => c.id !== choreId));
             setEditingChore(null);
           } catch (e) {
-            showError(e, 'Kunde inte ta bort sysslan');
+            showError(e, common.errors.couldNotDelete('sysslan'));
           }
         },
       },
-      { label: 'Avbryt', style: 'cancel' },
+      { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -711,7 +712,7 @@ export default function ChoresScreen() {
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.filter(comp => comp.id !== fakeId) }
         : c));
-      showError(e, 'Kunde inte markera sysslan');
+      showError(e, str.toasts.errorComplete);
     }
   }
 
@@ -746,7 +747,7 @@ export default function ChoresScreen() {
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.filter(comp => comp.id !== fakeId) }
         : c));
-      showError(e, 'Kunde inte markera sysslan');
+      showError(e, str.toasts.errorComplete);
     }
   }
 
@@ -772,21 +773,21 @@ export default function ChoresScreen() {
       await client.uncompleteChore(chore.id);
     } catch (e) {
       setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
-      showError(e, 'Kunde inte avmarkera sysslan');
+      showError(e, str.toasts.errorUncomplete);
     }
   }
 
   async function clearCompleted() {
     if (completedOnce.length === 0 && completedRecurring.length === 0) return;
     const parts: string[] = [];
-    if (completedOnce.length > 0) parts.push(`${completedOnce.length} engångssyssla${completedOnce.length > 1 ? 'r' : ''} tas bort`);
-    if (completedRecurring.length > 0) parts.push(`${completedRecurring.length} återkommande avprickning${completedRecurring.length > 1 ? 'ar' : ''} nollställs`);
+    if (completedOnce.length > 0) parts.push(str.clear.once(completedOnce.length));
+    if (completedRecurring.length > 0) parts.push(str.clear.recurring(completedRecurring.length));
     confirm({
-      title: 'Rensa klara sysslor',
+      title: str.clear.title,
       message: parts.join('\n'),
       buttons: [
         {
-          label: 'Rensa', style: 'destructive',
+          label: str.clear.confirm, style: 'destructive',
           onPress: async () => {
             await Promise.all(completedOnce.map(c => client.deleteChore(c.id).catch(() => {})));
             setChores(prev => prev.filter(c => !completedOnce.find(d => d.id === c.id)));
@@ -795,7 +796,7 @@ export default function ChoresScreen() {
             ));
           },
         },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -995,11 +996,11 @@ export default function ChoresScreen() {
         <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Ny syssla</Text>
+          <Text style={s.sheetTitle}>{str.modal.createTitle}</Text>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
-              placeholder="Sysslans namn, t.ex. Damma"
+              placeholder={str.modal.namePlaceholder}
               placeholderTextColor="#9ca3af"
               value={newTitle}
               onChangeText={setNewTitle}
@@ -1019,14 +1020,14 @@ export default function ChoresScreen() {
 
             {newRecurrenceType === 'none' && (
               <>
-                <Text style={s.label}>Datum (valfritt)</Text>
+                <Text style={s.label}>{str.modal.dateLabel}</Text>
                 <View style={s.dateRow}>
                   <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
                     <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
-                    <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Välj datum'}</Text>
+                    <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? str.modal.chooseDate}</Text>
                   </Pressable>
                   {newStartDate && (
-                    <Pressable onPress={() => setNewStartDate(null)} hitSlop={8} accessibilityLabel="Rensa datum">
+                    <Pressable onPress={() => setNewStartDate(null)} hitSlop={8} accessibilityLabel={str.modal.clearDate}>
                       <Ionicons name="close-circle" size={18} color="#9ca3af" />
                     </Pressable>
                   )}
@@ -1057,14 +1058,14 @@ export default function ChoresScreen() {
 
             {newRecurrenceType !== 'none' && (
               <>
-                <Text style={s.label}>Startdatum (valfritt)</Text>
+                <Text style={s.label}>{str.modal.startLabel}</Text>
                 <View style={s.dateRow}>
                   <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
                     <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
-                    <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? 'Välj startdatum'}</Text>
+                    <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? str.modal.chooseStart}</Text>
                   </Pressable>
                   {newStartDate && (
-                    <Pressable onPress={() => setNewStartDate(null)} hitSlop={8} accessibilityLabel="Rensa startdatum">
+                    <Pressable onPress={() => setNewStartDate(null)} hitSlop={8} accessibilityLabel={str.modal.clearStartDate}>
                       <Ionicons name="close-circle" size={18} color="#9ca3af" />
                     </Pressable>
                   )}
@@ -1078,7 +1079,7 @@ export default function ChoresScreen() {
                 onPress={() => setShowNewAdvanced(v => !v)}
               >
                 <Text style={s.advancedToggleText}>
-                  {showNewAdvanced ? 'Färre inställningar' : 'Fler inställningar'}
+                  {showNewAdvanced ? str.modal.fewerSettings : str.modal.moreSettings}
                 </Text>
                 <Ionicons
                   name={showNewAdvanced ? 'chevron-up' : 'chevron-down'}
@@ -1095,7 +1096,7 @@ export default function ChoresScreen() {
             >
               {creating
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={s.buttonText}>Lägg till syssla</Text>}
+                : <Text style={s.buttonText}>{str.modal.addButton}</Text>}
             </Pressable>
           </ScrollView>
         </View>
@@ -1130,11 +1131,11 @@ export default function ChoresScreen() {
             return (
               <>
                 <View style={s.viewNav}>
-                  <Pressable onPress={() => setViewingChore(null)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Stäng">
+                  <Pressable onPress={() => setViewingChore(null)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel={common.actions.close}>
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                   </Pressable>
                   <View style={{ flex: 1 }} />
-                  <Pressable onPress={() => openChoreActions(c)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                  <Pressable onPress={() => openChoreActions(c)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel={common.actions.more}>
                     <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
                   </Pressable>
                 </View>
@@ -1222,7 +1223,7 @@ export default function ChoresScreen() {
         <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Redigera syssla</Text>
+          <Text style={s.sheetTitle}>{str.modal.editTitle}</Text>
           <ConflictBanner
             message={choreConflict?.msg ?? null}
             onShowLatest={choreConflict ? () => { openEdit(choreConflict.latest); setChoreConflict(null); } : undefined}
@@ -1230,7 +1231,7 @@ export default function ChoresScreen() {
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
-              placeholder="Sysslans namn"
+              placeholder={str.modal.nameLabel}
               placeholderTextColor="#9ca3af"
               value={editTitle}
               onChangeText={setEditTitle}
@@ -1249,14 +1250,14 @@ export default function ChoresScreen() {
 
             {editRecurrenceType === 'none' && (
               <>
-                <Text style={s.label}>Datum (valfritt)</Text>
+                <Text style={s.label}>{str.modal.dateLabel}</Text>
                 <View style={s.dateRow}>
                   <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
                     <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
-                    <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Välj datum'}</Text>
+                    <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? str.modal.chooseDate}</Text>
                   </Pressable>
                   {editStartDate && (
-                    <Pressable onPress={() => setEditStartDate(null)} hitSlop={8} accessibilityLabel="Rensa datum">
+                    <Pressable onPress={() => setEditStartDate(null)} hitSlop={8} accessibilityLabel={str.modal.clearDate}>
                       <Ionicons name="close-circle" size={18} color="#9ca3af" />
                     </Pressable>
                   )}
@@ -1287,14 +1288,14 @@ export default function ChoresScreen() {
 
             {editRecurrenceType !== 'none' && (
               <>
-                <Text style={s.label}>Startdatum (valfritt)</Text>
+                <Text style={s.label}>{str.modal.startLabel}</Text>
                 <View style={s.dateRow}>
                   <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
                     <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
-                    <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? 'Välj startdatum'}</Text>
+                    <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? str.modal.chooseStart}</Text>
                   </Pressable>
                   {editStartDate && (
-                    <Pressable onPress={() => setEditStartDate(null)} hitSlop={8} accessibilityLabel="Rensa startdatum">
+                    <Pressable onPress={() => setEditStartDate(null)} hitSlop={8} accessibilityLabel={str.modal.clearStartDate}>
                       <Ionicons name="close-circle" size={18} color="#9ca3af" />
                     </Pressable>
                   )}
@@ -1308,7 +1309,7 @@ export default function ChoresScreen() {
                 onPress={() => setShowEditAdvanced(v => !v)}
               >
                 <Text style={s.advancedToggleText}>
-                  {showEditAdvanced ? 'Färre inställningar' : 'Fler inställningar'}
+                  {showEditAdvanced ? str.modal.fewerSettings : str.modal.moreSettings}
                 </Text>
                 <Ionicons
                   name={showEditAdvanced ? 'chevron-up' : 'chevron-down'}
@@ -1325,7 +1326,7 @@ export default function ChoresScreen() {
             >
               {saving
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={s.buttonText}>Spara ändringar</Text>}
+                : <Text style={s.buttonText}>{str.modal.saveButton}</Text>}
             </Pressable>
 
             <Pressable
@@ -1333,7 +1334,7 @@ export default function ChoresScreen() {
               onPress={() => editingChore && deleteChore(editingChore.id, editingChore.title)}
             >
               <Ionicons name="trash-outline" size={16} color="#ef4444" />
-              <Text style={s.deleteBtnText}>Ta bort syssla</Text>
+              <Text style={s.deleteBtnText}>{str.modal.deleteButton}</Text>
             </Pressable>
           </ScrollView>
         </View>

@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { components as str } from '../lib/strings';
 
 export interface MultiMemberPickerProps {
   members: { id: string; displayName: string }[];
@@ -22,13 +23,13 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
   };
   return (
     <>
-      <Text style={s.label}>Tilldela person{selected.length > 1 ? 'er' : ''}</Text>
+      <Text style={s.label}>{str.multiMemberPicker.label(selected.length)}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberChipRow}>
         <Pressable
           style={[s.memberChip, selected.length === 0 && s.memberChipActive]}
           onPress={() => onChange([])}
         >
-          <Text style={[s.memberChipText, selected.length === 0 && s.memberChipTextActive]}>Ingen</Text>
+          <Text style={[s.memberChipText, selected.length === 0 && s.memberChipTextActive]}>{str.multiMemberPicker.none}</Text>
         </Pressable>
         {members.map(m => {
           const isActive = selected.includes(m.id);
@@ -55,17 +56,17 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
                 {rotation ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.rotationLabel}>Turas om automatiskt</Text>
+                <Text style={s.rotationLabel}>{str.multiMemberPicker.rotation.label}</Text>
                 <Text style={s.rotationSub}>
                   {rotation
-                    ? 'Tur byts efter varje avbockning — alla turas om i listan.'
-                    : 'Alla i listan är gemensamt ansvariga (ingen rotation).'}
+                    ? str.multiMemberPicker.rotation.onSub
+                    : str.multiMemberPicker.rotation.offSub}
                 </Text>
               </View>
             </Pressable>
             {rotation && selected.length >= 3 && showOrderSection !== false && (
               <View style={s.orderSection}>
-                <Text style={s.orderLabel}>Turordning</Text>
+                <Text style={s.orderLabel}>{str.multiMemberPicker.order.label}</Text>
                 {selected.map((id, i) => {
                   const m = members.find(x => x.id === id);
                   if (!m) return null;
@@ -88,7 +89,7 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
                           onPress={moveUp}
                           disabled={i === 0}
                           style={s.orderBtn}
-                          accessibilityLabel="Flytta upp"
+                          accessibilityLabel={str.multiMemberPicker.order.moveUp}
                         >
                           <Ionicons name="chevron-up" size={18} color={i === 0 ? '#d1d5db' : '#6b7280'} />
                         </Pressable>
@@ -96,7 +97,7 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
                           onPress={moveDown}
                           disabled={i === selected.length - 1}
                           style={s.orderBtn}
-                          accessibilityLabel="Flytta ned"
+                          accessibilityLabel={str.multiMemberPicker.order.moveDown}
                         >
                           <Ionicons name="chevron-down" size={18} color={i === selected.length - 1 ? '#d1d5db' : '#6b7280'} />
                         </Pressable>

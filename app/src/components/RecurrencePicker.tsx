@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { RecurrenceType, WeekDay } from '@veckis/shared';
+import { components as str, common } from '../lib/strings';
 
 const DAYS: { key: WeekDay; short: string; label: string }[] = [
   { key: 'mon', short: 'Mån', label: 'Måndag' },
@@ -11,14 +12,6 @@ const DAYS: { key: WeekDay; short: string; label: string }[] = [
   { key: 'sat', short: 'Lör', label: 'Lördag' },
   { key: 'sun', short: 'Sön', label: 'Söndag' },
 ];
-
-const TYPE_LABEL: Record<Exclude<RecurrenceType, 'custom_days'>, string> = {
-  none: 'Ingen',
-  daily: 'Dag',
-  weekly: 'Vecka',
-  monthly: 'Månad',
-  yearly: 'År',
-};
 
 const INTERVAL_UNIT: Record<RecurrenceType, string> = {
   none: '',
@@ -69,7 +62,7 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
 
   return (
     <>
-      <Text style={s.label}>Upprepning</Text>
+      <Text style={s.label}>{str.recurrencePicker.label}</Text>
       <View style={s.typeRow}>
         {(['none', 'daily', 'weekly', 'monthly', 'yearly'] as const).map(type => (
           <Pressable
@@ -83,7 +76,7 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
               adjustsFontSizeToFit
               minimumFontScale={0.7}
             >
-              {TYPE_LABEL[type]}
+              {str.recurrencePicker.types[type]}
             </Text>
           </Pressable>
         ))}
@@ -91,7 +84,7 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
 
       {props.recurrenceType !== 'none' && (
         <View style={s.intervalRow}>
-          <Text style={s.intervalLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>Var</Text>
+          <Text style={s.intervalLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{str.recurrencePicker.every}</Text>
           <Pressable style={s.intervalBtn} onPress={() => props.onChangeWeeks(Math.max(1, props.recurrenceWeeks - 1))}>
             <Text style={s.intervalBtnText}>−</Text>
           </Pressable>
@@ -105,7 +98,7 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
 
       {props.recurrenceType === 'weekly' && (
         <>
-          <Text style={s.label}>Veckodagar</Text>
+          <Text style={s.label}>{str.recurrencePicker.weekdays}</Text>
           <View style={s.dayRow}>
             {DAYS.map(day => {
               const active = props.recurrenceDays.includes(day.key);
@@ -134,14 +127,14 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
 
       {props.recurrenceType === 'monthly' && (
         <>
-          <Text style={s.label}>Upprepas</Text>
+          <Text style={s.label}>{str.recurrencePicker.repeatsEvery}</Text>
           <View style={s.monthlyRow}>
             <Pressable
               style={[s.monthlyBtn, props.monthlyType === 'day_of_month' && s.monthlyBtnActive]}
               onPress={() => props.onChangeMonthlyType('day_of_month')}
             >
               <Text style={[s.monthlyBtnText, props.monthlyType === 'day_of_month' && s.monthlyBtnTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                Varje månad den {dom}:e
+                {str.recurrencePicker.monthly.dayOfMonth(dom)}
               </Text>
             </Pressable>
             <Pressable
@@ -149,14 +142,16 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
               onPress={() => props.onChangeMonthlyType('weekday_of_month')}
             >
               <Text style={[s.monthlyBtnText, props.monthlyType === 'weekday_of_month' && s.monthlyBtnTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                {['Första', 'Andra', 'Tredje', 'Fjärde'][props.recurrenceWeekOfMonth - 1] ?? 'Sista'}{' '}
-                {DAYS.find(d => d.key === wday)?.label.toLowerCase()} i månaden
+                {str.recurrencePicker.monthly.weekday(
+                  common.ordinals[props.recurrenceWeekOfMonth - 1] ?? 'Sista',
+                  DAYS.find(d => d.key === wday)?.label.toLowerCase() ?? '',
+                )}
               </Text>
             </Pressable>
           </View>
           {props.monthlyType === 'day_of_month' && props.onChangeDayOfMonth && (
             <View style={s.intervalRow}>
-              <Text style={s.intervalLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>Dag i månaden</Text>
+              <Text style={s.intervalLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{str.recurrencePicker.dayOfMonth}</Text>
               <Pressable style={s.intervalBtn} onPress={() => props.onChangeDayOfMonth!(((dom - 2 + 31) % 31) + 1)}>
                 <Text style={s.intervalBtnText}>−</Text>
               </Pressable>
@@ -190,7 +185,7 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
                 </View>
               )}
               <View style={s.intervalRow}>
-                <Text style={s.intervalLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>Vecka i månaden</Text>
+                <Text style={s.intervalLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{str.recurrencePicker.weekOfMonth}</Text>
                 <Pressable style={s.intervalBtn} onPress={() => props.onChangeWeekOfMonth(Math.max(1, props.recurrenceWeekOfMonth - 1))}>
                   <Text style={s.intervalBtnText}>−</Text>
                 </Pressable>
@@ -206,20 +201,20 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
 
       {props.recurrenceType !== 'none' && props.showEndDate !== false && (
         <>
-          <Text style={s.label}>Slutar</Text>
+          <Text style={s.label}>{str.recurrencePicker.ends}</Text>
           <View style={s.endRow}>
             <Pressable
               style={[s.endBtn, !props.endDate && s.endBtnActive]}
               onPress={() => props.onChangeEndDate(null)}
             >
-              <Text style={[s.endBtnText, !props.endDate && s.endBtnTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>Upphör aldrig</Text>
+              <Text style={[s.endBtnText, !props.endDate && s.endBtnTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{str.recurrencePicker.neverEnds}</Text>
             </Pressable>
             <Pressable
               style={[s.endBtn, props.endDate && s.endBtnActive, { flex: 1.5 }]}
               onPress={props.onOpenEndPicker}
             >
               <Ionicons name="calendar-outline" size={13} color={props.endDate ? '#4f46e5' : '#9ca3af'} />
-              <Text style={[s.endBtnText, props.endDate && s.endBtnTextActive]}>{props.endDate ?? 'Välj datum'}</Text>
+              <Text style={[s.endBtnText, props.endDate && s.endBtnTextActive]}>{props.endDate ?? str.recurrencePicker.chooseDate}</Text>
             </Pressable>
           </View>
         </>
