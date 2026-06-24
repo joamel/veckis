@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePushRegistration } from '../../src/hooks/usePushRegistration';
 import { useNotificationRouting } from '../../src/hooks/useNotificationRouting';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -8,6 +9,7 @@ export default function TabLayout() {
   usePushRegistration();
   useNotificationRouting();
   const { fs, sp } = useTablet();
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
@@ -15,7 +17,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: '#999',
         headerShown: false,
         tabBarLabelStyle: { fontSize: fs(11) },
-        tabBarStyle: { height: sp(60) },
+        tabBarStyle: { height: sp(60) + insets.bottom, paddingBottom: insets.bottom },
         tabBarIconStyle: { marginTop: sp(2) },
       }}
     >

@@ -7,6 +7,7 @@ import {
   PanResponder,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -515,6 +516,7 @@ export default function ScheduleScreen() {
   const [chores, setChores] = useState<ChoreWithCompletion[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedDay, setSelectedDay] = useState<WeekDay>(TODAY_DAY);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -645,6 +647,24 @@ export default function ScheduleScreen() {
   }, []));
 
   useEffect(() => { load(); }, [load]);
+
+  const onRefresh = useCallback(async () => {
+    if (!householdId) return;
+    setRefreshing(true);
+    try {
+      const [scheduleData, menuData, choreData, household] = await Promise.all([
+        client.getSchedule(householdId),
+        client.getWeekMenu(householdId, weekYear, weekNumber),
+        client.getChores(householdId),
+        client.getHousehold(householdId),
+      ]);
+      setEntries(scheduleData);
+      setMenuItems(menuData);
+      setChores(choreData as ChoreWithCompletion[]);
+      setMembers(household.members);
+    } catch { /* keep stale */ }
+    finally { setRefreshing(false); }
+  }, [householdId, weekYear, weekNumber]);
 
   // Kalender-swipe-tip: två dolda gester i kalendern — svep på veckodags-baren
   // byter vecka, svep på själva dag-innehållet byter dag. Centrerat (ingen
@@ -1498,6 +1518,7 @@ export default function ScheduleScreen() {
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4f46e5" />}
             style={[s.content, (Platform.OS === 'web' ? { scrollSnapType: 'x mandatory' } : null) as any]}
             initialScrollIndex={dayIndexForDate(selectedDayDate) + DAY_SPAN}
             getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
