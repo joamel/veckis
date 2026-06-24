@@ -154,6 +154,7 @@ interface RecurringStatus {
   nextDate: string | null; // first occurrence strictly after today
   state: 'done' | 'today' | 'overdue' | 'none';
   overdueDays: number;
+  completedDate: string | null; // the occurrence date that actually carries the 'done' completion
 }
 
 // Forgiving model: the only actionable occurrence is the latest one on/before
@@ -195,9 +196,11 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
   }
   let state: RecurringStatus['state'] = 'none';
   let overdueDays = 0;
+  let completedDate: string | null = null;
   if (current) {
     if (current.done) {
       state = 'done';
+      completedDate = current.date;
     } else if (current.date === todayStr) {
       state = 'today';
     } else {
@@ -211,6 +214,7 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
       }
       if (nextAfterCurrent && completionByDate.has(nextAfterCurrent)) {
         state = 'done';
+        completedDate = nextAfterCurrent;
       } else {
         state = 'overdue';
         const cd = new Date(current.date + 'T00:00:00').getTime();
@@ -219,7 +223,7 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
       }
     }
   }
-  return { occurrences, current, nextDate, state, overdueDays };
+  return { occurrences, current, nextDate, state, overdueDays, completedDate };
 }
 
 type Member = { id: string; clerkUserId: string | null; displayName: string };
@@ -481,7 +485,7 @@ export default function ChoresScreen() {
       .filter(e => e.variant === 'done' && !isOnce(e.chore))
       .map(e => {
         const rs = recurringStatus(e.chore);
-        return { chore: e.chore, currentDate: rs.current?.date ?? isoDateStr(new Date()) };
+        return { chore: e.chore, currentDate: rs.completedDate ?? rs.current?.date ?? isoDateStr(new Date()) };
       }),
     [sortedChores]
   );
@@ -789,8 +793,14 @@ export default function ChoresScreen() {
         {
           label: str.clear.confirm, style: 'destructive',
           onPress: async () => {
-            await Promise.all(completedOnce.map(c => client.deleteChore(c.id).catch(() => {})));
             setChores(prev => prev.filter(c => !completedOnce.find(d => d.id === c.id)));
+            await Promise.all(completedOnce.map(async c => {
+              try { await client.deleteChore(c.id); }
+              catch (e) {
+                setChores(prev => prev.some(x => x.id === c.id) ? prev : [c, ...prev]);
+                showError(e, 'Kunde inte ta bort syssla');
+              }
+            }));
             await Promise.all(completedRecurring.map(({ chore, currentDate }) =>
               uncompleteOccurrence(chore, currentDate)
             ));
