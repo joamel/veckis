@@ -195,13 +195,27 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
   let state: RecurringStatus['state'] = 'none';
   let overdueDays = 0;
   if (current) {
-    if (current.done) state = 'done';
-    else if (current.date === todayStr) state = 'today';
-    else {
-      state = 'overdue';
-      const cd = new Date(current.date + 'T00:00:00').getTime();
-      const t0 = new Date(todayStr + 'T00:00:00').getTime();
-      overdueDays = Math.round((t0 - cd) / 86400000);
+    if (current.done) {
+      state = 'done';
+    } else if (current.date === todayStr) {
+      state = 'today';
+    } else {
+      // Past occurrence is undone — but if the very next occurrence is already
+      // pre-completed (user checked off early), treat the cycle as done.
+      const curBase = new Date(current.date + 'T00:00:00');
+      let nextAfterCurrent: string | null = null;
+      for (let i = 1; i <= 400; i++) {
+        const d = new Date(curBase.getFullYear(), curBase.getMonth(), curBase.getDate() + i);
+        if (occursOn(pattern, d)) { nextAfterCurrent = isoDateStr(d); break; }
+      }
+      if (nextAfterCurrent && completionByDate.has(nextAfterCurrent)) {
+        state = 'done';
+      } else {
+        state = 'overdue';
+        const cd = new Date(current.date + 'T00:00:00').getTime();
+        const t0 = new Date(todayStr + 'T00:00:00').getTime();
+        overdueDays = Math.round((t0 - cd) / 86400000);
+      }
     }
   }
   return { occurrences, current, nextDate, state, overdueDays };
