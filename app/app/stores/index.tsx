@@ -21,6 +21,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { type Store, type StoreCategory } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
+import { stores as str, common } from '../../src/lib/strings';
 
 type SortMode = 'name' | 'created';
 
@@ -53,7 +54,7 @@ export default function StoresScreen() {
       const list = await client.getStores(householdId);
       setStores(list);
     } catch (e) {
-      showError(e, 'Kunde inte ladda butiker');
+      showError(e, str.toasts.errorLoad('butiker'));
     } finally {
       setLoading(false);
     }
@@ -88,7 +89,7 @@ export default function StoresScreen() {
       setStores(prev => [...prev, store]);
       setNewStoreName('');
       setShowCreate(false);
-      showToast(`${store.name} skapad`, 'success');
+      showToast(str.toasts.created(store.name), 'success');
       if (pickMode) {
         // Inne i pick-läget = användaren ville välja butik; den nyskapade
         // markeras direkt och vi backar.
@@ -100,7 +101,7 @@ export default function StoresScreen() {
         router.push(`/stores/${store.id}` as never);
       }
     } catch (e) {
-      showError(e, 'Kunde inte skapa butik');
+      showError(e, str.toasts.errorCreate);
     } finally {
       setCreating(false);
     }
@@ -118,9 +119,9 @@ export default function StoresScreen() {
             <Pressable onPress={() => router.back()} hitSlop={10}>
               <Ionicons name="arrow-back" size={26} color="#111827" />
             </Pressable>
-            <Text style={s.title}>Butiker</Text>
+            <Text style={s.title}>{str.title}</Text>
           </View>
-          <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={s.sortBtn} accessibilityLabel="Sortera butiker">
+          <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={s.sortBtn} accessibilityLabel={str.sort.a11y}>
             <Ionicons name="swap-vertical" size={18} color="#4f46e5" />
           </Pressable>
         </View>
@@ -128,7 +129,7 @@ export default function StoresScreen() {
           <Ionicons name="search" size={16} color="#9ca3af" style={s.searchIcon} />
           <TextInput
             style={s.searchInput}
-            placeholder="Sök butik…"
+            placeholder={str.search.placeholder}
             placeholderTextColor="#9ca3af"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -146,13 +147,13 @@ export default function StoresScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 120 }}>
         {filteredSorted.length === 0 ? (
           searchQuery ? (
-            <Text style={s.empty}>Inga butiker matchar "{searchQuery}"</Text>
+            <Text style={s.empty}>{str.emptyState.noResults(searchQuery)}</Text>
           ) : (
             <EmptyState
               icon="storefront-outline"
-              title="Inga butiker än"
-              subtitle="Lägg till en butik så kan dina inköpslistor sorteras efter butikens layout."
-              actionLabel="Lägg till butik"
+              title={str.emptyState.title}
+              subtitle={str.emptyState.subtitle}
+              actionLabel={str.emptyState.cta}
               onAction={() => setShowCreate(true)}
             />
           )
@@ -180,8 +181,8 @@ export default function StoresScreen() {
                   <Text style={[s.cardTitle, isCurrent && s.cardTitleCurrent]}>{store.name}</Text>
                   {(() => {
                     const parts: string[] = [];
-                    if (catCount > 0) parts.push(`${catCount} kategorier`);
-                    if (isCurrent) parts.push('vald');
+                    if (catCount > 0) parts.push(str.card.categories(catCount));
+                    if (isCurrent) parts.push(str.card.selected);
                     return parts.length > 0 ? <Text style={[s.cardMeta, isCurrent && s.cardMetaCurrent]}>{parts.join(' · ')}</Text> : null;
                   })()}
                 </View>
@@ -190,7 +191,7 @@ export default function StoresScreen() {
                     onPress={(e) => { e.stopPropagation?.(); resolveStorePick(null); router.back(); }}
                     hitSlop={10}
                     style={s.cardClearBtn}
-                    accessibilityLabel="Rensa butik"
+                    accessibilityLabel={str.card.clearA11y}
                   >
                     <Ionicons name="close" size={18} color="#ef4444" />
                   </Pressable>
@@ -203,7 +204,7 @@ export default function StoresScreen() {
         )}
       </ScrollView>
 
-      <Pressable style={s.fab} onPress={() => setShowCreate(true)} accessibilityLabel="Lägg till butik">
+      <Pressable style={s.fab} onPress={() => setShowCreate(true)} accessibilityLabel={str.createModal.add}>
         <Ionicons name="add" size={30} color="#fff" />
       </Pressable>
 
@@ -214,10 +215,10 @@ export default function StoresScreen() {
         <KeyboardAvoidingView behavior={kavBehavior} style={{ justifyContent: 'flex-end' }}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Ny butik</Text>
+            <Text style={s.sheetTitle}>{str.createModal.title}</Text>
             <TextInput
               style={s.input}
-              placeholder="t.ex. Ica, Coop, Willys…"
+              placeholder={str.createModal.placeholder}
               placeholderTextColor="#9ca3af"
               value={newStoreName}
               onChangeText={setNewStoreName}
@@ -230,7 +231,7 @@ export default function StoresScreen() {
               onPress={createStore}
               disabled={creating || !newStoreName.trim()}
             >
-              {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>Skapa</Text>}
+              {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{str.createModal.create}</Text>}
             </Pressable>
           </View>
         </KeyboardAvoidingView>
@@ -242,10 +243,10 @@ export default function StoresScreen() {
         <Pressable style={s.overlay} onPress={() => setShowSort(false)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Sortera</Text>
+          <Text style={s.sheetTitle}>{str.sort.modalTitle}</Text>
           {[
-            { v: 'name' as const, label: 'A–Ö' },
-            { v: 'created' as const, label: 'I tilläggsordning' },
+            { v: 'name' as const, label: str.sort.az },
+            { v: 'created' as const, label: str.sort.addedOrder },
           ].map(o => (
             <Pressable
               key={o.v}

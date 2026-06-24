@@ -19,6 +19,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type Store } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
+import { stores as str, common } from '../../src/lib/strings';
 
 export default function StoreDetailScreen() {
   const { storeId } = useLocalSearchParams<{ storeId: string }>();
@@ -65,7 +66,7 @@ export default function StoreDetailScreen() {
         setDirty(false);
       }
     } catch (e) {
-      showError(e, 'Kunde inte ladda butiken');
+      showError(e, str.toasts.errorLoad('butiken'));
     } finally {
       setLoading(false);
     }
@@ -127,9 +128,9 @@ export default function StoreDetailScreen() {
       });
       setStore(updated);
       setDirty(false);
-      showToast('Sparat', 'success');
+      showToast(str.toasts.saved, 'success');
     } catch (e) {
-      showError(e, 'Kunde inte spara');
+      showError(e, str.toasts.errorSave);
     } finally {
       setSaving(false);
     }
@@ -142,9 +143,9 @@ export default function StoreDetailScreen() {
       const updated = await client.updateStore(store.id, { name: renameValue.trim() });
       setStore(updated);
       setShowRename(false);
-      showToast('Namn ändrat', 'success');
+      showToast(str.toasts.renamed, 'success');
     } catch (e) {
-      showError(e, 'Kunde inte byta namn');
+      showError(e, str.toasts.errorRename);
     } finally {
       setRenaming(false);
     }
@@ -153,19 +154,19 @@ export default function StoreDetailScreen() {
   function deleteStore() {
     if (!store) return;
     confirm({
-      title: 'Ta bort butik',
-      message: `Ta bort "${store.name}"?`,
+      title: str.delete.title,
+      message: str.delete.message(store.name),
       buttons: [
-        { label: 'Ta bort', style: 'destructive', onPress: async () => {
+        { label: common.actions.delete, style: 'destructive', onPress: async () => {
           try {
             await client.deleteStore(store.id);
-            showToast(`${store.name} borttagen`, 'neutral');
+            showToast(str.toasts.deleted(store.name), 'neutral');
             router.back();
           } catch (e) {
-            showError(e, 'Kunde inte ta bort butiken');
+            showError(e, str.toasts.errorDelete);
           }
         } },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -181,7 +182,7 @@ export default function StoreDetailScreen() {
             <Ionicons name="arrow-back" size={26} color="#111827" />
           </Pressable>
         </View>
-        <Text style={s.empty}>Butiken kunde inte hittas.</Text>
+        <Text style={s.empty}>{str.toasts.notFound}</Text>
       </SafeAreaView>
     );
   }
@@ -193,21 +194,18 @@ export default function StoreDetailScreen() {
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
         <Text style={[s.title, { flex: 1 }]} numberOfLines={1}>{store.name}</Text>
-        <Pressable onPress={() => confirm({ title: store.name, variant: 'menu', buttons: [{ label: 'Byt namn', onPress: () => { setRenameValue(store.name); setShowRename(true); } }, { label: 'Ta bort butik', style: 'destructive', onPress: deleteStore }, { label: 'Avbryt', style: 'cancel' }] })} hitSlop={8} style={s.navBtn} accessibilityLabel="Mer">
+        <Pressable onPress={() => confirm({ title: store.name, variant: 'menu', buttons: [{ label: str.actions.rename, onPress: () => { setRenameValue(store.name); setShowRename(true); } }, { label: str.actions.delete, style: 'destructive', onPress: deleteStore }, { label: common.actions.cancel, style: 'cancel' }] })} hitSlop={8} style={s.navBtn} accessibilityLabel={common.actions.more}>
           <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={s.scroll}>
-        <Text style={s.sectionSub}>
-          Ordningen matchar butikens layout. Dölj kategorier du inte använder
-          och lägg till egna under "Egna kategorier".
-        </Text>
+        <Text style={s.sectionSub}>{str.detail.hint}</Text>
 
-        <Text style={s.sectionLabel}>SYNLIGA KATEGORIER</Text>
+        <Text style={s.sectionLabel}>{str.detail.sections.visible}</Text>
         <View style={s.catList}>
           {visibleEnum.length === 0 ? (
-            <Text style={s.emptyHint}>Alla standardkategorier är dolda — du måste välja minst en.</Text>
+            <Text style={s.emptyHint}>{str.detail.allHidden}</Text>
           ) : (
             visibleEnum.map((cat, idx) => {
               const subs = subsForParent(cat);
@@ -247,9 +245,7 @@ export default function StoreDetailScreen() {
                   </View>
                   {isOpen && subs.length > 0 && (
                     <View style={s.subList}>
-                      <Text style={s.subListHint}>
-                        Slå på sub-kategorier som du vill se som egna sektioner i listan. Övriga samlas under {CATEGORY_LABELS[cat]}.
-                      </Text>
+                      <Text style={s.subListHint}>{str.detail.subHint(CATEGORY_LABELS[cat] ?? cat)}</Text>
                       {subs.map(sub => {
                         const active = expandedSubs.includes(sub);
                         return (
@@ -280,10 +276,8 @@ export default function StoreDetailScreen() {
 
         {hiddenEnum.length > 0 && (
           <>
-            <Text style={[s.sectionLabel, { marginTop: 24 }]}>DOLDA</Text>
-            <Text style={s.sectionSub}>
-              Standardkategorier du har dolt. Tryck visa-knappen för att lägga tillbaka dem sist i listan.
-            </Text>
+            <Text style={[s.sectionLabel, { marginTop: 24 }]}>{str.detail.sections.hidden}</Text>
+            <Text style={s.sectionSub}>{str.detail.hiddenHint}</Text>
             <View style={s.catList}>
               {hiddenEnum.map(cat => (
                 <View key={cat} style={[s.catRow, s.catRowMuted]}>
@@ -307,7 +301,7 @@ export default function StoreDetailScreen() {
             onPress={save}
             disabled={saving || visibleEnum.length === 0}
           >
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>Spara ändringar</Text>}
+            {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{str.detail.saveButton}</Text>}
           </Pressable>
         </View>
       )}
@@ -319,7 +313,7 @@ export default function StoreDetailScreen() {
         <KeyboardAvoidingView behavior={kavBehavior} style={{ justifyContent: 'flex-end' }}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Byt namn</Text>
+            <Text style={s.sheetTitle}>{str.renameModal.title}</Text>
             <TextInput
               style={s.input}
               value={renameValue}
@@ -333,7 +327,7 @@ export default function StoreDetailScreen() {
               onPress={renameStore}
               disabled={renaming || !renameValue.trim()}
             >
-              {renaming ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>Spara</Text>}
+              {renaming ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{common.actions.save}</Text>}
             </Pressable>
           </View>
         </KeyboardAvoidingView>

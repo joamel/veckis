@@ -45,6 +45,7 @@ import { getISOWeek, addWeeks } from '../../src/lib/week';
 import { occursOn } from '@veckis/shared';
 import type { ScheduleEntry, WeekDay, Chore, ChoreCompletion } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
+import { schedule as str, common } from '../../src/lib/strings';
 
 const DAYS: { key: WeekDay; label: string; short: string }[] = [
   { key: 'mon', label: 'Måndag', short: 'Mån' },
@@ -77,13 +78,7 @@ function totalAngleToMinutes(a: number): number {
   if (a <= 1080) return Math.max(1, Math.min(7, Math.round((a - 720) / 60) + 1)) * 1440;
   return Math.max(1, Math.round((a - 1080) / 45)) * 10080;
 }
-const REMIND_PRESETS: { label: string; value: number }[] = [
-  { label: '5 min', value: 5 },
-  { label: '15 min', value: 15 },
-  { label: '30 min', value: 30 },
-  { label: '1 tim', value: 60 },
-  { label: 'Dagen innan', value: 1440 },
-];
+const REMIND_PRESETS = str.remind.presets as readonly { label: string; value: number }[];
 
 function formatRemindTime(m: number): string {
   if (m === 0) return 'Vid start';
@@ -820,7 +815,7 @@ export default function ScheduleScreen() {
       setEntries(prev => prev.some(e => e.id === entry.id) ? prev : [...prev, entry]);
       setShowModal(false);
       resetNewEntryForm();
-      showToast('Aktivitet skapad', 'success');
+      showToast(str.toasts.created, 'success');
     } catch (e: any) {
       showError(e, e?.message ?? 'Kunde inte skapa schemapost');
     } finally {
@@ -875,8 +870,8 @@ export default function ScheduleScreen() {
               setEntries(p => p.filter(e => e.id !== entry.id));
               setEditingEntry(null);
               let cancelled = false;
-              showToast('Aktivitet borttagen', 'neutral', {
-                label: 'Ångra',
+              showToast(str.toasts.deleted, 'neutral', {
+                label: common.actions.undo,
                 onPress: () => { cancelled = true; setEntries(prev); },
               });
               setTimeout(async () => {
@@ -1070,7 +1065,7 @@ export default function ScheduleScreen() {
         setEntries(prev => prev.map(e => e.id === updated.id ? updated : e));
       }
       setEditingEntry(null);
-      showToast('Aktivitet sparad', 'success');
+      showToast(str.toasts.saved, 'success');
     } catch (e) {
       showError(e, 'Kunde inte spara aktiviteten');
     } finally {
@@ -1711,7 +1706,7 @@ export default function ScheduleScreen() {
                           </Pressable>
                         ))}
                         <Pressable onPress={() => { setShowEditRemindDial(true); setShowEditQuickPick(false); }}>
-                          <Text style={s.remindCustomLink}>Välj annan tid</Text>
+                          <Text style={s.remindCustomLink}>{str.remind.customTime}</Text>
                         </Pressable>
                       </View>
                     ) : editEntryRemindMinutes.length > 0 && editEntryRemindMinutes.length < 5 ? (
@@ -1994,7 +1989,7 @@ export default function ScheduleScreen() {
                           </Pressable>
                         ))}
                         <Pressable onPress={() => { setShowNewRemindDial(true); setShowNewQuickPick(false); }}>
-                          <Text style={s.remindCustomLink}>Välj annan tid</Text>
+                          <Text style={s.remindCustomLink}>{str.remind.customTime}</Text>
                         </Pressable>
                       </View>
                     ) : newRemindMinutes.length > 0 && newRemindMinutes.length < 5 ? (

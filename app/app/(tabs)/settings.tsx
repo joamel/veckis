@@ -32,6 +32,7 @@ import { shareInviteLink } from '../../src/lib/inviteLink';
 import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
 import { kavBehavior } from '../../src/lib/platform';
+import { settings as str, common } from '../../src/lib/strings';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -76,7 +77,7 @@ export default function SettingsScreen() {
       // Read the latest value from a ref instead of calling the toast inside a
       // setState updater (that fires during render → "Cannot update a component
       // while rendering a different component").
-      if (editModeRef.current) showGlobalToast('Redigeringsläget avslutat', 'neutral');
+      if (editModeRef.current) showGlobalToast(str.toasts.editingDone, 'neutral');
       setEditMode(false);
     };
   }, [showGlobalToast]));
@@ -201,7 +202,7 @@ export default function SettingsScreen() {
       const code = await client.createInvite(householdId);
       setInvite(code);
     } catch (e) {
-      showError(e, 'Kunde inte skapa inbjudningskod');
+      showError(e, str.toasts.errorInvite);
     } finally {
       setLoadingInvite(false);
     }
@@ -385,7 +386,7 @@ export default function SettingsScreen() {
       setNewHouseholdName('');
       showToast(`"${newHouseholdName}" skapat`);
     } catch (e) {
-      showError(e, 'Kunde inte skapa hushållet');
+      showError(e, str.toasts.errorCreate);
     } finally {
       setLoadingCreateHousehold(false);
     }
@@ -403,9 +404,9 @@ export default function SettingsScreen() {
       showToast('Ansluten till hushållet');
     } catch (err: any) {
       if (err?.message?.toLowerCase().includes('already')) {
-        confirm({ title: 'Redan med', message: 'Du är redan medlem i det hushållet.', buttons: [{ label: 'OK' }] });
+        confirm({ title: str.toasts.alreadyMember.title, message: str.toasts.alreadyMember.message, buttons: [{ label: 'OK' }] });
       } else {
-        showError(err, 'Kunde inte ansluta till hushållet. Kontrollera koden.');
+        showError(err, str.toasts.errorJoin);
       }
     } finally {
       setLoadingJoinHousehold(false);
@@ -632,7 +633,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionLabel}>BJUD IN NÅGON</Text>
           <View style={styles.inviteBox}>
             <Text style={styles.inviteDesc}>
-              Generera en engångskod som en annan person kan använda för att gå med i hushållet.
+              {str.invite.description}
             </Text>
             {invite ? (
               <>
@@ -644,7 +645,7 @@ export default function SettingsScreen() {
                 </View>
                 <Pressable style={styles.shareLinkBtn} onPress={shareInvite}>
                   <Ionicons name="share-outline" size={18} color="#fff" />
-                  <Text style={styles.shareLinkBtnText}>Dela länk</Text>
+                  <Text style={styles.shareLinkBtnText}>{str.invite.shareLink}</Text>
                 </Pressable>
               </>
             ) : null}
@@ -656,7 +657,7 @@ export default function SettingsScreen() {
             >
               {loadingInvite
                 ? <ActivityIndicator color="#4f46e5" size="small" />
-                : <Text style={styles.inviteBtnText}>{invite ? 'Ny kod' : 'Skapa inbjudningskod'}</Text>}
+                : <Text style={styles.inviteBtnText}>{invite ? str.invite.regenerate : str.invite.generate}</Text>}
             </Pressable>
           </View>
         </View>
@@ -783,7 +784,7 @@ export default function SettingsScreen() {
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <TextInput
               style={styles.input}
-              placeholder="Hushållets namn"
+              placeholder={str.placeholders.householdName}
               value={editingHouseholdName}
               onChangeText={setEditingHouseholdName}
               placeholderTextColor="#9ca3af"
@@ -820,7 +821,7 @@ export default function SettingsScreen() {
             </Text>
             <TextInput
               style={[styles.input, styles.deleteInput]}
-              placeholder="DELETE"
+              placeholder={str.placeholders.deleteConfirm}
               value={deleteConfirmText}
               onChangeText={setDeleteConfirmText}
               placeholderTextColor="#9ca3af"
@@ -916,7 +917,7 @@ export default function SettingsScreen() {
           <ScrollView contentContainerStyle={styles.sheetScroll} keyboardShouldPersistTaps="handled">
             <TextInput
               style={styles.input}
-              placeholder="Hushållets namn"
+              placeholder={str.placeholders.householdName}
               value={newHouseholdName}
               onChangeText={setNewHouseholdName}
               placeholderTextColor="#9ca3af"
@@ -948,7 +949,7 @@ export default function SettingsScreen() {
             <Text style={styles.sheetDesc}>Ange inbjudningskoden du fick från husägaren.</Text>
             <TextInput
               style={styles.input}
-              placeholder="Inbjudningskod"
+              placeholder={str.placeholders.inviteCode}
               value={joinCode}
               onChangeText={setJoinCode}
               placeholderTextColor="#9ca3af"

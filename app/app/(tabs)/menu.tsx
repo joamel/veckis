@@ -43,6 +43,7 @@ import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay } from '@veckis/shared';
 import { DEFAULT_CATEGORY_ORDER } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
+import { menu as str, common } from '../../src/lib/strings';
 
 const DAYS: { key: WeekDay; label: string; short: string }[] = [
   { key: 'mon', label: 'Måndag', short: 'Mån' },
@@ -757,11 +758,11 @@ export default function MenuScreen() {
     if (menuItems.some(i => i.id !== oldId && i.recipeId === recipe.id)) {
       const ok = await new Promise<boolean>(resolve =>
         confirm({
-          title: 'Rätt redan planerad',
-          message: `${recipe.title} är redan inlagd denna vecka. Byt ut ändå?`,
+          title: str.dialogs.replaceOccupied.title,
+          message: str.dialogs.replaceOccupied.message(recipe.title),
           buttons: [
-            { label: 'Byt ut', onPress: () => resolve(true) },
-            { label: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+            { label: str.dialogs.replaceOccupied.confirm, onPress: () => resolve(true) },
+            { label: common.actions.cancel, style: 'cancel', onPress: () => resolve(false) },
           ],
         })
       );
@@ -846,11 +847,11 @@ export default function MenuScreen() {
       const dayLabel = DAYS.find(d => d.key === day)?.label ?? day;
       const confirmed = await new Promise<boolean>(resolve =>
         confirm({
-          title: 'Dag redan planerad',
-          message: `${dayLabel} har redan en rätt planerad. Lägga till ändå?`,
+          title: str.dialogs.dayOccupied.title,
+          message: str.dialogs.dayOccupied.message(dayLabel),
           buttons: [
-            { label: 'Lägg till', onPress: () => resolve(true) },
-            { label: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+            { label: str.dialogs.dayOccupied.confirm, onPress: () => resolve(true) },
+            { label: common.actions.cancel, style: 'cancel', onPress: () => resolve(false) },
           ],
         })
       );
@@ -860,11 +861,11 @@ export default function MenuScreen() {
     if (menuItems.some(i => i.recipeId === recipe.id && !pendingMenuItemRemovals.has(i.id))) {
       const confirmed = await new Promise<boolean>(resolve =>
         confirm({
-          title: 'Rätt redan tillagd',
-          message: `${recipe.title} är redan planerad denna vecka. Lägga till ändå?`,
+          title: str.dialogs.recipeOccupied.title,
+          message: str.dialogs.recipeOccupied.message(recipe.title),
           buttons: [
-            { label: 'Lägg till', onPress: () => resolve(true) },
-            { label: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+            { label: str.dialogs.recipeOccupied.confirm, onPress: () => resolve(true) },
+            { label: common.actions.cancel, style: 'cancel', onPress: () => resolve(false) },
           ],
         })
       );
@@ -890,7 +891,7 @@ export default function MenuScreen() {
       suppressMenuReloadRef.current += 1;
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
       setMenuItems(prev => prev.map(m => m.id === tempId ? item : m));
-      showToast('Recept tillagd till menyn');
+      showToast(str.toasts.recipeAdded);
     } catch (e) {
       setMenuItems(prev => prev.filter(m => m.id !== tempId));
       showError(e, 'Kunde inte lägga till rätt');
@@ -1002,13 +1003,13 @@ export default function MenuScreen() {
 
   async function transferWeekMenu() {
     if (menuItems.length === 0) {
-      confirm({ title: 'Tomt', message: 'Ingen rätt planerad denna vecka', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.dialogs.weekEmpty.title, message: str.dialogs.weekEmpty.message, buttons: [{ label: 'OK' }] });
       return;
     }
 
     const notTransferred = menuItems.filter(m => !transferredMenuItemIds.has(m.id));
     if (notTransferred.length === 0) {
-      confirm({ title: 'Redan överförd', message: 'Alla rätter denna vecka är redan överförda till en inköpslista', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.dialogs.alreadyTransferred.title, message: str.dialogs.alreadyTransferred.message, buttons: [{ label: 'OK' }] });
       return;
     }
 
@@ -1020,7 +1021,7 @@ export default function MenuScreen() {
 
   async function executeBulkTransfer(listId: string) {
     if (selectedRecipesForTransfer.size === 0) {
-      confirm({ title: 'Ingen rätt vald', message: 'Välj minst en rätt att överföra', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.dialogs.noSelection.title, message: str.dialogs.noSelection.message, buttons: [{ label: 'OK' }] });
       return;
     }
 
@@ -1035,7 +1036,7 @@ export default function MenuScreen() {
       const actuallyTransfer = toTransfer.filter(item => !existingMenuItemIds.has(item.id));
 
       if (actuallyTransfer.length === 0) {
-        confirm({ title: 'Redan med', message: 'Alla valda rätter är redan överförda till denna lista', buttons: [{ label: 'OK' }] });
+        confirm({ title: str.dialogs.allInList.title, message: str.dialogs.allInList.message, buttons: [{ label: 'OK' }] });
         return;
       }
 
@@ -1095,7 +1096,7 @@ export default function MenuScreen() {
       setBulkTransferringListId(null);
       setShowBulkTransferModal(false);
       load();
-      showToast(`${actuallyTransfer.length} ${actuallyTransfer.length === 1 ? 'rätt' : 'rätter'} överförd${actuallyTransfer.length === 1 ? '' : 'a'} till inköpslistan`);
+      showToast(str.toasts.transferred(actuallyTransfer.length));
     } catch (e) {
       setBulkTransferringListId(null);
       showError(e, 'Kunde inte överföra ingredienserna');

@@ -32,6 +32,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { type Store } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
+import { shopping as str, common } from '../../src/lib/strings';
 
 export default function ShoppingScreen() {
   const router = useRouter();
@@ -139,7 +140,7 @@ export default function ShoppingScreen() {
       if (isSplitView) setSelectedListId(list.id);
       else router.push(`/shopping/${list.id}` as never);
     } catch (e) {
-      showError(e, 'Kunde inte skapa lista');
+      showError(e, str.toasts.errorCreate);
     } finally {
       setCreating(false);
     }
@@ -245,10 +246,10 @@ export default function ShoppingScreen() {
         <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <View style={styles.sheet}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Ny inköpslista</Text>
+            <Text style={styles.sheetTitle}>{str.createModal.title}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Listans namn, t.ex. ICA fredag"
+              placeholder={str.createModal.namePlaceholder}
               placeholderTextColor="#9ca3af"
               value={newListName}
               onChangeText={setNewListName}
@@ -257,7 +258,7 @@ export default function ShoppingScreen() {
               onSubmitEditing={createList}
             />
             <EmojiPicker value={newListEmoji} onChange={setNewListEmoji} />
-            <Text style={styles.pickStoreLabel}>Butik (valfritt)</Text>
+            <Text style={styles.pickStoreLabel}>{str.createModal.storeLabel}</Text>
             <Pressable
               style={styles.storePickBtn}
               onPress={async () => {
@@ -277,7 +278,7 @@ export default function ShoppingScreen() {
               <Text style={styles.storePickBtnText}>
                 {newListStoreId
                   ? stores.find(s => s.id === newListStoreId)?.name ?? 'Vald butik'
-                  : 'Välj butik…'}
+                  : str.createModal.storePlaceholder}
               </Text>
               <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
             </Pressable>
@@ -288,7 +289,7 @@ export default function ShoppingScreen() {
             >
               {creating
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.buttonText}>Skapa lista</Text>}
+                : <Text style={styles.buttonText}>{str.createModal.createButton}</Text>}
             </Pressable>
           </View>
         </KeyboardAvoidingView>
