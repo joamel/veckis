@@ -27,6 +27,7 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
+import { recipes as str, common } from '../../src/lib/strings';
 import { useTablet } from '../../src/hooks/useTablet';
 
 const MENU_DAYS: { key: WeekDay; label: string }[] = [
@@ -104,11 +105,11 @@ export default function RecipesScreen() {
     if (day && addToMenuWeekItems.some(m => m.day === day)) {
       const label = MENU_DAYS.find(d => d.key === day)?.label;
       confirm({
-        title: 'Dag redan planerad',
-        message: `${label} har redan en rätt denna vecka. Lägg till ändå?`,
+        title: str.menu.dayOccupied.title,
+        message: str.menu.dayOccupied.message(label ?? ''),
         buttons: [
-          { label: 'Lägg till', onPress: () => doAddToMenu(recipe, day) },
-          { label: 'Avbryt', style: 'cancel' },
+          { label: str.menu.dayOccupied.confirm, onPress: () => doAddToMenu(recipe, day) },
+          { label: common.actions.cancel, style: 'cancel' },
         ],
       });
       return;
@@ -127,10 +128,10 @@ export default function RecipesScreen() {
       setAddToMenuWeekItems(prev => [...prev, item]);
       const dayLabel = day ? MENU_DAYS.find(d => d.key === day)?.label.toLowerCase() : null;
       const todayW = getISOWeek(new Date());
-      const weekLabel = weekYear === todayW.weekYear && weekNumber === todayW.weekNumber ? 'denna vecka' : `v.${weekNumber}`;
-      showToast(dayLabel ? `${recipe.title} tillagd på ${dayLabel} (${weekLabel})` : `${recipe.title} tillagd i menyn (${weekLabel})`, 'success');
+      const weekLabel = weekYear === todayW.weekYear && weekNumber === todayW.weekNumber ? str.menu.thisWeek : str.menu.weekLabel(weekNumber);
+      showToast(dayLabel ? str.menu.addedWithDay(recipe.title, dayLabel, weekLabel) : str.menu.addedNoDay(recipe.title, weekLabel), 'success');
     } catch (e) {
-      showError(e, 'Kunde inte lägga till i menyn');
+      showError(e, str.menu.errorAdd);
     }
   }
 
@@ -149,11 +150,11 @@ export default function RecipesScreen() {
   function selectRecipeForMenu(recipe: RecipeWithIngredients) {
     if (replaceMode) {
       confirm({
-        title: 'Byt ut rätt',
-        message: `Ersätt "${params.replaceTitle ?? 'rätten'}" med "${recipe.title}"?`,
+        title: str.menu.replace.title,
+        message: str.menu.replace.message(params.replaceTitle ?? 'rätten', recipe.title),
         buttons: [
-          { label: 'Byt ut', style: 'destructive', onPress: () => router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&replaceMenuItemId=${params.replaceMenuItemId}${weekSuffix}` as never) },
-          { label: 'Avbryt', style: 'cancel' },
+          { label: str.menu.replace.confirm, style: 'destructive', onPress: () => router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&replaceMenuItemId=${params.replaceMenuItemId}${weekSuffix}` as never) },
+          { label: common.actions.cancel, style: 'cancel' },
         ],
       });
       return;
@@ -197,7 +198,7 @@ export default function RecipesScreen() {
       setRecipes(recs);
       setWeekMenu(menu);
     } catch {
-      confirm({ title: 'Fel', message: 'Kunde inte ladda recept', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.generic, message: str.errors.couldNotLoad, buttons: [{ label: common.actions.ok }] });
     } finally {
       setLoading(false);
     }
@@ -211,11 +212,11 @@ export default function RecipesScreen() {
     const existing = recipes.find(r => r.sourceUrl?.replace(/\/$/, '') === normalizedUrl);
     if (existing) {
       confirm({
-        title: 'Recept finns redan',
-        message: `"${existing.title}" har redan hämtats från den här URL:en.`,
+        title: str.errors.duplicate.title,
+        message: str.errors.duplicate.message(existing.title),
         buttons: [
-          { label: 'Öppna receptet', onPress: () => { setShowModal(false); router.push(`/recipes/${existing.id}` as never); } },
-          { label: 'Avbryt', style: 'cancel' },
+          { label: str.errors.duplicate.open, onPress: () => { setShowModal(false); router.push(`/recipes/${existing.id}` as never); } },
+          { label: common.actions.cancel, style: 'cancel' },
         ],
       });
       return;
@@ -241,7 +242,7 @@ export default function RecipesScreen() {
       // Recipe found but no ingredients parsed — drop the user straight into edit
       // mode to fill them in, instead of a confusing empty recipe.
       if (scraped.ingredients.length === 0) {
-        confirm({ title: 'Inga ingredienser hittades', message: 'Receptet skapades men vi kunde inte läsa ingredienserna. Lägg till dem manuellt.', buttons: [{ label: 'OK' }] });
+        confirm({ title: str.errors.noIngredients.title, message: str.errors.noIngredients.message, buttons: [{ label: common.actions.ok }] });
         router.push(`/recipes/${recipe.id}?edit=1` as never);
       } else {
         router.push(`/recipes/${recipe.id}` as never);
@@ -250,11 +251,11 @@ export default function RecipesScreen() {
       // Scrape failed (no recipe data, fetch error, timeout…) — don't dead-end;
       // offer to add the recipe manually instead.
       confirm({
-        title: 'Kunde inte läsa receptet',
-        message: `${err instanceof Error ? err.message : 'Länken gick inte att läsa'}\n\nVill du lägga till receptet manuellt istället?`,
+        title: str.errors.parseFailed.title,
+        message: str.errors.parseFailed.message(err instanceof Error ? err.message : 'Länken gick inte att läsa'),
         buttons: [
-          { label: 'Lägg till manuellt', onPress: () => setMode('manual') },
-          { label: 'Avbryt', style: 'cancel' },
+          { label: str.errors.parseFailed.manual, onPress: () => setMode('manual') },
+          { label: common.actions.cancel, style: 'cancel' },
         ],
       });
     } finally {
@@ -287,7 +288,7 @@ export default function RecipesScreen() {
       const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
       router.push(`/recipes/${recipe.id}${parsed.ingredients.length === 0 ? '?edit=1' : ''}${suffix}` as never);
     } catch (err) {
-      confirm({ title: 'Fel', message: err instanceof Error ? err.message : 'Kunde inte tolka receptet', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.generic, message: err instanceof Error ? err.message : str.errors.couldNotParse, buttons: [{ label: common.actions.ok }] });
     } finally {
       setParsing(false);
       setCreating(false);
@@ -306,7 +307,7 @@ export default function RecipesScreen() {
       const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
       router.push(`/recipes/${recipe.id}?edit=1${suffix}` as never);
     } catch {
-      confirm({ title: 'Fel', message: 'Kunde inte skapa recept', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.generic, message: str.errors.couldNotCreate, buttons: [{ label: common.actions.ok }] });
     } finally {
       setCreating(false);
     }
@@ -341,9 +342,9 @@ export default function RecipesScreen() {
             <Pressable onPress={() => router.back()} hitSlop={10}>
               <Ionicons name="arrow-back" size={26} color="#111827" />
             </Pressable>
-            <Text style={s.title}>Recept</Text>
+            <Text style={s.title}>{str.title}</Text>
           </View>
-          <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={[s.sortBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }]} accessibilityLabel="Sortera recept">
+          <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={[s.sortBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }]} accessibilityLabel={str.sort.a11y}>
             <Ionicons name="swap-vertical" size={fs(18)} color="#4f46e5" />
           </Pressable>
         </View>
@@ -351,7 +352,7 @@ export default function RecipesScreen() {
           <Ionicons name="search" size={16} color="#9ca3af" style={s.searchIcon} />
           <TextInput
             style={s.searchInput}
-            placeholder="Sök på namn eller ingrediens…"
+            placeholder={str.search.placeholder}
             placeholderTextColor="#9ca3af"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -359,7 +360,7 @@ export default function RecipesScreen() {
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Rensa sökning">
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={common.actions.clearSearch}>
               <Ionicons name="close-circle" size={16} color="#9ca3af" />
             </Pressable>
           )}
@@ -370,7 +371,7 @@ export default function RecipesScreen() {
         <View style={s.selectBanner}>
           <Ionicons name="restaurant-outline" size={16} color="#4f46e5" />
           <Text style={s.selectBannerText} numberOfLines={1}>
-            {replaceMode ? `Byt ut · ${params.replaceTitle ?? ''}` : `Välj en rätt · ${selectionDayLabel}`}
+            {replaceMode ? str.selection.replace(params.replaceTitle ?? '') : str.selection.pick(selectionDayLabel ?? 'utan dag')}
           </Text>
         </View>
       )}
@@ -385,15 +386,15 @@ export default function RecipesScreen() {
           searchQuery ? (
             <EmptyState
               icon="search-outline"
-              title="Inga träffar"
-              subtitle={`Inget recept matchar "${searchQuery}"`}
+              title={str.emptyState.noResults}
+              subtitle={str.emptyState.noResultsFor(searchQuery)}
             />
           ) : (
             <EmptyState
               icon="book-outline"
-              title="Inga recept än"
-              subtitle="Lägg till ett recept manuellt eller via en URL."
-              actionLabel="Nytt recept"
+              title={str.emptyState.title}
+              subtitle={str.emptyState.subtitle}
+              actionLabel={str.createModal.addButton}
               onAction={openModal}
             />
           )
@@ -414,7 +415,7 @@ export default function RecipesScreen() {
               </View>
               <View style={s.cardContent}>
                 <Text style={s.cardTitle}>{item.title}</Text>
-                <Text style={s.cardMeta}>{item.servings} port · {item.ingredients.length} ingredienser</Text>
+                <Text style={s.cardMeta}>{str.card.meta(item.servings, item.ingredients.length)}</Text>
               </View>
               {selectionMode ? (
                 <Ionicons name="add-circle" size={22} color="#4f46e5" />
@@ -423,7 +424,7 @@ export default function RecipesScreen() {
                   const { weekYear, weekNumber } = getISOWeek(new Date());
                   setAddToMenuWeekStr(`${weekYear}-${String(weekNumber).padStart(2, '0')}`);
                   setAddToMenuFor(item);
-                }} hitSlop={8} accessibilityLabel="Lägg till i meny">
+                }} hitSlop={8} accessibilityLabel={str.createModal.addToMenu}>
                   <Ionicons name="calendar-outline" size={20} color="#4f46e5" />
                 </Pressable>
               )}
@@ -434,16 +435,16 @@ export default function RecipesScreen() {
                 style={s.cardDeleteBtn}
                 onPress={() =>
                   confirm({
-                    title: 'Ta bort recept',
-                    message: `Ta bort "${item.title}"?`,
+                    title: str.delete.title,
+                    message: str.delete.messageSimple(item.title),
                     buttons: [
-                      { label: 'Ta bort', style: 'destructive', onPress: async () => {
+                      { label: common.actions.delete, style: 'destructive', onPress: async () => {
                         try {
                           await client.deleteRecipe(item.id);
                           setRecipes(prev => prev.filter(r => r.id !== item.id));
-                        } catch { confirm({ title: 'Fel', message: 'Kunde inte ta bort receptet', buttons: [{ label: 'OK' }] }); }
+                        } catch { confirm({ title: str.errors.generic, message: str.errors.couldNotDelete, buttons: [{ label: common.actions.ok }] }); }
                       }},
-                      { label: 'Avbryt', style: 'cancel' },
+                      { label: common.actions.cancel, style: 'cancel' },
                     ],
                   })
                 }
@@ -457,12 +458,12 @@ export default function RecipesScreen() {
 
       {editMode ? (
         <Pressable style={s.editDoneBtn} onPress={() => setEditMode(false)}>
-          <Text style={s.editDoneBtnText}>Klar</Text>
+          <Text style={s.editDoneBtnText}>{common.actions.done}</Text>
         </Pressable>
       ) : (
         <Pressable style={s.fab} onPress={wrapAddRecipeTip(
           openModal,
-          { title: 'Skapa recept', message: 'Lägg till ett recept manuellt eller importera direkt från en webbsida — klistra bara in URL:en så hämtar appen titel, ingredienser, bild och instruktioner automatiskt.' },
+          str.tips.add,
         )}>
           <Ionicons name="add" size={30} color="#fff" />
         </Pressable>
@@ -474,14 +475,14 @@ export default function RecipesScreen() {
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Nytt recept</Text>
+          <Text style={s.sheetTitle}>{str.createModal.title}</Text>
 
           <View style={s.modeTabs}>
             <Pressable style={[s.modeTab, mode === 'manual' && s.modeTabActive]} onPress={() => setMode('manual')}>
-              <Text style={[s.modeTabText, mode === 'manual' && s.modeTabTextActive]}>Manuellt</Text>
+              <Text style={[s.modeTabText, mode === 'manual' && s.modeTabTextActive]}>{str.createModal.tabManual}</Text>
             </Pressable>
             <Pressable style={[s.modeTab, mode === 'url' && s.modeTabActive]} onPress={() => setMode('url')}>
-              <Text style={[s.modeTabText, mode === 'url' && s.modeTabTextActive]}>Från URL</Text>
+              <Text style={[s.modeTabText, mode === 'url' && s.modeTabTextActive]}>{str.createModal.tabUrl}</Text>
             </Pressable>
           </View>
 
@@ -489,7 +490,7 @@ export default function RecipesScreen() {
             <>
               <TextInput
                 style={s.input}
-                placeholder="Receptets namn (valfritt om du klistrar in)"
+                placeholder={str.createModal.namePlaceholder}
                 placeholderTextColor="#9ca3af"
                 value={title}
                 onChangeText={setTitle}
@@ -499,13 +500,13 @@ export default function RecipesScreen() {
               />
               <Pressable style={s.pasteToggle} onPress={() => { setShowPaste(p => !p); setPasteText(''); }}>
                 <Ionicons name={showPaste ? 'chevron-down' : 'clipboard-outline'} size={14} color="#6b7280" />
-                <Text style={s.pasteToggleText}>{showPaste ? 'Dölj recepttext' : 'Klistra in recepttext (AI tolkar)'}</Text>
+                <Text style={s.pasteToggleText}>{showPaste ? str.createModal.pasteToggleOn : str.createModal.pasteToggleOff}</Text>
               </Pressable>
               {showPaste ? (
                 <>
                   <TextInput
                     style={[s.input, { height: 160, textAlignVertical: 'top', paddingTop: 10 }]}
-                    placeholder={"Klistra in recept, ingredienslista eller hela receptsidan här — AI:n plockar ut titel, ingredienser och tillvägagångssätt automatiskt."}
+                    placeholder={str.createModal.pastePlaceholder}
                     placeholderTextColor="#9ca3af"
                     value={pasteText}
                     onChangeText={setPasteText}
@@ -518,18 +519,18 @@ export default function RecipesScreen() {
                     onPress={handleParseAndCreate}
                     disabled={parsing || creating || !pasteText.trim()}
                   >
-                    {parsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Tolka och skapa recept</Text>}
+                    {parsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.parseButton}</Text>}
                   </Pressable>
                 </>
               ) : (
                 <>
-                  <Text style={s.createHint}>Du fyller i beskrivning, ingredienser och instruktioner i nästa steg.</Text>
+                  <Text style={s.createHint}>{str.createModal.createHint}</Text>
                   <Pressable
                     style={[s.button, !title.trim() && s.buttonDisabled]}
                     onPress={handleCreateManual}
                     disabled={creating || !title.trim()}
                   >
-                    {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Skapa recept</Text>}
+                    {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.createButton}</Text>}
                   </Pressable>
                 </>
               )}
@@ -538,7 +539,7 @@ export default function RecipesScreen() {
             <>
               <TextInput
                 style={s.input}
-                placeholder="https://tasteline.com/recept/..."
+                placeholder={str.createModal.urlPlaceholder}
                 placeholderTextColor="#9ca3af"
                 value={url}
                 onChangeText={setUrl}
@@ -548,7 +549,7 @@ export default function RecipesScreen() {
                 returnKeyType="done"
                 onSubmitEditing={handleScrape}
               />
-              <Text style={s.urlHint}>Fungerar med de flesta receptsajter (ICA, Arla, Tasteline, m.fl.)</Text>
+              <Text style={s.urlHint}>{str.createModal.urlHint}</Text>
               <Pressable
                 style={[s.button, !url.trim() && s.buttonDisabled]}
                 onPress={handleScrape}
@@ -556,7 +557,7 @@ export default function RecipesScreen() {
               >
                 {scraping || creating
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.buttonText}>Hämta recept</Text>}
+                  : <Text style={s.buttonText}>{str.createModal.fetchButton}</Text>}
               </Pressable>
             </>
           )}
@@ -570,7 +571,7 @@ export default function RecipesScreen() {
         <Pressable style={s.overlay} onPress={() => setAddToMenuFor(null)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Lägg till i meny</Text>
+          <Text style={s.sheetTitle}>{str.menu.addToMenu}</Text>
           <Text style={s.daySheetSub} numberOfLines={1}>{addToMenuFor?.title}</Text>
 
           {/* Week chips */}
@@ -582,12 +583,12 @@ export default function RecipesScreen() {
                 return Array.from({ length: 5 }, (_, i) => {
                   const mon = addWeeks(thisMonday, i);
                   const { weekYear, weekNumber } = getISOWeek(mon);
-                  const str = `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
-                  const active = addToMenuWeekStr === str;
-                  const label = i === 0 ? `v.${weekNumber} · nu` : `v.${weekNumber}`;
+                  const weekKey = `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
+                  const active = addToMenuWeekStr === weekKey;
+                  const label = i === 0 ? str.menu.weekNow(weekNumber) : str.menu.weekLabel(weekNumber);
                   const sub = `${mon.getDate()}/${mon.getMonth() + 1}`;
                   return (
-                    <Pressable key={str} style={[s.weekChip, active && s.weekChipActive]} onPress={() => setAddToMenuWeekStr(str)}>
+                    <Pressable key={weekKey} style={[s.weekChip, active && s.weekChipActive]} onPress={() => setAddToMenuWeekStr(weekKey)}>
                       <Text style={[s.weekChipText, active && s.weekChipTextActive]}>{label}</Text>
                       <Text style={[s.weekChipSub, active && s.weekChipSubActive]}>{sub}</Text>
                     </Pressable>
@@ -607,7 +608,7 @@ export default function RecipesScreen() {
                   onPress={() => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, d.key); }}
                 >
                   <Text style={[s.dayGridLabel, taken && s.dayGridLabelTaken]}>{d.label}</Text>
-                  {taken && <Text style={s.dayGridTakenHint}>Planerad</Text>}
+                  {taken && <Text style={s.dayGridTakenHint}>{str.menu.taken}</Text>}
                 </Pressable>
               );
             })}
@@ -616,7 +617,7 @@ export default function RecipesScreen() {
               onPress={() => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, null); }}
             >
               <Ionicons name="calendar-clear-outline" size={18} color="#4f46e5" />
-              <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>Lägg till utan dag</Text>
+              <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>{str.menu.noDay}</Text>
             </Pressable>
           </View>
         </View>
@@ -628,8 +629,8 @@ export default function RecipesScreen() {
         <Pressable style={s.overlay} onPress={() => setShowSort(false)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Sortera recept</Text>
-          {([['name', 'A–Ö'], ['used', 'Mest använda'], ['recent', 'Senast tillagda']] as const).map(([key, label]) => (
+          <Text style={s.sheetTitle}>{str.sort.modalTitle}</Text>
+          {([['name', str.sort.az], ['used', str.sort.popular], ['recent', str.sort.newest]] as const).map(([key, label]) => (
             <Pressable key={key} style={s.sortOption} onPress={() => chooseSort(key)}>
               <Ionicons name={sortMode === key ? 'radio-button-on' : 'radio-button-off'} size={22} color={sortMode === key ? '#4f46e5' : '#9ca3af'} />
               <Text style={s.sortOptionText}>{label}</Text>

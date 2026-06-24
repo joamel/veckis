@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 
 import { kavBehavior } from '../../src/lib/platform';
+import { recipes as str, common } from '../../src/lib/strings';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -166,8 +167,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     if (recipeCartTip.seen !== false || recipeCartTipShownRef.current) return;
     if (!recipe || recipe.ingredients.length === 0) return;
     const shown = showTip({
-      title: 'Lägg ingredienser i inköpslistan',
-      message: '"Lägg i lista"-knappen bredvid Ingredienser låter dig välja vad du vill ha och skicka det direkt till en inköpslista.',
+      title: str.tips.transfer.title,
+      message: str.tips.transfer.message,
       targetRef: recipeCartRef,
     });
     if (shown) { recipeCartTipShownRef.current = true; recipeCartTip.markSeen(); }
@@ -213,7 +214,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         setTimeout(() => getRowRef(0).name?.focus(), 250);
       }
     } catch {
-      confirm({ title: 'Fel', message: 'Kunde inte ladda receptet', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.generic, message: str.errors.couldNotLoad, buttons: [{ label: common.actions.ok }] });
     } finally {
       setLoading(false);
     }
@@ -244,10 +245,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       title: recipe.title,
       variant: 'menu',
       buttons: [
-        { label: 'Planera i meny', onPress: openPlanModal },
-        { label: 'Redigera recept', onPress: startEdit },
-        { label: 'Ta bort recept', style: 'destructive', onPress: confirmDeleteRecipe },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: str.actions.planInMenu, onPress: openPlanModal },
+        { label: str.actions.editRecipe, onPress: startEdit },
+        { label: str.actions.deleteRecipe, style: 'destructive', onPress: confirmDeleteRecipe },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -255,18 +256,18 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   function confirmDeleteRecipe() {
     if (!recipe) return;
     confirm({
-      title: 'Ta bort recept',
-      message: `Ta bort "${recipe.title}"? Detta går inte att ångra.`,
+      title: str.delete.title,
+      message: str.delete.message(recipe.title),
       buttons: [
-      { label: 'Ta bort', style: 'destructive', onPress: async () => {
+      { label: common.actions.delete, style: 'destructive', onPress: async () => {
         try {
           await client.deleteRecipe(recipe.id);
           if (onClose) onClose(); else router.back();
         } catch {
-          confirm({ title: 'Fel', message: 'Kunde inte ta bort receptet', buttons: [{ label: 'OK' }] });
+          confirm({ title: str.errors.generic, message: str.errors.couldNotDelete, buttons: [{ label: common.actions.ok }] });
         }
       } },
-      { label: 'Avbryt', style: 'cancel' },
+      { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -304,9 +305,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   async function saveRecipe() {
     if (!recipe) return;
     const t = editTitle.trim();
-    if (!t) { confirm({ title: 'Namn saknas', message: 'Receptet behöver ett namn.', buttons: [{ label: 'OK' }] }); return; }
+    if (!t) { confirm({ title: str.validation.nameMissing, message: str.validation.nameRequired, buttons: [{ label: common.actions.ok }] }); return; }
     const img = editImage.trim();
-    if (img && !/^https?:\/\//i.test(img)) { confirm({ title: 'Ogiltig bild-URL', message: 'Bild-URL:en måste börja med http:// eller https://', buttons: [{ label: 'OK' }] }); return; }
+    if (img && !/^https?:\/\//i.test(img)) { confirm({ title: str.validation.invalidImageUrl, message: str.validation.imageUrlHint, buttons: [{ label: common.actions.ok }] }); return; }
     setSaving(true);
     try {
       const ingredients = editIngredients
@@ -330,7 +331,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}${weekSuffix}` as never);
       }
     } catch {
-      confirm({ title: 'Fel', message: 'Kunde inte spara receptet', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.generic, message: str.errors.couldNotSave, buttons: [{ label: common.actions.ok }] });
     } finally {
       setSaving(false);
     }
@@ -345,7 +346,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        showError(new Error('permission_denied'), `Veckis behöver tillgång till ${source === 'camera' ? 'kameran' : 'bilder'}`);
+        showError(new Error('permission_denied'), source === 'camera' ? str.permissions.camera : str.permissions.photos);
         return;
       }
       const result = source === 'camera'
@@ -362,7 +363,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       setRecipe(updated);
       setEditImage(updated.imageUrl ?? '');
     } catch (e) {
-      showError(e, 'Kunde inte ladda upp bilden');
+      showError(e, str.errors.couldNotUpload);
     } finally {
       setUploadingImage(false);
     }
@@ -379,7 +380,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     try {
       setLists(await client.getShoppingLists(householdId));
     } catch {
-      confirm({ title: 'Fel', message: 'Kunde inte ladda inköpslistor', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.generic, message: str.transfer.noLists, buttons: [{ label: common.actions.ok }] });
     } finally {
       setLoadingLists(false);
     }
@@ -396,7 +397,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   async function doTransfer(listId: string) {
     if (!recipe) return;
     const selected = deduplicatedIngredients.filter(i => checkedIds.has(i.id));
-    if (selected.length === 0) { confirm({ title: 'Välj minst en ingrediens', buttons: [{ label: 'OK' }] }); return; }
+    if (selected.length === 0) { confirm({ title: str.errors.selectIngredients, buttons: [{ label: common.actions.ok }] }); return; }
     setTransferring(true);
     setTransferringListId(listId);
     try {
@@ -409,15 +410,15 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       })));
       setShowTransfer(false);
       confirm({
-        title: 'Klart!',
-        message: `${selected.length} ingredienser tillagda i listan`,
+        title: str.transfer.done,
+        message: str.transfer.success(selected.length),
         buttons: [
-          { label: 'Gå till listan', onPress: () => router.push(`/shopping/${listId}` as never) },
-          { label: 'Stanna kvar', style: 'cancel' },
+          { label: str.transfer.goToList, onPress: () => router.push(`/shopping/${listId}` as never) },
+          { label: str.transfer.stayHere, style: 'cancel' },
         ],
       });
     } catch {
-      confirm({ title: 'Fel', message: 'Kunde inte överföra ingredienser', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.generic, message: str.errors.couldNotTransfer, buttons: [{ label: common.actions.ok }] });
     } finally {
       setTransferring(false);
       setTransferringListId(null);
@@ -430,7 +431,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Pressable onPress={() => { if (onClose) onClose(); else router.back(); }} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Tillbaka">
+        <Pressable onPress={() => { if (onClose) onClose(); else router.back(); }} style={s.backBtn} accessibilityRole="button" accessibilityLabel={common.actions.back}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
         {editMode ? (
@@ -438,13 +439,13 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             style={[s.headerTitle, s.headerTitleInput]}
             value={editTitle}
             onChangeText={setEditTitle}
-            placeholder="Receptnamn"
+            placeholder={str.detail.nameLabel}
             placeholderTextColor="#9ca3af"
           />
         ) : (
           <Text style={s.headerTitle} numberOfLines={1}>{recipe.title}</Text>
         )}
-        <Pressable onPress={openRecipeActions} style={s.transferBtn} accessibilityLabel="Mer">
+        <Pressable onPress={openRecipeActions} style={s.transferBtn} accessibilityLabel={common.actions.more}>
           <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
       </View>
@@ -459,7 +460,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       >
         {editMode ? (
           <View style={{ gap: 8 }}>
-            <Text style={s.editLabel}>Bild</Text>
+            <Text style={s.editLabel}>{str.detail.imageLabel}</Text>
             {editImage.trim() ? (
               <Image source={{ uri: editImage.trim() }} style={s.heroImage} resizeMode="cover" />
             ) : (
@@ -474,7 +475,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 disabled={uploadingImage}
               >
                 <Ionicons name="images-outline" size={18} color="#4f46e5" />
-                <Text style={s.imgBtnText}>Galleri</Text>
+                <Text style={s.imgBtnText}>{str.detail.gallery}</Text>
               </Pressable>
               <Pressable
                 style={[s.imgBtn, { flex: 1 }, uploadingImage && s.imgBtnDisabled]}
@@ -482,14 +483,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 disabled={uploadingImage}
               >
                 <Ionicons name="camera-outline" size={18} color="#4f46e5" />
-                <Text style={s.imgBtnText}>Kamera</Text>
+                <Text style={s.imgBtnText}>{str.detail.camera}</Text>
               </Pressable>
               {editImage.trim() ? (
                 <Pressable
                   style={[s.imgRemoveBtn, uploadingImage && s.imgBtnDisabled]}
                   onPress={() => setEditImage('')}
                   disabled={uploadingImage}
-                  accessibilityLabel="Ta bort bild"
+                  accessibilityLabel={str.detail.removeImage}
                 >
                   <Ionicons name="trash-outline" size={18} color="#ef4444" />
                 </Pressable>
@@ -552,7 +553,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               style={[s.renameInput, s.editMultiline]}
               value={editDesc}
               onChangeText={setEditDesc}
-              placeholder="Beskrivning (valfritt)"
+              placeholder={str.detail.descPlaceholder}
               placeholderTextColor="#9ca3af"
               multiline
             />
@@ -564,11 +565,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         {/* Ingredients */}
         <View style={s.section}>
           <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>Ingredienser</Text>
+            <Text style={s.sectionTitle}>{str.detail.ingredientsLabel}</Text>
             {!editMode && recipe.ingredients.length > 0 && (
-              <Pressable ref={recipeCartRef} style={s.cookBtn} onPress={() => openTransfer()} accessibilityLabel="Lägg i inköpslista">
+              <Pressable ref={recipeCartRef} style={s.cookBtn} onPress={() => openTransfer()} accessibilityLabel={str.detail.transferA11y}>
                 <Ionicons name="cart-outline" size={14} color="#4f46e5" />
-                <Text style={s.cookBtnText}>Lägg i lista</Text>
+                <Text style={s.cookBtnText}>{str.detail.addToList}</Text>
               </Pressable>
             )}
           </View>
@@ -581,7 +582,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                     <TextInput
                       ref={el => { getRowRef(idx).name = el; }}
                       style={[s.editInput, s.editInputName]}
-                      placeholder="Ingrediens"
+                      placeholder={str.detail.ingNamePlaceholder}
                       placeholderTextColor="#9ca3af"
                       value={row.name}
                       onChangeText={v => updateEditRow(idx, 'name', v)}
@@ -600,7 +601,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                     <TextInput
                       ref={el => { getRowRef(idx).qty = el; }}
                       style={[s.editInput, s.editInputQty]}
-                      placeholder="Mängd"
+                      placeholder={str.detail.ingQtyPlaceholder}
                       placeholderTextColor="#9ca3af"
                       value={row.quantity}
                       onChangeText={v => updateEditRow(idx, 'quantity', normalizeQtyInput(v))}
@@ -632,7 +633,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                         if (idx < editIngredients.length - 1) getRowRef(idx + 1).name?.focus();
                       }}
                     />
-                    <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove} accessibilityRole="button" accessibilityLabel="Ta bort ingrediens">
+                    <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove} accessibilityRole="button" accessibilityLabel={common.actions.delete}>
                       <Ionicons name="close-circle" size={20} color="#d1d5db" />
                     </Pressable>
                   </View>
@@ -703,7 +704,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               ))}
               <Pressable style={s.addRowBtn} onPress={addEditRow}>
                 <Ionicons name="add" size={16} color="#4f46e5" />
-                <Text style={s.addRowBtnText}>Lägg till rad</Text>
+                <Text style={s.addRowBtnText}>{str.detail.addRow}</Text>
               </Pressable>
             </View>
           ) : recipe.ingredients.length === 0 ? (
@@ -731,7 +732,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               style={[s.renameInput, s.editMultilineTall]}
               value={editInstr}
               onChangeText={setEditInstr}
-              placeholder="Steg för steg (valfritt)"
+              placeholder={str.detail.instrPlaceholder}
               placeholderTextColor="#9ca3af"
               multiline
             />
@@ -739,10 +740,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         ) : recipe.instructions ? (
           <View style={s.section}>
             <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>Instruktioner</Text>
+              <Text style={s.sectionTitle}>{str.detail.instructionsLabel}</Text>
               <Pressable style={s.lagaBtn} onPress={() => { setCookStep(0); setCookMode(true); }}>
                 <Ionicons name="restaurant-outline" size={14} color="#4f46e5" />
-                <Text style={s.lagaBtnText}>Laga</Text>
+                <Text style={s.lagaBtnText}>{str.detail.cook}</Text>
               </Pressable>
             </View>
             <Text style={s.instructionsText}>{recipe.instructions}</Text>
@@ -752,10 +753,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         {editMode && (
           <View style={s.editActions}>
             <Pressable style={s.cancelBtn} onPress={() => setEditMode(false)}>
-              <Text style={s.cancelBtnText}>Avbryt</Text>
+              <Text style={s.cancelBtnText}>{common.actions.cancel}</Text>
             </Pressable>
             <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled]} onPress={saveRecipe} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Spara</Text>}
+              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>{common.actions.save}</Text>}
             </Pressable>
           </View>
         )}
@@ -768,9 +769,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         <Pressable style={s.overlay} onPress={() => setShowTransfer(false)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Lägg till i inköpslistan</Text>
+          <Text style={s.sheetTitle}>{str.transfer.title}</Text>
           <Text style={s.sheetSub}>
-            {scaleRatio !== 1 ? `Skalat till ${displayServings} portioner · ` : ''}Välj vad du behöver köpa:
+            {scaleRatio !== 1 ? str.transfer.scaledPrefix(displayServings) : ''}{str.transfer.needToBuy}
           </Text>
 
           <ScrollView style={s.ingredientList} showsVerticalScrollIndicator={false}>
@@ -793,18 +794,18 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
           <View style={s.selectAllRow}>
             <Pressable onPress={() => setCheckedIds(new Set(deduplicatedIngredients.map(i => i.id)))}>
-              <Text style={s.selectAllText}>Välj alla</Text>
+              <Text style={s.selectAllText}>{str.transfer.selectAll}</Text>
             </Pressable>
             <Pressable onPress={() => setCheckedIds(new Set())}>
-              <Text style={s.selectAllText}>Rensa</Text>
+              <Text style={s.selectAllText}>{str.transfer.clearAll}</Text>
             </Pressable>
           </View>
 
-          <Text style={s.listPickLabel}>Välj lista:</Text>
+          <Text style={s.listPickLabel}>{str.transfer.selectList}</Text>
           {loadingLists ? (
             <ActivityIndicator color="#4f46e5" style={{ marginVertical: 12 }} />
           ) : lists.length === 0 ? (
-            <Text style={s.noListsText}>Inga aktiva listor — skapa en från Inköp-fliken</Text>
+            <Text style={s.noListsText}>{str.transfer.noLists}</Text>
           ) : (
             <FlatList
               data={lists}
@@ -836,10 +837,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         <Pressable style={s.overlay} onPress={() => setShowPlanModal(false)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Planera i meny</Text>
-          <Text style={s.sheetSub}>Välj vecka och dag</Text>
+          <Text style={s.sheetTitle}>{str.plan.title}</Text>
+          <Text style={s.sheetSub}>{str.plan.sub}</Text>
 
-          <Text style={s.planSectionLabel}>Vecka</Text>
+          <Text style={s.planSectionLabel}>{str.plan.weekLabel}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
               {(() => {
@@ -848,12 +849,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 return Array.from({ length: 5 }, (_, i) => {
                   const mon = addWeeks(thisMonday, i);
                   const { weekYear, weekNumber } = getISOWeek(mon);
-                  const str = `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
-                  const active = planWeekStr === str;
-                  const label = i === 0 ? `v.${weekNumber} · nu` : `v.${weekNumber}`;
+                  const planWeekKey = `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
+                  const active = planWeekStr === planWeekKey;
+                  const label = i === 0 ? str.menu.weekNow(weekNumber) : str.menu.weekLabel(weekNumber);
                   const sub = `${mon.getDate()}/${mon.getMonth() + 1}`;
                   return (
-                    <Pressable key={str} style={[s.planChip, active && s.planChipActive]} onPress={() => setPlanWeekStr(str)}>
+                    <Pressable key={planWeekKey} style={[s.planChip, active && s.planChipActive]} onPress={() => setPlanWeekStr(planWeekKey)}>
                       <Text style={[s.planChipText, active && s.planChipTextActive]}>{label}</Text>
                       <Text style={[s.planChipSub, active && s.planChipSubActive]}>{sub}</Text>
                     </Pressable>
@@ -863,11 +864,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             </View>
           </ScrollView>
 
-          <Text style={s.planSectionLabel}>Dag</Text>
+          <Text style={s.planSectionLabel}>{str.plan.dayLabel}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
               {([
-                { label: 'Ingen', value: null },
+                { label: str.plan.noDay, value: null },
                 { label: 'Mån', value: 'mon' },
                 { label: 'Tis', value: 'tue' },
                 { label: 'Ons', value: 'wed' },
@@ -893,7 +894,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               router.replace(`/(tabs)/menu?addRecipeId=${recipe!.id}&day=${planDay ?? ''}&forMenuWeek=${planWeekStr}` as never);
             }}
           >
-            <Text style={s.saveBtnText}>Lägg till i meny</Text>
+            <Text style={s.saveBtnText}>{str.plan.addButton}</Text>
           </Pressable>
         </View>
       </Modal>
@@ -902,12 +903,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       {!editMode && (
         from === 'calendar'
           ? recipe?.instructions && (
-              <Pressable style={s.fab} onPress={() => { setCookStep(0); setCookMode(true); }} accessibilityLabel="Laga nu">
+              <Pressable style={s.fab} onPress={() => { setCookStep(0); setCookMode(true); }} accessibilityLabel={str.detail.cookA11y}>
                 <Ionicons name="restaurant-outline" size={26} color="#fff" />
               </Pressable>
             )
           : recipe?.ingredients && recipe.ingredients.length > 0 && (
-              <Pressable style={s.fab} onPress={() => openTransfer()} accessibilityLabel="Lägg i inköpslista">
+              <Pressable style={s.fab} onPress={() => openTransfer()} accessibilityLabel={str.detail.transferA11y}>
                 <Ionicons name="cart-outline" size={26} color="#fff" />
               </Pressable>
             )
@@ -923,7 +924,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             <SafeAreaView style={s.cookContainer}>
               <View style={s.cookHeader}>
                 <Text style={s.cookRecipeTitle} numberOfLines={1}>{recipe.title}</Text>
-                <Pressable onPress={() => setCookMode(false)} style={s.cookClose} accessibilityLabel="Avsluta">
+                <Pressable onPress={() => setCookMode(false)} style={s.cookClose} accessibilityLabel={str.detail.cookClose}>
                   <Ionicons name="close" size={24} color="#9ca3af" />
                 </Pressable>
               </View>

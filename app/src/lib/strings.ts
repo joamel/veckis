@@ -17,10 +17,12 @@ export const common = {
     create:          'Skapa',
     done:            'Klar',
     undo:            'Ångra',
+    ok:              'OK',
     showLatest:      'Visa senaste',
     more:            'Fler val',
     back:            'Tillbaka',
     manage:          'Hantera',
+    clearSearch:     'Rensa sökning',
   },
   errors: {
     generic:         'Något gick fel. Försök igen.',
@@ -293,10 +295,73 @@ export const shoppingList = {
   },
 
   toasts: {
-    errorShopper: 'Kunde inte ändra "Jag handlar"-status',
-    errorRename:  'Kunde inte byta namn',
-    errorSave:    'Kunde inte spara',
-    errorDelete:  'Kunde inte ta bort',
+    added:            (name: string) => `${name} tillagd till inköpslistan`,
+    itemDeleted:      (name: string) => `${name} borttagen`,
+    merged:           (n: number, name: string) => `Slog ihop ${n} ${name}`,
+    cleared:          'Inköpslistan rensad',
+    stapleSaved:      (name: string) => `${name} sparad som basvara`,
+    stapleUpdated:    (name: string) => `${name} uppdaterad`,
+    errorShopper:     'Kunde inte ändra "Jag handlar"-status',
+    errorRename:      'Kunde inte byta namn',
+    errorAddItem:     'Kunde inte lägga till vara',
+    errorMerge:       'Kunde inte slå ihop varor',
+    errorCheckAll:    'Kunde inte klarmarkera alla varor',
+    errorCheck:       'Kunde inte bocka av varan',
+    errorUndo:        'Kunde inte ångra ihopslagningen',
+    errorSave:        'Kunde inte spara ändringen',
+    errorDeleteItem:  'Kunde inte ta bort vara',
+    errorClear:       'Kunde inte rensa listan',
+    errorDeleteList:  'Kunde inte ta bort listan',
+    errorSaveStaple:  'Kunde inte spara basvaran',
+    errorDeleteStaple:'Kunde inte ta bort basvaran',
+    errorChangeStore: 'Kunde inte byta butik',
+    errorLoad:        'Kunde inte ladda listan',
+    errorDelete:      'Kunde inte ta bort',
+  },
+
+  clearDialog: {
+    title:   'Rensa lista?',
+    message: 'Alla varor tas bort men listan finns kvar.',
+    confirm: 'Rensa',
+  },
+
+  deleteListDialog: {
+    title:   'Ta bort lista',
+    confirm: 'Ta bort',
+  },
+
+  deleteStapleDialog: {
+    title:   'Ta bort basvara',
+    confirm: 'Ta bort',
+  },
+
+  categoryDialog: {
+    title:  'Klarmarkera hela kategorin?',
+    confirm:'Klarmarka alla',
+  },
+
+  shopDialog: {
+    title:   'Du handlar nu',
+    message: 'Vill du avsluta handla-läget?',
+    confirm: 'Avsluta',
+  },
+
+  placeholders: {
+    addItem:    'Lägg till vara...',
+    itemName:   'Varunamn',
+    qty:        '1',
+    unit:       'enhet',
+    listName:   'Listans namn',
+  },
+
+  a11y: {
+    back:           'Tillbaka',
+    store:          (name: string) => `Butik: ${name}`,
+    chooseStore:    'Välj butik',
+    iAmShopping:    'Du handlar nu',
+    otherShopping:  (name: string) => `${name} handlar nu`,
+    moreActions:    'Fler åtgärder',
+    checkAllDone:   'Markera alla som klara',
   },
 
   tips: {
@@ -412,6 +477,8 @@ export const recipes = {
   },
 
   sort: {
+    modalTitle: 'Sortera recept',
+    a11y:       'Sortera recept',
     az:      'A–Ö',
     newest:  'Senast tillagda',
     popular: 'Mest använda',
@@ -435,12 +502,21 @@ export const recipes = {
   },
 
   createModal: {
-    title:       'Nytt recept',
-    tabManual:   'Manuellt',
-    tabUrl:      'Från URL',
-    namePlaceholder: 'Receptets namn (valfritt om du klistrar in)',
-    addButton:   'Nytt recept',
-    addToMenu:   'Lägg till i meny',
+    title:            'Nytt recept',
+    tabManual:        'Manuellt',
+    tabUrl:           'Från URL',
+    namePlaceholder:  'Receptets namn (valfritt om du klistrar in)',
+    pastePlaceholder: 'Klistra in recept, ingredienslista eller hela receptsidan här — AI:n plockar ut titel, ingredienser och tillvägagångssätt automatiskt.',
+    pasteToggleOn:    'Dölj recepttext',
+    pasteToggleOff:   'Klistra in recepttext (AI tolkar)',
+    parseButton:      'Tolka och skapa recept',
+    createButton:     'Skapa recept',
+    createHint:       'Du fyller i beskrivning, ingredienser och instruktioner i nästa steg.',
+    urlPlaceholder:   'https://tasteline.com/recept/...',
+    urlHint:          'Fungerar med de flesta receptsajter (ICA, Arla, Tasteline, m.fl.)',
+    fetchButton:      'Hämta recept',
+    addButton:        'Nytt recept',
+    addToMenu:        'Lägg till i meny',
   },
 
   validation: {
@@ -465,29 +541,64 @@ export const recipes = {
       title:   'Inga ingredienser hittades',
       message: 'Receptet skapades men vi kunde inte läsa ingredienserna. Lägg till dem manuellt.',
     },
-    couldNotLoad:   'Kunde inte ladda receptet',
+    generic:        'Fel',
+    couldNotLoad:   'Kunde inte ladda recept',
     couldNotSave:   'Kunde inte spara receptet',
+    couldNotCreate: 'Kunde inte skapa recept',
+    couldNotDelete: 'Kunde inte ta bort receptet',
     couldNotUpload: 'Kunde inte ladda upp bilden',
     couldNotTransfer:'Kunde inte överföra ingredienser',
     selectIngredients:'Välj minst en ingrediens',
+    parse:          (msg: string) => msg,
+    couldNotParse:  'Kunde inte tolka receptet',
   },
 
   detail: {
-    servings:    (n: number) => `${n} port`,
-    ingredients: (n: number) => `${n} ingredienser`,
-    imageLabel:  'Bild',
-    gallery:     'Galleri',
-    camera:      'Kamera',
-    nameLabel:   'Receptnamn',
+    servings:       (n: number) => `${n} port`,
+    ingredients:    (n: number) => `${n} ingredienser`,
+    ingredientsLabel: 'Ingredienser',
+    instructionsLabel:'Instruktioner',
+    descriptionLabel: 'Beskrivning',
+    imageLabel:     'Bild',
+    gallery:        'Galleri',
+    camera:         'Kamera',
+    nameLabel:      'Receptnamn',
+    addRow:         'Lägg till rad',
+    cook:           'Laga',
+    addToList:      'Lägg i lista',
+    descPlaceholder:'Beskrivning (valfritt)',
+    instrPlaceholder:'Steg för steg (valfritt)',
+    ingNamePlaceholder: 'Ingrediens',
+    ingQtyPlaceholder:  'Mängd',
+    cookA11y:       'Laga nu',
+    transferA11y:   'Lägg i inköpslista',
+    cookClose:      'Avsluta',
+    removeImage:    'Ta bort bild',
   },
 
   transfer: {
-    button:     'Lägg i lista',
-    tip:        '"Lägg i lista"-knappen bredvid Ingredienser låter dig välja vad du vill ha och skicka det direkt till en inköpslista.',
-    done:       'Klart!',
-    success:    (n: number) => `${n} ingredienser tillagda i listan`,
-    goToList:   'Gå till listan',
-    stayHere:   'Stanna kvar',
+    button:      'Lägg i lista',
+    title:       'Lägg till i inköpslistan',
+    scaledPrefix:(n: number) => `Skalat till ${n} portioner · `,
+    needToBuy:   'Välj vad du behöver köpa:',
+    selectAll:   'Välj alla',
+    clearAll:    'Rensa',
+    selectList:  'Välj lista:',
+    noLists:     'Inga aktiva listor — skapa en från Inköp-fliken',
+    tip:         '"Lägg i lista"-knappen bredvid Ingredienser låter dig välja vad du vill ha och skicka det direkt till en inköpslista.',
+    done:        'Klart!',
+    success:     (n: number) => `${n} ingredienser tillagda i listan`,
+    goToList:    'Gå till listan',
+    stayHere:    'Stanna kvar',
+  },
+
+  plan: {
+    title:    'Planera i meny',
+    sub:      'Välj vecka och dag',
+    weekLabel:'Vecka',
+    dayLabel: 'Dag',
+    noDay:    'Ingen',
+    addButton:'Lägg till i meny',
   },
 
   actions: {
@@ -497,8 +608,31 @@ export const recipes = {
   },
 
   delete: {
-    title:   'Ta bort recept',
-    message: (title: string) => `Ta bort "${title}"? Detta går inte att ångra.`,
+    title:         'Ta bort recept',
+    message:       (title: string) => `Ta bort "${title}"? Detta går inte att ångra.`,
+    messageSimple: (title: string) => `Ta bort "${title}"?`,
+  },
+
+  menu: {
+    addToMenu:    'Lägg till i meny',
+    thisWeek:     'denna vecka',
+    weekNow:      (n: number) => `v.${n} · nu`,
+    weekLabel:    (n: number) => `v.${n}`,
+    taken:        'Planerad',
+    noDay:        'Lägg till utan dag',
+    addedWithDay: (title: string, day: string, week: string) => `${title} tillagd på ${day} (${week})`,
+    addedNoDay:   (title: string, week: string) => `${title} tillagd i menyn (${week})`,
+    errorAdd:     'Kunde inte lägga till i menyn',
+    dayOccupied: {
+      title:   'Dag redan planerad',
+      message: (label: string) => `${label} har redan en rätt denna vecka. Lägg till ändå?`,
+      confirm: 'Lägg till',
+    },
+    replace: {
+      title:   'Byt ut rätt',
+      message: (oldTitle: string, newTitle: string) => `Ersätt "${oldTitle}" med "${newTitle}"?`,
+      confirm: 'Byt ut',
+    },
   },
 
   permissions: {
@@ -644,6 +778,8 @@ export const stores = {
   },
 
   sort: {
+    modalTitle: 'Sortera',
+    a11y:      'Sortera butiker',
     az:        'A–Ö',
     addedOrder:'I tilläggsordning',
   },
@@ -651,6 +787,7 @@ export const stores = {
   card: {
     categories: (n: number) => `${n} kategorier`,
     selected:   'vald',
+    clearA11y:  'Rensa butik',
   },
 
   createModal: {
@@ -687,11 +824,16 @@ export const stores = {
   },
 
   toasts: {
+    created:     (name: string) => `${name} skapad`,
+    saved:       'Sparat',
+    renamed:     'Namn ändrat',
+    deleted:     (name: string) => `${name} borttagen`,
     errorLoad:   (name: string) => `Kunde inte ladda ${name}`,
-    notFound:    'Butiken kunde inte hittas.',
+    errorCreate: 'Kunde inte skapa butik',
     errorSave:   'Kunde inte spara',
     errorRename: 'Kunde inte byta namn',
     errorDelete: 'Kunde inte ta bort butiken',
+    notFound:    'Butiken kunde inte hittas.',
   },
 };
 

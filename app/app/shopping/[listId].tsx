@@ -54,6 +54,7 @@ import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem } from '@veckis/shared';
 import { kavBehavior, isIOSLike } from '../../src/lib/platform';
+import { shoppingList as str, common } from '../../src/lib/strings';
 import { enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError } from '../../src/lib/shoppingOfflineQueue';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
@@ -275,7 +276,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       await client.updateShoppingList(listId, { name: newName, emoji: renameEmoji });
     } catch (e) {
       setList(p => p && prev.name !== undefined ? { ...p, name: prev.name!, emoji: prev.emoji ?? null } : p);
-      showError(e, 'Kunde inte byta namn');
+      showError(e, str.toasts.errorRename);
     } finally {
       setRenaming(false);
     }
@@ -302,7 +303,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   useShoppingSocket(listId, getToken, (msg) => {
     if (msg.type === 'items_auto_merged') {
-      showGlobalToast(`Slog ihop ${msg.data.count} ${capitalize(msg.data.name)}`, 'success');
+      showGlobalToast(str.toasts.merged(msg.data.count, capitalize(msg.data.name)), 'success');
       return;
     }
     // Conflict warning: someone else changed/removed the item you have open for
@@ -312,7 +313,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       const who = msg.actor ?? 'Någon';
       if (msg.type === 'item_deleted') {
         // Modal closes → a root toast is visible again.
-        showGlobalToast(`${who} tog bort ${capitalize(editingItem.name)}`, 'neutral');
+        showGlobalToast(str.conflict.deleted(who, capitalize(editingItem.name)), 'neutral');
         setEditingItem(null);
         setEditConflict(null);
       } else {
@@ -326,10 +327,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           (n.unit ?? '') !== (editingItem.unit ?? '') ||
           n.category !== editingItem.category;
         const checkChanged = n.isChecked !== editingItem.isChecked;
-        const verb = checkChanged && !contentChanged
-          ? (n.isChecked ? 'bockade av' : 'avmarkerade')
-          : 'ändrade';
-        setEditConflict({ msg: `${who} ${verb} ${capitalize(editingItem.name)}`, latest: contentChanged ? n : undefined });
+        const conflictMsg = checkChanged && !contentChanged
+          ? (n.isChecked ? str.conflict.checked(who, capitalize(editingItem.name)) : str.conflict.unchecked(who, capitalize(editingItem.name)))
+          : str.conflict.changed(who, capitalize(editingItem.name));
+        setEditConflict({ msg: conflictMsg, latest: contentChanged ? n : undefined });
       }
     }
     setList(prev => {
@@ -374,7 +375,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     } catch (e) {
       // Rulla tillbaka
       setList(prev => prev ? { ...prev, activeShopperMemberId: list.activeShopperMemberId, activeShopperSince: list.activeShopperSince } : prev);
-      showError(e, 'Kunde inte ändra "Jag handlar"-status');
+      showError(e, str.toasts.errorShopper);
     } finally {
       setTogglingShopper(false);
     }
@@ -560,7 +561,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         }
       }
     } catch {
-      confirm({ title: 'Fel', message: 'Kunde inte ladda listan', buttons: [{ label: 'OK' }] });
+      confirm({ title: 'Fel', message: str.toasts.errorLoad, buttons: [{ label: common.actions.ok }] });
     } finally {
       setLoading(false);
     }
@@ -650,7 +651,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             const exists = prev.find(p => p.id === s.id);
             return exists ? prev.map(p => p.id === s.id ? s : p) : [...prev, s].sort((a, b) => a.name.localeCompare(b.name));
           });
-          showToast(itemName.charAt(0).toUpperCase() + itemName.slice(1) + ' tillagd till inköpslistan');
+          showToast(str.toasts.added(capitalize(itemName)));
         }).catch(() => {});
       }
       setList(prev => {
@@ -664,7 +665,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     } catch (err) {
       console.error('Failed to add item:', err);
       setList(prev => prev ? { ...prev, items: (prev.items ?? []).filter(i => i.id !== tempId) } : prev);
-      showError(err, 'Kunde inte lägga till vara');
+      showError(err, str.toasts.errorAddItem);
     } finally {
       setAdding(false);
     }
@@ -738,15 +739,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       if (nextGroup) openMergeForDupes(nextGroup);
       else setMergeSheet(null);
       // Undo = delete the container, which fully unmerges (restores the sources).
-      showGlobalToast(`Slog ihop ${selected.length} ${capitalize(name)}`, 'success', {
-        label: 'Ångra',
+      showGlobalToast(str.toasts.merged(selected.length, capitalize(name)), 'success', {
+        label: common.actions.undo,
         onPress: async () => {
           try { await client.deleteShoppingItem(container.id); load(); }
-          catch (e) { showError(e, 'Kunde inte ångra ihopslagningen'); }
+          catch (e) { showError(e, str.toasts.errorUndo); }
         },
       });
     } catch (e) {
-      showError(e, 'Kunde inte slå ihop varor');
+      showError(e, str.toasts.errorMerge);
     } finally {
       setAdding(false);
     }
@@ -766,7 +767,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       await Promise.all(ids.map(id => client.checkShoppingItem(id, true)));
     } catch (e) {
       setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: false } : i) } : prev);
-      showError(e, 'Kunde inte klarmarkera alla varor');
+      showError(e, str.toasts.errorCheckAll);
     }
   }
 
@@ -789,7 +790,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         setList(prev =>
           prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? item : i) } : prev
         );
-        showError(e, 'Kunde inte bocka av varan');
+        showError(e, str.toasts.errorCheck);
       }
     }
   }
@@ -886,7 +887,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     } catch (e) {
       // Rollback optimistic
       setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === snapshot.id ? snapshot : i) } : prev);
-      showError(e, 'Kunde inte spara ändringen');
+      showError(e, str.toasts.errorSave);
     } finally {
       setSaving(false);
     }
@@ -912,11 +913,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           { ...container, recipe: null } as ShoppingItemWithRecipe,
         ],
       } : prev);
-      showGlobalToast(`Slog ihop ${dupes.length} ${capitalize(name)}`, 'success', {
-        label: 'Ångra',
+      showGlobalToast(str.toasts.merged(dupes.length, capitalize(name)), 'success', {
+        label: common.actions.undo,
         onPress: async () => {
           try { await client.deleteShoppingItem(container.id); load(); }
-          catch (e) { showError(e, 'Kunde inte ångra ihopslagningen'); }
+          catch (e) { showError(e, str.toasts.errorUndo); }
         },
       });
     } catch {
@@ -930,7 +931,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       await client.deleteShoppingItem(itemId);
       emitShoppingChanged(); // keep menu's "I inköpslistan"-tag + filters in sync
     } catch (e) {
-      showError(e, 'Kunde inte ta bort vara');
+      showError(e, str.toasts.errorDeleteItem);
       load();
     }
   }
@@ -939,8 +940,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     triggerDeleteHaptic();
     setList(prev => prev ? { ...prev, items: prev.items.filter(i => i.id !== item.id) } : prev);
     let cancelled = false;
-    showGlobalToast(`${capitalize(item.name)} borttagen`, 'neutral', {
-      label: 'Ångra',
+    showGlobalToast(str.toasts.itemDeleted(capitalize(item.name)), 'neutral', {
+      label: common.actions.undo,
       onPress: () => {
         cancelled = true;
         setList(prev => prev ? { ...prev, items: [...prev.items, item] } : prev);
@@ -953,7 +954,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         emitShoppingChanged();
       } catch (e) {
         setList(prev => prev ? { ...prev, items: [...prev.items, item] } : prev);
-        showError(e, 'Kunde inte ta bort vara');
+        showError(e, str.toasts.errorDeleteItem);
       }
     }, 5000);
   }
@@ -961,16 +962,16 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   async function completeList() {
     if (!listId) return;
     confirm({
-      title: 'Rensa lista?',
-      message: 'Alla varor tas bort men listan finns kvar.',
+      title: str.clearDialog.title,
+      message: str.clearDialog.message,
       buttons: [
-      { label: 'Rensa', style: 'destructive', onPress: () => {
+      { label: str.clearDialog.confirm, style: 'destructive', onPress: () => {
         // Optimistic clear with undo: hide items from UI, defer backend call 5s
         const snapshot = list?.items ?? [];
         setList(prev => prev ? { ...prev, items: [] } : prev);
         let cancelled = false;
-        showGlobalToast('Inköpslistan rensad', 'neutral', {
-          label: 'Ångra',
+        showGlobalToast(str.toasts.cleared, 'neutral', {
+          label: common.actions.undo,
           onPress: () => {
             cancelled = true;
             setList(prev => prev ? { ...prev, items: snapshot } : prev);
@@ -983,11 +984,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             emitShoppingChanged(); // refresh the lists overview's count
           } catch (e) {
             setList(prev => prev ? { ...prev, items: snapshot } : prev);
-            showError(e, 'Kunde inte rensa listan');
+            showError(e, str.toasts.errorClear);
           }
         }, 5000);
       }},
-      { label: 'Avbryt', style: 'cancel' },
+      { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -995,19 +996,19 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   async function deleteEntireList() {
     if (!listId || !list) return;
     confirm({
-      title: 'Ta bort lista',
+      title: str.deleteListDialog.title,
       message: `Ta bort "${list.name}"? Listan och alla varor försvinner.`,
       buttons: [
-        { label: 'Ta bort', style: 'destructive', onPress: async () => {
+        { label: str.deleteListDialog.confirm, style: 'destructive', onPress: async () => {
           try {
             await client.deleteShoppingList(listId);
             emitShoppingChanged();
             if (onClose) onClose(); else router.back();
           } catch (e) {
-            showError(e, 'Kunde inte ta bort listan');
+            showError(e, str.toasts.errorDeleteList);
           }
         }},
-        { label: 'Avbryt', style: 'cancel' },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -1049,10 +1050,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         const without = prev.filter(s2 => s2.id !== original.id && s2.id !== saved.id);
         return [...without, saved];
       });
-      showGlobalToast(isNew ? `${capitalize(newName)} sparad som basvara` : `${capitalize(newName)} uppdaterad`, 'success');
+      showGlobalToast(isNew ? str.toasts.stapleSaved(capitalize(newName)) : str.toasts.stapleUpdated(capitalize(newName)), 'success');
     } catch (e) {
       if (!isNew) setStaples(prev => prev.map(s2 => s2.id === original.id ? original : s2));
-      showError(e, 'Kunde inte spara basvaran');
+      showError(e, str.toasts.errorSaveStaple);
     } finally {
       setSavingStaple(false);
     }
@@ -1067,20 +1068,20 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       return;
     }
     confirm({
-      title: 'Ta bort basvara',
+      title: str.deleteStapleDialog.title,
       message: `Ta bort "${capitalize(target.name)}" från basvarorna?`,
       buttons: [
-        { label: 'Ta bort', style: 'destructive', onPress: async () => {
+        { label: str.deleteStapleDialog.confirm, style: 'destructive', onPress: async () => {
           setStaples(prev => prev.filter(s2 => s2.id !== target.id));
           setEditingStaple(null);
           try {
             await client.deleteStaple(target.id);
           } catch (e) {
             setStaples(prev => [...prev, target]);
-            showError(e, 'Kunde inte ta bort basvaran');
+            showError(e, str.toasts.errorDeleteStaple);
           }
         } },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -1091,7 +1092,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       const updated = await client.updateShoppingList(listId, { storeId });
       setList(updated);
     } catch (e) {
-      showError(e, 'Kunde inte byta butik');
+      showError(e, str.toasts.errorChangeStore);
     }
   }
 
@@ -1196,16 +1197,16 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                       e.stopPropagation();
                       const uncheckedCount = group.items.filter(i => !i.isChecked).length;
                       confirm({
-                        title: 'Klarmarkera hela kategorin?',
+                        title: str.categoryDialog.title,
                         message: `${uncheckedCount} vara${uncheckedCount === 1 ? '' : 'r'} markeras som klar${uncheckedCount === 1 ? '' : 'a'}.`,
                         buttons: [
-                          { label: 'Klarmarkera', onPress: () => void markAllInCategory(group.items) },
-                          { label: 'Avbryt', style: 'cancel' },
+                          { label: str.categoryDialog.confirm, onPress: () => void markAllInCategory(group.items) },
+                          { label: common.actions.cancel, style: 'cancel' },
                         ],
                       });
                     }}
                     hitSlop={8}
-                    accessibilityLabel="Markera alla som klara"
+                    accessibilityLabel={str.a11y.checkAllDone}
                   >
                     <Ionicons name="checkmark-circle-outline" size={20} color="#10b981" />
                   </Pressable>
@@ -1285,13 +1286,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           rosa gubbe-ikonen när rubriken fälls upp till mitten (annars krockar
           de). Ikonen pulserar var ~10:e sekund. Tryck → toast med vem som handlar. */}
       <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
-        <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Tillbaka">
+        <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.a11y.back}>
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
-        <Pressable onPress={openStorePicker} hitSlop={8} style={s.navStoreBtn} accessibilityRole="button" accessibilityLabel={list.store ? `Butik: ${list.store.name}` : 'Välj butik'}>
+        <Pressable onPress={openStorePicker} hitSlop={8} style={s.navStoreBtn} accessibilityRole="button" accessibilityLabel={list.store ? str.a11y.store(list.store.name) : str.a11y.chooseStore}>
           <Ionicons name="storefront" size={18} color="#4f46e5" />
           <RNAnimated.View style={[s.navStoreNameWrap, storeNameAnimStyle]}>
-            <Text style={s.navStoreName} numberOfLines={1}>{list.store?.name ?? 'Välj butik'}</Text>
+            <Text style={s.navStoreName} numberOfLines={1}>{list.store?.name ?? str.a11y.chooseStore}</Text>
           </RNAnimated.View>
         </Pressable>
         <View style={{ flex: 1 }} />
@@ -1302,23 +1303,23 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             onPress={() => {
               if (iAmShopping) {
                 confirm({
-                  title: 'Du handlar nu',
-                  message: 'Vill du avsluta handla-läget?',
+                  title: str.shopDialog.title,
+                  message: str.shopDialog.message,
                   buttons: [
-                    { label: 'Avsluta handla-läge', style: 'destructive', onPress: () => { toggleIAmShopping(); } },
-                    { label: 'Avbryt', style: 'cancel' },
+                    { label: str.shopDialog.confirm, style: 'destructive', onPress: () => { toggleIAmShopping(); } },
+                    { label: common.actions.cancel, style: 'cancel' },
                   ],
                 });
               } else {
-                showGlobalToast(`${activeShopper.displayName} handlar nu`);
+                showGlobalToast(str.a11y.otherShopping(activeShopper.displayName));
               }
             }}
             accessibilityRole="button"
-            accessibilityLabel={iAmShopping ? 'Du handlar nu' : `${activeShopper.displayName} handlar nu`}
+            accessibilityLabel={iAmShopping ? str.a11y.iAmShopping : str.a11y.otherShopping(activeShopper.displayName)}
           >
             <RNAnimated.View style={[s.shopperTextWrap, shopperTextAnimStyle]}>
               <Text style={s.shopperText} numberOfLines={1}>
-                {iAmShopping ? 'Du handlar' : `${activeShopper.displayName} handlar`}
+                {iAmShopping ? str.shopper.you : str.shopper.other(activeShopper.displayName)}
               </Text>
             </RNAnimated.View>
             <RNAnimated.View style={[s.shopperIconBtn, shopperIconAnimStyle]}>
@@ -1326,7 +1327,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </RNAnimated.View>
           </Pressable>
         )}
-        <Pressable ref={listActionsBtnRef} onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fler åtgärder">
+        <Pressable ref={listActionsBtnRef} onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.a11y.moreActions}>
           <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
         </Pressable>
       </View>
@@ -1385,7 +1386,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           <TextInput
             ref={inputRef}
             style={s.addInput}
-            placeholder="Lägg till vara..."
+            placeholder={str.placeholders.addItem}
             placeholderTextColor="#9ca3af"
             value={newItem}
             onChangeText={setNewItem}
@@ -1470,7 +1471,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             style={s.editInput}
             value={editName}
             onChangeText={setEditName}
-            placeholder="Varunamn"
+            placeholder={str.placeholders.itemName}
             placeholderTextColor="#9ca3af"
             autoCapitalize="none"
             returnKeyType="next"
@@ -1489,7 +1490,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               value={editQty}
               onChangeText={t => setEditQty(normalizeQtyInput(t))}
               keyboardType="decimal-pad"
-              placeholder="1"
+              placeholder={str.placeholders.qty}
               placeholderTextColor="#9ca3af"
               selectTextOnFocus
               returnKeyType="next"
@@ -1507,7 +1508,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               style={s.qtyUnitInput}
               value={editUnit}
               onChangeText={v => setEditUnit(v.toLowerCase())}
-              placeholder="enhet"
+              placeholder={str.placeholders.unit}
               placeholderTextColor="#9ca3af"
               autoCapitalize="none"
               returnKeyType="done"
@@ -1609,7 +1610,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             style={s.editInput}
             value={stapleName}
             onChangeText={setStapleName}
-            placeholder="Varunamn"
+            placeholder={str.placeholders.itemName}
             placeholderTextColor="#9ca3af"
             autoCapitalize="none"
             returnKeyType="done"
@@ -1707,7 +1708,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 style={s.qtyUnitInput}
                 value={qtyUnit}
                 onChangeText={v => setQtyUnit(v.toLowerCase())}
-                placeholder="enhet"
+                placeholder={str.placeholders.unit}
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
                 returnKeyType="done"
@@ -1800,7 +1801,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 style={s.editInput}
                 value={mergeName}
                 onChangeText={setMergeName}
-                placeholder="Varunamn"
+                placeholder={str.placeholders.itemName}
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
               />
@@ -1833,7 +1834,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   style={[s.qtyUnitInput, { fontSize: 13, paddingVertical: 6, paddingHorizontal: 8 }]}
                   value={mergeUnit}
                   onChangeText={v => setMergeUnit(v.toLowerCase())}
-                  placeholder="enhet"
+                  placeholder={str.placeholders.unit}
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="none"
                   onFocus={scrollMergeRowIntoView}
@@ -1996,7 +1997,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               style={s.editInput}
               value={renameValue}
               onChangeText={setRenameValue}
-              placeholder="Listans namn"
+              placeholder={str.placeholders.listName}
               placeholderTextColor="#9ca3af"
               autoFocus
               returnKeyType="done"
