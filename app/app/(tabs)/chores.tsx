@@ -901,7 +901,7 @@ export default function ChoresScreen() {
                   />
                 </View>
                 <View style={s.cardContent}>
-                  <Text style={[s.cardTitle, { fontSize: fs(16) }, finishedLook && s.cardTitleDone]} numberOfLines={1}>{item.title}</Text>
+                  <Text style={[s.cardTitle, { fontSize: fs(15) }, finishedLook && s.cardTitleDone]} numberOfLines={1}>{item.title}</Text>
                   <Text style={[s.cardMeta, { fontSize: fs(12) }, overdue && s.choreStatusOverdue]} numberOfLines={1}>{compactMeta || ' '}</Text>
                 </View>
                 {showCheck && (

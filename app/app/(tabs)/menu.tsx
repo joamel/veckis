@@ -429,8 +429,8 @@ export default function MenuScreen() {
     ]).start();
   }
 
-  // Drag state — only y is used for hover detection; x kept for future use
-  type DragState = { item: WeekMenuItemWithRecipe; y: number };
+  // Drag state — y = absolute screen Y; touchOffsetY = finger position within card
+  type DragState = { item: WeekMenuItemWithRecipe; y: number; touchOffsetY: number };
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [hoverDay, setHoverDay] = useState<WeekDay | null | 'unscheduled' | undefined>(undefined);
 
@@ -782,8 +782,8 @@ export default function MenuScreen() {
     setReplaceTarget(null);
   }
 
-  function onDragStart(item: WeekMenuItemWithRecipe, _x: number, y: number) {
-    setDragState({ item, y });
+  function onDragStart(item: WeekMenuItemWithRecipe, _x: number, y: number, touchOffsetY: number) {
+    setDragState({ item, y, touchOffsetY });
   }
 
   function onDragMove(_x: number, y: number) {
@@ -1250,7 +1250,7 @@ export default function MenuScreen() {
                         }}
                           onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
                           onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
-                          onDragStart={isCenter && !isPastWeek ? ((x, y) => onDragStart(item, x, y)) : noop}
+                          onDragStart={isCenter && !isPastWeek ? ((x, y, ty) => onDragStart(item, x, y, ty)) : noop}
                           onDragMove={isCenter ? onDragMove : noop}
                           onDragEnd={isCenter ? onDragEnd : noop}
                           isDragging={isCenter && dragState?.item.id === item.id}
@@ -1292,7 +1292,7 @@ export default function MenuScreen() {
                         }}
                         onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
                         onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
-                        onDragStart={isCenter && !isPastWeek ? ((x, y) => onDragStart(item, x, y)) : noop}
+                        onDragStart={isCenter && !isPastWeek ? ((x, y, ty) => onDragStart(item, x, y, ty)) : noop}
                         onDragMove={isCenter ? onDragMove : noop}
                         onDragEnd={isCenter ? onDragEnd : noop}
                         isDragging={isCenter && dragState?.item.id === item.id}
@@ -1337,7 +1337,7 @@ export default function MenuScreen() {
                         }}
                 onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
                 onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
-                onDragStart={isCenter && !isPastWeek ? ((x, y) => onDragStart(item, x, y)) : noop}
+                onDragStart={isCenter && !isPastWeek ? ((x, y, ty) => onDragStart(item, x, y, ty)) : noop}
                 onDragMove={isCenter ? onDragMove : noop}
                 onDragEnd={isCenter ? onDragEnd : noop}
                 isDragging={isCenter && dragState?.item.id === item.id}
@@ -1465,7 +1465,7 @@ export default function MenuScreen() {
       {dragState && (
         <View
           pointerEvents="none"
-          style={[s.ghostCard, { top: dragState.y - 28 }]}
+          style={[s.ghostCard, { top: dragState.y - dragState.touchOffsetY }]}
         >
           <View style={s.ghostCardIcon}>
             <Ionicons name="restaurant-outline" size={18} color="#4f46e5" />
@@ -1975,7 +1975,7 @@ function MenuCard({
   onViewRecipe: () => void;
   onMoveToDay: (day: WeekDay | null) => void;
   onReplace: () => void;
-  onDragStart: (x: number, y: number) => void;
+  onDragStart: (x: number, y: number, touchOffsetY: number) => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: () => void;
   isDragging: boolean;
@@ -1996,7 +1996,7 @@ function MenuCard({
     .activateAfterLongPress(300)
     .onStart(e => {
       runOnJS(medium)();
-      runOnJS(onDragStart)(e.absoluteX, e.absoluteY);
+      runOnJS(onDragStart)(e.absoluteX, e.absoluteY, e.y);
     })
     .onUpdate(e => {
       runOnJS(onDragMove)(e.absoluteX, e.absoluteY);
@@ -2168,7 +2168,7 @@ const s = StyleSheet.create({
   dayLabelDateMuted: { color: '#6b7280' },
   daySlotEmptyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, minHeight: 44, alignSelf: 'stretch' },
   daySlot: { borderWidth: 1, borderColor: '#c7c2f0', borderRadius: 12, padding: 6, gap: 6, backgroundColor: '#fff' },
-  daySlotEmpty: { borderStyle: 'dashed', borderColor: '#d1d5db', backgroundColor: 'transparent', minHeight: 44, alignItems: 'center', justifyContent: 'center', padding: 0 },
+  daySlotEmpty: { borderStyle: 'dashed', borderColor: '#d1d5db', backgroundColor: 'transparent', minHeight: 64, alignItems: 'center', justifyContent: 'center', padding: 0 },
   daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
   daySlotDropTarget: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#c7d2fe', borderRadius: 12, padding: 6, backgroundColor: '#fafaff' },
   daySlotHovered: { borderWidth: 1.5, borderStyle: 'solid', borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
@@ -2186,7 +2186,7 @@ const s = StyleSheet.create({
   card: { borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c7d2fe', backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   cardInner: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden' },
   cardMain: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
-  cardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
+  cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
   cardMeta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
@@ -2286,7 +2286,7 @@ const s = StyleSheet.create({
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#111827', borderRadius: 24, zIndex: 20 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   ghostCard: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 12, padding: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
-  ghostCardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
+  ghostCardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   ghostCardText: { fontSize: 15, fontWeight: '600', color: '#111827', flex: 1 },
   toast: { position: 'absolute', bottom: 100, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
