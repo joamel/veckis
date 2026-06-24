@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
@@ -144,6 +144,7 @@ export default function SettingsScreen() {
   // Fetch household with members
   const [household, setHousehold] = useState<HouseholdWithMembers | null>(null);
   const [loadingHousehold, setLoadingHousehold] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Toast
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -160,14 +161,31 @@ export default function SettingsScreen() {
     ]).start();
   }
 
-  useEffect(() => {
-    if (householdId) {
-      setLoadingHousehold(true);
-      client.getHousehold(householdId)
-        .then(setHousehold)
-        .catch(() => setHousehold(null))
-        .finally(() => setLoadingHousehold(false));
+  const loadHousehold = useCallback(async () => {
+    if (!householdId) return;
+    setLoadingHousehold(true);
+    try {
+      const h = await client.getHousehold(householdId);
+      setHousehold(h);
+    } catch {
+      setHousehold(null);
+    } finally {
+      setLoadingHousehold(false);
     }
+  }, [householdId]);
+
+  useEffect(() => { loadHousehold(); }, [loadHousehold]);
+
+  useFocusEffect(useCallback(() => { loadHousehold(); }, [loadHousehold]));
+
+  const onRefresh = useCallback(async () => {
+    if (!householdId) return;
+    setRefreshing(true);
+    try {
+      const h = await client.getHousehold(householdId);
+      setHousehold(h);
+    } catch { /* keep stale */ }
+    finally { setRefreshing(false); }
   }, [householdId]);
 
   // Notifications — managed in a dedicated modal
@@ -510,7 +528,10 @@ export default function SettingsScreen() {
         </SafeAreaView>
       </Modal>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4f46e5" />}
+      >
         {/* Hushållet */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
