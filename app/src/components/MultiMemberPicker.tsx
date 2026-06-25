@@ -13,13 +13,22 @@ export interface MultiMemberPickerProps {
   rotationAllowed?: boolean;
   /** Dölj turordnings-editorn (override). Default: visas när rotation=true och 3+ är valda. */
   showOrderSection?: boolean;
+  /** Dölj rotation-raden helt. Default: visas när 2+ valda och rotationAllowed. */
+  showRotation?: boolean;
+  /** Kallas när rotation slås på ELLER när "Redigera ordning" trycks. Utelämnas = ingen ordningsmodal. */
+  onOpenOrderModal?: () => void;
 }
 
-export function MultiMemberPicker({ members, selected, rotation, onChange, onRotationChange, rotationAllowed = true, showOrderSection }: MultiMemberPickerProps) {
+export function MultiMemberPicker({ members, selected, rotation, onChange, onRotationChange, rotationAllowed = true, showOrderSection, showRotation, onOpenOrderModal }: MultiMemberPickerProps) {
   if (members.length === 0) return null;
   const toggle = (id: string) => {
     if (selected.includes(id)) onChange(selected.filter(x => x !== id));
     else onChange([...selected, id]);
+  };
+  const handleRotationPress = () => {
+    const next = !rotation;
+    onRotationChange(next);
+    if (next) onOpenOrderModal?.();
   };
   return (
     <>
@@ -44,70 +53,76 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
           );
         })}
       </ScrollView>
-      {selected.length >= 2 && rotationAllowed ? (
+      {selected.length >= 2 && rotationAllowed && showRotation !== false ? (
         <>
-            <Pressable
-              style={s.rotationRow}
-              onPress={() => onRotationChange(!rotation)}
-              accessibilityRole="switch"
-              accessibilityState={{ checked: rotation }}
-            >
-              <View style={[s.rotationBox, rotation && s.rotationBoxActive]}>
-                {rotation ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.rotationLabel}>{str.multiMemberPicker.rotation.label}</Text>
-                <Text style={s.rotationSub}>
-                  {rotation
-                    ? str.multiMemberPicker.rotation.onSub
-                    : str.multiMemberPicker.rotation.offSub}
-                </Text>
-              </View>
-            </Pressable>
-            {rotation && selected.length >= 3 && showOrderSection !== false && (
-              <View style={s.orderSection}>
-                <Text style={s.orderLabel}>{str.multiMemberPicker.order.label}</Text>
-                {selected.map((id, i) => {
-                  const m = members.find(x => x.id === id);
-                  if (!m) return null;
-                  const moveUp = () => {
-                    const a = [...selected];
-                    [a[i - 1], a[i]] = [a[i], a[i - 1]];
-                    onChange(a);
-                  };
-                  const moveDown = () => {
-                    const a = [...selected];
-                    [a[i], a[i + 1]] = [a[i + 1], a[i]];
-                    onChange(a);
-                  };
-                  return (
-                    <View key={id} style={s.orderRow}>
-                      <Text style={s.orderNum}>{i + 1}</Text>
-                      <Text style={s.orderName}>{m.displayName}</Text>
-                      <View style={s.orderBtns}>
-                        <Pressable
-                          onPress={moveUp}
-                          disabled={i === 0}
-                          style={s.orderBtn}
-                          accessibilityLabel={str.multiMemberPicker.order.moveUp}
-                        >
-                          <Ionicons name="chevron-up" size={18} color={i === 0 ? '#d1d5db' : '#6b7280'} />
-                        </Pressable>
-                        <Pressable
-                          onPress={moveDown}
-                          disabled={i === selected.length - 1}
-                          style={s.orderBtn}
-                          accessibilityLabel={str.multiMemberPicker.order.moveDown}
-                        >
-                          <Ionicons name="chevron-down" size={18} color={i === selected.length - 1 ? '#d1d5db' : '#6b7280'} />
-                        </Pressable>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
+          <Pressable
+            style={s.rotationRow}
+            onPress={onOpenOrderModal ? handleRotationPress : () => onRotationChange(!rotation)}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: rotation }}
+          >
+            <View style={[s.rotationBox, rotation && s.rotationBoxActive]}>
+              {rotation ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.rotationLabel}>{str.multiMemberPicker.rotation.label}</Text>
+              <Text style={s.rotationSub}>
+                {rotation
+                  ? str.multiMemberPicker.rotation.onSub
+                  : str.multiMemberPicker.rotation.offSub}
+              </Text>
+            </View>
+            {rotation && onOpenOrderModal && (
+              <Pressable onPress={onOpenOrderModal} hitSlop={8} style={s.editOrderBtn}>
+                <Text style={s.editOrderBtnText}>Redigera</Text>
+                <Ionicons name="chevron-forward" size={13} color="#7c3aed" />
+              </Pressable>
             )}
-          </>
+          </Pressable>
+          {rotation && selected.length >= 3 && showOrderSection !== false && !onOpenOrderModal && (
+            <View style={s.orderSection}>
+              <Text style={s.orderLabel}>{str.multiMemberPicker.order.label}</Text>
+              {selected.map((id, i) => {
+                const m = members.find(x => x.id === id);
+                if (!m) return null;
+                const moveUp = () => {
+                  const a = [...selected];
+                  [a[i - 1], a[i]] = [a[i], a[i - 1]];
+                  onChange(a);
+                };
+                const moveDown = () => {
+                  const a = [...selected];
+                  [a[i], a[i + 1]] = [a[i + 1], a[i]];
+                  onChange(a);
+                };
+                return (
+                  <View key={id} style={s.orderRow}>
+                    <Text style={s.orderNum}>{i + 1}</Text>
+                    <Text style={s.orderName}>{m.displayName}</Text>
+                    <View style={s.orderBtns}>
+                      <Pressable
+                        onPress={moveUp}
+                        disabled={i === 0}
+                        style={s.orderBtn}
+                        accessibilityLabel={str.multiMemberPicker.order.moveUp}
+                      >
+                        <Ionicons name="chevron-up" size={18} color={i === 0 ? '#d1d5db' : '#6b7280'} />
+                      </Pressable>
+                      <Pressable
+                        onPress={moveDown}
+                        disabled={i === selected.length - 1}
+                        style={s.orderBtn}
+                        accessibilityLabel={str.multiMemberPicker.order.moveDown}
+                      >
+                        <Ionicons name="chevron-down" size={18} color={i === selected.length - 1 ? '#d1d5db' : '#6b7280'} />
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </>
       ) : null}
     </>
   );
@@ -120,11 +135,13 @@ const s = StyleSheet.create({
   memberChipActive: { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' },
   memberChipText: { fontSize: 14, color: '#374151', fontWeight: '500' },
   memberChipTextActive: { color: '#7c3aed', fontWeight: '600' },
-  rotationRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 4, marginTop: 8 },
+  rotationRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6, paddingHorizontal: 4, marginTop: 4 },
   rotationBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   rotationBoxActive: { borderColor: '#7c3aed', backgroundColor: '#7c3aed' },
   rotationLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
   rotationSub: { fontSize: 12, color: '#6b7280', marginTop: 2, lineHeight: 17 },
+  editOrderBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  editOrderBtnText: { fontSize: 13, color: '#7c3aed', fontWeight: '600' },
   orderSection: { marginTop: 10, gap: 4 },
   orderLabel: { fontSize: 12, fontWeight: '600', color: '#9ca3af', letterSpacing: 0.5, marginBottom: 4 },
   orderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#f5f3ff', borderRadius: 10, borderWidth: 1, borderColor: '#ede9fe' },

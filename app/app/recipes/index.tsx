@@ -23,6 +23,7 @@ import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
+import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { EmptyState } from '../../src/components/EmptyState';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
@@ -49,6 +50,8 @@ export default function RecipesScreen() {
   const { getToken } = useAuth();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
+  const tryCloseCreate = useDiscardDraft(confirm);
+  const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setShowPaste(false); };
   // Sort-tipset togs bort (#11 backloggen) — det fyrade bara om recept fanns,
   // och då behövde användaren ändå inte just det tipset. Ersatt med ett
   // action-tip på "+"-knappen som förklarar hur man skapar recept första gången.
@@ -469,9 +472,9 @@ export default function RecipesScreen() {
         </Pressable>
       )}
 
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setPasteText(''); setShowPaste(false); }}>
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate)}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => { setShowModal(false); setPasteText(''); setShowPaste(false); }} />
+        <Pressable style={s.overlay} onPress={() => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate)} />
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />

@@ -22,6 +22,8 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { type Store, type StoreCategory } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { stores as str, common } from '../../src/lib/strings';
+import { useConfirm } from '../../src/context/ConfirmContext';
+import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 
 type SortMode = 'name' | 'created';
 
@@ -37,6 +39,8 @@ export default function StoresScreen() {
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { showError, showToast } = useToast();
+  const confirm = useConfirm();
+  const tryCloseCreate = useDiscardDraft(confirm);
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -209,9 +213,9 @@ export default function StoresScreen() {
       </Pressable>
 
       {/* Skapa-modal */}
-      <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
+      <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); })}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowCreate(false)} />
+        <Pressable style={s.overlay} onPress={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); })} />
         <KeyboardAvoidingView behavior={kavBehavior} style={{ justifyContent: 'flex-end' }}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
