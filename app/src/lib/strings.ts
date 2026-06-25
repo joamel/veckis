@@ -24,6 +24,11 @@ export const common = {
     manage:          'Hantera',
     clearSearch:     'Rensa sökning',
   },
+  discardDraft: {
+    title:    'Vill du slänga utkastet?',
+    discard:  'Släng utkast',
+    keep:     'Fortsätt redigera',
+  },
   errors: {
     generic:         'Något gick fel. Försök igen.',
     couldNotLoad:    (what: string) => `Kunde inte ladda ${what}`,
@@ -850,6 +855,7 @@ export const components = {
     },
     order: {
       label:        'Turordning',
+      sub:          'Den som är överst börjar.',
       moveUp:       'Flytta upp',
       moveDown:     'Flytta ned',
     },

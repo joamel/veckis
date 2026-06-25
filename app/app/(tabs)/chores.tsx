@@ -32,6 +32,7 @@ import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipCon
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useTablet } from '../../src/hooks/useTablet';
+import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { buildAssignedLabel } from '../../src/lib/buildAssignedLabel';
@@ -40,7 +41,7 @@ import { ConflictBanner } from '../../src/components/ConflictBanner';
 import type { Chore, ChoreCompletion, ChoreFrequency, RecurrenceType, WeekDay } from '@veckis/shared';
 import { occursOn, weekdayOf, computeTurnHistory, type RecurrencePattern } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
-import { chores as str, common } from '../../src/lib/strings';
+import { chores as str, components as cmpStr, common } from '../../src/lib/strings';
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 
@@ -240,6 +241,7 @@ export default function ChoresScreen() {
   const [toastMessage, setToastMessage] = useState('');
   const { showError } = useToast();
   const confirm = useConfirm();
+  const tryCloseCreate = useDiscardDraft(confirm);
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
   // Historik-tipset wrap:as runt utfäll-knappens onPress — visas alltså bara
@@ -304,6 +306,7 @@ export default function ChoresScreen() {
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
+  const [showNewRecurrencePicker, setShowNewRecurrencePicker] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newAssignedToMany, setNewAssignedToMany] = useState<string[]>([]);
   const [newRotation, setNewRotation] = useState(false);
@@ -353,6 +356,7 @@ export default function ChoresScreen() {
   const [newStartDate, setNewStartDate] = useState<string | null>(null);
   const [newEndDate, setNewEndDate] = useState<string | null>(null);
   const [showNewAdvanced, setShowNewAdvanced] = useState(false);
+  const [showRotationOrder, setShowRotationOrder] = useState(false);
   const [showEditAdvanced, setShowEditAdvanced] = useState(false);
   const [showNewStartPicker, setShowNewStartPicker] = useState(false);
   const [showNewEndPicker, setShowNewEndPicker] = useState(false);
@@ -415,6 +419,20 @@ export default function ChoresScreen() {
     });
     if (shown) { filterTipShownRef.current = true; filterTip.markSeen(); }
   }, [tipsReady, members.length, filterTip.seen, filterTip.markSeen, showTip]));
+
+  const newRecurrenceSummary = useMemo(() => {
+    if (newRecurrenceType === 'none') return 'Ingen';
+    const w = newRecurrenceWeeks;
+    if (newRecurrenceType === 'daily') return w === 1 ? 'Varje dag' : `Var ${w}:e dag`;
+    if (newRecurrenceType === 'weekly') {
+      const prefix = w === 1 ? 'Varje vecka' : `Var ${w}:e vecka`;
+      const names = newRecurrenceDays.map(d => DAYS.find(x => x.key === d)?.short).filter(Boolean).join(', ');
+      return names ? `${prefix} · ${names}` : prefix;
+    }
+    if (newRecurrenceType === 'monthly') return w === 1 ? 'Varje månad' : `Var ${w}:e månad`;
+    if (newRecurrenceType === 'yearly') return w === 1 ? 'Varje år' : `Var ${w}:e år`;
+    return 'Ingen';
+  }, [newRecurrenceType, newRecurrenceWeeks, newRecurrenceDays]);
 
   // Not-done chores sorted by earliest due date (most overdue first), completed
   // chores at the bottom. Done recurring chores get a split card: one 'done' entry
@@ -548,6 +566,8 @@ export default function ChoresScreen() {
     setNewStartDate(null);
     setNewEndDate(null);
     setShowNewAdvanced(false);
+    setShowRotationOrder(false);
+    setShowNewRecurrencePicker(false);
   }
 
   // Always open a fresh dialog so an abandoned (cancelled) syssla doesn't reappear.
@@ -874,7 +894,7 @@ export default function ChoresScreen() {
               ? (item.completions[0] ? daysSince(item.completions[0].completedAt) : null)
               : (rec?.current ? `klar ${formatOcc(rec.current.date)}` : 'klar');
           } else if (variant === 'upcoming') {
-            dateLabel = rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}` : null;
+            dateLabel = null;
           } else {
             // active
             dateLabel = once
@@ -882,11 +902,10 @@ export default function ChoresScreen() {
               : (rec?.state === 'overdue' ? `förfallen ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
                 : rec?.state === 'today' ? 'idag'
                 : rec?.current ? formatOcc(rec.current.date)
-                : rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
                 : null);
           }
           const compactMeta = [assignedLabel, dateLabel].filter(Boolean).join(' · ');
-          const showCheck = once || !!rec?.current || (variant === 'upcoming' && !!rec?.nextDate);
+          const showCheck = once || !!rec?.current || !!rec?.nextDate;
           const checkVisualDone = variant === 'done';
           const openView = wrapExpandTip(
             () => setViewingChore(item),
@@ -911,7 +930,10 @@ export default function ChoresScreen() {
                   />
                 </View>
                 <View style={s.cardContent}>
-                  <Text style={[s.cardTitle, { fontSize: fs(15) }, finishedLook && s.cardTitleDone]} numberOfLines={1}>{item.title}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
+                    <Text style={[s.cardTitle, { fontSize: fs(15), flexShrink: 1 }, finishedLook && s.cardTitleDone]} numberOfLines={1}>{item.title}</Text>
+                    {!once && <Ionicons name="repeat-outline" size={fs(12)} color="#a78bfa" style={{ flexShrink: 0 }} />}
+                  </View>
                   <Text style={[s.cardMeta, { fontSize: fs(12) }, overdue && s.choreStatusOverdue]} numberOfLines={1}>{compactMeta || ' '}</Text>
                 </View>
                 {showCheck && (
@@ -921,14 +943,14 @@ export default function ChoresScreen() {
                       e.stopPropagation?.();
                       if (variant === 'done') {
                         if (once) uncompleteChore(item);
-                        else uncompleteOccurrence(item, rec!.current!.date);
+                        else uncompleteOccurrence(item, rec!.completedDate ?? rec!.current!.date);
                       } else if (variant === 'upcoming') {
                         pickPerformer(item, performer => completeOccurrence(item, rec!.nextDate!, performer, null));
                       } else {
                         if (once) pickPerformer(item, performer => completeChore(item, performer, null));
                         else {
-                          const cur = rec!.current!;
-                          pickPerformer(item, performer => completeOccurrence(item, cur.date, performer, null));
+                          const date = rec!.current?.date ?? rec!.nextDate!;
+                          pickPerformer(item, performer => completeOccurrence(item, date, performer, null));
                         }
                       }
                     }}
@@ -999,118 +1021,153 @@ export default function ChoresScreen() {
         </View>
       </Modal>
 
-      {/* Create modal */}
-      <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowCreate(false)} />
-        <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
-        <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>{str.modal.createTitle}</Text>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
-            <TextInput
-              style={s.input}
-              placeholder={str.modal.namePlaceholder}
-              placeholderTextColor="#9ca3af"
-              value={newTitle}
-              onChangeText={setNewTitle}
-              autoFocus
-              returnKeyType="done"
-            />
-
-            <MultiMemberPicker
-              members={members}
-              selected={newAssignedToMany}
-              rotation={newRotation}
-              onChange={setNewAssignedToMany}
-              onRotationChange={setNewRotation}
-              rotationAllowed={newRecurrenceType !== 'none'}
-              showOrderSection={showNewAdvanced}
-            />
-
-            {newRecurrenceType === 'none' && (
-              <>
-                <Text style={s.label}>{str.modal.dateLabel}</Text>
-                <View style={s.dateRow}>
-                  <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
-                    <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
-                    <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? str.modal.chooseDate}</Text>
-                  </Pressable>
-                  {newStartDate && (
-                    <Pressable onPress={() => setNewStartDate(null)} hitSlop={8} accessibilityLabel={str.modal.clearDate}>
-                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
-                    </Pressable>
-                  )}
-                </View>
-              </>
-            )}
-
-            <RecurrencePicker
-              recurrenceType={newRecurrenceType}
-              recurrenceWeeks={newRecurrenceWeeks}
-              recurrenceDays={newRecurrenceDays}
-              monthlyType={newMonthlyType}
-              recurrenceWeekOfMonth={newRecurrenceWeekOfMonth}
-              endDate={newEndDate}
-              dayOfMonth={newMonthDay}
-              onChangeDayOfMonth={setNewMonthDay}
-              weekday={newWeekday}
-              onChangeWeekday={setNewWeekday}
-              onChangeType={setNewRecurrenceType}
-              onChangeWeeks={setNewRecurrenceWeeks}
-              onChangeDays={setNewRecurrenceDays}
-              onChangeMonthlyType={setNewMonthlyType}
-              onChangeWeekOfMonth={setNewRecurrenceWeekOfMonth}
-              onChangeEndDate={setNewEndDate}
-              onOpenEndPicker={() => setShowNewEndPicker(true)}
-              showEndDate={showNewAdvanced}
-            />
-
-            {newRecurrenceType !== 'none' && (
-              <>
-                <Text style={s.label}>{str.modal.startLabel}</Text>
-                <View style={s.dateRow}>
-                  <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
-                    <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
-                    <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>{newStartDate ?? str.modal.chooseStart}</Text>
-                  </Pressable>
-                  {newStartDate && (
-                    <Pressable onPress={() => setNewStartDate(null)} hitSlop={8} accessibilityLabel={str.modal.clearStartDate}>
-                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
-                    </Pressable>
-                  )}
-                </View>
-              </>
-            )}
-
-            {(newRecurrenceType !== 'none' || (newRotation && newAssignedToMany.length >= 3)) && (
-              <Pressable
-                style={s.advancedToggle}
-                onPress={() => setShowNewAdvanced(v => !v)}
-              >
-                <Text style={s.advancedToggleText}>
-                  {showNewAdvanced ? str.modal.fewerSettings : str.modal.moreSettings}
-                </Text>
-                <Ionicons
-                  name={showNewAdvanced ? 'chevron-up' : 'chevron-down'}
-                  size={14}
-                  color="#6b7280"
-                />
-              </Pressable>
-            )}
-
+      {/* Create modal — fullscreen */}
+      <Modal visible={showCreate} animationType="slide" onRequestClose={() => tryCloseCreate(newTitle.trim() !== '', () => { setShowCreate(false); resetCreateForm(); })}>
+        <SafeAreaView style={s.createFull}>
+          {/* Header */}
+          <View style={s.createHeader}>
+            <Pressable onPress={() => tryCloseCreate(newTitle.trim() !== '', () => { setShowCreate(false); resetCreateForm(); })} style={s.createHeaderBtn} hitSlop={8}>
+              <Text style={s.createHeaderCancel}>Avbryt</Text>
+            </Pressable>
+            <Text style={s.createHeaderTitle}>{str.modal.createTitle}</Text>
             <Pressable
-              style={[s.button, !newTitle.trim() && s.buttonDisabled]}
+              style={[s.createHeaderSave, (!newTitle.trim() || creating) && s.createHeaderSaveDisabled]}
               onPress={createChore}
               disabled={creating || !newTitle.trim()}
             >
               {creating
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={s.buttonText}>{str.modal.addButton}</Text>}
+                ? <ActivityIndicator color="#4f46e5" size="small" />
+                : <Text style={[s.createHeaderSaveText, !newTitle.trim() && s.createHeaderSaveTextDisabled]}>Lägg till</Text>}
             </Pressable>
-          </ScrollView>
-        </View>
-        </KeyboardAvoidingView>
+          </View>
+
+          <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1 }}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.createScroll} keyboardShouldPersistTaps="handled">
+              <TextInput
+                style={s.input}
+                placeholder={str.modal.namePlaceholder}
+                placeholderTextColor="#9ca3af"
+                value={newTitle}
+                onChangeText={setNewTitle}
+                autoFocus
+                returnKeyType="done"
+              />
+
+              <MultiMemberPicker
+                members={members}
+                selected={newAssignedToMany}
+                rotation={newRotation}
+                onChange={setNewAssignedToMany}
+                onRotationChange={setNewRotation}
+                rotationAllowed={newRecurrenceType !== 'none'}
+                onOpenOrderModal={() => setShowRotationOrder(true)}
+              />
+
+              {/* Datum / Startdatum — ovanför upprepning */}
+              <Text style={s.label}>{newRecurrenceType === 'none' ? str.modal.dateLabel : str.modal.startLabel}</Text>
+              <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
+                <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
+                <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>
+                  {newStartDate ?? (newRecurrenceType === 'none' ? str.modal.chooseDate : str.modal.chooseStart)}
+                </Text>
+                {newStartDate && (
+                  <Pressable onPress={(e) => { e.stopPropagation?.(); setNewStartDate(null); }} hitSlop={8}>
+                    <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                  </Pressable>
+                )}
+              </Pressable>
+
+              {/* Upprepning — stabil position, öppnar sub-sheet */}
+              <Text style={s.label}>{cmpStr.recurrencePicker.label}</Text>
+              <Pressable style={s.recurrenceRow} onPress={() => setShowNewRecurrencePicker(true)}>
+                <Ionicons name="repeat-outline" size={16} color={newRecurrenceType !== 'none' ? '#4f46e5' : '#9ca3af'} />
+                <Text style={[s.recurrenceRowText, newRecurrenceType !== 'none' && s.recurrenceRowTextActive]} numberOfLines={1}>
+                  {newRecurrenceSummary}
+                </Text>
+                {newRecurrenceType !== 'none' ? (
+                  <Pressable
+                    onPress={(e) => { e.stopPropagation?.(); setNewRecurrenceType('none'); setNewRecurrenceWeeks(1); setNewRecurrenceDays([]); }}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                  </Pressable>
+                ) : (
+                  <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                )}
+              </Pressable>
+
+            </ScrollView>
+          </KeyboardAvoidingView>
+
+          {/* Recurrence sub-sheet */}
+          <Modal visible={showNewRecurrencePicker} transparent animationType="slide" onRequestClose={() => setShowNewRecurrencePicker(false)}>
+            <View pointerEvents="none" style={s.overlayDim} />
+            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowNewRecurrencePicker(false)} />
+            <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
+              <View style={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: Math.max(8, insets.bottom) }]}>
+                <View style={s.sheetHandle} />
+                <Text style={s.sheetTitle}>{cmpStr.recurrencePicker.label}</Text>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+                  <RecurrencePicker
+                    recurrenceType={newRecurrenceType}
+                    recurrenceWeeks={newRecurrenceWeeks}
+                    recurrenceDays={newRecurrenceDays}
+                    monthlyType={newMonthlyType}
+                    recurrenceWeekOfMonth={newRecurrenceWeekOfMonth}
+                    endDate={newEndDate}
+                    dayOfMonth={newMonthDay}
+                    onChangeDayOfMonth={setNewMonthDay}
+                    weekday={newWeekday}
+                    onChangeWeekday={setNewWeekday}
+                    onChangeType={setNewRecurrenceType}
+                    onChangeWeeks={setNewRecurrenceWeeks}
+                    onChangeDays={setNewRecurrenceDays}
+                    onChangeMonthlyType={setNewMonthlyType}
+                    onChangeWeekOfMonth={setNewRecurrenceWeekOfMonth}
+                    onChangeEndDate={setNewEndDate}
+                    onOpenEndPicker={() => { setShowNewRecurrencePicker(false); setShowNewEndPicker(true); }}
+                  />
+                  <Pressable style={s.button} onPress={() => setShowNewRecurrencePicker(false)}>
+                    <Text style={s.buttonText}>Klart</Text>
+                  </Pressable>
+                </ScrollView>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
+
+          {/* Turordnings-dialog — centrerat kort */}
+          <Modal visible={showRotationOrder} transparent animationType="fade" onRequestClose={() => setShowRotationOrder(false)}>
+            <Pressable style={s.orderDialogOverlay} onPress={() => setShowRotationOrder(false)}>
+              <Pressable style={s.orderDialogCard} onPress={e => e.stopPropagation?.()}>
+                <Text style={s.orderDialogTitle}>{cmpStr.multiMemberPicker.order.label}</Text>
+                <Text style={s.orderDialogSub}>{cmpStr.multiMemberPicker.order.sub}</Text>
+                {newAssignedToMany.map((id, i) => {
+                  const m = members.find(x => x.id === id);
+                  if (!m) return null;
+                  const moveUp = () => setNewAssignedToMany(a => { const n = [...a]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; return n; });
+                  const moveDown = () => setNewAssignedToMany(a => { const n = [...a]; [n[i], n[i + 1]] = [n[i + 1], n[i]]; return n; });
+                  return (
+                    <View key={id} style={[s.orderDialogRow, i === 0 && s.orderDialogRowFirst]}>
+                      <Text style={s.orderNum}>{i + 1}</Text>
+                      <Text style={s.orderName}>{m.displayName}</Text>
+                      <View style={s.orderBtns}>
+                        <Pressable onPress={moveUp} disabled={i === 0} style={s.orderBtn} accessibilityLabel={cmpStr.multiMemberPicker.order.moveUp}>
+                          <Ionicons name="chevron-up" size={20} color={i === 0 ? '#d1d5db' : '#6b7280'} />
+                        </Pressable>
+                        <Pressable onPress={moveDown} disabled={i === newAssignedToMany.length - 1} style={s.orderBtn} accessibilityLabel={cmpStr.multiMemberPicker.order.moveDown}>
+                          <Ionicons name="chevron-down" size={20} color={i === newAssignedToMany.length - 1 ? '#d1d5db' : '#6b7280'} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  );
+                })}
+                <Pressable style={s.orderDialogDoneBtn} onPress={() => setShowRotationOrder(false)}>
+                  <Text style={s.orderDialogDoneText}>Klart</Text>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          </Modal>
+        </SafeAreaView>
       </Modal>
 
 
@@ -1432,7 +1489,32 @@ const s = StyleSheet.create({
   dateBtnText: { fontSize: 13, color: '#9ca3af', flex: 1 },
   dateBtnTextSet: { color: '#4f46e5', fontWeight: '600' },
   advancedToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 10 },
+  orderDialogOverlay: { flex: 1, backgroundColor: 'rgba(17,24,39,0.55)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  orderDialogCard: { width: '100%', backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
+  orderDialogTitle: { fontSize: 12, fontWeight: '600', color: '#9ca3af', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  orderDialogSub: { fontSize: 13, color: '#6b7280', paddingHorizontal: 16, paddingBottom: 8 },
+  orderDialogRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  orderDialogRowFirst: { borderTopWidth: 0 },
+  orderDialogDoneBtn: { paddingVertical: 14, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  orderDialogDoneText: { fontSize: 16, fontWeight: '600', color: '#4f46e5' },
+  orderNum: { fontSize: 14, fontWeight: '700', color: '#7c3aed', width: 20, textAlign: 'center' },
+  orderName: { flex: 1, fontSize: 15, fontWeight: '500', color: '#111827' },
+  orderBtns: { flexDirection: 'row', gap: 2 },
+  orderBtn: { padding: 6 },
   advancedToggleText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  createFull: { flex: 1, backgroundColor: '#fff' },
+  createHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  createHeaderBtn: { minWidth: 60 },
+  createHeaderCancel: { fontSize: 16, color: '#6b7280' },
+  createHeaderTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
+  createHeaderSave: { minWidth: 60, alignItems: 'flex-end' },
+  createHeaderSaveDisabled: { opacity: 0.4 },
+  createHeaderSaveText: { fontSize: 16, fontWeight: '600', color: '#4f46e5' },
+  createHeaderSaveTextDisabled: { color: '#9ca3af' },
+  createScroll: { gap: 14, padding: 20, paddingBottom: 40 },
+  recurrenceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  recurrenceRowText: { flex: 1, fontSize: 14, color: '#9ca3af', fontWeight: '500' },
+  recurrenceRowTextActive: { color: '#4f46e5', fontWeight: '600' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
   filterBtnActive: { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' },

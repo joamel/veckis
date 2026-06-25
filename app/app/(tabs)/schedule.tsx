@@ -28,6 +28,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
+import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/clerk-expo';
@@ -412,6 +413,7 @@ export default function ScheduleScreen() {
   const client = useApiClient();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
+  const tryCloseCreate = useDiscardDraft(confirm);
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
   const filterTip = useOnceFlag('seen-filter-tip');
@@ -1934,9 +1936,9 @@ export default function ScheduleScreen() {
       <DatePickerModal value={editEntryStartDate} onChange={setEditEntryStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} />
       <DatePickerModal value={editEntryEndDate} onChange={setEditEntryEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} />
 
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => tryCloseCreate(newTitle.trim() !== '', () => { setShowModal(false); resetNewEntryForm(); })}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowModal(false)} />
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => tryCloseCreate(newTitle.trim() !== '', () => { setShowModal(false); resetNewEntryForm(); })} />
         <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />

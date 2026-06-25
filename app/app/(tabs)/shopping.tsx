@@ -24,6 +24,7 @@ import { pickStore } from '../../src/lib/storePicker';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { useTablet } from '../../src/hooks/useTablet';
+import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { ShoppingListDetail } from '../shopping/[listId]';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { onShoppingChanged } from '../../src/lib/shoppingEvents';
@@ -40,6 +41,8 @@ export default function ShoppingScreen() {
   const { householdId } = useHousehold();
   const { showError } = useToast();
   const confirm = useConfirm();
+  const tryCloseCreate = useDiscardDraft(confirm);
+  const discardCreate = () => { setShowModal(false); setNewListName(''); setNewListEmoji(null); setNewListStoreId(null); };
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
   const storesTip = useOnceFlag('seen-stores-tip');
@@ -240,9 +243,9 @@ export default function ShoppingScreen() {
         <Ionicons name="add" size={fs(30)} color="#fff" />
       </Pressable>
 
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setNewListEmoji(null); setNewListStoreId(null); }}>
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => tryCloseCreate(newListName.trim() !== '', discardCreate)}>
         <View pointerEvents="none" style={styles.overlayDim} />
-        <Pressable style={styles.overlay} onPress={() => { setShowModal(false); setNewListEmoji(null); setNewListStoreId(null); }} />
+        <Pressable style={styles.overlay} onPress={() => tryCloseCreate(newListName.trim() !== '', discardCreate)} />
         <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <View style={styles.sheet}>
             <View style={styles.sheetHandle} />
