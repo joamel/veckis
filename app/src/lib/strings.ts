@@ -97,7 +97,7 @@ export const chores = {
   clear: {
     title:           'Rensa klara sysslor',
     once:            (n: number) => `${n} engångssyssla${n === 1 ? '' : 'r'} tas bort`,
-    recurring:       (n: number) => `${n} återkommande avprickning${n === 1 ? '' : 'ar'} nollställs`,
+    recurring:       (n: number) => `${n} återkommande syssla${n === 1 ? '' : 'r'} döljs tills nästa tillfälle`,
     confirm:         'Rensa',
   },
 

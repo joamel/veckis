@@ -1509,7 +1509,6 @@ export default function ScheduleScreen() {
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4f46e5" />}
             style={[s.content, (Platform.OS === 'web' ? { scrollSnapType: 'x mandatory' } : null) as any]}
             initialScrollIndex={dayIndexForDate(selectedDayDate) + DAY_SPAN}
             getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
@@ -1548,6 +1547,7 @@ export default function ScheduleScreen() {
                   style={{ width: weekPageW }}
                   {...((Platform.OS === 'web' ? { dataSet: { weekpage: '' } } : {}) as any)}
                   contentContainerStyle={[s.contentInner, d.isEmpty && s.contentEmpty]}
+                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4f46e5" />}
                 >
                   {d.isEmpty ? (
                     <EmptyState

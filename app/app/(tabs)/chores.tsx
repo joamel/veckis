@@ -302,6 +302,7 @@ export default function ChoresScreen() {
     }
   });
   const [loading, setLoading] = useState(true);
+  const [clearedRecurringIds, setClearedRecurringIds] = useState<Set<string>>(new Set());
   const { filterMemberIds, setFilterMemberIds } = useMemberFilter();
   const [showFilterModal, setShowFilterModal] = useState(false);
 
@@ -338,10 +339,7 @@ export default function ChoresScreen() {
     const newHas2 = newAssignedToMany.length >= 2 && showCreate;
     const editHas2 = editAssignedToMany.length >= 2 && !!editingChore;
     if (!newHas2 && !editHas2) return;
-    const shown = showTip({
-      title: 'Turas om automatiskt',
-      message: 'När 2 eller fler är tilldelade kan du slå på "Turas om" — då växlar turen mellan er per tillfälle. Lämna av om alla är gemensamt ansvariga.',
-    });
+    const shown = showTip(str.tips.rotation);
     if (shown) rotationTip.markSeen();
   }, [tipsReady, rotationTip, newAssignedToMany.length, editAssignedToMany.length, showCreate, editingChore, showTip]);
   const [editRecurrenceType, setEditRecurrenceType] = useState<RecurrenceType>('none');
@@ -375,6 +373,7 @@ export default function ChoresScreen() {
         client.getHousehold(householdId),
       ]);
       setChores(choreData);
+      setClearedRecurringIds(new Set());
       setMembers(household.members);
       // Flusha offline-köade mutationer mot API:et efter att fresh data laddats.
       const pending = getPendingChoreOps();
@@ -414,10 +413,7 @@ export default function ChoresScreen() {
   useFocusEffect(useCallback(() => {
     if (!tipsReady) return;
     if (choresIntroTip.seen !== false || choresIntroTipShownRef.current) return;
-    const shown = showTip({
-      title: 'Sysslor',
-      message: 'Här strukturerar du återkommande sysslor — disk, sopor, dammsuga. Prova ett roterande schema så alla i hushållet turas om automatiskt, och bocka av allteftersom.',
-    });
+    const shown = showTip(str.tips.intro);
     if (shown) { choresIntroTipShownRef.current = true; choresIntroTip.markSeen(); }
   }, [tipsReady, choresIntroTip.seen, choresIntroTip.markSeen, showTip]));
 
@@ -428,11 +424,7 @@ export default function ChoresScreen() {
     if (!tipsReady) return;
     if (filterTip.seen !== false || filterTipShownRef.current) return;
     if (members.length === 0) return;
-    const shown = showTip({
-      title: 'Filtrera på person',
-      message: 'Tryck här för att bara visa sysslor (och aktiviteter) för en eller flera personer. Filtret gäller både sysslor-fliken och kalendern.',
-      targetRef: filterBtnRef,
-    });
+    const shown = showTip({ ...str.tips.filter, targetRef: filterBtnRef });
     if (shown) { filterTipShownRef.current = true; filterTip.markSeen(); }
   }, [tipsReady, members.length, filterTip.seen, filterTip.markSeen, showTip]));
 
@@ -517,11 +509,13 @@ export default function ChoresScreen() {
   const completedRecurring = useMemo(
     () => sortedChores
       .filter(e => e.variant === 'done' && !isOnce(e.chore))
-      .map(e => {
-        const rs = recurringStatus(e.chore);
-        return { chore: e.chore, currentDate: rs.completedDate ?? rs.current?.date ?? isoDateStr(new Date()) };
-      }),
+      .map(e => ({ chore: e.chore })),
     [sortedChores]
+  );
+
+  const displayedEntries = useMemo(
+    () => sortedChores.filter(e => e.variant !== 'done' || isOnce(e.chore) || !clearedRecurringIds.has(e.chore.id)),
+    [sortedChores, clearedRecurringIds]
   );
 
 
@@ -731,10 +725,10 @@ export default function ChoresScreen() {
     confirm({
       variant: 'menu',
       buttons: [
-        { label: 'Redigera', icon: 'create-outline', onPress: () => { setViewingChore(null); openEdit(chore); } },
-        { label: 'Kopiera', icon: 'copy-outline', onPress: () => { setViewingChore(null); copyChore(chore); } },
-        { label: 'Ta bort', icon: 'trash-outline', style: 'destructive', onPress: () => { setViewingChore(null); deleteChore(chore.id, chore.title); } },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: common.actions.edit, icon: 'create-outline', onPress: () => { setViewingChore(null); openEdit(chore); } },
+        { label: common.actions.copy, icon: 'copy-outline', onPress: () => { setViewingChore(null); copyChore(chore); } },
+        { label: common.actions.delete, icon: 'trash-outline', style: 'destructive', onPress: () => { setViewingChore(null); deleteChore(chore.id, chore.title); } },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -773,8 +767,8 @@ export default function ChoresScreen() {
       label: o.label,
       onPress: () => onPick(o.id),
     }));
-    buttons.push({ label: 'Avbryt', style: 'cancel' });
-    confirm({ title: `Vem gjorde "${chore.title}"?`, buttons });
+    buttons.push({ label: common.actions.cancel, style: 'cancel' });
+    confirm({ title: str.performer.title(chore.title), buttons });
   }
 
   // Forgiving model: complete/uncomplete a specific occurrence date.
@@ -845,6 +839,7 @@ export default function ChoresScreen() {
         {
           label: str.clear.confirm, style: 'destructive',
           onPress: async () => {
+            // One-time chores: delete from server
             setChores(prev => prev.filter(c => !completedOnce.find(d => d.id === c.id)));
             await Promise.all(completedOnce.map(async c => {
               try { await client.deleteChore(c.id); }
@@ -853,9 +848,12 @@ export default function ChoresScreen() {
                 showError(e, 'Kunde inte ta bort syssla');
               }
             }));
-            await Promise.all(completedRecurring.map(({ chore, currentDate }) =>
-              uncompleteOccurrence(chore, currentDate)
-            ));
+            // Recurring chores: just hide the done-card locally — don't uncomplete
+            setClearedRecurringIds(prev => {
+              const next = new Set(prev);
+              completedRecurring.forEach(({ chore }) => next.add(chore.id));
+              return next;
+            });
           },
         },
         { label: common.actions.cancel, style: 'cancel' },
@@ -895,9 +893,9 @@ export default function ChoresScreen() {
       />
 
       <FlatList
-        data={sortedChores}
+        data={displayedEntries}
         keyExtractor={entry => entry.chore.id + '-' + entry.variant}
-        contentContainerStyle={[s.list, sortedChores.length === 0 && s.listEmpty]}
+        contentContainerStyle={[s.list, displayedEntries.length === 0 && s.listEmpty]}
         numColumns={isTablet ? 2 : 1}
         key={isTablet ? '2col' : '1col'}
         columnWrapperStyle={isTablet ? s.columnWrapper : undefined}
@@ -939,13 +937,7 @@ export default function ChoresScreen() {
           const compactMeta = [assignedLabel, dateLabel].filter(Boolean).join(' · ');
           const showCheck = once || !!rec?.current || !!rec?.nextDate;
           const checkVisualDone = variant === 'done';
-          const openView = wrapExpandTip(
-            () => setViewingChore(item),
-            {
-              title: 'Detaljer per syssla',
-              message: 'Här ser du frekvens, full status och historik (klara/missade tillfällen). Härifrån når du också Redigera och Ta bort.',
-            },
-          );
+          const openView = wrapExpandTip(() => setViewingChore(item), str.tips.details);
           return (
             <View style={[s.cardWrap, isTablet && s.cardWrapTablet]}>
               <View style={[s.card, finishedLook && s.cardDone, overdue && s.cardOverdue, variant === 'upcoming' && s.cardUpcoming]}>
@@ -998,7 +990,7 @@ export default function ChoresScreen() {
         }}
       />
 
-      <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={wrapChoreAddTip(openCreate, { title: 'Skapa syssla', message: 'Här lägger du till en återkommande syssla — välj frekvens (dagligen, veckovis, månadsvis), vem som ska göra den och om ni ska turas om automatiskt.' })}>
+      <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={wrapChoreAddTip(openCreate, str.tips.add)}>
         <Ionicons name="add" size={fs(30)} color="#fff" />
       </Pressable>
 
