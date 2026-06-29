@@ -508,9 +508,9 @@ export default function ChoresScreen() {
 
   const completedRecurring = useMemo(
     () => sortedChores
-      .filter(e => e.variant === 'done' && !isOnce(e.chore))
+      .filter(e => e.variant === 'done' && !isOnce(e.chore) && !clearedRecurringIds.has(e.chore.id))
       .map(e => ({ chore: e.chore })),
-    [sortedChores]
+    [sortedChores, clearedRecurringIds]
   );
 
   const displayedEntries = useMemo(
