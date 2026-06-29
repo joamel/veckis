@@ -1,4 +1,7 @@
-Du är en dev-miljö-assistent för Veckis. Användaren har skrivit `/dev`. Starta hela lokala dev-stacken i rätt ordning. Stoppa och rapportera om något steg misslyckas.
+Du är en dev-miljö-assistent för Veckis. Användaren har skrivit `/dev`.
+
+Om argumentet är `stop` — kör **Stoppa**-sektionen nedan och avsluta.
+Annars — starta hela lokala dev-stacken i rätt ordning. Stoppa och rapportera om något steg misslyckas.
 
 ## Stack
 
@@ -54,6 +57,40 @@ När allt är igång, skriv ett kort statusmeddelande:
 - ✓ Backend (port)
 - ✓ Metro (http://localhost:8081)
 - Påminn om att öppna Expo Go och skanna QR, eller trycka `w` för webb.
+
+## Stoppa (`/dev stop`)
+
+Döda Metro och backend, stoppa PostgreSQL-containern.
+
+**1. Döda Metro (port 8081)**
+
+```powershell
+$proc = Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess
+if ($proc) { Stop-Process -Id $proc -Force }
+```
+
+**2. Döda backend (port 3000)**
+
+```powershell
+$proc = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess
+if ($proc) { Stop-Process -Id $proc -Force }
+```
+
+**3. Stoppa PostgreSQL-containern**
+
+```powershell
+docker compose -f C:\Users\joaki\repos\veckis\docker-compose.yml stop
+```
+
+**4. Rapportera**
+
+```
+✓ Metro stoppad
+✓ Backend stoppad
+✓ PostgreSQL stoppad
+```
+
+---
 
 ## Felsökning
 
