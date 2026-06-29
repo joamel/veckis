@@ -97,6 +97,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View pointerEvents="none" style={s.overlayDim} />
       <Pressable style={s.overlay} onPress={onClose} />
       <View style={s.sheet}>
         <View style={s.handle} />
@@ -156,7 +157,8 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
 }
 
 const s = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  overlay: { flex: 1 },
   sheet: { backgroundColor: '#f3f4f6', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#d1d5db', alignSelf: 'center', marginTop: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
