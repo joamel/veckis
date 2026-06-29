@@ -103,20 +103,17 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
         <View style={s.handle} />
         <View style={s.header}>
           <Text style={s.title}>Veckomeny-mallar</Text>
-          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Stäng"><Ionicons name="close" size={24} color="#6b7280" /></Pressable>
+          <View style={s.headerActions}>
+            {onShareWeek && (
+              <Pressable onPress={onShareWeek} disabled={!weekHasItems} hitSlop={10} accessibilityRole="button" accessibilityLabel="Dela meny">
+                <Ionicons name="share-outline" size={22} color={weekHasItems ? '#4f46e5' : '#d1d5db'} />
+              </Pressable>
+            )}
+            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Stäng"><Ionicons name="close" size={24} color="#6b7280" /></Pressable>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={s.body}>
-          {onShareWeek && (
-            <Pressable
-              style={[s.shareBtn, !weekHasItems && s.shareBtnDisabled]}
-              onPress={onShareWeek}
-              disabled={!weekHasItems}
-            >
-              <Ionicons name="share-outline" size={16} color={weekHasItems ? '#4f46e5' : '#9ca3af'} />
-              <Text style={[s.shareBtnText, !weekHasItems && s.shareBtnTextDisabled]}>Dela meny</Text>
-            </Pressable>
-          )}
           <Text style={s.sectionLabel}>SPARA DENNA VECKA</Text>
           <View style={s.saveRow}>
             <TextInput
@@ -168,6 +165,7 @@ const s = StyleSheet.create({
   sheet: { backgroundColor: '#f3f4f6', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#d1d5db', alignSelf: 'center', marginTop: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { fontSize: 20, fontWeight: '700', color: '#111827' },
   body: { paddingHorizontal: 16, paddingBottom: 16 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8, marginBottom: 8, marginLeft: 4 },
@@ -182,8 +180,4 @@ const s = StyleSheet.create({
   tplName: { fontSize: 15, fontWeight: '600', color: '#111827' },
   tplMeta: { fontSize: 13, color: '#9ca3af', marginTop: 2 },
   tplDelete: { paddingHorizontal: 14, paddingVertical: 14 },
-  shareBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#ede9fe', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 16 },
-  shareBtnDisabled: { backgroundColor: '#f3f4f6' },
-  shareBtnText: { fontSize: 15, fontWeight: '600', color: '#4f46e5' },
-  shareBtnTextDisabled: { color: '#9ca3af' },
 });
