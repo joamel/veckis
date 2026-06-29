@@ -31,7 +31,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'fisk', patterns: ['lax', 'torsk', 'kolja', 'sej', 'sill', 'makrill', 'tonfisk (färsk)', 'rödspätta', 'gädda', 'abborre'] },
   { sub: 'skaldjur', patterns: ['räkor', 'kräftor', 'krabba', 'hummer', 'musslor', 'ostron', 'kammusslor', 'bläckfisk'] },
   { sub: 'färdiga_såser_kylda', patterns: ['bearnaisesås', 'béarnaisesås', 'hollandaisesås', 'bearnaise', 'hollandaise', 'pepparsås', 'gräddsås', 'sky', 'köttsky'] },
-  // Chark & Deli
+  // Chark & deli
   { sub: 'skinka_pålägg', patterns: ['parmaskinka', 'serranoskinka', 'prosciutto', 'rökt skinka', 'kalkonpålägg', 'rökt kalkon', 'kycklingpålägg', 'blodpudding', 'leverpastej', 'skinka', 'pålägg'] },
   { sub: 'korv_charcuteri', patterns: ['salami', 'pepperoni', 'chorizo', 'medisterkorv', 'falukorv', 'wienerkorv', 'grillkorv', 'bratwurst', 'isterband', 'prinskorv', 'kabanoss', 'mortadella', 'merguez', 'blodkorv', 'kycklingkorv', 'korv'] },
   { sub: 'delikatessost', patterns: ['brie', 'camembert', 'feta', 'mozzarella (färsk)', 'mozzarella', 'parmesan', 'manchego', 'pecorino', 'gorgonzola', 'roquefort', 'chèvre', 'halloumi', 'burrata', 'ricotta (deli)', 'taleggio', 'gouda', 'gruyère', 'gruyere', 'comté', 'comte', 'färskost', 'kvarg', 'krämost'] },

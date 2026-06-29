@@ -1003,11 +1003,10 @@ export default function ScheduleScreen() {
 
   function openEntryActions(entry: ScheduleEntry) {
     confirm({
-      title: entry.title,
       variant: 'menu',
       buttons: [
-        { label: 'Redigera', onPress: () => { setViewingEntry(null); openEditEntry(entry); } },
-        { label: 'Ta bort', style: 'destructive', onPress: () => { setViewingEntry(null); deleteEntry(entry, selectedDayDateStr); } },
+        { label: 'Redigera', icon: 'create-outline', onPress: () => { setViewingEntry(null); openEditEntry(entry); } },
+        { label: 'Ta bort', icon: 'trash-outline', style: 'destructive', onPress: () => { setViewingEntry(null); deleteEntry(entry, selectedDayDateStr); } },
         { label: 'Avbryt', style: 'cancel' },
       ],
     });
@@ -1223,23 +1222,14 @@ export default function ScheduleScreen() {
               key={item.id}
               style={s.menuCard}
               onPress={() => router.push(`/recipes/${item.recipeId}?from=calendar` as never)}
-              onLongPress={() => {
-                medium();
-                confirm({
-                  title: item.recipe.title,
-                  buttons: [
-                    { label: 'Visa recept', onPress: () => router.push(`/recipes/${item.recipeId}?from=calendar` as never) },
-                    { label: 'Gå till Meny', onPress: () => router.push('/(tabs)/menu' as never) },
-                    { label: 'Avbryt', style: 'cancel' },
-                  ],
-                });
-              }}
             >
               <View style={[s.menuIcon, { width: sp(32), height: sp(32) }]}>
                 <Ionicons name="restaurant-outline" size={fs(16)} color="#4f46e5" />
               </View>
-              <Text style={[s.menuTitle, { fontSize: fs(15) }]}>{item.recipe.title}</Text>
-              <Text style={[s.menuMeta, { fontSize: fs(12) }]}>{item.recipe.servings} port</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.menuTitle, { fontSize: fs(15) }]} numberOfLines={1}>{item.recipe.title}</Text>
+                <Text style={[s.menuMeta, { fontSize: fs(12) }]}>{item.servings ?? item.recipe.servings} port</Text>
+              </View>
             </Pressable>
           ))}
         </View>
@@ -1255,8 +1245,7 @@ export default function ScheduleScreen() {
               <Pressable
                 key={chore.id}
                 style={[s.choreCard, done && s.choreDone]}
-                onPress={() => openEditCalChore(chore)}
-                onLongPress={() => { medium(); openEditCalChore(chore); }}
+                onPress={() => router.push(`/(tabs)/chores?choreId=${chore.id}` as never)}
               >
                 <View style={[s.menuIcon, { backgroundColor: '#f5f3ff' }]}>
                   <Ionicons name="sparkles-outline" size={fs(16)} color="#7c3aed" />
@@ -1651,9 +1640,9 @@ export default function ScheduleScreen() {
       </Modal>
 
       {/* Edit entry modal */}
-      <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => setEditingEntry(null)}>
+      <Modal visible={!!editingEntry} transparent animationType="slide" onRequestClose={() => tryCloseCreate(editEntryTitle !== (editingEntry?.title ?? ''), () => setEditingEntry(null))}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEditingEntry(null)} />
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => tryCloseCreate(editEntryTitle !== (editingEntry?.title ?? ''), () => setEditingEntry(null))} />
         <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
@@ -2194,13 +2183,13 @@ const s = StyleSheet.create({
   todayDotActive: { backgroundColor: 'rgba(255,255,255,0.8)' },
   todayDotHidden: { opacity: 0 },
   content: { flex: 1 },
-  contentInner: { padding: 16, gap: 16, paddingBottom: 80 },
+  contentInner: { padding: 16, gap: 2, paddingBottom: 80 },
   contentEmpty: { flex: 1 },
-  section: { gap: 8 },
+  section: { gap: 2 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.8, paddingHorizontal: 2 },
   menuCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c7d2fe', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   menuIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
-  menuTitle: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
+  menuTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
   menuMeta: { fontSize: 12, color: '#6b7280' },
   choreCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c4b5fd', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   choreDone: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', opacity: 0.7 },

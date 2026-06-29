@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   storesHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
   storesHeaderBtnText: { fontWeight: '600', color: '#4f46e5', fontSize: 13 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  list: { padding: 16, gap: 10 },
+  list: { padding: 16, gap: 2 },
   listEmpty: { flex: 1 },
   cardSelected: {
     backgroundColor: '#eef2ff',
