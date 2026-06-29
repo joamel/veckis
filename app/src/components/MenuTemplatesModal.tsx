@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type MenuTemplate } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { shareTemplate } from '../lib/shareWeekMenu';
 
 interface Props {
   visible: boolean;
@@ -14,11 +15,9 @@ interface Props {
   weekHasItems: boolean;
   /** Called after a template is applied so the menu can reload. */
   onApplied: () => void;
-  /** If provided, shows a "Dela meny"-button that calls this handler. */
-  onShareWeek?: () => void;
 }
 
-export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, weekNumber, weekHasItems, onApplied, onShareWeek }: Props) {
+export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, weekNumber, weekHasItems, onApplied }: Props) {
   const client = useApiClient();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
@@ -103,14 +102,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
         <View style={s.handle} />
         <View style={s.header}>
           <Text style={s.title}>Veckomeny-mallar</Text>
-          <View style={s.headerActions}>
-            {onShareWeek && (
-              <Pressable onPress={onShareWeek} disabled={!weekHasItems} hitSlop={10} accessibilityRole="button" accessibilityLabel="Dela meny">
-                <Ionicons name="share-outline" size={22} color={weekHasItems ? '#4f46e5' : '#d1d5db'} />
-              </Pressable>
-            )}
-            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Stäng"><Ionicons name="close" size={24} color="#6b7280" /></Pressable>
-          </View>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Stäng"><Ionicons name="close" size={24} color="#6b7280" /></Pressable>
         </View>
 
         <ScrollView contentContainerStyle={s.body}>
@@ -148,6 +140,9 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
                     ? <ActivityIndicator color="#4f46e5" size="small" />
                     : <Ionicons name="add-circle-outline" size={22} color="#4f46e5" />}
                 </Pressable>
+                <Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Dela mall ${tpl.name}`}>
+                  <Ionicons name="share-outline" size={18} color="#4f46e5" />
+                </Pressable>
                 <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Ta bort mall ${tpl.name}`}>
                   <Ionicons name="trash-outline" size={18} color="#9ca3af" />
                 </Pressable>
@@ -165,7 +160,6 @@ const s = StyleSheet.create({
   sheet: { backgroundColor: '#f3f4f6', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#d1d5db', alignSelf: 'center', marginTop: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { fontSize: 20, fontWeight: '700', color: '#111827' },
   body: { paddingHorizontal: 16, paddingBottom: 16 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8, marginBottom: 8, marginLeft: 4 },
@@ -179,5 +173,6 @@ const s = StyleSheet.create({
   tplMain: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   tplName: { fontSize: 15, fontWeight: '600', color: '#111827' },
   tplMeta: { fontSize: 13, color: '#9ca3af', marginTop: 2 },
+  tplShare: { paddingHorizontal: 10, paddingVertical: 14 },
   tplDelete: { paddingHorizontal: 14, paddingVertical: 14 },
 });

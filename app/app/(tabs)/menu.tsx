@@ -37,7 +37,6 @@ import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
-import { shareWeekMenu } from '../../src/lib/shareWeekMenu';
 import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
@@ -1484,7 +1483,6 @@ export default function MenuScreen() {
         weekNumber={weekNumber}
         weekHasItems={menuItems.length > 0}
         onApplied={load}
-        onShareWeek={() => shareWeekMenu(weekLabel, menuItems)}
       />
 
       <Modal visible={showPicker} transparent animationType="slide" onRequestClose={closePicker}>
