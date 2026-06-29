@@ -8,6 +8,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -82,6 +83,8 @@ export default function SettingsScreen() {
     };
   }, [showGlobalToast]));
 
+  const [exporting, setExporting] = useState(false);
+
   // Household editing
   const [showEditHouseholdModal, setShowEditHouseholdModal] = useState(false);
   const [editingHouseholdName, setEditingHouseholdName] = useState(householdName || '');
@@ -130,14 +133,6 @@ export default function SettingsScreen() {
   // sysslor) för att visa sekundära handlingar — byt namn/logga ut
   // resp. byt aktivt hushåll.
   const [expandedHouseholds, setExpandedHouseholds] = useState(false);
-  // Klick på penna-knappen vid en medlem öppnar en åtgärdssheet med
-  // relevanta val (byt namn, ge/ta bort admin, ta bort profilen) baserat
-  // på behörigheter — ersätter de tre separata knappar som tidigare
-  // visades i edit-mode.
-  const [memberActionTarget, setMemberActionTarget] = useState<{ id: string; displayName: string; role: 'admin' | 'member'; clerkUserId: string | null } | null>(null);
-  // Penna-knappen på hushållskortet öppnar samma typ av åtgärds-sheet
-  // (Byt namn + Ta bort hushållet) som medlemmarna.
-  const [showHouseholdActionSheet, setShowHouseholdActionSheet] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [loadingJoinHousehold, setLoadingJoinHousehold] = useState(false);
 
@@ -195,6 +190,45 @@ export default function SettingsScreen() {
   const clerkUserId = user?.id;
   const isAdmin = memberRole === 'admin';
   const householdMembers = household?.members ?? [];
+
+  function openMemberActions(t: { id: string; displayName: string; role: 'admin' | 'member'; clerkUserId: string | null }) {
+    const isMe = t.clerkUserId === clerkUserId;
+    const isLocalProfile = !t.clerkUserId;
+    const isOtherAdmin = !isMe && !!t.clerkUserId && t.role === 'admin';
+    const canChangeName = isMe || (isAdmin && isLocalProfile);
+    const canToggleAdmin = isAdmin && !isMe && !!t.clerkUserId;
+    const canRemove = isAdmin && !isMe && !isOtherAdmin;
+    const buttons: { label: string; icon?: string; style?: 'primary' | 'destructive' | 'cancel'; onPress?: () => void }[] = [];
+    if (canChangeName) buttons.push({ label: 'Byt namn', icon: 'create-outline', onPress: () => openEditMember(t.id, t.displayName) });
+    if (canToggleAdmin) buttons.push({ label: t.role === 'admin' ? 'Ta bort admin' : 'Gör till admin', icon: t.role === 'admin' ? 'shield-outline' : 'shield-checkmark', onPress: () => handleToggleAdmin(t.id, t.displayName, t.role) });
+    if (canRemove) buttons.push({ label: 'Ta bort profilen', icon: 'person-remove-outline', style: 'destructive', onPress: () => handleRemoveMember(t.id, t.displayName) });
+    buttons.push({ label: 'Avbryt', style: 'cancel' });
+    confirm({ variant: 'action', buttons });
+  }
+
+  async function handleExportHousehold() {
+    if (!householdId) return;
+    setExporting(true);
+    try {
+      const json = await client.exportHouseholdData(householdId);
+      const date = new Date().toISOString().slice(0, 10);
+      await Share.share({ message: json, title: `veckis-export-${date}.json` });
+    } catch (e) {
+      showError(e, 'Kunde inte exportera data');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function openHouseholdActions() {
+    const buttons: { label: string; icon?: string; style?: 'primary' | 'destructive' | 'cancel'; onPress?: () => void }[] = [];
+    if (isAdmin) buttons.push({ label: 'Byt namn', icon: 'create-outline', onPress: () => { setEditingHouseholdName(householdName || ''); setShowEditHouseholdModal(true); } });
+    if (isAdmin) buttons.push({ label: 'Exportera hushållets data', icon: 'download-outline', onPress: () => handleExportHousehold() });
+    buttons.push({ label: 'Lämna hushållet', icon: 'exit-outline', style: 'destructive', onPress: () => handleLeaveHousehold() });
+    if (isAdmin) buttons.push({ label: 'Ta bort hushållet', icon: 'trash-outline', style: 'destructive', onPress: () => { setDeleteConfirmText(''); setShowDeleteHouseholdModal(true); } });
+    buttons.push({ label: 'Avbryt', style: 'cancel' });
+    confirm({ variant: 'action', buttons });
+  }
 
   // Admin-tip: bara för admins, efter notis-tipset. Förklarar att "Redigera"
   // låser upp admin-åtgärder (byt hushållsnamn, hantera medlemmar, dela ut
@@ -562,7 +596,7 @@ export default function SettingsScreen() {
             {editMode ? (
               <Pressable
                 style={styles.memberActionBtn}
-                onPress={(e) => { e.stopPropagation?.(); setShowHouseholdActionSheet(true); }}
+                onPress={(e) => { e.stopPropagation?.(); openHouseholdActions(); }}
                 accessibilityLabel="Hushållsalternativ"
               >
                 <Ionicons name="create-outline" size={16} color="#4f46e5" />
@@ -630,7 +664,7 @@ export default function SettingsScreen() {
                 <View style={styles.memberActions}>
                   {editMode && (member.clerkUserId === clerkUserId || isAdmin) && (
                     <Pressable
-                      onPress={() => setMemberActionTarget({
+                      onPress={() => openMemberActions({
                         id: member.id,
                         displayName: member.displayName,
                         role: member.role,
@@ -701,99 +735,6 @@ export default function SettingsScreen() {
         </View>
 
       </ScrollView>
-
-      {/* Medlemsåtgärder: penna-knappen på en medlem öppnar denna sheet */}
-      <Modal visible={!!memberActionTarget} transparent animationType="slide" onRequestClose={() => setMemberActionTarget(null)}>
-        <Pressable style={styles.overlay} onPress={() => setMemberActionTarget(null)} />
-        <View style={[styles.sheet, { paddingBottom: 32 }]}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>{memberActionTarget?.displayName}</Text>
-          {memberActionTarget && (() => {
-            const t = memberActionTarget;
-            const isMe = t.clerkUserId === clerkUserId;
-            const isLocalProfile = !t.clerkUserId;
-            const isOtherAdmin = !isMe && !!t.clerkUserId && t.role === 'admin';
-            // Riktiga konton byter sina egna namn själva — vi kan bara byta
-            // för oss själva eller på lokala profiler (om admin).
-            const canChangeName = isMe || (isAdmin && isLocalProfile);
-            const canToggleAdmin = isAdmin && !isMe && !!t.clerkUserId;
-            // Ta bort en annan admin blockeras — admin-status måste tas
-            // bort först (egen rad ovan).
-            const canRemove = isAdmin && !isMe && !isOtherAdmin;
-            return (
-              <>
-                {canChangeName && (
-                  <Pressable
-                    style={styles.memberActionRow}
-                    onPress={() => { const t2 = t; setMemberActionTarget(null); openEditMember(t2.id, t2.displayName); }}
-                  >
-                    <Ionicons name="create-outline" size={18} color="#4f46e5" />
-                    <Text style={styles.memberActionRowText}>Byt namn</Text>
-                  </Pressable>
-                )}
-                {canToggleAdmin && (
-                  <Pressable
-                    style={[styles.memberActionRow, styles.memberActionRowBorder]}
-                    onPress={() => { const t2 = t; setMemberActionTarget(null); handleToggleAdmin(t2.id, t2.displayName, t2.role); }}
-                  >
-                    <Ionicons
-                      name={t.role === 'admin' ? 'shield-outline' : 'shield-checkmark'}
-                      size={18}
-                      color="#7c3aed"
-                    />
-                    <Text style={styles.memberActionRowText}>
-                      {t.role === 'admin' ? 'Ta bort admin' : 'Gör till admin'}
-                    </Text>
-                  </Pressable>
-                )}
-                {canRemove && (
-                  <Pressable
-                    style={[styles.memberActionRow, styles.memberActionRowBorder]}
-                    onPress={() => { const t2 = t; setMemberActionTarget(null); handleRemoveMember(t2.id, t2.displayName); }}
-                  >
-                    <Ionicons name="person-remove-outline" size={18} color="#ef4444" />
-                    <Text style={[styles.memberActionRowText, { color: '#ef4444' }]}>Ta bort profilen</Text>
-                  </Pressable>
-                )}
-              </>
-            );
-          })()}
-        </View>
-      </Modal>
-
-      {/* Hushållsåtgärder: penna-knappen i edit-läget öppnar denna sheet */}
-      <Modal visible={showHouseholdActionSheet} transparent animationType="slide" onRequestClose={() => setShowHouseholdActionSheet(false)}>
-        <Pressable style={styles.overlay} onPress={() => setShowHouseholdActionSheet(false)} />
-        <View style={[styles.sheet, { paddingBottom: 32 }]}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>{householdName ?? 'Hushållet'}</Text>
-          {isAdmin && (
-            <Pressable
-              style={styles.memberActionRow}
-              onPress={() => { setShowHouseholdActionSheet(false); setEditingHouseholdName(householdName || ''); setShowEditHouseholdModal(true); }}
-            >
-              <Ionicons name="create-outline" size={18} color="#4f46e5" />
-              <Text style={styles.memberActionRowText}>Byt namn</Text>
-            </Pressable>
-          )}
-          <Pressable
-            style={[styles.memberActionRow, isAdmin && styles.memberActionRowBorder]}
-            onPress={() => { setShowHouseholdActionSheet(false); handleLeaveHousehold(); }}
-          >
-            <Ionicons name="exit-outline" size={18} color="#ef4444" />
-            <Text style={[styles.memberActionRowText, { color: '#ef4444' }]}>Lämna hushållet</Text>
-          </Pressable>
-          {isAdmin && (
-            <Pressable
-              style={[styles.memberActionRow, styles.memberActionRowBorder]}
-              onPress={() => { setShowHouseholdActionSheet(false); setDeleteConfirmText(''); setShowDeleteHouseholdModal(true); }}
-            >
-              <Ionicons name="trash-outline" size={18} color="#ef4444" />
-              <Text style={[styles.memberActionRowText, { color: '#ef4444' }]}>Ta bort hushållet</Text>
-            </Pressable>
-          )}
-        </View>
-      </Modal>
 
       {/* Edit Household Name Modal */}
       <Modal visible={showEditHouseholdModal} transparent animationType="slide">
@@ -1166,7 +1107,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 30,
-    minHeight: 300,
     shadowColor: '#000',
     shadowOpacity: 0.18,
     shadowRadius: 16,

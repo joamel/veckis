@@ -187,6 +187,18 @@ export function useApiClient() {
       return request<AuditLogEntry[]>(`/api/households/${householdId}/audit${qs ? '?' + qs : ''}`);
     },
 
+    exportHouseholdData: async (householdId: string): Promise<string> => {
+      const token = await getToken();
+      const res = await fetch(`${BASE_URL}/api/households/${householdId}/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new ApiError(err.error ?? `HTTP ${res.status}`, res.status, false);
+      }
+      return res.text();
+    },
+
     removeMember: (householdId: string, memberId: string) =>
       request<void>(`/api/households/${householdId}/members/${memberId}`, { method: 'DELETE' }),
 

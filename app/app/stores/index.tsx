@@ -279,7 +279,7 @@ const s = StyleSheet.create({
   searchIcon: {},
   searchInput: { flex: 1, fontSize: 15, color: '#111827', paddingVertical: 4 },
   empty: { textAlign: 'center', color: '#9ca3af', marginTop: 40 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 10, borderWidth: 1, borderColor: '#f3f4f6' },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 2, borderWidth: 1, borderColor: '#f3f4f6' },
   cardCurrent: { borderColor: '#a78bfa', backgroundColor: '#faf5ff', borderWidth: 2 },
   cardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   cardIconCurrent: { backgroundColor: '#ede9fe' },

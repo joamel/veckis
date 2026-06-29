@@ -126,11 +126,11 @@ export const chores = {
   tips: {
     intro: {
       title:   'Sysslor',
-      message: 'Här strukturerar du återkommande sysslor — disk, sopor, dammsuga. Prova ett roterande schema så alla i hushållet turas om automatiskt, och bocka av allteftersom.',
+      message: 'Här strukturerar du återkommande sysslor - disk, sopor, dammsuga. Prova ett roterande schema så alla i hushållet turas om automatiskt, och bocka av allteftersom.',
     },
     rotation: {
       title:   'Turas om automatiskt',
-      message: 'När 2 eller fler är tilldelade kan du slå på "Turas om" — då växlar turen mellan er per tillfälle. Lämna av om alla är gemensamt ansvariga.',
+      message: 'När 2 eller fler är tilldelade kan du slå på "Turas om" - då växlar turen mellan er per tillfälle. Lämna av om alla är gemensamt ansvariga.',
     },
     details: {
       title:   'Detaljer per syssla',
@@ -142,7 +142,7 @@ export const chores = {
     },
     add: {
       title:   'Skapa syssla',
-      message: 'Här lägger du till en återkommande syssla — välj frekvens (dagligen, veckovis, månadsvis), vem som ska göra den och om ni ska turas om automatiskt.',
+      message: 'Här lägger du till en återkommande syssla - välj frekvens (dagligen, veckovis, månadsvis), vem som ska göra den och om ni ska turas om automatiskt.',
     },
   },
 };
@@ -205,7 +205,7 @@ export const schedule = {
     },
     origins: {
       title:   'Var kommer innehållet ifrån?',
-      message: 'Maträtter på kalendern kommer från veckomenyn (Meny-fliken), och sysslor från Sysslor-fliken. Skapa eller redigera dem där — de syns sedan automatiskt i kalendern.',
+      message: 'Maträtter på kalendern kommer från veckomenyn (Meny-fliken), och sysslor från Sysslor-fliken. Skapa eller redigera dem där - de syns sedan automatiskt i kalendern.',
     },
     add: {
       title:   'Skapa aktivitet',
@@ -284,7 +284,7 @@ export const shoppingList = {
 
   merge: {
     title:   'Slå ihop dubbletter',
-    message: 'Här slår du ihop likadana varor till en post med samlad mängd. Justera namn, enhet och kategori om du vill — appen drar ihop allt till en rad i listan.',
+    message: 'Här slår du ihop likadana varor till en post med samlad mängd. Justera namn, enhet och kategori om du vill - appen drar ihop allt till en rad i listan.',
     merged:  (n: number, name: string) => `Slog ihop ${n} ${name}`,
   },
 
@@ -429,7 +429,7 @@ export const menu = {
   },
 
   toasts: {
-    scalingAffectsNothing: 'Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt',
+    scalingAffectsNothing: 'Receptet är redan i en inköpslista - skalningen påverkar inte listan automatiskt',
     recipeAdded:           'Recept tillagd till menyn',
     transferred:           (n: number) => `${n} ${n === 1 ? 'rätt' : 'rätter'} ${n === 1 ? 'överförd' : 'överförda'} till inköpslistan`,
   },
@@ -447,15 +447,15 @@ export const menu = {
   tips: {
     drag: {
       title:   'Tips för veckomenyn',
-      message: 'Håll inne på en rätt (som demonstreras 👆) och dra den till en annan dag. Svep åt sidan för att byta vecka — eller använd pilarna högst upp.',
+      message: 'Håll inne på en rätt (som demonstreras 👆) och dra den till en annan dag. Svep åt sidan för att byta vecka - eller använd pilarna högst upp.',
     },
     templates: {
       title:   'Spara en vecka som mall',
-      message: 'Den här ikonen sparar nuvarande veckomeny som en mall — eller applicerar en sparad mall på en annan vecka. Praktiskt om du har återkommande "standardveckor".',
+      message: 'Den här ikonen sparar nuvarande veckomeny som en mall - eller applicerar en sparad mall på en annan vecka. Praktiskt om du har återkommande "standardveckor".',
     },
     recipes: {
       title:   'Receptboken',
-      message: 'Tryck på Recept för att se hela ditt receptbibliotek — lägg till nya, sök, sortera och välj recept att lägga in i veckomenyn.',
+      message: 'Tryck på Recept för att se hela ditt receptbibliotek - lägg till nya, sök, sortera och välj recept att lägga in i veckomenyn.',
     },
     transfer: {
       title:   'Överför veckomeny till inköpslistan',
@@ -463,11 +463,11 @@ export const menu = {
     },
     selectItems: {
       title:   'Välj rätter att överföra',
-      message: 'Bocka av de rätter du vill ta in i inköpslistan. Avbockade rätter och de som redan är överförda lämnas kvar i veckomenyn — du kan komma tillbaka och köra resten senare.',
+      message: 'Bocka av de rätter du vill ta in i inköpslistan. Avbockade rätter och de som redan är överförda lämnas kvar i veckomenyn - du kan komma tillbaka och köra resten senare.',
     },
     inventory: {
       title:   'Vad har du hemma?',
-      message: 'Här filtrerar du bort det du redan har. Bocka av en hel ingrediens om du har tillräckligt — eller ange en mängd om du har lite men inte allt, så landar bara bristen på inköpslistan.',
+      message: 'Här filtrerar du bort det du redan har. Bocka av en hel ingrediens om du har tillräckligt - eller ange en mängd om du har lite men inte allt, så landar bara bristen på inköpslistan.',
     },
   },
 };
@@ -511,7 +511,7 @@ export const recipes = {
     tabManual:        'Manuellt',
     tabUrl:           'Från URL',
     namePlaceholder:  'Receptets namn (valfritt om du klistrar in)',
-    pastePlaceholder: 'Klistra in recept, ingredienslista eller hela receptsidan här — AI:n plockar ut titel, ingredienser och tillvägagångssätt automatiskt.',
+    pastePlaceholder: 'Klistra in recept, ingredienslista eller hela receptsidan här - AI:n plockar ut titel, ingredienser och tillvägagångssätt automatiskt.',
     pasteToggleOn:    'Dölj recepttext',
     pasteToggleOff:   'Klistra in recepttext (AI tolkar)',
     parseButton:      'Tolka och skapa recept',
@@ -589,7 +589,7 @@ export const recipes = {
     selectAll:   'Välj alla',
     clearAll:    'Rensa',
     selectList:  'Välj lista:',
-    noLists:     'Inga aktiva listor — skapa en från Inköp-fliken',
+    noLists:     'Inga aktiva listor - skapa en från Inköp-fliken',
     tip:         '"Lägg i lista"-knappen bredvid Ingredienser låter dig välja vad du vill ha och skicka det direkt till en inköpslista.',
     done:        'Klart!',
     success:     (n: number) => `${n} ingredienser tillagda i listan`,
@@ -656,7 +656,7 @@ export const recipes = {
     },
     add: {
       title:   'Skapa recept',
-      message: 'Lägg till ett recept manuellt eller importera direkt från en webbsida — klistra bara in URL:en så hämtar appen titel, ingredienser, bild och instruktioner automatiskt.',
+      message: 'Lägg till ett recept manuellt eller importera direkt från en webbsida - klistra bara in URL:en så hämtar appen titel, ingredienser, bild och instruktioner automatiskt.',
     },
   },
 };
@@ -757,7 +757,7 @@ export const settings = {
   tips: {
     notifications: {
       title:   'Notisinställningar',
-      message: 'Klockan högst upp till höger öppnar dina notisinställningar — slå på/av påminnelser för aktiviteter, sysslor och inköpslistor per typ.',
+      message: 'Klockan högst upp till höger öppnar dina notisinställningar - slå på/av påminnelser för aktiviteter, sysslor och inköpslistor per typ.',
     },
     admin: {
       title:   'Admin-läge',
@@ -808,7 +808,7 @@ export const stores = {
       hidden:  'DOLDA',
     },
     hint:        'Ordningen matchar butikens layout. Dölj kategorier du inte använder och lägg till egna under "Egna kategorier".',
-    allHidden:   'Alla standardkategorier är dolda — du måste välja minst en.',
+    allHidden:   'Alla standardkategorier är dolda - du måste välja minst en.',
     hiddenHint:  'Standardkategorier du har dolt. Tryck visa-knappen för att lägga tillbaka dem sist i listan.',
     subHint:     (parent: string) => `Slå på sub-kategorier som du vill se som egna sektioner i listan. Övriga samlas under ${parent}.`,
     saveButton:  'Spara ändringar',
@@ -850,7 +850,7 @@ export const components = {
     none:           'Ingen',
     rotation: {
       label:        'Turas om automatiskt',
-      onSub:        'Tur byts efter varje avbockning — alla turas om i listan.',
+      onSub:        'Tur byts efter varje avbockning - alla turas om i listan.',
       offSub:       'Alla i listan är gemensamt ansvariga (ingen rotation).',
     },
     order: {

@@ -18,7 +18,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useApiClient } from '../../src/api/client';
+import { useApiClient, ApiError } from '../../src/api/client';
+import { enqueueChoreOp, getPendingChoreOps, clearChoreOp } from '../../src/lib/choreOfflineQueue';
 import { RecurrencePicker } from '../../src/components/RecurrencePicker';
 import { MultiMemberPicker } from '../../src/components/MultiMemberPicker';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
@@ -358,6 +359,7 @@ export default function ChoresScreen() {
   const [showNewAdvanced, setShowNewAdvanced] = useState(false);
   const [showRotationOrder, setShowRotationOrder] = useState(false);
   const [showEditAdvanced, setShowEditAdvanced] = useState(false);
+  const [showEditRotationOrder, setShowEditRotationOrder] = useState(false);
   const [showNewStartPicker, setShowNewStartPicker] = useState(false);
   const [showNewEndPicker, setShowNewEndPicker] = useState(false);
   const [editStartDate, setEditStartDate] = useState<string | null>(null);
@@ -374,6 +376,20 @@ export default function ChoresScreen() {
       ]);
       setChores(choreData);
       setMembers(household.members);
+      // Flusha offline-köade mutationer mot API:et efter att fresh data laddats.
+      const pending = getPendingChoreOps();
+      for (const op of pending) {
+        try {
+          if (op.type === 'complete') {
+            await client.completeChore(op.choreId, null, op.note ?? undefined, op.date, op.performedByMemberId);
+          } else {
+            await client.uncompleteChore(op.choreId, null, op.date);
+          }
+          clearChoreOp(op.choreId, op.date);
+        } catch {
+          // Nätverksfel: kvar i kön till nästa load.
+        }
+      }
     } catch {
       confirm({ title: 'Fel', message: 'Kunde inte ladda sysslor', buttons: [{ label: 'OK' }] });
     } finally {
@@ -383,15 +399,15 @@ export default function ChoresScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // Deep link from a tapped chore notification (L45): landing on the chores tab
-  // is enough — don't pop the edit dialog. Just consume the param so it won't
-  // re-fire (the navigation itself already brought us to the right tab).
   useEffect(() => {
     const id = deeplinkParams.choreId;
     if (!id || openedChoreParamRef.current === id) return;
+    const chore = chores.find(c => c.id === id);
+    if (!chore) return;
     openedChoreParamRef.current = id;
+    setViewingChore(chore);
     router.setParams({ choreId: undefined });
-  }, [deeplinkParams.choreId, router]);
+  }, [deeplinkParams.choreId, chores, router]);
 
   // Intro-tip: vad fliken är till för. Fyrar först av allt så användaren
   // förstår syftet direkt (även med tom lista).
@@ -629,6 +645,7 @@ export default function ChoresScreen() {
     setEditStartDate(chore.startDate ?? null);
     setEditEndDate(chore.endDate ?? null);
     setShowEditAdvanced(false);
+    setShowEditRotationOrder(false);
     const derived = deriveMonthlyFromStartDate(chore.startDate ?? null);
     setEditMonthDay(derived.dayOfMonth);
     setEditWeekday(derived.weekday);
@@ -712,12 +729,11 @@ export default function ChoresScreen() {
 
   function openChoreActions(chore: ChoreWithCompletion) {
     confirm({
-      title: chore.title,
       variant: 'menu',
       buttons: [
-        { label: 'Kopiera', onPress: () => { setViewingChore(null); copyChore(chore); } },
-        { label: 'Redigera', onPress: () => { setViewingChore(null); openEdit(chore); } },
-        { label: 'Ta bort', style: 'destructive', onPress: () => { setViewingChore(null); deleteChore(chore.id, chore.title); } },
+        { label: 'Redigera', icon: 'create-outline', onPress: () => { setViewingChore(null); openEdit(chore); } },
+        { label: 'Kopiera', icon: 'copy-outline', onPress: () => { setViewingChore(null); copyChore(chore); } },
+        { label: 'Ta bort', icon: 'trash-outline', style: 'destructive', onPress: () => { setViewingChore(null); deleteChore(chore.id, chore.title); } },
         { label: 'Avbryt', style: 'cancel' },
       ],
     });
@@ -733,10 +749,14 @@ export default function ChoresScreen() {
         ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
         : c));
     } catch (e) {
-      setChores(cs => cs.map(c => c.id === chore.id
-        ? { ...c, completions: c.completions.filter(comp => comp.id !== fakeId) }
-        : c));
-      showError(e, str.toasts.errorComplete);
+      if (e instanceof ApiError && e.isNetworkError) {
+        enqueueChoreOp({ type: 'complete', choreId: chore.id, date: null, performedByMemberId, note });
+      } else {
+        setChores(cs => cs.map(c => c.id === chore.id
+          ? { ...c, completions: c.completions.filter(comp => comp.id !== fakeId) }
+          : c));
+        showError(e, str.toasts.errorComplete);
+      }
     }
   }
 
@@ -768,10 +788,14 @@ export default function ChoresScreen() {
         ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
         : c));
     } catch (e) {
-      setChores(cs => cs.map(c => c.id === chore.id
-        ? { ...c, completions: c.completions.filter(comp => comp.id !== fakeId) }
-        : c));
-      showError(e, str.toasts.errorComplete);
+      if (e instanceof ApiError && e.isNetworkError) {
+        enqueueChoreOp({ type: 'complete', choreId: chore.id, date, performedByMemberId, note });
+      } else {
+        setChores(cs => cs.map(c => c.id === chore.id
+          ? { ...c, completions: c.completions.filter(comp => comp.id !== fakeId) }
+          : c));
+        showError(e, str.toasts.errorComplete);
+      }
     }
   }
 
@@ -783,8 +807,12 @@ export default function ChoresScreen() {
     try {
       await client.uncompleteChore(chore.id, undefined, date);
     } catch (e) {
-      setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
-      showError(e, 'Kunde inte ångra');
+      if (e instanceof ApiError && e.isNetworkError) {
+        enqueueChoreOp({ type: 'uncomplete', choreId: chore.id, date });
+      } else {
+        setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
+        showError(e, 'Kunde inte ångra');
+      }
     }
   }
 
@@ -796,8 +824,12 @@ export default function ChoresScreen() {
     try {
       await client.uncompleteChore(chore.id);
     } catch (e) {
-      setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
-      showError(e, str.toasts.errorUncomplete);
+      if (e instanceof ApiError && e.isNetworkError) {
+        enqueueChoreOp({ type: 'uncomplete', choreId: chore.id, date: null });
+      } else {
+        setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
+        showError(e, str.toasts.errorUncomplete);
+      }
     }
   }
 
@@ -1171,6 +1203,39 @@ export default function ChoresScreen() {
       </Modal>
 
 
+      {/* Turordnings-dialog för edit-läget */}
+      <Modal visible={showEditRotationOrder} transparent animationType="fade" onRequestClose={() => setShowEditRotationOrder(false)}>
+        <Pressable style={s.orderDialogOverlay} onPress={() => setShowEditRotationOrder(false)}>
+          <Pressable style={s.orderDialogCard} onPress={e => e.stopPropagation?.()}>
+            <Text style={s.orderDialogTitle}>{cmpStr.multiMemberPicker.order.label}</Text>
+            <Text style={s.orderDialogSub}>{cmpStr.multiMemberPicker.order.sub}</Text>
+            {editAssignedToMany.map((id, i) => {
+              const m = members.find(x => x.id === id);
+              if (!m) return null;
+              const moveUp = () => setEditAssignedToMany(a => { const n = [...a]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; return n; });
+              const moveDown = () => setEditAssignedToMany(a => { const n = [...a]; [n[i], n[i + 1]] = [n[i + 1], n[i]]; return n; });
+              return (
+                <View key={id} style={[s.orderDialogRow, i === 0 && s.orderDialogRowFirst]}>
+                  <Text style={s.orderNum}>{i + 1}</Text>
+                  <Text style={s.orderName}>{m.displayName}</Text>
+                  <View style={s.orderBtns}>
+                    <Pressable onPress={moveUp} disabled={i === 0} style={s.orderBtn} accessibilityLabel={cmpStr.multiMemberPicker.order.moveUp}>
+                      <Ionicons name="chevron-up" size={20} color={i === 0 ? '#d1d5db' : '#6b7280'} />
+                    </Pressable>
+                    <Pressable onPress={moveDown} disabled={i === editAssignedToMany.length - 1} style={s.orderBtn} accessibilityLabel={cmpStr.multiMemberPicker.order.moveDown}>
+                      <Ionicons name="chevron-down" size={20} color={i === editAssignedToMany.length - 1 ? '#d1d5db' : '#6b7280'} />
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
+            <Pressable style={s.orderDialogDoneBtn} onPress={() => setShowEditRotationOrder(false)}>
+              <Text style={s.orderDialogDoneText}>Klart</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} minimumDate={isoDateStr(new Date())} />
       <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} minimumDate={newStartDate ?? isoDateStr(new Date())} />
       <DatePickerModal value={editStartDate} onChange={setEditStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} minimumDate={isoDateStr(new Date())} />
@@ -1284,9 +1349,9 @@ export default function ChoresScreen() {
       </Modal>
 
       {/* Edit modal */}
-      <Modal visible={!!editingChore} transparent animationType="slide" onRequestClose={() => setEditingChore(null)}>
+      <Modal visible={!!editingChore} transparent animationType="slide" onRequestClose={() => tryCloseCreate(editTitle !== (editingChore?.title ?? ''), () => setEditingChore(null))}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEditingChore(null)} />
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => tryCloseCreate(editTitle !== (editingChore?.title ?? ''), () => setEditingChore(null))} />
         <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
@@ -1312,7 +1377,7 @@ export default function ChoresScreen() {
               onChange={setEditAssignedToMany}
               onRotationChange={setEditRotation}
               rotationAllowed={editRecurrenceType !== 'none'}
-              showOrderSection={showEditAdvanced}
+              onOpenOrderModal={() => setShowEditRotationOrder(true)}
             />
 
             {editRecurrenceType === 'none' && (
@@ -1370,7 +1435,7 @@ export default function ChoresScreen() {
               </>
             )}
 
-            {(editRecurrenceType !== 'none' || (editRotation && editAssignedToMany.length >= 3)) && (
+            {editRecurrenceType !== 'none' && (
               <Pressable
                 style={s.advancedToggle}
                 onPress={() => setShowEditAdvanced(v => !v)}
@@ -1416,8 +1481,8 @@ const s = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#fecaca', backgroundColor: '#fff5f5' },
   clearBtnText: { fontSize: 12, color: '#ef4444', fontWeight: '500' },
-  list: { padding: 16, gap: 10 },
-  columnWrapper: { gap: 10 },
+  list: { padding: 16, gap: 2 },
+  columnWrapper: { gap: 2 },
   cardWrapTablet: { flex: 1 },
   listEmpty: { flex: 1 },
   cardWrap: { position: 'relative' },

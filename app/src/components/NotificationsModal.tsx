@@ -69,6 +69,7 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View pointerEvents="none" style={s.overlayDim} />
       <Pressable style={s.overlay} onPress={onClose} />
       <View style={s.sheet}>
         <View style={s.handle} />
@@ -120,20 +121,32 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
 }
 
 const s = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { backgroundColor: '#f3f4f6', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
+  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  overlay: { flex: 1 },
+  sheet: { backgroundColor: '#f9fafb', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#d1d5db', alignSelf: 'center', marginTop: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
   title: { fontSize: 20, fontWeight: '700', color: '#111827' },
   body: { paddingHorizontal: 16, paddingBottom: 16 },
-  card: { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16 },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#cbd5e1',
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e7eb' },
   rowText: { flex: 1 },
   rowTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
   rowDesc: { fontSize: 13, color: '#9ca3af', marginTop: 2 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8, marginTop: 22, marginBottom: 8, marginLeft: 4 },
-  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 14, marginBottom: 10 },
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#eef2ff', borderRadius: 12, paddingVertical: 14, marginBottom: 10 },
   btnText: { fontSize: 15, fontWeight: '600', color: '#4f46e5' },
   btnTest: { backgroundColor: '#4f46e5' },
   statusText: { fontSize: 13, color: '#6b7280', marginTop: 4, marginHorizontal: 4, lineHeight: 19 },

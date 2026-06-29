@@ -36,14 +36,20 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
     ],
   },
   {
+    category: 'cheese',
+    keywords: [
+      'ost', 'cheddar', 'mozzarella', 'parmesan', 'brie', 'camembert', 'gouda',
+      'fetaost', 'halloumi', 'ricotta', 'mascarpone', 'roquefort', 'gorgonzola',
+      'gruyère', 'pecorino', 'manchego', 'emmentaler', 'edam', 'raclette',
+    ],
+  },
+  {
     category: 'dairy_eggs',
     keywords: [
       'mjölk', 'helmjölk', 'mellanmjölk', 'lättmjölk', 'laktosfri mjölk',
       'grädde', 'vispgrädde', 'crème fraiche', 'gräddfil', 'fil', 'filmjölk',
       'yoghurt', 'greek yoghurt', 'kvarg', 'kesella',
       'smör', 'margarin',
-      'ost', 'cheddar', 'mozzarella', 'parmesan', 'brie', 'camembert', 'gouda',
-      'fetaost', 'halloumi', 'ricotta', 'mascarpone', 'roquefort', 'gorgonzola',
       'ägg', 'äggvita', 'äggula',
       'kondenserad mjölk', 'kokosmjölk',
     ],

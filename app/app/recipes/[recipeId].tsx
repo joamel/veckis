@@ -33,6 +33,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
+import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import type { RecipeIngredient, WeekDay } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
@@ -46,6 +47,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
+  const tryCloseEdit = useDiscardDraft(confirm);
   const recipeCartTip = useOnceFlag('seen-recipe-cart-tip');
   const recipeCartTipShownRef = useRef(false);
   const recipeCartRef = useRef<View>(null);
@@ -242,12 +244,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   function openRecipeActions() {
     if (!recipe) return;
     confirm({
-      title: recipe.title,
       variant: 'menu',
       buttons: [
-        { label: str.actions.planInMenu, onPress: openPlanModal },
-        { label: str.actions.editRecipe, onPress: startEdit },
-        { label: str.actions.deleteRecipe, style: 'destructive', onPress: confirmDeleteRecipe },
+        { label: str.actions.planInMenu, icon: 'calendar-outline', onPress: openPlanModal },
+        { label: str.actions.editRecipe, icon: 'create-outline', onPress: startEdit },
+        { label: str.actions.deleteRecipe, icon: 'trash-outline', style: 'destructive', onPress: confirmDeleteRecipe },
         { label: common.actions.cancel, style: 'cancel' },
       ],
     });
@@ -288,6 +289,20 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       unit: i.unit ?? '',
     })));
     setEditMode(true);
+  }
+
+  function isEditDirty(): boolean {
+    if (!recipe) return false;
+    if (editTitle !== recipe.title) return true;
+    if (editDesc !== (recipe.description ?? '')) return true;
+    if (editInstr !== (recipe.instructions ?? '')) return true;
+    if (editImage !== (recipe.imageUrl ?? '')) return true;
+    const origIngs = recipe.ingredients.map(i => ({
+      name: i.name,
+      quantity: i.quantity != null ? String(i.quantity).replace('.', ',') : '',
+      unit: i.unit ?? '',
+    }));
+    return JSON.stringify(editIngredients) !== JSON.stringify(origIngs);
   }
 
   function addEditRow() {
@@ -431,7 +446,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Pressable onPress={() => { if (onClose) onClose(); else router.back(); }} style={s.backBtn} accessibilityRole="button" accessibilityLabel={common.actions.back}>
+        <Pressable onPress={() => { if (editMode) { tryCloseEdit(isEditDirty(), () => setEditMode(false)); return; } if (onClose) onClose(); else router.back(); }} style={s.backBtn} accessibilityRole="button" accessibilityLabel={common.actions.back}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
         {editMode ? (
@@ -752,7 +767,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
         {editMode && (
           <View style={s.editActions}>
-            <Pressable style={s.cancelBtn} onPress={() => setEditMode(false)}>
+            <Pressable style={s.cancelBtn} onPress={() => tryCloseEdit(isEditDirty(), () => setEditMode(false))}>
               <Text style={s.cancelBtnText}>{common.actions.cancel}</Text>
             </Pressable>
             <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled]} onPress={saveRecipe} disabled={saving}>

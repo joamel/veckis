@@ -13,7 +13,8 @@ export interface StapleItem {
 export const CATEGORY_LABELS: Record<StoreCategory, string> = {
   fruit_veg: 'Frukt & grönt',
   meat_fish: 'Kött & fisk',
-  deli_charcuterie: 'Chark & Deli',
+  deli_charcuterie: 'Chark & deli',
+  cheese: 'Ost',
   dairy_eggs: 'Mejeri & ägg',
   bread_bakery: 'Bröd & bageri',
   frozen: 'Frysvaror',
@@ -27,7 +28,7 @@ export const CATEGORY_LABELS: Record<StoreCategory, string> = {
 };
 
 export const DEFAULT_CATEGORY_ORDER: StoreCategory[] = [
-  'fruit_veg','meat_fish','deli_charcuterie','dairy_eggs','bread_bakery',
+  'fruit_veg','meat_fish','deli_charcuterie','cheese','dairy_eggs','bread_bakery',
   'frozen','canned_dry','snacks_sweets','beverages','special_diet',
   'cleaning','personal_care','other',
 ];

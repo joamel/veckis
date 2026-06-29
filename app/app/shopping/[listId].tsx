@@ -58,7 +58,7 @@ import { shoppingList as str, common } from '../../src/lib/strings';
 import { enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError } from '../../src/lib/shoppingOfflineQueue';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
-  fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', dairy_eggs: '🥛',
+  fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', cheese: '🧀', dairy_eggs: '🥛',
   bread_bakery: '🍞', frozen: '🧊', canned_dry: '🥫',
   snacks_sweets: '🍫', beverages: '🥤', special_diet: '🌱',
   cleaning: '🧹', personal_care: '🧴', other: '📦',
@@ -1917,7 +1917,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             onPress={() => { setShowActionsMenu(false); toggleIAmShopping(); }}
             disabled={togglingShopper || (!iAmShopping && !!list.activeShopperMemberId)}
           >
-            <Ionicons name={iAmShopping ? 'pause-circle-outline' : 'walk-outline'} size={20} color="#7c3aed" />
+            <Ionicons name={iAmShopping ? 'pause-circle-outline' : 'walk-outline'} size={20} color="#4f46e5" />
             <Text style={s.actionsMenuText}>
               {iAmShopping
                 ? 'Sluta handla'
@@ -1955,7 +1955,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               else setMergeSheet({ name: '', category: 'other' as StoreCategory, items: [] });
             }}
           >
-            <Ionicons name="git-merge-outline" size={20} color="#7c3aed" />
+            <Ionicons name="git-merge-outline" size={20} color="#4f46e5" />
             <Text style={s.actionsMenuText}>
               Hantera dubbletter{duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ''}
             </Text>
@@ -2090,14 +2090,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
 function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; onDelete?: () => void; pending?: boolean }) {
   const { width: windowWidth } = useWindowDimensions();
-  const isWeb = Platform.OS === 'web';
   const translateX = useSharedValue(0);
   const THRESHOLD = windowWidth * 0.35;
 
   const doDelete = useCallback(() => { onDelete?.(); }, [onDelete]);
 
   const panGesture = Gesture.Pan()
-    .enabled(!isWeb && !!onDelete && !pending)
+    .enabled(!!onDelete && !pending)
     .activeOffsetX([-10, 10])
     .failOffsetY([-15, 15])
     .onUpdate((e) => {
@@ -2133,25 +2132,6 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
       </View>
     </>
   );
-
-  if (isWeb) {
-    return (
-      <View style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending, s.itemWebWrap]}>
-        <Pressable
-          style={s.itemWebContent}
-          onPress={pending ? undefined : onToggle}
-          onLongPress={pending ? undefined : onEdit}
-        >
-          {rowContent}
-        </Pressable>
-        {onDelete && !pending && (
-          <Pressable onPress={onDelete} style={s.itemWebDelete}>
-            <Ionicons name="trash-outline" size={18} color="#d1d5db" />
-          </Pressable>
-        )}
-      </View>
-    );
-  }
 
   return (
     <View style={s.swipeRowWrap}>
@@ -2189,7 +2169,7 @@ const s = StyleSheet.create({
   headerTitleAbs: { position: 'absolute', left: 0, right: 0, zIndex: 10, paddingHorizontal: 20, backgroundColor: '#fff', overflow: 'hidden' },
   actionsMenu: { position: 'absolute', right: 0, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   actionsMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
-  actionsMenuText: { fontSize: 15, color: '#111827', fontWeight: '500' },
+  actionsMenuText: { fontSize: 15, color: '#4f46e5', fontWeight: '500' },
   actionsMenuDivider: { height: 1, backgroundColor: '#f3f4f6', marginVertical: 4 },
   headerTitle: { paddingHorizontal: 20, paddingTop: 5, paddingBottom: 5 },
   headerMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
@@ -2207,7 +2187,7 @@ const s = StyleSheet.create({
   shopperText: { fontSize: 13, color: '#db2777', fontWeight: '600' },
   shopperIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#fce7f3', alignItems: 'center', justifyContent: 'center', marginRight: 4 },
   progressFill: { height: 3, backgroundColor: '#10b981' },
-  list: { padding: 16, gap: 16, paddingBottom: 8 },
+  list: { padding: 16, gap: 2, paddingBottom: 8 },
   listEmpty: { flex: 1 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   emptyImportBtn: { marginBottom: 4 },
@@ -2218,7 +2198,7 @@ const s = StyleSheet.create({
   mergeIgnoreBtn: { paddingVertical: 10 },
   mergeIgnoreBtnText: { fontSize: 14, color: '#9ca3af', textAlign: 'center' },
   mergeHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  categoryGroup: { gap: 4 },
+  categoryGroup: { gap: 2 },
   categoryHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 2, paddingVertical: 4, gap: 8 },
   categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4f46e5', textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 },
   // Sub-grupp-rubriker: inget uppercase + ingen letterSpacing (annars klipps
@@ -2285,11 +2265,8 @@ const s = StyleSheet.create({
   editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
-  swipeRowWrap: { borderRadius: 10, overflow: 'hidden', marginVertical: 2 },
+  swipeRowWrap: { borderRadius: 10, overflow: 'hidden' },
   swipeDeleteBg: { backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
-  itemWebWrap: { padding: 0, flexDirection: 'row' },
-  itemWebContent: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
-  itemWebDelete: { paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' },
   browserSheet: { maxHeight: '90%', gap: 0 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },

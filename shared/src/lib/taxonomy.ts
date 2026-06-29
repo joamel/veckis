@@ -28,7 +28,7 @@ export type SubCategory =
   | 'fisk'
   | 'skaldjur'
   | 'färdiga_såser_kylda'
-  // Chark & Deli
+  // Chark & deli
   | 'skinka_pålägg'
   | 'korv_charcuteri'
   | 'delikatessost'
@@ -126,17 +126,18 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   fisk: { defaultParent: 'meat_fish', alsoUnder: [], label: 'Fisk' },
   skaldjur: { defaultParent: 'meat_fish', alsoUnder: [], label: 'Skaldjur' },
   färdiga_såser_kylda: { defaultParent: 'meat_fish', alsoUnder: ['canned_dry'], label: 'Färdiga såser (kylda)' },
-  // Chark & Deli (egen parent)
+  // Chark & deli (egen parent)
   skinka_pålägg: { defaultParent: 'deli_charcuterie', alsoUnder: ['meat_fish'], label: 'Skinka & pålägg' },
   korv_charcuteri: { defaultParent: 'deli_charcuterie', alsoUnder: ['meat_fish'], label: 'Korv (charcuteri)' },
-  delikatessost: { defaultParent: 'deli_charcuterie', alsoUnder: ['dairy_eggs'], label: 'Delikatessost' },
   pâté_terrin: { defaultParent: 'deli_charcuterie', alsoUnder: ['meat_fish'], label: 'Pâté & terrin' },
   oliver_antipasto: { defaultParent: 'deli_charcuterie', alsoUnder: ['canned_dry'], label: 'Oliver & antipasto' },
+  // Ost (egen parent)
+  ost: { defaultParent: 'cheese', alsoUnder: [], label: 'Ost' },
+  delikatessost: { defaultParent: 'cheese', alsoUnder: [], label: 'Delikatessost' },
   // Mejeri & ägg
   mjölk: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Mjölk' },
   yoghurt_fil: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Yoghurt & fil' },
   smör_margarin: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Smör & margarin' },
-  ost: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Ost' },
   grädde: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Grädde' },
   ägg: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Ägg' },
   laktosfritt: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Laktosfritt' },

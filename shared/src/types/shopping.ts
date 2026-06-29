@@ -2,6 +2,7 @@ export type StoreCategory =
   | 'fruit_veg'
   | 'meat_fish'
   | 'deli_charcuterie'
+  | 'cheese'
   | 'dairy_eggs'
   | 'bread_bakery'
   | 'frozen'

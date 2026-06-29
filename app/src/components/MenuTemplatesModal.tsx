@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type MenuTemplate } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { shareTemplate } from '../lib/shareWeekMenu';
 
 interface Props {
   visible: boolean;
@@ -96,6 +97,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View pointerEvents="none" style={s.overlayDim} />
       <Pressable style={s.overlay} onPress={onClose} />
       <View style={s.sheet}>
         <View style={s.handle} />
@@ -139,6 +141,9 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
                     ? <ActivityIndicator color="#4f46e5" size="small" />
                     : <Ionicons name="add-circle-outline" size={22} color="#4f46e5" />}
                 </Pressable>
+                <Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Dela mall ${tpl.name}`}>
+                  <Ionicons name="share-outline" size={18} color="#4f46e5" />
+                </Pressable>
                 <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Ta bort mall ${tpl.name}`}>
                   <Ionicons name="trash-outline" size={18} color="#9ca3af" />
                 </Pressable>
@@ -152,7 +157,8 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
 }
 
 const s = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  overlay: { flex: 1 },
   sheet: { backgroundColor: '#f3f4f6', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#d1d5db', alignSelf: 'center', marginTop: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
@@ -169,5 +175,6 @@ const s = StyleSheet.create({
   tplMain: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   tplName: { fontSize: 15, fontWeight: '600', color: '#111827' },
   tplMeta: { fontSize: 13, color: '#9ca3af', marginTop: 2 },
+  tplShare: { paddingHorizontal: 10, paddingVertical: 14 },
   tplDelete: { paddingHorizontal: 14, paddingVertical: 14 },
 });

@@ -309,6 +309,30 @@ householdRouter.get('/:householdId/audit', requireAuth, requireAdmin, asyncHandl
   res.json(events);
 }));
 
+// GET /api/households/:householdId/export
+// Exporterar all hushållsdata som JSON-fil. Admin-only.
+householdRouter.get('/:householdId/export', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const data = await prisma.household.findUnique({
+    where: { id: req.params.householdId },
+    include: {
+      members: true,
+      recipes: { include: { ingredients: true } },
+      chores: { include: { completions: true } },
+      scheduleItems: true,
+      shoppingLists: { include: { items: true } },
+      stores: true,
+      stapleItems: true,
+      weekMenuItems: { include: { recipe: true } },
+      menuTemplates: true,
+    },
+  });
+  if (!data) { res.status(404).json({ error: 'Household not found' }); return; }
+  const date = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="veckis-export-${date}.json"`);
+  res.json(data);
+}));
+
 // GET /api/households/:householdId/members/:memberId/assignments
 // Count chores + activities assigned to a member, for the removal warning.
 householdRouter.get('/:householdId/members/:memberId/assignments', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
