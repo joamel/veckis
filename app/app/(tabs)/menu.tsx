@@ -37,6 +37,7 @@ import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { EmptyState } from '../../src/components/EmptyState';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
+import { shareWeekMenu } from '../../src/lib/shareWeekMenu';
 import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
@@ -1483,6 +1484,7 @@ export default function MenuScreen() {
         weekNumber={weekNumber}
         weekHasItems={menuItems.length > 0}
         onApplied={load}
+        onShareWeek={() => shareWeekMenu(weekLabel, menuItems)}
       />
 
       <Modal visible={showPicker} transparent animationType="slide" onRequestClose={closePicker}>
@@ -2151,15 +2153,15 @@ const s = StyleSheet.create({
   invAllBtnText: { fontSize: 12, fontWeight: '700', color: '#6b7280' },
   invAllBtnTextOn: { color: '#fff' },
   content: { flex: 1 },
-  contentInner: { padding: 16, gap: 10, paddingBottom: 80 },
-  contentInnerTablet: { padding: 8, gap: 8 },
+  contentInner: { padding: 16, gap: 2, paddingBottom: 80 },
+  contentInnerTablet: { padding: 8, gap: 2 },
   daysRow: { flexDirection: 'row', gap: 6, alignItems: 'stretch' },
-  daysCol: { gap: 10 },
+  daysCol: { gap: 2 },
   daySlotWide: { flex: 1, minWidth: 0, minHeight: 80 },
   daySlotEmptyWide: { borderStyle: 'dashed', borderColor: '#d1d5db', backgroundColor: 'transparent' },
   dayColHeader: { alignItems: 'center', paddingTop: 4, paddingBottom: 2 },
   dayColEmptyTap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40 },
-  section: { gap: 6 },
+  section: { gap: 2 },
   dayLabelBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   dayLabelAbbr: { fontSize: 11, fontWeight: '800', color: '#7c3aed', letterSpacing: 0.3 },
   dayLabelDate: { fontSize: 13, fontWeight: '700', color: '#4f46e5' },
@@ -2167,7 +2169,7 @@ const s = StyleSheet.create({
   dayLabelAbbrMuted: { color: '#9ca3af' },
   dayLabelDateMuted: { color: '#6b7280' },
   daySlotEmptyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, minHeight: 44, alignSelf: 'stretch' },
-  daySlot: { borderWidth: 1, borderColor: '#c7c2f0', borderRadius: 12, padding: 6, gap: 6, backgroundColor: '#fff' },
+  daySlot: { borderWidth: 1, borderColor: '#c7c2f0', borderRadius: 12, padding: 6, gap: 3, backgroundColor: '#fff' },
   daySlotEmpty: { borderStyle: 'dashed', borderColor: '#d1d5db', backgroundColor: 'transparent', minHeight: 64, alignItems: 'center', justifyContent: 'center', padding: 0 },
   daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
   daySlotDropTarget: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#c7d2fe', borderRadius: 12, padding: 6, backgroundColor: '#fafaff' },
