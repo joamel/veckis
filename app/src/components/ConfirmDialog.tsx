@@ -67,10 +67,11 @@ export function ConfirmDialog({
     }
 
     return (
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
+        <View pointerEvents="none" style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' }} />
         <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onPress={dismiss} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
-          <View style={[s.menuCardBase, { width: '100%', maxWidth: 360 }]}>{rows}</View>
+        <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 16, paddingBottom: 40, pointerEvents: 'box-none' }}>
+          <View style={[s.menuCardBase, { width: '100%' }]}>{rows}</View>
         </View>
       </Modal>
     );
