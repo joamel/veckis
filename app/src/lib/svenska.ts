@@ -76,11 +76,9 @@ export const chores = {
   },
 
   card: {
-    today:           'idag',
-    next:            (date: string) => `nästa ${date}`,
-    overdue:         (days: number) => `förfallen ${days} ${days === 1 ? 'dag' : 'dagar'}`,
-    done:            'Klar',
-    donePlusNext:    (date: string) => `Klar · nästa ${date}`,
+    today:   'idag',
+    overdue: (days: number) => `förfallen ${days} ${days === 1 ? 'dag' : 'dagar'}`,
+    done:    'Klar',
   },
 
   status: {

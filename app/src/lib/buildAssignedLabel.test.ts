@@ -41,22 +41,22 @@ describe('buildAssignedLabel', () => {
     expect(buildAssignedLabel({ ...baseChore, assignedToMany: ['anna', 'bertil', 'cesar'] }, members)).toBe('Anna · Bertil · Cesar');
   });
 
-  it('vid rotation med 2+ medlemmar: visar nuvarande turperson + nästa', () => {
-    // completions.length = 0 → första tilldelade (anna) har turen, nästa är bertil
+  it('vid rotation med 2+ medlemmar: visar nuvarande turperson', () => {
+    // completions.length = 0 → första tilldelade (anna) har turen
     const result = buildAssignedLabel(
       { ...baseChore, assignedToMany: ['anna', 'bertil'], rotation: true, completions: [] },
       members,
     );
-    expect(result).toBe('Annas tur · Nästa: Bertil');
+    expect(result).toBe('Annas tur');
   });
 
   it('rotation cyklar efter completion', () => {
-    // completions.length = 1 → tur har gått vidare till bertil, nästa är anna
+    // completions.length = 1 → tur har gått vidare till bertil
     const result = buildAssignedLabel(
       { ...baseChore, assignedToMany: ['anna', 'bertil'], rotation: true, completions: [{}] },
       members,
     );
-    expect(result).toBe('Bertils tur · Nästa: Anna');
+    expect(result).toBe('Bertils tur');
   });
 
   it('rotation cyklar genom tre personer', () => {
@@ -65,7 +65,7 @@ describe('buildAssignedLabel', () => {
       { ...baseChore, assignedToMany: ['anna', 'bertil', 'cesar'], rotation: true, completions: [{}] },
       members,
     );
-    expect(result).toBe('Bertils tur · Nästa: Cesar');
+    expect(result).toBe('Bertils tur');
   });
 
   it('rotation ignoreras med bara 1 medlem (falls back till joined names)', () => {
