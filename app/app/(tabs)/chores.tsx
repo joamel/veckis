@@ -952,7 +952,7 @@ export default function ChoresScreen() {
               ? (item.completions[0] ? daysSince(item.completions[0].completedAt) : null)
               : (rec?.completedDate ? `klar ${formatOcc(rec.completedDate)}` : rec?.current ? `klar ${formatOcc(rec.current.date)}` : 'klar');
           } else if (variant === 'upcoming') {
-            dateLabel = rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}` : null;
+            dateLabel = rec?.nextDate ? formatOcc(rec.nextDate) : null;
           } else {
             // active
             dateLabel = once
@@ -960,7 +960,7 @@ export default function ChoresScreen() {
               : (rec?.state === 'overdue' ? `förfallen ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
                 : rec?.state === 'today' ? 'idag'
                 : rec?.current ? formatOcc(rec.current.date)
-                : rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
+                : rec?.nextDate ? formatOcc(rec.nextDate)
                 : null);
           }
           const compactMeta = [assignedLabel, dateLabel].filter(Boolean).join(' · ');
@@ -1274,7 +1274,7 @@ export default function ChoresScreen() {
             const statusText = rec
               ? (rec.state === 'overdue' ? `Förfallen sedan ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
                 : rec.state === 'today' ? 'Att göra idag'
-                : rec.state === 'done' ? (rec.nextDate ? `Klar · nästa ${formatOcc(rec.nextDate)}` : 'Klar') : null)
+                : rec.state === 'done' ? (rec.nextDate ? `Klar · ${formatOcc(rec.nextDate)}` : 'Klar') : null)
               : null;
             const isRotating = !!c.rotation && (c.assignedToMany?.length ?? 0) >= 2;
             const turnByDate = isRotating
