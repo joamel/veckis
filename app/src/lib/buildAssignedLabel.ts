@@ -46,7 +46,8 @@ export function buildAssignedLabel(chore: ChoreLike, members: ReadonlyArray<Memb
     );
     const currentName = currentId ? nameById.get(currentId) : null;
     const nextName = nextId && nextId !== currentId ? nameById.get(nextId) : null;
-    return currentName ? `${currentName}s tur` : names.join(' · ');
+    if (!currentName) return names.join(' · ');
+    return nextName ? `${currentName}s tur · Nästa: ${nextName}` : `${currentName}s tur`;
   }
 
   return names.join(' · ');

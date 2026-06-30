@@ -1118,6 +1118,7 @@ export const components = {
       label:        'Turas om automatiskt',
       onSub:        'Tur byts efter varje avbockning - alla turas om i listan.',
       offSub:       'Alla i listan är gemensamt ansvariga (ingen rotation).',
+      disabledSub:  'Välj en upprepning först för att aktivera rotation.',
     },
     order: {
       label:        'Turordning',
