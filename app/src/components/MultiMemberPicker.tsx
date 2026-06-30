@@ -53,26 +53,30 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
           );
         })}
       </ScrollView>
-      {selected.length >= 2 && rotationAllowed && showRotation !== false ? (
+      {selected.length >= 2 && showRotation !== false ? (
         <>
           <Pressable
-            style={s.rotationRow}
-            onPress={onOpenOrderModal ? handleRotationPress : () => onRotationChange(!rotation)}
+            style={[s.rotationRow, !rotationAllowed && s.rotationRowDisabled]}
+            onPress={rotationAllowed
+              ? (onOpenOrderModal ? handleRotationPress : () => onRotationChange(!rotation))
+              : undefined}
             accessibilityRole="switch"
-            accessibilityState={{ checked: rotation }}
+            accessibilityState={{ checked: rotation, disabled: !rotationAllowed }}
           >
-            <View style={[s.rotationBox, rotation && s.rotationBoxActive]}>
-              {rotation ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+            <View style={[s.rotationBox, rotation && rotationAllowed && s.rotationBoxActive]}>
+              {rotation && rotationAllowed ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.rotationLabel}>{str.multiMemberPicker.rotation.label}</Text>
+              <Text style={[s.rotationLabel, !rotationAllowed && s.rotationLabelDisabled]}>{str.multiMemberPicker.rotation.label}</Text>
               <Text style={s.rotationSub}>
-                {rotation
-                  ? str.multiMemberPicker.rotation.onSub
-                  : str.multiMemberPicker.rotation.offSub}
+                {!rotationAllowed
+                  ? str.multiMemberPicker.rotation.disabledSub
+                  : rotation
+                    ? str.multiMemberPicker.rotation.onSub
+                    : str.multiMemberPicker.rotation.offSub}
               </Text>
             </View>
-            {rotation && onOpenOrderModal && (
+            {rotation && rotationAllowed && onOpenOrderModal && (
               <Pressable onPress={onOpenOrderModal} hitSlop={8} style={s.editOrderBtn}>
                 <Text style={s.editOrderBtnText}>{common.actions.edit}</Text>
                 <Ionicons name="chevron-forward" size={13} color="#7c3aed" />
@@ -136,9 +140,11 @@ const s = StyleSheet.create({
   memberChipText: { fontSize: 14, color: '#374151', fontWeight: '500' },
   memberChipTextActive: { color: '#7c3aed', fontWeight: '600' },
   rotationRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6, paddingHorizontal: 4, marginTop: 4 },
+  rotationRowDisabled: { opacity: 0.45 },
   rotationBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   rotationBoxActive: { borderColor: '#7c3aed', backgroundColor: '#7c3aed' },
   rotationLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  rotationLabelDisabled: { color: '#6b7280' },
   rotationSub: { fontSize: 12, color: '#6b7280', marginTop: 2, lineHeight: 17 },
   editOrderBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   editOrderBtnText: { fontSize: 13, color: '#7c3aed', fontWeight: '600' },
