@@ -43,17 +43,14 @@ import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay } from '@veckis/shared';
 import { DEFAULT_CATEGORY_ORDER } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
-import { menu as str, common } from '../../src/lib/strings';
+import { menu as str, common, recipes as recipesStr } from '../../src/lib/svenska';
 
-const DAYS: { key: WeekDay; label: string; short: string }[] = [
-  { key: 'mon', label: 'Måndag', short: 'Mån' },
-  { key: 'tue', label: 'Tisdag', short: 'Tis' },
-  { key: 'wed', label: 'Onsdag', short: 'Ons' },
-  { key: 'thu', label: 'Torsdag', short: 'Tor' },
-  { key: 'fri', label: 'Fredag', short: 'Fre' },
-  { key: 'sat', label: 'Lördag', short: 'Lör' },
-  { key: 'sun', label: 'Söndag', short: 'Sön' },
-];
+const DAY_KEYS: WeekDay[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const DAYS: { key: WeekDay; label: string; short: string }[] = DAY_KEYS.map((key, i) => ({
+  key,
+  label: common.weekdays.long[i],
+  short: common.weekdays.short[i],
+}));
 
 
 function getWeekMonday(weekOffset: number): Date {
@@ -199,12 +196,12 @@ export default function MenuScreen() {
     setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
     if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
       scaleWarnedRef.current.add(item.id);
-      showGlobalToast('Receptet är redan i en inköpslista — skalningen påverkar inte listan automatiskt', 'neutral');
+      showGlobalToast(str.toasts.scalingAffectsNothing, 'neutral');
     }
     const toSave = n === item.recipe.servings ? null : n;
     if (servingsSaveTimers.current[item.id]) clearTimeout(servingsSaveTimers.current[item.id]);
     servingsSaveTimers.current[item.id] = setTimeout(() => {
-      client.updateWeekMenuItem(item.id, { servings: toSave }).catch(e => showError(e, 'Kunde inte spara portioner'));
+      client.updateWeekMenuItem(item.id, { servings: toSave }).catch(e => showError(e, str.toasts.errorSaveServings));
     }, 600);
   }
 
@@ -331,7 +328,7 @@ export default function MenuScreen() {
             onPress={() => toggleUnmeasured(agg.key)}
           >
             <Ionicons name="checkmark" size={15} color={have ? '#fff' : '#9ca3af'} />
-            <Text style={[s.invAllBtnText, have && s.invAllBtnTextOn]}>Finns</Text>
+            <Text style={[s.invAllBtnText, have && s.invAllBtnTextOn]}>{str.inventory.have}</Text>
           </Pressable>
         </View>
       );
@@ -349,7 +346,7 @@ export default function MenuScreen() {
           </Text>
           {partial && (
             <Text style={s.invProvenance} numberOfLines={1}>
-              köp {fmtQty(total - haveAmt)}{unitLabel}
+              {str.inventory.buy(fmtQty(total - haveAmt), unitLabel)}
             </Text>
           )}
         </View>
@@ -401,7 +398,7 @@ export default function MenuScreen() {
             onPress={() => { setAmountDraft(haveAmt > 0 ? fmtQty(haveAmt) : ''); setEditingAmountKey(agg.key); }}
           >
             <Text style={haveAmt > 0 ? s.invAmountTextV2 : s.invAmountTextPlaceholderV2}>
-              {haveAmt > 0 ? fmtQty(haveAmt) : 'Har'}
+              {haveAmt > 0 ? fmtQty(haveAmt) : str.inventory.amountPlaceholder}
             </Text>
             {agg.unit && haveAmt > 0 ? <Text style={s.invUnitV2}>{agg.unit}</Text> : null}
           </Pressable>
@@ -411,7 +408,7 @@ export default function MenuScreen() {
           onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}
         >
           <Ionicons name="checkmark" size={15} color={covered ? '#fff' : '#9ca3af'} />
-          <Text style={[s.invAllBtnText, covered && s.invAllBtnTextOn]}>Finns</Text>
+          <Text style={[s.invAllBtnText, covered && s.invAllBtnTextOn]}>{str.inventory.have}</Text>
         </Pressable>
       </View>
     );
@@ -524,7 +521,7 @@ export default function MenuScreen() {
       });
       setRecipeListMap(listMap);
     } catch {
-      confirm({ title: 'Fel', message: 'Kunde inte ladda menyn', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.dialogs.loadError.title, message: str.dialogs.loadError.message, buttons: [{ label: common.actions.ok }] });
     } finally {
       setLoading(false);
     }
@@ -551,8 +548,8 @@ export default function MenuScreen() {
     if (menuNavTip.seen !== false || menuNavTipShownRef.current) return;
     if (menuItems.length === 0) return;
     const shown = showTip({
-      title: 'Tips för veckomenyn',
-      message: 'Håll inne på en rätt (som demonstreras 👆) och dra den till en annan dag. Svep åt sidan för att byta vecka — eller använd pilarna högst upp.',
+      title: str.tips.drag.title,
+      message: str.tips.drag.message,
       swipeDemo: 'drag',
     });
     if (shown) { menuNavTipShownRef.current = true; menuNavTip.markSeen(); }
@@ -566,8 +563,8 @@ export default function MenuScreen() {
     if (menuNavTip.seen !== true) return; // vänta tills nav-tipset är sett
     if (menuItems.length === 0) return;
     const shown = showTip({
-      title: 'Spara en vecka som mall',
-      message: 'Den här ikonen sparar nuvarande veckomeny som en mall — eller applicerar en sparad mall på en annan vecka. Praktiskt om du har återkommande "standardveckor".',
+      title: str.tips.templates.title,
+      message: str.tips.templates.message,
       targetRef: templatesBtnRef,
     });
     if (shown) { templatesTipShownRef.current = true; templatesTip.markSeen(); }
@@ -580,8 +577,8 @@ export default function MenuScreen() {
     if (recipesBtnTip.seen !== false || recipesBtnTipShownRef.current) return;
     if (templatesTip.seen !== true) return;
     const shown = showTip({
-      title: 'Receptboken',
-      message: 'Tryck på Recept för att se hela ditt receptbibliotek — lägg till nya, sök, sortera och välj recept att lägga in i veckomenyn.',
+      title: str.tips.recipes.title,
+      message: str.tips.recipes.message,
       targetRef: recipesBtnRef,
     });
     if (shown) { recipesBtnTipShownRef.current = true; recipesBtnTip.markSeen(); }
@@ -596,8 +593,8 @@ export default function MenuScreen() {
     const fabVisible = menuItems.some(m => !recipeListMap[m.id]?.length);
     if (!fabVisible) return;
     const shown = showTip({
-      title: 'Överför veckomeny till inköpslistan',
-      message: 'Tryck på kundvagnen för att ladda hela veckans rätter in i en inköpslista. Du väljer rätter, anger vad du redan har hemma, och resten landar på listan.',
+      title: str.tips.transfer.title,
+      message: str.tips.transfer.message,
       targetRef: cartFabRef,
     });
     if (shown) { cartFabTipShownRef.current = true; cartFabTip.markSeen(); }
@@ -613,8 +610,8 @@ export default function MenuScreen() {
     if (bulkTransferStep !== 'recipe') return;
     if (bulkRecipesTip.seen !== false || bulkRecipesTipShownRef.current) return;
     const shown = showTip({
-      title: 'Välj rätter att överföra',
-      message: 'Bocka av de rätter du vill ta in i inköpslistan. Avbockade rätter och de som redan är överförda lämnas kvar i veckomenyn — du kan komma tillbaka och köra resten senare.',
+      title: str.tips.selectItems.title,
+      message: str.tips.selectItems.message,
     });
     if (shown) { bulkRecipesTipShownRef.current = true; bulkRecipesTip.markSeen(); }
   }, [tipsReady, showBulkTransferModal, bulkTransferStep, bulkRecipesTip.seen, bulkRecipesTip.markSeen, showTip]);
@@ -625,8 +622,8 @@ export default function MenuScreen() {
     if (bulkTransferStep !== 'ingredients') return;
     if (bulkInventoryTip.seen !== false || bulkInventoryTipShownRef.current) return;
     const shown = showTip({
-      title: 'Vad har du hemma?',
-      message: 'Här filtrerar du bort det du redan har. Bocka av en hel ingrediens om du har tillräckligt — eller ange en mängd om du har lite men inte allt, så landar bara bristen på inköpslistan.',
+      title: str.tips.inventory.title,
+      message: str.tips.inventory.message,
     });
     if (shown) { bulkInventoryTipShownRef.current = true; bulkInventoryTip.markSeen(); }
   }, [tipsReady, showBulkTransferModal, bulkTransferStep, bulkInventoryTip.seen, bulkInventoryTip.markSeen, showTip]);
@@ -722,7 +719,7 @@ export default function MenuScreen() {
       setBulkTransferStep('week');
       setShowBulkTransferModal(true);
     } catch (e) {
-      showError(e, 'Kunde inte hämta veckomenyer');
+      showError(e, str.toasts.errorFetchWeeks);
     }
   }
 
@@ -772,8 +769,9 @@ export default function MenuScreen() {
       await client.deleteWeekMenuItem(oldId);
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear: wy, weekNumber: wn });
       setMenuItems(prev => prev.filter(i => i.id !== oldId).concat(item));
+      setAllMenus(prev => prev.filter(i => i.id !== oldId).concat(item));
     } catch (e) {
-      showError(e, 'Kunde inte byta ut rätten');
+      showError(e, str.toasts.errorReplace);
     }
   }
 
@@ -835,8 +833,9 @@ export default function MenuScreen() {
         await client.deleteWeekMenuItem(oldId);
         const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
         setMenuItems(prev => prev.filter(i => i.id !== oldId).concat(item));
+        setAllMenus(prev => prev.filter(i => i.id !== oldId).concat(item));
       } catch (e) {
-        showError(e, 'Kunde inte byta ut rätten');
+        showError(e, str.toasts.errorReplace);
       }
       return;
     }
@@ -887,25 +886,28 @@ export default function MenuScreen() {
       recipe,
     } as WeekMenuItemWithRecipe;
     setMenuItems(prev => [...prev, optimistic]);
+    setAllMenus(prev => [...prev, optimistic]); // keep snapshot in sync so non-loaded weeks render correctly
     try {
       suppressMenuReloadRef.current += 1;
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
       setMenuItems(prev => prev.map(m => m.id === tempId ? item : m));
+      setAllMenus(prev => prev.map(m => m.id === tempId ? item : m));
       showToast(str.toasts.recipeAdded);
     } catch (e) {
       setMenuItems(prev => prev.filter(m => m.id !== tempId));
-      showError(e, 'Kunde inte lägga till rätt');
+      setAllMenus(prev => prev.filter(m => m.id !== tempId));
+      showError(e, str.toasts.errorAddRecipe);
     }
   }
 
   async function removeFromMenu(item: WeekMenuItemWithRecipe) {
     const ok = await new Promise<boolean>(resolve => {
       confirm({
-        title: 'Ta bort från menyn?',
+        title: str.dialogs.removeFromMenu.title,
         message: item.recipe.title,
         buttons: [
-          { label: 'Ta bort', style: 'destructive', onPress: () => resolve(true) },
-          { label: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+          { label: str.dialogs.removeFromMenu.remove, style: 'destructive', onPress: () => resolve(true) },
+          { label: common.actions.cancel, style: 'cancel', onPress: () => resolve(false) },
         ],
       });
     });
@@ -919,9 +921,9 @@ export default function MenuScreen() {
     // Show stacked toast: count is current pendingCount + 1 (this call) since state hasn't flushed.
     const upcomingCount = pendingCount + 1;
     showGlobalToast(
-      upcomingCount === 1 ? 'Recept borttagen från menyn' : `${upcomingCount} recept tas bort`,
+      upcomingCount === 1 ? str.toasts.removedSingle : str.toasts.removedMultiple(upcomingCount),
       'neutral',
-      { label: 'Ångra', onPress: cancelAllPending },
+      { label: str.toasts.undo, onPress: cancelAllPending },
     );
     setTimeout(async () => {
       if (cancelled) return;
@@ -939,7 +941,7 @@ export default function MenuScreen() {
           return next;
         });
       } catch (e) {
-        showError(e, 'Kunde inte ta bort');
+        showError(e, str.toasts.errorRemove);
       } finally {
         clearPending(item.id);
       }
@@ -983,7 +985,7 @@ export default function MenuScreen() {
       // immediately instead of only on next focus.
       emitShoppingChanged();
     } catch (e) {
-      showError(e, 'Kunde inte ta bort ingredienserna');
+      showError(e, str.toasts.errorRemoveIngredients);
     }
   }
 
@@ -995,7 +997,7 @@ export default function MenuScreen() {
       setShoppingLists(prev => [...prev, list]);
       setNewListName('');
     } catch (e) {
-      showError(e, 'Kunde inte skapa lista');
+      showError(e, str.toasts.errorCreateList);
     } finally {
       setCreatingList(false);
     }
@@ -1099,7 +1101,7 @@ export default function MenuScreen() {
       showToast(str.toasts.transferred(actuallyTransfer.length));
     } catch (e) {
       setBulkTransferringListId(null);
-      showError(e, 'Kunde inte överföra ingredienserna');
+      showError(e, str.toasts.errorTransfer);
     }
   }
 
@@ -1128,10 +1130,10 @@ export default function MenuScreen() {
       setTransferSheet(null);
       setTransferringListId(null);
       load();
-      showToast(`${recipe.title} överförd till inköpslistan`);
+      showToast(str.toasts.ingredientsTransferred(recipe.title));
     } catch (e) {
       setTransferringListId(null);
-      showError(e, 'Kunde inte lägga till ingredienserna');
+      showError(e, str.toasts.errorTransferIngredients);
     }
   }
 
@@ -1142,24 +1144,27 @@ export default function MenuScreen() {
       const dayLabel = DAYS.find(d => d.key === day)?.label ?? day;
       const confirmed = await new Promise<boolean>(resolve =>
         confirm({
-          title: 'Dag redan planerad',
-          message: `${dayLabel} har redan en rätt planerad. Flytta ändå?`,
+          title: str.dialogs.dayOccupiedMove.title,
+          message: str.dialogs.dayOccupiedMove.message(dayLabel),
           buttons: [
-            { label: 'Flytta', onPress: () => resolve(true) },
-            { label: 'Avbryt', style: 'cancel', onPress: () => resolve(false) },
+            { label: str.dialogs.dayOccupiedMove.confirm, onPress: () => resolve(true) },
+            { label: common.actions.cancel, style: 'cancel', onPress: () => resolve(false) },
           ],
         })
       );
       if (!confirmed) return;
     }
     setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, day } : i));
+    setAllMenus(prev => prev.map(i => i.id === item.id ? { ...i, day } : i));
     suppressMenuReloadRef.current += 1;
     try {
       const updated = await client.updateWeekMenuItem(item.id, { day });
       setMenuItems(prev => prev.map(i => i.id === updated.id ? updated : i));
+      setAllMenus(prev => prev.map(i => i.id === updated.id ? updated : i));
     } catch (e) {
       setMenuItems(prev => prev.map(i => i.id === item.id ? item : i));
-      showError(e, 'Kunde inte flytta rätten');
+      setAllMenus(prev => prev.map(i => i.id === item.id ? item : i));
+      showError(e, str.toasts.errorMove);
     }
   }
 
@@ -1313,7 +1318,7 @@ export default function MenuScreen() {
           ref={isCenter ? (ref => measureDaySection('unscheduled', ref)) : undefined}
         >
           <View style={s.sectionRow}>
-            <Text style={s.sectionLabel}>EJ SCHEMALAGDA</Text>
+            <Text style={s.sectionLabel}>{str.sections.unscheduled}</Text>
             {isCenter && !isPastWeek && (
               <Pressable onPress={() => openPicker(null)}>
                 <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
@@ -1321,7 +1326,7 @@ export default function MenuScreen() {
             )}
           </View>
           {unsched.length === 0 ? (
-            <Text style={s.unscheduledEmpty}>Lägg till rätter utan dag för att planera i kalendern</Text>
+            <Text style={s.unscheduledEmpty}>{str.sections.unscheduledHint}</Text>
           ) : (
             unsched.map(item => (
               <MenuCard
@@ -1351,9 +1356,9 @@ export default function MenuScreen() {
         {!anyScheduled && unsched.length === 0 && (
           <EmptyState
             icon="restaurant-outline"
-            title="Inga rätter planerade"
-            subtitle={isPastWeek ? 'Inga rätter var planerade denna vecka.' : 'Planera veckans måltider så kan ni föra över ingredienserna till inköpslistan.'}
-            actionLabel={isPastWeek ? undefined : 'Planera en rätt'}
+            title={str.emptyState.noDishesPlanned.title}
+            subtitle={isPastWeek ? str.emptyState.noDishesPlanned.subtitlePast : str.emptyState.noDishesPlanned.subtitle}
+            actionLabel={isPastWeek ? undefined : str.emptyState.noDishesPlanned.action}
             onAction={isPastWeek ? undefined : () => openPicker(null)}
           />
         )}
@@ -1369,16 +1374,16 @@ export default function MenuScreen() {
     <View style={{ flex: 1 }}>
       <SafeAreaView style={s.container}>
       <ScreenHeader
-        title="Meny"
+        title={str.title}
         actionNode={
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <Pressable ref={templatesBtnRef} style={[s.headerIconBtn, { paddingHorizontal: sp(10), paddingVertical: sp(7) }]} onPress={() => setShowTemplates(true)} accessibilityLabel="Veckomeny-mallar">
+            <Pressable ref={templatesBtnRef} style={[s.headerIconBtn, { paddingHorizontal: sp(10), paddingVertical: sp(7) }]} onPress={() => setShowTemplates(true)} accessibilityLabel={str.a11y.templates}>
               <Ionicons name="bookmarks-outline" size={fs(18)} color="#4f46e5" />
             </Pressable>
             <View ref={recipesBtnRef} collapsable={false}>
               <Pressable style={[s.headerActionBtn, { paddingHorizontal: sp(12), paddingVertical: sp(7) }]} onPress={() => router.push('/recipes' as never)}>
                 <Ionicons name="book-outline" size={fs(16)} color="#4f46e5" />
-                <Text style={[s.headerActionText, { fontSize: fs(13) }]}>Recept</Text>
+                <Text style={[s.headerActionText, { fontSize: fs(13) }]}>{str.a11y.recipesTab}</Text>
               </Pressable>
             </View>
           </View>
@@ -1450,13 +1455,13 @@ export default function MenuScreen() {
       {/* Overför-FAB (kundkorg) — visas bara för nuvarande/framtida veckor
           när minst en rätt inte är överförd än. */}
       {!dragState && weekOffset >= 0 && menuItems.some(m => !recipeListMap[m.id]?.length) && (
-        <Pressable ref={cartFabRef} style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={transferWeekMenu} accessibilityLabel="Överför veckomeny till inköpslista">
+        <Pressable ref={cartFabRef} style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={transferWeekMenu} accessibilityLabel={str.a11y.transferFab}>
           <Ionicons name="cart-outline" size={fs(26)} color="#fff" />
         </Pressable>
       )}
       {/* Mall-FAB — visas för gamla veckor med rätter så de lätt kan sparas som mall */}
       {!dragState && weekOffset < 0 && menuItems.length > 0 && (
-        <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={() => setShowTemplates(true)} accessibilityLabel="Spara vecka som mall">
+        <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={() => setShowTemplates(true)} accessibilityLabel={str.a11y.saveWeekAsTemplate}>
           <Ionicons name="bookmark-outline" size={fs(24)} color="#fff" />
         </Pressable>
       )}
@@ -1493,7 +1498,7 @@ export default function MenuScreen() {
 
           {pickerStep === 'day' ? (
             <>
-              <Text style={s.sheetTitle}>Välj dag</Text>
+              <Text style={s.sheetTitle}>{str.picker.chooseDay}</Text>
               <View style={s.dayGrid}>
                 {DAYS.map(d => (
                   <Pressable
@@ -1508,7 +1513,7 @@ export default function MenuScreen() {
                   style={[s.dayGridItem, s.dayGridItemNone]}
                   onPress={() => { setPickingForDay(null); setPickerStep('recipe'); }}
                 >
-                  <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>Ingen dag</Text>
+                  <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>{str.picker.noDay}</Text>
                 </Pressable>
               </View>
             </>
@@ -1522,17 +1527,17 @@ export default function MenuScreen() {
                 )}
                 <Text style={s.sheetTitle}>
                   {replaceTarget
-                    ? `Byt ut ${replaceTarget.recipe.title}`
+                    ? str.picker.replaceTitle(replaceTarget.recipe.title)
                     : pickingForDay
                       ? DAYS.find(d => d.key === pickingForDay)?.label
-                      : 'Ingen dag'}
+                      : str.picker.noDay}
                 </Text>
               </View>
               {recipes.length === 0 ? (
                 <View style={s.pickerEmpty}>
-                  <Text style={s.pickerEmptyText}>Inga recept än — lägg till via Recept-fliken</Text>
+                  <Text style={s.pickerEmptyText}>{str.picker.noRecipesYet}</Text>
                   <Pressable style={s.pickerEmptyBtn} onPress={() => { setShowPicker(false); router.push('/recipes' as never); }}>
-                    <Text style={s.pickerEmptyBtnText}>Gå till recept</Text>
+                    <Text style={s.pickerEmptyBtnText}>{str.picker.goToRecipes}</Text>
                   </Pressable>
                 </View>
               ) : (
@@ -1554,7 +1559,7 @@ export default function MenuScreen() {
                         <Ionicons name="add" size={20} color="#4f46e5" />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={[s.recipeCardTitle, { color: '#4f46e5' }]}>Skapa nytt recept</Text>
+                        <Text style={[s.recipeCardTitle, { color: '#4f46e5' }]}>{str.picker.createNewRecipe}</Text>
                       </View>
                     </Pressable>
                   }
@@ -1562,11 +1567,11 @@ export default function MenuScreen() {
                     <Pressable style={s.recipeCard} onPress={() => {
                       if (replaceTarget) {
                         confirm({
-                          title: 'Byt ut rätt',
-                          message: `Ersätt "${replaceTarget.recipe.title}" med "${item.title}"?`,
+                          title: str.dialogs.replaceRecipe.title,
+                          message: str.dialogs.replaceRecipe.message(replaceTarget.recipe.title, item.title),
                           buttons: [
-                            { label: 'Byt ut', style: 'destructive', onPress: () => addRecipeToDay(item) },
-                            { label: 'Avbryt', style: 'cancel' },
+                            { label: str.dialogs.replaceRecipe.confirm, style: 'destructive', onPress: () => addRecipeToDay(item) },
+                            { label: common.actions.cancel, style: 'cancel' },
                           ],
                         });
                       } else {
@@ -1578,7 +1583,7 @@ export default function MenuScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={s.recipeCardTitle}>{item.title}</Text>
-                        <Text style={s.recipeCardMeta}>{item.servings} port · {item.ingredients.length} ingredienser</Text>
+                        <Text style={s.recipeCardMeta}>{recipesStr.card.meta(item.servings, item.ingredients.length)}</Text>
                       </View>
                       <Ionicons name="chevron-forward" size={18} color="#d1d5db" />
                     </Pressable>
@@ -1596,9 +1601,9 @@ export default function MenuScreen() {
         <Pressable style={s.overlay} onPress={() => setCleanupPrompt(null)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Ta bort från inköpslista?</Text>
+          <Text style={s.sheetTitle}>{str.dialogs.removeFromShoppingList.title}</Text>
           {cleanupPrompt ? (
-            <Text style={s.cleanupSub}>Välj vilka listor du vill ta bort ingredienserna från</Text>
+            <Text style={s.cleanupSub}>{str.dialogs.removeFromShoppingList.subtitle}</Text>
           ) : null}
           <View style={s.cleanupList}>
             {cleanupPrompt?.lists.map(l => {
@@ -1620,7 +1625,7 @@ export default function MenuScreen() {
                   />
                   <View style={{ flex: 1 }}>
                     <Text style={s.cleanupListName}>{l.listName}</Text>
-                    <Text style={s.cleanupItemCount}>{l.itemCount} ingredienser</Text>
+                    <Text style={s.cleanupItemCount}>{str.cleanup.listIngredientsCount(l.itemCount)}</Text>
                   </View>
                 </Pressable>
               );
@@ -1628,7 +1633,7 @@ export default function MenuScreen() {
           </View>
           <View style={s.cleanupActions}>
             <Pressable style={s.cleanupCancel} onPress={() => setCleanupPrompt(null)}>
-              <Text style={s.cleanupCancelText}>Behåll</Text>
+              <Text style={s.cleanupCancelText}>{str.dialogs.removeFromShoppingList.keep}</Text>
             </Pressable>
             <Pressable
               style={[s.cleanupConfirm, selectedCleanupLists.size === 0 && s.cleanupConfirmDisabled]}
@@ -1640,7 +1645,7 @@ export default function MenuScreen() {
                 executeCleanup(mi, [...selectedCleanupLists]);
               }}
             >
-              <Text style={s.cleanupConfirmText}>Ta bort från valda</Text>
+              <Text style={s.cleanupConfirmText}>{str.dialogs.removeFromShoppingList.removeFromSelected}</Text>
             </Pressable>
           </View>
         </View>
@@ -1652,14 +1657,14 @@ export default function MenuScreen() {
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Välj inköpslista</Text>
+          <Text style={s.sheetTitle}>{str.bulk.chooseShoppingList}</Text>
           {shoppingLists.length === 0 ? (
             <>
-              <Text style={s.pickerEmptyText}>Ingen aktiv inköpslista — skapa en direkt här</Text>
+              <Text style={s.pickerEmptyText}>{str.bulk.noActiveList}</Text>
               <View style={s.createListRow}>
                 <TextInput
                   style={[s.input, { flex: 1, marginTop: 0 }]}
-                  placeholder="Namn på ny lista"
+                  placeholder={str.bulk.newListNamePlaceholder}
                   placeholderTextColor="#9ca3af"
                   value={newListName}
                   onChangeText={setNewListName}
@@ -1674,7 +1679,7 @@ export default function MenuScreen() {
                 >
                   {creatingList
                     ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={s.createListBtnText}>Skapa</Text>}
+                    : <Text style={s.createListBtnText}>{str.bulk.create}</Text>}
                 </Pressable>
               </View>
             </>
@@ -1688,7 +1693,7 @@ export default function MenuScreen() {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={s.pickerItemTitle}>{l.name}</Text>
-                  <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
+                  <Text style={s.pickerItemMeta}>{str.bulk.itemsCount(l.items.length)}</Text>
                 </View>
                 {transferringListId === l.id && <ActivityIndicator size="small" color="#4f46e5" />}
               </Pressable>
@@ -1715,8 +1720,8 @@ export default function MenuScreen() {
 
           {bulkTransferStep === 'week' ? (
             <>
-              <Text style={s.sheetTitle}>Välj veckomeny</Text>
-              <Text style={s.sheetSub}>Vilken veckas meny vill du importera?</Text>
+              <Text style={s.sheetTitle}>{str.bulk.chooseWeekMenu}</Text>
+              <Text style={s.sheetSub}>{str.bulk.chooseWeekMenuSub}</Text>
               <ScrollView style={s.bulkRecipeList}>
                 {(() => {
                   // Only mark "already transferred" against the destination list, if known
@@ -1744,7 +1749,7 @@ export default function MenuScreen() {
                   });
                   const weeks = entries.sort(([a], [b]) => a.localeCompare(b));
                   if (weeks.length === 0) {
-                    return <Text style={s.pickerEmptyText}>Ingen aktiv vecka med planerade rätter</Text>;
+                    return <Text style={s.pickerEmptyText}>{str.bulk.noActiveWeek}</Text>;
                   }
                   return weeks.map(([key, items]) => {
                     const [wy, wn] = key.split('-').map(Number);
@@ -1763,10 +1768,10 @@ export default function MenuScreen() {
                       >
                         <Ionicons name="calendar-outline" size={22} color="#4f46e5" />
                         <View style={{ flex: 1 }}>
-                          <Text style={s.bulkRecipeTitle}>Vecka {wn}, {wy}</Text>
+                          <Text style={s.bulkRecipeTitle}>{str.bulk.weekLabel(wn, wy)}</Text>
                           <Text style={s.bulkRecipeDay}>
-                            {items.length} {items.length === 1 ? 'rätt' : 'rätter'}
-                            {destList ? ` · ${allTransferred ? 'alla redan med' : `${newCount} nya`}` : ''}
+                            {str.bulk.dishesCount(items.length)}
+                            {destList ? ` · ${allTransferred ? str.bulk.allAlreadyAdded : str.bulk.newCount(newCount)}` : ''}
                           </Text>
                         </View>
                         {!allTransferred && <Ionicons name="chevron-forward" size={20} color="#9ca3af" />}
@@ -1778,8 +1783,8 @@ export default function MenuScreen() {
             </>
           ) : bulkTransferStep === 'recipe' ? (
             <>
-              <Text style={s.sheetTitle}>Välj rätter</Text>
-              <Text style={s.sheetSub}>{bulkTransferWeek ? `Vecka ${bulkTransferWeek.weekNumber}, ${bulkTransferWeek.weekYear}` : 'Vilka rätter vill du överföra?'}</Text>
+              <Text style={s.sheetTitle}>{str.bulk.chooseDishes}</Text>
+              <Text style={s.sheetSub}>{bulkTransferWeek ? str.bulk.weekLabel(bulkTransferWeek.weekNumber, bulkTransferWeek.weekYear) : str.bulk.chooseDishesSub}</Text>
               <ScrollView style={s.bulkRecipeList}>
                 {(bulkTransferWeek
                   ? allMenus.filter(m => m.weekYear === bulkTransferWeek.weekYear && m.weekNumber === bulkTransferWeek.weekNumber)
@@ -1823,14 +1828,14 @@ export default function MenuScreen() {
                   setBulkTransferStep('ingredients');
                 }}
               >
-                <Text style={s.buttonText}>Nästa</Text>
+                <Text style={s.buttonText}>{str.bulk.next}</Text>
               </Pressable>
             </>
           ) : bulkTransferStep === 'ingredients' ? (
             <>
-              <Text style={s.sheetTitle}>Vad har du hemma?</Text>
+              <Text style={s.sheetTitle}>{str.bulk.whatDoYouHave}</Text>
               <Text style={s.invSub}>
-                Skriv mängden du har eller tryck "Allt" om du har tillräckligt. Bristen läggs på listan.
+                {str.bulk.haveHint}
               </Text>
               <ScrollView
                 style={{ maxHeight: invMaxListH, marginBottom: 12 }}
@@ -1856,25 +1861,25 @@ export default function MenuScreen() {
                       }
                     }}
                   >
-                    <Text style={s.buttonText}>{params.originListId ? 'Överför' : 'Nästa'}</Text>
+                    <Text style={s.buttonText}>{params.originListId ? str.bulk.transfer : str.bulk.next}</Text>
                   </Pressable>
                   <Pressable style={s.cancelBtn} onPress={() => setBulkTransferStep('recipe')}>
-                    <Text style={s.cancelBtnText}>Tillbaka</Text>
+                    <Text style={s.cancelBtnText}>{str.bulk.back}</Text>
                   </Pressable>
                 </>
               )}
             </>
           ) : (
             <>
-              <Text style={s.sheetTitle}>Välj inköpslista</Text>
-              <Text style={s.sheetSub}>{selectedRecipesForTransfer.size} rätt(er) att överföra</Text>
+              <Text style={s.sheetTitle}>{str.bulk.chooseShoppingList}</Text>
+              <Text style={s.sheetSub}>{str.bulk.dishesToTransfer(selectedRecipesForTransfer.size)}</Text>
               {shoppingLists.length === 0 ? (
                 <>
-                  <Text style={s.pickerEmptyText}>Ingen aktiv inköpslista — skapa en direkt här</Text>
+                  <Text style={s.pickerEmptyText}>{str.bulk.noActiveList}</Text>
                   <View style={s.createListRow}>
                     <TextInput
                       style={[s.input, { flex: 1, marginTop: 0 }]}
-                      placeholder="Namn på ny lista"
+                      placeholder={str.bulk.newListNamePlaceholder}
                       placeholderTextColor="#9ca3af"
                       value={newListName}
                       onChangeText={setNewListName}
@@ -1888,7 +1893,7 @@ export default function MenuScreen() {
                     >
                       {creatingList
                         ? <ActivityIndicator color="#fff" size="small" />
-                        : <Text style={s.createListBtnText}>Skapa</Text>}
+                        : <Text style={s.createListBtnText}>{str.bulk.create}</Text>}
                     </Pressable>
                   </View>
                 </>
@@ -1903,7 +1908,7 @@ export default function MenuScreen() {
                     >
                       <View style={{ flex: 1 }}>
                         <Text style={s.pickerItemTitle}>{l.name}</Text>
-                        <Text style={s.pickerItemMeta}>{l.items.length} varor</Text>
+                        <Text style={s.pickerItemMeta}>{str.bulk.itemsCount(l.items.length)}</Text>
                       </View>
                       {bulkTransferringListId === l.id && <ActivityIndicator size="small" color="#4f46e5" />}
                     </Pressable>
@@ -1914,7 +1919,7 @@ export default function MenuScreen() {
                 style={[s.button, { backgroundColor: '#e5e7eb' }]}
                 onPress={() => setBulkTransferStep('ingredients')}
               >
-                <Text style={[s.buttonText, { color: '#374151' }]}>Tillbaka</Text>
+                <Text style={[s.buttonText, { color: '#374151' }]}>{str.bulk.back}</Text>
               </Pressable>
             </>
           )}
@@ -1925,7 +1930,7 @@ export default function MenuScreen() {
       <DatePickerModal
         visible={showWeekPicker}
         value={null}
-        title="Gå till vecka"
+        title={str.weekPicker.title}
         onChange={(dateStr) => {
           if (!dateStr) return;
           const picked = new Date(dateStr + 'T00:00:00');
@@ -2042,14 +2047,14 @@ function MenuCard({
               {/* Meta — moved here to keep the collapsed row to a single line */}
               <Text style={[s.cardMeta, { fontSize: fs(12), marginBottom: sp(4) }]}>
                 {scaledServings !== item.recipe.servings
-                  ? `${scaledServings} port (orig. ${item.recipe.servings})`
-                  : `${item.recipe.servings} port`}
-                {' · '}{item.recipe.ingredients.length} ingredienser
+                  ? str.card.servings(scaledServings, item.recipe.servings)
+                  : str.card.servingsOnly(item.recipe.servings)}
+                {' · '}{str.card.ingredientsCount(item.recipe.ingredients.length)}
               </Text>
               {isTransferred && (
                 <View style={[s.transferredBadge, { marginBottom: sp(8) }]}>
                   <Ionicons name="cart" size={fs(14)} color="#10b981" />
-                  <Text style={[s.transferredText, { fontSize: fs(11) }]}>I inköpslistan</Text>
+                  <Text style={[s.transferredText, { fontSize: fs(11) }]}>{str.card.inShoppingList}</Text>
                 </View>
               )}
               {/* Portion scaler — cutlery icon grouped with the −/+ on the right */}
@@ -2077,18 +2082,18 @@ function MenuCard({
               <View style={s.cardActions}>
                 <Pressable style={s.cardAction} onPress={onViewRecipe}>
                   <Ionicons name="open-outline" size={15} color="#6b7280" />
-                  <Text style={s.cardActionText}>Visa</Text>
+                  <Text style={s.cardActionText}>{str.card.show}</Text>
                 </Pressable>
                 {!isPastWeek && (
                   <Pressable style={s.cardAction} onPress={onReplace}>
                     <Ionicons name="swap-horizontal-outline" size={15} color="#6b7280" />
-                    <Text style={s.cardActionText}>Byt ut</Text>
+                    <Text style={s.cardActionText}>{str.card.replace}</Text>
                   </Pressable>
                 )}
                 {!isPastWeek && (
                   <Pressable style={s.cardAction} onPress={onRemove}>
                     <Ionicons name="trash-outline" size={15} color="#ef4444" />
-                    <Text style={[s.cardActionText, { color: '#ef4444' }]}>Ta bort</Text>
+                    <Text style={[s.cardActionText, { color: '#ef4444' }]}>{str.card.remove}</Text>
                   </Pressable>
                 )}
               </View>
@@ -2096,7 +2101,7 @@ function MenuCard({
               {/* Web saknar drag (touch-action) → flytta via dag-chips i stället */}
               {isWeb && !isPastWeek && (
                 <View style={s.moveRow}>
-                  <Text style={s.moveLabel}>Flytta till dag</Text>
+                  <Text style={s.moveLabel}>{str.card.moveToDay}</Text>
                   <View style={s.moveChips}>
                     {DAYS.map(d => {
                       const active = item.day === d.key;

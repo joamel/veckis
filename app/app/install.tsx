@@ -10,6 +10,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { detectInstallTarget, isAlreadyInstalled, type InstallTarget } from '../src/lib/installDetect';
+import { install as str } from '../src/lib/svenska';
 
 // Senaste APK från EAS preview-build. Uppdatera när vi gör nya builds.
 const APK_URL = 'https://expo.dev/artifacts/eas/boWs3BichtLKjGHtvsJ2GN.apk';
@@ -59,10 +60,10 @@ export default function InstallScreen() {
       <View style={s.container}>
         <View style={s.card}>
           <Ionicons name="checkmark-circle" size={56} color="#10b981" />
-          <Text style={s.title}>Veckis är installerat</Text>
-          <Text style={s.body}>Du kör redan appen som installerad PWA. Öppna den från hemskärmen.</Text>
+          <Text style={s.title}>{str.installed.title}</Text>
+          <Text style={s.body}>{str.installed.body}</Text>
           <Pressable style={s.primaryBtn} onPress={() => router.replace('/(tabs)/schedule')}>
-            <Text style={s.primaryBtnText}>Öppna appen</Text>
+            <Text style={s.primaryBtnText}>{str.installed.openApp}</Text>
           </Pressable>
         </View>
       </View>
@@ -75,28 +76,27 @@ export default function InstallScreen() {
         <View style={s.logoCircle}>
           <Ionicons name="checkmark" size={32} color="#fff" />
         </View>
-        <Text style={s.title}>Veckis</Text>
-        <Text style={s.tagline}>Veckomeny, sysslor och inköp för hushållet</Text>
+        <Text style={s.title}>{str.hero.title}</Text>
+        <Text style={s.tagline}>{str.hero.tagline}</Text>
       </View>
 
       {/* Android: APK + PWA-install om Chromium */}
       {(target === 'android-chrome' || target === 'android-other') && (
         <View style={s.card}>
-          <Text style={s.cardTitle}>Android</Text>
-          <Text style={s.cardBody}>Två sätt att få Veckis på din telefon:</Text>
+          <Text style={s.cardTitle}>{str.android.cardTitle}</Text>
+          <Text style={s.cardBody}>{str.android.cardBody}</Text>
 
           <View style={s.optionBox}>
             <View style={s.optionHeader}>
               <Ionicons name="logo-android" size={22} color="#10b981" />
-              <Text style={s.optionTitle}>Ladda hem appen (APK)</Text>
+              <Text style={s.optionTitle}>{str.android.apk.title}</Text>
             </View>
             <Text style={s.optionBody}>
-              Hela appen med pushnotiser. Du behöver godkänna installation
-              från okänd källa när Android frågar.
+              {str.android.apk.body}
             </Text>
             <Pressable style={s.primaryBtn} onPress={() => { window.location.href = APK_URL; }}>
               <Ionicons name="download-outline" size={18} color="#fff" />
-              <Text style={s.primaryBtnText}>Ladda hem APK</Text>
+              <Text style={s.primaryBtnText}>{str.android.apk.download}</Text>
             </Pressable>
           </View>
 
@@ -104,19 +104,19 @@ export default function InstallScreen() {
             <View style={[s.optionBox, { marginTop: 12 }]}>
               <View style={s.optionHeader}>
                 <Ionicons name="globe-outline" size={22} color="#7c3aed" />
-                <Text style={s.optionTitle}>Installera som webbapp (PWA)</Text>
+                <Text style={s.optionTitle}>{str.android.pwa.title}</Text>
               </View>
               <Text style={s.optionBody}>
-                Snabbare att komma igång. Funkar offline men inga pushnotiser.
+                {str.android.pwa.body}
               </Text>
               {deferredPrompt ? (
                 <Pressable style={s.secondaryBtn} onPress={triggerPwaInstall}>
                   <Ionicons name="add-circle-outline" size={18} color="#7c3aed" />
-                  <Text style={s.secondaryBtnText}>Installera som app</Text>
+                  <Text style={s.secondaryBtnText}>{str.android.pwa.install}</Text>
                 </Pressable>
               ) : (
                 <Text style={s.hint}>
-                  Tryck på menyn (⋮) i Chrome → <Text style={s.bold}>"Installera appen"</Text> eller <Text style={s.bold}>"Lägg till på startskärmen"</Text>.
+                  {str.android.pwa.hintPrefix}<Text style={s.bold}>"{str.android.pwa.hintInstall}"</Text>{str.android.pwa.hintOr}<Text style={s.bold}>"{str.android.pwa.hintAddHome}"</Text>{str.android.pwa.hintSuffix}
                 </Text>
               )}
             </View>
@@ -127,38 +127,35 @@ export default function InstallScreen() {
       {/* iOS Safari: bara manuell PWA-install */}
       {(target === 'ios-safari' || target === 'ios-other') && (
         <View style={s.card}>
-          <Text style={s.cardTitle}>iPhone / iPad</Text>
+          <Text style={s.cardTitle}>{str.ios.cardTitle}</Text>
           <Text style={s.cardBody}>
-            Apple tillåter inte direkt-installation från web. Du installerar Veckis
-            som en webbapp via Safari:
+            {str.ios.cardBody}
           </Text>
           {target === 'ios-other' && (
             <View style={s.warningBox}>
               <Ionicons name="warning-outline" size={18} color="#b45309" />
               <Text style={s.warningText}>
-                Öppna denna sida i <Text style={s.bold}>Safari</Text> — andra browsers (Chrome/Edge på iOS)
-                kan inte installera webbappar.
+                {str.ios.warningPrefix}<Text style={s.bold}>{str.ios.warningSafari}</Text>{str.ios.warningSuffix}
               </Text>
             </View>
           )}
           <View style={s.stepRow}>
             <Text style={s.stepNum}>1.</Text>
             <Text style={s.stepText}>
-              Tryck på <Ionicons name="share-outline" size={18} color="#4f46e5" />{' '}
-              <Text style={s.bold}>Dela</Text>-ikonen längst ner i Safari.
+              {str.ios.step1Prefix}<Ionicons name="share-outline" size={18} color="#4f46e5" />{' '}
+              <Text style={s.bold}>{str.ios.step1Bold}</Text>{str.ios.step1Suffix}
             </Text>
           </View>
           <View style={s.stepRow}>
             <Text style={s.stepNum}>2.</Text>
             <Text style={s.stepText}>
-              Bläddra ner och välj <Text style={s.bold}>"Lägg till på hemskärmen"</Text>.
+              {str.ios.step2Prefix}<Text style={s.bold}>"{str.ios.step2Bold}"</Text>{str.ios.step2Suffix}
             </Text>
           </View>
           <View style={s.stepRow}>
             <Text style={s.stepNum}>3.</Text>
             <Text style={s.stepText}>
-              Bekräfta — Veckis-ikonen dyker upp på hemskärmen och fungerar som
-              en vanlig app.
+              {str.ios.step3}
             </Text>
           </View>
         </View>
@@ -167,17 +164,16 @@ export default function InstallScreen() {
       {/* Desktop Chromium: PWA-install via address-bar */}
       {target === 'desktop-chromium' && (
         <View style={s.card}>
-          <Text style={s.cardTitle}>Desktop (Chrome / Edge / Brave)</Text>
-          <Text style={s.cardBody}>Installera Veckis som ett separat fönster på datorn:</Text>
+          <Text style={s.cardTitle}>{str.desktop.cardTitle}</Text>
+          <Text style={s.cardBody}>{str.desktop.cardBody}</Text>
           {deferredPrompt ? (
             <Pressable style={s.primaryBtn} onPress={triggerPwaInstall}>
               <Ionicons name="desktop-outline" size={18} color="#fff" />
-              <Text style={s.primaryBtnText}>Installera som app</Text>
+              <Text style={s.primaryBtnText}>{str.desktop.install}</Text>
             </Pressable>
           ) : (
             <Text style={s.hint}>
-              Klicka på install-ikonen <Ionicons name="download-outline" size={16} color="#4f46e5" /> i adressfältet,
-              eller via menyn → <Text style={s.bold}>"Installera Veckis"</Text>.
+              {str.desktop.hintPrefix}<Ionicons name="download-outline" size={16} color="#4f46e5" />{str.desktop.hintMiddle}<Text style={s.bold}>"{str.desktop.hintBold}"</Text>{str.desktop.hintSuffix}
             </Text>
           )}
         </View>
@@ -186,13 +182,12 @@ export default function InstallScreen() {
       {/* Firefox / Safari desktop: PWA stöds inte. Säg det rakt ut. */}
       {(target === 'desktop-firefox' || target === 'desktop-safari') && (
         <View style={s.card}>
-          <Text style={s.cardTitle}>{target === 'desktop-firefox' ? 'Firefox' : 'Safari'} stödjer inte PWA-install</Text>
+          <Text style={s.cardTitle}>{str.unsupportedDesktop.cardTitle(target === 'desktop-firefox' ? str.unsupportedDesktop.firefoxName : str.unsupportedDesktop.safariName)}</Text>
           <Text style={s.cardBody}>
-            Du kan ändå använda Veckis direkt i browsern utan installation —
-            klicka bara <Text style={s.bold}>"Öppna webbappen"</Text> nedan.
+            {str.unsupportedDesktop.cardBodyPrefix}<Text style={s.bold}>"{str.unsupportedDesktop.cardBodyBold}"</Text>{str.unsupportedDesktop.cardBodySuffix}
           </Text>
           <Text style={s.hint}>
-            För installation: öppna sidan i <Text style={s.bold}>Chrome</Text>, <Text style={s.bold}>Edge</Text> eller <Text style={s.bold}>Brave</Text>.
+            {str.unsupportedDesktop.hintPrefix}<Text style={s.bold}>{str.unsupportedDesktop.hintChrome}</Text>{str.unsupportedDesktop.hintComma}<Text style={s.bold}>{str.unsupportedDesktop.hintEdge}</Text>{str.unsupportedDesktop.hintOr}<Text style={s.bold}>{str.unsupportedDesktop.hintBrave}</Text>{str.unsupportedDesktop.hintSuffix}
           </Text>
         </View>
       )}
@@ -200,20 +195,19 @@ export default function InstallScreen() {
       {/* Fallback för okända plattformar */}
       {(target === 'desktop-other' || target === 'unknown') && (
         <View style={s.card}>
-          <Text style={s.cardTitle}>Använd webbappen direkt</Text>
+          <Text style={s.cardTitle}>{str.fallback.cardTitle}</Text>
           <Text style={s.cardBody}>
-            På din enhet är det enklast att bara öppna webbappen. Du kan
-            också ladda ner Android-APK om du har en Android-telefon.
+            {str.fallback.cardBody}
           </Text>
           <Pressable style={s.secondaryBtn} onPress={() => { window.location.href = APK_URL; }}>
             <Ionicons name="logo-android" size={18} color="#7c3aed" />
-            <Text style={s.secondaryBtnText}>Ladda hem Android-APK</Text>
+            <Text style={s.secondaryBtnText}>{str.fallback.downloadApk}</Text>
           </Pressable>
         </View>
       )}
 
       <Pressable style={s.linkBtn} onPress={() => router.replace('/(auth)/sign-in')}>
-        <Text style={s.linkBtnText}>Eller öppna webbappen direkt →</Text>
+        <Text style={s.linkBtnText}>{str.openWebAppLink}</Text>
       </Pressable>
     </ScrollView>
   );

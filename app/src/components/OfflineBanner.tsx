@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsOnline } from '../hooks/useIsOnline';
+import { components as str } from '../lib/svenska';
 
 export function OfflineBanner() {
   const online = useIsOnline();
@@ -8,7 +9,7 @@ export function OfflineBanner() {
   return (
     <View style={s.banner}>
       <Ionicons name="cloud-offline-outline" size={15} color="#fff" />
-      <Text style={s.text}>Ingen anslutning — ändringar synkas när du är online igen.</Text>
+      <Text style={s.text}>{str.offlineBanner.text}</Text>
     </View>
   );
 }

@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { components as str } from '../lib/strings';
+import { components as str, common } from '../lib/svenska';
 
 export interface MultiMemberPickerProps {
   members: { id: string; displayName: string }[];
@@ -74,7 +74,7 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
             </View>
             {rotation && onOpenOrderModal && (
               <Pressable onPress={onOpenOrderModal} hitSlop={8} style={s.editOrderBtn}>
-                <Text style={s.editOrderBtnText}>Redigera</Text>
+                <Text style={s.editOrderBtnText}>{common.actions.edit}</Text>
                 <Ionicons name="chevron-forward" size={13} color="#7c3aed" />
               </Pressable>
             )}

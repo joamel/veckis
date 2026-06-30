@@ -1,6 +1,7 @@
 import { Component, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { reportClientError } from '../lib/errorReport';
+import { components as str } from '../lib/svenska';
 
 interface Props {
   children: ReactNode;
@@ -39,20 +40,19 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <View style={s.container}>
         <Text style={s.emoji}>😵</Text>
-        <Text style={s.title}>Hoppsan, något gick fel</Text>
+        <Text style={s.title}>{str.errorBoundary.title}</Text>
         <Text style={s.body}>
-          Ett oväntat fel inträffade. Det har rapporterats automatiskt så att vi kan
-          titta på det.
+          {str.errorBoundary.body}
         </Text>
-        <Pressable style={s.btn} onPress={this.reset} accessibilityRole="button" accessibilityLabel="Försök igen">
-          <Text style={s.btnText}>Försök igen</Text>
+        <Pressable style={s.btn} onPress={this.reset} accessibilityRole="button" accessibilityLabel={str.errorBoundary.retry}>
+          <Text style={s.btnText}>{str.errorBoundary.retry}</Text>
         </Pressable>
         {Platform.OS === 'web' ? (
-          <Pressable style={s.btnSecondary} onPress={this.reloadWeb} accessibilityRole="button" accessibilityLabel="Ladda om sidan">
-            <Text style={s.btnSecondaryText}>Ladda om sidan</Text>
+          <Pressable style={s.btnSecondary} onPress={this.reloadWeb} accessibilityRole="button" accessibilityLabel={str.errorBoundary.reloadPage}>
+            <Text style={s.btnSecondaryText}>{str.errorBoundary.reloadPage}</Text>
           </Pressable>
         ) : (
-          <Text style={s.hint}>Hjälpte det inte? Prova att stänga och starta om appen.</Text>
+          <Text style={s.hint}>{str.errorBoundary.hint}</Text>
         )}
       </View>
     );

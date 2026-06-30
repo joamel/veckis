@@ -14,6 +14,7 @@ import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useUser } from '@clerk/clerk-expo';
+import { householdSetup as str } from '../../src/lib/svenska';
 
 export default function HouseholdSetupScreen() {
   const client = useApiClient();
@@ -46,7 +47,7 @@ export default function HouseholdSetupScreen() {
     } catch { /* best-effort */ }
   }, [params.code]);
 
-  const defaultName = user?.firstName ?? user?.fullName ?? user?.emailAddresses[0]?.emailAddress?.split('@')[0] ?? 'Användare';
+  const defaultName = user?.firstName ?? user?.fullName ?? user?.emailAddresses[0]?.emailAddress?.split('@')[0] ?? str.defaultName;
   const [nickname, setNickname] = useState(defaultName);
 
   async function handleCreate() {
@@ -56,7 +57,7 @@ export default function HouseholdSetupScreen() {
       await client.createHousehold(name.trim(), nickname.trim());
       await refresh();
     } catch (err) {
-      confirm({ title: 'Fel', message: err instanceof Error ? err.message : 'Kunde inte skapa hushåll', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.title, message: err instanceof Error ? err.message : str.errors.couldNotCreate, buttons: [{ label: str.errors.ok }] });
     } finally {
       setLoading(false);
     }
@@ -72,7 +73,7 @@ export default function HouseholdSetupScreen() {
       }
       await refresh();
     } catch (err) {
-      confirm({ title: 'Fel', message: err instanceof Error ? err.message : 'Ogiltig eller utgången kod', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.title, message: err instanceof Error ? err.message : str.errors.invalidCode, buttons: [{ label: str.errors.ok }] });
     } finally {
       setLoading(false);
     }
@@ -83,32 +84,32 @@ export default function HouseholdSetupScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Text style={styles.title}>Välkommen till Veckis</Text>
-      <Text style={styles.subtitle}>Välj ett namn — det syns för andra i hushållet</Text>
+      <Text style={styles.title}>{str.title}</Text>
+      <Text style={styles.subtitle}>{str.subtitle}</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="Ditt namn"
+        placeholder={str.namePlaceholder}
         placeholderTextColor="#9ca3af"
         value={nickname}
         onChangeText={setNickname}
         autoCapitalize="words"
       />
 
-      <Text style={[styles.subtitle, { marginTop: 16 }]}>Skapa ett nytt hushåll eller gå med i ett befintligt</Text>
+      <Text style={[styles.subtitle, { marginTop: 16 }]}>{str.intro}</Text>
 
       <View style={styles.tabs}>
         <Pressable
           style={[styles.tab, tab === 'create' && styles.tabActive]}
           onPress={() => setTab('create')}
         >
-          <Text style={[styles.tabText, tab === 'create' && styles.tabTextActive]}>Skapa</Text>
+          <Text style={[styles.tabText, tab === 'create' && styles.tabTextActive]}>{str.tabs.create}</Text>
         </Pressable>
         <Pressable
           style={[styles.tab, tab === 'join' && styles.tabActive]}
           onPress={() => setTab('join')}
         >
-          <Text style={[styles.tabText, tab === 'join' && styles.tabTextActive]}>Gå med</Text>
+          <Text style={[styles.tabText, tab === 'join' && styles.tabTextActive]}>{str.tabs.join}</Text>
         </Pressable>
       </View>
 
@@ -116,7 +117,7 @@ export default function HouseholdSetupScreen() {
         <View style={styles.form}>
           <TextInput
             style={styles.input}
-            placeholder="Hushållets namn, t.ex. Familjen Andersson"
+            placeholder={str.create.namePlaceholder}
             placeholderTextColor="#9ca3af"
             value={name}
             onChangeText={setName}
@@ -132,7 +133,7 @@ export default function HouseholdSetupScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Skapa hushåll</Text>
+              <Text style={styles.buttonText}>{str.create.button}</Text>
             )}
           </Pressable>
         </View>
@@ -140,7 +141,7 @@ export default function HouseholdSetupScreen() {
         <View style={styles.form}>
           <TextInput
             style={[styles.input, styles.codeInput]}
-            placeholder="XXXXXXXX"
+            placeholder={str.join.codePlaceholder}
             placeholderTextColor="#9ca3af"
             value={code}
             onChangeText={t => setCode(t.toUpperCase())}
@@ -150,7 +151,7 @@ export default function HouseholdSetupScreen() {
             returnKeyType="done"
             onSubmitEditing={handleJoin}
           />
-          <Text style={styles.hint}>Ange den 8-siffriga inbjudningskoden</Text>
+          <Text style={styles.hint}>{str.join.hint}</Text>
           <Pressable
             style={[styles.button, code.length !== 8 && styles.buttonDisabled]}
             onPress={handleJoin}
@@ -159,7 +160,7 @@ export default function HouseholdSetupScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Gå med</Text>
+              <Text style={styles.buttonText}>{str.join.button}</Text>
             )}
           </Pressable>
         </View>

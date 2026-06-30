@@ -54,7 +54,7 @@ import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem } from '@veckis/shared';
 import { kavBehavior, isIOSLike } from '../../src/lib/platform';
-import { shoppingList as str, common } from '../../src/lib/strings';
+import { shoppingList as str, common } from '../../src/lib/svenska';
 import { enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError } from '../../src/lib/shoppingOfflineQueue';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {

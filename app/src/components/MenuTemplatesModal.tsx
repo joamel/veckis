@@ -5,6 +5,7 @@ import { useApiClient, type MenuTemplate } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { shareTemplate } from '../lib/shareWeekMenu';
+import { components as str, common } from '../lib/svenska';
 
 interface Props {
   visible: boolean;
@@ -40,9 +41,9 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
       const tpl = await client.saveMenuTemplate({ householdId, name: name.trim(), weekYear, weekNumber });
       setTemplates(prev => [tpl, ...(prev ?? [])]);
       setName('');
-      showToast('Vecka sparad som mall');
+      showToast(str.menuTemplatesModal.toasts.saved);
     } catch (e) {
-      showError(e, 'Kunde inte spara mallen');
+      showError(e, str.menuTemplatesModal.toasts.errorSave);
     } finally {
       setSaving(false);
     }
@@ -53,23 +54,23 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
       setBusyId(tpl.id);
       try {
         const { applied } = await client.applyMenuTemplate(tpl.id, { weekYear, weekNumber, overwrite });
-        showToast(`${applied} ${applied === 1 ? 'rätt' : 'rätter'} tillagda från "${tpl.name}"`);
+        showToast(str.menuTemplatesModal.toasts.applied(applied, tpl.name));
         onApplied();
         onClose();
       } catch (e) {
-        showError(e, 'Kunde inte använda mallen');
+        showError(e, str.menuTemplatesModal.toasts.errorApply);
       } finally {
         setBusyId(null);
       }
     };
     if (weekHasItems) {
       confirm({
-        title: 'Veckan har redan rätter',
-        message: `Vill du ersätta veckans meny med "${tpl.name}", eller lägga till utöver de befintliga?`,
+        title: str.menuTemplatesModal.overwrite.title,
+        message: str.menuTemplatesModal.overwrite.message(tpl.name),
         buttons: [
-          { label: 'Lägg till', onPress: () => run(false) },
-          { label: 'Ersätt', style: 'destructive', onPress: () => run(true) },
-          { label: 'Avbryt', style: 'cancel' },
+          { label: str.menuTemplatesModal.overwrite.add, onPress: () => run(false) },
+          { label: str.menuTemplatesModal.overwrite.replace, style: 'destructive', onPress: () => run(true) },
+          { label: common.actions.cancel, style: 'cancel' },
         ],
       });
     } else {
@@ -79,18 +80,18 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
 
   function confirmDelete(tpl: MenuTemplate) {
     confirm({
-      title: 'Ta bort mall',
-      message: `Ta bort mallen "${tpl.name}"?`,
+      title: str.menuTemplatesModal.deleteDialog.title,
+      message: str.menuTemplatesModal.deleteDialog.message(tpl.name),
       buttons: [
         {
-          label: 'Ta bort', style: 'destructive',
+          label: common.actions.delete, style: 'destructive',
           onPress: async () => {
             setTemplates(prev => (prev ?? []).filter(t => t.id !== tpl.id));
             try { await client.deleteMenuTemplate(tpl.id); }
-            catch (e) { showError(e, 'Kunde inte ta bort mallen'); }
+            catch (e) { showError(e, str.menuTemplatesModal.toasts.errorDelete); }
           },
         },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -102,16 +103,16 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
       <View style={s.sheet}>
         <View style={s.handle} />
         <View style={s.header}>
-          <Text style={s.title}>Veckomeny-mallar</Text>
-          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Stäng"><Ionicons name="close" size={24} color="#6b7280" /></Pressable>
+          <Text style={s.title}>{str.menuTemplatesModal.title}</Text>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.close}><Ionicons name="close" size={24} color="#6b7280" /></Pressable>
         </View>
 
         <ScrollView contentContainerStyle={s.body}>
-          <Text style={s.sectionLabel}>SPARA DENNA VECKA</Text>
+          <Text style={s.sectionLabel}>{str.menuTemplatesModal.saveSection}</Text>
           <View style={s.saveRow}>
             <TextInput
               style={s.input}
-              placeholder="Mallnamn, t.ex. Standardvecka"
+              placeholder={str.menuTemplatesModal.namePlaceholder}
               placeholderTextColor="#9ca3af"
               value={name}
               onChangeText={setName}
@@ -119,32 +120,32 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
               returnKeyType="done"
             />
             <Pressable style={[s.saveBtn, (!name.trim() || saving) && s.saveBtnDisabled]} onPress={save} disabled={!name.trim() || saving}>
-              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Spara</Text>}
+              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>{str.menuTemplatesModal.save}</Text>}
             </Pressable>
           </View>
-          {!weekHasItems && <Text style={s.hint}>Den här veckan har inga rätter att spara än.</Text>}
+          {!weekHasItems && <Text style={s.hint}>{str.menuTemplatesModal.noItemsHint}</Text>}
 
-          <Text style={[s.sectionLabel, { marginTop: 22 }]}>ANVÄND EN MALL</Text>
+          <Text style={[s.sectionLabel, { marginTop: 22 }]}>{str.menuTemplatesModal.useSection}</Text>
           {templates === null ? (
             <ActivityIndicator color="#4f46e5" style={{ marginTop: 16 }} />
           ) : templates.length === 0 ? (
-            <Text style={s.hint}>Inga mallar än. Spara en vecka ovan för att skapa din första.</Text>
+            <Text style={s.hint}>{str.menuTemplatesModal.noTemplates}</Text>
           ) : (
             templates.map(tpl => (
               <View key={tpl.id} style={s.tplRow}>
                 <Pressable style={s.tplMain} onPress={() => apply(tpl)} disabled={busyId === tpl.id}>
                   <View style={{ flex: 1 }}>
                     <Text style={s.tplName}>{tpl.name}</Text>
-                    <Text style={s.tplMeta}>{tpl.items.length} {tpl.items.length === 1 ? 'rätt' : 'rätter'}</Text>
+                    <Text style={s.tplMeta}>{str.menuTemplatesModal.dishCount(tpl.items.length)}</Text>
                   </View>
                   {busyId === tpl.id
                     ? <ActivityIndicator color="#4f46e5" size="small" />
                     : <Ionicons name="add-circle-outline" size={22} color="#4f46e5" />}
                 </Pressable>
-                <Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Dela mall ${tpl.name}`}>
+                <Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.shareA11y(tpl.name)}>
                   <Ionicons name="share-outline" size={18} color="#4f46e5" />
                 </Pressable>
-                <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Ta bort mall ${tpl.name}`}>
+                <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.deleteA11y(tpl.name)}>
                   <Ionicons name="trash-outline" size={18} color="#9ca3af" />
                 </Pressable>
               </View>

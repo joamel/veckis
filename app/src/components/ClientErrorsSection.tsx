@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type ClientErrorEntry } from '../api/client';
 import { useToast } from '../context/ToastContext';
+import { components as str, common } from '../lib/svenska';
 
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
@@ -48,7 +49,7 @@ export function ClientErrorsSection() {
       const data = await client.getClientErrors();
       setErrors(data);
     } catch (e) {
-      showError(e, 'Kunde inte ladda klientfel');
+      showError(e, common.errors.couldNotLoad('klientfel'));
     } finally {
       setLoading(false);
     }
@@ -64,10 +65,10 @@ export function ClientErrorsSection() {
         style={s.header}
         onPress={() => setExpanded(v => !v)}
         accessibilityRole="button"
-        accessibilityLabel={expanded ? 'Dölj klientfel' : 'Visa klientfel'}
+        accessibilityLabel={expanded ? str.clientErrorsSection.hideA11y : str.clientErrorsSection.showA11y}
       >
         <Ionicons name="bug-outline" size={16} color="#dc2626" />
-        <Text style={s.title}>Klientfel</Text>
+        <Text style={s.title}>{str.clientErrorsSection.title}</Text>
         {errors && errors.length > 0 && (
           <View style={s.badge}><Text style={s.badgeText}>{errors.length}</Text></View>
         )}
@@ -78,7 +79,7 @@ export function ClientErrorsSection() {
         <View style={s.body}>
           {loading && <ActivityIndicator size="small" color="#dc2626" style={{ marginVertical: 12 }} />}
           {!loading && errors && errors.length === 0 && (
-            <Text style={s.empty}>Inga fel sedan senaste omstart.</Text>
+            <Text style={s.empty}>{str.clientErrorsSection.noErrors}</Text>
           )}
           {!loading && errors && errors.map((e, idx) => (
             <ErrorRow key={e.id} e={e} last={idx === errors.length - 1} />
@@ -86,7 +87,7 @@ export function ClientErrorsSection() {
           {!loading && errors && errors.length > 0 && (
             <Pressable style={s.refreshBtn} onPress={load} hitSlop={6}>
               <Ionicons name="refresh-outline" size={14} color="#6b7280" />
-              <Text style={s.refreshText}>Uppdatera</Text>
+              <Text style={s.refreshText}>{str.clientErrorsSection.refresh}</Text>
             </Pressable>
           )}
         </View>

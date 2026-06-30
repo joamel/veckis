@@ -4,15 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type NotificationPreferences } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { registerForPush } from '../lib/registerPush';
+import { components as str } from '../lib/svenska';
 
-const TYPES: { key: keyof NotificationPreferences; title: string; desc: string }[] = [
-  { key: 'activityReminder', title: 'Påminnelse innan aktivitet', desc: 'Innan en aktivitet startar' },
-  { key: 'choreOverdue', title: 'Förfallen syssla', desc: 'När en syssla inte hunnit bli klar' },
-  { key: 'listCleared', title: 'Inköpslista rensad', desc: 'När någon rensar en aktiv lista' },
-  { key: 'shopperClaimed', title: '"Jag handlar"', desc: 'När någon i hushållet börjar handla' },
-  { key: 'choreCompleted', title: 'Syssla avbockad', desc: 'När någon bockar av en syssla' },
-  { key: 'newMember', title: 'Ny medlem', desc: 'När någon går med i hushållet' },
-];
+const TYPES: { key: keyof NotificationPreferences; title: string; desc: string }[] = (
+  Object.entries(str.notificationsModal.types) as [keyof NotificationPreferences, { title: string; desc: string }][]
+).map(([key, { title, desc }]) => ({ key, title, desc }));
 
 export function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const client = useApiClient();
@@ -34,7 +30,7 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
       setPrefs(await client.updateNotificationPreferences({ [key]: value }));
     } catch (e) {
       setPrefs(prev);
-      showError(e, 'Kunde inte spara notisinställningen');
+      showError(e, str.notificationsModal.errorSave);
     }
   }
 
@@ -43,10 +39,10 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
     setDeviceStatus(null);
     const res = await registerForPush(client);
     setActivating(false);
-    if (res.status === 'ok') setDeviceStatus('Den här enheten är registrerad för notiser.');
-    else if (res.status === 'denied') setDeviceStatus('Notiser är avstängda i telefonens inställningar — slå på dem för Veckis där.');
-    else if (res.status === 'unsupported') setDeviceStatus('Push kräver en fysisk enhet (funkar inte i emulator).');
-    else setDeviceStatus(`Kunde inte registrera: ${res.error}`);
+    if (res.status === 'ok') setDeviceStatus(str.notificationsModal.deviceStatus.ok);
+    else if (res.status === 'denied') setDeviceStatus(str.notificationsModal.deviceStatus.denied);
+    else if (res.status === 'unsupported') setDeviceStatus(str.notificationsModal.deviceStatus.unsupported);
+    else setDeviceStatus(str.notificationsModal.deviceStatus.error(res.error));
   }
 
   async function sendTest() {
@@ -54,14 +50,14 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
     try {
       const r = await client.sendTestPush();
       if (r.tokens === 0) {
-        showToast('Ingen enhet registrerad — tryck "Aktivera på den här enheten" först', 'error');
+        showToast(str.notificationsModal.test.noDevice, 'error');
       } else if (r.errors.length > 0) {
-        showToast(`Skickat till ${r.tokens} enhet(er), men fel: ${r.errors[0]}`, 'error');
+        showToast(str.notificationsModal.test.withErrors(r.tokens, r.errors[0]), 'error');
       } else {
-        showToast(`Testnotis skickad till ${r.tokens} enhet(er)`, 'success');
+        showToast(str.notificationsModal.test.sent(r.tokens), 'success');
       }
     } catch (e) {
-      showError(e, 'Kunde inte skicka testnotis');
+      showError(e, str.notificationsModal.test.errorSend);
     } finally {
       setTesting(false);
     }
@@ -74,8 +70,8 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
       <View style={s.sheet}>
         <View style={s.handle} />
         <View style={s.header}>
-          <Text style={s.title}>Notiser</Text>
-          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Stäng">
+          <Text style={s.title}>{str.notificationsModal.title}</Text>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.notificationsModal.close}>
             <Ionicons name="close" size={24} color="#6b7280" />
           </Pressable>
         </View>
@@ -102,16 +98,16 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
             <ActivityIndicator color="#4f46e5" style={{ marginTop: 24 }} />
           )}
 
-          <Text style={s.sectionLabel}>DEN HÄR ENHETEN</Text>
+          <Text style={s.sectionLabel}>{str.notificationsModal.deviceSection}</Text>
           <Pressable style={s.btn} onPress={activateOnDevice} disabled={activating}>
             {activating
               ? <ActivityIndicator color="#4f46e5" size="small" />
-              : <><Ionicons name="phone-portrait-outline" size={18} color="#4f46e5" /><Text style={s.btnText}>Aktivera på den här enheten</Text></>}
+              : <><Ionicons name="phone-portrait-outline" size={18} color="#4f46e5" /><Text style={s.btnText}>{str.notificationsModal.activate}</Text></>}
           </Pressable>
           <Pressable style={[s.btn, s.btnTest]} onPress={sendTest} disabled={testing}>
             {testing
               ? <ActivityIndicator color="#fff" size="small" />
-              : <><Ionicons name="paper-plane-outline" size={18} color="#fff" /><Text style={[s.btnText, { color: '#fff' }]}>Skicka testnotis</Text></>}
+              : <><Ionicons name="paper-plane-outline" size={18} color="#fff" /><Text style={[s.btnText, { color: '#fff' }]}>{str.notificationsModal.sendTest}</Text></>}
           </Pressable>
           {deviceStatus && <Text style={s.statusText}>{deviceStatus}</Text>}
         </ScrollView>

@@ -1,6 +1,7 @@
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { components as str } from '../lib/svenska';
 
 interface Rect { x: number; y: number; width: number; height: number }
 
@@ -40,7 +41,7 @@ interface Props extends SpotlightOptions {
 
 const PAD = 10; // padding around the target inside the highlight ring
 
-export function SpotlightTip({ visible, targetRef, targetRect, title, message, emoji = '💡', actionLabel = 'Förstått', swipeDemo, position, total, hasNext, onToggleSkipAll, skipAllActive, onDismiss }: Props) {
+export function SpotlightTip({ visible, targetRef, targetRect, title, message, emoji = '💡', actionLabel = str.spotlightTip.defaultActionLabel, swipeDemo, position, total, hasNext, onToggleSkipAll, skipAllActive, onDismiss }: Props) {
   const [measuredRect, setMeasuredRect] = useState<Rect | null>(null);
   const pulse = useRef(new Animated.Value(0)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
@@ -173,7 +174,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
         {total && total > 1 ? (
           <View style={s.topRow}>
             <View style={s.positionPill}>
-              <Text style={s.positionText}>{position} av {total}</Text>
+              <Text style={s.positionText}>{str.spotlightTip.positionOf(position!, total!)}</Text>
             </View>
           </View>
         ) : null}
@@ -187,14 +188,14 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
           {message ? <Text style={s.message}>{message}</Text> : null}
         </ScrollView>
 
-        <Pressable style={s.btn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel={hasNext ? 'Nästa' : actionLabel}>
-          <Text style={s.btnText}>{hasNext ? 'Nästa' : actionLabel}</Text>
+        <Pressable style={s.btn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel={hasNext ? str.spotlightTip.next : actionLabel}>
+          <Text style={s.btnText}>{hasNext ? str.spotlightTip.next : actionLabel}</Text>
         </Pressable>
 
         {onToggleSkipAll ? (
           <Pressable style={s.skipRow} onPress={onToggleSkipAll}>
             <Ionicons name="bulb-outline" size={16} color="#7c3aed" />
-            <Text style={s.skipText}>Visa onboarding-tips</Text>
+            <Text style={s.skipText}>{str.spotlightTip.toggleOnboarding}</Text>
             <Ionicons
               name={skipAllActive ? 'toggle-outline' : 'toggle'}
               size={24}

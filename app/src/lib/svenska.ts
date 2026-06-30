@@ -42,12 +42,27 @@ export const common = {
     long:  ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag', 'Söndag'] as const,
   },
   ordinals: ['Första', 'Andra', 'Tredje', 'Fjärde', 'Femte', 'Sista'] as const,
+  tabs: {
+    shopping:        'Inköp',
+    menu:            'Meny',
+    schedule:        'Kalender',
+    chores:          'Sysslor',
+    settings:        'Hushållet',
+  },
 };
 
 // ─── Sysslor ─────────────────────────────────────────────────────────────────
 
 export const chores = {
   title:             'Sysslor',
+
+  freqLabels: {
+    once:            'En gång',
+    daily:           'Dagligen',
+    weekly:          'Varje vecka',
+    biweekly:        'Varannan vecka',
+    monthly:         'Månadsvis',
+  },
 
   header: {
     clearDone:       'Rensa klara',
@@ -97,7 +112,7 @@ export const chores = {
   clear: {
     title:           'Rensa klara sysslor',
     once:            (n: number) => `${n} engångssyssla${n === 1 ? '' : 'r'} tas bort`,
-    recurring:       (n: number) => `${n} återkommande avprickning${n === 1 ? '' : 'ar'} nollställs`,
+    recurring:       (n: number) => `${n} återkommande syssla${n === 1 ? '' : 'r'} döljs tills nästa tillfälle`,
     confirm:         'Rensa',
   },
 
@@ -117,6 +132,7 @@ export const chores = {
   toasts: {
     created:         'Syssla skapad',
     saved:           'Syssla sparad',
+    deleted:         'Syssla borttagen',
     errorCreate:     'Kunde inte skapa syssla',
     errorSave:       'Kunde inte spara ändringarna',
     errorComplete:   'Kunde inte markera sysslan',
@@ -150,14 +166,19 @@ export const chores = {
 // ─── Kalender / Aktiviteter ───────────────────────────────────────────────────
 
 export const schedule = {
+  title: 'Kalender',
+
   emptyState: {
-    title: 'Inga sysslor än',
+    title:    'Inget planerat',
+    subtitle: 'Lägg till en aktivitet på den här dagen.',
+    cta:      'Ny aktivitet',
   },
 
   editScope: {
-    title:      'Vilka tillfällen vill du redigera?',
-    single:     'Bara det här',
-    series:     'Hela serien',
+    dialogTitle: 'Redigera aktivitet',
+    title:       'Vilka tillfällen vill du redigera?',
+    single:      'Bara det här',
+    series:      'Hela serien',
   },
 
   deleteScope: {
@@ -167,18 +188,88 @@ export const schedule = {
     series:     'Hela serien',
   },
 
+  deleteOnce: {
+    title:      'Ta bort',
+    confirm:    'Ta bort',
+  },
+
   toasts: {
     created:    'Aktivitet skapad',
     saved:      'Aktivitet sparad',
     deleted:    'Aktivitet borttagen',
     errorLoad:  'Kunde inte ladda schemat',
     errorCreate:'Kunde inte skapa schemapost',
+    errorSave:  'Kunde inte spara aktiviteten',
     errorDelete:'Kunde inte ta bort',
   },
 
   actions: {
     viewRecipe: 'Visa recept',
     goToMenu:   'Gå till Meny',
+    goToChores: 'Gå till Sysslor',
+  },
+
+  sections: {
+    meals:      'MATRÄTTER',
+    chores:     'SYSSLOR',
+    entries:    'AKTIVITETER',
+  },
+
+  allDay: 'Heldag',
+
+  shared: {
+    isShared:     'Gemensam kalender',
+    isPrivate:    'Bara för mig',
+    sharedSub:    'Syns för alla i hushållet',
+    privateSub:   'Syns bara för dig',
+  },
+
+  form: {
+    titleLabel:       'Titel',
+    titlePlaceholder: 'Titel, t.ex. Träning',
+    timeLabel:        'Tid (valfritt)',
+    assignLabel:      'Tilldela personer (valfritt)',
+    responsibleLabel: 'Ansvarig',
+    noOne:            'Ingen',
+    reminderLabel:    'Påminnelse',
+    reminderOnSub:    'Notis innan aktiviteten startar',
+    reminderOffSub:   'Ingen påminnelse',
+    newTitle:         'Ny aktivitet',
+    editEntryTitle:   'Redigera aktivitet',
+    editChoreTitle:   'Redigera syssla',
+  },
+
+  filter: {
+    title:      'Filtrera på person',
+    popupTitle: 'Filter',
+    clear:      'Rensa',
+    all:        'Alla',
+  },
+
+  weekPicker: {
+    title:      'Gå till dag',
+    startDate:  'Startdatum',
+    endDate:    'Slutdatum',
+  },
+
+  weekLabel: (n: number) => `Vecka ${n}`,
+
+  view: {
+    monthToggle: 'Månad',
+    weekToggle:  'Vecka',
+  },
+
+  newRecurrence: {
+    intervalUnit: { daily: 'dag', weekly: 'vecka', monthly: 'månad', yearly: 'år' } as Record<string, string>,
+  },
+
+  recurrenceSummary: {
+    once:        'Engångstillfälle',
+    every:       (weeks: number) => weeks > 1 ? `var ${weeks}:e ` : 'varje ',
+    daily:       (weeks: number) => weeks > 1 ? `Var ${weeks}:e dag` : 'Varje dag',
+    weekly:      (every: string, days: string) => `${every}vecka${days ? ` (${days})` : ''}`,
+    monthly:     (every: string) => `${every}månad`,
+    yearly:      (every: string) => `${every}år`,
   },
 
   remind: {
@@ -192,6 +283,7 @@ export const schedule = {
     atStart:        'Vid start',
     customTime:     'Välj annan tid',
     addReminder:    'Lägg till påminnelse',
+    before:         (times: string) => `${times} innan`,
     formatMin:      (m: number) => `${m} min`,
     formatHour:     (h: number) => `${h} tim`,
     formatDay:      (d: number) => d === 1 ? '1 dag' : `${d} dagar`,
@@ -205,11 +297,15 @@ export const schedule = {
     },
     origins: {
       title:   'Var kommer innehållet ifrån?',
-      message: 'Maträtter på kalendern kommer från veckomenyn (Meny-fliken), och sysslor från Sysslor-fliken. Skapa eller redigera dem där - de syns sedan automatiskt i kalendern.',
+      message: 'Maträtter på kalendern kommer från veckomenyn (Meny-fliken), och sysslor från Sysslor-fliken. Skapa eller redigera dem där — de syns sedan automatiskt i kalendern.',
     },
     add: {
       title:   'Skapa aktivitet',
       message: 'Här lägger du till en aktivitet på den valda dagen. Du kan välja om den ska upprepas (dagligen, veckovis, månadsvis), vem som ska göra den och få en påminnelse innan starttiden.',
+    },
+    filter: {
+      title:   'Filtrera på person',
+      message: 'Tryck här för att bara visa aktiviteter (och sysslor) för en eller flera personer. Filtret gäller både kalendern och sysslor-fliken.',
     },
   },
 };
@@ -388,6 +484,8 @@ export const shoppingList = {
 // ─── Meny ─────────────────────────────────────────────────────────────────────
 
 export const menu = {
+  title: 'Meny',
+
   sections: {
     recipes:      'MATRÄTTER',
     unscheduled:  'EJ SCHEMALAGDA',
@@ -426,22 +524,125 @@ export const menu = {
       message: (title: string) => `${title} är redan inlagd denna vecka. Byt ut ändå?`,
       confirm: 'Byt ut',
     },
+    loadError: {
+      title:   'Fel',
+      message: 'Kunde inte ladda menyn',
+    },
+    removeFromMenu: {
+      title:  'Ta bort från menyn?',
+      remove: 'Ta bort',
+    },
+    dayOccupiedMove: {
+      title:   'Dag redan planerad',
+      message: (day: string) => `${day} har redan en rätt planerad. Flytta ändå?`,
+      confirm: 'Flytta',
+    },
+    replaceRecipe: {
+      title:   'Byt ut rätt',
+      message: (oldTitle: string, newTitle: string) => `Ersätt "${oldTitle}" med "${newTitle}"?`,
+      confirm: 'Byt ut',
+    },
+    removeFromShoppingList: {
+      title:    'Ta bort från inköpslista?',
+      subtitle: 'Välj vilka listor du vill ta bort ingredienserna från',
+      keep:     'Behåll',
+      removeFromSelected: 'Ta bort från valda',
+    },
   },
 
   toasts: {
-    scalingAffectsNothing: 'Receptet är redan i en inköpslista - skalningen påverkar inte listan automatiskt',
-    recipeAdded:           'Recept tillagd till menyn',
-    transferred:           (n: number) => `${n} ${n === 1 ? 'rätt' : 'rätter'} ${n === 1 ? 'överförd' : 'överförda'} till inköpslistan`,
+    scalingAffectsNothing:    'Receptet är redan i en inköpslista - skalningen påverkar inte listan automatiskt',
+    recipeAdded:              'Recept tillagd till menyn',
+    transferred:              (n: number) => `${n} ${n === 1 ? 'rätt' : 'rätter'} ${n === 1 ? 'överförd' : 'överförda'} till inköpslistan`,
+    removedSingle:            'Recept borttagen från menyn',
+    removedMultiple:          (n: number) => `${n} recept tas bort`,
+    undo:                     'Ångra',
+    ingredientsTransferred:   (title: string) => `${title} överförd till inköpslistan`,
+    errorFetchWeeks:          'Kunde inte hämta veckomenyer',
+    errorReplace:             'Kunde inte byta ut rätten',
+    errorAddRecipe:           'Kunde inte lägga till rätt',
+    errorRemove:              'Kunde inte ta bort',
+    errorRemoveIngredients:   'Kunde inte ta bort ingredienserna',
+    errorCreateList:          'Kunde inte skapa lista',
+    errorTransfer:            'Kunde inte överföra ingredienserna',
+    errorTransferIngredients: 'Kunde inte lägga till ingredienserna',
+    errorMove:                'Kunde inte flytta rätten',
+    errorSaveServings:        'Kunde inte spara portioner',
   },
 
   inventory: {
-    have:     'Finns',
-    buy:      (amount: string, unit: string) => `köp ${amount}${unit}`,
+    have:              'Finns',
+    buy:               (amount: string, unit: string) => `köp ${amount}${unit}`,
+    amountPlaceholder: 'Har',
   },
 
   emptyState: {
     title:    'Inga recept än',
     subtitle: 'Lägg till ett recept manuellt eller via en URL',
+    noDishesPlanned: {
+      title:        'Inga rätter planerade',
+      subtitlePast: 'Inga rätter var planerade denna vecka.',
+      subtitle:     'Planera veckans måltider så kan ni föra över ingredienserna till inköpslistan.',
+      action:       'Planera en rätt',
+    },
+  },
+
+  picker: {
+    chooseDay:       'Välj dag',
+    noDay:           'Ingen dag',
+    noRecipesYet:    'Inga recept än — lägg till via Recept-fliken',
+    goToRecipes:     'Gå till recept',
+    createNewRecipe: 'Skapa nytt recept',
+    replaceTitle:    (title: string) => `Byt ut ${title}`,
+  },
+
+  card: {
+    show:             'Visa',
+    replace:          'Byt ut',
+    remove:           'Ta bort',
+    moveToDay:        'Flytta till dag',
+    servings:         (n: number, orig: number) => `${n} port (orig. ${orig})`,
+    servingsOnly:     (n: number) => `${n} port`,
+    ingredientsCount: (n: number) => `${n} ingredienser`,
+    inShoppingList:   'I inköpslistan',
+  },
+
+  cleanup: {
+    listIngredientsCount: (n: number) => `${n} ingredienser`,
+  },
+
+  bulk: {
+    chooseWeekMenu:          'Välj veckomeny',
+    chooseWeekMenuSub:       'Vilken veckas meny vill du importera?',
+    noActiveWeek:            'Ingen aktiv vecka med planerade rätter',
+    weekLabel:               (n: number, y: number) => `Vecka ${n}, ${y}`,
+    dishesCount:             (n: number) => `${n} ${n === 1 ? 'rätt' : 'rätter'}`,
+    allAlreadyAdded:         'alla redan med',
+    newCount:                (n: number) => `${n} nya`,
+    chooseDishes:            'Välj rätter',
+    chooseDishesSub:         'Vilka rätter vill du överföra?',
+    next:                    'Nästa',
+    whatDoYouHave:           'Vad har du hemma?',
+    haveHint:                'Skriv mängden du har eller tryck "Allt" om du har tillräckligt. Bristen läggs på listan.',
+    transfer:                'Överför',
+    back:                    'Tillbaka',
+    chooseShoppingList:      'Välj inköpslista',
+    dishesToTransfer:        (n: number) => `${n} rätt(er) att överföra`,
+    noActiveList:            'Ingen aktiv inköpslista — skapa en direkt här',
+    newListNamePlaceholder:  'Namn på ny lista',
+    create:                  'Skapa',
+    itemsCount:              (n: number) => `${n} varor`,
+  },
+
+  weekPicker: {
+    title: 'Gå till vecka',
+  },
+
+  a11y: {
+    templates:          'Veckomeny-mallar',
+    recipesTab:         'Recept',
+    transferFab:        'Överför veckomeny till inköpslista',
+    saveWeekAsTemplate: 'Spara vecka som mall',
   },
 
   tips: {
@@ -579,6 +780,13 @@ export const recipes = {
     transferA11y:   'Lägg i inköpslista',
     cookClose:      'Avsluta',
     removeImage:    'Ta bort bild',
+    imageLoadError: 'Kunde inte ladda bilden',
+    noIngredients:  'Inga ingredienser än — tryck för att lägga till',
+    originalRecipe: '↗ Originalrecept',
+    cookStep:       (current: number, total: number) => `Steg ${current} av ${total}`,
+    cookPrev:       'Föregående',
+    cookNext:       'Nästa',
+    cookDone:       'Klart!',
   },
 
   transfer: {
@@ -679,11 +887,15 @@ export const settings = {
     switchHint:    (n: number) => `${n} hushåll · tryck för att byta`,
     active:        'Aktivt hushåll',
     leave:         'Lämna hushållet',
+    fallbackName:  'hushållet',
   },
+
+  fallbackUser: 'Användare',
 
   member: {
     localProfile:  'Lokal profil',
     admin:         'Admin',
+    accountMember: 'Konto-medlem',
     you:           '(Du)',
   },
 
@@ -696,6 +908,7 @@ export const settings = {
 
   householdActions: {
     rename:       'Byt namn',
+    export:       'Exportera hushållets data',
     delete:       'Ta bort hushållet',
     leave:        'Lämna hushållet',
   },
@@ -713,9 +926,27 @@ export const settings = {
     join:          'Gå med i hushåll',
   },
 
+  confirmTitles: {
+    promoteAdmin:    'Gör till admin',
+    demoteAdmin:     'Ta bort admin-rättigheter',
+    removeMember:    'Ta bort medlem',
+    switchHousehold: 'Byt hushåll',
+  },
+
+  a11y: {
+    account:               'Konto',
+    adminLogs:             'Adminloggar',
+    close:                 'Stäng',
+    notifications:         'Inställningar',
+    householdOptions:      'Hushållsalternativ',
+    switchActiveHousehold: 'Byt aktivt hushåll',
+    editMember:            (name: string) => `Redigera ${name}`,
+  },
+
   modals: {
     renameHousehold: 'Byt namn på hushållet',
     deleteHousehold: 'Ta bort hushållet',
+    editMember:      'Byt namn',
     addProfile:      'Lägg till lokal profil',
     createHousehold: 'Skapa nytt hushåll',
     joinHousehold:   'Gå med i hushåll',
@@ -729,25 +960,60 @@ export const settings = {
   },
 
   messages: {
-    addProfile:      'Skapa en lokal profil för ett familjemedlem utan konto.',
-    deleteConfirm:   (name: string) =>
+    addProfile:          'Skapa en lokal profil för ett familjemedlem utan konto.',
+    deleteConfirm:       (name: string) =>
       `All data i "${name}" (sysslor, meny, inköpslistor) raderas permanent och kan inte återställas.\n\nSkriv DELETE för att bekräfta.`,
-    joinHint:        'Ange inbjudningskoden du fick från husägaren.',
-    alreadyMember:   'Du är redan medlem i det hushållet.',
+    deleteConfirmIntro:  (name: string) => `All data i "${name}" (sysslor, meny, inköpslistor) raderas permanent och kan inte återställas.`,
+    deleteConfirmOutro:  'för att bekräfta.',
+    joinHint:            'Ange inbjudningskoden du fick från husägaren.',
+    alreadyMember:       'Du är redan medlem i det hushållet.',
+    promoteAdmin:        (name: string) => `Vill du ge ${name} admin-rättigheter? Admins kan redigera hushållet och hantera medlemmar.`,
+    demoteAdmin:         (name: string) => `Vill du ta bort admin-rättigheterna från ${name}?`,
+    removeMemberConfirm: (name: string) => `Är du säker på att du vill ta bort ${name}?`,
+    removeMemberWarning: (name: string, parts: string) => `\n\n${name} har ${parts} tilldelade. De blir utan ansvarig om du tar bort ${name}.`,
+    choreCount:          (n: number) => `${n} ${n === 1 ? 'syssla' : 'sysslor'}`,
+    activityCount:       (n: number) => `${n} ${n === 1 ? 'aktivitet' : 'aktiviteter'}`,
+    switchHousehold:     (name: string) => `Vill du byta till "${name}"?`,
+    leaveHousehold:      'Du tas bort från hushållet. Sysslor och aktiviteter som var tilldelade dig blir otilldelade. Detta kan inte ångras — be admin bjuda in dig på nytt om du ångrar dig.',
+    leaveHouseholdTitle: (name: string) => `Lämna ${name}?`,
   },
 
   buttons: {
-    createProfile:   'Skapa profil',
-    joinHousehold:   'Gå med',
-    deleteHousehold: 'Ta bort hushållet',
+    createProfile:    'Skapa profil',
+    joinHousehold:    'Gå med',
+    switchHousehold:  'Byt',
+    leaveHousehold:   'Lämna',
+    removeAnyway:     'Ta bort ändå',
+    deleteHousehold:  'Ta bort hushållet',
+    remove:           'Ta bort',
   },
 
   toasts: {
-    editingDone:     'Redigeringsläget avslutat',
-    errorLoadChores: 'Kunde inte ladda sysslor',
-    errorInvite:     'Kunde inte skapa inbjudningskod',
-    errorJoin:       'Kunde inte ansluta till hushållet. Kontrollera koden.',
-    errorCreate:     'Kunde inte skapa hushållet',
+    editingDone:              'Redigeringsläget avslutat',
+    errorLoadChores:          'Kunde inte ladda sysslor',
+    errorInvite:              'Kunde inte skapa inbjudningskod',
+    errorJoin:                'Kunde inte ansluta till hushållet. Kontrollera koden.',
+    errorCreate:              'Kunde inte skapa hushållet',
+    errorExport:              'Kunde inte exportera data',
+    errorUpdateHouseholdName: 'Kunde inte uppdatera hushållets namn',
+    errorUpdateMemberName:    'Kunde inte uppdatera namnet',
+    errorChangeRole:          'Kunde inte ändra roll',
+    errorRemoveMember:        'Kunde inte ta bort medlem',
+    errorCreateLocalProfile:  'Kunde inte skapa lokal profil',
+    errorDeleteHousehold:     'Kunde inte ta bort hushållet',
+    errorLeaveHousehold:      'Kunde inte lämna hushållet',
+    errorShareLink:           'Kunde inte dela länk',
+    householdNameUpdated:     'Hushållets namn uppdaterat',
+    memberNameUpdated:        'Namnet har uppdaterats',
+    memberPromoted:           (name: string) => `${name} är nu admin`,
+    memberDemoted:            (name: string) => `${name} är inte längre admin`,
+    memberRemoved:            (name: string) => `${name} borttagen`,
+    localProfileAdded:        (name: string) => `${name} tillagd som lokal profil`,
+    householdDeleted:         'Hushållet borttaget',
+    householdCreated:         (name: string) => `"${name}" skapat`,
+    householdJoined:          'Ansluten till hushållet',
+    inviteCodeCopied:         (code: string) => `Koden ${code} kopierad`,
+    inviteLinkCopied:         'Inbjudningslänk kopierad',
     alreadyMember: {
       title:   'Redan med',
       message: 'Du är redan medlem i det hushållet.',
@@ -892,6 +1158,136 @@ export const components = {
   conflictBanner: {
     showLatest: 'Visa senaste',
   },
+
+  menuTemplatesModal: {
+    title:           'Veckomeny-mallar',
+    close:           'Stäng',
+    saveSection:     'SPARA DENNA VECKA',
+    namePlaceholder: 'Mallnamn, t.ex. Standardvecka',
+    save:            'Spara',
+    noItemsHint:     'Den här veckan har inga rätter att spara än.',
+    useSection:      'ANVÄND EN MALL',
+    noTemplates:     'Inga mallar än. Spara en vecka ovan för att skapa din första.',
+    dishCount:       (n: number) => `${n} ${n === 1 ? 'rätt' : 'rätter'}`,
+    shareA11y:       (name: string) => `Dela mall ${name}`,
+    deleteA11y:      (name: string) => `Ta bort mall ${name}`,
+    toasts: {
+      saved:          'Vecka sparad som mall',
+      errorSave:      'Kunde inte spara mallen',
+      applied:        (n: number, name: string) => `${n} ${n === 1 ? 'rätt' : 'rätter'} tillagda från "${name}"`,
+      errorApply:     'Kunde inte använda mallen',
+      errorDelete:    'Kunde inte ta bort mallen',
+    },
+    overwrite: {
+      title:   'Veckan har redan rätter',
+      message: (name: string) => `Vill du ersätta veckans meny med "${name}", eller lägga till utöver de befintliga?`,
+      add:     'Lägg till',
+      replace: 'Ersätt',
+    },
+    deleteDialog: {
+      title:   'Ta bort mall',
+      message: (name: string) => `Ta bort mallen "${name}"?`,
+    },
+  },
+
+  notificationsModal: {
+    title:    'Notiser',
+    close:    'Stäng',
+    types: {
+      activityReminder: { title: 'Påminnelse innan aktivitet', desc: 'Innan en aktivitet startar' },
+      choreOverdue:      { title: 'Förfallen syssla', desc: 'När en syssla inte hunnit bli klar' },
+      listCleared:       { title: 'Inköpslista rensad', desc: 'När någon rensar en aktiv lista' },
+      shopperClaimed:    { title: '"Jag handlar"', desc: 'När någon i hushållet börjar handla' },
+      choreCompleted:    { title: 'Syssla avbockad', desc: 'När någon bockar av en syssla' },
+      newMember:         { title: 'Ny medlem', desc: 'När någon går med i hushållet' },
+    },
+    deviceSection:  'DEN HÄR ENHETEN',
+    activate:       'Aktivera på den här enheten',
+    sendTest:       'Skicka testnotis',
+    errorSave:      'Kunde inte spara notisinställningen',
+    deviceStatus: {
+      ok:          'Den här enheten är registrerad för notiser.',
+      denied:      'Notiser är avstängda i telefonens inställningar — slå på dem för Veckis där.',
+      unsupported: 'Push kräver en fysisk enhet (funkar inte i emulator).',
+      error:       (err: string) => `Kunde inte registrera: ${err}`,
+    },
+    test: {
+      noDevice:    'Ingen enhet registrerad — tryck "Aktivera på den här enheten" först',
+      withErrors:  (tokens: number, err: string) => `Skickat till ${tokens} enhet(er), men fel: ${err}`,
+      sent:        (tokens: number) => `Testnotis skickad till ${tokens} enhet(er)`,
+      errorSend:   'Kunde inte skicka testnotis',
+    },
+  },
+
+  weekNav: {
+    prevWeek:    'Föregående vecka',
+    nextWeek:    'Nästa vecka',
+    today:       'Idag',
+    dateTip: {
+      title:   'Hoppa till annan vecka',
+      message: 'Tryck på veckonumret för att öppna en kalender och hoppa till valfri vecka eller dag.',
+    },
+  },
+
+  notFound: {
+    title:       'Sidan hittades inte',
+    body:        'Vi kunde inte hitta sidan du sökte. Den kan ha tagits bort, flyttats eller också är länken fel.',
+    toCalendar:  'Till kalendern',
+    back:        'Tillbaka',
+  },
+
+  errorBoundary: {
+    title:       'Hoppsan, något gick fel',
+    body:        'Ett oväntat fel inträffade. Det har rapporterats automatiskt så att vi kan titta på det.',
+    retry:       'Försök igen',
+    reloadPage:  'Ladda om sidan',
+    hint:        'Hjälpte det inte? Prova att stänga och starta om appen.',
+  },
+
+  welcomeModal: {
+    title:       'Välkommen till Veckis!',
+    message:     'Här följer några korta tips och trix om hur appen fungerar. De dyker upp allteftersom du utforskar flikarna — meny, sysslor, kalender och inköpslista.',
+    subtle:      'Tipsen visas bara en gång per styck och du kan slå av eller återställa dem under',
+    subtleBold:  'Inställningar ⋮',
+    continueAction:    'Fortsätt',
+    continueA11y:      'Fortsätt med onboarding-tips',
+    skipAll:           'Jag är fullärd — hoppa över tipsen',
+    skipAllA11y:       'Hoppa över alla tips',
+  },
+
+  clientErrorsSection: {
+    title:           'Klientfel',
+    showA11y:        'Visa klientfel',
+    hideA11y:        'Dölj klientfel',
+    noErrors:        'Inga fel sedan senaste omstart.',
+    refresh:         'Uppdatera',
+  },
+
+  datePickerModal: {
+    clear: 'Rensa',
+  },
+
+  versionBanner: {
+    webText:      'Ny version av Veckis tillgänglig',
+    webAction:    'Ladda om',
+    nativeText:   'Ny version av Veckis laddad',
+    nativeAction: 'Starta om',
+  },
+
+  offlineBanner: {
+    text: 'Ingen anslutning — ändringar synkas när du är online igen.',
+  },
+
+  wakeupIndicator: {
+    text: 'Servern vaknar… det här tar ofta 10–20 sek första gången.',
+  },
+
+  spotlightTip: {
+    defaultActionLabel: 'Förstått',
+    next:                'Nästa',
+    toggleOnboarding:    'Visa onboarding-tips',
+    positionOf:          (position: number, total: number) => `${position} av ${total}`,
+  },
 };
 
 // ─── Historik-formattering (gemensam) ─────────────────────────────────────────
@@ -905,4 +1301,283 @@ export const history = {
   dayOfMonth:  (d: number) => `Den ${d}:e varje månad`,
   weekdayOfMonth: (ordinal: string, day: string) => `${ordinal} ${day} varje månad`,
   onceAYear: 'En gång per år',
+};
+
+// ─── Inloggning / Registrering ─────────────────────────────────────────────────
+
+export const auth = {
+  appName: 'Veckis',
+
+  placeholders: {
+    email:           'E-post',
+    password:        'Lösenord',
+    newPassword:     'Nytt lösenord (minst 8 tecken)',
+    signUpPassword:  'Lösenord (minst 8 tecken)',
+    confirmPassword: 'Bekräfta lösenord',
+    codeFromEmail:   'Kod från mailet',
+    verificationCode:'Verifieringskod',
+  },
+
+  errors: {
+    title:           'Fel',
+    signInFailed:    'Inloggning misslyckades',
+    sendCodeFailed:  'Kunde inte skicka kod',
+    verifyFailed:    'Verifiering misslyckades',
+    googleFailed:    'Google-inloggning misslyckades',
+    signUpFailed:    'Registrering misslyckades',
+    emailMissing: {
+      title:   'E-post saknas',
+      message: 'Fyll i din e-postadress först.',
+    },
+    passwordTooShort: {
+      title:   'Lösenord för kort',
+      message: 'Lösenordet måste vara minst 8 tecken.',
+    },
+    codeSignInUnavailable: 'Inloggning med kod är inte tillgänglig för detta konto',
+    passwordsDontMatch: {
+      title:   'Lösenorden stämmer inte',
+      message: 'De två lösenordsfälten måste innehålla samma lösenord.',
+    },
+    passwordsMismatchInline: 'Lösenorden matchar inte',
+  },
+
+  signIn: {
+    subtitle: {
+      reset:     'Återställ lösenord',
+      emailCode: 'Logga in med kod',
+      password:  'Logga in på ditt hushåll',
+    },
+    helpText: {
+      emailCode: 'Skriv din e-post så skickar vi en engångskod — säkrare än lösenord.',
+      reset:     'Skriv din e-post så skickar vi en återställningskod.',
+      codeSentTo:(email: string) => `Vi har skickat en kod till ${email}.`,
+    },
+    buttons: {
+      signIn:            'Logga in',
+      sendCode:          'Skicka kod',
+      resetAndSignIn:    'Återställ + logga in',
+      continueWithGoogle:'Fortsätt med Google',
+    },
+    links: {
+      forgotPassword:     'Glömt lösenord?',
+      backToCodeSignIn:   '← Logga in med kod istället',
+      signInWithPassword: 'Logga in med lösen istället',
+      noAccount:          'Inget konto? Skapa ett',
+      backToSignIn:       '← Tillbaka till inloggning',
+    },
+  },
+
+  signUp: {
+    title:       'Skapa konto',
+    verifyTitle: 'Verifiera e-post',
+    codeSentTo:  (email: string) => `Koden har skickats till ${email}`,
+    buttons: {
+      verify:        'Verifiera',
+      createAccount: 'Skapa konto',
+    },
+    links: {
+      alreadyHaveAccount: 'Redan konto? Logga in',
+    },
+  },
+};
+
+// ─── Konto ────────────────────────────────────────────────────────────────────
+
+export const account = {
+  title:       'Konto',
+  backA11y:    'Tillbaka',
+  defaultName: 'Användare',
+
+  sections: {
+    profile: 'PROFIL',
+    session: 'SESSION',
+  },
+
+  rows: {
+    rename:  'Byt namn',
+    signOut: 'Logga ut',
+    delete:  'Ta bort kontot',
+  },
+
+  renameModal: {
+    title:       'Byt namn',
+    placeholder: 'Namn',
+    save:        'Spara',
+  },
+
+  deleteConfirm: {
+    title:   'Ta bort kontot?',
+    message: 'Ditt konto och alla dina hushållsmedlemskap tas bort permanent. Detta kan inte ångras.',
+    confirm: 'Ta bort kontot',
+    cancel:  'Avbryt',
+  },
+
+  signOutConfirm: {
+    title:   'Logga ut',
+    message: 'Är du säker på att du vill logga ut?',
+    confirm: 'Logga ut',
+    cancel:  'Avbryt',
+  },
+
+  toasts: {
+    nameUpdated:     'Namnet har uppdaterats',
+    errorUpdateName: 'Kunde inte uppdatera namnet',
+    errorDelete:     'Kunde inte ta bort kontot',
+  },
+};
+
+// ─── Inställningar (app) ───────────────────────────────────────────────────────
+
+export const preferences = {
+  title:    'Inställningar',
+  backA11y: 'Tillbaka',
+
+  sections: {
+    notifications: 'NOTISER',
+    app:           'APP',
+    security:      'SÄKERHET',
+    about:         'OM VECKIS',
+  },
+
+  rows: {
+    notifications:  'Aviseringar',
+    sound:          'Ljud vid avcheckning',
+    haptics:        'Vibration vid avcheckning',
+    onboardingTips: 'Visa onboarding-tips',
+    twoFactor:      'Tvåfaktorsautentisering',
+    contactSupport: 'Kontakta support',
+    privacyPolicy:  'Integritetspolicy',
+    terms:          'Användarvillkor',
+  },
+
+  toasts: {
+    tipsReset:           'Tips återställda — visas igen i nästa session',
+    errorSecurityPortal: 'Kunde inte öppna säkerhetsinställningar',
+    errorMailApp:        'Kunde inte öppna mailprogrammet',
+  },
+
+  support: {
+    unknownVersion: 'okänd',
+    subject:        'Veckis-support',
+    body:           (version: string, platform: string) => `\n\n---\nVersion: ${version}\nPlattform: ${platform}\n`,
+  },
+};
+
+// ─── Hushåll: skapa/gå med ────────────────────────────────────────────────────
+
+export const householdSetup = {
+  defaultName: 'Användare',
+
+  title:           'Välkommen till Veckis',
+  subtitle:        'Välj ett namn — det syns för andra i hushållet',
+  namePlaceholder: 'Ditt namn',
+
+  intro: 'Skapa ett nytt hushåll eller gå med i ett befintligt',
+
+  tabs: {
+    create: 'Skapa',
+    join:   'Gå med',
+  },
+
+  create: {
+    namePlaceholder: 'Hushållets namn, t.ex. Familjen Andersson',
+    button:          'Skapa hushåll',
+  },
+
+  join: {
+    codePlaceholder: 'XXXXXXXX',
+    hint:            'Ange den 8-siffriga inbjudningskoden',
+    button:          'Gå med',
+  },
+
+  errors: {
+    title:          'Fel',
+    couldNotCreate: 'Kunde inte skapa hushåll',
+    invalidCode:    'Ogiltig eller utgången kod',
+    ok:             'OK',
+  },
+};
+
+// ─── Installation (PWA / APK) ──────────────────────────────────────────────────
+
+export const install = {
+  installed: {
+    title:       'Veckis är installerat',
+    body:        'Du kör redan appen som installerad PWA. Öppna den från hemskärmen.',
+    openApp:     'Öppna appen',
+  },
+
+  hero: {
+    title:       'Veckis',
+    tagline:     'Veckomeny, sysslor och inköp för hushållet',
+  },
+
+  android: {
+    cardTitle:   'Android',
+    cardBody:    'Två sätt att få Veckis på din telefon:',
+    apk: {
+      title:     'Ladda hem appen (APK)',
+      body:      'Hela appen med pushnotiser. Du behöver godkänna installation\n              från okänd källa när Android frågar.',
+      download:  'Ladda hem APK',
+    },
+    pwa: {
+      title:       'Installera som webbapp (PWA)',
+      body:        'Snabbare att komma igång. Funkar offline men inga pushnotiser.',
+      install:     'Installera som app',
+      hintPrefix:  'Tryck på menyn (⋮) i Chrome → ',
+      hintInstall: 'Installera appen',
+      hintOr:      ' eller ',
+      hintAddHome: 'Lägg till på startskärmen',
+      hintSuffix:  '.',
+    },
+  },
+
+  ios: {
+    cardTitle:     'iPhone / iPad',
+    cardBody:      'Apple tillåter inte direkt-installation från web. Du installerar Veckis\n            som en webbapp via Safari:',
+    warningPrefix: 'Öppna denna sida i ',
+    warningSafari: 'Safari',
+    warningSuffix: ' — andra browsers (Chrome/Edge på iOS)\n                kan inte installera webbappar.',
+    step1Prefix:   'Tryck på ',
+    step1Bold:     'Dela',
+    step1Suffix:   '-ikonen längst ner i Safari.',
+    step2Prefix:   'Bläddra ner och välj ',
+    step2Bold:     'Lägg till på hemskärmen',
+    step2Suffix:   '.',
+    step3:         'Bekräfta — Veckis-ikonen dyker upp på hemskärmen och fungerar som\n              en vanlig app.',
+  },
+
+  desktop: {
+    cardTitle:   'Desktop (Chrome / Edge / Brave)',
+    cardBody:    'Installera Veckis som ett separat fönster på datorn:',
+    install:     'Installera som app',
+    hintPrefix:  'Klicka på install-ikonen ',
+    hintMiddle:  ' i adressfältet,\n              eller via menyn → ',
+    hintBold:    'Installera Veckis',
+    hintSuffix:  '.',
+  },
+
+  unsupportedDesktop: {
+    firefoxName:    'Firefox',
+    safariName:     'Safari',
+    cardTitle:      (browser: string) => `${browser} stödjer inte PWA-install`,
+    cardBodyPrefix: 'Du kan ändå använda Veckis direkt i browsern utan installation —\n            klicka bara ',
+    cardBodyBold:   'Öppna webbappen',
+    cardBodySuffix: ' nedan.',
+    hintPrefix:     'För installation: öppna sidan i ',
+    hintChrome:     'Chrome',
+    hintComma:      ', ',
+    hintEdge:       'Edge',
+    hintOr:         ' eller ',
+    hintBrave:      'Brave',
+    hintSuffix:     '.',
+  },
+
+  fallback: {
+    cardTitle:   'Använd webbappen direkt',
+    cardBody:    'På din enhet är det enklast att bara öppna webbappen. Du kan\n            också ladda ner Android-APK om du har en Android-telefon.',
+    downloadApk: 'Ladda hem Android-APK',
+  },
+
+  openWebAppLink: 'Eller öppna webbappen direkt →',
 };

@@ -21,7 +21,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { type Store, type StoreCategory } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
-import { stores as str, common } from '../../src/lib/strings';
+import { stores as str, common } from '../../src/lib/svenska';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 
@@ -141,7 +141,7 @@ export default function StoresScreen() {
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Rensa sökning">
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={common.actions.clearSearch}>
               <Ionicons name="close-circle" size={16} color="#9ca3af" />
             </Pressable>
           )}

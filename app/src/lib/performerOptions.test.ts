@@ -20,12 +20,9 @@ describe('buildPerformerOptions', () => {
     expect(buildPerformerOptions(chore({ assignedToMany: ['a'] }), MEMBERS, 'clerk_a')).toEqual({ kind: 'auto' });
   });
 
-  it('väljardialog för en enskild lokal profil (kan inte logga in själv)', () => {
+  it('auto för en enskild lokal profil (en ägare = inga val att göra)', () => {
     const res = buildPerformerOptions(chore({ assignedToMany: ['c'] }), MEMBERS, 'clerk_a');
-    expect(res.kind).toBe('choose');
-    if (res.kind !== 'choose') return;
-    // Barnet (tilldelad) + Anna (du, tillagd sist)
-    expect(res.options.map(o => o.label)).toEqual(['Barnet', 'Anna (du)']);
+    expect(res.kind).toBe('auto');
   });
 
   it('rotation: turpersonen läggs överst med " (tur)"', () => {

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePushRegistration } from '../../src/hooks/usePushRegistration';
 import { useNotificationRouting } from '../../src/hooks/useNotificationRouting';
 import { useTablet } from '../../src/hooks/useTablet';
+import { common } from '../../src/lib/svenska';
 
 export default function TabLayout() {
   usePushRegistration();
@@ -24,7 +25,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="shopping"
         options={{
-          title: 'Inköp',
+          title: common.tabs.shopping,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cart-outline" size={size} color={color} />
           ),
@@ -33,7 +34,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="menu"
         options={{
-          title: 'Meny',
+          title: common.tabs.menu,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="restaurant-outline" size={size} color={color} />
           ),
@@ -42,7 +43,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="schedule"
         options={{
-          title: 'Kalender',
+          title: common.tabs.schedule,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
           ),
@@ -51,7 +52,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="chores"
         options={{
-          title: 'Sysslor',
+          title: common.tabs.chores,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="checkmark-circle-outline" size={size} color={color} />
           ),
@@ -60,7 +61,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Hushållet',
+          title: common.tabs.settings,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),

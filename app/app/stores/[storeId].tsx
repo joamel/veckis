@@ -19,7 +19,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type Store } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
-import { stores as str, common } from '../../src/lib/strings';
+import { stores as str, common } from '../../src/lib/svenska';
 
 export default function StoreDetailScreen() {
   const { storeId } = useLocalSearchParams<{ storeId: string }>();

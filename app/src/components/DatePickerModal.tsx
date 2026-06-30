@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { components as str, common } from '../lib/svenska';
 
 interface DatePickerModalProps {
   value: string | null;
@@ -71,7 +72,7 @@ export function DatePickerModal({ value, onChange, onClose, title, visible, clea
         </View>
         <View style={s.weekDays}>
           <Text style={s.weekNumHeader}> </Text>
-          {['Mån','Tis','Ons','Tor','Fre','Lör','Sön'].map(d => <Text key={d} style={s.weekDay}>{d}</Text>)}
+          {common.weekdays.short.map(d => <Text key={d} style={s.weekDay}>{d}</Text>)}
         </View>
         {weeks.map((week, wi) => (
           <View key={wi} style={s.week}>
@@ -99,11 +100,11 @@ export function DatePickerModal({ value, onChange, onClose, title, visible, clea
         <View style={s.footer}>
           {clearable && value && (
             <Pressable style={s.clearBtn} onPress={() => { onChange(null); onClose(); }}>
-              <Text style={s.clearBtnText}>Rensa</Text>
+              <Text style={s.clearBtnText}>{str.datePickerModal.clear}</Text>
             </Pressable>
           )}
           <Pressable style={s.closeBtn} onPress={onClose}>
-            <Text style={s.closeBtnText}>Avbryt</Text>
+            <Text style={s.closeBtnText}>{common.actions.cancel}</Text>
           </Pressable>
         </View>
       </View>

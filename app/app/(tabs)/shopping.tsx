@@ -33,7 +33,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { type Store } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
-import { shopping as str, common } from '../../src/lib/strings';
+import { shopping as str, common } from '../../src/lib/svenska';
 
 export default function ShoppingScreen() {
   const router = useRouter();

@@ -47,17 +47,14 @@ import { getISOWeek, addWeeks } from '../../src/lib/week';
 import { occursOn } from '@veckis/shared';
 import type { ScheduleEntry, WeekDay, Chore, ChoreCompletion } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
-import { schedule as str, common } from '../../src/lib/strings';
+import { schedule as str, common, chores as choresStr, components as componentsStr } from '../../src/lib/svenska';
 
-const DAYS: { key: WeekDay; label: string; short: string }[] = [
-  { key: 'mon', label: 'Måndag', short: 'Mån' },
-  { key: 'tue', label: 'Tisdag', short: 'Tis' },
-  { key: 'wed', label: 'Onsdag', short: 'Ons' },
-  { key: 'thu', label: 'Torsdag', short: 'Tor' },
-  { key: 'fri', label: 'Fredag', short: 'Fre' },
-  { key: 'sat', label: 'Lördag', short: 'Lör' },
-  { key: 'sun', label: 'Söndag', short: 'Sön' },
-];
+const DAY_KEYS: WeekDay[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const DAYS: { key: WeekDay; label: string; short: string }[] = DAY_KEYS.map((key, i) => ({
+  key,
+  label: common.weekdays.long[i],
+  short: common.weekdays.short[i],
+}));
 
 const TODAY_DAY = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1].key;
 
@@ -83,14 +80,14 @@ function totalAngleToMinutes(a: number): number {
 const REMIND_PRESETS = str.remind.presets as readonly { label: string; value: number }[];
 
 function formatRemindTime(m: number): string {
-  if (m === 0) return 'Vid start';
-  if (m < 60) return `${m} min`;
+  if (m === 0) return str.remind.atStart;
+  if (m < 60) return str.remind.formatMin(m);
   const h = Math.round(m / 60);
-  if (m < 1440) return `${h} tim`;
+  if (m < 1440) return str.remind.formatHour(h);
   const d = Math.round(m / 1440);
-  if (m < 10080) return d === 1 ? '1 dag' : `${d} dagar`;
+  if (m < 10080) return str.remind.formatDay(d);
   const w = Math.round(m / 10080);
-  return w === 1 ? '1 vecka' : `${w} veckor`;
+  return str.remind.formatWeek(w);
 }
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
@@ -636,7 +633,7 @@ export default function ScheduleScreen() {
       setChores(choreData as ChoreWithCompletion[]);
       setMembers(household.members);
     } catch {
-      confirm({ title: 'Fel', message: 'Kunde inte ladda schemat', buttons: [{ label: 'OK' }] });
+      confirm({ title: 'Fel', message: str.toasts.errorLoad, buttons: [{ label: common.actions.ok }] });
     } finally {
       setLoading(false);
     }
@@ -676,8 +673,8 @@ export default function ScheduleScreen() {
     if (calendarSwipeTip.seen !== false || calendarSwipeTipShownRef.current) return;
     if (!weekRowRect) return; // vänta tills onLayout fångat rect (re-deps nedan)
     const shown = showTip({
-      title: 'Två svep i kalendern',
-      message: 'Svep på veckodags-raden (som lyser upp) för att byta vecka. Svep på själva dag-innehållet nedanför för att byta dag.',
+      title: str.tips.swipe.title,
+      message: str.tips.swipe.message,
       targetRect: weekRowRect,
       swipeDemo: 'horizontal',
     });
@@ -691,8 +688,8 @@ export default function ScheduleScreen() {
     if (!tipsReady) return;
     if (originsTip.seen !== false || originsTipShownRef.current) return;
     const shown = showTip({
-      title: 'Var kommer innehållet ifrån?',
-      message: 'Maträtter på kalendern kommer från veckomenyn (Meny-fliken), och sysslor från Sysslor-fliken. Skapa eller redigera dem där — de syns sedan automatiskt i kalendern.',
+      title: str.tips.origins.title,
+      message: str.tips.origins.message,
     });
     if (shown) { originsTipShownRef.current = true; originsTip.markSeen(); }
   }, [tipsReady, originsTip.seen, originsTip.markSeen, showTip]));
@@ -706,8 +703,8 @@ export default function ScheduleScreen() {
     if (filterTip.seen !== false || filterTipShownRef.current) return;
     if (members.length === 0) return;
     const shown = showTip({
-      title: 'Filtrera på person',
-      message: 'Tryck här för att bara visa aktiviteter (och sysslor) för en eller flera personer. Filtret gäller både kalendern och sysslor-fliken.',
+      title: str.tips.filter.title,
+      message: str.tips.filter.message,
       targetRef: filterBtnRef,
     });
     if (shown) { filterTipShownRef.current = true; filterTip.markSeen(); }
@@ -773,7 +770,7 @@ export default function ScheduleScreen() {
       await client.uncompleteChore(chore.id, day, dateStr);
     } catch (e) {
       setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
-      showError(e, 'Kunde inte avmarkera sysslan');
+      showError(e, choresStr.toasts.errorUncomplete);
     }
   }
 
@@ -839,7 +836,7 @@ export default function ScheduleScreen() {
       resetNewEntryForm();
       showToast(str.toasts.created, 'success');
     } catch (e: any) {
-      showError(e, e?.message ?? 'Kunde inte skapa schemapost');
+      showError(e, e?.message ?? str.toasts.errorCreate);
     } finally {
       setCreating(false);
     }
@@ -848,11 +845,11 @@ export default function ScheduleScreen() {
   async function deleteEntry(entry: ScheduleEntry, dateStr: string) {
     if (entry.recurrenceType !== 'none') {
       confirm({
-        title: 'Ta bort aktivitet',
-        message: `Ta bort "${entry.title}"?`,
+        title: str.deleteScope.title,
+        message: str.deleteScope.message(entry.title),
         buttons: [
           {
-            label: 'Bara den här',
+            label: str.deleteScope.single,
             onPress: async () => {
               try {
                 const result = await client.deleteScheduleEntry(entry.id, dateStr);
@@ -861,32 +858,32 @@ export default function ScheduleScreen() {
                 }
                 setEditingEntry(null);
               } catch (e) {
-                showError(e, 'Kunde inte ta bort');
+                showError(e, str.toasts.errorDelete);
               }
             },
           },
           {
-            label: 'Hela serien', style: 'destructive',
+            label: str.deleteScope.series, style: 'destructive',
             onPress: async () => {
               try {
                 await client.deleteScheduleEntry(entry.id);
                 setEntries(prev => prev.filter(e => e.id !== entry.id));
                 setEditingEntry(null);
               } catch (e) {
-                showError(e, 'Kunde inte ta bort');
+                showError(e, str.toasts.errorDelete);
               }
             },
           },
-          { label: 'Avbryt', style: 'cancel' },
+          { label: common.actions.cancel, style: 'cancel' },
         ],
       });
     } else {
       confirm({
-        title: 'Ta bort',
-        message: `Ta bort "${entry.title}"?`,
+        title: str.deleteOnce.title,
+        message: str.deleteScope.message(entry.title),
         buttons: [
           {
-            label: 'Ta bort', style: 'destructive',
+            label: str.deleteOnce.confirm, style: 'destructive',
             onPress: () => {
               const prev = entries;
               setEntries(p => p.filter(e => e.id !== entry.id));
@@ -899,11 +896,11 @@ export default function ScheduleScreen() {
               setTimeout(async () => {
                 if (cancelled) return;
                 try { await client.deleteScheduleEntry(entry.id); }
-                catch (e) { setEntries(prev); showError(e, 'Kunde inte ta bort'); }
+                catch (e) { setEntries(prev); showError(e, str.toasts.errorDelete); }
               }, 5000);
             },
           },
-          { label: 'Avbryt', style: 'cancel' },
+          { label: common.actions.cancel, style: 'cancel' },
         ],
       });
     }
@@ -922,33 +919,33 @@ export default function ScheduleScreen() {
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.filter(comp => comp.id !== fakeId) }
         : c));
-      showError(e, 'Kunde inte markera sysslan');
+      showError(e, choresStr.toasts.errorComplete);
     }
   }
 
   async function deleteChoreCalendar(choreId: string, title: string) {
     confirm({
-      title: 'Ta bort syssla',
-      message: `Ta bort "${title}"?`,
+      title: choresStr.delete.title,
+      message: choresStr.delete.message(title),
       buttons: [
         {
-          label: 'Ta bort', style: 'destructive',
+          label: choresStr.delete.confirm, style: 'destructive',
           onPress: () => {
             const prev = chores;
             setChores(p => p.filter(c => c.id !== choreId));
             let cancelled = false;
-            showToast('Syssla borttagen', 'neutral', {
-              label: 'Ångra',
+            showToast(choresStr.toasts.deleted, 'neutral', {
+              label: common.actions.undo,
               onPress: () => { cancelled = true; setChores(prev); },
             });
             setTimeout(async () => {
               if (cancelled) return;
               try { await client.deleteChore(choreId); }
-              catch (e) { setChores(prev); showError(e, 'Kunde inte ta bort'); }
+              catch (e) { setChores(prev); showError(e, common.errors.couldNotDelete('sysslan')); }
             }, 5000);
           },
         },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -988,12 +985,12 @@ export default function ScheduleScreen() {
   function openEditEntry(entry: ScheduleEntry) {
     if (entry.recurrenceType !== 'none') {
       confirm({
-        title: 'Redigera aktivitet',
-        message: 'Vilka tillfällen vill du redigera?',
+        title: str.editScope.dialogTitle,
+        message: str.editScope.title,
         buttons: [
-          { label: 'Bara det här', onPress: () => doOpenEditEntry(entry, 'single') },
-          { label: 'Hela serien', onPress: () => doOpenEditEntry(entry, 'series') },
-          { label: 'Avbryt', style: 'cancel' },
+          { label: str.editScope.single, onPress: () => doOpenEditEntry(entry, 'single') },
+          { label: str.editScope.series, onPress: () => doOpenEditEntry(entry, 'series') },
+          { label: common.actions.cancel, style: 'cancel' },
         ],
       });
     } else {
@@ -1005,31 +1002,31 @@ export default function ScheduleScreen() {
     confirm({
       variant: 'menu',
       buttons: [
-        { label: 'Redigera', icon: 'create-outline', onPress: () => { setViewingEntry(null); openEditEntry(entry); } },
-        { label: 'Ta bort', icon: 'trash-outline', style: 'destructive', onPress: () => { setViewingEntry(null); deleteEntry(entry, selectedDayDateStr); } },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: common.actions.edit, icon: 'create-outline', onPress: () => { setViewingEntry(null); openEditEntry(entry); } },
+        { label: common.actions.delete, icon: 'trash-outline', style: 'destructive', onPress: () => { setViewingEntry(null); deleteEntry(entry, selectedDayDateStr); } },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
 
   // Mänsklig sammanfattning av upprepningen för läsvyn.
   function recurrenceSummary(entry: ScheduleEntry): string {
-    const every = entry.recurrenceWeeks > 1 ? `var ${entry.recurrenceWeeks}:e ` : 'varje ';
+    const every = str.recurrenceSummary.every(entry.recurrenceWeeks);
     switch (entry.recurrenceType) {
       case 'none':
-        return 'Engångstillfälle';
+        return str.recurrenceSummary.once;
       case 'daily':
-        return entry.recurrenceWeeks > 1 ? `Var ${entry.recurrenceWeeks}:e dag` : 'Varje dag';
+        return str.recurrenceSummary.daily(entry.recurrenceWeeks);
       case 'weekly':
       case 'custom_days': {
         const days = (entry.recurrenceDays?.length ? entry.recurrenceDays : [entry.day])
           .map(k => DAYS.find(d => d.key === k)?.label ?? k);
-        return `${every}vecka${days.length ? ` (${days.join(', ')})` : ''}`;
+        return str.recurrenceSummary.weekly(every, days.join(', '));
       }
       case 'monthly':
-        return `${every}månad`;
+        return str.recurrenceSummary.monthly(every);
       case 'yearly':
-        return `${every}år`;
+        return str.recurrenceSummary.yearly(every);
       default:
         return '';
     }
@@ -1088,7 +1085,7 @@ export default function ScheduleScreen() {
       setEditingEntry(null);
       showToast(str.toasts.saved, 'success');
     } catch (e) {
-      showError(e, 'Kunde inte spara aktiviteten');
+      showError(e, str.toasts.errorSave);
     } finally {
       setSavingEntry(false);
     }
@@ -1114,7 +1111,7 @@ export default function ScheduleScreen() {
       ));
       setEditingCalChore(null);
     } catch (e) {
-      showError(e, 'Kunde inte spara sysslan');
+      showError(e, choresStr.toasts.errorSave);
     } finally {
       setSavingCalChore(false);
     }
@@ -1216,7 +1213,7 @@ export default function ScheduleScreen() {
     <>
       {d.menu.length > 0 && (
         <View style={s.section}>
-          <Text style={s.sectionLabel}>MATRÄTTER</Text>
+          <Text style={s.sectionLabel}>{str.sections.meals}</Text>
           {d.menu.map(item => (
             <Pressable
               key={item.id}
@@ -1237,7 +1234,7 @@ export default function ScheduleScreen() {
 
       {d.chores.length > 0 && (
         <View style={s.section}>
-          <Text style={s.sectionLabel}>SYSSLOR</Text>
+          <Text style={s.sectionLabel}>{str.sections.chores}</Text>
           {d.chores.map(chore => {
             const done = isDoneOnDate(chore.completions, d.dateStr, d.wd);
             const assignedName = getMemberName(chore.assignedTo);
@@ -1270,7 +1267,7 @@ export default function ScheduleScreen() {
 
       {d.entries.length > 0 && (
         <View style={s.section}>
-          <Text style={s.sectionLabel}>AKTIVITETER</Text>
+          <Text style={s.sectionLabel}>{str.sections.entries}</Text>
           {d.entries.map(entry => {
             const now = new Date();
             const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -1304,7 +1301,7 @@ export default function ScheduleScreen() {
               </View>
               <View style={s.entryRightCol}>
                 <Text style={[s.entryRightTime, { fontSize: fs(13) }, isPast && { textDecorationLine: 'line-through' }]}>
-                  {entry.startTime ?? 'Heldag'}
+                  {entry.startTime ?? str.allDay}
                 </Text>
                 {!entry.isShared && <Ionicons name="lock-closed-outline" size={fs(14)} color="#9ca3af" />}
               </View>
@@ -1319,11 +1316,11 @@ export default function ScheduleScreen() {
   return (
     <SafeAreaView style={s.container}>
       <ScreenHeader
-        title="Kalender"
+        title={str.title}
         actionNode={members.length > 0 ? (
           <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive, { paddingHorizontal: sp(10), paddingVertical: sp(6) }]} onPress={() => setShowFilterModal(true)}>
             <Ionicons name="person-outline" size={fs(14)} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
-            <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive, { fontSize: fs(12) }]}>Filter</Text>
+            <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive, { fontSize: fs(12) }]}>{choresStr.header.filter}</Text>
             {filterMemberIds.length > 0 && (
               <View style={s.filterBadge}>
                 <Text style={s.filterBadgeText}>{filterMemberIds.length}</Text>
@@ -1341,13 +1338,13 @@ export default function ScheduleScreen() {
                 style={[s.viewToggleBtn, s.viewToggleBtnActive, { paddingHorizontal: sp(14), paddingVertical: sp(6) }]}
                 onPress={() => setTabletCalendarView('month')}
               >
-                <Text style={[s.viewToggleText, s.viewToggleTextActive, { fontSize: fs(13) }]}>Månad</Text>
+                <Text style={[s.viewToggleText, s.viewToggleTextActive, { fontSize: fs(13) }]}>{str.view.monthToggle}</Text>
               </Pressable>
               <Pressable
                 style={[s.viewToggleBtn, { paddingHorizontal: sp(14), paddingVertical: sp(6) }]}
                 onPress={() => setTabletCalendarView('week')}
               >
-                <Text style={[s.viewToggleText, { fontSize: fs(13) }]}>Vecka</Text>
+                <Text style={[s.viewToggleText, { fontSize: fs(13) }]}>{str.view.weekToggle}</Text>
               </Pressable>
             </View>
             <MonthView
@@ -1376,16 +1373,16 @@ export default function ScheduleScreen() {
               {isEmpty ? (
                 <EmptyState
                   icon="calendar-outline"
-                  title="Inget planerat"
-                  subtitle="Lägg till en aktivitet på den här dagen."
-                  actionLabel="Ny aktivitet"
+                  title={str.emptyState.title}
+                  subtitle={str.emptyState.subtitle}
+                  actionLabel={str.emptyState.cta}
                   onAction={() => { openNewEntry(selectedDay); }}
                 />
               ) : renderDayDetail(cur)}
             </ScrollView>
             <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={wrapAddTip(
             () => openNewEntry(selectedDay),
-            { title: 'Skapa aktivitet', message: 'Här lägger du till en aktivitet på den valda dagen. Du kan välja om den ska upprepas (dagligen, veckovis, månadsvis), vem som ska göra den och få en påminnelse innan starttiden.' },
+            { title: str.tips.add.title, message: str.tips.add.message },
           )}>
               <Ionicons name="add" size={fs(30)} color="#fff" />
             </Pressable>
@@ -1399,18 +1396,18 @@ export default function ScheduleScreen() {
                 style={[s.viewToggleBtn, { paddingHorizontal: sp(14), paddingVertical: sp(6) }]}
                 onPress={() => setTabletCalendarView('month')}
               >
-                <Text style={[s.viewToggleText, { fontSize: fs(13) }]}>Månad</Text>
+                <Text style={[s.viewToggleText, { fontSize: fs(13) }]}>{str.view.monthToggle}</Text>
               </Pressable>
               <Pressable
                 style={[s.viewToggleBtn, s.viewToggleBtnActive, { paddingHorizontal: sp(14), paddingVertical: sp(6) }]}
                 onPress={() => setTabletCalendarView('week')}
               >
-                <Text style={[s.viewToggleText, s.viewToggleTextActive, { fontSize: fs(13) }]}>Vecka</Text>
+                <Text style={[s.viewToggleText, s.viewToggleTextActive, { fontSize: fs(13) }]}>{str.view.weekToggle}</Text>
               </Pressable>
             </View>
           )}
           <WeekNav
-            weekLabel={`Vecka ${weekNumber}`}
+            weekLabel={str.weekLabel(weekNumber)}
             isCurrentWeek={isCurrentWeek}
             onPrev={() => setWeekRef(w => addWeeks(w, -1))}
             onNext={() => setWeekRef(w => addWeeks(w, 1))}
@@ -1552,9 +1549,9 @@ export default function ScheduleScreen() {
                   {d.isEmpty ? (
                     <EmptyState
                       icon="calendar-outline"
-                      title="Inget planerat"
-                      subtitle="Lägg till en aktivitet på den här dagen."
-                      actionLabel="Ny aktivitet"
+                      title={str.emptyState.title}
+                      subtitle={str.emptyState.subtitle}
+                      actionLabel={str.emptyState.cta}
                       onAction={() => { openNewEntry(d.wd); }}
                     />
                   ) : renderDayDetail(d)}
@@ -1565,7 +1562,7 @@ export default function ScheduleScreen() {
 
           <Pressable style={s.fab} onPress={wrapAddTip(
             () => openNewEntry(selectedDay),
-            { title: 'Skapa aktivitet', message: 'Här lägger du till en aktivitet på den valda dagen. Du kan välja om den ska upprepas (dagligen, veckovis, månadsvis), vem som ska göra den och få en påminnelse innan starttiden.' },
+            { title: str.tips.add.title, message: str.tips.add.message },
           )}>
             <Ionicons name="add" size={30} color="#fff" />
           </Pressable>
@@ -1588,11 +1585,11 @@ export default function ScheduleScreen() {
             return (
               <>
                 <View style={s.viewNav}>
-                  <Pressable onPress={() => setViewingEntry(null)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Stäng">
+                  <Pressable onPress={() => setViewingEntry(null)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel={common.actions.close}>
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                   </Pressable>
                   <View style={{ flex: 1 }} />
-                  <Pressable onPress={() => openEntryActions(e)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel="Fler val">
+                  <Pressable onPress={() => openEntryActions(e)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel={common.actions.more}>
                     <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
                   </Pressable>
                 </View>
@@ -1604,12 +1601,12 @@ export default function ScheduleScreen() {
                   </View>
                   <View style={s.viewRow}>
                     <Ionicons name="time-outline" size={18} color="#6b7280" />
-                    <Text style={s.viewRowText}>{e.startTime ?? 'Heldag'}</Text>
+                    <Text style={s.viewRowText}>{e.startTime ?? str.allDay}</Text>
                   </View>
                   {!!(e.remindMinutes?.length) && (
                     <View style={s.viewRow}>
                       <Ionicons name="notifications-outline" size={18} color="#6b7280" />
-                      <Text style={s.viewRowText}>{(() => { const times = [...e.remindMinutes].sort((a, b) => a - b).map(m => formatRemindTime(m)); return times.every(t => t === 'Vid start') ? times.join(', ') : times.join(', ') + ' innan'; })()}</Text>
+                      <Text style={s.viewRowText}>{(() => { const times = [...e.remindMinutes].sort((a, b) => a - b).map(m => formatRemindTime(m)); return times.every(t => t === str.remind.atStart) ? times.join(', ') : str.remind.before(times.join(', ')); })()}</Text>
                     </View>
                   )}
                   <View style={s.viewRow}>
@@ -1624,7 +1621,7 @@ export default function ScheduleScreen() {
                   )}
                   <View style={s.viewRow}>
                     <Ionicons name={e.isShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color="#6b7280" />
-                    <Text style={s.viewRowText}>{e.isShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
+                    <Text style={s.viewRowText}>{e.isShared ? str.shared.isShared : str.shared.isPrivate}</Text>
                   </View>
                   {!!e.description && (
                     <View style={[s.viewRow, { alignItems: 'flex-start' }]}>
@@ -1646,7 +1643,7 @@ export default function ScheduleScreen() {
         <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Redigera aktivitet</Text>
+          <Text style={s.sheetTitle}>{str.form.editEntryTitle}</Text>
           <ConflictBanner
             message={entryConflict?.msg ?? null}
             onShowLatest={entryConflict ? () => { doOpenEditEntry(entryConflict.latest, editMode); setEntryConflict(null); } : undefined}
@@ -1654,14 +1651,14 @@ export default function ScheduleScreen() {
           <ScrollView ref={editModalScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
-              placeholder="Titel"
+              placeholder={str.form.titleLabel}
               placeholderTextColor="#9ca3af"
               value={editEntryTitle}
               onChangeText={setEditEntryTitle}
             />
             <View onLayout={e => { editTimeSectionY.current = e.nativeEvent.layout.y; }}>
             <View style={s.timeToggleRow}>
-              <Text style={s.label}>Tid (valfritt)</Text>
+              <Text style={s.label}>{str.form.timeLabel}</Text>
               <Switch
                 value={editEntryTimeEnabled}
                 onValueChange={v => {
@@ -1683,8 +1680,8 @@ export default function ScheduleScreen() {
                 <Pressable style={s.sharedRow} onPress={() => setEditRemindEnabled(v => !v)}>
                   <Ionicons name={editRemindEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={editRemindEnabled ? '#4f46e5' : '#9ca3af'} />
                   <View style={{ flex: 1 }}>
-                    <Text style={s.sharedLabel}>Påminnelse</Text>
-                    <Text style={s.sharedSub}>{editRemindEnabled ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
+                    <Text style={s.sharedLabel}>{str.form.reminderLabel}</Text>
+                    <Text style={s.sharedSub}>{editRemindEnabled ? str.form.reminderOnSub : str.form.reminderOffSub}</Text>
                   </View>
                   <Switch value={editRemindEnabled} onValueChange={v => { setEditRemindEnabled(v); if (!v) { setEditEntryRemindMinutes([]); setShowEditRemindDial(false); setShowEditQuickPick(false); } else { setShowEditQuickPick(true); } }} trackColor={{ true: '#4f46e5' }} />
                 </Pressable>
@@ -1724,7 +1721,7 @@ export default function ScheduleScreen() {
                     ) : editEntryRemindMinutes.length > 0 && editEntryRemindMinutes.length < 5 ? (
                       <Pressable style={s.remindMoreBtn} onPress={() => setShowEditQuickPick(true)}>
                         <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
-                        <Text style={s.remindMoreBtnText}>Lägg till påminnelse</Text>
+                        <Text style={s.remindMoreBtnText}>{str.remind.addReminder}</Text>
                       </Pressable>
                     ) : null}
                   </>
@@ -1754,14 +1751,14 @@ export default function ScheduleScreen() {
             <Pressable style={s.sharedRow} onPress={() => setEditEntryIsShared(v => { if (v) setEditEntryAssignedToMany([]); return !v; })}>
               <Ionicons name={editEntryIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={editEntryIsShared ? '#4f46e5' : '#9ca3af'} />
               <View style={{ flex: 1 }}>
-                <Text style={s.sharedLabel}>{editEntryIsShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
-                <Text style={s.sharedSub}>{editEntryIsShared ? 'Syns för alla i hushållet' : 'Syns bara för dig'}</Text>
+                <Text style={s.sharedLabel}>{editEntryIsShared ? str.shared.isShared : str.shared.isPrivate}</Text>
+                <Text style={s.sharedSub}>{editEntryIsShared ? str.shared.sharedSub : str.shared.privateSub}</Text>
               </View>
               <Switch value={editEntryIsShared} onValueChange={v => { setEditEntryIsShared(v); if (!v) setEditEntryAssignedToMany([]); }} trackColor={{ true: '#4f46e5' }} />
             </Pressable>
             {members.length > 0 && editEntryIsShared && (
               <>
-                <Text style={s.label}>Tilldela personer (valfritt)</Text>
+                <Text style={s.label}>{str.form.assignLabel}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.memberPickerRow}>
                   {members.map(m => {
                     const active = editEntryAssignedToMany.includes(m.id);
@@ -1781,14 +1778,14 @@ export default function ScheduleScreen() {
             <View style={s.editModalActions}>
               <Pressable style={s.deleteActionBtn} onPress={() => { if (editingEntry) deleteEntry(editingEntry, selectedDayDateStr); }}>
                 <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                <Text style={s.deleteActionText}>Ta bort</Text>
+                <Text style={s.deleteActionText}>{common.actions.delete}</Text>
               </Pressable>
               <Pressable
                 style={[s.button, { flex: 1, marginTop: 0 }, (!editEntryTitle.trim() || savingEntry) && s.buttonDisabled]}
                 onPress={saveEditEntry}
                 disabled={savingEntry || !editEntryTitle.trim()}
               >
-                {savingEntry ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Spara</Text>}
+                {savingEntry ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{common.actions.save}</Text>}
               </Pressable>
             </View>
           </ScrollView>
@@ -1803,7 +1800,7 @@ export default function ScheduleScreen() {
         <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Redigera syssla</Text>
+          <Text style={s.sheetTitle}>{str.form.editChoreTitle}</Text>
           <ConflictBanner
             message={calChoreConflict?.msg ?? null}
             onShowLatest={calChoreConflict ? () => { openEditCalChore(calChoreConflict.latest); setCalChoreConflict(null); } : undefined}
@@ -1811,18 +1808,18 @@ export default function ScheduleScreen() {
           <View style={s.sheetScroll}>
             <TextInput
               style={s.input}
-              placeholder="Titel"
+              placeholder={str.form.titleLabel}
               placeholderTextColor="#9ca3af"
               value={editCalChoreTitle}
               onChangeText={setEditCalChoreTitle}
             />
-            <Text style={s.label}>Ansvarig</Text>
+            <Text style={s.label}>{str.form.responsibleLabel}</Text>
             <View style={s.memberPickerRow}>
               <Pressable
                 style={[s.memberOption, editCalChoreAssignedTo === null && s.memberOptionActive]}
                 onPress={() => setEditCalChoreAssignedTo(null)}
               >
-                <Text style={[s.memberOptionText, editCalChoreAssignedTo === null && s.memberOptionTextActive]}>Ingen</Text>
+                <Text style={[s.memberOptionText, editCalChoreAssignedTo === null && s.memberOptionTextActive]}>{str.form.noOne}</Text>
               </Pressable>
               {members.map(m => (
                 <Pressable
@@ -1839,19 +1836,19 @@ export default function ScheduleScreen() {
               onPress={() => { setEditingCalChore(null); router.push('/(tabs)/chores' as never); }}
             >
               <Ionicons name="open-outline" size={15} color="#4f46e5" />
-              <Text style={s.navButtonText}>Gå till Sysslor</Text>
+              <Text style={s.navButtonText}>{str.actions.goToChores}</Text>
             </Pressable>
             <View style={s.editModalActions}>
               <Pressable style={s.deleteActionBtn} onPress={() => { setEditingCalChore(null); if (editingCalChore) deleteChoreCalendar(editingCalChore.id, editingCalChore.title); }}>
                 <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                <Text style={s.deleteActionText}>Ta bort</Text>
+                <Text style={s.deleteActionText}>{common.actions.delete}</Text>
               </Pressable>
               <Pressable
                 style={[s.button, { flex: 1, marginTop: 0 }, (!editCalChoreTitle.trim() || savingCalChore) && s.buttonDisabled]}
                 onPress={saveCalChore}
                 disabled={savingCalChore || !editCalChoreTitle.trim()}
               >
-                {savingCalChore ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Spara</Text>}
+                {savingCalChore ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{common.actions.save}</Text>}
               </Pressable>
             </View>
           </View>
@@ -1860,15 +1857,13 @@ export default function ScheduleScreen() {
       </Modal>
 
       <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowFilterModal(false)} />
-        <View style={s.filterSheet}>
-          <View style={s.sheetHandle} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={s.sheetTitle}>Filtrera på person</Text>
+        <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onPress={() => setShowFilterModal(false)} />
+        <View style={s.filterPopup}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text style={s.filterPopupTitle}>{str.filter.popupTitle}</Text>
             {filterMemberIds.length > 0 && (
               <Pressable onPress={() => setFilterMemberIds([])} hitSlop={8}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#7c3aed' }}>Rensa</Text>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#7c3aed' }}>{str.filter.clear}</Text>
               </Pressable>
             )}
           </View>
@@ -1876,7 +1871,7 @@ export default function ScheduleScreen() {
             style={s.filterMemberRow}
             onPress={() => setFilterMemberIds([])}
           >
-            <Text style={[s.filterMemberName, filterMemberIds.length === 0 && s.filterMemberNameActive]}>Alla</Text>
+            <Text style={[s.filterMemberName, filterMemberIds.length === 0 && s.filterMemberNameActive]}>{str.filter.all}</Text>
             <Ionicons
               name={filterMemberIds.length === 0 ? 'checkbox' : 'square-outline'}
               size={22}
@@ -1908,7 +1903,7 @@ export default function ScheduleScreen() {
       <DatePickerModal
         visible={showWeekPicker}
         value={selectedDayDateStr}
-        title="Gå till dag"
+        title={str.weekPicker.title}
         onChange={(dateStr) => {
           if (!dateStr) return;
           const picked = new Date(dateStr + 'T00:00:00');
@@ -1920,10 +1915,10 @@ export default function ScheduleScreen() {
         }}
         onClose={() => setShowWeekPicker(false)}
       />
-      <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} />
-      <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} />
-      <DatePickerModal value={editEntryStartDate} onChange={setEditEntryStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} />
-      <DatePickerModal value={editEntryEndDate} onChange={setEditEntryEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} />
+      <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title={str.weekPicker.startDate} visible={showNewStartPicker} />
+      <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title={str.weekPicker.endDate} visible={showNewEndPicker} />
+      <DatePickerModal value={editEntryStartDate} onChange={setEditEntryStartDate} onClose={() => setShowEditStartPicker(false)} title={str.weekPicker.startDate} visible={showEditStartPicker} />
+      <DatePickerModal value={editEntryEndDate} onChange={setEditEntryEndDate} onClose={() => setShowEditEndPicker(false)} title={str.weekPicker.endDate} visible={showEditEndPicker} />
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => tryCloseCreate(newTitle.trim() !== '', () => { setShowModal(false); resetNewEntryForm(); })}>
         <View pointerEvents="none" style={s.overlayDim} />
@@ -1931,11 +1926,11 @@ export default function ScheduleScreen() {
         <KeyboardAvoidingView pointerEvents="box-none" behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.80, paddingBottom: Math.max(8, insets.bottom) }]}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Ny aktivitet</Text>
+          <Text style={s.sheetTitle}>{str.form.newTitle}</Text>
           <ScrollView ref={newModalScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetScroll}>
             <TextInput
               style={s.input}
-              placeholder="Titel, t.ex. Träning"
+              placeholder={str.form.titlePlaceholder}
               placeholderTextColor="#9ca3af"
               value={newTitle}
               onChangeText={setNewTitle}
@@ -1944,7 +1939,7 @@ export default function ScheduleScreen() {
 
             <View onLayout={e => { newTimeSectionY.current = e.nativeEvent.layout.y; }}>
             <View style={s.timeToggleRow}>
-              <Text style={s.label}>Tid (valfritt)</Text>
+              <Text style={s.label}>{str.form.timeLabel}</Text>
               <Switch
                 value={timeEnabled}
                 onValueChange={v => {
@@ -1966,8 +1961,8 @@ export default function ScheduleScreen() {
                 <Pressable style={s.sharedRow} onPress={() => setNewRemindEnabled(v => !v)}>
                   <Ionicons name={newRemindEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={newRemindEnabled ? '#4f46e5' : '#9ca3af'} />
                   <View style={{ flex: 1 }}>
-                    <Text style={s.sharedLabel}>Påminnelse</Text>
-                    <Text style={s.sharedSub}>{newRemindEnabled ? 'Notis innan aktiviteten startar' : 'Ingen påminnelse'}</Text>
+                    <Text style={s.sharedLabel}>{str.form.reminderLabel}</Text>
+                    <Text style={s.sharedSub}>{newRemindEnabled ? str.form.reminderOnSub : str.form.reminderOffSub}</Text>
                   </View>
                   <Switch value={newRemindEnabled} onValueChange={v => { setNewRemindEnabled(v); if (!v) { setNewRemindMinutes([]); setShowNewRemindDial(false); setShowNewQuickPick(false); } else { setShowNewQuickPick(true); } }} trackColor={{ true: '#4f46e5' }} />
                 </Pressable>
@@ -2007,7 +2002,7 @@ export default function ScheduleScreen() {
                     ) : newRemindMinutes.length > 0 && newRemindMinutes.length < 5 ? (
                       <Pressable style={s.remindMoreBtn} onPress={() => setShowNewQuickPick(true)}>
                         <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
-                        <Text style={s.remindMoreBtnText}>Lägg till påminnelse</Text>
+                        <Text style={s.remindMoreBtnText}>{str.remind.addReminder}</Text>
                       </Pressable>
                     ) : null}
                   </>
@@ -2019,15 +2014,15 @@ export default function ScheduleScreen() {
             <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => { if (v) setNewAssignedToMany([]); return !v; })}>
               <Ionicons name={newIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={newIsShared ? '#4f46e5' : '#9ca3af'} />
               <View style={{ flex: 1 }}>
-                <Text style={s.sharedLabel}>{newIsShared ? 'Gemensam kalender' : 'Bara för mig'}</Text>
-                <Text style={s.sharedSub}>{newIsShared ? 'Syns för alla i hushållet' : 'Syns bara för dig'}</Text>
+                <Text style={s.sharedLabel}>{newIsShared ? str.shared.isShared : str.shared.isPrivate}</Text>
+                <Text style={s.sharedSub}>{newIsShared ? str.shared.sharedSub : str.shared.privateSub}</Text>
               </View>
               <Switch value={newIsShared} onValueChange={v => { setNewIsShared(v); if (!v) setNewAssignedToMany([]); }} trackColor={{ true: '#4f46e5' }} />
             </Pressable>
 
             {members.length > 0 && newIsShared && (
               <>
-                <Text style={s.label}>Tilldela personer (valfritt)</Text>
+                <Text style={s.label}>{str.form.assignLabel}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.memberPickerRow}>
                   {members.map(m => {
                     const active = newAssignedToMany.includes(m.id);
@@ -2045,10 +2040,10 @@ export default function ScheduleScreen() {
               </>
             )}
 
-            <Text style={s.label}>Upprepning</Text>
+            <Text style={s.label}>{componentsStr.recurrencePicker.label}</Text>
             <View style={s.recurrenceTypeRow}>
               {(['none', 'daily', 'weekly', 'monthly', 'yearly'] as const).map(type => {
-                const label = { none: 'Ingen', daily: 'Dag', weekly: 'Vecka', monthly: 'Månad', yearly: 'År' }[type];
+                const label = componentsStr.recurrencePicker.types[type];
                 return (
                   <Pressable
                     key={type}
@@ -2063,7 +2058,7 @@ export default function ScheduleScreen() {
 
             {newRecurrenceType !== 'none' && (
               <View style={s.intervalRow}>
-                <Text style={s.intervalLabel}>Var</Text>
+                <Text style={s.intervalLabel}>{componentsStr.recurrencePicker.every}</Text>
                 <Pressable style={s.intervalBtn} onPress={() => setNewRecurrenceWeeks(Math.max(1, newRecurrenceWeeks - 1))}>
                   <Text style={s.intervalBtnText}>−</Text>
                 </Pressable>
@@ -2072,14 +2067,14 @@ export default function ScheduleScreen() {
                   <Text style={s.intervalBtnText}>+</Text>
                 </Pressable>
                 <Text style={s.intervalLabel}>
-                  {({ daily: 'dag', weekly: 'vecka', monthly: 'månad', yearly: 'år' } as Record<string, string>)[newRecurrenceType] ?? ''}
+                  {(str.newRecurrence.intervalUnit)[newRecurrenceType] ?? ''}
                 </Text>
               </View>
             )}
 
             {newRecurrenceType === 'weekly' && (
               <>
-                <Text style={s.label}>Veckodagar</Text>
+                <Text style={s.label}>{componentsStr.recurrencePicker.weekdays}</Text>
                 <View style={s.dayPickerRow}>
                   {DAYS.map(day => (
                     <Pressable
@@ -2098,14 +2093,14 @@ export default function ScheduleScreen() {
 
             {newRecurrenceType === 'monthly' && (
               <>
-                <Text style={s.label}>Upprepas</Text>
+                <Text style={s.label}>{componentsStr.recurrencePicker.repeatsEvery}</Text>
                 <View style={s.monthlyTypeRow}>
                   <Pressable
                     style={[s.monthlyTypeBtn, newMonthlyType === 'day_of_month' && s.monthlyTypeBtnActive]}
                     onPress={() => setNewMonthlyType('day_of_month')}
                   >
                     <Text style={[s.monthlyTypeBtnText, newMonthlyType === 'day_of_month' && s.monthlyTypeBtnTextActive]}>
-                      Varje månad den {new Date().getDate()}:e
+                      {componentsStr.recurrencePicker.monthly.dayOfMonth(new Date().getDate())}
                     </Text>
                   </Pressable>
                   <Pressable
@@ -2113,13 +2108,16 @@ export default function ScheduleScreen() {
                     onPress={() => setNewMonthlyType('weekday_of_month')}
                   >
                     <Text style={[s.monthlyTypeBtnText, newMonthlyType === 'weekday_of_month' && s.monthlyTypeBtnTextActive]}>
-                      {['Första', 'Andra', 'Tredje', 'Fjärde'][newRecurrenceWeekOfMonth - 1] ?? 'Sista'} {DAYS.find(d => d.key === newDay)?.label.toLowerCase()} i månaden
+                      {componentsStr.recurrencePicker.monthly.weekday(
+                        common.ordinals[newRecurrenceWeekOfMonth - 1] ?? 'Sista',
+                        DAYS.find(d => d.key === newDay)?.label.toLowerCase() ?? '',
+                      )}
                     </Text>
                   </Pressable>
                 </View>
                 {newMonthlyType === 'weekday_of_month' && (
                   <View style={s.intervalRow}>
-                    <Text style={s.intervalLabel}>Vecka i månaden</Text>
+                    <Text style={s.intervalLabel}>{componentsStr.recurrencePicker.weekOfMonth}</Text>
                     <Pressable style={s.intervalBtn} onPress={() => setNewRecurrenceWeekOfMonth(Math.max(1, newRecurrenceWeekOfMonth - 1))}>
                       <Text style={s.intervalBtnText}>−</Text>
                     </Pressable>
@@ -2134,20 +2132,20 @@ export default function ScheduleScreen() {
 
             {newRecurrenceType !== 'none' && (
               <>
-                <Text style={s.label}>Slutar</Text>
+                <Text style={s.label}>{componentsStr.recurrencePicker.ends}</Text>
                 <View style={s.endCondRow}>
                   <Pressable
                     style={[s.endCondBtn, !newEndDate && s.endCondBtnActive]}
                     onPress={() => setNewEndDate(null)}
                   >
-                    <Text style={[s.endCondBtnText, !newEndDate && s.endCondBtnTextActive]}>Upphör aldrig</Text>
+                    <Text style={[s.endCondBtnText, !newEndDate && s.endCondBtnTextActive]}>{componentsStr.recurrencePicker.neverEnds}</Text>
                   </Pressable>
                   <Pressable
                     style={[s.endCondBtn, newEndDate && s.endCondBtnActive, { flex: 1.5 }]}
                     onPress={() => setShowNewEndPicker(true)}
                   >
                     <Ionicons name="calendar-outline" size={13} color={newEndDate ? '#4f46e5' : '#9ca3af'} />
-                    <Text style={[s.endCondBtnText, newEndDate && s.endCondBtnTextActive]}>{newEndDate ?? 'Välj datum'}</Text>
+                    <Text style={[s.endCondBtnText, newEndDate && s.endCondBtnTextActive]}>{newEndDate ?? componentsStr.recurrencePicker.chooseDate}</Text>
                   </Pressable>
                 </View>
               </>
@@ -2158,7 +2156,7 @@ export default function ScheduleScreen() {
               onPress={createEntry}
               disabled={creating || !newTitle.trim()}
             >
-              {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Lägg till</Text>}
+              {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{common.actions.add}</Text>}
             </Pressable>
           </ScrollView>
           </View>
@@ -2289,9 +2287,10 @@ const s = StyleSheet.create({
   filterBtnTextActive: { color: '#7c3aed', fontWeight: '600' },
   filterBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   filterBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  filterSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 32 },
-  filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  filterMemberName: { fontSize: 16, color: '#374151', flex: 1, marginRight: 12 },
+  filterPopup: { position: 'absolute', top: 0, right: 0, backgroundColor: '#fff', borderRadius: 12, padding: 16, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 8, overflow: 'hidden' },
+  filterPopupTitle: { fontSize: 13, fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 },
+  filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  filterMemberName: { fontSize: 15, color: '#374151', flex: 1, marginRight: 12 },
   filterMemberNameActive: { color: '#7c3aed', fontWeight: '600' },
   remindDial: { width: DIAL_SIZE, height: DIAL_SIZE, borderRadius: DIAL_R, borderWidth: 2, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', position: 'relative', overflow: 'hidden' },
   remindChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 },

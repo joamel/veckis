@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { auth as str } from '../../src/lib/svenska';
 
 export default function SignUpScreen() {
   const { signUp, setActive, isLoaded } = useSignUp();
@@ -33,11 +34,11 @@ export default function SignUpScreen() {
   async function handleSignUp() {
     if (!isLoaded) return;
     if (!passwordsMatch) {
-      confirm({ title: 'Lösenorden stämmer inte', message: 'De två lösenordsfälten måste innehålla samma lösenord.', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.passwordsDontMatch.title, message: str.errors.passwordsDontMatch.message, buttons: [{ label: 'OK' }] });
       return;
     }
     if (!passwordLongEnough) {
-      confirm({ title: 'Lösenord för kort', message: 'Lösenordet måste vara minst 8 tecken.', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.passwordTooShort.title, message: str.errors.passwordTooShort.message, buttons: [{ label: 'OK' }] });
       return;
     }
     try {
@@ -45,8 +46,8 @@ export default function SignUpScreen() {
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       setPendingVerification(true);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Registrering misslyckades';
-      confirm({ title: 'Fel', message: msg, buttons: [{ label: 'OK' }] });
+      const msg = err instanceof Error ? err.message : str.errors.signUpFailed;
+      confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
     }
   }
 
@@ -56,26 +57,26 @@ export default function SignUpScreen() {
       const result = await signUp.attemptEmailAddressVerification({ code });
       await setActive({ session: result.createdSessionId });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Verifiering misslyckades';
-      confirm({ title: 'Fel', message: msg, buttons: [{ label: 'OK' }] });
+      const msg = err instanceof Error ? err.message : str.errors.verifyFailed;
+      confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
     }
   }
 
   if (pendingVerification) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Verifiera e-post</Text>
-        <Text style={styles.subtitle}>Koden har skickats till {email}</Text>
+        <Text style={styles.title}>{str.signUp.verifyTitle}</Text>
+        <Text style={styles.subtitle}>{str.signUp.codeSentTo(email)}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Verifieringskod"
+          placeholder={str.placeholders.verificationCode}
           placeholderTextColor="#9ca3af"
           keyboardType="number-pad"
           value={code}
           onChangeText={setCode}
         />
         <Pressable style={styles.button} onPress={handleVerify}>
-          <Text style={styles.buttonText}>Verifiera</Text>
+          <Text style={styles.buttonText}>{str.signUp.buttons.verify}</Text>
         </Pressable>
       </View>
     );
@@ -86,10 +87,10 @@ export default function SignUpScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Text style={styles.title}>Skapa konto</Text>
+      <Text style={styles.title}>{str.signUp.title}</Text>
       <TextInput
         style={styles.input}
-        placeholder="E-post"
+        placeholder={str.placeholders.email}
         placeholderTextColor="#9ca3af"
         autoCapitalize="none"
         keyboardType="email-address"
@@ -98,7 +99,7 @@ export default function SignUpScreen() {
       />
       <TextInput
         style={styles.input}
-        placeholder="Lösenord (minst 8 tecken)"
+        placeholder={str.placeholders.signUpPassword}
         placeholderTextColor="#9ca3af"
         secureTextEntry
         value={password}
@@ -108,7 +109,7 @@ export default function SignUpScreen() {
       />
       <TextInput
         style={[styles.input, passwordConfirm.length > 0 && !passwordsMatch && styles.inputError]}
-        placeholder="Bekräfta lösenord"
+        placeholder={str.placeholders.confirmPassword}
         placeholderTextColor="#9ca3af"
         secureTextEntry
         value={passwordConfirm}
@@ -117,17 +118,17 @@ export default function SignUpScreen() {
         autoComplete="new-password"
       />
       {passwordConfirm.length > 0 && !passwordsMatch && (
-        <Text style={styles.errorText}>Lösenorden matchar inte</Text>
+        <Text style={styles.errorText}>{str.errors.passwordsMismatchInline}</Text>
       )}
       <Pressable
         style={[styles.button, !canSubmit && styles.buttonDisabled]}
         onPress={handleSignUp}
         disabled={!canSubmit}
       >
-        <Text style={styles.buttonText}>Skapa konto</Text>
+        <Text style={styles.buttonText}>{str.signUp.buttons.createAccount}</Text>
       </Pressable>
       <Pressable onPress={() => router.back()}>
-        <Text style={styles.link}>Redan konto? Logga in</Text>
+        <Text style={styles.link}>{str.signUp.links.alreadyHaveAccount}</Text>
       </Pressable>
     </KeyboardAvoidingView>
   );

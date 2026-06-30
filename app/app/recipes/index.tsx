@@ -28,7 +28,7 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
-import { recipes as str, common } from '../../src/lib/strings';
+import { recipes as str, common } from '../../src/lib/svenska';
 import { useTablet } from '../../src/hooks/useTablet';
 
 const MENU_DAYS: { key: WeekDay; label: string }[] = [

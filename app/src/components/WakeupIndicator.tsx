@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ActivityIndicator } from 'react-native';
 import { subscribeBackendWakeup } from '../lib/backendWakeup';
+import { components as str } from '../lib/svenska';
 
 export function WakeupIndicator() {
   const [visible, setVisible] = useState(false);
@@ -24,7 +25,7 @@ export function WakeupIndicator() {
   return (
     <View style={s.banner}>
       <ActivityIndicator size="small" color="#fff" />
-      <Text style={s.text}>Servern vaknar… det här tar ofta 10–20 sek första gången.</Text>
+      <Text style={s.text}>{str.wakeupIndicator.text}</Text>
     </View>
   );
 }
