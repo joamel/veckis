@@ -11,6 +11,7 @@ import { useHousehold } from '../src/context/HouseholdContext';
 import { useToast } from '../src/context/ToastContext';
 import { useConfirm } from '../src/context/ConfirmContext';
 import { kavBehavior } from '../src/lib/platform';
+import { account as str } from '../src/lib/svenska';
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function AccountScreen() {
   // Hitta MIN medlemskap i nuvarande hushåll så vi kan ändra mitt egen namn
   const myMember = household.allMemberships.find(m => m.householdId === householdId);
   const myMemberId = myMember?.id;
-  const displayName = myMember?.displayName ?? user?.firstName ?? user?.emailAddresses[0]?.emailAddress.split('@')[0] ?? 'Användare';
+  const displayName = myMember?.displayName ?? user?.firstName ?? user?.emailAddresses[0]?.emailAddress.split('@')[0] ?? str.defaultName;
   const email = user?.emailAddresses[0]?.emailAddress ?? '';
 
   const [showRename, setShowRename] = useState(false);
@@ -40,9 +41,9 @@ export default function AccountScreen() {
       await client.updateMember(householdId, myMemberId, { displayName: renameValue.trim() });
       await refresh();
       setShowRename(false);
-      showToast('Namnet har uppdaterats', 'success');
+      showToast(str.toasts.nameUpdated, 'success');
     } catch (e) {
-      showError(e, 'Kunde inte uppdatera namnet');
+      showError(e, str.toasts.errorUpdateName);
     } finally {
       setSaving(false);
     }
@@ -56,28 +57,28 @@ export default function AccountScreen() {
       router.replace('/(auth)/sign-in');
     } catch (e) {
       setDeleting(false);
-      showError(e, 'Kunde inte ta bort kontot');
+      showError(e, str.toasts.errorDelete);
     }
   }
 
   function handleDeleteAccount() {
     confirm({
-      title: 'Ta bort kontot?',
-      message: 'Ditt konto och alla dina hushållsmedlemskap tas bort permanent. Detta kan inte ångras.',
+      title: str.deleteConfirm.title,
+      message: str.deleteConfirm.message,
       buttons: [
-        { label: 'Ta bort kontot', style: 'destructive', onPress: doDeleteAccount },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: str.deleteConfirm.confirm, style: 'destructive', onPress: doDeleteAccount },
+        { label: str.deleteConfirm.cancel, style: 'cancel' },
       ],
     });
   }
 
   function handleSignOut() {
     confirm({
-      title: 'Logga ut',
-      message: 'Är du säker på att du vill logga ut?',
+      title: str.signOutConfirm.title,
+      message: str.signOutConfirm.message,
       buttons: [
-        { label: 'Logga ut', style: 'destructive', onPress: () => signOut() },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: str.signOutConfirm.confirm, style: 'destructive', onPress: () => signOut() },
+        { label: str.signOutConfirm.cancel, style: 'cancel' },
       ],
     });
   }
@@ -85,10 +86,10 @@ export default function AccountScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Tillbaka">
+        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel={str.backA11y}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
-        <Text style={s.headerTitle}>Konto</Text>
+        <Text style={s.headerTitle}>{str.title}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -101,25 +102,25 @@ export default function AccountScreen() {
           {email ? <Text style={s.email}>{email}</Text> : null}
         </View>
 
-        <Text style={s.sectionLabel}>PROFIL</Text>
+        <Text style={s.sectionLabel}>{str.sections.profile}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={() => { setRenameValue(displayName); setShowRename(true); }}>
             <Ionicons name="create-outline" size={18} color="#4f46e5" />
-            <Text style={s.rowText}>Byt namn</Text>
+            <Text style={s.rowText}>{str.rows.rename}</Text>
             <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
           </Pressable>
         </View>
 
-        <Text style={s.sectionLabel}>SESSION</Text>
+        <Text style={s.sectionLabel}>{str.sections.session}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={handleSignOut}>
             <Ionicons name="log-out-outline" size={18} color="#ef4444" />
-            <Text style={[s.rowText, { color: '#ef4444' }]}>Logga ut</Text>
+            <Text style={[s.rowText, { color: '#ef4444' }]}>{str.rows.signOut}</Text>
             <Ionicons name="chevron-forward" size={16} color="#fca5a5" />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={handleDeleteAccount} disabled={deleting}>
             <Ionicons name="trash-outline" size={18} color="#ef4444" />
-            <Text style={[s.rowText, { color: '#ef4444' }]}>Ta bort kontot</Text>
+            <Text style={[s.rowText, { color: '#ef4444' }]}>{str.rows.delete}</Text>
             {deleting ? <ActivityIndicator size="small" color="#ef4444" /> : <Ionicons name="chevron-forward" size={16} color="#fca5a5" />}
           </Pressable>
         </View>
@@ -131,10 +132,10 @@ export default function AccountScreen() {
         <KeyboardAvoidingView behavior={kavBehavior} style={s.kavWrap}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Byt namn</Text>
+            <Text style={s.sheetTitle}>{str.renameModal.title}</Text>
             <TextInput
               style={s.input}
-              placeholder="Namn"
+              placeholder={str.renameModal.placeholder}
               placeholderTextColor="#9ca3af"
               value={renameValue}
               onChangeText={setRenameValue}
@@ -148,7 +149,7 @@ export default function AccountScreen() {
               onPress={handleSaveName}
               disabled={saving || !renameValue.trim()}
             >
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>Spara</Text>}
+              {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{str.renameModal.save}</Text>}
             </Pressable>
           </View>
         </KeyboardAvoidingView>

@@ -40,7 +40,7 @@ export function buildPerformerOptions(
   const isRotating = !!chore.rotation && assignedMembers.length >= 2;
 
   if (assignedMembers.length === 0) return { kind: 'auto' };
-  if (!isRotating && !hasLocalProfile && assignedMembers.length === 1) return { kind: 'auto' };
+  if (!isRotating && assignedMembers.length === 1) return { kind: 'auto' };
 
   const selfMember = userId ? members.find(m => m.clerkUserId === userId) : null;
   const turnId = isRotating

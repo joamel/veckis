@@ -1,5 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { components as str } from '../lib/svenska';
 
 /**
  * Välkomstmodal som fyrar EN gång vid första app-start (efter sign-in +
@@ -27,21 +28,18 @@ export function WelcomeModal({ visible, onContinue, onSkipAll }: Props) {
           <View style={s.iconBubble}>
             <Ionicons name="sparkles" size={32} color="#fff" />
           </View>
-          <Text style={s.title}>Välkommen till Veckis!</Text>
+          <Text style={s.title}>{str.welcomeModal.title}</Text>
           <Text style={s.message}>
-            Här följer några korta tips och trix om hur appen fungerar. De dyker
-            upp allteftersom du utforskar flikarna — meny, sysslor, kalender och
-            inköpslista.
+            {str.welcomeModal.message}
           </Text>
           <Text style={s.subtle}>
-            Tipsen visas bara en gång per styck och du kan slå av eller återställa
-            dem under <Text style={s.subtleBold}>Inställningar ⋮</Text>.
+            {str.welcomeModal.subtle} <Text style={s.subtleBold}>{str.welcomeModal.subtleBold}</Text>.
           </Text>
-          <Pressable style={s.primaryBtn} onPress={onContinue} accessibilityRole="button" accessibilityLabel="Fortsätt med onboarding-tips">
-            <Text style={s.primaryBtnText}>Fortsätt</Text>
+          <Pressable style={s.primaryBtn} onPress={onContinue} accessibilityRole="button" accessibilityLabel={str.welcomeModal.continueA11y}>
+            <Text style={s.primaryBtnText}>{str.welcomeModal.continueAction}</Text>
           </Pressable>
-          <Pressable style={s.secondaryBtn} onPress={onSkipAll} accessibilityRole="button" accessibilityLabel="Hoppa över alla tips">
-            <Text style={s.secondaryBtnText}>Jag är fullärd — hoppa över tipsen</Text>
+          <Pressable style={s.secondaryBtn} onPress={onSkipAll} accessibilityRole="button" accessibilityLabel={str.welcomeModal.skipAllA11y}>
+            <Text style={s.secondaryBtnText}>{str.welcomeModal.skipAll}</Text>
           </Pressable>
         </View>
       </View>

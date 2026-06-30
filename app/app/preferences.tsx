@@ -12,6 +12,7 @@ import { TIP_FLAGS } from '../src/lib/onboardingTips';
 import * as SecureStore from '../src/lib/secureStorage';
 import { useToast } from '../src/context/ToastContext';
 import { HAPTIC_CHECKOUT_KEY, SOUND_CHECKOUT_KEY } from '../src/hooks/useCheckHaptic';
+import { preferences as str } from '../src/lib/svenska';
 
 export default function PreferencesScreen() {
   const router = useRouter();
@@ -33,7 +34,7 @@ export default function PreferencesScreen() {
   async function handleResetTips() {
     await Promise.all(TIP_FLAGS.map(k => SecureStore.deleteItemAsync(k).catch(() => {})));
     if (skipAll) await setSkipAll(false);
-    showToast('Tips återställda — visas igen i nästa session', 'neutral');
+    showToast(str.toasts.tipsReset, 'neutral');
   }
 
   async function openClerkPortal(path: string, errLabel: string) {
@@ -52,39 +53,39 @@ export default function PreferencesScreen() {
 
   function handleContactSupport() {
     const Constants = require('expo-constants').default;
-    const version = Constants.expoConfig?.version ?? 'okänd';
-    const subject = encodeURIComponent('Veckis-support');
-    const body = encodeURIComponent(`\n\n---\nVersion: ${version}\nPlattform: ${Platform.OS}\n`);
+    const version = Constants.expoConfig?.version ?? str.support.unknownVersion;
+    const subject = encodeURIComponent(str.support.subject);
+    const body = encodeURIComponent(str.support.body(version, Platform.OS));
     const url = `mailto:veckis.support@gmail.com?subject=${subject}&body=${body}`;
     if (Platform.OS === 'web') {
       window.location.href = url;
     } else {
       const { Linking } = require('react-native');
-      Linking.openURL(url).catch((e: unknown) => showError(e, 'Kunde inte öppna mailprogrammet'));
+      Linking.openURL(url).catch((e: unknown) => showError(e, str.toasts.errorMailApp));
     }
   }
 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Tillbaka">
+        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel={str.backA11y}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
-        <Text style={s.headerTitle}>Inställningar</Text>
+        <Text style={s.headerTitle}>{str.title}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={s.scroll}>
-        <Text style={s.sectionLabel}>NOTISER</Text>
+        <Text style={s.sectionLabel}>{str.sections.notifications}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={() => setShowNotifModal(true)}>
             <Ionicons name="notifications-outline" size={18} color="#4f46e5" />
-            <Text style={s.rowText}>Aviseringar</Text>
+            <Text style={s.rowText}>{str.rows.notifications}</Text>
             <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
           </Pressable>
         </View>
 
-        <Text style={s.sectionLabel}>APP</Text>
+        <Text style={s.sectionLabel}>{str.sections.app}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={async () => {
             const next = !soundEnabled;
@@ -92,7 +93,7 @@ export default function PreferencesScreen() {
             await SecureStore.setItemAsync(SOUND_CHECKOUT_KEY, next ? '1' : '0').catch(() => {});
           }}>
             <Ionicons name="musical-note-outline" size={18} color="#7c3aed" />
-            <Text style={s.rowText}>Ljud vid avcheckning</Text>
+            <Text style={s.rowText}>{str.rows.sound}</Text>
             <Ionicons name={soundEnabled ? 'toggle' : 'toggle-outline'} size={22} color={soundEnabled ? '#7c3aed' : '#9ca3af'} />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={async () => {
@@ -101,40 +102,40 @@ export default function PreferencesScreen() {
             await SecureStore.setItemAsync(HAPTIC_CHECKOUT_KEY, next ? '1' : '0').catch(() => {});
           }}>
             <Ionicons name="phone-portrait-outline" size={18} color="#7c3aed" />
-            <Text style={s.rowText}>Vibration vid avcheckning</Text>
+            <Text style={s.rowText}>{str.rows.haptics}</Text>
             <Ionicons name={hapticEnabled ? 'toggle' : 'toggle-outline'} size={22} color={hapticEnabled ? '#7c3aed' : '#9ca3af'} />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={() => { setSkipAll(skipAll !== true); handleResetTips(); }}>
             <Ionicons name="bulb-outline" size={18} color="#7c3aed" />
-            <Text style={s.rowText}>Visa onboarding-tips</Text>
+            <Text style={s.rowText}>{str.rows.onboardingTips}</Text>
             <Ionicons name={skipAll === true ? 'toggle-outline' : 'toggle'} size={22} color={skipAll === true ? '#9ca3af' : '#7c3aed'} />
           </Pressable>
         </View>
 
-        <Text style={s.sectionLabel}>SÄKERHET</Text>
+        <Text style={s.sectionLabel}>{str.sections.security}</Text>
         <View style={s.group}>
-          <Pressable style={s.row} onPress={() => openClerkPortal('/user/security', 'Kunde inte öppna säkerhetsinställningar')}>
+          <Pressable style={s.row} onPress={() => openClerkPortal('/user/security', str.toasts.errorSecurityPortal)}>
             <Ionicons name="shield-checkmark-outline" size={18} color="#7c3aed" />
-            <Text style={s.rowText}>Tvåfaktorsautentisering</Text>
+            <Text style={s.rowText}>{str.rows.twoFactor}</Text>
             <Ionicons name="open-outline" size={16} color="#9ca3af" />
           </Pressable>
         </View>
 
-        <Text style={s.sectionLabel}>OM VECKIS</Text>
+        <Text style={s.sectionLabel}>{str.sections.about}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={handleContactSupport}>
             <Ionicons name="mail-outline" size={18} color="#4f46e5" />
-            <Text style={s.rowText}>Kontakta support</Text>
+            <Text style={s.rowText}>{str.rows.contactSupport}</Text>
             <Ionicons name="open-outline" size={16} color="#9ca3af" />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={() => router.push('/privacy' as never)}>
             <Ionicons name="shield-outline" size={18} color="#6b7280" />
-            <Text style={s.rowText}>Integritetspolicy</Text>
+            <Text style={s.rowText}>{str.rows.privacyPolicy}</Text>
             <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={() => router.push('/terms' as never)}>
             <Ionicons name="document-text-outline" size={18} color="#6b7280" />
-            <Text style={s.rowText}>Användarvillkor</Text>
+            <Text style={s.rowText}>{str.rows.terms}</Text>
             <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
           </Pressable>
         </View>

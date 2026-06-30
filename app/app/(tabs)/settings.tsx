@@ -33,7 +33,7 @@ import { shareInviteLink } from '../../src/lib/inviteLink';
 import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
 import { kavBehavior } from '../../src/lib/platform';
-import { settings as str, common } from '../../src/lib/strings';
+import { settings as str, common } from '../../src/lib/svenska';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -66,8 +66,8 @@ export default function SettingsScreen() {
     if (!tipsReady) return;
     if (notifClockTip.seen !== false || notifClockTipShownRef.current) return;
     const shown = showTip({
-      title: 'Notisinställningar',
-      message: 'Klockan högst upp till höger öppnar dina notisinställningar — slå på/av påminnelser för aktiviteter, sysslor och inköpslistor per typ.',
+      title: str.tips.notifications.title,
+      message: str.tips.notifications.message,
       targetRef: notifClockBtnRef,
     });
     if (shown) { notifClockTipShownRef.current = true; notifClockTip.markSeen(); }
@@ -186,7 +186,7 @@ export default function SettingsScreen() {
   // Notifications — managed in a dedicated modal
   const [showNotifModal, setShowNotifModal] = useState(false);
 
-  const displayName = user?.fullName ?? user?.emailAddresses[0]?.emailAddress ?? 'Användare';
+  const displayName = user?.fullName ?? user?.emailAddresses[0]?.emailAddress ?? str.fallbackUser;
   const clerkUserId = user?.id;
   const isAdmin = memberRole === 'admin';
   const householdMembers = household?.members ?? [];
@@ -199,10 +199,10 @@ export default function SettingsScreen() {
     const canToggleAdmin = isAdmin && !isMe && !!t.clerkUserId;
     const canRemove = isAdmin && !isMe && !isOtherAdmin;
     const buttons: { label: string; icon?: string; style?: 'primary' | 'destructive' | 'cancel'; onPress?: () => void }[] = [];
-    if (canChangeName) buttons.push({ label: 'Byt namn', icon: 'create-outline', onPress: () => openEditMember(t.id, t.displayName) });
-    if (canToggleAdmin) buttons.push({ label: t.role === 'admin' ? 'Ta bort admin' : 'Gör till admin', icon: t.role === 'admin' ? 'shield-outline' : 'shield-checkmark', onPress: () => handleToggleAdmin(t.id, t.displayName, t.role) });
-    if (canRemove) buttons.push({ label: 'Ta bort profilen', icon: 'person-remove-outline', style: 'destructive', onPress: () => handleRemoveMember(t.id, t.displayName) });
-    buttons.push({ label: 'Avbryt', style: 'cancel' });
+    if (canChangeName) buttons.push({ label: str.memberActions.rename, icon: 'create-outline', onPress: () => openEditMember(t.id, t.displayName) });
+    if (canToggleAdmin) buttons.push({ label: t.role === 'admin' ? str.memberActions.removeAdmin : str.memberActions.makeAdmin, icon: t.role === 'admin' ? 'shield-outline' : 'shield-checkmark', onPress: () => handleToggleAdmin(t.id, t.displayName, t.role) });
+    if (canRemove) buttons.push({ label: str.memberActions.remove, icon: 'person-remove-outline', style: 'destructive', onPress: () => handleRemoveMember(t.id, t.displayName) });
+    buttons.push({ label: common.actions.cancel, style: 'cancel' });
     confirm({ variant: 'action', buttons });
   }
 
@@ -214,7 +214,7 @@ export default function SettingsScreen() {
       const date = new Date().toISOString().slice(0, 10);
       await Share.share({ message: json, title: `veckis-export-${date}.json` });
     } catch (e) {
-      showError(e, 'Kunde inte exportera data');
+      showError(e, str.toasts.errorExport);
     } finally {
       setExporting(false);
     }
@@ -222,11 +222,11 @@ export default function SettingsScreen() {
 
   function openHouseholdActions() {
     const buttons: { label: string; icon?: string; style?: 'primary' | 'destructive' | 'cancel'; onPress?: () => void }[] = [];
-    if (isAdmin) buttons.push({ label: 'Byt namn', icon: 'create-outline', onPress: () => { setEditingHouseholdName(householdName || ''); setShowEditHouseholdModal(true); } });
-    if (isAdmin) buttons.push({ label: 'Exportera hushållets data', icon: 'download-outline', onPress: () => handleExportHousehold() });
-    buttons.push({ label: 'Lämna hushållet', icon: 'exit-outline', style: 'destructive', onPress: () => handleLeaveHousehold() });
-    if (isAdmin) buttons.push({ label: 'Ta bort hushållet', icon: 'trash-outline', style: 'destructive', onPress: () => { setDeleteConfirmText(''); setShowDeleteHouseholdModal(true); } });
-    buttons.push({ label: 'Avbryt', style: 'cancel' });
+    if (isAdmin) buttons.push({ label: str.householdActions.rename, icon: 'create-outline', onPress: () => { setEditingHouseholdName(householdName || ''); setShowEditHouseholdModal(true); } });
+    if (isAdmin) buttons.push({ label: str.householdActions.export, icon: 'download-outline', onPress: () => handleExportHousehold() });
+    buttons.push({ label: str.householdActions.leave, icon: 'exit-outline', style: 'destructive', onPress: () => handleLeaveHousehold() });
+    if (isAdmin) buttons.push({ label: str.householdActions.delete, icon: 'trash-outline', style: 'destructive', onPress: () => { setDeleteConfirmText(''); setShowDeleteHouseholdModal(true); } });
+    buttons.push({ label: common.actions.cancel, style: 'cancel' });
     confirm({ variant: 'action', buttons });
   }
 
@@ -239,8 +239,8 @@ export default function SettingsScreen() {
     if (!isAdmin) return;
     if (notifClockTip.seen !== true) return;
     const shown = showTip({
-      title: 'Admin-läge',
-      message: 'Som admin kan du trycka "Redigera" för att byta hushållsnamn, hantera medlemmar, dela ut admin-rättigheter och ta bort hushållet.',
+      title: str.tips.admin.title,
+      message: str.tips.admin.message,
       targetRef: adminEditBtnRef,
     });
     if (shown) { adminTipShownRef.current = true; adminTip.markSeen(); }
@@ -263,7 +263,7 @@ export default function SettingsScreen() {
   function copyCode() {
     if (!invite) return;
     Clipboard.setString(invite.code);
-    showGlobalToast(`Koden ${invite.code} kopierad`, 'success');
+    showGlobalToast(str.toasts.inviteCodeCopied(invite.code), 'success');
   }
 
   async function shareInvite() {
@@ -271,10 +271,10 @@ export default function SettingsScreen() {
     try {
       const res = await shareInviteLink(householdName, invite.code);
       if (res.outcome === 'copied') {
-        showGlobalToast('Inbjudningslänk kopierad', 'success');
+        showGlobalToast(str.toasts.inviteLinkCopied, 'success');
       }
     } catch (e) {
-      showError(e, 'Kunde inte dela länk');
+      showError(e, str.toasts.errorShareLink);
     }
   }
 
@@ -287,9 +287,9 @@ export default function SettingsScreen() {
       await refresh();
       setHousehold(h => h ? { ...h, name: updated.name } : null);
       setShowEditHouseholdModal(false);
-      showToast('Hushållets namn uppdaterat');
+      showToast(str.toasts.householdNameUpdated);
     } catch (e) {
-      showError(e, 'Kunde inte uppdatera hushållets namn');
+      showError(e, str.toasts.errorUpdateHouseholdName);
     } finally {
       setLoadingHouseholdEdit(false);
     }
@@ -312,9 +312,9 @@ export default function SettingsScreen() {
         members: h.members.map(m => m.id === editingMemberId ? { ...m, displayName: editingDisplayName } : m)
       } : null);
       setShowEditMemberModal(false);
-      showToast('Namnet har uppdaterats');
+      showToast(str.toasts.memberNameUpdated);
     } catch (e) {
-      showError(e, 'Kunde inte uppdatera namnet');
+      showError(e, str.toasts.errorUpdateMemberName);
     } finally {
       setLoadingMemberEdit(false);
     }
@@ -325,25 +325,25 @@ export default function SettingsScreen() {
     if (!householdId) return;
     const promote = currentRole !== 'admin';
     confirm({
-      title: promote ? 'Gör till admin' : 'Ta bort admin-rättigheter',
+      title: promote ? str.confirmTitles.promoteAdmin : str.confirmTitles.demoteAdmin,
       message: promote
-        ? `Vill du ge ${memberName} admin-rättigheter? Admins kan redigera hushållet och hantera medlemmar.`
-        : `Vill du ta bort admin-rättigheterna från ${memberName}?`,
+        ? str.messages.promoteAdmin(memberName)
+        : str.messages.demoteAdmin(memberName),
       buttons: [
         {
-          label: promote ? 'Gör till admin' : 'Ta bort',
+          label: promote ? str.memberActions.makeAdmin : str.buttons.remove,
           style: promote ? 'primary' : 'destructive',
           onPress: async () => {
             try {
               const updated = await client.updateMember(householdId, memberId, { role: promote ? 'admin' : 'member' });
               setHousehold(h => h ? { ...h, members: h.members.map(m => m.id === memberId ? { ...m, role: updated.role } : m) } : null);
-              showToast(promote ? `${memberName} är nu admin` : `${memberName} är inte längre admin`);
+              showToast(promote ? str.toasts.memberPromoted(memberName) : str.toasts.memberDemoted(memberName));
             } catch (e) {
-              showError(e, 'Kunde inte ändra roll');
+              showError(e, str.toasts.errorChangeRole);
             }
           },
         },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -356,33 +356,33 @@ export default function SettingsScreen() {
     try {
       const { chores, activities } = await client.getMemberAssignments(householdId, memberId);
       const parts: string[] = [];
-      if (chores > 0) parts.push(`${chores} ${chores === 1 ? 'syssla' : 'sysslor'}`);
-      if (activities > 0) parts.push(`${activities} ${activities === 1 ? 'aktivitet' : 'aktiviteter'}`);
+      if (chores > 0) parts.push(str.messages.choreCount(chores));
+      if (activities > 0) parts.push(str.messages.activityCount(activities));
       if (parts.length > 0) {
-        warning = `\n\n${memberName} har ${parts.join(' och ')} tilldelade. De blir utan ansvarig om du tar bort ${memberName}.`;
+        warning = str.messages.removeMemberWarning(memberName, parts.join(' och '));
       }
     } catch {
       // Non-fatal — fall back to a plain confirmation.
     }
 
     confirm({
-      title: 'Ta bort medlem',
-      message: `Är du säker på att du vill ta bort ${memberName}?${warning}`,
+      title: str.confirmTitles.removeMember,
+      message: `${str.messages.removeMemberConfirm(memberName)}${warning}`,
       buttons: [
         {
-          label: 'Ta bort ändå',
+          label: str.buttons.removeAnyway,
           style: 'destructive',
           onPress: async () => {
             try {
               await client.removeMember(householdId, memberId);
               setHousehold(h => h ? { ...h, members: h.members.filter(m => m.id !== memberId) } : null);
-              showToast(`${memberName} borttagen`);
+              showToast(str.toasts.memberRemoved(memberName));
             } catch (e) {
-              showError(e, 'Kunde inte ta bort medlem');
+              showError(e, str.toasts.errorRemoveMember);
             }
           },
         },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -401,9 +401,9 @@ export default function SettingsScreen() {
         : null);
       setShowCreateLocalModal(false);
       setLocalProfileName('');
-      showToast(`${localProfileName} tillagd som lokal profil`);
+      showToast(str.toasts.localProfileAdded(localProfileName));
     } catch (e) {
-      showError(e, 'Kunde inte skapa lokal profil');
+      showError(e, str.toasts.errorCreateLocalProfile);
     } finally {
       setLoadingLocalProfile(false);
     }
@@ -418,9 +418,9 @@ export default function SettingsScreen() {
       await refresh();
       setShowDeleteHouseholdModal(false);
       setDeleteConfirmText('');
-      showToast('Hushållet borttaget');
+      showToast(str.toasts.householdDeleted);
     } catch (e) {
-      showError(e, 'Kunde inte ta bort hushållet');
+      showError(e, str.toasts.errorDeleteHousehold);
     } finally {
       setLoadingDeleteHousehold(false);
     }
@@ -436,7 +436,7 @@ export default function SettingsScreen() {
       await setActiveHouseholdId(created.id);
       setShowCreateHouseholdModal(false);
       setNewHouseholdName('');
-      showToast(`"${newHouseholdName}" skapat`);
+      showToast(str.toasts.householdCreated(newHouseholdName));
     } catch (e) {
       showError(e, str.toasts.errorCreate);
     } finally {
@@ -453,10 +453,10 @@ export default function SettingsScreen() {
       await refresh();
       setShowJoinHouseholdModal(false);
       setJoinCode('');
-      showToast('Ansluten till hushållet');
+      showToast(str.toasts.householdJoined);
     } catch (err: any) {
       if (err?.message?.toLowerCase().includes('already')) {
-        confirm({ title: str.toasts.alreadyMember.title, message: str.toasts.alreadyMember.message, buttons: [{ label: 'OK' }] });
+        confirm({ title: str.toasts.alreadyMember.title, message: str.toasts.alreadyMember.message, buttons: [{ label: common.actions.ok }] });
       } else {
         showError(err, str.toasts.errorJoin);
       }
@@ -468,19 +468,19 @@ export default function SettingsScreen() {
   // Switch household
   async function handleSwitchHousehold(id: string) {
     if (id === householdId) return;
-    const targetName = allMemberships.find(m => m.householdId === id)?.household.name ?? 'hushållet';
+    const targetName = allMemberships.find(m => m.householdId === id)?.household.name ?? str.household.fallbackName;
     confirm({
-      title: 'Byt hushåll',
-      message: `Vill du byta till "${targetName}"?`,
+      title: str.confirmTitles.switchHousehold,
+      message: str.messages.switchHousehold(targetName),
       buttons: [
         {
-          label: 'Byt',
+          label: str.buttons.switchHousehold,
           onPress: async () => {
             await setActiveHouseholdId(id);
             setInvite(null);
           },
         },
-        { label: 'Avbryt', style: 'cancel' },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -488,18 +488,18 @@ export default function SettingsScreen() {
   function handleLeaveHousehold() {
     if (!householdId || !householdName) return;
     confirm({
-      title: `Lämna ${householdName}?`,
-      message: 'Du tas bort från hushållet. Sysslor och aktiviteter som var tilldelade dig blir otilldelade. Detta kan inte ångras — be admin bjuda in dig på nytt om du ångrar dig.',
+      title: str.messages.leaveHouseholdTitle(householdName),
+      message: str.messages.leaveHousehold,
       buttons: [
-        { label: 'Lämna', style: 'destructive', onPress: async () => {
+        { label: str.buttons.leaveHousehold, style: 'destructive', onPress: async () => {
           try {
             await client.leaveHousehold(householdId);
             await refresh();
           } catch (e) {
-            showError(e, 'Kunde inte lämna hushållet');
+            showError(e, str.toasts.errorLeaveHousehold);
           }
         }},
-        { label: 'Avbryt', style: 'cancel' },
+        { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
@@ -512,13 +512,13 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScreenHeader
-        title="Hushållet"
+        title={str.title}
         actionNode={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Pressable
               onPress={() => router.push('/account' as never)}
               hitSlop={6}
-              accessibilityLabel="Konto"
+              accessibilityLabel={str.a11y.account}
               style={styles.headerAvatar}
             >
               <Text style={styles.headerAvatarText}>{displayName.charAt(0).toUpperCase()}</Text>
@@ -528,7 +528,7 @@ export default function SettingsScreen() {
               <Pressable
                 style={styles.headerIconBtn}
                 onPress={() => setShowAdminLogs(true)}
-                accessibilityLabel="Adminloggar"
+                accessibilityLabel={str.a11y.adminLogs}
               >
                 <Ionicons name="bar-chart-outline" size={20} color="#4f46e5" />
               </Pressable>
@@ -537,7 +537,7 @@ export default function SettingsScreen() {
               ref={notifClockBtnRef}
               style={styles.headerIconBtn}
               onPress={() => router.push('/preferences' as never)}
-              accessibilityLabel="Inställningar"
+              accessibilityLabel={str.a11y.notifications}
             >
               <Ionicons name="settings-outline" size={20} color="#4f46e5" />
             </Pressable>
@@ -549,10 +549,10 @@ export default function SettingsScreen() {
       <Modal visible={showAdminLogs} animationType="slide" onRequestClose={() => setShowAdminLogs(false)}>
         <SafeAreaView style={styles.adminLogsContainer}>
           <View style={styles.adminLogsHeader}>
-            <Pressable onPress={() => setShowAdminLogs(false)} hitSlop={10} accessibilityLabel="Stäng">
+            <Pressable onPress={() => setShowAdminLogs(false)} hitSlop={10} accessibilityLabel={str.a11y.close}>
               <Ionicons name="arrow-back" size={24} color="#111827" />
             </Pressable>
-            <Text style={styles.adminLogsTitle}>Adminloggar</Text>
+            <Text style={styles.adminLogsTitle}>{str.sections.adminLogs}</Text>
             <View style={{ width: 24 }} />
           </View>
           <ScrollView contentContainerStyle={styles.adminLogsBody} showsVerticalScrollIndicator={false}>
@@ -569,10 +569,10 @@ export default function SettingsScreen() {
         {/* Hushållet */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionLabel}>HUSHÅLLET</Text>
+            <Text style={styles.sectionLabel}>{str.sections.household}</Text>
             <Pressable ref={adminEditBtnRef} onPress={() => setEditMode(v => !v)} hitSlop={8}>
               <Text style={[styles.editModeBtn, editMode && styles.editModeBtnActive]}>
-                {editMode ? 'Klar' : 'Hantera'}
+                {editMode ? common.actions.done : common.actions.manage}
               </Text>
             </Pressable>
           </View>
@@ -580,24 +580,24 @@ export default function SettingsScreen() {
             style={styles.card}
             onPress={() => { if (allMemberships.length > 1) setExpandedHouseholds(v => !v); }}
             accessibilityRole="button"
-            accessibilityLabel={allMemberships.length > 1 ? 'Byt aktivt hushåll' : 'Aktivt hushåll'}
+            accessibilityLabel={allMemberships.length > 1 ? str.a11y.switchActiveHousehold : str.household.active}
           >
             <View style={styles.householdIcon}>
               <Ionicons name="home-outline" size={20} color="#4f46e5" />
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{householdName ?? 'Okänt hushåll'}</Text>
+              <Text style={styles.userName}>{householdName ?? str.household.unknown}</Text>
               <Text style={styles.userEmail}>
                 {allMemberships.length > 1
-                  ? `${allMemberships.length} hushåll · tryck för att byta`
-                  : 'Aktivt hushåll'}
+                  ? str.household.switchHint(allMemberships.length)
+                  : str.household.active}
               </Text>
             </View>
             {editMode ? (
               <Pressable
                 style={styles.memberActionBtn}
                 onPress={(e) => { e.stopPropagation?.(); openHouseholdActions(); }}
-                accessibilityLabel="Hushållsalternativ"
+                accessibilityLabel={str.a11y.householdOptions}
               >
                 <Ionicons name="create-outline" size={16} color="#4f46e5" />
               </Pressable>
@@ -635,11 +635,11 @@ export default function SettingsScreen() {
 
           <View style={styles.membersBox}>
             <View style={styles.membersHeader}>
-              <Text style={styles.membersTitle}>Medlemmar</Text>
+              <Text style={styles.membersTitle}>{str.sections.members}</Text>
               {editMode && isAdmin && (
                 <Pressable style={styles.addMemberBtn} onPress={() => setShowCreateLocalModal(true)}>
                   <Ionicons name="add-circle-outline" size={15} color="#4f46e5" />
-                  <Text style={styles.addMemberBtnText}>Lokal profil</Text>
+                  <Text style={styles.addMemberBtnText}>{str.member.localProfile}</Text>
                 </Pressable>
               )}
             </View>
@@ -652,13 +652,13 @@ export default function SettingsScreen() {
                 <View style={styles.memberInfo}>
                   <Text style={styles.memberName}>
                     {member.displayName}
-                    {member.clerkUserId === clerkUserId && <Text style={styles.memberYou}>  (Du)</Text>}
+                    {member.clerkUserId === clerkUserId && <Text style={styles.memberYou}>  {str.member.you}</Text>}
                   </Text>
                   <Text style={styles.memberEmail}>
                     {member.clerkUserId && member.role === 'admin' && (
                       <Text style={styles.memberAdminBadge}><Ionicons name="shield-checkmark" size={11} color="#7c3aed" />{'  '}</Text>
                     )}
-                    {member.clerkUserId ? (member.role === 'admin' ? 'Admin' : 'Konto-medlem') : 'Lokal profil'}
+                    {member.clerkUserId ? (member.role === 'admin' ? str.member.admin : str.member.accountMember) : str.member.localProfile}
                   </Text>
                 </View>
                 <View style={styles.memberActions}>
@@ -671,7 +671,7 @@ export default function SettingsScreen() {
                         clerkUserId: member.clerkUserId ?? null,
                       })}
                       style={styles.memberActionBtn}
-                      accessibilityLabel={`Redigera ${member.displayName}`}
+                      accessibilityLabel={str.a11y.editMember(member.displayName)}
                     >
                       <Ionicons name="create-outline" size={16} color="#4f46e5" />
                     </Pressable>
@@ -685,7 +685,7 @@ export default function SettingsScreen() {
 
         {/* Bjud in */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>BJUD IN NÅGON</Text>
+          <Text style={styles.sectionLabel}>{str.sections.invite}</Text>
           <View style={styles.inviteBox}>
             <Text style={styles.inviteDesc}>
               {str.invite.description}
@@ -704,7 +704,7 @@ export default function SettingsScreen() {
                 </Pressable>
               </>
             ) : null}
-            {expiresStr && <Text style={styles.expiresText}>Går ut: {expiresStr}</Text>}
+            {expiresStr && <Text style={styles.expiresText}>{str.invite.expires(expiresStr)}</Text>}
             <Pressable
               style={[styles.inviteBtn, loadingInvite && styles.inviteBtnDisabled]}
               onPress={generateInvite}
@@ -719,16 +719,16 @@ export default function SettingsScreen() {
 
         {/* Andra hushåll: skapa nytt eller gå med via kod */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>ANDRA HUSHÅLL</Text>
+          <Text style={styles.sectionLabel}>{str.sections.other}</Text>
           <View style={styles.linkBox}>
             <Pressable style={styles.linkRow} onPress={() => setShowCreateHouseholdModal(true)}>
               <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
-              <Text style={styles.linkRowText}>Skapa nytt hushåll</Text>
+              <Text style={styles.linkRowText}>{str.otherHousehold.create}</Text>
               <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
             </Pressable>
             <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={() => setShowJoinHouseholdModal(true)}>
               <Ionicons name="log-in-outline" size={18} color="#4f46e5" />
-              <Text style={styles.linkRowText}>Gå med i hushåll</Text>
+              <Text style={styles.linkRowText}>{str.otherHousehold.join}</Text>
               <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
             </Pressable>
           </View>
@@ -742,7 +742,7 @@ export default function SettingsScreen() {
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Byt namn på hushållet</Text>
+          <Text style={styles.sheetTitle}>{str.modals.renameHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <TextInput
               style={styles.input}
@@ -762,7 +762,7 @@ export default function SettingsScreen() {
             >
               {loadingHouseholdEdit
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={styles.buttonText}>Spara</Text>}
+                : <Text style={styles.buttonText}>{common.actions.save}</Text>}
             </Pressable>
           </ScrollView>
         </View>
@@ -775,11 +775,11 @@ export default function SettingsScreen() {
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Ta bort hushållet</Text>
+          <Text style={styles.sheetTitle}>{str.modals.deleteHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll} keyboardShouldPersistTaps="handled">
             <Text style={styles.sheetDesc}>
-              All data i "{householdName}" (sysslor, meny, inköpslistor) raderas permanent och kan inte återställas.{'\n\n'}
-              Skriv <Text style={{ fontWeight: '700', color: '#ef4444' }}>DELETE</Text> för att bekräfta.
+              {str.messages.deleteConfirmIntro(householdName ?? '')}{'\n\n'}
+              Skriv <Text style={{ fontWeight: '700', color: '#ef4444' }}>{str.placeholders.deleteConfirm}</Text> {str.messages.deleteConfirmOutro}
             </Text>
             <TextInput
               style={[styles.input, styles.deleteInput]}
@@ -797,7 +797,7 @@ export default function SettingsScreen() {
             >
               {loadingDeleteHousehold
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={styles.deleteBtnText}>Ta bort hushållet</Text>}
+                : <Text style={styles.deleteBtnText}>{str.buttons.deleteHousehold}</Text>}
             </Pressable>
           </ScrollView>
         </View>
@@ -810,11 +810,11 @@ export default function SettingsScreen() {
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Byt namn</Text>
+          <Text style={styles.sheetTitle}>{str.modals.editMember}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <TextInput
               style={styles.input}
-              placeholder="Namn"
+              placeholder={str.placeholders.memberName}
               value={editingDisplayName}
               onChangeText={setEditingDisplayName}
               placeholderTextColor="#9ca3af"
@@ -830,7 +830,7 @@ export default function SettingsScreen() {
             >
               {loadingMemberEdit
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={styles.buttonText}>Spara</Text>}
+                : <Text style={styles.buttonText}>{common.actions.save}</Text>}
             </Pressable>
           </ScrollView>
         </View>
@@ -843,12 +843,12 @@ export default function SettingsScreen() {
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Lägg till lokal profil</Text>
+          <Text style={styles.sheetTitle}>{str.modals.addProfile}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll} keyboardShouldPersistTaps="handled">
-            <Text style={styles.sheetDesc}>Skapa en lokal profil för ett familjemedlem utan konto.</Text>
+            <Text style={styles.sheetDesc}>{str.messages.addProfile}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Namn"
+              placeholder={str.placeholders.memberName}
               value={localProfileName}
               onChangeText={setLocalProfileName}
               placeholderTextColor="#9ca3af"
@@ -862,7 +862,7 @@ export default function SettingsScreen() {
             >
               {loadingLocalProfile
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={styles.buttonText}>Skapa profil</Text>}
+                : <Text style={styles.buttonText}>{str.buttons.createProfile}</Text>}
             </Pressable>
           </ScrollView>
         </View>
@@ -875,7 +875,7 @@ export default function SettingsScreen() {
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Skapa nytt hushåll</Text>
+          <Text style={styles.sheetTitle}>{str.modals.createHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll} keyboardShouldPersistTaps="handled">
             <TextInput
               style={styles.input}
@@ -893,7 +893,7 @@ export default function SettingsScreen() {
             >
               {loadingCreateHousehold
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={styles.buttonText}>Skapa</Text>}
+                : <Text style={styles.buttonText}>{common.actions.create}</Text>}
             </Pressable>
           </ScrollView>
         </View>
@@ -906,9 +906,9 @@ export default function SettingsScreen() {
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Gå med i hushåll</Text>
+          <Text style={styles.sheetTitle}>{str.modals.joinHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
-            <Text style={styles.sheetDesc}>Ange inbjudningskoden du fick från husägaren.</Text>
+            <Text style={styles.sheetDesc}>{str.messages.joinHint}</Text>
             <TextInput
               style={styles.input}
               placeholder={str.placeholders.inviteCode}
@@ -926,7 +926,7 @@ export default function SettingsScreen() {
             >
               {loadingJoinHousehold
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={styles.buttonText}>Gå med</Text>}
+                : <Text style={styles.buttonText}>{str.buttons.joinHousehold}</Text>}
             </Pressable>
           </ScrollView>
         </View>

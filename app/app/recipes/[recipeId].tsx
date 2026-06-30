@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 
 import { kavBehavior } from '../../src/lib/platform';
-import { recipes as str, common } from '../../src/lib/strings';
+import { recipes as str, common } from '../../src/lib/svenska';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -531,7 +531,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             {heroError ? (
               <View style={[s.heroImageOverlay, s.heroPlaceholder]}>
                 <Ionicons name="image-outline" size={32} color="#9ca3af" />
-                <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 4 }}>Kunde inte ladda bilden</Text>
+                <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 4 }}>{str.detail.imageLoadError}</Text>
               </View>
             ) : null}
           </View>
@@ -556,14 +556,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               style={s.metaChip}
               onPress={() => WebBrowser.openBrowserAsync(recipe.sourceUrl!)}
             >
-              <Text style={[s.metaText, { color: '#4f46e5' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>↗ Originalrecept</Text>
+              <Text style={[s.metaText, { color: '#4f46e5' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{str.detail.originalRecipe}</Text>
             </Pressable>
           )}
         </View>
 
         {editMode ? (
           <View>
-            <Text style={s.editLabel}>Beskrivning</Text>
+            <Text style={s.editLabel}>{str.detail.descriptionLabel}</Text>
             <TextInput
               style={[s.renameInput, s.editMultiline]}
               value={editDesc}
@@ -724,7 +724,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             </View>
           ) : recipe.ingredients.length === 0 ? (
             <Pressable style={s.noIngredients} onPress={startEdit}>
-              <Text style={s.noIngredientsText}>Inga ingredienser än — tryck för att lägga till</Text>
+              <Text style={s.noIngredientsText}>{str.detail.noIngredients}</Text>
             </Pressable>
           ) : (
             recipe.ingredients.map(ing => (
@@ -741,7 +741,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         {editMode ? (
           <View style={s.section}>
             <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>Instruktioner</Text>
+              <Text style={s.sectionTitle}>{str.detail.instructionsLabel}</Text>
             </View>
             <TextInput
               style={[s.renameInput, s.editMultilineTall]}
@@ -971,7 +971,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                     ))}
                   </ScrollView>
                 )}
-                <Text style={s.cookStepLabel}>Steg {cookStep + 1} av {steps.length}</Text>
+                <Text style={s.cookStepLabel}>{str.detail.cookStep(cookStep + 1, steps.length)}</Text>
                 <Text style={s.cookStepText}>{step}</Text>
               </ScrollView>
               <View style={s.cookNav}>
@@ -981,17 +981,17 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                   disabled={cookStep === 0}
                 >
                   <Ionicons name="arrow-back" size={20} color={cookStep === 0 ? '#d1d5db' : '#111827'} />
-                  <Text style={[s.cookNavText, cookStep === 0 && { color: '#d1d5db' }]}>Föregående</Text>
+                  <Text style={[s.cookNavText, cookStep === 0 && { color: '#d1d5db' }]}>{str.detail.cookPrev}</Text>
                 </Pressable>
                 {cookStep < steps.length - 1 ? (
                   <Pressable style={s.cookNavBtnPrimary} onPress={() => setCookStep(p => p + 1)}>
-                    <Text style={s.cookNavTextPrimary}>Nästa</Text>
+                    <Text style={s.cookNavTextPrimary}>{str.detail.cookNext}</Text>
                     <Ionicons name="arrow-forward" size={20} color="#fff" />
                   </Pressable>
                 ) : (
                   <Pressable style={s.cookNavBtnPrimary} onPress={() => setCookMode(false)}>
                     <Ionicons name="checkmark" size={20} color="#fff" />
-                    <Text style={s.cookNavTextPrimary}>Klart!</Text>
+                    <Text style={s.cookNavTextPrimary}>{str.detail.cookDone}</Text>
                   </Pressable>
                 )}
               </View>

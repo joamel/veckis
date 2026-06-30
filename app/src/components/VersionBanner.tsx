@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Updates from 'expo-updates';
+import { components as str, common } from '../lib/svenska';
 
 function SharedBanner({ text, actionLabel, onAction, onDismiss }: {
   text: string;
@@ -20,7 +21,7 @@ function SharedBanner({ text, actionLabel, onAction, onDismiss }: {
       <Pressable style={s.btn} onPress={onAction}>
         <Text style={s.btnText}>{actionLabel}</Text>
       </Pressable>
-      <Pressable onPress={onDismiss} hitSlop={8} accessibilityLabel="Stäng">
+      <Pressable onPress={onDismiss} hitSlop={8} accessibilityLabel={common.actions.close}>
         <Ionicons name="close" size={16} color="#ddd6fe" />
       </Pressable>
     </View>
@@ -43,8 +44,8 @@ function WebVersionBanner() {
   if (!visible) return null;
   return (
     <SharedBanner
-      text="Ny version av Veckis tillgänglig"
-      actionLabel="Ladda om"
+      text={str.versionBanner.webText}
+      actionLabel={str.versionBanner.webAction}
       onAction={() => window.location.reload()}
       onDismiss={() => setVisible(false)}
     />
@@ -58,8 +59,8 @@ function NativeVersionBanner() {
   if (!isUpdateAvailable || dismissed) return null;
   return (
     <SharedBanner
-      text="Ny version av Veckis laddad"
-      actionLabel="Starta om"
+      text={str.versionBanner.nativeText}
+      actionLabel={str.versionBanner.nativeAction}
       onAction={() => { void Updates.reloadAsync(); }}
       onDismiss={() => setDismissed(true)}
     />

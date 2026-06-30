@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { components as str, common } from '../src/lib/svenska';
 
 export default function NotFoundScreen() {
   const router = useRouter();
@@ -18,20 +19,19 @@ export default function NotFoundScreen() {
         <View style={s.iconCircle}>
           <Ionicons name="search-outline" size={48} color="#7c3aed" />
         </View>
-        <Text style={s.title}>Sidan hittades inte</Text>
+        <Text style={s.title}>{str.notFound.title}</Text>
         <Text style={s.body}>
-          Vi kunde inte hitta sidan du sökte. Den kan ha tagits bort,
-          flyttats eller också är länken fel.
+          {str.notFound.body}
         </Text>
         {params.unmatched && (
           <Text style={s.path}>{String(params.unmatched)}</Text>
         )}
         <View style={s.actions}>
           <Pressable style={s.primaryBtn} onPress={() => router.replace('/(tabs)/schedule' as never)}>
-            <Text style={s.primaryBtnText}>Till kalendern</Text>
+            <Text style={s.primaryBtnText}>{str.notFound.toCalendar}</Text>
           </Pressable>
           <Pressable style={s.secondaryBtn} onPress={() => router.back()}>
-            <Text style={s.secondaryBtnText}>Tillbaka</Text>
+            <Text style={s.secondaryBtnText}>{common.actions.back}</Text>
           </Pressable>
         </View>
       </View>

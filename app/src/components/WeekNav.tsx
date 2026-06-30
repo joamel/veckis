@@ -5,6 +5,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useTablet } from '../hooks/useTablet';
 import { useOnceFlag } from '../hooks/useOnceFlag';
 import { useSpotlightTip, useTipsReady } from '../context/SpotlightTipContext';
+import { components as str } from '../lib/svenska';
 
 interface WeekNavProps {
   weekLabel: string;
@@ -38,8 +39,8 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
     if (dateTip.seen !== false || dateTipShownRef.current) return;
     if (!onPickDate) return;
     const shown = showTip({
-      title: 'Hoppa till annan vecka',
-      message: 'Tryck på veckonumret för att öppna en kalender och hoppa till valfri vecka eller dag.',
+      title: str.weekNav.dateTip.title,
+      message: str.weekNav.dateTip.message,
       targetRef: labelTextRef,
     });
     if (shown) { dateTipShownRef.current = true; dateTip.markSeen(); }
@@ -53,16 +54,16 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
           <Text style={[s.label, { fontSize: fs(14) }, isCurrentWeek && s.labelCurrent, isPastWeek && s.labelPast]}>{weekLabel}</Text>
         </View>
       </Pressable>
-      <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={disablePrev ? undefined : onPrev} accessibilityRole="button" accessibilityLabel="Föregående vecka" disabled={disablePrev}>
+      <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={disablePrev ? undefined : onPrev} accessibilityRole="button" accessibilityLabel={str.weekNav.prevWeek} disabled={disablePrev}>
         <Ionicons name="chevron-back" size={fs(18)} color={disablePrev ? '#d1d5db' : '#4f46e5'} />
       </Pressable>
       <View style={{ flex: 1 }} />
       {!isCurrentWeek && (
         <Pressable style={[s.todayBtn, { paddingHorizontal: sp(12), paddingVertical: sp(6) }]} onPress={onToday}>
-          <Text style={[s.todayBtnText, { fontSize: fs(12) }]}>Idag</Text>
+          <Text style={[s.todayBtnText, { fontSize: fs(12) }]}>{str.weekNav.today}</Text>
         </Pressable>
       )}
-      <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onNext} accessibilityRole="button" accessibilityLabel="Nästa vecka">
+      <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onNext} accessibilityRole="button" accessibilityLabel={str.weekNav.nextWeek}>
         <Ionicons name="chevron-forward" size={fs(18)} color="#4f46e5" />
       </Pressable>
     </View>

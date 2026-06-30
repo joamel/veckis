@@ -1,5 +1,6 @@
 import { createContext, useContext, useRef, useState, useCallback, ReactNode } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getApiErrorMessage } from '../api/client';
 
 export type ToastVariant = 'success' | 'neutral' | 'error';
@@ -49,11 +50,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     showToast(getApiErrorMessage(err, fallback), 'error');
   }, [showToast]);
 
+  const insets = useSafeAreaInsets();
+  const bottomOffset = 60 + insets.bottom + 12;
+
   return (
     <ToastContext.Provider value={{ showToast, showError }}>
       {children}
       <Animated.View
-        style={[s.toast, variant === 'neutral' && s.toastNeutral, variant === 'error' && s.toastError, { opacity }]}
+        style={[s.toast, variant === 'neutral' && s.toastNeutral, variant === 'error' && s.toastError, { opacity, bottom: bottomOffset }]}
         pointerEvents={action ? 'auto' : 'none'}
       >
         <Text style={[s.toastText, action ? { flex: 1 } : null]}>{message}</Text>
@@ -81,7 +85,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 const s = StyleSheet.create({
   toast: {
     position: 'absolute',
-    bottom: 96,
+    bottom: 72,
     left: 24,
     right: 24,
     backgroundColor: '#10b981',

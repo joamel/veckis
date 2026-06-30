@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { RecurrenceType, WeekDay } from '@veckis/shared';
-import { components as str, common } from '../lib/strings';
+import { components as str, common } from '../lib/svenska';
 
 const DAYS: { key: WeekDay; short: string; label: string }[] = [
   { key: 'mon', short: 'Mån', label: 'Måndag' },

@@ -20,6 +20,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, ApiError } from '../../src/api/client';
 import { enqueueChoreOp, getPendingChoreOps, clearChoreOp } from '../../src/lib/choreOfflineQueue';
+import * as SecureStore from '../../src/lib/secureStorage';
 import { RecurrencePicker } from '../../src/components/RecurrencePicker';
 import { MultiMemberPicker } from '../../src/components/MultiMemberPicker';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
@@ -42,27 +43,14 @@ import { ConflictBanner } from '../../src/components/ConflictBanner';
 import type { Chore, ChoreCompletion, ChoreFrequency, RecurrenceType, WeekDay } from '@veckis/shared';
 import { occursOn, weekdayOf, computeTurnHistory, type RecurrencePattern } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
-import { chores as str, components as cmpStr, common } from '../../src/lib/strings';
+import { chores as str, components as cmpStr, common } from '../../src/lib/svenska';
 
 type ChoreWithCompletion = Chore & { completions: ChoreCompletion[] };
 
-const FREQ_LABELS: Record<ChoreFrequency, string> = {
-  once: 'En gång',
-  daily: 'Dagligen',
-  weekly: 'Varje vecka',
-  biweekly: 'Varannan vecka',
-  monthly: 'Månadsvis',
-};
+const FREQ_LABELS: Record<ChoreFrequency, string> = str.freqLabels;
 
-const DAYS: { key: WeekDay; short: string }[] = [
-  { key: 'mon', short: 'Mån' },
-  { key: 'tue', short: 'Tis' },
-  { key: 'wed', short: 'Ons' },
-  { key: 'thu', short: 'Tor' },
-  { key: 'fri', short: 'Fre' },
-  { key: 'sat', short: 'Lör' },
-  { key: 'sun', short: 'Sön' },
-];
+const WEEKDAY_KEYS: WeekDay[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const DAYS: { key: WeekDay; short: string }[] = WEEKDAY_KEYS.map((key, i) => ({ key, short: common.weekdays.short[i] }));
 
 function daysSince(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -373,7 +361,22 @@ export default function ChoresScreen() {
         client.getHousehold(householdId),
       ]);
       setChores(choreData);
-      setClearedRecurringIds(new Set());
+      // Restore persisted cleared IDs, but only keep those whose chore is still in the same
+      // "done" state (same completion count). If a new completion was added since last clear,
+      // the ID is stale and the chore should reappear.
+      const raw = await SecureStore.getItemAsync(`cleared-recurring-${householdId}`);
+      const entries: { id: string; count: number }[] = raw ? JSON.parse(raw) : [];
+      const stillCleared = entries
+        .filter(e => {
+          const chore = choreData.find(c => c.id === e.id);
+          if (!chore) return false;
+          if (chore.completions.length !== e.count) return false;
+          if (isOnce(chore)) return true;
+          // Remove from cleared if a new occurrence has started (state no longer 'done')
+          return recurringStatus(chore).state === 'done';
+        })
+        .map(e => e.id);
+      setClearedRecurringIds(new Set(stillCleared));
       setMembers(household.members);
       // Flusha offline-köade mutationer mot API:et efter att fresh data laddats.
       const pending = getPendingChoreOps();
@@ -737,6 +740,7 @@ export default function ChoresScreen() {
     const fakeId = '__opt__';
     const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note, day: null, date: null };
     setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
+    setClearedRecurringIds(prev => { if (!prev.has(chore.id)) return prev; const n = new Set(prev); n.delete(chore.id); return n; });
     try {
       const completion = await client.completeChore(chore.id, null, note ?? undefined, null, performedByMemberId);
       setChores(cs => cs.map(c => c.id === chore.id
@@ -757,9 +761,9 @@ export default function ChoresScreen() {
   // Performer-picker — frågar vem som faktiskt utförde sysslan när det inte
   // är entydigt:
   //  - rotation=true + 2+ tilldelade → fråga alltid, defaulta på turperson
-  //  - 2+ tilldelade utan rotation där minst en är lokal profil → fråga
-  //  - 1 tilldelad lokal profil → fråga (gamla beteendet)
-  //  - 1 tilldelad Clerk-user eller ingen tilldelad → skippa, kreditera tapparen
+  //  - 2+ tilldelade (oavsett typ) → fråga
+  //  - 1 tilldelad (Clerk eller lokal profil) utan rotation → skippa
+  //  - ingen tilldelad → skippa
   function pickPerformer(chore: ChoreWithCompletion, onPick: (performedByMemberId: string | null) => void) {
     const choice = buildPerformerOptions(chore, members, userId);
     if (choice.kind === 'auto') { onPick(null); return; }
@@ -776,6 +780,16 @@ export default function ChoresScreen() {
     const fakeId = '__occ__' + date;
     const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note, day: null, date };
     setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
+    if (clearedRecurringIds.has(chore.id)) {
+      const n = new Set(clearedRecurringIds);
+      n.delete(chore.id);
+      setClearedRecurringIds(n);
+      const remaining = [...n].map(id => {
+        const c = chores.find(x => x.id === id);
+        return { id, count: c?.completions.length ?? 0 };
+      });
+      SecureStore.setItemAsync(`cleared-recurring-${householdId}`, JSON.stringify(remaining)).catch(() => {});
+    }
     try {
       const completion = await client.completeChore(chore.id, null, note ?? undefined, date, performedByMemberId);
       setChores(cs => cs.map(c => c.id === chore.id
@@ -794,7 +808,7 @@ export default function ChoresScreen() {
   }
 
   async function uncompleteOccurrence(chore: ChoreWithCompletion, date: string) {
-    const saved = chore.completions;
+    const removedComp = chore.completions.find(c => completionDate(c) === date);
     setChores(cs => cs.map(c => c.id === chore.id
       ? { ...c, completions: c.completions.filter(comp => completionDate(comp) !== date) }
       : c));
@@ -804,14 +818,18 @@ export default function ChoresScreen() {
       if (e instanceof ApiError && e.isNetworkError) {
         enqueueChoreOp({ type: 'uncomplete', choreId: chore.id, date });
       } else {
-        setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
+        if (removedComp) {
+          setChores(cs => cs.map(c => c.id === chore.id
+            ? { ...c, completions: [...c.completions, removedComp] }
+            : c));
+        }
         showError(e, 'Kunde inte ångra');
       }
     }
   }
 
   async function uncompleteChore(chore: ChoreWithCompletion) {
-    const saved = chore.completions;
+    const removedComps = chore.completions.filter(comp => comp.day === null);
     setChores(cs => cs.map(c => c.id === chore.id
       ? { ...c, completions: c.completions.filter(comp => comp.day !== null) }
       : c));
@@ -821,7 +839,11 @@ export default function ChoresScreen() {
       if (e instanceof ApiError && e.isNetworkError) {
         enqueueChoreOp({ type: 'uncomplete', choreId: chore.id, date: null });
       } else {
-        setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: saved } : c));
+        if (removedComps.length) {
+          setChores(cs => cs.map(c => c.id === chore.id
+            ? { ...c, completions: [...c.completions, ...removedComps] }
+            : c));
+        }
         showError(e, str.toasts.errorUncomplete);
       }
     }
@@ -848,12 +870,18 @@ export default function ChoresScreen() {
                 showError(e, 'Kunde inte ta bort syssla');
               }
             }));
-            // Recurring chores: just hide the done-card locally — don't uncomplete
-            setClearedRecurringIds(prev => {
-              const next = new Set(prev);
-              completedRecurring.forEach(({ chore }) => next.add(chore.id));
-              return next;
+            // Recurring chores: hide locally and persist so the button stays gone after refresh
+            const nextCleared = new Set(clearedRecurringIds);
+            completedRecurring.forEach(({ chore }) => nextCleared.add(chore.id));
+            setClearedRecurringIds(nextCleared);
+            const persistEntries = [...nextCleared].map(id => {
+              const c = chores.find(x => x.id === id);
+              return { id, count: c?.completions.length ?? 0 };
             });
+            await SecureStore.setItemAsync(`cleared-recurring-${householdId}`, JSON.stringify(persistEntries));
+            const hiddenCount = completedRecurring.length;
+            const totalCount = completedOnce.length + hiddenCount;
+            if (totalCount > 0) showToast(`${totalCount} ${totalCount === 1 ? 'syssla rensad' : 'sysslor rensade'}`);
           },
         },
         { label: common.actions.cancel, style: 'cancel' },
@@ -868,7 +896,7 @@ export default function ChoresScreen() {
   return (
     <SafeAreaView style={s.container}>
       <ScreenHeader
-        title="Sysslor"
+        title={str.title}
         actionNode={
           <View style={s.headerActions}>
             {(completedOnce.length > 0 || completedRecurring.length > 0) && (
@@ -904,9 +932,9 @@ export default function ChoresScreen() {
         ListEmptyComponent={
           <EmptyState
             icon="checkmark-circle-outline"
-            title="Inga sysslor än"
-            subtitle="Lägg till en syssla så syns den här och i kalendern."
-            actionLabel="Ny syssla"
+            title={str.emptyState.title}
+            subtitle={str.emptyState.subtitle}
+            actionLabel={str.header.new}
             onAction={openCreate}
           />
         }
@@ -922,9 +950,9 @@ export default function ChoresScreen() {
           if (variant === 'done') {
             dateLabel = once
               ? (item.completions[0] ? daysSince(item.completions[0].completedAt) : null)
-              : (rec?.current ? `klar ${formatOcc(rec.current.date)}` : 'klar');
+              : (rec?.completedDate ? `klar ${formatOcc(rec.completedDate)}` : rec?.current ? `klar ${formatOcc(rec.current.date)}` : 'klar');
           } else if (variant === 'upcoming') {
-            dateLabel = null;
+            dateLabel = rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}` : null;
           } else {
             // active
             dateLabel = once
@@ -932,6 +960,7 @@ export default function ChoresScreen() {
               : (rec?.state === 'overdue' ? `förfallen ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
                 : rec?.state === 'today' ? 'idag'
                 : rec?.current ? formatOcc(rec.current.date)
+                : rec?.nextDate ? `nästa ${formatOcc(rec.nextDate)}`
                 : null);
           }
           const compactMeta = [assignedLabel, dateLabel].filter(Boolean).join(' · ');
@@ -940,7 +969,7 @@ export default function ChoresScreen() {
           const openView = wrapExpandTip(() => setViewingChore(item), str.tips.details);
           return (
             <View style={[s.cardWrap, isTablet && s.cardWrapTablet]}>
-              <View style={[s.card, finishedLook && s.cardDone, overdue && s.cardOverdue, variant === 'upcoming' && s.cardUpcoming]}>
+              <View style={[s.card, finishedLook && s.cardDone, overdue && s.cardOverdue]}>
               <View style={s.cardInner}>
               <Pressable
                 style={[s.cardMain, { padding: sp(14), gap: sp(12) }]}
@@ -948,15 +977,15 @@ export default function ChoresScreen() {
               >
                 <View style={s.cardIcon}>
                   <Ionicons
-                    name={variant === 'upcoming' ? 'calendar-outline' : 'sparkles-outline'}
+                    name="sparkles-outline"
                     size={fs(16)}
-                    color={variant === 'upcoming' ? '#9ca3af' : '#7c3aed'}
+                    color="#7c3aed"
                   />
                 </View>
                 <View style={s.cardContent}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
                     <Text style={[s.cardTitle, { fontSize: fs(15), flexShrink: 1 }, finishedLook && s.cardTitleDone]} numberOfLines={1}>{item.title}</Text>
-                    {!once && <Ionicons name="repeat-outline" size={fs(12)} color="#a78bfa" style={{ flexShrink: 0 }} />}
+                    {!once && <Ionicons name="repeat-outline" size={fs(15)} color="#a78bfa" style={{ flexShrink: 0 }} />}
                   </View>
                   <Text style={[s.cardMeta, { fontSize: fs(12) }, overdue && s.choreStatusOverdue]} numberOfLines={1}>{compactMeta || ' '}</Text>
                 </View>
@@ -1000,12 +1029,10 @@ export default function ChoresScreen() {
       </Animated.View>
 
       <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowFilterModal(false)} />
-        <View style={s.filterSheet}>
-          <View style={s.sheetHandle} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={s.sheetTitle}>Filtrera på person</Text>
+        <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onPress={() => setShowFilterModal(false)} />
+        <View style={s.filterPopup}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text style={s.filterPopupTitle}>Filter</Text>
             {filterMemberIds.length > 0 && (
               <Pressable onPress={() => setFilterMemberIds([])} hitSlop={8}>
                 <Text style={{ fontSize: 13, fontWeight: '600', color: '#7c3aed' }}>Rensa</Text>
@@ -1046,6 +1073,7 @@ export default function ChoresScreen() {
       </Modal>
 
       {/* Create modal — fullscreen */}
+
       <Modal visible={showCreate} animationType="slide" onRequestClose={() => tryCloseCreate(newTitle.trim() !== '', () => { setShowCreate(false); resetCreateForm(); })}>
         <SafeAreaView style={s.createFull}>
           {/* Header */}
@@ -1485,7 +1513,6 @@ const s = StyleSheet.create({
   cardInner: { borderRadius: 12, overflow: 'hidden' },
   cardMain: { flexDirection: 'row', alignItems: 'center' },
   cardDone: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
-  cardUpcoming: { borderLeftColor: '#9ca3af' },
   cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#f5f3ff', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1, minWidth: 0 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
@@ -1579,9 +1606,10 @@ const s = StyleSheet.create({
   filterBtnTextActive: { color: '#7c3aed', fontWeight: '600' },
   filterBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   filterBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  filterSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 32 },
-  filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  filterMemberName: { fontSize: 16, color: '#374151', flex: 1, marginRight: 12 },
+  filterPopup: { position: 'absolute', top: 0, right: 0, backgroundColor: '#fff', borderRadius: 12, padding: 16, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 8, overflow: 'hidden' },
+  filterPopupTitle: { fontSize: 13, fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 },
+  filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  filterMemberName: { fontSize: 15, color: '#374151', flex: 1, marginRight: 12 },
   filterMemberNameActive: { color: '#7c3aed', fontWeight: '600' },
   viewFull: { flex: 1, backgroundColor: '#fff' },
   viewNav: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8 },

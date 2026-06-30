@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { InstallBanner } from '../../src/components/InstallBanner';
+import { auth as str } from '../../src/lib/svenska';
 
 export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
@@ -49,8 +50,8 @@ export default function SignInScreen() {
       const result = await signIn.create({ identifier: email, password });
       await setActive({ session: result.createdSessionId });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Inloggning misslyckades';
-      confirm({ title: 'Fel', message: msg, buttons: [{ label: 'OK' }] });
+      const msg = err instanceof Error ? err.message : str.errors.signInFailed;
+      confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -59,7 +60,7 @@ export default function SignInScreen() {
   /** Skicka kod till mail. Används av både 'email-code' och 'reset'. */
   async function handleSendCode() {
     if (!isLoaded || !email.trim()) {
-      confirm({ title: 'E-post saknas', message: 'Fyll i din e-postadress först.', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.emailMissing.title, message: str.errors.emailMissing.message, buttons: [{ label: 'OK' }] });
       return;
     }
     setLoading(true);
@@ -71,7 +72,7 @@ export default function SignInScreen() {
         const attempt = await signIn.create({ identifier: email });
         const factor = attempt.supportedFirstFactors?.find(f => f.strategy === 'email_code');
         if (!factor || !('emailAddressId' in factor)) {
-          throw new Error('Inloggning med kod är inte tillgänglig för detta konto');
+          throw new Error(str.errors.codeSignInUnavailable);
         }
         await signIn.prepareFirstFactor({ strategy: 'email_code', emailAddressId: factor.emailAddressId });
       } else {
@@ -79,8 +80,8 @@ export default function SignInScreen() {
       }
       setCodeSent(true);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Kunde inte skicka kod';
-      confirm({ title: 'Fel', message: msg, buttons: [{ label: 'OK' }] });
+      const msg = err instanceof Error ? err.message : str.errors.sendCodeFailed;
+      confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -90,7 +91,7 @@ export default function SignInScreen() {
   async function handleVerifyCode() {
     if (!isLoaded) return;
     if (mode === 'reset' && resetNewPassword.length < 8) {
-      confirm({ title: 'Lösenord för kort', message: 'Lösenordet måste vara minst 8 tecken.', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.errors.passwordTooShort.title, message: str.errors.passwordTooShort.message, buttons: [{ label: 'OK' }] });
       return;
     }
     setLoading(true);
@@ -104,8 +105,8 @@ export default function SignInScreen() {
         await setActive({ session: result.createdSessionId });
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Verifiering misslyckades';
-      confirm({ title: 'Fel', message: msg, buttons: [{ label: 'OK' }] });
+      const msg = err instanceof Error ? err.message : str.errors.verifyFailed;
+      confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -120,8 +121,8 @@ export default function SignInScreen() {
         await setOAuthActive({ session: createdSessionId });
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Google-inloggning misslyckades';
-      confirm({ title: 'Fel', message: msg, buttons: [{ label: 'OK' }] });
+      const msg = err instanceof Error ? err.message : str.errors.googleFailed;
+      confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
     }
   }
 
@@ -130,11 +131,11 @@ export default function SignInScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Text style={styles.title}>Veckis</Text>
+      <Text style={styles.title}>{str.appName}</Text>
       <Text style={styles.subtitle}>
-        {mode === 'reset' ? 'Återställ lösenord'
-          : mode === 'email-code' ? 'Logga in med kod'
-          : 'Logga in på ditt hushåll'}
+        {mode === 'reset' ? str.signIn.subtitle.reset
+          : mode === 'email-code' ? str.signIn.subtitle.emailCode
+          : str.signIn.subtitle.password}
       </Text>
 
       <InstallBanner />
@@ -143,7 +144,7 @@ export default function SignInScreen() {
         <>
           <TextInput
             style={styles.input}
-            placeholder="E-post"
+            placeholder={str.placeholders.email}
             placeholderTextColor="#9ca3af"
             autoCapitalize="none"
             keyboardType="email-address"
@@ -152,7 +153,7 @@ export default function SignInScreen() {
           />
           <TextInput
             style={styles.input}
-            placeholder="Lösenord"
+            placeholder={str.placeholders.password}
             placeholderTextColor="#9ca3af"
             secureTextEntry
             value={password}
@@ -160,17 +161,17 @@ export default function SignInScreen() {
           />
 
           <Pressable style={styles.button} onPress={handleEmailSignIn} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Logga in</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{str.signIn.buttons.signIn}</Text>}
           </Pressable>
 
           <View style={styles.altRow}>
             <Pressable onPress={() => switchMode('reset')} hitSlop={6}>
-              <Text style={styles.linkSmall}>Glömt lösenord?</Text>
+              <Text style={styles.linkSmall}>{str.signIn.links.forgotPassword}</Text>
             </Pressable>
           </View>
 
           <Pressable onPress={() => switchMode('email-code')}>
-            <Text style={styles.link}>← Logga in med kod istället</Text>
+            <Text style={styles.link}>{str.signIn.links.backToCodeSignIn}</Text>
           </Pressable>
         </>
       )}
@@ -181,12 +182,12 @@ export default function SignInScreen() {
             <>
               <Text style={styles.helpText}>
                 {mode === 'email-code'
-                  ? 'Skriv din e-post så skickar vi en engångskod — säkrare än lösenord.'
-                  : 'Skriv din e-post så skickar vi en återställningskod.'}
+                  ? str.signIn.helpText.emailCode
+                  : str.signIn.helpText.reset}
               </Text>
               <TextInput
                 style={styles.input}
-                placeholder="E-post"
+                placeholder={str.placeholders.email}
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
                 keyboardType="email-address"
@@ -194,15 +195,15 @@ export default function SignInScreen() {
                 onChangeText={setEmail}
               />
               <Pressable style={styles.button} onPress={handleSendCode} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Skicka kod</Text>}
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{str.signIn.buttons.sendCode}</Text>}
               </Pressable>
             </>
           ) : (
             <>
-              <Text style={styles.helpText}>Vi har skickat en kod till {email}.</Text>
+              <Text style={styles.helpText}>{str.signIn.helpText.codeSentTo(email)}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Kod från mailet"
+                placeholder={str.placeholders.codeFromEmail}
                 placeholderTextColor="#9ca3af"
                 keyboardType="number-pad"
                 value={code}
@@ -211,7 +212,7 @@ export default function SignInScreen() {
               {mode === 'reset' && (
                 <TextInput
                   style={styles.input}
-                  placeholder="Nytt lösenord (minst 8 tecken)"
+                  placeholder={str.placeholders.newPassword}
                   placeholderTextColor="#9ca3af"
                   secureTextEntry
                   value={resetNewPassword}
@@ -222,7 +223,7 @@ export default function SignInScreen() {
               )}
               <Pressable style={styles.button} onPress={handleVerifyCode} disabled={loading}>
                 {loading ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.buttonText}>{mode === 'reset' ? 'Återställ + logga in' : 'Logga in'}</Text>}
+                  : <Text style={styles.buttonText}>{mode === 'reset' ? str.signIn.buttons.resetAndSignIn : str.signIn.buttons.signIn}</Text>}
               </Pressable>
             </>
           )}
@@ -230,24 +231,24 @@ export default function SignInScreen() {
           {mode === 'email-code' && !codeSent && (
             <>
               <Pressable style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
-                <Text style={styles.buttonText}>Fortsätt med Google</Text>
+                <Text style={styles.buttonText}>{str.signIn.buttons.continueWithGoogle}</Text>
               </Pressable>
 
               <View style={styles.altRow}>
                 <Pressable onPress={() => switchMode('password')} hitSlop={6}>
-                  <Text style={styles.linkSmall}>Logga in med lösen istället</Text>
+                  <Text style={styles.linkSmall}>{str.signIn.links.signInWithPassword}</Text>
                 </Pressable>
               </View>
 
               <Pressable onPress={() => router.push('/(auth)/sign-up')}>
-                <Text style={styles.link}>Inget konto? Skapa ett</Text>
+                <Text style={styles.link}>{str.signIn.links.noAccount}</Text>
               </Pressable>
             </>
           )}
 
           {mode === 'reset' && (
             <Pressable onPress={() => switchMode('email-code')}>
-              <Text style={styles.link}>← Tillbaka till inloggning</Text>
+              <Text style={styles.link}>{str.signIn.links.backToSignIn}</Text>
             </Pressable>
           )}
         </>

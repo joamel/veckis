@@ -1,4 +1,4 @@
-import { common as str } from '../lib/strings';
+import { common as str } from '../lib/svenska';
 import type { ConfirmOptions } from '../components/ConfirmDialog';
 
 type ConfirmFn = (opts: ConfirmOptions) => void;
