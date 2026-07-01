@@ -780,7 +780,12 @@ export default function ChoresScreen() {
   //  - ingen tilldelad → skippa
   function pickPerformer(chore: ChoreWithCompletion, onPick: (performedByMemberId: string | null) => void) {
     const choice = buildPerformerOptions(chore, members, userId);
-    if (choice.kind === 'auto') { onPick(null); return; }
+    if (choice.kind === 'auto') {
+      // Auto-set to the single assignee so history shows the owner, not the logged-in user.
+      const assignedIds = chore.assignedToMany?.length ? chore.assignedToMany : (chore.assignedTo ? [chore.assignedTo] : []);
+      onPick(assignedIds.length === 1 ? (assignedIds[0] ?? null) : null);
+      return;
+    }
     const buttons: Parameters<typeof confirm>[0]['buttons'] = choice.options.map(o => ({
       label: o.label,
       onPress: () => onPick(o.id),
@@ -1291,8 +1296,14 @@ export default function ChoresScreen() {
                 : rec.state === 'done' ? (rec.nextDate ? `Klar · ${formatOcc(rec.nextDate)}` : 'Klar') : null)
               : null;
             const isRotating = !!c.rotation && (c.assignedToMany?.length ?? 0) >= 2;
+            // Count completions that happened before the history window so the turn
+            // index stays in sync with the total completions.length used by the card.
+            const firstOccDate = rec?.occurrences[0]?.date ?? null;
+            const initialDoneCount = firstOccDate
+              ? c.completions.filter(comp => completionDate(comp) < firstOccDate).length
+              : 0;
             const turnByDate = isRotating
-              ? computeTurnHistory({ rotation: true, assignedToMany: c.assignedToMany }, rec?.occurrences ?? [])
+              ? computeTurnHistory({ rotation: true, assignedToMany: c.assignedToMany }, rec?.occurrences ?? [], initialDoneCount)
               : new Map<string, string>();
             return (
               <>
