@@ -89,7 +89,7 @@ choresRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
   const chores = await prisma.chore.findMany({
     where: { householdId },
     include: {
-      completions: { orderBy: { completedAt: 'desc' }, take: 1 },
+      completions: { orderBy: { completedAt: 'desc' } },
     },
     orderBy: { createdAt: 'asc' },
   });
