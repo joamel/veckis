@@ -184,13 +184,17 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
       if (!completionByDate.has(ds)) { nextDate = ds; break; }
     }
   }
+  // Bug 2: if nextDate is past endDate, there is no upcoming occurrence.
+  if (nextDate && pattern.endDate && nextDate > pattern.endDate) nextDate = null;
+
   let state: RecurringStatus['state'] = 'none';
   let overdueDays = 0;
-  let completedDate: string | null = null;
+  // Bug 3: use the most recent completed occurrence, not just current.
+  const mostRecentDone = [...occurrences].reverse().find(o => o.done);
+  let completedDate: string | null = mostRecentDone?.date ?? null;
   if (current) {
     if (current.done) {
       state = 'done';
-      completedDate = current.date;
     } else if (current.date === todayStr) {
       state = 'today';
     } else {
@@ -468,6 +472,8 @@ export default function ChoresScreen() {
     for (const chore of filtered) {
       const once = isOnce(chore);
       const rs = once ? null : statuses.get(chore.id)!;
+      // Bug 2: skip recurring chores whose end date has fully passed (no current/future occurrences).
+      if (!once && rs!.state === 'none' && !rs!.nextDate) continue;
       const isDone = once ? chore.completions.length > 0 : rs!.state === 'done';
       if (isDone) {
         doneEntries.push({ chore, variant: 'done' });

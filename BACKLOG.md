@@ -436,6 +436,7 @@
 - [x] Trycka på en syssla i kalendern navigerar direkt till sysslo-fliken och öppnar sysslans vy: `onPress` på sysslokortet → `router.push('/(tabs)/chores?choreId=...')`; `deeplinkParams.choreId`-effecten i chores.tsx öppnar nu `viewingChore` när sysslan hittats i listan
 - [x] Inställnings-actionsheetarna (Medlemsåtgärder + Hushållsåtgärder) konverterade till `confirm({ variant:'menu' })` — bort med de fulla-bredd bottom sheets; kompakta menykort i stället, utan onödig luft bredvid texten
 - [x] "Rensa klara"-knappen återkommer vid siduppdatering trots att inga nya sysslor tillkommit — rensning är ren lokal state (clearedRecurringIds) som nollställs vid load(); bör persisteras i AsyncStorage per hushåll och rensas automatiskt när en ny occurrence börjar
+- [x] Sysslor: 4 buggar rotade i `take: 1` på backend + saknad endDate-koll + fel completedDate. (1) Historiken visar bara ett datum (2) State nollställs vid siduppdatering — båda orsakade av `completions: { take: 1 }` i GET /api/chores som gav backend bara 1 completion; fixat genom att ta bort `take: 1` så alla completions returneras. (3) Återkommande syssla med passerat slutdatum låg kvar i listan (state='none', nextDate=null men visades ändå som active); fixat: skip recurring chore om state='none' och nextDate är null. (4) completedDate visade alltid första (äldsta) datum trots att nyare datum avbockades; fixat: `completedDate` sätts nu till den senast avbockade occurrence i arrayen. Dessutom: nextDate sätts till null om det beräknade nästa datumet överstiger sysslans endDate.
 
 
 ---
