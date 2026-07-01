@@ -171,6 +171,14 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
       });
     }
   }
+  // Include future pre-completed occurrences in history (checked off early).
+  for (const [date, comp] of completionByDate) {
+    if (date > todayStr) {
+      occurrences.push({ date, done: true, isCurrent: false, completedBy: comp.completedBy ?? null, performedByMemberId: comp.performedByMemberId ?? null, note: comp.note ?? null });
+    }
+  }
+  occurrences.sort((a, b) => a.date.localeCompare(b.date));
+
   let current: ChoreOccurrence | null = null;
   for (let i = occurrences.length - 1; i >= 0; i--) {
     if (occurrences[i].date <= todayStr) { occurrences[i].isCurrent = true; current = occurrences[i]; break; }
@@ -374,9 +382,9 @@ export default function ChoresScreen() {
         .filter(e => {
           const chore = choreData.find(c => c.id === e.id);
           if (!chore) return false;
-          if (chore.completions.length !== e.count) return false;
           if (isOnce(chore)) return true;
-          // Remove from cleared if a new occurrence has started (state no longer 'done')
+          // Remove from cleared if a new occurrence has started (state no longer 'done').
+          // Don't use saved completion count — was based on take:1 and is now unreliable.
           return recurringStatus(chore).state === 'done';
         })
         .map(e => e.id);
