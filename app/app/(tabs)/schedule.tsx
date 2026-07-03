@@ -47,6 +47,7 @@ import { getISOWeek, addWeeks } from '../../src/lib/week';
 import { occursOn } from '@veckis/shared';
 import type { ScheduleEntry, WeekDay, Chore, ChoreCompletion } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
+import { buildPerformerOptions } from '../../src/lib/performerOptions';
 import { schedule as str, common, chores as choresStr, components as componentsStr } from '../../src/lib/svenska';
 
 const DAY_KEYS: WeekDay[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -906,12 +907,30 @@ export default function ScheduleScreen() {
     }
   }
 
-  async function completeChoreCalendar(chore: ChoreWithCompletion, day: WeekDay, dateStr: string) {
+  // Samma performer-logik som sysslo-fliken: enpersons-sysslor tillskrivs
+  // ägaren automatiskt (annars ser historiken ut som att inloggad user
+  // "hoppade in"); fleras/rotation frågar vem som gjorde den.
+  function pickPerformerCalendar(chore: ChoreWithCompletion, onPick: (performedByMemberId: string | null) => void) {
+    const choice = buildPerformerOptions(chore, members, userId);
+    if (choice.kind === 'auto') {
+      const assignedIds = chore.assignedToMany?.length ? chore.assignedToMany : (chore.assignedTo ? [chore.assignedTo] : []);
+      onPick(assignedIds.length === 1 ? (assignedIds[0] ?? null) : null);
+      return;
+    }
+    const buttons: Parameters<typeof confirm>[0]['buttons'] = choice.options.map(o => ({
+      label: o.label,
+      onPress: () => onPick(o.id),
+    }));
+    buttons.push({ label: common.actions.cancel, style: 'cancel' });
+    confirm({ title: choresStr.performer.title(chore.title), buttons });
+  }
+
+  async function completeChoreCalendar(chore: ChoreWithCompletion, day: WeekDay, dateStr: string, performedByMemberId: string | null = null) {
     const fakeId = '__opt__';
-    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId: null, completedAt: new Date().toISOString(), note: null, day, date: dateStr };
+    const fake: ChoreCompletion = { id: fakeId, choreId: chore.id, completedBy: '', performedByMemberId, completedAt: new Date().toISOString(), note: null, day, date: dateStr };
     setChores(cs => cs.map(c => c.id === chore.id ? { ...c, completions: [fake, ...c.completions] } : c));
     try {
-      const completion = await client.completeChore(chore.id, day, undefined, dateStr);
+      const completion = await client.completeChore(chore.id, day, undefined, dateStr, performedByMemberId);
       setChores(cs => cs.map(c => c.id === chore.id
         ? { ...c, completions: c.completions.map(comp => comp.id === fakeId ? completion : comp) }
         : c));
@@ -1255,7 +1274,7 @@ export default function ScheduleScreen() {
                 </View>
                 <Pressable
                   style={[s.choreCheckBtn, { width: sp(32), height: sp(32), borderRadius: sp(16) }, done && s.choreCheckBtnDone]}
-                  onPress={() => done ? uncompleteChoreCalendar(chore, d.wd, d.dateStr) : completeChoreCalendar(chore, d.wd, d.dateStr)}
+                  onPress={() => done ? uncompleteChoreCalendar(chore, d.wd, d.dateStr) : pickPerformerCalendar(chore, p => completeChoreCalendar(chore, d.wd, d.dateStr, p))}
                 >
                   {done && <Ionicons name="checkmark" size={fs(18)} color="#fff" />}
                 </Pressable>

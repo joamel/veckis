@@ -14,11 +14,13 @@ interface Props {
   weekYear: number;
   weekNumber: number;
   weekHasItems: boolean;
+  /** Tidigare vecka: mallar kan sparas/delas men inte appliceras. */
+  readOnly?: boolean;
   /** Called after a template is applied so the menu can reload. */
   onApplied: () => void;
 }
 
-export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, weekNumber, weekHasItems, onApplied }: Props) {
+export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, weekNumber, weekHasItems, readOnly, onApplied }: Props) {
   const client = useApiClient();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
@@ -126,6 +128,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
           {!weekHasItems && <Text style={s.hint}>{str.menuTemplatesModal.noItemsHint}</Text>}
 
           <Text style={[s.sectionLabel, { marginTop: 22 }]}>{str.menuTemplatesModal.useSection}</Text>
+          {readOnly && <Text style={s.hint}>{str.menuTemplatesModal.pastWeekHint}</Text>}
           {templates === null ? (
             <ActivityIndicator color="#4f46e5" style={{ marginTop: 16 }} />
           ) : templates.length === 0 ? (
@@ -133,14 +136,14 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
           ) : (
             templates.map(tpl => (
               <View key={tpl.id} style={s.tplRow}>
-                <Pressable style={s.tplMain} onPress={() => apply(tpl)} disabled={busyId === tpl.id}>
+                <Pressable style={s.tplMain} onPress={() => apply(tpl)} disabled={busyId === tpl.id || readOnly}>
                   <View style={{ flex: 1 }}>
                     <Text style={s.tplName}>{tpl.name}</Text>
                     <Text style={s.tplMeta}>{str.menuTemplatesModal.dishCount(tpl.items.length)}</Text>
                   </View>
                   {busyId === tpl.id
                     ? <ActivityIndicator color="#4f46e5" size="small" />
-                    : <Ionicons name="add-circle-outline" size={22} color="#4f46e5" />}
+                    : !readOnly && <Ionicons name="add-circle-outline" size={22} color="#4f46e5" />}
                 </Pressable>
                 <Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.shareA11y(tpl.name)}>
                   <Ionicons name="share-outline" size={18} color="#4f46e5" />

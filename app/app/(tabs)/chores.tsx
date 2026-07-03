@@ -288,8 +288,11 @@ export default function ChoresScreen() {
       if (editingChore?.id === msg.data.id) { showToast(`${msg.actor ?? 'Någon'} tog bort ${editingChore.title}`); setEditingChore(null); }
       setChores(prev => prev.filter(c => c.id !== msg.data.id));
     } else if (msg.type === 'chore_completed') {
+      // Also match against the optimistic fake ID to prevent duplicates when
+      // the socket arrives before the API response has replaced the fake.
+      const fakeId = msg.data.date ? `__occ__${msg.data.date}` : '__opt__';
       setChores(prev => prev.map(c => c.id === msg.data.choreId
-        ? { ...c, completions: c.completions.some(x => x.id === msg.data.id) ? c.completions : [msg.data, ...c.completions] }
+        ? { ...c, completions: c.completions.some(x => x.id === msg.data.id || x.id === fakeId) ? c.completions : [msg.data, ...c.completions] }
         : c));
     } else if (msg.type === 'chore_uncompleted') {
       const { date, day } = msg.data;
@@ -480,12 +483,14 @@ export default function ChoresScreen() {
     for (const chore of filtered) {
       const once = isOnce(chore);
       const rs = once ? null : statuses.get(chore.id)!;
-      // Bug 2: skip recurring chores whose end date has fully passed (no current/future occurrences).
+      // Skip recurring chores with no current or future occurrences and nothing completed (fully expired, never done).
       if (!once && rs!.state === 'none' && !rs!.nextDate) continue;
       const isDone = once ? chore.completions.length > 0 : rs!.state === 'done';
       if (isDone) {
         doneEntries.push({ chore, variant: 'done' });
-        if (!once) activeEntries.push({ chore, variant: 'upcoming' });
+        // Only show upcoming card if there's actually a next occurrence — expired chores
+        // that were completed for the last time should sit at the bottom, not as a dateless todo.
+        if (!once && rs!.nextDate) activeEntries.push({ chore, variant: 'upcoming' });
       } else {
         activeEntries.push({ chore, variant: 'active' });
       }

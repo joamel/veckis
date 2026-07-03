@@ -60,6 +60,7 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
       <View style={{ flex: 1 }} />
       {!isCurrentWeek && (
         <Pressable style={[s.todayBtn, { paddingHorizontal: sp(12), paddingVertical: sp(6) }]} onPress={onToday}>
+          <Ionicons name="today-outline" size={fs(13)} color="#4f46e5" />
           <Text style={[s.todayBtnText, { fontSize: fs(12) }]}>{str.weekNav.today}</Text>
         </Pressable>
       )}
@@ -84,6 +85,6 @@ const s = StyleSheet.create({
   label: { fontWeight: '600', color: '#4f46e5' },
   labelCurrent: { color: '#4f46e5' },
   labelPast: { color: '#9ca3af' },
-  todayBtn: { backgroundColor: '#4f46e5', borderRadius: 6, marginRight: 16 },
-  todayBtnText: { fontWeight: '600', color: '#fff' },
+  todayBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#eef2ff', borderRadius: 999, marginRight: 12 },
+  todayBtnText: { fontWeight: '600', color: '#4f46e5' },
 });

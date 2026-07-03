@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Animated as RNAnimated,
   FlatList,
-  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -20,8 +19,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
+import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
@@ -88,6 +87,147 @@ interface AggIngredient {
   measured: boolean;
   recipeTitles: string[];
   sources: { menuItemId: string; recipeId: string; qty: number | null }[];
+}
+
+// Sliderns steg per enhet: kg är finkorning (0,1), övriga delbara mått (l, dl,
+// msk, tsk …) stegar 0,5. Gram/ml skalar med totalmängden — 2 g saffran ska gå
+// att välja exakt, men 1039 g mjöl behöver inte grams-precision. Övrigt heltal.
+const HALF_STEP_UNITS = new Set(['l', 'dl', 'cl', 'msk', 'tsk', 'cups', 'cup', 'tbsp', 'tsp', 'oz', 'lb']);
+function unitStep(unit: string | null, total: number): number {
+  const u = (unit ?? '').toLowerCase();
+  if (u === 'kg') return 0.1;
+  if (HALF_STEP_UNITS.has(u)) return 0.5;
+  if (u === 'g' || u === 'ml') {
+    if (total > 500) return 50;
+    if (total > 200) return 25;
+    if (total > 100) return 10;
+    if (total > 20) return 5;
+    return 1;
+  }
+  return 1;
+}
+
+const fmtQty = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',');
+
+// Dra-bar för "Vad har du hemma": 0 → totalbehovet. Tap på spåret sätter värdet
+// direkt; horisontellt drag justerar. Vertikala rörelser släpps till scrollen.
+// Fyllningen/tummen drivs av Reanimated shared values — uppdateras på UI-tråden
+// utan React-omrendering per frame. `onLive` fyrar vid varje steg-gräns under
+// draget (för rad-lokal etikett), `onCommit` en gång vid släpp/tap (förälderns
+// state), `onDragEnd` när gesten avslutas (rensar rad-lokalt läge).
+function InvSlider({ total, value, step, onLive, onCommit, onDragEnd }: {
+  total: number;
+  value: number;
+  step: number;
+  onLive: (v: number) => void;
+  onCommit: (v: number) => void;
+  onDragEnd: () => void;
+}) {
+  const trackW = useSharedValue(0);
+  const dragPct = useSharedValue(-1); // -1 = ingen aktiv dragning
+  const basePct = useSharedValue(total > 0 ? Math.min(1, value / total) : 0);
+  basePct.value = total > 0 ? Math.min(1, value / total) : 0;
+  const lastEmitted = useSharedValue(-1);
+  // Stabila JS-callbacks (läser aktuella props via ref) så worklets inte
+  // behöver byggas om när raden omrenderas mitt i ett drag.
+  const cbRef = useRef({ onLive, onCommit, onDragEnd });
+  cbRef.current = { onLive, onCommit, onDragEnd };
+  const liveJS = useCallback((v: number) => cbRef.current.onLive(v), []);
+  const commitJS = useCallback((v: number) => cbRef.current.onCommit(v), []);
+  const dragEndJS = useCallback(() => cbRef.current.onDragEnd(), []);
+  const gesture = useMemo(() => {
+    const snapped = (x: number): number => {
+      'worklet';
+      const ratio = trackW.value > 0 ? Math.min(1, Math.max(0, x / trackW.value)) : 0;
+      const raw = Math.round((ratio * total) / step) * step;
+      return Math.max(0, Math.min(Math.round(raw * 100) / 100, total));
+    };
+    const live = (x: number) => {
+      'worklet';
+      if (total <= 0 || trackW.value <= 0) return;
+      const v = snapped(x);
+      if (v !== lastEmitted.value) { lastEmitted.value = v; runOnJS(liveJS)(v); }
+    };
+    const setDrag = (x: number) => {
+      'worklet';
+      if (trackW.value <= 0) return;
+      dragPct.value = Math.min(1, Math.max(0, x / trackW.value));
+    };
+    const pan = Gesture.Pan()
+      .activeOffsetX([-8, 8])
+      .failOffsetY([-12, 12])
+      .onStart(e => { setDrag(e.x); live(e.x); })
+      .onUpdate(e => { setDrag(e.x); live(e.x); })
+      .onEnd(e => { if (total > 0) runOnJS(commitJS)(snapped(e.x)); })
+      .onFinalize(() => { dragPct.value = -1; lastEmitted.value = -1; runOnJS(dragEndJS)(); });
+    const tap = Gesture.Tap()
+      .onEnd(e => { if (total > 0) runOnJS(commitJS)(snapped(e.x)); });
+    return Gesture.Race(pan, tap);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total, step]);
+  const fillStyle = useAnimatedStyle(() => {
+    const pct = dragPct.value >= 0 ? dragPct.value : basePct.value;
+    return { width: pct * trackW.value };
+  });
+  const thumbStyle = useAnimatedStyle(() => {
+    const pct = dragPct.value >= 0 ? dragPct.value : basePct.value;
+    return { transform: [{ translateX: Math.max(0, Math.min(trackW.value - 18, pct * trackW.value - 9)) }] };
+  });
+  return (
+    <GestureDetector gesture={gesture}>
+      <View
+        style={s.invSliderTrack}
+        onLayout={e => { trackW.value = e.nativeEvent.layout.width; }}
+      >
+        <View style={s.invSliderRail} />
+        <Animated.View style={[s.invSliderFill, fillStyle]} />
+        <Animated.View style={[s.invSliderThumb, thumbStyle]} />
+      </View>
+    </GestureDetector>
+  );
+}
+
+// En mätbar inventeringsrad som EGEN komponent — under drag uppdateras bara
+// den här radens lokala state (etikett + strykning), inte hela menyskärmen.
+// Förälderns haveAtHome skrivs först vid släpp (onCommit).
+function InvMeasuredRow({ agg, haveAmt, onCommit }: {
+  agg: AggIngredient;
+  haveAmt: number;
+  onCommit: (v: number) => void;
+}) {
+  const [liveVal, setLiveVal] = useState<number | null>(null);
+  const unitLabel = agg.unit ? ` ${agg.unit}` : '';
+  const total = agg.totalQty ?? 0;
+  const shown = liveVal ?? haveAmt;
+  const covered = shown >= total && total > 0;
+  const valueLabel = `${fmtQty(shown)}${unitLabel}`;
+  return (
+    <View style={s.invRowCol}>
+      <View style={s.invRowTop}>
+        <Text style={[s.invName, { flex: 1 }, covered && s.invNameDone]} numberOfLines={1}>
+          {fmtQty(total)}{unitLabel} {agg.name}
+        </Text>
+        {/* Explicit minWidth — Android mäter vissa strängar ("kg", "dl") för
+            smalt och klipper annars sista glyfen. */}
+        <Text style={[s.invValue, { minWidth: valueLabel.length * 9 + 6 }]}>{valueLabel}</Text>
+        <Pressable
+          style={[s.invAllBtn, covered && s.invAllBtnOn]}
+          onPress={() => onCommit(covered ? 0 : total)}
+        >
+          <Ionicons name="checkmark" size={15} color={covered ? '#fff' : '#9ca3af'} />
+          <Text style={[s.invAllBtnText, covered && s.invAllBtnTextOn]}>{str.inventory.have}</Text>
+        </Pressable>
+      </View>
+      <InvSlider
+        total={total}
+        value={shown}
+        step={unitStep(agg.unit, total)}
+        onLive={setLiveVal}
+        onCommit={onCommit}
+        onDragEnd={() => setLiveVal(null)}
+      />
+    </View>
+  );
 }
 
 export default function MenuScreen() {
@@ -165,8 +305,6 @@ export default function MenuScreen() {
   // bara "Har"-toggle.
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> mängd hemma
   const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // omätta ingredienser markerade "har hemma"
-  const [editingAmountKey, setEditingAmountKey] = useState<string | null>(null); // vilken rad har input-läge
-  const [amountDraft, setAmountDraft] = useState(''); // rå inmatningstext för aktiv "Har"-input (tillåter "0," under skrivning)
   const [allMenus, setAllMenus] = useState<WeekMenuItemWithRecipe[]>([]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
@@ -213,12 +351,9 @@ export default function MenuScreen() {
     return Math.round(n * 2) / 2;
   }
 
-  const fmtQty = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',');
-
   function resetInventory() {
     setHaveAtHome({});
     setHadUnmeasured(new Set());
-    setEditingAmountKey(null);
   }
 
   // Menu items already transferred — scoped to the target list when we came from
@@ -280,18 +415,9 @@ export default function MenuScreen() {
       .sort((a, b) => (catIdx(a.category) - catIdx(b.category)) || a.name.localeCompare(b.name, 'sv'));
   }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings, transferredMenuItemIds, ingredientCategories]);
 
-  // Inventory: en flat lista där varje rad har Har-input + ✓-knapp. Cap höjden
+  // Inventory: en flat lista där varje rad har en dra-bar + ✓-knapp. Cap höjden
   // så Överför-/Tillbaka-knapparna inte klipps på korta skärmar.
   const invMaxListH = Math.max(200, windowHeight * 0.8 - 300);
-  // Dölj Nästa/Tillbaka-knapparna när tangentbordet är uppe så de inte tar
-  // plats från inventeringen (de kommer tillbaka när användaren stänger
-  // tangentbordet eller trycker "Klar" på sista raden).
-  const [invKbdOpen, setInvKbdOpen] = useState(false);
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => setInvKbdOpen(true));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setInvKbdOpen(false));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
 
   const toggleUnmeasured = (key: string) => setHadUnmeasured(prev => {
     const n = new Set(prev);
@@ -299,23 +425,12 @@ export default function MenuScreen() {
     return n;
   });
 
-  // Nästa mätbara ingrediens efter en given key — för "Nästa"-knappen på
-  // tangentbordet. Returnerar null om aktuell rad är sista mätbara.
-  function findNextMeasuredKey(currentKey: string): string | null {
-    const idx = aggregatedInventory.findIndex(a => a.key === currentKey);
-    if (idx < 0) return null;
-    for (let i = idx + 1; i < aggregatedInventory.length; i++) {
-      if (aggregatedInventory[i].measured) return aggregatedInventory[i].key;
-    }
-    return null;
-  }
-
-  // En rad i den nya inventerings-vyn. Mätbara ingredienser har:
-  //  [Namn (+ behov)]  [Har: __ inputfält]  [✓ Allt-knapp]
+  // En rad i inventerings-vyn. Mätbara ingredienser har:
+  //  [Namn (+ behov)   värde   ✓ Finns-knapp]
+  //  [───────●──────────────── dra-bar 0→allt]
   // Omätta ingredienser (qty=null, t.ex. salt) har bara ✓-knappen.
   // När Har ≥ Behöver: rad gråmarkerad/struken + ✓ filled.
   function renderInventoryRow(agg: AggIngredient) {
-    const unitLabel = agg.unit ? ` ${agg.unit}` : '';
     if (!agg.measured) {
       const have = hadUnmeasured.has(agg.key);
       return (
@@ -333,84 +448,13 @@ export default function MenuScreen() {
         </View>
       );
     }
-    const total = agg.totalQty ?? 0;
-    const haveAmt = haveAtHome[agg.key] ?? 0;
-    const covered = haveAmt >= total && total > 0;
-    const partial = haveAmt > 0 && !covered;
-    const isEditing = editingAmountKey === agg.key;
     return (
-      <View key={agg.key} style={s.invRowV2}>
-        <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={[s.invName, covered && s.invNameDone]}>
-            {fmtQty(total)}{unitLabel} {agg.name}
-          </Text>
-          {partial && (
-            <Text style={s.invProvenance} numberOfLines={1}>
-              {str.inventory.buy(fmtQty(total - haveAmt), unitLabel)}
-            </Text>
-          )}
-        </View>
-        {isEditing ? (
-          (() => {
-            const nextKey = findNextMeasuredKey(agg.key);
-            return (
-              <View style={s.invAmountWrapV2}>
-                <TextInput
-                  style={s.invAmountInputV2}
-                  keyboardType="numeric"
-                  autoFocus
-                  value={amountDraft}
-                  placeholder="0"
-                  placeholderTextColor="#d1d5db"
-                  onChangeText={t => {
-                    // Tillåt fri inmatning av decimaler: normalisera "." → "," och
-                    // lägg automatiskt en ledande "0" om man börjar med "," → "0,".
-                    let txt = t.replace('.', ',').replace(/[^0-9,]/g, '');
-                    if (txt.startsWith(',')) txt = '0' + txt;
-                    setAmountDraft(txt);
-                    const v = parseFloat(txt.replace(',', '.'));
-                    setHaveAtHome(prev => ({ ...prev, [agg.key]: isNaN(v) ? 0 : v }));
-                  }}
-                  onBlur={() => {
-                    // Bara stäng om vi inte är på väg att fokusera nästa rad
-                    // (då har editingAmountKey redan ändrats av onSubmitEditing).
-                    setEditingAmountKey(prev => prev === agg.key ? null : prev);
-                  }}
-                  // blurOnSubmit=false så tangentbordet stannar uppe när vi
-                  // hoppar till nästa input. Sista raden blurar normalt.
-                  blurOnSubmit={!nextKey}
-                  onSubmitEditing={() => {
-                    if (nextKey) {
-                      const nv = haveAtHome[nextKey] ?? 0;
-                      setAmountDraft(nv > 0 ? fmtQty(nv) : '');
-                      setEditingAmountKey(nextKey);
-                    } else setEditingAmountKey(null);
-                  }}
-                  returnKeyType={nextKey ? 'next' : 'done'}
-                />
-                {agg.unit ? <Text style={s.invUnitV2}>{agg.unit}</Text> : null}
-              </View>
-            );
-          })()
-        ) : (
-          <Pressable
-            style={[s.invAmountWrapV2, haveAmt > 0 && s.invAmountWrapHas]}
-            onPress={() => { setAmountDraft(haveAmt > 0 ? fmtQty(haveAmt) : ''); setEditingAmountKey(agg.key); }}
-          >
-            <Text style={haveAmt > 0 ? s.invAmountTextV2 : s.invAmountTextPlaceholderV2}>
-              {haveAmt > 0 ? fmtQty(haveAmt) : str.inventory.amountPlaceholder}
-            </Text>
-            {agg.unit && haveAmt > 0 ? <Text style={s.invUnitV2}>{agg.unit}</Text> : null}
-          </Pressable>
-        )}
-        <Pressable
-          style={[s.invAllBtn, covered && s.invAllBtnOn]}
-          onPress={() => setHaveAtHome(prev => ({ ...prev, [agg.key]: covered ? 0 : total }))}
-        >
-          <Ionicons name="checkmark" size={15} color={covered ? '#fff' : '#9ca3af'} />
-          <Text style={[s.invAllBtnText, covered && s.invAllBtnTextOn]}>{str.inventory.have}</Text>
-        </Pressable>
-      </View>
+      <InvMeasuredRow
+        key={agg.key}
+        agg={agg}
+        haveAmt={haveAtHome[agg.key] ?? 0}
+        onCommit={v => setHaveAtHome(prev => ({ ...prev, [agg.key]: v }))}
+      />
     );
   }
 
@@ -766,6 +810,7 @@ export default function MenuScreen() {
       if (!ok) return;
     }
     try {
+      suppressMenuReloadRef.current += 2; // delete + add — suppress both socket echoes
       await client.deleteWeekMenuItem(oldId);
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear: wy, weekNumber: wn });
       setMenuItems(prev => prev.filter(i => i.id !== oldId).concat(item));
@@ -1487,6 +1532,7 @@ export default function MenuScreen() {
         weekYear={weekYear}
         weekNumber={weekNumber}
         weekHasItems={menuItems.length > 0}
+        readOnly={weekOffset < 0}
         onApplied={load}
       />
 
@@ -1705,6 +1751,9 @@ export default function MenuScreen() {
 
       {/* Bulk transfer modal — choose recipes and list */}
       <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleBulkBack()}>
+        {/* RN Modal är ett eget native-fönster utanför appens GestureHandlerRootView
+            — utan en egen rotvy här registreras aldrig sliderns pan/tap-gester. */}
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => handleCancelBulkTransfer()} />
         <KeyboardAvoidingView
@@ -1809,7 +1858,7 @@ export default function MenuScreen() {
                           color={selected ? '#4f46e5' : '#9ca3af'}
                         />
                         <View style={{ flex: 1 }}>
-                          <Text style={s.bulkRecipeTitle}>{item.recipe.title}</Text>
+                          <Text style={s.bulkRecipeTitle} numberOfLines={1}>{item.recipe.title}</Text>
                           {item.day !== null && (
                             <Text style={s.bulkRecipeDay}>
                               {DAYS.find(d => d.key === item.day)?.label}
@@ -1843,31 +1892,27 @@ export default function MenuScreen() {
               >
                 {aggregatedInventory.map(agg => renderInventoryRow(agg))}
               </ScrollView>
-              {!invKbdOpen && (
-                <>
-                  <Pressable
-                    style={s.button}
-                    onPress={async () => {
-                      const origin = params.originListId;
-                      if (origin) {
-                        await executeBulkTransfer(origin);
-                        try {
-                          (router as { dismissTo?: (h: string) => void }).dismissTo?.(`/shopping/${origin}`);
-                        } catch {
-                          router.navigate(`/shopping/${origin}` as never);
-                        }
-                      } else {
-                        setBulkTransferStep('list');
-                      }
-                    }}
-                  >
-                    <Text style={s.buttonText}>{params.originListId ? str.bulk.transfer : str.bulk.next}</Text>
-                  </Pressable>
-                  <Pressable style={s.cancelBtn} onPress={() => setBulkTransferStep('recipe')}>
-                    <Text style={s.cancelBtnText}>{str.bulk.back}</Text>
-                  </Pressable>
-                </>
-              )}
+              <Pressable
+                style={s.button}
+                onPress={async () => {
+                  const origin = params.originListId;
+                  if (origin) {
+                    await executeBulkTransfer(origin);
+                    try {
+                      (router as { dismissTo?: (h: string) => void }).dismissTo?.(`/shopping/${origin}`);
+                    } catch {
+                      router.navigate(`/shopping/${origin}` as never);
+                    }
+                  } else {
+                    setBulkTransferStep('list');
+                  }
+                }}
+              >
+                <Text style={s.buttonText}>{params.originListId ? str.bulk.transfer : str.bulk.next}</Text>
+              </Pressable>
+              <Pressable style={s.cancelBtn} onPress={() => setBulkTransferStep('recipe')}>
+                <Text style={s.cancelBtnText}>{str.bulk.back}</Text>
+              </Pressable>
             </>
           ) : (
             <>
@@ -1925,6 +1970,7 @@ export default function MenuScreen() {
           )}
         </View>
         </KeyboardAvoidingView>
+        </GestureHandlerRootView>
       </Modal>
 
       <DatePickerModal
@@ -2137,18 +2183,21 @@ const s = StyleSheet.create({
   // En rad i den nya inventerings-vyn: namn + behov till vänster, "Har"-input
   // + ✓ Allt-knapp till höger. Allt på samma rad, ingen mode-toggle.
   invRowV2: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6', gap: 6 },
+  invRowCol: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6', gap: 4 },
   invName: { fontSize: 15, color: '#111827', fontWeight: '500' },
   invNameDone: { color: '#9ca3af', textDecorationLine: 'line-through' },
   invProvenance: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
   // minWidth = baseline; växer automatiskt om enheten är lång (paket, påse…)
   // så enheten alltid syns helt. paddingHorizontal lite mindre för att inte
   // knappen ska bli onödigt bred.
-  invAmountWrapV2: { flexDirection: 'row', alignItems: 'center', minWidth: 88, paddingHorizontal: 8, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff', gap: 4 },
-  invAmountWrapHas: { borderColor: '#a5b4fc', backgroundColor: '#fff' },
-  invAmountInputV2: { fontSize: 14, color: '#111827', padding: 0, minWidth: 28, maxWidth: 60 },
-  invAmountTextV2: { fontSize: 14, color: '#111827', fontWeight: '600', minWidth: 28 },
-  invAmountTextPlaceholderV2: { fontSize: 13, color: '#9ca3af', fontWeight: '500', minWidth: 28 },
-  invUnitV2: { fontSize: 12, color: '#6b7280', flexShrink: 0 },
+  invRowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Explicit minWidth (beräknas per label) — Android mäter vissa strängar
+  // ("kg", "dl", "tsk") för smalt och klipper annars sista glyfen.
+  invValue: { fontSize: 14, color: '#4f46e5', fontWeight: '700' },
+  invSliderTrack: { height: 26, justifyContent: 'center', marginTop: 2 },
+  invSliderRail: { position: 'absolute', left: 0, right: 0, height: 6, borderRadius: 3, backgroundColor: '#e5e7eb' },
+  invSliderFill: { position: 'absolute', left: 0, height: 6, borderRadius: 3, backgroundColor: '#4f46e5' },
+  invSliderThumb: { position: 'absolute', left: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff', borderWidth: 2, borderColor: '#4f46e5', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
   // Default-läge: NEUTRAL grå/vit så knappen INTE ser tryckt ut. Aktivt läge
   // (tryckt) blir grön + ifylld.
   invAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff' },
@@ -2231,7 +2280,7 @@ const s = StyleSheet.create({
   sheetSub: { fontSize: 13, color: '#6b7280', marginTop: -10, marginBottom: 12 },
   backBtn: { padding: 4, marginBottom: 16 },
   bulkRecipeList: { maxHeight: 400, marginBottom: 12 },
-  bulkRecipeItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 8 },
+  bulkRecipeItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 6 },
   bulkRecipeItemActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
   bulkRecipeTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
   bulkRecipeDay: { fontSize: 12, color: '#6b7280', marginTop: 2 },

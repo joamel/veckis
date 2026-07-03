@@ -295,7 +295,7 @@ export const schedule = {
     },
     origins: {
       title:   'Var kommer innehållet ifrån?',
-      message: 'Maträtter på kalendern kommer från veckomenyn (Meny-fliken), och sysslor från Sysslor-fliken. Skapa eller redigera dem där — de syns sedan automatiskt i kalendern.',
+      message: 'Maträtter på kalendern kommer från veckomenyn (Meny-fliken), och sysslor från Sysslor-fliken. Skapa eller redigera dem där - de syns sedan automatiskt i kalendern.',
     },
     add: {
       title:   'Skapa aktivitet',
@@ -588,7 +588,7 @@ export const menu = {
   picker: {
     chooseDay:       'Välj dag',
     noDay:           'Ingen dag',
-    noRecipesYet:    'Inga recept än — lägg till via Recept-fliken',
+    noRecipesYet:    'Inga recept än - lägg till via Recept-fliken',
     goToRecipes:     'Gå till recept',
     createNewRecipe: 'Skapa nytt recept',
     replaceTitle:    (title: string) => `Byt ut ${title}`,
@@ -611,23 +611,23 @@ export const menu = {
 
   bulk: {
     chooseWeekMenu:          'Välj veckomeny',
-    chooseWeekMenuSub:       'Vilken veckas meny vill du importera?',
-    noActiveWeek:            'Ingen aktiv vecka med planerade rätter',
+    chooseWeekMenuSub:       'Vilken veckomeny vill du importera?',
+    noActiveWeek:            'Ingen veckomeny med planerade rätter',
     weekLabel:               (n: number, y: number) => `Vecka ${n}, ${y}`,
     dishesCount:             (n: number) => `${n} ${n === 1 ? 'rätt' : 'rätter'}`,
     allAlreadyAdded:         'alla redan med',
     newCount:                (n: number) => `${n} nya`,
     chooseDishes:            'Välj rätter',
-    chooseDishesSub:         'Vilka rätter vill du överföra?',
+    chooseDishesSub:         'Välj de rätter du vill överföra till inköpslistan.',
     next:                    'Nästa',
     whatDoYouHave:           'Vad har du hemma?',
-    haveHint:                'Skriv mängden du har eller tryck "Allt" om du har tillräckligt. Bristen läggs på listan.',
+    haveHint:                'Ange hur mycket som finns hemma. Resten läggs till inköpslistan.',
     transfer:                'Överför',
     back:                    'Tillbaka',
     chooseShoppingList:      'Välj inköpslista',
     dishesToTransfer:        (n: number) => `${n} rätt(er) att överföra`,
-    noActiveList:            'Ingen aktiv inköpslista — skapa en direkt här',
-    newListNamePlaceholder:  'Namn på ny lista',
+    noActiveList:            'Ingen aktiv inköpslista - skapa en direkt här',
+    newListNamePlaceholder:  'Namnge ny lista',
     create:                  'Skapa',
     itemsCount:              (n: number) => `${n} varor`,
   },
@@ -640,7 +640,7 @@ export const menu = {
     templates:          'Veckomeny-mallar',
     recipesTab:         'Recept',
     transferFab:        'Överför veckomeny till inköpslista',
-    saveWeekAsTemplate: 'Spara vecka som mall',
+    saveWeekAsTemplate: 'Spara veckomeny som mall',
   },
 
   tips: {
@@ -779,7 +779,7 @@ export const recipes = {
     cookClose:      'Avsluta',
     removeImage:    'Ta bort bild',
     imageLoadError: 'Kunde inte ladda bilden',
-    noIngredients:  'Inga ingredienser än — tryck för att lägga till',
+    noIngredients:  'Inga ingredienser än - tryck för att lägga till',
     originalRecipe: '↗ Originalrecept',
     cookStep:       (current: number, total: number) => `Steg ${current} av ${total}`,
     cookPrev:       'Föregående',
@@ -972,7 +972,7 @@ export const settings = {
     choreCount:          (n: number) => `${n} ${n === 1 ? 'syssla' : 'sysslor'}`,
     activityCount:       (n: number) => `${n} ${n === 1 ? 'aktivitet' : 'aktiviteter'}`,
     switchHousehold:     (name: string) => `Vill du byta till "${name}"?`,
-    leaveHousehold:      'Du tas bort från hushållet. Sysslor och aktiviteter som var tilldelade dig blir otilldelade. Detta kan inte ångras — be admin bjuda in dig på nytt om du ångrar dig.',
+    leaveHousehold:      'Du tas bort från hushållet. Sysslor och aktiviteter som var tilldelade dig blir otilldelade. Detta kan inte ångras - be admin bjuda in dig på nytt om du ångrar dig.',
     leaveHouseholdTitle: (name: string) => `Lämna ${name}?`,
   },
 
@@ -1159,13 +1159,14 @@ export const components = {
   },
 
   menuTemplatesModal: {
-    title:           'Veckomeny-mallar',
+    title:           'Mallar',
     close:           'Stäng',
-    saveSection:     'SPARA DENNA VECKA',
-    namePlaceholder: 'Mallnamn, t.ex. Standardvecka',
+    saveSection:     'SPARA DENNA VECKA SOM MALL',
+    namePlaceholder: 'Snabba rätter',
     save:            'Spara',
     noItemsHint:     'Den här veckan har inga rätter att spara än.',
     useSection:      'ANVÄND EN MALL',
+    pastWeekHint:    'Mallar kan inte användas på en tidigare vecka.',
     noTemplates:     'Inga mallar än. Spara en vecka ovan för att skapa din första.',
     dishCount:       (n: number) => `${n} ${n === 1 ? 'rätt' : 'rätter'}`,
     shareA11y:       (name: string) => `Dela mall ${name}`,
@@ -1206,12 +1207,12 @@ export const components = {
     errorSave:      'Kunde inte spara notisinställningen',
     deviceStatus: {
       ok:          'Den här enheten är registrerad för notiser.',
-      denied:      'Notiser är avstängda i telefonens inställningar — slå på dem för Veckis där.',
+      denied:      'Notiser är avstängda i telefonens inställningar - slå på dem för Veckis där.',
       unsupported: 'Push kräver en fysisk enhet (funkar inte i emulator).',
       error:       (err: string) => `Kunde inte registrera: ${err}`,
     },
     test: {
-      noDevice:    'Ingen enhet registrerad — tryck "Aktivera på den här enheten" först',
+      noDevice:    'Ingen enhet registrerad - tryck "Aktivera på den här enheten" först',
       withErrors:  (tokens: number, err: string) => `Skickat till ${tokens} enhet(er), men fel: ${err}`,
       sent:        (tokens: number) => `Testnotis skickad till ${tokens} enhet(er)`,
       errorSend:   'Kunde inte skicka testnotis',
@@ -1245,12 +1246,12 @@ export const components = {
 
   welcomeModal: {
     title:       'Välkommen till Veckis!',
-    message:     'Här följer några korta tips och trix om hur appen fungerar. De dyker upp allteftersom du utforskar flikarna — meny, sysslor, kalender och inköpslista.',
+    message:     'Här följer några korta tips och trix om hur appen fungerar. De dyker upp allteftersom du utforskar flikarna - meny, sysslor, kalender och inköpslista.',
     subtle:      'Tipsen visas bara en gång per styck och du kan slå av eller återställa dem under',
     subtleBold:  'Inställningar ⋮',
     continueAction:    'Fortsätt',
     continueA11y:      'Fortsätt med onboarding-tips',
-    skipAll:           'Jag är fullärd — hoppa över tipsen',
+    skipAll:           'Jag är fullärd - hoppa över tipsen',
     skipAllA11y:       'Hoppa över alla tips',
   },
 
@@ -1274,7 +1275,7 @@ export const components = {
   },
 
   offlineBanner: {
-    text: 'Ingen anslutning — ändringar synkas när du är online igen.',
+    text: 'Ingen anslutning - ändringar synkas när du är online igen.',
   },
 
   wakeupIndicator: {
@@ -1347,7 +1348,7 @@ export const auth = {
       password:  'Logga in på ditt hushåll',
     },
     helpText: {
-      emailCode: 'Skriv din e-post så skickar vi en engångskod — säkrare än lösenord.',
+      emailCode: 'Skriv din e-post så skickar vi en engångskod - säkrare än lösenord.',
       reset:     'Skriv din e-post så skickar vi en återställningskod.',
       codeSentTo:(email: string) => `Vi har skickat en kod till ${email}.`,
     },
@@ -1450,7 +1451,7 @@ export const preferences = {
   },
 
   toasts: {
-    tipsReset:           'Tips återställda — visas igen i nästa session',
+    tipsReset:           'Tips återställda - visas igen i nästa session',
     errorSecurityPortal: 'Kunde inte öppna säkerhetsinställningar',
     errorMailApp:        'Kunde inte öppna mailprogrammet',
   },
@@ -1468,7 +1469,7 @@ export const householdSetup = {
   defaultName: 'Användare',
 
   title:           'Välkommen till Veckis',
-  subtitle:        'Välj ett namn — det syns för andra i hushållet',
+  subtitle:        'Välj ett namn - det syns för andra i hushållet',
   namePlaceholder: 'Ditt namn',
 
   intro: 'Skapa ett nytt hushåll eller gå med i ett befintligt',
@@ -1536,14 +1537,14 @@ export const install = {
     cardBody:      'Apple tillåter inte direkt-installation från web. Du installerar Veckis\n            som en webbapp via Safari:',
     warningPrefix: 'Öppna denna sida i ',
     warningSafari: 'Safari',
-    warningSuffix: ' — andra browsers (Chrome/Edge på iOS)\n                kan inte installera webbappar.',
+    warningSuffix: ' - andra browsers (Chrome/Edge på iOS)\n                kan inte installera webbappar.',
     step1Prefix:   'Tryck på ',
     step1Bold:     'Dela',
     step1Suffix:   '-ikonen längst ner i Safari.',
     step2Prefix:   'Bläddra ner och välj ',
     step2Bold:     'Lägg till på hemskärmen',
     step2Suffix:   '.',
-    step3:         'Bekräfta — Veckis-ikonen dyker upp på hemskärmen och fungerar som\n              en vanlig app.',
+    step3:         'Bekräfta - Veckis-ikonen dyker upp på hemskärmen och fungerar som\n              en vanlig app.',
   },
 
   desktop: {
@@ -1560,7 +1561,7 @@ export const install = {
     firefoxName:    'Firefox',
     safariName:     'Safari',
     cardTitle:      (browser: string) => `${browser} stödjer inte PWA-install`,
-    cardBodyPrefix: 'Du kan ändå använda Veckis direkt i browsern utan installation —\n            klicka bara ',
+    cardBodyPrefix: 'Du kan ändå använda Veckis direkt i browsern utan installation -\n            klicka bara ',
     cardBodyBold:   'Öppna webbappen',
     cardBodySuffix: ' nedan.',
     hintPrefix:     'För installation: öppna sidan i ',

@@ -263,6 +263,12 @@
 
 
 ### Meny
+- [x] Byt ut maträtt uppdaterade inte veckomenyn förrän sid-refresh: `replaceMenuItem` (deeplink-vägen via receptfliken) saknade `suppressMenuReloadRef += 2` → socket-echona från delete+add triggade `load()` som skrev över optimistiska uppdateringen
+- [x] Inventeringssteget: enheter klipptes ("kg" → "k", "dl" → "d") trots gott om plats — Android mäter vissa strängar för smalt (se memory `android-text-clipping`); fix = explicit bredd från teckenantal. Relaterat fynd: React 19 ignorerar `defaultProps` på funktionskomponenter → globala `allowFontScaling=false` var en tyst no-op; ersatt med export-wrapper i `_layout.tsx`
+- [x] Inventeringsvyn omdesignad: "Välj rätter" tunnare kort + 1-rads-trunkering; "Vad har du hemma" har dra-bar (0→behov) per ingrediens istället för sifferinput — enheten styr stegen (kg 0,1 · l/dl/msk/tsk 0,5 · g/ml adaptivt efter mängd · övrigt heltal), Reanimated på UI-tråden för mjukt drag, live-värde vid steg-gränser, ingen tangentbordsproblematik. RNGH-gester i RN-Modal kräver egen `GestureHandlerRootView` i modalen
+- [x] Mall kan inte längre appliceras på tidigare vecka — "+" dolt + hint i mall-modalen (spara/dela/ta bort funkar fortfarande)
+- [x] "Idag"-knappen i WeekNav omdesignad: ghost-pill (ljus indigo bakgrund, ikon + indigo text) istället för solid rektangel — gäller meny + kalender
+- [ ] Drag för att flytta maträtt mellan dagar rapporterad trasig (kortet markeras vid long-press men följer inte fingret) — drag-koden orörd i diffen, rotorsak ej hittad; behöver repro med Metro-logg
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
 - [x] Knapp för att kunna överföra hela veckomeny till inköpslistan (kryssa ur om det är någon rätt man av någon anledning inte vill överföra)
 - [x] Lägg till alla dagar i menyn även om de är tomma så att det är lätt att lägga till rätt
@@ -379,6 +385,9 @@
 
 
 ### Sysslor
+- [x] Rotation med 4 personer snurrade bara mellan 2: race condition i socket-handlern — `chore_completed` anlände ibland före API-svaret ersatt den optimistiska fake-completionen → dubblett i state → `completions.length` +2 per avbockning → modulo-index hoppade över varannan person. Handlern matchar nu även fake-id:t
+- [x] Syssla med passerat slutdatum + avbockad sista gång låg kvar som datum-lös todo: 'upcoming'-kortet skapas nu bara om `nextDate` finns — sysslan ligger överstruken längst ner tills man rensar
+- [x] Checkar man av annans syssla i kalendern stod inloggad user som "hoppade in" trots lokal användare: kalendern har nu samma performer-logik som sysslo-fliken (`pickPerformerCalendar` — enperson auto-tillskrivs ägaren, flera/rotation frågar)
 - [x] Hela namnet på user syns fortfarande inte helt ("Joaki" -> "Joakim"). Funkar dock i aktivitet så något är annorlunda där.
 - [x] Kunna redigera sysslor enklare (med en penna till höger)
 - [x] Skapa syssla dialogen borde se mer ut som aktivitetsdialogen med Upprepning och även möjlighet att välja en specifik dag som sysslan ska utföras på.
