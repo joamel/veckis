@@ -171,6 +171,14 @@ function recurringStatus(chore: ChoreWithCompletion, daysBack = 60): RecurringSt
       });
     }
   }
+  // Include future pre-completed occurrences in history (checked off early).
+  for (const [date, comp] of completionByDate) {
+    if (date > todayStr) {
+      occurrences.push({ date, done: true, isCurrent: false, completedBy: comp.completedBy ?? null, performedByMemberId: comp.performedByMemberId ?? null, note: comp.note ?? null });
+    }
+  }
+  occurrences.sort((a, b) => a.date.localeCompare(b.date));
+
   let current: ChoreOccurrence | null = null;
   for (let i = occurrences.length - 1; i >= 0; i--) {
     if (occurrences[i].date <= todayStr) { occurrences[i].isCurrent = true; current = occurrences[i]; break; }
@@ -280,8 +288,11 @@ export default function ChoresScreen() {
       if (editingChore?.id === msg.data.id) { showToast(`${msg.actor ?? 'Någon'} tog bort ${editingChore.title}`); setEditingChore(null); }
       setChores(prev => prev.filter(c => c.id !== msg.data.id));
     } else if (msg.type === 'chore_completed') {
+      // Also match against the optimistic fake ID to prevent duplicates when
+      // the socket arrives before the API response has replaced the fake.
+      const fakeId = msg.data.date ? `__occ__${msg.data.date}` : '__opt__';
       setChores(prev => prev.map(c => c.id === msg.data.choreId
-        ? { ...c, completions: c.completions.some(x => x.id === msg.data.id) ? c.completions : [msg.data, ...c.completions] }
+        ? { ...c, completions: c.completions.some(x => x.id === msg.data.id || x.id === fakeId) ? c.completions : [msg.data, ...c.completions] }
         : c));
     } else if (msg.type === 'chore_uncompleted') {
       const { date, day } = msg.data;
@@ -374,9 +385,9 @@ export default function ChoresScreen() {
         .filter(e => {
           const chore = choreData.find(c => c.id === e.id);
           if (!chore) return false;
-          if (chore.completions.length !== e.count) return false;
           if (isOnce(chore)) return true;
-          // Remove from cleared if a new occurrence has started (state no longer 'done')
+          // Remove from cleared if a new occurrence has started (state no longer 'done').
+          // Don't use saved completion count — was based on take:1 and is now unreliable.
           return recurringStatus(chore).state === 'done';
         })
         .map(e => e.id);
@@ -472,12 +483,14 @@ export default function ChoresScreen() {
     for (const chore of filtered) {
       const once = isOnce(chore);
       const rs = once ? null : statuses.get(chore.id)!;
-      // Bug 2: skip recurring chores whose end date has fully passed (no current/future occurrences).
+      // Skip recurring chores with no current or future occurrences and nothing completed (fully expired, never done).
       if (!once && rs!.state === 'none' && !rs!.nextDate) continue;
       const isDone = once ? chore.completions.length > 0 : rs!.state === 'done';
       if (isDone) {
         doneEntries.push({ chore, variant: 'done' });
-        if (!once) activeEntries.push({ chore, variant: 'upcoming' });
+        // Only show upcoming card if there's actually a next occurrence — expired chores
+        // that were completed for the last time should sit at the bottom, not as a dateless todo.
+        if (!once && rs!.nextDate) activeEntries.push({ chore, variant: 'upcoming' });
       } else {
         activeEntries.push({ chore, variant: 'active' });
       }
@@ -772,7 +785,12 @@ export default function ChoresScreen() {
   //  - ingen tilldelad → skippa
   function pickPerformer(chore: ChoreWithCompletion, onPick: (performedByMemberId: string | null) => void) {
     const choice = buildPerformerOptions(chore, members, userId);
-    if (choice.kind === 'auto') { onPick(null); return; }
+    if (choice.kind === 'auto') {
+      // Auto-set to the single assignee so history shows the owner, not the logged-in user.
+      const assignedIds = chore.assignedToMany?.length ? chore.assignedToMany : (chore.assignedTo ? [chore.assignedTo] : []);
+      onPick(assignedIds.length === 1 ? (assignedIds[0] ?? null) : null);
+      return;
+    }
     const buttons: Parameters<typeof confirm>[0]['buttons'] = choice.options.map(o => ({
       label: o.label,
       onPress: () => onPick(o.id),
@@ -1283,8 +1301,14 @@ export default function ChoresScreen() {
                 : rec.state === 'done' ? (rec.nextDate ? `Klar · ${formatOcc(rec.nextDate)}` : 'Klar') : null)
               : null;
             const isRotating = !!c.rotation && (c.assignedToMany?.length ?? 0) >= 2;
+            // Count completions that happened before the history window so the turn
+            // index stays in sync with the total completions.length used by the card.
+            const firstOccDate = rec?.occurrences[0]?.date ?? null;
+            const initialDoneCount = firstOccDate
+              ? c.completions.filter(comp => completionDate(comp) < firstOccDate).length
+              : 0;
             const turnByDate = isRotating
-              ? computeTurnHistory({ rotation: true, assignedToMany: c.assignedToMany }, rec?.occurrences ?? [])
+              ? computeTurnHistory({ rotation: true, assignedToMany: c.assignedToMany }, rec?.occurrences ?? [], initialDoneCount)
               : new Map<string, string>();
             return (
               <>

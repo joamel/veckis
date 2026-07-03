@@ -28,11 +28,12 @@ export function computeCurrentTurn(chore: ChoreLikeForTurn, completionCount: num
 export function computeTurnHistory(
   chore: ChoreLikeForTurn,
   occurrences: Array<{ date: string; done: boolean }>,
+  initialDoneCount = 0,
 ): Map<string, string> {
   const out = new Map<string, string>();
   if (!chore.rotation) return out;
   if (chore.assignedToMany.length === 0) return out;
-  let doneCount = 0;
+  let doneCount = initialDoneCount;
   for (const o of occurrences) {
     out.set(o.date, chore.assignedToMany[doneCount % chore.assignedToMany.length] ?? '');
     if (o.done) doneCount++;

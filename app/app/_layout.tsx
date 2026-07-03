@@ -1,8 +1,8 @@
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
-import { useEffect, useState } from 'react';
-import { Platform, Text, TextInput, View } from 'react-native';
+import { createElement, useEffect, useState, type ComponentType } from 'react';
+import { Platform, View } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useTablet } from '../src/hooks/useTablet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -23,12 +23,25 @@ import { installGlobalErrorHandler } from '../src/lib/errorReport';
 
 // Lock app text to designed size regardless of OS "larger text" setting.
 // Tablet sizing is handled separately via useTablet().fs() so we don't lose tablet scaling.
-(Text as unknown as { defaultProps?: { allowFontScaling?: boolean } }).defaultProps =
-  (Text as unknown as { defaultProps?: { allowFontScaling?: boolean } }).defaultProps || {};
-(Text as unknown as { defaultProps: { allowFontScaling?: boolean } }).defaultProps.allowFontScaling = false;
-(TextInput as unknown as { defaultProps?: { allowFontScaling?: boolean } }).defaultProps =
-  (TextInput as unknown as { defaultProps?: { allowFontScaling?: boolean } }).defaultProps || {};
-(TextInput as unknown as { defaultProps: { allowFontScaling?: boolean } }).defaultProps.allowFontScaling = false;
+// OBS: React 19 ignorerar defaultProps på funktionskomponenter, så gamla
+// `Text.defaultProps.allowFontScaling = false` är en tyst no-op — texter klipps
+// då mystiskt ("kg" → "k") på enheter med uppskalad OS-textstorlek. Istället
+// wrappas react-native-exporten; Babels CJS-interop läser `.Text` per användning
+// så gettern slår igenom i hela appen.
+/* eslint-disable @typescript-eslint/no-require-imports */
+const RNModule = require('react-native') as Record<string, unknown>;
+for (const name of ['Text', 'TextInput'] as const) {
+  const Orig = RNModule[name] as ComponentType<{ allowFontScaling?: boolean }> & { __fontScalingLocked?: boolean };
+  if (!Orig || Orig.__fontScalingLocked) continue;
+  const Wrapped = (props: Record<string, unknown>) => createElement(Orig, { allowFontScaling: false, ...props });
+  Wrapped.displayName = name;
+  (Wrapped as { __fontScalingLocked?: boolean }).__fontScalingLocked = true;
+  try {
+    Object.defineProperty(RNModule, name, { configurable: true, get: () => Wrapped });
+  } catch {
+    // Om exporten inte går att skriva över: behåll originalet (skalning på, men appen fungerar).
+  }
+}
 
 const tokenCache = {
   async getToken(key: string) {
