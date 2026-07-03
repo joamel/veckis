@@ -55,17 +55,17 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
         </View>
       </Pressable>
       <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={disablePrev ? undefined : onPrev} accessibilityRole="button" accessibilityLabel={str.weekNav.prevWeek} disabled={disablePrev}>
-        <Ionicons name="chevron-back" size={fs(18)} color={disablePrev ? '#d1d5db' : '#4f46e5'} />
+        <Ionicons name="chevron-back" size={fs(18)} color={disablePrev ? '#d6d3d1' : '#4e7a5e'} />
       </Pressable>
       <View style={{ flex: 1 }} />
       {!isCurrentWeek && (
         <Pressable style={[s.todayBtn, { paddingHorizontal: sp(12), paddingVertical: sp(6) }]} onPress={onToday}>
-          <Ionicons name="today-outline" size={fs(13)} color="#4f46e5" />
+          <Ionicons name="today-outline" size={fs(13)} color="#4e7a5e" />
           <Text style={[s.todayBtnText, { fontSize: fs(12) }]}>{str.weekNav.today}</Text>
         </Pressable>
       )}
       <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onNext} accessibilityRole="button" accessibilityLabel={str.weekNav.nextWeek}>
-        <Ionicons name="chevron-forward" size={fs(18)} color="#4f46e5" />
+        <Ionicons name="chevron-forward" size={fs(18)} color="#4e7a5e" />
       </Pressable>
     </View>
   );
@@ -78,13 +78,13 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#f1efec',
   },
   arrow: {},
   labelBtn: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingVertical: 4 },
-  label: { fontWeight: '600', color: '#4f46e5' },
-  labelCurrent: { color: '#4f46e5' },
-  labelPast: { color: '#9ca3af' },
-  todayBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#eef2ff', borderRadius: 999, marginRight: 12 },
-  todayBtnText: { fontWeight: '600', color: '#4f46e5' },
+  label: { fontWeight: '600', color: '#4e7a5e' },
+  labelCurrent: { color: '#4e7a5e' },
+  labelPast: { color: '#a8a29e' },
+  todayBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#ecf3ec', borderRadius: 999, marginRight: 12 },
+  todayBtnText: { fontWeight: '600', color: '#4e7a5e' },
 });

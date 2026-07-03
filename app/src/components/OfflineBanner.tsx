@@ -19,7 +19,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#374151',
+    backgroundColor: '#44403c',
     paddingHorizontal: 14,
     paddingVertical: 10,
     zIndex: 9998,

@@ -103,7 +103,7 @@ export default function InstallScreen() {
           {target === 'android-chrome' && (
             <View style={[s.optionBox, { marginTop: 12 }]}>
               <View style={s.optionHeader}>
-                <Ionicons name="globe-outline" size={22} color="#7c3aed" />
+                <Ionicons name="globe-outline" size={22} color="#b96a45" />
                 <Text style={s.optionTitle}>{str.android.pwa.title}</Text>
               </View>
               <Text style={s.optionBody}>
@@ -111,7 +111,7 @@ export default function InstallScreen() {
               </Text>
               {deferredPrompt ? (
                 <Pressable style={s.secondaryBtn} onPress={triggerPwaInstall}>
-                  <Ionicons name="add-circle-outline" size={18} color="#7c3aed" />
+                  <Ionicons name="add-circle-outline" size={18} color="#b96a45" />
                   <Text style={s.secondaryBtnText}>{str.android.pwa.install}</Text>
                 </Pressable>
               ) : (
@@ -142,7 +142,7 @@ export default function InstallScreen() {
           <View style={s.stepRow}>
             <Text style={s.stepNum}>1.</Text>
             <Text style={s.stepText}>
-              {str.ios.step1Prefix}<Ionicons name="share-outline" size={18} color="#4f46e5" />{' '}
+              {str.ios.step1Prefix}<Ionicons name="share-outline" size={18} color="#4e7a5e" />{' '}
               <Text style={s.bold}>{str.ios.step1Bold}</Text>{str.ios.step1Suffix}
             </Text>
           </View>
@@ -173,7 +173,7 @@ export default function InstallScreen() {
             </Pressable>
           ) : (
             <Text style={s.hint}>
-              {str.desktop.hintPrefix}<Ionicons name="download-outline" size={16} color="#4f46e5" />{str.desktop.hintMiddle}<Text style={s.bold}>"{str.desktop.hintBold}"</Text>{str.desktop.hintSuffix}
+              {str.desktop.hintPrefix}<Ionicons name="download-outline" size={16} color="#4e7a5e" />{str.desktop.hintMiddle}<Text style={s.bold}>"{str.desktop.hintBold}"</Text>{str.desktop.hintSuffix}
             </Text>
           )}
         </View>
@@ -200,7 +200,7 @@ export default function InstallScreen() {
             {str.fallback.cardBody}
           </Text>
           <Pressable style={s.secondaryBtn} onPress={() => { window.location.href = APK_URL; }}>
-            <Ionicons name="logo-android" size={18} color="#7c3aed" />
+            <Ionicons name="logo-android" size={18} color="#b96a45" />
             <Text style={s.secondaryBtnText}>{str.fallback.downloadApk}</Text>
           </Pressable>
         </View>
@@ -214,30 +214,30 @@ export default function InstallScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { padding: 24, paddingBottom: 60, backgroundColor: '#f5f3ff', minHeight: '100%' },
+  container: { padding: 24, paddingBottom: 60, backgroundColor: '#faf1e9', minHeight: '100%' },
   hero: { alignItems: 'center', marginTop: 24, marginBottom: 32 },
-  logoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  title: { fontSize: 32, fontWeight: '700', color: '#111827', textAlign: 'center' },
-  tagline: { fontSize: 15, color: '#6b7280', textAlign: 'center', marginTop: 6 },
+  logoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#b96a45', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  title: { fontSize: 32, fontWeight: '700', color: '#292524', textAlign: 'center' },
+  tagline: { fontSize: 15, color: '#78716c', textAlign: 'center', marginTop: 6 },
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2, maxWidth: 560, alignSelf: 'stretch', width: '100%' },
-  cardTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },
-  cardBody: { fontSize: 14, color: '#374151', lineHeight: 20, marginBottom: 12 },
-  optionBox: { padding: 14, borderRadius: 12, backgroundColor: '#f9fafb', borderLeftWidth: 3, borderLeftColor: '#c4b5fd' },
+  cardTitle: { fontSize: 18, fontWeight: '700', color: '#292524', marginBottom: 6 },
+  cardBody: { fontSize: 14, color: '#44403c', lineHeight: 20, marginBottom: 12 },
+  optionBox: { padding: 14, borderRadius: 12, backgroundColor: '#faf8f3', borderLeftWidth: 3, borderLeftColor: '#e2bda1' },
   optionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  optionTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  optionBody: { fontSize: 13, color: '#6b7280', marginBottom: 10, lineHeight: 18 },
-  primaryBtn: { backgroundColor: '#7c3aed', borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4 },
+  optionTitle: { fontSize: 15, fontWeight: '700', color: '#292524' },
+  optionBody: { fontSize: 13, color: '#78716c', marginBottom: 10, lineHeight: 18 },
+  primaryBtn: { backgroundColor: '#b96a45', borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4 },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  secondaryBtn: { backgroundColor: '#f5f3ff', borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4, borderWidth: 1, borderColor: '#c4b5fd' },
-  secondaryBtnText: { color: '#7c3aed', fontSize: 15, fontWeight: '700' },
-  hint: { fontSize: 13, color: '#6b7280', lineHeight: 20, fontStyle: 'italic' },
-  bold: { fontWeight: '700', color: '#111827', fontStyle: 'normal' },
+  secondaryBtn: { backgroundColor: '#faf1e9', borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4, borderWidth: 1, borderColor: '#e2bda1' },
+  secondaryBtnText: { color: '#b96a45', fontSize: 15, fontWeight: '700' },
+  hint: { fontSize: 13, color: '#78716c', lineHeight: 20, fontStyle: 'italic' },
+  bold: { fontWeight: '700', color: '#292524', fontStyle: 'normal' },
   stepRow: { flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'flex-start' },
-  stepNum: { fontSize: 14, fontWeight: '700', color: '#7c3aed', width: 20 },
-  stepText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 20 },
+  stepNum: { fontSize: 14, fontWeight: '700', color: '#b96a45', width: 20 },
+  stepText: { flex: 1, fontSize: 14, color: '#44403c', lineHeight: 20 },
   warningBox: { flexDirection: 'row', gap: 8, padding: 10, borderRadius: 8, backgroundColor: '#fef3c7', alignItems: 'flex-start', marginBottom: 12 },
   warningText: { flex: 1, fontSize: 13, color: '#92400e', lineHeight: 18 },
-  body: { fontSize: 14, color: '#374151', textAlign: 'center', marginTop: 8, marginBottom: 16 },
+  body: { fontSize: 14, color: '#44403c', textAlign: 'center', marginTop: 8, marginBottom: 16 },
   linkBtn: { padding: 12, alignSelf: 'center' },
-  linkBtnText: { fontSize: 14, color: '#7c3aed', fontWeight: '600' },
+  linkBtnText: { fontSize: 14, color: '#b96a45', fontWeight: '600' },
 });

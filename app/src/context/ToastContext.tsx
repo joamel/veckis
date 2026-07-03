@@ -101,7 +101,7 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 6,
   },
-  toastNeutral: { backgroundColor: '#374151' },
+  toastNeutral: { backgroundColor: '#44403c' },
   toastError: { backgroundColor: '#dc2626' },
   toastText: { fontSize: 14, fontWeight: '600', color: '#fff' },
   actionBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.2)' },

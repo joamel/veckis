@@ -25,7 +25,7 @@ function ErrorRow({ e, last }: { e: ClientErrorEntry; last: boolean }) {
           <Text style={s.errorName} numberOfLines={expanded ? undefined : 1}>{e.name}: {e.message}</Text>
           <Text style={s.meta}>{timeAgo(e.receivedAt)}{e.platform ? ` · ${e.platform}` : ''}{e.appVersion ? ` · v${e.appVersion}` : ''}</Text>
         </View>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color="#d1d5db" />
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color="#d6d3d1" />
       </View>
       {expanded && e.stack && (
         <ScrollView horizontal showsHorizontalScrollIndicator style={s.stackScroll}>
@@ -72,7 +72,7 @@ export function ClientErrorsSection() {
         {errors && errors.length > 0 && (
           <View style={s.badge}><Text style={s.badgeText}>{errors.length}</Text></View>
         )}
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#9ca3af" />
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#a8a29e" />
       </Pressable>
 
       {expanded && (
@@ -86,7 +86,7 @@ export function ClientErrorsSection() {
           ))}
           {!loading && errors && errors.length > 0 && (
             <Pressable style={s.refreshBtn} onPress={load} hitSlop={6}>
-              <Ionicons name="refresh-outline" size={14} color="#6b7280" />
+              <Ionicons name="refresh-outline" size={14} color="#78716c" />
               <Text style={s.refreshText}>{str.clientErrorsSection.refresh}</Text>
             </Pressable>
           )}
@@ -111,17 +111,17 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
-  title: { flex: 1, fontSize: 14, fontWeight: '600', color: '#111827' },
+  title: { flex: 1, fontSize: 14, fontWeight: '600', color: '#292524' },
   badge: { backgroundColor: '#fee2e2', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
   badgeText: { fontSize: 11, fontWeight: '700', color: '#dc2626' },
   body: { paddingHorizontal: 14, paddingBottom: 10 },
-  row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
   rowTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  errorName: { fontSize: 13, color: '#374151', lineHeight: 18 },
-  meta: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+  errorName: { fontSize: 13, color: '#44403c', lineHeight: 18 },
+  meta: { fontSize: 11, color: '#a8a29e', marginTop: 2 },
   stackScroll: { marginTop: 6, maxHeight: 120 },
-  stack: { fontSize: 10, color: '#6b7280', fontFamily: 'monospace', lineHeight: 14 },
-  empty: { fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' },
+  stack: { fontSize: 10, color: '#78716c', fontFamily: 'monospace', lineHeight: 14 },
+  empty: { fontSize: 13, color: '#a8a29e', textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' },
   refreshBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, marginTop: 4 },
-  refreshText: { fontSize: 12, color: '#6b7280' },
+  refreshText: { fontSize: 12, color: '#78716c' },
 });

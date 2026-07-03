@@ -1107,7 +1107,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     await selectStore(result);
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color="#4e7a5e" /></View>;
   if (!list) return null;
 
   // Items tied to a meal that's pending removal stay visible but rendered
@@ -1153,7 +1153,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 onPress={() => openMergeForDupes(duplicateGroups[0])}
                 hitSlop={8}
               >
-                <Ionicons name="git-merge-outline" size={12} color="#7c3aed" />
+                <Ionicons name="git-merge-outline" size={12} color="#b96a45" />
                 <Text style={s.dupeBadgeText}>
                   {duplicateGroups.length === 1 ? '1 dubblett' : `${duplicateGroups.length} dubbletter`}
                 </Text>
@@ -1164,7 +1164,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         {allItems.length === 0 && (
           <View style={s.emptyContainer}>
             <Pressable onPress={goToBulkTransfer} style={s.emptyImportBtn} hitSlop={12}>
-              <Ionicons name="add-circle" size={64} color="#4f46e5" />
+              <Ionicons name="add-circle" size={64} color="#4e7a5e" />
             </Pressable>
             <Text style={s.emptyText}>Listan är tom</Text>
             <Text style={s.emptySubtext}>Tryck på + för att importera veckomenyn, eller lägg till varor nedan</Text>
@@ -1211,7 +1211,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                     <Ionicons name="checkmark-circle-outline" size={20} color="#10b981" />
                   </Pressable>
                 )}
-                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#9ca3af" />
+                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#a8a29e" />
               </Pressable>
               {!collapsed && group.items.map(item => (
                 <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />
@@ -1226,10 +1226,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           return (
             <View style={s.categoryGroup} onLayout={e => { catLayouts.current['checked'] = e.nativeEvent.layout.y; }}>
               <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={4}>
-                <Text style={[s.categoryLabel, { color: '#9ca3af' }]}>
+                <Text style={[s.categoryLabel, { color: '#a8a29e' }]}>
                   Klart{collapsed ? ` (${checked.length})` : ''}
                 </Text>
-                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#d1d5db" />
+                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#d6d3d1" />
               </Pressable>
               {!collapsed && checked.map(item => (
                 <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />
@@ -1287,10 +1287,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           de). Ikonen pulserar var ~10:e sekund. Tryck → toast med vem som handlar. */}
       <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
         <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.a11y.back}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
+          <Ionicons name="arrow-back" size={22} color="#292524" />
         </Pressable>
         <Pressable onPress={openStorePicker} hitSlop={8} style={s.navStoreBtn} accessibilityRole="button" accessibilityLabel={list.store ? str.a11y.store(list.store.name) : str.a11y.chooseStore}>
-          <Ionicons name="storefront" size={18} color="#4f46e5" />
+          <Ionicons name="storefront" size={18} color="#4e7a5e" />
           <RNAnimated.View style={[s.navStoreNameWrap, storeNameAnimStyle]}>
             <Text style={s.navStoreName} numberOfLines={1}>{list.store?.name ?? str.a11y.chooseStore}</Text>
           </RNAnimated.View>
@@ -1328,7 +1328,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           </Pressable>
         )}
         <Pressable ref={listActionsBtnRef} onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.a11y.moreActions}>
-          <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
+          <Ionicons name="ellipsis-vertical" size={20} color="#292524" />
         </Pressable>
       </View>
 
@@ -1381,13 +1381,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         ) : null}
         <View style={[s.addBar, { paddingBottom: Math.max(12, insets.bottom) }]}>
           <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
-            <Ionicons name="grid-outline" size={22} color="#4f46e5" />
+            <Ionicons name="grid-outline" size={22} color="#4e7a5e" />
           </Pressable>
           <TextInput
             ref={inputRef}
             style={s.addInput}
             placeholder={str.placeholders.addItem}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#a8a29e"
             value={newItem}
             onChangeText={setNewItem}
             returnKeyType="done"
@@ -1430,7 +1430,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             <>
               <View style={s.browserHeader}>
                 <Pressable style={s.browserBack} onPress={() => setBrowserCategory(null)}>
-                  <Ionicons name="chevron-back" size={20} color="#4f46e5" />
+                  <Ionicons name="chevron-back" size={20} color="#4e7a5e" />
                   <Text style={s.browserBackText}>Tillbaka</Text>
                 </Pressable>
                 <Text style={s.browserTitle}>{CATEGORY_EMOJIS[browserCategory]} {CATEGORY_LABELS[browserCategory]}</Text>
@@ -1447,7 +1447,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                       onPress={() => { setShowBrowser(false); openQtySheet(s2.name, browserCategory ?? undefined); }}
                     >
                       <Text style={s.browserItemText}>{capitalize(s2.name)}</Text>
-                      <Ionicons name="add-circle-outline" size={20} color="#4f46e5" />
+                      <Ionicons name="add-circle-outline" size={20} color="#4e7a5e" />
                     </Pressable>
                   ))
                 }
@@ -1472,7 +1472,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             value={editName}
             onChangeText={setEditName}
             placeholder={str.placeholders.itemName}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#a8a29e"
             autoCapitalize="none"
             returnKeyType="next"
             onSubmitEditing={() => editQtyRef.current?.focus()}
@@ -1482,7 +1482,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               style={s.qtyBtn}
               onPress={() => setEditQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
             >
-              <Ionicons name="remove" size={22} color="#4f46e5" />
+              <Ionicons name="remove" size={22} color="#4e7a5e" />
             </Pressable>
             <TextInput
               ref={editQtyRef}
@@ -1491,7 +1491,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               onChangeText={t => setEditQty(normalizeQtyInput(t))}
               keyboardType="decimal-pad"
               placeholder={str.placeholders.qty}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               selectTextOnFocus
               returnKeyType="next"
               blurOnSubmit={false}
@@ -1501,7 +1501,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               style={s.qtyBtn}
               onPress={() => setEditQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ','))}
             >
-              <Ionicons name="add" size={22} color="#4f46e5" />
+              <Ionicons name="add" size={22} color="#4e7a5e" />
             </Pressable>
             <TextInput
               ref={editUnitRef}
@@ -1509,7 +1509,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               value={editUnit}
               onChangeText={v => setEditUnit(v.toLowerCase())}
               placeholder={str.placeholders.unit}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               autoCapitalize="none"
               returnKeyType="done"
             />
@@ -1611,7 +1611,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             value={stapleName}
             onChangeText={setStapleName}
             placeholder={str.placeholders.itemName}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#a8a29e"
             autoCapitalize="none"
             returnKeyType="done"
           />
@@ -1621,7 +1621,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             value={stapleUnit}
             onChangeText={v => setStapleUnit(v.toLowerCase())}
             placeholder="t.ex. st, dl, paket"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#a8a29e"
             autoCapitalize="none"
             returnKeyType="done"
           />
@@ -1685,7 +1685,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 style={s.qtyBtn}
                 onPress={() => setQtyValue(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
               >
-                <Ionicons name="remove" size={22} color="#4f46e5" />
+                <Ionicons name="remove" size={22} color="#4e7a5e" />
               </Pressable>
               <TextInput
                 style={s.qtyInput}
@@ -1701,7 +1701,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 style={s.qtyBtn}
                 onPress={() => setQtyValue(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ','))}
               >
-                <Ionicons name="add" size={22} color="#4f46e5" />
+                <Ionicons name="add" size={22} color="#4e7a5e" />
               </Pressable>
               <TextInput
                 ref={qtyUnitRef}
@@ -1709,7 +1709,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 value={qtyUnit}
                 onChangeText={v => setQtyUnit(v.toLowerCase())}
                 placeholder={str.placeholders.unit}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#a8a29e"
                 autoCapitalize="none"
                 returnKeyType="done"
                 onSubmitEditing={confirmQtySheet}
@@ -1770,7 +1770,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   onPress={() => { setManualPickerSelected(new Set()); setManualPickerOpen(true); }}
                   hitSlop={8}
                 >
-                  <Ionicons name="checkbox-outline" size={12} color="#7c3aed" />
+                  <Ionicons name="checkbox-outline" size={12} color="#b96a45" />
                   <Text style={s.dupeBadgeText}>Markera själv</Text>
                 </Pressable>
               )}
@@ -1786,7 +1786,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Ionicons
                     name={mergeSelected.has(item.id) ? 'checkbox' : 'square-outline'}
                     size={22}
-                    color={mergeSelected.has(item.id) ? '#4f46e5' : '#9ca3af'}
+                    color={mergeSelected.has(item.id) ? '#4e7a5e' : '#a8a29e'}
                   />
                   <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(item.name)}</Text>
                   {(item.quantity !== 1 || item.unit) && (
@@ -1802,7 +1802,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 value={mergeName}
                 onChangeText={setMergeName}
                 placeholder={str.placeholders.itemName}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#a8a29e"
                 autoCapitalize="none"
               />
               <Text style={s.editLabel}>Ny mängd och enhet</Text>
@@ -1814,7 +1814,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
                   onPress={() => setMergeQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
                 >
-                  <Ionicons name="remove" size={18} color="#4f46e5" />
+                  <Ionicons name="remove" size={18} color="#4e7a5e" />
                 </Pressable>
                 <TextInput
                   style={[s.qtyInput, { fontSize: 16, fontWeight: '600', paddingVertical: 6 }]}
@@ -1828,14 +1828,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
                   onPress={() => setMergeQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ','))}
                 >
-                  <Ionicons name="add" size={18} color="#4f46e5" />
+                  <Ionicons name="add" size={18} color="#4e7a5e" />
                 </Pressable>
                 <TextInput
                   style={[s.qtyUnitInput, { fontSize: 13, paddingVertical: 6, paddingHorizontal: 8 }]}
                   value={mergeUnit}
                   onChangeText={v => setMergeUnit(v.toLowerCase())}
                   placeholder={str.placeholders.unit}
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor="#a8a29e"
                   autoCapitalize="none"
                   onFocus={scrollMergeRowIntoView}
                 />
@@ -1889,7 +1889,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   if (next && next !== duplicateGroups[idx]) openMergeForDupes(next);
                 }}
               >
-                <Text style={[s.mergeIgnoreBtnText, { color: '#4f46e5' }]}>Nästa dubblett →</Text>
+                <Text style={[s.mergeIgnoreBtnText, { color: '#4e7a5e' }]}>Nästa dubblett →</Text>
               </Pressable>
             )}
             <Pressable
@@ -1917,7 +1917,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             onPress={() => { setShowActionsMenu(false); toggleIAmShopping(); }}
             disabled={togglingShopper || (!iAmShopping && !!list.activeShopperMemberId)}
           >
-            <Ionicons name={iAmShopping ? 'pause-circle-outline' : 'walk-outline'} size={20} color="#4f46e5" />
+            <Ionicons name={iAmShopping ? 'pause-circle-outline' : 'walk-outline'} size={20} color="#4e7a5e" />
             <Text style={s.actionsMenuText}>
               {iAmShopping
                 ? 'Sluta handla'
@@ -1930,21 +1930,21 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); setRenameValue(list.name); setRenameEmoji(list.emoji ?? null); setShowRenameModal(true); }}
           >
-            <Ionicons name="create-outline" size={20} color="#4f46e5" />
+            <Ionicons name="create-outline" size={20} color="#4e7a5e" />
             <Text style={s.actionsMenuText}>Byt namn på listan</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); openStorePicker(); }}
           >
-            <Ionicons name="storefront-outline" size={20} color="#4f46e5" />
+            <Ionicons name="storefront-outline" size={20} color="#4e7a5e" />
             <Text style={s.actionsMenuText}>{list.store?.name ? `Butik: ${list.store.name}` : 'Välj butik'}</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); goToBulkTransfer(); }}
           >
-            <Ionicons name="restaurant-outline" size={20} color="#4f46e5" />
+            <Ionicons name="restaurant-outline" size={20} color="#4e7a5e" />
             <Text style={s.actionsMenuText}>Importera veckomeny</Text>
           </Pressable>
           <Pressable
@@ -1955,7 +1955,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               else setMergeSheet({ name: '', category: 'other' as StoreCategory, items: [] });
             }}
           >
-            <Ionicons name="git-merge-outline" size={20} color="#4f46e5" />
+            <Ionicons name="git-merge-outline" size={20} color="#4e7a5e" />
             <Text style={s.actionsMenuText}>
               Hantera dubbletter{duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ''}
             </Text>
@@ -1964,7 +1964,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); checkAllUnchecked(); }}
           >
-            <Ionicons name="checkbox-outline" size={20} color="#4f46e5" />
+            <Ionicons name="checkbox-outline" size={20} color="#4e7a5e" />
             <Text style={s.actionsMenuText}>Klarmarkera alla</Text>
           </Pressable>
           <View style={s.actionsMenuDivider} />
@@ -1998,7 +1998,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               value={renameValue}
               onChangeText={setRenameValue}
               placeholder={str.placeholders.listName}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               autoFocus
               returnKeyType="done"
               onSubmitEditing={saveRename}
@@ -2056,7 +2056,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                         <Ionicons
                           name={checked ? 'checkbox' : 'square-outline'}
                           size={22}
-                          color={checked ? '#4f46e5' : '#9ca3af'}
+                          color={checked ? '#4e7a5e' : '#a8a29e'}
                         />
                         <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(item.name)}</Text>
                         {(item.quantity !== 1 || item.unit) && (
@@ -2121,7 +2121,7 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
 
   const rowContent = (
     <>
-      <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? '#10b981' : '#4f46e5'} />
+      <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? '#10b981' : '#4e7a5e'} />
       <View style={s.itemContent}>
         <View style={s.itemRow}>
           <Text style={[s.itemName, (item.isChecked || pending) && s.itemNameChecked]}>{capitalize(item.name)}</Text>
@@ -2154,34 +2154,34 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { flex: 1, backgroundColor: '#faf8f3' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: 12 },
+  header: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec', paddingBottom: 12 },
   headerNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6 },
-  headerStack: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  headerStack: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec' },
   titleSlide: { paddingHorizontal: 20, paddingBottom: 6 },
   scrollMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: 8, paddingTop: 4, gap: 8 },
-  titleAreaAbs: { position: 'absolute', left: 0, right: 0, backgroundColor: '#f9fafb', zIndex: 10 },
-  navbarBgAbs: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: '#f9fafb', zIndex: 5 },
+  titleAreaAbs: { position: 'absolute', left: 0, right: 0, backgroundColor: '#faf8f3', zIndex: 10 },
+  navbarBgAbs: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: '#faf8f3', zIndex: 5 },
   navbarButtonsAbs: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, zIndex: 30 },
   titleTextWrap: { position: 'absolute', left: 20, right: 20, justifyContent: 'center', alignItems: 'flex-start', zIndex: 25 },
-  headerNavPinned: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  headerNavPinned: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec' },
   headerTitleAbs: { position: 'absolute', left: 0, right: 0, zIndex: 10, paddingHorizontal: 20, backgroundColor: '#fff', overflow: 'hidden' },
   actionsMenu: { position: 'absolute', right: 0, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   actionsMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
-  actionsMenuText: { fontSize: 15, color: '#4f46e5', fontWeight: '500' },
-  actionsMenuDivider: { height: 1, backgroundColor: '#f3f4f6', marginVertical: 4 },
+  actionsMenuText: { fontSize: 15, color: '#4e7a5e', fontWeight: '500' },
+  actionsMenuDivider: { height: 1, backgroundColor: '#f1efec', marginVertical: 4 },
   headerTitle: { paddingHorizontal: 20, paddingTop: 5, paddingBottom: 5 },
   headerMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   backBtn: { padding: 4 },
   doneBtn: { padding: 4 },
-  title: { fontSize: 26, fontWeight: '700', color: '#111827' },
-  titleCompact: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: '#111827', paddingHorizontal: 8 },
-  progressBar: { height: 3, backgroundColor: '#e5e7eb' },
-  stickyCat: { position: 'absolute', left: 0, right: 0, zIndex: 20, backgroundColor: '#f9fafb', paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: '#ddd6fe', borderRadius: 999, backgroundColor: '#f5f3ff' },
+  title: { fontSize: 26, fontWeight: '700', color: '#292524' },
+  titleCompact: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: '#292524', paddingHorizontal: 8 },
+  progressBar: { height: 3, backgroundColor: '#e7e5e4' },
+  stickyCat: { position: 'absolute', left: 0, right: 0, zIndex: 20, backgroundColor: '#faf8f3', paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: '#eed7c5', borderRadius: 999, backgroundColor: '#faf1e9' },
   navStoreNameWrap: { overflow: 'hidden', justifyContent: 'center' },
-  navStoreName: { fontSize: 15, color: '#4f46e5', fontWeight: '600' },
+  navStoreName: { fontSize: 15, color: '#4e7a5e', fontWeight: '600' },
   shopperWrap: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
   shopperTextWrap: { overflow: 'hidden', justifyContent: 'center' },
   shopperText: { fontSize: 13, color: '#db2777', fontWeight: '600' },
@@ -2191,77 +2191,77 @@ const s = StyleSheet.create({
   listEmpty: { flex: 1 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   emptyImportBtn: { marginBottom: 4 },
-  emptyText: { fontSize: 17, fontWeight: '600', color: '#374151', marginTop: 12 },
-  emptySubtext: { fontSize: 13, color: '#9ca3af', marginTop: 4, textAlign: 'center', paddingHorizontal: 32 },
-  dupeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ede9fe', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  dupeBadgeText: { fontSize: 12, fontWeight: '600', color: '#7c3aed' },
+  emptyText: { fontSize: 17, fontWeight: '600', color: '#44403c', marginTop: 12 },
+  emptySubtext: { fontSize: 13, color: '#a8a29e', marginTop: 4, textAlign: 'center', paddingHorizontal: 32 },
+  dupeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f6e8dc', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  dupeBadgeText: { fontSize: 12, fontWeight: '600', color: '#b96a45' },
   mergeIgnoreBtn: { paddingVertical: 10 },
-  mergeIgnoreBtnText: { fontSize: 14, color: '#9ca3af', textAlign: 'center' },
+  mergeIgnoreBtnText: { fontSize: 14, color: '#a8a29e', textAlign: 'center' },
   mergeHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   categoryGroup: { gap: 2 },
   categoryHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 2, paddingVertical: 4, gap: 8 },
-  categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4f46e5', textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 },
+  categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4e7a5e', textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 },
   // Sub-grupp-rubriker: inget uppercase + ingen letterSpacing (annars klipps
   // långa subnamn som "Toalett- & hushållspapper"); lite indenterad + dämpad
   // för att visuellt tillhöra sin parent.
   categorySubHeader: { paddingLeft: 14, paddingVertical: 2, marginTop: -4 },
-  categorySubLabel: { fontSize: 11, fontWeight: '600', textTransform: 'none', letterSpacing: 0.2, color: '#7c3aed' },
-  categoryCount: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
+  categorySubLabel: { fontSize: 11, fontWeight: '600', textTransform: 'none', letterSpacing: 0.2, color: '#b96a45' },
+  categoryCount: { fontSize: 11, color: '#a8a29e', fontWeight: '600' },
   item: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   itemChecked: { opacity: 0.55 },
   itemPending: { opacity: 0.4, backgroundColor: '#fef2f2' },
   itemContent: { flex: 1 },
   itemRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
-  itemName: { fontSize: 16, color: '#111827', flex: 1 },
-  itemNameChecked: { textDecorationLine: 'line-through', color: '#9ca3af' },
-  itemQty: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
-  chipScroll: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6', maxHeight: 44 },
-  commonScroll: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingTop: 6, paddingBottom: 2 },
-  chipHint: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.5, paddingHorizontal: 12 },
+  itemName: { fontSize: 16, color: '#292524', flex: 1 },
+  itemNameChecked: { textDecorationLine: 'line-through', color: '#a8a29e' },
+  itemQty: { fontSize: 14, color: '#78716c', fontWeight: '500' },
+  chipScroll: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1efec', maxHeight: 44 },
+  commonScroll: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1efec', paddingTop: 6, paddingBottom: 2 },
+  chipHint: { fontSize: 11, fontWeight: '700', color: '#a8a29e', letterSpacing: 0.5, paddingHorizontal: 12 },
   chipRowWrap: { paddingHorizontal: 12, paddingVertical: 6, gap: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   chipRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#eef2ff', borderRadius: 20 },
-  chipText: { fontSize: 13, color: '#4f46e5', fontWeight: '500' },
-  addBar: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6', gap: 10, alignItems: 'center' },
-  browseBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#ecf3ec', borderRadius: 20 },
+  chipText: { fontSize: 13, color: '#4e7a5e', fontWeight: '500' },
+  addBar: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1efec', gap: 10, alignItems: 'center' },
+  browseBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
   // minWidth:0 så input:en får krympa under sin intrinsiska content-bredd på web
   // (annars trycks "+"-knappen ut utanför högerkanten — min-width:auto på <input>).
-  addInput: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
-  addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center' },
+  addInput: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#faf8f3' },
+  addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center' },
   addBtnDisabled: { opacity: 0.4 },
   // Dim ligger på ett eget absolut lager (overlayDim) så det täcker HELA skärmen
   // inkl. bakom sheetens rundade hörn; overlay-Pressablen är transparent och
   // sköter bara tap-to-dismiss + att putta ner sheeten (flex:1).
   overlay: { flex: 1 },
-  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(17,24,39,0.55)' },
+  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(41,37,36,0.55)' },
   // width:100% + maxWidth + alignSelf:center → full bredd på telefon (<480), men
   // capad och centrerad på bred/webb-viewport så sheeten inte blir "fullscreen".
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '85%', width: '100%', maxWidth: 480, alignSelf: 'center' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  sheetSub: { fontSize: 13, color: '#6b7280', marginTop: -4 },
-  storeOption: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 10, backgroundColor: '#f9fafb' },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e7e5e4', alignSelf: 'center', marginBottom: 4 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524' },
+  sheetSub: { fontSize: 13, color: '#78716c', marginTop: -4 },
+  storeOption: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 10, backgroundColor: '#faf8f3' },
   storeOptionFlex: { flex: 1 },
-  storeOptionActive: { backgroundColor: '#eef2ff' },
-  storeOptionText: { fontSize: 15, color: '#111827', fontWeight: '500' },
+  storeOptionActive: { backgroundColor: '#ecf3ec' },
+  storeOptionText: { fontSize: 15, color: '#292524', fontWeight: '500' },
   storeRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  editStoreBtn: { padding: 12, backgroundColor: '#f9fafb', borderRadius: 10 },
+  editStoreBtn: { padding: 12, backgroundColor: '#faf8f3', borderRadius: 10 },
   newStoreRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
-  catRowLabel: { flex: 1, fontSize: 15, color: '#374151' },
+  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#faf8f3' },
+  catRowLabel: { flex: 1, fontSize: 15, color: '#44403c' },
   catArrow: { padding: 6 },
-  saveBtn: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center', marginTop: 4 },
+  saveBtn: { backgroundColor: '#4e7a5e', borderRadius: 10, padding: 16, alignItems: 'center', marginTop: 4 },
   saveBtnDisabled: { opacity: 0.4 },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   editRow: { flexDirection: 'row', gap: 12 },
-  editLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280', marginBottom: 6 },
-  editInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#f9fafb' },
+  editLabel: { fontSize: 13, fontWeight: '600', color: '#78716c', marginBottom: 6 },
+  editInput: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#faf8f3' },
   catChipScroll: { marginBottom: 4 },
   catChipRow: { flexDirection: 'row', gap: 8, paddingVertical: 4 },
-  catChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb', flexShrink: 0 },
-  catChipActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
-  catChipText: { fontSize: 13, color: '#374151', fontWeight: '500' },
-  catChipTextActive: { color: '#4f46e5', fontWeight: '600' },
+  catChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4', flexShrink: 0 },
+  catChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
+  catChipText: { fontSize: 13, color: '#44403c', fontWeight: '500' },
+  catChipTextActive: { color: '#4e7a5e', fontWeight: '600' },
   editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
@@ -2269,39 +2269,39 @@ const s = StyleSheet.create({
   swipeDeleteBg: { backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
   browserSheet: { maxHeight: '90%', gap: 0 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  categoryTile: { width: '47%', backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },
+  categoryTile: { width: '47%', backgroundColor: '#faf8f3', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e7e5e4' },
   categoryTileEmoji: { fontSize: 28 },
-  categoryTileLabel: { fontSize: 13, fontWeight: '600', color: '#374151', textAlign: 'center' },
+  categoryTileLabel: { fontSize: 13, fontWeight: '600', color: '#44403c', textAlign: 'center' },
   browserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
   browserBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  browserBackText: { fontSize: 14, color: '#4f46e5', fontWeight: '500' },
-  browserTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111827', textAlign: 'right' },
+  browserBackText: { fontSize: 14, color: '#4e7a5e', fontWeight: '500' },
+  browserTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#292524', textAlign: 'right' },
   browserList: { marginTop: 12, maxHeight: 400 },
-  browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  browserItemText: { flex: 1, fontSize: 16, color: '#111827' },
+  browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  browserItemText: { flex: 1, fontSize: 16, color: '#292524' },
   qtyStepper: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
-  qtyBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
+  qtyBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
   // Litet antalsfält (inte flex) så enhet får plats på samma rad som i native-appen.
-  qtyInput: { width: 70, textAlign: 'center', fontSize: 22, fontWeight: '700', color: '#111827', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 8 },
-  qtyUnitInput: { flex: 1, minWidth: 0, fontSize: 16, color: '#111827', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
-  qtyConfirm: { backgroundColor: '#4f46e5', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  qtyInput: { width: 70, textAlign: 'center', fontSize: 22, fontWeight: '700', color: '#292524', borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingVertical: 8 },
+  qtyUnitInput: { flex: 1, minWidth: 0, fontSize: 16, color: '#292524', borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
+  qtyConfirm: { backgroundColor: '#4e7a5e', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   qtyConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   mergeList: { maxHeight: 200, flexGrow: 0 },
   unitChipScroll: { marginVertical: 4 },
   unitChipRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
-  unitChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
-  unitChipActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
-  unitChipText: { fontSize: 13, color: '#374151', fontWeight: '500' },
-  unitChipTextActive: { color: '#4f46e5', fontWeight: '600' },
-  mergeItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  mergeItemName: { fontSize: 16, color: '#374151', flex: 1 },
-  mergeItemQty: { fontSize: 14, color: '#6b7280' },
-  mergeDivider: { height: 1, backgroundColor: '#e5e7eb', marginTop: 4 },
+  unitChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4' },
+  unitChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
+  unitChipText: { fontSize: 13, color: '#44403c', fontWeight: '500' },
+  unitChipTextActive: { color: '#4e7a5e', fontWeight: '600' },
+  mergeItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  mergeItemName: { fontSize: 16, color: '#44403c', flex: 1 },
+  mergeItemQty: { fontSize: 14, color: '#78716c' },
+  mergeDivider: { height: 1, backgroundColor: '#e7e5e4', marginTop: 4 },
   itemWrap: { position: 'relative' },
   itemDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
-  editDoneBtn: { backgroundColor: '#111827', padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#e5e7eb' },
+  editDoneBtn: { backgroundColor: '#292524', padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#e7e5e4' },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
 

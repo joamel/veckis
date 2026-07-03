@@ -90,7 +90,7 @@ export default function HouseholdSetupScreen() {
       <TextInput
         style={styles.input}
         placeholder={str.namePlaceholder}
-        placeholderTextColor="#9ca3af"
+        placeholderTextColor="#a8a29e"
         value={nickname}
         onChangeText={setNickname}
         autoCapitalize="words"
@@ -118,7 +118,7 @@ export default function HouseholdSetupScreen() {
           <TextInput
             style={styles.input}
             placeholder={str.create.namePlaceholder}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#a8a29e"
             value={name}
             onChangeText={setName}
             autoFocus
@@ -142,7 +142,7 @@ export default function HouseholdSetupScreen() {
           <TextInput
             style={[styles.input, styles.codeInput]}
             placeholder={str.join.codePlaceholder}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#a8a29e"
             value={code}
             onChangeText={t => setCode(t.toUpperCase())}
             autoCapitalize="characters"
@@ -176,27 +176,27 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: '#fff',
   },
-  title: { fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 8, color: '#111827' },
-  subtitle: { fontSize: 15, color: '#6b7280', textAlign: 'center', marginBottom: 32 },
+  title: { fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 8, color: '#292524' },
+  subtitle: { fontSize: 15, color: '#78716c', textAlign: 'center', marginBottom: 32 },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f1efec',
     borderRadius: 10,
     padding: 4,
     marginBottom: 24,
   },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
   tabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  tabText: { fontSize: 15, fontWeight: '500', color: '#6b7280' },
-  tabTextActive: { color: '#111827' },
+  tabText: { fontSize: 15, fontWeight: '500', color: '#78716c' },
+  tabTextActive: { color: '#292524' },
   form: { gap: 12 },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e7e5e4',
     borderRadius: 10,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#faf8f3',
   },
   codeInput: {
     textAlign: 'center',
@@ -204,9 +204,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 8,
   },
-  hint: { fontSize: 13, color: '#9ca3af', textAlign: 'center' },
+  hint: { fontSize: 13, color: '#a8a29e', textAlign: 'center' },
   button: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#4e7a5e',
     borderRadius: 10,
     padding: 16,
     alignItems: 'center',
