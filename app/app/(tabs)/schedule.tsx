@@ -1251,6 +1251,52 @@ export default function ScheduleScreen() {
         </View>
       )}
 
+      {d.entries.length > 0 && (
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>{str.sections.entries}</Text>
+          {d.entries.map(entry => {
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            let isPast = false;
+            if (d.dateStr < todayStr) isPast = true;
+            else if (d.dateStr === todayStr && entry.startTime) {
+              const nowHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+              isPast = entry.startTime < nowHHMM;
+            }
+            return (
+            <Pressable
+              key={entry.id}
+              style={[s.entryCard, isPast && { opacity: 0.5 }]}
+              onPress={() => setViewingEntry(entry)}
+              onLongPress={() => { medium(); openEntryActions(entry); }}
+            >
+              <View style={[s.menuIcon, { backgroundColor: '#f8eedb' }]}>
+                <Ionicons name="calendar-outline" size={fs(16)} color="#c2913d" />
+              </View>
+              <View style={s.entryContent}>
+                <Text style={[s.entryTitle, { fontSize: fs(15) }, isPast && { textDecorationLine: 'line-through' }]}>{entry.title}</Text>
+                {(() => {
+                  const ids = entry.assignedToMany && entry.assignedToMany.length > 0
+                    ? entry.assignedToMany
+                    : entry.assignedTo ? [entry.assignedTo] : [];
+                  const names = ids.map(id => getMemberName(id)).filter(Boolean) as string[];
+                  if (names.length === 0) return null;
+                  return <Text style={[s.choreAssigned, { fontSize: fs(12) }]}>{names.join(', ')}</Text>;
+                })()}
+                {entry.description && <Text style={[s.entryDesc, { fontSize: fs(13) }]}>{entry.description}</Text>}
+              </View>
+              <View style={s.entryRightCol}>
+                <Text style={[s.entryRightTime, { fontSize: fs(13) }, isPast && { textDecorationLine: 'line-through' }]}>
+                  {entry.startTime ?? str.allDay}
+                </Text>
+                {!entry.isShared && <Ionicons name="lock-closed-outline" size={fs(14)} color="#a8a29e" />}
+              </View>
+            </Pressable>
+            );
+          })}
+        </View>
+      )}
+
       {d.chores.length > 0 && (
         <View style={s.section}>
           <Text style={s.sectionLabel}>{str.sections.chores}</Text>
@@ -1279,52 +1325,6 @@ export default function ScheduleScreen() {
                   {done && <Ionicons name="checkmark" size={fs(18)} color="#fff" />}
                 </Pressable>
               </Pressable>
-            );
-          })}
-        </View>
-      )}
-
-      {d.entries.length > 0 && (
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>{str.sections.entries}</Text>
-          {d.entries.map(entry => {
-            const now = new Date();
-            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            let isPast = false;
-            if (d.dateStr < todayStr) isPast = true;
-            else if (d.dateStr === todayStr && entry.startTime) {
-              const nowHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-              isPast = entry.startTime < nowHHMM;
-            }
-            return (
-            <Pressable
-              key={entry.id}
-              style={[s.entryCard, isPast && { opacity: 0.5 }]}
-              onPress={() => setViewingEntry(entry)}
-              onLongPress={() => { medium(); openEntryActions(entry); }}
-            >
-              <View style={[s.menuIcon, { backgroundColor: '#ecfeff' }]}>
-                <Ionicons name="calendar-outline" size={fs(16)} color="#0891b2" />
-              </View>
-              <View style={s.entryContent}>
-                <Text style={[s.entryTitle, { fontSize: fs(15) }, isPast && { textDecorationLine: 'line-through' }]}>{entry.title}</Text>
-                {(() => {
-                  const ids = entry.assignedToMany && entry.assignedToMany.length > 0
-                    ? entry.assignedToMany
-                    : entry.assignedTo ? [entry.assignedTo] : [];
-                  const names = ids.map(id => getMemberName(id)).filter(Boolean) as string[];
-                  if (names.length === 0) return null;
-                  return <Text style={[s.choreAssigned, { fontSize: fs(12) }]}>{names.join(', ')}</Text>;
-                })()}
-                {entry.description && <Text style={[s.entryDesc, { fontSize: fs(13) }]}>{entry.description}</Text>}
-              </View>
-              <View style={s.entryRightCol}>
-                <Text style={[s.entryRightTime, { fontSize: fs(13) }, isPast && { textDecorationLine: 'line-through' }]}>
-                  {entry.startTime ?? str.allDay}
-                </Text>
-                {!entry.isShared && <Ionicons name="lock-closed-outline" size={fs(14)} color="#a8a29e" />}
-              </View>
-            </Pressable>
             );
           })}
         </View>
@@ -2216,7 +2216,7 @@ const s = StyleSheet.create({
   choreAssigned: { fontSize: 12, color: '#78716c', marginTop: 2 },
   choreCheckBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#d6d3d1', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   choreCheckBtnDone: { backgroundColor: '#10b981', borderColor: '#10b981' },
-  entryCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#cffafe', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  entryCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#ead9b0', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   entryTime: { width: 44, alignItems: 'center', paddingTop: 2 },
   timeText: { fontSize: 13, fontWeight: '600', color: '#78716c' },
   timeTextMuted: { fontSize: 10, color: '#a8a29e', fontStyle: 'italic' },
