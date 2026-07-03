@@ -12,6 +12,7 @@ import { TIP_FLAGS } from '../src/lib/onboardingTips';
 import * as SecureStore from '../src/lib/secureStorage';
 import { useToast } from '../src/context/ToastContext';
 import { HAPTIC_CHECKOUT_KEY, SOUND_CHECKOUT_KEY } from '../src/hooks/useCheckHaptic';
+import { LANDING_TABS, DEFAULT_LANDING_TAB, getLandingTab, setLandingTab, type LandingTabKey } from '../src/lib/landingTab';
 import { preferences as str } from '../src/lib/svenska';
 
 export default function PreferencesScreen() {
@@ -21,6 +22,7 @@ export default function PreferencesScreen() {
   const [showNotifModal, setShowNotifModal] = useState(false);
   const [hapticEnabled, setHapticEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [landingTab, setLandingTabState] = useState<LandingTabKey>(DEFAULT_LANDING_TAB);
 
   useEffect(() => {
     SecureStore.getItemAsync(HAPTIC_CHECKOUT_KEY).then(v => {
@@ -29,6 +31,7 @@ export default function PreferencesScreen() {
     SecureStore.getItemAsync(SOUND_CHECKOUT_KEY).then(v => {
       setSoundEnabled(v !== '0');
     }).catch(() => {});
+    getLandingTab().then(setLandingTabState);
   }, []);
 
   async function handleResetTips() {
@@ -110,6 +113,26 @@ export default function PreferencesScreen() {
             <Text style={s.rowText}>{str.rows.onboardingTips}</Text>
             <Ionicons name={skipAll === true ? 'toggle-outline' : 'toggle'} size={22} color={skipAll === true ? '#a8a29e' : '#b96a45'} />
           </Pressable>
+          {/* Favorit-landningssida: vilken flik appen öppnar på */}
+          <View style={[s.row, s.rowBorder, { flexWrap: 'wrap' }]}>
+            <Ionicons name="home-outline" size={18} color="#b96a45" />
+            <Text style={s.rowText}>{str.landing.label}</Text>
+            <View style={s.landingChips}>
+              {LANDING_TABS.map(t => {
+                const active = landingTab === t.key;
+                return (
+                  <Pressable
+                    key={t.key}
+                    style={[s.landingChip, active && s.landingChipActive]}
+                    onPress={() => { setLandingTabState(t.key); setLandingTab(t.key).catch(() => {}); }}
+                  >
+                    <Ionicons name={t.icon as never} size={13} color={active ? '#fff' : '#78716c'} />
+                    <Text style={[s.landingChipText, active && s.landingChipTextActive]}>{str.landing.tabs[t.labelKey]}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
         </View>
 
         <Text style={s.sectionLabel}>{str.sections.security}</Text>
@@ -156,4 +179,9 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   rowBorder: { borderTopWidth: 1, borderTopColor: '#f1efec' },
   rowText: { flex: 1, fontSize: 15, color: '#292524', fontWeight: '500' },
+  landingChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, width: '100%', marginTop: 4, paddingLeft: 30 },
+  landingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f1efec' },
+  landingChipActive: { backgroundColor: '#4e7a5e' },
+  landingChipText: { fontSize: 12, fontWeight: '600', color: '#78716c' },
+  landingChipTextActive: { color: '#fff' },
 });
