@@ -21,6 +21,7 @@ import { OfflineBanner } from '../src/components/OfflineBanner';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { installGlobalErrorHandler } from '../src/lib/errorReport';
 import { getLandingTab, type LandingTabKey } from '../src/lib/landingTab';
+import { AnimatedSplash } from '../src/components/AnimatedSplash';
 
 // Lock app text to designed size regardless of OS "larger text" setting.
 // Tablet sizing is handled separately via useTablet().fs() so we don't lose tablet scaling.
@@ -187,6 +188,7 @@ export default function RootLayout() {
             </MemberFilterProvider>
           </HouseholdProvider>
         </ClerkProvider>
+        <AnimatedSplash />
       </SafeAreaProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>

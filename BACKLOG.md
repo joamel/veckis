@@ -54,7 +54,7 @@
 ### Generellt
 - [x] Design-feedback "kall och tråkig" → varm palett (feature/warm-theme): salvia-grönt som primär (ersätter indigo), terrakotta som accent (ersätter violett), varma stengrå + krämvit bakgrund. Central `src/lib/theme.ts` med tokens — ny kod importerar tokens, befintlig kod mekaniskt konverterad (sed-mappning dokumenterad i theme.ts). app.json (splash/adaptiveIcon/statusBar) + PWA-manifest uppdaterade
 - [x] Favorit-landningssida: inställning "Starta i" (Inköp/Meny/Kalender/Sysslor) under Inställningar → APP; SecureStore per enhet, NavigationGuard redirect:ar till vald flik vid inloggning, setup och kall-start
-- [ ] Öppningsanimation: logotyp som andas/tonar över från splash till app (Reanimated, <1s, aldrig blockerande)
+- [x] Öppningsanimation: AnimatedSplash-overlay som matchar native-splashen (bakgrund + ikon) — ikonen andas (skala 1→1,12→0,9) medan overlayn tonar bort, <1s, pointerEvents=none, ren JS/Reanimated (OTA-säker)
 - [ ] 2x2-grid-startsida parkerad — omformulerad som ev. framtida "Hem"-dashboard med innehåll (dagens middag, dagens sysslor, antal varor kvar) istället för ren navigering
 - [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)
 - [x] Skärmen borde hoppa upp när man ska skriva in något så man ser vad man skriver
