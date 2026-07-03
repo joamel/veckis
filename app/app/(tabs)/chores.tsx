@@ -914,7 +914,7 @@ export default function ChoresScreen() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color="#4e7a5e" /></View>;
   }
 
   return (
@@ -931,7 +931,7 @@ export default function ChoresScreen() {
             )}
             {members.length > 0 && (
               <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive, { paddingHorizontal: sp(10), paddingVertical: sp(6) }]} onPress={() => setShowFilterModal(true)}>
-                <Ionicons name="person-outline" size={fs(14)} color={filterMemberIds.length > 0 ? '#7c3aed' : '#6b7280'} />
+                <Ionicons name="person-outline" size={fs(14)} color={filterMemberIds.length > 0 ? '#b96a45' : '#78716c'} />
                 <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive, { fontSize: fs(12) }]}>Filter</Text>
                 {filterMemberIds.length > 0 && (
                   <View style={s.filterBadge}>
@@ -1003,13 +1003,13 @@ export default function ChoresScreen() {
                   <Ionicons
                     name="sparkles-outline"
                     size={fs(16)}
-                    color="#7c3aed"
+                    color="#b96a45"
                   />
                 </View>
                 <View style={s.cardContent}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
                     <Text style={[s.cardTitle, { fontSize: fs(15), flexShrink: 1 }, finishedLook && s.cardTitleDone]} numberOfLines={1}>{item.title}</Text>
-                    {!once && <Ionicons name="repeat-outline" size={fs(15)} color="#a78bfa" style={{ flexShrink: 0 }} />}
+                    {!once && <Ionicons name="repeat-outline" size={fs(15)} color="#d29a77" style={{ flexShrink: 0 }} />}
                   </View>
                   <Text style={[s.cardMeta, { fontSize: fs(12) }, overdue && s.choreStatusOverdue]} numberOfLines={1}>{compactMeta || ' '}</Text>
                 </View>
@@ -1059,7 +1059,7 @@ export default function ChoresScreen() {
             <Text style={s.filterPopupTitle}>Filter</Text>
             {filterMemberIds.length > 0 && (
               <Pressable onPress={() => setFilterMemberIds([])} hitSlop={8}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#7c3aed' }}>Rensa</Text>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#b96a45' }}>Rensa</Text>
               </Pressable>
             )}
           </View>
@@ -1071,7 +1071,7 @@ export default function ChoresScreen() {
             <Ionicons
               name={filterMemberIds.length === 0 ? 'checkbox' : 'square-outline'}
               size={22}
-              color={filterMemberIds.length === 0 ? '#7c3aed' : '#d1d5db'}
+              color={filterMemberIds.length === 0 ? '#b96a45' : '#d6d3d1'}
             />
           </Pressable>
           {members.map(m => {
@@ -1088,7 +1088,7 @@ export default function ChoresScreen() {
                 <Ionicons
                   name={active ? 'checkbox' : 'square-outline'}
                   size={22}
-                  color={active ? '#7c3aed' : '#d1d5db'}
+                  color={active ? '#b96a45' : '#d6d3d1'}
                 />
               </Pressable>
             );
@@ -1112,7 +1112,7 @@ export default function ChoresScreen() {
               disabled={creating || !newTitle.trim()}
             >
               {creating
-                ? <ActivityIndicator color="#4f46e5" size="small" />
+                ? <ActivityIndicator color="#4e7a5e" size="small" />
                 : <Text style={[s.createHeaderSaveText, !newTitle.trim() && s.createHeaderSaveTextDisabled]}>Lägg till</Text>}
             </Pressable>
           </View>
@@ -1122,7 +1122,7 @@ export default function ChoresScreen() {
               <TextInput
                 style={s.input}
                 placeholder={str.modal.namePlaceholder}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#a8a29e"
                 value={newTitle}
                 onChangeText={setNewTitle}
                 autoFocus
@@ -1142,13 +1142,13 @@ export default function ChoresScreen() {
               {/* Datum / Startdatum — ovanför upprepning */}
               <Text style={s.label}>{newRecurrenceType === 'none' ? str.modal.dateLabel : str.modal.startLabel}</Text>
               <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
-                <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4f46e5' : '#9ca3af'} />
+                <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4e7a5e' : '#a8a29e'} />
                 <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>
                   {newStartDate ?? (newRecurrenceType === 'none' ? str.modal.chooseDate : str.modal.chooseStart)}
                 </Text>
                 {newStartDate && (
                   <Pressable onPress={(e) => { e.stopPropagation?.(); setNewStartDate(null); }} hitSlop={8}>
-                    <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                    <Ionicons name="close-circle" size={18} color="#a8a29e" />
                   </Pressable>
                 )}
               </Pressable>
@@ -1156,7 +1156,7 @@ export default function ChoresScreen() {
               {/* Upprepning — stabil position, öppnar sub-sheet */}
               <Text style={s.label}>{cmpStr.recurrencePicker.label}</Text>
               <Pressable style={s.recurrenceRow} onPress={() => setShowNewRecurrencePicker(true)}>
-                <Ionicons name="repeat-outline" size={16} color={newRecurrenceType !== 'none' ? '#4f46e5' : '#9ca3af'} />
+                <Ionicons name="repeat-outline" size={16} color={newRecurrenceType !== 'none' ? '#4e7a5e' : '#a8a29e'} />
                 <Text style={[s.recurrenceRowText, newRecurrenceType !== 'none' && s.recurrenceRowTextActive]} numberOfLines={1}>
                   {newRecurrenceSummary}
                 </Text>
@@ -1165,10 +1165,10 @@ export default function ChoresScreen() {
                     onPress={(e) => { e.stopPropagation?.(); setNewRecurrenceType('none'); setNewRecurrenceWeeks(1); setNewRecurrenceDays([]); }}
                     hitSlop={8}
                   >
-                    <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                    <Ionicons name="close-circle" size={18} color="#a8a29e" />
                   </Pressable>
                 ) : (
-                  <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                  <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
                 )}
               </Pressable>
 
@@ -1228,10 +1228,10 @@ export default function ChoresScreen() {
                       <Text style={s.orderName}>{m.displayName}</Text>
                       <View style={s.orderBtns}>
                         <Pressable onPress={moveUp} disabled={i === 0} style={s.orderBtn} accessibilityLabel={cmpStr.multiMemberPicker.order.moveUp}>
-                          <Ionicons name="chevron-up" size={20} color={i === 0 ? '#d1d5db' : '#6b7280'} />
+                          <Ionicons name="chevron-up" size={20} color={i === 0 ? '#d6d3d1' : '#78716c'} />
                         </Pressable>
                         <Pressable onPress={moveDown} disabled={i === newAssignedToMany.length - 1} style={s.orderBtn} accessibilityLabel={cmpStr.multiMemberPicker.order.moveDown}>
-                          <Ionicons name="chevron-down" size={20} color={i === newAssignedToMany.length - 1 ? '#d1d5db' : '#6b7280'} />
+                          <Ionicons name="chevron-down" size={20} color={i === newAssignedToMany.length - 1 ? '#d6d3d1' : '#78716c'} />
                         </Pressable>
                       </View>
                     </View>
@@ -1264,10 +1264,10 @@ export default function ChoresScreen() {
                   <Text style={s.orderName}>{m.displayName}</Text>
                   <View style={s.orderBtns}>
                     <Pressable onPress={moveUp} disabled={i === 0} style={s.orderBtn} accessibilityLabel={cmpStr.multiMemberPicker.order.moveUp}>
-                      <Ionicons name="chevron-up" size={20} color={i === 0 ? '#d1d5db' : '#6b7280'} />
+                      <Ionicons name="chevron-up" size={20} color={i === 0 ? '#d6d3d1' : '#78716c'} />
                     </Pressable>
                     <Pressable onPress={moveDown} disabled={i === editAssignedToMany.length - 1} style={s.orderBtn} accessibilityLabel={cmpStr.multiMemberPicker.order.moveDown}>
-                      <Ionicons name="chevron-down" size={20} color={i === editAssignedToMany.length - 1 ? '#d1d5db' : '#6b7280'} />
+                      <Ionicons name="chevron-down" size={20} color={i === editAssignedToMany.length - 1 ? '#d6d3d1' : '#78716c'} />
                     </Pressable>
                   </View>
                 </View>
@@ -1314,22 +1314,22 @@ export default function ChoresScreen() {
               <>
                 <View style={s.viewNav}>
                   <Pressable onPress={() => setViewingChore(null)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel={common.actions.close}>
-                    <Ionicons name="arrow-back" size={24} color="#111827" />
+                    <Ionicons name="arrow-back" size={24} color="#292524" />
                   </Pressable>
                   <View style={{ flex: 1 }} />
                   <Pressable onPress={() => openChoreActions(c)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel={common.actions.more}>
-                    <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
+                    <Ionicons name="ellipsis-vertical" size={22} color="#292524" />
                   </Pressable>
                 </View>
                 <ScrollView contentContainerStyle={[s.viewBody, { paddingBottom: insets.bottom + 24 }]}>
                   <Text style={s.viewTitle}>{c.emoji ? `${c.emoji} ${c.title}` : c.title}</Text>
                   <View style={s.viewRow}>
-                    <Ionicons name="repeat-outline" size={18} color="#6b7280" />
+                    <Ionicons name="repeat-outline" size={18} color="#78716c" />
                     <Text style={s.viewRowText}>{freqText}</Text>
                   </View>
                   {names.length > 0 && (
                     <View style={s.viewRow}>
-                      <Ionicons name="people-outline" size={18} color="#6b7280" />
+                      <Ionicons name="people-outline" size={18} color="#78716c" />
                       <Text style={s.viewRowText}>{names.join(', ')}{isRotating ? ' (rotation)' : ''}</Text>
                     </View>
                   )}
@@ -1338,7 +1338,7 @@ export default function ChoresScreen() {
                       <Ionicons
                         name={rec?.state === 'done' ? 'checkmark-circle-outline' : rec?.state === 'overdue' ? 'alert-circle-outline' : 'time-outline'}
                         size={18}
-                        color={rec?.state === 'overdue' ? '#b45309' : rec?.state === 'done' ? '#10b981' : '#6b7280'}
+                        color={rec?.state === 'overdue' ? '#b45309' : rec?.state === 'done' ? '#10b981' : '#78716c'}
                       />
                       <Text style={[s.viewRowText, rec?.state === 'overdue' && { color: '#b45309' }, rec?.state === 'done' && { color: '#10b981' }]}>
                         {statusText}
@@ -1346,12 +1346,12 @@ export default function ChoresScreen() {
                     </View>
                   )}
                   <View style={s.viewRow}>
-                    <Ionicons name={c.isShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color="#6b7280" />
+                    <Ionicons name={c.isShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color="#78716c" />
                     <Text style={s.viewRowText}>{c.isShared ? 'Gemensam' : 'Bara för mig'}</Text>
                   </View>
                   {!!c.description && (
                     <View style={[s.viewRow, { alignItems: 'flex-start' }]}>
-                      <Ionicons name="document-text-outline" size={18} color="#6b7280" style={{ marginTop: 2 }} />
+                      <Ionicons name="document-text-outline" size={18} color="#78716c" style={{ marginTop: 2 }} />
                       <Text style={s.viewRowText}>{c.description}</Text>
                     </View>
                   )}
@@ -1371,7 +1371,7 @@ export default function ChoresScreen() {
                             <Ionicons
                               name={o.done ? 'checkmark-circle' : o.isCurrent ? 'ellipse-outline' : 'close-circle-outline'}
                               size={16}
-                              color={o.done ? '#10b981' : o.isCurrent ? '#7c3aed' : '#d1d5db'}
+                              color={o.done ? '#10b981' : o.isCurrent ? '#b96a45' : '#d6d3d1'}
                               style={{ marginTop: o.note ? 2 : 0 }}
                             />
                             <View style={{ flex: 1 }}>
@@ -1414,7 +1414,7 @@ export default function ChoresScreen() {
             <TextInput
               style={s.input}
               placeholder={str.modal.nameLabel}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               value={editTitle}
               onChangeText={setEditTitle}
               returnKeyType="done"
@@ -1435,12 +1435,12 @@ export default function ChoresScreen() {
                 <Text style={s.label}>{str.modal.dateLabel}</Text>
                 <View style={s.dateRow}>
                   <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
-                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
+                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4e7a5e' : '#a8a29e'} />
                     <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? str.modal.chooseDate}</Text>
                   </Pressable>
                   {editStartDate && (
                     <Pressable onPress={() => setEditStartDate(null)} hitSlop={8} accessibilityLabel={str.modal.clearDate}>
-                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                      <Ionicons name="close-circle" size={18} color="#a8a29e" />
                     </Pressable>
                   )}
                 </View>
@@ -1473,12 +1473,12 @@ export default function ChoresScreen() {
                 <Text style={s.label}>{str.modal.startLabel}</Text>
                 <View style={s.dateRow}>
                   <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
-                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4f46e5' : '#9ca3af'} />
+                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4e7a5e' : '#a8a29e'} />
                     <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? str.modal.chooseStart}</Text>
                   </Pressable>
                   {editStartDate && (
                     <Pressable onPress={() => setEditStartDate(null)} hitSlop={8} accessibilityLabel={str.modal.clearStartDate}>
-                      <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                      <Ionicons name="close-circle" size={18} color="#a8a29e" />
                     </Pressable>
                   )}
                 </View>
@@ -1496,7 +1496,7 @@ export default function ChoresScreen() {
                 <Ionicons
                   name={showEditAdvanced ? 'chevron-up' : 'chevron-down'}
                   size={14}
-                  color="#6b7280"
+                  color="#78716c"
                 />
               </Pressable>
             )}
@@ -1527,7 +1527,7 @@ export default function ChoresScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { flex: 1, backgroundColor: '#faf8f3' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#fecaca', backgroundColor: '#fff5f5' },
   clearBtnText: { fontSize: 12, color: '#ef4444', fontWeight: '500' },
@@ -1537,60 +1537,60 @@ const s = StyleSheet.create({
   listEmpty: { flex: 1 },
   cardWrap: { position: 'relative' },
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
-  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#111827', borderRadius: 24, zIndex: 20 },
+  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#292524', borderRadius: 24, zIndex: 20 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  card: { backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c4b5fd', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  card: { backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#e2bda1', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   cardInner: { borderRadius: 12, overflow: 'hidden' },
   cardMain: { flexDirection: 'row', alignItems: 'center' },
-  cardDone: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
-  cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#f5f3ff', alignItems: 'center', justifyContent: 'center' },
+  cardDone: { backgroundColor: '#faf8f3', borderWidth: 1, borderColor: '#e7e5e4' },
+  cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#faf1e9', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1, minWidth: 0 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
-  cardTitleDone: { textDecorationLine: 'line-through', color: '#9ca3af' },
-  cardMeta: { fontSize: 12, color: '#6b7280', marginTop: 4 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: '#292524' },
+  cardTitleDone: { textDecorationLine: 'line-through', color: '#a8a29e' },
+  cardMeta: { fontSize: 12, color: '#78716c', marginTop: 4 },
   cardOverdue: { borderLeftColor: '#f59e0b' },
-  choreStatus: { fontSize: 12, fontWeight: '600', marginTop: 3, color: '#6b7280' },
+  choreStatus: { fontSize: 12, fontWeight: '600', marginTop: 3, color: '#78716c' },
   choreStatusOverdue: { color: '#b45309' },
   choreStatusDone: { color: '#10b981' },
   expandBtn: { padding: 4, flexShrink: 0 },
-  historyBox: { borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, gap: 8 },
+  historyBox: { borderTopWidth: 1, borderTopColor: '#f1efec', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, gap: 8 },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  historyDate: { fontSize: 13, color: '#374151', flex: 1 },
-  historyMissed: { color: '#9ca3af' },
-  historyNote: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic', marginTop: 1 },
-  historyEmpty: { fontSize: 13, color: '#9ca3af', fontStyle: 'italic' },
-  expandedHeader: { gap: 4, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', marginBottom: 4 },
-  expandedMeta: { fontSize: 12, color: '#6b7280' },
-  expandedActions: { flexDirection: 'row', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  expandedActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#f9fafb' },
-  expandedActionText: { fontSize: 13, fontWeight: '600', color: '#4f46e5' },
-  historyDoBtn: { backgroundColor: '#7c3aed', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5 },
+  historyDate: { fontSize: 13, color: '#44403c', flex: 1 },
+  historyMissed: { color: '#a8a29e' },
+  historyNote: { fontSize: 12, color: '#a8a29e', fontStyle: 'italic', marginTop: 1 },
+  historyEmpty: { fontSize: 13, color: '#a8a29e', fontStyle: 'italic' },
+  expandedHeader: { gap: 4, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f1efec', marginBottom: 4 },
+  expandedMeta: { fontSize: 12, color: '#78716c' },
+  expandedActions: { flexDirection: 'row', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f1efec' },
+  expandedActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#faf8f3' },
+  expandedActionText: { fontSize: 13, fontWeight: '600', color: '#4e7a5e' },
+  historyDoBtn: { backgroundColor: '#b96a45', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5 },
   historyDoBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  checkBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#d1d5db', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  checkBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#d6d3d1', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   checkBtnDone: { backgroundColor: '#10b981', borderColor: '#10b981' },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center', shadowColor: '#4e7a5e', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '92%' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e7e5e4', alignSelf: 'center', marginBottom: 4 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524', marginBottom: 12 },
   sheetScroll: { gap: 14, paddingBottom: 40 },
-  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#f9fafb' },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  input: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#faf8f3' },
+  label: { fontSize: 14, fontWeight: '600', color: '#44403c' },
   freqRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   freqRowNoWrap: { flexDirection: 'row', gap: 8 },
-  freqOption: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', flexShrink: 0, overflow: 'visible' },
-  freqOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
-  freqOptionText: { fontSize: 13, color: '#6b7280' },
-  freqOptionTextActive: { color: '#4f46e5', fontWeight: '600' },
+  freqOption: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3', flexShrink: 0, overflow: 'visible' },
+  freqOptionActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
+  freqOptionText: { fontSize: 13, color: '#78716c' },
+  freqOptionTextActive: { color: '#4e7a5e', fontWeight: '600' },
   freqChevron: { fontSize: 9 },
   dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  dayOption: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  dayOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
-  dayOptionText: { fontSize: 12, color: '#6b7280' },
-  dayOptionTextActive: { color: '#4f46e5', fontWeight: '600' },
-  button: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center' },
+  dayOption: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
+  dayOptionActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
+  dayOptionText: { fontSize: 12, color: '#78716c' },
+  dayOptionTextActive: { color: '#4e7a5e', fontWeight: '600' },
+  button: { backgroundColor: '#4e7a5e', borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   toast: { position: 'absolute', bottom: 100, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
@@ -1598,56 +1598,56 @@ const s = StyleSheet.create({
   deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   deleteBtnText: { color: '#ef4444', fontSize: 14, fontWeight: '500' },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  dateBtnSet: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
-  dateBtnText: { fontSize: 13, color: '#9ca3af', flex: 1 },
-  dateBtnTextSet: { color: '#4f46e5', fontWeight: '600' },
+  dateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
+  dateBtnSet: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
+  dateBtnText: { fontSize: 13, color: '#a8a29e', flex: 1 },
+  dateBtnTextSet: { color: '#4e7a5e', fontWeight: '600' },
   advancedToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 10 },
-  orderDialogOverlay: { flex: 1, backgroundColor: 'rgba(17,24,39,0.55)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  orderDialogOverlay: { flex: 1, backgroundColor: 'rgba(41,37,36,0.55)', justifyContent: 'center', alignItems: 'center', padding: 32 },
   orderDialogCard: { width: '100%', backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
-  orderDialogTitle: { fontSize: 12, fontWeight: '600', color: '#9ca3af', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
-  orderDialogSub: { fontSize: 13, color: '#6b7280', paddingHorizontal: 16, paddingBottom: 8 },
-  orderDialogRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  orderDialogTitle: { fontSize: 12, fontWeight: '600', color: '#a8a29e', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  orderDialogSub: { fontSize: 13, color: '#78716c', paddingHorizontal: 16, paddingBottom: 8 },
+  orderDialogRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: '#f1efec' },
   orderDialogRowFirst: { borderTopWidth: 0 },
-  orderDialogDoneBtn: { paddingVertical: 14, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  orderDialogDoneText: { fontSize: 16, fontWeight: '600', color: '#4f46e5' },
-  orderNum: { fontSize: 14, fontWeight: '700', color: '#7c3aed', width: 20, textAlign: 'center' },
-  orderName: { flex: 1, fontSize: 15, fontWeight: '500', color: '#111827' },
+  orderDialogDoneBtn: { paddingVertical: 14, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f1efec' },
+  orderDialogDoneText: { fontSize: 16, fontWeight: '600', color: '#4e7a5e' },
+  orderNum: { fontSize: 14, fontWeight: '700', color: '#b96a45', width: 20, textAlign: 'center' },
+  orderName: { flex: 1, fontSize: 15, fontWeight: '500', color: '#292524' },
   orderBtns: { flexDirection: 'row', gap: 2 },
   orderBtn: { padding: 6 },
-  advancedToggleText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  advancedToggleText: { fontSize: 13, color: '#78716c', fontWeight: '500' },
   createFull: { flex: 1, backgroundColor: '#fff' },
-  createHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  createHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
   createHeaderBtn: { minWidth: 60 },
-  createHeaderCancel: { fontSize: 16, color: '#6b7280' },
-  createHeaderTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
+  createHeaderCancel: { fontSize: 16, color: '#78716c' },
+  createHeaderTitle: { fontSize: 17, fontWeight: '700', color: '#292524' },
   createHeaderSave: { minWidth: 60, alignItems: 'flex-end' },
   createHeaderSaveDisabled: { opacity: 0.4 },
-  createHeaderSaveText: { fontSize: 16, fontWeight: '600', color: '#4f46e5' },
-  createHeaderSaveTextDisabled: { color: '#9ca3af' },
+  createHeaderSaveText: { fontSize: 16, fontWeight: '600', color: '#4e7a5e' },
+  createHeaderSaveTextDisabled: { color: '#a8a29e' },
   createScroll: { gap: 14, padding: 20, paddingBottom: 40 },
-  recurrenceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  recurrenceRowText: { flex: 1, fontSize: 14, color: '#9ca3af', fontWeight: '500' },
-  recurrenceRowTextActive: { color: '#4f46e5', fontWeight: '600' },
+  recurrenceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
+  recurrenceRowText: { flex: 1, fontSize: 14, color: '#a8a29e', fontWeight: '500' },
+  recurrenceRowTextActive: { color: '#4e7a5e', fontWeight: '600' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  filterBtnActive: { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' },
-  filterBtnText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
-  filterBtnTextActive: { color: '#7c3aed', fontWeight: '600' },
-  filterBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
+  filterBtnActive: { borderColor: '#b96a45', backgroundColor: '#faf1e9' },
+  filterBtnText: { fontSize: 12, color: '#78716c', fontWeight: '500' },
+  filterBtnTextActive: { color: '#b96a45', fontWeight: '600' },
+  filterBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#b96a45', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   filterBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
   filterPopup: { position: 'absolute', top: 0, right: 0, backgroundColor: '#fff', borderRadius: 12, padding: 16, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 8, overflow: 'hidden' },
-  filterPopupTitle: { fontSize: 13, fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 },
-  filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  filterMemberName: { fontSize: 15, color: '#374151', flex: 1, marginRight: 12 },
-  filterMemberNameActive: { color: '#7c3aed', fontWeight: '600' },
+  filterPopupTitle: { fontSize: 13, fontWeight: '600', color: '#78716c', textTransform: 'uppercase', letterSpacing: 0.5 },
+  filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  filterMemberName: { fontSize: 15, color: '#44403c', flex: 1, marginRight: 12 },
+  filterMemberNameActive: { color: '#b96a45', fontWeight: '600' },
   viewFull: { flex: 1, backgroundColor: '#fff' },
   viewNav: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8 },
   viewNavBtn: { padding: 8 },
   viewBody: { paddingHorizontal: 20, paddingTop: 8, gap: 4 },
-  viewTitle: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  viewTitle: { fontSize: 24, fontWeight: '700', color: '#292524', marginBottom: 12 },
   viewRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
-  viewRowText: { flex: 1, fontSize: 16, color: '#374151' },
-  viewDivider: { height: 1, backgroundColor: '#f3f4f6', marginVertical: 12 },
-  viewSectionTitle: { fontSize: 14, fontWeight: '600', color: '#6b7280', marginBottom: 4 },
+  viewRowText: { flex: 1, fontSize: 16, color: '#44403c' },
+  viewDivider: { height: 1, backgroundColor: '#f1efec', marginVertical: 12 },
+  viewSectionTitle: { fontSize: 14, fontWeight: '600', color: '#78716c', marginBottom: 4 },
 });

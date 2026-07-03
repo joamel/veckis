@@ -530,7 +530,7 @@ export default function SettingsScreen() {
                 onPress={() => setShowAdminLogs(true)}
                 accessibilityLabel={str.a11y.adminLogs}
               >
-                <Ionicons name="bar-chart-outline" size={20} color="#4f46e5" />
+                <Ionicons name="bar-chart-outline" size={20} color="#4e7a5e" />
               </Pressable>
             )}
             <Pressable
@@ -539,7 +539,7 @@ export default function SettingsScreen() {
               onPress={() => router.push('/preferences' as never)}
               accessibilityLabel={str.a11y.notifications}
             >
-              <Ionicons name="settings-outline" size={20} color="#4f46e5" />
+              <Ionicons name="settings-outline" size={20} color="#4e7a5e" />
             </Pressable>
           </View>
         }
@@ -550,7 +550,7 @@ export default function SettingsScreen() {
         <SafeAreaView style={styles.adminLogsContainer}>
           <View style={styles.adminLogsHeader}>
             <Pressable onPress={() => setShowAdminLogs(false)} hitSlop={10} accessibilityLabel={str.a11y.close}>
-              <Ionicons name="arrow-back" size={24} color="#111827" />
+              <Ionicons name="arrow-back" size={24} color="#292524" />
             </Pressable>
             <Text style={styles.adminLogsTitle}>{str.sections.adminLogs}</Text>
             <View style={{ width: 24 }} />
@@ -564,7 +564,7 @@ export default function SettingsScreen() {
 
       <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4f46e5" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4e7a5e" />}
       >
         {/* Hushållet */}
         <View style={styles.section}>
@@ -583,7 +583,7 @@ export default function SettingsScreen() {
             accessibilityLabel={allMemberships.length > 1 ? str.a11y.switchActiveHousehold : str.household.active}
           >
             <View style={styles.householdIcon}>
-              <Ionicons name="home-outline" size={20} color="#4f46e5" />
+              <Ionicons name="home-outline" size={20} color="#4e7a5e" />
             </View>
             <View style={styles.userInfo}>
               <Text style={styles.userName}>{householdName ?? str.household.unknown}</Text>
@@ -599,10 +599,10 @@ export default function SettingsScreen() {
                 onPress={(e) => { e.stopPropagation?.(); openHouseholdActions(); }}
                 accessibilityLabel={str.a11y.householdOptions}
               >
-                <Ionicons name="create-outline" size={16} color="#4f46e5" />
+                <Ionicons name="create-outline" size={16} color="#4e7a5e" />
               </Pressable>
             ) : allMemberships.length > 1 ? (
-              <Ionicons name={expandedHouseholds ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" />
+              <Ionicons name={expandedHouseholds ? 'chevron-up' : 'chevron-down'} size={18} color="#a8a29e" />
             ) : null}
           </Pressable>
           {expandedHouseholds && allMemberships.length > 1 && (
@@ -621,7 +621,7 @@ export default function SettingsScreen() {
                     <Ionicons
                       name={active ? 'home' : 'home-outline'}
                       size={16}
-                      color={active ? '#10b981' : '#6b7280'}
+                      color={active ? '#10b981' : '#78716c'}
                     />
                     <Text style={[styles.inlineRowText, active && { color: '#10b981', fontWeight: '700' }]}>
                       {membership.household.name}
@@ -638,12 +638,12 @@ export default function SettingsScreen() {
               <Text style={styles.membersTitle}>{str.sections.members}</Text>
               {editMode && isAdmin && (
                 <Pressable style={styles.addMemberBtn} onPress={() => setShowCreateLocalModal(true)}>
-                  <Ionicons name="add-circle-outline" size={15} color="#4f46e5" />
+                  <Ionicons name="add-circle-outline" size={15} color="#4e7a5e" />
                   <Text style={styles.addMemberBtnText}>{str.member.localProfile}</Text>
                 </Pressable>
               )}
             </View>
-            {loadingHousehold && <ActivityIndicator size="small" color="#4f46e5" style={{ marginVertical: 8 }} />}
+            {loadingHousehold && <ActivityIndicator size="small" color="#4e7a5e" style={{ marginVertical: 8 }} />}
             {householdMembers.map((member, idx) => (
               <View
                 key={member.id}
@@ -656,7 +656,7 @@ export default function SettingsScreen() {
                   </Text>
                   <Text style={styles.memberEmail}>
                     {member.clerkUserId && member.role === 'admin' && (
-                      <Text style={styles.memberAdminBadge}><Ionicons name="shield-checkmark" size={11} color="#7c3aed" />{'  '}</Text>
+                      <Text style={styles.memberAdminBadge}><Ionicons name="shield-checkmark" size={11} color="#b96a45" />{'  '}</Text>
                     )}
                     {member.clerkUserId ? (member.role === 'admin' ? str.member.admin : str.member.accountMember) : str.member.localProfile}
                   </Text>
@@ -673,7 +673,7 @@ export default function SettingsScreen() {
                       style={styles.memberActionBtn}
                       accessibilityLabel={str.a11y.editMember(member.displayName)}
                     >
-                      <Ionicons name="create-outline" size={16} color="#4f46e5" />
+                      <Ionicons name="create-outline" size={16} color="#4e7a5e" />
                     </Pressable>
                   )}
                 </View>
@@ -695,7 +695,7 @@ export default function SettingsScreen() {
                 <View style={styles.codeRow}>
                   <Text style={styles.codeText}>{invite.code}</Text>
                   <Pressable style={styles.copyBtn} onPress={copyCode}>
-                    <Ionicons name="copy-outline" size={18} color="#4f46e5" />
+                    <Ionicons name="copy-outline" size={18} color="#4e7a5e" />
                   </Pressable>
                 </View>
                 <Pressable style={styles.shareLinkBtn} onPress={shareInvite}>
@@ -711,7 +711,7 @@ export default function SettingsScreen() {
               disabled={loadingInvite}
             >
               {loadingInvite
-                ? <ActivityIndicator color="#4f46e5" size="small" />
+                ? <ActivityIndicator color="#4e7a5e" size="small" />
                 : <Text style={styles.inviteBtnText}>{invite ? str.invite.regenerate : str.invite.generate}</Text>}
             </Pressable>
           </View>
@@ -722,14 +722,14 @@ export default function SettingsScreen() {
           <Text style={styles.sectionLabel}>{str.sections.other}</Text>
           <View style={styles.linkBox}>
             <Pressable style={styles.linkRow} onPress={() => setShowCreateHouseholdModal(true)}>
-              <Ionicons name="add-circle-outline" size={18} color="#4f46e5" />
+              <Ionicons name="add-circle-outline" size={18} color="#4e7a5e" />
               <Text style={styles.linkRowText}>{str.otherHousehold.create}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+              <Ionicons name="chevron-forward" size={16} color="#d6d3d1" />
             </Pressable>
             <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={() => setShowJoinHouseholdModal(true)}>
-              <Ionicons name="log-in-outline" size={18} color="#4f46e5" />
+              <Ionicons name="log-in-outline" size={18} color="#4e7a5e" />
               <Text style={styles.linkRowText}>{str.otherHousehold.join}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+              <Ionicons name="chevron-forward" size={16} color="#d6d3d1" />
             </Pressable>
           </View>
         </View>
@@ -749,7 +749,7 @@ export default function SettingsScreen() {
               placeholder={str.placeholders.householdName}
               value={editingHouseholdName}
               onChangeText={setEditingHouseholdName}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               returnKeyType="done"
               autoFocus
               selectTextOnFocus
@@ -786,7 +786,7 @@ export default function SettingsScreen() {
               placeholder={str.placeholders.deleteConfirm}
               value={deleteConfirmText}
               onChangeText={setDeleteConfirmText}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               autoCapitalize="characters"
               returnKeyType="done"
             />
@@ -817,7 +817,7 @@ export default function SettingsScreen() {
               placeholder={str.placeholders.memberName}
               value={editingDisplayName}
               onChangeText={setEditingDisplayName}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               returnKeyType="done"
               autoFocus
               selectTextOnFocus
@@ -851,7 +851,7 @@ export default function SettingsScreen() {
               placeholder={str.placeholders.memberName}
               value={localProfileName}
               onChangeText={setLocalProfileName}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               returnKeyType="done"
               onSubmitEditing={handleCreateLocalProfile}
             />
@@ -882,7 +882,7 @@ export default function SettingsScreen() {
               placeholder={str.placeholders.householdName}
               value={newHouseholdName}
               onChangeText={setNewHouseholdName}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               returnKeyType="done"
               onSubmitEditing={handleCreateHousehold}
             />
@@ -914,7 +914,7 @@ export default function SettingsScreen() {
               placeholder={str.placeholders.inviteCode}
               value={joinCode}
               onChangeText={setJoinCode}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               maxLength={8}
               returnKeyType="done"
               onSubmitEditing={handleJoinHousehold}
@@ -943,12 +943,12 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { flex: 1, backgroundColor: '#faf8f3' },
   scroll: { paddingBottom: 40 },
   section: { marginTop: 24, paddingHorizontal: 16 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8, marginBottom: 8 },
-  editModeBtn: { fontSize: 13, fontWeight: '600', color: '#4f46e5' },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#a8a29e', letterSpacing: 0.8, marginBottom: 8 },
+  editModeBtn: { fontSize: 13, fontWeight: '600', color: '#4e7a5e' },
   editModeBtnActive: { color: '#ef4444' },
   card: {
     flexDirection: 'row',
@@ -956,7 +956,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#cbd5e1',
+    borderLeftColor: '#d6d3d1',
     padding: 14,
     gap: 12,
     shadowColor: '#000',
@@ -970,7 +970,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#4e7a5e',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -979,21 +979,21 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#eef2ff',
+    backgroundColor: '#ecf3ec',
     alignItems: 'center',
     justifyContent: 'center',
   },
   userInfo: { flex: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  userName: { fontSize: 16, fontWeight: '600', color: '#111827' },
-  userEmail: { fontSize: 13, color: '#6b7280', marginTop: 2 },
-  adminBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#eef2ff', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
-  adminBadgeText: { fontSize: 11, fontWeight: '600', color: '#4f46e5' },
+  userName: { fontSize: 16, fontWeight: '600', color: '#292524' },
+  userEmail: { fontSize: 13, color: '#78716c', marginTop: 2 },
+  adminBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#ecf3ec', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
+  adminBadgeText: { fontSize: 11, fontWeight: '600', color: '#4e7a5e' },
   membersBox: {
     backgroundColor: '#fff',
     borderRadius: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#cbd5e1',
+    borderLeftColor: '#d6d3d1',
     padding: 14,
     marginTop: 12,
     shadowColor: '#000',
@@ -1003,29 +1003,29 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   membersHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  membersTitle: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  membersTitle: { fontSize: 14, fontWeight: '600', color: '#292524' },
   addMemberBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  addMemberBtnText: { fontSize: 12, color: '#4f46e5', fontWeight: '600' },
+  addMemberBtnText: { fontSize: 12, color: '#4e7a5e', fontWeight: '600' },
   memberRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#f1efec',
   },
   memberInfo: { flex: 1 },
-  memberName: { fontSize: 14, fontWeight: '500', color: '#111827' },
-  memberYou: { fontSize: 13, fontWeight: '600', color: '#4f46e5' },
-  memberEmail: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  memberAdminBadge: { color: '#7c3aed' },
+  memberName: { fontSize: 14, fontWeight: '500', color: '#292524' },
+  memberYou: { fontSize: 13, fontWeight: '600', color: '#4e7a5e' },
+  memberEmail: { fontSize: 12, color: '#a8a29e', marginTop: 2 },
+  memberAdminBadge: { color: '#b96a45' },
   memberActions: { flexDirection: 'row', gap: 4 },
   memberActionBtn: { padding: 7 },
   inviteBox: {
     backgroundColor: '#fff',
     borderRadius: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#cbd5e1',
+    borderLeftColor: '#d6d3d1',
     padding: 16,
     gap: 12,
     shadowColor: '#000',
@@ -1034,51 +1034,51 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
-  inviteDesc: { fontSize: 14, color: '#6b7280', lineHeight: 20 },
-  headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
-  headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center' },
+  inviteDesc: { fontSize: 14, color: '#78716c', lineHeight: 20 },
+  headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#ecf3ec', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
+  headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center' },
   headerAvatarText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  headerAvatarAdminDot: { position: 'absolute', bottom: -2, right: -2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#7c3aed', borderWidth: 2, borderColor: '#fff' },
+  headerAvatarAdminDot: { position: 'absolute', bottom: -2, right: -2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#b96a45', borderWidth: 2, borderColor: '#fff' },
   codeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f1efec',
     borderRadius: 10,
     paddingVertical: 14,
   },
-  codeText: { fontSize: 28, fontWeight: '700', color: '#111827', letterSpacing: 6 },
+  codeText: { fontSize: 28, fontWeight: '700', color: '#292524', letterSpacing: 6 },
   copyBtn: { padding: 4 },
-  expiresText: { fontSize: 12, color: '#9ca3af', textAlign: 'center' },
+  expiresText: { fontSize: 12, color: '#a8a29e', textAlign: 'center' },
   inviteBtn: {
     borderWidth: 1.5,
-    borderColor: '#4f46e5',
+    borderColor: '#4e7a5e',
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
   },
   inviteBtnDisabled: { opacity: 0.4 },
-  inviteBtnText: { fontSize: 15, fontWeight: '600', color: '#4f46e5' },
-  shareLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#7c3aed', borderRadius: 10, paddingVertical: 12, marginTop: 4 },
+  inviteBtnText: { fontSize: 15, fontWeight: '600', color: '#4e7a5e' },
+  shareLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#b96a45', borderRadius: 10, paddingVertical: 12, marginTop: 4 },
   shareLinkBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
   overflowPopover: { position: 'absolute', right: 0, alignItems: 'flex-end' },
   overflowPopoverInner: { backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 4, width: 280, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   overflowRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
-  overflowAction: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  overflowAction: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#f1efec' },
   memberActionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 16 },
-  memberActionRowBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  memberActionRowText: { flex: 1, fontSize: 15, color: '#111827', fontWeight: '500' },
-  inlineExpand: { backgroundColor: '#fafafa', borderRadius: 12, marginTop: 6, marginHorizontal: 4, paddingHorizontal: 14, paddingVertical: 4, borderWidth: 1, borderColor: '#f3f4f6' },
+  memberActionRowBorder: { borderTopWidth: 1, borderTopColor: '#f1efec' },
+  memberActionRowText: { flex: 1, fontSize: 15, color: '#292524', fontWeight: '500' },
+  inlineExpand: { backgroundColor: '#faf8f3', borderRadius: 12, marginTop: 6, marginHorizontal: 4, paddingHorizontal: 14, paddingVertical: 4, borderWidth: 1, borderColor: '#f1efec' },
   inlineRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
-  inlineRowBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  inlineRowText: { flex: 1, fontSize: 14, color: '#111827', fontWeight: '500' },
-  linkBox: { backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#cbd5e1', paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  inlineRowBorder: { borderTopWidth: 1, borderTopColor: '#f1efec' },
+  inlineRowText: { flex: 1, fontSize: 14, color: '#292524', fontWeight: '500' },
+  linkBox: { backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#d6d3d1', paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  linkRowBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  linkRowText: { flex: 1, fontSize: 15, color: '#111827', fontWeight: '500' },
-  devBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, backgroundColor: '#f3f4f6', borderRadius: 12 },
-  devBtnText: { fontSize: 14, fontWeight: '500', color: '#6b7280' },
+  linkRowBorder: { borderTopWidth: 1, borderTopColor: '#f1efec' },
+  linkRowText: { flex: 1, fontSize: 15, color: '#292524', fontWeight: '500' },
+  devBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, backgroundColor: '#f1efec', borderRadius: 12 },
+  devBtnText: { fontSize: 14, fontWeight: '500', color: '#78716c' },
   toast: {
     position: 'absolute',
     bottom: 32,
@@ -1096,7 +1096,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   toastText: { fontSize: 14, fontWeight: '600', color: '#fff' },
-  toastNeutral: { backgroundColor: '#374151' },
+  toastNeutral: { backgroundColor: '#44403c' },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
     position: 'absolute',
@@ -1118,31 +1118,31 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#e7e5e4',
     marginTop: 12,
     marginBottom: 16,
   },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', paddingHorizontal: 20, marginBottom: 8 },
-  menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, gap: 12, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  menuRowLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  menuRowSub: { fontSize: 12, color: '#6b7280', marginTop: 2 },
-  menuBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 16, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524', paddingHorizontal: 20, marginBottom: 8 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, gap: 12, borderTopWidth: 1, borderTopColor: '#f1efec' },
+  menuRowLabel: { fontSize: 15, fontWeight: '600', color: '#292524' },
+  menuRowSub: { fontSize: 12, color: '#78716c', marginTop: 2 },
+  menuBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 16, borderTopWidth: 1, borderTopColor: '#f1efec' },
   menuBtnLast: { justifyContent: 'center', borderTopWidth: 0 },
-  menuBtnText: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  sheetDesc: { fontSize: 14, color: '#6b7280', paddingHorizontal: 20, marginBottom: 16, lineHeight: 20 },
+  menuBtnText: { fontSize: 15, fontWeight: '600', color: '#292524' },
+  sheetDesc: { fontSize: 14, color: '#78716c', paddingHorizontal: 20, marginBottom: 16, lineHeight: 20 },
   sheetScroll: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8, gap: 16 },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e7e5e4',
     borderRadius: 10,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#f9fafb',
-    color: '#111827',
+    backgroundColor: '#faf8f3',
+    color: '#292524',
   },
   deleteInput: { borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   button: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#4e7a5e',
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
@@ -1156,8 +1156,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteBtnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
-  adminLogsContainer: { flex: 1, backgroundColor: '#f9fafb' },
-  adminLogsHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  adminLogsTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
+  adminLogsContainer: { flex: 1, backgroundColor: '#faf8f3' },
+  adminLogsHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  adminLogsTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#292524', textAlign: 'center' },
   adminLogsBody: { padding: 16, paddingBottom: 40 },
 });

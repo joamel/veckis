@@ -86,13 +86,13 @@ export function InstallBanner() {
   if ((target === 'android-chrome' || target === 'desktop-chromium') && deferredPrompt) {
     return (
       <View style={s.banner}>
-        <Ionicons name="download-outline" size={20} color="#7c3aed" />
+        <Ionicons name="download-outline" size={20} color="#b96a45" />
         <Text style={s.text}>Installera Veckis som app</Text>
         <Pressable style={s.actionBtn} onPress={trigger}>
           <Text style={s.actionText}>Installera</Text>
         </Pressable>
         <Pressable onPress={dismiss} hitSlop={8} style={s.closeBtn} accessibilityLabel="Stäng">
-          <Ionicons name="close" size={16} color="#9ca3af" />
+          <Ionicons name="close" size={16} color="#a8a29e" />
         </Pressable>
       </View>
     );
@@ -103,12 +103,12 @@ export function InstallBanner() {
   if (target === 'ios-safari') {
     return (
       <View style={s.banner}>
-        <Ionicons name="phone-portrait-outline" size={20} color="#7c3aed" />
+        <Ionicons name="phone-portrait-outline" size={20} color="#b96a45" />
         <Text style={s.text}>
-          Tryck <Ionicons name="share-outline" size={14} color="#4f46e5" /> Dela → <Text style={s.bold}>"Lägg till på hemskärmen"</Text> för app-känsla.
+          Tryck <Ionicons name="share-outline" size={14} color="#4e7a5e" /> Dela → <Text style={s.bold}>"Lägg till på hemskärmen"</Text> för app-känsla.
         </Text>
         <Pressable onPress={dismiss} hitSlop={8} style={s.closeBtn} accessibilityLabel="Stäng">
-          <Ionicons name="close" size={16} color="#9ca3af" />
+          <Ionicons name="close" size={16} color="#a8a29e" />
         </Pressable>
       </View>
     );
@@ -140,18 +140,18 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#f5f3ff',
+    backgroundColor: '#faf1e9',
     borderLeftWidth: 3,
-    borderLeftColor: '#7c3aed',
+    borderLeftColor: '#b96a45',
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 10,
     marginBottom: 16,
   },
   bannerWarn: { backgroundColor: '#fef3c7', borderLeftColor: '#f59e0b' },
-  text: { flex: 1, fontSize: 13, color: '#374151', lineHeight: 18 },
-  bold: { fontWeight: '700', color: '#111827' },
-  actionBtn: { backgroundColor: '#7c3aed', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
+  text: { flex: 1, fontSize: 13, color: '#44403c', lineHeight: 18 },
+  bold: { fontWeight: '700', color: '#292524' },
+  actionBtn: { backgroundColor: '#b96a45', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
   actionText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   closeBtn: { padding: 4 },
 });

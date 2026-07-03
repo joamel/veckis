@@ -153,12 +153,12 @@ export default function ShoppingScreen() {
   // Borttagning av lista sker inuti listans tre-prickar-meny (/shopping/[listId]).
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color="#4e7a5e" /></View>;
   }
 
   const leftWidth = largeTablet ? 400 : 360;
   return (
-    <View style={isSplitView ? { flex: 1, flexDirection: 'row', backgroundColor: '#f9fafb' } : { flex: 1 }}>
+    <View style={isSplitView ? { flex: 1, flexDirection: 'row', backgroundColor: '#faf8f3' } : { flex: 1 }}>
       <SafeAreaView style={[styles.container, isSplitView && { width: leftWidth, flex: 0 }]}>
       <ScreenHeader
         title="Inköp"
@@ -172,7 +172,7 @@ export default function ShoppingScreen() {
               accessibilityRole="button"
               accessibilityLabel="Butiker"
             >
-              <Ionicons name="storefront-outline" size={fs(16)} color="#4f46e5" />
+              <Ionicons name="storefront-outline" size={fs(16)} color="#4e7a5e" />
               <Text style={[styles.storesHeaderBtnText, { fontSize: fs(13) }]}>Butiker</Text>
             </Pressable>
           </View>
@@ -209,14 +209,14 @@ export default function ShoppingScreen() {
                 <View style={styles.cardLeft}>
                   {item.emoji
                     ? <Text style={{ fontSize: fs(22) }}>{item.emoji}</Text>
-                    : <Ionicons name="cart-outline" size={fs(20)} color="#7c3aed" />}
+                    : <Ionicons name="cart-outline" size={fs(20)} color="#b96a45" />}
                 </View>
                 <View style={styles.cardContent}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <Text style={[styles.cardTitle, { fontSize: fs(16) }]}>{item.name}</Text>
                     {shopper && (
                       <View style={styles.shopperPill}>
-                        <Ionicons name="walk" size={11} color="#7c3aed" />
+                        <Ionicons name="walk" size={11} color="#b96a45" />
                         <Text style={styles.shopperPillText}>{iAmShopper ? 'Du handlar' : `${shopper.displayName} handlar`}</Text>
                       </View>
                     )}
@@ -229,7 +229,7 @@ export default function ShoppingScreen() {
                 {unchecked === 0 && total > 0 && (
                   <Ionicons name="checkmark-circle" size={fs(20)} color="#10b981" />
                 )}
-                <Ionicons name="chevron-forward" size={fs(18)} color="#d1d5db" />
+                <Ionicons name="chevron-forward" size={fs(18)} color="#d6d3d1" />
               </Pressable>
             </View>
           );
@@ -253,7 +253,7 @@ export default function ShoppingScreen() {
             <TextInput
               style={styles.input}
               placeholder={str.createModal.namePlaceholder}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               value={newListName}
               onChangeText={setNewListName}
               autoFocus
@@ -277,13 +277,13 @@ export default function ShoppingScreen() {
                 setNewListStoreId(result);
               }}
             >
-              <Ionicons name="storefront-outline" size={18} color="#4f46e5" />
+              <Ionicons name="storefront-outline" size={18} color="#4e7a5e" />
               <Text style={styles.storePickBtnText}>
                 {newListStoreId
                   ? stores.find(s => s.id === newListStoreId)?.name ?? 'Vald butik'
                   : str.createModal.storePlaceholder}
               </Text>
-              <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+              <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
             </Pressable>
             <Pressable
               style={[styles.button, !newListName.trim() && styles.buttonDisabled]}
@@ -300,11 +300,11 @@ export default function ShoppingScreen() {
       </SafeAreaView>
       {isSplitView && (
         <>
-          <View style={{ width: 1, backgroundColor: '#e5e7eb' }} />
+          <View style={{ width: 1, backgroundColor: '#e7e5e4' }} />
           <View style={{ flex: 1 }}>
             {selectedListId
               ? <ShoppingListDetail key={selectedListId} listId={selectedListId} onClose={() => setSelectedListId(null)} />
-              : <View style={styles.center}><Text style={{ color: '#9ca3af', fontSize: 15 }}>Välj en inköpslista</Text></View>
+              : <View style={styles.center}><Text style={{ color: '#a8a29e', fontSize: 15 }}>Välj en inköpslista</Text></View>
             }
           </View>
         </>
@@ -314,15 +314,15 @@ export default function ShoppingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  storesHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eef2ff', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
-  storesHeaderBtnText: { fontWeight: '600', color: '#4f46e5', fontSize: 13 },
+  container: { flex: 1, backgroundColor: '#faf8f3' },
+  storesHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ecf3ec', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
+  storesHeaderBtnText: { fontWeight: '600', color: '#4e7a5e', fontSize: 13 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { padding: 16, gap: 2 },
   listEmpty: { flex: 1 },
   cardSelected: {
-    backgroundColor: '#eef2ff',
-    borderLeftColor: '#4f46e5',
+    backgroundColor: '#ecf3ec',
+    borderLeftColor: '#4e7a5e',
   },
   card: {
     flexDirection: 'row',
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#c4b5fd',
+    borderLeftColor: '#e2bda1',
     padding: 14,
     gap: 12,
     shadowColor: '#000',
@@ -343,25 +343,25 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#f5f3ff',
+    backgroundColor: '#faf1e9',
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardContent: { flex: 1 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
-  cardMeta: { fontSize: 13, color: '#6b7280', marginTop: 2 },
-  shopperPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ede9fe', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  shopperPillText: { fontSize: 11, color: '#5b21b6', fontWeight: '600' },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: '#292524' },
+  cardMeta: { fontSize: 13, color: '#78716c', marginTop: 2 },
+  shopperPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f6e8dc', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  shopperPillText: { fontSize: 11, color: '#8f4b2c', fontWeight: '600' },
   fab: {
     position: 'absolute',
     right: 20,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#4e7a5e',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#4f46e5',
+    shadowColor: '#4e7a5e',
     shadowOpacity: 0.4,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 },
@@ -382,39 +382,39 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#e7e5e4',
     alignSelf: 'center',
     marginBottom: 4,
   },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524' },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e7e5e4',
     borderRadius: 10,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#faf8f3',
   },
-  button: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center' },
+  button: { backgroundColor: '#4e7a5e', borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  sheetSub: { fontSize: 13, color: '#6b7280', marginTop: -8 },
-  storesEmpty: { fontSize: 14, color: '#9ca3af', textAlign: 'center', paddingVertical: 16 },
-  storeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  storeName: { flex: 1, fontSize: 16, fontWeight: '500', color: '#111827' },
+  sheetSub: { fontSize: 13, color: '#78716c', marginTop: -8 },
+  storesEmpty: { fontSize: 14, color: '#a8a29e', textAlign: 'center', paddingVertical: 16 },
+  storeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  storeName: { flex: 1, fontSize: 16, fontWeight: '500', color: '#292524' },
   storeActions: { flexDirection: 'row', gap: 4 },
   storeActionBtn: { padding: 8 },
   newStoreRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  addStoreBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center' },
+  addStoreBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center' },
   addStoreBtnDisabled: { opacity: 0.4 },
-  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
-  catRowLabel: { flex: 1, fontSize: 15, color: '#374151' },
+  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#faf8f3' },
+  catRowLabel: { flex: 1, fontSize: 15, color: '#44403c' },
   catArrow: { padding: 6 },
-  pickStoreLabel: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: -6 },
-  storePickBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  storePickBtnText: { flex: 1, fontSize: 15, color: '#374151', fontWeight: '500' },
+  pickStoreLabel: { fontSize: 14, fontWeight: '600', color: '#44403c', marginBottom: -6 },
+  storePickBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
+  storePickBtnText: { flex: 1, fontSize: 15, color: '#44403c', fontWeight: '500' },
   cardWrap: { position: 'relative' },
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
-  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#111827', borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },
+  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#292524', borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

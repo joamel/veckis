@@ -106,7 +106,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
         <View style={s.handle} />
         <View style={s.header}>
           <Text style={s.title}>{str.menuTemplatesModal.title}</Text>
-          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.close}><Ionicons name="close" size={24} color="#6b7280" /></Pressable>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.close}><Ionicons name="close" size={24} color="#78716c" /></Pressable>
         </View>
 
         <ScrollView contentContainerStyle={s.body}>
@@ -115,7 +115,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
             <TextInput
               style={s.input}
               placeholder={str.menuTemplatesModal.namePlaceholder}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               value={name}
               onChangeText={setName}
               onSubmitEditing={save}
@@ -130,7 +130,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
           <Text style={[s.sectionLabel, { marginTop: 22 }]}>{str.menuTemplatesModal.useSection}</Text>
           {readOnly && <Text style={s.hint}>{str.menuTemplatesModal.pastWeekHint}</Text>}
           {templates === null ? (
-            <ActivityIndicator color="#4f46e5" style={{ marginTop: 16 }} />
+            <ActivityIndicator color="#4e7a5e" style={{ marginTop: 16 }} />
           ) : templates.length === 0 ? (
             <Text style={s.hint}>{str.menuTemplatesModal.noTemplates}</Text>
           ) : (
@@ -142,14 +142,14 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
                     <Text style={s.tplMeta}>{str.menuTemplatesModal.dishCount(tpl.items.length)}</Text>
                   </View>
                   {busyId === tpl.id
-                    ? <ActivityIndicator color="#4f46e5" size="small" />
-                    : !readOnly && <Ionicons name="add-circle-outline" size={22} color="#4f46e5" />}
+                    ? <ActivityIndicator color="#4e7a5e" size="small" />
+                    : !readOnly && <Ionicons name="add-circle-outline" size={22} color="#4e7a5e" />}
                 </Pressable>
                 <Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.shareA11y(tpl.name)}>
-                  <Ionicons name="share-outline" size={18} color="#4f46e5" />
+                  <Ionicons name="share-outline" size={18} color="#4e7a5e" />
                 </Pressable>
                 <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.deleteA11y(tpl.name)}>
-                  <Ionicons name="trash-outline" size={18} color="#9ca3af" />
+                  <Ionicons name="trash-outline" size={18} color="#a8a29e" />
                 </Pressable>
               </View>
             ))
@@ -163,22 +163,22 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
 const s = StyleSheet.create({
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   overlay: { flex: 1 },
-  sheet: { backgroundColor: '#f3f4f6', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#d1d5db', alignSelf: 'center', marginTop: 10 },
+  sheet: { backgroundColor: '#f1efec', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#d6d3d1', alignSelf: 'center', marginTop: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
-  title: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  title: { fontSize: 20, fontWeight: '700', color: '#292524' },
   body: { paddingHorizontal: 16, paddingBottom: 16 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8, marginBottom: 8, marginLeft: 4 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#a8a29e', letterSpacing: 0.8, marginBottom: 8, marginLeft: 4 },
   saveRow: { flexDirection: 'row', gap: 8 },
-  input: { flex: 1, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#111827' },
-  saveBtn: { backgroundColor: '#4f46e5', borderRadius: 10, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center' },
+  input: { flex: 1, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#292524' },
+  saveBtn: { backgroundColor: '#4e7a5e', borderRadius: 10, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  hint: { fontSize: 13, color: '#9ca3af', marginTop: 8, marginLeft: 4 },
+  hint: { fontSize: 13, color: '#a8a29e', marginTop: 8, marginLeft: 4 },
   tplRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, marginBottom: 8 },
   tplMain: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
-  tplName: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  tplMeta: { fontSize: 13, color: '#9ca3af', marginTop: 2 },
+  tplName: { fontSize: 15, fontWeight: '600', color: '#292524' },
+  tplMeta: { fontSize: 13, color: '#a8a29e', marginTop: 2 },
   tplShare: { paddingHorizontal: 10, paddingVertical: 14 },
   tplDelete: { paddingHorizontal: 14, paddingVertical: 14 },
 });

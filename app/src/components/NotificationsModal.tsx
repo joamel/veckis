@@ -72,7 +72,7 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
         <View style={s.header}>
           <Text style={s.title}>{str.notificationsModal.title}</Text>
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.notificationsModal.close}>
-            <Ionicons name="close" size={24} color="#6b7280" />
+            <Ionicons name="close" size={24} color="#78716c" />
           </Pressable>
         </View>
 
@@ -88,21 +88,21 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
                   <Switch
                     value={prefs[key] as boolean}
                     onValueChange={v => toggle(key, v)}
-                    trackColor={{ true: '#4f46e5', false: '#d1d5db' }}
+                    trackColor={{ true: '#4e7a5e', false: '#d6d3d1' }}
                     accessibilityLabel={title}
                   />
                 </View>
               ))}
             </View>
           ) : (
-            <ActivityIndicator color="#4f46e5" style={{ marginTop: 24 }} />
+            <ActivityIndicator color="#4e7a5e" style={{ marginTop: 24 }} />
           )}
 
           <Text style={s.sectionLabel}>{str.notificationsModal.deviceSection}</Text>
           <Pressable style={s.btn} onPress={activateOnDevice} disabled={activating}>
             {activating
-              ? <ActivityIndicator color="#4f46e5" size="small" />
-              : <><Ionicons name="phone-portrait-outline" size={18} color="#4f46e5" /><Text style={s.btnText}>{str.notificationsModal.activate}</Text></>}
+              ? <ActivityIndicator color="#4e7a5e" size="small" />
+              : <><Ionicons name="phone-portrait-outline" size={18} color="#4e7a5e" /><Text style={s.btnText}>{str.notificationsModal.activate}</Text></>}
           </Pressable>
           <Pressable style={[s.btn, s.btnTest]} onPress={sendTest} disabled={testing}>
             {testing
@@ -119,17 +119,17 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
 const s = StyleSheet.create({
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   overlay: { flex: 1 },
-  sheet: { backgroundColor: '#f9fafb', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#d1d5db', alignSelf: 'center', marginTop: 10 },
+  sheet: { backgroundColor: '#faf8f3', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#d6d3d1', alignSelf: 'center', marginTop: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
-  title: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  title: { fontSize: 20, fontWeight: '700', color: '#292524' },
   body: { paddingHorizontal: 16, paddingBottom: 16 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
     paddingHorizontal: 16,
     borderLeftWidth: 3,
-    borderLeftColor: '#cbd5e1',
+    borderLeftColor: '#d6d3d1',
     shadowColor: '#000',
     shadowOpacity: 0.03,
     shadowRadius: 6,
@@ -137,13 +137,13 @@ const s = StyleSheet.create({
     elevation: 1,
   },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },
-  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e7eb' },
+  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e7e5e4' },
   rowText: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  rowDesc: { fontSize: 13, color: '#9ca3af', marginTop: 2 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8, marginTop: 22, marginBottom: 8, marginLeft: 4 },
-  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#eef2ff', borderRadius: 12, paddingVertical: 14, marginBottom: 10 },
-  btnText: { fontSize: 15, fontWeight: '600', color: '#4f46e5' },
-  btnTest: { backgroundColor: '#4f46e5' },
-  statusText: { fontSize: 13, color: '#6b7280', marginTop: 4, marginHorizontal: 4, lineHeight: 19 },
+  rowTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
+  rowDesc: { fontSize: 13, color: '#a8a29e', marginTop: 2 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#a8a29e', letterSpacing: 0.8, marginTop: 22, marginBottom: 8, marginLeft: 4 },
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#ecf3ec', borderRadius: 12, paddingVertical: 14, marginBottom: 10 },
+  btnText: { fontSize: 15, fontWeight: '600', color: '#4e7a5e' },
+  btnTest: { backgroundColor: '#4e7a5e' },
+  statusText: { fontSize: 13, color: '#78716c', marginTop: 4, marginHorizontal: 4, lineHeight: 19 },
 });

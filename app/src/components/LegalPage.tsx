@@ -18,7 +18,7 @@ export function LegalPage({ title, children }: Props) {
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Tillbaka">
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color="#292524" />
         </Pressable>
         <Text style={s.headerTitle}>{title}</Text>
         <View style={{ width: 24 }} />
@@ -32,17 +32,17 @@ export function LegalPage({ title, children }: Props) {
 }
 
 export const legalStyles = StyleSheet.create({
-  h1: { fontSize: 24, fontWeight: '700', color: '#111827', marginTop: 8, marginBottom: 12 },
-  h2: { fontSize: 17, fontWeight: '700', color: '#111827', marginTop: 24, marginBottom: 8 },
-  p: { fontSize: 14, color: '#374151', lineHeight: 22, marginBottom: 10 },
-  list: { fontSize: 14, color: '#374151', lineHeight: 22, marginBottom: 6, paddingLeft: 12 },
-  meta: { fontSize: 12, color: '#9ca3af', marginTop: 8, fontStyle: 'italic' },
-  link: { color: '#7c3aed', fontWeight: '600' },
+  h1: { fontSize: 24, fontWeight: '700', color: '#292524', marginTop: 8, marginBottom: 12 },
+  h2: { fontSize: 17, fontWeight: '700', color: '#292524', marginTop: 24, marginBottom: 8 },
+  p: { fontSize: 14, color: '#44403c', lineHeight: 22, marginBottom: 10 },
+  list: { fontSize: 14, color: '#44403c', lineHeight: 22, marginBottom: 6, paddingLeft: 12 },
+  meta: { fontSize: 12, color: '#a8a29e', marginTop: 8, fontStyle: 'italic' },
+  link: { color: '#b96a45', fontWeight: '600' },
 });
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: '#292524' },
   scroll: { padding: 20, paddingBottom: 40 },
 });

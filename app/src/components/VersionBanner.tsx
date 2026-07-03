@@ -22,7 +22,7 @@ function SharedBanner({ text, actionLabel, onAction, onDismiss }: {
         <Text style={s.btnText}>{actionLabel}</Text>
       </Pressable>
       <Pressable onPress={onDismiss} hitSlop={8} accessibilityLabel={common.actions.close}>
-        <Ionicons name="close" size={16} color="#ddd6fe" />
+        <Ionicons name="close" size={16} color="#eed7c5" />
       </Pressable>
     </View>
   );
@@ -77,7 +77,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#b96a45',
     paddingHorizontal: 14,
     paddingVertical: 10,
     zIndex: 9999,

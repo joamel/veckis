@@ -21,7 +21,7 @@ export function EmptyState({ icon, title, subtitle, actionLabel, onAction }: Emp
   const { fs, sp } = useTablet();
   return (
     <View style={s.container}>
-      <Ionicons name={icon} size={fs(56)} color="#d1d5db" />
+      <Ionicons name={icon} size={fs(56)} color="#d6d3d1" />
       <Text style={[s.title, { fontSize: fs(18) }]}>{title}</Text>
       {subtitle ? <Text style={[s.subtitle, { fontSize: fs(14) }]}>{subtitle}</Text> : null}
       {actionLabel && onAction ? (
@@ -41,8 +41,8 @@ export function EmptyState({ icon, title, subtitle, actionLabel, onAction }: Emp
 
 const s = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: 32 },
-  title: { fontWeight: '600', color: '#374151', marginTop: 16, textAlign: 'center' },
-  subtitle: { color: '#9ca3af', marginTop: 6, textAlign: 'center' },
-  btn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#4f46e5' },
+  title: { fontWeight: '600', color: '#44403c', marginTop: 16, textAlign: 'center' },
+  subtitle: { color: '#a8a29e', marginTop: 6, textAlign: 'center' },
+  btn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#4e7a5e' },
   btnText: { color: '#fff', fontWeight: '700' },
 });

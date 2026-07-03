@@ -23,7 +23,7 @@ export function ScreenHeader({ title, actionIcon, actionLabel, onActionPress, ac
           <Text style={[s.title, { fontSize: fs(28) }]}>{title}</Text>
           {householdName && (
             <View style={s.subtitleRow}>
-              <Ionicons name="home-outline" size={fs(13)} color="#6b7280" />
+              <Ionicons name="home-outline" size={fs(13)} color="#78716c" />
               <Text style={[s.subtitle, { fontSize: fs(13), marginTop: 0 }]}>{householdName}</Text>
             </View>
           )}
@@ -33,7 +33,7 @@ export function ScreenHeader({ title, actionIcon, actionLabel, onActionPress, ac
             style={[s.actionBtn, { paddingHorizontal: sp(12), paddingVertical: sp(7) }]}
             onPress={onActionPress}
           >
-            <Ionicons name={actionIcon as any} size={fs(16)} color="#4f46e5" />
+            <Ionicons name={actionIcon as any} size={fs(16)} color="#4e7a5e" />
             <Text style={[s.actionBtnText, { fontSize: fs(13) }]}>{actionLabel}</Text>
           </Pressable>
         ))}
@@ -43,14 +43,14 @@ export function ScreenHeader({ title, actionIcon, actionLabel, onActionPress, ac
 }
 
 const s = StyleSheet.create({
-  header: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: 10 },
+  header: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec', paddingBottom: 10 },
   headerTop: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',
   },
   headerTitleSection: { flex: 1 },
-  title: { fontWeight: '700', color: '#111827' },
-  subtitle: { color: '#6b7280', marginTop: 2 },
+  title: { fontWeight: '700', color: '#292524' },
+  subtitle: { color: '#78716c', marginTop: 2 },
   subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eef2ff', borderRadius: 20 },
-  actionBtnText: { fontWeight: '600', color: '#4f46e5' },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ecf3ec', borderRadius: 20 },
+  actionBtnText: { fontWeight: '600', color: '#4e7a5e' },
 });

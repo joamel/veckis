@@ -83,14 +83,14 @@ export function AuditLogSection({ householdId }: Props) {
         accessibilityRole="button"
         accessibilityLabel={expanded ? 'Dölj aktivitetslogg' : 'Visa aktivitetslogg'}
       >
-        <Ionicons name="time-outline" size={16} color="#4f46e5" />
+        <Ionicons name="time-outline" size={16} color="#4e7a5e" />
         <Text style={s.title}>Aktivitetslogg</Text>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#9ca3af" />
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#a8a29e" />
       </Pressable>
 
       {expanded && (
         <View style={s.body}>
-          {loading && <ActivityIndicator size="small" color="#4f46e5" style={{ marginVertical: 12 }} />}
+          {loading && <ActivityIndicator size="small" color="#4e7a5e" style={{ marginVertical: 12 }} />}
           {!loading && events && events.length === 0 && (
             <Text style={s.empty}>Inga händelser ännu.</Text>
           )}
@@ -107,7 +107,7 @@ export function AuditLogSection({ householdId }: Props) {
           ))}
           {!loading && events && events.length > 0 && (
             <Pressable style={s.refreshBtn} onPress={load} hitSlop={6}>
-              <Ionicons name="refresh-outline" size={14} color="#6b7280" />
+              <Ionicons name="refresh-outline" size={14} color="#78716c" />
               <Text style={s.refreshText}>Uppdatera</Text>
             </Pressable>
           )}
@@ -122,7 +122,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#cbd5e1',
+    borderLeftColor: '#d6d3d1',
     marginTop: 12,
     shadowColor: '#000',
     shadowOpacity: 0.03,
@@ -132,12 +132,12 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
-  title: { flex: 1, fontSize: 14, fontWeight: '600', color: '#111827' },
+  title: { flex: 1, fontSize: 14, fontWeight: '600', color: '#292524' },
   body: { paddingHorizontal: 14, paddingBottom: 10 },
-  row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  eventText: { fontSize: 13, color: '#374151', lineHeight: 18 },
-  eventTime: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
-  empty: { fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' },
+  row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  eventText: { fontSize: 13, color: '#44403c', lineHeight: 18 },
+  eventTime: { fontSize: 11, color: '#a8a29e', marginTop: 2 },
+  empty: { fontSize: 13, color: '#a8a29e', textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' },
   refreshBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, marginTop: 4 },
-  refreshText: { fontSize: 12, color: '#6b7280' },
+  refreshText: { fontSize: 12, color: '#78716c' },
 });

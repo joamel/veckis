@@ -28,14 +28,14 @@ const s = StyleSheet.create({
   root: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#faf8f3',
   },
   master: {
     flexShrink: 0,
   },
   divider: {
     width: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#e7e5e4',
   },
   detail: {
     flex: 1,

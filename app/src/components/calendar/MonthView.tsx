@@ -108,7 +108,7 @@ export function MonthView({
     <View style={s.container}>
       <View style={s.header}>
         <Pressable onPress={() => onMonthChange(new Date(year, month - 1))}>
-          <Ionicons name="chevron-back" size={24} color="#374151" />
+          <Ionicons name="chevron-back" size={24} color="#44403c" />
         </Pressable>
         <Text style={s.monthLabel}>{monthName.charAt(0).toUpperCase() + monthName.slice(1)}</Text>
         {onToday ? (
@@ -117,7 +117,7 @@ export function MonthView({
           </Pressable>
         ) : null}
         <Pressable onPress={() => onMonthChange(new Date(year, month + 1))}>
-          <Ionicons name="chevron-forward" size={24} color="#374151" />
+          <Ionicons name="chevron-forward" size={24} color="#44403c" />
         </Pressable>
       </View>
 
@@ -176,13 +176,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#f1efec',
   },
-  monthLabel: { fontSize: 18, fontWeight: '700', color: '#111827', flex: 1, textAlign: 'center' },
-  todayBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#4f46e5', borderRadius: 6, marginRight: 16 },
+  monthLabel: { fontSize: 18, fontWeight: '700', color: '#292524', flex: 1, textAlign: 'center' },
+  todayBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#4e7a5e', borderRadius: 6, marginRight: 16 },
   todayBtnText: { fontSize: 12, fontWeight: '600', color: '#fff' },
   weekDayHeaders: { flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 8 },
-  weekDayHeader: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#6b7280' },
+  weekDayHeader: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#78716c' },
   grid: { padding: 8 },
   week: { flexDirection: 'row', marginBottom: 8 },
   day: {
@@ -191,20 +191,20 @@ const s = StyleSheet.create({
     margin: 4,
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#faf8f3',
     borderWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: '#f1efec',
     alignItems: 'center',
   },
   dayOtherMonth: { opacity: 0.4 },
-  dayToday: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
-  dayHasContent: { backgroundColor: '#eeecfa', borderColor: '#c7c2f0' },
-  daySelected: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
-  dayNumber: { fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 4 },
-  dayNumberOther: { color: '#9ca3af' },
+  dayToday: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
+  dayHasContent: { backgroundColor: '#ecf3ec', borderColor: '#c6ddcd' },
+  daySelected: { backgroundColor: '#4e7a5e', borderColor: '#4e7a5e' },
+  dayNumber: { fontSize: 14, fontWeight: '600', color: '#292524', marginBottom: 4 },
+  dayNumberOther: { color: '#a8a29e' },
   dayNumberSelected: { color: '#fff' },
   eventDots: { flexDirection: 'row', gap: 2 },
   dot: { width: 4, height: 4, borderRadius: 2 },
-  dotEntry: { backgroundColor: '#4f46e5' },
+  dotEntry: { backgroundColor: '#4e7a5e' },
   dotSelected: { backgroundColor: 'rgba(255,255,255,0.8)' },
 });

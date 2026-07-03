@@ -58,7 +58,7 @@ function StatusBarBackdrop() {
   return (
     <View
       pointerEvents="none"
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: '#111827', zIndex: 1000 }}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: '#292524', zIndex: 1000 }}
     />
   );
 }
@@ -131,7 +131,7 @@ function NavigationGuard() {
       <VersionBanner />
       <WakeupIndicator />
       <OfflineBanner />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#f9fafb' } }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#faf8f3' } }} />
       <WelcomeModal
         visible={welcomeState === 'show'}
         onContinue={markWelcomeSeen}
