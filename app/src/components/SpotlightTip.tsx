@@ -194,12 +194,12 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
 
         {onToggleSkipAll ? (
           <Pressable style={s.skipRow} onPress={onToggleSkipAll}>
-            <Ionicons name="bulb-outline" size={16} color="#7c3aed" />
+            <Ionicons name="bulb-outline" size={16} color="#b96a45" />
             <Text style={s.skipText}>{str.spotlightTip.toggleOnboarding}</Text>
             <Ionicons
               name={skipAllActive ? 'toggle-outline' : 'toggle'}
               size={24}
-              color={skipAllActive ? '#9ca3af' : '#7c3aed'}
+              color={skipAllActive ? '#a8a29e' : '#b96a45'}
             />
           </Pressable>
         ) : null}
@@ -253,7 +253,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
             }}
           >
             <View style={s.mockMealRow}>
-              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color="#a78bfa" /></View>
+              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color="#d29a77" /></View>
               <View style={s.mockMealLines}>
                 <View style={[s.mockMealLine, { width: '60%' }]} />
                 <View style={[s.mockMealLine, { width: '35%', marginTop: 4, height: 6 }]} />
@@ -281,7 +281,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
             }}
           >
             <View style={s.mockMealRow}>
-              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color="#7c3aed" /></View>
+              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color="#b96a45" /></View>
               <View style={s.mockMealLines}>
                 <View style={[s.mockMealLine, { width: '60%' }]} />
                 <View style={[s.mockMealLine, { width: '35%', marginTop: 4, height: 6 }]} />
@@ -343,7 +343,7 @@ const s = StyleSheet.create({
     position: 'absolute',
     borderRadius: 18,
     borderWidth: 3,
-    borderColor: '#a78bfa',
+    borderColor: '#d29a77',
     backgroundColor: 'transparent',
   },
   card: {
@@ -351,7 +351,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 16,
     borderLeftWidth: 3,
-    borderLeftColor: '#c4b5fd',
+    borderLeftColor: '#e2bda1',
     padding: 18,
     shadowColor: '#000',
     shadowOpacity: 0.25,
@@ -362,7 +362,7 @@ const s = StyleSheet.create({
   emojiBadge: {
     alignSelf: 'center',
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: '#f5f3ff',
+    backgroundColor: '#faf1e9',
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 10,
   },
@@ -374,7 +374,7 @@ const s = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#b96a45',
     opacity: 0.95,
     shadowColor: '#000',
     shadowOpacity: 0.35,
@@ -396,21 +396,21 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e7e5e4',
   },
   mockMealIcon: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: '#eef2ff',
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#ecf3ec',
     alignItems: 'center', justifyContent: 'center',
   },
   mockMealLines: { flex: 1 },
-  mockMealLine: { height: 10, borderRadius: 5, backgroundColor: '#e5e7eb' },
-  title: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 6, textAlign: 'center' },
-  message: { fontSize: 14, color: '#374151', marginBottom: 14, textAlign: 'center', lineHeight: 20 },
-  btn: { backgroundColor: '#4f46e5', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  mockMealLine: { height: 10, borderRadius: 5, backgroundColor: '#e7e5e4' },
+  title: { fontSize: 17, fontWeight: '700', color: '#292524', marginBottom: 6, textAlign: 'center' },
+  message: { fontSize: 14, color: '#44403c', marginBottom: 14, textAlign: 'center', lineHeight: 20 },
+  btn: { backgroundColor: '#4e7a5e', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   topRow: { marginBottom: 10 },
-  positionPill: { alignSelf: 'flex-start', backgroundColor: '#ede9fe', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  positionText: { fontSize: 12, fontWeight: '700', color: '#6d28d9' },
-  skipRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  skipText: { flex: 1, fontSize: 14, fontWeight: '500', color: '#111827' },
+  positionPill: { alignSelf: 'flex-start', backgroundColor: '#f6e8dc', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  positionText: { fontSize: 12, fontWeight: '700', color: '#a55a37' },
+  skipRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1efec' },
+  skipText: { flex: 1, fontSize: 14, fontWeight: '500', color: '#292524' },
 });

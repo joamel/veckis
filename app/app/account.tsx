@@ -87,7 +87,7 @@ export default function AccountScreen() {
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel={str.backA11y}>
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color="#292524" />
         </Pressable>
         <Text style={s.headerTitle}>{str.title}</Text>
         <View style={{ width: 24 }} />
@@ -105,9 +105,9 @@ export default function AccountScreen() {
         <Text style={s.sectionLabel}>{str.sections.profile}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={() => { setRenameValue(displayName); setShowRename(true); }}>
-            <Ionicons name="create-outline" size={18} color="#4f46e5" />
+            <Ionicons name="create-outline" size={18} color="#4e7a5e" />
             <Text style={s.rowText}>{str.rows.rename}</Text>
-            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+            <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
           </Pressable>
         </View>
 
@@ -136,7 +136,7 @@ export default function AccountScreen() {
             <TextInput
               style={s.input}
               placeholder={str.renameModal.placeholder}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#a8a29e"
               value={renameValue}
               onChangeText={setRenameValue}
               autoFocus
@@ -159,26 +159,26 @@ export default function AccountScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  container: { flex: 1, backgroundColor: '#faf8f3' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: '#292524' },
   scroll: { padding: 16, paddingBottom: 40 },
   avatarCard: { alignItems: 'center', paddingVertical: 24 },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   avatarText: { fontSize: 32, fontWeight: '700', color: '#fff' },
-  name: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  email: { fontSize: 14, color: '#6b7280', marginTop: 4 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8, marginTop: 12, marginBottom: 8, paddingHorizontal: 4 },
-  group: { backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#cbd5e1', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, paddingHorizontal: 14 },
+  name: { fontSize: 20, fontWeight: '700', color: '#292524' },
+  email: { fontSize: 14, color: '#78716c', marginTop: 4 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#a8a29e', letterSpacing: 0.8, marginTop: 12, marginBottom: 8, paddingHorizontal: 4 },
+  group: { backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#d6d3d1', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, paddingHorizontal: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  rowBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  rowText: { flex: 1, fontSize: 15, color: '#111827', fontWeight: '500' },
+  rowBorder: { borderTopWidth: 1, borderTopColor: '#f1efec' },
+  rowText: { flex: 1, fontSize: 15, color: '#292524', fontWeight: '500' },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.3)' },
   kavWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 14 },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#f9fafb' },
-  primaryBtn: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 16, alignItems: 'center' },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e7e5e4', alignSelf: 'center', marginBottom: 4 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524' },
+  input: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#faf8f3' },
+  primaryBtn: { backgroundColor: '#4e7a5e', borderRadius: 10, padding: 16, alignItems: 'center' },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

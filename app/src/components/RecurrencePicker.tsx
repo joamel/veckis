@@ -213,7 +213,7 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
               style={[s.endBtn, props.endDate && s.endBtnActive, { flex: 1.5 }]}
               onPress={props.onOpenEndPicker}
             >
-              <Ionicons name="calendar-outline" size={13} color={props.endDate ? '#4f46e5' : '#9ca3af'} />
+              <Ionicons name="calendar-outline" size={13} color={props.endDate ? '#4e7a5e' : '#a8a29e'} />
               <Text style={[s.endBtnText, props.endDate && s.endBtnTextActive]}>{props.endDate ?? str.recurrencePicker.chooseDate}</Text>
             </Pressable>
           </View>
@@ -224,30 +224,30 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
 }
 
 const s = StyleSheet.create({
-  label: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  label: { fontSize: 14, fontWeight: '600', color: '#44403c' },
   typeRow: { flexDirection: 'row', gap: 6 },
-  typeBtn: { flex: 1, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', backgroundColor: '#f9fafb' },
-  typeBtnActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
-  typeBtnText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
-  typeBtnTextActive: { color: '#4f46e5', fontWeight: '700' },
+  typeBtn: { flex: 1, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center', backgroundColor: '#faf8f3' },
+  typeBtnActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
+  typeBtnText: { fontSize: 12, color: '#78716c', fontWeight: '500' },
+  typeBtnTextActive: { color: '#4e7a5e', fontWeight: '700' },
   intervalRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  intervalLabel: { fontSize: 13, color: '#6b7280' },
-  intervalBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', alignItems: 'center', justifyContent: 'center' },
-  intervalBtnText: { fontSize: 18, color: '#4f46e5', fontWeight: '700' },
-  intervalValue: { fontSize: 15, fontWeight: '600', color: '#111827', minWidth: 24, textAlign: 'center' },
+  intervalLabel: { fontSize: 13, color: '#78716c' },
+  intervalBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3', alignItems: 'center', justifyContent: 'center' },
+  intervalBtnText: { fontSize: 18, color: '#4e7a5e', fontWeight: '700' },
+  intervalValue: { fontSize: 15, fontWeight: '600', color: '#292524', minWidth: 24, textAlign: 'center' },
   dayRow: { flexDirection: 'row', gap: 4 },
-  dayOption: { flex: 1, paddingVertical: 8, borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', alignItems: 'center' },
-  dayOptionActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
-  dayText: { fontSize: 12, color: '#6b7280' },
-  dayTextActive: { color: '#4f46e5', fontWeight: '600' },
+  dayOption: { flex: 1, paddingVertical: 8, borderRadius: 16, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3', alignItems: 'center' },
+  dayOptionActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
+  dayText: { fontSize: 12, color: '#78716c' },
+  dayTextActive: { color: '#4e7a5e', fontWeight: '600' },
   monthlyRow: { gap: 6 },
-  monthlyBtn: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  monthlyBtnActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
-  monthlyBtnText: { fontSize: 13, color: '#6b7280' },
-  monthlyBtnTextActive: { color: '#4f46e5', fontWeight: '600' },
+  monthlyBtn: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
+  monthlyBtnActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
+  monthlyBtnText: { fontSize: 13, color: '#78716c' },
+  monthlyBtnTextActive: { color: '#4e7a5e', fontWeight: '600' },
   endRow: { flexDirection: 'row', gap: 6 },
-  endBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  endBtnActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
-  endBtnText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
-  endBtnTextActive: { color: '#4f46e5', fontWeight: '700' },
+  endBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
+  endBtnActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
+  endBtnText: { fontSize: 12, color: '#78716c', fontWeight: '500' },
+  endBtnTextActive: { color: '#4e7a5e', fontWeight: '700' },
 });

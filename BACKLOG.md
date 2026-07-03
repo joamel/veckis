@@ -52,6 +52,10 @@
 - [x] Aktivitets-/sysslomodaler (schedule.tsx) hamnade under viewport på PWA: `<View style={{ flex: 1 }}>`-wrapper runt modal-innehållet tvingade overlay-Pressablen (flex:1) att fylla hela wrapphöjden → sheet puttades under skärmen. `ScrollView flex:1` i editingEntry + showModal gav 0-höjd i auto-höjd KAV-förälder utan definierad höjd på web. Båda borttagna — matchar nu inköpslistans flex-mönster.
 
 ### Generellt
+- [x] Design-feedback "kall och tråkig" → varm palett (feature/warm-theme): salvia-grönt som primär (ersätter indigo), terrakotta som accent (ersätter violett), varma stengrå + krämvit bakgrund. Central `src/lib/theme.ts` med tokens — ny kod importerar tokens, befintlig kod mekaniskt konverterad (sed-mappning dokumenterad i theme.ts). app.json (splash/adaptiveIcon/statusBar) + PWA-manifest uppdaterade
+- [x] Favorit-landningssida: inställning "Starta i" (Inköp/Meny/Kalender/Sysslor) under Inställningar → APP; SecureStore per enhet, NavigationGuard redirect:ar till vald flik vid inloggning, setup och kall-start
+- [x] Öppningsanimation: AnimatedSplash-overlay som matchar native-splashen (bakgrund + ikon) — ikonen andas (skala 1→1,12→0,9) medan overlayn tonar bort, <1s, pointerEvents=none, ren JS/Reanimated (OTA-säker)
+- [ ] 2x2-grid-startsida parkerad — omformulerad som ev. framtida "Hem"-dashboard med innehåll (dagens middag, dagens sysslor, antal varor kvar) istället för ren navigering
 - [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)
 - [x] Skärmen borde hoppa upp när man ska skriva in något så man ser vad man skriver
 - [x] Snyggt om man kan hålla inne på inköpslistor/aktiviteter/sysslor/meny så att de skakar om man vill redigera dem och att det kommer upp en delete (x) /redigeringsknapp (penna)

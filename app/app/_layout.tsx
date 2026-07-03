@@ -20,6 +20,8 @@ import { WakeupIndicator } from '../src/components/WakeupIndicator';
 import { OfflineBanner } from '../src/components/OfflineBanner';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { installGlobalErrorHandler } from '../src/lib/errorReport';
+import { getLandingTab, type LandingTabKey } from '../src/lib/landingTab';
+import { AnimatedSplash } from '../src/components/AnimatedSplash';
 
 // Lock app text to designed size regardless of OS "larger text" setting.
 // Tablet sizing is handled separately via useTablet().fs() so we don't lose tablet scaling.
@@ -58,7 +60,7 @@ function StatusBarBackdrop() {
   return (
     <View
       pointerEvents="none"
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: '#111827', zIndex: 1000 }}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: '#292524', zIndex: 1000 }}
     />
   );
 }
@@ -70,13 +72,17 @@ function NavigationGuard() {
   const router = useRouter();
   const { setSkipAll } = useOnboardingMaster();
   const { markWelcomeReady } = useWelcomeGate();
+  // Favorit-landningssida — läses innan första redirecten så användaren
+  // hamnar direkt i sin valda flik istället för alltid kalendern.
+  const [landingTab, setLandingTabState] = useState<LandingTabKey | null>(null);
+  useEffect(() => { getLandingTab().then(setLandingTabState); }, []);
   // Visa välkomst-modalen EN gång efter att användaren har signat in OCH valt
   // hushåll. Flagga sparas i SecureStore (seen-welcome-tip). Tips blockeras
   // via welcomeReady-gaten i providern tills användaren har dismissat modalen.
   const [welcomeState, setWelcomeState] = useState<'loading' | 'show' | 'done'>('loading');
 
   useEffect(() => {
-    if (!isLoaded || householdLoading) return;
+    if (!isLoaded || householdLoading || landingTab === null) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inSetup = segments[0] === 'household';
@@ -92,16 +98,19 @@ function NavigationGuard() {
     const isAuthedDeepRoute = (root === 'account' || root === 'preferences') && isSignedIn;
     if (isPublic || isAuthedDeepRoute) return;
 
+    // Kall-start på "/" (index-spinnern) — skicka till favorit-landningsfliken.
+    const atRoot = !root || root === 'index';
+
     if (!isSignedIn && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
     } else if (isSignedIn && inAuthGroup) {
-      router.replace(householdId ? '/(tabs)/schedule' : '/household/setup');
-    } else if (isSignedIn && inSetup && householdId) {
-      router.replace('/(tabs)/schedule');
+      router.replace(householdId ? `/(tabs)/${landingTab}` as never : '/household/setup');
+    } else if (isSignedIn && (inSetup || atRoot) && householdId) {
+      router.replace(`/(tabs)/${landingTab}` as never);
     } else if (isSignedIn && !inAuthGroup && !householdId && !inSetup) {
       router.replace('/household/setup');
     }
-  }, [isLoaded, isSignedIn, householdId, householdLoading, segments]);
+  }, [isLoaded, isSignedIn, householdId, householdLoading, segments, landingTab]);
 
   // Välkomstmodal — visa bara när användare är inne i appen (har hushåll, inte
   // i auth/setup) och flaggan inte är satt.
@@ -131,7 +140,7 @@ function NavigationGuard() {
       <VersionBanner />
       <WakeupIndicator />
       <OfflineBanner />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#f9fafb' } }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#faf8f3' } }} />
       <WelcomeModal
         visible={welcomeState === 'show'}
         onContinue={markWelcomeSeen}
@@ -179,6 +188,7 @@ export default function RootLayout() {
             </MemberFilterProvider>
           </HouseholdProvider>
         </ClerkProvider>
+        <AnimatedSplash />
       </SafeAreaProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>

@@ -39,7 +39,7 @@ export function ConfirmDialog({
     const firstDestructiveIdx = actionButtons.findIndex(b => b.style === 'destructive');
     const rows = actionButtons.map((b, i) => {
       const isDestructive = b.style === 'destructive';
-      const color = isDestructive ? '#ef4444' : '#4f46e5';
+      const color = isDestructive ? '#ef4444' : '#4e7a5e';
       const showDivider = i === firstDestructiveIdx && firstDestructiveIdx > 0;
       return (
         <View key={i}>
@@ -116,7 +116,7 @@ export function ConfirmDialog({
 
 const s = StyleSheet.create({
   // Sheet variant (default)
-  overlay: { flex: 1, backgroundColor: 'rgba(17,24,39,0.55)' },
+  overlay: { flex: 1, backgroundColor: 'rgba(41,37,36,0.55)' },
   sheet: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
@@ -125,15 +125,15 @@ const s = StyleSheet.create({
     paddingBottom: 36,
     paddingHorizontal: 24,
   },
-  handle: { alignSelf: 'center', width: 36, height: 4, backgroundColor: '#e5e7eb', borderRadius: 2, marginBottom: 12 },
-  title: { fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center', marginBottom: 4 },
-  message: { fontSize: 14, color: '#6b7280', textAlign: 'center', marginBottom: 12 },
+  handle: { alignSelf: 'center', width: 36, height: 4, backgroundColor: '#e7e5e4', borderRadius: 2, marginBottom: 12 },
+  title: { fontSize: 17, fontWeight: '700', color: '#292524', textAlign: 'center', marginBottom: 4 },
+  message: { fontSize: 14, color: '#78716c', textAlign: 'center', marginBottom: 12 },
   btn: { paddingVertical: 14, alignItems: 'center' },
-  btnTopBorder: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  btnTopBorder: { borderTopWidth: 1, borderTopColor: '#f1efec' },
   btnText: { fontSize: 16, fontWeight: '600' },
-  btnTextPrimary: { color: '#4f46e5' },
+  btnTextPrimary: { color: '#4e7a5e' },
   btnTextDestructive: { color: '#ef4444' },
-  btnTextCancel: { color: '#6b7280', fontWeight: '500' },
+  btnTextCancel: { color: '#78716c', fontWeight: '500' },
 
   // Menu/action variants
   menuCardBase: {
@@ -150,6 +150,6 @@ const s = StyleSheet.create({
   },
   menuCardTopRight: { position: 'absolute', right: 0, top: 0 },
   menuBtn: { paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  menuBtnText: { fontSize: 15, fontWeight: '500', color: '#4f46e5' },
-  menuDivider: { height: 1, backgroundColor: '#f3f4f6', marginVertical: 4 },
+  menuBtnText: { fontSize: 15, fontWeight: '500', color: '#4e7a5e' },
+  menuDivider: { height: 1, backgroundColor: '#f1efec', marginVertical: 4 },
 });

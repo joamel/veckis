@@ -1450,6 +1450,16 @@ export const preferences = {
     terms:          'Användarvillkor',
   },
 
+  landing: {
+    label: 'Starta i',
+    tabs: {
+      shopping: 'Inköp',
+      menu:     'Meny',
+      schedule: 'Kalender',
+      chores:   'Sysslor',
+    } as Record<string, string>,
+  },
+
   toasts: {
     tipsReset:           'Tips återställda - visas igen i nästa session',
     errorSecurityPortal: 'Kunde inte öppna säkerhetsinställningar',

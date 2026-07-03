@@ -145,7 +145,7 @@ export default function SignInScreen() {
           <TextInput
             style={styles.input}
             placeholder={str.placeholders.email}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#a8a29e"
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
@@ -154,7 +154,7 @@ export default function SignInScreen() {
           <TextInput
             style={styles.input}
             placeholder={str.placeholders.password}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#a8a29e"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -188,7 +188,7 @@ export default function SignInScreen() {
               <TextInput
                 style={styles.input}
                 placeholder={str.placeholders.email}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#a8a29e"
                 autoCapitalize="none"
                 keyboardType="email-address"
                 value={email}
@@ -204,7 +204,7 @@ export default function SignInScreen() {
               <TextInput
                 style={styles.input}
                 placeholder={str.placeholders.codeFromEmail}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#a8a29e"
                 keyboardType="number-pad"
                 value={code}
                 onChangeText={setCode}
@@ -213,7 +213,7 @@ export default function SignInScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder={str.placeholders.newPassword}
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor="#a8a29e"
                   secureTextEntry
                   value={resetNewPassword}
                   onChangeText={setResetNewPassword}
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   button: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#4e7a5e',
     borderRadius: 10,
     padding: 16,
     alignItems: 'center',
@@ -283,9 +283,9 @@ const styles = StyleSheet.create({
   },
   googleButton: { backgroundColor: '#ea4335' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  link: { textAlign: 'center', color: '#4f46e5', marginTop: 8 },
-  linkSmall: { color: '#6b7280', fontSize: 13 },
+  link: { textAlign: 'center', color: '#4e7a5e', marginTop: 8 },
+  linkSmall: { color: '#78716c', fontSize: 13 },
   altRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: -4, marginBottom: 8, flexWrap: 'wrap' },
-  altSep: { color: '#d1d5db', fontSize: 13 },
-  helpText: { fontSize: 14, color: '#6b7280', textAlign: 'center', marginBottom: 16 },
+  altSep: { color: '#d6d3d1', fontSize: 13 },
+  helpText: { fontSize: 14, color: '#78716c', textAlign: 'center', marginBottom: 16 },
 });

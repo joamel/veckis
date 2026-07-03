@@ -70,7 +70,7 @@ export default function SignUpScreen() {
         <TextInput
           style={styles.input}
           placeholder={str.placeholders.verificationCode}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#a8a29e"
           keyboardType="number-pad"
           value={code}
           onChangeText={setCode}
@@ -91,7 +91,7 @@ export default function SignUpScreen() {
       <TextInput
         style={styles.input}
         placeholder={str.placeholders.email}
-        placeholderTextColor="#9ca3af"
+        placeholderTextColor="#a8a29e"
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
@@ -100,7 +100,7 @@ export default function SignUpScreen() {
       <TextInput
         style={styles.input}
         placeholder={str.placeholders.signUpPassword}
-        placeholderTextColor="#9ca3af"
+        placeholderTextColor="#a8a29e"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
@@ -110,7 +110,7 @@ export default function SignUpScreen() {
       <TextInput
         style={[styles.input, passwordConfirm.length > 0 && !passwordsMatch && styles.inputError]}
         placeholder={str.placeholders.confirmPassword}
-        placeholderTextColor="#9ca3af"
+        placeholderTextColor="#a8a29e"
         secureTextEntry
         value={passwordConfirm}
         onChangeText={setPasswordConfirm}
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   button: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#4e7a5e',
     borderRadius: 10,
     padding: 16,
     alignItems: 'center',
@@ -162,5 +162,5 @@ const styles = StyleSheet.create({
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   inputError: { borderColor: '#ef4444' },
   errorText: { color: '#ef4444', fontSize: 13, marginTop: -8, marginBottom: 12, marginLeft: 4 },
-  link: { textAlign: 'center', color: '#4f46e5', marginTop: 8 },
+  link: { textAlign: 'center', color: '#4e7a5e', marginTop: 8 },
 });

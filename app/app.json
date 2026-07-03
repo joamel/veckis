@@ -16,7 +16,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#f5f3ff"
+      "backgroundColor": "#faf1e9"
     },
     "ios": {
       "supportsTablet": true,
@@ -32,11 +32,11 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ede9fe"
+        "backgroundColor": "#f6e8dc"
       }
     },
     "androidStatusBar": {
-      "backgroundColor": "#111827",
+      "backgroundColor": "#292524",
       "barStyle": "light-content",
       "translucent": false
     },

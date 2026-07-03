@@ -66,9 +66,9 @@ export function DatePickerModal({ value, onChange, onClose, title, visible, clea
       <View style={s.container}>
         {title && <Text style={s.title}>{title}</Text>}
         <View style={s.header}>
-          <Pressable onPress={prevMonth} style={s.arrow}><Ionicons name="chevron-back" size={20} color="#374151" /></Pressable>
+          <Pressable onPress={prevMonth} style={s.arrow}><Ionicons name="chevron-back" size={20} color="#44403c" /></Pressable>
           <Text style={s.monthLabel}>{monthName.charAt(0).toUpperCase() + monthName.slice(1)}</Text>
-          <Pressable onPress={nextMonth} style={s.arrow}><Ionicons name="chevron-forward" size={20} color="#374151" /></Pressable>
+          <Pressable onPress={nextMonth} style={s.arrow}><Ionicons name="chevron-forward" size={20} color="#44403c" /></Pressable>
         </View>
         <View style={s.weekDays}>
           <Text style={s.weekNumHeader}> </Text>
@@ -115,26 +115,26 @@ export function DatePickerModal({ value, onChange, onClose, title, visible, clea
 const s = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
   container: { position: 'absolute', top: '15%', left: 20, right: 20, backgroundColor: '#fff', borderRadius: 16, padding: 16, elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } },
-  title: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 12, textAlign: 'center' },
+  title: { fontSize: 15, fontWeight: '700', color: '#292524', marginBottom: 12, textAlign: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   arrow: { padding: 6 },
-  monthLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  monthLabel: { fontSize: 15, fontWeight: '600', color: '#292524' },
   weekDays: { flexDirection: 'row', marginBottom: 4 },
-  weekDay: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600', color: '#9ca3af', paddingVertical: 4 },
+  weekDay: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600', color: '#a8a29e', paddingVertical: 4 },
   weekNumHeader: { width: 24, textAlign: 'center', fontSize: 11 },
-  weekNum: { width: 24, textAlign: 'center', alignSelf: 'center', fontSize: 11, fontWeight: '600', color: '#7c3aed' },
+  weekNum: { width: 24, textAlign: 'center', alignSelf: 'center', fontSize: 11, fontWeight: '600', color: '#b96a45' },
   week: { flexDirection: 'row', marginBottom: 2 },
   day: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 8, margin: 2 },
   dayOther: { opacity: 0.3 },
   dayDisabled: { opacity: 0.2 },
-  dayToday: { backgroundColor: '#eef2ff' },
-  daySelected: { backgroundColor: '#4f46e5' },
-  dayNum: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  dayNumOther: { color: '#9ca3af' },
+  dayToday: { backgroundColor: '#ecf3ec' },
+  daySelected: { backgroundColor: '#4e7a5e' },
+  dayNum: { fontSize: 14, fontWeight: '600', color: '#292524' },
+  dayNumOther: { color: '#a8a29e' },
   dayNumSelected: { color: '#fff' },
   footer: { flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' },
   clearBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
   clearBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
-  closeBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: '#f3f4f6' },
-  closeBtnText: { color: '#374151', fontWeight: '600', fontSize: 14 },
+  closeBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: '#f1efec' },
+  closeBtnText: { color: '#44403c', fontWeight: '600', fontSize: 14 },
 });
