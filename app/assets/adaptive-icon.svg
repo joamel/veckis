@@ -2,7 +2,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!-- Adaptive-foreground (12d): transparent botten, innehåll i säkerhetszonen.
        Bakgrundsfärgen sätts i app.json (android.adaptiveIcon.backgroundColor). -->
-  <g transform="translate(512 512) scale(0.64) translate(-512 -512)">
+  <g transform="translate(512 512) scale(0.52) translate(-512 -512)">
   <!-- Hängare -->
   <g stroke="#5C7F66" stroke-width="32" stroke-linecap="round" fill="none">
     <path d="M 300 152 V 254"/>
