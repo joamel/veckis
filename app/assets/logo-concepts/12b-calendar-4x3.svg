@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 12b: Kalender-loggan i 4×3 — känns mer som en riktig månadsvy.
+     Fyra ikondagar (honungskorg, grön kastrull, grön bock, rött hjärta)
+     utspridda som riktiga händelser + honungsfärgade tomdagar för värme. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect x="0" y="0" width="1024" height="1024" rx="192" ry="192" fill="#FAF7F0"/>
+
+  <!-- Hängare -->
+  <g stroke="#5C7F66" stroke-width="32" stroke-linecap="round" fill="none">
+    <path d="M 300 152 V 254"/>
+    <path d="M 724 152 V 254"/>
+  </g>
+
+  <!-- Kalenderram (vit) -->
+  <rect x="110" y="210" width="804" height="670" rx="44" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="28"/>
+
+  <!-- Grönt huvud -->
+  <path d="M 110 336
+           V 254
+           Q 110 210 154 210
+           L 870 210
+           Q 914 210 914 254
+           V 336
+           Z"
+        fill="#5C7F66"/>
+
+  <!-- ── Grid 4×3 ─────────────────────────────────────────────── -->
+  <!-- Rad 1: [dag] [VARUKORG honung] [dag honung] [dag] -->
+  <rect x="163" y="372" width="158" height="140" rx="22" fill="#E6EDE3"/>
+  <rect x="343" y="372" width="158" height="140" rx="22" fill="#FFFFFF"
+        stroke="#C29130" stroke-width="10"/>
+  <g transform="translate(422 442)" stroke="#C29130" fill="none"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M -40 -14 H 40" stroke-width="11"/>
+    <path d="M -33 -3 L -27 21 Q -24 32 -14 32 L 14 32 Q 24 32 27 21 L 33 -3"
+          stroke-width="10"/>
+    <path d="M -11 4 L -10 25" stroke-width="7"/>
+    <path d="M 11 4 L 10 25" stroke-width="7"/>
+  </g>
+  <rect x="523" y="372" width="158" height="140" rx="22" fill="#F3E7CF"/>
+  <rect x="703" y="372" width="158" height="140" rx="22" fill="#E6EDE3"/>
+
+  <!-- Rad 2: [KASTRULL] [dag] [dag] [BOCK] -->
+  <rect x="163" y="534" width="158" height="140" rx="22" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="10"/>
+  <g transform="translate(242 604)">
+    <rect x="-12" y="-36" width="24" height="10" rx="5" fill="#5C7F66"/>
+    <path d="M -29 -18 Q 0 -28 29 -18" stroke="#5C7F66" stroke-width="8"
+          stroke-linecap="round" fill="none"/>
+    <path d="M -40 -7 H 40" stroke="#5C7F66" stroke-width="10" stroke-linecap="round" fill="none"/>
+    <path d="M -31 -2 L -29 19 Q -27 31 -15 31 L 15 31 Q 27 31 29 19 L 31 -2"
+          stroke="#5C7F66" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+  <rect x="343" y="534" width="158" height="140" rx="22" fill="#E6EDE3"/>
+  <rect x="523" y="534" width="158" height="140" rx="22" fill="#E6EDE3"/>
+  <rect x="703" y="534" width="158" height="140" rx="22" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="10"/>
+  <path d="M 750 604 L 771 626 L 808 582" stroke="#5C7F66" stroke-width="15"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Rad 3: [dag honung] [HJÄRTA] [dag] [dag] -->
+  <rect x="163" y="696" width="158" height="140" rx="22" fill="#F3E7CF"/>
+  <rect x="343" y="696" width="158" height="140" rx="22" fill="#FFFFFF"
+        stroke="#C24B34" stroke-width="10"/>
+  <path d="M 422 800
+           C 414 790 384 774 384 756
+           C 384 739 401 733 422 749
+           C 443 733 460 739 460 756
+           C 460 774 430 790 422 800 Z"
+        fill="#C24B34"/>
+  <rect x="523" y="696" width="158" height="140" rx="22" fill="#E6EDE3"/>
+  <rect x="703" y="696" width="158" height="140" rx="22" fill="#E6EDE3"/>
+</svg>

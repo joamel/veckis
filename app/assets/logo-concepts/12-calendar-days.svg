@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 12: Kalendern ÄR loggan. Grönt huvud med hängare, 3×3-grid där
+     tre "fake"-dagar bär vardagen: varukorg, kastrull, bock — och en röd
+     hjärt-dag i mitten av nedersta raden. Övriga dagar dova salvia-plattor. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect x="0" y="0" width="1024" height="1024" rx="192" ry="192" fill="#FAF7F0"/>
+
+  <!-- Hängare -->
+  <g stroke="#5C7F66" stroke-width="34" stroke-linecap="round" fill="none">
+    <path d="M 320 140 V 250"/>
+    <path d="M 704 140 V 250"/>
+  </g>
+
+  <!-- Kalenderram (vit) -->
+  <rect x="140" y="200" width="744" height="680" rx="48" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="30"/>
+
+  <!-- Grönt huvud -->
+  <path d="M 140 336
+           V 248
+           Q 140 200 188 200
+           L 836 200
+           Q 884 200 884 248
+           V 336
+           Z"
+        fill="#5C7F66"/>
+
+  <!-- ── Grid 3×3 ─────────────────────────────────────────────── -->
+  <!-- Rad 1: [dag] [VARUKORG] [dag] -->
+  <rect x="206" y="382" width="180" height="132" rx="24" fill="#E6EDE3"/>
+  <rect x="422" y="382" width="180" height="132" rx="24" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="11"/>
+  <g transform="translate(512 448)" stroke="#5C7F66" fill="none"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M -46 -16 H 46" stroke-width="12"/>
+    <path d="M -38 -4 L -31 24 Q -28 36 -16 36 L 16 36 Q 28 36 31 24 L 38 -4"
+          stroke-width="11"/>
+    <path d="M -13 4 L -12 28" stroke-width="8"/>
+    <path d="M 13 4 L 12 28" stroke-width="8"/>
+  </g>
+  <rect x="638" y="382" width="180" height="132" rx="24" fill="#E6EDE3"/>
+
+  <!-- Rad 2: [KASTRULL] [dag] [BOCK] -->
+  <rect x="206" y="546" width="180" height="132" rx="24" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="11"/>
+  <g transform="translate(296 612)">
+    <rect x="-13" y="-40" width="26" height="11" rx="5" fill="#5C7F66"/>
+    <path d="M -33 -20 Q 0 -32 33 -20" stroke="#5C7F66" stroke-width="9"
+          stroke-linecap="round" fill="none"/>
+    <path d="M -46 -8 H 46" stroke="#5C7F66" stroke-width="11" stroke-linecap="round" fill="none"/>
+    <path d="M -36 -2 L -34 22 Q -32 36 -18 36 L 18 36 Q 32 36 34 22 L 36 -2"
+          stroke="#5C7F66" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+  <rect x="422" y="546" width="180" height="132" rx="24" fill="#E6EDE3"/>
+  <rect x="638" y="546" width="180" height="132" rx="24" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="11"/>
+  <path d="M 698 612 L 720 636 L 762 588" stroke="#5C7F66" stroke-width="16"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Rad 3: [dag] [HJÄRTA] [dag] -->
+  <rect x="206" y="710" width="180" height="132" rx="24" fill="#E6EDE3"/>
+  <rect x="422" y="710" width="180" height="132" rx="24" fill="#FFFFFF"
+        stroke="#C24B34" stroke-width="11"/>
+  <path d="M 512 812
+           C 503 801 470 783 470 764
+           C 470 745 489 738 512 756
+           C 535 738 554 745 554 764
+           C 554 783 521 801 512 812 Z"
+        fill="#C24B34"/>
+  <rect x="638" y="710" width="180" height="132" rx="24" fill="#E6EDE3"/>
+</svg>

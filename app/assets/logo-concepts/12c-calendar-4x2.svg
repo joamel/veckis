@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 12c: Kalender 4×2 — större celler än 12b. Kundkorg med HANDTAG
+     (honung), kastrull, bock och hjärtat SIST längst ned till höger som
+     signatur. Två honungstonade tomdagar. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect x="0" y="0" width="1024" height="1024" rx="192" ry="192" fill="#FAF7F0"/>
+
+  <!-- Hängare -->
+  <g stroke="#5C7F66" stroke-width="32" stroke-linecap="round" fill="none">
+    <path d="M 300 152 V 254"/>
+    <path d="M 724 152 V 254"/>
+  </g>
+
+  <!-- Kalenderram (vit) -->
+  <rect x="110" y="210" width="804" height="670" rx="44" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="28"/>
+
+  <!-- Grönt huvud -->
+  <path d="M 110 336
+           V 254
+           Q 110 210 154 210
+           L 870 210
+           Q 914 210 914 254
+           V 336
+           Z"
+        fill="#5C7F66"/>
+
+  <!-- ── Grid 4×2 ─────────────────────────────────────────────── -->
+  <!-- Rad 1: [KUNDKORG honung] [dag honung] [KASTRULL] [dag] -->
+  <rect x="163" y="384" width="158" height="204" rx="24" fill="#FFFFFF"
+        stroke="#C29130" stroke-width="10"/>
+  <g transform="translate(242 492)" stroke="#C29130" fill="none"
+     stroke-linecap="round" stroke-linejoin="round">
+    <!-- Handtag -->
+    <path d="M -27 -20 Q 0 -56 27 -20" stroke-width="10"/>
+    <!-- Kant + trapets-kropp + slats -->
+    <path d="M -46 -16 H 46" stroke-width="12"/>
+    <path d="M -39 -5 L -31 27 Q -28 38 -17 38 L 17 38 Q 28 38 31 27 L 39 -5"
+          stroke-width="11"/>
+    <path d="M -14 2 L -13 31" stroke-width="8"/>
+    <path d="M 14 2 L 13 31" stroke-width="8"/>
+  </g>
+  <rect x="343" y="384" width="158" height="204" rx="24" fill="#F3E7CF"/>
+  <rect x="523" y="384" width="158" height="204" rx="24" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="10"/>
+  <g transform="translate(602 492)">
+    <rect x="-13" y="-42" width="26" height="11" rx="5" fill="#5C7F66"/>
+    <path d="M -32 -22 Q 0 -33 32 -22" stroke="#5C7F66" stroke-width="9"
+          stroke-linecap="round" fill="none"/>
+    <path d="M -45 -9 H 45" stroke="#5C7F66" stroke-width="11" stroke-linecap="round" fill="none"/>
+    <path d="M -35 -3 L -33 22 Q -31 36 -17 36 L 17 36 Q 31 36 33 22 L 35 -3"
+          stroke="#5C7F66" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+  <rect x="703" y="384" width="158" height="204" rx="24" fill="#E6EDE3"/>
+
+  <!-- Rad 2: [dag] [BOCK] [dag honung] [HJÄRTA sist] -->
+  <rect x="163" y="614" width="158" height="204" rx="24" fill="#E6EDE3"/>
+  <rect x="343" y="614" width="158" height="204" rx="24" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="10"/>
+  <path d="M 390 716 L 413 740 L 454 692" stroke="#5C7F66" stroke-width="16"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="523" y="614" width="158" height="204" rx="24" fill="#F3E7CF"/>
+  <rect x="703" y="614" width="158" height="204" rx="24" fill="#FFFFFF"
+        stroke="#C24B34" stroke-width="10"/>
+  <path d="M 782 762
+           C 772 750 738 731 738 709
+           C 738 688 759 681 782 700
+           C 805 681 826 688 826 709
+           C 826 731 792 750 782 762 Z"
+        fill="#C24B34"/>
+</svg>

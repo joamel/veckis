@@ -14,8 +14,6 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { colors } from '../lib/theme';
-
 export function AnimatedSplash() {
   const [gone, setGone] = useState(false);
   const scale = useSharedValue(1);
@@ -50,11 +48,11 @@ export function AnimatedSplash() {
 const s = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.accentTint, // samma som app.json splash.backgroundColor
+    backgroundColor: '#FAF7F0', // samma som app.json splash.backgroundColor + loggans platta
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 9999,
     elevation: 9999,
   },
-  icon: { width: 180, height: 180 },
+  icon: { width: 220, height: 220 },
 });

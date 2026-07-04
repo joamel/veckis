@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 9: "Rummen" — huskontur med fyra kvadranter: inköpskorg (mat-
+     varor), gryta med hjärta (middag), checklista (sysslor), kalender
+     (vecka). Litet hjärta i korsningspunkten. Efterliknar användarens
+     AI-genererade referens, i appens palett (salvia + honung på krämvitt). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg9" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbf6ec"/>
+      <stop offset="100%" stop-color="#f4edde"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg9)"/>
+
+  <!-- ── Huskontur ─────────────────────────────────────────────── -->
+  <g stroke="#4e7a5e" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Tak med skorsten på högra takfallet -->
+    <path d="M 200 500 L 512 190
+             L 640 317
+             L 640 262 L 744 262 L 744 421
+             L 824 500"/>
+    <!-- Kropp (öppen upptill, rundade nederhörn) -->
+    <path d="M 264 476 L 264 900 Q 264 936 300 936 L 724 936 Q 760 936 760 900 L 760 476"/>
+  </g>
+
+  <!-- ── Avdelare + hjärta i mitten ───────────────────────────── -->
+  <g stroke="#4e7a5e" stroke-width="13" stroke-linecap="round">
+    <path d="M 512 356 V 618"/>
+    <path d="M 512 700 V 892"/>
+    <path d="M 322 658 H 468"/>
+    <path d="M 556 658 H 702"/>
+  </g>
+  <path d="M 512 688
+           C 504 679 482 666 482 651
+           C 482 636 497 632 512 645
+           C 527 632 542 636 542 651
+           C 542 666 520 679 512 688 Z"
+        fill="#4e7a5e"/>
+
+  <!-- ── Q1: Inköpskorg (blad + flaska + korg) ────────────────── -->
+  <!-- Blad (grönt) -->
+  <path d="M 352 466 C 318 428 330 382 372 370 C 384 406 378 442 352 466 Z"
+        fill="#4e7a5e"/>
+  <path d="M 356 458 C 358 420 364 396 372 378" stroke="#fbf6ec" stroke-width="7"
+        stroke-linecap="round" fill="none"/>
+  <!-- Flaska (honung) -->
+  <rect x="424" y="366" width="22" height="34" rx="6" fill="#c2913d"/>
+  <path d="M 412 396 L 458 396 L 464 470 L 406 470 Z" fill="#c2913d"/>
+  <!-- Korg (grön) -->
+  <g stroke="#4e7a5e" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 330 470 L 344 566 Q 346 582 362 582 L 438 582 Q 454 582 456 566 L 470 470"
+          stroke-width="24"/>
+    <path d="M 318 470 H 482" stroke-width="26"/>
+    <path d="M 372 500 V 552" stroke-width="15"/>
+    <path d="M 400 500 V 556" stroke-width="15"/>
+    <path d="M 428 500 V 552" stroke-width="15"/>
+  </g>
+
+  <!-- ── Q2: Gryta med hjärta + ånga ──────────────────────────── -->
+  <!-- Ånga (honung) -->
+  <g stroke="#c2913d" stroke-width="15" stroke-linecap="round" fill="none">
+    <path d="M 588 452 Q 574 428 588 406 Q 602 384 588 362"/>
+    <path d="M 652 452 Q 638 428 652 406 Q 666 384 652 362"/>
+  </g>
+  <!-- Lock-knopp + lock -->
+  <rect x="604" y="470" width="32" height="22" rx="9" fill="#4e7a5e"/>
+  <path d="M 556 506 Q 620 484 684 506" stroke="#4e7a5e" stroke-width="20"
+        stroke-linecap="round" fill="none"/>
+  <!-- Grytkropp (solid grön) med handtag -->
+  <path d="M 552 516 L 556 566 Q 559 594 588 594 L 652 594 Q 681 594 684 566 L 688 516 Z"
+        fill="#4e7a5e"/>
+  <rect x="532" y="518" width="24" height="18" rx="8" fill="#4e7a5e"/>
+  <rect x="684" y="518" width="24" height="18" rx="8" fill="#4e7a5e"/>
+  <!-- Hjärta på grytan (honung) -->
+  <path d="M 620 576
+           C 613 568 596 558 596 546
+           C 596 534 608 531 620 541
+           C 632 531 644 534 644 546
+           C 644 558 627 568 620 576 Z"
+        fill="#c2913d"/>
+
+  <!-- ── Q3: Checklista ───────────────────────────────────────── -->
+  <!-- Rad 1: grön bock-cirkel -->
+  <circle cx="364" cy="740" r="26" fill="#4e7a5e"/>
+  <path d="M 352 740 L 361 750 L 377 730" stroke="#fbf6ec" stroke-width="8"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M 410 740 H 474" stroke="#4e7a5e" stroke-width="14" stroke-linecap="round"/>
+  <!-- Rad 2: grön bock-cirkel -->
+  <circle cx="364" cy="806" r="26" fill="#4e7a5e"/>
+  <path d="M 352 806 L 361 816 L 377 796" stroke="#fbf6ec" stroke-width="8"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M 410 806 H 474" stroke="#4e7a5e" stroke-width="14" stroke-linecap="round"/>
+  <!-- Rad 3: öppen honung-cirkel -->
+  <circle cx="364" cy="872" r="22" fill="none" stroke="#c2913d" stroke-width="13"/>
+  <path d="M 410 872 H 474" stroke="#4e7a5e" stroke-width="14" stroke-linecap="round"/>
+
+  <!-- ── Q4: Kalender ─────────────────────────────────────────── -->
+  <!-- Hängare -->
+  <path d="M 586 726 V 700 M 664 726 V 700" stroke="#4e7a5e" stroke-width="16"
+        stroke-linecap="round"/>
+  <!-- Ram (vit fylld) -->
+  <rect x="548" y="722" width="156" height="150" rx="18" fill="#fff"
+        stroke="#4e7a5e" stroke-width="17"/>
+  <path d="M 552 764 H 700" stroke="#4e7a5e" stroke-width="10"/>
+  <!-- Grid: 3×3, en honung -->
+  <g fill="#4e7a5e">
+    <rect x="572" y="786" width="24" height="24" rx="5"/>
+    <rect x="614" y="786" width="24" height="24" rx="5"/>
+    <rect x="656" y="786" width="24" height="24" rx="5"/>
+    <rect x="572" y="824" width="24" height="24" rx="5"/>
+    <rect x="656" y="824" width="24" height="24" rx="5"/>
+  </g>
+  <rect x="614" y="824" width="24" height="24" rx="5" fill="#c2913d"/>
+</svg>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 11: Essensen av "Rummen" utan rummen — samma huskontur med
+     takfotsöverhäng + skorsten, honungsrök ("någon är hemma, det lagas mat")
+     och ETT stort rött hjärta. Tre element, noll plotter. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect x="0" y="0" width="1024" height="1024" rx="192" ry="192" fill="#FAF7F0"/>
+
+  <!-- Rök ovanför skorstenen (honung) -->
+  <g stroke="#C29130" stroke-width="18" stroke-linecap="round" fill="none">
+    <path d="M 698 142 Q 682 114 698 86 Q 714 58 698 30"/>
+    <path d="M 738 142 Q 724 118 738 94 Q 752 70 738 46"/>
+  </g>
+
+  <!-- Huskontur med takfotsöverhäng + skorsten -->
+  <path d="M 108 424
+           L 512 132
+           L 676 250
+           L 676 172
+           L 752 172
+           L 752 305
+           L 916 424
+           L 916 460
+           L 872 460
+           L 872 844
+           Q 872 900 816 900
+           L 208 900
+           Q 152 900 152 844
+           L 152 460
+           L 108 460
+           Z"
+        fill="none" stroke="#5C7F66" stroke-width="30" stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- Stort rött hjärta -->
+  <path d="M 512 730
+           C 488 699 372 625 372 545
+           C 372 493 414 465 456 477
+           C 482 484 501 505 512 531
+           C 523 505 542 484 568 477
+           C 610 465 652 493 652 545
+           C 652 625 536 699 512 730 Z"
+        fill="#C24B34"/>
+</svg>

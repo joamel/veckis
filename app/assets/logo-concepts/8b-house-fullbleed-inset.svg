@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 8b: Full-bleed som 8, men med ANDNING: taket börjar lite in från
+     kanterna (himmel syns runt om upptill) och detaljerna är varma accenter —
+     hjärt-fönster på vit rund ruta + honungsfärgad dörrbock. Något mjukare
+     och mindre "hård triangel" än 8. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg8b" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbf5ea"/>
+      <stop offset="100%" stop-color="#f1e6d2"/>
+    </linearGradient>
+    <clipPath id="rr8b"><rect x="0" y="0" width="1024" height="1024" rx="224" ry="224"/></clipPath>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg8b)"/>
+
+  <g clip-path="url(#rr8b)">
+    <!-- Matånga (terrakotta) -->
+    <path d="M 744 236 Q 716 196 744 158 Q 772 120 744 82"
+          stroke="#b96a45" stroke-width="32" stroke-linecap="round" fill="none"/>
+
+    <!-- Skorsten -->
+    <rect x="690" y="272" width="104" height="230" rx="22" fill="#4e7a5e"/>
+
+    <!-- Hus: tak med rundad nock, väggen ner till botten (klipps av hörnradien) -->
+    <path fill="#4e7a5e" stroke="#4e7a5e" stroke-width="40" stroke-linejoin="round"
+          d="M 88 486
+             L 512 168
+             L 936 486
+             L 936 1080
+             L 88 1080
+             Z"/>
+
+    <!-- Fönster = hjärta på vit rund ruta -->
+    <g transform="translate(512 560)">
+      <circle r="96" fill="#fff"/>
+      <path d="M 0 48
+               C -10 36 -52 12 -52 -16
+               C -52 -44 -22 -52 0 -28
+               C 22 -52 52 -44 52 -16
+               C 52 12 10 36 0 48 Z"
+            fill="#b96a45"/>
+    </g>
+
+    <!-- Dörr = bock (honung) -->
+    <path d="M 398 830 L 482 910 L 634 746" stroke="#c2913d" stroke-width="52"
+          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

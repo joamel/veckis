@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 9d: Minsta formatet — samma hus + korsning men BARA hjärtat kvar.
+     Läser knivskarpt i 48px; delar formspråk med 9c så de kan användas i par
+     (9c som splash, 9d som app-/notisikon). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect x="0" y="0" width="1024" height="1024" rx="200" ry="200" fill="#f0ede3"/>
+
+  <!-- Huskontur med takfotsöverhäng + skorsten (tjockare för småstorlek) -->
+  <path d="M 145 412
+           L 512 148
+           L 686 273
+           L 686 208
+           L 775 208
+           L 775 337
+           L 879 412
+           L 879 447
+           L 836 447
+           L 836 852
+           Q 836 894 794 894
+           L 230 894
+           Q 188 894 188 852
+           L 188 447
+           L 145 447
+           Z"
+        fill="none" stroke="#4e7a5e" stroke-width="34" stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- Avdelarkors (kort, bara antytt) -->
+  <g stroke="#4e7a5e" stroke-width="18" stroke-linecap="round">
+    <path d="M 512 348 V 486"/>
+    <path d="M 512 704 V 828"/>
+    <path d="M 290 596 H 420"/>
+    <path d="M 604 596 H 734"/>
+  </g>
+
+  <!-- Stort hjärta (röd terrakotta) -->
+  <path d="M 512 706
+           C 486 678 420 640 420 592
+           C 420 544 470 531 512 576
+           C 554 531 604 544 604 592
+           C 604 640 538 678 512 706 Z"
+        fill="#b5533f"/>
+</svg>

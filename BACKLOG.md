@@ -53,6 +53,7 @@
 
 ### Generellt
 - [x] Design-feedback "kall och tråkig" → varm palett (feature/warm-theme): salvia-grönt som primär (ersätter indigo), terrakotta som accent (ersätter violett), varma stengrå + krämvit bakgrund. Central `src/lib/theme.ts` med tokens — ny kod importerar tokens, befintlig kod mekaniskt konverterad (sed-mappning dokumenterad i theme.ts). app.json (splash/adaptiveIcon/statusBar) + PWA-manifest uppdaterade
+- [x] Ny logga: koncept 12d "Kalendern är loggan" — 4×3-kalendergrid med kundvagn, gryta (honung), bock, fotboll och rött hjärta sist som signatur; honungstonade tomdagar. Vald efter iteration i assets/logo-concepts/ (hus-varianter 5–11 förkastade som för plottriga). Assets genererade från SVG via sharp: icon/adaptive-icon/splash-icon/favicon + PWA-ikoner (192/512/apple-touch). Ny native-ikon + splash-bg kräver EAS-build
 - [x] Favorit-landningssida: inställning "Starta i" (Inköp/Meny/Kalender/Sysslor) under Inställningar → APP; SecureStore per enhet, NavigationGuard redirect:ar till vald flik vid inloggning, setup och kall-start
 - [x] Öppningsanimation: AnimatedSplash-overlay som matchar native-splashen (bakgrund + ikon) — ikonen andas (skala 1→1,12→0,9) medan overlayn tonar bort, <1s, pointerEvents=none, ren JS/Reanimated (OTA-säker)
 - [ ] 2x2-grid-startsida parkerad — omformulerad som ev. framtida "Hem"-dashboard med innehåll (dagens middag, dagens sysslor, antal varor kvar) istället för ren navigering

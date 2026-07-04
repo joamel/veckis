@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <!-- Splash-märke (12d): transparent botten — bakgrund via app.json/AnimatedSplash. -->
+<!-- Koncept 12d: 12c:s förbättringar i 4×3-grid — kundkorg MED handtag
+     (honung), kastrull, bock, och hjärtat SIST längst ned till höger som
+     signatur. Två honungstonade tomdagar. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect x="0" y="0" width="1024" height="1024" rx="192" ry="192" fill="#FAF7F0"/>
+
   <!-- Hängare -->
   <g stroke="#5C7F66" stroke-width="32" stroke-linecap="round" fill="none">
     <path d="M 300 152 V 254"/>
@@ -71,10 +75,10 @@
       <!-- Fem kantplattor (klipps av bollens kant) — de vita mellanrummen
            bildar sexhörningarna, som på en riktig fotboll -->
       <path id="ballPatch" d="M 0 -19 L -12.4 -28 L -7.6 -42.5 L 7.6 -42.5 L 12.4 -28 Z"/>
-      <use xlink:href="#ballPatch" href="#ballPatch" transform="rotate(72)"/>
-      <use xlink:href="#ballPatch" href="#ballPatch" transform="rotate(144)"/>
-      <use xlink:href="#ballPatch" href="#ballPatch" transform="rotate(216)"/>
-      <use xlink:href="#ballPatch" href="#ballPatch" transform="rotate(288)"/>
+      <use href="#ballPatch" transform="rotate(72)"/>
+      <use href="#ballPatch" transform="rotate(144)"/>
+      <use href="#ballPatch" transform="rotate(216)"/>
+      <use href="#ballPatch" transform="rotate(288)"/>
     </g>
   </g>
   <rect x="523" y="696" width="158" height="140" rx="22" fill="#E6EDE3"/>

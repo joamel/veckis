@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 5: Hemmet i mitten, vardagen kretsar runt. Salviagrönt hus på
+     krämvit botten; tunn streckad ring (arv från veckoringen) med tre
+     badges: mat (terrakotta gaffel), tid (honung klocka), sysslor (grön bock). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg5" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbf5ea"/>
+      <stop offset="100%" stop-color="#f3ead9"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg5)"/>
+
+  <!-- Streckad omloppsring -->
+  <circle cx="512" cy="512" r="368" fill="none" stroke="#a3c4ae" stroke-width="14"
+          stroke-dasharray="4 56" stroke-linecap="round"/>
+
+  <!-- Hus -->
+  <g stroke="#4e7a5e" stroke-width="52" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M 322 508 L 512 344 L 702 508"/>
+    <path d="M 366 508 L 366 700 L 658 700 L 658 508"/>
+    <path d="M 512 700 L 512 588"/>
+  </g>
+
+  <!-- Badge: mat (gaffel, terrakotta) -->
+  <g transform="translate(183 322)">
+    <circle r="88" fill="#fff" stroke="#b96a45" stroke-width="12"/>
+    <g stroke="#b96a45" stroke-width="14" stroke-linecap="round" fill="none">
+      <path d="M -20 -36 V -8 M 0 -40 V -8 M 20 -36 V -8"/>
+      <path d="M -20 -8 Q 0 8 20 -8"/>
+      <path d="M 0 0 V 38"/>
+    </g>
+  </g>
+
+  <!-- Badge: tid (klocka, honung) -->
+  <g transform="translate(841 322)">
+    <circle r="88" fill="#fff" stroke="#c2913d" stroke-width="12"/>
+    <circle r="42" fill="none" stroke="#c2913d" stroke-width="13"/>
+    <g stroke="#c2913d" stroke-width="13" stroke-linecap="round">
+      <path d="M 0 0 V -26"/>
+      <path d="M 0 0 L 18 10"/>
+    </g>
+  </g>
+
+  <!-- Badge: sysslor (bock, grön) -->
+  <g transform="translate(512 880)">
+    <circle r="88" fill="#fff" stroke="#4e7a5e" stroke-width="12"/>
+    <path d="M -34 2 L -8 30 L 38 -24" stroke="#4e7a5e" stroke-width="16"
+          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

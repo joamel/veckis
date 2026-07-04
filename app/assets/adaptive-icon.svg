@@ -1,41 +1,92 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Android adaptive-icon foreground: motivet ska ligga inom mittersta 66%
-     av canvas (Android-masken kan klippa runt). Ingen bakgrund — den sätts
-     via app.json:s adaptiveIcon.backgroundColor. Motivet skalas till 0.72
-     av originalet kring centrum så det får luft mot maskens kant. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <defs>
-    <linearGradient id="vgrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#7c5fe8"/>
-      <stop offset="100%" stop-color="#e972a3"/>
-    </linearGradient>
-  </defs>
-  <g transform="translate(512 512) scale(0.72) translate(-512 -512)">
-    <g fill="none" stroke-width="96" stroke-linecap="butt">
-      <circle cx="512" cy="512" r="320" stroke="#4f46e5"
-              stroke-dasharray="195 1815" stroke-dashoffset="0"
-              transform="rotate(-90 512 512)"/>
-      <circle cx="512" cy="512" r="320" stroke="#6c52ea"
-              stroke-dasharray="195 1815" stroke-dashoffset="-204"
-              transform="rotate(-90 512 512)"/>
-      <circle cx="512" cy="512" r="320" stroke="#8861ed"
-              stroke-dasharray="195 1815" stroke-dashoffset="-408"
-              transform="rotate(-90 512 512)"/>
-      <circle cx="512" cy="512" r="320" stroke="#a366ef"
-              stroke-dasharray="195 1815" stroke-dashoffset="-612"
-              transform="rotate(-90 512 512)"/>
-      <circle cx="512" cy="512" r="320" stroke="#c068e1"
-              stroke-dasharray="195 1815" stroke-dashoffset="-816"
-              transform="rotate(-90 512 512)"/>
-      <circle cx="512" cy="512" r="320" stroke="#d96bc5"
-              stroke-dasharray="195 1815" stroke-dashoffset="-1020"
-              transform="rotate(-90 512 512)"/>
-      <circle cx="512" cy="512" r="320" stroke="#e972a3"
-              stroke-dasharray="195 1815" stroke-dashoffset="-1224"
-              transform="rotate(-90 512 512)"/>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Adaptive-foreground (12d): transparent botten, innehåll i säkerhetszonen.
+       Bakgrundsfärgen sätts i app.json (android.adaptiveIcon.backgroundColor). -->
+  <g transform="translate(512 512) scale(0.64) translate(-512 -512)">
+  <!-- Hängare -->
+  <g stroke="#5C7F66" stroke-width="32" stroke-linecap="round" fill="none">
+    <path d="M 300 152 V 254"/>
+    <path d="M 724 152 V 254"/>
+  </g>
+
+  <!-- Kalenderram (vit) -->
+  <rect x="110" y="210" width="804" height="670" rx="44" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="28"/>
+
+  <!-- Grönt huvud -->
+  <path d="M 110 336
+           V 254
+           Q 110 210 154 210
+           L 870 210
+           Q 914 210 914 254
+           V 336
+           Z"
+        fill="#5C7F66"/>
+
+  <!-- ── Grid 4×3 ─────────────────────────────────────────────── -->
+  <!-- Rad 1: [dag] [KUNDVAGN grön] [dag honung] [dag] -->
+  <rect x="163" y="372" width="158" height="140" rx="22" fill="#E6EDE3"/>
+  <rect x="343" y="372" width="158" height="140" rx="22" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="10"/>
+  <g transform="translate(422 444)">
+    <!-- Handtag + korg i ett streck -->
+    <path d="M -48 -32 H -34 L -24 16 H 24 Q 30 16 31.5 10 L 40 -20 H -28"
+          stroke="#5C7F66" stroke-width="10" fill="none"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Hjul -->
+    <circle cx="-14" cy="32" r="8" fill="#5C7F66"/>
+    <circle cx="18" cy="32" r="8" fill="#5C7F66"/>
+  </g>
+  <rect x="523" y="372" width="158" height="140" rx="22" fill="#F3E7CF"/>
+  <rect x="703" y="372" width="158" height="140" rx="22" fill="#E6EDE3"/>
+
+  <!-- Rad 2: [KASTRULL honung] [dag] [BOCK] [dag] -->
+  <rect x="163" y="534" width="158" height="140" rx="22" fill="#FFFFFF"
+        stroke="#C29130" stroke-width="10"/>
+  <g transform="translate(242 604)">
+    <rect x="-12" y="-36" width="24" height="10" rx="5" fill="#C29130"/>
+    <path d="M -29 -18 Q 0 -28 29 -18" stroke="#C29130" stroke-width="8"
+          stroke-linecap="round" fill="none"/>
+    <path d="M -40 -7 H 40" stroke="#C29130" stroke-width="10" stroke-linecap="round" fill="none"/>
+    <path d="M -31 -2 L -29 19 Q -27 31 -15 31 L 15 31 Q 27 31 29 19 L 31 -2"
+          stroke="#C29130" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+  <rect x="343" y="534" width="158" height="140" rx="22" fill="#E6EDE3"/>
+  <rect x="523" y="534" width="158" height="140" rx="22" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="10"/>
+  <path d="M 570 604 L 591 626 L 628 582" stroke="#5C7F66" stroke-width="15"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="703" y="534" width="158" height="140" rx="22" fill="#E6EDE3"/>
+
+  <!-- Rad 3: [dag honung] [FOTBOLL] [dag] [HJÄRTA sist] -->
+  <rect x="163" y="696" width="158" height="140" rx="22" fill="#F3E7CF"/>
+  <rect x="343" y="696" width="158" height="140" rx="22" fill="#FFFFFF"
+        stroke="#5C7F66" stroke-width="10"/>
+  <g transform="translate(422 766)">
+    <defs>
+      <clipPath id="ballClip"><circle r="37"/></clipPath>
+    </defs>
+    <circle r="38" fill="none" stroke="#5C7F66" stroke-width="9"/>
+    <g clip-path="url(#ballClip)" fill="#5C7F66">
+      <!-- Mittfemhörning -->
+      <path d="M 0 -14 L -13.3 -4.3 L -8.2 11.3 L 8.2 11.3 L 13.3 -4.3 Z"/>
+      <!-- Fem kantplattor (klipps av bollens kant) — de vita mellanrummen
+           bildar sexhörningarna, som på en riktig fotboll -->
+      <path id="ballPatch" d="M 0 -19 L -12.4 -28 L -7.6 -42.5 L 7.6 -42.5 L 12.4 -28 Z"/>
+      <use xlink:href="#ballPatch" href="#ballPatch" transform="rotate(72)"/>
+      <use xlink:href="#ballPatch" href="#ballPatch" transform="rotate(144)"/>
+      <use xlink:href="#ballPatch" href="#ballPatch" transform="rotate(216)"/>
+      <use xlink:href="#ballPatch" href="#ballPatch" transform="rotate(288)"/>
     </g>
-    <path d="M 380 460 L 480 600 L 660 380"
-          stroke="url(#vgrad)" stroke-width="56"
-          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+  <rect x="523" y="696" width="158" height="140" rx="22" fill="#E6EDE3"/>
+  <rect x="703" y="696" width="158" height="140" rx="22" fill="#FFFFFF"
+        stroke="#C24B34" stroke-width="10"/>
+  <path d="M 782 800
+           C 774 790 744 774 744 756
+           C 744 739 761 733 782 749
+           C 803 733 820 739 820 756
+           C 820 774 790 790 782 800 Z"
+        fill="#C24B34"/>
   </g>
 </svg>
