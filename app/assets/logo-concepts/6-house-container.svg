@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 6: Huset som behållare — vardagen bor DÄR INNE. Stort vitt hus
+     med salviagrön kontur; inuti tre miniatyrer: gaffel (mat, terrakotta),
+     klocka (tid, honung), bock (sysslor, grön). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg6" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f0f5ee"/>
+      <stop offset="100%" stop-color="#e3eee5"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg6)"/>
+
+  <!-- Hus med vit fyllning -->
+  <g stroke="#4e7a5e" stroke-width="56" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 232 468 L 512 218 L 792 468" fill="none"/>
+    <path d="M 296 462 L 296 806 L 728 806 L 728 462 Z" fill="#fff"/>
+  </g>
+  <!-- Skorsten -->
+  <path d="M 668 268 L 668 336" stroke="#b96a45" stroke-width="52" stroke-linecap="round"/>
+
+  <!-- Miniatyrer inuti -->
+  <!-- Gaffel -->
+  <g transform="translate(392 634)" stroke="#b96a45" stroke-width="20" stroke-linecap="round" fill="none">
+    <path d="M -26 -52 V -12 M 0 -58 V -12 M 26 -52 V -12"/>
+    <path d="M -26 -12 Q 0 10 26 -12"/>
+    <path d="M 0 4 V 56"/>
+  </g>
+  <!-- Klocka -->
+  <g transform="translate(512 460)">
+    <circle r="54" fill="none" stroke="#c2913d" stroke-width="18"/>
+    <g stroke="#c2913d" stroke-width="16" stroke-linecap="round">
+      <path d="M 0 4 V -30"/>
+      <path d="M 0 4 L 22 16"/>
+    </g>
+  </g>
+  <!-- Bock -->
+  <g transform="translate(628 634)">
+    <path d="M -40 0 L -10 34 L 44 -32" stroke="#4e7a5e" stroke-width="22"
+          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

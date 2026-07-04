@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 7b: Som 7 men fönstret är ett HJÄRTA (vit cirkel, terrakotta
+     hjärta) istället för klocka. Dörren är fortfarande bocken, skorstenen
+     ryker matånga. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg7b" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbf5ea"/>
+      <stop offset="100%" stop-color="#f1e6d2"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg7b)"/>
+
+  <!-- Matånga ur skorstenen (terrakotta) -->
+  <path d="M 668 296 Q 642 258 668 224 Q 694 190 668 152"
+        stroke="#b96a45" stroke-width="30" stroke-linecap="round" fill="none"/>
+
+  <!-- Skorsten -->
+  <rect x="620" y="330" width="96" height="160" rx="20" fill="#4e7a5e"/>
+
+  <!-- Solid hus -->
+  <path d="M 512 260
+           L 224 516
+           L 316 516
+           L 316 800
+           Q 316 848 364 848
+           L 660 848
+           Q 708 848 708 800
+           L 708 516
+           L 800 516
+           Z"
+        fill="#4e7a5e" stroke="#4e7a5e" stroke-width="24" stroke-linejoin="round"/>
+
+  <!-- Fönster = hjärta (terrakotta på vit) -->
+  <g transform="translate(512 516)">
+    <circle r="70" fill="#fff"/>
+    <path d="M 0 34
+             C -7 26 -37 8 -37 -12
+             C -37 -33 -16 -39 0 -21
+             C 16 -39 37 -33 37 -12
+             C 37 8 7 26 0 34 Z"
+          fill="#b96a45"/>
+  </g>
+
+  <!-- Dörr = bock (vit) -->
+  <path d="M 442 688 L 494 740 L 588 632" stroke="#fff" stroke-width="42"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

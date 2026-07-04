@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 7c: Renast möjliga — solid hus med URSKURET vitt hjärt-fönster
+     (ingen cirkel runt) + bock-dörr. Inga övriga detaljer; hjärtat får
+     all uppmärksamhet. Skorstenen kvar men utan ånga. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg7c" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbf5ea"/>
+      <stop offset="100%" stop-color="#f1e6d2"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg7c)"/>
+
+  <!-- Skorsten -->
+  <rect x="620" y="316" width="96" height="170" rx="20" fill="#4e7a5e"/>
+
+  <!-- Solid hus med urskuret hjärta (fill-rule evenodd) -->
+  <path fill-rule="evenodd" fill="#4e7a5e" stroke="#4e7a5e" stroke-width="24" stroke-linejoin="round"
+        d="M 512 260
+           L 224 516
+           L 316 516
+           L 316 800
+           Q 316 848 364 848
+           L 660 848
+           Q 708 848 708 800
+           L 708 516
+           L 800 516
+           Z
+           M 512 594
+           C 498 578 448 550 448 516
+           C 448 482 482 472 512 500
+           C 542 472 576 482 576 516
+           C 576 550 526 578 512 594 Z"/>
+
+  <!-- Dörr = bock (vit) -->
+  <path d="M 442 700 L 494 750 L 588 644" stroke="#fff" stroke-width="42"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

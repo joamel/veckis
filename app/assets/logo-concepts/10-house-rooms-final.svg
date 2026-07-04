@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 10: Ren SVG-implementation av användarens slutgiltiga mockup.
+     Färger från mockupens kod: grön #5C7F66, botten #FAF7F0, honung #C29130,
+     hjärtröd #C24B34. Kvadrant-innehållen skalade ~0.85–0.88 kring sina
+     centra så de får luft till tak/väggar/avdelare. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect x="0" y="0" width="1024" height="1024" rx="192" ry="192" fill="#FAF7F0"/>
+
+  <!-- ── Huskontur med takfotsöverhäng + smal skorsten ─────────── -->
+  <path d="M 108 424
+           L 512 132
+           L 676 250
+           L 676 172
+           L 752 172
+           L 752 305
+           L 916 424
+           L 916 460
+           L 872 460
+           L 872 844
+           Q 872 900 816 900
+           L 208 900
+           Q 152 900 152 844
+           L 152 460
+           L 108 460
+           Z"
+        fill="none" stroke="#5C7F66" stroke-width="26" stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- ── Rök ovanför skorstenen (honung) ──────────────────────── -->
+  <g stroke="#C29130" stroke-width="16" stroke-linecap="round" fill="none">
+    <path d="M 698 148 Q 684 122 698 96 Q 712 70 698 44"/>
+    <path d="M 734 148 Q 720 126 734 104 Q 748 82 734 60"/>
+  </g>
+
+  <!-- ── Avdelare (slutar med luft innan hjärtat) ─────────────── -->
+  <g stroke="#5C7F66" stroke-width="13" stroke-linecap="round">
+    <path d="M 512 322 V 496"/>
+    <path d="M 512 692 V 856"/>
+    <path d="M 196 600 H 414"/>
+    <path d="M 610 600 H 828"/>
+  </g>
+
+  <!-- ── Hjärta (röd) i korsningen — klassisk form med topp-skåra ── -->
+  <path d="M 512 668
+           C 499 651 432 608 432 562
+           C 432 532 456 516 480 523
+           C 495 527 506 539 512 554
+           C 518 539 529 527 544 523
+           C 568 516 592 532 592 562
+           C 592 608 525 651 512 668 Z"
+        fill="#C24B34"/>
+
+  <!-- ── Q1: Skålkorg med blad + flaska ───────────────────────── -->
+  <g transform="translate(0 16) translate(330 455) scale(0.85) translate(-330 -455)">
+    <!-- Varorna nedsänkta i korgen (extra +30) — korgen ritas efteråt och
+         täcker deras nederdel, så de ser ut att LIGGA i korgen. -->
+    <g transform="translate(0 30)">
+      <!-- Blad (solid grön, krämvita nerver) -->
+      <path d="M 258 442 C 210 400 220 336 282 318 C 304 366 292 416 258 442 Z"
+            fill="#5C7F66"/>
+      <g stroke="#FAF7F0" stroke-width="8" stroke-linecap="round" fill="none">
+        <path d="M 262 428 C 262 388 268 356 280 330"/>
+        <path d="M 263 400 L 244 386"/>
+        <path d="M 266 368 L 250 354"/>
+      </g>
+      <!-- Flaska (honung, lutad) -->
+      <g transform="rotate(18 340 388)" fill="#C29130">
+        <rect x="316" y="350" width="48" height="92" rx="13"/>
+        <rect x="329" y="316" width="22" height="40" rx="7"/>
+        <rect x="325" y="300" width="30" height="22" rx="8"/>
+      </g>
+    </g>
+    <!-- Skålkorg (kontur, rundad botten) -->
+    <g stroke="#5C7F66" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 208 452 H 452" stroke-width="24"/>
+      <path d="M 224 462
+               L 236 520
+               Q 246 566 294 566
+               L 366 566
+               Q 414 566 424 520
+               L 436 462"
+            stroke-width="22"/>
+      <path d="M 284 470 L 288 552" stroke-width="16"/>
+      <path d="M 330 470 L 330 556" stroke-width="16"/>
+      <path d="M 376 470 L 372 552" stroke-width="16"/>
+    </g>
+  </g>
+
+  <!-- ── Q2: Gryta (röken flyttad till skorstenen) ────────────── -->
+  <g transform="translate(0 25) translate(700 420) scale(0.85) translate(-700 -420)">
+    <!-- Lock-knopp + lock -->
+    <rect x="678" y="356" width="44" height="20" rx="10" fill="#5C7F66"/>
+    <path d="M 614 400 Q 700 374 786 400" stroke="#5C7F66" stroke-width="18"
+          stroke-linecap="round" fill="none"/>
+    <!-- Kant (bredare = handtag) + kropp -->
+    <path d="M 592 422 H 808" stroke="#5C7F66" stroke-width="22" stroke-linecap="round" fill="none"/>
+    <path d="M 622 428
+             L 626 508
+             Q 630 546 668 546
+             L 732 546
+             Q 770 546 774 508
+             L 778 428"
+          stroke="#5C7F66" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+
+  <!-- ── Q3: Checklista (solida bock-cirklar) ─────────────────── -->
+  <g transform="translate(330 748) scale(0.88) translate(-330 -748)">
+    <circle cx="238" cy="678" r="26" fill="#5C7F66"/>
+    <path d="M 226 678 L 235 688 L 251 668" stroke="#FAF7F0" stroke-width="9"
+          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M 292 678 H 462" stroke="#5C7F66" stroke-width="15" stroke-linecap="round"/>
+
+    <circle cx="238" cy="748" r="26" fill="#5C7F66"/>
+    <path d="M 226 748 L 235 758 L 251 738" stroke="#FAF7F0" stroke-width="9"
+          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M 292 748 H 462" stroke="#5C7F66" stroke-width="15" stroke-linecap="round"/>
+
+    <circle cx="238" cy="818" r="23" fill="none" stroke="#C29130" stroke-width="14"/>
+    <path d="M 292 818 H 462" stroke="#5C7F66" stroke-width="15" stroke-linecap="round"/>
+  </g>
+
+  <!-- ── Q4: Kalender med grönt huvud (nedskalad) ─────────────── -->
+  <g transform="translate(704 752) scale(0.78) translate(-704 -752)">
+    <!-- Hängare (toppen satt så de når horisontallinjen efter skalning) -->
+    <g stroke="#5C7F66" stroke-width="16" stroke-linecap="round" fill="none">
+      <path d="M 622 546 V 652"/>
+      <path d="M 786 546 V 652"/>
+    </g>
+    <!-- Ram (fylld botten så avdelaren inte lyser igenom) -->
+    <rect x="564" y="640" width="280" height="230" rx="22" fill="#FAF7F0"
+          stroke="#5C7F66" stroke-width="20"/>
+    <!-- Grönt huvud -->
+    <path d="M 564 700
+             V 662
+             Q 564 640 586 640
+             L 822 640
+             Q 844 640 844 662
+             V 700
+             Z"
+          fill="#5C7F66"/>
+    <!-- Grid: gröna dagar, en honung -->
+    <g fill="#5C7F66">
+      <rect x="598" y="722" width="38" height="38" rx="8"/>
+      <rect x="652" y="722" width="38" height="38" rx="8"/>
+      <rect x="706" y="722" width="38" height="38" rx="8"/>
+      <rect x="760" y="722" width="38" height="38" rx="8"/>
+      <rect x="598" y="776" width="38" height="38" rx="8"/>
+      <rect x="652" y="776" width="38" height="38" rx="8"/>
+      <rect x="760" y="776" width="38" height="38" rx="8"/>
+    </g>
+    <rect x="706" y="776" width="38" height="38" rx="8" fill="#C29130"/>
+  </g>
+</svg>

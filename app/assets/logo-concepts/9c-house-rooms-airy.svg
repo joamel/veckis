@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 9c: "Rummen" nedskalad — samma layout som referensen men EN enkel
+     symbol per kvadrant (korg, gryta, bock, kalender), större och luftigare.
+     Tjockare linjer så det läser även i mellanstorlek. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect x="0" y="0" width="1024" height="1024" rx="200" ry="200" fill="#f0ede3"/>
+
+  <!-- Huskontur med takfotsöverhäng + skorsten -->
+  <path d="M 145 412
+           L 512 148
+           L 686 273
+           L 686 208
+           L 775 208
+           L 775 337
+           L 879 412
+           L 879 447
+           L 836 447
+           L 836 852
+           Q 836 894 794 894
+           L 230 894
+           Q 188 894 188 852
+           L 188 447
+           L 145 447
+           Z"
+        fill="none" stroke="#4e7a5e" stroke-width="26" stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- Avdelare -->
+  <g stroke="#4e7a5e" stroke-width="12" stroke-linecap="round">
+    <path d="M 512 330 V 542"/>
+    <path d="M 512 670 V 830"/>
+    <path d="M 262 606 H 462"/>
+    <path d="M 562 606 H 762"/>
+  </g>
+
+  <!-- Hjärta (röd terrakotta) -->
+  <path d="M 512 652
+           C 498 636 462 615 462 589
+           C 462 562 489 555 512 580
+           C 535 555 562 562 562 589
+           C 562 615 526 636 512 652 Z"
+        fill="#b5533f"/>
+
+  <!-- Q1: Korg (enkel kontur, 2 slats) -->
+  <g stroke="#4e7a5e" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 268 424
+             L 296 540
+             Q 300 556 318 556
+             L 434 556
+             Q 452 556 456 540
+             L 484 424
+             Z" stroke-width="24"/>
+    <path d="M 342 444 L 348 538" stroke-width="17"/>
+    <path d="M 404 444 L 398 538" stroke-width="17"/>
+  </g>
+
+  <!-- Q2: Gryta med en ångvåg -->
+  <path d="M 650 386 Q 634 360 650 334 Q 666 308 650 282"
+        stroke="#c2913d" stroke-width="17" stroke-linecap="round" fill="none"/>
+  <rect x="628" y="408" width="44" height="24" rx="11" fill="#4e7a5e"/>
+  <path d="M 566 456 Q 650 432 734 456" stroke="#4e7a5e" stroke-width="20"
+        stroke-linecap="round" fill="none"/>
+  <path d="M 546 478 H 754" stroke="#4e7a5e" stroke-width="22" stroke-linecap="round" fill="none"/>
+  <path d="M 578 482
+           L 582 534
+           Q 585 560 612 560
+           L 688 560
+           Q 715 560 718 534
+           L 722 482"
+        stroke="#4e7a5e" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Q3: En stor bock-ring -->
+  <circle cx="362" cy="748" r="62" fill="none" stroke="#4e7a5e" stroke-width="22"/>
+  <path d="M 334 748 L 356 772 L 394 722" stroke="#4e7a5e" stroke-width="20"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Q4: Kalender (förenklad: huvud + 2x2 dagar, en honung) -->
+  <path d="M 574 726
+           V 700
+           Q 574 682 592 682
+           L 732 682
+           Q 750 682 750 700
+           V 726
+           Z"
+        fill="#4e7a5e"/>
+  <rect x="574" y="682" width="176" height="152" rx="18" fill="none"
+        stroke="#4e7a5e" stroke-width="19"/>
+  <g fill="#4e7a5e">
+    <rect x="606" y="746" width="32" height="32" rx="7"/>
+    <rect x="606" y="790" width="32" height="32" rx="7"/>
+    <rect x="686" y="790" width="32" height="32" rx="7"/>
+  </g>
+  <rect x="686" y="746" width="32" height="32" rx="7" fill="#c2913d"/>
+</svg>

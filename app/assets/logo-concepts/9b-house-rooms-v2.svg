@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Koncept 9b: Trogen återgivning av referensbilden. Huskontur med takfots-
+     överhäng + skorsten på högra takfallet. Fyra kvadranter i KONTUR-stil:
+     inköpskorg (blad + honungsflaska), gryta med ånga, checklista, kalender
+     med grönt huvud. Rött-terrakotta hjärta i korsningen. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect x="0" y="0" width="1024" height="1024" rx="200" ry="200" fill="#f0ede3"/>
+
+  <!-- ── Huskontur med takfotsöverhäng + skorsten ─────────────── -->
+  <path d="M 145 412
+           L 512 148
+           L 686 273
+           L 686 208
+           L 775 208
+           L 775 337
+           L 879 412
+           L 879 447
+           L 836 447
+           L 836 852
+           Q 836 894 794 894
+           L 230 894
+           Q 188 894 188 852
+           L 188 447
+           L 145 447
+           Z"
+        fill="none" stroke="#4e7a5e" stroke-width="24" stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- ── Avdelare ─────────────────────────────────────────────── -->
+  <g stroke="#4e7a5e" stroke-width="12" stroke-linecap="round">
+    <path d="M 512 302 V 540"/>
+    <path d="M 512 668 V 846"/>
+    <path d="M 248 606 H 464"/>
+    <path d="M 560 606 H 762"/>
+  </g>
+
+  <!-- Hjärta (röd terrakotta) i korsningen -->
+  <path d="M 512 650
+           C 499 635 464 614 464 589
+           C 464 563 490 556 512 580
+           C 534 556 560 563 560 589
+           C 560 614 525 635 512 650 Z"
+        fill="#b5533f"/>
+
+  <!-- ── Q1: Inköpskorg med blad + flaska ─────────────────────── -->
+  <!-- Blad (solid grön med krämvita nerver) -->
+  <path d="M 330 468 C 286 430 294 372 348 354 C 368 398 358 442 330 468 Z"
+        fill="#4e7a5e"/>
+  <g stroke="#f0ede3" stroke-width="7" stroke-linecap="round" fill="none">
+    <path d="M 334 456 C 334 420 340 392 350 368"/>
+    <path d="M 335 430 L 318 418"/>
+    <path d="M 338 402 L 324 390"/>
+  </g>
+  <!-- Flaska (honung, lätt lutad) -->
+  <g transform="rotate(16 412 420)" fill="#c2913d">
+    <rect x="390" y="386" width="46" height="88" rx="12"/>
+    <rect x="402" y="352" width="22" height="40" rx="6"/>
+    <rect x="398" y="338" width="30" height="20" rx="7"/>
+  </g>
+  <!-- Korg (kontur) -->
+  <g stroke="#4e7a5e" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 254 472
+             L 280 552
+             Q 285 568 302 568
+             L 450 568
+             Q 467 568 472 552
+             L 498 472
+             Z" stroke-width="20"/>
+    <path d="M 312 486 L 318 554" stroke-width="14"/>
+    <path d="M 350 486 L 353 556" stroke-width="14"/>
+    <path d="M 388 486 L 388 556" stroke-width="14"/>
+    <path d="M 426 486 L 422 554" stroke-width="14"/>
+  </g>
+
+  <!-- ── Q2: Gryta med ånga (kontur) ──────────────────────────── -->
+  <!-- Ånga (honung, tre vågor) -->
+  <g stroke="#c2913d" stroke-width="15" stroke-linecap="round" fill="none">
+    <path d="M 600 408 Q 585 385 600 362 Q 615 339 600 316"/>
+    <path d="M 650 400 Q 635 377 650 354 Q 665 331 650 308"/>
+    <path d="M 700 408 Q 685 385 700 362 Q 715 339 700 316"/>
+  </g>
+  <!-- Lock-knopp + lock -->
+  <rect x="630" y="428" width="40" height="22" rx="10" fill="#4e7a5e"/>
+  <path d="M 578 470 Q 650 448 722 470" stroke="#4e7a5e" stroke-width="18"
+        stroke-linecap="round" fill="none"/>
+  <!-- Kastrullkant (bredare = handtag) + kropp -->
+  <path d="M 556 488 H 744" stroke="#4e7a5e" stroke-width="20" stroke-linecap="round" fill="none"/>
+  <path d="M 584 490
+           L 588 550
+           Q 590 578 618 578
+           L 682 578
+           Q 710 578 712 550
+           L 716 490"
+        stroke="#4e7a5e" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- ── Q3: Checklista ───────────────────────────────────────── -->
+  <!-- Rad 1: grön ring + bock -->
+  <circle cx="300" cy="668" r="24" fill="none" stroke="#4e7a5e" stroke-width="13"/>
+  <path d="M 289 668 L 298 678 L 313 658" stroke="#4e7a5e" stroke-width="10"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M 348 668 H 468" stroke="#4e7a5e" stroke-width="14" stroke-linecap="round"/>
+  <!-- Rad 2: grön ring + bock -->
+  <circle cx="300" cy="736" r="24" fill="none" stroke="#4e7a5e" stroke-width="13"/>
+  <path d="M 289 736 L 298 746 L 313 726" stroke="#4e7a5e" stroke-width="10"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M 348 736 H 468" stroke="#4e7a5e" stroke-width="14" stroke-linecap="round"/>
+  <!-- Rad 3: öppen honungsring -->
+  <circle cx="300" cy="804" r="24" fill="none" stroke="#c2913d" stroke-width="13"/>
+  <path d="M 348 804 H 468" stroke="#4e7a5e" stroke-width="14" stroke-linecap="round"/>
+
+  <!-- ── Q4: Kalender med grönt huvud ─────────────────────────── -->
+  <!-- Hängare -->
+  <g stroke="#4e7a5e" stroke-width="15" stroke-linecap="round" fill="none">
+    <path d="M 612 676 V 638"/>
+    <path d="M 720 676 V 638"/>
+  </g>
+  <!-- Grönt huvud (rundade övre hörn) -->
+  <path d="M 560 712
+           V 684
+           Q 560 664 580 664
+           L 752 664
+           Q 772 664 772 684
+           V 712
+           Z"
+        fill="#4e7a5e"/>
+  <!-- Ram -->
+  <rect x="560" y="664" width="212" height="198" rx="20" fill="none"
+        stroke="#4e7a5e" stroke-width="17"/>
+  <!-- Grid: gröna dagar, en honung -->
+  <g fill="#4e7a5e">
+    <rect x="586" y="730" width="28" height="28" rx="6"/>
+    <rect x="632" y="730" width="28" height="28" rx="6"/>
+    <rect x="678" y="730" width="28" height="28" rx="6"/>
+    <rect x="724" y="730" width="28" height="28" rx="6"/>
+    <rect x="586" y="776" width="28" height="28" rx="6"/>
+    <rect x="632" y="776" width="28" height="28" rx="6"/>
+    <rect x="724" y="776" width="28" height="28" rx="6"/>
+    <rect x="586" y="822" width="28" height="28" rx="6"/>
+    <rect x="632" y="822" width="28" height="28" rx="6"/>
+  </g>
+  <rect x="678" y="776" width="28" height="28" rx="6" fill="#c2913d"/>
+</svg>
