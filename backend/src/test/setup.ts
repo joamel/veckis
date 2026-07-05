@@ -54,6 +54,7 @@ beforeEach(async () => {
       "ScheduleEntry",
       "StapleItem",
       "IngredientAlias",
+      "UnitEquivalence",
       "PushToken",
       "NotificationPreference",
       "NotificationLog",

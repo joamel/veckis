@@ -12,6 +12,7 @@
 // `normalize` callback (defaults to identity) so callers can pass a stripper.
 
 import { combineQuantities } from './unitOrder';
+import { suggestMerge, type EquivalenceMap } from './smartMerge';
 
 export interface IncomingIngredient {
   name: string;
@@ -123,12 +124,15 @@ export function planIncomingMatch(
  * After creates/updates have landed, find groups of visible items that share
  * the same name. Groups are first attempted with cross-unit merging via
  * combineQuantities (e.g. 1 dl + 2 msk → 1.13 dl). If units are incompatible
- * (e.g. "paket" vs "g"), the name-group falls back to per-unit sub-groups.
+ * (e.g. "paket" vs "g"), the name-group first tries BEKRÄFTAD förpacknings-
+ * kunskap (equivalencesByName, Fas 2: 1 paket + 390 g → 2 paket) and then
+ * falls back to per-unit sub-groups.
  * Each resulting group with ≥2 entries becomes a soft-merge container.
  */
 export function planAutoMerge(
   visibleItems: ExistingItem[],
   normalize: (s: string) => string = (s) => s.toLowerCase().trim(),
+  equivalencesByName?: Map<string, EquivalenceMap>,
 ): MergeGroup[] {
   const byName = new Map<string, ExistingItem[]>();
   for (const v of visibleItems) {
@@ -140,7 +144,7 @@ export function planAutoMerge(
 
   const out: MergeGroup[] = [];
 
-  for (const [, nameGroup] of byName) {
+  for (const [normName, nameGroup] of byName) {
     if (nameGroup.length < 2) continue;
 
     const combined = combineQuantities(nameGroup.map(g => ({ quantity: g.quantity, unit: g.unit })));
@@ -154,6 +158,21 @@ export function planAutoMerge(
         category: nameGroup[0].category,
       });
     } else {
+      // Fas 2: bekräftad förpackningskunskap kan slå ihop över enhetsfamiljer.
+      const eq = equivalencesByName?.get(normName);
+      if (eq && eq.size > 0) {
+        const suggestion = suggestMerge(nameGroup.map(g => ({ quantity: g.quantity, unit: g.unit })), eq);
+        if (suggestion && suggestion.basis === 'equivalence') {
+          out.push({
+            ids: nameGroup.map(g => g.id),
+            totalQty: suggestion.quantity,
+            name: nameGroup[0].name,
+            unit: suggestion.unit,
+            category: nameGroup[0].category,
+          });
+          continue;
+        }
+      }
       // Incompatible units — sub-group by unit key and merge within each sub-group.
       const byUnit = new Map<string, ExistingItem[]>();
       for (const item of nameGroup) {

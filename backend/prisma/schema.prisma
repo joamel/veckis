@@ -309,6 +309,25 @@ model IngredientAlias {
   @@index([canonical])
 }
 
+// Global förpacknings-kunskap: "1 paket krossade tomater ≈ 400 g".
+// name = kanoniskt gemener-namn (stripIngredient-output), unit = förpacknings-
+// enhet ("paket","burk","påse",…). source: 'seed' | 'ai' | 'user' — 'user'
+// betyder bekräftad av en riktig ihopslagning (Fas 2-kriterium för auto-merge).
+model UnitEquivalence {
+  id         String   @id @default(cuid())
+  name       String
+  unit       String
+  baseAmount Float
+  baseUnit   String // 'g' | 'ml'
+  source     String   @default("ai")
+  seenCount  Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([name, unit])
+  @@index([name])
+}
+
 // One row per device/token. A user (clerkUserId) may have several.
 model PushToken {
   id          String   @id @default(cuid())

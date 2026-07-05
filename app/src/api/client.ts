@@ -255,6 +255,13 @@ export function useApiClient() {
         body: JSON.stringify(data),
       }),
 
+    // Smart förslag för dubblettdialogen (förpacknings-ekvivalenser, AI-lärd).
+    getMergeSuggestion: (data: { itemIds: string[] }) =>
+      request<{ suggestion: { quantity: number; unit: string; basis: 'exact' | 'equivalence' } | null }>(
+        '/api/shopping/merge-suggestion',
+        { method: 'POST', body: JSON.stringify(data) },
+      ),
+
     updateShoppingItem: (itemId: string, data: Partial<Pick<ShoppingItem, 'name' | 'quantity' | 'unit' | 'category' | 'customCategory' | 'subCategory' | 'note'>>) =>
       request<ShoppingItem>(`/api/shopping/items/${itemId}`, {
         method: 'PATCH',
