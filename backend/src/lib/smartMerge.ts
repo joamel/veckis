@@ -118,6 +118,29 @@ export async function loadEquivalences(
   return map;
 }
 
+/**
+ * Fas 2 (auto-merge): batch-ladda BEKRÄFTADE ekvivalenser för många varor i
+ * en query, nycklat på kanoniskt namn. Bekräftad = människa/seed har gått i
+ * god (source 'user'/'seed') eller AI-raden setts ≥2 gånger. Rå-AI-gissningar
+ * släpps aldrig in i den tysta auto-merge-vägen — de måste passera en
+ * användare i dubblettdialogen först.
+ */
+export async function loadConfirmedEquivalencesByName(names: string[]): Promise<Map<string, EquivalenceMap>> {
+  const list = [...new Set(names.map(n => n.toLowerCase().trim()).filter(Boolean))];
+  if (list.length === 0) return new Map();
+  const rows = await prisma.unitEquivalence.findMany({ where: { name: { in: list } } });
+  const out = new Map<string, EquivalenceMap>();
+  for (const r of rows) {
+    if (r.seenCount <= 0) continue;
+    if (!(r.source === 'user' || r.source === 'seed' || r.seenCount >= 2)) continue;
+    if (r.baseUnit !== 'g' && r.baseUnit !== 'ml') continue;
+    if (!out.has(r.name)) out.set(r.name, new Map());
+    const m = out.get(r.name)!;
+    if (!m.has(r.unit)) m.set(r.unit, { baseAmount: r.baseAmount, baseUnit: r.baseUnit });
+  }
+  return out;
+}
+
 const EQUIVALENCE_PROMPT = `Du är ett uppslagsverk för typiska svenska förpackningsstorlekar i matbutik.
 Du får ett JSON-objekt {"name": <varunamn>, "unit": <förpackningsenhet>} och
 svarar med den typiska storleken på EN sådan förpackning i gram eller milliliter.

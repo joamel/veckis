@@ -7,7 +7,7 @@ import { asyncHandler } from '../lib/asyncHandler';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { learnIngredientAliases, getStoredCategory, storeIngredientCategory } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
-import { suggestMerge, resolveEquivalences, learnEquivalenceFromMerge, isPackagingUnit } from '../lib/smartMerge';
+import { suggestMerge, resolveEquivalences, learnEquivalenceFromMerge, isPackagingUnit, loadConfirmedEquivalencesByName } from '../lib/smartMerge';
 import { wsBroadcast } from '../lib/wsHub';
 import { inferSubCategory, parentForSub, type SubCategory } from '@veckis/shared';
 import { sendPush } from '../lib/sendPush';
@@ -579,6 +579,9 @@ shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAu
   const visible = await prisma.shoppingItem.findMany({
     where: { listId: list.id, isChecked: false, mergedIntoId: null },
   });
+  // Fas 2: bekräftad förpackningskunskap låter auto-merge slå ihop över
+  // enhetsfamiljer (1 paket + 390 g → 2 paket). Aldrig rå-AI här.
+  const confirmedEq = await loadConfirmedEquivalencesByName(visible.map(v => stripIngredient(v.name)));
   const groups = planAutoMerge(
     visible.map(v => ({
       id: v.id, name: v.name, unit: v.unit, quantity: v.quantity,
@@ -586,6 +589,7 @@ shoppingRouter.delete('/lists/:listId/items/by-menu-item/:menuItemId', requireAu
       isChecked: v.isChecked, category: v.category as string,
     })),
     (s) => stripIngredient(s),
+    confirmedEq,
   );
   for (const group of groups) {
     const container = await prisma.shoppingItem.create({

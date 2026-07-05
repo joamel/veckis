@@ -9,6 +9,7 @@ import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { stripIngredient } from '../lib/stripIngredient';
 import { wsBroadcast } from '../lib/wsHub';
 import { planIncomingMatch, planAutoMerge } from '../lib/importDedupe';
+import { loadConfirmedEquivalencesByName } from '../lib/smartMerge';
 
 export const menusRouter = Router();
 
@@ -411,6 +412,9 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   const visible = await prisma.shoppingItem.findMany({
     where: { listId: list.id, isChecked: false, mergedIntoId: null },
   });
+  // Fas 2: bekräftad förpackningskunskap låter auto-merge slå ihop över
+  // enhetsfamiljer (1 paket + 390 g → 2 paket). Aldrig rå-AI här.
+  const confirmedEq = await loadConfirmedEquivalencesByName(visible.map(v => stripIngredient(v.name)));
   const mergeGroups = planAutoMerge(
     visible.map(v => ({
       id: v.id,
@@ -423,6 +427,7 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
       category: v.category as string,
     })),
     (s) => stripIngredient(s),
+    confirmedEq,
   );
   for (const group of mergeGroups) {
     const container = await prisma.shoppingItem.create({

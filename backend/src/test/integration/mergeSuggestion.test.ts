@@ -10,6 +10,7 @@ import {
   loadEquivalences,
   resolveEquivalences,
   learnEquivalenceFromMerge,
+  loadConfirmedEquivalencesByName,
 } from '../../lib/smartMerge';
 
 async function seedEquivalence(over: Partial<{ name: string; unit: string; baseAmount: number; baseUnit: string; source: string; seenCount: number }> = {}) {
@@ -62,6 +63,20 @@ describe('resolveEquivalences + suggestMerge (end-to-end mot DB)', () => {
     expect((await loadEquivalences(['smör'], { confirmedOnly: true })).size).toBe(1);
     expect((await loadEquivalences(['kokosmjölk'], { confirmedOnly: true })).size).toBe(1);
     expect((await loadEquivalences(['bacon'], { confirmedOnly: true })).size).toBe(1);
+  });
+});
+
+describe('loadConfirmedEquivalencesByName (Fas 2 batch)', () => {
+  it('grupperar per namn och filtrerar till bekräftade', async () => {
+    await seedEquivalence({ name: 'krossade tomater', source: 'seed' });
+    await seedEquivalence({ name: 'krossade tomater', unit: 'burk', source: 'ai' }); // obekräftad
+    await seedEquivalence({ name: 'smör', source: 'user', baseAmount: 500 });
+
+    const byName = await loadConfirmedEquivalencesByName(['krossade tomater', 'smör', 'okänd']);
+    expect(byName.size).toBe(2);
+    expect(byName.get('krossade tomater')!.size).toBe(1); // bara seed-paketet, inte ai-burken
+    expect(byName.get('krossade tomater')!.get('paket')).toEqual({ baseAmount: 400, baseUnit: 'g' });
+    expect(byName.get('smör')!.get('paket')).toEqual({ baseAmount: 500, baseUnit: 'g' });
   });
 });
 

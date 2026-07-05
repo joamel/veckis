@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { suggestMerge, isPackagingUnit, type EquivalenceMap } from './smartMerge';
+import { planAutoMerge, type ExistingItem } from './importDedupe';
 
 const eq = (entries: Array<[string, number, 'g' | 'ml']>): EquivalenceMap =>
   new Map(entries.map(([unit, baseAmount, baseUnit]) => [unit, { baseAmount, baseUnit }]));
@@ -98,6 +99,51 @@ describe('suggestMerge', () => {
 
   it('tom entries-lista → null', () => {
     expect(suggestMerge([], new Map())).toBeNull();
+  });
+});
+
+describe('planAutoMerge med ekvivalenser (Fas 2)', () => {
+  const item = (id: string, name: string, quantity: number, unit: string | null): ExistingItem => ({
+    id, name, quantity, unit, menuItemId: null, mergedIntoId: null, isChecked: false, category: 'other',
+  });
+
+  it('1 paket + 390 g krossade tomater auto-mergas till 2 paket med bekräftad ekvivalens', () => {
+    const groups = planAutoMerge(
+      [item('a', 'krossade tomater', 1, 'paket'), item('b', 'krossade tomater', 390, 'g')],
+      s => s.toLowerCase().trim(),
+      new Map([['krossade tomater', eq([['paket', 400, 'g']])]]),
+    );
+    expect(groups).toEqual([{
+      ids: ['a', 'b'],
+      totalQty: 2,
+      name: 'krossade tomater',
+      unit: 'paket',
+      category: 'other',
+    }]);
+  });
+
+  it('utan ekvivalenser (default) → oförändrat beteende: ingen cross-family-merge', () => {
+    const groups = planAutoMerge(
+      [item('a', 'krossade tomater', 1, 'paket'), item('b', 'krossade tomater', 390, 'g')],
+      s => s.toLowerCase().trim(),
+    );
+    expect(groups).toEqual([]);
+  });
+
+  it('ekvivalens för ANNAN vara påverkar inte gruppen → per-enhet-fallback', () => {
+    const groups = planAutoMerge(
+      [
+        item('a', 'krossade tomater', 1, 'paket'),
+        item('b', 'krossade tomater', 390, 'g'),
+        item('c', 'mjölk', 1, 'l'),
+        item('d', 'mjölk', 5, 'dl'),
+      ],
+      s => s.toLowerCase().trim(),
+      new Map([['smör', eq([['paket', 500, 'g']])]]),
+    );
+    // tomaterna förblir omergade; mjölken mergas som vanligt (volymfamilj)
+    expect(groups).toHaveLength(1);
+    expect(groups[0].ids).toEqual(['c', 'd']);
   });
 });
 
