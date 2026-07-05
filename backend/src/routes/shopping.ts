@@ -7,6 +7,7 @@ import { asyncHandler } from '../lib/asyncHandler';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { learnIngredientAliases, getStoredCategory, storeIngredientCategory } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
+import { suggestMerge, resolveEquivalences, learnEquivalenceFromMerge, isPackagingUnit } from '../lib/smartMerge';
 import { wsBroadcast } from '../lib/wsHub';
 import { inferSubCategory, parentForSub, type SubCategory } from '@veckis/shared';
 import { sendPush } from '../lib/sendPush';
@@ -413,6 +414,43 @@ shoppingRouter.patch('/items/:itemId/check', requireAuth, asyncHandler(async (re
   res.json(item);
 }));
 
+// POST /api/shopping/merge-suggestion — smart förslag för dubblettdialogen.
+// Kombinerar förpacknings-ekvivalenser (UnitEquivalence: seed/AI/user-lärda)
+// med volym-/masskonvertering: "1 paket + 390 g krossade tomater" → 2 paket.
+// Ingen AI-nyckel/timeout/okänd vara → { suggestion: null } (klienten
+// behåller sin naiva prefill).
+shoppingRouter.post('/merge-suggestion', requireAuth, asyncHandler(async (req, res) => {
+  const body = z.object({ itemIds: z.array(z.string()).min(2) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const items = await prisma.shoppingItem.findMany({ where: { id: { in: body.data.itemIds } } });
+  if (items.length !== body.data.itemIds.length) {
+    res.status(404).json({ error: 'Some items not found' });
+    return;
+  }
+  const listId = items[0].listId;
+  if (items.some(i => i.listId !== listId)) {
+    res.status(400).json({ error: 'All items must belong to the same list' });
+    return;
+  }
+  const list = await getListAndVerifyMember(listId, (req as AuthenticatedRequest).clerkUserId, res);
+  if (!list) return;
+
+  // Kanoniska namnvarianter: strippat + ev. inlärt alias (cache-only — ingen
+  // extra AI-hopp för namnet här).
+  const stripped = stripIngredient(items[0].name);
+  const alias = await prisma.ingredientAlias.findUnique({ where: { raw: stripped } });
+  const names = [...new Set([stripped, alias?.canonical].filter((n): n is string => !!n))];
+
+  const packagingUnits = [...new Set(
+    items.map(i => (i.unit ?? '').toLowerCase().trim()).filter(u => isPackagingUnit(u))
+  )];
+
+  const equivalences = await resolveEquivalences(names, packagingUnits, 4000);
+  const suggestion = suggestMerge(items.map(i => ({ quantity: i.quantity, unit: i.unit })), equivalences);
+  res.json({ suggestion });
+}));
+
 // POST /api/shopping/items/merge — create a new synthetic merge container,
 // hide all source items under it. On delete/unmerge the container disappears
 // and the originals re-emerge intact.
@@ -466,6 +504,19 @@ shoppingRouter.post('/items/merge', requireAuth, asyncHandler(async (req, res) =
     });
     return created;
   });
+
+  // Inlärning: promota/demota förpacknings-ekvivalenser utifrån vad användaren
+  // faktiskt valde (fire-and-forget — får aldrig blockera eller fälla merge:n).
+  {
+    const strippedName = stripIngredient(sources[0].name);
+    prisma.ingredientAlias.findUnique({ where: { raw: strippedName } })
+      .then(alias => learnEquivalenceFromMerge(
+        sources.map(s => ({ name: s.name, quantity: s.quantity, unit: s.unit })),
+        { name: body.data.name, quantity: body.data.quantity, unit: body.data.unit },
+        [...new Set([strippedName, alias?.canonical].filter((n): n is string => !!n))],
+      ))
+      .catch(() => {});
+  }
 
   bcast(list, { type: 'item_added', data: container });
   for (const id of body.data.sourceIds) {

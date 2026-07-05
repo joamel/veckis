@@ -341,7 +341,7 @@
 - [x] Long press för att flytta maträtt: dragcentrum glider upp till kortets överkant (man håller i toppen istället för mitten) — dold offset bör kompenseras så gripen sker i faktisk tryckpunkt: ghost positioneras nu via `e.y` (finger-Y inom kortet) istället för fast offset -28; ghost top = absoluteY − touchOffsetY
 - [x] Klistra in ett recept i manuellt-läget vid skapande av recept: "Klistra in recepttext (AI tolkar)"-toggle i manuellt-läge expanderar en TextInput + "Tolka och skapa recept"-knapp; backend POST /api/recipes/parse-text (Claude Haiku) extraherar titel, ingredienser, instruktioner och beskrivning ur godtycklig text (upp till 80 000 tecken) — klarar hela webbsidor, råa recepttexter m.m.
 - [x] "Laga nu"-läge i receptvyn: Kontextberoende FAB nere till höger — från kalender visas "Laga nu" (restaurang-ikon), från menyn visas kundkorg. Laga-läget är helskärm med mörk bakgrund; ingredienser som diskret horisontellt scroll-band överst; stegnavigering Föregående/Nästa + progress-dots; sista steget avslutar med "Klart!"-knapp.
-- [ ] Borde inte gå att lägga till en veckomeny-mall i en gammal veckomeny. Bara spara en gammal veckomeny som en ny mall.
+- [x] Borde inte gå att lägga till en veckomeny-mall i en gammal veckomeny. Bara spara en gammal veckomeny som en ny mall.
 - [x] Ny maträtt i veckomenyn syns inte direkt utan kräver manuell siduppdatering — optimistisk uppdatering fungerar inte för alla lägga-till-flöden; sannolikt blockerad av suppressMenuReloadRef eller saknas i en specifik add-stig
 - [x] Exportera/dela veckomenyn — lägg en "Dela"-knapp i mall-knappens meny (bredvid Spara som mall / Applicera mall) som genererar en textsummering eller bild av veckans rätter och delar via systemets share-sheet. Enkelt att implementera, socialt värde (familjeplanning, dela med partner/föräldrar).
 
@@ -459,7 +459,7 @@
 - [x] Identifiera storleksordning på mått så att den alltid går på det största måttet när den ska slå ihop samma vara (helper + tester + integration i planAutoMerge: grupperar på namn, kombinerar kompatibla enheter via combineQuantities, faller tillbaka på per-enhet-subgrupper för inkompatibla)
 - [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori när den importerar recept.
 - [ ] kanske en agent som lär sig hur användaren brukar lägga till basvaror, aktiviteter etc för att få en bättre UI experience?
-- [ ] Bli ännu smartare på ihopslagning av dubbletter. Så att den förstår att 400 g + 1 paket --> 2 paket istället för 401 g etc
+- [x] Bli ännu smartare på ihopslagning av dubbletter. Så att den förstår att 400 g + 1 paket --> 2 paket istället för 401 g etc. **Fas 1 byggd**: global UnitEquivalence-tabell (seedad med ~16 svenska förpackningsstorlekar, påfylld av Claude Haiku vid behov, promotad/demotad av användarnas faktiska merges via learnEquivalenceFromMerge), pure suggestMerge (ceil till hela förpackningar av största enheten), POST /api/shopping/merge-suggestion, async prefill i dubblettdialogen med dirty-guard + ✨-hint. Fas 2 (auto-merge med user-bekräftade ekvivalenser, confirmedOnly) = designad i planAutoMerge men ej inkopplad än.
 
 ---
 

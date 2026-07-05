@@ -123,6 +123,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [manualPickerOpen, setManualPickerOpen] = useState(false);
   const mergeScrollRef = useRef<ScrollView>(null);
   const mergeRowY = useRef(0); // qty/unit row offset within the merge scroll content
+  // Smart merge-förslag: AI/förpackningskunskap hämtas async och får bara
+  // skriva över prefillen om användaren inte hunnit röra fälten (dirty-ref —
+  // state vore stale i fetch-closuren). Seq-token skyddar mot att ett sent
+  // svar för förra dupe-gruppen landar i nästa.
+  const [mergeSuggestionApplied, setMergeSuggestionApplied] = useState(false);
+  const mergeFieldsDirtyRef = useRef(false);
+  const mergeSuggestionSeq = useRef(0);
   const [manualPickerSelected, setManualPickerSelected] = useState<Set<string>>(new Set());
 
   // Category browser modal
@@ -397,6 +404,23 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setMergeName(capitalize(dupes[0].name));
     setMergeCategory(dupes[0].category as StoreCategory);
     setTimeout(() => mergeScrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
+
+    // Smart förslag (förpacknings-ekvivalenser): naiva prefillen ovan visas
+    // direkt; om servern hittar något bättre uppdateras fälten — men bara om
+    // användaren inte hunnit röra dem. Offline/fel → dagens beteende.
+    setMergeSuggestionApplied(false);
+    mergeFieldsDirtyRef.current = false;
+    const seq = ++mergeSuggestionSeq.current;
+    client.getMergeSuggestion({ itemIds: dupes.map(d => d.id) })
+      .then(({ suggestion }) => {
+        if (seq !== mergeSuggestionSeq.current || !suggestion) return;
+        if (mergeFieldsDirtyRef.current) return;
+        setMergeQty(String(suggestion.quantity).replace('.', ','));
+        setMergeUnit(suggestion.unit);
+        setMergeSuggestionApplied(true);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const categoryOrder: StoreCategory[] = (list?.store?.categoryOrder as StoreCategory[]) ?? DEFAULT_CATEGORY_ORDER;
@@ -689,6 +713,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   }
 
   function toggleMergeSelected(id: string) {
+    // Förslaget beräknades för hela gruppen — annat urval gör det ogiltigt.
+    mergeFieldsDirtyRef.current = true;
+    setMergeSuggestionApplied(false);
     setMergeSelected(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -1812,38 +1839,41 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               >
                 <Pressable
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
-                  onPress={() => setMergeQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
+                  onPress={() => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ',')); }}
                 >
                   <Ionicons name="remove" size={18} color="#4e7a5e" />
                 </Pressable>
                 <TextInput
                   style={[s.qtyInput, { fontSize: 16, fontWeight: '600', paddingVertical: 6 }]}
                   value={mergeQty}
-                  onChangeText={t => setMergeQty(normalizeQtyInput(t))}
+                  onChangeText={t => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeQty(normalizeQtyInput(t)); }}
                   keyboardType="decimal-pad"
                   selectTextOnFocus
                   onFocus={scrollMergeRowIntoView}
                 />
                 <Pressable
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
-                  onPress={() => setMergeQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ','))}
+                  onPress={() => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ',')); }}
                 >
                   <Ionicons name="add" size={18} color="#4e7a5e" />
                 </Pressable>
                 <TextInput
                   style={[s.qtyUnitInput, { fontSize: 13, paddingVertical: 6, paddingHorizontal: 8 }]}
                   value={mergeUnit}
-                  onChangeText={v => setMergeUnit(v.toLowerCase())}
+                  onChangeText={v => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeUnit(v.toLowerCase()); }}
                   placeholder={str.placeholders.unit}
                   placeholderTextColor="#a8a29e"
                   autoCapitalize="none"
                   onFocus={scrollMergeRowIntoView}
                 />
               </View>
+              {mergeSuggestionApplied && (
+                <Text style={s.mergeSuggestionHint}>✨ AI-förslag: hela förpackningar</Text>
+              )}
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">
                 <View style={s.unitChipRow}>
                   {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
-                    <Pressable key={u} style={[s.unitChip, mergeUnit === u && s.unitChipActive]} onPress={() => setMergeUnit(v => v === u ? '' : u)}>
+                    <Pressable key={u} style={[s.unitChip, mergeUnit === u && s.unitChipActive]} onPress={() => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeUnit(v => v === u ? '' : u); }}>
                       <Text style={[s.unitChipText, mergeUnit === u && s.unitChipTextActive]}>{u}</Text>
                     </Pressable>
                   ))}
@@ -2296,8 +2326,13 @@ const s = StyleSheet.create({
   unitChipText: { fontSize: 13, color: '#44403c', fontWeight: '500' },
   unitChipTextActive: { color: '#4e7a5e', fontWeight: '600' },
   mergeItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
-  mergeItemName: { fontSize: 16, color: '#44403c', flex: 1 },
-  mergeItemQty: { fontSize: 14, color: '#78716c' },
+  // Samma lineHeight på namn + mängd — olika fontSize ger annars olika
+  // baslinjer i den centrerade raden. Fast bredd + textAlign right på mängden
+  // så siffrorna bildar en rak högerkolumn oavsett rad (Androids textmätning
+  // gav annars olika högerkant per rad).
+  mergeItemName: { fontSize: 16, lineHeight: 22, color: '#44403c', flex: 1 },
+  mergeItemQty: { fontSize: 15, lineHeight: 22, color: '#78716c', width: 84, textAlign: 'right' },
+  mergeSuggestionHint: { fontSize: 12, color: '#4e7a5e', marginTop: 2, marginBottom: 4 },
   mergeDivider: { height: 1, backgroundColor: '#e7e5e4', marginTop: 4 },
   itemWrap: { position: 'relative' },
   itemDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
