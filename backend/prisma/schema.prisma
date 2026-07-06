@@ -215,6 +215,9 @@ model Recipe {
   imagePublicId String?  // Cloudinary public_id for the uploaded image, so we can delete it on change/recipe-delete
   servings    Int      @default(4)
   timesUsed   Int      @default(0)
+  // Fritt taggbara etiketter ("vegetariskt", "snabbt", "favorit" …) —
+  // gemener/trimmade, används för filtrering i receptlistan.
+  tags        String[] @default([])
   createdBy   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

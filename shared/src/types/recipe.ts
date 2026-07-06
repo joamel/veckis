@@ -12,6 +12,8 @@ export interface Recipe {
   imagePublicId: string | null;
   servings: number;
   timesUsed: number;
+  /** Gemener/trimmade etiketter ("vegetariskt", "snabbt", "favorit" …) */
+  tags: string[];
   createdBy: string;
   createdAt: string;
   updatedAt: string;

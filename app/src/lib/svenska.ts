@@ -680,6 +680,14 @@ export const recipes = {
     placeholder: 'Sök på namn eller ingrediens…',
   },
 
+  tags: {
+    label:          'Taggar',
+    editHint:       'Tryck för att välja, eller skriv en egen',
+    addPlaceholder: 'Egen tagg…',
+    // Förslags-chips i redigeringsläget (utöver hushållets redan använda taggar)
+    suggested: ['favorit', 'vegetariskt', 'snabbt', 'barnvänligt', 'vardag', 'helg', 'billigt'] as readonly string[],
+  },
+
   sort: {
     modalTitle: 'Sortera recept',
     a11y:       'Sortera recept',
