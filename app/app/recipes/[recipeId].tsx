@@ -60,6 +60,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [editDesc, setEditDesc] = useState('');
   const [editInstr, setEditInstr] = useState('');
   const [editImage, setEditImage] = useState('');
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [customTag, setCustomTag] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
 
   // Cooking mode
@@ -283,6 +285,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     setEditDesc(recipe.description ?? '');
     setEditInstr(recipe.instructions ?? '');
     setEditImage(recipe.imageUrl ?? '');
+    setEditTags(recipe.tags ?? []);
+    setCustomTag('');
     setEditIngredients(recipe.ingredients.map(i => ({
       name: i.name,
       quantity: i.quantity != null ? String(i.quantity).replace('.', ',') : '',
@@ -291,12 +295,26 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     setEditMode(true);
   }
 
+  function toggleEditTag(tag: string) {
+    const t = tag.toLowerCase().trim();
+    if (!t) return;
+    setEditTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+  }
+
+  function addCustomTag() {
+    const t = customTag.toLowerCase().trim();
+    if (!t) return;
+    setEditTags(prev => prev.includes(t) ? prev : [...prev, t]);
+    setCustomTag('');
+  }
+
   function isEditDirty(): boolean {
     if (!recipe) return false;
     if (editTitle !== recipe.title) return true;
     if (editDesc !== (recipe.description ?? '')) return true;
     if (editInstr !== (recipe.instructions ?? '')) return true;
     if (editImage !== (recipe.imageUrl ?? '')) return true;
+    if (JSON.stringify(editTags) !== JSON.stringify(recipe.tags ?? [])) return true;
     const origIngs = recipe.ingredients.map(i => ({
       name: i.name,
       quantity: i.quantity != null ? String(i.quantity).replace('.', ',') : '',
@@ -338,6 +356,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         instructions: editInstr.trim() || null,
         imageUrl: img || null,
         ingredients,
+        tags: editTags,
       });
       setRecipe(updated);
       setEditMode(false);
@@ -560,6 +579,47 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             </Pressable>
           )}
         </View>
+
+        {/* Taggar — läs-läge: visa som chips; edit-läge: förslags-chips + egen */}
+        {!editMode && (recipe.tags?.length ?? 0) > 0 && (
+          <View style={s.tagRow}>
+            {recipe.tags.map(t => (
+              <View key={t} style={s.tagChip}>
+                <Text style={s.tagChipText}>{t}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        {editMode && (
+          <View>
+            <Text style={s.editLabel}>{str.tags.label}</Text>
+            <View style={s.tagRow}>
+              {[...new Set([...str.tags.suggested, ...editTags])].map(t => {
+                const active = editTags.includes(t);
+                return (
+                  <Pressable key={t} style={[s.tagChip, active && s.tagChipActive]} onPress={() => toggleEditTag(t)}>
+                    <Text style={[s.tagChipText, active && s.tagChipTextActive]}>{t}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={s.tagAddRow}>
+              <TextInput
+                style={[s.renameInput, { flex: 1, marginBottom: 0 }]}
+                value={customTag}
+                onChangeText={setCustomTag}
+                placeholder={str.tags.addPlaceholder}
+                placeholderTextColor="#a8a29e"
+                autoCapitalize="none"
+                onSubmitEditing={addCustomTag}
+                returnKeyType="done"
+              />
+              <Pressable style={[s.tagAddBtn, !customTag.trim() && { opacity: 0.4 }]} onPress={addCustomTag} disabled={!customTag.trim()}>
+                <Ionicons name="add" size={20} color="#fff" />
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {editMode ? (
           <View>
@@ -1070,6 +1130,13 @@ const s = StyleSheet.create({
   editImagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: '#f1efec', marginTop: 8 },
   metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   metaChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f1efec', flexShrink: 0 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  tagChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#ecf3ec', flexShrink: 0 },
+  tagChipActive: { backgroundColor: '#4e7a5e' },
+  tagChipText: { fontSize: 12, fontWeight: '600', color: '#4e7a5e' },
+  tagChipTextActive: { color: '#fff' },
+  tagAddRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  tagAddBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center' },
   servingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f1efec', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
   servingBtn: { padding: 2 },
   metaText: { fontSize: 13, color: '#78716c' },

@@ -166,19 +166,36 @@ export default function RecipesScreen() {
     router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${day}${weekSuffix}` as never);
   }
 
+  // Tagg-filter: alla taggar som förekommer i hushållets recept, vanligast först.
+  const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
+  const allTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of recipes) for (const t of r.tags ?? []) counts.set(t, (counts.get(t) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'sv')).map(([t]) => t);
+  }, [recipes]);
+  const toggleTagFilter = (tag: string) => setActiveTags(prev => {
+    const next = new Set(prev);
+    if (next.has(tag)) next.delete(tag); else next.add(tag);
+    return next;
+  });
+
   const filteredRecipes = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    const base = q
+    let base = q
       ? recipes.filter(r =>
           r.title.toLowerCase().includes(q) ||
           r.ingredients.some(i => i.name.toLowerCase().includes(q)))
       : recipes;
+    // AND-filter: receptet måste ha ALLA valda taggar (smalnar av urvalet).
+    if (activeTags.size > 0) {
+      base = base.filter(r => [...activeTags].every(t => (r.tags ?? []).includes(t)));
+    }
     return [...base].sort((a, b) => {
       if (sortMode === 'used') return (b.timesUsed ?? 0) - (a.timesUsed ?? 0) || a.title.localeCompare(b.title);
       if (sortMode === 'recent') return (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
       return a.title.localeCompare(b.title);
     });
-  }, [recipes, searchQuery, sortMode]);
+  }, [recipes, searchQuery, sortMode, activeTags]);
 
   // New recipe form
   const [mode, setMode] = useState<'manual' | 'url'>('manual');
@@ -368,6 +385,26 @@ export default function RecipesScreen() {
             </Pressable>
           )}
         </View>
+        {/* Tagg-filter — visas först när hushållet har taggat recept. AND-filter. */}
+        {allTags.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tagFilterScroll} keyboardShouldPersistTaps="handled">
+            <View style={s.tagFilterRow}>
+              {allTags.map(t => {
+                const active = activeTags.has(t);
+                return (
+                  <Pressable key={t} style={[s.tagFilterChip, active && s.tagFilterChipActive]} onPress={() => toggleTagFilter(t)}>
+                    <Text style={[s.tagFilterChipText, active && s.tagFilterChipTextActive]}>{t}</Text>
+                  </Pressable>
+                );
+              })}
+              {activeTags.size > 0 && (
+                <Pressable style={s.tagFilterClear} onPress={() => setActiveTags(new Set())} hitSlop={6}>
+                  <Ionicons name="close-circle" size={16} color="#a8a29e" />
+                </Pressable>
+              )}
+            </View>
+          </ScrollView>
+        )}
       </View>
 
       {selectionMode && (
@@ -653,6 +690,13 @@ const s = StyleSheet.create({
   header: { padding: 20, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec', gap: 12 },
   title: { fontSize: 28, fontWeight: '700', color: '#292524' },
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f1efec', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
+  tagFilterScroll: { marginTop: 8 },
+  tagFilterRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  tagFilterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#ecf3ec', flexShrink: 0 },
+  tagFilterChipActive: { backgroundColor: '#4e7a5e' },
+  tagFilterChipText: { fontSize: 12, fontWeight: '600', color: '#4e7a5e' },
+  tagFilterChipTextActive: { color: '#fff' },
+  tagFilterClear: { paddingHorizontal: 4 },
   sortBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
   sortOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   sortOptionText: { fontSize: 16, color: '#292524', fontWeight: '500' },

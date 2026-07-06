@@ -49,6 +49,12 @@ const ingredientSchema = z.object({
   category: categoryEnum.default('other'),
 });
 
+const tagsSchema = z.array(z.string().min(1).max(30)).max(10);
+/** Normalisera taggar: gemener, trimmade, dedupe:ade, tomma bortfiltrerade. */
+function normalizeTags(tags: string[]): string[] {
+  return [...new Set(tags.map(t => t.toLowerCase().trim()).filter(Boolean))];
+}
+
 const createRecipeSchema = z.object({
   householdId: z.string(),
   title: z.string().min(1).max(200),
@@ -58,6 +64,7 @@ const createRecipeSchema = z.object({
   imageUrl: z.string().url().nullable().optional(),
   servings: z.number().int().positive().default(4),
   ingredients: z.array(ingredientSchema).default([]),
+  tags: tagsSchema.optional(),
 });
 
 const updateRecipeSchema = z.object({
@@ -67,6 +74,7 @@ const updateRecipeSchema = z.object({
   imageUrl: z.string().url().nullable().optional(),
   servings: z.number().int().positive().optional(),
   ingredients: z.array(ingredientSchema).optional(),
+  tags: tagsSchema.optional(),
 });
 
 // GET /api/recipes?householdId=
@@ -108,10 +116,11 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   const body = createRecipeSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const { ingredients, ...recipeData } = body.data;
+  const { ingredients, tags, ...recipeData } = body.data;
   const recipe = await prisma.recipe.create({
     data: {
       ...recipeData,
+      ...(tags !== undefined ? { tags: normalizeTags(tags) } : {}),
       createdBy: (req as AuthenticatedRequest).clerkUserId,
       ingredients: { create: ingredients as Prisma.RecipeIngredientCreateWithoutRecipeInput[] },
     } as Prisma.RecipeUncheckedCreateInput,
@@ -146,7 +155,8 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
   const body = updateRecipeSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const { ingredients, ...recipeData } = body.data;
+  const { ingredients, tags, ...restData } = body.data;
+  const recipeData = { ...restData, ...(tags !== undefined ? { tags: normalizeTags(tags) } : {}) };
 
   // If the user clears the image (imageUrl: null), also clear the Cloudinary asset.
   const clearingImage = 'imageUrl' in recipeData && recipeData.imageUrl === null && recipe.imagePublicId;
