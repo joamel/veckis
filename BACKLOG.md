@@ -172,6 +172,10 @@
 
 
 ### Inköpslistan
+- [ ] "Jag handlar"-läget borde notifiera den aktiva handlaren när någon annan lägger till en vara på listan under tiden (push till activeShopper, inte till den som lade till)
+- [ ] Ångra-toast när man klarmarkerar en hel kategori (samma mönster som övriga ångra-toasts)
+- [ ] Underkategorier borde gå att flytta runt/sortera i butiksredigeraren likt huvudkategorier — så att de fyller en funktion i plocklistans ordning
+- [ ] Kunna välja underkategori redan när man LÄGGER TILL en vara (idag bara via redigera efteråt)
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
 - [x] När man lägger till en inköpslista borde man kunna välja butik direkt -> skapa butik om den inte finns
 - [x] Även kunna redigera namnet på ingrediensen när man long pressar

@@ -2202,8 +2202,9 @@ const s = StyleSheet.create({
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 2, paddingBottom: 80 },
   contentEmpty: { flex: 1 },
-  section: { gap: 2 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#b96a45', letterSpacing: 0.8, paddingHorizontal: 2 },
+  section: { gap: 6 },
+  // marginTop ger luft mellan föregående sektions sista kort och nästa rubrik.
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#b96a45', letterSpacing: 0.8, paddingHorizontal: 2, marginTop: 14 },
   menuCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c6ddcd', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   menuIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
   menuTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
