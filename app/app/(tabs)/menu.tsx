@@ -173,18 +173,34 @@ function InvSlider({ total, value, step, onLive, onCommit, onDragEnd }: {
     const pct = dragPct.value >= 0 ? dragPct.value : basePct.value;
     return { transform: [{ translateX: Math.max(0, Math.min(trackW.value - 18, pct * trackW.value - 9)) }] };
   });
-  return (
-    <GestureDetector gesture={gesture}>
-      <View
-        style={s.invSliderTrack}
-        onLayout={e => { trackW.value = e.nativeEvent.layout.width; }}
-      >
-        <View style={s.invSliderRail} />
-        <Animated.View style={[s.invSliderFill, fillStyle]} />
-        <Animated.View style={[s.invSliderThumb, thumbStyle]} />
-      </View>
-    </GestureDetector>
+  const track = (
+    <View
+      style={s.invSliderTrack}
+      onLayout={e => { trackW.value = e.nativeEvent.layout.width; }}
+    >
+      <View style={s.invSliderRail} />
+      <Animated.View style={[s.invSliderFill, fillStyle]} />
+      <Animated.View style={[s.invSliderThumb, thumbStyle]} />
+    </View>
   );
+  // Web/PWA: GestureDetector sätter touch-action:none på spåret → scroll som
+  // börjar på en slider blockeras. På web: tap-to-set via Pressable istället.
+  if (Platform.OS === 'web') {
+    return (
+      <Pressable
+        onPress={e => {
+          const w = trackW.value;
+          if (w <= 0 || total <= 0) return;
+          const ratio = Math.min(1, Math.max(0, e.nativeEvent.locationX / w));
+          const raw = Math.round((ratio * total) / step) * step;
+          onCommit(Math.max(0, Math.min(Math.round(raw * 100) / 100, total)));
+        }}
+      >
+        {track}
+      </Pressable>
+    );
+  }
+  return <GestureDetector gesture={gesture}>{track}</GestureDetector>;
 }
 
 // En mätbar inventeringsrad som EGEN komponent — under drag uppdateras bara
