@@ -61,6 +61,7 @@ export interface NotificationPreferences {
   listCleared: boolean;
   newMember: boolean;
   shopperClaimed: boolean;
+  shopperItemAdded: boolean;
   choreCompleted: boolean;
   reminderMinutes: number;
 }

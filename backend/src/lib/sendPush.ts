@@ -3,7 +3,7 @@ import { prisma } from '../db';
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 /** Preference keys on NotificationPreference — one per notification type. */
-export type NotificationType = 'activityReminder' | 'choreOverdue' | 'listCleared' | 'newMember' | 'shopperClaimed' | 'choreCompleted';
+export type NotificationType = 'activityReminder' | 'choreOverdue' | 'listCleared' | 'newMember' | 'shopperClaimed' | 'shopperItemAdded' | 'choreCompleted';
 
 interface PushPayload {
   title: string;
@@ -112,6 +112,35 @@ export async function deliverPush(
     errors.push(err instanceof Error ? err.message : String(err));
     return { tokens: 0, errors };
   }
+}
+
+/**
+ * Push till den aktiva handlaren när någon ANNAN lägger in varor medan
+ * "Jag handlar" är aktivt — så inget saknas när man kommer hem. Throttlas
+ * via NotificationLog (max en notis per lista per 10-minutersfönster, annars
+ * spam när många varor läggs i rad). Lokala profiler (utan clerkUserId) kan
+ * inte pushas. Fire-and-forget — får aldrig fälla requesten som triggade den.
+ */
+export async function notifyActiveShopper(
+  list: { id: string; name: string; activeShopperMemberId: string | null },
+  adderClerkUserId: string,
+  itemLabel: string,
+): Promise<void> {
+  if (!list.activeShopperMemberId) return;
+  const shopper = await prisma.householdMember.findUnique({
+    where: { id: list.activeShopperMemberId },
+    select: { clerkUserId: true },
+  });
+  if (!shopper?.clerkUserId || shopper.clerkUserId === adderClerkUserId) return;
+
+  const bucket = Math.floor(Date.now() / (10 * 60 * 1000));
+  if (!(await claimNotification(`shopper-item-added:${list.id}:${bucket}`))) return;
+
+  await sendPush([shopper.clerkUserId], 'shopperItemAdded', {
+    title: 'Ny vara på listan',
+    body: `${itemLabel} lades till i "${list.name}" medan du handlar`,
+    data: { type: 'shopperItemAdded', listId: list.id },
+  });
 }
 
 /**

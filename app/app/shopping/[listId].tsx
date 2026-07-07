@@ -842,6 +842,20 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         }
       }
     }));
+    // Ångra-toast: bocka ur samma varor igen (samma mönster som rensa/merge).
+    const ids = unchecked.map(i => i.id);
+    showGlobalToast(str.toasts.categoryChecked(ids.length), 'success', {
+      label: common.actions.undo,
+      onPress: async () => {
+        setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: false } : i) } : prev);
+        try {
+          await Promise.all(ids.map(id => client.checkShoppingItem(id, false)));
+        } catch (e) {
+          showError(e, str.toasts.errorUncheck);
+          load();
+        }
+      },
+    });
   }
 
   function fillEditForm(item: ShoppingItemWithRecipe) {

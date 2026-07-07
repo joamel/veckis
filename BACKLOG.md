@@ -172,8 +172,8 @@
 
 
 ### Inköpslistan
-- [ ] "Jag handlar"-läget borde notifiera den aktiva handlaren när någon annan lägger till en vara på listan under tiden (push till activeShopper, inte till den som lade till)
-- [ ] Ångra-toast när man klarmarkerar en hel kategori (samma mönster som övriga ångra-toasts)
+- [x] "Jag handlar"-läget notifierar nu den aktiva handlaren när någon annan lägger till en vara under tiden: notifyActiveShopper i sendPush.ts (push till activeShopper, aldrig till den som lade till; lokala profiler kan inte pushas), throttlad till max 1 notis/lista/10-min via NotificationLog-dedup, gäller både manuell add och veckomeny-transfer. Ny preferens shopperItemAdded (default på) i notisinställningarna
+- [x] Ångra-toast när man klarmarkerar en hel kategori — "N varor klarmarkerade" med Ångra som bockar ur samma varor igen (optimistiskt + rollback via load vid fel)
 - [ ] Underkategorier borde gå att flytta runt/sortera i butiksredigeraren likt huvudkategorier — så att de fyller en funktion i plocklistans ordning
 - [ ] Kunna välja underkategori redan när man LÄGGER TILL en vara (idag bara via redigera efteråt)
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
