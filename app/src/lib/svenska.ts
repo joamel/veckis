@@ -398,6 +398,7 @@ export const shoppingList = {
     itemDeleted:      (name: string) => `${name} borttagen`,
     merged:           (n: number, name: string) => `Slog ihop ${n} ${name}`,
     categoryChecked:  (n: number) => `${n} vara${n === 1 ? '' : 'r'} klarmarkerad${n === 1 ? '' : 'e'}`,
+    shopperItemAdded: (name: string, who: string | null) => who ? `${who} la till ${name}` : `${name} tillagd på listan`,
     errorUncheck:     'Kunde inte ångra klarmarkeringen',
     cleared:          'Inköpslistan rensad',
     stapleSaved:      (name: string) => `${name} sparad som basvara`,

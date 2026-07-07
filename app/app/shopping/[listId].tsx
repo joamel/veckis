@@ -313,6 +313,16 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       showGlobalToast(str.toasts.merged(msg.data.count, capitalize(msg.data.name)), 'success');
       return;
     }
+    // Aktiv handlare med appen öppen: toast direkt när någon ANNAN lägger till
+    // en vara (varan dyker annars tyst upp i listan och kan missas). Pushen
+    // täcker bakgrundsfallet; toasten förgrundfallet.
+    if (msg.type === 'item_added' && iAmShopping) {
+      const exists = list?.items.some(i => i.id === msg.data.id);
+      const mine = !!msg.actor && myMember?.displayName === msg.actor;
+      if (!exists && !mine) {
+        showGlobalToast(str.toasts.shopperItemAdded(capitalize(msg.data.name), msg.actor ?? null), 'neutral');
+      }
+    }
     // Conflict warning: someone else changed/removed the item you have open for
     // editing. Last-write-wins still applies — this just makes the overwrite
     // visible instead of silent.
