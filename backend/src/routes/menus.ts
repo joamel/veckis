@@ -409,10 +409,11 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
     wsBroadcast(list.id, { type: 'item_added', data: item });
   }
 
-  // Meddela aktiv handlare om veckomeny-varor landade mitt under handlingen.
+  // Meddela aktiv handlare om veckomeny-varor landade mitt under handlingen —
+  // direkt sammanfattning (ingen batchning; överföringen ÄR redan batchen).
   const addedCount = updatedItems.length + createdItems.length;
   if (addedCount > 0) {
-    notifyActiveShopper(list, clerkUserId, `${addedCount} varor från veckomenyn`).catch(() => {});
+    notifyActiveShopper(list, clerkUserId, `${addedCount} varor från veckomenyn`, { immediate: true }).catch(() => {});
   }
 
   // Auto-soft-merge using the pure planner so behavior matches importDedupe tests.
