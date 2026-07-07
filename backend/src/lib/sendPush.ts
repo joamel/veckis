@@ -129,7 +129,9 @@ export async function deliverPush(
  * Lokala profiler (utan clerkUserId) kan inte pushas. Fire-and-forget —
  * får aldrig fälla requesten som triggade den.
  */
-const SHOPPER_ITEM_DEBOUNCE_MS = 60_000;
+// 30s — hinner samla en skur av tillägg utan att handlaren hunnit passera
+// hyllan varorna finns på (60s kändes för långsamt i butik).
+const SHOPPER_ITEM_DEBOUNCE_MS = 30_000;
 const shopperItemBuffers = new Map<string, { names: string[]; timer: NodeJS.Timeout }>();
 
 function capitalizeFirst(s: string): string {
