@@ -2187,34 +2187,16 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
     </>
   );
 
-  // Web/PWA: RNGH:s GestureDetector sätter touch-action:none på raden →
-  // vertikal scroll som börjar på en vara blockeras (samma bugg som meny-
-  // korten hade). På web: ingen gest, delete via ✕-knapp istället för swipe.
-  if (Platform.OS === 'web') {
-    return (
-      <View style={s.swipeRowWrap}>
-        <Pressable
-          style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
-          onPress={pending ? undefined : onToggle}
-          onLongPress={pending ? undefined : onEdit}
-        >
-          {rowContent}
-        </Pressable>
-        {onDelete && !pending && (
-          <Pressable style={s.itemDeleteBtn} onPress={onDelete} hitSlop={8} accessibilityLabel="Ta bort vara">
-            <Ionicons name="close-circle" size={22} color="#ef4444" />
-          </Pressable>
-        )}
-      </View>
-    );
-  }
-
   return (
     <View style={s.swipeRowWrap}>
       <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeDeleteBg, bgStyle]}>
         <Ionicons name="trash-outline" size={22} color="#fff" />
       </RNAnimated.View>
-      <GestureDetector gesture={panGesture}>
+      {/* touchAction="pan-y" (web-only, ignoreras på native): webbläsaren
+          behåller vertikal scroll själv medan horisontella drag går till
+          swipe-gesten — utan den sätter RNGH touch-action:none och all
+          scroll som börjar på en rad blockeras i PWA:n. */}
+      <GestureDetector gesture={panGesture} touchAction="pan-y">
         <RNAnimated.View style={rowAnimStyle}>
           <Pressable
             style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
