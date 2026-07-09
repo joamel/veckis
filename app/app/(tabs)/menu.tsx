@@ -485,7 +485,6 @@ export default function MenuScreen() {
   // Auto-scroll during drag near screen edges
   const menuScrollRef = useRef<ScrollView | null>(null);
   const weekListRef = useRef<FlatList<number>>(null);
-  const weekScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Virtualised week pager: a long list of week offsets so swiping never has to
   // recenter (which is what caused the flash). The arrows just scrollToIndex.
   const WEEK_SPAN = 104; // ±2 years of weeks
@@ -1447,10 +1446,27 @@ export default function MenuScreen() {
         onPickDate={() => setShowWeekPicker(true)}
       />
 
-      {/* Virtualised week pager: each page is one week. Swiping just scrolls the
+      {/* Web/PWA: en nästlad vertikal ScrollView i en horisontell pager gör att
+          webbläsaren aldrig delegerar vertikala drag till innerlistan → gick
+          inte att scrolla. På web renderas därför bara aktuell vecka som en
+          rak vertikal ScrollView; veckobyte sker via pilarna/Idag (goToWeek
+          sätter weekOffset, scrollToIndex blir no-op utan FlatList-ref). */}
+      {Platform.OS === 'web' ? (
+        <ScrollView
+          ref={menuScrollRef}
+          style={s.content}
+          contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet]}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
+          onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
+          scrollEventThrottle={32}
+        >
+          {renderWeekContent(weekItemsForOffset(weekOffset), getWeekMonday(weekOffset), true, weekOffset < 0)}
+        </ScrollView>
+      ) : (
+      /* Virtualised week pager: each page is one week. Swiping just scrolls the
           list (no recenter → no flash); arrows/Idag/picker scrollToIndex so they
           behave identically. Locked while dragging/editing so drag-and-drop
-          doesn't fight the swipe. Only the centred week is interactive. */}
+          doesn't fight the swipe. Only the centred week is interactive. */
       <FlatList
         ref={weekListRef}
         data={weekIndices}
@@ -1458,7 +1474,7 @@ export default function MenuScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        style={[s.content, (Platform.OS === 'web' ? { scrollSnapType: 'x mandatory' } : null) as any]}
+        style={s.content}
         scrollEnabled={!dragState}
         initialScrollIndex={weekOffset + WEEK_SPAN}
         getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
@@ -1473,21 +1489,12 @@ export default function MenuScreen() {
           const o = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
           if (o !== weekOffset) setWeekOffset(o);
         }}
-        onScroll={Platform.OS === 'web' ? e => {
-          const x = e.nativeEvent.contentOffset.x;
-          if (weekScrollTimer.current) clearTimeout(weekScrollTimer.current);
-          weekScrollTimer.current = setTimeout(() => {
-            const o = Math.round(x / weekPageW) - WEEK_SPAN;
-            if (o !== weekOffset) setWeekOffset(o);
-          }, 80);
-        } : undefined}
         renderItem={({ item: o }) => {
           const isCenter = o === weekOffset;
           return (
             <ScrollView
               ref={isCenter ? menuScrollRef : undefined}
               style={{ width: weekPageW }}
-              {...((Platform.OS === 'web' ? { dataSet: { weekpage: '' } } : {}) as any)}
               contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet]}
               refreshControl={isCenter ? <RefreshControl refreshing={false} onRefresh={load} /> : undefined}
               onScroll={isCenter ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }) : undefined}
@@ -1498,6 +1505,7 @@ export default function MenuScreen() {
           );
         }}
       />
+      )}
 
 
       {/* Overför-FAB (kundkorg) — visas bara för nuvarande/framtida veckor
