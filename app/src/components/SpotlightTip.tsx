@@ -46,8 +46,19 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
   const pulse = useRef(new Animated.Value(0)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
   const screen = Dimensions.get('window');
-  // Pre-measured rect from caller wins over our own measurement.
-  const rect = targetRect ?? measuredRect;
+  // Overlayns egen skärm-origin. measureInWindow (målet) räknar från skärmens
+  // absoluta topp (bakom status baren under edge-to-edge), men overlay-Viewns
+  // top:0 kan ligga NEDANFÖR status baren. Vi mäter overlayns origin och drar
+  // bort den → ringen hamnar rätt oavsett status bar/insets, utan att gissa
+  // riktning. Origin blir {0,0} när de råkar sammanfalla (t.ex. web).
+  const rootRef = useRef<View>(null);
+  const [origin, setOrigin] = useState({ x: 0, y: 0 });
+  // Målets skärm-rect (measureInWindow) — förmätt vinner.
+  const screenRect = targetRect ?? measuredRect;
+  // Justerad till overlay-lokala koordinater.
+  const rect: Rect | null = screenRect
+    ? { x: screenRect.x - origin.x, y: screenRect.y - origin.y, width: screenRect.width, height: screenRect.height }
+    : null;
 
   // Measure the target after layout has settled. The target may not be laid
   // out yet when the tip useEffect fires (especially inside headers that mount
@@ -137,7 +148,17 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
   // rymd som measureInWindow → ringen ligger alltid rätt, på alla plattformar.
   // Provider:n monterar den sist i trädet; hög elevation/zIndex lägger den överst.
   return (
-    <View style={s.overlayRoot} pointerEvents="box-none">
+    <View
+      ref={rootRef}
+      style={s.overlayRoot}
+      pointerEvents="box-none"
+      onLayout={() => {
+        // Mät overlayns egen skärm-origin så målkoordinaterna kan justeras.
+        rootRef.current?.measureInWindow((x, y) => {
+          if ((x || 0) !== origin.x || (y || 0) !== origin.y) setOrigin({ x: x || 0, y: y || 0 });
+        });
+      }}
+    >
       {/* Backdrop: 4 dim rects around the target ("hole"), or full dim. */}
       {rect ? (
         <>
