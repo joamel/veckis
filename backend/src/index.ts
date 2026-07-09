@@ -81,6 +81,25 @@ app.get(
   }),
 );
 
+// Keep-alive för gratis-hosting (Render free spinner ner efter ~15 min idle,
+// Neon-computen autosuspendar efter ~5 min). En extern cron-pinger (t.ex.
+// cron-job.org) som träffar denna var ~10:e minut håller BÅDE backend-processen
+// och DB-computen vakna → riktiga användare slipper 50s-kallstarten.
+//
+// Till skillnad från /health 500:ar den ALDRIG (även om DB-väckningen failar) —
+// annars larmar pingern "sajt nere" vid en tillfällig Neon-blink. DB-statusen
+// rapporteras i svaret för diagnostik, inte via HTTP-koden.
+app.get('/keepalive', async (_req, res) => {
+  let db = false;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    db = true;
+  } catch {
+    // Svälj — Neon kan vara mitt i uppvaknandet; queryn har ändå triggat den.
+  }
+  res.json({ ok: true, db, ts: new Date().toISOString() });
+});
+
 app.use('/api/households', householdRouter);
 app.use('/api/shopping', shoppingRouter);
 app.use('/api/stores', storesRouter);
