@@ -1,5 +1,5 @@
 import { type RefObject, useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, BackHandler, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { components as str } from '../lib/svenska';
 
@@ -79,6 +79,14 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [visible, targetRef, targetRect, screen.height, screen.width]);
 
+  // Android bakåt-knapp stänger tipset (parity med Modalens onRequestClose,
+  // som försvann när vi bytte till overlay-View).
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onDismiss(); return true; });
+    return () => sub.remove();
+  }, [visible, onDismiss]);
+
   // Pulse the ring while a spotlight is shown.
   useEffect(() => {
     if (!rect) return;
@@ -122,14 +130,14 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
   // så det finns gott om plats för demon utan att de överlappar.
   const dragCenter = { x: screen.width / 2, y: screen.height * 0.22 };
 
-  // statusBarTranslucent PÅ krävs med edge-to-edge (RN 0.81 / Expo SDK 54, default
-  // på Android): appen ritar bakom status baren, så measureInWindow ger skärm-
-  // absoluta Y INKL. status bar. Utan translucent börjar Modal-innehållet under
-  // status baren → ringen hamnar förskjuten nedåt med status bar-höjden. Med
-  // translucent täcker Modalen hela skärmen och origin matchar measureInWindow.
-  // No-op på web (ingen status bar → redan korrekt).
+  // Renderas som absolut overlay i app-trädet (INTE i en Modal). Med edge-to-edge
+  // (RN 0.81 / Expo SDK 54) har en Modal ett annat koordinat-origin än
+  // measureInWindow → ringen hamnar förskjuten med status bar-höjden, och
+  // statusBarTranslucent räckte inte. Overlayn delar nu exakt samma root-fönster-
+  // rymd som measureInWindow → ringen ligger alltid rätt, på alla plattformar.
+  // Provider:n monterar den sist i trädet; hög elevation/zIndex lägger den överst.
   return (
-    <Modal visible transparent statusBarTranslucent animationType="fade" onRequestClose={onDismiss}>
+    <View style={s.overlayRoot} pointerEvents="box-none">
       {/* Backdrop: 4 dim rects around the target ("hole"), or full dim. */}
       {rect ? (
         <>
@@ -316,7 +324,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
           </Animated.View>
         </>
       ) : null}
-    </Modal>
+    </View>
   );
 }
 
@@ -341,6 +349,10 @@ function computeCalloutTop(rect: Rect | null, screenH: number, swipeDemo?: 'hori
 }
 
 const s = StyleSheet.create({
+  // Absolut fyllnad över hela app-fönstret. Hög elevation/zIndex så tipset
+  // ligger ovanför flikar/innehåll. box-none på roten släpper igenom touch
+  // där inget barn fångar (barnen — dim/pressable — hanterar dismiss).
+  overlayRoot: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998, elevation: 9998 },
   dim: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.82)' },
   ring: {
     position: 'absolute',
