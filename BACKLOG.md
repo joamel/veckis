@@ -54,7 +54,7 @@
 - [x] Ny-butik-dialogen hoppade inte upp för tangentbordet: KAV hade `justifyContent:'flex-end'` men saknade `flex:1`/absolut fyllnad → ingen höjd att krympa. Fixat i stores/index.tsx + stores/[storeId].tsx (absolut fyllnad som recept-modalen).
 - [x] `Text`/`TextInput`-wrappern (allowFontScaling-fixen) droppade ref tyst (funktionskomponent utan forwardRef) → bröt allt som mäter/fokuserar via ref. Nu `forwardRef`.
 - [x] Skala upp recept under redigera → skalar ingredienserna proportionellt (ratio ny/gammal, komponerar korrekt; omätta som "salt" lämnas) och sparar nya portionsantalet som receptets standard. Portions-steppern i meta-raden är nu aktiv i edit-läget.
-- [ ] Onboarding-tips ramar in fel (ovanför/under målet) — koordinat-origin-offset (status bar vs Modal-referens); forwardRef-fixen kan hjälpa men fast vertikalt offset kräver device-repro för att bekräfta.
+- [x] Onboarding-tips ramade in fel i appen (rätt i PWA): edge-to-edge (RN 0.81/Expo SDK 54, default på Android) gör att appen ritar bakom status baren → measureInWindow ger skärm-absoluta Y medan tip-modalen utan statusBarTranslucent började under status baren. Fixat med statusBarTranslucent på SpotlightTip-modalen (no-op på web).
 - [ ] White screen när AI-parse av inklistrat recept failar istället för att återgå till receptsidan — trolig PWA-specifik (web unmountar till blankt vid ouppfångat fel, native visar 😵). Felhanteringen visar en confirm; behöver repro (native vs PWA + exakt feltext) för rotorsak.
 
 #### Regressions 2026-06-10

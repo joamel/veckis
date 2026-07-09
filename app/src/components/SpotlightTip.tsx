@@ -122,11 +122,14 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
   // så det finns gott om plats för demon utan att de överlappar.
   const dragCenter = { x: screen.width / 2, y: screen.height * 0.22 };
 
-  // statusBarTranslucent OFF on purpose: Modal coords then start at the app
-  // window top (below the status bar) and match measureInWindow's reference,
-  // so the spotlight ring lines up correctly with the target.
+  // statusBarTranslucent PÅ krävs med edge-to-edge (RN 0.81 / Expo SDK 54, default
+  // på Android): appen ritar bakom status baren, så measureInWindow ger skärm-
+  // absoluta Y INKL. status bar. Utan translucent börjar Modal-innehållet under
+  // status baren → ringen hamnar förskjuten nedåt med status bar-höjden. Med
+  // translucent täcker Modalen hela skärmen och origin matchar measureInWindow.
+  // No-op på web (ingen status bar → redan korrekt).
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onDismiss}>
+    <Modal visible transparent statusBarTranslucent animationType="fade" onRequestClose={onDismiss}>
       {/* Backdrop: 4 dim rects around the target ("hole"), or full dim. */}
       {rect ? (
         <>
