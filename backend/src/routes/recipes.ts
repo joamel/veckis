@@ -9,7 +9,8 @@ import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
 import { uploadRecipeImage, deleteRecipeImage } from '../lib/imageUpload';
-import { recipeAbuseLimiter } from '../lib/rateLimits';
+import { recipeAbuseLimiter, parseTextLimiter } from '../lib/rateLimits';
+import { safeFetch } from '../lib/ssrfGuard';
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -245,7 +246,7 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, asyncHandler(as
 }));
 
 // POST /api/recipes/parse-text
-recipesRouter.post('/parse-text', recipeAbuseLimiter, requireAuth, asyncHandler(async (req, res) => {
+recipesRouter.post('/parse-text', parseTextLimiter, requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({ text: z.string().min(1).max(100000) }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: 'Invalid text' }); return; }
   if (!anthropic) { res.status(503).json({ error: 'AI parsing not available' }); return; }
@@ -335,7 +336,9 @@ function parseInstructions(raw: any): string | null {
 }
 
 async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
-  const res = await fetch(url, {
+  // safeFetch validerar måladressen + varje redirect-hopp (SSRF-skydd) — en
+  // publik URL får inte redirecta vidare till en intern tjänst.
+  const res = await safeFetch(url, {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Veckis/1.0; +https://veckis.app)' },
     signal: AbortSignal.timeout(10000),
   });
