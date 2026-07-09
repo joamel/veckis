@@ -50,6 +50,13 @@
 
 - [x] PWA: gick inte att scrolla i inköpslistan — swipe-delete-gestens GestureDetector satte touch-action:none på varje varurad. RÄTT fix: touchAction="pan-y" på GestureDetector (RNGH ≥2.10, web-only prop) — webbläsaren behåller vertikal scroll, horisontella drag går till gesten → swipe-delete OCH scroll funkar på web precis som native. Samma på InvSlider i inventeringen. (Första försöket med ✕-knapp/tap-to-set förkastades.) Audit: maträttskorten kvar med dag-chips på web (deras drag är vertikalt → pan-y hjälper inte); push/SecureStore/haptik har web-varianter
 
+#### Feedback 2026-07-09
+- [x] Ny-butik-dialogen hoppade inte upp för tangentbordet: KAV hade `justifyContent:'flex-end'` men saknade `flex:1`/absolut fyllnad → ingen höjd att krympa. Fixat i stores/index.tsx + stores/[storeId].tsx (absolut fyllnad som recept-modalen).
+- [x] `Text`/`TextInput`-wrappern (allowFontScaling-fixen) droppade ref tyst (funktionskomponent utan forwardRef) → bröt allt som mäter/fokuserar via ref. Nu `forwardRef`.
+- [x] Skala upp recept under redigera → skalar ingredienserna proportionellt (ratio ny/gammal, komponerar korrekt; omätta som "salt" lämnas) och sparar nya portionsantalet som receptets standard. Portions-steppern i meta-raden är nu aktiv i edit-läget.
+- [ ] Onboarding-tips ramar in fel (ovanför/under målet) — koordinat-origin-offset (status bar vs Modal-referens); forwardRef-fixen kan hjälpa men fast vertikalt offset kräver device-repro för att bekräfta.
+- [ ] White screen när AI-parse av inklistrat recept failar istället för att återgå till receptsidan — trolig PWA-specifik (web unmountar till blankt vid ouppfångat fel, native visar 😵). Felhanteringen visar en confirm; behöver repro (native vs PWA + exakt feltext) för rotorsak.
+
 #### Regressions 2026-06-10
 - [x] Aktivitets-/sysslomodaler (schedule.tsx) hamnade under viewport på PWA: `<View style={{ flex: 1 }}>`-wrapper runt modal-innehållet tvingade overlay-Pressablen (flex:1) att fylla hela wrapphöjden → sheet puttades under skärmen. `ScrollView flex:1` i editingEntry + showModal gav 0-höjd i auto-höjd KAV-förälder utan definierad höjd på web. Båda borttagna — matchar nu inköpslistans flex-mönster.
 

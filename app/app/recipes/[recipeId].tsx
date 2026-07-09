@@ -61,6 +61,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [editInstr, setEditInstr] = useState('');
   const [editImage, setEditImage] = useState('');
   const [editTags, setEditTags] = useState<string[]>([]);
+  const [editServings, setEditServings] = useState(4);
   const [customTag, setCustomTag] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -287,12 +288,37 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     setEditImage(recipe.imageUrl ?? '');
     setEditTags(recipe.tags ?? []);
     setCustomTag('');
+    setEditServings(recipe.servings);
+    setScaledServings(null); // nollställ transient läs-skalning inför edit
     setEditIngredients(recipe.ingredients.map(i => ({
       name: i.name,
       quantity: i.quantity != null ? String(i.quantity).replace('.', ',') : '',
       unit: i.unit ?? '',
     })));
     setEditMode(true);
+  }
+
+  // Formatera skalad mängd: max 2 decimaler, trailing-nollor bort, komma-sep.
+  function fmtScaledQty(n: number): string {
+    return String(Math.round(n * 100) / 100).replace('.', ',');
+  }
+
+  // Portions-stepper i redigera-läget: skalar ingrediensmängderna proportionellt
+  // (ratio = ny/gammal — komponeras korrekt över flera steg) och sparar det nya
+  // portionsantalet som receptets standard vid Spara. Manuellt redigerade
+  // mängder respekteras (skalas från nuvarande värde, inte originalet).
+  function adjustEditServings(delta: number) {
+    setEditServings(prev => {
+      const next = Math.max(1, prev + delta);
+      if (next === prev) return prev;
+      const ratio = next / prev;
+      setEditIngredients(rows => rows.map(r => {
+        const q = parseFloat(r.quantity.replace(',', '.'));
+        if (!r.quantity.trim() || isNaN(q)) return r; // omätt (t.ex. "salt") → orört
+        return { ...r, quantity: fmtScaledQty(q * ratio) };
+      }));
+      return next;
+    });
   }
 
   function toggleEditTag(tag: string) {
@@ -314,6 +340,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     if (editDesc !== (recipe.description ?? '')) return true;
     if (editInstr !== (recipe.instructions ?? '')) return true;
     if (editImage !== (recipe.imageUrl ?? '')) return true;
+    if (editServings !== recipe.servings) return true;
     if (JSON.stringify(editTags) !== JSON.stringify(recipe.tags ?? [])) return true;
     const origIngs = recipe.ingredients.map(i => ({
       name: i.name,
@@ -355,10 +382,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         description: editDesc.trim() || null,
         instructions: editInstr.trim() || null,
         imageUrl: img || null,
+        servings: editServings,
         ingredients,
         tags: editTags,
       });
       setRecipe(updated);
+      setScaledServings(null); // visa nya bas-portionerna, inte gammal skalning
       setEditMode(false);
       if (forMenuDay !== undefined) {
         const weekSuffix = forMenuWeek ? `&forMenuWeek=${forMenuWeek}` : '';
@@ -558,14 +587,15 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
         {/* Meta */}
         <View style={s.metaRow}>
-          {/* Serving scaler */}
+          {/* Serving scaler — i edit-läget skalar den ingredienserna + sparar
+              nya portioner; i läs-läget bara transient display-skalning. */}
           <View style={s.servingChip}>
-            <Pressable onPress={() => adjustServings(-1)} style={s.servingBtn} hitSlop={8}>
+            <Pressable onPress={() => editMode ? adjustEditServings(-1) : adjustServings(-1)} style={s.servingBtn} hitSlop={8}>
               <Ionicons name="remove" size={14} color="#4e7a5e" />
             </Pressable>
             <Ionicons name="people-outline" size={14} color="#78716c" />
-            <Text style={s.metaText}>{displayServings} port.</Text>
-            <Pressable onPress={() => adjustServings(1)} style={s.servingBtn} hitSlop={8}>
+            <Text style={s.metaText}>{editMode ? editServings : displayServings} port.</Text>
+            <Pressable onPress={() => editMode ? adjustEditServings(1) : adjustServings(1)} style={s.servingBtn} hitSlop={8}>
               <Ionicons name="add" size={14} color="#4e7a5e" />
             </Pressable>
           </View>

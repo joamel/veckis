@@ -1,7 +1,7 @@
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
-import { createElement, useEffect, useState, type ComponentType } from 'react';
+import { createElement, forwardRef, useEffect, useState, type ComponentType } from 'react';
 import { Platform, View } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useTablet } from '../src/hooks/useTablet';
@@ -35,7 +35,12 @@ const RNModule = require('react-native') as Record<string, unknown>;
 for (const name of ['Text', 'TextInput'] as const) {
   const Orig = RNModule[name] as ComponentType<{ allowFontScaling?: boolean }> & { __fontScalingLocked?: boolean };
   if (!Orig || Orig.__fontScalingLocked) continue;
-  const Wrapped = (props: Record<string, unknown>) => createElement(Orig, { allowFontScaling: false, ...props });
+  // forwardRef är kritiskt: utan det droppas ref på Text/TextInput tyst, vilket
+  // bryter allt som mäter (onboarding-tips) eller fokuserar (KAV, autofokus) via
+  // ref. allowFontScaling sätts som default men kan överridas av explicit prop.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Wrapped = forwardRef<unknown, Record<string, unknown>>((props, ref) =>
+    createElement(Orig as any, { allowFontScaling: false, ...props, ref }));
   Wrapped.displayName = name;
   (Wrapped as { __fontScalingLocked?: boolean }).__fontScalingLocked = true;
   try {
