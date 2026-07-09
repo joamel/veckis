@@ -313,6 +313,16 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       showGlobalToast(str.toasts.merged(msg.data.count, capitalize(msg.data.name)), 'success');
       return;
     }
+    // Aktiv handlare med appen öppen: toast direkt när någon ANNAN lägger till
+    // en vara (varan dyker annars tyst upp i listan och kan missas). Pushen
+    // täcker bakgrundsfallet; toasten förgrundfallet.
+    if (msg.type === 'item_added' && iAmShopping) {
+      const exists = list?.items.some(i => i.id === msg.data.id);
+      const mine = !!msg.actor && myMember?.displayName === msg.actor;
+      if (!exists && !mine) {
+        showGlobalToast(str.toasts.shopperItemAdded(capitalize(msg.data.name), msg.actor ?? null), 'neutral');
+      }
+    }
     // Conflict warning: someone else changed/removed the item you have open for
     // editing. Last-write-wins still applies — this just makes the overwrite
     // visible instead of silent.
@@ -842,6 +852,20 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         }
       }
     }));
+    // Ångra-toast: bocka ur samma varor igen (samma mönster som rensa/merge).
+    const ids = unchecked.map(i => i.id);
+    showGlobalToast(str.toasts.categoryChecked(ids.length), 'success', {
+      label: common.actions.undo,
+      onPress: async () => {
+        setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: false } : i) } : prev);
+        try {
+          await Promise.all(ids.map(id => client.checkShoppingItem(id, false)));
+        } catch (e) {
+          showError(e, str.toasts.errorUncheck);
+          load();
+        }
+      },
+    });
   }
 
   function fillEditForm(item: ShoppingItemWithRecipe) {
@@ -2168,7 +2192,11 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
       <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeDeleteBg, bgStyle]}>
         <Ionicons name="trash-outline" size={22} color="#fff" />
       </RNAnimated.View>
-      <GestureDetector gesture={panGesture}>
+      {/* touchAction="pan-y" (web-only, ignoreras på native): webbläsaren
+          behåller vertikal scroll själv medan horisontella drag går till
+          swipe-gesten — utan den sätter RNGH touch-action:none och all
+          scroll som börjar på en rad blockeras i PWA:n. */}
+      <GestureDetector gesture={panGesture} touchAction="pan-y">
         <RNAnimated.View style={rowAnimStyle}>
           <Pressable
             style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}

@@ -10,6 +10,7 @@ import { stripIngredient } from '../lib/stripIngredient';
 import { wsBroadcast } from '../lib/wsHub';
 import { planIncomingMatch, planAutoMerge } from '../lib/importDedupe';
 import { loadConfirmedEquivalencesByName } from '../lib/smartMerge';
+import { notifyActiveShopper } from '../lib/sendPush';
 
 export const menusRouter = Router();
 
@@ -406,6 +407,13 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   }
   for (const item of createdItems) {
     wsBroadcast(list.id, { type: 'item_added', data: item });
+  }
+
+  // Meddela aktiv handlare om veckomeny-varor landade mitt under handlingen —
+  // direkt sammanfattning (ingen batchning; överföringen ÄR redan batchen).
+  const addedCount = updatedItems.length + createdItems.length;
+  if (addedCount > 0) {
+    notifyActiveShopper(list, clerkUserId, `${addedCount} varor från veckomenyn`, { immediate: true }).catch(() => {});
   }
 
   // Auto-soft-merge using the pure planner so behavior matches importDedupe tests.

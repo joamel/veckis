@@ -3,7 +3,7 @@ import { prisma } from '../db';
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 /** Preference keys on NotificationPreference — one per notification type. */
-export type NotificationType = 'activityReminder' | 'choreOverdue' | 'listCleared' | 'newMember' | 'shopperClaimed' | 'choreCompleted';
+export type NotificationType = 'activityReminder' | 'choreOverdue' | 'listCleared' | 'newMember' | 'shopperClaimed' | 'shopperItemAdded' | 'choreCompleted';
 
 interface PushPayload {
   title: string;
@@ -112,6 +112,96 @@ export async function deliverPush(
     errors.push(err instanceof Error ? err.message : String(err));
     return { tokens: 0, errors };
   }
+}
+
+/**
+ * Push till den aktiva handlaren när någon ANNAN lägger in varor medan
+ * "Jag handlar" är aktivt — så inget saknas när man kommer hem.
+ *
+ * Varorna BATCHAS i ett 60-sekundersfönster per lista istället för att
+ * strypas: fem snabba tillägg blir EN notis med alla namnen ("Mjölk, smör,
+ * kaffe lades till …"), och senare tillägg öppnar ett nytt fönster — inget
+ * tystas någonsin. Vid flush verifieras att "Jag handlar" fortfarande är
+ * aktivt (handlingen kan ha avslutats under fönstret).
+ *
+ * opts.immediate skickar direkt utan batchning — används av veckomeny-
+ * transfern som redan är en sammanfattning ("12 varor från veckomenyn").
+ * Lokala profiler (utan clerkUserId) kan inte pushas. Fire-and-forget —
+ * får aldrig fälla requesten som triggade den.
+ */
+// 30s — hinner samla en skur av tillägg utan att handlaren hunnit passera
+// hyllan varorna finns på (60s kändes för långsamt i butik).
+const SHOPPER_ITEM_DEBOUNCE_MS = 30_000;
+const shopperItemBuffers = new Map<string, { names: string[]; timer: NodeJS.Timeout }>();
+
+function capitalizeFirst(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+async function resolveActiveShopper(
+  activeShopperMemberId: string | null,
+  excludeClerkUserId?: string,
+): Promise<string | null> {
+  if (!activeShopperMemberId) return null;
+  const shopper = await prisma.householdMember.findUnique({
+    where: { id: activeShopperMemberId },
+    select: { clerkUserId: true },
+  });
+  if (!shopper?.clerkUserId || shopper.clerkUserId === excludeClerkUserId) return null;
+  return shopper.clerkUserId;
+}
+
+async function flushShopperItemBuffer(listId: string): Promise<void> {
+  const buf = shopperItemBuffers.get(listId);
+  shopperItemBuffers.delete(listId);
+  if (!buf || buf.names.length === 0) return;
+
+  // Färsk läsning — handlingen kan ha avslutats/bytt person under fönstret.
+  const list = await prisma.shoppingList.findUnique({
+    where: { id: listId },
+    select: { id: true, name: true, activeShopperMemberId: true },
+  });
+  if (!list) return;
+  const shopperClerkId = await resolveActiveShopper(list.activeShopperMemberId);
+  if (!shopperClerkId) return;
+
+  const shown = buf.names.slice(0, 6).join(', ');
+  const rest = buf.names.length - 6;
+  const label = capitalizeFirst(shown) + (rest > 0 ? ` +${rest} till` : '');
+  await sendPush([shopperClerkId], 'shopperItemAdded', {
+    title: buf.names.length === 1 ? 'Ny vara på listan' : `${buf.names.length} nya varor på listan`,
+    body: `${label} lades till i "${list.name}" medan du handlar`,
+    data: { type: 'shopperItemAdded', listId: list.id },
+  });
+}
+
+export async function notifyActiveShopper(
+  list: { id: string; name: string; activeShopperMemberId: string | null },
+  adderClerkUserId: string,
+  itemLabel: string,
+  opts?: { immediate?: boolean },
+): Promise<void> {
+  const shopperClerkId = await resolveActiveShopper(list.activeShopperMemberId, adderClerkUserId);
+  if (!shopperClerkId) return;
+
+  if (opts?.immediate) {
+    await sendPush([shopperClerkId], 'shopperItemAdded', {
+      title: 'Nya varor på listan',
+      body: `${capitalizeFirst(itemLabel)} lades till i "${list.name}" medan du handlar`,
+      data: { type: 'shopperItemAdded', listId: list.id },
+    });
+    return;
+  }
+
+  const existing = shopperItemBuffers.get(list.id);
+  if (existing) {
+    existing.names.push(itemLabel);
+    return;
+  }
+  shopperItemBuffers.set(list.id, {
+    names: [itemLabel],
+    timer: setTimeout(() => { flushShopperItemBuffer(list.id).catch(() => {}); }, SHOPPER_ITEM_DEBOUNCE_MS),
+  });
 }
 
 /**

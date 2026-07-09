@@ -48,6 +48,8 @@
 - [x] Sökresultat-chipsen (förslag medan man skriver) hamnade utanför skärmkanten: raden var en vanlig `View` (`chipRow`) utan scroll. Bytt till horisontell `ScrollView` (`keyboardShouldPersistTaps="handled"`) → swipa höger för fler. ("Dina vanligaste" har redan wrap.)
 - [x] (utredning, behöver device) App-innehållet renderas ibland i en smal vänsterkolumn (~halva bredden) i PWA medan modalen går kant-till-kant. Det finns INGEN maxWidth/frame i koden — allt är `flex:1` full bredd — så detta är sannolikt ett browser-zoom/visual-viewport-tillstånd (samma misstänkta orsak som tidigare "delvis inzoomad"). Repro-steg: hård omladdning + nollställ sidzoom. Ev. överväg centrerad max-bredd-frame för web (krockar dock med tablet-split-vyer i kalender/meny). Stängs: ingen kod-rot-orsak, sannolikt viewport-tillstånd — aldrig reproducerat.
 
+- [x] PWA: gick inte att scrolla i inköpslistan — swipe-delete-gestens GestureDetector satte touch-action:none på varje varurad. RÄTT fix: touchAction="pan-y" på GestureDetector (RNGH ≥2.10, web-only prop) — webbläsaren behåller vertikal scroll, horisontella drag går till gesten → swipe-delete OCH scroll funkar på web precis som native. Samma på InvSlider i inventeringen. (Första försöket med ✕-knapp/tap-to-set förkastades.) Audit: maträttskorten kvar med dag-chips på web (deras drag är vertikalt → pan-y hjälper inte); push/SecureStore/haptik har web-varianter
+
 #### Regressions 2026-06-10
 - [x] Aktivitets-/sysslomodaler (schedule.tsx) hamnade under viewport på PWA: `<View style={{ flex: 1 }}>`-wrapper runt modal-innehållet tvingade overlay-Pressablen (flex:1) att fylla hela wrapphöjden → sheet puttades under skärmen. `ScrollView flex:1` i editingEntry + showModal gav 0-höjd i auto-höjd KAV-förälder utan definierad höjd på web. Båda borttagna — matchar nu inköpslistans flex-mönster.
 
@@ -172,6 +174,10 @@
 
 
 ### Inköpslistan
+- [x] "Jag handlar"-läget notifierar nu den aktiva handlaren när någon annan lägger till en vara under tiden: notifyActiveShopper i sendPush.ts (push till activeShopper, aldrig till den som lade till; lokala profiler kan inte pushas), varor batchas i 30s-fönster per lista och notisen listar NAMNEN ('Mjölk, smör, kaffe lades till …', max 6 + '+N till') — inget tystas; veckomeny-transfern skickar direkt sammanfattning ('12 varor från veckomenyn'). Vid flush verifieras att handlingen fortfarande pågår. Ny preferens shopperItemAdded (default på) i notisinställningarna
+- [x] Ångra-toast när man klarmarkerar en hel kategori — "N varor klarmarkerade" med Ångra som bockar ur samma varor igen (optimistiskt + rollback via load vid fel)
+- [ ] Underkategorier borde gå att flytta runt/sortera i butiksredigeraren likt huvudkategorier — så att de fyller en funktion i plocklistans ordning
+- [ ] Kunna välja underkategori redan när man LÄGGER TILL en vara (idag bara via redigera efteråt)
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
 - [x] När man lägger till en inköpslista borde man kunna välja butik direkt -> skapa butik om den inte finns
 - [x] Även kunna redigera namnet på ingrediensen när man long pressar

@@ -10,7 +10,7 @@ import { stripIngredient } from '../lib/stripIngredient';
 import { suggestMerge, resolveEquivalences, learnEquivalenceFromMerge, isPackagingUnit, loadConfirmedEquivalencesByName } from '../lib/smartMerge';
 import { wsBroadcast } from '../lib/wsHub';
 import { inferSubCategory, parentForSub, type SubCategory } from '@veckis/shared';
-import { sendPush } from '../lib/sendPush';
+import { sendPush, notifyActiveShopper } from '../lib/sendPush';
 import { planFullUnmerge, findRoot } from '../lib/mergeLogic';
 import { planAutoMerge } from '../lib/importDedupe';
 
@@ -317,6 +317,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
       data: { quantity: existing.quantity + (body.data.quantity ?? 1) },
     });
     learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
+    notifyActiveShopper(list, (req as AuthenticatedRequest).clerkUserId, item.name).catch(() => {});
     bcast(list, { type: 'item_updated', data: item });
     res.status(200).json(item);
     return;
@@ -327,6 +328,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   });
 
   learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
+  notifyActiveShopper(list, (req as AuthenticatedRequest).clerkUserId, item.name).catch(() => {});
   bcast(list, { type: 'item_added', data: item });
   res.status(201).json(item);
 }));

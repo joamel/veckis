@@ -173,8 +173,11 @@ function InvSlider({ total, value, step, onLive, onCommit, onDragEnd }: {
     const pct = dragPct.value >= 0 ? dragPct.value : basePct.value;
     return { transform: [{ translateX: Math.max(0, Math.min(trackW.value - 18, pct * trackW.value - 9)) }] };
   });
+  // touchAction="pan-y" (web-only, ignoreras på native): webbläsaren behåller
+  // vertikal scroll medan horisontella drag driver slidern — annars sätter
+  // RNGH touch-action:none på spåret och scroll som börjar där blockeras i PWA:n.
   return (
-    <GestureDetector gesture={gesture}>
+    <GestureDetector gesture={gesture} touchAction="pan-y">
       <View
         style={s.invSliderTrack}
         onLayout={e => { trackW.value = e.nativeEvent.layout.width; }}
@@ -482,7 +485,6 @@ export default function MenuScreen() {
   // Auto-scroll during drag near screen edges
   const menuScrollRef = useRef<ScrollView | null>(null);
   const weekListRef = useRef<FlatList<number>>(null);
-  const weekScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Virtualised week pager: a long list of week offsets so swiping never has to
   // recenter (which is what caused the flash). The arrows just scrollToIndex.
   const WEEK_SPAN = 104; // ±2 years of weeks
@@ -1444,10 +1446,27 @@ export default function MenuScreen() {
         onPickDate={() => setShowWeekPicker(true)}
       />
 
-      {/* Virtualised week pager: each page is one week. Swiping just scrolls the
+      {/* Web/PWA: en nästlad vertikal ScrollView i en horisontell pager gör att
+          webbläsaren aldrig delegerar vertikala drag till innerlistan → gick
+          inte att scrolla. På web renderas därför bara aktuell vecka som en
+          rak vertikal ScrollView; veckobyte sker via pilarna/Idag (goToWeek
+          sätter weekOffset, scrollToIndex blir no-op utan FlatList-ref). */}
+      {Platform.OS === 'web' ? (
+        <ScrollView
+          ref={menuScrollRef}
+          style={s.content}
+          contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet]}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
+          onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
+          scrollEventThrottle={32}
+        >
+          {renderWeekContent(weekItemsForOffset(weekOffset), getWeekMonday(weekOffset), true, weekOffset < 0)}
+        </ScrollView>
+      ) : (
+      /* Virtualised week pager: each page is one week. Swiping just scrolls the
           list (no recenter → no flash); arrows/Idag/picker scrollToIndex so they
           behave identically. Locked while dragging/editing so drag-and-drop
-          doesn't fight the swipe. Only the centred week is interactive. */}
+          doesn't fight the swipe. Only the centred week is interactive. */
       <FlatList
         ref={weekListRef}
         data={weekIndices}
@@ -1455,7 +1474,7 @@ export default function MenuScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        style={[s.content, (Platform.OS === 'web' ? { scrollSnapType: 'x mandatory' } : null) as any]}
+        style={s.content}
         scrollEnabled={!dragState}
         initialScrollIndex={weekOffset + WEEK_SPAN}
         getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
@@ -1470,21 +1489,12 @@ export default function MenuScreen() {
           const o = Math.round(e.nativeEvent.contentOffset.x / weekPageW) - WEEK_SPAN;
           if (o !== weekOffset) setWeekOffset(o);
         }}
-        onScroll={Platform.OS === 'web' ? e => {
-          const x = e.nativeEvent.contentOffset.x;
-          if (weekScrollTimer.current) clearTimeout(weekScrollTimer.current);
-          weekScrollTimer.current = setTimeout(() => {
-            const o = Math.round(x / weekPageW) - WEEK_SPAN;
-            if (o !== weekOffset) setWeekOffset(o);
-          }, 80);
-        } : undefined}
         renderItem={({ item: o }) => {
           const isCenter = o === weekOffset;
           return (
             <ScrollView
               ref={isCenter ? menuScrollRef : undefined}
               style={{ width: weekPageW }}
-              {...((Platform.OS === 'web' ? { dataSet: { weekpage: '' } } : {}) as any)}
               contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet]}
               refreshControl={isCenter ? <RefreshControl refreshing={false} onRefresh={load} /> : undefined}
               onScroll={isCenter ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }) : undefined}
@@ -1495,6 +1505,7 @@ export default function MenuScreen() {
           );
         }}
       />
+      )}
 
 
       {/* Overför-FAB (kundkorg) — visas bara för nuvarande/framtida veckor
@@ -2342,6 +2353,6 @@ const s = StyleSheet.create({
   ghostCard: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 12, padding: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
   ghostCardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
   ghostCardText: { fontSize: 15, fontWeight: '600', color: '#292524', flex: 1 },
-  toast: { position: 'absolute', bottom: 100, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  toast: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });
