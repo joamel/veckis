@@ -310,7 +310,7 @@ export default function StoreDetailScreen() {
       <Modal visible={showRename} transparent animationType="slide" onRequestClose={() => setShowRename(false)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowRename(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{str.renameModal.title}</Text>
