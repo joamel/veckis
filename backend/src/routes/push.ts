@@ -4,6 +4,7 @@ import { prisma } from '../db';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { deliverPush } from '../lib/sendPush';
+import { pushRegisterLimiter } from '../lib/rateLimits';
 
 export const pushRouter = Router();
 
@@ -19,7 +20,7 @@ const DEFAULT_PREFS = {
 };
 
 // POST /api/push/register — register/refresh this device's Expo push token
-pushRouter.post('/register', requireAuth, asyncHandler(async (req, res) => {
+pushRouter.post('/register', pushRegisterLimiter, requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({
     token: z.string().min(1).max(255),
     platform: z.string().max(20).optional(),

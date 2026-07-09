@@ -47,3 +47,15 @@ export const adminSyncLimiter: RateLimitRequestHandler | typeof passthrough = is
 export const recipeAbuseLimiter: RateLimitRequestHandler | typeof passthrough = isProd
   ? build(30, 'För många recept-importer/uppladdningar — vänta en stund.')
   : passthrough;
+
+/** POST /api/recipes/parse-text — 15/timme/IP. Egen, striktare limit ovanpå
+ *  den generella: varje anrop är en dyr Claude-körning (kostnadstak). */
+export const parseTextLimiter: RateLimitRequestHandler | typeof passthrough = isProd
+  ? build(15, 'För många AI-tolkningar — vänta en stund.')
+  : passthrough;
+
+/** POST /api/push/register — 60/timme/IP. En enhet registrerar sin token
+ *  sällan; 60 rymmer reconnect-loopar men stoppar token-spam. */
+export const pushRegisterLimiter: RateLimitRequestHandler | typeof passthrough = isProd
+  ? build(60, 'För många token-registreringar — vänta en stund.')
+  : passthrough;
