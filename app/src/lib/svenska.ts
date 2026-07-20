@@ -826,6 +826,9 @@ export const recipes = {
 
   actions: {
     planInMenu:  'Planera i meny',
+    addToMenu:   'Lägg till i veckomeny',
+    addToShopping:'Lägg till i inköpslista',
+    addTitle:    'Lägg till receptet',
     editRecipe:  'Redigera recept',
     deleteRecipe:'Ta bort recept',
   },

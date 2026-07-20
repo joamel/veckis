@@ -781,12 +781,12 @@ export default function MenuScreen() {
   // with ?addRecipeId&day, which the addRecipeId effect below applies to the
   // currently shown week.
   function openPicker(day: WeekDay | null) {
-    router.push(`/recipes?forMenuDay=${day ?? 'none'}&forMenuWeek=${weekYear}-${weekNumber}` as never);
+    router.push(`/recipes/pick?forMenuDay=${day ?? 'none'}&forMenuWeek=${weekYear}-${weekNumber}` as never);
   }
 
   // Replace flow now uses the full recipe view (select mode), like "+".
   function startReplaceRecipe(item: WeekMenuItemWithRecipe) {
-    router.push(`/recipes?replaceMenuItemId=${item.id}&replaceTitle=${encodeURIComponent(item.recipe.title)}&forMenuWeek=${weekYear}-${weekNumber}` as never);
+    router.push(`/recipes/pick?replaceMenuItemId=${item.id}&replaceTitle=${encodeURIComponent(item.recipe.title)}&forMenuWeek=${weekYear}-${weekNumber}` as never);
   }
 
   // Swap a menu item for another recipe on the same day/week (returned from the
@@ -1609,7 +1609,7 @@ export default function MenuScreen() {
                       onPress={() => {
                         const day = pickingForDay ?? '';
                         setShowPicker(false);
-                        router.push(`/recipes?create=1&forMenuDay=${day}&forMenuWeek=${weekYear}-${weekNumber}` as never);
+                        router.push(`/recipes/pick?create=1&forMenuDay=${day}&forMenuWeek=${weekYear}-${weekNumber}` as never);
                       }}
                     >
                       <View style={[s.recipeCardIcon, { backgroundColor: '#ecf3ec' }]}>

@@ -249,10 +249,25 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     confirm({
       variant: 'menu',
       buttons: [
-        { label: str.actions.planInMenu, icon: 'calendar-outline', onPress: openPlanModal },
         { label: str.actions.editRecipe, icon: 'create-outline', onPress: startEdit },
         { label: str.actions.deleteRecipe, icon: 'trash-outline', style: 'destructive', onPress: confirmDeleteRecipe },
         { label: common.actions.cancel, style: 'cancel' },
+      ],
+    });
+  }
+
+  // "+"-väljare: en tydlig ingång för att lägga receptet någonstans — veckomeny
+  // eller direkt i en inköpslista. Samlar de två destinationerna som tidigare
+  // låg utspridda (planera i 3-prickar, kundvagn-FAB) till ett ställe.
+  function openAddChooser() {
+    if (!recipe) return;
+    const hasIngredients = recipe.ingredients.length > 0;
+    confirm({
+      variant: 'menu',
+      buttons: [
+        { label: str.actions.addToMenu, icon: 'calendar-outline', onPress: openPlanModal },
+        ...(hasIngredients ? [{ label: str.actions.addToShopping, icon: 'cart-outline' as const, onPress: () => openTransfer() }] : []),
+        { label: common.actions.cancel, style: 'cancel' as const },
       ],
     });
   }
@@ -1004,19 +1019,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         </View>
       </Modal>
 
-      {/* FAB — Laga nu från kalender, kundkorg från menyn */}
-      {!editMode && (
-        from === 'calendar'
-          ? recipe?.instructions && (
-              <Pressable style={s.fab} onPress={() => { setCookStep(0); setCookMode(true); }} accessibilityLabel={str.detail.cookA11y}>
-                <Ionicons name="restaurant-outline" size={26} color="#fff" />
-              </Pressable>
-            )
-          : recipe?.ingredients && recipe.ingredients.length > 0 && (
-              <Pressable style={s.fab} onPress={() => openTransfer()} accessibilityLabel={str.detail.transferA11y}>
-                <Ionicons name="cart-outline" size={26} color="#fff" />
-              </Pressable>
-            )
+      {/* "+"-FAB — väljare: lägg till receptet i veckomeny eller inköpslista.
+          (Laga nu-läget nås från instruktions-sektionens "Laga nu"-knapp.) */}
+      {!editMode && recipe && (
+        <Pressable style={s.fab} onPress={openAddChooser} accessibilityLabel={str.actions.addTitle}>
+          <Ionicons name="add" size={30} color="#fff" />
+        </Pressable>
       )}
 
       {/* Cooking mode */}
