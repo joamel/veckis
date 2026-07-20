@@ -499,6 +499,11 @@
 
 ## Backlog (prioriterade features)
 
+### Navigation & fokus
+
+- [ ] **Nordstjärna: kärn-loopen** — appens kärna är *recept → veckomeny → inköpslista*. Väg framtida features mot den; familjeorganisatör-ytor (kalender/sysslor) får inte skymma den.
+- [ ] **Experiment: recept-fokus** (branch `feature/recipe-focus-experiment`) — flikraden blir Inköp/Meny/Recept/Hushållet; Kalender + Sysslor döljs ur baren bakom flaggan `RECIPE_FOCUS_EXPERIMENT` (`src/lib/features.ts`) men rutterna/koden lämnas orörda så deep-links/notiser funkar och det är reversibelt. Recept lyfts från gömd stack-route (`recipes/index.tsx`) till egen flik (`(tabs)/recipes.tsx`). Landningssida default → Meny och erbjuder bara synliga flikar. **Utvärderas: känns kärnan (inköp+veckomeny) tydligare utan familjeorganisatör-ytorna?** Att bedöma vidare: (a) att göra "planera in i veckan" till ett tap från receptet så loopen stängs, (b) om Sysslor/rotation är en vallgrav värd att behålla, (c) om Meny-fliken ensam täcker "vad äter vi i veckan" när Kalendern är borta.
+
 ### Kalender
 
 - [x] **Månadsvy på tablet** — Visa hela månaden som grid i kalender-fliken när skärmen är tillräckligt bred

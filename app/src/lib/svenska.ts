@@ -45,6 +45,7 @@ export const common = {
   tabs: {
     shopping:        'Inköp',
     menu:            'Meny',
+    recipes:         'Recept',
     schedule:        'Kalender',
     chores:          'Sysslor',
     settings:        'Hushållet',
@@ -1467,6 +1468,7 @@ export const preferences = {
     tabs: {
       shopping: 'Inköp',
       menu:     'Meny',
+      recipes:  'Recept',
       schedule: 'Kalender',
       chores:   'Sysslor',
     } as Record<string, string>,
