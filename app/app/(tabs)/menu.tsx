@@ -39,7 +39,7 @@ import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
 import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
-import type { WeekDay } from '@veckis/shared';
+import type { WeekDay, MealType } from '@veckis/shared';
 import { DEFAULT_CATEGORY_ORDER, MEAL_TYPE_ORDER } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { menu as str, common, recipes as recipesStr } from '../../src/lib/svenska';
@@ -1217,6 +1217,24 @@ export default function MenuScreen() {
     }
   }
 
+  // Sätt/ändra/rensa måltidstyp direkt på ett menykort (frivillig etikett).
+  // Toggla samma typ = rensa (null). Optimistiskt, som moveToDay.
+  async function setMenuItemMeal(item: WeekMenuItemWithRecipe, meal: MealType | null) {
+    const next = item.mealType === meal ? null : meal;
+    setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, mealType: next } : i));
+    setAllMenus(prev => prev.map(i => i.id === item.id ? { ...i, mealType: next } : i));
+    suppressMenuReloadRef.current += 1;
+    try {
+      const updated = await client.updateWeekMenuItem(item.id, { mealType: next });
+      setMenuItems(prev => prev.map(i => i.id === updated.id ? updated : i));
+      setAllMenus(prev => prev.map(i => i.id === updated.id ? updated : i));
+    } catch (e) {
+      setMenuItems(prev => prev.map(i => i.id === item.id ? item : i));
+      setAllMenus(prev => prev.map(i => i.id === item.id ? item : i));
+      showError(e, common.errors.couldNotSave('måltidstyp'));
+    }
+  }
+
   // Items for any page in the week pager. The centre page prefers the live,
   // editable `menuItems` — but only when they actually belong to the current
   // week; right after a week change `menuItems` is still the previous week's
@@ -1316,6 +1334,7 @@ export default function MenuScreen() {
                           isDragging={isCenter && dragState?.item.id === item.id}
                           scaledServings={scaledServingsOf(item)}
                           onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
+                          onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
                         />
                       ))
                     )}
@@ -1358,6 +1377,7 @@ export default function MenuScreen() {
                         isDragging={isCenter && dragState?.item.id === item.id}
                         scaledServings={scaledServingsOf(item)}
                         onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
+                        onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
                       />
                     ))
                   )
@@ -1403,6 +1423,7 @@ export default function MenuScreen() {
                 isDragging={isCenter && dragState?.item.id === item.id}
                 scaledServings={scaledServingsOf(item)}
                 onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
+                onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
               />
             ))
           )}
@@ -2037,6 +2058,7 @@ function MenuCard({
   isDragging,
   scaledServings,
   onScaleServings,
+  onSetMeal,
   dayLabel,
   collapsedForDrag,
 }: {
@@ -2055,6 +2077,7 @@ function MenuCard({
   isDragging: boolean;
   scaledServings: number;
   onScaleServings: (n: number) => void;
+  onSetMeal: (meal: MealType | null) => void;
   collapsedForDrag?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -2150,6 +2173,23 @@ function MenuCard({
                   </Pressable>
                 </View>
               </View>
+
+              {/* Måltidstyp — frivillig etikett. Tryck igen för att rensa. */}
+              {!isPastWeek && (
+                <View style={s.mealPicker}>
+                  <Text style={[s.mealPickerLabel, { fontSize: fs(12) }]}>{common.mealTypes.label}</Text>
+                  <View style={s.mealPickerChips}>
+                    {MEAL_TYPE_ORDER.map(mt => {
+                      const active = item.mealType === mt;
+                      return (
+                        <Pressable key={mt} style={[s.mealPickerChip, active && s.mealPickerChipActive]} onPress={() => onSetMeal(mt)}>
+                          <Text style={[s.mealPickerChipText, active && s.mealPickerChipTextActive, { fontSize: fs(11) }]}>{common.mealTypes[mt]}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
 
               <View style={s.cardActions}>
                 <Pressable style={s.cardAction} onPress={onViewRecipe}>
@@ -2270,6 +2310,13 @@ const s = StyleSheet.create({
   cardContent: { flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
   cardMealTag: { fontSize: 10, fontWeight: '700', color: '#4e7a5e', letterSpacing: 0.5, marginBottom: 1 },
+  mealPicker: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 8 },
+  mealPickerLabel: { fontSize: 12, color: '#78716c', fontWeight: '500' },
+  mealPickerChips: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' },
+  mealPickerChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4' },
+  mealPickerChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
+  mealPickerChipText: { fontSize: 11, fontWeight: '600', color: '#78716c' },
+  mealPickerChipTextActive: { color: '#4e7a5e' },
   cardMeta: { fontSize: 12, color: '#78716c', marginTop: 2 },
   transferredBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   transferredText: { fontSize: 11, color: '#10b981', fontWeight: '600' },
