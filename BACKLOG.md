@@ -183,7 +183,7 @@
 ### Inköpslistan
 - [x] "Jag handlar"-läget notifierar nu den aktiva handlaren när någon annan lägger till en vara under tiden: notifyActiveShopper i sendPush.ts (push till activeShopper, aldrig till den som lade till; lokala profiler kan inte pushas), varor batchas i 30s-fönster per lista och notisen listar NAMNEN ('Mjölk, smör, kaffe lades till …', max 6 + '+N till') — inget tystas; veckomeny-transfern skickar direkt sammanfattning ('12 varor från veckomenyn'). Vid flush verifieras att handlingen fortfarande pågår. Ny preferens shopperItemAdded (default på) i notisinställningarna
 - [x] Ångra-toast när man klarmarkerar en hel kategori — "N varor klarmarkerade" med Ångra som bockar ur samma varor igen (optimistiskt + rollback via load vid fel)
-- [ ] "Byt butik"-vyn saknar tryck-feedback: att välja en butik byter direkt utan att man ser vilken som är markerad (ingen highlight/animering) — visa aktivt val
+- [x] "Byt butik"-vyn saknar tryck-feedback: att välja en butik byter direkt utan att man ser vilken som är markerad (ingen highlight/animering) — visa aktivt val — löst: kort highlight + bock innan vi backar
 - [ ] Underkategorier borde gå att flytta runt/sortera i butiksredigeraren likt huvudkategorier — så att de fyller en funktion i plocklistans ordning
 - [ ] Kunna välja underkategori redan när man LÄGGER TILL en vara (idag bara via redigera efteråt)
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
@@ -282,9 +282,9 @@
 
 
 ### Meny
-- [ ] Kunna skilja på måltidstyp (frukost/lunch/middag/efterrätt) när flera rätter läggs på samma dag — idag är dagen bara "upptagen"; en typ-etikett skulle låta flera rätter samsas per dag utan dubblettvarning
-- [ ] Återanvänd custom recepttaggar i menyns receptflöde — befintliga taggar ska ligga som val bredvid de andra istället för att behöva skrivas in manuellt igen
-- [ ] Recept-sökfältet lyfts inte ovanför tangentbordet (KAV saknas) — input hamnar bakom knappsatsen
+- [x] Kunna skilja på måltidstyp (frukost/lunch/middag/efterrätt) när flera rätter läggs på samma dag — löst (branch `feature/meal-types`) med **progressiv upptäckt, ingen läges-toggle**: `mealType`-fält på veckomeny-raden; tillägg (både recept-dialog och meny-"+") förblir dött enkelt utan måltidsfråga; måltidstyp är en frivillig etikett man sätter/ändrar/rensar direkt på menykortet (chip-rad i utfällt läge). Kortet visar etiketten bara när den är satt → menyn förblir ren om man aldrig rör typerna. Flera rätter per dag är avsiktligt (mjuk "lägg till ändå"-varning). Kvar att ev. bygga vidare: affordans för att lägga en andra rätt på en redan fylld dag direkt från meny-tabben (idag sker det via recept-vägen).
+- [x] Återanvänd custom recepttaggar i menyns receptflöde — befintliga taggar ska ligga som val bredvid de andra istället för att behöva skrivas in manuellt igen — löst: edit-läget hämtar hushållets alla taggar som återanvändbara chips
+- [x] "Lägg till vara"-fältet i inköpslistan hamnar bakom tangentbordet på native — löst: KAV ersatt med deterministisk lyft via uppmätt tangentbordshöjd (web/PWA-vägen orörd)
 - [x] Byt ut maträtt uppdaterade inte veckomenyn förrän sid-refresh: `replaceMenuItem` (deeplink-vägen via receptfliken) saknade `suppressMenuReloadRef += 2` → socket-echona från delete+add triggade `load()` som skrev över optimistiska uppdateringen
 - [x] Inventeringssteget: enheter klipptes ("kg" → "k", "dl" → "d") trots gott om plats — Android mäter vissa strängar för smalt (se memory `android-text-clipping`); fix = explicit bredd från teckenantal. Relaterat fynd: React 19 ignorerar `defaultProps` på funktionskomponenter → globala `allowFontScaling=false` var en tyst no-op; ersatt med export-wrapper i `_layout.tsx`
 - [x] Inventeringsvyn omdesignad: "Välj rätter" tunnare kort + 1-rads-trunkering; "Vad har du hemma" har dra-bar (0→behov) per ingrediens istället för sifferinput — enheten styr stegen (kg 0,1 · l/dl/msk/tsk 0,5 · g/ml adaptivt efter mängd · övrigt heltal), Reanimated på UI-tråden för mjukt drag, live-värde vid steg-gränser, ingen tangentbordsproblematik. RNGH-gester i RN-Modal kräver egen `GestureHandlerRootView` i modalen
@@ -541,6 +541,10 @@
 - [x] **Redigera hushåll** — Admin kan ändra hushållets namn. Se och ta bort medlemmar. Sätta smeknamn på sig själv
 - [x] **Flera hushål** — Skapa och växla mellan flera hushål under inställningar (t.ex. eget + sommarstugan). Aktivt hushål sparas i context
 - [x] **Profiler utan konto** — Skapa lokala profiler för barn/personer utan Clerk-konto. Kan tilldelas sysslor och chorer utan att logga in
+
+### Internationalisering (i18n)
+
+- [ ] **Se över alla hårdkodade strängar → riktig i18n** — `src/lib/svenska.ts` är tänkt att vara översättnings-sömmen (byt/duplicera modulen för engelska), men användartext läcker ut hårdkodad i komponenter och kringgår den. Audit: gå igenom hela `app/` och flytta ALL användarvänd text till svenska.ts (eller en locale-modul), så att ett språkbyte blir ett drop-in. Kända syndare hittills: `src/components/RecurrencePicker.tsx` (dagnamn), `src/lib/shareWeekMenu.ts` (dagnamn) — plus inline-svenska i toasts/dialoger/placeholders. Redan fixat: `MENU_DAYS` + "utan dag" i recept-flödet härleds nu från `common.weekdays.long` / `common.noDay`. Slutmål: en `en.ts` + enkel locale-switch (ev. inställning) blir möjlig utan att jaga strängar i JSX.
 
 ### iOS
 

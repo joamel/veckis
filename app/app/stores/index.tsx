@@ -46,6 +46,9 @@ export default function StoresScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('name');
   const [showSort, setShowSort] = useState(false);
+  // Kort-tap i pick-läge markerar butiken kort (highlight) innan vi backar,
+  // så användaren ser vilket val som registrerades istället för en tvär hopp.
+  const [selectingId, setSelectingId] = useState<string | null>(null);
 
   // Skapa-modal
   const [showCreate, setShowCreate] = useState(false);
@@ -164,33 +167,41 @@ export default function StoresScreen() {
         ) : (
           filteredSorted.map(store => {
             const catCount = (store.categoryOrder as StoreCategory[]).length || 0;
-            const isCurrent = pickMode && store.id === currentStoreId;
+            const isSelecting = store.id === selectingId;
+            // När ett nytt val pågår togglas den gamla butiken av — bara den
+            // nyvalda markeras.
+            const showAsCurrent = pickMode && store.id === currentStoreId && !selectingId;
+            const highlighted = isSelecting || showAsCurrent;
             return (
               <Pressable
                 key={store.id}
-                style={[s.card, isCurrent && s.cardCurrent]}
+                style={[s.card, highlighted && s.cardCurrent]}
                 onPress={() => {
                   if (pickMode) {
-                    resolveStorePick(store.id);
-                    router.back();
+                    if (selectingId) return; // redan på väg ut — ignorera dubbeltapp
+                    setSelectingId(store.id);
+                    // Kort highlight så valet syns innan vi backar.
+                    setTimeout(() => { resolveStorePick(store.id); router.back(); }, 180);
                   } else {
                     router.push(`/stores/${store.id}` as never);
                   }
                 }}
               >
-                <View style={[s.cardIcon, isCurrent && s.cardIconCurrent]}>
-                  <Ionicons name="storefront-outline" size={20} color={isCurrent ? '#b96a45' : '#4e7a5e'} />
+                <View style={[s.cardIcon, highlighted && s.cardIconCurrent]}>
+                  <Ionicons name="storefront-outline" size={20} color={highlighted ? '#b96a45' : '#4e7a5e'} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.cardTitle, isCurrent && s.cardTitleCurrent]}>{store.name}</Text>
+                  <Text style={[s.cardTitle, highlighted && s.cardTitleCurrent]}>{store.name}</Text>
                   {(() => {
                     const parts: string[] = [];
                     if (catCount > 0) parts.push(str.card.categories(catCount));
-                    if (isCurrent) parts.push(str.card.selected);
-                    return parts.length > 0 ? <Text style={[s.cardMeta, isCurrent && s.cardMetaCurrent]}>{parts.join(' · ')}</Text> : null;
+                    if (highlighted) parts.push(str.card.selected);
+                    return parts.length > 0 ? <Text style={[s.cardMeta, highlighted && s.cardMetaCurrent]}>{parts.join(' · ')}</Text> : null;
                   })()}
                 </View>
-                {isCurrent ? (
+                {isSelecting ? (
+                  <Ionicons name="checkmark-circle" size={22} color="#4e7a5e" />
+                ) : showAsCurrent ? (
                   <Pressable
                     onPress={(e) => { e.stopPropagation?.(); resolveStorePick(null); router.back(); }}
                     hitSlop={10}

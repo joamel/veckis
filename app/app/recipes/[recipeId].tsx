@@ -38,15 +38,10 @@ import type { RecipeIngredient, WeekDay } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
-const MENU_DAYS: { key: WeekDay; label: string }[] = [
-  { key: 'mon', label: 'Måndag' },
-  { key: 'tue', label: 'Tisdag' },
-  { key: 'wed', label: 'Onsdag' },
-  { key: 'thu', label: 'Torsdag' },
-  { key: 'fri', label: 'Fredag' },
-  { key: 'sat', label: 'Lördag' },
-  { key: 'sun', label: 'Söndag' },
-];
+// Labels från centraliserade veckodagar (mån-först) — inga hårdkodade dagnamn.
+const MENU_DAYS: { key: WeekDay; label: string }[] =
+  (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as WeekDay[])
+    .map((key, i) => ({ key, label: common.weekdays.long[i] }));
 
 export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; onClose?: () => void }) {
   const edit = editParam;
@@ -71,6 +66,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [editInstr, setEditInstr] = useState('');
   const [editImage, setEditImage] = useState('');
   const [editTags, setEditTags] = useState<string[]>([]);
+  // Alla taggar som redan används i hushållets recept — visas som återanvändbara
+  // förslags-chips i edit-läget så man slipper skriva om en custom-tagg.
+  const [knownTags, setKnownTags] = useState<string[]>([]);
   const [editServings, setEditServings] = useState(4);
   const [customTag, setCustomTag] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -267,7 +265,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   function planRecipeToMenu(day: WeekDay | null) {
     if (!recipe) return;
     setShowPlanModal(false); // stäng sheeten innan ev. confirm-dialog (undvik staplade modaler)
-    // Varna om dagen redan har en rätt …
+    // Flera rätter per dag är avsiktligt (måltidstyp sätts på menykortet) — mjuk
+    // varning om dagen redan har en rätt, men "lägg till ändå".
     if (day && planWeekItems.some(m => m.day === day)) {
       const label = MENU_DAYS.find(d => d.key === day)?.label;
       confirm({
@@ -378,6 +377,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     setEditImage(recipe.imageUrl ?? '');
     setEditTags(recipe.tags ?? []);
     setCustomTag('');
+    // Hämta hushållets övriga taggar så de kan återanvändas med ett tap.
+    if (householdId) {
+      client.getRecipes(householdId).then(rs => {
+        const tags = new Set<string>();
+        for (const r of rs) for (const t of r.tags ?? []) tags.add(t);
+        setKnownTags([...tags]);
+      }).catch(() => {});
+    }
     setEditServings(recipe.servings);
     setScaledServings(null); // nollställ transient läs-skalning inför edit
     setEditIngredients(recipe.ingredients.map(i => ({
@@ -714,7 +721,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           <View>
             <Text style={s.editLabel}>{str.tags.label}</Text>
             <View style={s.tagRow}>
-              {[...new Set([...str.tags.suggested, ...editTags])].map(t => {
+              {[...new Set([...str.tags.suggested, ...knownTags, ...editTags])].map(t => {
                 const active = editTags.includes(t);
                 return (
                   <Pressable key={t} style={[s.tagChip, active && s.tagChipActive]} onPress={() => toggleEditTag(t)}>

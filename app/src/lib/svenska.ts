@@ -29,6 +29,14 @@ export const common = {
     discard:  'Släng utkast',
     keep:     'Fortsätt redigera',
   },
+  // Måltidstyper — låter flera rätter samsas på samma dag.
+  mealTypes: {
+    label:     'Måltid',
+    breakfast: 'Frukost',
+    lunch:     'Lunch',
+    dinner:    'Middag',
+    dessert:   'Efterrätt',
+  },
   errors: {
     generic:         'Något gick fel. Försök igen.',
     couldNotLoad:    (what: string) => `Kunde inte ladda ${what}`,
@@ -41,6 +49,7 @@ export const common = {
     short: ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'] as const,
     long:  ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag', 'Söndag'] as const,
   },
+  noDay: 'utan dag',
   ordinals: ['Första', 'Andra', 'Tredje', 'Fjärde', 'Femte', 'Sista'] as const,
   tabs: {
     shopping:        'Inköp',
@@ -607,6 +616,7 @@ export const menu = {
     servingsOnly:     (n: number) => `${n} port`,
     ingredientsCount: (n: number) => `${n} ingredienser`,
     inShoppingList:   'I inköpslistan',
+    addAnother:       'Lägg till rätt',
   },
 
   cleanup: {
@@ -708,6 +718,7 @@ export const recipes = {
   selection: {
     pick:    (day: string) => `Välj en rätt · ${day}`,
     replace: (title: string) => `Byt ut · ${title}`,
+    plan:    'Planera en rätt',
   },
 
   emptyState: {

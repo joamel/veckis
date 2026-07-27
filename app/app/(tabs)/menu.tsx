@@ -39,8 +39,8 @@ import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
 import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
-import type { WeekDay } from '@veckis/shared';
-import { DEFAULT_CATEGORY_ORDER } from '@veckis/shared';
+import type { WeekDay, MealType } from '@veckis/shared';
+import { DEFAULT_CATEGORY_ORDER, MEAL_TYPE_ORDER } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { menu as str, common, recipes as recipesStr } from '../../src/lib/svenska';
 import { RECIPE_FOCUS_EXPERIMENT } from '../../src/lib/features';
@@ -786,6 +786,12 @@ export default function MenuScreen() {
     router.push(`/recipes/pick?forMenuDay=${day ?? 'none'}&forMenuWeek=${weekYear}-${weekNumber}` as never);
   }
 
+  // Botten-"+": öppna receptväljaren i "välj dag"-läge — man väljer recept och
+  // sedan dag/vecka (inkl. utan dag) via "Lägg till i meny"-popupen.
+  function openPlanner() {
+    router.push(`/recipes/pick?chooseDay=1&forMenuWeek=${weekYear}-${weekNumber}` as never);
+  }
+
   // Replace flow now uses the full recipe view (select mode), like "+".
   function startReplaceRecipe(item: WeekMenuItemWithRecipe) {
     router.push(`/recipes/pick?replaceMenuItemId=${item.id}&replaceTitle=${encodeURIComponent(item.recipe.title)}&forMenuWeek=${weekYear}-${weekNumber}` as never);
@@ -1217,6 +1223,24 @@ export default function MenuScreen() {
     }
   }
 
+  // Sätt/ändra/rensa måltidstyp direkt på ett menykort (frivillig etikett).
+  // Toggla samma typ = rensa (null). Optimistiskt, som moveToDay.
+  async function setMenuItemMeal(item: WeekMenuItemWithRecipe, meal: MealType | null) {
+    const next = item.mealType === meal ? null : meal;
+    setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, mealType: next } : i));
+    setAllMenus(prev => prev.map(i => i.id === item.id ? { ...i, mealType: next } : i));
+    suppressMenuReloadRef.current += 1;
+    try {
+      const updated = await client.updateWeekMenuItem(item.id, { mealType: next });
+      setMenuItems(prev => prev.map(i => i.id === updated.id ? updated : i));
+      setAllMenus(prev => prev.map(i => i.id === updated.id ? updated : i));
+    } catch (e) {
+      setMenuItems(prev => prev.map(i => i.id === item.id ? item : i));
+      setAllMenus(prev => prev.map(i => i.id === item.id ? item : i));
+      showError(e, common.errors.couldNotSave('måltidstyp'));
+    }
+  }
+
   // Items for any page in the week pager. The centre page prefers the live,
   // editable `menuItems` — but only when they actually belong to the current
   // week; right after a week change `menuItems` is still the previous week's
@@ -1240,8 +1264,14 @@ export default function MenuScreen() {
     // Stable order (createdAt, then id) so a day's recipes render identically
     // whether they come from the allMenus snapshot or the live menuItems — no
     // reordering "jump" when swiping between weeks.
+    // Sortera dagens rätter efter måltidsordning (frukost→middag→efterrätt),
+    // därefter skapandeordning. Rätter utan måltidstyp hamnar sist.
+    const mealRank = (i: WeekMenuItemWithRecipe) => {
+      const idx = i.mealType ? MEAL_TYPE_ORDER.indexOf(i.mealType) : -1;
+      return idx === -1 ? MEAL_TYPE_ORDER.length : idx;
+    };
     const byCreated = (a: WeekMenuItemWithRecipe, b: WeekMenuItemWithRecipe) =>
-      a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
+      mealRank(a) - mealRank(b) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
     // Optimistic removal: hide items pending deletion immediately so the card
     // disappears at once. They're still in state until the delete commits, so the
     // toast's "Ångra" restores them.
@@ -1310,6 +1340,7 @@ export default function MenuScreen() {
                           isDragging={isCenter && dragState?.item.id === item.id}
                           scaledServings={scaledServingsOf(item)}
                           onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
+                          onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
                         />
                       ))
                     )}
@@ -1352,6 +1383,7 @@ export default function MenuScreen() {
                         isDragging={isCenter && dragState?.item.id === item.id}
                         scaledServings={scaledServingsOf(item)}
                         onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
+                        onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
                       />
                     ))
                   )
@@ -1361,23 +1393,18 @@ export default function MenuScreen() {
           })}
         </View>
 
-        {/* Unscheduled */}
-        <View
-          style={[s.section, isCenter && hoverDay === 'unscheduled' && s.sectionHovered]}
-          ref={isCenter ? (ref => measureDaySection('unscheduled', ref)) : undefined}
-        >
-          <View style={s.sectionRow}>
-            <Text style={s.sectionLabel}>{str.sections.unscheduled}</Text>
-            {isCenter && !isPastWeek && (
-              <Pressable onPress={() => openPicker(null)}>
-                <Ionicons name="add-circle-outline" size={20} color="#4e7a5e" />
-              </Pressable>
-            )}
-          </View>
-          {unsched.length === 0 ? (
-            <Text style={s.unscheduledEmpty}>{str.sections.unscheduledHint}</Text>
-          ) : (
-            unsched.map(item => (
+        {/* Ej schemalagda — sektionen (och rubriken) syns bara när det faktiskt
+            finns rätter utan dag. Man lägger dit via "Lägg till utan dag" i
+            planerar-popupen, inte via ett eget "+". */}
+        {unsched.length > 0 && (
+          <View
+            style={[s.section, s.unscheduledSection, isCenter && hoverDay === 'unscheduled' && s.sectionHovered]}
+            ref={isCenter ? (ref => measureDaySection('unscheduled', ref)) : undefined}
+          >
+            <View style={s.sectionRow}>
+              <Text style={s.sectionLabel}>{str.sections.unscheduled}</Text>
+            </View>
+            {unsched.map(item => (
               <MenuCard
                 key={item.id}
                 item={item}
@@ -1397,10 +1424,20 @@ export default function MenuScreen() {
                 isDragging={isCenter && dragState?.item.id === item.id}
                 scaledServings={scaledServingsOf(item)}
                 onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
+                onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
               />
-            ))
-          )}
-        </View>
+            ))}
+          </View>
+        )}
+
+        {/* Botten-"+": lägg till en rätt var som helst i veckan — öppnar
+            receptväljaren där man väljer dag/vecka (inkl. utan dag) via popupen. */}
+        {isCenter && !isPastWeek && (anyScheduled || unsched.length > 0) && (
+          <Pressable style={s.weekAddBtn} onPress={openPlanner}>
+            <Ionicons name="add" size={fs(18)} color="#4e7a5e" />
+            <Text style={[s.weekAddBtnText, { fontSize: fs(14) }]}>{str.card.addAnother}</Text>
+          </Pressable>
+        )}
 
         {!anyScheduled && unsched.length === 0 && (
           <EmptyState
@@ -1408,7 +1445,7 @@ export default function MenuScreen() {
             title={str.emptyState.noDishesPlanned.title}
             subtitle={isPastWeek ? str.emptyState.noDishesPlanned.subtitlePast : str.emptyState.noDishesPlanned.subtitle}
             actionLabel={isPastWeek ? undefined : str.emptyState.noDishesPlanned.action}
-            onAction={isPastWeek ? undefined : () => openPicker(null)}
+            onAction={isPastWeek ? undefined : openPlanner}
           />
         )}
       </>
@@ -2031,6 +2068,7 @@ function MenuCard({
   isDragging,
   scaledServings,
   onScaleServings,
+  onSetMeal,
   dayLabel,
   collapsedForDrag,
 }: {
@@ -2049,6 +2087,7 @@ function MenuCard({
   isDragging: boolean;
   scaledServings: number;
   onScaleServings: (n: number) => void;
+  onSetMeal: (meal: MealType | null) => void;
   collapsedForDrag?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -2097,6 +2136,9 @@ function MenuCard({
               </View>
             )}
             <View style={s.cardContent}>
+              {item.mealType && (
+                <Text style={[s.cardMealTag, { fontSize: fs(10) }]}>{common.mealTypes[item.mealType].toUpperCase()}</Text>
+              )}
               <Text style={[s.cardTitle, { fontSize: fs(16) }, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
             </View>
             {isTransferred && (
@@ -2141,6 +2183,23 @@ function MenuCard({
                   </Pressable>
                 </View>
               </View>
+
+              {/* Måltidstyp — frivillig etikett. Tryck igen för att rensa. */}
+              {!isPastWeek && (
+                <View style={s.mealPicker}>
+                  <Text style={[s.mealPickerLabel, { fontSize: fs(12) }]}>{common.mealTypes.label}</Text>
+                  <View style={s.mealPickerChips}>
+                    {MEAL_TYPE_ORDER.map(mt => {
+                      const active = item.mealType === mt;
+                      return (
+                        <Pressable key={mt} style={[s.mealPickerChip, active && s.mealPickerChipActive]} onPress={() => onSetMeal(mt)}>
+                          <Text style={[s.mealPickerChipText, active && s.mealPickerChipTextActive, { fontSize: fs(11) }]}>{common.mealTypes[mt]}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
 
               <View style={s.cardActions}>
                 <Pressable style={s.cardAction} onPress={onViewRecipe}>
@@ -2225,12 +2284,15 @@ const s = StyleSheet.create({
   contentInner: { padding: 16, gap: 2, paddingBottom: 80 },
   contentInnerTablet: { padding: 8, gap: 2 },
   daysRow: { flexDirection: 'row', gap: 6, alignItems: 'stretch' },
-  daysCol: { gap: 2 },
+  daysCol: { gap: 14 },
+  weekAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#c6ddcd', borderStyle: 'dashed', backgroundColor: '#fff' },
+  weekAddBtnText: { fontSize: 14, fontWeight: '600', color: '#4e7a5e' },
   daySlotWide: { flex: 1, minWidth: 0, minHeight: 80 },
   daySlotEmptyWide: { borderStyle: 'dashed', borderColor: '#d6d3d1', backgroundColor: 'transparent' },
   dayColHeader: { alignItems: 'center', paddingTop: 4, paddingBottom: 2 },
   dayColEmptyTap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40 },
   section: { gap: 2 },
+  unscheduledSection: { marginTop: 18 },
   dayLabelBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
   dayLabelAbbr: { fontSize: 11, fontWeight: '800', color: '#b96a45', letterSpacing: 0.3 },
   dayLabelDate: { fontSize: 13, fontWeight: '700', color: '#4e7a5e' },
@@ -2238,7 +2300,7 @@ const s = StyleSheet.create({
   dayLabelAbbrMuted: { color: '#a8a29e' },
   dayLabelDateMuted: { color: '#78716c' },
   daySlotEmptyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, minHeight: 44, alignSelf: 'stretch' },
-  daySlot: { borderWidth: 1, borderColor: '#c6ddcd', borderRadius: 12, padding: 6, gap: 3, backgroundColor: '#fff' },
+  daySlot: { borderWidth: 1, borderColor: '#c6ddcd', borderRadius: 12, padding: 6, gap: 2, backgroundColor: '#fff' },
   daySlotEmpty: { borderStyle: 'dashed', borderColor: '#d6d3d1', backgroundColor: 'transparent', minHeight: 64, alignItems: 'center', justifyContent: 'center', padding: 0 },
   daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
   daySlotDropTarget: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#c6ddcd', borderRadius: 12, padding: 6, backgroundColor: '#faf8f3' },
@@ -2260,6 +2322,14 @@ const s = StyleSheet.create({
   cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
+  cardMealTag: { fontSize: 10, fontWeight: '700', color: '#4e7a5e', letterSpacing: 0.5, marginBottom: 1 },
+  mealPicker: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 8 },
+  mealPickerLabel: { fontSize: 12, color: '#78716c', fontWeight: '500' },
+  mealPickerChips: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' },
+  mealPickerChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4' },
+  mealPickerChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
+  mealPickerChipText: { fontSize: 11, fontWeight: '600', color: '#78716c' },
+  mealPickerChipTextActive: { color: '#4e7a5e' },
   cardMeta: { fontSize: 12, color: '#78716c', marginTop: 2 },
   transferredBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   transferredText: { fontSize: 11, color: '#10b981', fontWeight: '600' },

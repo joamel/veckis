@@ -16,6 +16,7 @@ import type {
   Recipe,
   RecipeIngredient,
   WeekMenuItem,
+  MealType,
   StapleItem,
 } from '@veckis/shared';
 
@@ -379,10 +380,10 @@ export function useApiClient() {
     getAllMenus: (householdId: string) =>
       request<WeekMenuItemWithRecipe[]>(`/api/menus?householdId=${householdId}`),
 
-    addToWeekMenu: (data: { householdId: string; recipeId: string; day?: WeekDay | null; weekYear: number; weekNumber: number; note?: string | null }) =>
+    addToWeekMenu: (data: { householdId: string; recipeId: string; day?: WeekDay | null; mealType?: MealType | null; weekYear: number; weekNumber: number; note?: string | null }) =>
       request<WeekMenuItemWithRecipe>('/api/menus', { method: 'POST', body: JSON.stringify(data) }),
 
-    updateWeekMenuItem: (itemId: string, data: { day?: WeekDay | null; note?: string | null; servings?: number | null }) =>
+    updateWeekMenuItem: (itemId: string, data: { day?: WeekDay | null; mealType?: MealType | null; note?: string | null; servings?: number | null }) =>
       request<WeekMenuItemWithRecipe>(`/api/menus/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteWeekMenuItem: (itemId: string) =>

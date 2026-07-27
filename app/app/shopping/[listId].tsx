@@ -289,6 +289,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     }
   }
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const inputRef = useRef<TextInput>(null);
   const editQtyRef = useRef<TextInput>(null);
   const editUnitRef = useRef<TextInput>(null);
@@ -604,8 +605,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardVisible(true);
+      setKeyboardHeight(e.endCoordinates?.height ?? 0); // uppmätt höjd → deterministisk lyft av add-baren
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+      setKeyboardHeight(0);
+    });
     return () => {
       showSub.remove();
       hideSub.remove();
@@ -1387,10 +1394,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           Android Chrome PWA: browser resizes viewport → bar floats up naturally.
           KAV would double-push (bar "jumps"). Disable on non-iOS web.
           iOS Safari PWA: viewport doesn't resize → KAV needed to clear keyboard. */}
+      {/* Native: KAV av → vanlig container som lyfts med UPPMÄTT tangentbordshöjd
+          (deterministiskt, ingen offset-gissning). Web lämnas orört: iOS Safari
+          behöver KAV-push, Android Chrome resizar viewporten själv. */}
       <KeyboardAvoidingView
         behavior="padding"
         keyboardVerticalOffset={isIOSLike ? 90 : 0}
-        enabled={keyboardVisible && (Platform.OS !== 'web' || isIOSLike)}
+        enabled={keyboardVisible && Platform.OS === 'web' && isIOSLike}
+        style={{ paddingBottom: Platform.OS !== 'web' && keyboardVisible ? keyboardHeight : 0 }}
       >
         {suggestions.length > 0 ? (
           <ScrollView
@@ -1430,7 +1441,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </View>
           </View>
         ) : null}
-        <View style={[s.addBar, { paddingBottom: Math.max(12, insets.bottom) }]}>
+        <View style={[s.addBar, { paddingBottom: keyboardVisible && Platform.OS !== 'web' ? 12 : Math.max(12, insets.bottom) }]}>
           <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
             <Ionicons name="grid-outline" size={22} color="#4e7a5e" />
           </Pressable>

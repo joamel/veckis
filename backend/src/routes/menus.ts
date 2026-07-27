@@ -26,11 +26,13 @@ async function bumpTimesUsed(items: { recipeId: string }[]): Promise<void> {
 }
 
 const weekDayEnum = z.nativeEnum(WeekDay);
+const mealTypeEnum = z.enum(['breakfast', 'lunch', 'dinner', 'dessert']);
 
 const createMenuItemSchema = z.object({
   householdId: z.string(),
   recipeId: z.string(),
   day: weekDayEnum.nullable().default(null),
+  mealType: mealTypeEnum.nullable().optional(),
   weekYear: z.number().int(),
   weekNumber: z.number().int().min(1).max(53),
   note: z.string().max(500).nullable().optional(),
@@ -97,6 +99,7 @@ menusRouter.patch('/:itemId', requireAuth, asyncHandler(async (req, res) => {
 
   const body = z.object({
     day: weekDayEnum.nullable().optional(),
+    mealType: mealTypeEnum.nullable().optional(),
     note: z.string().max(500).nullable().optional(),
     servings: z.number().int().positive().nullable().optional(),
   }).safeParse(req.body);
@@ -171,6 +174,7 @@ menusRouter.post('/copy', requireAuth, asyncHandler(async (req, res) => {
       householdId: body.data.householdId,
       recipeId: s.recipeId,
       day: s.day,
+      mealType: s.mealType,
       weekYear: body.data.toWeekYear,
       weekNumber: body.data.toWeekNumber,
       note: s.note,
