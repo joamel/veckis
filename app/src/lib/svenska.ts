@@ -45,6 +45,7 @@ export const common = {
   tabs: {
     shopping:        'Inköp',
     menu:            'Meny',
+    recipes:         'Recept',
     schedule:        'Kalender',
     chores:          'Sysslor',
     settings:        'Hushållet',
@@ -825,6 +826,9 @@ export const recipes = {
 
   actions: {
     planInMenu:  'Planera i meny',
+    addToMenu:   'Lägg till i veckomeny',
+    addToShopping:'Lägg till i inköpslista',
+    addTitle:    'Lägg till receptet',
     editRecipe:  'Redigera recept',
     deleteRecipe:'Ta bort recept',
   },
@@ -848,6 +852,11 @@ export const recipes = {
     dayOccupied: {
       title:   'Dag redan planerad',
       message: (label: string) => `${label} har redan en rätt denna vecka. Lägg till ändå?`,
+      confirm: 'Lägg till',
+    },
+    recipeOccupied: {
+      title:   'Rätt redan planerad',
+      message: (title: string) => `${title} är redan planerad denna vecka. Lägg till ändå?`,
       confirm: 'Lägg till',
     },
     replace: {
@@ -1467,6 +1476,7 @@ export const preferences = {
     tabs: {
       shopping: 'Inköp',
       menu:     'Meny',
+      recipes:  'Recept',
       schedule: 'Kalender',
       chores:   'Sysslor',
     } as Record<string, string>,

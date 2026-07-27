@@ -34,6 +34,7 @@ import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
 import { kavBehavior } from '../../src/lib/platform';
 import { settings as str, common } from '../../src/lib/svenska';
+import { RECIPE_FOCUS_EXPERIMENT } from '../../src/lib/features';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -636,7 +637,9 @@ export default function SettingsScreen() {
           <View style={styles.membersBox}>
             <View style={styles.membersHeader}>
               <Text style={styles.membersTitle}>{str.sections.members}</Text>
-              {editMode && isAdmin && (
+              {/* Lokala profiler döljs i recept-fokus-experimentet — utan sysslor/
+                  aktiviteter finns inget att tilldela dem. Backend/modell orörd. */}
+              {editMode && isAdmin && !RECIPE_FOCUS_EXPERIMENT && (
                 <Pressable style={styles.addMemberBtn} onPress={() => setShowCreateLocalModal(true)}>
                   <Ionicons name="add-circle-outline" size={15} color="#4e7a5e" />
                   <Text style={styles.addMemberBtnText}>{str.member.localProfile}</Text>

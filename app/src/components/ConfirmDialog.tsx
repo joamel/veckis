@@ -16,6 +16,9 @@ export interface ConfirmOptions {
    *  'action' renders as a compact card centered at the bottom (for mid-screen buttons).
    *  Default 'sheet' is the standard bottom sheet. */
   variant?: 'sheet' | 'menu' | 'action';
+  /** For variant 'menu': where the popup card anchors. Default 'top-right'
+   *  (matches 3-dot menus). 'bottom-right' anchors above a FAB. */
+  menuAnchor?: 'top-right' | 'bottom-right';
 }
 
 export function ConfirmDialog({
@@ -58,10 +61,11 @@ export function ConfirmDialog({
     });
 
     if (options.variant === 'menu') {
+      const anchorStyle = options.menuAnchor === 'bottom-right' ? s.menuCardBottomRight : s.menuCardTopRight;
       return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
           <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onPress={dismiss} />
-          <View style={[s.menuCardBase, s.menuCardTopRight]}>{rows}</View>
+          <View style={[s.menuCardBase, anchorStyle]}>{rows}</View>
         </Modal>
       );
     }
@@ -149,6 +153,8 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   menuCardTopRight: { position: 'absolute', right: 0, top: 0 },
+  // Ovanför FAB:en (right:20 bottom:20, 56 hög) i nedre högra hörnet.
+  menuCardBottomRight: { position: 'absolute', right: 16, bottom: 88 },
   menuBtn: { paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   menuBtnText: { fontSize: 15, fontWeight: '500', color: '#4e7a5e' },
   menuDivider: { height: 1, backgroundColor: '#f1efec', marginVertical: 4 },

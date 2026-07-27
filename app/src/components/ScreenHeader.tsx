@@ -10,15 +10,23 @@ interface ScreenHeaderProps {
   actionLabel?: string;
   onActionPress?: () => void;
   actionNode?: ReactNode;
+  /** When set, renders a back arrow before the title (for pushed screens
+   *  that reuse a tab layout, e.g. the recipe picker). */
+  onBack?: () => void;
 }
 
-export function ScreenHeader({ title, actionIcon, actionLabel, onActionPress, actionNode }: ScreenHeaderProps) {
+export function ScreenHeader({ title, actionIcon, actionLabel, onActionPress, actionNode, onBack }: ScreenHeaderProps) {
   const { householdName } = useHousehold();
   const { fs, sp } = useTablet();
 
   return (
     <View style={s.header}>
       <View style={[s.headerTop, { paddingHorizontal: sp(20), paddingTop: sp(20), paddingBottom: sp(10) }]}>
+        {onBack && (
+          <Pressable onPress={onBack} hitSlop={10} style={{ marginRight: sp(10), alignSelf: 'center' }} accessibilityRole="button">
+            <Ionicons name="arrow-back" size={fs(26)} color="#292524" />
+          </Pressable>
+        )}
         <View style={s.headerTitleSection}>
           <Text style={[s.title, { fontSize: fs(28) }]}>{title}</Text>
           {householdName && (

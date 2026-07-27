@@ -25,6 +25,7 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { EmptyState } from '../../src/components/EmptyState';
+import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
@@ -105,13 +106,30 @@ export default function RecipesScreen() {
   function addRecipeToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
     setAddToMenuFor(null);
     if (!householdId) return;
+    // Varna om dagen redan har en rätt …
     if (day && addToMenuWeekItems.some(m => m.day === day)) {
       const label = MENU_DAYS.find(d => d.key === day)?.label;
       confirm({
         title: str.menu.dayOccupied.title,
         message: str.menu.dayOccupied.message(label ?? ''),
         buttons: [
-          { label: str.menu.dayOccupied.confirm, onPress: () => doAddToMenu(recipe, day) },
+          { label: str.menu.dayOccupied.confirm, onPress: () => addRecipeToMenuStep2(recipe, day) },
+          { label: common.actions.cancel, style: 'cancel' },
+        ],
+      });
+      return;
+    }
+    addRecipeToMenuStep2(recipe, day);
+  }
+
+  // … och separat om SAMMA rätt redan ligger någonstans i veckan.
+  function addRecipeToMenuStep2(recipe: RecipeWithIngredients, day: WeekDay | null) {
+    if (addToMenuWeekItems.some(m => m.recipeId === recipe.id)) {
+      confirm({
+        title: str.menu.recipeOccupied.title,
+        message: str.menu.recipeOccupied.message(recipe.title),
+        buttons: [
+          { label: str.menu.recipeOccupied.confirm, onPress: () => doAddToMenu(recipe, day) },
           { label: common.actions.cancel, style: 'cancel' },
         ],
       });
@@ -356,18 +374,16 @@ export default function RecipesScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <View style={s.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Pressable onPress={() => router.back()} hitSlop={10}>
-              <Ionicons name="arrow-back" size={26} color="#292524" />
-            </Pressable>
-            <Text style={s.title}>{str.title}</Text>
-          </View>
+      <ScreenHeader
+        title={str.title}
+        onBack={selectionMode || params.create === '1' ? () => router.back() : undefined}
+        actionNode={
           <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={[s.sortBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }]} accessibilityLabel={str.sort.a11y}>
             <Ionicons name="swap-vertical" size={fs(18)} color="#4e7a5e" />
           </Pressable>
-        </View>
+        }
+      />
+      <View style={s.subHeader}>
         <View style={s.searchRow}>
           <Ionicons name="search" size={16} color="#a8a29e" style={s.searchIcon} />
           <TextInput
@@ -642,7 +658,8 @@ export default function RecipesScreen() {
 
           <View style={s.dayGrid}>
             {MENU_DAYS.map(d => {
-              const taken = addToMenuWeekItems.some(m => m.day === d.key);
+              const takenItem = addToMenuWeekItems.find(m => m.day === d.key);
+              const taken = !!takenItem;
               return (
                 <Pressable
                   key={d.key}
@@ -650,7 +667,9 @@ export default function RecipesScreen() {
                   onPress={() => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, d.key); }}
                 >
                   <Text style={[s.dayGridLabel, taken && s.dayGridLabelTaken]}>{d.label}</Text>
-                  {taken && <Text style={s.dayGridTakenHint}>{str.menu.taken}</Text>}
+                  {takenItem && (
+                    <Text style={s.dayGridTakenHint} numberOfLines={1}>{takenItem.recipe.title}</Text>
+                  )}
                 </Pressable>
               );
             })}
@@ -687,8 +706,7 @@ export default function RecipesScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#faf8f3' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { padding: 20, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec', gap: 12 },
-  title: { fontSize: 28, fontWeight: '700', color: '#292524' },
+  subHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec', gap: 12 },
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f1efec', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
   tagFilterScroll: { marginTop: 8 },
   tagFilterRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -727,7 +745,7 @@ const s = StyleSheet.create({
   dayGridItemNone: { backgroundColor: '#ecf3ec', borderWidth: 1, borderColor: '#c6ddcd', justifyContent: 'flex-start' },
   dayGridLabel: { fontSize: 15, fontWeight: '600', color: '#292524' },
   dayGridLabelTaken: { color: '#a8a29e' },
-  dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: '#f59e0b' },
+  dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: '#a8a29e', flexShrink: 1, marginLeft: 8, textAlign: 'right' },
   dayGridLabelNone: { color: '#4e7a5e' },
   modeTabs: { flexDirection: 'row', backgroundColor: '#f1efec', borderRadius: 10, padding: 4 },
   modeTab: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },

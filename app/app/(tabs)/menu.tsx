@@ -43,6 +43,7 @@ import type { WeekDay } from '@veckis/shared';
 import { DEFAULT_CATEGORY_ORDER } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { menu as str, common, recipes as recipesStr } from '../../src/lib/svenska';
+import { RECIPE_FOCUS_EXPERIMENT } from '../../src/lib/features';
 
 const DAY_KEYS: WeekDay[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAYS: { key: WeekDay; label: string; short: string }[] = DAY_KEYS.map((key, i) => ({
@@ -620,6 +621,7 @@ export default function MenuScreen() {
   // header-sviten introduceras i ordning.
   useFocusEffect(useCallback(() => {
     if (!tipsReady) return;
+    if (RECIPE_FOCUS_EXPERIMENT) return; // knappen finns inte → inget tips att rikta
     if (recipesBtnTip.seen !== false || recipesBtnTipShownRef.current) return;
     if (templatesTip.seen !== true) return;
     const shown = showTip({
@@ -781,12 +783,12 @@ export default function MenuScreen() {
   // with ?addRecipeId&day, which the addRecipeId effect below applies to the
   // currently shown week.
   function openPicker(day: WeekDay | null) {
-    router.push(`/recipes?forMenuDay=${day ?? 'none'}&forMenuWeek=${weekYear}-${weekNumber}` as never);
+    router.push(`/recipes/pick?forMenuDay=${day ?? 'none'}&forMenuWeek=${weekYear}-${weekNumber}` as never);
   }
 
   // Replace flow now uses the full recipe view (select mode), like "+".
   function startReplaceRecipe(item: WeekMenuItemWithRecipe) {
-    router.push(`/recipes?replaceMenuItemId=${item.id}&replaceTitle=${encodeURIComponent(item.recipe.title)}&forMenuWeek=${weekYear}-${weekNumber}` as never);
+    router.push(`/recipes/pick?replaceMenuItemId=${item.id}&replaceTitle=${encodeURIComponent(item.recipe.title)}&forMenuWeek=${weekYear}-${weekNumber}` as never);
   }
 
   // Swap a menu item for another recipe on the same day/week (returned from the
@@ -1427,12 +1429,16 @@ export default function MenuScreen() {
             <Pressable ref={templatesBtnRef} style={[s.headerIconBtn, { paddingHorizontal: sp(10), paddingVertical: sp(7) }]} onPress={() => setShowTemplates(true)} accessibilityLabel={str.a11y.templates}>
               <Ionicons name="bookmarks-outline" size={fs(18)} color="#4e7a5e" />
             </Pressable>
-            <View ref={recipesBtnRef} collapsable={false}>
-              <Pressable style={[s.headerActionBtn, { paddingHorizontal: sp(12), paddingVertical: sp(7) }]} onPress={() => router.push('/recipes' as never)}>
-                <Ionicons name="book-outline" size={fs(16)} color="#4e7a5e" />
-                <Text style={[s.headerActionText, { fontSize: fs(13) }]}>{str.a11y.recipesTab}</Text>
-              </Pressable>
-            </View>
+            {/* Recept-knappen behövs bara när Recept är en gömd stack-route.
+                I recept-fokus-experimentet är Recept en egen flik → redundant. */}
+            {!RECIPE_FOCUS_EXPERIMENT && (
+              <View ref={recipesBtnRef} collapsable={false}>
+                <Pressable style={[s.headerActionBtn, { paddingHorizontal: sp(12), paddingVertical: sp(7) }]} onPress={() => router.push('/recipes' as never)}>
+                  <Ionicons name="book-outline" size={fs(16)} color="#4e7a5e" />
+                  <Text style={[s.headerActionText, { fontSize: fs(13) }]}>{str.a11y.recipesTab}</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         }
       />
@@ -1609,7 +1615,7 @@ export default function MenuScreen() {
                       onPress={() => {
                         const day = pickingForDay ?? '';
                         setShowPicker(false);
-                        router.push(`/recipes?create=1&forMenuDay=${day}&forMenuWeek=${weekYear}-${weekNumber}` as never);
+                        router.push(`/recipes/pick?create=1&forMenuDay=${day}&forMenuWeek=${weekYear}-${weekNumber}` as never);
                       }}
                     >
                       <View style={[s.recipeCardIcon, { backgroundColor: '#ecf3ec' }]}>

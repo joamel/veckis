@@ -26,7 +26,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
+import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
@@ -38,12 +38,22 @@ import type { RecipeIngredient, WeekDay } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
+const MENU_DAYS: { key: WeekDay; label: string }[] = [
+  { key: 'mon', label: 'Måndag' },
+  { key: 'tue', label: 'Tisdag' },
+  { key: 'wed', label: 'Onsdag' },
+  { key: 'thu', label: 'Torsdag' },
+  { key: 'fri', label: 'Fredag' },
+  { key: 'sat', label: 'Lördag' },
+  { key: 'sun', label: 'Söndag' },
+];
+
 export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; onClose?: () => void }) {
   const edit = editParam;
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
-  const { showError } = useToast();
+  const { showError, showToast } = useToast();
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
@@ -160,10 +170,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<ReturnType<typeof deduplicateIngredients>>([]);
 
-  // Plan in menu modal
+  // Plan in menu modal — samma dag-grid + direkt-tillägg som receptbibliotekets
+  // kalenderikon-dialog (delad look). planWeekStr styr vald vecka; grid-tapp
+  // lägger till direkt (toast) istället för att navigera bort.
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [planWeekStr, setPlanWeekStr] = useState('');
-  const [planDay, setPlanDay] = useState<WeekDay | null>(null);
+  const [planWeekItems, setPlanWeekItems] = useState<WeekMenuItemWithRecipe[]>([]);
 
   // Recipe-cart-tip: visa när receptet är laddat och har ingredienser så
   // kundvagn-FAB:en faktiskt syns och är meningsfull att förklara.
@@ -239,9 +251,71 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     const todayWeek = getISOWeek(new Date());
     const defaultWeek = forMenuWeek ?? `${todayWeek.weekYear}-${String(todayWeek.weekNumber).padStart(2, '0')}`;
     setPlanWeekStr(defaultWeek);
-    setPlanDay(null);
     // Delay to let the ConfirmDialog modal finish closing before opening a new modal
     setTimeout(() => setShowPlanModal(true), 350);
+  }
+
+  // Ladda veckans menyrader så dag-griden kan gråa ut upptagna dagar.
+  useEffect(() => {
+    if (!showPlanModal || !planWeekStr || !householdId) { setPlanWeekItems([]); return; }
+    const [y, w] = planWeekStr.split('-').map(Number);
+    let alive = true;
+    client.getWeekMenu(householdId, y, w).then(items => { if (alive) setPlanWeekItems(items); }).catch(() => {});
+    return () => { alive = false; };
+  }, [showPlanModal, planWeekStr, householdId]);
+
+  function planRecipeToMenu(day: WeekDay | null) {
+    if (!recipe) return;
+    setShowPlanModal(false); // stäng sheeten innan ev. confirm-dialog (undvik staplade modaler)
+    // Varna om dagen redan har en rätt …
+    if (day && planWeekItems.some(m => m.day === day)) {
+      const label = MENU_DAYS.find(d => d.key === day)?.label;
+      confirm({
+        title: str.menu.dayOccupied.title,
+        message: str.menu.dayOccupied.message(label ?? ''),
+        buttons: [
+          { label: str.menu.dayOccupied.confirm, onPress: () => planRecipeToMenuStep2(day) },
+          { label: common.actions.cancel, style: 'cancel' },
+        ],
+      });
+      return;
+    }
+    planRecipeToMenuStep2(day);
+  }
+
+  // … och varna separat om SAMMA rätt redan ligger någonstans i veckan.
+  function planRecipeToMenuStep2(day: WeekDay | null) {
+    if (!recipe) return;
+    if (planWeekItems.some(m => m.recipeId === recipe.id)) {
+      confirm({
+        title: str.menu.recipeOccupied.title,
+        message: str.menu.recipeOccupied.message(recipe.title),
+        buttons: [
+          { label: str.menu.recipeOccupied.confirm, onPress: () => doPlanToMenu(day) },
+          { label: common.actions.cancel, style: 'cancel' },
+        ],
+      });
+      return;
+    }
+    doPlanToMenu(day);
+  }
+
+  async function doPlanToMenu(day: WeekDay | null) {
+    if (!recipe || !householdId) return;
+    const [weekYear, weekNumber] = planWeekStr
+      ? planWeekStr.split('-').map(Number)
+      : [getISOWeek(new Date()).weekYear, getISOWeek(new Date()).weekNumber];
+    setShowPlanModal(false);
+    try {
+      const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
+      setPlanWeekItems(prev => [...prev, item]);
+      const dayLabel = day ? MENU_DAYS.find(d => d.key === day)?.label.toLowerCase() : null;
+      const todayW = getISOWeek(new Date());
+      const weekLabel = weekYear === todayW.weekYear && weekNumber === todayW.weekNumber ? str.menu.thisWeek : str.menu.weekLabel(weekNumber);
+      showToast(dayLabel ? str.menu.addedWithDay(recipe.title, dayLabel, weekLabel) : str.menu.addedNoDay(recipe.title, weekLabel), 'success');
+    } catch (e) {
+      showError(e, str.menu.errorAdd);
+    }
   }
 
   function openRecipeActions() {
@@ -249,10 +323,26 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     confirm({
       variant: 'menu',
       buttons: [
-        { label: str.actions.planInMenu, icon: 'calendar-outline', onPress: openPlanModal },
         { label: str.actions.editRecipe, icon: 'create-outline', onPress: startEdit },
         { label: str.actions.deleteRecipe, icon: 'trash-outline', style: 'destructive', onPress: confirmDeleteRecipe },
         { label: common.actions.cancel, style: 'cancel' },
+      ],
+    });
+  }
+
+  // "+"-väljare: en tydlig ingång för att lägga receptet någonstans — veckomeny
+  // eller direkt i en inköpslista. Samlar de två destinationerna som tidigare
+  // låg utspridda (planera i 3-prickar, kundvagn-FAB) till ett ställe.
+  function openAddChooser() {
+    if (!recipe) return;
+    const hasIngredients = recipe.ingredients.length > 0;
+    confirm({
+      variant: 'menu',
+      menuAnchor: 'bottom-right', // popupen sitter vid "+"-FAB:en nere till höger
+      buttons: [
+        { label: str.actions.addToMenu, icon: 'calendar-outline', onPress: openPlanModal },
+        ...(hasIngredients ? [{ label: str.actions.addToShopping, icon: 'cart-outline' as const, onPress: () => openTransfer() }] : []),
+        { label: common.actions.cancel, style: 'cancel' as const },
       ],
     });
   }
@@ -936,32 +1026,33 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         </View>
       </Modal>
 
-      {/* Plan in menu modal */}
+      {/* Plan in menu modal — identisk look med bibliotekets kalenderikon-dialog:
+          veckochips + dag-grid som lägger till direkt (toast), ingen extra knapp. */}
       <Modal visible={showPlanModal} transparent animationType="slide" onRequestClose={() => setShowPlanModal(false)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowPlanModal(false)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>{str.plan.title}</Text>
-          <Text style={s.sheetSub}>{str.plan.sub}</Text>
+          <Text style={s.sheetTitle}>{str.menu.addToMenu}</Text>
+          <Text style={s.daySheetSub} numberOfLines={1}>{recipe?.title}</Text>
 
-          <Text style={s.planSectionLabel}>{str.plan.weekLabel}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
+          {/* Week chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: -4 }}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
               {(() => {
                 const todayWeek = getISOWeek(new Date());
                 const thisMonday = getISOWeekMonday(todayWeek.weekYear, todayWeek.weekNumber);
                 return Array.from({ length: 5 }, (_, i) => {
                   const mon = addWeeks(thisMonday, i);
                   const { weekYear, weekNumber } = getISOWeek(mon);
-                  const planWeekKey = `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
-                  const active = planWeekStr === planWeekKey;
+                  const weekKey = `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
+                  const active = planWeekStr === weekKey;
                   const label = i === 0 ? str.menu.weekNow(weekNumber) : str.menu.weekLabel(weekNumber);
                   const sub = `${mon.getDate()}/${mon.getMonth() + 1}`;
                   return (
-                    <Pressable key={planWeekKey} style={[s.planChip, active && s.planChipActive]} onPress={() => setPlanWeekStr(planWeekKey)}>
-                      <Text style={[s.planChipText, active && s.planChipTextActive]}>{label}</Text>
-                      <Text style={[s.planChipSub, active && s.planChipSubActive]}>{sub}</Text>
+                    <Pressable key={weekKey} style={[s.weekChip, active && s.weekChipActive]} onPress={() => setPlanWeekStr(weekKey)}>
+                      <Text style={[s.weekChipText, active && s.weekChipTextActive]}>{label}</Text>
+                      <Text style={[s.weekChipSub, active && s.weekChipSubActive]}>{sub}</Text>
                     </Pressable>
                   );
                 });
@@ -969,54 +1060,37 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             </View>
           </ScrollView>
 
-          <Text style={s.planSectionLabel}>{str.plan.dayLabel}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
-              {([
-                { label: str.plan.noDay, value: null },
-                { label: 'Mån', value: 'mon' },
-                { label: 'Tis', value: 'tue' },
-                { label: 'Ons', value: 'wed' },
-                { label: 'Tor', value: 'thu' },
-                { label: 'Fre', value: 'fri' },
-                { label: 'Lör', value: 'sat' },
-                { label: 'Sön', value: 'sun' },
-              ] as { label: string; value: WeekDay | null }[]).map(d => {
-                const active = planDay === d.value;
-                return (
-                  <Pressable key={d.label} style={[s.planChip, active && s.planChipActive]} onPress={() => setPlanDay(d.value)}>
-                    <Text style={[s.planChipText, active && s.planChipTextActive]}>{d.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </ScrollView>
-
-          <Pressable
-            style={s.saveBtn}
-            onPress={() => {
-              setShowPlanModal(false);
-              router.replace(`/(tabs)/menu?addRecipeId=${recipe!.id}&day=${planDay ?? ''}&forMenuWeek=${planWeekStr}` as never);
-            }}
-          >
-            <Text style={s.saveBtnText}>{str.plan.addButton}</Text>
-          </Pressable>
+          <View style={s.dayGrid}>
+            {MENU_DAYS.map(d => {
+              const takenItem = planWeekItems.find(m => m.day === d.key);
+              const taken = !!takenItem;
+              return (
+                <Pressable
+                  key={d.key}
+                  style={[s.dayGridItem, taken && s.dayGridItemTaken]}
+                  onPress={() => planRecipeToMenu(d.key)}
+                >
+                  <Text style={[s.dayGridLabel, taken && s.dayGridLabelTaken]}>{d.label}</Text>
+                  {takenItem && (
+                    <Text style={s.dayGridTakenHint} numberOfLines={1}>{takenItem.recipe.title}</Text>
+                  )}
+                </Pressable>
+              );
+            })}
+            <Pressable style={[s.dayGridItem, s.dayGridItemNone]} onPress={() => planRecipeToMenu(null)}>
+              <Ionicons name="calendar-clear-outline" size={18} color="#4e7a5e" />
+              <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>{str.menu.noDay}</Text>
+            </Pressable>
+          </View>
         </View>
       </Modal>
 
-      {/* FAB — Laga nu från kalender, kundkorg från menyn */}
-      {!editMode && (
-        from === 'calendar'
-          ? recipe?.instructions && (
-              <Pressable style={s.fab} onPress={() => { setCookStep(0); setCookMode(true); }} accessibilityLabel={str.detail.cookA11y}>
-                <Ionicons name="restaurant-outline" size={26} color="#fff" />
-              </Pressable>
-            )
-          : recipe?.ingredients && recipe.ingredients.length > 0 && (
-              <Pressable style={s.fab} onPress={() => openTransfer()} accessibilityLabel={str.detail.transferA11y}>
-                <Ionicons name="cart-outline" size={26} color="#fff" />
-              </Pressable>
-            )
+      {/* "+"-FAB — väljare: lägg till receptet i veckomeny eller inköpslista.
+          (Laga nu-läget nås från instruktions-sektionens "Laga nu"-knapp.) */}
+      {!editMode && recipe && (
+        <Pressable style={s.fab} onPress={openAddChooser} accessibilityLabel={str.actions.addTitle}>
+          <Ionicons name="add" size={30} color="#fff" />
+        </Pressable>
       )}
 
       {/* Cooking mode */}
@@ -1251,13 +1325,21 @@ const s = StyleSheet.create({
   listPicker: {},
   listPickerItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: '#faf8f3', borderRadius: 10, marginBottom: 6 },
   listPickerItemText: { fontSize: 15, fontWeight: '600', color: '#292524', flex: 1 },
-  planSectionLabel: { fontSize: 13, fontWeight: '600', color: '#78716c', marginBottom: 4 },
-  planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center' },
-  planChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
-  planChipText: { fontSize: 14, fontWeight: '600', color: '#44403c' },
-  planChipTextActive: { color: '#4e7a5e' },
-  planChipSub: { fontSize: 11, color: '#a8a29e', marginTop: 2 },
-  planChipSubActive: { color: '#7fa88d' },
+  daySheetSub: { fontSize: 13, color: '#78716c', marginTop: -8 },
+  dayGrid: { gap: 8, marginTop: 4 },
+  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#f1efec', borderRadius: 12 },
+  dayGridItemTaken: { backgroundColor: '#faf8f3' },
+  dayGridItemNone: { backgroundColor: '#ecf3ec', borderWidth: 1, borderColor: '#c6ddcd', justifyContent: 'flex-start' },
+  dayGridLabel: { fontSize: 15, fontWeight: '600', color: '#292524' },
+  dayGridLabelTaken: { color: '#a8a29e' },
+  dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: '#a8a29e', flexShrink: 1, marginLeft: 8, textAlign: 'right' },
+  dayGridLabelNone: { color: '#4e7a5e' },
+  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center' },
+  weekChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
+  weekChipText: { fontSize: 13, fontWeight: '600', color: '#44403c' },
+  weekChipTextActive: { color: '#4e7a5e' },
+  weekChipSub: { fontSize: 11, color: '#a8a29e', marginTop: 2 },
+  weekChipSubActive: { color: '#7fa88d' },
 });
 
 export default function RecipeDetailScreen() {

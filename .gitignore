@@ -18,3 +18,9 @@ backend/prisma/migrations/*.sql.bak
 
 # Claude Code harness
 .claude/scheduled_tasks.lock
+
+# Lokalt skräp/sandbox — ska aldrig committas
+.claude/settings.json
+backend/server.err
+sandbox-sounds/
+sound-sandbox.mjs
