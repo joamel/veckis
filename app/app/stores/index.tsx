@@ -46,6 +46,9 @@ export default function StoresScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('name');
   const [showSort, setShowSort] = useState(false);
+  // Kort-tap i pick-läge markerar butiken kort (highlight) innan vi backar,
+  // så användaren ser vilket val som registrerades istället för en tvär hopp.
+  const [selectingId, setSelectingId] = useState<string | null>(null);
 
   // Skapa-modal
   const [showCreate, setShowCreate] = useState(false);
@@ -164,15 +167,18 @@ export default function StoresScreen() {
         ) : (
           filteredSorted.map(store => {
             const catCount = (store.categoryOrder as StoreCategory[]).length || 0;
-            const isCurrent = pickMode && store.id === currentStoreId;
+            const isSelecting = store.id === selectingId;
+            const isCurrent = (pickMode && store.id === currentStoreId) || isSelecting;
             return (
               <Pressable
                 key={store.id}
                 style={[s.card, isCurrent && s.cardCurrent]}
                 onPress={() => {
                   if (pickMode) {
-                    resolveStorePick(store.id);
-                    router.back();
+                    if (selectingId) return; // redan på väg ut — ignorera dubbeltapp
+                    setSelectingId(store.id);
+                    // Kort highlight så valet syns innan vi backar.
+                    setTimeout(() => { resolveStorePick(store.id); router.back(); }, 180);
                   } else {
                     router.push(`/stores/${store.id}` as never);
                   }
@@ -190,7 +196,9 @@ export default function StoresScreen() {
                     return parts.length > 0 ? <Text style={[s.cardMeta, isCurrent && s.cardMetaCurrent]}>{parts.join(' · ')}</Text> : null;
                   })()}
                 </View>
-                {isCurrent ? (
+                {isSelecting ? (
+                  <Ionicons name="checkmark-circle" size={22} color="#4e7a5e" />
+                ) : isCurrent ? (
                   <Pressable
                     onPress={(e) => { e.stopPropagation?.(); resolveStorePick(null); router.back(); }}
                     hitSlop={10}
