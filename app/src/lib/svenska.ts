@@ -49,6 +49,7 @@ export const common = {
     short: ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'] as const,
     long:  ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag', 'Söndag'] as const,
   },
+  noDay: 'utan dag',
   ordinals: ['Första', 'Andra', 'Tredje', 'Fjärde', 'Femte', 'Sista'] as const,
   tabs: {
     shopping:        'Inköp',
@@ -717,6 +718,7 @@ export const recipes = {
   selection: {
     pick:    (day: string) => `Välj en rätt · ${day}`,
     replace: (title: string) => `Byt ut · ${title}`,
+    plan:    'Planera en rätt',
   },
 
   emptyState: {

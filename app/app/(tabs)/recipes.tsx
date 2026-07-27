@@ -32,19 +32,15 @@ import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { useTablet } from '../../src/hooks/useTablet';
 
-const MENU_DAYS: { key: WeekDay; label: string }[] = [
-  { key: 'mon', label: 'Måndag' },
-  { key: 'tue', label: 'Tisdag' },
-  { key: 'wed', label: 'Onsdag' },
-  { key: 'thu', label: 'Torsdag' },
-  { key: 'fri', label: 'Fredag' },
-  { key: 'sat', label: 'Lördag' },
-  { key: 'sun', label: 'Söndag' },
-];
+// Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
+// dagnamn är hårdkodat i komponenten — då räcker det att översätta svenska.ts.
+const MENU_DAYS: { key: WeekDay; label: string }[] =
+  (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as WeekDay[])
+    .map((key, i) => ({ key, label: common.weekdays.long[i] }));
 
 export default function RecipesScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ create?: string; forMenuDay?: string; replaceMenuItemId?: string; replaceTitle?: string; forMenuWeek?: string }>();
+  const params = useLocalSearchParams<{ create?: string; forMenuDay?: string; replaceMenuItemId?: string; replaceTitle?: string; forMenuWeek?: string; chooseDay?: string }>();
   const createTriggeredRef = useRef(false);
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -152,6 +148,9 @@ export default function RecipesScreen() {
       const todayW = getISOWeek(new Date());
       const weekLabel = weekYear === todayW.weekYear && weekNumber === todayW.weekNumber ? str.menu.thisWeek : str.menu.weekLabel(weekNumber);
       showToast(dayLabel ? str.menu.addedWithDay(recipe.title, dayLabel, weekLabel) : str.menu.addedNoDay(recipe.title, weekLabel), 'success');
+      // Kom man hit via menyns "+ lägg till rätt" → tillbaka till menyn (som
+      // uppdateras via menu_updated-socket), i stället för att bli kvar i väljaren.
+      if (chooseMode && router.canGoBack()) router.back();
     } catch (e) {
       showError(e, str.menu.errorAdd);
     }
@@ -162,9 +161,21 @@ export default function RecipesScreen() {
   // applies it to the week it's showing.
   const replaceMode = params.replaceMenuItemId !== undefined;
   const selectionMode = params.forMenuDay !== undefined || replaceMode;
+  // "Välj dag"-läge (botten-"+" i menyn): tapp på ett recept öppnar
+  // "Lägg till i meny"-popupen där man väljer dag/vecka (inkl. utan dag).
+  const chooseMode = params.chooseDay === '1';
+
+  function openPlanFor(recipe: RecipeWithIngredients) {
+    const seed = params.forMenuWeek || (() => {
+      const { weekYear, weekNumber } = getISOWeek(new Date());
+      return `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
+    })();
+    setAddToMenuWeekStr(seed);
+    setAddToMenuFor(recipe);
+  }
   const selectionDayLabel = params.forMenuDay && params.forMenuDay !== 'none'
     ? MENU_DAYS.find(d => d.key === params.forMenuDay)?.label
-    : 'utan dag';
+    : common.noDay;
 
   // Carry the viewed week back so the dish lands there, not in the current week.
   const weekSuffix = params.forMenuWeek ? `&forMenuWeek=${params.forMenuWeek}` : '';
@@ -377,7 +388,7 @@ export default function RecipesScreen() {
     <SafeAreaView style={s.container}>
       <ScreenHeader
         title={str.title}
-        onBack={selectionMode || params.create === '1' ? () => router.back() : undefined}
+        onBack={selectionMode || chooseMode || params.create === '1' ? () => router.back() : undefined}
         actionNode={
           <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={[s.sortBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }]} accessibilityLabel={str.sort.a11y}>
             <Ionicons name="swap-vertical" size={fs(18)} color="#4e7a5e" />
@@ -424,11 +435,11 @@ export default function RecipesScreen() {
         )}
       </View>
 
-      {selectionMode && (
+      {(selectionMode || chooseMode) && (
         <View style={s.selectBanner}>
           <Ionicons name="restaurant-outline" size={16} color="#4e7a5e" />
           <Text style={s.selectBannerText} numberOfLines={1}>
-            {replaceMode ? str.selection.replace(params.replaceTitle ?? '') : str.selection.pick(selectionDayLabel ?? 'utan dag')}
+            {chooseMode ? str.selection.plan : replaceMode ? str.selection.replace(params.replaceTitle ?? '') : str.selection.pick(selectionDayLabel ?? common.noDay)}
           </Text>
         </View>
       )}
@@ -462,10 +473,11 @@ export default function RecipesScreen() {
               style={s.card}
               onPress={() => {
                 if (editMode) return;
+                if (chooseMode) { openPlanFor(item); return; }
                 if (selectionMode) { selectRecipeForMenu(item); return; }
                 router.push(`/recipes/${item.id}` as never);
               }}
-              onLongPress={() => { if (!selectionMode) setEditMode(true); }}
+              onLongPress={() => { if (!selectionMode && !chooseMode) setEditMode(true); }}
             >
               <View style={s.cardIcon}>
                 <Ionicons name="restaurant-outline" size={20} color="#4e7a5e" />
@@ -476,6 +488,9 @@ export default function RecipesScreen() {
               </View>
               {selectionMode ? (
                 <Ionicons name="add-circle" size={22} color="#4e7a5e" />
+              ) : chooseMode ? (
+                // Hela kortet öppnar planerar-popupen — kalender-ikonen signalerar det.
+                <Ionicons name="calendar-outline" size={20} color="#4e7a5e" />
               ) : !editMode && (
                 <Pressable style={s.addMenuBtn} onPress={() => {
                   const { weekYear, weekNumber } = getISOWeek(new Date());
@@ -485,7 +500,7 @@ export default function RecipesScreen() {
                   <Ionicons name="calendar-outline" size={20} color="#4e7a5e" />
                 </Pressable>
               )}
-              {!editMode && !selectionMode && <Ionicons name="chevron-forward" size={18} color="#d6d3d1" />}
+              {!editMode && !selectionMode && !chooseMode && <Ionicons name="chevron-forward" size={18} color="#d6d3d1" />}
             </Pressable>
             {editMode && (
               <Pressable

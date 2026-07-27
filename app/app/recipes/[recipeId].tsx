@@ -38,15 +38,10 @@ import type { RecipeIngredient, WeekDay } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
-const MENU_DAYS: { key: WeekDay; label: string }[] = [
-  { key: 'mon', label: 'Måndag' },
-  { key: 'tue', label: 'Tisdag' },
-  { key: 'wed', label: 'Onsdag' },
-  { key: 'thu', label: 'Torsdag' },
-  { key: 'fri', label: 'Fredag' },
-  { key: 'sat', label: 'Lördag' },
-  { key: 'sun', label: 'Söndag' },
-];
+// Labels från centraliserade veckodagar (mån-först) — inga hårdkodade dagnamn.
+const MENU_DAYS: { key: WeekDay; label: string }[] =
+  (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as WeekDay[])
+    .map((key, i) => ({ key, label: common.weekdays.long[i] }));
 
 export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; onClose?: () => void }) {
   const edit = editParam;

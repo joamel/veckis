@@ -542,6 +542,10 @@
 - [x] **Flera hushål** — Skapa och växla mellan flera hushål under inställningar (t.ex. eget + sommarstugan). Aktivt hushål sparas i context
 - [x] **Profiler utan konto** — Skapa lokala profiler för barn/personer utan Clerk-konto. Kan tilldelas sysslor och chorer utan att logga in
 
+### Internationalisering (i18n)
+
+- [ ] **Se över alla hårdkodade strängar → riktig i18n** — `src/lib/svenska.ts` är tänkt att vara översättnings-sömmen (byt/duplicera modulen för engelska), men användartext läcker ut hårdkodad i komponenter och kringgår den. Audit: gå igenom hela `app/` och flytta ALL användarvänd text till svenska.ts (eller en locale-modul), så att ett språkbyte blir ett drop-in. Kända syndare hittills: `src/components/RecurrencePicker.tsx` (dagnamn), `src/lib/shareWeekMenu.ts` (dagnamn) — plus inline-svenska i toasts/dialoger/placeholders. Redan fixat: `MENU_DAYS` + "utan dag" i recept-flödet härleds nu från `common.weekdays.long` / `common.noDay`. Slutmål: en `en.ts` + enkel locale-switch (ev. inställning) blir möjlig utan att jaga strängar i JSX.
+
 ### iOS
 
 All JS-kod är plattformsneutral (Expo/RN) och `app.json` har `ios.bundleIdentifier: com.veckis.app` + `supportsTablet: true`. Allt vi byggt hittills följer med automatiskt vid första iOS-build. Det som saknas för att faktiskt köra på iOS-device/TestFlight:
