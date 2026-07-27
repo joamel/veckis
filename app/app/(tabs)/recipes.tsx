@@ -27,7 +27,8 @@ import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
-import type { WeekDay } from '@veckis/shared';
+import type { WeekDay, MealType } from '@veckis/shared';
+import { MEAL_TYPE_ORDER } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -79,6 +80,7 @@ export default function RecipesScreen() {
   const [addToMenuFor, setAddToMenuFor] = useState<RecipeWithIngredients | null>(null);
   const [addToMenuWeekStr, setAddToMenuWeekStr] = useState('');
   const [addToMenuWeekItems, setAddToMenuWeekItems] = useState<WeekMenuItemWithRecipe[]>([]);
+  const [addToMenuMeal, setAddToMenuMeal] = useState<MealType>('dinner');
   const [weekMenu, setWeekMenu] = useState<WeekMenuItemWithRecipe[]>([]);
 
   useEffect(() => {
@@ -104,47 +106,48 @@ export default function RecipesScreen() {
   });
 
   function addRecipeToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
+    const meal = addToMenuMeal;
     setAddToMenuFor(null);
     if (!householdId) return;
-    // Varna om dagen redan har en rätt …
-    if (day && addToMenuWeekItems.some(m => m.day === day)) {
+    // Varna bara om dagen redan har SAMMA måltidstyp — frukost + middag samsas.
+    if (day && addToMenuWeekItems.some(m => m.day === day && m.mealType === meal)) {
       const label = MENU_DAYS.find(d => d.key === day)?.label;
       confirm({
         title: str.menu.dayOccupied.title,
         message: str.menu.dayOccupied.message(label ?? ''),
         buttons: [
-          { label: str.menu.dayOccupied.confirm, onPress: () => addRecipeToMenuStep2(recipe, day) },
+          { label: str.menu.dayOccupied.confirm, onPress: () => addRecipeToMenuStep2(recipe, day, meal) },
           { label: common.actions.cancel, style: 'cancel' },
         ],
       });
       return;
     }
-    addRecipeToMenuStep2(recipe, day);
+    addRecipeToMenuStep2(recipe, day, meal);
   }
 
   // … och separat om SAMMA rätt redan ligger någonstans i veckan.
-  function addRecipeToMenuStep2(recipe: RecipeWithIngredients, day: WeekDay | null) {
+  function addRecipeToMenuStep2(recipe: RecipeWithIngredients, day: WeekDay | null, meal: MealType) {
     if (addToMenuWeekItems.some(m => m.recipeId === recipe.id)) {
       confirm({
         title: str.menu.recipeOccupied.title,
         message: str.menu.recipeOccupied.message(recipe.title),
         buttons: [
-          { label: str.menu.recipeOccupied.confirm, onPress: () => doAddToMenu(recipe, day) },
+          { label: str.menu.recipeOccupied.confirm, onPress: () => doAddToMenu(recipe, day, meal) },
           { label: common.actions.cancel, style: 'cancel' },
         ],
       });
       return;
     }
-    doAddToMenu(recipe, day);
+    doAddToMenu(recipe, day, meal);
   }
 
-  async function doAddToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
+  async function doAddToMenu(recipe: RecipeWithIngredients, day: WeekDay | null, meal: MealType) {
     if (!householdId) return;
     const [weekYear, weekNumber] = addToMenuWeekStr
       ? addToMenuWeekStr.split('-').map(Number)
       : [getISOWeek(new Date()).weekYear, getISOWeek(new Date()).weekNumber];
     try {
-      const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
+      const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, mealType: meal, weekYear, weekNumber });
       setWeekMenu(prev => [...prev, item]);
       setAddToMenuWeekItems(prev => [...prev, item]);
       const dayLabel = day ? MENU_DAYS.find(d => d.key === day)?.label.toLowerCase() : null;
@@ -656,9 +659,22 @@ export default function RecipesScreen() {
             </View>
           </ScrollView>
 
+          {/* Måltidschips — vald typ styr vad grid-tappet lägger till och vilka
+              dagar som visas upptagna (frukost + middag kan samsas per dag). */}
+          <View style={s.mealRow}>
+            {MEAL_TYPE_ORDER.map(mt => {
+              const active = addToMenuMeal === mt;
+              return (
+                <Pressable key={mt} style={[s.mealChip, active && s.mealChipActive]} onPress={() => setAddToMenuMeal(mt)}>
+                  <Text style={[s.mealChipText, active && s.mealChipTextActive]}>{common.mealTypes[mt]}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
           <View style={s.dayGrid}>
             {MENU_DAYS.map(d => {
-              const takenItem = addToMenuWeekItems.find(m => m.day === d.key);
+              const takenItem = addToMenuWeekItems.find(m => m.day === d.key && m.mealType === addToMenuMeal);
               const taken = !!takenItem;
               return (
                 <Pressable
@@ -764,6 +780,11 @@ const s = StyleSheet.create({
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#292524', borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  mealRow: { flexDirection: 'row', gap: 6, marginTop: 12, marginBottom: 4 },
+  mealChip: { flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center' },
+  mealChipActive: { backgroundColor: '#4e7a5e', borderColor: '#4e7a5e' },
+  mealChipText: { fontSize: 12, fontWeight: '600', color: '#57534e' },
+  mealChipTextActive: { color: '#fff' },
   weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center' },
   weekChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
   weekChipText: { fontSize: 13, fontWeight: '600', color: '#44403c' },

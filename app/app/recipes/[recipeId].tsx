@@ -34,7 +34,8 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
-import type { RecipeIngredient, WeekDay } from '@veckis/shared';
+import type { RecipeIngredient, WeekDay, MealType } from '@veckis/shared';
+import { MEAL_TYPE_ORDER } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
@@ -179,6 +180,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [planWeekStr, setPlanWeekStr] = useState('');
   const [planWeekItems, setPlanWeekItems] = useState<WeekMenuItemWithRecipe[]>([]);
+  const [planMeal, setPlanMeal] = useState<MealType>('dinner');
 
   // Recipe-cart-tip: visa när receptet är laddat och har ingredienser så
   // kundvagn-FAB:en faktiskt syns och är meningsfull att förklara.
@@ -269,48 +271,49 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
   function planRecipeToMenu(day: WeekDay | null) {
     if (!recipe) return;
+    const meal = planMeal;
     setShowPlanModal(false); // stäng sheeten innan ev. confirm-dialog (undvik staplade modaler)
-    // Varna om dagen redan har en rätt …
-    if (day && planWeekItems.some(m => m.day === day)) {
+    // Varna bara om dagen redan har SAMMA måltidstyp — frukost + middag samsas.
+    if (day && planWeekItems.some(m => m.day === day && m.mealType === meal)) {
       const label = MENU_DAYS.find(d => d.key === day)?.label;
       confirm({
         title: str.menu.dayOccupied.title,
         message: str.menu.dayOccupied.message(label ?? ''),
         buttons: [
-          { label: str.menu.dayOccupied.confirm, onPress: () => planRecipeToMenuStep2(day) },
+          { label: str.menu.dayOccupied.confirm, onPress: () => planRecipeToMenuStep2(day, meal) },
           { label: common.actions.cancel, style: 'cancel' },
         ],
       });
       return;
     }
-    planRecipeToMenuStep2(day);
+    planRecipeToMenuStep2(day, meal);
   }
 
   // … och varna separat om SAMMA rätt redan ligger någonstans i veckan.
-  function planRecipeToMenuStep2(day: WeekDay | null) {
+  function planRecipeToMenuStep2(day: WeekDay | null, meal: MealType) {
     if (!recipe) return;
     if (planWeekItems.some(m => m.recipeId === recipe.id)) {
       confirm({
         title: str.menu.recipeOccupied.title,
         message: str.menu.recipeOccupied.message(recipe.title),
         buttons: [
-          { label: str.menu.recipeOccupied.confirm, onPress: () => doPlanToMenu(day) },
+          { label: str.menu.recipeOccupied.confirm, onPress: () => doPlanToMenu(day, meal) },
           { label: common.actions.cancel, style: 'cancel' },
         ],
       });
       return;
     }
-    doPlanToMenu(day);
+    doPlanToMenu(day, meal);
   }
 
-  async function doPlanToMenu(day: WeekDay | null) {
+  async function doPlanToMenu(day: WeekDay | null, meal: MealType) {
     if (!recipe || !householdId) return;
     const [weekYear, weekNumber] = planWeekStr
       ? planWeekStr.split('-').map(Number)
       : [getISOWeek(new Date()).weekYear, getISOWeek(new Date()).weekNumber];
     setShowPlanModal(false);
     try {
-      const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
+      const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, mealType: meal, weekYear, weekNumber });
       setPlanWeekItems(prev => [...prev, item]);
       const dayLabel = day ? MENU_DAYS.find(d => d.key === day)?.label.toLowerCase() : null;
       const todayW = getISOWeek(new Date());
@@ -1071,9 +1074,22 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             </View>
           </ScrollView>
 
+          {/* Måltidschips — vald typ styr grid-tapp + vilka dagar som visas
+              upptagna, så frukost + middag kan samsas samma dag. */}
+          <View style={s.mealRow}>
+            {MEAL_TYPE_ORDER.map(mt => {
+              const active = planMeal === mt;
+              return (
+                <Pressable key={mt} style={[s.mealChip, active && s.mealChipActive]} onPress={() => setPlanMeal(mt)}>
+                  <Text style={[s.mealChipText, active && s.mealChipTextActive]}>{common.mealTypes[mt]}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
           <View style={s.dayGrid}>
             {MENU_DAYS.map(d => {
-              const takenItem = planWeekItems.find(m => m.day === d.key);
+              const takenItem = planWeekItems.find(m => m.day === d.key && m.mealType === planMeal);
               const taken = !!takenItem;
               return (
                 <Pressable
@@ -1345,6 +1361,11 @@ const s = StyleSheet.create({
   dayGridLabelTaken: { color: '#a8a29e' },
   dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: '#a8a29e', flexShrink: 1, marginLeft: 8, textAlign: 'right' },
   dayGridLabelNone: { color: '#4e7a5e' },
+  mealRow: { flexDirection: 'row', gap: 6, marginTop: 12, marginBottom: 4 },
+  mealChip: { flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center' },
+  mealChipActive: { backgroundColor: '#4e7a5e', borderColor: '#4e7a5e' },
+  mealChipText: { fontSize: 12, fontWeight: '600', color: '#57534e' },
+  mealChipTextActive: { color: '#fff' },
   weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center' },
   weekChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
   weekChipText: { fontSize: 13, fontWeight: '600', color: '#44403c' },

@@ -282,7 +282,7 @@
 
 
 ### Meny
-- [ ] Kunna skilja på måltidstyp (frukost/lunch/middag/efterrätt) när flera rätter läggs på samma dag — idag är dagen bara "upptagen"; en typ-etikett skulle låta flera rätter samsas per dag utan dubblettvarning
+- [x] Kunna skilja på måltidstyp (frukost/lunch/middag/efterrätt) när flera rätter läggs på samma dag — löst (branch `feature/meal-types`): `mealType`-fält på veckomeny-raden, måltidschips i "Lägg till i meny"-dialogen, etikett på meny-kortet, sortering per måltidsordning, och dag-upptagen-varningen är nu typ-medveten (frukost + middag samsas). Kvar att ev. bygga vidare: välja måltidstyp även via meny-tabbens "+" (idag null där) och byta typ på en befintlig rätt.
 - [x] Återanvänd custom recepttaggar i menyns receptflöde — befintliga taggar ska ligga som val bredvid de andra istället för att behöva skrivas in manuellt igen — löst: edit-läget hämtar hushållets alla taggar som återanvändbara chips
 - [x] "Lägg till vara"-fältet i inköpslistan hamnar bakom tangentbordet på native — löst: KAV ersatt med deterministisk lyft via uppmätt tangentbordshöjd (web/PWA-vägen orörd)
 - [x] Byt ut maträtt uppdaterade inte veckomenyn förrän sid-refresh: `replaceMenuItem` (deeplink-vägen via receptfliken) saknade `suppressMenuReloadRef += 2` → socket-echona från delete+add triggade `load()` som skrev över optimistiska uppdateringen

@@ -29,6 +29,14 @@ export const common = {
     discard:  'Släng utkast',
     keep:     'Fortsätt redigera',
   },
+  // Måltidstyper — låter flera rätter samsas på samma dag.
+  mealTypes: {
+    label:     'Måltid',
+    breakfast: 'Frukost',
+    lunch:     'Lunch',
+    dinner:    'Middag',
+    dessert:   'Efterrätt',
+  },
   errors: {
     generic:         'Något gick fel. Försök igen.',
     couldNotLoad:    (what: string) => `Kunde inte ladda ${what}`,

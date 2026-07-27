@@ -28,11 +28,18 @@ export interface RecipeIngredient {
   category: StoreCategory;
 }
 
+/** Måltidstyp så flera rätter kan samsas på samma dag (frukost + middag …). */
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'dessert';
+
+/** Ordning för sortering/visning inom en dag. */
+export const MEAL_TYPE_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'dessert'];
+
 export interface WeekMenuItem {
   id: string;
   householdId: string;
   recipeId: string;
   day: WeekDay | null;
+  mealType: MealType | null;
   weekYear: number;
   weekNumber: number;
   note: string | null;

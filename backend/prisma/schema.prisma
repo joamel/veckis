@@ -249,6 +249,7 @@ model WeekMenuItem {
   householdId String
   recipeId    String
   day         WeekDay?
+  mealType    String?  // 'breakfast' | 'lunch' | 'dinner' | 'dessert' | null — låter flera rätter samsas per dag
   weekYear    Int
   weekNumber  Int
   note        String?

@@ -40,7 +40,7 @@ import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEv
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay } from '@veckis/shared';
-import { DEFAULT_CATEGORY_ORDER } from '@veckis/shared';
+import { DEFAULT_CATEGORY_ORDER, MEAL_TYPE_ORDER } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { menu as str, common, recipes as recipesStr } from '../../src/lib/svenska';
 import { RECIPE_FOCUS_EXPERIMENT } from '../../src/lib/features';
@@ -1240,8 +1240,14 @@ export default function MenuScreen() {
     // Stable order (createdAt, then id) so a day's recipes render identically
     // whether they come from the allMenus snapshot or the live menuItems — no
     // reordering "jump" when swiping between weeks.
+    // Sortera dagens rätter efter måltidsordning (frukost→middag→efterrätt),
+    // därefter skapandeordning. Rätter utan måltidstyp hamnar sist.
+    const mealRank = (i: WeekMenuItemWithRecipe) => {
+      const idx = i.mealType ? MEAL_TYPE_ORDER.indexOf(i.mealType) : -1;
+      return idx === -1 ? MEAL_TYPE_ORDER.length : idx;
+    };
     const byCreated = (a: WeekMenuItemWithRecipe, b: WeekMenuItemWithRecipe) =>
-      a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
+      mealRank(a) - mealRank(b) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
     // Optimistic removal: hide items pending deletion immediately so the card
     // disappears at once. They're still in state until the delete commits, so the
     // toast's "Ångra" restores them.
@@ -2097,6 +2103,9 @@ function MenuCard({
               </View>
             )}
             <View style={s.cardContent}>
+              {item.mealType && (
+                <Text style={[s.cardMealTag, { fontSize: fs(10) }]}>{common.mealTypes[item.mealType].toUpperCase()}</Text>
+              )}
               <Text style={[s.cardTitle, { fontSize: fs(16) }, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
             </View>
             {isTransferred && (
@@ -2260,6 +2269,7 @@ const s = StyleSheet.create({
   cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
+  cardMealTag: { fontSize: 10, fontWeight: '700', color: '#4e7a5e', letterSpacing: 0.5, marginBottom: 1 },
   cardMeta: { fontSize: 12, color: '#78716c', marginTop: 2 },
   transferredBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   transferredText: { fontSize: 11, color: '#10b981', fontWeight: '600' },
