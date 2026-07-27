@@ -18,7 +18,8 @@ describe('SubCategory taxonomy', () => {
   });
 
   it('parentForSub matchar SUB_TAXONOMY', () => {
-    expect(parentForSub('ost')).toBe('dairy_eggs');
+    // Ost bröts ut till egen 'cheese'-kategori (delikatessost följde med dit).
+    expect(parentForSub('ost')).toBe('cheese');
     expect(parentForSub('fisk')).toBe('meat_fish');
     expect(parentForSub('glass')).toBe('frozen');
     expect(parentForSub('laktosfritt')).toBe('dairy_eggs');
@@ -34,12 +35,13 @@ describe('SubCategory taxonomy', () => {
     // Deli-parent får sina egna subs
     const deliSubs = subsForParent('deli_charcuterie');
     expect(deliSubs).toContain('skinka_pålägg');
-    expect(deliSubs).toContain('delikatessost');
+    // Ost-parent får ost + delikatessost
+    const cheeseSubs = subsForParent('cheese');
+    expect(cheeseSubs).toContain('ost');
+    expect(cheeseSubs).toContain('delikatessost');
   });
 
   it('subsAlsoUnder fångar cross-parent-länkar utan att duplicera defaultParent', () => {
-    // delikatessost har defaultParent=deli_charcuterie + alsoUnder=[dairy_eggs]
-    expect(subsAlsoUnder('dairy_eggs')).toContain('delikatessost');
     // skinka_pålägg har defaultParent=deli_charcuterie + alsoUnder=[meat_fish]
     expect(subsAlsoUnder('meat_fish')).toContain('skinka_pålägg');
     // glutenfritt har defaultParent=special_diet + alsoUnder=[bread_bakery]
