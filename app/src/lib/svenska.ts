@@ -615,6 +615,7 @@ export const menu = {
     servingsOnly:     (n: number) => `${n} port`,
     ingredientsCount: (n: number) => `${n} ingredienser`,
     inShoppingList:   'I inköpslistan',
+    addAnother:       'Lägg till rätt',
   },
 
   cleanup: {

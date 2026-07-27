@@ -1356,30 +1356,41 @@ export default function MenuScreen() {
                       <View style={{ width: sp(36) }} />
                     </Pressable>
                   ) : (
-                    items.map(item => (
-                      <MenuCard
-                        key={item.id}
-                        item={item}
-                        dayLabel={dayLabel}
-                        collapsedForDrag={dragging}
-                        isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
-                        isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
-                        isPastWeek={isPastWeek}
-                        onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
-                        onViewRecipe={() => {
-                          router.push(`/recipes/${item.recipeId}` as never);
-                        }}
-                        onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
-                        onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
-                        onDragStart={isCenter && !isPastWeek ? ((x, y, ty) => onDragStart(item, x, y, ty)) : noop}
-                        onDragMove={isCenter ? onDragMove : noop}
-                        onDragEnd={isCenter ? onDragEnd : noop}
-                        isDragging={isCenter && dragState?.item.id === item.id}
-                        scaledServings={scaledServingsOf(item)}
-                        onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
-                        onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
-                      />
-                    ))
+                    <>
+                      {items.map((item, idx) => (
+                        <MenuCard
+                          key={item.id}
+                          item={item}
+                          dayLabel={idx === 0 ? dayLabel : undefined}
+                          indent={idx > 0}
+                          collapsedForDrag={dragging}
+                          isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
+                          isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
+                          isPastWeek={isPastWeek}
+                          onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
+                          onViewRecipe={() => {
+                            router.push(`/recipes/${item.recipeId}` as never);
+                          }}
+                          onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
+                          onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
+                          onDragStart={isCenter && !isPastWeek ? ((x, y, ty) => onDragStart(item, x, y, ty)) : noop}
+                          onDragMove={isCenter ? onDragMove : noop}
+                          onDragEnd={isCenter ? onDragEnd : noop}
+                          isDragging={isCenter && dragState?.item.id === item.id}
+                          scaledServings={scaledServingsOf(item)}
+                          onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
+                          onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
+                        />
+                      ))}
+                      {/* Lägg en till rätt på dagen — dagen är behållaren. */}
+                      {isCenter && !isPastWeek && !dragging && (
+                        <Pressable style={s.dayAddMore} onPress={() => openPicker(day.key)} hitSlop={6}>
+                          <View style={{ width: sp(36) }} />
+                          <Ionicons name="add" size={fs(15)} color="#4e7a5e" />
+                          <Text style={[s.dayAddMoreText, { fontSize: fs(12) }]}>{str.card.addAnother}</Text>
+                        </Pressable>
+                      )}
+                    </>
                   )
                 )}
               </View>
@@ -2060,6 +2071,7 @@ function MenuCard({
   onScaleServings,
   onSetMeal,
   dayLabel,
+  indent,
   collapsedForDrag,
 }: {
   item: WeekMenuItemWithRecipe;
@@ -2067,6 +2079,8 @@ function MenuCard({
   isPending?: boolean;
   isPastWeek?: boolean;
   dayLabel?: { abbr: string; date: number };
+  /** Följdrätt på samma dag — tom vänster-kolumn så datum-pillen bara syns en gång. */
+  indent?: boolean;
   onRemove: () => void;
   onViewRecipe: () => void;
   onMoveToDay: (day: WeekDay | null) => void;
@@ -2120,6 +2134,9 @@ function MenuCard({
                 <Text style={[s.dayLabelAbbr, { fontSize: fs(11) }]}>{dayLabel.abbr}</Text>
                 <Text style={[s.dayLabelDate, { fontSize: fs(13) }]}>{dayLabel.date}</Text>
               </View>
+            ) : indent ? (
+              // Följdrätt: tom spacer i pillens bredd så titlarna linjerar under varandra.
+              <View style={{ width: sp(36) }} />
             ) : (
               <View style={[s.cardIcon, { width: sp(30), height: sp(30) }]}>
                 <Ionicons name="restaurant-outline" size={fs(16)} color="#4e7a5e" />
@@ -2287,6 +2304,8 @@ const s = StyleSheet.create({
   dayLabelAbbrMuted: { color: '#a8a29e' },
   dayLabelDateMuted: { color: '#78716c' },
   daySlotEmptyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, minHeight: 44, alignSelf: 'stretch' },
+  dayAddMore: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingTop: 4, paddingBottom: 6 },
+  dayAddMoreText: { fontSize: 12, fontWeight: '600', color: '#4e7a5e' },
   daySlot: { borderWidth: 1, borderColor: '#c6ddcd', borderRadius: 12, padding: 6, gap: 3, backgroundColor: '#fff' },
   daySlotEmpty: { borderStyle: 'dashed', borderColor: '#d6d3d1', backgroundColor: 'transparent', minHeight: 64, alignItems: 'center', justifyContent: 'center', padding: 0 },
   daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
