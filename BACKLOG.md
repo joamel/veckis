@@ -183,6 +183,7 @@
 ### Inköpslistan
 - [x] "Jag handlar"-läget notifierar nu den aktiva handlaren när någon annan lägger till en vara under tiden: notifyActiveShopper i sendPush.ts (push till activeShopper, aldrig till den som lade till; lokala profiler kan inte pushas), varor batchas i 30s-fönster per lista och notisen listar NAMNEN ('Mjölk, smör, kaffe lades till …', max 6 + '+N till') — inget tystas; veckomeny-transfern skickar direkt sammanfattning ('12 varor från veckomenyn'). Vid flush verifieras att handlingen fortfarande pågår. Ny preferens shopperItemAdded (default på) i notisinställningarna
 - [x] Ångra-toast när man klarmarkerar en hel kategori — "N varor klarmarkerade" med Ångra som bockar ur samma varor igen (optimistiskt + rollback via load vid fel)
+- [ ] "Byt butik"-vyn saknar tryck-feedback: att välja en butik byter direkt utan att man ser vilken som är markerad (ingen highlight/animering) — visa aktivt val
 - [ ] Underkategorier borde gå att flytta runt/sortera i butiksredigeraren likt huvudkategorier — så att de fyller en funktion i plocklistans ordning
 - [ ] Kunna välja underkategori redan när man LÄGGER TILL en vara (idag bara via redigera efteråt)
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
@@ -281,6 +282,9 @@
 
 
 ### Meny
+- [ ] Kunna skilja på måltidstyp (frukost/lunch/middag/efterrätt) när flera rätter läggs på samma dag — idag är dagen bara "upptagen"; en typ-etikett skulle låta flera rätter samsas per dag utan dubblettvarning
+- [ ] Återanvänd custom recepttaggar i menyns receptflöde — befintliga taggar ska ligga som val bredvid de andra istället för att behöva skrivas in manuellt igen
+- [ ] Recept-sökfältet lyfts inte ovanför tangentbordet (KAV saknas) — input hamnar bakom knappsatsen
 - [x] Byt ut maträtt uppdaterade inte veckomenyn förrän sid-refresh: `replaceMenuItem` (deeplink-vägen via receptfliken) saknade `suppressMenuReloadRef += 2` → socket-echona från delete+add triggade `load()` som skrev över optimistiska uppdateringen
 - [x] Inventeringssteget: enheter klipptes ("kg" → "k", "dl" → "d") trots gott om plats — Android mäter vissa strängar för smalt (se memory `android-text-clipping`); fix = explicit bredd från teckenantal. Relaterat fynd: React 19 ignorerar `defaultProps` på funktionskomponenter → globala `allowFontScaling=false` var en tyst no-op; ersatt med export-wrapper i `_layout.tsx`
 - [x] Inventeringsvyn omdesignad: "Välj rätter" tunnare kort + 1-rads-trunkering; "Vad har du hemma" har dra-bar (0→behov) per ingrediens istället för sifferinput — enheten styr stegen (kg 0,1 · l/dl/msk/tsk 0,5 · g/ml adaptivt efter mängd · övrigt heltal), Reanimated på UI-tråden för mjukt drag, live-värde vid steg-gränser, ingen tangentbordsproblematik. RNGH-gester i RN-Modal kräver egen `GestureHandlerRootView` i modalen

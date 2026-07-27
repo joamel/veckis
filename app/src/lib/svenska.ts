@@ -854,6 +854,11 @@ export const recipes = {
       message: (label: string) => `${label} har redan en rätt denna vecka. Lägg till ändå?`,
       confirm: 'Lägg till',
     },
+    recipeOccupied: {
+      title:   'Rätt redan planerad',
+      message: (title: string) => `${title} är redan planerad denna vecka. Lägg till ändå?`,
+      confirm: 'Lägg till',
+    },
     replace: {
       title:   'Byt ut rätt',
       message: (oldTitle: string, newTitle: string) => `Ersätt "${oldTitle}" med "${newTitle}"?`,
