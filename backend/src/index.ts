@@ -73,6 +73,16 @@ if (!isDev) {
   );
 }
 
+// Liveness — rör ALDRIG DB:n. Render:s healthCheckPath + keepalive-pingern
+// använder denna: processen räknas som frisk/hålls varm så fort Node bootat,
+// oberoende av Neon. Det gör att (a) en suspenderad/blinkad DB inte får Render
+// att döda instansen, och (b) att hålla backend varm inte väcker Neon och
+// bränner free-tier-computen. DB-status finns i /health och /keepalive.
+app.get('/healthz', (_req, res) => {
+  res.json({ ok: true });
+});
+
+// Readiness — verifierar DB. 500:ar om DB:n är onåbar (för manuell diagnostik).
 app.get(
   '/health',
   asyncHandler(async (_req, res) => {

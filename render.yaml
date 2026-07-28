@@ -6,7 +6,10 @@ services:
     region: frankfurt
     buildCommand: npm install && npm run build:shared && npm run db:generate --workspace=backend && npm run build --workspace=backend
     startCommand: npm run start:prod --workspace=backend
-    healthCheckPath: /health
+    # DB-fri liveness: instansen räknas som frisk så fort Node bootat, även om
+    # Neon är suspenderad/onåbar. Undviker 503-spiral där /health:s SELECT 1
+    # failar under DB-väckning. DB-verifiering finns kvar på /health.
+    healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
         value: production
