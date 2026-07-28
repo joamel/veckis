@@ -133,6 +133,14 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+// Safety net: en ohanterad promise-rejection (t.ex. ett bakgrundsjobb som
+// queryar en nedsuspenderad Neon-DB) kraschar annars hela processen sedan
+// Node 15. Vi loggar och fortsätter — /healthz hålls uppe och jobben
+// självläker när DB:n är tillbaka. Request-fel fångas ändå av felmiddlewaren.
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection (fortsätter):', reason instanceof Error ? reason.message : reason);
+});
+
 const server = app.listen(PORT, () => {
   console.log(`Veckis backend running on port ${PORT}`);
 });
