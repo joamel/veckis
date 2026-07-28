@@ -29,6 +29,10 @@ async function expireStaleShoppers(): Promise<void> {
 }
 
 export function startShopperExpiry(): void {
-  void expireStaleShoppers();
-  setInterval(() => { void expireStaleShoppers(); }, TICK_MS);
+  // Svälj fel (t.ex. DB nere/suspenderad) så en tick aldrig blir en ohanterad
+  // rejection som kraschar processen — nästa tick försöker igen.
+  const run = () => expireStaleShoppers().catch(e =>
+    console.error('[shopperExpiry] fel:', e instanceof Error ? e.message : e));
+  void run();
+  setInterval(run, TICK_MS);
 }
