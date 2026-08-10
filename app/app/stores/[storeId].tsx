@@ -17,7 +17,7 @@ import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type Store } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type Store } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { stores as str, common } from '../../src/lib/svenska';
 
@@ -105,6 +105,24 @@ export default function StoreDetailScreen() {
     setExpandedSubs(prev =>
       prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub],
     );
+    setDirty(true);
+  }
+  // Flytta en expanderad sub upp/ner bland sina syskon (samma parent) i
+  // expandedSubs — ordningen styr sub-sektionernas plats i plocklistan.
+  function moveSub(sub: string, parent: StoreCategory, dir: -1 | 1) {
+    setExpandedSubs(prev => {
+      const siblingIdxs = prev
+        .map((s, i) => ({ s, i }))
+        .filter(({ s }) => SUB_TAXONOMY[s as SubCategory]?.defaultParent === parent)
+        .map(({ i }) => i);
+      const pos = siblingIdxs.indexOf(prev.indexOf(sub));
+      const target = pos + dir;
+      if (pos < 0 || target < 0 || target >= siblingIdxs.length) return prev;
+      const next = [...prev];
+      const a = siblingIdxs[pos], b = siblingIdxs[target];
+      [next[a], next[b]] = [next[b], next[a]];
+      return next;
+    });
     setDirty(true);
   }
   function toggleParentOpen(p: StoreCategory) {
@@ -243,26 +261,39 @@ export default function StoreDetailScreen() {
                       </Pressable>
                     </View>
                   </View>
-                  {isOpen && subs.length > 0 && (
-                    <View style={s.subList}>
-                      <Text style={s.subListHint}>{str.detail.subHint(CATEGORY_LABELS[cat] ?? cat)}</Text>
-                      {subs.map(sub => {
-                        const active = expandedSubs.includes(sub);
-                        return (
-                          <Pressable
-                            key={sub}
-                            style={s.subRow}
-                            onPress={() => toggleSubExpanded(sub)}
-                          >
-                            <Text style={[s.subName, active && s.subNameActive]}>{SUB_TAXONOMY[sub].label}</Text>
-                            <View style={[s.subToggle, active && s.subToggleActive]}>
-                              {active && <Ionicons name="checkmark" size={14} color="#fff" />}
+                  {isOpen && subs.length > 0 && (() => {
+                    // Expanderade subs (egen sektion) först, i användarordning +
+                    // omordningsbara; övriga under, i taxonomi-ordning.
+                    const expanded = expandedSubs.filter(sub => (subs as string[]).includes(sub));
+                    const rest = subs.filter(sub => !expandedSubs.includes(sub));
+                    return (
+                      <View style={s.subList}>
+                        <Text style={s.subListHint}>{str.detail.subHint(CATEGORY_LABELS[cat] ?? cat)}</Text>
+                        {expanded.map((sub, i) => (
+                          <View key={sub} style={s.subRow}>
+                            <Text style={[s.subName, s.subNameActive]}>{SUB_TAXONOMY[sub as SubCategory].label}</Text>
+                            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                              <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveSub(sub, cat, -1)}>
+                                <Ionicons name="chevron-up" size={16} color="#4e7a5e" />
+                              </Pressable>
+                              <Pressable style={[s.catBtn, i === expanded.length - 1 && { opacity: 0.3 }]} disabled={i === expanded.length - 1} onPress={() => moveSub(sub, cat, 1)}>
+                                <Ionicons name="chevron-down" size={16} color="#4e7a5e" />
+                              </Pressable>
+                              <Pressable style={[s.subToggle, s.subToggleActive]} onPress={() => toggleSubExpanded(sub)}>
+                                <Ionicons name="checkmark" size={14} color="#fff" />
+                              </Pressable>
                             </View>
+                          </View>
+                        ))}
+                        {rest.map(sub => (
+                          <Pressable key={sub} style={s.subRow} onPress={() => toggleSubExpanded(sub)}>
+                            <Text style={s.subName}>{SUB_TAXONOMY[sub as SubCategory].label}</Text>
+                            <View style={s.subToggle} />
                           </Pressable>
-                        );
-                      })}
-                    </View>
-                  )}
+                        ))}
+                      </View>
+                    );
+                  })()}
                 </View>
               );
             })

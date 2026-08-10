@@ -1296,8 +1296,10 @@ export default function MenuScreen() {
                 style={[
                   s.daySlot,
                   isWide && s.daySlotWide,
-                  !isWide && filled && s.daySlotFilled,
-                  !isWide && !filled && s.daySlotEmpty,
+                  // Telefon: dagen är en transparent behållare med rubrik + kort;
+                  // tomma dagar får sin dashed-box på själva "+"-ytan i stället.
+                  !isWide && s.daySlotFilled,
+                  isWide && filled && s.daySlotFilled,
                   isWide && !filled && s.daySlotEmptyWide,
                   dragging && s.daySlotDropTarget,
                   isHovered && s.daySlotHovered,
@@ -1346,27 +1348,24 @@ export default function MenuScreen() {
                     )}
                   </>
                 ) : (
-                  // Phone: existing horizontal layout
-                  items.length === 0 ? (
-                    <Pressable
-                      onPress={isCenter && !isPastWeek ? (() => openPicker(day.key)) : noop}
-                      style={s.daySlotEmptyRow}
-                    >
-                      <View style={[s.dayLabelBox, s.dayLabelBoxMuted, { width: sp(36), height: sp(36) }]}>
-                        <Text style={[s.dayLabelAbbr, s.dayLabelAbbrMuted, { fontSize: fs(11) }]}>{dayLabel.abbr}</Text>
-                        <Text style={[s.dayLabelDate, s.dayLabelDateMuted, { fontSize: fs(13) }]}>{dayLabel.date}</Text>
-                      </View>
-                      <View style={{ flex: 1, alignItems: 'center' }}>
-                        {!isPastWeek && <Ionicons name="add" size={fs(22)} color="#a8a29e" />}
-                      </View>
-                      <View style={{ width: sp(36) }} />
-                    </Pressable>
-                  ) : (
-                    items.map(item => (
+                  // Phone: dag-rubrik ("Måndag 15") ovanför dagens kort
+                  <>
+                    <View style={s.dayNameHeaderRow}>
+                      <Text style={[s.dayHeaderName, !filled && s.dayHeaderMuted, { fontSize: fs(14) }]}>{day.label}</Text>
+                      <Text style={[s.dayHeaderDate, !filled && s.dayHeaderMuted, { fontSize: fs(13) }]}>{dayLabel.date} {common.months.long[date.getMonth()]}</Text>
+                    </View>
+                    {items.length === 0 ? (
+                      <Pressable
+                        onPress={isCenter && !isPastWeek ? (() => openPicker(day.key)) : noop}
+                        style={s.dayEmptyTap}
+                      >
+                        {!isPastWeek && <Ionicons name="add" size={fs(20)} color="#c2b5a8" />}
+                      </Pressable>
+                    ) : (
+                      items.map(item => (
                       <MenuCard
                         key={item.id}
                         item={item}
-                        dayLabel={dayLabel}
                         collapsedForDrag={dragging}
                         isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
                         isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
@@ -1385,8 +1384,9 @@ export default function MenuScreen() {
                         onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
                         onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
                       />
-                    ))
-                  )
+                      ))
+                    )}
+                  </>
                 )}
               </View>
             );
@@ -2300,6 +2300,11 @@ const s = StyleSheet.create({
   dayLabelAbbrMuted: { color: '#a8a29e' },
   dayLabelDateMuted: { color: '#78716c' },
   daySlotEmptyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, minHeight: 44, alignSelf: 'stretch' },
+  dayNameHeaderRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingHorizontal: 4, paddingBottom: 6 },
+  dayHeaderName: { fontSize: 14, fontWeight: '700', color: '#292524' },
+  dayHeaderDate: { fontSize: 13, fontWeight: '600', color: '#a8a29e' },
+  dayHeaderMuted: { color: '#c2b5a8' },
+  dayEmptyTap: { minHeight: 40, borderRadius: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: '#e0d8ce', alignItems: 'center', justifyContent: 'center' },
   daySlot: { borderWidth: 1, borderColor: '#c6ddcd', borderRadius: 12, padding: 6, gap: 2, backgroundColor: '#fff' },
   daySlotEmpty: { borderStyle: 'dashed', borderColor: '#d6d3d1', backgroundColor: 'transparent', minHeight: 64, alignItems: 'center', justifyContent: 'center', padding: 0 },
   daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
