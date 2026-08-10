@@ -30,6 +30,7 @@ import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
+import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
 
 // Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
@@ -674,17 +675,18 @@ export default function RecipesScreen() {
 
           <View style={s.dayGrid}>
             {MENU_DAYS.map(d => {
-              const takenItem = addToMenuWeekItems.find(m => m.day === d.key);
-              const taken = !!takenItem;
+              // Ingen grå-markering — visa middagen (annars första rätten) + "+N
+              // rätter" om fler, så det får plats på en rad.
+              const dayItems = addToMenuWeekItems.filter(m => m.day === d.key);
               return (
                 <Pressable
                   key={d.key}
-                  style={[s.dayGridItem, taken && s.dayGridItemTaken]}
+                  style={s.dayGridItem}
                   onPress={() => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, d.key); }}
                 >
-                  <Text style={[s.dayGridLabel, taken && s.dayGridLabelTaken]}>{d.label}</Text>
-                  {takenItem && (
-                    <Text style={s.dayGridTakenHint} numberOfLines={1}>{takenItem.recipe.title}</Text>
+                  <Text style={s.dayGridLabel}>{d.label}</Text>
+                  {dayItems.length > 0 && (
+                    <Text style={s.dayGridTakenHint} numberOfLines={1}>{dayItemsSummary(dayItems)}</Text>
                   )}
                 </Pressable>
               );
@@ -772,7 +774,7 @@ const s = StyleSheet.create({
   createHint: { fontSize: 13, color: '#a8a29e', marginTop: -4 },
   urlHint: { fontSize: 12, color: '#a8a29e', marginTop: -6 },
   pasteToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, marginBottom: 4 },
-  pasteToggleText: { fontSize: 13, color: '#78716c' },
+  pasteToggleText: { fontSize: 13, color: '#78716c', flex: 1 },
   button: { backgroundColor: '#4e7a5e', borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },

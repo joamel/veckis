@@ -150,6 +150,7 @@
 - [x] Enhetligt beslut om bakåt i tid: meny tillåter navigering till tidigare veckor men cart-FAB ("Överför veckomeny") döljs — man kan se historik men inte överföra; återkommande aktiviteter antar startdatum = idag om inget väljs, men användaren kan sätta ett datum bakåt manuellt; sysslor blockeras sedan tidigare (kan ej skapa bakåt i tid).
 - [x] Synliggör/aggregera klientfelen: in-memory ring-buffer (max 200 fel) i backend — `POST /api/client-errors` sparar nu + loggar; `GET /api/client-errors` (requireAuth) returnerar de senaste (nyast först). Expanderbar `ClientErrorsSection` i Hushållet-fliken (admin only) visar lista med namn, meddelande, platform, version och tid; tryck på rad för att se stack trace.
 - [x] ha en svenska-fil (på sikt andra språk) så att det är enkelt att ändra texter och ha allt samlat på ett ställe — `app/src/lib/svenska.ts` (döpt om från strings.ts) samlar alla UI-texter (actions, toasts, felmeddelanden, tips, formulärtexter) per skärm/komponent med typade dynamiska strängar som funktioner; alla 9 skärmar (chores, schedule, shopping, menu, settings, recipes/index, recipes/[id], shopping/[listId], stores) + 2 komponenter (MultiMemberPicker, RecurrencePicker) migrerade
+- [ ] mer optimistisk uppdatering. t.ex. skala recept hoppar portioner fram och tillbaka när den laddar. bättre att den ändrar tillbaka om den failar
 
 ### Inställningar
 - [x] kunna ta bort hushåll (som admin)
@@ -178,14 +179,13 @@
 - [x] Radera mitt konto in-app (Profil → ÖVRIGT): röd "Ta bort kontot"-rad → confirm → `DELETE /api/account`. Backend städar medlemskapen FÖRST (återanvänder `handleClerkUserDeleted`, deterministiskt) och raderar sedan Clerk-kontot via `@clerk/backend` `users.deleteUser` (secret key) — appen loggar ut. **Ersatte** det gamla portal-flödet (`openClerkPortal('/user')`) som krävde att Clerks self-service-deletion-toggle var på och lämnade appen. `user.deleted`-webhooken blir nu en idempotent safety net för raderingar via Clerk-dashboard/annat håll. (Self-service-toggeln behöver inte vara på.)
 - [x] Exportera hushållsdata — knapp i Profil/Hushållet som genererar en ZIP (eller Excel) med recept, sysslor, aktiviteter och inköpshistorik. Möjliggör byte av app, telefon eller backup. Kan levereras som CSV-filer per datatyp (recept.csv, sysslor.csv osv.) via `GET /api/export` med HTTP download.
 - [x] Backend: Clerk user.deleted-webhook → ta bort föräldralösa hushållsmedlemskap: ny `POST /api/webhooks/clerk` (Svix-signaturverifierad via `svix` + monterad med rå body före `express.json`). På `user.deleted` rensas användarens medlemskap i ALLA hushåll (`handleClerkUserDeleted` i `lib/memberCleanup`): cascade-rensning av `assignedToMany`/`assignedTo` + radering av raden (delad `cascadeRemoveMember`-helper, som `leave` nu också använder); om den raderade var ende admin och andra medlemmar finns → äldsta befordras till admin (annars lämnas tomt hushåll för framtida städning). 3 integrationstester (134 backend-gröna). **Kvar för dig:** lägg env `CLERK_WEBHOOK_SECRET` (Signing Secret) + konfigurera endpointen i Clerk Dashboard → Webhooks, prenumerera på `user.deleted`. Utan secret svarar endpointen 500 och loggar varning. Framtida: städa helt tomma hushåll.
+- [ ] Lägga till dark mode
 
 
 ### Inköpslistan
 - [x] "Jag handlar"-läget notifierar nu den aktiva handlaren när någon annan lägger till en vara under tiden: notifyActiveShopper i sendPush.ts (push till activeShopper, aldrig till den som lade till; lokala profiler kan inte pushas), varor batchas i 30s-fönster per lista och notisen listar NAMNEN ('Mjölk, smör, kaffe lades till …', max 6 + '+N till') — inget tystas; veckomeny-transfern skickar direkt sammanfattning ('12 varor från veckomenyn'). Vid flush verifieras att handlingen fortfarande pågår. Ny preferens shopperItemAdded (default på) i notisinställningarna
 - [x] Ångra-toast när man klarmarkerar en hel kategori — "N varor klarmarkerade" med Ångra som bockar ur samma varor igen (optimistiskt + rollback via load vid fel)
 - [x] "Byt butik"-vyn saknar tryck-feedback: att välja en butik byter direkt utan att man ser vilken som är markerad (ingen highlight/animering) — visa aktivt val — löst: kort highlight + bock innan vi backar
-- [ ] Underkategorier borde gå att flytta runt/sortera i butiksredigeraren likt huvudkategorier — så att de fyller en funktion i plocklistans ordning
-- [ ] Kunna välja underkategori redan när man LÄGGER TILL en vara (idag bara via redigera efteråt)
 - [x] Kunna redigera butiker direkt från inköpsfliken, både butikens namn och redigera, lägga till och ta bort kategorier. Gör den som "recept"-knappen i meny-fliken
 - [x] När man lägger till en inköpslista borde man kunna välja butik direkt -> skapa butik om den inte finns
 - [x] Även kunna redigera namnet på ingrediensen när man long pressar
@@ -279,7 +279,12 @@
 - [x] Emoji per inköpslista: likt sysslor och aktiviteter kunna sätta en emoji på listan (🛒 Willys, 🏕️ Campingtur, 🎄 Julmat) för bättre igenkänning i översikten
 - [x] Inga varor hör till chark och deli just nu: `inferSubCategory` saknade "korv" (generiskt), "wienerkorv", "grillkorv", "bratwurst", "prosciutto", "blodpudding" m.fl. Tillagda i `shared/src/lib/inferSubCategory.ts`. `backfillSubCategory` körs vid serverstart och omklassificerar befintliga DB-rader.
 - [x] Offline-tålig synk för inköp: avbockning offline rullas inte längre tillbaka — nätverksfel köar mutationen i `shoppingOfflineQueue` (module-level Map, överlever navigering). Vid nästa `load()` (focus/reconnect) appliceras kön ovanpå server-datan och spolas upp mot API:et. `markAllInCategory` hanteras likadant. Serverfel (4xx/5xx) rullar fortfarande tillbaka och visar fel.
-
+- [x] Underkategorier borde gå att flytta runt/sortera i butiksredigeraren likt huvudkategorier — löst: expanderade subs visas överst med upp/ner-knappar; `expandedSubs`-ordningen styr nu sub-sektionernas plats i plocklistan (`buildCategoryGroups`)
+- [x] Kunna välja underkategori redan när man LÄGGER TILL en vara (idag bara via redigera efteråt) — löst: underkategori-väljare i qty-sheeten (backend accepterade redan subCategory vid create)
+- [x] Istället för att direkt byta butik när man trycker på en butik i butiklistan borde det finnas en "spara"-knapp — löst: pick-läget markerar butiken (highlight + bock) och byter först vid "Spara"-knapp; "Ingen butik"-val i baren
+- [x] Sökrutan poppar inte ovanför tangentbordet utan stannar kvar gömd bakom — = add-item/sök-fältet i inköpslistan, löst på native (deterministisk tangentbords-höjd, commit `2730a12`). Web/PWA verifieras separat.
+- [ ] Ingrediensförslag i nytt recept göms under tangentbordet. Borde hoppa upp precis som måttenheter gör
+- [x] Klarmarkerade varor borde fortfarande ligga i klart-högen längst ned men grupperade per kategori med kategorin som underrubrik — löst: klart-sektionen kör samma `buildCategoryGroups`, kategori som dämpad underrubrik
 
 ### Meny
 - [x] Kunna skilja på måltidstyp (frukost/lunch/middag/efterrätt) när flera rätter läggs på samma dag — löst (branch `feature/meal-types`) med **progressiv upptäckt, ingen läges-toggle**: `mealType`-fält på veckomeny-raden; tillägg (både recept-dialog och meny-"+") förblir dött enkelt utan måltidsfråga; måltidstyp är en frivillig etikett man sätter/ändrar/rensar direkt på menykortet (chip-rad i utfällt läge). Kortet visar etiketten bara när den är satt → menyn förblir ren om man aldrig rör typerna. Flera rätter per dag är avsiktligt (mjuk "lägg till ändå"-varning). Kvar att ev. bygga vidare: affordans för att lägga en andra rätt på en redan fylld dag direkt från meny-tabben (idag sker det via recept-vägen).
@@ -290,7 +295,7 @@
 - [x] Inventeringsvyn omdesignad: "Välj rätter" tunnare kort + 1-rads-trunkering; "Vad har du hemma" har dra-bar (0→behov) per ingrediens istället för sifferinput — enheten styr stegen (kg 0,1 · l/dl/msk/tsk 0,5 · g/ml adaptivt efter mängd · övrigt heltal), Reanimated på UI-tråden för mjukt drag, live-värde vid steg-gränser, ingen tangentbordsproblematik. RNGH-gester i RN-Modal kräver egen `GestureHandlerRootView` i modalen
 - [x] Mall kan inte längre appliceras på tidigare vecka — "+" dolt + hint i mall-modalen (spara/dela/ta bort funkar fortfarande)
 - [x] "Idag"-knappen i WeekNav omdesignad: ghost-pill (ljus indigo bakgrund, ikon + indigo text) istället för solid rektangel — gäller meny + kalender
-- [ ] Drag för att flytta maträtt mellan dagar rapporterad trasig (kortet markeras vid long-press men följer inte fingret) — drag-koden orörd i diffen, rotorsak ej hittad; behöver repro med Metro-logg
+- [x] Drag för att flytta maträtt mellan dagar rapporterad trasig (kortet markeras vid long-press men följer inte fingret) — funkar som den ska (bekräftat av användaren)
 - [x] "+" borde försvinna från en dag som redan har en rätt inlagd
 - [x] Knapp för att kunna överföra hela veckomeny till inköpslistan (kryssa ur om det är någon rätt man av någon anledning inte vill överföra)
 - [x] Lägg till alla dagar i menyn även om de är tomma så att det är lätt att lägga till rätt
@@ -361,6 +366,9 @@
 - [x] Borde inte gå att lägga till en veckomeny-mall i en gammal veckomeny. Bara spara en gammal veckomeny som en ny mall.
 - [x] Ny maträtt i veckomenyn syns inte direkt utan kräver manuell siduppdatering — optimistisk uppdatering fungerar inte för alla lägga-till-flöden; sannolikt blockerad av suppressMenuReloadRef eller saknas i en specifik add-stig
 - [x] Exportera/dela veckomenyn — lägg en "Dela"-knapp i mall-knappens meny (bredvid Spara som mall / Applicera mall) som genererar en textsummering eller bild av veckans rätter och delar via systemets share-sheet. Enkelt att implementera, socialt värde (familjeplanning, dela med partner/föräldrar).
+- [x] Hela texten i "pasteToggleOff" syns inte -> står endast 'Klistra in recepttext (AI' — löst: `flex:1` på `pasteToggleText` (flex bestämmer bredden i stället för Androids för-smala textmätning)
+- [ ] - när man överför en meny till inköpslistan borde man först klicka i inköpslista och sedan bekräfta på en översänd-knapp så att man inte av misstag trycker på fel inköpslista och inte kan ångra
+- [x] "lägg till i meny"-modalen visar inte alla valda rätter utan bara en rätt. Färgen borde inte heller vara grå — löst: dagen grå-markeras inte längre; visar i stället alla rätter som redan ligger på dagen (kommaseparerat), man kan alltid lägga till fler
 
 ### Kalendern
 - [x] Kunna välja heldag på en aktivitet
@@ -531,6 +539,7 @@
 - [x] **Datepicker för annan vecka** — Möjlighet att planera meny för valfri vecka, inte bara innevarande
 - [x] **Smarter "till inköpslistan"** — Om maträtten redan är tillagd i aktiv inköpslista visas inte "till inköpslistan". Vid borttagning visas "ta bort från inköpslistan" om den finns där
 - [x] Persistera "överförd till inköpslista"-status per veckomenyrätt: `WeekMenuItem.transferred Boolean @default(false)` sätts vid `POST /api/menus/to-shopping`; frontend visar checkmark-badge om `item.transferred || !!recipeListMap[item.id]?.length` — rensning av inköpslistan tar inte bort badgen
+- [ ] **Dag-rubrik-layout i veckomenyn (utvärderas)** — dag-namn + datum + månad ("Måndag 15 augusti") som rubrik ovanför dagens kort i stället för datum-pill på varje kort; flera rätter grupperas under en rubrik per dag. Ligger ocommittat på develop; bedöm mot pill-varianten och committa/deploya när den känns rätt.
 
 ### Inköpslistan
 
@@ -564,3 +573,10 @@ All JS-kod är plattformsneutral (Expo/RN) och `app.json` har `ios.bundleIdentif
 - [ ] **WebSocket + Redis pub/sub för horisontell skalning** — Nuvarande WS-broadcast är in-process. Om backend skalas till 2+ instanser (Render scale-up) missar användare på annan instans varandras realtidsuppdateringar. `ioredis` + Redis channel löser det utan att ändra frontend-koden.
 - [ ] **Paginering för recept och sysslor** — Inga listor har paginering; ett hushåll med 60+ recept skickar hela listan vid varje flik-besök. Cursor-baserad paginering (limit/cursor) + infinite scroll i frontend.
 - [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
+- [ ] **Always-on backend innan live** — free tier räcker för test men inte i drift: Render spinner ner efter 15 min (~50s kallstart) och Neon autosuspendar + har bara 100 compute-h/månad. Uppgradera till betald Neon/Render (eller flytta DB) så backend alltid är live utan kallstart innan riktig lansering. (Just nu ok med kallstart — se `Drift & stabilitet`.)
+
+### Drift & stabilitet
+
+- [x] **Backend överlever nedsuspenderad Neon (self-healing)** — Neon free tier tog slut på månadens compute-timmar (keepalive-cron pingade `/keepalive` var 10:e min → `SELECT 1` höll DB:n vaken ~50% dygnet runt → brände 100-timmarspotten) → `P1001 Can't reach database server`, och `start-prod.mjs` gjorde `exit(1)` → kraschloop tills manuell omdeploy. Fix: DB-fri `/healthz` (Render `healthCheckPath` pekar dit → instansen räknas frisk så fort Node bootat, oberoende av Neon); `start-prod.mjs` bootar servern även om `migrate deploy` failar och kör om migrationen i bakgrunden tills DB:n är nåbar; global `process.on('unhandledRejection')` + `shopperExpiry`-catch så ett bakgrundsjobb mot nedsuspenderad DB aldrig kraschar processen. Keepalive-cron **avstängd** (den väckte Neon i onödan och brände potten). Backend self-recoverar nu när potten vänder — ingen handpåläggning.
+- [ ] **Lågfrekvent DB-hälsolarm** — utan keepalive finns inget larm när DB:n (eller backend) faktiskt går ner; det var cron-misset som avslöjade den här nedgången. Lägg en gles extern koll (1–2 ggr/dygn) mot `/health` (verifierar DB, 500:ar vid nere) som notifierar — väcker Neon försumbart men fångar "compute-pott slut / Neon nere" tidigt. `/healthz` (DB-fri) duger inte för DB-larm.
+- [ ] **App: graciös "servern vaknar"-retry** — när backend är uppe (`/healthz`) men DB-anrop failar (Neon-väckning/free-tier-kallstart) visar appen råa fel. En "servern vaknar, försöker igen…"-state med auto-retry + backoff gör kallstarten acceptabel i UI:t i stället för felmeddelanden — förutsättning för att gratis-strategin ska kännas bra.

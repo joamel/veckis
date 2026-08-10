@@ -88,10 +88,17 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
     if (direct && direct.length) {
       result.push({ category: parent, isCustom: false, items: sortItems(direct) });
     }
-    for (const [sub, subItems] of subMap.entries()) {
+    // Sub-sektionerna under en parent ordnas efter användarens ordning i
+    // expandedSubs (så butiksredigerarens omsortering styr plocklistan); subs
+    // som saknas i listan (skulle inte hända) hamnar sist i insättningsordning.
+    const parentSubs = [...subMap.keys()].sort((a, b) => {
+      const ia = expandedSubs.indexOf(a); const ib = expandedSubs.indexOf(b);
+      return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib);
+    });
+    for (const sub of parentSubs) {
       const subInfo = SUB_TAXONOMY[sub as SubCategory];
       if (subInfo && subInfo.defaultParent === parent) {
-        result.push({ category: sub, isCustom: false, isSub: true, label: subInfo.label, items: sortItems(subItems) });
+        result.push({ category: sub, isCustom: false, isSub: true, label: subInfo.label, items: sortItems(subMap.get(sub)!) });
       }
     }
   }

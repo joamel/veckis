@@ -49,7 +49,12 @@ export const common = {
     short: ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'] as const,
     long:  ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag', 'Söndag'] as const,
   },
+  months: {
+    short: ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'] as const,
+    long:  ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'] as const,
+  },
   noDay: 'utan dag',
+  plusDishes: (n: number) => `+ ${n} ${n === 1 ? 'rätt' : 'rätter'}`,
   ordinals: ['Första', 'Andra', 'Tredje', 'Fjärde', 'Femte', 'Sista'] as const,
   tabs: {
     shopping:        'Inköp',
@@ -1088,6 +1093,10 @@ export const stores = {
     categories: (n: number) => `${n} kategorier`,
     selected:   'vald',
     clearA11y:  'Rensa butik',
+  },
+
+  pick: {
+    noStore: 'Ingen butik',
   },
 
   createModal: {

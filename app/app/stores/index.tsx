@@ -46,9 +46,9 @@ export default function StoresScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('name');
   const [showSort, setShowSort] = useState(false);
-  // Kort-tap i pick-läge markerar butiken kort (highlight) innan vi backar,
-  // så användaren ser vilket val som registrerades istället för en tvär hopp.
-  const [selectingId, setSelectingId] = useState<string | null>(null);
+  // Pick-läge: tapp MARKERAR butiken (highlight) men byter inte förrän man
+  // trycker Spara — så man inte råkar byta av misstag. Init till nuvarande butik.
+  const [chosenId, setChosenId] = useState<string | null>(currentStoreId);
 
   // Skapa-modal
   const [showCreate, setShowCreate] = useState(false);
@@ -167,21 +167,15 @@ export default function StoresScreen() {
         ) : (
           filteredSorted.map(store => {
             const catCount = (store.categoryOrder as StoreCategory[]).length || 0;
-            const isSelecting = store.id === selectingId;
-            // När ett nytt val pågår togglas den gamla butiken av — bara den
-            // nyvalda markeras.
-            const showAsCurrent = pickMode && store.id === currentStoreId && !selectingId;
-            const highlighted = isSelecting || showAsCurrent;
+            // Highlight den MARKERADE (ej ännu sparade) butiken i pick-läge.
+            const highlighted = pickMode && store.id === chosenId;
             return (
               <Pressable
                 key={store.id}
                 style={[s.card, highlighted && s.cardCurrent]}
                 onPress={() => {
                   if (pickMode) {
-                    if (selectingId) return; // redan på väg ut — ignorera dubbeltapp
-                    setSelectingId(store.id);
-                    // Kort highlight så valet syns innan vi backar.
-                    setTimeout(() => { resolveStorePick(store.id); router.back(); }, 180);
+                    setChosenId(store.id); // markera — byte sker först vid Spara
                   } else {
                     router.push(`/stores/${store.id}` as never);
                   }
@@ -199,17 +193,8 @@ export default function StoresScreen() {
                     return parts.length > 0 ? <Text style={[s.cardMeta, highlighted && s.cardMetaCurrent]}>{parts.join(' · ')}</Text> : null;
                   })()}
                 </View>
-                {isSelecting ? (
+                {highlighted ? (
                   <Ionicons name="checkmark-circle" size={22} color="#4e7a5e" />
-                ) : showAsCurrent ? (
-                  <Pressable
-                    onPress={(e) => { e.stopPropagation?.(); resolveStorePick(null); router.back(); }}
-                    hitSlop={10}
-                    style={s.cardClearBtn}
-                    accessibilityLabel={str.card.clearA11y}
-                  >
-                    <Ionicons name="close" size={18} color="#ef4444" />
-                  </Pressable>
                 ) : !pickMode ? (
                   <Ionicons name="chevron-forward" size={18} color="#d6d3d1" />
                 ) : null}
@@ -219,9 +204,28 @@ export default function StoresScreen() {
         )}
       </ScrollView>
 
-      <Pressable style={s.fab} onPress={() => setShowCreate(true)} accessibilityLabel={str.createModal.add}>
-        <Ionicons name="add" size={30} color="#fff" />
-      </Pressable>
+      {!pickMode && (
+        <Pressable style={s.fab} onPress={() => setShowCreate(true)} accessibilityLabel={str.createModal.add}>
+          <Ionicons name="add" size={30} color="#fff" />
+        </Pressable>
+      )}
+
+      {/* Pick-läge: markera butik i listan, byt först vid Spara. */}
+      {pickMode && (
+        <View style={s.saveBar}>
+          <Pressable onPress={() => setChosenId(null)} hitSlop={8} style={s.noStoreBtn}>
+            <Ionicons
+              name={chosenId === null ? 'radio-button-on' : 'radio-button-off'}
+              size={18}
+              color={chosenId === null ? '#4e7a5e' : '#a8a29e'}
+            />
+            <Text style={[s.noStoreText, chosenId === null && s.noStoreTextActive]}>{str.pick.noStore}</Text>
+          </Pressable>
+          <Pressable style={s.saveBar_btn} onPress={() => { resolveStorePick(chosenId); router.back(); }}>
+            <Text style={s.saveBar_btnText}>{common.actions.save}</Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* Skapa-modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); })}>
@@ -308,6 +312,12 @@ const s = StyleSheet.create({
   sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#d6d3d1', marginBottom: 12 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524', marginBottom: 6 },
   input: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: '#292524' },
+  saveBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1efec' },
+  noStoreBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  noStoreText: { fontSize: 14, color: '#78716c', fontWeight: '500' },
+  noStoreTextActive: { color: '#4e7a5e', fontWeight: '600' },
+  saveBar_btn: { backgroundColor: '#4e7a5e', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
+  saveBar_btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   primaryBtn: { backgroundColor: '#4e7a5e', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   sortRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#f1efec' },

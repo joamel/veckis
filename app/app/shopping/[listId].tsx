@@ -112,6 +112,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Quick-add quantity sheet (chip tap)
   const [qtySheet, setQtySheet] = useState<{ name: string; category?: StoreCategory } | null>(null);
   const [qtyCategory, setQtyCategory] = useState<StoreCategory>('other');
+  const [qtySubCategory, setQtySubCategory] = useState<SubCategory | null>(null);
   const [qtyValue, setQtyValue] = useState('1');
   const [qtyUnit, setQtyUnit] = useState('');
   const [mergeSheet, setMergeSheet] = useState<{ name: string; category: StoreCategory; items: ShoppingItemWithRecipe[] } | null>(null);
@@ -627,7 +628,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setTimeout(() => mergeScrollRef.current?.scrollTo({ y: Math.max(0, mergeRowY.current - 16), animated: true }), 250);
   }
 
-  async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string) {
+  async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string, subCategory?: SubCategory | null) {
     let itemName = (name ?? newItem).trim().toLowerCase();
     if (!listId || !itemName) return;
 
@@ -640,7 +641,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       unit: unit ?? null,
       category: category ?? 'other',
       customCategory: null,
-      subCategory: null,
+      subCategory: subCategory ?? null,
       isChecked: false,
       checkedBy: null,
       addedBy: '',
@@ -659,6 +660,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       const item = await client.addShoppingItem(listId, {
         name: itemName,
         ...(category ? { category } : {}),
+        ...(subCategory ? { subCategory } : {}),
         ...(quantity && quantity !== 1 ? { quantity } : {}),
         ...(unit ? { unit } : {}),
       });
@@ -717,6 +719,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setQtyValue(staple?.defaultQuantity ? String(staple.defaultQuantity) : '1');
     setQtyUnit(staple?.unit ?? '');
     setQtyCategory((category ?? staple?.category ?? 'other') as StoreCategory);
+    setQtySubCategory(null);
     setQtySheet({ name, category });
     Keyboard.dismiss();
   }
@@ -725,7 +728,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     if (!qtySheet) return;
     const qty = parseFloat(qtyValue.replace(',', '.'));
     const unit = qtyUnit.trim() || undefined;
-    await addItem(qtySheet.name, qtyCategory, isNaN(qty) ? 1 : qty, unit);
+    await addItem(qtySheet.name, qtyCategory, isNaN(qty) ? 1 : qty, unit, qtySubCategory);
     setQtySheet(null);
   }
 
@@ -1278,9 +1281,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           );
         })}
 
-        {/* Checked items */}
+        {/* Checked items — kvar i klart-högen längst ned, men grupperade per
+            kategori (samma indelning som obockade) med kategorin som underrubrik. */}
         {checked.length > 0 && (() => {
           const collapsed = collapsedCategories.has('checked');
+          const checkedGroups = buildCategoryGroups(checked, categoryOrder, customCategories, expandedSubs);
           return (
             <View style={s.categoryGroup} onLayout={e => { catLayouts.current['checked'] = e.nativeEvent.layout.y; }}>
               <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={4}>
@@ -1289,8 +1294,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 </Text>
                 <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#d6d3d1" />
               </Pressable>
-              {!collapsed && checked.map(item => (
-                <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />
+              {!collapsed && checkedGroups.map(group => (
+                <View key={groupKey(group)}>
+                  <Text style={s.checkedCatLabel} numberOfLines={1}>{groupLabel(group)}</Text>
+                  {group.items.map(item => (
+                    <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />
+                  ))}
+                </View>
               ))}
             </View>
           );
@@ -1793,7 +1803,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={cat}
                     style={[s.catChip, qtyCategory === cat && s.catChipActive]}
-                    onPress={() => setQtyCategory(cat)}
+                    onPress={() => { setQtyCategory(cat); setQtySubCategory(null); }}
                   >
                     <Text style={[s.catChipText, qtyCategory === cat && s.catChipTextActive]} numberOfLines={1}>
                       {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
@@ -1802,6 +1812,26 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 ))}
               </View>
             </ScrollView>
+            {subsForParent(qtyCategory).length > 0 && (
+              <>
+                <Text style={s.editLabel}>Underkategori (valfritt)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
+                  <View style={s.catChipRow}>
+                    <Pressable style={[s.catChip, !qtySubCategory && s.catChipActive]} onPress={() => setQtySubCategory(null)}>
+                      <Text style={[s.catChipText, !qtySubCategory && s.catChipTextActive]}>Ingen</Text>
+                    </Pressable>
+                    {subsForParent(qtyCategory).map(sub => {
+                      const active = qtySubCategory === sub;
+                      return (
+                        <Pressable key={sub} style={[s.catChip, active && s.catChipActive]} onPress={() => setQtySubCategory(active ? null : sub)}>
+                          <Text style={[s.catChipText, active && s.catChipTextActive]}>{SUB_TAXONOMY[sub].label}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+              </>
+            )}
             <Pressable style={s.qtyConfirm} onPress={confirmQtySheet} disabled={adding}>
               {adding
                 ? <ActivityIndicator color="#fff" size="small" />
@@ -2275,6 +2305,7 @@ const s = StyleSheet.create({
   // för att visuellt tillhöra sin parent.
   categorySubHeader: { paddingLeft: 14, paddingVertical: 2, marginTop: -4 },
   categorySubLabel: { fontSize: 11, fontWeight: '600', textTransform: 'none', letterSpacing: 0.2, color: '#b96a45' },
+  checkedCatLabel: { fontSize: 11, fontWeight: '600', color: '#c2b5a8', letterSpacing: 0.4, paddingHorizontal: 2, paddingTop: 8, paddingBottom: 1 },
   categoryCount: { fontSize: 11, color: '#a8a29e', fontWeight: '600' },
   item: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   itemChecked: { opacity: 0.55 },

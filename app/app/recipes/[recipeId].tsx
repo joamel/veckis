@@ -18,6 +18,7 @@ import {
 
 import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
+import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -1069,17 +1070,17 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
           <View style={s.dayGrid}>
             {MENU_DAYS.map(d => {
-              const takenItem = planWeekItems.find(m => m.day === d.key);
-              const taken = !!takenItem;
+              // Ingen grå-markering — middag (annars första) + "+N rätter" om fler.
+              const dayItems = planWeekItems.filter(m => m.day === d.key);
               return (
                 <Pressable
                   key={d.key}
-                  style={[s.dayGridItem, taken && s.dayGridItemTaken]}
+                  style={s.dayGridItem}
                   onPress={() => planRecipeToMenu(d.key)}
                 >
-                  <Text style={[s.dayGridLabel, taken && s.dayGridLabelTaken]}>{d.label}</Text>
-                  {takenItem && (
-                    <Text style={s.dayGridTakenHint} numberOfLines={1}>{takenItem.recipe.title}</Text>
+                  <Text style={s.dayGridLabel}>{d.label}</Text>
+                  {dayItems.length > 0 && (
+                    <Text style={s.dayGridTakenHint} numberOfLines={1}>{dayItemsSummary(dayItems)}</Text>
                   )}
                 </Pressable>
               );

@@ -245,7 +245,7 @@ export function useApiClient() {
     deleteShoppingList: (listId: string) =>
       request<void>(`/api/shopping/lists/${listId}`, { method: 'DELETE' }),
 
-    addShoppingItem: (listId: string, data: { name: string; quantity?: number; unit?: string; category?: StoreCategory; note?: string }) =>
+    addShoppingItem: (listId: string, data: { name: string; quantity?: number; unit?: string; category?: StoreCategory; subCategory?: string | null; note?: string }) =>
       request<ShoppingItem>(`/api/shopping/lists/${listId}/items`, {
         method: 'POST',
         body: JSON.stringify(data),
