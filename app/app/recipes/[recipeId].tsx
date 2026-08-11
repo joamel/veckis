@@ -39,6 +39,9 @@ import type { RecipeIngredient, WeekDay } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
+// "Laga nu"-ingredienslistans höjd — ~7 ingredienser synliga (lineHeight 28 + pad).
+const COOK_INGRED_MAX_H = 210;
+
 // Labels från centraliserade veckodagar (mån-först) — inga hårdkodade dagnamn.
 const MENU_DAYS: { key: WeekDay; label: string }[] =
   (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as WeekDay[])
@@ -112,7 +115,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
   const startCookIngredAnim = useCallback(() => {
     if (!cookModeRef.current || cookIngredStarted.current) return;
-    const maxScroll = Math.max(0, cookIngredContentH.current - 130);
+    const maxScroll = Math.max(0, cookIngredContentH.current - COOK_INGRED_MAX_H);
     if (maxScroll <= 0) return;
     cookIngredStarted.current = true;
     const listenerId = cookIngredAnim.addListener(({ value }) => {
@@ -124,7 +127,17 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       useNativeDriver: false,
       easing: (x) => x,
     }).start(() => cookIngredAnim.removeListener(listenerId));
-  }, []);
+  }, [cookIngredAnim]);
+
+  // Rulla om ingredienslistan från toppen vid varje steg-byte (nästa/föregående).
+  useEffect(() => {
+    if (!cookMode) return;
+    cookIngredAnim.stopAnimation();
+    cookIngredAnim.setValue(0);
+    cookIngredScrollRef.current?.scrollTo({ y: 0, animated: false });
+    cookIngredStarted.current = false;
+    startCookIngredAnim();
+  }, [cookStep, cookMode, cookIngredAnim, startCookIngredAnim]);
 
   const keyboardH = useRef(0);
   useEffect(() => {
@@ -1332,7 +1345,7 @@ const s = StyleSheet.create({
   cookDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#e7e5e4' },
   cookDotActive: { backgroundColor: '#4e7a5e', width: 20 },
   cookBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 32, gap: 20 },
-  cookIngredWrap: { maxHeight: 130 },
+  cookIngredWrap: { maxHeight: COOK_INGRED_MAX_H },
   cookIngredItem: { fontSize: 18, color: '#78716c', lineHeight: 28, paddingVertical: 1 },
   cookStepLabel: { fontSize: 17, fontWeight: '700', color: '#4e7a5e' },
   cookStepText: { fontSize: 22, color: '#292524', lineHeight: 34, fontWeight: '400' },
