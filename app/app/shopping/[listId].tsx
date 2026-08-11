@@ -1045,6 +1045,52 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     }, 5000);
   }
 
+  // Baka ihop (för visning) klarmarkerade varor med samma namn + enhet till en
+  // rad med summerad mängd, så det inte ligger t.ex. 4× "1 st gurka" under
+  // varandra. Olika enheter bakas inte ihop.
+  function aggregateByNameUnit(items: ShoppingItemWithRecipe[]) {
+    const map = new Map<string, { rep: ShoppingItemWithRecipe; quantity: number; members: ShoppingItemWithRecipe[] }>();
+    for (const it of items) {
+      const key = `${it.name.toLowerCase().trim()}|${(it.unit ?? '').toLowerCase()}`;
+      const g = map.get(key);
+      if (g) { g.quantity += it.quantity ?? 1; g.members.push(it); }
+      else map.set(key, { rep: it, quantity: it.quantity ?? 1, members: [it] });
+    }
+    return [...map.values()];
+  }
+
+  async function uncheckGroup(members: ShoppingItemWithRecipe[]) {
+    const ids = members.map(m => m.id);
+    setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: false } : i) } : prev);
+    try {
+      await Promise.all(ids.map(id => client.checkShoppingItem(id, false)));
+    } catch (e) {
+      setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: true } : i) } : prev);
+      showError(e, str.toasts.errorCheck);
+    }
+  }
+
+  function deleteGroupWithUndo(members: ShoppingItemWithRecipe[]) {
+    triggerDeleteHaptic();
+    const ids = members.map(m => m.id);
+    setList(prev => prev ? { ...prev, items: prev.items.filter(i => !ids.includes(i.id)) } : prev);
+    let cancelled = false;
+    showGlobalToast(str.toasts.itemDeleted(capitalize(members[0].name)), 'neutral', {
+      label: common.actions.undo,
+      onPress: () => { cancelled = true; setList(prev => prev ? { ...prev, items: [...prev.items, ...members] } : prev); },
+    });
+    setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        await Promise.all(ids.map(id => client.deleteShoppingItem(id)));
+        emitShoppingChanged();
+      } catch (e) {
+        setList(prev => prev ? { ...prev, items: [...prev.items, ...members] } : prev);
+        showError(e, str.toasts.errorDeleteItem);
+      }
+    }, 5000);
+  }
+
   async function completeList() {
     if (!listId) return;
     confirm({
@@ -1322,9 +1368,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               {!collapsed && checkedGroups.map(group => (
                 <View key={groupKey(group)}>
                   <Text style={s.checkedCatLabel} numberOfLines={1}>{groupLabel(group)}</Text>
-                  {group.items.map(item => (
-                    <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />
-                  ))}
+                  {aggregateByNameUnit(group.items).map(g => {
+                    // Ensam vara → vanlig rad. Flera av samma namn+enhet → en
+                    // ihopbakad rad med summerad mängd; åtgärder gäller hela gruppen.
+                    if (g.members.length === 1) {
+                      const item = g.members[0];
+                      return <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />;
+                    }
+                    return <ItemRow key={g.rep.id} item={{ ...g.rep, quantity: g.quantity }} onToggle={() => uncheckGroup(g.members)} onEdit={() => openEditItem(g.rep)} onDelete={() => deleteGroupWithUndo(g.members)} />;
+                  })}
                 </View>
               ))}
             </View>

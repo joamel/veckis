@@ -19,6 +19,7 @@
 - [x] Ingrediensförslag i nytt recept göms under tangentbordet. Borde hoppa upp precis som måttenheter gör — löst: namn-fältet får samma scroll-into-view-effekt som enhets-chipsen (förslagen scrollas ovanför tangentbordet)
 - [x] Klarmarkera hela listan borde ha en bekräftelsedialog och en "ångra"-toast — löst: bekräftelsedialog + 5s ångra-toast (som radera-varan)
 - [x] I byta butiksläget står det "Vald" så fort man trycker på en annan butik. Borde ligga kvar på den faktiskt valda butiken så man vet vilken man har om man avbryter — löst: "Nuvarande"-etikett ligger kvar på sparad butik; bock/highlight visar bara pending-val
+- [x] Baka ihop klarmarkerade varor med samma namn+enhet till en rad (t.ex. 4× "1 st gurka" → "gurka 4 st") — löst: visnings-aggregering i klart-högen (`aggregateByNameUnit`); toggle/radera gäller hela gruppen, olika enheter bakas ej ihop
 
 ### Meny
 - [x] när man överför en meny till inköpslistan borde man först klicka i inköpslista och sedan bekräfta på en översänd-knapp så att man inte av misstag trycker på fel inköpslista och inte kan ångra — löst: list-steget markerar vald lista (highlight + bock); överföring sker först vid "Överför"-knappen
