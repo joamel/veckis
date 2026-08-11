@@ -804,18 +804,43 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     router.push(`/(tabs)/menu?bulkTransfer=1&originListId=${listId}` as never);
   }
 
-  async function checkAllUnchecked() {
+  function checkAllUnchecked() {
     if (!list) return;
     const targets = list.items.filter(i => !i.isChecked && !i.id.startsWith('optimistic-'));
     if (targets.length === 0) return;
+    // Bekräfta först (kan påverka många varor) …
+    confirm({
+      title: str.checkAllDialog.title,
+      message: str.checkAllDialog.message(targets.length),
+      buttons: [
+        { label: str.checkAllDialog.confirm, onPress: () => doCheckAll(targets) },
+        { label: common.actions.cancel, style: 'cancel' },
+      ],
+    });
+  }
+
+  function doCheckAll(targets: ShoppingItemWithRecipe[]) {
     const ids = targets.map(i => i.id);
     setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: true } : i) } : prev);
-    try {
-      await Promise.all(ids.map(id => client.checkShoppingItem(id, true)));
-    } catch (e) {
-      setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: false } : i) } : prev);
-      showError(e, str.toasts.errorCheckAll);
-    }
+    // … och en ångra-toast (som delete): committa efter 5s, ångra avbryter.
+    let cancelled = false;
+    showGlobalToast(str.toasts.allChecked(ids.length), 'neutral', {
+      label: common.actions.undo,
+      onPress: () => {
+        cancelled = true;
+        setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: false } : i) } : prev);
+      },
+    });
+    setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        await Promise.all(ids.map(id => client.checkShoppingItem(id, true)));
+        emitShoppingChanged();
+      } catch (e) {
+        setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: false } : i) } : prev);
+        showError(e, str.toasts.errorCheckAll);
+      }
+    }, 5000);
   }
 
   async function toggleItem(item: ShoppingItemWithRecipe) {

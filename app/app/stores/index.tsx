@@ -167,12 +167,15 @@ export default function StoresScreen() {
         ) : (
           filteredSorted.map(store => {
             const catCount = (store.categoryOrder as StoreCategory[]).length || 0;
-            // Highlight den MARKERADE (ej ännu sparade) butiken i pick-läge.
-            const highlighted = pickMode && store.id === chosenId;
+            // Highlight/bock = MARKERAD (pending) butik. "Nuvarande"-etiketten
+            // ligger kvar på den faktiskt SPARADE butiken så man vet vilken man
+            // har om man avbryter.
+            const isChosen = pickMode && store.id === chosenId;
+            const isCurrent = pickMode && store.id === currentStoreId;
             return (
               <Pressable
                 key={store.id}
-                style={[s.card, highlighted && s.cardCurrent]}
+                style={[s.card, isChosen && s.cardCurrent]}
                 onPress={() => {
                   if (pickMode) {
                     setChosenId(store.id); // markera — byte sker först vid Spara
@@ -181,19 +184,19 @@ export default function StoresScreen() {
                   }
                 }}
               >
-                <View style={[s.cardIcon, highlighted && s.cardIconCurrent]}>
-                  <Ionicons name="storefront-outline" size={20} color={highlighted ? '#b96a45' : '#4e7a5e'} />
+                <View style={[s.cardIcon, isChosen && s.cardIconCurrent]}>
+                  <Ionicons name="storefront-outline" size={20} color={isChosen ? '#b96a45' : '#4e7a5e'} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.cardTitle, highlighted && s.cardTitleCurrent]}>{store.name}</Text>
+                  <Text style={[s.cardTitle, isChosen && s.cardTitleCurrent]}>{store.name}</Text>
                   {(() => {
                     const parts: string[] = [];
                     if (catCount > 0) parts.push(str.card.categories(catCount));
-                    if (highlighted) parts.push(str.card.selected);
-                    return parts.length > 0 ? <Text style={[s.cardMeta, highlighted && s.cardMetaCurrent]}>{parts.join(' · ')}</Text> : null;
+                    if (isCurrent) parts.push(str.card.current);
+                    return parts.length > 0 ? <Text style={[s.cardMeta, isCurrent && s.cardMetaCurrent]}>{parts.join(' · ')}</Text> : null;
                   })()}
                 </View>
-                {highlighted ? (
+                {isChosen ? (
                   <Ionicons name="checkmark-circle" size={22} color="#4e7a5e" />
                 ) : !pickMode ? (
                   <Ionicons name="chevron-forward" size={18} color="#d6d3d1" />

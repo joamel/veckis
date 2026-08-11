@@ -13,13 +13,21 @@
 - [x] mer optimistisk uppdatering. t.ex. skala recept hoppar portioner fram och tillbaka när den laddar. bättre att den ändrar tillbaka om den failar — löst: portions-override behålls tills sparningen committat (reload nollställer inte pending), släpps vid success, reverteras bara vid fel
 
 ### Inställningar
-- [ ] Lägga till dark mode
+- [ ] Lägga till dark mode — utgå från "Laga nu"-lägets gamla mörka palett (som användaren gillade): bg `#1c1917`, text `#f1efec`/`#e7e5e4`, dämpat `#57534e`/`#44403c`, grön accent `#7fa88d`, primär `#4e7a5e`. (Se git-historik för `cook*`-stilarna i `recipes/[recipeId].tsx` innan ljus-konverteringen.)
 
 ### Inköpslistan
 - [x] Ingrediensförslag i nytt recept göms under tangentbordet. Borde hoppa upp precis som måttenheter gör — löst: namn-fältet får samma scroll-into-view-effekt som enhets-chipsen (förslagen scrollas ovanför tangentbordet)
+- [x] Klarmarkera hela listan borde ha en bekräftelsedialog och en "ångra"-toast — löst: bekräftelsedialog + 5s ångra-toast (som radera-varan)
+- [x] I byta butiksläget står det "Vald" så fort man trycker på en annan butik. Borde ligga kvar på den faktiskt valda butiken så man vet vilken man har om man avbryter — löst: "Nuvarande"-etikett ligger kvar på sparad butik; bock/highlight visar bara pending-val
 
 ### Meny
-- [x] - när man överför en meny till inköpslistan borde man först klicka i inköpslista och sedan bekräfta på en översänd-knapp så att man inte av misstag trycker på fel inköpslista och inte kan ångra — löst: list-steget markerar vald lista (highlight + bock); överföring sker först vid "Överför"-knappen
+- [x] när man överför en meny till inköpslistan borde man först klicka i inköpslista och sedan bekräfta på en översänd-knapp så att man inte av misstag trycker på fel inköpslista och inte kan ångra — löst: list-steget markerar vald lista (highlight + bock); överföring sker först vid "Överför"-knappen
+
+### Recept
+- [x] "Laga nu"-läget ser ut att vara i dark mode — löst: konverterat till appens ljusa/varma tema (de mörka färgerna sparas som bas för dark mode, se Inställningar)
+- [x] Ingen synlig text på föregående-knappen i "laga nu"-läget — löst: prev-knappen hade mörk text (#292524) på mörk knapp; läsbar efter ljus-konverteringen
+- [ ] Ingredienslistan i "Laga nu"-läget borde fortsätta rulla igen när man trycker nästa/föregående och det kanske borde synas 6-7 ingredienser samtidigt istället för bara 4
+- [ ] trycka ihop korten så de ser ut som i inköpslistan och menyn
 
 ## Agent
 - [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori när den importerar recept.
