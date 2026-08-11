@@ -283,6 +283,9 @@ export default function MenuScreen() {
   const [transferSheet, setTransferSheet] = useState<WeekMenuItemWithRecipe | null>(null);
   const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [bulkTransferringListId, setBulkTransferringListId] = useState<string | null>(null);
+  // Markerad lista i list-steget — överföring sker först vid "Överför"-knappen
+  // så man inte råkar trycka på fel lista (kan inte ångras).
+  const [bulkSelectedListId, setBulkSelectedListId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState('');
   const [creatingList, setCreatingList] = useState(false);
   const [ingredientCategories, setIngredientCategories] = useState<Record<string, string>>({}); // name -> category for inventory sorting
@@ -320,6 +323,9 @@ export default function MenuScreen() {
   // Reset on load() so another device's change isn't shadowed by a stale entry.
   const [menuItemServings, setMenuItemServings] = useState<Record<string, number>>({});
   const servingsSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Rätter vars portions-override ännu inte sparats/committats — så en reload
+  // inte nollställer dem och får värdet att studsa fram och tillbaka.
+  const pendingServingsRef = useRef<Set<string>>(new Set());
 
   function scaledServingsOf(item: WeekMenuItemWithRecipe): number {
     return menuItemServings[item.id] ?? item.servings ?? item.recipe.servings;
@@ -336,6 +342,7 @@ export default function MenuScreen() {
   // devices reload with the new servings.
   function scaleServings(item: WeekMenuItemWithRecipe, n: number) {
     setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
+    pendingServingsRef.current.add(item.id);
     if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
       scaleWarnedRef.current.add(item.id);
       showGlobalToast(str.toasts.scalingAffectsNothing, 'neutral');
@@ -343,7 +350,22 @@ export default function MenuScreen() {
     const toSave = n === item.recipe.servings ? null : n;
     if (servingsSaveTimers.current[item.id]) clearTimeout(servingsSaveTimers.current[item.id]);
     servingsSaveTimers.current[item.id] = setTimeout(() => {
-      client.updateWeekMenuItem(item.id, { servings: toSave }).catch(e => showError(e, str.toasts.errorSaveServings));
+      client.updateWeekMenuItem(item.id, { servings: toSave })
+        .then(() => {
+          pendingServingsRef.current.delete(item.id);
+          // Persisterade värdet matchar nu → släpp override (om inget nyare val hunnit ske).
+          setMenuItemServings(prev => {
+            if (prev[item.id] !== n) return prev;
+            const { [item.id]: _drop, ...rest } = prev;
+            return rest;
+          });
+        })
+        .catch(e => {
+          // Bara VID FEL ändras det tillbaka — släpp override → visar persisterat värde.
+          pendingServingsRef.current.delete(item.id);
+          setMenuItemServings(prev => { const { [item.id]: _drop, ...rest } = prev; return rest; });
+          showError(e, str.toasts.errorSaveServings);
+        });
     }, 600);
   }
 
@@ -534,7 +556,13 @@ export default function MenuScreen() {
         client.getAllMenus(householdId).catch(() => [] as WeekMenuItemWithRecipe[]),
       ]);
       setMenuItems(menu);
-      setMenuItemServings({}); // persisted item.servings is the truth after a load
+      // Behåll overrides för rätter vars sparning ännu är på gång (annars studsar
+      // portionerna); resten är redan committade → persisterat värde är sanning.
+      setMenuItemServings(prev => {
+        const next: Record<string, number> = {};
+        for (const [id, v] of Object.entries(prev)) if (pendingServingsRef.current.has(id)) next[id] = v;
+        return next;
+      });
       loadedWeekRef.current = { wy: weekYear, wn: weekNumber };
       setRecipes(recs);
       setShoppingLists(activeLists);
@@ -1958,6 +1986,7 @@ export default function MenuScreen() {
                       router.navigate(`/shopping/${origin}` as never);
                     }
                   } else {
+                    setBulkSelectedListId(null);
                     setBulkTransferStep('list');
                   }
                 }}
@@ -1998,21 +2027,37 @@ export default function MenuScreen() {
                 </>
               ) : (
                 <ScrollView style={s.bulkRecipeList}>
-                  {shoppingLists.map(l => (
-                    <Pressable
-                      key={l.id}
-                      style={[s.pickerItem, !!bulkTransferringListId && s.pickerItemDisabled]}
-                      onPress={() => executeBulkTransfer(l.id)}
-                      disabled={!!bulkTransferringListId}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.pickerItemTitle}>{l.name}</Text>
-                        <Text style={s.pickerItemMeta}>{str.bulk.itemsCount(l.items.length)}</Text>
-                      </View>
-                      {bulkTransferringListId === l.id && <ActivityIndicator size="small" color="#4e7a5e" />}
-                    </Pressable>
-                  ))}
+                  {shoppingLists.map(l => {
+                    const selected = bulkSelectedListId === l.id;
+                    return (
+                      <Pressable
+                        key={l.id}
+                        style={[s.pickerItem, selected && s.pickerItemActive, !!bulkTransferringListId && s.pickerItemDisabled]}
+                        onPress={() => setBulkSelectedListId(l.id)}
+                        disabled={!!bulkTransferringListId}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.pickerItemTitle}>{l.name}</Text>
+                          <Text style={s.pickerItemMeta}>{str.bulk.itemsCount(l.items.length)}</Text>
+                        </View>
+                        {bulkTransferringListId === l.id
+                          ? <ActivityIndicator size="small" color="#4e7a5e" />
+                          : selected && <Ionicons name="checkmark-circle" size={22} color="#4e7a5e" />}
+                      </Pressable>
+                    );
+                  })}
                 </ScrollView>
+              )}
+              {shoppingLists.length > 0 && (
+                <Pressable
+                  style={[s.button, (!bulkSelectedListId || !!bulkTransferringListId) && s.buttonDisabled]}
+                  onPress={() => bulkSelectedListId && executeBulkTransfer(bulkSelectedListId)}
+                  disabled={!bulkSelectedListId || !!bulkTransferringListId}
+                >
+                  {bulkTransferringListId
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={s.buttonText}>{str.bulk.transfer}</Text>}
+                </Pressable>
               )}
               <Pressable
                 style={[s.button, { backgroundColor: '#e7e5e4' }]}
@@ -2386,7 +2431,8 @@ const s = StyleSheet.create({
   recipeCardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#faf8f3', alignItems: 'center', justifyContent: 'center' },
   recipeCardTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
   recipeCardMeta: { fontSize: 12, color: '#78716c', marginTop: 2 },
-  pickerItem: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f1efec', flexDirection: 'row', alignItems: 'center' },
+  pickerItem: { paddingVertical: 14, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#f1efec', flexDirection: 'row', alignItems: 'center' },
+  pickerItemActive: { backgroundColor: '#ecf3ec', borderRadius: 10, borderBottomColor: 'transparent' },
   pickerItemDisabled: { opacity: 0.5 },
   pickerItemTitle: { fontSize: 16, fontWeight: '600', color: '#292524' },
   pickerItemMeta: { fontSize: 13, color: '#78716c', marginTop: 2 },

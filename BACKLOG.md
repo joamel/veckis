@@ -3,6 +3,82 @@
 ## UI-förbättringar/buggar
 
 ### Feedback från pwa Iphone-användare
+
+#### Feedback 2026-07-09
+- [ ] White screen när AI-parse av inklistrat recept failar istället för att återgå till receptsidan — trolig PWA-specifik (web unmountar till blankt vid ouppfångat fel, native visar 😵). Felhanteringen visar en confirm; behöver repro (native vs PWA + exakt feltext) för rotorsak.
+
+### Generellt
+- [ ] 2x2-grid-startsida parkerad — omformulerad som ev. framtida "Hem"-dashboard med innehåll (dagens middag, dagens sysslor, antal varor kvar) istället för ren navigering
+- [ ] Notis-historik i appen — en "senaste 7 dagarna"-inkorg i notis-inställningarna som visar missade push-notiser (syssla avbockad, någon handlar, ny medlem etc.). Om telefonen är på tyst eller notisen sopas bort finns inget att gå tillbaka till.
+- [x] mer optimistisk uppdatering. t.ex. skala recept hoppar portioner fram och tillbaka när den laddar. bättre att den ändrar tillbaka om den failar — löst: portions-override behålls tills sparningen committat (reload nollställer inte pending), släpps vid success, reverteras bara vid fel
+
+### Inställningar
+- [ ] Lägga till dark mode
+
+### Inköpslistan
+- [x] Ingrediensförslag i nytt recept göms under tangentbordet. Borde hoppa upp precis som måttenheter gör — löst: namn-fältet får samma scroll-into-view-effekt som enhets-chipsen (förslagen scrollas ovanför tangentbordet)
+
+### Meny
+- [x] - när man överför en meny till inköpslistan borde man först klicka i inköpslista och sedan bekräfta på en översänd-knapp så att man inte av misstag trycker på fel inköpslista och inte kan ångra — löst: list-steget markerar vald lista (highlight + bock); överföring sker först vid "Överför"-knappen
+
+## Agent
+- [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori när den importerar recept.
+- [ ] kanske en agent som lär sig hur användaren brukar lägga till basvaror, aktiviteter etc för att få en bättre UI experience?
+
+## Ej helt färdiga stories, idéstadie
+- [ ] Widget (hemskärm) — visa dagens sysslor eller veckomenyn direkt på hemskärmen utan att öppna appen. Kräver EAS-build + native modul (WidgetKit på iOS, App Widgets på Android). Hög synlighet för daglig adoption.
+- [ ] Flerspråkighet (i18n) — data-lagret: `commonIngredients.ts` (ingrediensnamn), `categorizeIngredient.ts` (keyword-regler) och `CATEGORY_LABELS` är hårdkodade på svenska. Inför andra språk behövs: (a) kategori-labels per språk (`Record<StoreCategory, Record<Language, string>>`), (b) parallella keyword-regler per språk i kategoriseraren, (c) flerspråkiga ingrediensnamn via `IngredientAlias`-tabellen (utöka med `language`-fält) eller separata rålistor. UI-strängar täcks redan av `strings.ts`.
+- [ ] Streckkodsläsare för att direkt lägga till en vara — **utredd & nedprioriterad**: OpenFoodFacts (enda realistiska gratis-källa) testad manuellt på vanliga svenska/butiks-egna varor (ekologiskt äppelmos, soltorkade tomater, bostongurka) → ingen träff. Täckningen är god för internationella märkesvaror men svag där svenska hushåll faktiskt handlar. Scannern skulle hjälpa exakt där OFF är svagast och är överflödig där OFF är stark (vanliga repeaters klaras redan av autocomplete + stapleItems). Native-modul + EAS-build + scan-UI + error-states bedömt inte värt det. Återupptas om en bättre datakälla dyker upp (t.ex. svensk butikspartnerskap eller paid API med bra svensk täckning).
+- [ ] Kategorier — skafferi-minne får exakt matchning på subCategory (bygger på #283 nedan): "ost" i skafferi matchar bara items med subCategory='ost', inte hela mejeri-kategorin. Kräver att taxonomi-bygget är klart.
+- [ ] Kategorier — söklogik prioriterar subCategory-träff: sök "smör" matchar items med subCategory='smör_margarin' före LIKE-träff på name. Bygger på taxonomi.
+- [ ] Kategorier — koppla datakvalitet-städningen (rad 282 nedan) till sub-merge: admin-vy kan slå ihop duplicat-skapade subs eller mappa om ärvda customCategory-strängar.
+- [ ] Veckovyn i tablet borde kanske se likadan ut som i mobilen med allt under?
+- [ ] ha en sökbar databas på butiker som andra lagt till för att på så vis slippa skapa butiker som redan finns inlagda. Kanske ett premium-alternativ?
+- [ ] Statistik/insikter: lättviktsvy med "mest lagade rätter", "vem gör flest sysslor", "vanligaste inköp" — möjligt premium-läge tillsammans med butiksdatabasen
+- [ ] Datakvalitet-städning: admin-vy för att slå ihop/städa basvaror & kategorier så normaliserade namn och delade kategori-minnen inte driftar över tid
+- [ ] Skafferi-minne: persistent "har hemma" som minns över sessioner (eget skafferi per hushåll) så återkommande basvaror inte behöver inventeras varje gång. Bygger vidare på den hopslagna inventeringen.
+- [ ] Radikalt alternativ för återkommande sysslor: flexibelt intervall per syssla — nästa förfallodag räknas från när man senast gjorde sysslan ("var 3:e dag" från senaste utförandet) istället för fast kalender. Ingen förfallet-hög alls; passar rytm-sysslor (vattna/dammsuga), sämre för fasta dagar (sopor på måndag). Skulle vara ett val per syssla: "fast dag" vs "ungefär var X:e dag". (Subsumerar tidigare "klarmarkera bakåt"-idén — täcks nu av förlåtande-modellen i Sysslor-sektionen.)
+- [ ] "Kom igång"-vägledning för nya hushåll: efter setup, en kort checklista (lägg till första receptet / inköpslistan / sysslan) som hjälper adoption nu när riktiga användare signar upp. **Implementation finns i `feature/getting-started-card`** — utvärderas mot befintliga onboarding-tips.
+
+## Backlog (prioriterade features)
+
+### Navigation & fokus
+- [ ] **Nordstjärna: kärn-loopen** — appens kärna är *recept → veckomeny → inköpslista*. Väg framtida features mot den; familjeorganisatör-ytor (kalender/sysslor) får inte skymma den.
+- [ ] **Experiment: recept-fokus** (branch `feature/recipe-focus-experiment`) — flikraden blir Inköp/Meny/Recept/Hushållet; Kalender + Sysslor döljs ur baren bakom flaggan `RECIPE_FOCUS_EXPERIMENT` (`src/lib/features.ts`) men rutterna/koden lämnas orörda så deep-links/notiser funkar och det är reversibelt. Recept lyfts från gömd stack-route (`recipes/index.tsx`) till egen flik (`(tabs)/recipes.tsx`). Landningssida default → Meny och erbjuder bara synliga flikar. Recept-fliken är ett rent **bibliotek** (inga selection-banners); menyns dag-väljare pushar istället till egen route `recipes/pick.tsx` (re-export av samma skärm) så "Fyll måndag" bara syns när man kommit från veckomenyn. Inuti ett recept stänger en "+"-FAB kärn-loopen: väljare "Lägg till i veckomeny" / "Lägg till i inköpslista". Lokala profiler döljs i settings bakom flaggan (utan sysslor/aktiviteter finns inget att tilldela). **Utvärderas: känns kärnan (inköp+veckomeny) tydligare utan familjeorganisatör-ytorna?** Att bedöma vidare: (a) om Sysslor/rotation är en vallgrav värd att behålla, (b) om Meny-fliken ensam täcker "vad äter vi i veckan" när Kalendern är borta.
+
+### Meny
+- [ ] **Dag-rubrik-layout i veckomenyn (utvärderas)** — dag-namn + datum + månad ("Måndag 15 augusti") som rubrik ovanför dagens kort i stället för datum-pill på varje kort; flera rätter grupperas under en rubrik per dag. Ligger ocommittat på develop; bedöm mot pill-varianten och committa/deploya när den känns rätt.
+
+### Internationalisering (i18n)
+- [ ] **Se över alla hårdkodade strängar → riktig i18n** — `src/lib/svenska.ts` är tänkt att vara översättnings-sömmen (byt/duplicera modulen för engelska), men användartext läcker ut hårdkodad i komponenter och kringgår den. Audit: gå igenom hela `app/` och flytta ALL användarvänd text till svenska.ts (eller en locale-modul), så att ett språkbyte blir ett drop-in. Kända syndare hittills: `src/components/RecurrencePicker.tsx` (dagnamn), `src/lib/shareWeekMenu.ts` (dagnamn) — plus inline-svenska i toasts/dialoger/placeholders. Redan fixat: `MENU_DAYS` + "utan dag" i recept-flödet härleds nu från `common.weekdays.long` / `common.noDay`. Slutmål: en `en.ts` + enkel locale-switch (ev. inställning) blir möjlig utan att jaga strängar i JSX.
+
+### iOS
+All JS-kod är plattformsneutral (Expo/RN) och `app.json` har `ios.bundleIdentifier: com.veckis.app` + `supportsTablet: true`. Allt vi byggt hittills följer med automatiskt vid första iOS-build. Det som saknas för att faktiskt köra på iOS-device/TestFlight:
+- [ ] **Apple Developer-konto + bundle-registrering** — registrera `com.veckis.app` i App Store Connect / Developer Portal innan första `eas build --platform ios`.
+- [ ] **APNs-uppsättning för push på iOS** — APNs-nyckel (.p8) uppladdad till EAS-credentials + Push capability på app-ID:t. Utan detta returnerar `registerForPush` (`app/src/lib/registerPush.ts`) `denied`/`error` på iOS. Alternativt `GoogleService-Info.plist` om FCM ska användas även på iOS (motsvarighet till `google-services.json` för Android, satt i `app.json` under `ios.googleServicesFile`).
+- [ ] **Första TestFlight-build + smoketest** — verifiera att meny, recept, inköpslistor, sysslor, kalender, realtime, deeplinks och push faktiskt fungerar på iOS-device (inte bara simulator). Kontrollera särskilt KeyboardAvoidingView-`padding`-grenarna och Dynamic Island/safe-area-beteendet.
+
+### Innan prodsättning
+- [ ] **Klient-side request-cache (SWR/React Query)** — `useFocusEffect` triggar full API-reload vid varje flik-besök. Med stale-while-revalidate visas cachad data direkt och uppdateras i bakgrunden utan att användaren märker av det. Halverar upplevd laddningstid utan backend-ändringar.
+- [ ] **Sammansatta endpoints** — Flera flikar gör 2–4 parallella anrop vid varje laddning (t.ex. kalender = `getSchedule + getWeekMenu + getChores + getHousehold`). En composite-endpoint per flik minskar det till 1 anrop och halverar latensen.
+- [ ] **WebSocket + Redis pub/sub för horisontell skalning** — Nuvarande WS-broadcast är in-process. Om backend skalas till 2+ instanser (Render scale-up) missar användare på annan instans varandras realtidsuppdateringar. `ioredis` + Redis channel löser det utan att ändra frontend-koden.
+- [ ] **Paginering för recept och sysslor** — Inga listor har paginering; ett hushåll med 60+ recept skickar hela listan vid varje flik-besök. Cursor-baserad paginering (limit/cursor) + infinite scroll i frontend.
+- [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
+- [ ] **Always-on backend innan live** — free tier räcker för test men inte i drift: Render spinner ner efter 15 min (~50s kallstart) och Neon autosuspendar + har bara 100 compute-h/månad. Uppgradera till betald Neon/Render (eller flytta DB) så backend alltid är live utan kallstart innan riktig lansering. (Just nu ok med kallstart — se `Drift & stabilitet`.)
+
+### Drift & stabilitet
+- [ ] **Lågfrekvent DB-hälsolarm** — utan keepalive finns inget larm när DB:n (eller backend) faktiskt går ner; det var cron-misset som avslöjade den här nedgången. Lägg en gles extern koll (1–2 ggr/dygn) mot `/health` (verifierar DB, 500:ar vid nere) som notifierar — väcker Neon försumbart men fångar "compute-pott slut / Neon nere" tidigt. `/healthz` (DB-fri) duger inte för DB-larm.
+- [ ] **App: graciös "servern vaknar"-retry** — när backend är uppe (`/healthz`) men DB-anrop failar (Neon-väckning/free-tier-kallstart) visar appen råa fel. En "servern vaknar, försöker igen…"-state med auto-retry + backoff gör kallstarten acceptabel i UI:t i stället för felmeddelanden — förutsättning för att gratis-strategin ska kännas bra.
+
+---
+
+## Done
+
+_Avklarade punkter, arkiverade från respektive rubrik ovan._
+
+### UI-förbättringar/buggar
+
+#### Feedback från pwa Iphone-användare
 - [x] Skärmen för smal i veckomenyn: `Dimensions.get('window').width` statiskt → `useWindowDimensions()` i menu.tsx + schedule.tsx; FlatList-sidor fick rätt bredd
 - [x] Samma veckonummer när man swipar mellan veckor: rot-orsak = statisk `weekPageW` → fel snapping → weekOffset uppdaterades inte; fixat med `useWindowDimensions()`
 - [x] Går inte att trycka på "+" i veckomenyn: knappar hamnade utanför rätt area pga fel sidbredd; fixat med `useWindowDimensions()`
@@ -31,7 +107,7 @@
 - [x] måste zooma ut för att se hela redigera-aktivitet-dialogen (fortfarande): `maxHeight` sänkt till 0.80, `paddingBottom: insets.bottom` tillagd (home indicator-overlap), `flex: 1` på ScrollViews i editingEntry + showModal (fick CSS att respektera maxHeight-gränsen på iOS Safari web)
 - [x] kan inte trycka utanför dialogen i redigera syssla + saknade rundade hörn: `position:'absolute'` KAV i showCreate + editingChore (chores.tsx) bytt till flex-1-mönster; `maxHeight: windowHeight * 0.80, paddingBottom: insets.bottom` + `flex: 1` på ScrollViews tillagda
 
-#### Feedback-omgång 2026-06-09 (Android PWA)
+##### Feedback-omgång 2026-06-09 (Android PWA)
 - [x] "Ingen skugga bakom dialog" på action-sheets (Ta bort-bekräftelse, "Du handlar nu", redigera/ta bort aktivitet): `ConfirmDialog` overlay-Pressablen var transparent (flex:1 ovanför sheeten) → ingen dimning alls. Flyttade dimningen till ytter-containern (`s.overlay { flex:1, rgba(17,24,39,0.55) }`) så den även täcker bakom de rundade övre hörnen; behöll flex-kolumn-strukturen + transparent dismiss-Pressable (iOS Safari tap-säker).
 - [x] "Skuggar inte hörnen" på basvaru-browsern (välj per kategori, t.ex. Kött & fisk / Frukt & grönt): dim-Pressablen låg bara *ovanför* sheeten → de rundade övre hörnen visade osuddad sidbakgrund. Wrappade i dim-container (`s.overlay`) med transparent flex:1-Pressable inuti (shopping/[listId].tsx showBrowser).
 - [x] Svep hörn-dim-fixen över alla återstående sheets: alla `<Pressable s.overlay/><sheet/>`-modaler bytte till transparent `overlay` (flex:1) + eget absolut `overlayDim`-lager (täcker bakom de rundade hörnen utan att röra closing-tags eller sheet-position). Klart i shopping/[listId].tsx (browser, editingItem, editingStaple, mergeSheet, actionsMenu, rename, manualPicker), shopping.tsx, menu.tsx (4), chores.tsx (3), schedule.tsx (4), recipes/index.tsx (3), recipes/[recipeId].tsx (showTransfer). settings.tsx hade absolut botten-sheet men saknade dim → la till `rgba(0,0,0,0.4)` på overlayn (dimmar alla 8). account.tsx var redan rätt (absolut dim + botten). stores/[storeId].tsx rename byttes till flex:1+overlayDim (låg i toppen).
@@ -41,31 +117,28 @@
 - [x] "Lägg till vara"-baren hoppar upp när tangentbordet öppnas i PWA: Android Chrome resizear viewport → baren flöt upp av sig självt, KAV adderade extra padding → dubbelhopp. Fix: `enabled={keyboardVisible && (Platform.OS !== 'web' || isIOSLike)}` — KAV avaktiverat på Android web, kvar på iOS Safari PWA (där viewport inte resizeas)
 - [x] PWA på mobil: flikraden i botten är delvis skymda — home indicator/systemfält täcker nederkanten och flikarna syns inte helt: `tabBarStyle: { height: sp(60) }` respekterade inte safe-area; lade till `useSafeAreaInsets` i `_layout.tsx` → `height: sp(60) + insets.bottom, paddingBottom: insets.bottom`
 
-#### Feedback-omgång 2 (2026-06-09, Android PWA)
+##### Feedback-omgång 2 (2026-06-09, Android PWA)
 - [x] Tilldela-person-knapparna ("user-knapparna") onödigt tjocka i syssla/aktivitet-editorn: `MultiMemberPicker.memberChip` slimmad (`paddingVertical 8→6`, `borderRadius 20→16`) så de matchar upprepnings-knapparnas höjd.
 - [x] Går inte att swipa mellan veckor i menyn när det ligger maträtter inlagda: RNGH:s `GestureDetector` (long-press-drag för att flytta maträtt mellan dagar) sätter `touch-action: none` på varje kort på web → blockerar browserns horisontella sid-svep (tomma listor gick att swipa, fulla inte). Native opåverkat. På web renderas korten nu utan `GestureDetector` (svep funkar) + flytt-mellan-dagar görs via nya dag-chips ("Flytta till dag") i det utfällda kortet. Native behåller drag.
 - [x] Qty-/vara-dialogen blev "fullscreen size" på bred/webb-viewport: `s.sheet` saknade `maxWidth` → spände kant-till-kant. La till `width:'100%', maxWidth:480, alignSelf:'center'` (gäller alla shopping-sheets) → full bredd på telefon (<480), capad + centrerad som en telefon-sheet på bred viewport.
 - [x] Sökresultat-chipsen (förslag medan man skriver) hamnade utanför skärmkanten: raden var en vanlig `View` (`chipRow`) utan scroll. Bytt till horisontell `ScrollView` (`keyboardShouldPersistTaps="handled"`) → swipa höger för fler. ("Dina vanligaste" har redan wrap.)
 - [x] (utredning, behöver device) App-innehållet renderas ibland i en smal vänsterkolumn (~halva bredden) i PWA medan modalen går kant-till-kant. Det finns INGEN maxWidth/frame i koden — allt är `flex:1` full bredd — så detta är sannolikt ett browser-zoom/visual-viewport-tillstånd (samma misstänkta orsak som tidigare "delvis inzoomad"). Repro-steg: hård omladdning + nollställ sidzoom. Ev. överväg centrerad max-bredd-frame för web (krockar dock med tablet-split-vyer i kalender/meny). Stängs: ingen kod-rot-orsak, sannolikt viewport-tillstånd — aldrig reproducerat.
-
 - [x] PWA: gick inte att scrolla i inköpslistan — swipe-delete-gestens GestureDetector satte touch-action:none på varje varurad. RÄTT fix: touchAction="pan-y" på GestureDetector (RNGH ≥2.10, web-only prop) — webbläsaren behåller vertikal scroll, horisontella drag går till gesten → swipe-delete OCH scroll funkar på web precis som native. Samma på InvSlider i inventeringen. (Första försöket med ✕-knapp/tap-to-set förkastades.) Audit: maträttskorten kvar med dag-chips på web (deras drag är vertikalt → pan-y hjälper inte); push/SecureStore/haptik har web-varianter
 
-#### Feedback 2026-07-09
+##### Feedback 2026-07-09
 - [x] Ny-butik-dialogen hoppade inte upp för tangentbordet: KAV hade `justifyContent:'flex-end'` men saknade `flex:1`/absolut fyllnad → ingen höjd att krympa. Fixat i stores/index.tsx + stores/[storeId].tsx (absolut fyllnad som recept-modalen).
 - [x] `Text`/`TextInput`-wrappern (allowFontScaling-fixen) droppade ref tyst (funktionskomponent utan forwardRef) → bröt allt som mäter/fokuserar via ref. Nu `forwardRef`.
 - [x] Skala upp recept under redigera → skalar ingredienserna proportionellt (ratio ny/gammal, komponerar korrekt; omätta som "salt" lämnas) och sparar nya portionsantalet som receptets standard. Portions-steppern i meta-raden är nu aktiv i edit-läget.
 - [x] Onboarding-tips ramade in fel i appen (rätt i PWA): edge-to-edge (RN 0.81/Expo SDK 54) ger Modal ett annat koordinat-origin än measureInWindow (statusBarTranslucent räckte inte). Fix (deterministisk): SpotlightTip renderas som overlay-View + mäter sin EGEN skärm-origin (measureInWindow) och drar bort den från målets koordinater → mål och overlay i samma absoluta skärmrymd, alltid rätt oavsett status bar/insets/plattform. BackHandler för bakåt-knapp-dismiss.
-- [ ] White screen när AI-parse av inklistrat recept failar istället för att återgå till receptsidan — trolig PWA-specifik (web unmountar till blankt vid ouppfångat fel, native visar 😵). Felhanteringen visar en confirm; behöver repro (native vs PWA + exakt feltext) för rotorsak.
 
-#### Regressions 2026-06-10
+##### Regressions 2026-06-10
 - [x] Aktivitets-/sysslomodaler (schedule.tsx) hamnade under viewport på PWA: `<View style={{ flex: 1 }}>`-wrapper runt modal-innehållet tvingade overlay-Pressablen (flex:1) att fylla hela wrapphöjden → sheet puttades under skärmen. `ScrollView flex:1` i editingEntry + showModal gav 0-höjd i auto-höjd KAV-förälder utan definierad höjd på web. Båda borttagna — matchar nu inköpslistans flex-mönster.
 
-### Generellt
+#### Generellt
 - [x] Design-feedback "kall och tråkig" → varm palett (feature/warm-theme): salvia-grönt som primär (ersätter indigo), terrakotta som accent (ersätter violett), varma stengrå + krämvit bakgrund. Central `src/lib/theme.ts` med tokens — ny kod importerar tokens, befintlig kod mekaniskt konverterad (sed-mappning dokumenterad i theme.ts). app.json (splash/adaptiveIcon/statusBar) + PWA-manifest uppdaterade
 - [x] Ny logga: koncept 12d "Kalendern är loggan" — 4×3-kalendergrid med kundvagn, gryta (honung), bock, fotboll och rött hjärta sist som signatur; honungstonade tomdagar. Vald efter iteration i assets/logo-concepts/ (hus-varianter 5–11 förkastade som för plottriga). Assets genererade från SVG via sharp: icon/adaptive-icon/splash-icon/favicon + PWA-ikoner (192/512/apple-touch). Ny native-ikon + splash-bg kräver EAS-build
 - [x] Favorit-landningssida: inställning "Starta i" (Inköp/Meny/Kalender/Sysslor) under Inställningar → APP; SecureStore per enhet, NavigationGuard redirect:ar till vald flik vid inloggning, setup och kall-start
 - [x] Öppningsanimation: AnimatedSplash-overlay som matchar native-splashen (bakgrund + ikon) — ikonen andas (skala 1→1,12→0,9) medan overlayn tonar bort, <1s, pointerEvents=none, ren JS/Reanimated (OTA-säker)
-- [ ] 2x2-grid-startsida parkerad — omformulerad som ev. framtida "Hem"-dashboard med innehåll (dagens middag, dagens sysslor, antal varor kvar) istället för ren navigering
 - [x] Kunna ha appen i horisontalläge i tablet-format (tablet-format supporteras, portrait-first på phone)
 - [x] Skärmen borde hoppa upp när man ska skriva in något så man ser vad man skriver
 - [x] Snyggt om man kan hålla inne på inköpslistor/aktiviteter/sysslor/meny så att de skakar om man vill redigera dem och att det kommer upp en delete (x) /redigeringsknapp (penna)
@@ -143,16 +216,14 @@
 - [x] Horisontell-vy (landskap) i tablet funkar fortfarande inte i praktiken trots tablet-stöd (bugg, inte feature-önskemål): app.json orientation→default + expo-screen-orientation lockAsync(PORTRAIT_UP) på telefoner, unlockAsync på tablets; ny EAS preview-build klar
 - [x] Vibration (haptics) vid avcheckning i inköpslistan: Light-impact per vara, Medium-impact vid "klarmarkera hela kategorin". Toggle "Vibration vid avcheckning" i Inställningar → APP (SecureStore `haptic-checkout`, on by default). Web-safe (no-op på web).
 - [x] Ljud vid avcheckning i inköpslistan: kort syntetiskt tick-ljud (expo-av, `assets/sounds/check.wav`, 80 ms @ 1050 Hz) spelas parallellt med haptics. Toggle "Ljud vid avcheckning" i Inställningar → APP (SecureStore `sound-checkout`, on by default). Kräver native EAS-build (expo-av är native modul).
-- [ ] Notis-historik i appen — en "senaste 7 dagarna"-inkorg i notis-inställningarna som visar missade push-notiser (syssla avbockad, någon handlar, ny medlem etc.). Om telefonen är på tyst eller notisen sopas bort finns inget att gå tillbaka till.
 - [x] Kvarvarande hårdkodade strängar — schedule.tsx, settings.tsx, recipes/index.tsx och stores/[storeId].tsx har troligen fortfarande UI-strängar utanför strings.ts; bör slutföras för att migreringsarbetet ska vara komplett
 - [x] "Rensa klara"-bekräftelse-toast — när man rensar sysslor försvinner korten utan feedback; en toast "X återkommande sysslor dolda tills nästa tillfälle" bekräftar åtgärden och minskar förvirring
 - [x] Maträtts- och sysslokorten är för stora jämfört med korten i kalendervyn — sikta på samma höjd/storlek för visuell konsekvens: meny-receptkortets ikon minskad 36→32px, sysslokorttiteln reducerad fs(16)→fs(15), ghost-ikonen justerad i takt
 - [x] Enhetligt beslut om bakåt i tid: meny tillåter navigering till tidigare veckor men cart-FAB ("Överför veckomeny") döljs — man kan se historik men inte överföra; återkommande aktiviteter antar startdatum = idag om inget väljs, men användaren kan sätta ett datum bakåt manuellt; sysslor blockeras sedan tidigare (kan ej skapa bakåt i tid).
 - [x] Synliggör/aggregera klientfelen: in-memory ring-buffer (max 200 fel) i backend — `POST /api/client-errors` sparar nu + loggar; `GET /api/client-errors` (requireAuth) returnerar de senaste (nyast först). Expanderbar `ClientErrorsSection` i Hushållet-fliken (admin only) visar lista med namn, meddelande, platform, version och tid; tryck på rad för att se stack trace.
 - [x] ha en svenska-fil (på sikt andra språk) så att det är enkelt att ändra texter och ha allt samlat på ett ställe — `app/src/lib/svenska.ts` (döpt om från strings.ts) samlar alla UI-texter (actions, toasts, felmeddelanden, tips, formulärtexter) per skärm/komponent med typade dynamiska strängar som funktioner; alla 9 skärmar (chores, schedule, shopping, menu, settings, recipes/index, recipes/[id], shopping/[listId], stores) + 2 komponenter (MultiMemberPicker, RecurrencePicker) migrerade
-- [ ] mer optimistisk uppdatering. t.ex. skala recept hoppar portioner fram och tillbaka när den laddar. bättre att den ändrar tillbaka om den failar
 
-### Inställningar
+#### Inställningar
 - [x] kunna ta bort hushåll (som admin)
 - [x] Admin-funktioner (redigera/ta bort hushåll och användare) visas i en dedikerad "Administrera hushåll"-sektion som bara syns för admins — ingen toggle, sektionen är alltid kollapsad/tydligt avskild
 - [x] Admin-badge vid profilnamnet i inställningar så det är tydligt vilka rättigheter man har
@@ -179,10 +250,8 @@
 - [x] Radera mitt konto in-app (Profil → ÖVRIGT): röd "Ta bort kontot"-rad → confirm → `DELETE /api/account`. Backend städar medlemskapen FÖRST (återanvänder `handleClerkUserDeleted`, deterministiskt) och raderar sedan Clerk-kontot via `@clerk/backend` `users.deleteUser` (secret key) — appen loggar ut. **Ersatte** det gamla portal-flödet (`openClerkPortal('/user')`) som krävde att Clerks self-service-deletion-toggle var på och lämnade appen. `user.deleted`-webhooken blir nu en idempotent safety net för raderingar via Clerk-dashboard/annat håll. (Self-service-toggeln behöver inte vara på.)
 - [x] Exportera hushållsdata — knapp i Profil/Hushållet som genererar en ZIP (eller Excel) med recept, sysslor, aktiviteter och inköpshistorik. Möjliggör byte av app, telefon eller backup. Kan levereras som CSV-filer per datatyp (recept.csv, sysslor.csv osv.) via `GET /api/export` med HTTP download.
 - [x] Backend: Clerk user.deleted-webhook → ta bort föräldralösa hushållsmedlemskap: ny `POST /api/webhooks/clerk` (Svix-signaturverifierad via `svix` + monterad med rå body före `express.json`). På `user.deleted` rensas användarens medlemskap i ALLA hushåll (`handleClerkUserDeleted` i `lib/memberCleanup`): cascade-rensning av `assignedToMany`/`assignedTo` + radering av raden (delad `cascadeRemoveMember`-helper, som `leave` nu också använder); om den raderade var ende admin och andra medlemmar finns → äldsta befordras till admin (annars lämnas tomt hushåll för framtida städning). 3 integrationstester (134 backend-gröna). **Kvar för dig:** lägg env `CLERK_WEBHOOK_SECRET` (Signing Secret) + konfigurera endpointen i Clerk Dashboard → Webhooks, prenumerera på `user.deleted`. Utan secret svarar endpointen 500 och loggar varning. Framtida: städa helt tomma hushåll.
-- [ ] Lägga till dark mode
 
-
-### Inköpslistan
+#### Inköpslistan
 - [x] "Jag handlar"-läget notifierar nu den aktiva handlaren när någon annan lägger till en vara under tiden: notifyActiveShopper i sendPush.ts (push till activeShopper, aldrig till den som lade till; lokala profiler kan inte pushas), varor batchas i 30s-fönster per lista och notisen listar NAMNEN ('Mjölk, smör, kaffe lades till …', max 6 + '+N till') — inget tystas; veckomeny-transfern skickar direkt sammanfattning ('12 varor från veckomenyn'). Vid flush verifieras att handlingen fortfarande pågår. Ny preferens shopperItemAdded (default på) i notisinställningarna
 - [x] Ångra-toast när man klarmarkerar en hel kategori — "N varor klarmarkerade" med Ångra som bockar ur samma varor igen (optimistiskt + rollback via load vid fel)
 - [x] "Byt butik"-vyn saknar tryck-feedback: att välja en butik byter direkt utan att man ser vilken som är markerad (ingen highlight/animering) — visa aktivt val — löst: kort highlight + bock innan vi backar
@@ -283,10 +352,9 @@
 - [x] Kunna välja underkategori redan när man LÄGGER TILL en vara (idag bara via redigera efteråt) — löst: underkategori-väljare i qty-sheeten (backend accepterade redan subCategory vid create)
 - [x] Istället för att direkt byta butik när man trycker på en butik i butiklistan borde det finnas en "spara"-knapp — löst: pick-läget markerar butiken (highlight + bock) och byter först vid "Spara"-knapp; "Ingen butik"-val i baren
 - [x] Sökrutan poppar inte ovanför tangentbordet utan stannar kvar gömd bakom — = add-item/sök-fältet i inköpslistan, löst på native (deterministisk tangentbords-höjd, commit `2730a12`). Web/PWA verifieras separat.
-- [ ] Ingrediensförslag i nytt recept göms under tangentbordet. Borde hoppa upp precis som måttenheter gör
 - [x] Klarmarkerade varor borde fortfarande ligga i klart-högen längst ned men grupperade per kategori med kategorin som underrubrik — löst: klart-sektionen kör samma `buildCategoryGroups`, kategori som dämpad underrubrik
 
-### Meny
+#### Meny
 - [x] Kunna skilja på måltidstyp (frukost/lunch/middag/efterrätt) när flera rätter läggs på samma dag — löst (branch `feature/meal-types`) med **progressiv upptäckt, ingen läges-toggle**: `mealType`-fält på veckomeny-raden; tillägg (både recept-dialog och meny-"+") förblir dött enkelt utan måltidsfråga; måltidstyp är en frivillig etikett man sätter/ändrar/rensar direkt på menykortet (chip-rad i utfällt läge). Kortet visar etiketten bara när den är satt → menyn förblir ren om man aldrig rör typerna. Flera rätter per dag är avsiktligt (mjuk "lägg till ändå"-varning). Kvar att ev. bygga vidare: affordans för att lägga en andra rätt på en redan fylld dag direkt från meny-tabben (idag sker det via recept-vägen).
 - [x] Återanvänd custom recepttaggar i menyns receptflöde — befintliga taggar ska ligga som val bredvid de andra istället för att behöva skrivas in manuellt igen — löst: edit-läget hämtar hushållets alla taggar som återanvändbara chips
 - [x] "Lägg till vara"-fältet i inköpslistan hamnar bakom tangentbordet på native — löst: KAV ersatt med deterministisk lyft via uppmätt tangentbordshöjd (web/PWA-vägen orörd)
@@ -367,10 +435,9 @@
 - [x] Ny maträtt i veckomenyn syns inte direkt utan kräver manuell siduppdatering — optimistisk uppdatering fungerar inte för alla lägga-till-flöden; sannolikt blockerad av suppressMenuReloadRef eller saknas i en specifik add-stig
 - [x] Exportera/dela veckomenyn — lägg en "Dela"-knapp i mall-knappens meny (bredvid Spara som mall / Applicera mall) som genererar en textsummering eller bild av veckans rätter och delar via systemets share-sheet. Enkelt att implementera, socialt värde (familjeplanning, dela med partner/föräldrar).
 - [x] Hela texten i "pasteToggleOff" syns inte -> står endast 'Klistra in recepttext (AI' — löst: `flex:1` på `pasteToggleText` (flex bestämmer bredden i stället för Androids för-smala textmätning)
-- [ ] - när man överför en meny till inköpslistan borde man först klicka i inköpslista och sedan bekräfta på en översänd-knapp så att man inte av misstag trycker på fel inköpslista och inte kan ångra
 - [x] "lägg till i meny"-modalen visar inte alla valda rätter utan bara en rätt. Färgen borde inte heller vara grå — löst: dagen grå-markeras inte längre; visar i stället alla rätter som redan ligger på dagen (kommaseparerat), man kan alltid lägga till fler
 
-### Kalendern
+#### Kalendern
 - [x] Kunna välja heldag på en aktivitet
 - [x] Kunna redigera en aktivitet genom att hålla inne på aktiviteten
 - [x] Kunna göra aktiviteter återkommande
@@ -413,8 +480,7 @@
 - [x] RemindDial finputs: carry-lager (4:e D-shape) gör att ringen förblir färgad vid varv-gränser — bakgrundstäckning använder carry-färgen i zon 1+ (aldrig vit igen); max-gräns (8 veckor/1440°) behandlar ha=360 istället för 0 så sista varvet inte återgår till dagsfärg; center-knapp alltid mörkast (#312e81 indigo-900, mörkare än ormens max #3730a3); pulsering triggas även vid release av drag (inte bara vid visning av klockan); duplikat-påminnelse ignoreras tyst — includes-check i onAdd-callback stänger klockan utan att lägga in samma tid en gång till.
 - [x] RemindDial-förenkling: snabbchips (5 min / 15 min / 30 min / 1 h / Dagen innan) som primär UI för påminnelsetid; snurrhjulet bakom "Välj annan tid". "Lägg till ytterligare påminnelse" döljs tills en första är vald — minskar kognitiv last utan att ta bort funktionen.
 
-
-### Sysslor
+#### Sysslor
 - [x] Rotation med 4 personer snurrade bara mellan 2: race condition i socket-handlern — `chore_completed` anlände ibland före API-svaret ersatt den optimistiska fake-completionen → dubblett i state → `completions.length` +2 per avbockning → modulo-index hoppade över varannan person. Handlern matchar nu även fake-id:t
 - [x] Syssla med passerat slutdatum + avbockad sista gång låg kvar som datum-lös todo: 'upcoming'-kortet skapas nu bara om `nextDate` finns — sysslan ligger överstruken längst ner tills man rensar
 - [x] Checkar man av annans syssla i kalendern stod inloggad user som "hoppade in" trots lokal användare: kalendern har nu samma performer-logik som sysslo-fliken (`pickPerformerCalendar` — enperson auto-tillskrivs ägaren, flera/rotation frågar)
@@ -477,47 +543,21 @@
 - [x] "Rensa klara"-knappen återkommer vid siduppdatering trots att inga nya sysslor tillkommit — rensning är ren lokal state (clearedRecurringIds) som nollställs vid load(); bör persisteras i AsyncStorage per hushåll och rensas automatiskt när en ny occurrence börjar
 - [x] Sysslor: 4+4 buggar. (1+2) Historik/state-reset vid refresh: `completions: { take: 1 }` i backend gav bara 1 completion → borttagen. (3) Syssla med passerat slutdatum låg kvar i listan: skip om state='none' och nextDate=null; nextDate nollställs om det överstiger endDate. (4) completedDate visade äldsta istället för senaste: sätts nu till senast avbockad occurrence. (5) Rensade sysslor återkom vid refresh: count-jämförelsen baserad på gamla take:1-värdet; ersatt med state='done'-check. (6) Framtida pre-completade syns inte i historiken: läggs nu till i occurrences-arrayen. (7) Turordning i historik fel när sysslan är äldre än 60 dagar: `computeTurnHistory` fick `initialDoneCount` = antal completions före historikfönstret så turn-index synkar med card-label. (8) Performer visade inloggad user istället för ägaren vid enpersons-sysslor: `pickPerformer` auto-sätter nu `performedByMemberId` till den enda tilldelade.
 
-
----
-
-## Agent
+### Agent
 - [x] Identifiera storleksordning på mått så att den alltid går på det största måttet när den ska slå ihop samma vara (helper + tester + integration i planAutoMerge: grupperar på namn, kombinerar kompatibla enheter via combineQuantities, faller tillbaka på per-enhet-subgrupper för inkompatibla)
-- [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori när den importerar recept.
-- [ ] kanske en agent som lär sig hur användaren brukar lägga till basvaror, aktiviteter etc för att få en bättre UI experience?
 - [x] Bli ännu smartare på ihopslagning av dubbletter. Så att den förstår att 400 g + 1 paket --> 2 paket istället för 401 g etc. **Fas 1 byggd**: global UnitEquivalence-tabell (seedad med ~16 svenska förpackningsstorlekar, påfylld av Claude Haiku vid behov, promotad/demotad av användarnas faktiska merges via learnEquivalenceFromMerge), pure suggestMerge (ceil till hela förpackningar av största enheten), POST /api/shopping/merge-suggestion, async prefill i dubblettdialogen med dirty-guard + ✨-hint. **Fas 2 byggd**: planAutoMerge tar emot bekräftade ekvivalenser (source user/seed eller seenCount≥2 — aldrig rå-AI) och auto-mergar över enhetsfamiljer i båda call sites (recept-transfer + borttagning); items_auto_merged-toasten gör det synligt.
 
----
-
-## Ej helt färdiga stories, idéstadie
+### Ej helt färdiga stories, idéstadie
 - [x] Skrapa även tillvägagångssätt/instruktioner vid recept-import (URL) och fyll i instructions-fältet automatiskt (parseInstructions flattenar JSON-LD recipeInstructions — sträng/array/HowToStep/HowToSection — till numrerade rader; from-url returnerar instructions och receptet skapas med dem)
 - [x] Populära/senast använda recept överst i "välj rätt"-läget (likt "Dina vanligaste" i inköp) — sorter-knapp i recept-headern med radioval: A–Ö / Mest använda / Senast tillagda; valet sparas (gäller även välj-läget). "Mest använda" = livstidsräknare Recipe.timesUsed som ökar varje gång receptet läggs i en meny (backfilld från nuvarande förekomster)
 - [x] Spåna mer på inventeringsdelen då det blir lite orent med bocka av/Ange mängd — byggd om till enhetlig rad-vy: namn + behov + "Har"-input + "✓ Allt"-knapp per rad. Mode-toggle/segment borttagen, sub-pager utan, KAV gated i ingredients-steget, Nästa/Tillbaka döljs när tangentbordet är uppe, returnKeyType="next" hoppar mellan mätbara rader.
 - [x] bygga en pwa — hostas på `veckis-web.onrender.com` via Render static site. Manifest.json, service worker (cache-first static + network-first HTML + network-only API + dedup-blockerings-logg), index.html-patch-script som injekterar PWA-meta, ikoner (192/512/180/48), `/install`-landningssida med OS-detection, `InstallBanner` på sign-in som tystar Chromes auto-prompt, `VersionBanner` på controllerchange. Native fortfarande primärt distributionssätt — PWA är "gratis-vägen" för folk utan EAS-build.
 - [x] Recept-taggar/samlingar — märk recept som "vegetariskt", "snabbt", "barnvänligt", "favorit" m.m. och filtrera på dessa i receptlistan. Byggd: Recipe.tags String[] (normaliserade gemener, max 10), redigeras i receptdetaljens edit-läge (förslags-chips + egen tagg), visas som chips i läsvyn, horisontell filter-rad i receptlistan (vanligast först, AND-filter, syns först när taggar finns — gäller även välj-rätt-läget från menyn).
-- [ ] Widget (hemskärm) — visa dagens sysslor eller veckomenyn direkt på hemskärmen utan att öppna appen. Kräver EAS-build + native modul (WidgetKit på iOS, App Widgets på Android). Hög synlighet för daglig adoption.
-- [ ] Flerspråkighet (i18n) — data-lagret: `commonIngredients.ts` (ingrediensnamn), `categorizeIngredient.ts` (keyword-regler) och `CATEGORY_LABELS` är hårdkodade på svenska. Inför andra språk behövs: (a) kategori-labels per språk (`Record<StoreCategory, Record<Language, string>>`), (b) parallella keyword-regler per språk i kategoriseraren, (c) flerspråkiga ingrediensnamn via `IngredientAlias`-tabellen (utöka med `language`-fält) eller separata rålistor. UI-strängar täcks redan av `strings.ts`.
-- [ ] Streckkodsläsare för att direkt lägga till en vara — **utredd & nedprioriterad**: OpenFoodFacts (enda realistiska gratis-källa) testad manuellt på vanliga svenska/butiks-egna varor (ekologiskt äppelmos, soltorkade tomater, bostongurka) → ingen träff. Täckningen är god för internationella märkesvaror men svag där svenska hushåll faktiskt handlar. Scannern skulle hjälpa exakt där OFF är svagast och är överflödig där OFF är stark (vanliga repeaters klaras redan av autocomplete + stapleItems). Native-modul + EAS-build + scan-UI + error-states bedömt inte värt det. Återupptas om en bättre datakälla dyker upp (t.ex. svensk butikspartnerskap eller paid API med bra svensk täckning).
-- [ ] Kategorier — skafferi-minne får exakt matchning på subCategory (bygger på #283 nedan): "ost" i skafferi matchar bara items med subCategory='ost', inte hela mejeri-kategorin. Kräver att taxonomi-bygget är klart.
-- [ ] Kategorier — söklogik prioriterar subCategory-träff: sök "smör" matchar items med subCategory='smör_margarin' före LIKE-träff på name. Bygger på taxonomi.
-- [ ] Kategorier — koppla datakvalitet-städningen (rad 282 nedan) till sub-merge: admin-vy kan slå ihop duplicat-skapade subs eller mappa om ärvda customCategory-strängar.
-- [ ] Veckovyn i tablet borde kanske se likadan ut som i mobilen med allt under?
-- [ ] ha en sökbar databas på butiker som andra lagt till för att på så vis slippa skapa butiker som redan finns inlagda. Kanske ett premium-alternativ?
-- [ ] Statistik/insikter: lättviktsvy med "mest lagade rätter", "vem gör flest sysslor", "vanligaste inköp" — möjligt premium-läge tillsammans med butiksdatabasen
-- [ ] Datakvalitet-städning: admin-vy för att slå ihop/städa basvaror & kategorier så normaliserade namn och delade kategori-minnen inte driftar över tid
-- [ ] Skafferi-minne: persistent "har hemma" som minns över sessioner (eget skafferi per hushåll) så återkommande basvaror inte behöver inventeras varje gång. Bygger vidare på den hopslagna inventeringen.
 - [x] Utnyttja större skärm likt kalender-vyn att saker öppnas bredvid istället för under mm. (Master-detail split-view på tablet i landscape: Inköp + Meny visar detalj i höger panel)
-- [ ] Radikalt alternativ för återkommande sysslor: flexibelt intervall per syssla — nästa förfallodag räknas från när man senast gjorde sysslan ("var 3:e dag" från senaste utförandet) istället för fast kalender. Ingen förfallet-hög alls; passar rytm-sysslor (vattna/dammsuga), sämre för fasta dagar (sopor på måndag). Skulle vara ett val per syssla: "fast dag" vs "ungefär var X:e dag". (Subsumerar tidigare "klarmarkera bakåt"-idén — täcks nu av förlåtande-modellen i Sysslor-sektionen.)
-- [ ] "Kom igång"-vägledning för nya hushåll: efter setup, en kort checklista (lägg till första receptet / inköpslistan / sysslan) som hjälper adoption nu när riktiga användare signar upp. **Implementation finns i `feature/getting-started-card`** — utvärderas mot befintliga onboarding-tips.
 
-## Backlog (prioriterade features)
+### Backlog (prioriterade features)
 
-### Navigation & fokus
-
-- [ ] **Nordstjärna: kärn-loopen** — appens kärna är *recept → veckomeny → inköpslista*. Väg framtida features mot den; familjeorganisatör-ytor (kalender/sysslor) får inte skymma den.
-- [ ] **Experiment: recept-fokus** (branch `feature/recipe-focus-experiment`) — flikraden blir Inköp/Meny/Recept/Hushållet; Kalender + Sysslor döljs ur baren bakom flaggan `RECIPE_FOCUS_EXPERIMENT` (`src/lib/features.ts`) men rutterna/koden lämnas orörda så deep-links/notiser funkar och det är reversibelt. Recept lyfts från gömd stack-route (`recipes/index.tsx`) till egen flik (`(tabs)/recipes.tsx`). Landningssida default → Meny och erbjuder bara synliga flikar. Recept-fliken är ett rent **bibliotek** (inga selection-banners); menyns dag-väljare pushar istället till egen route `recipes/pick.tsx` (re-export av samma skärm) så "Fyll måndag" bara syns när man kommit från veckomenyn. Inuti ett recept stänger en "+"-FAB kärn-loopen: väljare "Lägg till i veckomeny" / "Lägg till i inköpslista". Lokala profiler döljs i settings bakom flaggan (utan sysslor/aktiviteter finns inget att tilldela). **Utvärderas: känns kärnan (inköp+veckomeny) tydligare utan familjeorganisatör-ytorna?** Att bedöma vidare: (a) om Sysslor/rotation är en vallgrav värd att behålla, (b) om Meny-fliken ensam täcker "vad äter vi i veckan" när Kalendern är borta.
-
-### Kalender
-
+#### Kalender
 - [x] **Månadsvy på tablet** — Visa hela månaden som grid i kalender-fliken när skärmen är tillräckligt bred
 - [x] **Redigera/ta bort events** — Tryck på event öppnar edit-modal. Ta bort-knapp. (Maträtt-event bör navigera till Meny, syssla-event till Sysslor)
 - [x] **Upprepade events (serier)** — Välj upprepning när man skapar aktivitet: dagligen, varje vecka (med veckodagscheckboxar), månadsvis (dag X eller N:e veckodag), årsvis 
@@ -527,56 +567,31 @@
 - [x] Slutvillkor: upphör aldrig / välj slutdatum
 - [x] Start- och slutdatum för återkommande aktiviteter och sysslor
 
-### Sysslor
-
+#### Sysslor
 - [x] **Flera dagar per syssla** — Kunna välja t.ex. mån, ons och lör i samma syssla (idag är det bara en dag). Spara som array av WeekDay
 - [x] **Klarmarkera och redigera** — Bocka av syssla likt inköpslistan (inline, inte bara via "slutför"-knapp). Redigera titel, frekvens, dag, person. Avklarade sysslor stryks över i kalendervy
 
-### Meny
-
+#### Meny
 - [x] **Sortering mån→sön + tydlig dagmarkering** — Veckans meny sorteras kronologiskt. Varje dag har tydlig rubrik (Måndag 5 maj). Ej schemalagda visas sist
 - [x] **Varning vid dubbel dag** — Om det redan finns en maträtt på en dag varnas användaren (men kan ändå lägga till)
 - [x] **Datepicker för annan vecka** — Möjlighet att planera meny för valfri vecka, inte bara innevarande
 - [x] **Smarter "till inköpslistan"** — Om maträtten redan är tillagd i aktiv inköpslista visas inte "till inköpslistan". Vid borttagning visas "ta bort från inköpslistan" om den finns där
 - [x] Persistera "överförd till inköpslista"-status per veckomenyrätt: `WeekMenuItem.transferred Boolean @default(false)` sätts vid `POST /api/menus/to-shopping`; frontend visar checkmark-badge om `item.transferred || !!recipeListMap[item.id]?.length` — rensning av inköpslistan tar inte bort badgen
-- [ ] **Dag-rubrik-layout i veckomenyn (utvärderas)** — dag-namn + datum + månad ("Måndag 15 augusti") som rubrik ovanför dagens kort i stället för datum-pill på varje kort; flera rätter grupperas under en rubrik per dag. Ligger ocommittat på develop; bedöm mot pill-varianten och committa/deploya när den känns rätt.
 
-### Inköpslistan
-
+#### Inköpslistan
 - [x] **Deduplicering av ingredienser** — Samma ingrediens (samma namn + enhet) adderas ihop vid transfer från meny istället för att bli dubbletter. (Delvis fixat för transfer, men kolla manuella tillägg också.)
 
-### Inställningar
-
+#### Inställningar
 - [x] **Redigera hushåll** — Admin kan ändra hushållets namn. Se och ta bort medlemmar. Sätta smeknamn på sig själv
 - [x] **Flera hushål** — Skapa och växla mellan flera hushål under inställningar (t.ex. eget + sommarstugan). Aktivt hushål sparas i context
 - [x] **Profiler utan konto** — Skapa lokala profiler för barn/personer utan Clerk-konto. Kan tilldelas sysslor och chorer utan att logga in
 
-### Internationalisering (i18n)
-
-- [ ] **Se över alla hårdkodade strängar → riktig i18n** — `src/lib/svenska.ts` är tänkt att vara översättnings-sömmen (byt/duplicera modulen för engelska), men användartext läcker ut hårdkodad i komponenter och kringgår den. Audit: gå igenom hela `app/` och flytta ALL användarvänd text till svenska.ts (eller en locale-modul), så att ett språkbyte blir ett drop-in. Kända syndare hittills: `src/components/RecurrencePicker.tsx` (dagnamn), `src/lib/shareWeekMenu.ts` (dagnamn) — plus inline-svenska i toasts/dialoger/placeholders. Redan fixat: `MENU_DAYS` + "utan dag" i recept-flödet härleds nu från `common.weekdays.long` / `common.noDay`. Slutmål: en `en.ts` + enkel locale-switch (ev. inställning) blir möjlig utan att jaga strängar i JSX.
-
-### iOS
-
-All JS-kod är plattformsneutral (Expo/RN) och `app.json` har `ios.bundleIdentifier: com.veckis.app` + `supportsTablet: true`. Allt vi byggt hittills följer med automatiskt vid första iOS-build. Det som saknas för att faktiskt köra på iOS-device/TestFlight:
-
+#### iOS
 - [x] **iOS-buildprofil i `app/eas.json`** — `preview` har nu `ios.simulator=false` + `buildConfiguration=Release`. Tre profiler totalt: `preview` (device, internal-share QR), `preview-simulator` (snabb simulator-build, ingen signering), `production` (app-store). `submit.production.ios.ascAppId` är placeholder tills App Store Connect-id finns. app.json `ios.infoPlist`: `UIBackgroundModes: ["remote-notification"]` + `ITSAppUsesNonExemptEncryption: false`.
-- [ ] **Apple Developer-konto + bundle-registrering** — registrera `com.veckis.app` i App Store Connect / Developer Portal innan första `eas build --platform ios`.
-- [ ] **APNs-uppsättning för push på iOS** — APNs-nyckel (.p8) uppladdad till EAS-credentials + Push capability på app-ID:t. Utan detta returnerar `registerForPush` (`app/src/lib/registerPush.ts`) `denied`/`error` på iOS. Alternativt `GoogleService-Info.plist` om FCM ska användas även på iOS (motsvarighet till `google-services.json` för Android, satt i `app.json` under `ios.googleServicesFile`).
-- [ ] **Första TestFlight-build + smoketest** — verifiera att meny, recept, inköpslistor, sysslor, kalender, realtime, deeplinks och push faktiskt fungerar på iOS-device (inte bara simulator). Kontrollera särskilt KeyboardAvoidingView-`padding`-grenarna och Dynamic Island/safe-area-beteendet.
 - [x] **iOS-specifika finputs vid behov** — audit klar 2026-06-02; uppdaterad 2026-06-09. KAV behavior-buggen på iOS Safari PWA (Platform.OS==='web' → 'height' i stället för 'padding') åtgärdad med ny `kavBehavior`-helper i `src/lib/platform.ts` (detekterar iOS via userAgent) — ersatte `Platform.OS === 'ios' ? 'padding' : 'height'` i 13 filer. Notification channel-setup, Vibration.vibrate, expo push token-fetch oförändrade.
 
-### Innan prodsättning
-
-- [ ] **Klient-side request-cache (SWR/React Query)** — `useFocusEffect` triggar full API-reload vid varje flik-besök. Med stale-while-revalidate visas cachad data direkt och uppdateras i bakgrunden utan att användaren märker av det. Halverar upplevd laddningstid utan backend-ändringar.
-- [ ] **Sammansatta endpoints** — Flera flikar gör 2–4 parallella anrop vid varje laddning (t.ex. kalender = `getSchedule + getWeekMenu + getChores + getHousehold`). En composite-endpoint per flik minskar det till 1 anrop och halverar latensen.
+#### Innan prodsättning
 - [x] **Rate limiting + SSRF-skydd** — SSRF-hålet i recept-import (from-url) täppt: ny `ssrfGuard.ts` (safeFetch) validerar måladressen OCH varje redirect-hopp, blockerar privata/reserverade IPv4+IPv6, metadata-adressen 169.254.169.254, localhost/.local/.internal (7 unit-tester). Dedikerad striktare limit på parse-text (15/h, AI-kostnadstak) och ny limit på push-register (60/h). Övriga ytor (from-url, image, household create/join, admin-sync) hade redan IP-limits.
-- [ ] **WebSocket + Redis pub/sub för horisontell skalning** — Nuvarande WS-broadcast är in-process. Om backend skalas till 2+ instanser (Render scale-up) missar användare på annan instans varandras realtidsuppdateringar. `ioredis` + Redis channel löser det utan att ändra frontend-koden.
-- [ ] **Paginering för recept och sysslor** — Inga listor har paginering; ett hushåll med 60+ recept skickar hela listan vid varje flik-besök. Cursor-baserad paginering (limit/cursor) + infinite scroll i frontend.
-- [ ] ⚠️ KOM IHÅG: `withDisableAutofill`-pluginen stänger av autofyll app-brett. Om/när vi gör en riktig inloggning med lösenord (där lösenordshanterar-autofyll är önskvärt) måste pluginen tas bort ur app.json (+ ny EAS-build), alternativt göras mer riktad så bara recept-fälten exkluderas.
-- [ ] **Always-on backend innan live** — free tier räcker för test men inte i drift: Render spinner ner efter 15 min (~50s kallstart) och Neon autosuspendar + har bara 100 compute-h/månad. Uppgradera till betald Neon/Render (eller flytta DB) så backend alltid är live utan kallstart innan riktig lansering. (Just nu ok med kallstart — se `Drift & stabilitet`.)
 
-### Drift & stabilitet
-
+#### Drift & stabilitet
 - [x] **Backend överlever nedsuspenderad Neon (self-healing)** — Neon free tier tog slut på månadens compute-timmar (keepalive-cron pingade `/keepalive` var 10:e min → `SELECT 1` höll DB:n vaken ~50% dygnet runt → brände 100-timmarspotten) → `P1001 Can't reach database server`, och `start-prod.mjs` gjorde `exit(1)` → kraschloop tills manuell omdeploy. Fix: DB-fri `/healthz` (Render `healthCheckPath` pekar dit → instansen räknas frisk så fort Node bootat, oberoende av Neon); `start-prod.mjs` bootar servern även om `migrate deploy` failar och kör om migrationen i bakgrunden tills DB:n är nåbar; global `process.on('unhandledRejection')` + `shopperExpiry`-catch så ett bakgrundsjobb mot nedsuspenderad DB aldrig kraschar processen. Keepalive-cron **avstängd** (den väckte Neon i onödan och brände potten). Backend self-recoverar nu när potten vänder — ingen handpåläggning.
-- [ ] **Lågfrekvent DB-hälsolarm** — utan keepalive finns inget larm när DB:n (eller backend) faktiskt går ner; det var cron-misset som avslöjade den här nedgången. Lägg en gles extern koll (1–2 ggr/dygn) mot `/health` (verifierar DB, 500:ar vid nere) som notifierar — väcker Neon försumbart men fångar "compute-pott slut / Neon nere" tidigt. `/healthz` (DB-fri) duger inte för DB-larm.
-- [ ] **App: graciös "servern vaknar"-retry** — när backend är uppe (`/healthz`) men DB-anrop failar (Neon-väckning/free-tier-kallstart) visar appen råa fel. En "servern vaknar, försöker igen…"-state med auto-retry + backoff gör kallstarten acceptabel i UI:t i stället för felmeddelanden — förutsättning för att gratis-strategin ska kännas bra.
