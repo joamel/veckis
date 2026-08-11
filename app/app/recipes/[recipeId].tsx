@@ -155,6 +155,28 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     return () => clearTimeout(t);
   }, [activeUnitIdx]);
 
+  // Samma för namn-fältet: ingrediens-förslagen (chip-raden under namnet) ska
+  // hoppa upp ovanför tangentbordet precis som måttenheterna, i stället för att
+  // gömmas bakom det.
+  useEffect(() => {
+    if (activeNameIdx === null) return;
+    const input = rowRefs.current[activeNameIdx]?.name;
+    if (!input) return;
+    const t = setTimeout(() => {
+      input.measureInWindow((_x, y, _w, h) => {
+        const screenH = Dimensions.get('window').height;
+        const kbTop = screenH - (keyboardH.current || 340);
+        const chipRowH = 64; // förslags-chip-raden + gap under fältet
+        const margin = 24;
+        const hidden = (y + h + chipRowH + margin) - kbTop;
+        if (hidden > 0) {
+          mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + hidden, animated: true });
+        }
+      });
+    }, 200);
+    return () => clearTimeout(t);
+  }, [activeNameIdx]);
+
   function getRowRef(idx: number): RowRef {
     if (!rowRefs.current[idx]) rowRefs.current[idx] = { qty: null, unit: null, name: null };
     return rowRefs.current[idx];
