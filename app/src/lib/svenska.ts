@@ -411,6 +411,7 @@ export const shoppingList = {
   toasts: {
     added:            (name: string) => `${name} tillagd till inköpslistan`,
     itemDeleted:      (name: string) => `${name} borttagen`,
+    allChecked:       (n: number) => `${n} vara${n === 1 ? '' : 'r'} klarmarkerad${n === 1 ? '' : 'e'}`,
     merged:           (n: number, name: string) => `Slog ihop ${n} ${name}`,
     categoryChecked:  (n: number) => `${n} vara${n === 1 ? '' : 'r'} klarmarkerad${n === 1 ? '' : 'e'}`,
     shopperItemAdded: (name: string, who: string | null) => who ? `${who} la till ${name}` : `${name} tillagd på listan`,
@@ -455,6 +456,12 @@ export const shoppingList = {
   categoryDialog: {
     title:  'Klarmarkera hela kategorin?',
     confirm:'Klarmarka alla',
+  },
+
+  checkAllDialog: {
+    title:   'Klarmarkera hela listan?',
+    message: (n: number) => `${n} vara${n === 1 ? '' : 'r'} markeras som klar${n === 1 ? '' : 'a'}.`,
+    confirm: 'Klarmarkera alla',
   },
 
   shopDialog: {
@@ -1092,6 +1099,7 @@ export const stores = {
   card: {
     categories: (n: number) => `${n} kategorier`,
     selected:   'vald',
+    current:    'Nuvarande',
     clearA11y:  'Rensa butik',
   },
 
