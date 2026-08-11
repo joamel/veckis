@@ -1162,7 +1162,6 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                     style={s.cookIngredWrap}
                     showsVerticalScrollIndicator={false}
                     nestedScrollEnabled
-                    fadingEdgeLength={20}
                     scrollEventThrottle={16}
                     onContentSizeChange={(_, h) => {
                       cookIngredContentH.current = h;

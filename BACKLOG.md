@@ -26,8 +26,8 @@
 ### Recept
 - [x] "Laga nu"-läget ser ut att vara i dark mode — löst: konverterat till appens ljusa/varma tema (de mörka färgerna sparas som bas för dark mode, se Inställningar)
 - [x] Ingen synlig text på föregående-knappen i "laga nu"-läget — löst: prev-knappen hade mörk text (#292524) på mörk knapp; läsbar efter ljus-konverteringen
-- [x] Ingredienslistan i "Laga nu"-läget borde fortsätta rulla igen när man trycker nästa/föregående och det kanske borde synas 6-7 ingredienser samtidigt istället för bara 4 — löst: höjd 130→210 (~7 synliga) + auto-scrollen kör om vid varje steg-byte
-- [x] trycka ihop korten så de ser ut som i inköpslistan och menyn — löst: recept-korten komprimerade (mindre padding/ikon, tätare lista)
+- [x] Ingredienslistan i "Laga nu"-läget borde fortsätta rulla igen när man trycker nästa/föregående och det kanske borde synas 6-7 ingredienser samtidigt istället för bara 4 — löst: höjd 130→210 (~7 synliga), auto-scrollen kör om vid varje steg-byte, och fade-kanterna borttagna så översta/understa ingrediensen syns
+- [x] trycka ihop korten så de ser ut som i inköpslistan och menyn — löst: margin mellan recept-korten satt till samma som meny/inköp (gap 2)
 
 ## Agent
 - [ ] en AI-agent som tränar på att identifiera basvaror, vad som är måttenhet och rätt kategori när den importerar recept.
