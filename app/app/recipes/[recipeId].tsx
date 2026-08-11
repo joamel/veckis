@@ -103,6 +103,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const cookIngredAnim = useRef(new Animated.Value(0)).current;
   const cookModeRef = useRef(false);
   const cookIngredStarted = useRef(false);
+  // Fade-kanterna på ingredienslistan visas bara MEDAN den rullar; när den
+  // stannat tas de bort så översta/understa ingrediensen syns helt.
+  const [cookIngredScrolling, setCookIngredScrolling] = useState(false);
 
   useEffect(() => {
     cookModeRef.current = cookMode;
@@ -118,6 +121,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     const maxScroll = Math.max(0, cookIngredContentH.current - COOK_INGRED_MAX_H);
     if (maxScroll <= 0) return;
     cookIngredStarted.current = true;
+    setCookIngredScrolling(true);
     const listenerId = cookIngredAnim.addListener(({ value }) => {
       cookIngredScrollRef.current?.scrollTo({ y: value, animated: false });
     });
@@ -126,7 +130,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       duration: (maxScroll / 18) * 1000,
       useNativeDriver: false,
       easing: (x) => x,
-    }).start(() => cookIngredAnim.removeListener(listenerId));
+    }).start(() => { cookIngredAnim.removeListener(listenerId); setCookIngredScrolling(false); });
   }, [cookIngredAnim]);
 
   // Rulla om ingredienslistan från toppen vid varje steg-byte (nästa/föregående).
@@ -1162,13 +1166,16 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                     style={s.cookIngredWrap}
                     showsVerticalScrollIndicator={false}
                     nestedScrollEnabled
+                    fadingEdgeLength={cookIngredScrolling ? 20 : 0}
                     scrollEventThrottle={16}
                     onContentSizeChange={(_, h) => {
                       cookIngredContentH.current = h;
                       startCookIngredAnim();
                     }}
-                    onTouchStart={() => cookIngredAnim.stopAnimation()}
-                    onScrollBeginDrag={() => cookIngredAnim.stopAnimation()}
+                    onTouchStart={() => { cookIngredAnim.stopAnimation(); setCookIngredScrolling(false); }}
+                    onScrollBeginDrag={() => { cookIngredAnim.stopAnimation(); setCookIngredScrolling(true); }}
+                    onScrollEndDrag={() => setCookIngredScrolling(false)}
+                    onMomentumScrollEnd={() => setCookIngredScrolling(false)}
                   >
                     {recipe.ingredients.map(ing => (
                       <Text key={ing.id} style={s.cookIngredItem}>
