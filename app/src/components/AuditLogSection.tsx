@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 // Aktivitetslogg för admin — listar senaste audit-events för hushållet.
 // Lazy-laddat: hämtar inte förrän användaren expanderar sektionen, så
 // vi inte spammar audit-endpointen vid varje profil-besök.
@@ -53,6 +56,8 @@ function timeAgo(iso: string): string {
 }
 
 export function AuditLogSection({ householdId }: Props) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const client = useApiClient();
   const { showError } = useToast();
   const [expanded, setExpanded] = useState(false);
@@ -83,14 +88,14 @@ export function AuditLogSection({ householdId }: Props) {
         accessibilityRole="button"
         accessibilityLabel={expanded ? 'Dölj aktivitetslogg' : 'Visa aktivitetslogg'}
       >
-        <Ionicons name="time-outline" size={16} color="#4e7a5e" />
+        <Ionicons name="time-outline" size={16} color={c.primary} />
         <Text style={s.title}>Aktivitetslogg</Text>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#a8a29e" />
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={c.textFaint} />
       </Pressable>
 
       {expanded && (
         <View style={s.body}>
-          {loading && <ActivityIndicator size="small" color="#4e7a5e" style={{ marginVertical: 12 }} />}
+          {loading && <ActivityIndicator size="small" color={c.primary} style={{ marginVertical: 12 }} />}
           {!loading && events && events.length === 0 && (
             <Text style={s.empty}>Inga händelser ännu.</Text>
           )}
@@ -107,7 +112,7 @@ export function AuditLogSection({ householdId }: Props) {
           ))}
           {!loading && events && events.length > 0 && (
             <Pressable style={s.refreshBtn} onPress={load} hitSlop={6}>
-              <Ionicons name="refresh-outline" size={14} color="#78716c" />
+              <Ionicons name="refresh-outline" size={14} color={c.textMuted} />
               <Text style={s.refreshText}>Uppdatera</Text>
             </Pressable>
           )}
@@ -117,12 +122,12 @@ export function AuditLogSection({ householdId }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   box: {
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
     borderRadius: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#d6d3d1',
+    borderLeftColor: c.border,
     marginTop: 12,
     shadowColor: '#000',
     shadowOpacity: 0.03,
@@ -132,12 +137,12 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
-  title: { flex: 1, fontSize: 14, fontWeight: '600', color: '#292524' },
+  title: { flex: 1, fontSize: 14, fontWeight: '600', color: c.text },
   body: { paddingHorizontal: 14, paddingBottom: 10 },
-  row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
-  eventText: { fontSize: 13, color: '#44403c', lineHeight: 18 },
-  eventTime: { fontSize: 11, color: '#a8a29e', marginTop: 2 },
-  empty: { fontSize: 13, color: '#a8a29e', textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' },
+  row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
+  eventText: { fontSize: 13, color: c.textSecondary, lineHeight: 18 },
+  eventTime: { fontSize: 11, color: c.textFaint, marginTop: 2 },
+  empty: { fontSize: 13, color: c.textFaint, textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' },
   refreshBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, marginTop: 4 },
-  refreshText: { fontSize: 12, color: '#78716c' },
+  refreshText: { fontSize: 12, color: c.textMuted },
 });

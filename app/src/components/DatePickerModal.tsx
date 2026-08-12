@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { components as str, common } from '../lib/svenska';
@@ -30,6 +32,8 @@ function isoWeek(d: Date): number {
 }
 
 export function DatePickerModal({ value, onChange, onClose, title, visible, clearable = false, minimumDate, maximumDate }: DatePickerModalProps) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const initial = value ? new Date(value + 'T00:00:00') : new Date();
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
@@ -66,9 +70,9 @@ export function DatePickerModal({ value, onChange, onClose, title, visible, clea
       <View style={s.container}>
         {title && <Text style={s.title}>{title}</Text>}
         <View style={s.header}>
-          <Pressable onPress={prevMonth} style={s.arrow}><Ionicons name="chevron-back" size={20} color="#44403c" /></Pressable>
+          <Pressable onPress={prevMonth} style={s.arrow}><Ionicons name="chevron-back" size={20} color={c.textSecondary} /></Pressable>
           <Text style={s.monthLabel}>{monthName.charAt(0).toUpperCase() + monthName.slice(1)}</Text>
-          <Pressable onPress={nextMonth} style={s.arrow}><Ionicons name="chevron-forward" size={20} color="#44403c" /></Pressable>
+          <Pressable onPress={nextMonth} style={s.arrow}><Ionicons name="chevron-forward" size={20} color={c.textSecondary} /></Pressable>
         </View>
         <View style={s.weekDays}>
           <Text style={s.weekNumHeader}> </Text>
@@ -112,29 +116,29 @@ export function DatePickerModal({ value, onChange, onClose, title, visible, clea
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  container: { position: 'absolute', top: '15%', left: 20, right: 20, backgroundColor: '#fff', borderRadius: 16, padding: 16, elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } },
-  title: { fontSize: 15, fontWeight: '700', color: '#292524', marginBottom: 12, textAlign: 'center' },
+  container: { position: 'absolute', top: '15%', left: 20, right: 20, backgroundColor: c.surface, borderRadius: 16, padding: 16, elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } },
+  title: { fontSize: 15, fontWeight: '700', color: c.text, marginBottom: 12, textAlign: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   arrow: { padding: 6 },
-  monthLabel: { fontSize: 15, fontWeight: '600', color: '#292524' },
+  monthLabel: { fontSize: 15, fontWeight: '600', color: c.text },
   weekDays: { flexDirection: 'row', marginBottom: 4 },
-  weekDay: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600', color: '#a8a29e', paddingVertical: 4 },
+  weekDay: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600', color: c.textFaint, paddingVertical: 4 },
   weekNumHeader: { width: 24, textAlign: 'center', fontSize: 11 },
-  weekNum: { width: 24, textAlign: 'center', alignSelf: 'center', fontSize: 11, fontWeight: '600', color: '#b96a45' },
+  weekNum: { width: 24, textAlign: 'center', alignSelf: 'center', fontSize: 11, fontWeight: '600', color: c.accent },
   week: { flexDirection: 'row', marginBottom: 2 },
   day: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 8, margin: 2 },
   dayOther: { opacity: 0.3 },
   dayDisabled: { opacity: 0.2 },
-  dayToday: { backgroundColor: '#ecf3ec' },
-  daySelected: { backgroundColor: '#4e7a5e' },
-  dayNum: { fontSize: 14, fontWeight: '600', color: '#292524' },
-  dayNumOther: { color: '#a8a29e' },
+  dayToday: { backgroundColor: c.primaryTint },
+  daySelected: { backgroundColor: c.primary },
+  dayNum: { fontSize: 14, fontWeight: '600', color: c.text },
+  dayNumOther: { color: c.textFaint },
   dayNumSelected: { color: '#fff' },
   footer: { flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' },
-  clearBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
-  clearBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
-  closeBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: '#f1efec' },
-  closeBtnText: { color: '#44403c', fontWeight: '600', fontSize: 14 },
+  clearBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: c.dangerBorder, backgroundColor: c.dangerTint },
+  clearBtnText: { color: c.danger, fontWeight: '600', fontSize: 14 },
+  closeBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: c.surfaceSubtle },
+  closeBtnText: { color: c.textSecondary, fontWeight: '600', fontSize: 14 },
 });

@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { components as str } from '../lib/svenska';
@@ -19,6 +22,8 @@ interface Props {
 }
 
 export function WelcomeModal({ visible, onContinue, onSkipAll }: Props) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   if (!visible) return null;
   return (
     <Modal visible transparent animationType="fade">
@@ -47,11 +52,11 @@ export function WelcomeModal({ visible, onContinue, onSkipAll }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   dim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.85)' },
   cardWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
     borderRadius: 20,
     paddingHorizontal: 24,
     paddingVertical: 28,
@@ -64,15 +69,15 @@ const s = StyleSheet.create({
     elevation: 12,
   },
   iconBubble: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: '#b96a45',
+    width: 64, height: 64, borderRadius: 32, backgroundColor: c.accent,
     alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16,
   },
-  title: { fontSize: 22, fontWeight: '800', color: '#292524', textAlign: 'center', marginBottom: 12 },
-  message: { fontSize: 15, color: '#44403c', textAlign: 'center', lineHeight: 22, marginBottom: 12 },
-  subtle: { fontSize: 13, color: '#78716c', textAlign: 'center', lineHeight: 19, marginBottom: 20 },
-  subtleBold: { fontWeight: '700', color: '#4e7a5e' },
-  primaryBtn: { backgroundColor: '#4e7a5e', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
+  title: { fontSize: 22, fontWeight: '800', color: c.text, textAlign: 'center', marginBottom: 12 },
+  message: { fontSize: 15, color: c.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 12 },
+  subtle: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 19, marginBottom: 20 },
+  subtleBold: { fontWeight: '700', color: c.primary },
+  primaryBtn: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   secondaryBtn: { paddingVertical: 12, alignItems: 'center' },
-  secondaryBtnText: { color: '#78716c', fontSize: 14, fontWeight: '600' },
+  secondaryBtnText: { color: c.textMuted, fontSize: 14, fontWeight: '600' },
 });

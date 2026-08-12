@@ -1,5 +1,8 @@
+import { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 
 export type ConfirmButtonStyle = 'primary' | 'destructive' | 'cancel';
 export interface ConfirmButton {
@@ -30,6 +33,8 @@ export function ConfirmDialog({
   options: ConfirmOptions | null;
   onClose: () => void;
 }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   if (!options) return null;
 
   const dismiss = () => {
@@ -42,7 +47,7 @@ export function ConfirmDialog({
     const firstDestructiveIdx = actionButtons.findIndex(b => b.style === 'destructive');
     const rows = actionButtons.map((b, i) => {
       const isDestructive = b.style === 'destructive';
-      const color = isDestructive ? '#ef4444' : '#4e7a5e';
+      const color = isDestructive ? c.danger : c.primary;
       const showDivider = i === firstDestructiveIdx && firstDestructiveIdx > 0;
       return (
         <View key={i}>
@@ -118,30 +123,30 @@ export function ConfirmDialog({
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   // Sheet variant (default)
   overlay: { flex: 1, backgroundColor: 'rgba(41,37,36,0.55)' },
   sheet: {
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 8,
     paddingBottom: 36,
     paddingHorizontal: 24,
   },
-  handle: { alignSelf: 'center', width: 36, height: 4, backgroundColor: '#e7e5e4', borderRadius: 2, marginBottom: 12 },
-  title: { fontSize: 17, fontWeight: '700', color: '#292524', textAlign: 'center', marginBottom: 4 },
-  message: { fontSize: 14, color: '#78716c', textAlign: 'center', marginBottom: 12 },
+  handle: { alignSelf: 'center', width: 36, height: 4, backgroundColor: c.borderLight, borderRadius: 2, marginBottom: 12 },
+  title: { fontSize: 17, fontWeight: '700', color: c.text, textAlign: 'center', marginBottom: 4 },
+  message: { fontSize: 14, color: c.textMuted, textAlign: 'center', marginBottom: 12 },
   btn: { paddingVertical: 14, alignItems: 'center' },
-  btnTopBorder: { borderTopWidth: 1, borderTopColor: '#f1efec' },
+  btnTopBorder: { borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
   btnText: { fontSize: 16, fontWeight: '600' },
-  btnTextPrimary: { color: '#4e7a5e' },
-  btnTextDestructive: { color: '#ef4444' },
-  btnTextCancel: { color: '#78716c', fontWeight: '500' },
+  btnTextPrimary: { color: c.primary },
+  btnTextDestructive: { color: c.danger },
+  btnTextCancel: { color: c.textMuted, fontWeight: '500' },
 
   // Menu/action variants
   menuCardBase: {
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
     borderRadius: 12,
     paddingVertical: 6,
     minWidth: 220,
@@ -156,6 +161,6 @@ const s = StyleSheet.create({
   // Ovanför FAB:en (right:20 bottom:20, 56 hög) i nedre högra hörnet.
   menuCardBottomRight: { position: 'absolute', right: 16, bottom: 88 },
   menuBtn: { paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  menuBtnText: { fontSize: 15, fontWeight: '500', color: '#4e7a5e' },
-  menuDivider: { height: 1, backgroundColor: '#f1efec', marginVertical: 4 },
+  menuBtnText: { fontSize: 15, fontWeight: '500', color: c.primary },
+  menuDivider: { height: 1, backgroundColor: c.surfaceSubtle, marginVertical: 4 },
 });

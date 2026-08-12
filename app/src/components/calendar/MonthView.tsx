@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { useTheme } from '../../context/ThemeContext';
+import type { Palette } from '../../lib/theme';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { ScheduleEntry, WeekDay, Chore, ChoreCompletion } from '@veckis/shared';
@@ -57,6 +59,8 @@ export function MonthView({
   selectedDate,
   filterMemberIds = [],
 }: MonthViewProps) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const year = date.getFullYear();
   const month = date.getMonth();
 
@@ -108,7 +112,7 @@ export function MonthView({
     <View style={s.container}>
       <View style={s.header}>
         <Pressable onPress={() => onMonthChange(new Date(year, month - 1))}>
-          <Ionicons name="chevron-back" size={24} color="#44403c" />
+          <Ionicons name="chevron-back" size={24} color={c.textSecondary} />
         </Pressable>
         <Text style={s.monthLabel}>{monthName.charAt(0).toUpperCase() + monthName.slice(1)}</Text>
         {onToday ? (
@@ -117,7 +121,7 @@ export function MonthView({
           </Pressable>
         ) : null}
         <Pressable onPress={() => onMonthChange(new Date(year, month + 1))}>
-          <Ionicons name="chevron-forward" size={24} color="#44403c" />
+          <Ionicons name="chevron-forward" size={24} color={c.textSecondary} />
         </Pressable>
       </View>
 
@@ -168,21 +172,21 @@ export function MonthView({
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.surface },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1efec',
+    borderBottomColor: c.surfaceSubtle,
   },
-  monthLabel: { fontSize: 18, fontWeight: '700', color: '#292524', flex: 1, textAlign: 'center' },
-  todayBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#4e7a5e', borderRadius: 6, marginRight: 16 },
+  monthLabel: { fontSize: 18, fontWeight: '700', color: c.text, flex: 1, textAlign: 'center' },
+  todayBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: c.primary, borderRadius: 6, marginRight: 16 },
   todayBtnText: { fontSize: 12, fontWeight: '600', color: '#fff' },
   weekDayHeaders: { flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 8 },
-  weekDayHeader: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#78716c' },
+  weekDayHeader: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: c.textMuted },
   grid: { padding: 8 },
   week: { flexDirection: 'row', marginBottom: 8 },
   day: {
@@ -191,20 +195,20 @@ const s = StyleSheet.create({
     margin: 4,
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#faf8f3',
+    backgroundColor: c.background,
     borderWidth: 1,
-    borderColor: '#f1efec',
+    borderColor: c.surfaceSubtle,
     alignItems: 'center',
   },
   dayOtherMonth: { opacity: 0.4 },
-  dayToday: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
-  dayHasContent: { backgroundColor: '#ecf3ec', borderColor: '#c6ddcd' },
-  daySelected: { backgroundColor: '#4e7a5e', borderColor: '#4e7a5e' },
-  dayNumber: { fontSize: 14, fontWeight: '600', color: '#292524', marginBottom: 4 },
-  dayNumberOther: { color: '#a8a29e' },
+  dayToday: { backgroundColor: c.primaryTint, borderColor: c.primary },
+  dayHasContent: { backgroundColor: c.primaryTint, borderColor: c.primary200 },
+  daySelected: { backgroundColor: c.primary, borderColor: c.primary },
+  dayNumber: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 4 },
+  dayNumberOther: { color: c.textFaint },
   dayNumberSelected: { color: '#fff' },
   eventDots: { flexDirection: 'row', gap: 2 },
   dot: { width: 4, height: 4, borderRadius: 2 },
-  dotEntry: { backgroundColor: '#4e7a5e' },
+  dotEntry: { backgroundColor: c.primary },
   dotSelected: { backgroundColor: 'rgba(255,255,255,0.8)' },
 });

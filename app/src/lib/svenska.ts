@@ -920,7 +920,14 @@ export const settings = {
     members:    'Medlemmar',
     invite:     'BJUD IN NÅGON',
     other:      'ANDRA HUSHÅLL',
+    appearance: 'UTSEENDE',
     adminLogs:  'Adminloggar',
+  },
+
+  appearance: {
+    system: 'System',
+    light:  'Ljust',
+    dark:   'Mörkt',
   },
 
   household: {

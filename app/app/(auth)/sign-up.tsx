@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../../src/context/ThemeContext';
+import type { Palette } from '../../src/lib/theme';
 import { useSignUp } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -14,6 +17,8 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { auth as str } from '../../src/lib/svenska';
 
 export default function SignUpScreen() {
+  const { colors: c } = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { signUp, setActive, isLoaded } = useSignUp();
   const router = useRouter();
   const confirm = useConfirm();
@@ -70,7 +75,7 @@ export default function SignUpScreen() {
         <TextInput
           style={styles.input}
           placeholder={str.placeholders.verificationCode}
-          placeholderTextColor="#a8a29e"
+          placeholderTextColor={c.textFaint}
           keyboardType="number-pad"
           value={code}
           onChangeText={setCode}
@@ -91,7 +96,7 @@ export default function SignUpScreen() {
       <TextInput
         style={styles.input}
         placeholder={str.placeholders.email}
-        placeholderTextColor="#a8a29e"
+        placeholderTextColor={c.textFaint}
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
@@ -100,7 +105,7 @@ export default function SignUpScreen() {
       <TextInput
         style={styles.input}
         placeholder={str.placeholders.signUpPassword}
-        placeholderTextColor="#a8a29e"
+        placeholderTextColor={c.textFaint}
         secureTextEntry
         value={password}
         onChangeText={setPassword}
@@ -110,7 +115,7 @@ export default function SignUpScreen() {
       <TextInput
         style={[styles.input, passwordConfirm.length > 0 && !passwordsMatch && styles.inputError]}
         placeholder={str.placeholders.confirmPassword}
-        placeholderTextColor="#a8a29e"
+        placeholderTextColor={c.textFaint}
         secureTextEntry
         value={passwordConfirm}
         onChangeText={setPasswordConfirm}
@@ -134,25 +139,25 @@ export default function SignUpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
   },
   title: { fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
-  subtitle: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 24 },
+  subtitle: { fontSize: 14, color: c.textMuted, textAlign: 'center', marginBottom: 24 },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: c.border,
     borderRadius: 10,
     padding: 14,
     marginBottom: 12,
     fontSize: 16,
   },
   button: {
-    backgroundColor: '#4e7a5e',
+    backgroundColor: c.primary,
     borderRadius: 10,
     padding: 16,
     alignItems: 'center',
@@ -160,7 +165,7 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  inputError: { borderColor: '#ef4444' },
-  errorText: { color: '#ef4444', fontSize: 13, marginTop: -8, marginBottom: 12, marginLeft: 4 },
-  link: { textAlign: 'center', color: '#4e7a5e', marginTop: 8 },
+  inputError: { borderColor: c.danger },
+  errorText: { color: c.danger, fontSize: 13, marginTop: -8, marginBottom: 12, marginLeft: 4 },
+  link: { textAlign: 'center', color: c.primary, marginTop: 8 },
 });

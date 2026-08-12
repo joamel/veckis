@@ -1,6 +1,9 @@
+import { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTablet } from '../hooks/useTablet';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 
 interface EmptyStateProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -19,9 +22,11 @@ interface EmptyStateProps {
  */
 export function EmptyState({ icon, title, subtitle, actionLabel, onAction }: EmptyStateProps) {
   const { fs, sp } = useTablet();
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   return (
     <View style={s.container}>
-      <Ionicons name={icon} size={fs(56)} color="#d6d3d1" />
+      <Ionicons name={icon} size={fs(56)} color={c.border} />
       <Text style={[s.title, { fontSize: fs(18) }]}>{title}</Text>
       {subtitle ? <Text style={[s.subtitle, { fontSize: fs(14) }]}>{subtitle}</Text> : null}
       {actionLabel && onAction ? (
@@ -39,10 +44,10 @@ export function EmptyState({ icon, title, subtitle, actionLabel, onAction }: Emp
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: 32 },
-  title: { fontWeight: '600', color: '#44403c', marginTop: 16, textAlign: 'center' },
-  subtitle: { color: '#a8a29e', marginTop: 6, textAlign: 'center' },
-  btn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#4e7a5e' },
+  title: { fontWeight: '600', color: c.textSecondary, marginTop: 16, textAlign: 'center' },
+  subtitle: { color: c.textFaint, marginTop: 6, textAlign: 'center' },
+  btn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primary },
   btnText: { color: '#fff', fontWeight: '700' },
 });

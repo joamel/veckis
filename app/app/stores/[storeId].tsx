@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useTheme } from '../../src/context/ThemeContext';
+import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -22,6 +24,8 @@ import { kavBehavior } from '../../src/lib/platform';
 import { stores as str, common } from '../../src/lib/svenska';
 
 export default function StoreDetailScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { storeId } = useLocalSearchParams<{ storeId: string }>();
   const router = useRouter();
   const client = useApiClient();
@@ -190,14 +194,14 @@ export default function StoreDetailScreen() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color="#4e7a5e" /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   }
   if (!store) {
     return (
       <SafeAreaView style={s.container}>
         <View style={s.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={26} color="#292524" />
+            <Ionicons name="arrow-back" size={26} color={c.text} />
           </Pressable>
         </View>
         <Text style={s.empty}>{str.toasts.notFound}</Text>
@@ -209,11 +213,11 @@ export default function StoreDetailScreen() {
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={s.navBtn}>
-          <Ionicons name="arrow-back" size={24} color="#292524" />
+          <Ionicons name="arrow-back" size={24} color={c.text} />
         </Pressable>
         <Text style={[s.title, { flex: 1 }]} numberOfLines={1}>{store.name}</Text>
         <Pressable onPress={() => confirm({ variant: 'menu', buttons: [{ label: str.actions.rename, icon: 'pencil-outline', onPress: () => { setRenameValue(store.name); setShowRename(true); } }, { label: str.actions.delete, icon: 'trash-outline', style: 'destructive', onPress: deleteStore }, { label: common.actions.cancel, style: 'cancel' }] })} hitSlop={8} style={s.navBtn} accessibilityLabel={common.actions.more}>
-          <Ionicons name="ellipsis-vertical" size={22} color="#292524" />
+          <Ionicons name="ellipsis-vertical" size={22} color={c.text} />
         </Pressable>
       </View>
 
@@ -237,7 +241,7 @@ export default function StoreDetailScreen() {
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
                       hitSlop={6}
                     >
-                      <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color="#78716c" />
+                      <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={c.textMuted} />
                       <Text style={s.catName}>{CATEGORY_LABELS[cat] ?? cat}</Text>
                       {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
                     </Pressable>
@@ -247,17 +251,17 @@ export default function StoreDetailScreen() {
                         disabled={idx === 0}
                         onPress={() => moveEnumUp(idx)}
                       >
-                        <Ionicons name="chevron-up" size={18} color="#4e7a5e" />
+                        <Ionicons name="chevron-up" size={18} color={c.primary} />
                       </Pressable>
                       <Pressable
                         style={[s.catBtn, idx === visibleEnum.length - 1 && { opacity: 0.3 }]}
                         disabled={idx === visibleEnum.length - 1}
                         onPress={() => moveEnumDown(idx)}
                       >
-                        <Ionicons name="chevron-down" size={18} color="#4e7a5e" />
+                        <Ionicons name="chevron-down" size={18} color={c.primary} />
                       </Pressable>
                       <Pressable style={s.catBtnDanger} onPress={() => hideEnum(cat)}>
-                        <Ionicons name="eye-off-outline" size={16} color="#ef4444" />
+                        <Ionicons name="eye-off-outline" size={16} color={c.danger} />
                       </Pressable>
                     </View>
                   </View>
@@ -274,10 +278,10 @@ export default function StoreDetailScreen() {
                             <Text style={[s.subName, s.subNameActive]}>{SUB_TAXONOMY[sub as SubCategory].label}</Text>
                             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                               <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveSub(sub, cat, -1)}>
-                                <Ionicons name="chevron-up" size={16} color="#4e7a5e" />
+                                <Ionicons name="chevron-up" size={16} color={c.primary} />
                               </Pressable>
                               <Pressable style={[s.catBtn, i === expanded.length - 1 && { opacity: 0.3 }]} disabled={i === expanded.length - 1} onPress={() => moveSub(sub, cat, 1)}>
-                                <Ionicons name="chevron-down" size={16} color="#4e7a5e" />
+                                <Ionicons name="chevron-down" size={16} color={c.primary} />
                               </Pressable>
                               <Pressable style={[s.subToggle, s.subToggleActive]} onPress={() => toggleSubExpanded(sub)}>
                                 <Ionicons name="checkmark" size={14} color="#fff" />
@@ -314,7 +318,7 @@ export default function StoreDetailScreen() {
                 <View key={cat} style={[s.catRow, s.catRowMuted]}>
                   <Text style={[s.catName, s.catNameMuted]}>{CATEGORY_LABELS[cat] ?? cat}</Text>
                   <Pressable style={s.catBtn} onPress={() => showEnum(cat)}>
-                    <Ionicons name="eye-outline" size={16} color="#4e7a5e" />
+                    <Ionicons name="eye-outline" size={16} color={c.primary} />
                   </Pressable>
                 </View>
               ))}
@@ -367,44 +371,44 @@ export default function StoreDetailScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#faf8f3' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#faf8f3' },
-  header: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
+  header: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   navBtn: { padding: 8 },
-  title: { fontSize: 18, fontWeight: '700', color: '#292524' },
+  title: { fontSize: 18, fontWeight: '700', color: c.text },
   scroll: { padding: 16 },
-  empty: { textAlign: 'center', color: '#a8a29e', marginTop: 40 },
-  emptyHint: { padding: 14, color: '#ef4444', fontSize: 13, textAlign: 'center' },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: '#78716c', letterSpacing: 0.5, marginBottom: 6 },
-  sectionSub: { fontSize: 13, color: '#78716c', marginBottom: 14, lineHeight: 18 },
-  catList: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#f1efec', overflow: 'hidden' },
-  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#f1efec', gap: 8 },
-  catRowMuted: { backgroundColor: '#faf8f3' },
-  catName: { fontSize: 15, color: '#292524', flex: 1, flexShrink: 1 },
-  catNameMuted: { color: '#a8a29e' },
-  catBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ecf3ec' },
-  catBtnDanger: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fef2f2' },
-  expandedBadge: { fontSize: 11, fontWeight: '700', color: '#b96a45', backgroundColor: '#f6e8dc', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
-  subList: { paddingLeft: 24, paddingRight: 14, paddingVertical: 8, backgroundColor: '#faf8f3', borderBottomWidth: 1, borderBottomColor: '#f1efec' },
-  subListHint: { fontSize: 12, color: '#a8a29e', marginBottom: 8, lineHeight: 17 },
+  empty: { textAlign: 'center', color: c.textFaint, marginTop: 40 },
+  emptyHint: { padding: 14, color: c.danger, fontSize: 13, textAlign: 'center' },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: c.textMuted, letterSpacing: 0.5, marginBottom: 6 },
+  sectionSub: { fontSize: 13, color: c.textMuted, marginBottom: 14, lineHeight: 18 },
+  catList: { backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.surfaceSubtle, overflow: 'hidden' },
+  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 8 },
+  catRowMuted: { backgroundColor: c.background },
+  catName: { fontSize: 15, color: c.text, flex: 1, flexShrink: 1 },
+  catNameMuted: { color: c.textFaint },
+  catBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryTint },
+  catBtnDanger: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerTint },
+  expandedBadge: { fontSize: 11, fontWeight: '700', color: c.accent, backgroundColor: c.accent100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  subList: { paddingLeft: 24, paddingRight: 14, paddingVertical: 8, backgroundColor: c.background, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
+  subListHint: { fontSize: 12, color: c.textFaint, marginBottom: 8, lineHeight: 17 },
   subRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 12 },
-  subName: { fontSize: 14, color: '#44403c', flex: 1, flexShrink: 1 },
-  subNameActive: { color: '#b96a45', fontWeight: '600' },
-  subToggle: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d6d3d1', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  subToggleActive: { borderColor: '#b96a45', backgroundColor: '#b96a45' },
+  subName: { fontSize: 14, color: c.textSecondary, flex: 1, flexShrink: 1 },
+  subNameActive: { color: c.accent, fontWeight: '600' },
+  subToggle: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
+  subToggleActive: { borderColor: c.accent, backgroundColor: c.accent },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  addInput: { flex: 1, borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: '#292524', backgroundColor: '#fff' },
-  addBtn: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#4e7a5e' },
+  addInput: { flex: 1, borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: c.text, backgroundColor: c.surface },
+  addBtn: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
   saveBar: { position: 'absolute', left: 16, right: 16, bottom: 20 },
-  primaryBtn: { backgroundColor: '#4e7a5e', borderRadius: 12, paddingVertical: 14, alignItems: 'center', shadowColor: '#4e7a5e', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  primaryBtn: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', shadowColor: c.primary, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   // flex:1 + eget dim-lager: transparent Pressable puttar ner sheeten till botten
   // (annars hamnar den i toppen) och dimmen täcker bakom de rundade hörnen.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
-  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#d6d3d1', marginBottom: 12 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524', marginBottom: 10 },
-  input: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: '#292524' },
+  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, marginBottom: 12 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 10 },
+  input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: c.text },
 });

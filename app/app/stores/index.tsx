@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useTheme } from '../../src/context/ThemeContext';
+import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -28,6 +30,8 @@ import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 type SortMode = 'name' | 'created';
 
 export default function StoresScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
   const { pick, current } = useLocalSearchParams<{ pick?: string; current?: string }>();
   // pick=1 → kort-tap returnerar valt butik-id istället för att navigera in.
@@ -115,7 +119,7 @@ export default function StoresScreen() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color="#4e7a5e" /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   }
 
   return (
@@ -124,20 +128,20 @@ export default function StoresScreen() {
         <View style={s.headerRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
             <Pressable onPress={() => router.back()} hitSlop={10}>
-              <Ionicons name="arrow-back" size={26} color="#292524" />
+              <Ionicons name="arrow-back" size={26} color={c.text} />
             </Pressable>
             <Text style={s.title}>{str.title}</Text>
           </View>
           <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={s.sortBtn} accessibilityLabel={str.sort.a11y}>
-            <Ionicons name="swap-vertical" size={18} color="#4e7a5e" />
+            <Ionicons name="swap-vertical" size={18} color={c.primary} />
           </Pressable>
         </View>
         <View style={s.searchRow}>
-          <Ionicons name="search" size={16} color="#a8a29e" style={s.searchIcon} />
+          <Ionicons name="search" size={16} color={c.textFaint} style={s.searchIcon} />
           <TextInput
             style={s.searchInput}
             placeholder={str.search.placeholder}
-            placeholderTextColor="#a8a29e"
+            placeholderTextColor={c.textFaint}
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
@@ -145,7 +149,7 @@ export default function StoresScreen() {
           />
           {searchQuery.length > 0 && (
             <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={common.actions.clearSearch}>
-              <Ionicons name="close-circle" size={16} color="#a8a29e" />
+              <Ionicons name="close-circle" size={16} color={c.textFaint} />
             </Pressable>
           )}
         </View>
@@ -185,7 +189,7 @@ export default function StoresScreen() {
                 }}
               >
                 <View style={[s.cardIcon, isChosen && s.cardIconCurrent]}>
-                  <Ionicons name="storefront-outline" size={20} color={isChosen ? '#b96a45' : '#4e7a5e'} />
+                  <Ionicons name="storefront-outline" size={20} color={isChosen ? c.accent : c.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[s.cardTitle, isChosen && s.cardTitleCurrent]}>{store.name}</Text>
@@ -197,9 +201,9 @@ export default function StoresScreen() {
                   })()}
                 </View>
                 {isChosen ? (
-                  <Ionicons name="checkmark-circle" size={22} color="#4e7a5e" />
+                  <Ionicons name="checkmark-circle" size={22} color={c.primary} />
                 ) : !pickMode ? (
-                  <Ionicons name="chevron-forward" size={18} color="#d6d3d1" />
+                  <Ionicons name="chevron-forward" size={18} color={c.border} />
                 ) : null}
               </Pressable>
             );
@@ -220,7 +224,7 @@ export default function StoresScreen() {
             <Ionicons
               name={chosenId === null ? 'radio-button-on' : 'radio-button-off'}
               size={18}
-              color={chosenId === null ? '#4e7a5e' : '#a8a29e'}
+              color={chosenId === null ? c.primary : c.textFaint}
             />
             <Text style={[s.noStoreText, chosenId === null && s.noStoreTextActive]}>{str.pick.noStore}</Text>
           </Pressable>
@@ -241,7 +245,7 @@ export default function StoresScreen() {
             <TextInput
               style={s.input}
               placeholder={str.createModal.placeholder}
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={c.textFaint}
               value={newStoreName}
               onChangeText={setNewStoreName}
               autoFocus
@@ -276,7 +280,7 @@ export default function StoresScreen() {
               onPress={() => { setSortMode(o.v); setShowSort(false); }}
             >
               <Text style={s.sortRowText}>{o.label}</Text>
-              {sortMode === o.v && <Ionicons name="checkmark" size={20} color="#4e7a5e" />}
+              {sortMode === o.v && <Ionicons name="checkmark" size={20} color={c.primary} />}
             </Pressable>
           ))}
         </View>
@@ -285,44 +289,44 @@ export default function StoresScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#faf8f3' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#faf8f3' },
-  header: { backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#f1efec', gap: 10 },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
+  header: { backgroundColor: c.surface, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 10 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 24, fontWeight: '700', color: '#292524' },
-  sortBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ecf3ec' },
-  clearBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fef2f2' },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f1efec', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
+  title: { fontSize: 24, fontWeight: '700', color: c.text },
+  sortBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryTint },
+  clearBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerTint },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.surfaceSubtle, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
   searchIcon: {},
-  searchInput: { flex: 1, fontSize: 15, color: '#292524', paddingVertical: 4 },
-  empty: { textAlign: 'center', color: '#a8a29e', marginTop: 40 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 2, borderWidth: 1, borderColor: '#f1efec' },
-  cardCurrent: { borderColor: '#d29a77', backgroundColor: '#faf1e9', borderWidth: 2 },
-  cardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
-  cardIconCurrent: { backgroundColor: '#f6e8dc' },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#292524' },
-  cardTitleCurrent: { color: '#8f4b2c' },
-  cardMeta: { fontSize: 12, color: '#78716c', marginTop: 2 },
-  cardMetaCurrent: { color: '#b96a45', fontWeight: '600' },
-  cardClearBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fef2f2' },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center', shadowColor: '#4e7a5e', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  searchInput: { flex: 1, fontSize: 15, color: c.text, paddingVertical: 4 },
+  empty: { textAlign: 'center', color: c.textFaint, marginTop: 40 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 2, borderWidth: 1, borderColor: c.surfaceSubtle },
+  cardCurrent: { borderColor: c.accent400, backgroundColor: c.accentTint, borderWidth: 2 },
+  cardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
+  cardIconCurrent: { backgroundColor: c.accent100 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: c.text },
+  cardTitleCurrent: { color: c.accentDark },
+  cardMeta: { fontSize: 12, color: c.textMuted, marginTop: 2 },
+  cardMetaCurrent: { color: c.accent, fontWeight: '600' },
+  cardClearBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerTint },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   // flex:1 (inte absolut) så den transparenta Pressablen puttar ner sheeten till
   // botten; dim ligger på eget absolut lager (overlayDim) bakom de rundade hörnen.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
-  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#d6d3d1', marginBottom: 12 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524', marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: '#292524' },
-  saveBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1efec' },
+  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, marginBottom: 12 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 6 },
+  input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: c.text },
+  saveBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
   noStoreBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  noStoreText: { fontSize: 14, color: '#78716c', fontWeight: '500' },
-  noStoreTextActive: { color: '#4e7a5e', fontWeight: '600' },
-  saveBar_btn: { backgroundColor: '#4e7a5e', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
+  noStoreText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
+  noStoreTextActive: { color: c.primary, fontWeight: '600' },
+  saveBar_btn: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
   saveBar_btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  primaryBtn: { backgroundColor: '#4e7a5e', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  primaryBtn: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  sortRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#f1efec' },
-  sortRowText: { fontSize: 15, color: '#292524', fontWeight: '500' },
+  sortRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
+  sortRowText: { fontSize: 15, color: c.text, fontWeight: '500' },
 });

@@ -1,4 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useTheme } from '../../src/context/ThemeContext';
+import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   FlatList,
@@ -40,6 +42,8 @@ const MENU_DAYS: { key: WeekDay; label: string }[] =
     .map((key, i) => ({ key, label: common.weekdays.long[i] }));
 
 export default function RecipesScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
   const params = useLocalSearchParams<{ create?: string; forMenuDay?: string; replaceMenuItemId?: string; replaceTitle?: string; forMenuWeek?: string; chooseDay?: string }>();
   const createTriggeredRef = useRef(false);
@@ -382,7 +386,7 @@ export default function RecipesScreen() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color="#4e7a5e" /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   }
 
   return (
@@ -392,17 +396,17 @@ export default function RecipesScreen() {
         onBack={selectionMode || chooseMode || params.create === '1' ? () => router.back() : undefined}
         actionNode={
           <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={[s.sortBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }]} accessibilityLabel={str.sort.a11y}>
-            <Ionicons name="swap-vertical" size={fs(18)} color="#4e7a5e" />
+            <Ionicons name="swap-vertical" size={fs(18)} color={c.primary} />
           </Pressable>
         }
       />
       <View style={s.subHeader}>
         <View style={s.searchRow}>
-          <Ionicons name="search" size={16} color="#a8a29e" style={s.searchIcon} />
+          <Ionicons name="search" size={16} color={c.textFaint} style={s.searchIcon} />
           <TextInput
             style={s.searchInput}
             placeholder={str.search.placeholder}
-            placeholderTextColor="#a8a29e"
+            placeholderTextColor={c.textFaint}
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
@@ -410,7 +414,7 @@ export default function RecipesScreen() {
           />
           {searchQuery.length > 0 && (
             <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={common.actions.clearSearch}>
-              <Ionicons name="close-circle" size={16} color="#a8a29e" />
+              <Ionicons name="close-circle" size={16} color={c.textFaint} />
             </Pressable>
           )}
         </View>
@@ -428,7 +432,7 @@ export default function RecipesScreen() {
               })}
               {activeTags.size > 0 && (
                 <Pressable style={s.tagFilterClear} onPress={() => setActiveTags(new Set())} hitSlop={6}>
-                  <Ionicons name="close-circle" size={16} color="#a8a29e" />
+                  <Ionicons name="close-circle" size={16} color={c.textFaint} />
                 </Pressable>
               )}
             </View>
@@ -438,7 +442,7 @@ export default function RecipesScreen() {
 
       {(selectionMode || chooseMode) && (
         <View style={s.selectBanner}>
-          <Ionicons name="restaurant-outline" size={16} color="#4e7a5e" />
+          <Ionicons name="restaurant-outline" size={16} color={c.primary} />
           <Text style={s.selectBannerText} numberOfLines={1}>
             {chooseMode ? str.selection.plan : replaceMode ? str.selection.replace(params.replaceTitle ?? '') : str.selection.pick(selectionDayLabel ?? common.noDay)}
           </Text>
@@ -481,27 +485,27 @@ export default function RecipesScreen() {
               onLongPress={() => { if (!selectionMode && !chooseMode) setEditMode(true); }}
             >
               <View style={s.cardIcon}>
-                <Ionicons name="restaurant-outline" size={20} color="#4e7a5e" />
+                <Ionicons name="restaurant-outline" size={20} color={c.primary} />
               </View>
               <View style={s.cardContent}>
                 <Text style={s.cardTitle}>{item.title}</Text>
                 <Text style={s.cardMeta}>{str.card.meta(item.servings, item.ingredients.length)}</Text>
               </View>
               {selectionMode ? (
-                <Ionicons name="add-circle" size={22} color="#4e7a5e" />
+                <Ionicons name="add-circle" size={22} color={c.primary} />
               ) : chooseMode ? (
                 // Hela kortet öppnar planerar-popupen — kalender-ikonen signalerar det.
-                <Ionicons name="calendar-outline" size={20} color="#4e7a5e" />
+                <Ionicons name="calendar-outline" size={20} color={c.primary} />
               ) : !editMode && (
                 <Pressable style={s.addMenuBtn} onPress={() => {
                   const { weekYear, weekNumber } = getISOWeek(new Date());
                   setAddToMenuWeekStr(`${weekYear}-${String(weekNumber).padStart(2, '0')}`);
                   setAddToMenuFor(item);
                 }} hitSlop={8} accessibilityLabel={str.createModal.addToMenu}>
-                  <Ionicons name="calendar-outline" size={20} color="#4e7a5e" />
+                  <Ionicons name="calendar-outline" size={20} color={c.primary} />
                 </Pressable>
               )}
-              {!editMode && !selectionMode && !chooseMode && <Ionicons name="chevron-forward" size={18} color="#d6d3d1" />}
+              {!editMode && !selectionMode && !chooseMode && <Ionicons name="chevron-forward" size={18} color={c.border} />}
             </Pressable>
             {editMode && (
               <Pressable
@@ -522,7 +526,7 @@ export default function RecipesScreen() {
                   })
                 }
               >
-                <Ionicons name="remove-circle" size={22} color="#ef4444" />
+                <Ionicons name="remove-circle" size={22} color={c.danger} />
               </Pressable>
             )}
           </View>
@@ -565,7 +569,7 @@ export default function RecipesScreen() {
               <TextInput
                 style={s.input}
                 placeholder={str.createModal.namePlaceholder}
-                placeholderTextColor="#a8a29e"
+                placeholderTextColor={c.textFaint}
                 value={title}
                 onChangeText={setTitle}
                 autoFocus={!showPaste}
@@ -573,7 +577,7 @@ export default function RecipesScreen() {
                 onSubmitEditing={showPaste ? undefined : handleCreateManual}
               />
               <Pressable style={s.pasteToggle} onPress={() => { setShowPaste(p => !p); setPasteText(''); }}>
-                <Ionicons name={showPaste ? 'chevron-down' : 'clipboard-outline'} size={14} color="#78716c" />
+                <Ionicons name={showPaste ? 'chevron-down' : 'clipboard-outline'} size={14} color={c.textMuted} />
                 <Text style={s.pasteToggleText}>{showPaste ? str.createModal.pasteToggleOn : str.createModal.pasteToggleOff}</Text>
               </Pressable>
               {showPaste ? (
@@ -581,7 +585,7 @@ export default function RecipesScreen() {
                   <TextInput
                     style={[s.input, { height: 160, textAlignVertical: 'top', paddingTop: 10 }]}
                     placeholder={str.createModal.pastePlaceholder}
-                    placeholderTextColor="#a8a29e"
+                    placeholderTextColor={c.textFaint}
                     value={pasteText}
                     onChangeText={setPasteText}
                     multiline
@@ -614,7 +618,7 @@ export default function RecipesScreen() {
               <TextInput
                 style={s.input}
                 placeholder={str.createModal.urlPlaceholder}
-                placeholderTextColor="#a8a29e"
+                placeholderTextColor={c.textFaint}
                 value={url}
                 onChangeText={setUrl}
                 autoCapitalize="none"
@@ -695,7 +699,7 @@ export default function RecipesScreen() {
               style={[s.dayGridItem, s.dayGridItemNone]}
               onPress={() => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, null); }}
             >
-              <Ionicons name="calendar-clear-outline" size={18} color="#4e7a5e" />
+              <Ionicons name="calendar-clear-outline" size={18} color={c.primary} />
               <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>{str.menu.noDay}</Text>
             </Pressable>
           </View>
@@ -711,7 +715,7 @@ export default function RecipesScreen() {
           <Text style={s.sheetTitle}>{str.sort.modalTitle}</Text>
           {([['name', str.sort.az], ['used', str.sort.popular], ['recent', str.sort.newest]] as const).map(([key, label]) => (
             <Pressable key={key} style={s.sortOption} onPress={() => chooseSort(key)}>
-              <Ionicons name={sortMode === key ? 'radio-button-on' : 'radio-button-off'} size={22} color={sortMode === key ? '#4e7a5e' : '#a8a29e'} />
+              <Ionicons name={sortMode === key ? 'radio-button-on' : 'radio-button-off'} size={22} color={sortMode === key ? c.primary : c.textFaint} />
               <Text style={s.sortOptionText}>{label}</Text>
             </Pressable>
           ))}
@@ -721,71 +725,71 @@ export default function RecipesScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#faf8f3' },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  subHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec', gap: 12 },
-  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f1efec', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
+  subHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 12 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surfaceSubtle, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
   tagFilterScroll: { marginTop: 8 },
   tagFilterRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  tagFilterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#ecf3ec', flexShrink: 0 },
-  tagFilterChipActive: { backgroundColor: '#4e7a5e' },
-  tagFilterChipText: { fontSize: 12, fontWeight: '600', color: '#4e7a5e' },
+  tagFilterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.primaryTint, flexShrink: 0 },
+  tagFilterChipActive: { backgroundColor: c.primary },
+  tagFilterChipText: { fontSize: 12, fontWeight: '600', color: c.primary },
   tagFilterChipTextActive: { color: '#fff' },
   tagFilterClear: { paddingHorizontal: 4 },
-  sortBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
+  sortBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   sortOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  sortOptionText: { fontSize: 16, color: '#292524', fontWeight: '500' },
+  sortOptionText: { fontSize: 16, color: c.text, fontWeight: '500' },
   searchIcon: { marginRight: 2 },
-  searchInput: { flex: 1, fontSize: 15, color: '#292524', padding: 0 },
+  searchInput: { flex: 1, fontSize: 15, color: c.text, padding: 0 },
   list: { padding: 16, gap: 2 },
   listEmpty: { flex: 1 },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#fde68a', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  cardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#fde68a', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  cardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#292524' },
-  cardMeta: { fontSize: 13, color: '#78716c', marginTop: 2 },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center', shadowColor: '#4e7a5e', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: c.text },
+  cardMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, gap: 14 },
+  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, gap: 14 },
   sheetScroll: { gap: 14, paddingBottom: 40 },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e7e5e4', alignSelf: 'center', marginBottom: 4 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524' },
-  addMenuBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
-  selectBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ecf3ec', paddingHorizontal: 16, paddingVertical: 10 },
-  selectBannerText: { fontSize: 14, fontWeight: '600', color: '#4e7a5e' },
-  daySheetSub: { fontSize: 13, color: '#78716c', marginTop: -8 },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+  addMenuBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
+  selectBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primaryTint, paddingHorizontal: 16, paddingVertical: 10 },
+  selectBannerText: { fontSize: 14, fontWeight: '600', color: c.primary },
+  daySheetSub: { fontSize: 13, color: c.textMuted, marginTop: -8 },
   dayGrid: { gap: 8, marginTop: 4 },
-  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#f1efec', borderRadius: 12 },
-  dayGridItemTaken: { backgroundColor: '#faf8f3' },
-  dayGridItemNone: { backgroundColor: '#ecf3ec', borderWidth: 1, borderColor: '#c6ddcd', justifyContent: 'flex-start' },
-  dayGridLabel: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  dayGridLabelTaken: { color: '#a8a29e' },
-  dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: '#a8a29e', flexShrink: 1, marginLeft: 8, textAlign: 'right' },
-  dayGridLabelNone: { color: '#4e7a5e' },
-  modeTabs: { flexDirection: 'row', backgroundColor: '#f1efec', borderRadius: 10, padding: 4 },
+  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
+  dayGridItemTaken: { backgroundColor: c.background },
+  dayGridItemNone: { backgroundColor: c.primaryTint, borderWidth: 1, borderColor: c.primary200, justifyContent: 'flex-start' },
+  dayGridLabel: { fontSize: 15, fontWeight: '600', color: c.text },
+  dayGridLabelTaken: { color: c.textFaint },
+  dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: c.textFaint, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
+  dayGridLabelNone: { color: c.primary },
+  modeTabs: { flexDirection: 'row', backgroundColor: c.surfaceSubtle, borderRadius: 10, padding: 4 },
   modeTab: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  modeTabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  modeTabText: { fontSize: 14, fontWeight: '500', color: '#78716c' },
-  modeTabTextActive: { color: '#292524' },
-  input: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#faf8f3' },
-  createHint: { fontSize: 13, color: '#a8a29e', marginTop: -4 },
-  urlHint: { fontSize: 12, color: '#a8a29e', marginTop: -6 },
+  modeTabActive: { backgroundColor: c.surface, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  modeTabText: { fontSize: 14, fontWeight: '500', color: c.textMuted },
+  modeTabTextActive: { color: c.text },
+  input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.background },
+  createHint: { fontSize: 13, color: c.textFaint, marginTop: -4 },
+  urlHint: { fontSize: 12, color: c.textFaint, marginTop: -6 },
   pasteToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, marginBottom: 4 },
-  pasteToggleText: { fontSize: 13, color: '#78716c', flex: 1 },
-  button: { backgroundColor: '#4e7a5e', borderRadius: 10, padding: 16, alignItems: 'center' },
+  pasteToggleText: { fontSize: 13, color: c.textMuted, flex: 1 },
+  button: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   cardWrap: { position: 'relative' },
-  cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
-  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#292524', borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },
+  cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: c.surface, borderRadius: 11 },
+  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: c.text, borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center' },
-  weekChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
-  weekChipText: { fontSize: 13, fontWeight: '600', color: '#44403c' },
-  weekChipTextActive: { color: '#4e7a5e' },
-  weekChipSub: { fontSize: 11, color: '#a8a29e', marginTop: 2 },
-  weekChipSubActive: { color: '#7fa88d' },
+  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight, alignItems: 'center' },
+  weekChipActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
+  weekChipText: { fontSize: 13, fontWeight: '600', color: c.textSecondary },
+  weekChipTextActive: { color: c.primary },
+  weekChipSub: { fontSize: 11, color: c.textFaint, marginTop: 2 },
+  weekChipSubActive: { color: c.primary400 },
 });

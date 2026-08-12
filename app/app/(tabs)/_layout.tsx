@@ -6,20 +6,28 @@ import { useNotificationRouting } from '../../src/hooks/useNotificationRouting';
 import { useTablet } from '../../src/hooks/useTablet';
 import { common } from '../../src/lib/svenska';
 import { RECIPE_FOCUS_EXPERIMENT } from '../../src/lib/features';
+import { useTheme } from '../../src/context/ThemeContext';
 
 export default function TabLayout() {
   usePushRegistration();
   useNotificationRouting();
   const { fs, sp } = useTablet();
   const insets = useSafeAreaInsets();
+  const { colors: c } = useTheme();
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#4e7a5e',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: c.primary,
+        tabBarInactiveTintColor: c.textFaint,
         headerShown: false,
         tabBarLabelStyle: { fontSize: fs(11) },
-        tabBarStyle: { height: sp(60) + insets.bottom, paddingBottom: insets.bottom },
+        tabBarStyle: {
+          height: sp(60) + insets.bottom,
+          paddingBottom: insets.bottom,
+          backgroundColor: c.surface,
+          borderTopColor: c.surfaceSubtle,
+        },
+        sceneStyle: { backgroundColor: c.background },
         tabBarIconStyle: { marginTop: sp(2) },
       }}
     >

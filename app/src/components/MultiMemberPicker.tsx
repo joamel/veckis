@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { components as str, common } from '../lib/svenska';
@@ -20,6 +23,8 @@ export interface MultiMemberPickerProps {
 }
 
 export function MultiMemberPicker({ members, selected, rotation, onChange, onRotationChange, rotationAllowed = true, showOrderSection, showRotation, onOpenOrderModal }: MultiMemberPickerProps) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   if (members.length === 0) return null;
   const toggle = (id: string) => {
     if (selected.includes(id)) onChange(selected.filter(x => x !== id));
@@ -79,7 +84,7 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
             {rotation && rotationAllowed && onOpenOrderModal && (
               <Pressable onPress={onOpenOrderModal} hitSlop={8} style={s.editOrderBtn}>
                 <Text style={s.editOrderBtnText}>{common.actions.edit}</Text>
-                <Ionicons name="chevron-forward" size={13} color="#b96a45" />
+                <Ionicons name="chevron-forward" size={13} color={c.accent} />
               </Pressable>
             )}
           </Pressable>
@@ -110,7 +115,7 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
                         style={s.orderBtn}
                         accessibilityLabel={str.multiMemberPicker.order.moveUp}
                       >
-                        <Ionicons name="chevron-up" size={18} color={i === 0 ? '#d6d3d1' : '#78716c'} />
+                        <Ionicons name="chevron-up" size={18} color={i === 0 ? c.border : c.textMuted} />
                       </Pressable>
                       <Pressable
                         onPress={moveDown}
@@ -118,7 +123,7 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
                         style={s.orderBtn}
                         accessibilityLabel={str.multiMemberPicker.order.moveDown}
                       >
-                        <Ionicons name="chevron-down" size={18} color={i === selected.length - 1 ? '#d6d3d1' : '#78716c'} />
+                        <Ionicons name="chevron-down" size={18} color={i === selected.length - 1 ? c.border : c.textMuted} />
                       </Pressable>
                     </View>
                   </View>
@@ -132,27 +137,27 @@ export function MultiMemberPicker({ members, selected, rotation, onChange, onRot
   );
 }
 
-const s = StyleSheet.create({
-  label: { fontSize: 14, fontWeight: '600', color: '#44403c' },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  label: { fontSize: 14, fontWeight: '600', color: c.textSecondary },
   memberChipRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
-  memberChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3', flexShrink: 0 },
-  memberChipActive: { borderColor: '#b96a45', backgroundColor: '#faf1e9' },
-  memberChipText: { fontSize: 14, color: '#44403c', fontWeight: '500' },
-  memberChipTextActive: { color: '#b96a45', fontWeight: '600' },
+  memberChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background, flexShrink: 0 },
+  memberChipActive: { borderColor: c.accent, backgroundColor: c.accentTint },
+  memberChipText: { fontSize: 14, color: c.textSecondary, fontWeight: '500' },
+  memberChipTextActive: { color: c.accent, fontWeight: '600' },
   rotationRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6, paddingHorizontal: 4, marginTop: 4 },
   rotationRowDisabled: { opacity: 0.45 },
-  rotationBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d6d3d1', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  rotationBoxActive: { borderColor: '#b96a45', backgroundColor: '#b96a45' },
-  rotationLabel: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  rotationLabelDisabled: { color: '#78716c' },
-  rotationSub: { fontSize: 12, color: '#78716c', marginTop: 2, lineHeight: 17 },
+  rotationBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
+  rotationBoxActive: { borderColor: c.accent, backgroundColor: c.accent },
+  rotationLabel: { fontSize: 15, fontWeight: '600', color: c.text },
+  rotationLabelDisabled: { color: c.textMuted },
+  rotationSub: { fontSize: 12, color: c.textMuted, marginTop: 2, lineHeight: 17 },
   editOrderBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  editOrderBtnText: { fontSize: 13, color: '#b96a45', fontWeight: '600' },
+  editOrderBtnText: { fontSize: 13, color: c.accent, fontWeight: '600' },
   orderSection: { marginTop: 10, gap: 4 },
-  orderLabel: { fontSize: 12, fontWeight: '600', color: '#a8a29e', letterSpacing: 0.5, marginBottom: 4 },
-  orderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#faf1e9', borderRadius: 10, borderWidth: 1, borderColor: '#f6e8dc' },
-  orderNum: { fontSize: 13, fontWeight: '700', color: '#b96a45', width: 18, textAlign: 'center' },
-  orderName: { flex: 1, fontSize: 14, fontWeight: '500', color: '#292524' },
+  orderLabel: { fontSize: 12, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 4 },
+  orderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: c.accentTint, borderRadius: 10, borderWidth: 1, borderColor: c.accent100 },
+  orderNum: { fontSize: 13, fontWeight: '700', color: c.accent, width: 18, textAlign: 'center' },
+  orderName: { flex: 1, fontSize: 14, fontWeight: '500', color: c.text },
   orderBtns: { flexDirection: 'row', gap: 2 },
   orderBtn: { padding: 4 },
 });

@@ -14,6 +14,7 @@ import { PendingRemovalProvider } from '../src/context/PendingRemovalContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { ConfirmProvider } from '../src/context/ConfirmContext';
 import { SpotlightTipProvider, useOnboardingMaster, useWelcomeGate } from '../src/context/SpotlightTipContext';
+import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
 import { WelcomeModal } from '../src/components/WelcomeModal';
 import { VersionBanner } from '../src/components/VersionBanner';
 import { WakeupIndicator } from '../src/components/WakeupIndicator';
@@ -77,6 +78,7 @@ function NavigationGuard() {
   const router = useRouter();
   const { setSkipAll } = useOnboardingMaster();
   const { markWelcomeReady } = useWelcomeGate();
+  const { colors: c } = useTheme();
   // Favorit-landningssida — läses innan första redirecten så användaren
   // hamnar direkt i sin valda flik istället för alltid kalendern.
   const [landingTab, setLandingTabState] = useState<LandingTabKey | null>(null);
@@ -145,7 +147,7 @@ function NavigationGuard() {
       <VersionBanner />
       <WakeupIndicator />
       <OfflineBanner />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#faf8f3' } }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.background } }} />
       <WelcomeModal
         visible={welcomeState === 'show'}
         onContinue={markWelcomeSeen}
@@ -173,6 +175,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
       <SafeAreaProvider>
+        <ThemeProvider>
         <StatusBar style="light" />
         <StatusBarBackdrop />
         <ClerkProvider
@@ -194,6 +197,7 @@ export default function RootLayout() {
           </HouseholdProvider>
         </ClerkProvider>
         <AnimatedSplash />
+        </ThemeProvider>
       </SafeAreaProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>

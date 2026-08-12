@@ -1,4 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useTheme } from '../../src/context/ThemeContext';
+import type { Palette } from '../../src/lib/theme';
 import * as Haptics from 'expo-haptics';
 import Fuse from 'fuse.js';
 import { capitalize } from '../../src/lib/text';
@@ -69,6 +71,8 @@ const dismissedDupesStore = new Map<string, Set<string>>();
 
 
 export function ShoppingListDetail({ listId, onClose }: { listId: string; onClose?: () => void }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
   const goBack = useCallback(() => {
     if (onClose) { onClose(); return; }
@@ -1239,7 +1243,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     await selectStore(result);
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color="#4e7a5e" /></View>;
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   if (!list) return null;
 
   // Items tied to a meal that's pending removal stay visible but rendered
@@ -1285,7 +1289,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 onPress={() => openMergeForDupes(duplicateGroups[0])}
                 hitSlop={8}
               >
-                <Ionicons name="git-merge-outline" size={12} color="#b96a45" />
+                <Ionicons name="git-merge-outline" size={12} color={c.accent} />
                 <Text style={s.dupeBadgeText}>
                   {duplicateGroups.length === 1 ? '1 dubblett' : `${duplicateGroups.length} dubbletter`}
                 </Text>
@@ -1296,7 +1300,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         {allItems.length === 0 && (
           <View style={s.emptyContainer}>
             <Pressable onPress={goToBulkTransfer} style={s.emptyImportBtn} hitSlop={12}>
-              <Ionicons name="add-circle" size={64} color="#4e7a5e" />
+              <Ionicons name="add-circle" size={64} color={c.primary} />
             </Pressable>
             <Text style={s.emptyText}>Listan är tom</Text>
             <Text style={s.emptySubtext}>Tryck på + för att importera veckomenyn, eller lägg till varor nedan</Text>
@@ -1340,10 +1344,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                     hitSlop={8}
                     accessibilityLabel={str.a11y.checkAllDone}
                   >
-                    <Ionicons name="checkmark-circle-outline" size={20} color="#10b981" />
+                    <Ionicons name="checkmark-circle-outline" size={20} color={c.success} />
                   </Pressable>
                 )}
-                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#a8a29e" />
+                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={c.textFaint} />
               </Pressable>
               {!collapsed && group.items.map(item => (
                 <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />
@@ -1360,10 +1364,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           return (
             <View style={s.categoryGroup} onLayout={e => { catLayouts.current['checked'] = e.nativeEvent.layout.y; }}>
               <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={4}>
-                <Text style={[s.categoryLabel, { color: '#a8a29e' }]}>
+                <Text style={[s.categoryLabel, { color: c.textFaint }]}>
                   Klart{collapsed ? ` (${checked.length})` : ''}
                 </Text>
-                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#d6d3d1" />
+                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={c.border} />
               </Pressable>
               {!collapsed && checkedGroups.map(group => (
                 <View key={groupKey(group)}>
@@ -1432,10 +1436,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           de). Ikonen pulserar var ~10:e sekund. Tryck → toast med vem som handlar. */}
       <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
         <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.a11y.back}>
-          <Ionicons name="arrow-back" size={22} color="#292524" />
+          <Ionicons name="arrow-back" size={22} color={c.text} />
         </Pressable>
         <Pressable onPress={openStorePicker} hitSlop={8} style={s.navStoreBtn} accessibilityRole="button" accessibilityLabel={list.store ? str.a11y.store(list.store.name) : str.a11y.chooseStore}>
-          <Ionicons name="storefront" size={18} color="#4e7a5e" />
+          <Ionicons name="storefront" size={18} color={c.primary} />
           <RNAnimated.View style={[s.navStoreNameWrap, storeNameAnimStyle]}>
             <Text style={s.navStoreName} numberOfLines={1}>{list.store?.name ?? str.a11y.chooseStore}</Text>
           </RNAnimated.View>
@@ -1468,12 +1472,12 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               </Text>
             </RNAnimated.View>
             <RNAnimated.View style={[s.shopperIconBtn, shopperIconAnimStyle]}>
-              <Ionicons name="walk" size={20} color="#db2777" />
+              <Ionicons name="walk" size={20} color={c.pink} />
             </RNAnimated.View>
           </Pressable>
         )}
         <Pressable ref={listActionsBtnRef} onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.a11y.moreActions}>
-          <Ionicons name="ellipsis-vertical" size={20} color="#292524" />
+          <Ionicons name="ellipsis-vertical" size={20} color={c.text} />
         </Pressable>
       </View>
 
@@ -1531,13 +1535,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         ) : null}
         <View style={[s.addBar, { paddingBottom: keyboardVisible && Platform.OS !== 'web' ? 12 : Math.max(12, insets.bottom) }]}>
           <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
-            <Ionicons name="grid-outline" size={22} color="#4e7a5e" />
+            <Ionicons name="grid-outline" size={22} color={c.primary} />
           </Pressable>
           <TextInput
             ref={inputRef}
             style={s.addInput}
             placeholder={str.placeholders.addItem}
-            placeholderTextColor="#a8a29e"
+            placeholderTextColor={c.textFaint}
             value={newItem}
             onChangeText={setNewItem}
             returnKeyType="done"
@@ -1580,7 +1584,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             <>
               <View style={s.browserHeader}>
                 <Pressable style={s.browserBack} onPress={() => setBrowserCategory(null)}>
-                  <Ionicons name="chevron-back" size={20} color="#4e7a5e" />
+                  <Ionicons name="chevron-back" size={20} color={c.primary} />
                   <Text style={s.browserBackText}>Tillbaka</Text>
                 </Pressable>
                 <Text style={s.browserTitle}>{CATEGORY_EMOJIS[browserCategory]} {CATEGORY_LABELS[browserCategory]}</Text>
@@ -1597,7 +1601,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                       onPress={() => { setShowBrowser(false); openQtySheet(s2.name, browserCategory ?? undefined); }}
                     >
                       <Text style={s.browserItemText}>{capitalize(s2.name)}</Text>
-                      <Ionicons name="add-circle-outline" size={20} color="#4e7a5e" />
+                      <Ionicons name="add-circle-outline" size={20} color={c.primary} />
                     </Pressable>
                   ))
                 }
@@ -1622,7 +1626,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             value={editName}
             onChangeText={setEditName}
             placeholder={str.placeholders.itemName}
-            placeholderTextColor="#a8a29e"
+            placeholderTextColor={c.textFaint}
             autoCapitalize="none"
             returnKeyType="next"
             onSubmitEditing={() => editQtyRef.current?.focus()}
@@ -1632,7 +1636,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               style={s.qtyBtn}
               onPress={() => setEditQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
             >
-              <Ionicons name="remove" size={22} color="#4e7a5e" />
+              <Ionicons name="remove" size={22} color={c.primary} />
             </Pressable>
             <TextInput
               ref={editQtyRef}
@@ -1641,7 +1645,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               onChangeText={t => setEditQty(normalizeQtyInput(t))}
               keyboardType="decimal-pad"
               placeholder={str.placeholders.qty}
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={c.textFaint}
               selectTextOnFocus
               returnKeyType="next"
               blurOnSubmit={false}
@@ -1651,7 +1655,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               style={s.qtyBtn}
               onPress={() => setEditQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ','))}
             >
-              <Ionicons name="add" size={22} color="#4e7a5e" />
+              <Ionicons name="add" size={22} color={c.primary} />
             </Pressable>
             <TextInput
               ref={editUnitRef}
@@ -1659,7 +1663,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               value={editUnit}
               onChangeText={v => setEditUnit(v.toLowerCase())}
               placeholder={str.placeholders.unit}
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={c.textFaint}
               autoCapitalize="none"
               returnKeyType="done"
             />
@@ -1733,7 +1737,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           </ScrollView>
           <View style={s.editActions}>
             <Pressable style={s.deleteBtn} onPress={() => { setEditingItem(null); if (editingItem) deleteItem(editingItem.id); }}>
-              <Ionicons name="trash-outline" size={18} color="#ef4444" />
+              <Ionicons name="trash-outline" size={18} color={c.danger} />
               <Text style={s.deleteBtnText}>Ta bort</Text>
             </Pressable>
             <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled, { flex: 1, marginTop: 0 }]} onPress={saveEditItem} disabled={saving}>
@@ -1761,7 +1765,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             value={stapleName}
             onChangeText={setStapleName}
             placeholder={str.placeholders.itemName}
-            placeholderTextColor="#a8a29e"
+            placeholderTextColor={c.textFaint}
             autoCapitalize="none"
             returnKeyType="done"
           />
@@ -1771,7 +1775,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             value={stapleUnit}
             onChangeText={v => setStapleUnit(v.toLowerCase())}
             placeholder="t.ex. st, dl, paket"
-            placeholderTextColor="#a8a29e"
+            placeholderTextColor={c.textFaint}
             autoCapitalize="none"
             returnKeyType="done"
           />
@@ -1804,7 +1808,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           <View style={s.editActions}>
             {!editingStaple?.id.startsWith('suggestion:') && (
               <Pressable style={s.deleteBtn} onPress={deleteStaple}>
-                <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                <Ionicons name="trash-outline" size={18} color={c.danger} />
                 <Text style={s.deleteBtnText}>Ta bort</Text>
               </Pressable>
             )}
@@ -1835,7 +1839,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 style={s.qtyBtn}
                 onPress={() => setQtyValue(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ','))}
               >
-                <Ionicons name="remove" size={22} color="#4e7a5e" />
+                <Ionicons name="remove" size={22} color={c.primary} />
               </Pressable>
               <TextInput
                 style={s.qtyInput}
@@ -1851,7 +1855,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 style={s.qtyBtn}
                 onPress={() => setQtyValue(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ','))}
               >
-                <Ionicons name="add" size={22} color="#4e7a5e" />
+                <Ionicons name="add" size={22} color={c.primary} />
               </Pressable>
               <TextInput
                 ref={qtyUnitRef}
@@ -1859,7 +1863,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 value={qtyUnit}
                 onChangeText={v => setQtyUnit(v.toLowerCase())}
                 placeholder={str.placeholders.unit}
-                placeholderTextColor="#a8a29e"
+                placeholderTextColor={c.textFaint}
                 autoCapitalize="none"
                 returnKeyType="done"
                 onSubmitEditing={confirmQtySheet}
@@ -1940,7 +1944,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   onPress={() => { setManualPickerSelected(new Set()); setManualPickerOpen(true); }}
                   hitSlop={8}
                 >
-                  <Ionicons name="checkbox-outline" size={12} color="#b96a45" />
+                  <Ionicons name="checkbox-outline" size={12} color={c.accent} />
                   <Text style={s.dupeBadgeText}>Markera själv</Text>
                 </Pressable>
               )}
@@ -1956,7 +1960,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Ionicons
                     name={mergeSelected.has(item.id) ? 'checkbox' : 'square-outline'}
                     size={22}
-                    color={mergeSelected.has(item.id) ? '#4e7a5e' : '#a8a29e'}
+                    color={mergeSelected.has(item.id) ? c.primary : c.textFaint}
                   />
                   <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(item.name)}</Text>
                   {(item.quantity !== 1 || item.unit) && (
@@ -1972,7 +1976,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 value={mergeName}
                 onChangeText={setMergeName}
                 placeholder={str.placeholders.itemName}
-                placeholderTextColor="#a8a29e"
+                placeholderTextColor={c.textFaint}
                 autoCapitalize="none"
               />
               <Text style={s.editLabel}>Ny mängd och enhet</Text>
@@ -1984,7 +1988,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
                   onPress={() => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ',')); }}
                 >
-                  <Ionicons name="remove" size={18} color="#4e7a5e" />
+                  <Ionicons name="remove" size={18} color={c.primary} />
                 </Pressable>
                 <TextInput
                   style={[s.qtyInput, { fontSize: 16, fontWeight: '600', paddingVertical: 6 }]}
@@ -1998,14 +2002,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
                   onPress={() => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeQty(v => String((parseFloat(v.replace(',', '.')) || 0) + 1).replace('.', ',')); }}
                 >
-                  <Ionicons name="add" size={18} color="#4e7a5e" />
+                  <Ionicons name="add" size={18} color={c.primary} />
                 </Pressable>
                 <TextInput
                   style={[s.qtyUnitInput, { fontSize: 13, paddingVertical: 6, paddingHorizontal: 8 }]}
                   value={mergeUnit}
                   onChangeText={v => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeUnit(v.toLowerCase()); }}
                   placeholder={str.placeholders.unit}
-                  placeholderTextColor="#a8a29e"
+                  placeholderTextColor={c.textFaint}
                   autoCapitalize="none"
                   onFocus={scrollMergeRowIntoView}
                 />
@@ -2062,7 +2066,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   if (next && next !== duplicateGroups[idx]) openMergeForDupes(next);
                 }}
               >
-                <Text style={[s.mergeIgnoreBtnText, { color: '#4e7a5e' }]}>Nästa dubblett →</Text>
+                <Text style={[s.mergeIgnoreBtnText, { color: c.primary }]}>Nästa dubblett →</Text>
               </Pressable>
             )}
             <Pressable
@@ -2090,7 +2094,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             onPress={() => { setShowActionsMenu(false); toggleIAmShopping(); }}
             disabled={togglingShopper || (!iAmShopping && !!list.activeShopperMemberId)}
           >
-            <Ionicons name={iAmShopping ? 'pause-circle-outline' : 'walk-outline'} size={20} color="#4e7a5e" />
+            <Ionicons name={iAmShopping ? 'pause-circle-outline' : 'walk-outline'} size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>
               {iAmShopping
                 ? 'Sluta handla'
@@ -2103,21 +2107,21 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); setRenameValue(list.name); setRenameEmoji(list.emoji ?? null); setShowRenameModal(true); }}
           >
-            <Ionicons name="create-outline" size={20} color="#4e7a5e" />
+            <Ionicons name="create-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>Byt namn på listan</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); openStorePicker(); }}
           >
-            <Ionicons name="storefront-outline" size={20} color="#4e7a5e" />
+            <Ionicons name="storefront-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>{list.store?.name ? `Butik: ${list.store.name}` : 'Välj butik'}</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); goToBulkTransfer(); }}
           >
-            <Ionicons name="restaurant-outline" size={20} color="#4e7a5e" />
+            <Ionicons name="restaurant-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>Importera veckomeny</Text>
           </Pressable>
           <Pressable
@@ -2128,7 +2132,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               else setMergeSheet({ name: '', category: 'other' as StoreCategory, items: [] });
             }}
           >
-            <Ionicons name="git-merge-outline" size={20} color="#4e7a5e" />
+            <Ionicons name="git-merge-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>
               Hantera dubbletter{duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ''}
             </Text>
@@ -2137,7 +2141,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); checkAllUnchecked(); }}
           >
-            <Ionicons name="checkbox-outline" size={20} color="#4e7a5e" />
+            <Ionicons name="checkbox-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>Klarmarkera alla</Text>
           </Pressable>
           <View style={s.actionsMenuDivider} />
@@ -2145,15 +2149,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); completeList(); }}
           >
-            <Ionicons name="sparkles-outline" size={20} color="#ef4444" />
-            <Text style={[s.actionsMenuText, { color: '#ef4444' }]}>Rensa lista</Text>
+            <Ionicons name="sparkles-outline" size={20} color={c.danger} />
+            <Text style={[s.actionsMenuText, { color: c.danger }]}>Rensa lista</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); deleteEntireList(); }}
           >
-            <Ionicons name="trash-outline" size={20} color="#ef4444" />
-            <Text style={[s.actionsMenuText, { color: '#ef4444' }]}>Ta bort lista</Text>
+            <Ionicons name="trash-outline" size={20} color={c.danger} />
+            <Text style={[s.actionsMenuText, { color: c.danger }]}>Ta bort lista</Text>
           </Pressable>
         </View>
       </Modal>
@@ -2171,7 +2175,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               value={renameValue}
               onChangeText={setRenameValue}
               placeholder={str.placeholders.listName}
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={c.textFaint}
               autoFocus
               returnKeyType="done"
               onSubmitEditing={saveRename}
@@ -2229,7 +2233,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                         <Ionicons
                           name={checked ? 'checkbox' : 'square-outline'}
                           size={22}
-                          color={checked ? '#4e7a5e' : '#a8a29e'}
+                          color={checked ? c.primary : c.textFaint}
                         />
                         <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(item.name)}</Text>
                         {(item.quantity !== 1 || item.unit) && (
@@ -2262,6 +2266,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 }
 
 function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; onDelete?: () => void; pending?: boolean }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { width: windowWidth } = useWindowDimensions();
   const translateX = useSharedValue(0);
   const THRESHOLD = windowWidth * 0.35;
@@ -2294,7 +2300,7 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
 
   const rowContent = (
     <>
-      <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? '#10b981' : '#4e7a5e'} />
+      <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? c.success : c.primary} />
       <View style={s.itemContent}>
         <View style={s.itemRow}>
           <Text style={[s.itemName, (item.isChecked || pending) && s.itemNameChecked]}>{capitalize(item.name)}</Text>
@@ -2330,82 +2336,82 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#faf8f3' },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec', paddingBottom: 12 },
+  header: { backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, paddingBottom: 12 },
   headerNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6 },
-  headerStack: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  headerStack: { backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   titleSlide: { paddingHorizontal: 20, paddingBottom: 6 },
   scrollMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: 8, paddingTop: 4, gap: 8 },
-  titleAreaAbs: { position: 'absolute', left: 0, right: 0, backgroundColor: '#faf8f3', zIndex: 10 },
-  navbarBgAbs: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: '#faf8f3', zIndex: 5 },
+  titleAreaAbs: { position: 'absolute', left: 0, right: 0, backgroundColor: c.background, zIndex: 10 },
+  navbarBgAbs: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: c.background, zIndex: 5 },
   navbarButtonsAbs: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, zIndex: 30 },
   titleTextWrap: { position: 'absolute', left: 20, right: 20, justifyContent: 'center', alignItems: 'flex-start', zIndex: 25 },
-  headerNavPinned: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec' },
-  headerTitleAbs: { position: 'absolute', left: 0, right: 0, zIndex: 10, paddingHorizontal: 20, backgroundColor: '#fff', overflow: 'hidden' },
-  actionsMenu: { position: 'absolute', right: 0, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
+  headerNavPinned: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
+  headerTitleAbs: { position: 'absolute', left: 0, right: 0, zIndex: 10, paddingHorizontal: 20, backgroundColor: c.surface, overflow: 'hidden' },
+  actionsMenu: { position: 'absolute', right: 0, backgroundColor: c.surface, borderRadius: 12, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   actionsMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
-  actionsMenuText: { fontSize: 15, color: '#4e7a5e', fontWeight: '500' },
-  actionsMenuDivider: { height: 1, backgroundColor: '#f1efec', marginVertical: 4 },
+  actionsMenuText: { fontSize: 15, color: c.primary, fontWeight: '500' },
+  actionsMenuDivider: { height: 1, backgroundColor: c.surfaceSubtle, marginVertical: 4 },
   headerTitle: { paddingHorizontal: 20, paddingTop: 5, paddingBottom: 5 },
   headerMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   backBtn: { padding: 4 },
   doneBtn: { padding: 4 },
-  title: { fontSize: 26, fontWeight: '700', color: '#292524' },
-  titleCompact: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: '#292524', paddingHorizontal: 8 },
-  progressBar: { height: 3, backgroundColor: '#e7e5e4' },
-  stickyCat: { position: 'absolute', left: 0, right: 0, zIndex: 20, backgroundColor: '#faf8f3', paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
-  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: '#eed7c5', borderRadius: 999, backgroundColor: '#faf1e9' },
+  title: { fontSize: 26, fontWeight: '700', color: c.text },
+  titleCompact: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: c.text, paddingHorizontal: 8 },
+  progressBar: { height: 3, backgroundColor: c.borderLight },
+  stickyCat: { position: 'absolute', left: 0, right: 0, zIndex: 20, backgroundColor: c.background, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
+  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: c.accent200, borderRadius: 999, backgroundColor: c.accentTint },
   navStoreNameWrap: { overflow: 'hidden', justifyContent: 'center' },
-  navStoreName: { fontSize: 15, color: '#4e7a5e', fontWeight: '600' },
+  navStoreName: { fontSize: 15, color: c.primary, fontWeight: '600' },
   shopperWrap: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
   shopperTextWrap: { overflow: 'hidden', justifyContent: 'center' },
-  shopperText: { fontSize: 13, color: '#db2777', fontWeight: '600' },
-  shopperIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#fce7f3', alignItems: 'center', justifyContent: 'center', marginRight: 4 },
-  progressFill: { height: 3, backgroundColor: '#10b981' },
+  shopperText: { fontSize: 13, color: c.pink, fontWeight: '600' },
+  shopperIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.pinkTint, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+  progressFill: { height: 3, backgroundColor: c.success },
   list: { padding: 16, gap: 2, paddingBottom: 8 },
   listEmpty: { flex: 1 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   emptyImportBtn: { marginBottom: 4 },
-  emptyText: { fontSize: 17, fontWeight: '600', color: '#44403c', marginTop: 12 },
-  emptySubtext: { fontSize: 13, color: '#a8a29e', marginTop: 4, textAlign: 'center', paddingHorizontal: 32 },
-  dupeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f6e8dc', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  dupeBadgeText: { fontSize: 12, fontWeight: '600', color: '#b96a45' },
+  emptyText: { fontSize: 17, fontWeight: '600', color: c.textSecondary, marginTop: 12 },
+  emptySubtext: { fontSize: 13, color: c.textFaint, marginTop: 4, textAlign: 'center', paddingHorizontal: 32 },
+  dupeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.accent100, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  dupeBadgeText: { fontSize: 12, fontWeight: '600', color: c.accent },
   mergeIgnoreBtn: { paddingVertical: 10 },
-  mergeIgnoreBtnText: { fontSize: 14, color: '#a8a29e', textAlign: 'center' },
+  mergeIgnoreBtnText: { fontSize: 14, color: c.textFaint, textAlign: 'center' },
   mergeHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   categoryGroup: { gap: 2 },
   categoryHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 2, paddingVertical: 4, gap: 8 },
-  categoryLabel: { fontSize: 12, fontWeight: '700', color: '#4e7a5e', textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 },
+  categoryLabel: { fontSize: 12, fontWeight: '700', color: c.primary, textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 },
   // Sub-grupp-rubriker: inget uppercase + ingen letterSpacing (annars klipps
   // långa subnamn som "Toalett- & hushållspapper"); lite indenterad + dämpad
   // för att visuellt tillhöra sin parent.
   categorySubHeader: { paddingLeft: 14, paddingVertical: 2, marginTop: -4 },
-  categorySubLabel: { fontSize: 11, fontWeight: '600', textTransform: 'none', letterSpacing: 0.2, color: '#b96a45' },
-  checkedCatLabel: { fontSize: 11, fontWeight: '600', color: '#c2b5a8', letterSpacing: 0.4, paddingHorizontal: 2, paddingTop: 8, paddingBottom: 1 },
-  categoryCount: { fontSize: 11, color: '#a8a29e', fontWeight: '600' },
-  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  categorySubLabel: { fontSize: 11, fontWeight: '600', textTransform: 'none', letterSpacing: 0.2, color: c.accent },
+  checkedCatLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.4, paddingHorizontal: 2, paddingTop: 8, paddingBottom: 1 },
+  categoryCount: { fontSize: 11, color: c.textFaint, fontWeight: '600' },
+  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 10, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   itemChecked: { opacity: 0.55 },
-  itemPending: { opacity: 0.4, backgroundColor: '#fef2f2' },
+  itemPending: { opacity: 0.4, backgroundColor: c.dangerTint },
   itemContent: { flex: 1 },
   itemRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
-  itemName: { fontSize: 16, color: '#292524', flex: 1 },
-  itemNameChecked: { textDecorationLine: 'line-through', color: '#a8a29e' },
-  itemQty: { fontSize: 14, color: '#78716c', fontWeight: '500' },
-  chipScroll: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1efec', maxHeight: 44 },
-  commonScroll: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1efec', paddingTop: 6, paddingBottom: 2 },
-  chipHint: { fontSize: 11, fontWeight: '700', color: '#a8a29e', letterSpacing: 0.5, paddingHorizontal: 12 },
+  itemName: { fontSize: 16, color: c.text, flex: 1 },
+  itemNameChecked: { textDecorationLine: 'line-through', color: c.textFaint },
+  itemQty: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
+  chipScroll: { backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.surfaceSubtle, maxHeight: 44 },
+  commonScroll: { backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.surfaceSubtle, paddingTop: 6, paddingBottom: 2 },
+  chipHint: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5, paddingHorizontal: 12 },
   chipRowWrap: { paddingHorizontal: 12, paddingVertical: 6, gap: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   chipRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#ecf3ec', borderRadius: 20 },
-  chipText: { fontSize: 13, color: '#4e7a5e', fontWeight: '500' },
-  addBar: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1efec', gap: 10, alignItems: 'center' },
-  browseBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: c.primaryTint, borderRadius: 20 },
+  chipText: { fontSize: 13, color: c.primary, fontWeight: '500' },
+  addBar: { flexDirection: 'row', padding: 12, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.surfaceSubtle, gap: 10, alignItems: 'center' },
+  browseBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   // minWidth:0 så input:en får krympa under sin intrinsiska content-bredd på web
   // (annars trycks "+"-knappen ut utanför högerkanten — min-width:auto på <input>).
-  addInput: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#faf8f3' },
-  addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center' },
+  addInput: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: c.background },
+  addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
   addBtnDisabled: { opacity: 0.4 },
   // Dim ligger på ett eget absolut lager (overlayDim) så det täcker HELA skärmen
   // inkl. bakom sheetens rundade hörn; overlay-Pressablen är transparent och
@@ -2414,77 +2420,77 @@ const s = StyleSheet.create({
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(41,37,36,0.55)' },
   // width:100% + maxWidth + alignSelf:center → full bredd på telefon (<480), men
   // capad och centrerad på bred/webb-viewport så sheeten inte blir "fullscreen".
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '85%', width: '100%', maxWidth: 480, alignSelf: 'center' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e7e5e4', alignSelf: 'center', marginBottom: 4 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524' },
-  sheetSub: { fontSize: 13, color: '#78716c', marginTop: -4 },
-  storeOption: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 10, backgroundColor: '#faf8f3' },
+  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '85%', width: '100%', maxWidth: 480, alignSelf: 'center' },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+  sheetSub: { fontSize: 13, color: c.textMuted, marginTop: -4 },
+  storeOption: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 10, backgroundColor: c.background },
   storeOptionFlex: { flex: 1 },
-  storeOptionActive: { backgroundColor: '#ecf3ec' },
-  storeOptionText: { fontSize: 15, color: '#292524', fontWeight: '500' },
+  storeOptionActive: { backgroundColor: c.primaryTint },
+  storeOptionText: { fontSize: 15, color: c.text, fontWeight: '500' },
   storeRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  editStoreBtn: { padding: 12, backgroundColor: '#faf8f3', borderRadius: 10 },
+  editStoreBtn: { padding: 12, backgroundColor: c.background, borderRadius: 10 },
   newStoreRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#faf8f3' },
-  catRowLabel: { flex: 1, fontSize: 15, color: '#44403c' },
+  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.background },
+  catRowLabel: { flex: 1, fontSize: 15, color: c.textSecondary },
   catArrow: { padding: 6 },
-  saveBtn: { backgroundColor: '#4e7a5e', borderRadius: 10, padding: 16, alignItems: 'center', marginTop: 4 },
+  saveBtn: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center', marginTop: 4 },
   saveBtnDisabled: { opacity: 0.4 },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   editRow: { flexDirection: 'row', gap: 12 },
-  editLabel: { fontSize: 13, fontWeight: '600', color: '#78716c', marginBottom: 6 },
-  editInput: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: '#faf8f3' },
+  editLabel: { fontSize: 13, fontWeight: '600', color: c.textMuted, marginBottom: 6 },
+  editInput: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: c.background },
   catChipScroll: { marginBottom: 4 },
   catChipRow: { flexDirection: 'row', gap: 8, paddingVertical: 4 },
-  catChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4', flexShrink: 0 },
-  catChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
-  catChipText: { fontSize: 13, color: '#44403c', fontWeight: '500' },
-  catChipTextActive: { color: '#4e7a5e', fontWeight: '600' },
+  catChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight, flexShrink: 0 },
+  catChipActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
+  catChipText: { fontSize: 13, color: c.textSecondary, fontWeight: '500' },
+  catChipTextActive: { color: c.primary, fontWeight: '600' },
   editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
-  deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
-  deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: c.dangerBorder, backgroundColor: c.dangerTint },
+  deleteBtnText: { color: c.danger, fontWeight: '600', fontSize: 15 },
   swipeRowWrap: { borderRadius: 10, overflow: 'hidden' },
-  swipeDeleteBg: { backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
+  swipeDeleteBg: { backgroundColor: c.danger, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
   browserSheet: { maxHeight: '90%', gap: 0 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  categoryTile: { width: '47%', backgroundColor: '#faf8f3', borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e7e5e4' },
+  categoryTile: { width: '47%', backgroundColor: c.background, borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: c.borderLight },
   categoryTileEmoji: { fontSize: 28 },
-  categoryTileLabel: { fontSize: 13, fontWeight: '600', color: '#44403c', textAlign: 'center' },
+  categoryTileLabel: { fontSize: 13, fontWeight: '600', color: c.textSecondary, textAlign: 'center' },
   browserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
   browserBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  browserBackText: { fontSize: 14, color: '#4e7a5e', fontWeight: '500' },
-  browserTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#292524', textAlign: 'right' },
+  browserBackText: { fontSize: 14, color: c.primary, fontWeight: '500' },
+  browserTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: c.text, textAlign: 'right' },
   browserList: { marginTop: 12, maxHeight: 400 },
-  browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
-  browserItemText: { flex: 1, fontSize: 16, color: '#292524' },
+  browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
+  browserItemText: { flex: 1, fontSize: 16, color: c.text },
   qtyStepper: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
-  qtyBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
+  qtyBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   // Litet antalsfält (inte flex) så enhet får plats på samma rad som i native-appen.
-  qtyInput: { width: 70, textAlign: 'center', fontSize: 22, fontWeight: '700', color: '#292524', borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingVertical: 8 },
-  qtyUnitInput: { flex: 1, minWidth: 0, fontSize: 16, color: '#292524', borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
-  qtyConfirm: { backgroundColor: '#4e7a5e', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  qtyInput: { width: 70, textAlign: 'center', fontSize: 22, fontWeight: '700', color: c.text, borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingVertical: 8 },
+  qtyUnitInput: { flex: 1, minWidth: 0, fontSize: 16, color: c.text, borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
+  qtyConfirm: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   qtyConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: c.successLight, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   mergeList: { maxHeight: 200, flexGrow: 0 },
   unitChipScroll: { marginVertical: 4 },
   unitChipRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
-  unitChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4' },
-  unitChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
-  unitChipText: { fontSize: 13, color: '#44403c', fontWeight: '500' },
-  unitChipTextActive: { color: '#4e7a5e', fontWeight: '600' },
-  mergeItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  unitChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight },
+  unitChipActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
+  unitChipText: { fontSize: 13, color: c.textSecondary, fontWeight: '500' },
+  unitChipTextActive: { color: c.primary, fontWeight: '600' },
+  mergeItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   // Samma lineHeight på namn + mängd — olika fontSize ger annars olika
   // baslinjer i den centrerade raden. Fast bredd + textAlign right på mängden
   // så siffrorna bildar en rak högerkolumn oavsett rad (Androids textmätning
   // gav annars olika högerkant per rad).
-  mergeItemName: { fontSize: 16, lineHeight: 22, color: '#44403c', flex: 1 },
-  mergeItemQty: { fontSize: 15, lineHeight: 22, color: '#78716c', width: 84, textAlign: 'right' },
-  mergeSuggestionHint: { fontSize: 12, color: '#4e7a5e', marginTop: 2, marginBottom: 4 },
-  mergeDivider: { height: 1, backgroundColor: '#e7e5e4', marginTop: 4 },
+  mergeItemName: { fontSize: 16, lineHeight: 22, color: c.textSecondary, flex: 1 },
+  mergeItemQty: { fontSize: 15, lineHeight: 22, color: c.textMuted, width: 84, textAlign: 'right' },
+  mergeSuggestionHint: { fontSize: 12, color: c.primary, marginTop: 2, marginBottom: 4 },
+  mergeDivider: { height: 1, backgroundColor: c.borderLight, marginTop: 4 },
   itemWrap: { position: 'relative' },
-  itemDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
-  editDoneBtn: { backgroundColor: '#292524', padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#e7e5e4' },
+  itemDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: c.surface, borderRadius: 11 },
+  editDoneBtn: { backgroundColor: c.text, padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: c.borderLight },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
 

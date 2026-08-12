@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
@@ -6,6 +6,8 @@ import { useTablet } from '../hooks/useTablet';
 import { useOnceFlag } from '../hooks/useOnceFlag';
 import { useSpotlightTip, useTipsReady } from '../context/SpotlightTipContext';
 import { components as str } from '../lib/svenska';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 
 interface WeekNavProps {
   weekLabel: string;
@@ -20,6 +22,8 @@ interface WeekNavProps {
 
 export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onPickDate, disablePrev, isPastWeek }: WeekNavProps) {
   const { fs, sp } = useTablet();
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   // Ring-target = bara texten "Vecka N", inte hela tryckytan (som är osynlig
   // och spänner över hela raden). #6 från backloggen.
   const labelTextRef = useRef<View>(null);
@@ -55,36 +59,36 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
         </View>
       </Pressable>
       <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={disablePrev ? undefined : onPrev} accessibilityRole="button" accessibilityLabel={str.weekNav.prevWeek} disabled={disablePrev}>
-        <Ionicons name="chevron-back" size={fs(18)} color={disablePrev ? '#d6d3d1' : '#4e7a5e'} />
+        <Ionicons name="chevron-back" size={fs(18)} color={disablePrev ? c.border : c.primary} />
       </Pressable>
       <View style={{ flex: 1 }} />
       {!isCurrentWeek && (
         <Pressable style={[s.todayBtn, { paddingHorizontal: sp(12), paddingVertical: sp(6) }]} onPress={onToday}>
-          <Ionicons name="today-outline" size={fs(13)} color="#4e7a5e" />
+          <Ionicons name="today-outline" size={fs(13)} color={c.primary} />
           <Text style={[s.todayBtnText, { fontSize: fs(12) }]}>{str.weekNav.today}</Text>
         </Pressable>
       )}
       <Pressable style={[s.arrow, { padding: sp(8) }]} onPress={onNext} accessibilityRole="button" accessibilityLabel={str.weekNav.nextWeek}>
-        <Ionicons name="chevron-forward" size={fs(18)} color="#4e7a5e" />
+        <Ionicons name="chevron-forward" size={fs(18)} color={c.primary} />
       </Pressable>
     </View>
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1efec',
+    borderBottomColor: c.surfaceSubtle,
   },
   arrow: {},
   labelBtn: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingVertical: 4 },
-  label: { fontWeight: '600', color: '#4e7a5e' },
-  labelCurrent: { color: '#4e7a5e' },
-  labelPast: { color: '#a8a29e' },
-  todayBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#ecf3ec', borderRadius: 999, marginRight: 12 },
-  todayBtnText: { fontWeight: '600', color: '#4e7a5e' },
+  label: { fontWeight: '600', color: c.primary },
+  labelCurrent: { color: c.primary },
+  labelPast: { color: c.textFaint },
+  todayBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.primaryTint, borderRadius: 999, marginRight: 12 },
+  todayBtnText: { fontWeight: '600', color: c.primary },
 });

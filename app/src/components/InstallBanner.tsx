@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 // Subtil banner som föreslår att installera Veckis som app, visas över
 // sign-in-skärmen. En per plattform — vi tystar Chromes egna prompt genom
 // att fånga beforeinstallprompt så det blir INTE dubbla erbjudanden:
@@ -40,6 +43,8 @@ function rememberDismiss() {
 }
 
 export function InstallBanner() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [target, setTarget] = useState<InstallTarget>('unknown');
   const [installed, setInstalled] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -86,13 +91,13 @@ export function InstallBanner() {
   if ((target === 'android-chrome' || target === 'desktop-chromium') && deferredPrompt) {
     return (
       <View style={s.banner}>
-        <Ionicons name="download-outline" size={20} color="#b96a45" />
+        <Ionicons name="download-outline" size={20} color={c.accent} />
         <Text style={s.text}>Installera Veckis som app</Text>
         <Pressable style={s.actionBtn} onPress={trigger}>
           <Text style={s.actionText}>Installera</Text>
         </Pressable>
         <Pressable onPress={dismiss} hitSlop={8} style={s.closeBtn} accessibilityLabel="Stäng">
-          <Ionicons name="close" size={16} color="#a8a29e" />
+          <Ionicons name="close" size={16} color={c.textFaint} />
         </Pressable>
       </View>
     );
@@ -103,12 +108,12 @@ export function InstallBanner() {
   if (target === 'ios-safari') {
     return (
       <View style={s.banner}>
-        <Ionicons name="phone-portrait-outline" size={20} color="#b96a45" />
+        <Ionicons name="phone-portrait-outline" size={20} color={c.accent} />
         <Text style={s.text}>
-          Tryck <Ionicons name="share-outline" size={14} color="#4e7a5e" /> Dela → <Text style={s.bold}>"Lägg till på hemskärmen"</Text> för app-känsla.
+          Tryck <Ionicons name="share-outline" size={14} color={c.primary} /> Dela → <Text style={s.bold}>"Lägg till på hemskärmen"</Text> för app-känsla.
         </Text>
         <Pressable onPress={dismiss} hitSlop={8} style={s.closeBtn} accessibilityLabel="Stäng">
-          <Ionicons name="close" size={16} color="#a8a29e" />
+          <Ionicons name="close" size={16} color={c.textFaint} />
         </Pressable>
       </View>
     );
@@ -118,12 +123,12 @@ export function InstallBanner() {
   if (target === 'ios-other') {
     return (
       <View style={[s.banner, s.bannerWarn]}>
-        <Ionicons name="information-circle-outline" size={20} color="#b45309" />
-        <Text style={[s.text, { color: '#92400e' }]}>
+        <Ionicons name="information-circle-outline" size={20} color={c.warningText} />
+        <Text style={[s.text, { color: c.warningText }]}>
           Öppna i <Text style={s.bold}>Safari</Text> för att installera som app.
         </Text>
         <Pressable onPress={dismiss} hitSlop={8} style={s.closeBtn} accessibilityLabel="Stäng">
-          <Ionicons name="close" size={16} color="#b45309" />
+          <Ionicons name="close" size={16} color={c.warningText} />
         </Pressable>
       </View>
     );
@@ -135,23 +140,23 @@ export function InstallBanner() {
   return null;
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#faf1e9',
+    backgroundColor: c.accentTint,
     borderLeftWidth: 3,
-    borderLeftColor: '#b96a45',
+    borderLeftColor: c.accent,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 10,
     marginBottom: 16,
   },
-  bannerWarn: { backgroundColor: '#fef3c7', borderLeftColor: '#f59e0b' },
-  text: { flex: 1, fontSize: 13, color: '#44403c', lineHeight: 18 },
-  bold: { fontWeight: '700', color: '#292524' },
-  actionBtn: { backgroundColor: '#b96a45', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
+  bannerWarn: { backgroundColor: c.warningTint, borderLeftColor: c.warning },
+  text: { flex: 1, fontSize: 13, color: c.textSecondary, lineHeight: 18 },
+  bold: { fontWeight: '700', color: c.text },
+  actionBtn: { backgroundColor: c.accent, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
   actionText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   closeBtn: { padding: 4 },
 });

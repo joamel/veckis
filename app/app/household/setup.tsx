@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../../src/context/ThemeContext';
+import type { Palette } from '../../src/lib/theme';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,6 +20,8 @@ import { useUser } from '@clerk/clerk-expo';
 import { householdSetup as str } from '../../src/lib/svenska';
 
 export default function HouseholdSetupScreen() {
+  const { colors: c } = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const client = useApiClient();
   const { refresh } = useHousehold();
   const { user } = useUser();
@@ -90,7 +95,7 @@ export default function HouseholdSetupScreen() {
       <TextInput
         style={styles.input}
         placeholder={str.namePlaceholder}
-        placeholderTextColor="#a8a29e"
+        placeholderTextColor={c.textFaint}
         value={nickname}
         onChangeText={setNickname}
         autoCapitalize="words"
@@ -118,7 +123,7 @@ export default function HouseholdSetupScreen() {
           <TextInput
             style={styles.input}
             placeholder={str.create.namePlaceholder}
-            placeholderTextColor="#a8a29e"
+            placeholderTextColor={c.textFaint}
             value={name}
             onChangeText={setName}
             autoFocus
@@ -142,7 +147,7 @@ export default function HouseholdSetupScreen() {
           <TextInput
             style={[styles.input, styles.codeInput]}
             placeholder={str.join.codePlaceholder}
-            placeholderTextColor="#a8a29e"
+            placeholderTextColor={c.textFaint}
             value={code}
             onChangeText={t => setCode(t.toUpperCase())}
             autoCapitalize="characters"
@@ -169,34 +174,34 @@ export default function HouseholdSetupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
   },
-  title: { fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 8, color: '#292524' },
-  subtitle: { fontSize: 15, color: '#78716c', textAlign: 'center', marginBottom: 32 },
+  title: { fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 8, color: c.text },
+  subtitle: { fontSize: 15, color: c.textMuted, textAlign: 'center', marginBottom: 32 },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: '#f1efec',
+    backgroundColor: c.surfaceSubtle,
     borderRadius: 10,
     padding: 4,
     marginBottom: 24,
   },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
-  tabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  tabText: { fontSize: 15, fontWeight: '500', color: '#78716c' },
-  tabTextActive: { color: '#292524' },
+  tabActive: { backgroundColor: c.surface, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  tabText: { fontSize: 15, fontWeight: '500', color: c.textMuted },
+  tabTextActive: { color: c.text },
   form: { gap: 12 },
   input: {
     borderWidth: 1,
-    borderColor: '#e7e5e4',
+    borderColor: c.borderLight,
     borderRadius: 10,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#faf8f3',
+    backgroundColor: c.background,
   },
   codeInput: {
     textAlign: 'center',
@@ -204,9 +209,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 8,
   },
-  hint: { fontSize: 13, color: '#a8a29e', textAlign: 'center' },
+  hint: { fontSize: 13, color: c.textFaint, textAlign: 'center' },
   button: {
-    backgroundColor: '#4e7a5e',
+    backgroundColor: c.primary,
     borderRadius: 10,
     padding: 16,
     alignItems: 'center',

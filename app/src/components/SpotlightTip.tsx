@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import { Animated, BackHandler, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,6 +45,8 @@ interface Props extends SpotlightOptions {
 const PAD = 10; // padding around the target inside the highlight ring
 
 export function SpotlightTip({ visible, targetRef, targetRect, title, message, emoji = '💡', actionLabel = str.spotlightTip.defaultActionLabel, swipeDemo, position, total, hasNext, onToggleSkipAll, skipAllActive, onDismiss }: Props) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [measuredRect, setMeasuredRect] = useState<Rect | null>(null);
   const pulse = useRef(new Animated.Value(0)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
@@ -226,12 +231,12 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
 
         {onToggleSkipAll ? (
           <Pressable style={s.skipRow} onPress={onToggleSkipAll}>
-            <Ionicons name="bulb-outline" size={16} color="#b96a45" />
+            <Ionicons name="bulb-outline" size={16} color={c.accent} />
             <Text style={s.skipText}>{str.spotlightTip.toggleOnboarding}</Text>
             <Ionicons
               name={skipAllActive ? 'toggle-outline' : 'toggle'}
               size={24}
-              color={skipAllActive ? '#a8a29e' : '#b96a45'}
+              color={skipAllActive ? c.textFaint : c.accent}
             />
           </Pressable>
         ) : null}
@@ -285,7 +290,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
             }}
           >
             <View style={s.mockMealRow}>
-              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color="#d29a77" /></View>
+              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color={c.accent400} /></View>
               <View style={s.mockMealLines}>
                 <View style={[s.mockMealLine, { width: '60%' }]} />
                 <View style={[s.mockMealLine, { width: '35%', marginTop: 4, height: 6 }]} />
@@ -313,7 +318,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
             }}
           >
             <View style={s.mockMealRow}>
-              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color="#b96a45" /></View>
+              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color={c.accent} /></View>
               <View style={s.mockMealLines}>
                 <View style={[s.mockMealLine, { width: '60%' }]} />
                 <View style={[s.mockMealLine, { width: '35%', marginTop: 4, height: 6 }]} />
@@ -369,7 +374,7 @@ function computeCalloutTop(rect: Rect | null, screenH: number, swipeDemo?: 'hori
   return 40;
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   // Absolut fyllnad över hela app-fönstret. Hög elevation/zIndex så tipset
   // ligger ovanför flikar/innehåll. box-none på roten släpper igenom touch
   // där inget barn fångar (barnen — dim/pressable — hanterar dismiss).
@@ -379,15 +384,15 @@ const s = StyleSheet.create({
     position: 'absolute',
     borderRadius: 18,
     borderWidth: 3,
-    borderColor: '#d29a77',
+    borderColor: c.accent400,
     backgroundColor: 'transparent',
   },
   card: {
     position: 'absolute',
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
     borderRadius: 16,
     borderLeftWidth: 3,
-    borderLeftColor: '#e2bda1',
+    borderLeftColor: c.accent300,
     padding: 18,
     shadowColor: '#000',
     shadowOpacity: 0.25,
@@ -398,7 +403,7 @@ const s = StyleSheet.create({
   emojiBadge: {
     alignSelf: 'center',
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: '#faf1e9',
+    backgroundColor: c.accentTint,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 10,
   },
@@ -410,7 +415,7 @@ const s = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#b96a45',
+    backgroundColor: c.accent,
     opacity: 0.95,
     shadowColor: '#000',
     shadowOpacity: 0.35,
@@ -426,27 +431,27 @@ const s = StyleSheet.create({
   mockMealRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#e7e5e4',
+    borderColor: c.borderLight,
   },
   mockMealIcon: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: '#ecf3ec',
+    width: 32, height: 32, borderRadius: 16, backgroundColor: c.primaryTint,
     alignItems: 'center', justifyContent: 'center',
   },
   mockMealLines: { flex: 1 },
-  mockMealLine: { height: 10, borderRadius: 5, backgroundColor: '#e7e5e4' },
-  title: { fontSize: 17, fontWeight: '700', color: '#292524', marginBottom: 6, textAlign: 'center' },
-  message: { fontSize: 14, color: '#44403c', marginBottom: 14, textAlign: 'center', lineHeight: 20 },
-  btn: { backgroundColor: '#4e7a5e', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  mockMealLine: { height: 10, borderRadius: 5, backgroundColor: c.borderLight },
+  title: { fontSize: 17, fontWeight: '700', color: c.text, marginBottom: 6, textAlign: 'center' },
+  message: { fontSize: 14, color: c.textSecondary, marginBottom: 14, textAlign: 'center', lineHeight: 20 },
+  btn: { backgroundColor: c.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   topRow: { marginBottom: 10 },
-  positionPill: { alignSelf: 'flex-start', backgroundColor: '#f6e8dc', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  positionText: { fontSize: 12, fontWeight: '700', color: '#a55a37' },
-  skipRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1efec' },
-  skipText: { flex: 1, fontSize: 14, fontWeight: '500', color: '#292524' },
+  positionPill: { alignSelf: 'flex-start', backgroundColor: c.accent100, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  positionText: { fontSize: 12, fontWeight: '700', color: c.accent700 },
+  skipRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
+  skipText: { flex: 1, fontSize: 14, fontWeight: '500', color: c.text },
 });

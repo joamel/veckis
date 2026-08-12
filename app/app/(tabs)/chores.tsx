@@ -1,4 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useTheme } from '../../src/context/ThemeContext';
+import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   Animated,
@@ -234,6 +236,8 @@ type ChoreEntry = { chore: ChoreWithCompletion; variant: 'active' | 'done' | 'up
 
 
 export default function ChoresScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { getToken, userId } = useAuth();
@@ -914,7 +918,7 @@ export default function ChoresScreen() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color="#4e7a5e" /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   }
 
   return (
@@ -925,13 +929,13 @@ export default function ChoresScreen() {
           <View style={s.headerActions}>
             {(completedOnce.length > 0 || completedRecurring.length > 0) && (
               <Pressable style={[s.clearBtn, { paddingHorizontal: sp(10), paddingVertical: sp(6) }]} onPress={clearCompleted}>
-                <Ionicons name="trash-outline" size={fs(14)} color="#ef4444" />
+                <Ionicons name="trash-outline" size={fs(14)} color={c.danger} />
                 <Text style={[s.clearBtnText, { fontSize: fs(12) }]}>Rensa klara ({completedOnce.length + completedRecurring.length})</Text>
               </Pressable>
             )}
             {members.length > 0 && (
               <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive, { paddingHorizontal: sp(10), paddingVertical: sp(6) }]} onPress={() => setShowFilterModal(true)}>
-                <Ionicons name="person-outline" size={fs(14)} color={filterMemberIds.length > 0 ? '#b96a45' : '#78716c'} />
+                <Ionicons name="person-outline" size={fs(14)} color={filterMemberIds.length > 0 ? c.accent : c.textMuted} />
                 <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive, { fontSize: fs(12) }]}>Filter</Text>
                 {filterMemberIds.length > 0 && (
                   <View style={s.filterBadge}>
@@ -1003,13 +1007,13 @@ export default function ChoresScreen() {
                   <Ionicons
                     name="sparkles-outline"
                     size={fs(16)}
-                    color="#b96a45"
+                    color={c.accent}
                   />
                 </View>
                 <View style={s.cardContent}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
                     <Text style={[s.cardTitle, { fontSize: fs(15), flexShrink: 1 }, finishedLook && s.cardTitleDone]} numberOfLines={1}>{item.title}</Text>
-                    {!once && <Ionicons name="repeat-outline" size={fs(15)} color="#d29a77" style={{ flexShrink: 0 }} />}
+                    {!once && <Ionicons name="repeat-outline" size={fs(15)} color={c.accent400} style={{ flexShrink: 0 }} />}
                   </View>
                   <Text style={[s.cardMeta, { fontSize: fs(12) }, overdue && s.choreStatusOverdue]} numberOfLines={1}>{compactMeta || ' '}</Text>
                 </View>
@@ -1059,7 +1063,7 @@ export default function ChoresScreen() {
             <Text style={s.filterPopupTitle}>Filter</Text>
             {filterMemberIds.length > 0 && (
               <Pressable onPress={() => setFilterMemberIds([])} hitSlop={8}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#b96a45' }}>Rensa</Text>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: c.accent }}>Rensa</Text>
               </Pressable>
             )}
           </View>
@@ -1071,7 +1075,7 @@ export default function ChoresScreen() {
             <Ionicons
               name={filterMemberIds.length === 0 ? 'checkbox' : 'square-outline'}
               size={22}
-              color={filterMemberIds.length === 0 ? '#b96a45' : '#d6d3d1'}
+              color={filterMemberIds.length === 0 ? c.accent : c.border}
             />
           </Pressable>
           {members.map(m => {
@@ -1088,7 +1092,7 @@ export default function ChoresScreen() {
                 <Ionicons
                   name={active ? 'checkbox' : 'square-outline'}
                   size={22}
-                  color={active ? '#b96a45' : '#d6d3d1'}
+                  color={active ? c.accent : c.border}
                 />
               </Pressable>
             );
@@ -1112,7 +1116,7 @@ export default function ChoresScreen() {
               disabled={creating || !newTitle.trim()}
             >
               {creating
-                ? <ActivityIndicator color="#4e7a5e" size="small" />
+                ? <ActivityIndicator color={c.primary} size="small" />
                 : <Text style={[s.createHeaderSaveText, !newTitle.trim() && s.createHeaderSaveTextDisabled]}>Lägg till</Text>}
             </Pressable>
           </View>
@@ -1122,7 +1126,7 @@ export default function ChoresScreen() {
               <TextInput
                 style={s.input}
                 placeholder={str.modal.namePlaceholder}
-                placeholderTextColor="#a8a29e"
+                placeholderTextColor={c.textFaint}
                 value={newTitle}
                 onChangeText={setNewTitle}
                 autoFocus
@@ -1142,13 +1146,13 @@ export default function ChoresScreen() {
               {/* Datum / Startdatum — ovanför upprepning */}
               <Text style={s.label}>{newRecurrenceType === 'none' ? str.modal.dateLabel : str.modal.startLabel}</Text>
               <Pressable style={[s.dateBtn, newStartDate && s.dateBtnSet]} onPress={() => setShowNewStartPicker(true)}>
-                <Ionicons name="calendar-outline" size={14} color={newStartDate ? '#4e7a5e' : '#a8a29e'} />
+                <Ionicons name="calendar-outline" size={14} color={newStartDate ? c.primary : c.textFaint} />
                 <Text style={[s.dateBtnText, newStartDate && s.dateBtnTextSet]}>
                   {newStartDate ?? (newRecurrenceType === 'none' ? str.modal.chooseDate : str.modal.chooseStart)}
                 </Text>
                 {newStartDate && (
                   <Pressable onPress={(e) => { e.stopPropagation?.(); setNewStartDate(null); }} hitSlop={8}>
-                    <Ionicons name="close-circle" size={18} color="#a8a29e" />
+                    <Ionicons name="close-circle" size={18} color={c.textFaint} />
                   </Pressable>
                 )}
               </Pressable>
@@ -1156,7 +1160,7 @@ export default function ChoresScreen() {
               {/* Upprepning — stabil position, öppnar sub-sheet */}
               <Text style={s.label}>{cmpStr.recurrencePicker.label}</Text>
               <Pressable style={s.recurrenceRow} onPress={() => setShowNewRecurrencePicker(true)}>
-                <Ionicons name="repeat-outline" size={16} color={newRecurrenceType !== 'none' ? '#4e7a5e' : '#a8a29e'} />
+                <Ionicons name="repeat-outline" size={16} color={newRecurrenceType !== 'none' ? c.primary : c.textFaint} />
                 <Text style={[s.recurrenceRowText, newRecurrenceType !== 'none' && s.recurrenceRowTextActive]} numberOfLines={1}>
                   {newRecurrenceSummary}
                 </Text>
@@ -1165,10 +1169,10 @@ export default function ChoresScreen() {
                     onPress={(e) => { e.stopPropagation?.(); setNewRecurrenceType('none'); setNewRecurrenceWeeks(1); setNewRecurrenceDays([]); }}
                     hitSlop={8}
                   >
-                    <Ionicons name="close-circle" size={18} color="#a8a29e" />
+                    <Ionicons name="close-circle" size={18} color={c.textFaint} />
                   </Pressable>
                 ) : (
-                  <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
+                  <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
                 )}
               </Pressable>
 
@@ -1228,10 +1232,10 @@ export default function ChoresScreen() {
                       <Text style={s.orderName}>{m.displayName}</Text>
                       <View style={s.orderBtns}>
                         <Pressable onPress={moveUp} disabled={i === 0} style={s.orderBtn} accessibilityLabel={cmpStr.multiMemberPicker.order.moveUp}>
-                          <Ionicons name="chevron-up" size={20} color={i === 0 ? '#d6d3d1' : '#78716c'} />
+                          <Ionicons name="chevron-up" size={20} color={i === 0 ? c.border : c.textMuted} />
                         </Pressable>
                         <Pressable onPress={moveDown} disabled={i === newAssignedToMany.length - 1} style={s.orderBtn} accessibilityLabel={cmpStr.multiMemberPicker.order.moveDown}>
-                          <Ionicons name="chevron-down" size={20} color={i === newAssignedToMany.length - 1 ? '#d6d3d1' : '#78716c'} />
+                          <Ionicons name="chevron-down" size={20} color={i === newAssignedToMany.length - 1 ? c.border : c.textMuted} />
                         </Pressable>
                       </View>
                     </View>
@@ -1264,10 +1268,10 @@ export default function ChoresScreen() {
                   <Text style={s.orderName}>{m.displayName}</Text>
                   <View style={s.orderBtns}>
                     <Pressable onPress={moveUp} disabled={i === 0} style={s.orderBtn} accessibilityLabel={cmpStr.multiMemberPicker.order.moveUp}>
-                      <Ionicons name="chevron-up" size={20} color={i === 0 ? '#d6d3d1' : '#78716c'} />
+                      <Ionicons name="chevron-up" size={20} color={i === 0 ? c.border : c.textMuted} />
                     </Pressable>
                     <Pressable onPress={moveDown} disabled={i === editAssignedToMany.length - 1} style={s.orderBtn} accessibilityLabel={cmpStr.multiMemberPicker.order.moveDown}>
-                      <Ionicons name="chevron-down" size={20} color={i === editAssignedToMany.length - 1 ? '#d6d3d1' : '#78716c'} />
+                      <Ionicons name="chevron-down" size={20} color={i === editAssignedToMany.length - 1 ? c.border : c.textMuted} />
                     </Pressable>
                   </View>
                 </View>
@@ -1289,47 +1293,47 @@ export default function ChoresScreen() {
       <Modal visible={!!viewingChore} animationType="slide" onRequestClose={() => setViewingChore(null)}>
         <View style={[s.viewFull, { paddingTop: Platform.OS === 'ios' ? insets.top : 0 }]}>
           {viewingChore && (() => {
-            const c = viewingChore;
-            const once = isOnce(c);
-            const rec = once ? null : recurringStatus(c);
-            const ids = c.assignedToMany?.length ? c.assignedToMany : c.assignedTo ? [c.assignedTo] : [];
+            const cc = viewingChore;
+            const once = isOnce(cc);
+            const rec = once ? null : recurringStatus(cc);
+            const ids = cc.assignedToMany?.length ? cc.assignedToMany : cc.assignedTo ? [cc.assignedTo] : [];
             const names = ids.map(id => members.find(m => m.id === id)?.displayName).filter(Boolean) as string[];
-            const freqText = choreSummary(c);
+            const freqText = choreSummary(cc);
             const statusText = rec
               ? (rec.state === 'overdue' ? `Förfallen sedan ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
                 : rec.state === 'today' ? 'Att göra idag'
                 : rec.state === 'done' ? (rec.nextDate ? `Klar · ${formatOcc(rec.nextDate)}` : 'Klar') : null)
               : null;
-            const isRotating = !!c.rotation && (c.assignedToMany?.length ?? 0) >= 2;
+            const isRotating = !!cc.rotation && (cc.assignedToMany?.length ?? 0) >= 2;
             // Count completions that happened before the history window so the turn
             // index stays in sync with the total completions.length used by the card.
             const firstOccDate = rec?.occurrences[0]?.date ?? null;
             const initialDoneCount = firstOccDate
-              ? c.completions.filter(comp => completionDate(comp) < firstOccDate).length
+              ? cc.completions.filter(comp => completionDate(comp) < firstOccDate).length
               : 0;
             const turnByDate = isRotating
-              ? computeTurnHistory({ rotation: true, assignedToMany: c.assignedToMany }, rec?.occurrences ?? [], initialDoneCount)
+              ? computeTurnHistory({ rotation: true, assignedToMany: cc.assignedToMany }, rec?.occurrences ?? [], initialDoneCount)
               : new Map<string, string>();
             return (
               <>
                 <View style={s.viewNav}>
                   <Pressable onPress={() => setViewingChore(null)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel={common.actions.close}>
-                    <Ionicons name="arrow-back" size={24} color="#292524" />
+                    <Ionicons name="arrow-back" size={24} color={c.text} />
                   </Pressable>
                   <View style={{ flex: 1 }} />
-                  <Pressable onPress={() => openChoreActions(c)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel={common.actions.more}>
-                    <Ionicons name="ellipsis-vertical" size={22} color="#292524" />
+                  <Pressable onPress={() => openChoreActions(cc)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel={common.actions.more}>
+                    <Ionicons name="ellipsis-vertical" size={22} color={c.text} />
                   </Pressable>
                 </View>
                 <ScrollView contentContainerStyle={[s.viewBody, { paddingBottom: insets.bottom + 24 }]}>
-                  <Text style={s.viewTitle}>{c.emoji ? `${c.emoji} ${c.title}` : c.title}</Text>
+                  <Text style={s.viewTitle}>{cc.emoji ? `${cc.emoji} ${cc.title}` : cc.title}</Text>
                   <View style={s.viewRow}>
-                    <Ionicons name="repeat-outline" size={18} color="#78716c" />
+                    <Ionicons name="repeat-outline" size={18} color={c.textMuted} />
                     <Text style={s.viewRowText}>{freqText}</Text>
                   </View>
                   {names.length > 0 && (
                     <View style={s.viewRow}>
-                      <Ionicons name="people-outline" size={18} color="#78716c" />
+                      <Ionicons name="people-outline" size={18} color={c.textMuted} />
                       <Text style={s.viewRowText}>{names.join(', ')}{isRotating ? ' (rotation)' : ''}</Text>
                     </View>
                   )}
@@ -1338,21 +1342,21 @@ export default function ChoresScreen() {
                       <Ionicons
                         name={rec?.state === 'done' ? 'checkmark-circle-outline' : rec?.state === 'overdue' ? 'alert-circle-outline' : 'time-outline'}
                         size={18}
-                        color={rec?.state === 'overdue' ? '#b45309' : rec?.state === 'done' ? '#10b981' : '#78716c'}
+                        color={rec?.state === 'overdue' ? c.warningText : rec?.state === 'done' ? c.success : c.textMuted}
                       />
-                      <Text style={[s.viewRowText, rec?.state === 'overdue' && { color: '#b45309' }, rec?.state === 'done' && { color: '#10b981' }]}>
+                      <Text style={[s.viewRowText, rec?.state === 'overdue' && { color: c.warningText }, rec?.state === 'done' && { color: c.success }]}>
                         {statusText}
                       </Text>
                     </View>
                   )}
                   <View style={s.viewRow}>
-                    <Ionicons name={c.isShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color="#78716c" />
-                    <Text style={s.viewRowText}>{c.isShared ? 'Gemensam' : 'Bara för mig'}</Text>
+                    <Ionicons name={cc.isShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={c.textMuted} />
+                    <Text style={s.viewRowText}>{cc.isShared ? 'Gemensam' : 'Bara för mig'}</Text>
                   </View>
-                  {!!c.description && (
+                  {!!cc.description && (
                     <View style={[s.viewRow, { alignItems: 'flex-start' }]}>
-                      <Ionicons name="document-text-outline" size={18} color="#78716c" style={{ marginTop: 2 }} />
-                      <Text style={s.viewRowText}>{c.description}</Text>
+                      <Ionicons name="document-text-outline" size={18} color={c.textMuted} style={{ marginTop: 2 }} />
+                      <Text style={s.viewRowText}>{cc.description}</Text>
                     </View>
                   )}
                   {rec && rec.occurrences.length > 0 && (
@@ -1371,7 +1375,7 @@ export default function ChoresScreen() {
                             <Ionicons
                               name={o.done ? 'checkmark-circle' : o.isCurrent ? 'ellipse-outline' : 'close-circle-outline'}
                               size={16}
-                              color={o.done ? '#10b981' : o.isCurrent ? '#b96a45' : '#d6d3d1'}
+                              color={o.done ? c.success : o.isCurrent ? c.accent : c.border}
                               style={{ marginTop: o.note ? 2 : 0 }}
                             />
                             <View style={{ flex: 1 }}>
@@ -1414,7 +1418,7 @@ export default function ChoresScreen() {
             <TextInput
               style={s.input}
               placeholder={str.modal.nameLabel}
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={c.textFaint}
               value={editTitle}
               onChangeText={setEditTitle}
               returnKeyType="done"
@@ -1435,12 +1439,12 @@ export default function ChoresScreen() {
                 <Text style={s.label}>{str.modal.dateLabel}</Text>
                 <View style={s.dateRow}>
                   <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
-                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4e7a5e' : '#a8a29e'} />
+                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? c.primary : c.textFaint} />
                     <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? str.modal.chooseDate}</Text>
                   </Pressable>
                   {editStartDate && (
                     <Pressable onPress={() => setEditStartDate(null)} hitSlop={8} accessibilityLabel={str.modal.clearDate}>
-                      <Ionicons name="close-circle" size={18} color="#a8a29e" />
+                      <Ionicons name="close-circle" size={18} color={c.textFaint} />
                     </Pressable>
                   )}
                 </View>
@@ -1473,12 +1477,12 @@ export default function ChoresScreen() {
                 <Text style={s.label}>{str.modal.startLabel}</Text>
                 <View style={s.dateRow}>
                   <Pressable style={[s.dateBtn, editStartDate && s.dateBtnSet]} onPress={() => setShowEditStartPicker(true)}>
-                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? '#4e7a5e' : '#a8a29e'} />
+                    <Ionicons name="calendar-outline" size={14} color={editStartDate ? c.primary : c.textFaint} />
                     <Text style={[s.dateBtnText, editStartDate && s.dateBtnTextSet]}>{editStartDate ?? str.modal.chooseStart}</Text>
                   </Pressable>
                   {editStartDate && (
                     <Pressable onPress={() => setEditStartDate(null)} hitSlop={8} accessibilityLabel={str.modal.clearStartDate}>
-                      <Ionicons name="close-circle" size={18} color="#a8a29e" />
+                      <Ionicons name="close-circle" size={18} color={c.textFaint} />
                     </Pressable>
                   )}
                 </View>
@@ -1496,7 +1500,7 @@ export default function ChoresScreen() {
                 <Ionicons
                   name={showEditAdvanced ? 'chevron-up' : 'chevron-down'}
                   size={14}
-                  color="#78716c"
+                  color={c.textMuted}
                 />
               </Pressable>
             )}
@@ -1515,7 +1519,7 @@ export default function ChoresScreen() {
               style={s.deleteBtn}
               onPress={() => editingChore && deleteChore(editingChore.id, editingChore.title)}
             >
-              <Ionicons name="trash-outline" size={16} color="#ef4444" />
+              <Ionicons name="trash-outline" size={16} color={c.danger} />
               <Text style={s.deleteBtnText}>{str.modal.deleteButton}</Text>
             </Pressable>
           </ScrollView>
@@ -1526,128 +1530,128 @@ export default function ChoresScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#faf8f3' },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#fecaca', backgroundColor: '#fff5f5' },
-  clearBtnText: { fontSize: 12, color: '#ef4444', fontWeight: '500' },
+  clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: c.dangerBorder, backgroundColor: c.dangerTint },
+  clearBtnText: { fontSize: 12, color: c.danger, fontWeight: '500' },
   list: { padding: 16, gap: 2 },
   columnWrapper: { gap: 2 },
   cardWrapTablet: { flex: 1 },
   listEmpty: { flex: 1 },
   cardWrap: { position: 'relative' },
-  cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
-  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#292524', borderRadius: 24, zIndex: 20 },
+  cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: c.surface, borderRadius: 11 },
+  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: c.text, borderRadius: 24, zIndex: 20 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  card: { backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#e2bda1', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  card: { backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.accent300, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   cardInner: { borderRadius: 12, overflow: 'hidden' },
   cardMain: { flexDirection: 'row', alignItems: 'center' },
-  cardDone: { backgroundColor: '#faf8f3', borderWidth: 1, borderColor: '#e7e5e4' },
-  cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#faf1e9', alignItems: 'center', justifyContent: 'center' },
+  cardDone: { backgroundColor: c.background, borderWidth: 1, borderColor: c.borderLight },
+  cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: c.accentTint, alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1, minWidth: 0 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#292524' },
-  cardTitleDone: { textDecorationLine: 'line-through', color: '#a8a29e' },
-  cardMeta: { fontSize: 12, color: '#78716c', marginTop: 4 },
-  cardOverdue: { borderLeftColor: '#f59e0b' },
-  choreStatus: { fontSize: 12, fontWeight: '600', marginTop: 3, color: '#78716c' },
-  choreStatusOverdue: { color: '#b45309' },
-  choreStatusDone: { color: '#10b981' },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: c.text },
+  cardTitleDone: { textDecorationLine: 'line-through', color: c.textFaint },
+  cardMeta: { fontSize: 12, color: c.textMuted, marginTop: 4 },
+  cardOverdue: { borderLeftColor: c.warning },
+  choreStatus: { fontSize: 12, fontWeight: '600', marginTop: 3, color: c.textMuted },
+  choreStatusOverdue: { color: c.warningText },
+  choreStatusDone: { color: c.success },
   expandBtn: { padding: 4, flexShrink: 0 },
-  historyBox: { borderTopWidth: 1, borderTopColor: '#f1efec', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, gap: 8 },
+  historyBox: { borderTopWidth: 1, borderTopColor: c.surfaceSubtle, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, gap: 8 },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  historyDate: { fontSize: 13, color: '#44403c', flex: 1 },
-  historyMissed: { color: '#a8a29e' },
-  historyNote: { fontSize: 12, color: '#a8a29e', fontStyle: 'italic', marginTop: 1 },
-  historyEmpty: { fontSize: 13, color: '#a8a29e', fontStyle: 'italic' },
-  expandedHeader: { gap: 4, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f1efec', marginBottom: 4 },
-  expandedMeta: { fontSize: 12, color: '#78716c' },
-  expandedActions: { flexDirection: 'row', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f1efec' },
-  expandedActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#faf8f3' },
-  expandedActionText: { fontSize: 13, fontWeight: '600', color: '#4e7a5e' },
-  historyDoBtn: { backgroundColor: '#b96a45', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5 },
+  historyDate: { fontSize: 13, color: c.textSecondary, flex: 1 },
+  historyMissed: { color: c.textFaint },
+  historyNote: { fontSize: 12, color: c.textFaint, fontStyle: 'italic', marginTop: 1 },
+  historyEmpty: { fontSize: 13, color: c.textFaint, fontStyle: 'italic' },
+  expandedHeader: { gap: 4, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, marginBottom: 4 },
+  expandedMeta: { fontSize: 12, color: c.textMuted },
+  expandedActions: { flexDirection: 'row', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
+  expandedActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: c.background },
+  expandedActionText: { fontSize: 13, fontWeight: '600', color: c.primary },
+  historyDoBtn: { backgroundColor: c.accent, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5 },
   historyDoBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  checkBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#d6d3d1', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  checkBtnDone: { backgroundColor: '#10b981', borderColor: '#10b981' },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center', shadowColor: '#4e7a5e', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  checkBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: c.border, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  checkBtnDone: { backgroundColor: c.success, borderColor: c.success },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '92%' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e7e5e4', alignSelf: 'center', marginBottom: 4 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524', marginBottom: 12 },
+  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '92%' },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 12 },
   sheetScroll: { gap: 14, paddingBottom: 40 },
-  input: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#faf8f3' },
-  label: { fontSize: 14, fontWeight: '600', color: '#44403c' },
+  input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.background },
+  label: { fontSize: 14, fontWeight: '600', color: c.textSecondary },
   freqRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   freqRowNoWrap: { flexDirection: 'row', gap: 8 },
-  freqOption: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3', flexShrink: 0, overflow: 'visible' },
-  freqOptionActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
-  freqOptionText: { fontSize: 13, color: '#78716c' },
-  freqOptionTextActive: { color: '#4e7a5e', fontWeight: '600' },
+  freqOption: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background, flexShrink: 0, overflow: 'visible' },
+  freqOptionActive: { borderColor: c.primary, backgroundColor: c.primaryTint },
+  freqOptionText: { fontSize: 13, color: c.textMuted },
+  freqOptionTextActive: { color: c.primary, fontWeight: '600' },
   freqChevron: { fontSize: 9 },
   dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  dayOption: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
-  dayOptionActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
-  dayOptionText: { fontSize: 12, color: '#78716c' },
-  dayOptionTextActive: { color: '#4e7a5e', fontWeight: '600' },
-  button: { backgroundColor: '#4e7a5e', borderRadius: 10, padding: 16, alignItems: 'center' },
+  dayOption: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background },
+  dayOptionActive: { borderColor: c.primary, backgroundColor: c.primaryTint },
+  dayOptionText: { fontSize: 12, color: c.textMuted },
+  dayOptionTextActive: { color: c.primary, fontWeight: '600' },
+  button: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  toast: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  toast: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: c.successLight, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
-  deleteBtnText: { color: '#ef4444', fontSize: 14, fontWeight: '500' },
+  deleteBtnText: { color: c.danger, fontSize: 14, fontWeight: '500' },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
-  dateBtnSet: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
-  dateBtnText: { fontSize: 13, color: '#a8a29e', flex: 1 },
-  dateBtnTextSet: { color: '#4e7a5e', fontWeight: '600' },
+  dateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background },
+  dateBtnSet: { borderColor: c.primary, backgroundColor: c.primaryTint },
+  dateBtnText: { fontSize: 13, color: c.textFaint, flex: 1 },
+  dateBtnTextSet: { color: c.primary, fontWeight: '600' },
   advancedToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 10 },
   orderDialogOverlay: { flex: 1, backgroundColor: 'rgba(41,37,36,0.55)', justifyContent: 'center', alignItems: 'center', padding: 32 },
-  orderDialogCard: { width: '100%', backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
-  orderDialogTitle: { fontSize: 12, fontWeight: '600', color: '#a8a29e', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
-  orderDialogSub: { fontSize: 13, color: '#78716c', paddingHorizontal: 16, paddingBottom: 8 },
-  orderDialogRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: '#f1efec' },
+  orderDialogCard: { width: '100%', backgroundColor: c.surface, borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
+  orderDialogTitle: { fontSize: 12, fontWeight: '600', color: c.textFaint, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  orderDialogSub: { fontSize: 13, color: c.textMuted, paddingHorizontal: 16, paddingBottom: 8 },
+  orderDialogRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
   orderDialogRowFirst: { borderTopWidth: 0 },
-  orderDialogDoneBtn: { paddingVertical: 14, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f1efec' },
-  orderDialogDoneText: { fontSize: 16, fontWeight: '600', color: '#4e7a5e' },
-  orderNum: { fontSize: 14, fontWeight: '700', color: '#b96a45', width: 20, textAlign: 'center' },
-  orderName: { flex: 1, fontSize: 15, fontWeight: '500', color: '#292524' },
+  orderDialogDoneBtn: { paddingVertical: 14, alignItems: 'center', borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
+  orderDialogDoneText: { fontSize: 16, fontWeight: '600', color: c.primary },
+  orderNum: { fontSize: 14, fontWeight: '700', color: c.accent, width: 20, textAlign: 'center' },
+  orderName: { flex: 1, fontSize: 15, fontWeight: '500', color: c.text },
   orderBtns: { flexDirection: 'row', gap: 2 },
   orderBtn: { padding: 6 },
-  advancedToggleText: { fontSize: 13, color: '#78716c', fontWeight: '500' },
-  createFull: { flex: 1, backgroundColor: '#fff' },
-  createHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  advancedToggleText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
+  createFull: { flex: 1, backgroundColor: c.surface },
+  createHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   createHeaderBtn: { minWidth: 60 },
-  createHeaderCancel: { fontSize: 16, color: '#78716c' },
-  createHeaderTitle: { fontSize: 17, fontWeight: '700', color: '#292524' },
+  createHeaderCancel: { fontSize: 16, color: c.textMuted },
+  createHeaderTitle: { fontSize: 17, fontWeight: '700', color: c.text },
   createHeaderSave: { minWidth: 60, alignItems: 'flex-end' },
   createHeaderSaveDisabled: { opacity: 0.4 },
-  createHeaderSaveText: { fontSize: 16, fontWeight: '600', color: '#4e7a5e' },
-  createHeaderSaveTextDisabled: { color: '#a8a29e' },
+  createHeaderSaveText: { fontSize: 16, fontWeight: '600', color: c.primary },
+  createHeaderSaveTextDisabled: { color: c.textFaint },
   createScroll: { gap: 14, padding: 20, paddingBottom: 40 },
-  recurrenceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
-  recurrenceRowText: { flex: 1, fontSize: 14, color: '#a8a29e', fontWeight: '500' },
-  recurrenceRowTextActive: { color: '#4e7a5e', fontWeight: '600' },
+  recurrenceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background },
+  recurrenceRowText: { flex: 1, fontSize: 14, color: c.textFaint, fontWeight: '500' },
+  recurrenceRowTextActive: { color: c.primary, fontWeight: '600' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
-  filterBtnActive: { borderColor: '#b96a45', backgroundColor: '#faf1e9' },
-  filterBtnText: { fontSize: 12, color: '#78716c', fontWeight: '500' },
-  filterBtnTextActive: { color: '#b96a45', fontWeight: '600' },
-  filterBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#b96a45', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background },
+  filterBtnActive: { borderColor: c.accent, backgroundColor: c.accentTint },
+  filterBtnText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
+  filterBtnTextActive: { color: c.accent, fontWeight: '600' },
+  filterBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   filterBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  filterPopup: { position: 'absolute', top: 0, right: 0, backgroundColor: '#fff', borderRadius: 12, padding: 16, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 8, overflow: 'hidden' },
-  filterPopupTitle: { fontSize: 13, fontWeight: '600', color: '#78716c', textTransform: 'uppercase', letterSpacing: 0.5 },
-  filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
-  filterMemberName: { fontSize: 15, color: '#44403c', flex: 1, marginRight: 12 },
-  filterMemberNameActive: { color: '#b96a45', fontWeight: '600' },
-  viewFull: { flex: 1, backgroundColor: '#fff' },
+  filterPopup: { position: 'absolute', top: 0, right: 0, backgroundColor: c.surface, borderRadius: 12, padding: 16, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 8, overflow: 'hidden' },
+  filterPopupTitle: { fontSize: 13, fontWeight: '600', color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
+  filterMemberName: { fontSize: 15, color: c.textSecondary, flex: 1, marginRight: 12 },
+  filterMemberNameActive: { color: c.accent, fontWeight: '600' },
+  viewFull: { flex: 1, backgroundColor: c.surface },
   viewNav: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8 },
   viewNavBtn: { padding: 8 },
   viewBody: { paddingHorizontal: 20, paddingTop: 8, gap: 4 },
-  viewTitle: { fontSize: 24, fontWeight: '700', color: '#292524', marginBottom: 12 },
+  viewTitle: { fontSize: 24, fontWeight: '700', color: c.text, marginBottom: 12 },
   viewRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
-  viewRowText: { flex: 1, fontSize: 16, color: '#44403c' },
-  viewDivider: { height: 1, backgroundColor: '#f1efec', marginVertical: 12 },
-  viewSectionTitle: { fontSize: 14, fontWeight: '600', color: '#78716c', marginBottom: 4 },
+  viewRowText: { flex: 1, fontSize: 16, color: c.textSecondary },
+  viewDivider: { height: 1, backgroundColor: c.surfaceSubtle, marginVertical: 12 },
+  viewSectionTitle: { fontSize: 14, fontWeight: '600', color: c.textMuted, marginBottom: 4 },
 });

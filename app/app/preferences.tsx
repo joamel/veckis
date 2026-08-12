@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../src/context/ThemeContext';
+import type { Palette } from '../src/lib/theme';
 // Inställningar för appen — egen route med tillbaka-pil. Innehåller saker
 // man sällan ändrar (notiser, 2FA, juridik, support) och som inte hör hemma
 // på Profil-fliken där fokus är hushållet + dess medlemmar.
@@ -16,6 +19,8 @@ import { LANDING_TABS, DEFAULT_LANDING_TAB, getLandingTab, setLandingTab, type L
 import { preferences as str } from '../src/lib/svenska';
 
 export default function PreferencesScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
   const { skipAll, setSkipAll } = useOnboardingMaster();
   const { showToast, showError } = useToast();
@@ -72,7 +77,7 @@ export default function PreferencesScreen() {
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel={str.backA11y}>
-          <Ionicons name="arrow-back" size={24} color="#292524" />
+          <Ionicons name="arrow-back" size={24} color={c.text} />
         </Pressable>
         <Text style={s.headerTitle}>{str.title}</Text>
         <View style={{ width: 24 }} />
@@ -82,9 +87,9 @@ export default function PreferencesScreen() {
         <Text style={s.sectionLabel}>{str.sections.notifications}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={() => setShowNotifModal(true)}>
-            <Ionicons name="notifications-outline" size={18} color="#4e7a5e" />
+            <Ionicons name="notifications-outline" size={18} color={c.primary} />
             <Text style={s.rowText}>{str.rows.notifications}</Text>
-            <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
+            <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
           </Pressable>
         </View>
 
@@ -95,27 +100,27 @@ export default function PreferencesScreen() {
             setSoundEnabled(next);
             await SecureStore.setItemAsync(SOUND_CHECKOUT_KEY, next ? '1' : '0').catch(() => {});
           }}>
-            <Ionicons name="musical-note-outline" size={18} color="#b96a45" />
+            <Ionicons name="musical-note-outline" size={18} color={c.accent} />
             <Text style={s.rowText}>{str.rows.sound}</Text>
-            <Ionicons name={soundEnabled ? 'toggle' : 'toggle-outline'} size={22} color={soundEnabled ? '#b96a45' : '#a8a29e'} />
+            <Ionicons name={soundEnabled ? 'toggle' : 'toggle-outline'} size={22} color={soundEnabled ? c.accent : c.textFaint} />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={async () => {
             const next = !hapticEnabled;
             setHapticEnabled(next);
             await SecureStore.setItemAsync(HAPTIC_CHECKOUT_KEY, next ? '1' : '0').catch(() => {});
           }}>
-            <Ionicons name="phone-portrait-outline" size={18} color="#b96a45" />
+            <Ionicons name="phone-portrait-outline" size={18} color={c.accent} />
             <Text style={s.rowText}>{str.rows.haptics}</Text>
-            <Ionicons name={hapticEnabled ? 'toggle' : 'toggle-outline'} size={22} color={hapticEnabled ? '#b96a45' : '#a8a29e'} />
+            <Ionicons name={hapticEnabled ? 'toggle' : 'toggle-outline'} size={22} color={hapticEnabled ? c.accent : c.textFaint} />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={() => { setSkipAll(skipAll !== true); handleResetTips(); }}>
-            <Ionicons name="bulb-outline" size={18} color="#b96a45" />
+            <Ionicons name="bulb-outline" size={18} color={c.accent} />
             <Text style={s.rowText}>{str.rows.onboardingTips}</Text>
-            <Ionicons name={skipAll === true ? 'toggle-outline' : 'toggle'} size={22} color={skipAll === true ? '#a8a29e' : '#b96a45'} />
+            <Ionicons name={skipAll === true ? 'toggle-outline' : 'toggle'} size={22} color={skipAll === true ? c.textFaint : c.accent} />
           </Pressable>
           {/* Favorit-landningssida: vilken flik appen öppnar på */}
           <View style={[s.row, s.rowBorder, { flexWrap: 'wrap' }]}>
-            <Ionicons name="home-outline" size={18} color="#b96a45" />
+            <Ionicons name="home-outline" size={18} color={c.accent} />
             <Text style={s.rowText}>{str.landing.label}</Text>
             <View style={s.landingChips}>
               {LANDING_TABS.map(t => {
@@ -126,7 +131,7 @@ export default function PreferencesScreen() {
                     style={[s.landingChip, active && s.landingChipActive]}
                     onPress={() => { setLandingTabState(t.key); setLandingTab(t.key).catch(() => {}); }}
                   >
-                    <Ionicons name={t.icon as never} size={13} color={active ? '#fff' : '#78716c'} />
+                    <Ionicons name={t.icon as never} size={13} color={active ? '#fff' : c.textMuted} />
                     <Text style={[s.landingChipText, active && s.landingChipTextActive]}>{str.landing.tabs[t.labelKey]}</Text>
                   </Pressable>
                 );
@@ -138,28 +143,28 @@ export default function PreferencesScreen() {
         <Text style={s.sectionLabel}>{str.sections.security}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={() => openClerkPortal('/user/security', str.toasts.errorSecurityPortal)}>
-            <Ionicons name="shield-checkmark-outline" size={18} color="#b96a45" />
+            <Ionicons name="shield-checkmark-outline" size={18} color={c.accent} />
             <Text style={s.rowText}>{str.rows.twoFactor}</Text>
-            <Ionicons name="open-outline" size={16} color="#a8a29e" />
+            <Ionicons name="open-outline" size={16} color={c.textFaint} />
           </Pressable>
         </View>
 
         <Text style={s.sectionLabel}>{str.sections.about}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={handleContactSupport}>
-            <Ionicons name="mail-outline" size={18} color="#4e7a5e" />
+            <Ionicons name="mail-outline" size={18} color={c.primary} />
             <Text style={s.rowText}>{str.rows.contactSupport}</Text>
-            <Ionicons name="open-outline" size={16} color="#a8a29e" />
+            <Ionicons name="open-outline" size={16} color={c.textFaint} />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={() => router.push('/privacy' as never)}>
-            <Ionicons name="shield-outline" size={18} color="#78716c" />
+            <Ionicons name="shield-outline" size={18} color={c.textMuted} />
             <Text style={s.rowText}>{str.rows.privacyPolicy}</Text>
-            <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
+            <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={() => router.push('/terms' as never)}>
-            <Ionicons name="document-text-outline" size={18} color="#78716c" />
+            <Ionicons name="document-text-outline" size={18} color={c.textMuted} />
             <Text style={s.rowText}>{str.rows.terms}</Text>
-            <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
+            <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
           </Pressable>
         </View>
       </ScrollView>
@@ -169,19 +174,19 @@ export default function PreferencesScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#faf8f3' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#292524' },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: c.text },
   scroll: { padding: 16, paddingBottom: 40 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#a8a29e', letterSpacing: 0.8, marginTop: 16, marginBottom: 8, paddingHorizontal: 4 },
-  group: { backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#d6d3d1', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, paddingHorizontal: 14 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginTop: 16, marginBottom: 8, paddingHorizontal: 4 },
+  group: { backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, paddingHorizontal: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  rowBorder: { borderTopWidth: 1, borderTopColor: '#f1efec' },
-  rowText: { flex: 1, fontSize: 15, color: '#292524', fontWeight: '500' },
+  rowBorder: { borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
+  rowText: { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
   landingChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, width: '100%', marginTop: 4, paddingLeft: 30 },
-  landingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f1efec' },
-  landingChipActive: { backgroundColor: '#4e7a5e' },
-  landingChipText: { fontSize: 12, fontWeight: '600', color: '#78716c' },
+  landingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: c.surfaceSubtle },
+  landingChipActive: { backgroundColor: c.primary },
+  landingChipText: { fontSize: 12, fontWeight: '600', color: c.textMuted },
   landingChipTextActive: { color: '#fff' },
 });

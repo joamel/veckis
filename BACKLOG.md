@@ -13,13 +13,19 @@
 - [x] mer optimistisk uppdatering. t.ex. skala recept hoppar portioner fram och tillbaka när den laddar. bättre att den ändrar tillbaka om den failar — löst: portions-override behålls tills sparningen committat (reload nollställer inte pending), släpps vid success, reverteras bara vid fel
 
 ### Inställningar
-- [ ] Lägga till dark mode — utgå från "Laga nu"-lägets gamla mörka palett (som användaren gillade): bg `#1c1917`, text `#f1efec`/`#e7e5e4`, dämpat `#57534e`/`#44403c`, grön accent `#7fa88d`, primär `#4e7a5e`. (Se git-historik för `cook*`-stilarna i `recipes/[recipeId].tsx` innan ljus-konverteringen.)
+- [x] Lägga till dark mode — HELA appen konverterad till `makeStyles(c)` + semantiska tokens via `useTheme()`. `theme.ts` (light+dark-paletter inkl. status-tokens: danger/warning-tint, pink "handlar nu"), `ThemeContext` (System/Ljust/Mörkt, OS-följning, SecureStore-persistens), Utseende-toggle i Hushållet. Alla flikar (Inköp/Meny/Recept/Kalender/Sysslor), butiker, modaler/banners, auth + delade komponenter, flikrad + Stack-bakgrund. Medvetet FIXA (temaoberoende): "Laga nu"-cook-modalen (ljus per önskemål), reminder-snake-dialen i Kalender, splash-skärmen, Google-knappen, toast-overlays, status bar-strippen. ErrorBoundary (class) läser OS-schemat direkt. Verifierat: `tsc` rent, 93 tester gröna.
 
 ### Inköpslistan
 - [x] Ingrediensförslag i nytt recept göms under tangentbordet. Borde hoppa upp precis som måttenheter gör — löst: namn-fältet får samma scroll-into-view-effekt som enhets-chipsen (förslagen scrollas ovanför tangentbordet)
 - [x] Klarmarkera hela listan borde ha en bekräftelsedialog och en "ångra"-toast — löst: bekräftelsedialog + 5s ångra-toast (som radera-varan)
 - [x] I byta butiksläget står det "Vald" så fort man trycker på en annan butik. Borde ligga kvar på den faktiskt valda butiken så man vet vilken man har om man avbryter — löst: "Nuvarande"-etikett ligger kvar på sparad butik; bock/highlight visar bara pending-val
 - [x] Baka ihop klarmarkerade varor med samma namn+enhet till en rad (t.ex. 4× "1 st gurka" → "gurka 4 st") — löst: visnings-aggregering i klart-högen (`aggregateByNameUnit`); toggle/radera gäller hela gruppen, olika enheter bakas ej ihop
+- [ ] **Smartare global kategori-inlärning (moderation/konsensus)** — idag är globala `IngredientAlias.category` **last-write-wins**: när ett hushåll byter kategori på en vara kör PATCH-routen `storeIngredientCategory(name, category)` med `update: { category }` → skriver över den globala kategorin för ALLA hushåll direkt. En enda (fel)ändring kan alltså "förstöra" en kategori globalt. (Skadan är dock begränsad: hushålls-stapeln vinner lokalt, så bara hushåll utan egen preferens för varan påverkas — det globala är i praktiken "bästa gissning för nykomlingar".)
+  **Föreslagen lösning, i steg:**
+  - **Steg 1 (nu, avgränsat): "sticky + föreslå".** Skriv inte över en etablerad global kategori (`seenCount` ≥ tröskel, t.ex. 3) vid en enskild ändring — nya/sällsynta varor lär sig fortfarande direkt. Logga i stället ändringen som ett *förslag* (hushåll, från→till) i en liten förslags-tabell.
+  - **Steg 2: admin-moderationskö** — förslagen från steg 1 visas i "Datakvalitet-städning"-admin-vyn (idéstadie-listan); admin godkänner/avslår. Låg volym nu när användarbasen är liten → ger kontroll + data att kalibrera trösklar med.
+  - **Steg 3 (vid skala): automatisk konsensus** — en kategori flippar automatiskt när **K distinkta hushåll** oberoende föreslår samma nya kategori (förslagen = röster), så admin inte blir flaskhals.
+  - **Hoppa över** reputation/score per hushåll tills faktiskt missbruk observeras (för tungt/spekulativt). Bygger på befintligt `seenCount` + admin-vyn ovan.
 
 ### Meny
 - [x] när man överför en meny till inköpslistan borde man först klicka i inköpslista och sedan bekräfta på en översänd-knapp så att man inte av misstag trycker på fel inköpslista och inte kan ångra — löst: list-steget markerar vald lista (highlight + bock); överföring sker först vid "Överför"-knappen

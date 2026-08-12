@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 // "Ny version tillgänglig/laddad"-banner.
 // - Web (PWA): triggas av SW:s controllerchange-/updatefound-event.
 // - Native: använder expo-updates useUpdates() — visas när en OTA-uppdatering
@@ -14,6 +17,8 @@ function SharedBanner({ text, actionLabel, onAction, onDismiss }: {
   onAction: () => void;
   onDismiss: () => void;
 }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   return (
     <View style={s.banner}>
       <Ionicons name="sparkles-outline" size={16} color="#fff" />
@@ -22,7 +27,7 @@ function SharedBanner({ text, actionLabel, onAction, onDismiss }: {
         <Text style={s.btnText}>{actionLabel}</Text>
       </Pressable>
       <Pressable onPress={onDismiss} hitSlop={8} accessibilityLabel={common.actions.close}>
-        <Ionicons name="close" size={16} color="#eed7c5" />
+        <Ionicons name="close" size={16} color={c.accent200} />
       </Pressable>
     </View>
   );
@@ -72,12 +77,12 @@ export function VersionBanner() {
   return <NativeVersionBanner />;
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#b96a45',
+    backgroundColor: c.accent,
     paddingHorizontal: 14,
     paddingVertical: 10,
     zIndex: 9999,

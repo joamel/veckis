@@ -1,4 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useTheme } from '../../src/context/ThemeContext';
+import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   Animated,
@@ -49,6 +51,8 @@ const MENU_DAYS: { key: WeekDay; label: string }[] =
 
 export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; onClose?: () => void }) {
   const edit = editParam;
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -625,14 +629,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     }
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color="#4e7a5e" /></View>;
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   if (!recipe) return null;
 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <Pressable onPress={() => { if (editMode) { tryCloseEdit(isEditDirty(), () => setEditMode(false)); return; } if (onClose) onClose(); else router.back(); }} style={s.backBtn} accessibilityRole="button" accessibilityLabel={common.actions.back}>
-          <Ionicons name="arrow-back" size={24} color="#292524" />
+          <Ionicons name="arrow-back" size={24} color={c.text} />
         </Pressable>
         {editMode ? (
           <TextInput
@@ -640,13 +644,13 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             value={editTitle}
             onChangeText={setEditTitle}
             placeholder={str.detail.nameLabel}
-            placeholderTextColor="#a8a29e"
+            placeholderTextColor={c.textFaint}
           />
         ) : (
           <Text style={s.headerTitle} numberOfLines={1}>{recipe.title}</Text>
         )}
         <Pressable onPress={openRecipeActions} style={s.transferBtn} accessibilityLabel={common.actions.more}>
-          <Ionicons name="ellipsis-vertical" size={20} color="#292524" />
+          <Ionicons name="ellipsis-vertical" size={20} color={c.text} />
         </Pressable>
       </View>
 
@@ -665,7 +669,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               <Image source={{ uri: editImage.trim() }} style={s.heroImage} resizeMode="cover" />
             ) : (
               <View style={[s.heroImage, s.heroPlaceholder]}>
-                <Ionicons name="image-outline" size={32} color="#a8a29e" />
+                <Ionicons name="image-outline" size={32} color={c.textFaint} />
               </View>
             )}
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -674,7 +678,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 onPress={() => pickAndUploadImage('library')}
                 disabled={uploadingImage}
               >
-                <Ionicons name="images-outline" size={18} color="#4e7a5e" />
+                <Ionicons name="images-outline" size={18} color={c.primary} />
                 <Text style={s.imgBtnText}>{str.detail.gallery}</Text>
               </Pressable>
               <Pressable
@@ -682,7 +686,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 onPress={() => pickAndUploadImage('camera')}
                 disabled={uploadingImage}
               >
-                <Ionicons name="camera-outline" size={18} color="#4e7a5e" />
+                <Ionicons name="camera-outline" size={18} color={c.primary} />
                 <Text style={s.imgBtnText}>{str.detail.camera}</Text>
               </Pressable>
               {editImage.trim() ? (
@@ -692,11 +696,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                   disabled={uploadingImage}
                   accessibilityLabel={str.detail.removeImage}
                 >
-                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                  <Ionicons name="trash-outline" size={18} color={c.danger} />
                 </Pressable>
               ) : null}
             </View>
-            {uploadingImage ? <ActivityIndicator color="#4e7a5e" /> : null}
+            {uploadingImage ? <ActivityIndicator color={c.primary} /> : null}
           </View>
         ) : recipe.imageUrl ? (
           <View style={s.heroImage}>
@@ -710,13 +714,13 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             />
             {heroLoading && !heroError ? (
               <View style={s.heroImageOverlay}>
-                <ActivityIndicator color="#4e7a5e" />
+                <ActivityIndicator color={c.primary} />
               </View>
             ) : null}
             {heroError ? (
               <View style={[s.heroImageOverlay, s.heroPlaceholder]}>
-                <Ionicons name="image-outline" size={32} color="#a8a29e" />
-                <Text style={{ color: '#a8a29e', fontSize: 12, marginTop: 4 }}>{str.detail.imageLoadError}</Text>
+                <Ionicons name="image-outline" size={32} color={c.textFaint} />
+                <Text style={{ color: c.textFaint, fontSize: 12, marginTop: 4 }}>{str.detail.imageLoadError}</Text>
               </View>
             ) : null}
           </View>
@@ -728,12 +732,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               nya portioner; i läs-läget bara transient display-skalning. */}
           <View style={s.servingChip}>
             <Pressable onPress={() => editMode ? adjustEditServings(-1) : adjustServings(-1)} style={s.servingBtn} hitSlop={8}>
-              <Ionicons name="remove" size={14} color="#4e7a5e" />
+              <Ionicons name="remove" size={14} color={c.primary} />
             </Pressable>
-            <Ionicons name="people-outline" size={14} color="#78716c" />
+            <Ionicons name="people-outline" size={14} color={c.textMuted} />
             <Text style={s.metaText}>{editMode ? editServings : displayServings} port.</Text>
             <Pressable onPress={() => editMode ? adjustEditServings(1) : adjustServings(1)} style={s.servingBtn} hitSlop={8}>
-              <Ionicons name="add" size={14} color="#4e7a5e" />
+              <Ionicons name="add" size={14} color={c.primary} />
             </Pressable>
           </View>
 
@@ -742,7 +746,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               style={s.metaChip}
               onPress={() => WebBrowser.openBrowserAsync(recipe.sourceUrl!)}
             >
-              <Text style={[s.metaText, { color: '#4e7a5e' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{str.detail.originalRecipe}</Text>
+              <Text style={[s.metaText, { color: c.primary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{str.detail.originalRecipe}</Text>
             </Pressable>
           )}
         </View>
@@ -776,7 +780,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 value={customTag}
                 onChangeText={setCustomTag}
                 placeholder={str.tags.addPlaceholder}
-                placeholderTextColor="#a8a29e"
+                placeholderTextColor={c.textFaint}
                 autoCapitalize="none"
                 onSubmitEditing={addCustomTag}
                 returnKeyType="done"
@@ -796,7 +800,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               value={editDesc}
               onChangeText={setEditDesc}
               placeholder={str.detail.descPlaceholder}
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={c.textFaint}
               multiline
             />
           </View>
@@ -810,7 +814,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             <Text style={s.sectionTitle}>{str.detail.ingredientsLabel}</Text>
             {!editMode && recipe.ingredients.length > 0 && (
               <Pressable ref={recipeCartRef} style={s.cookBtn} onPress={() => openTransfer()} accessibilityLabel={str.detail.transferA11y}>
-                <Ionicons name="cart-outline" size={14} color="#4e7a5e" />
+                <Ionicons name="cart-outline" size={14} color={c.primary} />
                 <Text style={s.cookBtnText}>{str.detail.addToList}</Text>
               </Pressable>
             )}
@@ -825,7 +829,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                       ref={el => { getRowRef(idx).name = el; }}
                       style={[s.editInput, s.editInputName]}
                       placeholder={str.detail.ingNamePlaceholder}
-                      placeholderTextColor="#a8a29e"
+                      placeholderTextColor={c.textFaint}
                       value={row.name}
                       onChangeText={v => updateEditRow(idx, 'name', v)}
                       autoCapitalize="none"
@@ -844,7 +848,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                       ref={el => { getRowRef(idx).qty = el; }}
                       style={[s.editInput, s.editInputQty]}
                       placeholder={str.detail.ingQtyPlaceholder}
-                      placeholderTextColor="#a8a29e"
+                      placeholderTextColor={c.textFaint}
                       value={row.quantity}
                       onChangeText={v => updateEditRow(idx, 'quantity', normalizeQtyInput(v))}
                       keyboardType="decimal-pad"
@@ -856,7 +860,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                       ref={el => { getRowRef(idx).unit = el; }}
                       style={[s.editInput, s.editInputUnit]}
                       placeholder={defaultUnit || 'Enhet'}
-                      placeholderTextColor="#a8a29e"
+                      placeholderTextColor={c.textFaint}
                       value={row.unit}
                       onChangeText={v => updateEditRow(idx, 'unit', v.toLowerCase())}
                       autoCapitalize="none"
@@ -876,7 +880,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                       }}
                     />
                     <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove} accessibilityRole="button" accessibilityLabel={common.actions.delete}>
-                      <Ionicons name="close-circle" size={20} color="#d6d3d1" />
+                      <Ionicons name="close-circle" size={20} color={c.border} />
                     </Pressable>
                   </View>
                   {activeUnitIdx === idx && (
@@ -945,7 +949,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 </View>
               ))}
               <Pressable style={s.addRowBtn} onPress={addEditRow}>
-                <Ionicons name="add" size={16} color="#4e7a5e" />
+                <Ionicons name="add" size={16} color={c.primary} />
                 <Text style={s.addRowBtnText}>{str.detail.addRow}</Text>
               </Pressable>
             </View>
@@ -975,7 +979,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               value={editInstr}
               onChangeText={setEditInstr}
               placeholder={str.detail.instrPlaceholder}
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={c.textFaint}
               multiline
             />
           </View>
@@ -984,7 +988,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>{str.detail.instructionsLabel}</Text>
               <Pressable style={s.lagaBtn} onPress={() => { setCookStep(0); setCookMode(true); }}>
-                <Ionicons name="restaurant-outline" size={14} color="#4e7a5e" />
+                <Ionicons name="restaurant-outline" size={14} color={c.primary} />
                 <Text style={s.lagaBtnText}>{str.detail.cook}</Text>
               </Pressable>
             </View>
@@ -1024,7 +1028,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                   <Ionicons
                     name={checked ? 'checkbox' : 'square-outline'}
                     size={22}
-                    color={checked ? '#4e7a5e' : '#d6d3d1'}
+                    color={checked ? c.primary : c.border}
                   />
                   <Text style={[s.checkLabel, !checked && s.checkLabelUnchecked]}>
                     {formatIngredient(ing, 1)}
@@ -1045,7 +1049,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
           <Text style={s.listPickLabel}>{str.transfer.selectList}</Text>
           {loadingLists ? (
-            <ActivityIndicator color="#4e7a5e" style={{ marginVertical: 12 }} />
+            <ActivityIndicator color={c.primary} style={{ marginVertical: 12 }} />
           ) : lists.length === 0 ? (
             <Text style={s.noListsText}>{str.transfer.noLists}</Text>
           ) : (
@@ -1062,9 +1066,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                     onPress={() => doTransfer(item.id)}
                     disabled={transferring || noneSelected}
                   >
-                    <Ionicons name="cart-outline" size={18} color="#4e7a5e" />
+                    <Ionicons name="cart-outline" size={18} color={c.primary} />
                     <Text style={s.listPickerItemText}>{item.name}</Text>
-                    {transferringListId === item.id && <ActivityIndicator size="small" color="#4e7a5e" />}
+                    {transferringListId === item.id && <ActivityIndicator size="small" color={c.primary} />}
                   </Pressable>
                 );
               }}
@@ -1125,7 +1129,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               );
             })}
             <Pressable style={[s.dayGridItem, s.dayGridItemNone]} onPress={() => planRecipeToMenu(null)}>
-              <Ionicons name="calendar-clear-outline" size={18} color="#4e7a5e" />
+              <Ionicons name="calendar-clear-outline" size={18} color={c.primary} />
               <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>{str.menu.noDay}</Text>
             </Pressable>
           </View>
@@ -1264,84 +1268,84 @@ function formatIngredient(ing: { quantity: number | null; unit: string | null; n
   return parts.join(' ');
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#faf8f3' },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec', gap: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 12 },
   backBtn: { padding: 8 },
-  headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: '#292524' },
-  headerTitleInput: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#faf8f3' },
+  headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: c.text },
+  headerTitleInput: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: c.background },
   transferBtn: { padding: 8 },
   scroll: { padding: 20, gap: 16 },
-  heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, backgroundColor: '#f1efec' },
+  heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, backgroundColor: c.surfaceSubtle },
   heroPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   heroImageOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(241,239,236,0.6)' },
-  imgBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: '#ecf3ec' },
-  imgBtnText: { color: '#4e7a5e', fontWeight: '600', fontSize: 14 },
+  imgBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: c.primaryTint },
+  imgBtnText: { color: c.primary, fontWeight: '600', fontSize: 14 },
   imgBtnDisabled: { opacity: 0.5 },
-  imgRemoveBtn: { width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#fee2e2' },
-  editImagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: '#f1efec', marginTop: 8 },
+  imgRemoveBtn: { width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: c.dangerTint },
+  editImagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: c.surfaceSubtle, marginTop: 8 },
   metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  metaChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f1efec', flexShrink: 0 },
+  metaChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.surfaceSubtle, flexShrink: 0 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  tagChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#ecf3ec', flexShrink: 0 },
-  tagChipActive: { backgroundColor: '#4e7a5e' },
-  tagChipText: { fontSize: 12, fontWeight: '600', color: '#4e7a5e' },
+  tagChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.primaryTint, flexShrink: 0 },
+  tagChipActive: { backgroundColor: c.primary },
+  tagChipText: { fontSize: 12, fontWeight: '600', color: c.primary },
   tagChipTextActive: { color: '#fff' },
   tagAddRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  tagAddBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center' },
-  servingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f1efec', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
+  tagAddBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
+  servingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.surfaceSubtle, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
   servingBtn: { padding: 2 },
-  metaText: { fontSize: 13, color: '#78716c' },
-  description: { fontSize: 14, color: '#44403c', lineHeight: 22 },
+  metaText: { fontSize: 13, color: c.textMuted },
+  description: { fontSize: 14, color: c.textSecondary, lineHeight: 22 },
   section: { gap: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: '#292524' },
-  lagaBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#ecf3ec' },
-  lagaBtnText: { fontSize: 13, fontWeight: '600', color: '#4e7a5e' },
+  sectionTitle: { fontSize: 17, fontWeight: '700', color: c.text },
+  lagaBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.primaryTint },
+  lagaBtnText: { fontSize: 13, fontWeight: '600', color: c.primary },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  editBtnText: { fontSize: 14, color: '#4e7a5e', fontWeight: '500' },
+  editBtnText: { fontSize: 14, color: c.primary, fontWeight: '500' },
   ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  ingredientBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4e7a5e', marginTop: 1 },
-  ingredientText: { fontSize: 15, color: '#44403c', flex: 1 },
+  ingredientBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.primary, marginTop: 1 },
+  ingredientText: { fontSize: 15, color: c.textSecondary, flex: 1 },
   noIngredients: { paddingVertical: 16, alignItems: 'center' },
-  noIngredientsText: { fontSize: 14, color: '#a8a29e' },
+  noIngredientsText: { fontSize: 14, color: c.textFaint },
   editList: { gap: 8 },
   editRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  editInput: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, backgroundColor: '#faf8f3' },
+  editInput: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, backgroundColor: c.background },
   editInputQty: { width: 60 },
   editInputUnit: { width: 60 },
   editInputName: { flex: 1 },
   editRemove: { padding: 2 },
   addRowBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
-  addRowBtnText: { fontSize: 14, color: '#4e7a5e', fontWeight: '500' },
+  addRowBtnText: { fontSize: 14, color: c.primary, fontWeight: '500' },
   unitChipScroll: { marginBottom: 4 },
   unitChipRow: { flexDirection: 'row', gap: 6, paddingVertical: 4 },
-  unitChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4' },
-  unitChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
-  unitChipText: { fontSize: 13, color: '#44403c', fontWeight: '500' },
-  unitChipTextActive: { color: '#4e7a5e', fontWeight: '600' },
+  unitChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight },
+  unitChipActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
+  unitChipText: { fontSize: 13, color: c.textSecondary, fontWeight: '500' },
+  unitChipTextActive: { color: c.primary, fontWeight: '600' },
   editActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  cancelBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center' },
-  cancelBtnText: { fontSize: 15, color: '#78716c', fontWeight: '500' },
-  saveBtn: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#4e7a5e', alignItems: 'center' },
+  cancelBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, alignItems: 'center' },
+  cancelBtnText: { fontSize: 15, color: c.textMuted, fontWeight: '500' },
+  saveBtn: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: c.primary, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.4 },
   saveBtnText: { fontSize: 15, color: '#fff', fontWeight: '600' },
   // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '85%' },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center', shadowColor: '#4e7a5e', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  renameTitle: { fontSize: 18, fontWeight: '700', color: '#292524', marginBottom: 16 },
-  renameInput: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: '#faf8f3', color: '#292524' },
-  editLabel: { fontSize: 13, fontWeight: '600', color: '#78716c', marginBottom: 6, marginTop: 14 },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '85%' },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  renameTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 16 },
+  renameInput: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: c.background, color: c.text },
+  editLabel: { fontSize: 13, fontWeight: '600', color: c.textMuted, marginBottom: 6, marginTop: 14 },
   editMultiline: { minHeight: 70, textAlignVertical: 'top' },
   editMultilineTall: { minHeight: 140, textAlignVertical: 'top' },
-  instructionsText: { fontSize: 15, color: '#44403c', lineHeight: 22 },
-  renameSave: { marginTop: 16, backgroundColor: '#4e7a5e', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+  instructionsText: { fontSize: 15, color: c.textSecondary, lineHeight: 22 },
+  renameSave: { marginTop: 16, backgroundColor: c.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   renameSaveText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  cookBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, backgroundColor: '#ecf3ec' },
-  cookBtnText: { fontSize: 13, fontWeight: '600', color: '#4e7a5e' },
+  cookBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, backgroundColor: c.primaryTint },
+  cookBtnText: { fontSize: 13, fontWeight: '600', color: c.primary },
   // "Laga nu" använder appens ljusa/varma tema (inte mörkt) för konsekvens.
   cookContainer: { flex: 1, backgroundColor: '#faf8f3' },
   cookHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
@@ -1361,35 +1365,35 @@ const s = StyleSheet.create({
   cookNavText: { fontSize: 15, fontWeight: '600', color: '#44403c' },
   cookNavBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: '#4e7a5e' },
   cookNavTextPrimary: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e7e5e4', alignSelf: 'center', marginBottom: 12 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524' },
-  sheetSub: { fontSize: 13, color: '#78716c', marginTop: 2, marginBottom: 8 },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 12 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+  sheetSub: { fontSize: 13, color: c.textMuted, marginTop: 2, marginBottom: 8 },
   ingredientList: { maxHeight: 220 },
-  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#faf8f3' },
-  checkLabel: { fontSize: 15, color: '#292524', flex: 1 },
-  checkLabelUnchecked: { color: '#a8a29e', textDecorationLine: 'line-through' },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.background },
+  checkLabel: { fontSize: 15, color: c.text, flex: 1 },
+  checkLabelUnchecked: { color: c.textFaint, textDecorationLine: 'line-through' },
   selectAllRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginVertical: 8 },
-  selectAllText: { fontSize: 13, color: '#4e7a5e', fontWeight: '500' },
-  listPickLabel: { fontSize: 13, fontWeight: '600', color: '#44403c', marginTop: 4, marginBottom: 6 },
-  noListsText: { fontSize: 14, color: '#a8a29e', textAlign: 'center', paddingVertical: 12 },
+  selectAllText: { fontSize: 13, color: c.primary, fontWeight: '500' },
+  listPickLabel: { fontSize: 13, fontWeight: '600', color: c.textSecondary, marginTop: 4, marginBottom: 6 },
+  noListsText: { fontSize: 14, color: c.textFaint, textAlign: 'center', paddingVertical: 12 },
   listPicker: {},
-  listPickerItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: '#faf8f3', borderRadius: 10, marginBottom: 6 },
-  listPickerItemText: { fontSize: 15, fontWeight: '600', color: '#292524', flex: 1 },
-  daySheetSub: { fontSize: 13, color: '#78716c', marginTop: -8 },
+  listPickerItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: c.background, borderRadius: 10, marginBottom: 6 },
+  listPickerItemText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
+  daySheetSub: { fontSize: 13, color: c.textMuted, marginTop: -8 },
   dayGrid: { gap: 8, marginTop: 4 },
-  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#f1efec', borderRadius: 12 },
-  dayGridItemTaken: { backgroundColor: '#faf8f3' },
-  dayGridItemNone: { backgroundColor: '#ecf3ec', borderWidth: 1, borderColor: '#c6ddcd', justifyContent: 'flex-start' },
-  dayGridLabel: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  dayGridLabelTaken: { color: '#a8a29e' },
-  dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: '#a8a29e', flexShrink: 1, marginLeft: 8, textAlign: 'right' },
-  dayGridLabelNone: { color: '#4e7a5e' },
-  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center' },
-  weekChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
-  weekChipText: { fontSize: 13, fontWeight: '600', color: '#44403c' },
-  weekChipTextActive: { color: '#4e7a5e' },
-  weekChipSub: { fontSize: 11, color: '#a8a29e', marginTop: 2 },
-  weekChipSubActive: { color: '#7fa88d' },
+  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
+  dayGridItemTaken: { backgroundColor: c.background },
+  dayGridItemNone: { backgroundColor: c.primaryTint, borderWidth: 1, borderColor: c.primary200, justifyContent: 'flex-start' },
+  dayGridLabel: { fontSize: 15, fontWeight: '600', color: c.text },
+  dayGridLabelTaken: { color: c.textFaint },
+  dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: c.textFaint, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
+  dayGridLabelNone: { color: c.primary },
+  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight, alignItems: 'center' },
+  weekChipActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
+  weekChipText: { fontSize: 13, fontWeight: '600', color: c.textSecondary },
+  weekChipTextActive: { color: c.primary },
+  weekChipSub: { fontSize: 11, color: c.textFaint, marginTop: 2 },
+  weekChipSubActive: { color: c.primary400 },
 });
 
 export default function RecipeDetailScreen() {
