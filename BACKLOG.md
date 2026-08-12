@@ -13,7 +13,7 @@
 - [x] mer optimistisk uppdatering. t.ex. skala recept hoppar portioner fram och tillbaka när den laddar. bättre att den ändrar tillbaka om den failar — löst: portions-override behålls tills sparningen committat (reload nollställer inte pending), släpps vid success, reverteras bara vid fel
 
 ### Inställningar
-- [ ] Lägga till dark mode — utgå från "Laga nu"-lägets gamla mörka palett (som användaren gillade): bg `#1c1917`, text `#f1efec`/`#e7e5e4`, dämpat `#57534e`/`#44403c`, grön accent `#7fa88d`, primär `#4e7a5e`. (Se git-historik för `cook*`-stilarna i `recipes/[recipeId].tsx` innan ljus-konverteringen.)
+- [ ] Lägga till dark mode — **PÅGÅR** (på develop, OTA:as först när kärnskärmarna är klara så inget halv-läge når användarna). Klart: `theme.ts` light+dark-paletter, `ThemeContext` (System/Ljust/Mörkt, OS-följning, SecureStore-persistens), `ThemeProvider` inkopplad i `_layout.tsx`, Utseende-toggle + **Hushållet-skärmen konverterad** (`makeStyles(c)`-mönster). Kvar: konvertera resten skärm för skärm (Inköp/Meny/Recept/Kalender/Sysslor + modaler + flikrad + status bar), sen OTA. Konverteringsmönster: `const styles = useMemo(() => makeStyles(c), [c])` + hex → semantiska tokens. — utgå från "Laga nu"-lägets gamla mörka palett (som användaren gillade): bg `#1c1917`, text `#f1efec`/`#e7e5e4`, dämpat `#57534e`/`#44403c`, grön accent `#7fa88d`, primär `#4e7a5e`. (Se git-historik för `cook*`-stilarna i `recipes/[recipeId].tsx` innan ljus-konverteringen.)
 
 ### Inköpslistan
 - [x] Ingrediensförslag i nytt recept göms under tangentbordet. Borde hoppa upp precis som måttenheter gör — löst: namn-fältet får samma scroll-into-view-effekt som enhets-chipsen (förslagen scrollas ovanför tangentbordet)

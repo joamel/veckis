@@ -14,6 +14,7 @@ import { PendingRemovalProvider } from '../src/context/PendingRemovalContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { ConfirmProvider } from '../src/context/ConfirmContext';
 import { SpotlightTipProvider, useOnboardingMaster, useWelcomeGate } from '../src/context/SpotlightTipContext';
+import { ThemeProvider } from '../src/context/ThemeContext';
 import { WelcomeModal } from '../src/components/WelcomeModal';
 import { VersionBanner } from '../src/components/VersionBanner';
 import { WakeupIndicator } from '../src/components/WakeupIndicator';
@@ -173,6 +174,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
       <SafeAreaProvider>
+        <ThemeProvider>
         <StatusBar style="light" />
         <StatusBarBackdrop />
         <ClerkProvider
@@ -194,6 +196,7 @@ export default function RootLayout() {
           </HouseholdProvider>
         </ClerkProvider>
         <AnimatedSplash />
+        </ThemeProvider>
       </SafeAreaProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>
