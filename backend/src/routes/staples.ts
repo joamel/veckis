@@ -6,6 +6,7 @@ import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../mi
 import { asyncHandler } from '../lib/asyncHandler';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { COMMON_INGREDIENTS } from '../lib/commonIngredients';
+import { startsWithUnit } from '../lib/stripIngredient';
 
 export const staplesRouter = Router();
 
@@ -69,11 +70,15 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
     take: 500,
   });
 
-  const aliasNames = new Set(aliases.map(a => a.canonical.toLowerCase()));
+  // Filtrera bort trasiga legacy-alias där en måttenhet fastnat först i namnet
+  // ("kg potatis") — de ska aldrig dyka upp som förslag. Nya alias stoppas redan
+  // i stripIngredient, det här skyddar mot rader som redan finns i DB.
+  const cleanAliases = aliases.filter(a => !startsWithUnit(a.canonical));
+  const aliasNames = new Set(cleanAliases.map(a => a.canonical.toLowerCase()));
   const common = COMMON_INGREDIENTS.filter(c => !aliasNames.has(c.name.toLowerCase()));
 
   res.json([
-    ...aliases.map(a => ({ name: a.canonical, category: a.category as string })),
+    ...cleanAliases.map(a => ({ name: a.canonical, category: a.category as string })),
     ...common.map(c => ({ name: c.name, category: c.category as string })),
   ]);
 }));

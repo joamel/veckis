@@ -2249,7 +2249,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   viewRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   viewRowText: { flex: 1, fontSize: 16, color: c.textSecondary },
   sheetScroll: { gap: 14, paddingBottom: 40 },
-  input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.background },
+  input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
   label: { fontSize: 14, fontWeight: '600', color: c.textSecondary },
   timeToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   drumRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.background, borderRadius: 12, borderWidth: 1, borderColor: c.borderLight, overflow: 'hidden', paddingHorizontal: 20 },

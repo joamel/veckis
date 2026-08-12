@@ -183,7 +183,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 14 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
-  input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.background },
+  input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
   primaryBtn: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

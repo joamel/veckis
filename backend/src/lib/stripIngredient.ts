@@ -114,6 +114,20 @@ const PREP_WORDS = new Set([
   'mjuk', 'mjukt', 'mjuka',
 ]);
 
+// Måttenheter som ibland fastnar först i namnet när källan saknar mängd
+// ("kg potatis" → "potatis"). Håll i synk med parserns unit-lista i recipes.ts.
+const UNITS = new Set([
+  'dl', 'ml', 'l', 'cl', 'msk', 'tsk', 'krm', 'g', 'kg', 'hg', 'st', 'port',
+  'burk', 'förp', 'pkt', 'paket', 'påse', 'cups', 'cup', 'tbsp', 'tsp', 'oz', 'lb',
+]);
+
+/** True om namnet inleds med en måttenhet följt av ett riktigt ord
+ *  ("kg potatis", "dl grädde") — används för att filtrera bort trasiga alias. */
+export function startsWithUnit(name: string): boolean {
+  const w = name.trim().toLowerCase().split(/\s+/);
+  return w.length >= 2 && UNITS.has(w[0]);
+}
+
 // Introductory approximation words
 const APPROX_PREFIX = /^(ca\.?\s*|ungefär\s*|circa\s*|typ\s*)/i;
 
@@ -144,11 +158,13 @@ export function stripIngredient(raw: string): string {
 
   let result = words.join(' ').toLowerCase().trim();
 
-  // Strip leading quantity descriptors ("klyftor vitlök" → "vitlök")
+  // Strip leading quantity descriptors + stray measurement units
+  // ("klyftor vitlök" → "vitlök", "kg potatis" → "potatis")
   const resultWords = result.split(/\s+/);
-  if (resultWords.length >= 2 && QUANTITY_DESCRIPTORS.has(resultWords[0])) {
-    result = resultWords.slice(1).join(' ');
+  while (resultWords.length >= 2 && (QUANTITY_DESCRIPTORS.has(resultWords[0]) || UNITS.has(resultWords[0]))) {
+    resultWords.shift();
   }
+  result = resultWords.join(' ');
 
   // Apply compound word canonicalization ("standardmjölk" → "mjölk")
   if (COMPOUND_CANONICALS[result]) {

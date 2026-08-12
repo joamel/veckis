@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../lib/theme';
@@ -34,6 +35,7 @@ export function ConfirmDialog({
   onClose: () => void;
 }) {
   const { colors: c } = useTheme();
+  const insets = useSafeAreaInsets();
   const s = useMemo(() => makeStyles(c), [c]);
   if (!options) return null;
 
@@ -66,7 +68,11 @@ export function ConfirmDialog({
     });
 
     if (options.variant === 'menu') {
-      const anchorStyle = options.menuAnchor === 'bottom-right' ? s.menuCardBottomRight : s.menuCardTopRight;
+      // Top-right-menyn förankras i övre högra hörnet men skjuts ned under
+      // status bar-insetet så kortet inte lägger sig över klocka/batteri.
+      const anchorStyle = options.menuAnchor === 'bottom-right'
+        ? s.menuCardBottomRight
+        : [s.menuCardTopRight, { top: insets.top + 4 }];
       return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
           <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onPress={dismiss} />

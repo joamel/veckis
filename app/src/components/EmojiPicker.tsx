@@ -47,7 +47,7 @@ export function EmojiPicker({
 const makeStyles = (c: Palette) => StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', color: c.textSecondary },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  input: { width: 56, height: 44, borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, backgroundColor: c.background, textAlign: 'center', fontSize: 22 },
+  input: { color: c.text, width: 56, height: 44, borderWidth: 1, borderColor: c.border, borderRadius: 10, backgroundColor: c.inputBg, textAlign: 'center', fontSize: 22 },
   chips: { gap: 6, paddingVertical: 2 },
   chip: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background, alignItems: 'center', justifyContent: 'center' },
   chipActive: { borderColor: c.primary, backgroundColor: c.primaryTint },

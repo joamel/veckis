@@ -1165,14 +1165,14 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   sheetScroll: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8, gap: 16 },
   input: {
     borderWidth: 1,
-    borderColor: c.borderLight,
+    borderColor: c.border,
     borderRadius: 10,
     padding: 14,
     fontSize: 16,
-    backgroundColor: c.background,
+    backgroundColor: c.inputBg,
     color: c.text,
   },
-  deleteInput: { borderColor: c.danger, backgroundColor: c.surface },
+  deleteInput: { color: c.text, borderColor: c.danger, backgroundColor: c.inputBg },
   button: {
     backgroundColor: c.primary,
     borderRadius: 10,

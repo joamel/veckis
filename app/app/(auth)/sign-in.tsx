@@ -271,7 +271,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   },
   title: { fontSize: 36, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
   subtitle: { fontSize: 16, color: c.textMuted, textAlign: 'center', marginBottom: 32 },
-  input: {
+  input: { color: c.text,
     borderWidth: 1,
     borderColor: c.border,
     borderRadius: 10,

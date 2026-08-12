@@ -195,7 +195,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   tabText: { fontSize: 15, fontWeight: '500', color: c.textMuted },
   tabTextActive: { color: c.text },
   form: { gap: 12 },
-  input: {
+  input: { color: c.text,
     borderWidth: 1,
     borderColor: c.borderLight,
     borderRadius: 10,
@@ -203,7 +203,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     fontSize: 16,
     backgroundColor: c.background,
   },
-  codeInput: {
+  codeInput: { color: c.text,
     textAlign: 'center',
     fontSize: 24,
     fontWeight: '700',
