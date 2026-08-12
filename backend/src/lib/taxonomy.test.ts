@@ -70,8 +70,8 @@ describe('SubCategory taxonomy', () => {
     }
   });
 
-  it('approx 70 subs (sanity check)', () => {
+  it('approx 85 subs (sanity check)', () => {
     expect(ALL_SUB_CATEGORIES.length).toBeGreaterThanOrEqual(60);
-    expect(ALL_SUB_CATEGORIES.length).toBeLessThanOrEqual(80);
+    expect(ALL_SUB_CATEGORIES.length).toBeLessThanOrEqual(95);
   });
 });
