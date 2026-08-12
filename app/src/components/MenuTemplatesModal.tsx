@@ -175,7 +175,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   body: { paddingHorizontal: 16, paddingBottom: 16 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginBottom: 8, marginLeft: 4 },
   saveRow: { flexDirection: 'row', gap: 8 },
-  input: { flex: 1, backgroundColor: c.surface, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: c.text },
+  input: { flex: 1, backgroundColor: c.inputBg, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: c.text },
   saveBtn: { backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },

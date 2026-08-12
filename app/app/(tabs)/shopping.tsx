@@ -391,7 +391,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     marginBottom: 4,
   },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
-  input: {
+  input: { color: c.text,
     borderWidth: 1,
     borderColor: c.borderLight,
     borderRadius: 10,

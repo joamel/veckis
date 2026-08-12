@@ -2473,7 +2473,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   newListBtnDisabled: { backgroundColor: c.surfaceSubtle, borderColor: c.borderLight },
   newListBtnText: { fontSize: 16, fontWeight: '600', color: c.primary },
   newListBtnTextDisabled: { color: c.textFaint },
-  input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: c.background },
+  input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: c.inputBg },
   button: { backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', minWidth: 44 },
   cancelBtn: { paddingVertical: 10, alignItems: 'center' },
   cancelBtnText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },

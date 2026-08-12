@@ -1580,7 +1580,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 12 },
   sheetScroll: { gap: 14, paddingBottom: 40 },
-  input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.background },
+  input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
   label: { fontSize: 14, fontWeight: '600', color: c.textSecondary },
   freqRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   freqRowNoWrap: { flexDirection: 'row', gap: 8 },

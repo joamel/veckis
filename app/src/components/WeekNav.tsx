@@ -82,7 +82,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: c.surface,
     borderBottomWidth: 1,
-    borderBottomColor: c.surfaceSubtle,
+    borderBottomColor: c.borderLight,
   },
   arrow: {},
   labelBtn: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingVertical: 4 },

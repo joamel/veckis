@@ -19,6 +19,8 @@ export interface Palette {
   // Text + ytor
   text: string; textStrong: string; textSecondary: string; textMuted: string; textFaint: string;
   border: string; borderLight: string; surfaceSubtle: string; background: string; surface: string;
+  // Fält (input/sök) — ljusare än surface i mörkt läge för kontrast mot korten
+  inputBg: string;
   // Status
   success: string; successLight: string; danger: string; dangerDark: string; warning: string;
   // Status-ytor (banner-bakgrunder, delete-knappar) + text på dem
@@ -35,6 +37,7 @@ export const light: Palette = {
   accent300: '#e2bda1', accent200: '#eed7c5', accent100: '#f6e8dc', accentTint: '#faf1e9',
   text: '#292524', textStrong: '#1c1917', textSecondary: '#44403c', textMuted: '#78716c', textFaint: '#a8a29e',
   border: '#d6d3d1', borderLight: '#e7e5e4', surfaceSubtle: '#f1efec', background: '#faf8f3', surface: '#ffffff',
+  inputBg: '#faf8f3',
   success: '#10b981', successLight: '#34d399', danger: '#ef4444', dangerDark: '#dc2626', warning: '#f59e0b',
   dangerTint: '#fef2f2', dangerBorder: '#fca5a5', warningTint: '#fef3c7', warningText: '#92400e',
   pink: '#db2777', pinkTint: '#fce7f3',
@@ -49,6 +52,7 @@ export const dark: Palette = {
   accent300: '#a55a37', accent200: '#8f4b2c', accent100: '#5a3826', accentTint: '#332721',
   text: '#f1efec', textStrong: '#ffffff', textSecondary: '#e7e5e4', textMuted: '#a8a29e', textFaint: '#78716c',
   border: '#57534e', borderLight: '#3a3431', surfaceSubtle: '#2b2724', background: '#1c1917', surface: '#292524',
+  inputBg: '#3a3431',
   success: '#34d399', successLight: '#6ee7b7', danger: '#f87171', dangerDark: '#ef4444', warning: '#fbbf24',
   dangerTint: '#3a2523', dangerBorder: '#7f3f3f', warningTint: '#3a3320', warningText: '#fcd34d',
   pink: '#f472b6', pinkTint: '#3a2230',

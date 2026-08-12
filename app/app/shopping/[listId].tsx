@@ -1259,7 +1259,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     group.isCustom
       ? `🏷️ ${group.category}`
       : group.isSub
-        ? group.label ?? String(group.category)
+        ? `${CATEGORY_EMOJIS[SUB_TAXONOMY[group.category as SubCategory].defaultParent]} ${group.label ?? String(group.category)}`
         : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
   const groupKey = (group: CategoryGroup<ShoppingItemWithRecipe>) =>
     group.isCustom ? `c:${group.category}` : group.isSub ? `s:${group.category}` : group.category as string;
@@ -2211,7 +2211,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               const label = group.isCustom
                 ? `🏷️ ${group.category}`
                 : group.isSub
-                  ? group.label ?? String(group.category)
+                  ? `${CATEGORY_EMOJIS[SUB_TAXONOMY[group.category as SubCategory].defaultParent]} ${group.label ?? String(group.category)}`
                   : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
               return (
                 <View key={key} style={s.categoryGroup}>
@@ -2362,7 +2362,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   titleCompact: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: c.text, paddingHorizontal: 8 },
   progressBar: { height: 3, backgroundColor: c.borderLight },
   stickyCat: { position: 'absolute', left: 0, right: 0, zIndex: 20, backgroundColor: c.background, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
-  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: c.accent200, borderRadius: 999, backgroundColor: c.accentTint },
+  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: c.primary200, borderRadius: 999, backgroundColor: c.primaryTint },
   navStoreNameWrap: { overflow: 'hidden', justifyContent: 'center' },
   navStoreName: { fontSize: 15, color: c.primary, fontWeight: '600' },
   shopperWrap: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
@@ -2387,8 +2387,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // Sub-grupp-rubriker: inget uppercase + ingen letterSpacing (annars klipps
   // långa subnamn som "Toalett- & hushållspapper"); lite indenterad + dämpad
   // för att visuellt tillhöra sin parent.
-  categorySubHeader: { paddingLeft: 14, paddingVertical: 2, marginTop: -4 },
-  categorySubLabel: { fontSize: 11, fontWeight: '600', textTransform: 'none', letterSpacing: 0.2, color: c.accent },
+  categorySubHeader: { paddingVertical: 4 },
+  categorySubLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: c.primary },
   checkedCatLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.4, paddingHorizontal: 2, paddingTop: 8, paddingBottom: 1 },
   categoryCount: { fontSize: 11, color: c.textFaint, fontWeight: '600' },
   item: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 10, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
@@ -2410,7 +2410,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   browseBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   // minWidth:0 så input:en får krympa under sin intrinsiska content-bredd på web
   // (annars trycks "+"-knappen ut utanför högerkanten — min-width:auto på <input>).
-  addInput: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: c.background },
+  addInput: { color: c.text, flex: 1, minWidth: 0, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: c.inputBg },
   addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
   addBtnDisabled: { opacity: 0.4 },
   // Dim ligger på ett eget absolut lager (overlayDim) så det täcker HELA skärmen
@@ -2439,7 +2439,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   editRow: { flexDirection: 'row', gap: 12 },
   editLabel: { fontSize: 13, fontWeight: '600', color: c.textMuted, marginBottom: 6 },
-  editInput: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: c.background },
+  editInput: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: c.inputBg },
   catChipScroll: { marginBottom: 4 },
   catChipRow: { flexDirection: 'row', gap: 8, paddingVertical: 4 },
   catChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight, flexShrink: 0 },

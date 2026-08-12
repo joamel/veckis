@@ -55,7 +55,7 @@ export function ScreenHeader({ title, actionIcon, actionLabel, onActionPress, ac
 }
 
 const makeStyles = (c: Palette) => StyleSheet.create({
-  header: { backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, paddingBottom: 10 },
+  header: { backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.borderLight, paddingBottom: 10 },
   headerTop: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',
   },
