@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../../src/context/ThemeContext';
+import type { Palette } from '../../src/lib/theme';
 import { useOAuth, useSignIn } from '@clerk/clerk-expo';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
@@ -17,6 +20,8 @@ import { InstallBanner } from '../../src/components/InstallBanner';
 import { auth as str } from '../../src/lib/svenska';
 
 export default function SignInScreen() {
+  const { colors: c } = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { signIn, setActive, isLoaded } = useSignIn();
   const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
   const router = useRouter();
@@ -145,7 +150,7 @@ export default function SignInScreen() {
           <TextInput
             style={styles.input}
             placeholder={str.placeholders.email}
-            placeholderTextColor="#a8a29e"
+            placeholderTextColor={c.textFaint}
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
@@ -154,7 +159,7 @@ export default function SignInScreen() {
           <TextInput
             style={styles.input}
             placeholder={str.placeholders.password}
-            placeholderTextColor="#a8a29e"
+            placeholderTextColor={c.textFaint}
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -188,7 +193,7 @@ export default function SignInScreen() {
               <TextInput
                 style={styles.input}
                 placeholder={str.placeholders.email}
-                placeholderTextColor="#a8a29e"
+                placeholderTextColor={c.textFaint}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 value={email}
@@ -204,7 +209,7 @@ export default function SignInScreen() {
               <TextInput
                 style={styles.input}
                 placeholder={str.placeholders.codeFromEmail}
-                placeholderTextColor="#a8a29e"
+                placeholderTextColor={c.textFaint}
                 keyboardType="number-pad"
                 value={code}
                 onChangeText={setCode}
@@ -213,7 +218,7 @@ export default function SignInScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder={str.placeholders.newPassword}
-                  placeholderTextColor="#a8a29e"
+                  placeholderTextColor={c.textFaint}
                   secureTextEntry
                   value={resetNewPassword}
                   onChangeText={setResetNewPassword}
@@ -257,25 +262,25 @@ export default function SignInScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
   },
   title: { fontSize: 36, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 32 },
+  subtitle: { fontSize: 16, color: c.textMuted, textAlign: 'center', marginBottom: 32 },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: c.border,
     borderRadius: 10,
     padding: 14,
     marginBottom: 12,
     fontSize: 16,
   },
   button: {
-    backgroundColor: '#4e7a5e',
+    backgroundColor: c.primary,
     borderRadius: 10,
     padding: 16,
     alignItems: 'center',
@@ -283,9 +288,9 @@ const styles = StyleSheet.create({
   },
   googleButton: { backgroundColor: '#ea4335' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  link: { textAlign: 'center', color: '#4e7a5e', marginTop: 8 },
-  linkSmall: { color: '#78716c', fontSize: 13 },
+  link: { textAlign: 'center', color: c.primary, marginTop: 8 },
+  linkSmall: { color: c.textMuted, fontSize: 13 },
   altRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: -4, marginBottom: 8, flexWrap: 'wrap' },
-  altSep: { color: '#d6d3d1', fontSize: 13 },
-  helpText: { fontSize: 14, color: '#78716c', textAlign: 'center', marginBottom: 16 },
+  altSep: { color: c.border, fontSize: 13 },
+  helpText: { fontSize: 14, color: c.textMuted, textAlign: 'center', marginBottom: 16 },
 });

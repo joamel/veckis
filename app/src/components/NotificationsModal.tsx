@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +14,8 @@ const TYPES: { key: keyof NotificationPreferences; title: string; desc: string }
 ).map(([key, { title, desc }]) => ({ key, title, desc }));
 
 export function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const client = useApiClient();
   const { showToast, showError } = useToast();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
@@ -72,7 +77,7 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
         <View style={s.header}>
           <Text style={s.title}>{str.notificationsModal.title}</Text>
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.notificationsModal.close}>
-            <Ionicons name="close" size={24} color="#78716c" />
+            <Ionicons name="close" size={24} color={c.textMuted} />
           </Pressable>
         </View>
 
@@ -88,21 +93,21 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
                   <Switch
                     value={prefs[key] as boolean}
                     onValueChange={v => toggle(key, v)}
-                    trackColor={{ true: '#4e7a5e', false: '#d6d3d1' }}
+                    trackColor={{ true: c.primary, false: c.border }}
                     accessibilityLabel={title}
                   />
                 </View>
               ))}
             </View>
           ) : (
-            <ActivityIndicator color="#4e7a5e" style={{ marginTop: 24 }} />
+            <ActivityIndicator color={c.primary} style={{ marginTop: 24 }} />
           )}
 
           <Text style={s.sectionLabel}>{str.notificationsModal.deviceSection}</Text>
           <Pressable style={s.btn} onPress={activateOnDevice} disabled={activating}>
             {activating
-              ? <ActivityIndicator color="#4e7a5e" size="small" />
-              : <><Ionicons name="phone-portrait-outline" size={18} color="#4e7a5e" /><Text style={s.btnText}>{str.notificationsModal.activate}</Text></>}
+              ? <ActivityIndicator color={c.primary} size="small" />
+              : <><Ionicons name="phone-portrait-outline" size={18} color={c.primary} /><Text style={s.btnText}>{str.notificationsModal.activate}</Text></>}
           </Pressable>
           <Pressable style={[s.btn, s.btnTest]} onPress={sendTest} disabled={testing}>
             {testing
@@ -116,20 +121,20 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   overlay: { flex: 1 },
-  sheet: { backgroundColor: '#faf8f3', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#d6d3d1', alignSelf: 'center', marginTop: 10 },
+  sheet: { backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, alignSelf: 'center', marginTop: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
-  title: { fontSize: 20, fontWeight: '700', color: '#292524' },
+  title: { fontSize: 20, fontWeight: '700', color: c.text },
   body: { paddingHorizontal: 16, paddingBottom: 16 },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     borderLeftWidth: 3,
-    borderLeftColor: '#d6d3d1',
+    borderLeftColor: c.border,
     shadowColor: '#000',
     shadowOpacity: 0.03,
     shadowRadius: 6,
@@ -137,13 +142,13 @@ const s = StyleSheet.create({
     elevation: 1,
   },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },
-  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e7e5e4' },
+  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderLight },
   rowText: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  rowDesc: { fontSize: 13, color: '#a8a29e', marginTop: 2 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#a8a29e', letterSpacing: 0.8, marginTop: 22, marginBottom: 8, marginLeft: 4 },
-  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#ecf3ec', borderRadius: 12, paddingVertical: 14, marginBottom: 10 },
-  btnText: { fontSize: 15, fontWeight: '600', color: '#4e7a5e' },
-  btnTest: { backgroundColor: '#4e7a5e' },
-  statusText: { fontSize: 13, color: '#78716c', marginTop: 4, marginHorizontal: 4, lineHeight: 19 },
+  rowTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  rowDesc: { fontSize: 13, color: c.textFaint, marginTop: 2 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginTop: 22, marginBottom: 8, marginLeft: 4 },
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primaryTint, borderRadius: 12, paddingVertical: 14, marginBottom: 10 },
+  btnText: { fontSize: 15, fontWeight: '600', color: c.primary },
+  btnTest: { backgroundColor: c.primary },
+  statusText: { fontSize: 13, color: c.textMuted, marginTop: 4, marginHorizontal: 4, lineHeight: 19 },
 });

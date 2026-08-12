@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { useTheme } from '../../src/context/ThemeContext';
+import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   FlatList,
@@ -99,6 +101,8 @@ function hapticTick() {
 }
 
 function Drum({ values, selected, onSelect }: { values: string[]; selected: number; onSelect: (i: number) => void }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const scrollRef = useRef<ScrollView>(null);
   const len = values.length;
   // 3 copies for seamless wrapping
@@ -156,7 +160,7 @@ function Drum({ values, selected, onSelect }: { values: string[]; selected: numb
               <Text style={{
                 fontSize: isSelected ? 26 : 17,
                 fontWeight: isSelected ? '700' : '400',
-                color: isSelected ? '#292524' : '#d6d3d1',
+                color: isSelected ? c.text : c.border,
               }}>
                 {val}
               </Text>
@@ -169,7 +173,7 @@ function Drum({ values, selected, onSelect }: { values: string[]; selected: numb
         style={{
           position: 'absolute', top: DRUM_H, left: 0, right: 0,
           height: DRUM_H,
-          borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#e7e5e4',
+          borderTopWidth: 1, borderBottomWidth: 1, borderColor: c.borderLight,
         }}
       />
     </View>
@@ -183,6 +187,8 @@ const DIAL_HAND_R = DIAL_R - 26;
 const PIE_COLOR = '#e3eee5';
 
 function RemindDial({ minutes, onChange, onAdd }: { minutes: number; onChange: (m: number) => void; onAdd?: () => void }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [displayText, setDisplayText] = useState(() => formatRemindTime(minutes));
   const dialRef = useRef<View>(null);
   const centerRef = useRef({ x: 0, y: 0 });
@@ -280,13 +286,13 @@ function RemindDial({ minutes, onChange, onAdd }: { minutes: number; onChange: (
   // Result: snake tip is always 150° visible regardless of revolution boundary.
   const snakeCarryRightStyle = useAnimatedStyle(() => {
     const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
-    const c = zone === 0 ? '#faf8f3' : zone === 1 ? '#e2bda1' : zone === 2 ? '#7fa88d' : '#5d8a6d';
-    return { backgroundColor: c };
+    const zc = zone === 0 ? '#faf8f3' : zone === 1 ? '#e2bda1' : zone === 2 ? '#7fa88d' : '#5d8a6d';
+    return { backgroundColor: zc };
   });
   const snakeCarryLeftStyle = useAnimatedStyle(() => {
     const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
-    const c = zone === 0 ? '#faf8f3' : zone === 1 ? '#e2bda1' : zone === 2 ? '#7fa88d' : '#5d8a6d';
-    return { backgroundColor: c };
+    const zc = zone === 0 ? '#faf8f3' : zone === 1 ? '#e2bda1' : zone === 2 ? '#7fa88d' : '#5d8a6d';
+    return { backgroundColor: zc };
   });
   const snakeBgRightStyle = useAnimatedStyle(() => {
     const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
@@ -295,44 +301,44 @@ function RemindDial({ minutes, onChange, onAdd }: { minutes: number; onChange: (
     const rot = Math.min(coverAngle, 180) - 180;
     // Zone 0: erase to dial bg → worm effect on blank ring.
     // Zone 1+: erase to carry color → ring stays colored, no white flash.
-    const c = zone === 0 ? '#faf8f3' : zone === 1 ? '#e2bda1' : zone === 2 ? '#7fa88d' : '#5d8a6d';
-    return { backgroundColor: c, transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
+    const zc = zone === 0 ? '#faf8f3' : zone === 1 ? '#e2bda1' : zone === 2 ? '#7fa88d' : '#5d8a6d';
+    return { backgroundColor: zc, transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
   });
   const snakeBgLeftStyle = useAnimatedStyle(() => {
     const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
     const ha = totalAngleSV.value >= 1440 ? 360 : totalAngleSV.value % 360;
     const coverAngle = Math.min(210 + ha, 360);
     const rot = Math.max(coverAngle - 180, 0) - 180;
-    const c = zone === 0 ? '#faf8f3' : zone === 1 ? '#e2bda1' : zone === 2 ? '#7fa88d' : '#5d8a6d';
-    return { backgroundColor: c, transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
+    const zc = zone === 0 ? '#faf8f3' : zone === 1 ? '#e2bda1' : zone === 2 ? '#7fa88d' : '#5d8a6d';
+    return { backgroundColor: zc, transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
   });
   const snakeHeadRightStyle = useAnimatedStyle(() => {
     const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
     const ha = totalAngleSV.value >= 1440 ? 360 : totalAngleSV.value % 360;
     const rot = Math.min(ha, 180) - 180;
-    const c = zone === 0 ? '#7fa88d' : zone === 1 ? '#5d8a6d' : zone === 2 ? '#4e7a5e' : '#2f5340';
-    return { backgroundColor: c, transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
+    const zc = zone === 0 ? '#7fa88d' : zone === 1 ? '#5d8a6d' : zone === 2 ? '#4e7a5e' : '#2f5340';
+    return { backgroundColor: zc, transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
   });
   const snakeHeadLeftStyle = useAnimatedStyle(() => {
     const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
     const ha = totalAngleSV.value >= 1440 ? 360 : totalAngleSV.value % 360;
     const rot = Math.max(ha - 180, 0) - 180;
-    const c = zone === 0 ? '#7fa88d' : zone === 1 ? '#5d8a6d' : zone === 2 ? '#4e7a5e' : '#2f5340';
-    return { backgroundColor: c, transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
+    const zc = zone === 0 ? '#7fa88d' : zone === 1 ? '#5d8a6d' : zone === 2 ? '#4e7a5e' : '#2f5340';
+    return { backgroundColor: zc, transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
   });
   const snakeTailRightStyle = useAnimatedStyle(() => {
     const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
     const ha = Math.max(0, (totalAngleSV.value >= 1440 ? 360 : totalAngleSV.value % 360) - 60);
     const rot = Math.min(ha, 180) - 180;
-    const c = zone === 0 ? '#e2bda1' : zone === 1 ? '#7fa88d' : zone === 2 ? '#5d8a6d' : '#4e7a5e';
-    return { backgroundColor: c, transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
+    const zc = zone === 0 ? '#e2bda1' : zone === 1 ? '#7fa88d' : zone === 2 ? '#5d8a6d' : '#4e7a5e';
+    return { backgroundColor: zc, transform: [{ translateX: -DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: DIAL_R / 2 }] };
   });
   const snakeTailLeftStyle = useAnimatedStyle(() => {
     const zone = Math.min(Math.floor(totalAngleSV.value / 360), 3);
     const ha = Math.max(0, (totalAngleSV.value >= 1440 ? 360 : totalAngleSV.value % 360) - 60);
     const rot = Math.max(ha - 180, 0) - 180;
-    const c = zone === 0 ? '#e2bda1' : zone === 1 ? '#7fa88d' : zone === 2 ? '#5d8a6d' : '#4e7a5e';
-    return { backgroundColor: c, transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
+    const zc = zone === 0 ? '#e2bda1' : zone === 1 ? '#7fa88d' : zone === 2 ? '#5d8a6d' : '#4e7a5e';
+    return { backgroundColor: zc, transform: [{ translateX: DIAL_R / 2 }, { rotate: `${rot}deg` }, { translateX: -DIAL_R / 2 }] };
   });
 
   const centerScaleStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
@@ -388,16 +394,16 @@ function RemindDial({ minutes, onChange, onAdd }: { minutes: number; onChange: (
           {/* Indicator dot */}
           <Animated.View style={[{
             position: 'absolute', left: DIAL_R - 12, top: DIAL_R - 12,
-            width: 24, height: 24, borderRadius: 12, backgroundColor: '#274434',
+            width: 24, height: 24, borderRadius: 12, backgroundColor: c.primaryDarker,
           }, indicatorStyle]} />
           {/* Center — fixed indigo button; tap here (detected in PanResponder) to add; pulses once on mount */}
           <Animated.View style={[{
             position: 'absolute', left: DIAL_R - 62, top: DIAL_R - 62,
             width: 124, height: 124, borderRadius: 62,
             alignItems: 'center', justifyContent: 'center',
-            backgroundColor: '#274434',
+            backgroundColor: c.primaryDarker,
           }, centerScaleStyle]}>
-            <Text style={{ fontSize: 28, fontWeight: '700', textAlign: 'center', color: '#ffffff' }}>{displayText}</Text>
+            <Text style={{ fontSize: 28, fontWeight: '700', textAlign: 'center', color: c.surface }}>{displayText}</Text>
           </Animated.View>
         </View>
     </View>
@@ -405,6 +411,8 @@ function RemindDial({ minutes, onChange, onAdd }: { minutes: number; onChange: (
 }
 
 export default function ScheduleScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
   const deeplinkParams = useLocalSearchParams<{ entryId?: string }>();
   const openedEntryParamRef = useRef<string | null>(null);
@@ -1144,7 +1152,7 @@ export default function ScheduleScreen() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color="#4e7a5e" /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   }
 
   const todayISOWeek = getISOWeek(new Date());
@@ -1240,7 +1248,7 @@ export default function ScheduleScreen() {
               onPress={() => router.push(`/recipes/${item.recipeId}?from=calendar` as never)}
             >
               <View style={[s.menuIcon, { width: sp(32), height: sp(32) }]}>
-                <Ionicons name="restaurant-outline" size={fs(16)} color="#4e7a5e" />
+                <Ionicons name="restaurant-outline" size={fs(16)} color={c.primary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[s.menuTitle, { fontSize: fs(15) }]} numberOfLines={1}>{item.recipe.title}</Text>
@@ -1270,8 +1278,8 @@ export default function ScheduleScreen() {
               onPress={() => setViewingEntry(entry)}
               onLongPress={() => { medium(); openEntryActions(entry); }}
             >
-              <View style={[s.menuIcon, { backgroundColor: '#f8eedb' }]}>
-                <Ionicons name="calendar-outline" size={fs(16)} color="#c2913d" />
+              <View style={[s.menuIcon, { backgroundColor: c.accent100 }]}>
+                <Ionicons name="calendar-outline" size={fs(16)} color={c.warning} />
               </View>
               <View style={s.entryContent}>
                 <Text style={[s.entryTitle, { fontSize: fs(15) }, isPast && { textDecorationLine: 'line-through' }]}>{entry.title}</Text>
@@ -1289,7 +1297,7 @@ export default function ScheduleScreen() {
                 <Text style={[s.entryRightTime, { fontSize: fs(13) }, isPast && { textDecorationLine: 'line-through' }]}>
                   {entry.startTime ?? str.allDay}
                 </Text>
-                {!entry.isShared && <Ionicons name="lock-closed-outline" size={fs(14)} color="#a8a29e" />}
+                {!entry.isShared && <Ionicons name="lock-closed-outline" size={fs(14)} color={c.textFaint} />}
               </View>
             </Pressable>
             );
@@ -1309,8 +1317,8 @@ export default function ScheduleScreen() {
                 style={[s.choreCard, done && s.choreDone]}
                 onPress={() => router.push(`/(tabs)/chores?choreId=${chore.id}` as never)}
               >
-                <View style={[s.menuIcon, { backgroundColor: '#faf1e9' }]}>
-                  <Ionicons name="sparkles-outline" size={fs(16)} color="#b96a45" />
+                <View style={[s.menuIcon, { backgroundColor: c.accentTint }]}>
+                  <Ionicons name="sparkles-outline" size={fs(16)} color={c.accent} />
                 </View>
                 <View style={s.choreInfo}>
                   <Text style={[s.choreTitle, { fontSize: fs(15) }, done && s.choreStrike]}>{chore.title}</Text>
@@ -1338,7 +1346,7 @@ export default function ScheduleScreen() {
         title={str.title}
         actionNode={members.length > 0 ? (
           <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive, { paddingHorizontal: sp(10), paddingVertical: sp(6) }]} onPress={() => setShowFilterModal(true)}>
-            <Ionicons name="person-outline" size={fs(14)} color={filterMemberIds.length > 0 ? '#b96a45' : '#78716c'} />
+            <Ionicons name="person-outline" size={fs(14)} color={filterMemberIds.length > 0 ? c.accent : c.textMuted} />
             <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive, { fontSize: fs(12) }]}>{choresStr.header.filter}</Text>
             {filterMemberIds.length > 0 && (
               <View style={s.filterBadge}>
@@ -1525,7 +1533,7 @@ export default function ScheduleScreen() {
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4e7a5e" />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
             style={[s.content, (Platform.OS === 'web' ? { scrollSnapType: 'x mandatory' } : null) as any]}
             initialScrollIndex={dayIndexForDate(selectedDayDate) + DAY_SPAN}
             getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
@@ -1605,46 +1613,46 @@ export default function ScheduleScreen() {
               <>
                 <View style={s.viewNav}>
                   <Pressable onPress={() => setViewingEntry(null)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel={common.actions.close}>
-                    <Ionicons name="arrow-back" size={24} color="#292524" />
+                    <Ionicons name="arrow-back" size={24} color={c.text} />
                   </Pressable>
                   <View style={{ flex: 1 }} />
                   <Pressable onPress={() => openEntryActions(e)} hitSlop={8} style={s.viewNavBtn} accessibilityLabel={common.actions.more}>
-                    <Ionicons name="ellipsis-vertical" size={22} color="#292524" />
+                    <Ionicons name="ellipsis-vertical" size={22} color={c.text} />
                   </Pressable>
                 </View>
                 <ScrollView contentContainerStyle={[s.viewBody, { paddingBottom: insets.bottom + 24 }]}>
                   <Text style={s.viewTitle}>{e.title}</Text>
                   <View style={s.viewRow}>
-                    <Ionicons name="calendar-outline" size={18} color="#78716c" />
+                    <Ionicons name="calendar-outline" size={18} color={c.textMuted} />
                     <Text style={s.viewRowText}>{dateLabel}</Text>
                   </View>
                   <View style={s.viewRow}>
-                    <Ionicons name="time-outline" size={18} color="#78716c" />
+                    <Ionicons name="time-outline" size={18} color={c.textMuted} />
                     <Text style={s.viewRowText}>{e.startTime ?? str.allDay}</Text>
                   </View>
                   {!!(e.remindMinutes?.length) && (
                     <View style={s.viewRow}>
-                      <Ionicons name="notifications-outline" size={18} color="#78716c" />
+                      <Ionicons name="notifications-outline" size={18} color={c.textMuted} />
                       <Text style={s.viewRowText}>{(() => { const times = [...e.remindMinutes].sort((a, b) => a - b).map(m => formatRemindTime(m)); return times.every(t => t === str.remind.atStart) ? times.join(', ') : str.remind.before(times.join(', ')); })()}</Text>
                     </View>
                   )}
                   <View style={s.viewRow}>
-                    <Ionicons name="repeat-outline" size={18} color="#78716c" />
+                    <Ionicons name="repeat-outline" size={18} color={c.textMuted} />
                     <Text style={s.viewRowText}>{recurrenceSummary(e)}</Text>
                   </View>
                   {names.length > 0 && (
                     <View style={s.viewRow}>
-                      <Ionicons name="people-outline" size={18} color="#78716c" />
+                      <Ionicons name="people-outline" size={18} color={c.textMuted} />
                       <Text style={s.viewRowText}>{names.join(', ')}</Text>
                     </View>
                   )}
                   <View style={s.viewRow}>
-                    <Ionicons name={e.isShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color="#78716c" />
+                    <Ionicons name={e.isShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={c.textMuted} />
                     <Text style={s.viewRowText}>{e.isShared ? str.shared.isShared : str.shared.isPrivate}</Text>
                   </View>
                   {!!e.description && (
                     <View style={[s.viewRow, { alignItems: 'flex-start' }]}>
-                      <Ionicons name="document-text-outline" size={18} color="#78716c" style={{ marginTop: 2 }} />
+                      <Ionicons name="document-text-outline" size={18} color={c.textMuted} style={{ marginTop: 2 }} />
                       <Text style={s.viewRowText}>{e.description}</Text>
                     </View>
                   )}
@@ -1671,7 +1679,7 @@ export default function ScheduleScreen() {
             <TextInput
               style={s.input}
               placeholder={str.form.titleLabel}
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={c.textFaint}
               value={editEntryTitle}
               onChangeText={setEditEntryTitle}
             />
@@ -1684,7 +1692,7 @@ export default function ScheduleScreen() {
                   setEditEntryTimeEnabled(v);
                   if (v) setTimeout(() => editModalScrollRef.current?.scrollTo({ y: editTimeSectionY.current, animated: true }), 100);
                 }}
-                trackColor={{ true: '#4e7a5e' }}
+                trackColor={{ true: c.primary }}
               />
             </View>
             {editEntryTimeEnabled && (
@@ -1697,12 +1705,12 @@ export default function ScheduleScreen() {
             {editEntryTimeEnabled && (
               <>
                 <Pressable style={s.sharedRow} onPress={() => setEditRemindEnabled(v => !v)}>
-                  <Ionicons name={editRemindEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={editRemindEnabled ? '#4e7a5e' : '#a8a29e'} />
+                  <Ionicons name={editRemindEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={editRemindEnabled ? c.primary : c.textFaint} />
                   <View style={{ flex: 1 }}>
                     <Text style={s.sharedLabel}>{str.form.reminderLabel}</Text>
                     <Text style={s.sharedSub}>{editRemindEnabled ? str.form.reminderOnSub : str.form.reminderOffSub}</Text>
                   </View>
-                  <Switch value={editRemindEnabled} onValueChange={v => { setEditRemindEnabled(v); if (!v) { setEditEntryRemindMinutes([]); setShowEditRemindDial(false); setShowEditQuickPick(false); } else { setShowEditQuickPick(true); } }} trackColor={{ true: '#4e7a5e' }} />
+                  <Switch value={editRemindEnabled} onValueChange={v => { setEditRemindEnabled(v); if (!v) { setEditEntryRemindMinutes([]); setShowEditRemindDial(false); setShowEditQuickPick(false); } else { setShowEditQuickPick(true); } }} trackColor={{ true: c.primary }} />
                 </Pressable>
                 {editRemindEnabled && (
                   <>
@@ -1712,7 +1720,7 @@ export default function ScheduleScreen() {
                           <View key={m} style={s.remindChip}>
                             <Text style={s.remindChipText}>{formatRemindTime(m)}</Text>
                             <Pressable onPress={() => setEditEntryRemindMinutes(prev => prev.filter(x => x !== m))} hitSlop={8}>
-                              <Ionicons name="close" size={14} color="#4e7a5e" />
+                              <Ionicons name="close" size={14} color={c.primary} />
                             </Pressable>
                           </View>
                         ))}
@@ -1739,7 +1747,7 @@ export default function ScheduleScreen() {
                       </View>
                     ) : editEntryRemindMinutes.length > 0 && editEntryRemindMinutes.length < 5 ? (
                       <Pressable style={s.remindMoreBtn} onPress={() => setShowEditQuickPick(true)}>
-                        <Ionicons name="add-circle-outline" size={18} color="#4e7a5e" />
+                        <Ionicons name="add-circle-outline" size={18} color={c.primary} />
                         <Text style={s.remindMoreBtnText}>{str.remind.addReminder}</Text>
                       </Pressable>
                     ) : null}
@@ -1768,12 +1776,12 @@ export default function ScheduleScreen() {
               />
             )}
             <Pressable style={s.sharedRow} onPress={() => setEditEntryIsShared(v => { if (v) setEditEntryAssignedToMany([]); return !v; })}>
-              <Ionicons name={editEntryIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={editEntryIsShared ? '#4e7a5e' : '#a8a29e'} />
+              <Ionicons name={editEntryIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={editEntryIsShared ? c.primary : c.textFaint} />
               <View style={{ flex: 1 }}>
                 <Text style={s.sharedLabel}>{editEntryIsShared ? str.shared.isShared : str.shared.isPrivate}</Text>
                 <Text style={s.sharedSub}>{editEntryIsShared ? str.shared.sharedSub : str.shared.privateSub}</Text>
               </View>
-              <Switch value={editEntryIsShared} onValueChange={v => { setEditEntryIsShared(v); if (!v) setEditEntryAssignedToMany([]); }} trackColor={{ true: '#4e7a5e' }} />
+              <Switch value={editEntryIsShared} onValueChange={v => { setEditEntryIsShared(v); if (!v) setEditEntryAssignedToMany([]); }} trackColor={{ true: c.primary }} />
             </Pressable>
             {members.length > 0 && editEntryIsShared && (
               <>
@@ -1796,7 +1804,7 @@ export default function ScheduleScreen() {
             )}
             <View style={s.editModalActions}>
               <Pressable style={s.deleteActionBtn} onPress={() => { if (editingEntry) deleteEntry(editingEntry, selectedDayDateStr); }}>
-                <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                <Ionicons name="trash-outline" size={16} color={c.danger} />
                 <Text style={s.deleteActionText}>{common.actions.delete}</Text>
               </Pressable>
               <Pressable
@@ -1828,7 +1836,7 @@ export default function ScheduleScreen() {
             <TextInput
               style={s.input}
               placeholder={str.form.titleLabel}
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={c.textFaint}
               value={editCalChoreTitle}
               onChangeText={setEditCalChoreTitle}
             />
@@ -1854,12 +1862,12 @@ export default function ScheduleScreen() {
               style={s.navButton}
               onPress={() => { setEditingCalChore(null); router.push('/(tabs)/chores' as never); }}
             >
-              <Ionicons name="open-outline" size={15} color="#4e7a5e" />
+              <Ionicons name="open-outline" size={15} color={c.primary} />
               <Text style={s.navButtonText}>{str.actions.goToChores}</Text>
             </Pressable>
             <View style={s.editModalActions}>
               <Pressable style={s.deleteActionBtn} onPress={() => { setEditingCalChore(null); if (editingCalChore) deleteChoreCalendar(editingCalChore.id, editingCalChore.title); }}>
-                <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                <Ionicons name="trash-outline" size={16} color={c.danger} />
                 <Text style={s.deleteActionText}>{common.actions.delete}</Text>
               </Pressable>
               <Pressable
@@ -1882,7 +1890,7 @@ export default function ScheduleScreen() {
             <Text style={s.filterPopupTitle}>{str.filter.popupTitle}</Text>
             {filterMemberIds.length > 0 && (
               <Pressable onPress={() => setFilterMemberIds([])} hitSlop={8}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#b96a45' }}>{str.filter.clear}</Text>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: c.accent }}>{str.filter.clear}</Text>
               </Pressable>
             )}
           </View>
@@ -1894,7 +1902,7 @@ export default function ScheduleScreen() {
             <Ionicons
               name={filterMemberIds.length === 0 ? 'checkbox' : 'square-outline'}
               size={22}
-              color={filterMemberIds.length === 0 ? '#b96a45' : '#d6d3d1'}
+              color={filterMemberIds.length === 0 ? c.accent : c.border}
             />
           </Pressable>
           {members.map(m => {
@@ -1911,7 +1919,7 @@ export default function ScheduleScreen() {
                 <Ionicons
                   name={active ? 'checkbox' : 'square-outline'}
                   size={22}
-                  color={active ? '#b96a45' : '#d6d3d1'}
+                  color={active ? c.accent : c.border}
                 />
               </Pressable>
             );
@@ -1950,7 +1958,7 @@ export default function ScheduleScreen() {
             <TextInput
               style={s.input}
               placeholder={str.form.titlePlaceholder}
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={c.textFaint}
               value={newTitle}
               onChangeText={setNewTitle}
               autoFocus
@@ -1965,7 +1973,7 @@ export default function ScheduleScreen() {
                   setTimeEnabled(v);
                   if (v) setTimeout(() => newModalScrollRef.current?.scrollTo({ y: newTimeSectionY.current, animated: true }), 100);
                 }}
-                trackColor={{ true: '#4e7a5e' }}
+                trackColor={{ true: c.primary }}
               />
             </View>
             {timeEnabled && (
@@ -1978,12 +1986,12 @@ export default function ScheduleScreen() {
             {timeEnabled && (
               <>
                 <Pressable style={s.sharedRow} onPress={() => setNewRemindEnabled(v => !v)}>
-                  <Ionicons name={newRemindEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={newRemindEnabled ? '#4e7a5e' : '#a8a29e'} />
+                  <Ionicons name={newRemindEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={18} color={newRemindEnabled ? c.primary : c.textFaint} />
                   <View style={{ flex: 1 }}>
                     <Text style={s.sharedLabel}>{str.form.reminderLabel}</Text>
                     <Text style={s.sharedSub}>{newRemindEnabled ? str.form.reminderOnSub : str.form.reminderOffSub}</Text>
                   </View>
-                  <Switch value={newRemindEnabled} onValueChange={v => { setNewRemindEnabled(v); if (!v) { setNewRemindMinutes([]); setShowNewRemindDial(false); setShowNewQuickPick(false); } else { setShowNewQuickPick(true); } }} trackColor={{ true: '#4e7a5e' }} />
+                  <Switch value={newRemindEnabled} onValueChange={v => { setNewRemindEnabled(v); if (!v) { setNewRemindMinutes([]); setShowNewRemindDial(false); setShowNewQuickPick(false); } else { setShowNewQuickPick(true); } }} trackColor={{ true: c.primary }} />
                 </Pressable>
                 {newRemindEnabled && (
                   <>
@@ -1993,7 +2001,7 @@ export default function ScheduleScreen() {
                           <View key={m} style={s.remindChip}>
                             <Text style={s.remindChipText}>{formatRemindTime(m)}</Text>
                             <Pressable onPress={() => setNewRemindMinutes(prev => prev.filter(x => x !== m))} hitSlop={8}>
-                              <Ionicons name="close" size={14} color="#4e7a5e" />
+                              <Ionicons name="close" size={14} color={c.primary} />
                             </Pressable>
                           </View>
                         ))}
@@ -2020,7 +2028,7 @@ export default function ScheduleScreen() {
                       </View>
                     ) : newRemindMinutes.length > 0 && newRemindMinutes.length < 5 ? (
                       <Pressable style={s.remindMoreBtn} onPress={() => setShowNewQuickPick(true)}>
-                        <Ionicons name="add-circle-outline" size={18} color="#4e7a5e" />
+                        <Ionicons name="add-circle-outline" size={18} color={c.primary} />
                         <Text style={s.remindMoreBtnText}>{str.remind.addReminder}</Text>
                       </Pressable>
                     ) : null}
@@ -2031,12 +2039,12 @@ export default function ScheduleScreen() {
             </View>
 
             <Pressable style={s.sharedRow} onPress={() => setNewIsShared(v => { if (v) setNewAssignedToMany([]); return !v; })}>
-              <Ionicons name={newIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={newIsShared ? '#4e7a5e' : '#a8a29e'} />
+              <Ionicons name={newIsShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={newIsShared ? c.primary : c.textFaint} />
               <View style={{ flex: 1 }}>
                 <Text style={s.sharedLabel}>{newIsShared ? str.shared.isShared : str.shared.isPrivate}</Text>
                 <Text style={s.sharedSub}>{newIsShared ? str.shared.sharedSub : str.shared.privateSub}</Text>
               </View>
-              <Switch value={newIsShared} onValueChange={v => { setNewIsShared(v); if (!v) setNewAssignedToMany([]); }} trackColor={{ true: '#4e7a5e' }} />
+              <Switch value={newIsShared} onValueChange={v => { setNewIsShared(v); if (!v) setNewAssignedToMany([]); }} trackColor={{ true: c.primary }} />
             </Pressable>
 
             {members.length > 0 && newIsShared && (
@@ -2163,7 +2171,7 @@ export default function ScheduleScreen() {
                     style={[s.endCondBtn, newEndDate && s.endCondBtnActive, { flex: 1.5 }]}
                     onPress={() => setShowNewEndPicker(true)}
                   >
-                    <Ionicons name="calendar-outline" size={13} color={newEndDate ? '#4e7a5e' : '#a8a29e'} />
+                    <Ionicons name="calendar-outline" size={13} color={newEndDate ? c.primary : c.textFaint} />
                     <Text style={[s.endCondBtnText, newEndDate && s.endCondBtnTextActive]}>{newEndDate ?? componentsStr.recurrencePicker.chooseDate}</Text>
                   </Pressable>
                 </View>
@@ -2185,18 +2193,18 @@ export default function ScheduleScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#faf8f3' },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  dayRowPager: { flexGrow: 0, backgroundColor: '#fff' },
-  dayRow: { flexDirection: 'row', backgroundColor: '#fff', paddingHorizontal: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1efec', gap: 4 },
-  dayTab: { flex: 1, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3', alignItems: 'center', gap: 1 },
-  dayTabActive: { borderColor: '#4e7a5e', backgroundColor: '#4e7a5e' },
-  dayTabHasContent: { backgroundColor: '#ecf3ec', borderColor: '#c6ddcd' },
-  dayTabShort: { fontSize: 10, fontWeight: '500', color: '#a8a29e' },
-  dayTabDate: { fontSize: 14, fontWeight: '700', color: '#44403c' },
+  dayRowPager: { flexGrow: 0, backgroundColor: c.surface },
+  dayRow: { flexDirection: 'row', backgroundColor: c.surface, paddingHorizontal: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 4 },
+  dayTab: { flex: 1, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background, alignItems: 'center', gap: 1 },
+  dayTabActive: { borderColor: c.primary, backgroundColor: c.primary },
+  dayTabHasContent: { backgroundColor: c.primaryTint, borderColor: c.primary200 },
+  dayTabShort: { fontSize: 10, fontWeight: '500', color: c.textFaint },
+  dayTabDate: { fontSize: 14, fontWeight: '700', color: c.textSecondary },
   dayTabTextActive: { color: '#fff' },
-  todayDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#4e7a5e', marginTop: 1 },
+  todayDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: c.primary, marginTop: 1 },
   todayDotActive: { backgroundColor: 'rgba(255,255,255,0.8)' },
   todayDotHidden: { opacity: 0 },
   content: { flex: 1 },
@@ -2204,124 +2212,124 @@ const s = StyleSheet.create({
   contentEmpty: { flex: 1 },
   section: { gap: 6 },
   // marginTop ger luft mellan föregående sektions sista kort och nästa rubrik.
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#b96a45', letterSpacing: 0.8, paddingHorizontal: 2, marginTop: 14 },
-  menuCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c6ddcd', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  menuIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
-  menuTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  menuMeta: { fontSize: 12, color: '#78716c' },
-  choreCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#e2bda1', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  choreDone: { backgroundColor: '#faf8f3', borderWidth: 1, borderColor: '#e7e5e4', opacity: 0.7 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.accent, letterSpacing: 0.8, paddingHorizontal: 2, marginTop: 14 },
+  menuCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.primary200, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  menuIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
+  menuTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  menuMeta: { fontSize: 12, color: c.textMuted },
+  choreCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.accent300, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  choreDone: { backgroundColor: c.background, borderWidth: 1, borderColor: c.borderLight, opacity: 0.7 },
   choreInfo: { flex: 1 },
-  choreTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  choreStrike: { textDecorationLine: 'line-through', color: '#a8a29e' },
-  choreAssigned: { fontSize: 12, color: '#78716c', marginTop: 2 },
-  choreCheckBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#d6d3d1', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
-  choreCheckBtnDone: { backgroundColor: '#10b981', borderColor: '#10b981' },
-  entryCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#fff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#ead9b0', padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  choreTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  choreStrike: { textDecorationLine: 'line-through', color: c.textFaint },
+  choreAssigned: { fontSize: 12, color: c.textMuted, marginTop: 2 },
+  choreCheckBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: c.border, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+  choreCheckBtnDone: { backgroundColor: c.success, borderColor: c.success },
+  entryCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.accent200, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   entryTime: { width: 44, alignItems: 'center', paddingTop: 2 },
-  timeText: { fontSize: 13, fontWeight: '600', color: '#78716c' },
-  timeTextMuted: { fontSize: 10, color: '#a8a29e', fontStyle: 'italic' },
+  timeText: { fontSize: 13, fontWeight: '600', color: c.textMuted },
+  timeTextMuted: { fontSize: 10, color: c.textFaint, fontStyle: 'italic' },
   entryContent: { flex: 1 },
   entryRightCol: { alignItems: 'flex-end', gap: 4 },
-  entryRightTime: { fontSize: 13, fontWeight: '600', color: '#78716c' },
-  entryTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  entryDesc: { fontSize: 13, color: '#78716c', marginTop: 2 },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center', shadowColor: '#4e7a5e', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  entryRightTime: { fontSize: 13, fontWeight: '600', color: c.textMuted },
+  entryTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  entryDesc: { fontSize: 13, color: c.textMuted, marginTop: 2 },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '92%' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e7e5e4', alignSelf: 'center', marginBottom: 4 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524', marginBottom: 6 },
-  viewFull: { flex: 1, backgroundColor: '#fff' },
+  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, maxHeight: '92%' },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 6 },
+  viewFull: { flex: 1, backgroundColor: c.surface },
   viewNav: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8 },
   viewNavBtn: { padding: 8 },
   viewBody: { paddingHorizontal: 20, paddingTop: 8, gap: 4 },
-  viewTitle: { fontSize: 24, fontWeight: '700', color: '#292524', marginBottom: 12 },
+  viewTitle: { fontSize: 24, fontWeight: '700', color: c.text, marginBottom: 12 },
   viewRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
-  viewRowText: { flex: 1, fontSize: 16, color: '#44403c' },
+  viewRowText: { flex: 1, fontSize: 16, color: c.textSecondary },
   sheetScroll: { gap: 14, paddingBottom: 40 },
-  input: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: '#faf8f3' },
-  label: { fontSize: 14, fontWeight: '600', color: '#44403c' },
+  input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.background },
+  label: { fontSize: 14, fontWeight: '600', color: c.textSecondary },
   timeToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  drumRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#faf8f3', borderRadius: 12, borderWidth: 1, borderColor: '#e7e5e4', overflow: 'hidden', paddingHorizontal: 20 },
-  drumColon: { fontSize: 30, fontWeight: '700', color: '#44403c', marginHorizontal: 8 },
+  drumRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.background, borderRadius: 12, borderWidth: 1, borderColor: c.borderLight, overflow: 'hidden', paddingHorizontal: 20 },
+  drumColon: { fontSize: 30, fontWeight: '700', color: c.textSecondary, marginHorizontal: 8 },
   dayPickerRow: { flexDirection: 'row', gap: 6 },
-  dayPickerOption: { flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center', backgroundColor: '#faf8f3' },
-  dayPickerOptionActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
-  dayPickerText: { fontSize: 12, color: '#78716c', fontWeight: '500' },
-  dayPickerTextActive: { color: '#4e7a5e', fontWeight: '700' },
-  sharedRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#faf8f3', borderRadius: 10, padding: 12 },
-  sharedLabel: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  sharedSub: { fontSize: 12, color: '#a8a29e', marginTop: 1 },
-  button: { backgroundColor: '#4e7a5e', borderRadius: 10, padding: 16, alignItems: 'center' },
+  dayPickerOption: { flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: c.borderLight, alignItems: 'center', backgroundColor: c.background },
+  dayPickerOptionActive: { borderColor: c.primary, backgroundColor: c.primaryTint },
+  dayPickerText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
+  dayPickerTextActive: { color: c.primary, fontWeight: '700' },
+  sharedRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.background, borderRadius: 10, padding: 12 },
+  sharedLabel: { fontSize: 15, fontWeight: '600', color: c.text },
+  sharedSub: { fontSize: 12, color: c.textFaint, marginTop: 1 },
+  button: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   editModalActions: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  deleteActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 14, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fff7f7' },
-  deleteActionText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
+  deleteActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 14, borderRadius: 10, borderWidth: 1, borderColor: c.dangerBorder, backgroundColor: c.dangerTint },
+  deleteActionText: { color: c.danger, fontWeight: '600', fontSize: 14 },
   memberPickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  memberOption: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3', flexShrink: 0 },
-  memberOptionActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
-  memberOptionText: { fontSize: 14, color: '#44403c', fontWeight: '500' },
-  memberOptionTextActive: { color: '#4e7a5e', fontWeight: '600' },
+  memberOption: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background, flexShrink: 0 },
+  memberOptionActive: { borderColor: c.primary, backgroundColor: c.primaryTint },
+  memberOptionText: { fontSize: 14, color: c.textSecondary, fontWeight: '500' },
+  memberOptionTextActive: { color: c.primary, fontWeight: '600' },
   navButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, marginBottom: 10 },
-  navButtonText: { fontSize: 14, fontWeight: '600', color: '#4e7a5e' },
+  navButtonText: { fontSize: 14, fontWeight: '600', color: c.primary },
   tabletLayout: { flex: 1, flexDirection: 'row' },
-  tabletLeft: { flex: 1.4, borderRightWidth: 1, borderRightColor: '#f1efec' },
-  tabletViewToggle: { flexDirection: 'row', gap: 6, padding: 12, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
-  viewToggleBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f1efec' },
-  viewToggleBtnActive: { backgroundColor: '#4e7a5e' },
-  viewToggleText: { fontSize: 13, fontWeight: '600', color: '#78716c' },
+  tabletLeft: { flex: 1.4, borderRightWidth: 1, borderRightColor: c.surfaceSubtle },
+  tabletViewToggle: { flexDirection: 'row', gap: 6, padding: 12, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
+  viewToggleBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: c.surfaceSubtle },
+  viewToggleBtnActive: { backgroundColor: c.primary },
+  viewToggleText: { fontSize: 13, fontWeight: '600', color: c.textMuted },
   viewToggleTextActive: { color: '#fff' },
-  tabletRight: { flex: 1, backgroundColor: '#faf8f3' },
-  tabletDayHeader: { padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1efec' },
-  tabletDayTitle: { fontSize: 16, fontWeight: '700', color: '#292524' },
-  dateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
-  dateBtnSet: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
-  dateBtnText: { fontSize: 13, color: '#a8a29e', flex: 1 },
-  dateBtnTextSet: { color: '#4e7a5e', fontWeight: '600' },
+  tabletRight: { flex: 1, backgroundColor: c.background },
+  tabletDayHeader: { padding: 16, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
+  tabletDayTitle: { fontSize: 16, fontWeight: '700', color: c.text },
+  dateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background },
+  dateBtnSet: { borderColor: c.primary, backgroundColor: c.primaryTint },
+  dateBtnText: { fontSize: 13, color: c.textFaint, flex: 1 },
+  dateBtnTextSet: { color: c.primary, fontWeight: '600' },
   recurrenceTypeRow: { flexDirection: 'row', gap: 6 },
-  recurrenceTypeBtn: { flex: 1, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center', backgroundColor: '#faf8f3' },
-  recurrenceTypeBtnActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
-  recurrenceTypeBtnText: { fontSize: 12, color: '#78716c', fontWeight: '500' },
-  recurrenceTypeBtnTextActive: { color: '#4e7a5e', fontWeight: '700' },
-  intervalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#faf8f3', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#e7e5e4' },
-  intervalLabel: { fontSize: 14, color: '#44403c', fontWeight: '500' },
-  intervalBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  intervalBtnText: { fontSize: 18, color: '#44403c', fontWeight: '600', lineHeight: 22 },
-  intervalValue: { fontSize: 18, fontWeight: '700', color: '#292524', minWidth: 28, textAlign: 'center' },
+  recurrenceTypeBtn: { flex: 1, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: c.borderLight, alignItems: 'center', backgroundColor: c.background },
+  recurrenceTypeBtnActive: { borderColor: c.primary, backgroundColor: c.primaryTint },
+  recurrenceTypeBtnText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
+  recurrenceTypeBtnTextActive: { color: c.primary, fontWeight: '700' },
+  intervalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.background, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: c.borderLight },
+  intervalLabel: { fontSize: 14, color: c.textSecondary, fontWeight: '500' },
+  intervalBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' },
+  intervalBtnText: { fontSize: 18, color: c.textSecondary, fontWeight: '600', lineHeight: 22 },
+  intervalValue: { fontSize: 18, fontWeight: '700', color: c.text, minWidth: 28, textAlign: 'center' },
   monthlyTypeRow: { gap: 8 },
-  monthlyTypeBtn: { padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
-  monthlyTypeBtnActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
-  monthlyTypeBtnText: { fontSize: 13, color: '#78716c', fontWeight: '500' },
-  monthlyTypeBtnTextActive: { color: '#4e7a5e', fontWeight: '700' },
+  monthlyTypeBtn: { padding: 12, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background },
+  monthlyTypeBtnActive: { borderColor: c.primary, backgroundColor: c.primaryTint },
+  monthlyTypeBtnText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
+  monthlyTypeBtnTextActive: { color: c.primary, fontWeight: '700' },
   endCondRow: { flexDirection: 'row', gap: 8 },
-  endCondBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 11, borderRadius: 10, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
-  endCondBtnActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
-  endCondBtnText: { fontSize: 12, color: '#a8a29e', fontWeight: '500' },
-  endCondBtnTextActive: { color: '#4e7a5e', fontWeight: '700' },
-  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
-  filterBtnActive: { borderColor: '#b96a45', backgroundColor: '#faf1e9' },
-  filterBtnText: { fontSize: 12, color: '#78716c', fontWeight: '500' },
-  filterBtnTextActive: { color: '#b96a45', fontWeight: '600' },
-  filterBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#b96a45', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  endCondBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 11, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background },
+  endCondBtnActive: { borderColor: c.primary, backgroundColor: c.primaryTint },
+  endCondBtnText: { fontSize: 12, color: c.textFaint, fontWeight: '500' },
+  endCondBtnTextActive: { color: c.primary, fontWeight: '700' },
+  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background },
+  filterBtnActive: { borderColor: c.accent, backgroundColor: c.accentTint },
+  filterBtnText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
+  filterBtnTextActive: { color: c.accent, fontWeight: '600' },
+  filterBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   filterBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  filterPopup: { position: 'absolute', top: 0, right: 0, backgroundColor: '#fff', borderRadius: 12, padding: 16, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 8, overflow: 'hidden' },
-  filterPopupTitle: { fontSize: 13, fontWeight: '600', color: '#78716c', textTransform: 'uppercase', letterSpacing: 0.5 },
-  filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
-  filterMemberName: { fontSize: 15, color: '#44403c', flex: 1, marginRight: 12 },
-  filterMemberNameActive: { color: '#b96a45', fontWeight: '600' },
+  filterPopup: { position: 'absolute', top: 0, right: 0, backgroundColor: c.surface, borderRadius: 12, padding: 16, minWidth: 200, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 8, overflow: 'hidden' },
+  filterPopupTitle: { fontSize: 13, fontWeight: '600', color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  filterMemberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
+  filterMemberName: { fontSize: 15, color: c.textSecondary, flex: 1, marginRight: 12 },
+  filterMemberNameActive: { color: c.accent, fontWeight: '600' },
   remindDial: { width: DIAL_SIZE, height: DIAL_SIZE, borderRadius: DIAL_R, borderWidth: 2, borderColor: '#e7e5e4', backgroundColor: '#faf8f3', position: 'relative', overflow: 'hidden' },
   remindChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 },
-  remindChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f6e8dc', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  remindChipText: { fontSize: 13, fontWeight: '600' as const, color: '#4e7a5e' },
-  remindAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#4e7a5e', borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
+  remindChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.accent100, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  remindChipText: { fontSize: 13, fontWeight: '600' as const, color: c.primary },
+  remindAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
   remindAddBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' as const },
   remindMoreBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
-  remindMoreBtnText: { color: '#4e7a5e', fontSize: 14, fontWeight: '600' as const },
+  remindMoreBtnText: { color: c.primary, fontSize: 14, fontWeight: '600' as const },
   remindQuickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 6, alignItems: 'center' },
-  remindQuickChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#e2bda1', backgroundColor: '#faf1e9' },
-  remindQuickChipText: { fontSize: 13, fontWeight: '600' as const, color: '#b96a45' },
-  remindCustomLink: { fontSize: 13, color: '#4e7a5e', fontWeight: '500' as const, paddingHorizontal: 4, paddingVertical: 7, textDecorationLine: 'underline' },
+  remindQuickChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: c.accent300, backgroundColor: c.accentTint },
+  remindQuickChipText: { fontSize: 13, fontWeight: '600' as const, color: c.accent },
+  remindCustomLink: { fontSize: 13, color: c.primary, fontWeight: '500' as const, paddingHorizontal: 4, paddingVertical: 7, textDecorationLine: 'underline' },
 });

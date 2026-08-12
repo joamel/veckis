@@ -6,6 +6,11 @@ import { RecurrencePicker, type RecurrencePickerProps } from './RecurrencePicker
 
 // Ionicons drar in native font-assets som inte kan renderas i jsdom.
 vi.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
+// Stub temat (undviker att dra in ThemeProvider + expo-secure-store i jsdom).
+vi.mock('../context/ThemeContext', async () => {
+  const theme = await vi.importActual<typeof import('../lib/theme')>('../lib/theme');
+  return { useTheme: () => ({ colors: theme.light, scheme: 'light', mode: 'system', setMode: () => {} }) };
+});
 
 afterEach(cleanup);
 

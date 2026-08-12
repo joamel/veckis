@@ -5,6 +5,11 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MultiMemberPicker, type MultiMemberPickerProps } from './MultiMemberPicker';
 
 vi.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
+// Stub temat (undviker att dra in ThemeProvider + expo-secure-store i jsdom).
+vi.mock('../context/ThemeContext', async () => {
+  const theme = await vi.importActual<typeof import('../lib/theme')>('../lib/theme');
+  return { useTheme: () => ({ colors: theme.light, scheme: 'light', mode: 'system', setMode: () => {} }) };
+});
 
 afterEach(cleanup);
 

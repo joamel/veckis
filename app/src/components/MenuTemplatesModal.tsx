@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +24,8 @@ interface Props {
 }
 
 export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, weekNumber, weekHasItems, readOnly, onApplied }: Props) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const client = useApiClient();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
@@ -106,7 +111,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
         <View style={s.handle} />
         <View style={s.header}>
           <Text style={s.title}>{str.menuTemplatesModal.title}</Text>
-          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.close}><Ionicons name="close" size={24} color="#78716c" /></Pressable>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.close}><Ionicons name="close" size={24} color={c.textMuted} /></Pressable>
         </View>
 
         <ScrollView contentContainerStyle={s.body}>
@@ -115,7 +120,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
             <TextInput
               style={s.input}
               placeholder={str.menuTemplatesModal.namePlaceholder}
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={c.textFaint}
               value={name}
               onChangeText={setName}
               onSubmitEditing={save}
@@ -130,7 +135,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
           <Text style={[s.sectionLabel, { marginTop: 22 }]}>{str.menuTemplatesModal.useSection}</Text>
           {readOnly && <Text style={s.hint}>{str.menuTemplatesModal.pastWeekHint}</Text>}
           {templates === null ? (
-            <ActivityIndicator color="#4e7a5e" style={{ marginTop: 16 }} />
+            <ActivityIndicator color={c.primary} style={{ marginTop: 16 }} />
           ) : templates.length === 0 ? (
             <Text style={s.hint}>{str.menuTemplatesModal.noTemplates}</Text>
           ) : (
@@ -142,14 +147,14 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
                     <Text style={s.tplMeta}>{str.menuTemplatesModal.dishCount(tpl.items.length)}</Text>
                   </View>
                   {busyId === tpl.id
-                    ? <ActivityIndicator color="#4e7a5e" size="small" />
-                    : !readOnly && <Ionicons name="add-circle-outline" size={22} color="#4e7a5e" />}
+                    ? <ActivityIndicator color={c.primary} size="small" />
+                    : !readOnly && <Ionicons name="add-circle-outline" size={22} color={c.primary} />}
                 </Pressable>
                 <Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.shareA11y(tpl.name)}>
-                  <Ionicons name="share-outline" size={18} color="#4e7a5e" />
+                  <Ionicons name="share-outline" size={18} color={c.primary} />
                 </Pressable>
                 <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.deleteA11y(tpl.name)}>
-                  <Ionicons name="trash-outline" size={18} color="#a8a29e" />
+                  <Ionicons name="trash-outline" size={18} color={c.textFaint} />
                 </Pressable>
               </View>
             ))
@@ -160,25 +165,25 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   overlay: { flex: 1 },
-  sheet: { backgroundColor: '#f1efec', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#d6d3d1', alignSelf: 'center', marginTop: 10 },
+  sheet: { backgroundColor: c.surfaceSubtle, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, alignSelf: 'center', marginTop: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
-  title: { fontSize: 20, fontWeight: '700', color: '#292524' },
+  title: { fontSize: 20, fontWeight: '700', color: c.text },
   body: { paddingHorizontal: 16, paddingBottom: 16 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#a8a29e', letterSpacing: 0.8, marginBottom: 8, marginLeft: 4 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginBottom: 8, marginLeft: 4 },
   saveRow: { flexDirection: 'row', gap: 8 },
-  input: { flex: 1, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#292524' },
-  saveBtn: { backgroundColor: '#4e7a5e', borderRadius: 10, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center' },
+  input: { flex: 1, backgroundColor: c.surface, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: c.text },
+  saveBtn: { backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  hint: { fontSize: 13, color: '#a8a29e', marginTop: 8, marginLeft: 4 },
-  tplRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, marginBottom: 8 },
+  hint: { fontSize: 13, color: c.textFaint, marginTop: 8, marginLeft: 4 },
+  tplRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 12, marginBottom: 8 },
   tplMain: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
-  tplName: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  tplMeta: { fontSize: 13, color: '#a8a29e', marginTop: 2 },
+  tplName: { fontSize: 15, fontWeight: '600', color: c.text },
+  tplMeta: { fontSize: 13, color: c.textFaint, marginTop: 2 },
   tplShare: { paddingHorizontal: 10, paddingVertical: 14 },
   tplDelete: { paddingHorizontal: 14, paddingVertical: 14 },
 });

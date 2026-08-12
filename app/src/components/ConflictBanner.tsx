@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -12,10 +15,12 @@ import { Ionicons } from '@expo/vector-icons';
  * in-progress edits would be worse).
  */
 export function ConflictBanner({ message, onShowLatest }: { message: string | null; onShowLatest?: () => void }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   if (!message) return null;
   return (
     <View style={s.banner}>
-      <Ionicons name="warning-outline" size={18} color="#92400e" />
+      <Ionicons name="warning-outline" size={18} color={c.warningText} />
       <Text style={s.text}>{message}</Text>
       {onShowLatest && (
         <Pressable onPress={onShowLatest} hitSlop={6} style={s.action}>
@@ -26,20 +31,20 @@ export function ConflictBanner({ message, onShowLatest }: { message: string | nu
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#fef3c7',
-    borderColor: '#fcd34d',
+    backgroundColor: c.warningTint,
+    borderColor: c.warning,
     borderWidth: 1,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 12,
   },
-  text: { flex: 1, fontSize: 13, fontWeight: '600', color: '#92400e' },
-  action: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: '#fcd34d' },
-  actionText: { fontSize: 13, fontWeight: '700', color: '#78350f' },
+  text: { flex: 1, fontSize: 13, fontWeight: '600', color: c.warningText },
+  action: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: c.warning },
+  actionText: { fontSize: 13, fontWeight: '700', color: c.warningText },
 });

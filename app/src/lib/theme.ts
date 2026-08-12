@@ -21,6 +21,10 @@ export interface Palette {
   border: string; borderLight: string; surfaceSubtle: string; background: string; surface: string;
   // Status
   success: string; successLight: string; danger: string; dangerDark: string; warning: string;
+  // Status-ytor (banner-bakgrunder, delete-knappar) + text på dem
+  dangerTint: string; dangerBorder: string; warningTint: string; warningText: string;
+  // "Handlar nu"-indikator (rosa)
+  pink: string; pinkTint: string;
 }
 
 export const light: Palette = {
@@ -32,6 +36,8 @@ export const light: Palette = {
   text: '#292524', textStrong: '#1c1917', textSecondary: '#44403c', textMuted: '#78716c', textFaint: '#a8a29e',
   border: '#d6d3d1', borderLight: '#e7e5e4', surfaceSubtle: '#f1efec', background: '#faf8f3', surface: '#ffffff',
   success: '#10b981', successLight: '#34d399', danger: '#ef4444', dangerDark: '#dc2626', warning: '#f59e0b',
+  dangerTint: '#fef2f2', dangerBorder: '#fca5a5', warningTint: '#fef3c7', warningText: '#92400e',
+  pink: '#db2777', pinkTint: '#fce7f3',
 };
 
 export const dark: Palette = {
@@ -44,6 +50,8 @@ export const dark: Palette = {
   text: '#f1efec', textStrong: '#ffffff', textSecondary: '#e7e5e4', textMuted: '#a8a29e', textFaint: '#78716c',
   border: '#57534e', borderLight: '#3a3431', surfaceSubtle: '#2b2724', background: '#1c1917', surface: '#292524',
   success: '#34d399', successLight: '#6ee7b7', danger: '#f87171', dangerDark: '#ef4444', warning: '#fbbf24',
+  dangerTint: '#3a2523', dangerBorder: '#7f3f3f', warningTint: '#3a3320', warningText: '#fcd34d',
+  pink: '#f472b6', pinkTint: '#3a2230',
 };
 
 export type ThemeScheme = 'light' | 'dark';

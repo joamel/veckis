@@ -1,4 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useTheme } from '../../src/context/ThemeContext';
+import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   Animated as RNAnimated,
@@ -124,6 +126,8 @@ function InvSlider({ total, value, step, onLive, onCommit, onDragEnd }: {
   onCommit: (v: number) => void;
   onDragEnd: () => void;
 }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const trackW = useSharedValue(0);
   const dragPct = useSharedValue(-1); // -1 = ingen aktiv dragning
   const basePct = useSharedValue(total > 0 ? Math.min(1, value / total) : 0);
@@ -199,6 +203,8 @@ function InvMeasuredRow({ agg, haveAmt, onCommit }: {
   haveAmt: number;
   onCommit: (v: number) => void;
 }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [liveVal, setLiveVal] = useState<number | null>(null);
   const unitLabel = agg.unit ? ` ${agg.unit}` : '';
   const total = agg.totalQty ?? 0;
@@ -218,7 +224,7 @@ function InvMeasuredRow({ agg, haveAmt, onCommit }: {
           style={[s.invAllBtn, covered && s.invAllBtnOn]}
           onPress={() => onCommit(covered ? 0 : total)}
         >
-          <Ionicons name="checkmark" size={15} color={covered ? '#fff' : '#a8a29e'} />
+          <Ionicons name="checkmark" size={15} color={covered ? '#fff' : c.textFaint} />
           <Text style={[s.invAllBtnText, covered && s.invAllBtnTextOn]}>{str.inventory.have}</Text>
         </Pressable>
       </View>
@@ -235,6 +241,8 @@ function InvMeasuredRow({ agg, haveAmt, onCommit }: {
 }
 
 export default function MenuScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
   const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string; replaceMenuItemId?: string; forMenuWeek?: string }>();
   const addRecipeTriggeredRef = useRef(false);
@@ -468,7 +476,7 @@ export default function MenuScreen() {
             style={[s.invAllBtn, have && s.invAllBtnOn]}
             onPress={() => toggleUnmeasured(agg.key)}
           >
-            <Ionicons name="checkmark" size={15} color={have ? '#fff' : '#a8a29e'} />
+            <Ionicons name="checkmark" size={15} color={have ? '#fff' : c.textFaint} />
             <Text style={[s.invAllBtnText, have && s.invAllBtnTextOn]}>{str.inventory.have}</Text>
           </Pressable>
         </View>
@@ -1347,7 +1355,7 @@ export default function MenuScreen() {
                         onPress={isCenter && !isPastWeek ? (() => openPicker(day.key)) : noop}
                         style={s.dayColEmptyTap}
                       >
-                        {!isPastWeek && <Ionicons name="add" size={18} color="#e2bda1" />}
+                        {!isPastWeek && <Ionicons name="add" size={18} color={c.accent300} />}
                       </Pressable>
                     ) : (
                       items.map(item => (
@@ -1387,7 +1395,7 @@ export default function MenuScreen() {
                         onPress={isCenter && !isPastWeek ? (() => openPicker(day.key)) : noop}
                         style={s.dayEmptyTap}
                       >
-                        {!isPastWeek && <Ionicons name="add" size={fs(20)} color="#c2b5a8" />}
+                        {!isPastWeek && <Ionicons name="add" size={fs(20)} color={c.textFaint} />}
                       </Pressable>
                     ) : (
                       items.map(item => (
@@ -1462,7 +1470,7 @@ export default function MenuScreen() {
             receptväljaren där man väljer dag/vecka (inkl. utan dag) via popupen. */}
         {isCenter && !isPastWeek && (anyScheduled || unsched.length > 0) && (
           <Pressable style={s.weekAddBtn} onPress={openPlanner}>
-            <Ionicons name="add" size={fs(18)} color="#4e7a5e" />
+            <Ionicons name="add" size={fs(18)} color={c.primary} />
             <Text style={[s.weekAddBtnText, { fontSize: fs(14) }]}>{str.card.addAnother}</Text>
           </Pressable>
         )}
@@ -1481,7 +1489,7 @@ export default function MenuScreen() {
   };
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color="#4e7a5e" /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   }
 
   return (
@@ -1492,14 +1500,14 @@ export default function MenuScreen() {
         actionNode={
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <Pressable ref={templatesBtnRef} style={[s.headerIconBtn, { paddingHorizontal: sp(10), paddingVertical: sp(7) }]} onPress={() => setShowTemplates(true)} accessibilityLabel={str.a11y.templates}>
-              <Ionicons name="bookmarks-outline" size={fs(18)} color="#4e7a5e" />
+              <Ionicons name="bookmarks-outline" size={fs(18)} color={c.primary} />
             </Pressable>
             {/* Recept-knappen behövs bara när Recept är en gömd stack-route.
                 I recept-fokus-experimentet är Recept en egen flik → redundant. */}
             {!RECIPE_FOCUS_EXPERIMENT && (
               <View ref={recipesBtnRef} collapsable={false}>
                 <Pressable style={[s.headerActionBtn, { paddingHorizontal: sp(12), paddingVertical: sp(7) }]} onPress={() => router.push('/recipes' as never)}>
-                  <Ionicons name="book-outline" size={fs(16)} color="#4e7a5e" />
+                  <Ionicons name="book-outline" size={fs(16)} color={c.primary} />
                   <Text style={[s.headerActionText, { fontSize: fs(13) }]}>{str.a11y.recipesTab}</Text>
                 </Pressable>
               </View>
@@ -1600,7 +1608,7 @@ export default function MenuScreen() {
           style={[s.ghostCard, { top: dragState.y - dragState.touchOffsetY }]}
         >
           <View style={s.ghostCardIcon}>
-            <Ionicons name="restaurant-outline" size={18} color="#4e7a5e" />
+            <Ionicons name="restaurant-outline" size={18} color={c.primary} />
           </View>
           <Text style={s.ghostCardText} numberOfLines={1}>{dragState.item.recipe.title}</Text>
         </View>
@@ -1650,7 +1658,7 @@ export default function MenuScreen() {
               <View style={s.sheetTitleRow}>
                 {!replaceTarget && (
                   <Pressable onPress={() => setPickerStep('day')} style={s.backBtn}>
-                    <Ionicons name="chevron-back" size={20} color="#4e7a5e" />
+                    <Ionicons name="chevron-back" size={20} color={c.primary} />
                   </Pressable>
                 )}
                 <Text style={s.sheetTitle}>
@@ -1683,11 +1691,11 @@ export default function MenuScreen() {
                         router.push(`/recipes/pick?create=1&forMenuDay=${day}&forMenuWeek=${weekYear}-${weekNumber}` as never);
                       }}
                     >
-                      <View style={[s.recipeCardIcon, { backgroundColor: '#ecf3ec' }]}>
-                        <Ionicons name="add" size={20} color="#4e7a5e" />
+                      <View style={[s.recipeCardIcon, { backgroundColor: c.primaryTint }]}>
+                        <Ionicons name="add" size={20} color={c.primary} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={[s.recipeCardTitle, { color: '#4e7a5e' }]}>{str.picker.createNewRecipe}</Text>
+                        <Text style={[s.recipeCardTitle, { color: c.primary }]}>{str.picker.createNewRecipe}</Text>
                       </View>
                     </Pressable>
                   }
@@ -1707,13 +1715,13 @@ export default function MenuScreen() {
                       }
                     }}>
                       <View style={s.recipeCardIcon}>
-                        <Ionicons name="restaurant-outline" size={20} color="#4e7a5e" />
+                        <Ionicons name="restaurant-outline" size={20} color={c.primary} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={s.recipeCardTitle}>{item.title}</Text>
                         <Text style={s.recipeCardMeta}>{recipesStr.card.meta(item.servings, item.ingredients.length)}</Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={18} color="#d6d3d1" />
+                      <Ionicons name="chevron-forward" size={18} color={c.border} />
                     </Pressable>
                   )}
                 />
@@ -1749,7 +1757,7 @@ export default function MenuScreen() {
                   <Ionicons
                     name={selected ? 'checkbox' : 'square-outline'}
                     size={22}
-                    color={selected ? '#4e7a5e' : '#a8a29e'}
+                    color={selected ? c.primary : c.textFaint}
                   />
                   <View style={{ flex: 1 }}>
                     <Text style={s.cleanupListName}>{l.listName}</Text>
@@ -1793,7 +1801,7 @@ export default function MenuScreen() {
                 <TextInput
                   style={[s.input, { flex: 1, marginTop: 0 }]}
                   placeholder={str.bulk.newListNamePlaceholder}
-                  placeholderTextColor="#a8a29e"
+                  placeholderTextColor={c.textFaint}
                   value={newListName}
                   onChangeText={setNewListName}
                   returnKeyType="done"
@@ -1823,7 +1831,7 @@ export default function MenuScreen() {
                   <Text style={s.pickerItemTitle}>{l.name}</Text>
                   <Text style={s.pickerItemMeta}>{str.bulk.itemsCount(l.items.length)}</Text>
                 </View>
-                {transferringListId === l.id && <ActivityIndicator size="small" color="#4e7a5e" />}
+                {transferringListId === l.id && <ActivityIndicator size="small" color={c.primary} />}
               </Pressable>
             ))
           )}
@@ -1897,7 +1905,7 @@ export default function MenuScreen() {
                           setBulkTransferStep('recipe');
                         }}
                       >
-                        <Ionicons name="calendar-outline" size={22} color="#4e7a5e" />
+                        <Ionicons name="calendar-outline" size={22} color={c.primary} />
                         <View style={{ flex: 1 }}>
                           <Text style={s.bulkRecipeTitle}>{str.bulk.weekLabel(wn, wy)}</Text>
                           <Text style={s.bulkRecipeDay}>
@@ -1905,7 +1913,7 @@ export default function MenuScreen() {
                             {destList ? ` · ${allTransferred ? str.bulk.allAlreadyAdded : str.bulk.newCount(newCount)}` : ''}
                           </Text>
                         </View>
-                        {!allTransferred && <Ionicons name="chevron-forward" size={20} color="#a8a29e" />}
+                        {!allTransferred && <Ionicons name="chevron-forward" size={20} color={c.textFaint} />}
                       </Pressable>
                     );
                   });
@@ -1937,7 +1945,7 @@ export default function MenuScreen() {
                         <Ionicons
                           name={selected ? 'checkbox' : 'square-outline'}
                           size={22}
-                          color={selected ? '#4e7a5e' : '#a8a29e'}
+                          color={selected ? c.primary : c.textFaint}
                         />
                         <View style={{ flex: 1 }}>
                           <Text style={s.bulkRecipeTitle} numberOfLines={1}>{item.recipe.title}</Text>
@@ -2008,7 +2016,7 @@ export default function MenuScreen() {
                     <TextInput
                       style={[s.input, { flex: 1, marginTop: 0 }]}
                       placeholder={str.bulk.newListNamePlaceholder}
-                      placeholderTextColor="#a8a29e"
+                      placeholderTextColor={c.textFaint}
                       value={newListName}
                       onChangeText={setNewListName}
                       returnKeyType="done"
@@ -2041,8 +2049,8 @@ export default function MenuScreen() {
                           <Text style={s.pickerItemMeta}>{str.bulk.itemsCount(l.items.length)}</Text>
                         </View>
                         {bulkTransferringListId === l.id
-                          ? <ActivityIndicator size="small" color="#4e7a5e" />
-                          : selected && <Ionicons name="checkmark-circle" size={22} color="#4e7a5e" />}
+                          ? <ActivityIndicator size="small" color={c.primary} />
+                          : selected && <Ionicons name="checkmark-circle" size={22} color={c.primary} />}
                       </Pressable>
                     );
                   })}
@@ -2060,10 +2068,10 @@ export default function MenuScreen() {
                 </Pressable>
               )}
               <Pressable
-                style={[s.button, { backgroundColor: '#e7e5e4' }]}
+                style={[s.button, { backgroundColor: c.borderLight }]}
                 onPress={() => setBulkTransferStep('ingredients')}
               >
-                <Text style={[s.buttonText, { color: '#44403c' }]}>{str.bulk.back}</Text>
+                <Text style={[s.buttonText, { color: c.textSecondary }]}>{str.bulk.back}</Text>
               </Pressable>
             </>
           )}
@@ -2135,6 +2143,8 @@ function MenuCard({
   onSetMeal: (meal: MealType | null) => void;
   collapsedForDrag?: boolean;
 }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [expanded, setExpanded] = useState(false);
   // While any card is being dragged, collapse every card so the list is compact.
   // Also clear the expanded state so cards stay collapsed after the move.
@@ -2177,7 +2187,7 @@ function MenuCard({
               </View>
             ) : (
               <View style={[s.cardIcon, { width: sp(30), height: sp(30) }]}>
-                <Ionicons name="restaurant-outline" size={fs(16)} color="#4e7a5e" />
+                <Ionicons name="restaurant-outline" size={fs(16)} color={c.primary} />
               </View>
             )}
             <View style={s.cardContent}>
@@ -2187,9 +2197,9 @@ function MenuCard({
               <Text style={[s.cardTitle, { fontSize: fs(16) }, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
             </View>
             {isTransferred && (
-              <Ionicons name="cart" size={fs(16)} color="#10b981" />
+              <Ionicons name="cart" size={fs(16)} color={c.success} />
             )}
-            <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color="#a8a29e" />
+            <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color={c.textFaint} />
           </Pressable>
 
           {isExpanded && (
@@ -2203,20 +2213,20 @@ function MenuCard({
               </Text>
               {isTransferred && (
                 <View style={[s.transferredBadge, { marginBottom: sp(8) }]}>
-                  <Ionicons name="cart" size={fs(14)} color="#10b981" />
+                  <Ionicons name="cart" size={fs(14)} color={c.success} />
                   <Text style={[s.transferredText, { fontSize: fs(11) }]}>{str.card.inShoppingList}</Text>
                 </View>
               )}
               {/* Portion scaler — cutlery icon grouped with the −/+ on the right */}
               <View style={s.servingScaler}>
-                <Ionicons name="restaurant-outline" size={fs(16)} color="#78716c" />
+                <Ionicons name="restaurant-outline" size={fs(16)} color={c.textMuted} />
                 <View style={s.servingScalerControls}>
                   <Pressable
                     onPress={() => onScaleServings(Math.max(1, scaledServings - 1))}
                     style={s.servingScalerBtn}
                     hitSlop={8}
                   >
-                    <Ionicons name="remove" size={14} color="#4e7a5e" />
+                    <Ionicons name="remove" size={14} color={c.primary} />
                   </Pressable>
                   <Text style={s.servingScalerValue}>{scaledServings}</Text>
                   <Pressable
@@ -2224,7 +2234,7 @@ function MenuCard({
                     style={s.servingScalerBtn}
                     hitSlop={8}
                   >
-                    <Ionicons name="add" size={14} color="#4e7a5e" />
+                    <Ionicons name="add" size={14} color={c.primary} />
                   </Pressable>
                 </View>
               </View>
@@ -2248,19 +2258,19 @@ function MenuCard({
 
               <View style={s.cardActions}>
                 <Pressable style={s.cardAction} onPress={onViewRecipe}>
-                  <Ionicons name="open-outline" size={15} color="#78716c" />
+                  <Ionicons name="open-outline" size={15} color={c.textMuted} />
                   <Text style={s.cardActionText}>{str.card.show}</Text>
                 </Pressable>
                 {!isPastWeek && (
                   <Pressable style={s.cardAction} onPress={onReplace}>
-                    <Ionicons name="swap-horizontal-outline" size={15} color="#78716c" />
+                    <Ionicons name="swap-horizontal-outline" size={15} color={c.textMuted} />
                     <Text style={s.cardActionText}>{str.card.replace}</Text>
                   </Pressable>
                 )}
                 {!isPastWeek && (
                   <Pressable style={s.cardAction} onPress={onRemove}>
-                    <Ionicons name="trash-outline" size={15} color="#ef4444" />
-                    <Text style={[s.cardActionText, { color: '#ef4444' }]}>{str.card.remove}</Text>
+                    <Ionicons name="trash-outline" size={15} color={c.danger} />
+                    <Text style={[s.cardActionText, { color: c.danger }]}>{str.card.remove}</Text>
                   </Pressable>
                 )}
               </View>
@@ -2294,192 +2304,192 @@ function MenuCard({
   return isWeb ? cardBody : <GestureDetector gesture={panGesture}>{cardBody}</GestureDetector>;
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#faf8f3' },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  headerActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ecf3ec', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
-  headerActionText: { fontWeight: '600', color: '#4e7a5e', fontSize: 13 },
-  headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#ecf3ec', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
-  invSub: { fontSize: 13, color: '#78716c', textAlign: 'left', marginTop: 12, marginBottom: 10, lineHeight: 18 },
+  headerActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primaryTint, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
+  headerActionText: { fontWeight: '600', color: c.primary, fontSize: 13 },
+  headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: c.primaryTint, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
+  invSub: { fontSize: 13, color: c.textMuted, textAlign: 'left', marginTop: 12, marginBottom: 10, lineHeight: 18 },
   // En rad i den nya inventerings-vyn: namn + behov till vänster, "Har"-input
   // + ✓ Allt-knapp till höger. Allt på samma rad, ingen mode-toggle.
-  invRowV2: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f1efec', gap: 6 },
-  invRowCol: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f1efec', gap: 4 },
-  invName: { fontSize: 15, color: '#292524', fontWeight: '500' },
-  invNameDone: { color: '#a8a29e', textDecorationLine: 'line-through' },
-  invProvenance: { fontSize: 12, color: '#a8a29e', marginTop: 2 },
+  invRowV2: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.surfaceSubtle, gap: 6 },
+  invRowCol: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.surfaceSubtle, gap: 4 },
+  invName: { fontSize: 15, color: c.text, fontWeight: '500' },
+  invNameDone: { color: c.textFaint, textDecorationLine: 'line-through' },
+  invProvenance: { fontSize: 12, color: c.textFaint, marginTop: 2 },
   // minWidth = baseline; växer automatiskt om enheten är lång (paket, påse…)
   // så enheten alltid syns helt. paddingHorizontal lite mindre för att inte
   // knappen ska bli onödigt bred.
   invRowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   // Explicit minWidth (beräknas per label) — Android mäter vissa strängar
   // ("kg", "dl", "tsk") för smalt och klipper annars sista glyfen.
-  invValue: { fontSize: 14, color: '#4e7a5e', fontWeight: '700' },
+  invValue: { fontSize: 14, color: c.primary, fontWeight: '700' },
   invSliderTrack: { height: 26, justifyContent: 'center', marginTop: 2 },
-  invSliderRail: { position: 'absolute', left: 0, right: 0, height: 6, borderRadius: 3, backgroundColor: '#e7e5e4' },
-  invSliderFill: { position: 'absolute', left: 0, height: 6, borderRadius: 3, backgroundColor: '#4e7a5e' },
-  invSliderThumb: { position: 'absolute', left: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff', borderWidth: 2, borderColor: '#4e7a5e', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
+  invSliderRail: { position: 'absolute', left: 0, right: 0, height: 6, borderRadius: 3, backgroundColor: c.borderLight },
+  invSliderFill: { position: 'absolute', left: 0, height: 6, borderRadius: 3, backgroundColor: c.primary },
+  invSliderThumb: { position: 'absolute', left: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: c.surface, borderWidth: 2, borderColor: c.primary, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
   // Default-läge: NEUTRAL grå/vit så knappen INTE ser tryckt ut. Aktivt läge
   // (tryckt) blir grön + ifylld.
-  invAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: '#e7e5e4', backgroundColor: '#fff' },
-  invAllBtnOn: { backgroundColor: '#10b981', borderColor: '#10b981' },
-  invAllBtnText: { fontSize: 12, fontWeight: '700', color: '#78716c' },
+  invAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: c.borderLight, backgroundColor: c.surface },
+  invAllBtnOn: { backgroundColor: c.success, borderColor: c.success },
+  invAllBtnText: { fontSize: 12, fontWeight: '700', color: c.textMuted },
   invAllBtnTextOn: { color: '#fff' },
   content: { flex: 1 },
   contentInner: { padding: 16, gap: 2, paddingBottom: 80 },
   contentInnerTablet: { padding: 8, gap: 2 },
   daysRow: { flexDirection: 'row', gap: 6, alignItems: 'stretch' },
   daysCol: { gap: 14 },
-  weekAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#c6ddcd', borderStyle: 'dashed', backgroundColor: '#fff' },
-  weekAddBtnText: { fontSize: 14, fontWeight: '600', color: '#4e7a5e' },
+  weekAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: c.primary200, borderStyle: 'dashed', backgroundColor: c.surface },
+  weekAddBtnText: { fontSize: 14, fontWeight: '600', color: c.primary },
   daySlotWide: { flex: 1, minWidth: 0, minHeight: 80 },
-  daySlotEmptyWide: { borderStyle: 'dashed', borderColor: '#d6d3d1', backgroundColor: 'transparent' },
+  daySlotEmptyWide: { borderStyle: 'dashed', borderColor: c.border, backgroundColor: 'transparent' },
   dayColHeader: { alignItems: 'center', paddingTop: 4, paddingBottom: 2 },
   dayColEmptyTap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40 },
   section: { gap: 2 },
   unscheduledSection: { marginTop: 18 },
-  dayLabelBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
-  dayLabelAbbr: { fontSize: 11, fontWeight: '800', color: '#b96a45', letterSpacing: 0.3 },
-  dayLabelDate: { fontSize: 13, fontWeight: '700', color: '#4e7a5e' },
-  dayLabelBoxMuted: { backgroundColor: '#f1efec' },
-  dayLabelAbbrMuted: { color: '#a8a29e' },
-  dayLabelDateMuted: { color: '#78716c' },
+  dayLabelBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
+  dayLabelAbbr: { fontSize: 11, fontWeight: '800', color: c.accent, letterSpacing: 0.3 },
+  dayLabelDate: { fontSize: 13, fontWeight: '700', color: c.primary },
+  dayLabelBoxMuted: { backgroundColor: c.surfaceSubtle },
+  dayLabelAbbrMuted: { color: c.textFaint },
+  dayLabelDateMuted: { color: c.textMuted },
   daySlotEmptyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, minHeight: 44, alignSelf: 'stretch' },
   dayNameHeaderRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingHorizontal: 4, paddingBottom: 6 },
-  dayHeaderName: { fontSize: 14, fontWeight: '700', color: '#292524' },
-  dayHeaderDate: { fontSize: 13, fontWeight: '600', color: '#a8a29e' },
-  dayHeaderMuted: { color: '#c2b5a8' },
-  dayEmptyTap: { minHeight: 40, borderRadius: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: '#e0d8ce', alignItems: 'center', justifyContent: 'center' },
-  daySlot: { borderWidth: 1, borderColor: '#c6ddcd', borderRadius: 12, padding: 6, gap: 2, backgroundColor: '#fff' },
-  daySlotEmpty: { borderStyle: 'dashed', borderColor: '#d6d3d1', backgroundColor: 'transparent', minHeight: 64, alignItems: 'center', justifyContent: 'center', padding: 0 },
+  dayHeaderName: { fontSize: 14, fontWeight: '700', color: c.text },
+  dayHeaderDate: { fontSize: 13, fontWeight: '600', color: c.textFaint },
+  dayHeaderMuted: { color: c.textFaint },
+  dayEmptyTap: { minHeight: 40, borderRadius: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
+  daySlot: { borderWidth: 1, borderColor: c.primary200, borderRadius: 12, padding: 6, gap: 2, backgroundColor: c.surface },
+  daySlotEmpty: { borderStyle: 'dashed', borderColor: c.border, backgroundColor: 'transparent', minHeight: 64, alignItems: 'center', justifyContent: 'center', padding: 0 },
   daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
-  daySlotDropTarget: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#c6ddcd', borderRadius: 12, padding: 6, backgroundColor: '#faf8f3' },
-  daySlotHovered: { borderWidth: 1.5, borderStyle: 'solid', borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
+  daySlotDropTarget: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.primary200, borderRadius: 12, padding: 6, backgroundColor: c.background },
+  daySlotHovered: { borderWidth: 1.5, borderStyle: 'solid', borderColor: c.primary, backgroundColor: c.primaryTint },
   daySlotEmptyTap: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#b96a45', letterSpacing: 0.8 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.accent, letterSpacing: 0.8 },
   dayHeader: { gap: 1 },
   dayHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dayLabel: { fontSize: 14, fontWeight: '700', color: '#292524' },
-  dayDate: { fontSize: 11, color: '#78716c' },
-  unscheduledEmpty: { fontSize: 13, color: '#a8a29e', paddingVertical: 8 },
-  emptyDayText: { fontSize: 13, color: '#a8a29e', paddingVertical: 8 },
+  dayLabel: { fontSize: 14, fontWeight: '700', color: c.text },
+  dayDate: { fontSize: 11, color: c.textMuted },
+  unscheduledEmpty: { fontSize: 13, color: c.textFaint, paddingVertical: 8 },
+  emptyDayText: { fontSize: 13, color: c.textFaint, paddingVertical: 8 },
   emptyDayTap: { paddingVertical: 4, alignItems: 'flex-start' },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4e7a5e', alignItems: 'center', justifyContent: 'center', shadowColor: '#4e7a5e', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  card: { borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#c6ddcd', backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  cardInner: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden' },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  card: { borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.primary200, backgroundColor: c.surface, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  cardInner: { backgroundColor: c.surface, borderRadius: 12, overflow: 'hidden' },
   cardMain: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
-  cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
+  cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1 },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  cardMealTag: { fontSize: 10, fontWeight: '700', color: '#4e7a5e', letterSpacing: 0.5, marginBottom: 1 },
+  cardTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  cardMealTag: { fontSize: 10, fontWeight: '700', color: c.primary, letterSpacing: 0.5, marginBottom: 1 },
   mealPicker: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 8 },
-  mealPickerLabel: { fontSize: 12, color: '#78716c', fontWeight: '500' },
+  mealPickerLabel: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
   mealPickerChips: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' },
-  mealPickerChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4' },
-  mealPickerChipActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
-  mealPickerChipText: { fontSize: 11, fontWeight: '600', color: '#78716c' },
-  mealPickerChipTextActive: { color: '#4e7a5e' },
-  cardMeta: { fontSize: 12, color: '#78716c', marginTop: 2 },
+  mealPickerChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight },
+  mealPickerChipActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
+  mealPickerChipText: { fontSize: 11, fontWeight: '600', color: c.textMuted },
+  mealPickerChipTextActive: { color: c.primary },
+  cardMeta: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   transferredBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
-  transferredText: { fontSize: 11, color: '#10b981', fontWeight: '600' },
-  cardExpanded: { borderTopWidth: 1, borderTopColor: '#f1efec', paddingHorizontal: 14, paddingBottom: 12 },
+  transferredText: { fontSize: 11, color: c.success, fontWeight: '600' },
+  cardExpanded: { borderTopWidth: 1, borderTopColor: c.surfaceSubtle, paddingHorizontal: 14, paddingBottom: 12 },
   servingScaler: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, paddingTop: 12, paddingBottom: 4 },
-  servingScalerLabel: { fontSize: 13, color: '#78716c', fontWeight: '500' },
+  servingScalerLabel: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
   servingScalerControls: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  servingScalerBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
-  servingScalerValue: { fontSize: 15, fontWeight: '700', color: '#292524', minWidth: 24, textAlign: 'center' },
-  servingScalerReset: { fontSize: 12, color: '#a8a29e', textDecorationLine: 'underline' },
+  servingScalerBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
+  servingScalerValue: { fontSize: 15, fontWeight: '700', color: c.text, minWidth: 24, textAlign: 'center' },
+  servingScalerReset: { fontSize: 12, color: c.textFaint, textDecorationLine: 'underline' },
   cardActions: { flexDirection: 'row', gap: 0, paddingTop: 10, pointerEvents: 'auto' },
   moveRow: { paddingTop: 10, gap: 6 },
-  moveLabel: { fontSize: 12, fontWeight: '600', color: '#78716c' },
+  moveLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted },
   moveChips: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
-  moveChip: { flexGrow: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#faf8f3' },
-  moveChipActive: { borderColor: '#4e7a5e', backgroundColor: '#ecf3ec' },
-  moveChipText: { fontSize: 12, color: '#78716c', fontWeight: '500' },
-  moveChipTextActive: { color: '#4e7a5e', fontWeight: '700' },
+  moveChip: { flexGrow: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background },
+  moveChipActive: { borderColor: c.primary, backgroundColor: c.primaryTint },
+  moveChipText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
+  moveChipTextActive: { color: c.primary, fontWeight: '700' },
   cardAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, pointerEvents: 'auto' },
-  cardActionText: { fontSize: 12, color: '#78716c', fontWeight: '500' },
+  cardActionText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
   assignDayRow: { marginTop: 8, gap: 6 },
-  assignDayLabel: { fontSize: 12, color: '#a8a29e' },
+  assignDayLabel: { fontSize: 12, color: c.textFaint },
   assignDayBtns: { flexDirection: 'row', gap: 6 },
-  assignDayBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: '#f1efec' },
-  assignDayBtnActive: { backgroundColor: '#4e7a5e' },
-  assignDayBtnText: { fontSize: 12, color: '#44403c', fontWeight: '500' },
+  assignDayBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: c.surfaceSubtle },
+  assignDayBtnActive: { backgroundColor: c.primary },
+  assignDayBtnText: { fontSize: 12, color: c.textSecondary, fontWeight: '500' },
   assignDayBtnTextActive: { color: '#fff', fontWeight: '600' },
   // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '80%' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e7e5e4', alignSelf: 'center', marginBottom: 12 },
+  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '80%' },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 12 },
   sheetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#292524', marginBottom: 16 },
-  sheetSub: { fontSize: 13, color: '#78716c', marginTop: -10, marginBottom: 12 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 16 },
+  sheetSub: { fontSize: 13, color: c.textMuted, marginTop: -10, marginBottom: 12 },
   backBtn: { padding: 4, marginBottom: 16 },
   bulkRecipeList: { maxHeight: 400, marginBottom: 12 },
-  bulkRecipeItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: '#faf8f3', borderWidth: 1, borderColor: '#e7e5e4', marginBottom: 6 },
-  bulkRecipeItemActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
-  bulkRecipeTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  bulkRecipeDay: { fontSize: 12, color: '#78716c', marginTop: 2 },
+  bulkRecipeItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: c.background, borderWidth: 1, borderColor: c.borderLight, marginBottom: 6 },
+  bulkRecipeItemActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
+  bulkRecipeTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  bulkRecipeDay: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   dayGrid: { gap: 10 },
-  dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#f1efec', borderRadius: 12 },
-  dayGridItemNone: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e7e5e4' },
-  dayGridLabel: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  dayGridLabelNone: { color: '#a8a29e' },
+  dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
+  dayGridItemNone: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.borderLight },
+  dayGridLabel: { fontSize: 15, fontWeight: '600', color: c.text },
+  dayGridLabelNone: { color: c.textFaint },
   pickerList: { maxHeight: 480 },
-  recipeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#f1efec' },
-  recipeCardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#faf8f3', alignItems: 'center', justifyContent: 'center' },
-  recipeCardTitle: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  recipeCardMeta: { fontSize: 12, color: '#78716c', marginTop: 2 },
-  pickerItem: { paddingVertical: 14, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#f1efec', flexDirection: 'row', alignItems: 'center' },
-  pickerItemActive: { backgroundColor: '#ecf3ec', borderRadius: 10, borderBottomColor: 'transparent' },
+  recipeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: c.surfaceSubtle },
+  recipeCardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.background, alignItems: 'center', justifyContent: 'center' },
+  recipeCardTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  recipeCardMeta: { fontSize: 12, color: c.textMuted, marginTop: 2 },
+  pickerItem: { paddingVertical: 14, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, flexDirection: 'row', alignItems: 'center' },
+  pickerItemActive: { backgroundColor: c.primaryTint, borderRadius: 10, borderBottomColor: 'transparent' },
   pickerItemDisabled: { opacity: 0.5 },
-  pickerItemTitle: { fontSize: 16, fontWeight: '600', color: '#292524' },
-  pickerItemMeta: { fontSize: 13, color: '#78716c', marginTop: 2 },
+  pickerItemTitle: { fontSize: 16, fontWeight: '600', color: c.text },
+  pickerItemMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
   pickerEmpty: { alignItems: 'center', paddingVertical: 24, gap: 12 },
-  pickerEmptyText: { fontSize: 14, color: '#78716c', textAlign: 'center' },
-  pickerEmptyBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#4e7a5e', borderRadius: 8 },
+  pickerEmptyText: { fontSize: 14, color: c.textMuted, textAlign: 'center' },
+  pickerEmptyBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: c.primary, borderRadius: 8 },
   pickerEmptyBtnText: { fontSize: 14, color: '#fff', fontWeight: '600' },
   createListRow: { flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 8 },
-  createListBtn: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#4e7a5e', borderRadius: 10 },
+  createListBtn: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: c.primary, borderRadius: 10 },
   createListBtnText: { fontSize: 14, color: '#fff', fontWeight: '600' },
-  cleanupSub: { fontSize: 13, color: '#78716c', marginTop: -10 },
+  cleanupSub: { fontSize: 13, color: c.textMuted, marginTop: -10 },
   cleanupList: { gap: 8 },
-  cleanupItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: '#faf8f3', borderWidth: 1, borderColor: '#e7e5e4' },
-  cleanupItemActive: { backgroundColor: '#ecf3ec', borderColor: '#4e7a5e' },
-  cleanupListName: { fontSize: 15, fontWeight: '600', color: '#292524' },
-  cleanupItemCount: { fontSize: 12, color: '#78716c', marginTop: 2 },
+  cleanupItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: c.background, borderWidth: 1, borderColor: c.borderLight },
+  cleanupItemActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
+  cleanupListName: { fontSize: 15, fontWeight: '600', color: c.text },
+  cleanupItemCount: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   cleanupActions: { flexDirection: 'row', gap: 12 },
-  cleanupCancel: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#e7e5e4' },
-  cleanupCancelText: { fontSize: 15, fontWeight: '600', color: '#44403c' },
-  cleanupConfirm: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: '#ef4444' },
+  cleanupCancel: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: c.borderLight },
+  cleanupCancelText: { fontSize: 15, fontWeight: '600', color: c.textSecondary },
+  cleanupConfirm: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: c.danger },
   cleanupConfirmDisabled: { opacity: 0.4 },
   cleanupConfirmText: { fontSize: 15, fontWeight: '600', color: '#fff' },
-  pickerDivider: { height: 1, backgroundColor: '#e7e5e4', marginVertical: 12 },
-  newListLabel: { fontSize: 13, fontWeight: '600', color: '#78716c', marginTop: 8, marginBottom: 8 },
+  pickerDivider: { height: 1, backgroundColor: c.borderLight, marginVertical: 12 },
+  newListLabel: { fontSize: 13, fontWeight: '600', color: c.textMuted, marginTop: 8, marginBottom: 8 },
   newListRow: { flexDirection: 'row', gap: 10 },
-  newListSection: { paddingVertical: 24, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: '#f1efec', marginTop: 24 },
-  newListBtn: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#ecf3ec', borderRadius: 12, borderWidth: 1, borderColor: '#c6ddcd' },
-  newListBtnDisabled: { backgroundColor: '#f1efec', borderColor: '#e7e5e4' },
-  newListBtnText: { fontSize: 16, fontWeight: '600', color: '#4e7a5e' },
-  newListBtnTextDisabled: { color: '#a8a29e' },
-  input: { borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: '#faf8f3' },
-  button: { backgroundColor: '#4e7a5e', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', minWidth: 44 },
+  newListSection: { paddingVertical: 24, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: c.surfaceSubtle, marginTop: 24 },
+  newListBtn: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.primaryTint, borderRadius: 12, borderWidth: 1, borderColor: c.primary200 },
+  newListBtnDisabled: { backgroundColor: c.surfaceSubtle, borderColor: c.borderLight },
+  newListBtnText: { fontSize: 16, fontWeight: '600', color: c.primary },
+  newListBtnTextDisabled: { color: c.textFaint },
+  input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: c.background },
+  button: { backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', minWidth: 44 },
   cancelBtn: { paddingVertical: 10, alignItems: 'center' },
-  cancelBtnText: { fontSize: 14, color: '#78716c', fontWeight: '500' },
+  cancelBtnText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   buttonDisabled: { opacity: 0.4 },
   // Edit mode
-  sectionHovered: { backgroundColor: '#ecf3ec', borderRadius: 12, borderWidth: 1, borderColor: '#4e7a5e' },
+  sectionHovered: { backgroundColor: c.primaryTint, borderRadius: 12, borderWidth: 1, borderColor: c.primary },
   cardDragging: { opacity: 0.4 },
-  cardPending: { opacity: 0.4, backgroundColor: '#fef2f2' },
-  cardTitlePending: { textDecorationLine: 'line-through', color: '#a8a29e' },
-  cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: '#fff', borderRadius: 11 },
-  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#292524', borderRadius: 24, zIndex: 20 },
+  cardPending: { opacity: 0.4, backgroundColor: c.dangerTint },
+  cardTitlePending: { textDecorationLine: 'line-through', color: c.textFaint },
+  cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: c.surface, borderRadius: 11 },
+  editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', paddingHorizontal: 32, paddingVertical: 14, backgroundColor: c.text, borderRadius: 24, zIndex: 20 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  ghostCard: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 12, padding: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
-  ghostCardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#ecf3ec', alignItems: 'center', justifyContent: 'center' },
-  ghostCardText: { fontSize: 15, fontWeight: '600', color: '#292524', flex: 1 },
-  toast: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: '#34d399', borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  ghostCard: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 12, padding: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
+  ghostCardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
+  ghostCardText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
+  toast: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: c.successLight, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

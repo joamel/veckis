@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +20,8 @@ function timeAgo(iso: string): string {
 }
 
 function ErrorRow({ e, last }: { e: ClientErrorEntry; last: boolean }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [expanded, setExpanded] = useState(false);
   return (
     <Pressable onPress={() => setExpanded(v => !v)} style={[s.row, last && { borderBottomWidth: 0 }]}>
@@ -25,7 +30,7 @@ function ErrorRow({ e, last }: { e: ClientErrorEntry; last: boolean }) {
           <Text style={s.errorName} numberOfLines={expanded ? undefined : 1}>{e.name}: {e.message}</Text>
           <Text style={s.meta}>{timeAgo(e.receivedAt)}{e.platform ? ` · ${e.platform}` : ''}{e.appVersion ? ` · v${e.appVersion}` : ''}</Text>
         </View>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color="#d6d3d1" />
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={c.border} />
       </View>
       {expanded && e.stack && (
         <ScrollView horizontal showsHorizontalScrollIndicator style={s.stackScroll}>
@@ -37,6 +42,8 @@ function ErrorRow({ e, last }: { e: ClientErrorEntry; last: boolean }) {
 }
 
 export function ClientErrorsSection() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const client = useApiClient();
   const { showError } = useToast();
   const [expanded, setExpanded] = useState(false);
@@ -67,17 +74,17 @@ export function ClientErrorsSection() {
         accessibilityRole="button"
         accessibilityLabel={expanded ? str.clientErrorsSection.hideA11y : str.clientErrorsSection.showA11y}
       >
-        <Ionicons name="bug-outline" size={16} color="#dc2626" />
+        <Ionicons name="bug-outline" size={16} color={c.dangerDark} />
         <Text style={s.title}>{str.clientErrorsSection.title}</Text>
         {errors && errors.length > 0 && (
           <View style={s.badge}><Text style={s.badgeText}>{errors.length}</Text></View>
         )}
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#a8a29e" />
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={c.textFaint} />
       </Pressable>
 
       {expanded && (
         <View style={s.body}>
-          {loading && <ActivityIndicator size="small" color="#dc2626" style={{ marginVertical: 12 }} />}
+          {loading && <ActivityIndicator size="small" color={c.dangerDark} style={{ marginVertical: 12 }} />}
           {!loading && errors && errors.length === 0 && (
             <Text style={s.empty}>{str.clientErrorsSection.noErrors}</Text>
           )}
@@ -86,7 +93,7 @@ export function ClientErrorsSection() {
           ))}
           {!loading && errors && errors.length > 0 && (
             <Pressable style={s.refreshBtn} onPress={load} hitSlop={6}>
-              <Ionicons name="refresh-outline" size={14} color="#78716c" />
+              <Ionicons name="refresh-outline" size={14} color={c.textMuted} />
               <Text style={s.refreshText}>{str.clientErrorsSection.refresh}</Text>
             </Pressable>
           )}
@@ -96,12 +103,12 @@ export function ClientErrorsSection() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   box: {
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
     borderRadius: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#fca5a5',
+    borderLeftColor: c.dangerBorder,
     marginTop: 12,
     shadowColor: '#000',
     shadowOpacity: 0.03,
@@ -111,17 +118,17 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
-  title: { flex: 1, fontSize: 14, fontWeight: '600', color: '#292524' },
-  badge: { backgroundColor: '#fee2e2', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
-  badgeText: { fontSize: 11, fontWeight: '700', color: '#dc2626' },
+  title: { flex: 1, fontSize: 14, fontWeight: '600', color: c.text },
+  badge: { backgroundColor: c.dangerTint, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
+  badgeText: { fontSize: 11, fontWeight: '700', color: c.dangerDark },
   body: { paddingHorizontal: 14, paddingBottom: 10 },
-  row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1efec' },
+  row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   rowTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  errorName: { fontSize: 13, color: '#44403c', lineHeight: 18 },
-  meta: { fontSize: 11, color: '#a8a29e', marginTop: 2 },
+  errorName: { fontSize: 13, color: c.textSecondary, lineHeight: 18 },
+  meta: { fontSize: 11, color: c.textFaint, marginTop: 2 },
   stackScroll: { marginTop: 6, maxHeight: 120 },
-  stack: { fontSize: 10, color: '#78716c', fontFamily: 'monospace', lineHeight: 14 },
-  empty: { fontSize: 13, color: '#a8a29e', textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' },
+  stack: { fontSize: 10, color: c.textMuted, fontFamily: 'monospace', lineHeight: 14 },
+  empty: { fontSize: 13, color: c.textFaint, textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' },
   refreshBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, marginTop: 4 },
-  refreshText: { fontSize: 12, color: '#78716c' },
+  refreshText: { fontSize: 12, color: c.textMuted },
 });

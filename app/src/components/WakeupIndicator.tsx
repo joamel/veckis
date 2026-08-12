@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../lib/theme';
 // "Vaknar..."-banner som visas när första API-anropet tar > 3 sek.
 // Backenden kör på Render free-tier som sover efter 15 min inaktivitet
 // — första request kan ta 20-30 sek att vakna. Utan denna såg appen
@@ -12,6 +15,8 @@ import { subscribeBackendWakeup } from '../lib/backendWakeup';
 import { components as str } from '../lib/svenska';
 
 export function WakeupIndicator() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -30,12 +35,12 @@ export function WakeupIndicator() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#b96a45',
+    backgroundColor: c.accent,
     paddingHorizontal: 14,
     paddingVertical: 10,
     zIndex: 9998,

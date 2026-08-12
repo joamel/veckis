@@ -1,7 +1,8 @@
 import { Text } from 'react-native';
-import { LegalPage, legalStyles as s } from '../src/components/LegalPage';
+import { LegalPage, useLegalStyles } from '../src/components/LegalPage';
 
 export default function TermsScreen() {
+  const s = useLegalStyles();
   return (
     <LegalPage title="Användarvillkor">
       <Text style={s.h1}>Användarvillkor för Veckis</Text>
