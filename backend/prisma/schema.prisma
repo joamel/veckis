@@ -409,6 +409,7 @@ enum StoreCategory {
   special_diet
   cleaning
   personal_care
+  baby_kids
   other
 }
 

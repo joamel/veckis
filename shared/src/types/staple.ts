@@ -24,11 +24,12 @@ export const CATEGORY_LABELS: Record<StoreCategory, string> = {
   special_diet: 'Specialkost',
   cleaning: 'Städ & rengöring',
   personal_care: 'Hygien & personvård',
+  baby_kids: 'Baby & barn',
   other: 'Övrigt',
 };
 
 export const DEFAULT_CATEGORY_ORDER: StoreCategory[] = [
   'fruit_veg','meat_fish','deli_charcuterie','cheese','dairy_eggs','bread_bakery',
   'frozen','canned_dry','snacks_sweets','beverages','special_diet',
-  'cleaning','personal_care','other',
+  'cleaning','personal_care','baby_kids','other',
 ];

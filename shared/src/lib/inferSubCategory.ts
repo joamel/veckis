@@ -37,6 +37,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'delikatessost', patterns: ['brie', 'camembert', 'feta', 'mozzarella (färsk)', 'mozzarella', 'parmesan', 'manchego', 'pecorino', 'gorgonzola', 'roquefort', 'chèvre', 'halloumi', 'burrata', 'ricotta (deli)', 'taleggio', 'gouda', 'gruyère', 'gruyere', 'comté', 'comte', 'färskost', 'kvarg', 'krämost'] },
   { sub: 'pâté_terrin', patterns: ['paté', 'pâté', 'terrin', 'rillette', 'mousse (chark)'] },
   { sub: 'oliver_antipasto', patterns: ['gröna oliver', 'svarta oliver', 'oliver', 'antipasto', 'soltorkade tomater', 'kapris', 'cornichoner', 'inlagda paprika', 'pepparoni (inlagda)'] },
+  { sub: 'färdigmat_kyld', patterns: ['färdig sallad', 'pastasallad', 'kyld färdigrätt', 'färdig soppa', 'sushi'] },
   // Mejeri & ägg
   { sub: 'laktosfritt', patterns: ['laktosfri', 'laktosfritt'] }, // KÖRS FÖRST — överstyr mjölk/ost om "laktosfri" finns i namnet
   { sub: 'mejerisubstitut', patterns: ['havremjölk', 'havredryck', 'sojamjölk', 'sojadryck', 'mandelmjölk', 'kokosmjölk', 'havregrädde', 'sojagrädde', 'växtbaserad'] },
@@ -60,7 +61,11 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'fryst_bröd_deg', patterns: ['fryst deg', 'fryst smördeg', 'pajdeg', 'piroger (frysta)'] },
   // Konserver & torrvaror
   { sub: 'pasta_nudlar', patterns: ['spaghetti', 'penne', 'tagliatelle', 'fettuccine', 'macaroni', 'lasagneplattor', 'nudlar', 'glasnudlar', 'risnudlar', 'pasta'] },
-  { sub: 'ris_gryn', patterns: ['jasminris', 'basmatiris', 'arborioris', 'fullkornsris', 'havregryn', 'müsli', 'korngryn', 'bovete', 'quinoa', 'couscous', 'bulgur', 'ris'] },
+  { sub: 'ris_gryn', patterns: ['jasminris', 'basmatiris', 'arborioris', 'fullkornsris', 'havregryn', 'korngryn', 'bovete', 'quinoa', 'couscous', 'bulgur', 'ris'] },
+  { sub: 'flingor_müsli', patterns: ['frukostflingor', 'cornflakes', 'müsli', 'granola', 'havrefras', 'flingor', 'crunchy müsli'] },
+  { sub: 'honung', patterns: ['honung', 'flytande honung'] },
+  { sub: 'sylt_marmelad', patterns: ['sylt', 'marmelad', 'jordgubbssylt', 'hallonsylt', 'lingonsylt', 'hjortronsylt', 'apelsinmarmelad'] },
+  { sub: 'sött_pålägg', patterns: ['nutella', 'chokladpålägg', 'jordnötssmör', 'kakaokräm', 'nötkräm'] },
   { sub: 'konserver', patterns: ['krossade tomater', 'tomatkonserv', 'tonfisk i', 'majs (konserv)', 'kokosmjölk (konserv)', 'kokosgrädde (konserv)', 'kondenserad mjölk'] },
   { sub: 'baljväxter', patterns: ['kikärtor', 'svarta bönor', 'kidneybönor', 'vita bönor', 'linser', 'gula ärtor'] },
   { sub: 'mjöl_bakingredienser', patterns: ['vetemjöl', 'rågmjöl', 'mannagryn', 'jäst', 'bakpulver', 'bikarbonat', 'florsocker', 'strösocker', 'farinsocker', 'sirap', 'kakao', 'vaniljsocker', 'sockerkaka mix'] },
@@ -72,17 +77,21 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'godis', patterns: ['godis', 'gelégodis', 'salta lakritsar', 'sura' /* karameller */, 'kola'] },
   { sub: 'choklad', patterns: ['choklad', 'mörk choklad', 'mjölkchoklad', 'choklad bar', 'nougat'] },
   { sub: 'chips_salt', patterns: ['chips', 'ostbågar', 'cheez doodles', 'popcorn', 'salta pinnar', 'tortillachips', 'pretzels'] },
+  { sub: 'naturgodis', patterns: ['torkad frukt', 'russin', 'dadlar', 'torkade aprikoser', 'nötblandning', 'nötmix', 'proteinbar', 'fruktbar', 'naturgodis'] },
   // Drycker
   { sub: 'läsk', patterns: ['cola', 'pepsi', 'fanta', 'sprite', 'läsk', 'lemonad'] },
   { sub: 'juice', patterns: ['juice', 'apelsinjuice', 'äppeljuice', 'fruktjuice', 'must'] },
   { sub: 'vatten', patterns: ['vatten', 'mineralvatten', 'kolsyrat vatten', 'ramlösa'] },
+  { sub: 'sport_energidryck', patterns: ['energidryck', 'red bull', 'nocco', 'celsius', 'sportdryck', 'gatorade', 'powerade'] },
+  { sub: 'saft_koncentrat', patterns: ['saft', 'blandsaft', 'koncentrat', 'squash'] },
   { sub: 'kaffe', patterns: ['kaffe', 'snabbkaffe', 'espressopulver', 'kaffekapslar', 'bryggkaffe'] },
   { sub: 'te', patterns: ['te', 'tepåsar', 'grönt te', 'svart te', 'rooibos', 'kamomill'] },
   { sub: 'alkoholfritt_öl_cider', patterns: ['alkoholfri öl', 'alkoholfri cider', 'alkoholfritt'] },
   { sub: 'alkoholhaltigt', patterns: ['öl', 'vin', 'rödvin', 'vitt vin', 'rosévin', 'cider', 'sprit', 'whisky', 'vodka', 'rom', 'gin'] },
   // Specialkost
   { sub: 'glutenfritt', patterns: ['glutenfri', 'glutenfritt'] },
-  { sub: 'vegan', patterns: ['vegan', 'växtbaserad färs', 'oumph', 'quorn', 'beyond meat', 'tofu', 'tempeh'] },
+  { sub: 'veg_protein', patterns: ['tofu', 'tempeh', 'quorn', 'oumph', 'seitan', 'sojafärs', 'vegofärs', 'sojabitar', 'falafel', 'växtbaserad färs', 'beyond meat'] },
+  { sub: 'vegan', patterns: ['vegan'] },
   // Städ & rengöring
   { sub: 'diskmedel', patterns: ['diskmedel', 'maskindisk', 'disktabletter', 'sköljmedel (disk)'] },
   { sub: 'tvättmedel', patterns: ['tvättmedel', 'sköljmedel', 'fläckborttagning', 'klorin'] },
@@ -95,9 +104,13 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'duschtvål_hudvård', patterns: ['duschgel', 'duschtvål', 'tvål', 'handkräm', 'ansiktskräm', 'bodylotion', 'deodorant', 'rakkräm'] },
   { sub: 'intimhygien', patterns: ['bindor', 'tamponger', 'intimtvätt', 'trosskydd'] },
   { sub: 'mediciner', patterns: ['alvedon', 'ipren', 'paracetamol', 'plåster', 'huvudvärkstabletter', 'magmedicin'] },
+  { sub: 'smink_kosmetika', patterns: ['mascara', 'foundation', 'läppstift', 'smink', 'nagellack', 'kosmetika', 'concealer'] },
+  // Baby & barn
+  { sub: 'barnmat', patterns: ['barnmat', 'välling', 'barngröt', 'klämmis', 'modersmjölksersättning', 'bröstmjölksersättning'] },
+  { sub: 'blöjor', patterns: ['blöjor', 'blöja', 'våtservetter'] },
+  { sub: 'baby_barn', patterns: ['napp', 'nappflaska', 'barnschampo'] },
   // Övrigt
   { sub: 'husdjur', patterns: ['hundmat', 'kattmat', 'hundgodis', 'kattsand', 'kattgrus'] },
-  { sub: 'baby_barn', patterns: ['blöjor', 'välling', 'bröstmjölksersättning', 'modersmjölksersättning', 'barnmat', 'våtservetter (baby)'] },
   { sub: 'blommor_växter', patterns: ['blommor', 'krukväxt', 'krukor', 'växtjord', 'gödsel'] },
   { sub: 'hushållsvaror', patterns: ['ljus', 'tändstickor', 'batterier', 'glödlampa', 'aluminiumfolie', 'plastfolie', 'bakplåtspapper'] },
   { sub: 'batteri_elektronik', patterns: ['batteri', 'laddare', 'usb-kabel'] },

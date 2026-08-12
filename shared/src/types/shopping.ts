@@ -12,6 +12,7 @@ export type StoreCategory =
   | 'special_diet'
   | 'cleaning'
   | 'personal_care'
+  | 'baby_kids'
   | 'other';
 export interface ShoppingList {
   id: string;
