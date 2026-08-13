@@ -13,6 +13,7 @@ const customCategoriesSchema = z.array(z.string().min(1).max(40)).max(40);
 const expandedSubsSchema = z.array(z.string().min(1).max(40)).max(100);
 // Egna underkategorier: parentKey (StoreCategory eller "c:<egen kategori>") → etiketter.
 const customSubsSchema = z.record(z.string().min(1).max(60), z.array(z.string().min(1).max(40)).max(60)).optional();
+const parentOrderSchema = z.array(z.string().min(1).max(60)).max(60).optional();
 
 const createStoreSchema = z.object({
   householdId: z.string(),
@@ -21,6 +22,7 @@ const createStoreSchema = z.object({
   customCategories: customCategoriesSchema.optional(),
   expandedSubs: expandedSubsSchema.optional(),
   customSubs: customSubsSchema,
+  parentOrder: parentOrderSchema,
 });
 
 const updateStoreSchema = z.object({
@@ -29,6 +31,7 @@ const updateStoreSchema = z.object({
   customCategories: customCategoriesSchema.optional(),
   expandedSubs: expandedSubsSchema.optional(),
   customSubs: customSubsSchema,
+  parentOrder: parentOrderSchema,
 });
 
 // GET /api/stores?householdId=

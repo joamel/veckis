@@ -69,4 +69,7 @@ export interface Store {
   /** Hushålls-lokala egna underkategorier: parentKey → ordnade etiketter.
    *  parentKey = StoreCategory ELLER "c:<egen kategori>". */
   customSubs: Record<string, string[]>;
+  /** Enhetlig parent-ordning som blandar standard-kategorier och egna
+   *  ("c:<egen>") i EN lista. Tom = härled från categoryOrder + customCategories. */
+  parentOrder: string[];
 }

@@ -283,10 +283,10 @@ export function useApiClient() {
     getStores: (householdId: string) =>
       request<Store[]>(`/api/stores?householdId=${householdId}`),
 
-    createStore: (data: { householdId: string; name: string; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; customSubs?: Record<string, string[]> }) =>
+    createStore: (data: { householdId: string; name: string; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; customSubs?: Record<string, string[]>; parentOrder?: string[] }) =>
       request<Store>('/api/stores', { method: 'POST', body: JSON.stringify(data) }),
 
-    updateStore: (storeId: string, data: { name?: string; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; customSubs?: Record<string, string[]> }) =>
+    updateStore: (storeId: string, data: { name?: string; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; customSubs?: Record<string, string[]>; parentOrder?: string[] }) =>
       request<Store>(`/api/stores/${storeId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteStore: (storeId: string) =>

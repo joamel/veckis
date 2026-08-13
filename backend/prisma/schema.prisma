@@ -68,6 +68,11 @@ model Store {
   // parentKey är en StoreCategory ELLER "c:<egen kategori>". Ordningen styr
   // plocklistan. Rent lokalt — matar aldrig den globala kategori-inlärningen.
   customSubs        Json          @default("{}")
+  // Enhetlig parent-ordning som blandar standard-kategorier (StoreCategory) och
+  // egna kategorier ("c:<egen kategori>") i EN lista. Styr plocklistans ordning.
+  // Tom = härled från categoryOrder (standard) + customCategories (sist) för
+  // bakåtkompat.
+  parentOrder       String[]      @default([])
   createdAt         DateTime      @default(now())
 
   household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
