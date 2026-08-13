@@ -59,6 +59,8 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'fryst_fisk', patterns: ['fryst lax', 'fryst torsk', 'fryst fisk', 'frysta räkor'] },
   { sub: 'frysta_färdigrätter', patterns: ['fryst pizza', 'fryst lasagne', 'fryst panpizza', 'färdigrätt (fryst)', 'wokrätt (fryst)'] },
   { sub: 'fryst_bröd_deg', patterns: ['fryst deg', 'fryst smördeg', 'pajdeg', 'piroger (frysta)'] },
+  { sub: 'fryst_vegetariskt', patterns: ['frysta vegoburgare', 'vegobiff (fryst)', 'frysta vegobollar', 'fryst quorn'] },
+  { sub: 'fryst_glutenfritt', patterns: ['glutenfritt (fryst)', 'fryst glutenfri'] },
   // Konserver & torrvaror
   { sub: 'pasta_nudlar', patterns: ['spaghetti', 'penne', 'tagliatelle', 'fettuccine', 'macaroni', 'lasagneplattor', 'nudlar', 'glasnudlar', 'risnudlar', 'pasta'] },
   { sub: 'ris_gryn', patterns: ['jasminris', 'basmatiris', 'arborioris', 'fullkornsris', 'havregryn', 'korngryn', 'bovete', 'quinoa', 'couscous', 'bulgur', 'ris'] },
@@ -84,8 +86,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'vatten', patterns: ['vatten', 'mineralvatten', 'kolsyrat vatten', 'ramlösa'] },
   { sub: 'sport_energidryck', patterns: ['energidryck', 'red bull', 'nocco', 'celsius', 'sportdryck', 'gatorade', 'powerade'] },
   { sub: 'saft_koncentrat', patterns: ['saft', 'blandsaft', 'koncentrat', 'squash'] },
-  { sub: 'kaffe', patterns: ['kaffe', 'snabbkaffe', 'espressopulver', 'kaffekapslar', 'bryggkaffe'] },
-  { sub: 'te', patterns: ['te', 'tepåsar', 'grönt te', 'svart te', 'rooibos', 'kamomill'] },
+  { sub: 'kaffe_te', patterns: ['kaffe', 'snabbkaffe', 'espressopulver', 'kaffekapslar', 'bryggkaffe', 'te', 'tepåsar', 'grönt te', 'svart te', 'rooibos', 'kamomill'] },
   { sub: 'alkoholfritt_öl_cider', patterns: ['alkoholfri öl', 'alkoholfri cider', 'alkoholfritt'] },
   { sub: 'alkoholhaltigt', patterns: ['öl', 'vin', 'rödvin', 'vitt vin', 'rosévin', 'cider', 'sprit', 'whisky', 'vodka', 'rom', 'gin'] },
   // Specialkost

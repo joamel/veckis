@@ -58,6 +58,8 @@ export type SubCategory =
   | 'fryst_fisk'
   | 'frysta_färdigrätter'
   | 'fryst_bröd_deg'
+  | 'fryst_vegetariskt'
+  | 'fryst_glutenfritt'
   // Konserver & torrvaror
   | 'pasta_nudlar'
   | 'ris_gryn'
@@ -70,8 +72,7 @@ export type SubCategory =
   | 'nötter_frön_torra'
   | 'flingor_müsli'
   | 'honung'
-  | 'kaffe'
-  | 'te'
+  | 'kaffe_te'
   // Snacks & godis
   | 'godis'
   | 'choklad'
@@ -163,13 +164,15 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   sylt_marmelad: { defaultParent: 'canned_dry', alsoUnder: ['bread_bakery'], label: 'Sylt & marmelad' },
   sött_pålägg: { defaultParent: 'canned_dry', alsoUnder: ['bread_bakery', 'snacks_sweets'], label: 'Choklad- & nötpålägg' },
   // Frysvaror
-  frysta_grönsaker: { defaultParent: 'frozen', alsoUnder: [], label: 'Frysta grönsaker' },
-  frysta_bär_frukt: { defaultParent: 'frozen', alsoUnder: [], label: 'Frysta bär & frukt' },
+  frysta_grönsaker: { defaultParent: 'frozen', alsoUnder: [], label: 'Grönsaker' },
+  frysta_bär_frukt: { defaultParent: 'frozen', alsoUnder: [], label: 'Bär & frukt' },
   glass: { defaultParent: 'frozen', alsoUnder: [], label: 'Glass' },
-  fryst_kött_fågel: { defaultParent: 'frozen', alsoUnder: [], label: 'Fryst kött & fågel' },
-  fryst_fisk: { defaultParent: 'frozen', alsoUnder: [], label: 'Fryst fisk' },
-  frysta_färdigrätter: { defaultParent: 'frozen', alsoUnder: [], label: 'Frysta färdigrätter' },
-  fryst_bröd_deg: { defaultParent: 'frozen', alsoUnder: [], label: 'Fryst bröd & deg' },
+  fryst_kött_fågel: { defaultParent: 'frozen', alsoUnder: [], label: 'Kött & fågel' },
+  fryst_fisk: { defaultParent: 'frozen', alsoUnder: [], label: 'Fisk' },
+  frysta_färdigrätter: { defaultParent: 'frozen', alsoUnder: [], label: 'Färdigrätter' },
+  fryst_bröd_deg: { defaultParent: 'frozen', alsoUnder: [], label: 'Bröd & deg' },
+  fryst_vegetariskt: { defaultParent: 'frozen', alsoUnder: ['special_diet'], label: 'Vegetariskt' },
+  fryst_glutenfritt: { defaultParent: 'frozen', alsoUnder: ['special_diet'], label: 'Glutenfritt' },
   // Konserver & torrvaror
   pasta_nudlar: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Pasta & nudlar' },
   ris_gryn: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Ris & gryn' },
@@ -183,8 +186,7 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   flingor_müsli: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Frukostflingor & müsli' },
   honung: { defaultParent: 'canned_dry', alsoUnder: ['bread_bakery'], label: 'Honung' },
   // Kaffe & te — i svenska butiker i torrvaru-/skafferigången, inte kyldiskarna
-  kaffe: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Kaffe' },
-  te: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Te' },
+  kaffe_te: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Kaffe & te' },
   // Snacks & godis
   godis: { defaultParent: 'snacks_sweets', alsoUnder: [], label: 'Godis' },
   choklad: { defaultParent: 'snacks_sweets', alsoUnder: [], label: 'Choklad' },
