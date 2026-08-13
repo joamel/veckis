@@ -150,6 +150,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [editCategory, setEditCategory] = useState<StoreCategory>('other');
   const [editCustomCategory, setEditCustomCategory] = useState<string | null>(null);
   const [editSubCategory, setEditSubCategory] = useState<SubCategory | null>(null);
+  const [editCustomSubCategory, setEditCustomSubCategory] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Pure transform-only collapsing header (UI-thread, no layout = zero lag).
@@ -645,6 +646,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       unit: unit ?? null,
       category: category ?? 'other',
       customCategory: null,
+      customSubCategory: null,
       subCategory: subCategory ?? null,
       isChecked: false,
       checkedBy: null,
@@ -914,6 +916,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setEditCategory(item.category as StoreCategory);
     setEditCustomCategory((item as { customCategory?: string | null }).customCategory ?? null);
     setEditSubCategory(((item as { subCategory?: string | null }).subCategory as SubCategory | null) ?? null);
+    setEditCustomSubCategory((item as { customSubCategory?: string | null }).customSubCategory ?? null);
   }
 
   function openEditItem(item: ShoppingItemWithRecipe) {
@@ -938,7 +941,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const snapshot = editingItem;
     // Optimistic: update list + close modal before awaiting backend
     const optimisticItems = (list?.items ?? []).map(i =>
-      i.id === editingItem.id ? { ...i, name, quantity: qty, unit, category: editCategory, customCategory: editCustomCategory, subCategory: editSubCategory } : i
+      i.id === editingItem.id ? { ...i, name, quantity: qty, unit, category: editCategory, customCategory: editCustomCategory, subCategory: editSubCategory, customSubCategory: editCustomSubCategory } : i
     );
     setList(prev => prev ? { ...prev, items: optimisticItems } : prev);
     setEditingItem(null);
@@ -950,6 +953,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         category: editCategory,
         customCategory: editCustomCategory,
         subCategory: editSubCategory,
+        customSubCategory: editCustomSubCategory,
       });
       const savedRecipe = snapshot.recipe;
       const finalItems = optimisticItems.map(i =>
@@ -1254,15 +1258,23 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const allItems = [...unchecked, ...checked];
   const customCategories: string[] = (list?.store?.customCategories as string[] | undefined) ?? [];
   const expandedSubs: string[] = (list?.store?.expandedSubs as string[] | undefined) ?? [];
-  const categoryGroups = buildCategoryGroups(unchecked, categoryOrder, customCategories, expandedSubs);
-  const groupLabel = (group: CategoryGroup<ShoppingItemWithRecipe>) =>
-    group.isCustom
-      ? `🏷️ ${group.category}`
-      : group.isSub
-        ? `${CATEGORY_EMOJIS[SUB_TAXONOMY[group.category as SubCategory].defaultParent]} ${group.label ?? String(group.category)}`
-        : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+  const customSubs: Record<string, string[]> = (list?.store?.customSubs as Record<string, string[]> | undefined) ?? {};
+  const categoryGroups = buildCategoryGroups(unchecked, categoryOrder, customCategories, expandedSubs, customSubs);
+  const groupLabel = (group: CategoryGroup<ShoppingItemWithRecipe>) => {
+    if (group.isSub && group.isCustom) {
+      const pk = group.parentKey ?? '';
+      const emoji = pk.startsWith('c:') ? '🏷️' : (CATEGORY_EMOJIS[pk as StoreCategory] ?? '🏷️');
+      return `${emoji} ${group.label ?? String(group.category)}`;
+    }
+    if (group.isCustom) return `🏷️ ${group.category}`;
+    if (group.isSub) return `${CATEGORY_EMOJIS[SUB_TAXONOMY[group.category as SubCategory].defaultParent]} ${group.label ?? String(group.category)}`;
+    return `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+  };
   const groupKey = (group: CategoryGroup<ShoppingItemWithRecipe>) =>
-    group.isCustom ? `c:${group.category}` : group.isSub ? `s:${group.category}` : group.category as string;
+    group.isSub && group.isCustom ? `cs:${group.parentKey}:${group.category}`
+      : group.isCustom ? `c:${group.category}`
+      : group.isSub ? `s:${group.category}`
+      : group.category as string;
   // Ordnad lista (= visuell ordning = stigande y) som sticky-beräkningen läser.
   // "Klart"-sektionen ligger sist (efter de obockade grupperna) och ska också
   // haka i toppen när man scrollar in på den.
@@ -1360,7 +1372,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             kategori (samma indelning som obockade) med kategorin som underrubrik. */}
         {checked.length > 0 && (() => {
           const collapsed = collapsedCategories.has('checked');
-          const checkedGroups = buildCategoryGroups(checked, categoryOrder, customCategories, expandedSubs);
+          const checkedGroups = buildCategoryGroups(checked, categoryOrder, customCategories, expandedSubs, customSubs);
           return (
             <View style={s.categoryGroup} onLayout={e => { catLayouts.current['checked'] = e.nativeEvent.layout.y; }}>
               <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={4}>
@@ -1686,7 +1698,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={cat}
                     style={[s.catChip, active && s.catChipActive]}
-                    onPress={() => { setEditCategory(cat); setEditCustomCategory(null); }}
+                    onPress={() => { setEditCategory(cat); setEditCustomCategory(null); setEditSubCategory(null); setEditCustomSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
                       {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
@@ -1694,9 +1706,19 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   </Pressable>
                 );
               })}
-              {/* "Egna kategorier"-chips dolda — ersätts av 2-nivå-taxonomi.
-                  Items med befintligt customCategory fortsätter renderas men
-                  nya items kan inte längre placeras där manuellt. */}
+              {/* Hushållets egna parent-kategorier (lokala). */}
+              {customCategories.map(cat => {
+                const active = editCustomCategory === cat;
+                return (
+                  <Pressable
+                    key={`c:${cat}`}
+                    style={[s.catChip, active && s.catChipActive]}
+                    onPress={() => { setEditCustomCategory(cat); setEditSubCategory(null); setEditCustomSubCategory(null); }}
+                  >
+                    <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>🏷️ {cat}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </ScrollView>
           {/* Underkategori (valfritt) — filtrerar mot subs vars defaultParent
@@ -1711,24 +1733,38 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           >
             <View style={s.catChipRow}>
               <Pressable
-                style={[s.catChip, !editSubCategory && s.catChipActive]}
-                onPress={() => setEditSubCategory(null)}
+                style={[s.catChip, !editSubCategory && !editCustomSubCategory && s.catChipActive]}
+                onPress={() => { setEditSubCategory(null); setEditCustomSubCategory(null); }}
               >
-                <Text style={[s.catChipText, !editSubCategory && s.catChipTextActive]}>
+                <Text style={[s.catChipText, !editSubCategory && !editCustomSubCategory && s.catChipTextActive]}>
                   Ingen
                 </Text>
               </Pressable>
-              {subsForParent(editCategory).map(sub => {
-                const active = editSubCategory === sub;
+              {/* Standard-subs (bara för standard-parents) */}
+              {!editCustomCategory && subsForParent(editCategory).map(sub => {
+                const active = editSubCategory === sub && !editCustomSubCategory;
                 return (
                   <Pressable
                     key={sub}
                     style={[s.catChip, active && s.catChipActive]}
-                    onPress={() => setEditSubCategory(active ? null : sub)}
+                    onPress={() => { setEditSubCategory(active ? null : sub); setEditCustomSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]}>
                       {SUB_TAXONOMY[sub].label}
                     </Text>
+                  </Pressable>
+                );
+              })}
+              {/* Hushållets egna underkategorier under vald parent (lokala) */}
+              {(customSubs[editCustomCategory ? `c:${editCustomCategory}` : editCategory] ?? []).map(label => {
+                const active = editCustomSubCategory === label;
+                return (
+                  <Pressable
+                    key={`cs:${label}`}
+                    style={[s.catChip, active && s.catChipActive]}
+                    onPress={() => { setEditCustomSubCategory(active ? null : label); setEditSubCategory(null); }}
+                  >
+                    <Text style={[s.catChipText, active && s.catChipTextActive]}>🏷️ {label}</Text>
                   </Pressable>
                 );
               })}
@@ -2205,14 +2241,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
             {buildCategoryGroups(
               (list?.items ?? []).filter(i => !i.isChecked && !i.id.startsWith('optimistic-')),
-              categoryOrder, customCategories, expandedSubs,
+              categoryOrder, customCategories, expandedSubs, customSubs,
             ).map(group => {
-              const key = group.isCustom ? `c:${group.category}` : group.isSub ? `s:${group.category}` : group.category as string;
-              const label = group.isCustom
-                ? `🏷️ ${group.category}`
-                : group.isSub
-                  ? `${CATEGORY_EMOJIS[SUB_TAXONOMY[group.category as SubCategory].defaultParent]} ${group.label ?? String(group.category)}`
-                  : `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+              const key = groupKey(group);
+              const label = groupLabel(group);
               return (
                 <View key={key} style={s.categoryGroup}>
                   <View style={[s.categoryHeader, group.isSub && s.categorySubHeader]}>
