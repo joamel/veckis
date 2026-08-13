@@ -116,15 +116,19 @@ export default function StoreDetailScreen() {
     );
     setDirty(true);
   }
-  // Flytta en expanderad sub upp/ner bland sina syskon (samma parent) i
-  // expandedSubs — ordningen styr sub-sektionernas plats i plocklistan.
-  function moveSub(sub: string, parent: StoreCategory, dir: -1 | 1) {
+  // Parent-nyckel för en expandedSubs-post. Egna subs kodas "cs:<parentKey>:<label>"
+  // (parentKey kan själv innehålla ":" för egna parents, "c:Barn") → parenten är
+  // allt mellan "cs:" och SISTA kolonet. Standard-subs: sub:ens defaultParent.
+  function entryParentKey(entry: string): string {
+    if (entry.startsWith('cs:')) return entry.slice(3, entry.lastIndexOf(':'));
+    return SUB_TAXONOMY[entry as SubCategory]?.defaultParent ?? '';
+  }
+  // Flytta en sub-post (standard ELLER egen) upp/ner bland sina syskon (samma
+  // parent) i expandedSubs — så egna och standard-subs kan interfolieras fritt.
+  function moveSubEntry(entry: string, parentKey: string, dir: -1 | 1) {
     setExpandedSubs(prev => {
-      const siblingIdxs = prev
-        .map((s, i) => ({ s, i }))
-        .filter(({ s }) => SUB_TAXONOMY[s as SubCategory]?.defaultParent === parent)
-        .map(({ i }) => i);
-      const pos = siblingIdxs.indexOf(prev.indexOf(sub));
+      const siblingIdxs = prev.map((s, i) => ({ s, i })).filter(({ s }) => entryParentKey(s) === parentKey).map(({ i }) => i);
+      const pos = siblingIdxs.indexOf(prev.indexOf(entry));
       const target = pos + dir;
       if (pos < 0 || target < 0 || target >= siblingIdxs.length) return prev;
       const next = [...prev];
@@ -164,7 +168,7 @@ export default function StoreDetailScreen() {
     setDirty(true);
   }
   function commitCustomSub(parentKey: string) {
-    const l = newSubName.trim();
+    const l = newSubName.trim().replace(/:/g, ''); // kolon krockar med cs:-kodningen
     setAddingSubFor(null);
     setNewSubName('');
     if (!l) return;
@@ -173,6 +177,8 @@ export default function StoreDetailScreen() {
       if (cur.includes(l)) return prev;
       return { ...prev, [parentKey]: [...cur, l] };
     });
+    // Lägg posten i den enhetliga sub-ordningen (interfolieras med standard-subs).
+    setExpandedSubs(prev => prev.includes(`cs:${parentKey}:${l}`) ? prev : [...prev, `cs:${parentKey}:${l}`]);
     setDirty(true);
   }
   function removeCustomSub(parentKey: string, label: string) {
@@ -182,17 +188,7 @@ export default function StoreDetailScreen() {
       if (cur.length) next[parentKey] = cur; else delete next[parentKey];
       return next;
     });
-    setDirty(true);
-  }
-  function moveCustomSub(parentKey: string, label: string, dir: -1 | 1) {
-    setCustomSubs(prev => {
-      const cur = [...(prev[parentKey] ?? [])];
-      const i = cur.indexOf(label);
-      const t = i + dir;
-      if (i < 0 || t < 0 || t >= cur.length) return prev;
-      [cur[i], cur[t]] = [cur[t], cur[i]];
-      return { ...prev, [parentKey]: cur };
-    });
+    setExpandedSubs(prev => prev.filter(e => e !== `cs:${parentKey}:${label}`));
     setDirty(true);
   }
 
@@ -269,27 +265,46 @@ export default function StoreDetailScreen() {
     );
   }
 
-  // Egna underkategorier + "lägg till"-rad för en given parentKey (StoreCategory
-  // eller "c:<egen kategori>"). Delas mellan standard- och egna parents.
-  const renderCustomSubs = (parentKey: string) => {
-    const subs = customSubs[parentKey] ?? [];
+  // Enhetlig underkategori-lista för en parentKey: utbrutna standard-subs OCH
+  // egna subs i EN ordnad lista (från expandedSubs) — sorterbara sinsemellan.
+  // Under: ej utbrutna standard-subs (kryssa för att bryta ut) + "lägg till egen".
+  const renderSubs = (parentKey: string, standardSubs: SubCategory[]) => {
+    const entries = expandedSubs.filter(e => entryParentKey(e) === parentKey);
+    const rest = standardSubs.filter(sub => !expandedSubs.includes(sub));
     return (
       <>
-        {subs.map((label, ci) => (
-          <View key={`cs:${label}`} style={s.subRow}>
-            <Text style={[s.subName, s.subNameActive]}>🏷️ {label}</Text>
-            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-              <Pressable style={[s.catBtn, ci === 0 && { opacity: 0.3 }]} disabled={ci === 0} onPress={() => moveCustomSub(parentKey, label, -1)}>
-                <Ionicons name="chevron-up" size={16} color={c.primary} />
-              </Pressable>
-              <Pressable style={[s.catBtn, ci === subs.length - 1 && { opacity: 0.3 }]} disabled={ci === subs.length - 1} onPress={() => moveCustomSub(parentKey, label, 1)}>
-                <Ionicons name="chevron-down" size={16} color={c.primary} />
-              </Pressable>
-              <Pressable style={s.catBtnDanger} onPress={() => removeCustomSub(parentKey, label)}>
-                <Ionicons name="close" size={16} color={c.danger} />
-              </Pressable>
+        {standardSubs.length > 0 && <Text style={s.subListHint}>{str.detail.subHint(CATEGORY_LABELS[parentKey as StoreCategory] ?? parentKey)}</Text>}
+        {entries.map((entry, i) => {
+          const isCustomEntry = entry.startsWith('cs:');
+          const label = isCustomEntry ? entry.slice(entry.lastIndexOf(':') + 1) : SUB_TAXONOMY[entry as SubCategory].label;
+          return (
+            <View key={entry} style={s.subRow}>
+              <Text style={[s.subName, s.subNameActive]}>{isCustomEntry ? `🏷️ ${label}` : label}</Text>
+              <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveSubEntry(entry, parentKey, -1)}>
+                  <Ionicons name="chevron-up" size={16} color={c.primary} />
+                </Pressable>
+                <Pressable style={[s.catBtn, i === entries.length - 1 && { opacity: 0.3 }]} disabled={i === entries.length - 1} onPress={() => moveSubEntry(entry, parentKey, 1)}>
+                  <Ionicons name="chevron-down" size={16} color={c.primary} />
+                </Pressable>
+                {isCustomEntry ? (
+                  <Pressable style={s.catBtnDanger} onPress={() => removeCustomSub(parentKey, label)}>
+                    <Ionicons name="close" size={16} color={c.danger} />
+                  </Pressable>
+                ) : (
+                  <Pressable style={[s.subToggle, s.subToggleActive]} onPress={() => toggleSubExpanded(entry)}>
+                    <Ionicons name="checkmark" size={14} color="#fff" />
+                  </Pressable>
+                )}
+              </View>
             </View>
-          </View>
+          );
+        })}
+        {rest.map(sub => (
+          <Pressable key={sub} style={s.subRow} onPress={() => toggleSubExpanded(sub)}>
+            <Text style={s.subName}>{SUB_TAXONOMY[sub as SubCategory].label}</Text>
+            <View style={s.subToggle} />
+          </Pressable>
         ))}
         {addingSubFor === parentKey ? (
           <View style={s.subRow}>
@@ -374,38 +389,7 @@ export default function StoreDetailScreen() {
                   </View>
                   {isOpen && (
                     <View style={s.subList}>
-                      {!isCustom && subs.length > 0 && (() => {
-                        const expanded = expandedSubs.filter(sub => (subs as string[]).includes(sub));
-                        const rest = subs.filter(sub => !expandedSubs.includes(sub));
-                        return (
-                          <>
-                            <Text style={s.subListHint}>{str.detail.subHint(CATEGORY_LABELS[key as StoreCategory] ?? cat)}</Text>
-                            {expanded.map((sub, i) => (
-                              <View key={sub} style={s.subRow}>
-                                <Text style={[s.subName, s.subNameActive]}>{SUB_TAXONOMY[sub as SubCategory].label}</Text>
-                                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                                  <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveSub(sub, key as StoreCategory, -1)}>
-                                    <Ionicons name="chevron-up" size={16} color={c.primary} />
-                                  </Pressable>
-                                  <Pressable style={[s.catBtn, i === expanded.length - 1 && { opacity: 0.3 }]} disabled={i === expanded.length - 1} onPress={() => moveSub(sub, key as StoreCategory, 1)}>
-                                    <Ionicons name="chevron-down" size={16} color={c.primary} />
-                                  </Pressable>
-                                  <Pressable style={[s.subToggle, s.subToggleActive]} onPress={() => toggleSubExpanded(sub)}>
-                                    <Ionicons name="checkmark" size={14} color="#fff" />
-                                  </Pressable>
-                                </View>
-                              </View>
-                            ))}
-                            {rest.map(sub => (
-                              <Pressable key={sub} style={s.subRow} onPress={() => toggleSubExpanded(sub)}>
-                                <Text style={s.subName}>{SUB_TAXONOMY[sub as SubCategory].label}</Text>
-                                <View style={s.subToggle} />
-                              </Pressable>
-                            ))}
-                          </>
-                        );
-                      })()}
-                      {renderCustomSubs(key)}
+                      {renderSubs(key, isCustom ? ([] as SubCategory[]) : subs)}
                     </View>
                   )}
                 </View>

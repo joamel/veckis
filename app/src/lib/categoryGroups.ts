@@ -117,39 +117,39 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
     return a.name.localeCompare(b.name, 'sv');
   });
 
-  // Egna sub-grupper för en parentKey, ordnade enligt customSubs (fallback:
-  // insättningsordning).
-  const customSubGroups = (parentKey: string): CategoryGroup<T>[] => {
+  // Ordnad lista av sub-sektioner (standard + egna) under en parentKey, enligt
+  // expandedSubs. Egna subs kodas som "cs:<parentKey>:<label>" i expandedSubs så
+  // att de kan interfolieras fritt med standard-subarna. (customSubs används som
+  // register när expandedSubs saknar cs:-posten, t.ex. äldre data.)
+  void customSubs;
+  const subGroupsForParent = (parentKey: string): CategoryGroup<T>[] => {
+    const acc: { order: number; g: CategoryGroup<T> }[] = [];
+    if (!parentKey.startsWith('c:')) {
+      for (const [sub, its] of subMap) {
+        const info = SUB_TAXONOMY[sub as SubCategory];
+        if (info && info.defaultParent === parentKey) {
+          const idx = expandedSubs.indexOf(sub);
+          acc.push({ order: idx === -1 ? Infinity : idx, g: { category: sub, isCustom: false, isSub: true, label: info.label, items: sortItems(its) } });
+        }
+      }
+    }
     const inner = customSubMap.get(parentKey);
-    if (!inner) return [];
-    const orderArr = customSubs[parentKey] ?? [];
-    const labels = [...inner.keys()].sort((a, b) => {
-      const ia = orderArr.indexOf(a); const ib = orderArr.indexOf(b);
-      return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib);
-    });
-    return labels.map(label => ({
-      category: label, isCustom: true, isSub: true, parentKey, label,
-      items: sortItems(inner.get(label)!),
-    }));
+    if (inner) {
+      for (const [label, its] of inner) {
+        const idx = expandedSubs.indexOf(`cs:${parentKey}:${label}`);
+        acc.push({ order: idx === -1 ? Infinity : idx, g: { category: label, isCustom: true, isSub: true, parentKey, label, items: sortItems(its) } });
+      }
+    }
+    acc.sort((a, b) => a.order - b.order);
+    return acc.map(x => x.g);
   };
 
-  // Grupper för EN standard-parent (direkta items + utbrutna standard-subs +
-  // egna subs).
+  // Grupper för EN standard-parent (direkta items + subs interfolierade).
   const standardParentGroups = (parent: StoreCategory): CategoryGroup<T>[] => {
     const out: CategoryGroup<T>[] = [];
     const direct = enumMap.get(parent);
     if (direct && direct.length) out.push({ category: parent, isCustom: false, items: sortItems(direct) });
-    const parentSubs = [...subMap.keys()].sort((a, b) => {
-      const ia = expandedSubs.indexOf(a); const ib = expandedSubs.indexOf(b);
-      return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib);
-    });
-    for (const sub of parentSubs) {
-      const subInfo = SUB_TAXONOMY[sub as SubCategory];
-      if (subInfo && subInfo.defaultParent === parent) {
-        out.push({ category: sub, isCustom: false, isSub: true, label: subInfo.label, items: sortItems(subMap.get(sub)!) });
-      }
-    }
-    out.push(...customSubGroups(String(parent)));
+    out.push(...subGroupsForParent(String(parent)));
     return out;
   };
   // Grupper för EN egen parent (direkta items + egna subs).
@@ -157,7 +157,7 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
     const out: CategoryGroup<T>[] = [];
     const direct = customMap.get(cat);
     if (direct && direct.length) out.push({ category: cat, isCustom: true, items: sortItems(direct) });
-    out.push(...customSubGroups(`c:${cat}`));
+    out.push(...subGroupsForParent(`c:${cat}`));
     return out;
   };
 
