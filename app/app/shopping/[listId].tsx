@@ -336,7 +336,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     // editing. Last-write-wins still applies — this just makes the overwrite
     // visible instead of silent.
     if ((msg.type === 'item_updated' || msg.type === 'item_deleted') && editingItem && msg.data.id === editingItem.id) {
-      const who = msg.actor ?? 'Någon';
+      const who = msg.actor ?? str.fallbackActor;
       if (msg.type === 'item_deleted') {
         // Modal closes → a root toast is visible again.
         showGlobalToast(str.conflict.deleted(who, capitalize(editingItem.name)), 'neutral');
@@ -490,8 +490,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     if (mergeTip.seen !== false || mergeTipShownRef.current) return;
     if (!mergeSheet) return;
     const shown = showTip({
-      title: 'Slå ihop dubbletter',
-      message: 'Här slår du ihop likadana varor till en post med samlad mängd. Justera namn, enhet och kategori om du vill — appen drar ihop allt till en rad i listan.',
+      title: str.tips.merge.title,
+      message: str.tips.merge.message,
     });
     if (shown) { mergeTipShownRef.current = true; mergeTip.markSeen(); }
   }, [tipsReady, mergeSheet, mergeTip.seen, mergeTip.markSeen, showTip]);
@@ -503,8 +503,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     if (stapleEditorTip.seen !== false || stapleEditorTipShownRef.current) return;
     if (!editingStaple) return;
     const shown = showTip({
-      title: 'Enhet och kategori',
-      message: 'Här ändrar du standardenhet (st, dl, g …) och kategori så varan automatiskt hamnar rätt i butikens ordning nästa gång du lägger till den.',
+      title: str.tips.categoryUnit.title,
+      message: str.tips.categoryUnit.message,
     });
     if (shown) { stapleEditorTipShownRef.current = true; stapleEditorTip.markSeen(); }
   }, [tipsReady, editingStaple, stapleEditorTip.seen, stapleEditorTip.markSeen, showTip]);
@@ -517,8 +517,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     if (listActionsTip.seen !== false || listActionsTipShownRef.current) return;
     if (!list || list.items.length === 0) return;
     const shown = showTip({
-      title: 'Mer du kan göra med listan',
-      message: 'Tryck på prickarna för fler val: byt namn, byt butik, klarmarka alla, rensa listan eller importera veckomeny.',
+      title: str.tips.moreActions.title,
+      message: str.tips.moreActions.message,
       targetRef: listActionsBtnRef,
     });
     if (shown) { listActionsTipShownRef.current = true; listActionsTip.markSeen(); }
@@ -555,8 +555,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     if (suggestionTip.seen !== false || suggestionTipShownRef.current) return;
     if (suggestions.length === 0) return;
     const shown = showTip({
-      title: 'Redigera basvara',
-      message: 'Förslagen kommer från dina basvaror och tidigare ingredienser. Håll inne på ett förslag för att redigera enhet, kategori eller spara det som en ny basvara.',
+      title: str.tips.suggestion.title,
+      message: str.tips.suggestion.message,
     });
     if (shown) { suggestionTipShownRef.current = true; suggestionTip.markSeen(); }
   }, [tipsReady, suggestions.length, suggestionTip.seen, suggestionTip.markSeen, showTip]);
@@ -1321,8 +1321,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             <Pressable onPress={goToBulkTransfer} style={s.emptyImportBtn} hitSlop={12}>
               <Ionicons name="add-circle" size={64} color={c.primary} />
             </Pressable>
-            <Text style={s.emptyText}>Listan är tom</Text>
-            <Text style={s.emptySubtext}>Tryck på + för att importera veckomenyn, eller lägg till varor nedan</Text>
+            <Text style={s.emptyText}>{str.emptyState.title}</Text>
+            <Text style={s.emptySubtext}>{str.emptyState.subtitle}</Text>
           </View>
         )}
 
@@ -1536,7 +1536,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           </ScrollView>
         ) : keyboardVisible && newItem.trim().length === 0 && topStaples.length > 0 ? (
           <View style={s.commonScroll}>
-            <Text style={s.chipHint}>Dina vanligaste</Text>
+            <Text style={s.chipHint}>{str.staplesHeading}</Text>
             <View style={s.chipRowWrap}>
               {topStaples.map(s2 => (
                 <TouchableOpacity
@@ -1589,7 +1589,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           <View style={s.sheetHandle} />
           {browserCategory === null ? (
             <>
-              <Text style={s.sheetTitle}>Välj kategori</Text>
+              <Text style={s.sheetTitle}>{str.browserTitle}</Text>
               <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={[s.categoryGrid, { paddingBottom: 24 }]}>
                 {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
                   <Pressable key={cat} style={s.categoryTile} onPress={() => setBrowserCategory(cat)}>
@@ -1604,7 +1604,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               <View style={s.browserHeader}>
                 <Pressable style={s.browserBack} onPress={() => setBrowserCategory(null)}>
                   <Ionicons name="chevron-back" size={20} color={c.primary} />
-                  <Text style={s.browserBackText}>Tillbaka</Text>
+                  <Text style={s.browserBackText}>{common.actions.back}</Text>
                 </Pressable>
                 <Text style={s.browserTitle}>{CATEGORY_EMOJIS[browserCategory]} {CATEGORY_LABELS[browserCategory]}</Text>
               </View>
@@ -1639,7 +1639,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           <View style={s.sheetHandle} />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
           <ConflictBanner message={editConflict?.msg ?? null} onShowLatest={editConflict?.latest ? applyLatestEdit : undefined} />
-          <Text style={s.editLabel}>Namn</Text>
+          <Text style={s.editLabel}>{common.fields.name}</Text>
           <TextInput
             style={s.editInput}
             value={editName}
@@ -1696,7 +1696,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               ))}
             </View>
           </ScrollView>
-          <Text style={s.editLabel}>Kategori</Text>
+          <Text style={s.editLabel}>{common.fields.category}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
             <View style={s.catChipRow}>
               {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => {
@@ -1731,7 +1731,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           {/* Underkategori (valfritt) — filtrerar mot subs vars defaultParent
               matchar valt parent. Användaren kan när som helst byta parent
               ovan och då uppdateras sub-listan. */}
-          <Text style={s.editLabel}>Underkategori (valfritt)</Text>
+          <Text style={s.editLabel}>{common.fields.subCategoryOptional}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -1781,10 +1781,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           <View style={s.editActions}>
             <Pressable style={s.deleteBtn} onPress={() => { setEditingItem(null); if (editingItem) deleteItem(editingItem.id); }}>
               <Ionicons name="trash-outline" size={18} color={c.danger} />
-              <Text style={s.deleteBtnText}>Ta bort</Text>
+              <Text style={s.deleteBtnText}>{common.actions.delete}</Text>
             </Pressable>
             <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled, { flex: 1, marginTop: 0 }]} onPress={saveEditItem} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Spara</Text>}
+              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>{common.actions.save}</Text>}
             </Pressable>
           </View>
         </View>
@@ -1802,7 +1802,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             {editingStaple?.id.startsWith('suggestion:') ? 'Spara som basvara' : 'Redigera basvara'}
           </Text>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
-          <Text style={s.editLabel}>Namn</Text>
+          <Text style={s.editLabel}>{common.fields.name}</Text>
           <TextInput
             style={s.editInput}
             value={stapleName}
@@ -1812,12 +1812,12 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             autoCapitalize="none"
             returnKeyType="done"
           />
-          <Text style={s.editLabel}>Enhet (valfritt)</Text>
+          <Text style={s.editLabel}>{common.fields.unitOptional}</Text>
           <TextInput
             style={s.editInput}
             value={stapleUnit}
             onChangeText={v => setStapleUnit(v.toLowerCase())}
-            placeholder="t.ex. st, dl, paket"
+            placeholder={str.unitPlaceholder}
             placeholderTextColor={c.textFaint}
             autoCapitalize="none"
             returnKeyType="done"
@@ -1831,7 +1831,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               ))}
             </View>
           </ScrollView>
-          <Text style={s.editLabel}>Kategori</Text>
+          <Text style={s.editLabel}>{common.fields.category}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll} keyboardShouldPersistTaps="handled">
             <View style={s.catChipRow}>
               {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
@@ -1852,7 +1852,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             {!editingStaple?.id.startsWith('suggestion:') && (
               <Pressable style={s.deleteBtn} onPress={deleteStaple}>
                 <Ionicons name="trash-outline" size={18} color={c.danger} />
-                <Text style={s.deleteBtnText}>Ta bort</Text>
+                <Text style={s.deleteBtnText}>{common.actions.delete}</Text>
               </Pressable>
             )}
             <Pressable
@@ -1860,7 +1860,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               onPress={saveStapleEdit}
               disabled={savingStaple || !stapleName.trim()}
             >
-              {savingStaple ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Spara</Text>}
+              {savingStaple ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>{common.actions.save}</Text>}
             </Pressable>
           </View>
         </View>
@@ -1921,7 +1921,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 ))}
               </View>
             </ScrollView>
-            <Text style={s.editLabel}>Kategori</Text>
+            <Text style={s.editLabel}>{common.fields.category}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
               <View style={s.catChipRow}>
                 {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => {
@@ -1950,11 +1950,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </ScrollView>
             {((!qtyCustomCategory && subsForParent(qtyCategory).length > 0) || (customSubs[qtyCustomCategory ? `c:${qtyCustomCategory}` : qtyCategory] ?? []).length > 0) && (
               <>
-                <Text style={s.editLabel}>Underkategori (valfritt)</Text>
+                <Text style={s.editLabel}>{common.fields.subCategoryOptional}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
                   <View style={s.catChipRow}>
                     <Pressable style={[s.catChip, !qtySubCategory && !qtyCustomSubCategory && s.catChipActive]} onPress={() => { setQtySubCategory(null); setQtyCustomSubCategory(null); }}>
-                      <Text style={[s.catChipText, !qtySubCategory && !qtyCustomSubCategory && s.catChipTextActive]}>Ingen</Text>
+                      <Text style={[s.catChipText, !qtySubCategory && !qtyCustomSubCategory && s.catChipTextActive]}>{common.fields.none}</Text>
                     </Pressable>
                     {!qtyCustomCategory && subsForParent(qtyCategory).map(sub => {
                       const active = qtySubCategory === sub && !qtyCustomSubCategory;
@@ -1979,7 +1979,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             <Pressable style={s.qtyConfirm} onPress={confirmQtySheet} disabled={adding}>
               {adding
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={s.qtyConfirmText}>Lägg till</Text>}
+                : <Text style={s.qtyConfirmText}>{common.actions.add}</Text>}
             </Pressable>
           </View>
           </KeyboardAvoidingView>
@@ -1999,7 +1999,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
             <View style={s.sheetHandle} />
             <View style={s.mergeHeaderRow}>
-              <Text style={s.sheetTitle}>Dubbletter</Text>
+              <Text style={s.sheetTitle}>{str.merge.heading}</Text>
               {!manualPickerOpen && (
                 <Pressable
                   style={s.dupeBadge}
@@ -2007,15 +2007,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   hitSlop={8}
                 >
                   <Ionicons name="checkbox-outline" size={12} color={c.accent} />
-                  <Text style={s.dupeBadgeText}>Markera själv</Text>
+                  <Text style={s.dupeBadgeText}>{str.merge.markManually}</Text>
                 </Pressable>
               )}
             </View>
             <ScrollView ref={mergeScrollRef} style={{ flexShrink: 1 }} contentContainerStyle={{ gap: 8, paddingBottom: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {mergeSheet && mergeSheet.items.length > 0 ? (
-                <Text style={s.sheetSub}>Markera vilka som ska slås ihop</Text>
+                <Text style={s.sheetSub}>{str.merge.instruction}</Text>
               ) : (
-                <Text style={s.sheetSub}>Inga föreslagna dubbletter — markera själv för att slå ihop varor</Text>
+                <Text style={s.sheetSub}>{str.merge.noDupes}</Text>
               )}
               {mergeSheet?.items.map(item => (
                 <Pressable key={item.id} style={s.mergeItem} onPress={() => toggleMergeSelected(item.id)}>
@@ -2032,7 +2032,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               ))}
               {mergeSheet && mergeSheet.items.length > 0 && (<>
               <View style={s.mergeDivider} />
-              <Text style={s.editLabel}>Namn</Text>
+              <Text style={s.editLabel}>{common.fields.name}</Text>
               <TextInput
                 style={s.editInput}
                 value={mergeName}
@@ -2041,7 +2041,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 placeholderTextColor={c.textFaint}
                 autoCapitalize="none"
               />
-              <Text style={s.editLabel}>Ny mängd och enhet</Text>
+              <Text style={s.editLabel}>{str.merge.newQtyUnit}</Text>
               <View
                 style={[s.qtyStepper, { gap: 6, marginVertical: 4 }]}
                 onLayout={e => { mergeRowY.current = e.nativeEvent.layout.y; }}
@@ -2088,7 +2088,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   ))}
                 </View>
               </ScrollView>
-              <Text style={s.editLabel}>Kategori</Text>
+              <Text style={s.editLabel}>{common.fields.category}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll} keyboardShouldPersistTaps="handled">
                 <View style={s.catChipRow}>
                   {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
@@ -2139,7 +2139,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 setMergeSheet(null);
               }}
             >
-              <Text style={s.mergeIgnoreBtnText}>Ignorera</Text>
+              <Text style={s.mergeIgnoreBtnText}>{common.actions.ignore}</Text>
             </Pressable>
             </>)}
         </View>
@@ -2161,7 +2161,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               {iAmShopping
                 ? 'Sluta handla'
                 : list.activeShopperMemberId
-                  ? `${activeShopper?.displayName ?? 'Någon'} handlar nu`
+                  ? `${activeShopper?.displayName ?? str.fallbackActor} handlar nu`
                   : 'Jag handlar nu'}
             </Text>
           </Pressable>
@@ -2170,21 +2170,21 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             onPress={() => { setShowActionsMenu(false); setRenameValue(list.name); setRenameEmoji(list.emoji ?? null); setShowRenameModal(true); }}
           >
             <Ionicons name="create-outline" size={20} color={c.primary} />
-            <Text style={s.actionsMenuText}>Byt namn på listan</Text>
+            <Text style={s.actionsMenuText}>{str.renameTitle}</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); openStorePicker(); }}
           >
             <Ionicons name="storefront-outline" size={20} color={c.primary} />
-            <Text style={s.actionsMenuText}>{list.store?.name ? `Butik: ${list.store.name}` : 'Välj butik'}</Text>
+            <Text style={s.actionsMenuText}>{list.store?.name ? str.a11y.store(list.store.name) : str.a11y.chooseStore}</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); goToBulkTransfer(); }}
           >
             <Ionicons name="restaurant-outline" size={20} color={c.primary} />
-            <Text style={s.actionsMenuText}>Importera veckomeny</Text>
+            <Text style={s.actionsMenuText}>{str.actionsMenu.importMenu}</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
@@ -2204,7 +2204,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             onPress={() => { setShowActionsMenu(false); checkAllUnchecked(); }}
           >
             <Ionicons name="checkbox-outline" size={20} color={c.primary} />
-            <Text style={s.actionsMenuText}>Klarmarkera alla</Text>
+            <Text style={s.actionsMenuText}>{str.actionsMenu.checkAll}</Text>
           </Pressable>
           <View style={s.actionsMenuDivider} />
           <Pressable
@@ -2212,14 +2212,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             onPress={() => { setShowActionsMenu(false); completeList(); }}
           >
             <Ionicons name="sparkles-outline" size={20} color={c.danger} />
-            <Text style={[s.actionsMenuText, { color: c.danger }]}>Rensa lista</Text>
+            <Text style={[s.actionsMenuText, { color: c.danger }]}>{str.actionsMenu.clear}</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); deleteEntireList(); }}
           >
             <Ionicons name="trash-outline" size={20} color={c.danger} />
-            <Text style={[s.actionsMenuText, { color: c.danger }]}>Ta bort lista</Text>
+            <Text style={[s.actionsMenuText, { color: c.danger }]}>{str.deleteList}</Text>
           </Pressable>
         </View>
       </Modal>
@@ -2231,7 +2231,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         <KeyboardAvoidingView behavior={kavBehavior}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Byt namn på listan</Text>
+            <Text style={s.sheetTitle}>{str.renameTitle}</Text>
             <TextInput
               style={s.editInput}
               value={renameValue}
@@ -2248,7 +2248,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               onPress={saveRename}
               disabled={!renameValue.trim() || renaming}
             >
-              {renaming ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>Spara</Text>}
+              {renaming ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{common.actions.save}</Text>}
             </Pressable>
           </View>
         </KeyboardAvoidingView>
@@ -2260,8 +2260,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         <Pressable style={s.overlay} onPress={() => setManualPickerOpen(false)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Markera dubbletter själv</Text>
-          <Text style={s.sheetSub}>Bocka i minst två varor som ska slås ihop</Text>
+          <Text style={s.sheetTitle}>{str.merge.pickTitle}</Text>
+          <Text style={s.sheetSub}>{str.merge.pickSubtitle}</Text>
           {/* Samma kategori-gruppering som den vanliga listan så det är lätt att
               hitta rätt varor (i st. f. en platt bokstavsordnad lista). */}
           <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>

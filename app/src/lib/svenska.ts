@@ -23,6 +23,16 @@ export const common = {
     back:            'Tillbaka',
     manage:          'Hantera',
     clearSearch:     'Rensa sökning',
+    ignore:          'Ignorera',
+  },
+  fields: {
+    name:                'Namn',
+    category:            'Kategori',
+    subCategory:         'Underkategori',
+    subCategoryOptional: 'Underkategori (valfritt)',
+    unit:                'Enhet',
+    unitOptional:        'Enhet (valfritt)',
+    none:                'Ingen',
   },
   discardDraft: {
     title:    'Vill du slänga utkastet?',
@@ -395,7 +405,25 @@ export const shoppingList = {
     title:   'Slå ihop dubbletter',
     message: 'Här slår du ihop likadana varor till en post med samlad mängd. Justera namn, enhet och kategori om du vill - appen drar ihop allt till en rad i listan.',
     merged:  (n: number, name: string) => `Slog ihop ${n} ${name}`,
+    heading:      'Dubbletter',
+    markManually: 'Markera själv',
+    instruction:  'Markera vilka som ska slås ihop',
+    noDupes:      'Inga föreslagna dubbletter — markera själv för att slå ihop varor',
+    newQtyUnit:   'Ny mängd och enhet',
+    pickTitle:    'Markera dubbletter själv',
+    pickSubtitle: 'Bocka i minst två varor som ska slås ihop',
   },
+
+  emptyState: {
+    title:    'Listan är tom',
+    subtitle: 'Tryck på + för att importera veckomenyn, eller lägg till varor nedan',
+  },
+  staplesHeading:  'Dina vanligaste',
+  browserTitle:    'Välj kategori',
+  unitPlaceholder: 't.ex. st, dl, paket',
+  renameTitle:     'Byt namn på listan',
+  deleteList:      'Ta bort lista',
+  fallbackActor:   'Någon',
 
   validation: {
     nameMissing: 'Namn saknas',
@@ -500,6 +528,10 @@ export const shoppingList = {
     moreActions: {
       title:   'Mer du kan göra med listan',
       message: 'Tryck på prickarna för fler val: byt namn, byt butik, klarmarka alla, rensa listan eller importera veckomeny.',
+    },
+    suggestion: {
+      title:   'Redigera basvara',
+      message: 'Förslagen kommer från dina basvaror och tidigare ingredienser. Håll inne på ett förslag för att redigera enhet, kategori eller spara det som en ny basvara.',
     },
   },
 };
@@ -1127,10 +1159,14 @@ export const stores = {
       hidden:  'DOLDA',
     },
     hint:        'Ordningen matchar butikens layout. Dölj kategorier du inte använder och lägg till egna under "Egna kategorier".',
+    mixedHint:   'Ordna standard- och egna kategorier tillsammans. 🏷️ = egen (lokal, bara för den här butiken).',
     allHidden:   'Alla standardkategorier är dolda - du måste välja minst en.',
     hiddenHint:  'Standardkategorier du har dolt. Tryck visa-knappen för att lägga tillbaka dem sist i listan.',
     subHint:     (parent: string) => `Slå på sub-kategorier som du vill se som egna sektioner i listan. Övriga samlas under ${parent}.`,
     saveButton:  'Spara ändringar',
+    customSubPlaceholder: 'Namn på underkategori',
+    customSubAdd:         'Egen underkategori',
+    customCatPlaceholder: '＋ Ny egen kategori',
   },
 
   renameModal: {
