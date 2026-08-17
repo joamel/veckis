@@ -42,6 +42,7 @@ export const common = {
   // Måltidstyper — låter flera rätter samsas på samma dag.
   mealTypes: {
     label:     'Måltid',
+    entity:    'måltidstyp',
     breakfast: 'Frukost',
     lunch:     'Lunch',
     dinner:    'Middag',
@@ -65,6 +66,7 @@ export const common = {
   },
   noDay: 'utan dag',
   someone: 'Någon',
+  errorTitle: 'Fel',
   plusDishes: (n: number) => `+ ${n} ${n === 1 ? 'rätt' : 'rätter'}`,
   ordinals: ['Första', 'Andra', 'Tredje', 'Fjärde', 'Femte', 'Sista'] as const,
   tabs: {
@@ -377,6 +379,7 @@ export const shopping = {
     subtitle: 'Skapa en inköpslista så kan ni bocka av varor tillsammans',
     cta:      'Ny lista',
   },
+  splitPlaceholder: 'Välj en inköpslista',
 
   createModal: {
     title:           'Ny inköpslista',
@@ -1249,6 +1252,7 @@ export const components = {
       yearly:  'År',
     },
     every:          'Var',
+    units:          { daily: 'dag', weekly: 'vecka', monthly: 'månad', yearly: 'år' },
     weekdays:       'Veckodagar',
     repeatsEvery:   'Upprepas',
     dayOfMonth:     'Dag i månaden',

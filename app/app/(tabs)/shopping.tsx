@@ -83,7 +83,7 @@ export default function ShoppingScreen() {
       setStores(storeList);
       if (household) setMembers(household.members);
     } catch {
-      confirm({ title: 'Fel', message: 'Kunde inte ladda inköpslistor', buttons: [{ label: 'OK' }] });
+      confirm({ title: common.errorTitle, message: str.toasts.errorLoad, buttons: [{ label: common.actions.ok }] });
     } finally {
       setLoading(false);
     }
@@ -111,8 +111,8 @@ export default function ShoppingScreen() {
     if (loading) return;
     if (storesTip.seen !== false || storesTipShownRef.current) return;
     const shown = showTip({
-      title: 'Butiker',
-      message: 'Tryck här för att lägga till butiker, redigera deras kategorier eller flytta ordningen så listan matchar din affärs layout.',
+      title: str.header.stores,
+      message: str.tips.stores.message,
       targetRef: storesBtnRef,
     });
     if (shown) { storesTipShownRef.current = true; storesTip.markSeen(); }
@@ -165,7 +165,7 @@ export default function ShoppingScreen() {
     <View style={isSplitView ? { flex: 1, flexDirection: 'row', backgroundColor: c.background } : { flex: 1 }}>
       <SafeAreaView style={[styles.container, isSplitView && { width: leftWidth, flex: 0 }]}>
       <ScreenHeader
-        title="Inköp"
+        title={str.title}
         actionNode={
           // View-wrapper med collapsable={false} så Android inte optimerar bort
           // den ur native-hierarkin (annars returnerar measureInWindow 0).
@@ -177,7 +177,7 @@ export default function ShoppingScreen() {
               accessibilityLabel="Butiker"
             >
               <Ionicons name="storefront-outline" size={fs(16)} color={c.primary} />
-              <Text style={[styles.storesHeaderBtnText, { fontSize: fs(13) }]}>Butiker</Text>
+              <Text style={[styles.storesHeaderBtnText, { fontSize: fs(13) }]}>{str.header.stores}</Text>
             </Pressable>
           </View>
         }
@@ -193,9 +193,9 @@ export default function ShoppingScreen() {
         ListEmptyComponent={
           <EmptyState
             icon="cart-outline"
-            title="Inga aktiva listor"
-            subtitle="Skapa en inköpslista så kan ni bocka av varor tillsammans."
-            actionLabel="Ny lista"
+            title={str.emptyState.title}
+            subtitle={str.emptyState.subtitle}
+            actionLabel={str.emptyState.cta}
             onAction={() => setShowModal(true)}
           />
         }
@@ -242,7 +242,7 @@ export default function ShoppingScreen() {
 
       <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28), bottom: 20 + insets.bottom }]} onPress={wrapNewListTip(
         () => setShowModal(true),
-        { title: 'Skapa inköpslista', message: 'En lista kan kopplas till en butik så att varorna sorteras efter butikens kategorier. Du kan lägga till varor manuellt eller överföra hela veckomenyn till listan från Meny-fliken.' },
+        { title: str.tips.create.title, message: str.tips.create.message },
       )}>
         <Ionicons name="add" size={fs(30)} color="#fff" />
       </Pressable>
@@ -308,7 +308,7 @@ export default function ShoppingScreen() {
           <View style={{ flex: 1 }}>
             {selectedListId
               ? <ShoppingListDetail key={selectedListId} listId={selectedListId} onClose={() => setSelectedListId(null)} />
-              : <View style={styles.center}><Text style={{ color: c.textFaint, fontSize: 15 }}>Välj en inköpslista</Text></View>
+              : <View style={styles.center}><Text style={{ color: c.textFaint, fontSize: 15 }}>{str.splitPlaceholder}</Text></View>
             }
           </View>
         </>

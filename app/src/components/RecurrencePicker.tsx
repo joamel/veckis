@@ -6,23 +6,20 @@ import { Ionicons } from '@expo/vector-icons';
 import type { RecurrenceType, WeekDay } from '@veckis/shared';
 import { components as str, common } from '../lib/svenska';
 
-const DAYS: { key: WeekDay; short: string; label: string }[] = [
-  { key: 'mon', short: 'Mån', label: 'Måndag' },
-  { key: 'tue', short: 'Tis', label: 'Tisdag' },
-  { key: 'wed', short: 'Ons', label: 'Onsdag' },
-  { key: 'thu', short: 'Tor', label: 'Torsdag' },
-  { key: 'fri', short: 'Fre', label: 'Fredag' },
-  { key: 'sat', short: 'Lör', label: 'Lördag' },
-  { key: 'sun', short: 'Sön', label: 'Söndag' },
-];
+// Dagnamn härleds från de centraliserade veckodagarna (mån-först) → inget
+// dagnamn hårdkodat här.
+const DAY_KEYS: WeekDay[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const DAYS: { key: WeekDay; short: string; label: string }[] = DAY_KEYS.map((key, i) => ({
+  key, short: common.weekdays.short[i], label: common.weekdays.long[i],
+}));
 
 const INTERVAL_UNIT: Record<RecurrenceType, string> = {
   none: '',
-  daily: 'dag',
-  weekly: 'vecka',
-  custom_days: 'vecka',
-  monthly: 'månad',
-  yearly: 'år',
+  daily: str.recurrencePicker.units.daily,
+  weekly: str.recurrencePicker.units.weekly,
+  custom_days: str.recurrencePicker.units.weekly,
+  monthly: str.recurrencePicker.units.monthly,
+  yearly: str.recurrencePicker.units.yearly,
 };
 
 export type RecurrencePickerValue = {
