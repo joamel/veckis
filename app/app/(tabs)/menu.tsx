@@ -1273,7 +1273,7 @@ export default function MenuScreen() {
     } catch (e) {
       setMenuItems(prev => prev.map(i => i.id === item.id ? item : i));
       setAllMenus(prev => prev.map(i => i.id === item.id ? item : i));
-      showError(e, common.errors.couldNotSave('måltidstyp'));
+      showError(e, common.errors.couldNotSave(common.mealTypes.entity));
     }
   }
 
