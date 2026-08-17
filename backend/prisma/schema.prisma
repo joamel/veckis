@@ -64,6 +64,15 @@ model Store {
   // Övriga items grupperas under parent som idag. Strängar refererar till
   // SubCategory-värden i shared/lib/taxonomy.ts.
   expandedSubs      String[]      @default([])
+  // Hushålls-lokala egna underkategorier: { parentKey: [subLabel, ...] } där
+  // parentKey är en StoreCategory ELLER "c:<egen kategori>". Ordningen styr
+  // plocklistan. Rent lokalt — matar aldrig den globala kategori-inlärningen.
+  customSubs        Json          @default("{}")
+  // Enhetlig parent-ordning som blandar standard-kategorier (StoreCategory) och
+  // egna kategorier ("c:<egen kategori>") i EN lista. Styr plocklistans ordning.
+  // Tom = härled från categoryOrder (standard) + customCategories (sist) för
+  // bakåtkompat.
+  parentOrder       String[]      @default([])
   createdAt         DateTime      @default(now())
 
   household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
@@ -106,7 +115,8 @@ model ShoppingItem {
   // per item). Skickas som string för att frikoppla från enum-deploys —
   // shared/lib/taxonomy.ts håller listan över giltiga värden.
   subCategory  String?
-  customCategory String?  // DEPREKERAD — migreras till subCategory; UI dolt
+  customCategory String?  // Hushålls-lokal egen PARENT-kategori (fri sträng, matar ej global inlärning)
+  customSubCategory String? // Hushålls-lokal egen UNDERkategori-etikett; parent = category/customCategory
   isChecked    Boolean       @default(false)
   checkedBy    String?
   addedBy      String

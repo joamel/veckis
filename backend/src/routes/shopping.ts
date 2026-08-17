@@ -70,6 +70,8 @@ const addItemSchema = z.object({
   unit: z.string().optional(),
   category: categoryEnum.default('other'),
   subCategory: z.string().nullable().optional(),
+  customCategory: z.string().max(40).nullable().optional(),
+  customSubCategory: z.string().max(40).nullable().optional(),
   note: z.string().optional(),
 });
 
@@ -80,6 +82,7 @@ const updateItemSchema = z.object({
   category: categoryEnum.optional(),
   subCategory: z.string().nullable().optional(),
   customCategory: z.string().max(40).nullable().optional(),
+  customSubCategory: z.string().max(40).nullable().optional(),
   note: z.string().nullable().optional(),
 });
 
@@ -292,7 +295,11 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   // SubCategory är källan till sanning i 2-nivå-taxonomin. Auto-infer från
   // namnet om kallaren inte angav. Category härleds från sub:ens defaultParent
   // — kallaren kan override:a via body.data.category om de redan vet.
-  const inferredSub = body.data.subCategory ?? inferSubCategory(normalizedName);
+  // Hushålls-lokal placering (egen parent/underkategori) → hoppa över auto-
+  // inferens av standard-sub OCH den globala inlärningen; det är rena lokala
+  // etiketter som inte ska påverka cross-household-datan.
+  const isLocalPlacement = !!(body.data.customCategory || body.data.customSubCategory);
+  const inferredSub = isLocalPlacement ? (body.data.subCategory ?? null) : (body.data.subCategory ?? inferSubCategory(normalizedName));
   const subCategory = inferredSub ?? null;
   const category = body.data.category !== 'other'
     ? body.data.category
@@ -316,7 +323,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
       where: { id: existing.id },
       data: { quantity: existing.quantity + (body.data.quantity ?? 1) },
     });
-    learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
+    if (!isLocalPlacement) learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
     notifyActiveShopper(list, (req as AuthenticatedRequest).clerkUserId, item.name).catch(() => {});
     bcast(list, { type: 'item_updated', data: item });
     res.status(200).json(item);
@@ -327,7 +334,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
     data: { listId: list.id, ...body.data, name: normalizedName, category, subCategory, addedBy: (req as AuthenticatedRequest).clerkUserId },
   });
 
-  learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
+  if (!isLocalPlacement) learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
   notifyActiveShopper(list, (req as AuthenticatedRequest).clerkUserId, item.name).catch(() => {});
   bcast(list, { type: 'item_added', data: item });
   res.status(201).json(item);
