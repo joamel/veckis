@@ -823,9 +823,11 @@ export const recipes = {
   createModal: {
     title:            'Nytt recept',
     tabManual:        'Manuellt',
+    tabPaste:         'Klistra in',
+    pasteHint:        'Klistra in recept eller länktext — AI:n plockar ut titel, ingredienser och steg.',
     tabUrl:           'Från URL',
-    namePlaceholder:  'Receptets namn (valfritt om du klistrar in)',
-    pastePlaceholder: 'Klistra in recept, ingredienslista eller hela receptsidan här - AI:n plockar ut titel, ingredienser och tillvägagångssätt automatiskt.',
+    namePlaceholder:  'Receptets namn',
+    pastePlaceholder: 'Klistra in recept eller receptsida här…',
     pasteToggleOn:    'Dölj recepttext',
     pasteToggleOff:   'Klistra in recepttext (AI tolkar)',
     parseButton:      'Tolka och skapa recept',
