@@ -1155,7 +1155,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               <View style={s.cookHeader}>
                 <Text style={s.cookRecipeTitle} numberOfLines={1}>{recipe.title}</Text>
                 <Pressable onPress={() => setCookMode(false)} style={s.cookClose} accessibilityLabel={str.detail.cookClose}>
-                  <Ionicons name="close" size={24} color="#a8a29e" />
+                  <Ionicons name="close" size={24} color={c.textMuted} />
                 </Pressable>
               </View>
               <View style={s.cookProgress}>
@@ -1197,8 +1197,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                   onPress={() => setCookStep(p => Math.max(0, p - 1))}
                   disabled={cookStep === 0}
                 >
-                  <Ionicons name="arrow-back" size={20} color={cookStep === 0 ? '#d6d3d1' : '#292524'} />
-                  <Text style={[s.cookNavText, cookStep === 0 && { color: '#d6d3d1' }]}>{str.detail.cookPrev}</Text>
+                  <Ionicons name="arrow-back" size={20} color={cookStep === 0 ? c.border : c.text} />
+                  <Text style={[s.cookNavText, cookStep === 0 && { color: c.border }]}>{str.detail.cookPrev}</Text>
                 </Pressable>
                 {cookStep < steps.length - 1 ? (
                   <Pressable style={s.cookNavBtnPrimary} onPress={() => setCookStep(p => p + 1)}>
@@ -1347,23 +1347,23 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   cookBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, backgroundColor: c.primaryTint },
   cookBtnText: { fontSize: 13, fontWeight: '600', color: c.primary },
   // "Laga nu" använder appens ljusa/varma tema (inte mörkt) för konsekvens.
-  cookContainer: { flex: 1, backgroundColor: '#faf8f3' },
+  cookContainer: { flex: 1, backgroundColor: c.background },
   cookHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
-  cookRecipeTitle: { flex: 1, fontSize: 19, color: '#292524', fontWeight: '700' },
+  cookRecipeTitle: { flex: 1, fontSize: 19, color: c.text, fontWeight: '700' },
   cookClose: { padding: 8 },
   cookProgress: { flexDirection: 'row', gap: 5, paddingHorizontal: 20, marginBottom: 8, flexWrap: 'wrap' },
-  cookDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#e7e5e4' },
-  cookDotActive: { backgroundColor: '#4e7a5e', width: 20 },
+  cookDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.borderLight },
+  cookDotActive: { backgroundColor: c.primary, width: 20 },
   cookBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 32, gap: 20 },
   cookIngredWrap: { maxHeight: COOK_INGRED_MAX_H },
-  cookIngredItem: { fontSize: 18, color: '#78716c', lineHeight: 28, paddingVertical: 1 },
-  cookStepLabel: { fontSize: 17, fontWeight: '700', color: '#4e7a5e' },
-  cookStepText: { fontSize: 22, color: '#292524', lineHeight: 34, fontWeight: '400' },
+  cookIngredItem: { fontSize: 18, color: c.textMuted, lineHeight: 28, paddingVertical: 1 },
+  cookStepLabel: { fontSize: 17, fontWeight: '700', color: c.primary },
+  cookStepText: { fontSize: 22, color: c.text, lineHeight: 34, fontWeight: '400' },
   cookNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16, gap: 12 },
-  cookNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 14, backgroundColor: '#f1efec', borderWidth: 1, borderColor: '#e7e5e4' },
+  cookNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 14, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight },
   cookNavBtnDisabled: { opacity: 0.35 },
-  cookNavText: { fontSize: 15, fontWeight: '600', color: '#44403c' },
-  cookNavBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: '#4e7a5e' },
+  cookNavText: { fontSize: 15, fontWeight: '600', color: c.textSecondary },
+  cookNavBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: c.primary },
   cookNavTextPrimary: { fontSize: 15, fontWeight: '700', color: '#fff' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 12 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },

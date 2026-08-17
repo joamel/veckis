@@ -1552,7 +1552,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </View>
           </View>
         ) : null}
-        <View style={[s.addBar, { paddingBottom: keyboardVisible && Platform.OS !== 'web' ? 12 : Math.max(12, insets.bottom) }]}>
+        <View style={[s.addBar, { paddingBottom: keyboardVisible && Platform.OS !== 'web' ? 20 : Math.max(12, insets.bottom) }]}>
           <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
             <Ionicons name="grid-outline" size={22} color={c.primary} />
           </Pressable>

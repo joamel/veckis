@@ -4,6 +4,7 @@ import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Pressable,
@@ -53,7 +54,7 @@ export default function RecipesScreen() {
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
   const tryCloseCreate = useDiscardDraft(confirm);
-  const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setShowPaste(false); };
+  const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setMode('manual'); };
   // Sort-tipset togs bort (#11 backloggen) — det fyrade bara om recept fanns,
   // och då behövde användaren ändå inte just det tipset. Ersatt med ett
   // action-tip på "+"-knappen som förklarar hur man skapar recept första gången.
@@ -233,11 +234,39 @@ export default function RecipesScreen() {
   }, [recipes, searchQuery, sortMode, activeTags]);
 
   // New recipe form
-  const [mode, setMode] = useState<'manual' | 'url'>('manual');
+  const [mode, setMode] = useState<'manual' | 'paste' | 'url'>('manual');
+  // Håll koll på om tangentbordet är uppe just nu — vid flikbyte remountas
+  // inputfältet, och vi vill att fokus "följer med" bara om tangentbordet
+  // redan var uppe. Ref (inte state) så det läses synkront utan re-render.
+  const keyboardUpRef = useRef(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => { keyboardUpRef.current = true; });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
+  // opålitligt på Android (särskilt multiline paste-fältet visar inte
+  // tangentbordet), och den async:a keyboardDidHide hinner ibland nolla
+  // keyboardUpRef före mount. Därför: snapshot:a "ville fokusera" i själva
+  // tabb-trycket (då är tangentbordet garanterat uppe) och fokusera aktivt
+  // fält explicit via ref i en effekt efter att läget bytts.
+  const manualRef = useRef<TextInput>(null);
+  const pasteRef = useRef<TextInput>(null);
+  const urlRef = useRef<TextInput>(null);
+  const wantFocusRef = useRef(false);
+  const switchMode = useCallback((next: 'manual' | 'paste' | 'url') => {
+    wantFocusRef.current = keyboardUpRef.current;
+    setMode(next);
+  }, []);
+  useEffect(() => {
+    if (!wantFocusRef.current) return;
+    const target = mode === 'manual' ? manualRef : mode === 'paste' ? pasteRef : urlRef;
+    const id = requestAnimationFrame(() => target.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [mode]);
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [pasteText, setPasteText] = useState('');
-  const [showPaste, setShowPaste] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -338,7 +367,7 @@ export default function RecipesScreen() {
       setShowModal(false);
       setTitle('');
       setPasteText('');
-      setShowPaste(false);
+      setMode('manual');
       const forMenuDay = params.forMenuDay;
       const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
       router.push(`/recipes/${recipe.id}${parsed.ingredients.length === 0 ? '?edit=1' : ''}${suffix}` as never);
@@ -379,9 +408,11 @@ export default function RecipesScreen() {
   }, [params.create]);
 
   function openModal() {
+    wantFocusRef.current = false; // öppna lugnt — inget autofokus vid öppning
     setMode('manual');
     setTitle('');
     setUrl('');
+    setPasteText('');
     setShowModal(true);
   }
 
@@ -556,66 +587,70 @@ export default function RecipesScreen() {
           <Text style={s.sheetTitle}>{str.createModal.title}</Text>
 
           <View style={s.modeTabs}>
-            <Pressable style={[s.modeTab, mode === 'manual' && s.modeTabActive]} onPress={() => setMode('manual')}>
-              <Text style={[s.modeTabText, mode === 'manual' && s.modeTabTextActive]}>{str.createModal.tabManual}</Text>
+            <Pressable style={[s.modeTab, mode === 'manual' && s.modeTabActive]} onPress={() => switchMode('manual')}>
+              <Text style={[s.modeTabText, mode === 'manual' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabManual}</Text>
             </Pressable>
-            <Pressable style={[s.modeTab, mode === 'url' && s.modeTabActive]} onPress={() => setMode('url')}>
-              <Text style={[s.modeTabText, mode === 'url' && s.modeTabTextActive]}>{str.createModal.tabUrl}</Text>
+            <Pressable style={[s.modeTab, mode === 'paste' && s.modeTabActive]} onPress={() => switchMode('paste')}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="sparkles" size={13} color={mode === 'paste' ? c.primary : c.textMuted} />
+                <Text style={[s.modeTabText, mode === 'paste' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabPaste}</Text>
+              </View>
+            </Pressable>
+            <Pressable style={[s.modeTab, mode === 'url' && s.modeTabActive]} onPress={() => switchMode('url')}>
+              <Text style={[s.modeTabText, mode === 'url' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabUrl}</Text>
             </Pressable>
           </View>
 
+          <View style={s.modeBody}>
           {mode === 'manual' ? (
             <>
               <TextInput
+                ref={manualRef}
                 style={s.input}
                 placeholder={str.createModal.namePlaceholder}
                 placeholderTextColor={c.textFaint}
                 value={title}
                 onChangeText={setTitle}
-                autoFocus={!showPaste}
+                importantForAutofill="no"
+                textContentType="none"
                 returnKeyType="done"
-                onSubmitEditing={showPaste ? undefined : handleCreateManual}
+                onSubmitEditing={handleCreateManual}
               />
-              <Pressable style={s.pasteToggle} onPress={() => { setShowPaste(p => !p); setPasteText(''); }}>
-                <Ionicons name={showPaste ? 'chevron-down' : 'clipboard-outline'} size={14} color={c.textMuted} />
-                <Text style={s.pasteToggleText}>{showPaste ? str.createModal.pasteToggleOn : str.createModal.pasteToggleOff}</Text>
+              <Text style={s.createHint}>{str.createModal.createHint}</Text>
+              <Pressable
+                style={[s.button, s.modeBodyBtn, !title.trim() && s.buttonDisabled]}
+                onPress={handleCreateManual}
+                disabled={creating || !title.trim()}
+              >
+                {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.createButton}</Text>}
               </Pressable>
-              {showPaste ? (
-                <>
-                  <TextInput
-                    style={[s.input, { height: 160, textAlignVertical: 'top', paddingTop: 10 }]}
-                    placeholder={str.createModal.pastePlaceholder}
-                    placeholderTextColor={c.textFaint}
-                    value={pasteText}
-                    onChangeText={setPasteText}
-                    multiline
-                    scrollEnabled
-                    autoFocus
-                  />
-                  <Pressable
-                    style={[s.button, !pasteText.trim() && s.buttonDisabled]}
-                    onPress={handleParseAndCreate}
-                    disabled={parsing || creating || !pasteText.trim()}
-                  >
-                    {parsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.parseButton}</Text>}
-                  </Pressable>
-                </>
-              ) : (
-                <>
-                  <Text style={s.createHint}>{str.createModal.createHint}</Text>
-                  <Pressable
-                    style={[s.button, !title.trim() && s.buttonDisabled]}
-                    onPress={handleCreateManual}
-                    disabled={creating || !title.trim()}
-                  >
-                    {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.createButton}</Text>}
-                  </Pressable>
-                </>
-              )}
+            </>
+          ) : mode === 'paste' ? (
+            <>
+              <Text style={s.pasteHint}>{str.createModal.pasteHint}</Text>
+              <TextInput
+                ref={pasteRef}
+                style={[s.input, { height: 130, textAlignVertical: 'top', paddingTop: 10 }]}
+                placeholder={str.createModal.pastePlaceholder}
+                placeholderTextColor={c.textFaint}
+                value={pasteText}
+                onChangeText={setPasteText}
+                multiline
+                scrollEnabled
+                importantForAutofill="no"
+              />
+              <Pressable
+                style={[s.button, s.modeBodyBtn, !pasteText.trim() && s.buttonDisabled]}
+                onPress={handleParseAndCreate}
+                disabled={parsing || creating || !pasteText.trim()}
+              >
+                {parsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.parseButton}</Text>}
+              </Pressable>
             </>
           ) : (
             <>
               <TextInput
+                ref={urlRef}
                 style={s.input}
                 placeholder={str.createModal.urlPlaceholder}
                 placeholderTextColor={c.textFaint}
@@ -623,13 +658,14 @@ export default function RecipesScreen() {
                 onChangeText={setUrl}
                 autoCapitalize="none"
                 keyboardType="url"
-                autoFocus
+                importantForAutofill="no"
+                textContentType="none"
                 returnKeyType="done"
                 onSubmitEditing={handleScrape}
               />
               <Text style={s.urlHint}>{str.createModal.urlHint}</Text>
               <Pressable
-                style={[s.button, !url.trim() && s.buttonDisabled]}
+                style={[s.button, s.modeBodyBtn, !url.trim() && s.buttonDisabled]}
                 onPress={handleScrape}
                 disabled={scraping || creating || !url.trim()}
               >
@@ -639,6 +675,7 @@ export default function RecipesScreen() {
               </Pressable>
             </>
           )}
+          </View>
           </ScrollView>
         </View>
         </KeyboardAvoidingView>
@@ -769,16 +806,17 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   dayGridLabelTaken: { color: c.textFaint },
   dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: c.textFaint, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
   dayGridLabelNone: { color: c.primary },
-  modeTabs: { flexDirection: 'row', backgroundColor: c.surfaceSubtle, borderRadius: 10, padding: 4 },
+  modeTabs: { flexDirection: 'row', backgroundColor: c.surfaceSubtle, borderRadius: 10, padding: 4, borderWidth: 1, borderColor: c.border },
   modeTab: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  modeTabActive: { backgroundColor: c.surface, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  modeTabActive: { backgroundColor: c.inputBg, borderWidth: 1, borderColor: c.border, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   modeTabText: { fontSize: 14, fontWeight: '500', color: c.textMuted },
-  modeTabTextActive: { color: c.text },
+  modeTabTextActive: { color: c.text, fontWeight: '700' },
+  modeBody: { minHeight: 246, gap: 14 },
+  modeBodyBtn: { marginTop: 2 },
   input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
   createHint: { fontSize: 13, color: c.textFaint, marginTop: -4 },
   urlHint: { fontSize: 12, color: c.textFaint, marginTop: -6 },
-  pasteToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, marginBottom: 4 },
-  pasteToggleText: { fontSize: 13, color: c.textMuted, flex: 1 },
+  pasteHint: { fontSize: 13, color: c.textMuted, marginTop: -4, lineHeight: 18 },
   button: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
