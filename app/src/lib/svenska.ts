@@ -64,6 +64,7 @@ export const common = {
     long:  ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'] as const,
   },
   noDay: 'utan dag',
+  someone: 'Någon',
   plusDishes: (n: number) => `+ ${n} ${n === 1 ? 'rätt' : 'rätter'}`,
   ordinals: ['Första', 'Andra', 'Tredje', 'Fjärde', 'Femte', 'Sista'] as const,
   tabs: {
@@ -88,6 +89,22 @@ export const chores = {
     biweekly:        'Varannan vecka',
     monthly:         'Månadsvis',
   },
+  // Full-fras-frekvenser (choreSummary/detaljvyn) — skiljer sig från freqLabels.
+  freqEvery: {
+    none:        'Ingen',
+    once:        'En gång',
+    daily:       'Varje dag',
+    weekly:      'Varje vecka',
+    monthly:     'Varje månad',
+    yearly:      'Varje år',
+    oncePerYear: 'En gång per år',
+  },
+  relDay:  { today: 'Idag', yesterday: 'Igår' },
+  sharing: { shared: 'Gemensam', private: 'Bara för mig' },
+  history: 'Historik',
+  doneSection: 'Klart',
+  statusTodo:  'Att göra idag',
+  filterModal: { all: 'Alla', clear: 'Rensa' },
 
   header: {
     clearDone:       'Rensa klara',
@@ -111,6 +128,7 @@ export const chores = {
     overdue:         (days: number) => `Förfallen sedan ${days} ${days === 1 ? 'dag' : 'dagar'}`,
     today:           'Förfaller idag',
     nextDate:        (date: string) => `Nästa: ${date}`,
+    doneNext:        (date: string) => `Klar · ${date}`,
   },
 
   modal: {
@@ -160,6 +178,10 @@ export const chores = {
     errorSave:       'Kunde inte spara ändringarna',
     errorComplete:   'Kunde inte markera sysslan',
     errorUncomplete: 'Kunde inte avmarkera sysslan',
+    errorLoadTitle:  'Fel',
+    errorLoad:       'Kunde inte ladda sysslor',
+    errorUndo:       'Kunde inte ångra',
+    errorDelete:     'Kunde inte ta bort syssla',
   },
 
   tips: {

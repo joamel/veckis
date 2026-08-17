@@ -57,8 +57,8 @@ const DAYS: { key: WeekDay; short: string }[] = WEEKDAY_KEYS.map((key, i) => ({ 
 function daysSince(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) return 'Idag';
-  if (days === 1) return 'Igår';
+  if (days === 0) return str.relDay.today;
+  if (days === 1) return str.relDay.yesterday;
   return `${days} dagar sedan`;
 }
 
@@ -93,25 +93,25 @@ function formatOcc(dateStr: string): string {
 function choreSummary(c: ChoreWithCompletion): string {
   const rt = c.recurrenceType;
   const dayNames = c.days.map(d => DAYS.find(x => x.key === d)?.short).filter(Boolean).join(', ');
-  if (rt === 'none') return 'En gång';
-  if (rt === 'daily') return 'Varje dag';
+  if (rt === 'none') return str.freqEvery.once;
+  if (rt === 'daily') return str.freqEvery.daily;
   if (rt === 'weekly' || rt === 'custom_days') {
     const weeks = c.recurrenceWeeks ?? 1;
-    const prefix = weeks === 1 ? 'Varje vecka' : `Var ${weeks}:e vecka`;
+    const prefix = weeks === 1 ? str.freqEvery.weekly : `Var ${weeks}:e vecka`;
     return dayNames ? `${prefix} · ${dayNames}` : prefix;
   }
   if (rt === 'monthly') {
     if (c.monthlyType === 'day_of_month') {
       const day = c.startDate ? parseInt(c.startDate.split('-')[2], 10) : null;
-      return day ? `Den ${day}:e varje månad` : 'Varje månad';
+      return day ? `Den ${day}:e varje månad` : str.freqEvery.monthly;
     }
     const weekNo = c.recurrenceWeekOfMonth;
     const weekDay = c.days[0] ? DAYS.find(x => x.key === c.days[0])?.short?.toLowerCase() : null;
     const ordinals = ['1:a', '2:a', '3:e', '4:e', '5:e'];
     if (weekNo && weekDay) return `${ordinals[weekNo - 1]} ${weekDay} varje månad`;
-    return 'Varje månad';
+    return str.freqEvery.monthly;
   }
-  if (rt === 'yearly') return 'En gång per år';
+  if (rt === 'yearly') return str.freqEvery.oncePerYear;
   return FREQ_LABELS[c.frequency];
 }
 
@@ -286,10 +286,10 @@ export default function ChoresScreen() {
     if (msg.type === 'chore_added') {
       setChores(prev => prev.some(c => c.id === msg.data.id) ? prev : [...prev, msg.data as never]);
     } else if (msg.type === 'chore_updated') {
-      if (editingChore?.id === msg.data.id) setChoreConflict({ msg: `${msg.actor ?? 'Någon'} ändrade ${editingChore.title}`, latest: { ...editingChore, ...msg.data } });
+      if (editingChore?.id === msg.data.id) setChoreConflict({ msg: `${msg.actor ?? common.someone} ändrade ${editingChore.title}`, latest: { ...editingChore, ...msg.data } });
       setChores(prev => prev.map(c => c.id === msg.data.id ? { ...c, ...msg.data } as never : c));
     } else if (msg.type === 'chore_deleted') {
-      if (editingChore?.id === msg.data.id) { showToast(`${msg.actor ?? 'Någon'} tog bort ${editingChore.title}`); setEditingChore(null); }
+      if (editingChore?.id === msg.data.id) { showToast(`${msg.actor ?? common.someone} tog bort ${editingChore.title}`); setEditingChore(null); }
       setChores(prev => prev.filter(c => c.id !== msg.data.id));
     } else if (msg.type === 'chore_completed') {
       // Also match against the optimistic fake ID to prevent duplicates when
@@ -412,7 +412,7 @@ export default function ChoresScreen() {
         }
       }
     } catch {
-      confirm({ title: 'Fel', message: 'Kunde inte ladda sysslor', buttons: [{ label: 'OK' }] });
+      confirm({ title: str.toasts.errorLoadTitle, message: str.toasts.errorLoad, buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
     }
@@ -451,17 +451,17 @@ export default function ChoresScreen() {
   }, [tipsReady, members.length, filterTip.seen, filterTip.markSeen, showTip]));
 
   const newRecurrenceSummary = useMemo(() => {
-    if (newRecurrenceType === 'none') return 'Ingen';
+    if (newRecurrenceType === 'none') return str.freqEvery.none;
     const w = newRecurrenceWeeks;
-    if (newRecurrenceType === 'daily') return w === 1 ? 'Varje dag' : `Var ${w}:e dag`;
+    if (newRecurrenceType === 'daily') return w === 1 ? str.freqEvery.daily : `Var ${w}:e dag`;
     if (newRecurrenceType === 'weekly') {
-      const prefix = w === 1 ? 'Varje vecka' : `Var ${w}:e vecka`;
+      const prefix = w === 1 ? str.freqEvery.weekly : `Var ${w}:e vecka`;
       const names = newRecurrenceDays.map(d => DAYS.find(x => x.key === d)?.short).filter(Boolean).join(', ');
       return names ? `${prefix} · ${names}` : prefix;
     }
-    if (newRecurrenceType === 'monthly') return w === 1 ? 'Varje månad' : `Var ${w}:e månad`;
-    if (newRecurrenceType === 'yearly') return w === 1 ? 'Varje år' : `Var ${w}:e år`;
-    return 'Ingen';
+    if (newRecurrenceType === 'monthly') return w === 1 ? str.freqEvery.monthly : `Var ${w}:e månad`;
+    if (newRecurrenceType === 'yearly') return w === 1 ? str.freqEvery.yearly : `Var ${w}:e år`;
+    return str.freqEvery.none;
   }, [newRecurrenceType, newRecurrenceWeeks, newRecurrenceDays]);
 
   // Not-done chores sorted by earliest due date (most overdue first), completed
@@ -851,7 +851,7 @@ export default function ChoresScreen() {
             ? { ...c, completions: [...c.completions, removedComp] }
             : c));
         }
-        showError(e, 'Kunde inte ångra');
+        showError(e, str.toasts.errorUndo);
       }
     }
   }
@@ -895,7 +895,7 @@ export default function ChoresScreen() {
               try { await client.deleteChore(c.id); }
               catch (e) {
                 setChores(prev => prev.some(x => x.id === c.id) ? prev : [c, ...prev]);
-                showError(e, 'Kunde inte ta bort syssla');
+                showError(e, str.toasts.errorDelete);
               }
             }));
             // Recurring chores: hide locally and persist so the button stays gone after refresh
@@ -936,7 +936,7 @@ export default function ChoresScreen() {
             {members.length > 0 && (
               <Pressable ref={filterBtnRef} style={[s.filterBtn, filterMemberIds.length > 0 && s.filterBtnActive, { paddingHorizontal: sp(10), paddingVertical: sp(6) }]} onPress={() => setShowFilterModal(true)}>
                 <Ionicons name="person-outline" size={fs(14)} color={filterMemberIds.length > 0 ? c.accent : c.textMuted} />
-                <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive, { fontSize: fs(12) }]}>Filter</Text>
+                <Text style={[s.filterBtnText, filterMemberIds.length > 0 && s.filterBtnTextActive, { fontSize: fs(12) }]}>{str.header.filter}</Text>
                 {filterMemberIds.length > 0 && (
                   <View style={s.filterBadge}>
                     <Text style={s.filterBadgeText}>{filterMemberIds.length}</Text>
@@ -1060,10 +1060,10 @@ export default function ChoresScreen() {
         <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onPress={() => setShowFilterModal(false)} />
         <View style={s.filterPopup}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text style={s.filterPopupTitle}>Filter</Text>
+            <Text style={s.filterPopupTitle}>{str.header.filter}</Text>
             {filterMemberIds.length > 0 && (
               <Pressable onPress={() => setFilterMemberIds([])} hitSlop={8}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: c.accent }}>Rensa</Text>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: c.accent }}>{str.filterModal.clear}</Text>
               </Pressable>
             )}
           </View>
@@ -1071,7 +1071,7 @@ export default function ChoresScreen() {
             style={s.filterMemberRow}
             onPress={() => setFilterMemberIds([])}
           >
-            <Text style={[s.filterMemberName, filterMemberIds.length === 0 && s.filterMemberNameActive]}>Alla</Text>
+            <Text style={[s.filterMemberName, filterMemberIds.length === 0 && s.filterMemberNameActive]}>{str.filterModal.all}</Text>
             <Ionicons
               name={filterMemberIds.length === 0 ? 'checkbox' : 'square-outline'}
               size={22}
@@ -1107,7 +1107,7 @@ export default function ChoresScreen() {
           {/* Header */}
           <View style={s.createHeader}>
             <Pressable onPress={() => tryCloseCreate(newTitle.trim() !== '', () => { setShowCreate(false); resetCreateForm(); })} style={s.createHeaderBtn} hitSlop={8}>
-              <Text style={s.createHeaderCancel}>Avbryt</Text>
+              <Text style={s.createHeaderCancel}>{common.actions.cancel}</Text>
             </Pressable>
             <Text style={s.createHeaderTitle}>{str.modal.createTitle}</Text>
             <Pressable
@@ -1117,7 +1117,7 @@ export default function ChoresScreen() {
             >
               {creating
                 ? <ActivityIndicator color={c.primary} size="small" />
-                : <Text style={[s.createHeaderSaveText, !newTitle.trim() && s.createHeaderSaveTextDisabled]}>Lägg till</Text>}
+                : <Text style={[s.createHeaderSaveText, !newTitle.trim() && s.createHeaderSaveTextDisabled]}>{common.actions.add}</Text>}
             </Pressable>
           </View>
 
@@ -1208,7 +1208,7 @@ export default function ChoresScreen() {
                     onOpenEndPicker={() => { setShowNewRecurrencePicker(false); setShowNewEndPicker(true); }}
                   />
                   <Pressable style={s.button} onPress={() => setShowNewRecurrencePicker(false)}>
-                    <Text style={s.buttonText}>Klart</Text>
+                    <Text style={s.buttonText}>{str.doneSection}</Text>
                   </Pressable>
                 </ScrollView>
               </View>
@@ -1242,7 +1242,7 @@ export default function ChoresScreen() {
                   );
                 })}
                 <Pressable style={s.orderDialogDoneBtn} onPress={() => setShowRotationOrder(false)}>
-                  <Text style={s.orderDialogDoneText}>Klart</Text>
+                  <Text style={s.orderDialogDoneText}>{str.doneSection}</Text>
                 </Pressable>
               </Pressable>
             </Pressable>
@@ -1278,7 +1278,7 @@ export default function ChoresScreen() {
               );
             })}
             <Pressable style={s.orderDialogDoneBtn} onPress={() => setShowEditRotationOrder(false)}>
-              <Text style={s.orderDialogDoneText}>Klart</Text>
+              <Text style={s.orderDialogDoneText}>{str.doneSection}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -1301,8 +1301,8 @@ export default function ChoresScreen() {
             const freqText = choreSummary(cc);
             const statusText = rec
               ? (rec.state === 'overdue' ? `Förfallen sedan ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
-                : rec.state === 'today' ? 'Att göra idag'
-                : rec.state === 'done' ? (rec.nextDate ? `Klar · ${formatOcc(rec.nextDate)}` : 'Klar') : null)
+                : rec.state === 'today' ? str.statusTodo
+                : rec.state === 'done' ? (rec.nextDate ? str.status.doneNext(formatOcc(rec.nextDate)) : str.status.done) : null)
               : null;
             const isRotating = !!cc.rotation && (cc.assignedToMany?.length ?? 0) >= 2;
             // Count completions that happened before the history window so the turn
@@ -1351,7 +1351,7 @@ export default function ChoresScreen() {
                   )}
                   <View style={s.viewRow}>
                     <Ionicons name={cc.isShared ? 'earth-outline' : 'lock-closed-outline'} size={18} color={c.textMuted} />
-                    <Text style={s.viewRowText}>{cc.isShared ? 'Gemensam' : 'Bara för mig'}</Text>
+                    <Text style={s.viewRowText}>{cc.isShared ? str.sharing.shared : str.sharing.private}</Text>
                   </View>
                   {!!cc.description && (
                     <View style={[s.viewRow, { alignItems: 'flex-start' }]}>
@@ -1362,7 +1362,7 @@ export default function ChoresScreen() {
                   {rec && rec.occurrences.length > 0 && (
                     <>
                       <View style={s.viewDivider} />
-                      <Text style={s.viewSectionTitle}>Historik</Text>
+                      <Text style={s.viewSectionTitle}>{str.history}</Text>
                       {[...rec.occurrences].reverse().slice(0, 8).map(o => {
                         const performerName = o.performedByMemberId
                           ? (members.find(m => m.id === o.performedByMemberId)?.displayName ?? null)
