@@ -42,8 +42,12 @@ export interface ShoppingItem {
    *  härleds vid skapande från sub:ens defaultParent men kan override:as per
    *  item. Värdet är en `SubCategory` från `shared/lib/taxonomy.ts`. */
   subCategory: string | null;
-  /** DEPREKERAD — kvar för bakåtkompatibilitet, migreras till `subCategory`. */
+  /** Hushålls-lokal egen PARENT-kategori (fri sträng). Matar aldrig den globala
+   *  kategori-inlärningen — rent lokal placering. */
   customCategory: string | null;
+  /** Hushålls-lokal egen UNDERkategori-etikett. Parent = `category` (eller
+   *  `customCategory` om varan ligger i en egen parent). Lokal, ej global. */
+  customSubCategory: string | null;
   isChecked: boolean;
   checkedBy: string | null;
   addedBy: string;
@@ -62,4 +66,10 @@ export interface Store {
   expandedSubs: string[];
   /** User-defined category labels for this store (appended after the default categories). */
   customCategories: string[];
+  /** Hushålls-lokala egna underkategorier: parentKey → ordnade etiketter.
+   *  parentKey = StoreCategory ELLER "c:<egen kategori>". */
+  customSubs: Record<string, string[]>;
+  /** Enhetlig parent-ordning som blandar standard-kategorier och egna
+   *  ("c:<egen>") i EN lista. Tom = härled från categoryOrder + customCategories. */
+  parentOrder: string[];
 }

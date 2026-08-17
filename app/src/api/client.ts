@@ -245,7 +245,7 @@ export function useApiClient() {
     deleteShoppingList: (listId: string) =>
       request<void>(`/api/shopping/lists/${listId}`, { method: 'DELETE' }),
 
-    addShoppingItem: (listId: string, data: { name: string; quantity?: number; unit?: string; category?: StoreCategory; subCategory?: string | null; note?: string }) =>
+    addShoppingItem: (listId: string, data: { name: string; quantity?: number; unit?: string; category?: StoreCategory; subCategory?: string | null; customCategory?: string | null; customSubCategory?: string | null; note?: string }) =>
       request<ShoppingItem>(`/api/shopping/lists/${listId}/items`, {
         method: 'POST',
         body: JSON.stringify(data),
@@ -264,7 +264,7 @@ export function useApiClient() {
         { method: 'POST', body: JSON.stringify(data) },
       ),
 
-    updateShoppingItem: (itemId: string, data: Partial<Pick<ShoppingItem, 'name' | 'quantity' | 'unit' | 'category' | 'customCategory' | 'subCategory' | 'note'>>) =>
+    updateShoppingItem: (itemId: string, data: Partial<Pick<ShoppingItem, 'name' | 'quantity' | 'unit' | 'category' | 'customCategory' | 'customSubCategory' | 'subCategory' | 'note'>>) =>
       request<ShoppingItem>(`/api/shopping/items/${itemId}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -283,10 +283,10 @@ export function useApiClient() {
     getStores: (householdId: string) =>
       request<Store[]>(`/api/stores?householdId=${householdId}`),
 
-    createStore: (data: { householdId: string; name: string; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[] }) =>
+    createStore: (data: { householdId: string; name: string; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; customSubs?: Record<string, string[]>; parentOrder?: string[] }) =>
       request<Store>('/api/stores', { method: 'POST', body: JSON.stringify(data) }),
 
-    updateStore: (storeId: string, data: { name?: string; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[] }) =>
+    updateStore: (storeId: string, data: { name?: string; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; customSubs?: Record<string, string[]>; parentOrder?: string[] }) =>
       request<Store>(`/api/stores/${storeId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteStore: (storeId: string) =>

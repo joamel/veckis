@@ -5,42 +5,64 @@ export interface CategoryGroupItem {
   category: string;
   subCategory?: string | null;
   customCategory?: string | null;
+  customSubCategory?: string | null;
   isChecked: boolean;
   name: string;
 }
 
 export interface CategoryGroup<T extends CategoryGroupItem> {
-  /** Antingen en StoreCategory (parent), en custom-string ELLER en SubCategory
-   *  som hushållet har "expanderat" till egen sektion. */
+  /** Antingen en StoreCategory (parent), en custom-string, en SubCategory som
+   *  hushållet expanderat, ELLER en egen underkategori-etikett. */
   category: StoreCategory | string;
   isCustom: boolean;
-  /** Sant när gruppen är en sub som brutits ut. */
+  /** Sant när gruppen är en sub (standard eller egen) som brutits ut. */
   isSub?: boolean;
+  /** parentKey (StoreCategory eller "c:<egen kategori>") för egna subs — används
+   *  för unik nyckel och parent-emoji i UI:t. */
+  parentKey?: string;
   /** Label att visa i UI:t. */
   label?: string;
   items: T[];
 }
 
+/** parentKey för en vara: "c:<egen kategori>" om egen parent, annars enum-parenten. */
+function itemParentKey(item: CategoryGroupItem): string {
+  return item.customCategory ? `c:${item.customCategory}` : String(item.category);
+}
+
 /**
  * Grupperar inköpsvaror i sektioner enligt butikens kategori-ordning.
- * Utbruten ur shopping/[listId].tsx (ren funktion, generisk över varutypen).
  *
- * Tre buckets: customCategory-strängar (legacy), expanderade subs (egen sektion)
- * och enum-parents. Subs renderas direkt efter sin parent i butiksordningen; en
- * parent vars items alla brutits ut i subs behåller ändå sin slot (annars
- * hamnar sub-sektionerna sist oavsett ordning). Custom-grupper läggs sist.
+ * Buckets: egna parents (customCategory), standard-parents (enum), utbrutna
+ * standard-subs (expandedSubs) samt hushålls-lokala egna subs (customSubCategory
+ * under valfri parent). Subs renderas direkt efter sin parent i butiksordningen.
  */
 export function buildCategoryGroups<T extends CategoryGroupItem>(
   items: T[],
   order: StoreCategory[],
   customCategories: string[] = [],
   expandedSubs: string[] = [],
+  customSubs: Record<string, string[]> = {},
+  parentOrder: string[] = [],
 ): CategoryGroup<T>[] {
   const expandedSet = new Set(expandedSubs);
   const enumMap = new Map<StoreCategory, T[]>();
   const customMap = new Map<string, T[]>();
   const subMap = new Map<string, T[]>();
+  // Egna subs: parentKey → (subLabel → items)
+  const customSubMap = new Map<string, Map<string, T[]>>();
+  const pushCustomSub = (parentKey: string, label: string, item: T) => {
+    if (!customSubMap.has(parentKey)) customSubMap.set(parentKey, new Map());
+    const inner = customSubMap.get(parentKey)!;
+    if (!inner.has(label)) inner.set(label, []);
+    inner.get(label)!.push(item);
+  };
+
   for (const item of items) {
+    if (item.customSubCategory) {
+      pushCustomSub(itemParentKey(item), item.customSubCategory, item);
+      continue;
+    }
     if (item.customCategory) {
       if (!customMap.has(item.customCategory)) customMap.set(item.customCategory, []);
       customMap.get(item.customCategory)!.push(item);
@@ -56,12 +78,16 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
     if (!enumMap.has(cat)) enumMap.set(cat, []);
     enumMap.get(cat)!.push(item);
   }
-  // Parents vars items alla brutits ut i expanderade subs (inga direkta items)
-  // behöver ändå en slot i ordningen, annars hamnar deras sub-sektioner sist.
+
+  // Standard-parents som behöver en slot: direkta items, utbrutna subs, ELLER
+  // egna subs under en standard-parent.
   const subParents = new Set<StoreCategory>();
   for (const sub of subMap.keys()) {
     const info = SUB_TAXONOMY[sub as SubCategory];
     if (info) subParents.add(info.defaultParent);
+  }
+  for (const parentKey of customSubMap.keys()) {
+    if (!parentKey.startsWith('c:')) subParents.add(parentKey as StoreCategory);
   }
   const orderedEnum: StoreCategory[] = [];
   for (const cat of order) {
@@ -73,37 +99,81 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   for (const cat of subParents) {
     if (!orderedEnum.includes(cat)) orderedEnum.push(cat);
   }
-  const orderedCustom = [...customCategories.filter(c => customMap.has(c))];
+
+  // Egna parents: de med direkta items ELLER egna subs.
+  const orderedCustom = [...customCategories];
   for (const cat of customMap.keys()) {
     if (!orderedCustom.includes(cat)) orderedCustom.push(cat);
   }
+  for (const parentKey of customSubMap.keys()) {
+    if (parentKey.startsWith('c:')) {
+      const cat = parentKey.slice(2);
+      if (!orderedCustom.includes(cat)) orderedCustom.push(cat);
+    }
+  }
+
   const sortItems = (arr: T[]) => arr.sort((a, b) => {
     if (a.isChecked !== b.isChecked) return a.isChecked ? 1 : -1;
     return a.name.localeCompare(b.name, 'sv');
   });
 
-  const result: CategoryGroup<T>[] = [];
-  for (const parent of orderedEnum) {
-    const direct = enumMap.get(parent);
-    if (direct && direct.length) {
-      result.push({ category: parent, isCustom: false, items: sortItems(direct) });
-    }
-    // Sub-sektionerna under en parent ordnas efter användarens ordning i
-    // expandedSubs (så butiksredigerarens omsortering styr plocklistan); subs
-    // som saknas i listan (skulle inte hända) hamnar sist i insättningsordning.
-    const parentSubs = [...subMap.keys()].sort((a, b) => {
-      const ia = expandedSubs.indexOf(a); const ib = expandedSubs.indexOf(b);
-      return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib);
-    });
-    for (const sub of parentSubs) {
-      const subInfo = SUB_TAXONOMY[sub as SubCategory];
-      if (subInfo && subInfo.defaultParent === parent) {
-        result.push({ category: sub, isCustom: false, isSub: true, label: subInfo.label, items: sortItems(subMap.get(sub)!) });
+  // Ordnad lista av sub-sektioner (standard + egna) under en parentKey, enligt
+  // expandedSubs. Egna subs kodas som "cs:<parentKey>:<label>" i expandedSubs så
+  // att de kan interfolieras fritt med standard-subarna. (customSubs används som
+  // register när expandedSubs saknar cs:-posten, t.ex. äldre data.)
+  void customSubs;
+  const subGroupsForParent = (parentKey: string): CategoryGroup<T>[] => {
+    const acc: { order: number; g: CategoryGroup<T> }[] = [];
+    if (!parentKey.startsWith('c:')) {
+      for (const [sub, its] of subMap) {
+        const info = SUB_TAXONOMY[sub as SubCategory];
+        if (info && info.defaultParent === parentKey) {
+          const idx = expandedSubs.indexOf(sub);
+          acc.push({ order: idx === -1 ? Infinity : idx, g: { category: sub, isCustom: false, isSub: true, label: info.label, items: sortItems(its) } });
+        }
       }
     }
-  }
-  for (const cat of orderedCustom) {
-    result.push({ category: cat, isCustom: true, items: sortItems(customMap.get(cat)!) });
+    const inner = customSubMap.get(parentKey);
+    if (inner) {
+      for (const [label, its] of inner) {
+        const idx = expandedSubs.indexOf(`cs:${parentKey}:${label}`);
+        acc.push({ order: idx === -1 ? Infinity : idx, g: { category: label, isCustom: true, isSub: true, parentKey, label, items: sortItems(its) } });
+      }
+    }
+    acc.sort((a, b) => a.order - b.order);
+    return acc.map(x => x.g);
+  };
+
+  // Grupper för EN standard-parent (direkta items + subs interfolierade).
+  const standardParentGroups = (parent: StoreCategory): CategoryGroup<T>[] => {
+    const out: CategoryGroup<T>[] = [];
+    const direct = enumMap.get(parent);
+    if (direct && direct.length) out.push({ category: parent, isCustom: false, items: sortItems(direct) });
+    out.push(...subGroupsForParent(String(parent)));
+    return out;
+  };
+  // Grupper för EN egen parent (direkta items + egna subs).
+  const customParentGroups = (cat: string): CategoryGroup<T>[] => {
+    const out: CategoryGroup<T>[] = [];
+    const direct = customMap.get(cat);
+    if (direct && direct.length) out.push({ category: cat, isCustom: true, items: sortItems(direct) });
+    out.push(...subGroupsForParent(`c:${cat}`));
+    return out;
+  };
+
+  // Enhetlig ordning: parentOrder styr om den finns, annars standard först +
+  // egna sist (bakåtkompat). Parents/egna som saknas i parentOrder läggs sist.
+  const master: string[] = [];
+  const seen = new Set<string>();
+  const pushKey = (k: string) => { if (!seen.has(k)) { seen.add(k); master.push(k); } };
+  for (const key of parentOrder) pushKey(key);
+  for (const cat of orderedEnum) pushKey(String(cat));
+  for (const cat of orderedCustom) pushKey(`c:${cat}`);
+
+  const result: CategoryGroup<T>[] = [];
+  for (const key of master) {
+    if (key.startsWith('c:')) result.push(...customParentGroups(key.slice(2)));
+    else result.push(...standardParentGroups(key as StoreCategory));
   }
   return result;
 }
