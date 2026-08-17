@@ -174,7 +174,7 @@ export default function ShoppingScreen() {
               style={[styles.storesHeaderBtn, { paddingHorizontal: sp(12), paddingVertical: sp(7) }]}
               onPress={() => router.push('/stores' as never)}
               accessibilityRole="button"
-              accessibilityLabel="Butiker"
+              accessibilityLabel={str.header.stores}
             >
               <Ionicons name="storefront-outline" size={fs(16)} color={c.primary} />
               <Text style={[styles.storesHeaderBtnText, { fontSize: fs(13) }]}>{str.header.stores}</Text>
@@ -221,13 +221,13 @@ export default function ShoppingScreen() {
                     {shopper && (
                       <View style={styles.shopperPill}>
                         <Ionicons name="walk" size={11} color={c.accent} />
-                        <Text style={styles.shopperPillText}>{iAmShopper ? 'Du handlar' : `${shopper.displayName} handlar`}</Text>
+                        <Text style={styles.shopperPillText}>{iAmShopper ? str.listCard.youShop : str.listCard.otherShops(shopper.displayName)}</Text>
                       </View>
                     )}
                   </View>
                   <Text style={[styles.cardMeta, { fontSize: fs(13) }]}>
                     {item.store ? `${item.store.name} · ` : ''}
-                    {total === 0 ? 'Tom' : unchecked === 0 ? 'Allt bockat' : `${unchecked} av ${total} kvar`}
+                    {total === 0 ? str.listCard.empty : unchecked === 0 ? str.listCard.allChecked : str.listCard.remaining(total - unchecked, total)}
                   </Text>
                 </View>
                 {unchecked === 0 && total > 0 && (
@@ -284,7 +284,7 @@ export default function ShoppingScreen() {
               <Ionicons name="storefront-outline" size={18} color={c.primary} />
               <Text style={styles.storePickBtnText}>
                 {newListStoreId
-                  ? stores.find(s => s.id === newListStoreId)?.name ?? 'Vald butik'
+                  ? stores.find(s => s.id === newListStoreId)?.name ?? str.selectedStore
                   : str.createModal.storePlaceholder}
               </Text>
               <Ionicons name="chevron-forward" size={16} color={c.textFaint} />

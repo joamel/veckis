@@ -604,7 +604,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         }
       }
     } catch {
-      confirm({ title: 'Fel', message: str.toasts.errorLoad, buttons: [{ label: common.actions.ok }] });
+      confirm({ title: common.errorTitle, message: str.toasts.errorLoad, buttons: [{ label: common.actions.ok }] });
     } finally {
       setLoading(false);
     }
@@ -1287,7 +1287,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // haka i toppen när man scrollar in på den.
   catOrderRef.current = [
     ...categoryGroups.map(g => ({ key: groupKey(g), label: groupLabel(g) })),
-    ...(checked.length > 0 ? [{ key: 'checked', label: 'Klart' }] : []),
+    ...(checked.length > 0 ? [{ key: 'checked', label: str.checkedLabel }] : []),
   ];
 
   return (
@@ -1799,7 +1799,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         <View style={[s.sheet, { maxHeight: windowHeight * 0.75 }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>
-            {editingStaple?.id.startsWith('suggestion:') ? 'Spara som basvara' : 'Redigera basvara'}
+            {editingStaple?.id.startsWith('suggestion:') ? str.stapleEditor.saveTitle : str.stapleEditor.editTitle}
           </Text>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
           <Text style={s.editLabel}>{common.fields.name}</Text>
@@ -2128,7 +2128,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   if (next && next !== duplicateGroups[idx]) openMergeForDupes(next);
                 }}
               >
-                <Text style={[s.mergeIgnoreBtnText, { color: c.primary }]}>Nästa dubblett →</Text>
+                <Text style={[s.mergeIgnoreBtnText, { color: c.primary }]}>{str.merge.nextDupe}</Text>
               </Pressable>
             )}
             <Pressable
@@ -2159,10 +2159,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             <Ionicons name={iAmShopping ? 'pause-circle-outline' : 'walk-outline'} size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>
               {iAmShopping
-                ? 'Sluta handla'
+                ? str.shopperToggle.stop
                 : list.activeShopperMemberId
                   ? `${activeShopper?.displayName ?? str.fallbackActor} handlar nu`
-                  : 'Jag handlar nu'}
+                  : str.shopperToggle.start}
             </Text>
           </Pressable>
           <Pressable

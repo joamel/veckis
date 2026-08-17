@@ -17,6 +17,7 @@ import type { Palette } from '../lib/theme';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { common, components as cmpStr } from '../lib/svenska';
 import { detectInstallTarget, isAlreadyInstalled, type InstallTarget } from '../lib/installDetect';
 
 const DISMISS_KEY = 'install_banner_dismissed_at';
@@ -92,11 +93,11 @@ export function InstallBanner() {
     return (
       <View style={s.banner}>
         <Ionicons name="download-outline" size={20} color={c.accent} />
-        <Text style={s.text}>Installera Veckis som app</Text>
+        <Text style={s.text}>{cmpStr.installBanner.title}</Text>
         <Pressable style={s.actionBtn} onPress={trigger}>
-          <Text style={s.actionText}>Installera</Text>
+          <Text style={s.actionText}>{cmpStr.installBanner.install}</Text>
         </Pressable>
-        <Pressable onPress={dismiss} hitSlop={8} style={s.closeBtn} accessibilityLabel="Stäng">
+        <Pressable onPress={dismiss} hitSlop={8} style={s.closeBtn} accessibilityLabel={common.actions.close}>
           <Ionicons name="close" size={16} color={c.textFaint} />
         </Pressable>
       </View>
@@ -110,9 +111,9 @@ export function InstallBanner() {
       <View style={s.banner}>
         <Ionicons name="phone-portrait-outline" size={20} color={c.accent} />
         <Text style={s.text}>
-          Tryck <Ionicons name="share-outline" size={14} color={c.primary} /> Dela → <Text style={s.bold}>"Lägg till på hemskärmen"</Text> för app-känsla.
+          Tryck <Ionicons name="share-outline" size={14} color={c.primary} /> Dela → <Text style={s.bold}>"{cmpStr.installBanner.addToHomeScreen}"</Text> för app-känsla.
         </Text>
-        <Pressable onPress={dismiss} hitSlop={8} style={s.closeBtn} accessibilityLabel="Stäng">
+        <Pressable onPress={dismiss} hitSlop={8} style={s.closeBtn} accessibilityLabel={common.actions.close}>
           <Ionicons name="close" size={16} color={c.textFaint} />
         </Pressable>
       </View>
@@ -127,7 +128,7 @@ export function InstallBanner() {
         <Text style={[s.text, { color: c.warningText }]}>
           Öppna i <Text style={s.bold}>Safari</Text> för att installera som app.
         </Text>
-        <Pressable onPress={dismiss} hitSlop={8} style={s.closeBtn} accessibilityLabel="Stäng">
+        <Pressable onPress={dismiss} hitSlop={8} style={s.closeBtn} accessibilityLabel={common.actions.close}>
           <Ionicons name="close" size={16} color={c.warningText} />
         </Pressable>
       </View>

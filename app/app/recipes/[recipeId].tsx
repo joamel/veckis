@@ -859,7 +859,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                     <TextInput
                       ref={el => { getRowRef(idx).unit = el; }}
                       style={[s.editInput, s.editInputUnit]}
-                      placeholder={defaultUnit || 'Enhet'}
+                      placeholder={defaultUnit || common.fields.unit}
                       placeholderTextColor={c.textFaint}
                       value={row.unit}
                       onChangeText={v => updateEditRow(idx, 'unit', v.toLowerCase())}

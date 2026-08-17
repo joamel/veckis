@@ -985,8 +985,8 @@ export default function ChoresScreen() {
             // active
             dateLabel = once
               ? null
-              : (rec?.state === 'overdue' ? `förfallen ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
-                : rec?.state === 'today' ? 'idag'
+              : (rec?.state === 'overdue' ? str.card.overdue(rec.overdueDays)
+                : rec?.state === 'today' ? str.card.today
                 : rec?.current ? formatOcc(rec.current.date)
                 : rec?.nextDate ? formatOcc(rec.nextDate)
                 : null);
@@ -1284,10 +1284,10 @@ export default function ChoresScreen() {
         </Pressable>
       </Modal>
 
-      <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title="Startdatum" visible={showNewStartPicker} minimumDate={isoDateStr(new Date())} />
-      <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title="Slutdatum" visible={showNewEndPicker} minimumDate={newStartDate ?? isoDateStr(new Date())} />
-      <DatePickerModal value={editStartDate} onChange={setEditStartDate} onClose={() => setShowEditStartPicker(false)} title="Startdatum" visible={showEditStartPicker} minimumDate={isoDateStr(new Date())} />
-      <DatePickerModal value={editEndDate} onChange={setEditEndDate} onClose={() => setShowEditEndPicker(false)} title="Slutdatum" visible={showEditEndPicker} minimumDate={editStartDate ?? isoDateStr(new Date())} />
+      <DatePickerModal value={newStartDate} onChange={setNewStartDate} onClose={() => setShowNewStartPicker(false)} title={str.modal.startDateTitle} visible={showNewStartPicker} minimumDate={isoDateStr(new Date())} />
+      <DatePickerModal value={newEndDate} onChange={setNewEndDate} onClose={() => setShowNewEndPicker(false)} title={str.modal.endDateTitle} visible={showNewEndPicker} minimumDate={newStartDate ?? isoDateStr(new Date())} />
+      <DatePickerModal value={editStartDate} onChange={setEditStartDate} onClose={() => setShowEditStartPicker(false)} title={str.modal.startDateTitle} visible={showEditStartPicker} minimumDate={isoDateStr(new Date())} />
+      <DatePickerModal value={editEndDate} onChange={setEditEndDate} onClose={() => setShowEditEndPicker(false)} title={str.modal.endDateTitle} visible={showEditEndPicker} minimumDate={editStartDate ?? isoDateStr(new Date())} />
 
       {/* View chore — read-only; edit/delete via 3-dot */}
       <Modal visible={!!viewingChore} animationType="slide" onRequestClose={() => setViewingChore(null)}>
@@ -1300,7 +1300,7 @@ export default function ChoresScreen() {
             const names = ids.map(id => members.find(m => m.id === id)?.displayName).filter(Boolean) as string[];
             const freqText = choreSummary(cc);
             const statusText = rec
-              ? (rec.state === 'overdue' ? `Förfallen sedan ${rec.overdueDays} ${rec.overdueDays === 1 ? 'dag' : 'dagar'}`
+              ? (rec.state === 'overdue' ? str.status.overdue(rec.overdueDays)
                 : rec.state === 'today' ? str.statusTodo
                 : rec.state === 'done' ? (rec.nextDate ? str.status.doneNext(formatOcc(rec.nextDate)) : str.status.done) : null)
               : null;
@@ -1383,10 +1383,10 @@ export default function ChoresScreen() {
                                 {formatOcc(o.date)}{o.done
                                   ? (isHopIn
                                     ? ` · ${performerName} (hoppade in för ${turnName})`
-                                    : performerName ? ` · ${performerName}` : '')
+                                    : performerName ? str.turnHistory.by(performerName) : '')
                                   : o.isCurrent
-                                    ? (turnName ? ` · ${turnName}s tur` : ' · att göra')
-                                    : (turnName ? ` · ${turnName} missade` : ' · missad')}
+                                    ? (turnName ? str.turnHistory.turnOf(turnName) : str.turnHistory.yourTurn)
+                                    : (turnName ? str.turnHistory.missedBy(turnName) : str.turnHistory.missed)}
                               </Text>
                               {o.note && <Text style={s.historyNote}>{o.note}</Text>}
                             </View>

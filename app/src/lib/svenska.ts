@@ -67,6 +67,13 @@ export const common = {
   noDay: 'utan dag',
   someone: 'Någon',
   errorTitle: 'Fel',
+  relTime: {
+    justNow:   'nyss',
+    minAgo:    (n: number) => `${n} min sedan`,
+    hoursAgo:  (n: number) => `${n} h sedan`,
+    daysAgo:   (n: number) => `${n} dagar sedan`,
+    yesterday: 'igår',
+  },
   plusDishes: (n: number) => `+ ${n} ${n === 1 ? 'rätt' : 'rätter'}`,
   ordinals: ['Första', 'Andra', 'Tredje', 'Fjärde', 'Femte', 'Sista'] as const,
   tabs: {
@@ -103,6 +110,13 @@ export const chores = {
   },
   relDay:  { today: 'Idag', yesterday: 'Igår' },
   sharing: { shared: 'Gemensam', private: 'Bara för mig' },
+  turnHistory: {
+    by:       (name: string) => ` · ${name}`,
+    turnOf:   (name: string) => ` · ${name}s tur`,
+    yourTurn: ' · att göra',
+    missedBy: (name: string) => ` · ${name} missade`,
+    missed:   ' · missad',
+  },
   history: 'Historik',
   doneSection: 'Klart',
   statusTodo:  'Att göra idag',
@@ -145,6 +159,8 @@ export const chores = {
     chooseStart:     'Välj startdatum',
     clearDate:       'Rensa datum',
     clearStartDate:  'Rensa startdatum',
+    startDateTitle:  'Startdatum',
+    endDateTitle:    'Slutdatum',
     moreSettings:    'Fler inställningar',
     fewerSettings:   'Färre inställningar',
     addButton:       'Lägg till syssla',
@@ -380,6 +396,7 @@ export const shopping = {
     cta:      'Ny lista',
   },
   splitPlaceholder: 'Välj en inköpslista',
+  selectedStore:    'Vald butik',
 
   createModal: {
     title:           'Ny inköpslista',
@@ -437,6 +454,7 @@ export const shoppingList = {
     newQtyUnit:   'Ny mängd och enhet',
     pickTitle:    'Markera dubbletter själv',
     pickSubtitle: 'Bocka i minst två varor som ska slås ihop',
+    nextDupe:     'Nästa dubblett →',
   },
 
   emptyState: {
@@ -449,6 +467,9 @@ export const shoppingList = {
   renameTitle:     'Byt namn på listan',
   deleteList:      'Ta bort lista',
   fallbackActor:   'Någon',
+  checkedLabel:    'Klart',
+  stapleEditor:    { saveTitle: 'Spara som basvara', editTitle: 'Redigera basvara' },
+  shopperToggle:   { start: 'Jag handlar nu', stop: 'Sluta handla' },
 
   validation: {
     nameMissing: 'Namn saknas',
@@ -758,6 +779,8 @@ export const menu = {
 
 export const recipes = {
   title: 'Recept',
+  fallbackDish:   'rätten',
+  linkUnreadable: 'Länken gick inte att läsa',
 
   search: {
     placeholder: 'Sök på namn eller ingrediens…',
@@ -1400,6 +1423,16 @@ export const components = {
     text: 'Servern vaknar… det här tar ofta 10–20 sek första gången.',
   },
 
+  auditLog: {
+    hide:  'Dölj aktivitetslogg',
+    show:  'Visa aktivitetslogg',
+    empty: 'Inga händelser ännu.',
+  },
+  installBanner: {
+    title:           'Installera Veckis som app',
+    install:         'Installera',
+    addToHomeScreen: 'Lägg till på hemskärmen',
+  },
   spotlightTip: {
     defaultActionLabel: 'Förstått',
     next:                'Nästa',

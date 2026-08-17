@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { common } from '../lib/svenska';
 import type { Palette } from '../lib/theme';
 // Delad chrome för juridiska sidor (privacy + terms). Statisk text-rendering
 // med rubriker + stycken. Routen ska kunna nås utan inloggning så det är
@@ -22,7 +23,7 @@ export function LegalPage({ title, children }: Props) {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Tillbaka">
+        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel={common.actions.back}>
           <Ionicons name="arrow-back" size={24} color={c.text} />
         </Pressable>
         <Text style={s.headerTitle}>{title}</Text>

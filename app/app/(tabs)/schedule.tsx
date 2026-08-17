@@ -439,18 +439,18 @@ export default function ScheduleScreen() {
     if (msg.type === 'schedule_entry_added') {
       setEntries(prev => prev.some(e => e.id === msg.data.id) ? prev : [...prev, msg.data as never]);
     } else if (msg.type === 'schedule_entry_updated') {
-      if (editingEntry?.id === msg.data.id) setEntryConflict({ msg: `${msg.actor ?? 'Någon'} ändrade ${editingEntry.title}`, latest: msg.data });
+      if (editingEntry?.id === msg.data.id) setEntryConflict({ msg: `${msg.actor ?? common.someone} ändrade ${editingEntry.title}`, latest: msg.data });
       setEntries(prev => prev.map(e => e.id === msg.data.id ? (msg.data as never) : e));
     } else if (msg.type === 'schedule_entry_deleted') {
-      if (editingEntry?.id === msg.data.id) { showToast(`${msg.actor ?? 'Någon'} tog bort ${editingEntry.title}`, 'neutral'); setEditingEntry(null); }
+      if (editingEntry?.id === msg.data.id) { showToast(`${msg.actor ?? common.someone} tog bort ${editingEntry.title}`, 'neutral'); setEditingEntry(null); }
       setEntries(prev => prev.filter(e => e.id !== msg.data.id));
     } else if (msg.type === 'chore_added') {
       setChores(prev => prev.some(c => c.id === msg.data.id) ? prev : [...prev, msg.data as never]);
     } else if (msg.type === 'chore_updated') {
-      if (editingCalChore?.id === msg.data.id) setCalChoreConflict({ msg: `${msg.actor ?? 'Någon'} ändrade ${editingCalChore.title}`, latest: { ...editingCalChore, ...msg.data } });
+      if (editingCalChore?.id === msg.data.id) setCalChoreConflict({ msg: `${msg.actor ?? common.someone} ändrade ${editingCalChore.title}`, latest: { ...editingCalChore, ...msg.data } });
       setChores(prev => prev.map(c => c.id === msg.data.id ? { ...c, ...msg.data } as never : c));
     } else if (msg.type === 'chore_deleted') {
-      if (editingCalChore?.id === msg.data.id) { showToast(`${msg.actor ?? 'Någon'} tog bort ${editingCalChore.title}`, 'neutral'); setEditingCalChore(null); }
+      if (editingCalChore?.id === msg.data.id) { showToast(`${msg.actor ?? common.someone} tog bort ${editingCalChore.title}`, 'neutral'); setEditingCalChore(null); }
       setChores(prev => prev.filter(c => c.id !== msg.data.id));
     } else if (msg.type === 'chore_completed') {
       setChores(prev => prev.map(c => c.id === msg.data.choreId
@@ -642,7 +642,7 @@ export default function ScheduleScreen() {
       setChores(choreData as ChoreWithCompletion[]);
       setMembers(household.members);
     } catch {
-      confirm({ title: 'Fel', message: str.toasts.errorLoad, buttons: [{ label: common.actions.ok }] });
+      confirm({ title: common.errorTitle, message: str.toasts.errorLoad, buttons: [{ label: common.actions.ok }] });
     } finally {
       setLoading(false);
     }
@@ -2136,7 +2136,7 @@ export default function ScheduleScreen() {
                   >
                     <Text style={[s.monthlyTypeBtnText, newMonthlyType === 'weekday_of_month' && s.monthlyTypeBtnTextActive]}>
                       {componentsStr.recurrencePicker.monthly.weekday(
-                        common.ordinals[newRecurrenceWeekOfMonth - 1] ?? 'Sista',
+                        common.ordinals[newRecurrenceWeekOfMonth - 1] ?? common.ordinals[common.ordinals.length - 1],
                         DAYS.find(d => d.key === newDay)?.label.toLowerCase() ?? '',
                       )}
                     </Text>

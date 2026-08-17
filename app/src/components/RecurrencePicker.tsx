@@ -145,7 +145,7 @@ export function RecurrencePicker(props: RecurrencePickerProps) {
             >
               <Text style={[s.monthlyBtnText, props.monthlyType === 'weekday_of_month' && s.monthlyBtnTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                 {str.recurrencePicker.monthly.weekday(
-                  common.ordinals[props.recurrenceWeekOfMonth - 1] ?? 'Sista',
+                  common.ordinals[props.recurrenceWeekOfMonth - 1] ?? common.ordinals[common.ordinals.length - 1],
                   DAYS.find(d => d.key === wday)?.label.toLowerCase() ?? '',
                 )}
               </Text>
