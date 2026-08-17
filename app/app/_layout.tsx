@@ -1,7 +1,7 @@
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
-import { createElement, forwardRef, useEffect, useState, type ComponentType } from 'react';
+import { createElement, forwardRef, useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { Platform, View } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useTablet } from '../src/hooks/useTablet';
@@ -15,6 +15,7 @@ import { ToastProvider } from '../src/context/ToastContext';
 import { ConfirmProvider } from '../src/context/ConfirmContext';
 import { SpotlightTipProvider, useOnboardingMaster, useWelcomeGate } from '../src/context/SpotlightTipContext';
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
+import { LocaleProvider, useLocale } from '../src/context/LocaleContext';
 import { WelcomeModal } from '../src/components/WelcomeModal';
 import { VersionBanner } from '../src/components/VersionBanner';
 import { WakeupIndicator } from '../src/components/WakeupIndicator';
@@ -59,6 +60,12 @@ const tokenCache = {
     return SecureStore.setItemAsync(key, value);
   },
 };
+
+// Remountar app-trädet när språket byts så alla proxy-strängar läses om.
+function LocaleGate({ children }: { children: ReactNode }) {
+  const { locale } = useLocale();
+  return <View key={locale} style={{ flex: 1 }}>{children}</View>;
+}
 
 function StatusBarBackdrop() {
   const insets = useSafeAreaInsets();
@@ -176,8 +183,10 @@ export default function RootLayout() {
       <ErrorBoundary>
       <SafeAreaProvider>
         <ThemeProvider>
+        <LocaleProvider>
         <StatusBar style="light" />
         <StatusBarBackdrop />
+        <LocaleGate>
         <ClerkProvider
           publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
           tokenCache={tokenCache}
@@ -196,7 +205,9 @@ export default function RootLayout() {
             </MemberFilterProvider>
           </HouseholdProvider>
         </ClerkProvider>
+        </LocaleGate>
         <AnimatedSplash />
+        </LocaleProvider>
         </ThemeProvider>
       </SafeAreaProvider>
       </ErrorBoundary>

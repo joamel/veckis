@@ -36,6 +36,7 @@ import { kavBehavior } from '../../src/lib/platform';
 import { settings as str, common } from '../../src/lib/svenska';
 import { RECIPE_FOCUS_EXPERIMENT } from '../../src/lib/features';
 import { useTheme, type ThemeMode } from '../../src/context/ThemeContext';
+import { useLocale, type Locale } from '../../src/context/LocaleContext';
 import type { Palette } from '../../src/lib/theme';
 
 export default function SettingsScreen() {
@@ -45,6 +46,7 @@ export default function SettingsScreen() {
   const client = useApiClient();
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
   const { colors: c, mode: themeMode, setMode: setThemeMode } = useTheme();
+  const { locale, setLocale } = useLocale();
   const styles = useMemo(() => makeStyles(c), [c]);
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
@@ -736,6 +738,25 @@ export default function SettingsScreen() {
               const active = themeMode === opt.key;
               return (
                 <Pressable key={opt.key} style={[styles.appearanceOpt, active && styles.appearanceOptActive]} onPress={() => setThemeMode(opt.key)}>
+                  <Ionicons name={opt.icon} size={16} color={active ? c.primary : c.textMuted} />
+                  <Text style={[styles.appearanceOptText, active && styles.appearanceOptTextActive]}>{opt.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Språk */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{str.sections.language}</Text>
+          <View style={styles.appearanceRow}>
+            {([
+              { key: 'sv' as Locale, label: str.language.sv, icon: 'chatbubble-outline' as const },
+              { key: 'en' as Locale, label: str.language.en, icon: 'language-outline' as const },
+            ]).map(opt => {
+              const active = locale === opt.key;
+              return (
+                <Pressable key={opt.key} style={[styles.appearanceOpt, active && styles.appearanceOptActive]} onPress={() => setLocale(opt.key)}>
                   <Ionicons name={opt.icon} size={16} color={active ? c.primary : c.textMuted} />
                   <Text style={[styles.appearanceOptText, active && styles.appearanceOptTextActive]}>{opt.label}</Text>
                 </Pressable>
