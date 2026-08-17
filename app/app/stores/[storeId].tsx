@@ -312,7 +312,7 @@ export default function StoreDetailScreen() {
               style={s.addSubInput}
               value={newSubName}
               onChangeText={setNewSubName}
-              placeholder="Namn på underkategori"
+              placeholder={str.detail.customSubPlaceholder}
               placeholderTextColor={c.textFaint}
               autoFocus
               onSubmitEditing={() => commitCustomSub(parentKey)}
@@ -323,7 +323,7 @@ export default function StoreDetailScreen() {
         ) : (
           <Pressable style={s.addSubRow} onPress={() => { setAddingSubFor(parentKey); setNewSubName(''); }}>
             <Ionicons name="add" size={16} color={c.primary} />
-            <Text style={s.addSubText}>Egen underkategori</Text>
+            <Text style={s.addSubText}>{str.detail.customSubAdd}</Text>
           </Pressable>
         )}
       </>
@@ -346,7 +346,7 @@ export default function StoreDetailScreen() {
         <Text style={s.sectionSub}>{str.detail.hint}</Text>
 
         <Text style={s.sectionLabel}>{str.detail.sections.visible}</Text>
-        <Text style={s.sectionSub}>Ordna standard- och egna kategorier tillsammans. 🏷️ = egen (lokal, bara för den här butiken).</Text>
+        <Text style={s.sectionSub}>{str.detail.mixedHint}</Text>
         <View style={s.catList}>
           {parentOrder.length === 0 ? (
             <Text style={s.emptyHint}>{str.detail.allHidden}</Text>
@@ -402,7 +402,7 @@ export default function StoreDetailScreen() {
               style={s.addSubInput}
               value={newCatName}
               onChangeText={setNewCatName}
-              placeholder="＋ Ny egen kategori"
+              placeholder={str.detail.customCatPlaceholder}
               placeholderTextColor={c.textFaint}
               onSubmitEditing={addCustomCategory}
               returnKeyType="done"

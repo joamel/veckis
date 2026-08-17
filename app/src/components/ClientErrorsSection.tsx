@@ -12,10 +12,10 @@ function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return iso;
   const sec = Math.floor((Date.now() - then) / 1000);
-  if (sec < 60) return 'nyss';
-  if (sec < 3600) return `${Math.floor(sec / 60)} min sedan`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)} h sedan`;
-  if (sec < 86400 * 2) return 'igår';
+  if (sec < 60) return common.relTime.justNow;
+  if (sec < 3600) return common.relTime.minAgo(Math.floor(sec / 60));
+  if (sec < 86400) return common.relTime.hoursAgo(Math.floor(sec / 3600));
+  if (sec < 86400 * 2) return common.relTime.yesterday;
   return new Date(then).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 

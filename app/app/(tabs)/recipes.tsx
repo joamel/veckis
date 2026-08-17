@@ -189,7 +189,7 @@ export default function RecipesScreen() {
     if (replaceMode) {
       confirm({
         title: str.menu.replace.title,
-        message: str.menu.replace.message(params.replaceTitle ?? 'rätten', recipe.title),
+        message: str.menu.replace.message(params.replaceTitle ?? str.fallbackDish, recipe.title),
         buttons: [
           { label: str.menu.replace.confirm, style: 'destructive', onPress: () => router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&replaceMenuItemId=${params.replaceMenuItemId}${weekSuffix}` as never) },
           { label: common.actions.cancel, style: 'cancel' },
@@ -307,7 +307,7 @@ export default function RecipesScreen() {
       // offer to add the recipe manually instead.
       confirm({
         title: str.errors.parseFailed.title,
-        message: str.errors.parseFailed.message(err instanceof Error ? err.message : 'Länken gick inte att läsa'),
+        message: str.errors.parseFailed.message(err instanceof Error ? err.message : str.linkUnreadable),
         buttons: [
           { label: str.errors.parseFailed.manual, onPress: () => setMode('manual') },
           { label: common.actions.cancel, style: 'cancel' },

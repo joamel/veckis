@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { common } from '../../lib/svenska';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../lib/theme';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
@@ -126,7 +127,7 @@ export function MonthView({
       </View>
 
       <View style={s.weekDayHeaders}>
-        {['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'].map(day => (
+        {[...common.weekdays.short].map(day => (
           <Text key={day} style={s.weekDayHeader}>{day}</Text>
         ))}
       </View>

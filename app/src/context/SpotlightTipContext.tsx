@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import * as SecureStore from '../lib/secureStorage';
 import { useIsFocused } from '@react-navigation/native';
 import { SpotlightTip, type SpotlightOptions } from '../components/SpotlightTip';
+import { components as cmpStr } from '../lib/svenska';
 import { SKIP_ALL_FLAG } from '../lib/onboardingTips';
 import { evaluateTipGate } from '../lib/tipGate';
 
@@ -153,7 +154,7 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
         targetRef={opts?.targetRef}
         targetRect={opts?.targetRect}
         swipeDemo={opts?.swipeDemo}
-        actionLabel={opts?.actionLabel ?? 'Förstått'}
+        actionLabel={opts?.actionLabel ?? cmpStr.spotlightTip.defaultActionLabel}
         position={shownIndex + 1}
         total={shownIndex + 1 + queueLen}
         hasNext={hasNext}

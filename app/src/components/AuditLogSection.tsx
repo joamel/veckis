@@ -7,6 +7,7 @@ import type { Palette } from '../lib/theme';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { common, components as cmpStr } from '../lib/svenska';
 import { useApiClient, type AuditLogEntry } from '../api/client';
 import { useToast } from '../context/ToastContext';
 
@@ -16,7 +17,7 @@ interface Props {
 
 /** Mänskligt-läsbar beskrivning av en audit-händelse. */
 function describeEvent(e: AuditLogEntry): string {
-  const actor = e.actorName ?? 'Någon';
+  const actor = e.actorName ?? common.someone;
   const target = e.targetName ?? '(borttagen)';
   switch (e.action) {
     case 'household.update': {
@@ -46,11 +47,11 @@ function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return iso;
   const sec = Math.floor((Date.now() - then) / 1000);
-  if (sec < 60) return 'nyss';
-  if (sec < 3600) return `${Math.floor(sec / 60)} min sedan`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)} h sedan`;
-  if (sec < 86400 * 2) return 'igår';
-  if (sec < 86400 * 7) return `${Math.floor(sec / 86400)} dagar sedan`;
+  if (sec < 60) return common.relTime.justNow;
+  if (sec < 3600) return common.relTime.minAgo(Math.floor(sec / 60));
+  if (sec < 86400) return common.relTime.hoursAgo(Math.floor(sec / 3600));
+  if (sec < 86400 * 2) return common.relTime.yesterday;
+  if (sec < 86400 * 7) return common.relTime.daysAgo(Math.floor(sec / 86400));
   const d = new Date(then);
   return d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
@@ -70,7 +71,7 @@ export function AuditLogSection({ householdId }: Props) {
       const data = await client.getAuditLog(householdId, { limit: 50 });
       setEvents(data);
     } catch (e) {
-      showError(e, 'Kunde inte ladda aktivitetslogg');
+      showError(e, common.errors.couldNotLoad('aktivitetsloggen'));
     } finally {
       setLoading(false);
     }
@@ -86,7 +87,7 @@ export function AuditLogSection({ householdId }: Props) {
         style={s.header}
         onPress={() => setExpanded(v => !v)}
         accessibilityRole="button"
-        accessibilityLabel={expanded ? 'Dölj aktivitetslogg' : 'Visa aktivitetslogg'}
+        accessibilityLabel={expanded ? cmpStr.auditLog.hide : cmpStr.auditLog.show}
       >
         <Ionicons name="time-outline" size={16} color={c.primary} />
         <Text style={s.title}>Aktivitetslogg</Text>
@@ -97,7 +98,7 @@ export function AuditLogSection({ householdId }: Props) {
         <View style={s.body}>
           {loading && <ActivityIndicator size="small" color={c.primary} style={{ marginVertical: 12 }} />}
           {!loading && events && events.length === 0 && (
-            <Text style={s.empty}>Inga händelser ännu.</Text>
+            <Text style={s.empty}>{cmpStr.auditLog.empty}</Text>
           )}
           {!loading && events && events.map((e, idx) => (
             <View

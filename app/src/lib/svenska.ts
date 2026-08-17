@@ -23,6 +23,16 @@ export const common = {
     back:            'Tillbaka',
     manage:          'Hantera',
     clearSearch:     'Rensa sökning',
+    ignore:          'Ignorera',
+  },
+  fields: {
+    name:                'Namn',
+    category:            'Kategori',
+    subCategory:         'Underkategori',
+    subCategoryOptional: 'Underkategori (valfritt)',
+    unit:                'Enhet',
+    unitOptional:        'Enhet (valfritt)',
+    none:                'Ingen',
   },
   discardDraft: {
     title:    'Vill du slänga utkastet?',
@@ -32,6 +42,7 @@ export const common = {
   // Måltidstyper — låter flera rätter samsas på samma dag.
   mealTypes: {
     label:     'Måltid',
+    entity:    'måltidstyp',
     breakfast: 'Frukost',
     lunch:     'Lunch',
     dinner:    'Middag',
@@ -54,6 +65,15 @@ export const common = {
     long:  ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'] as const,
   },
   noDay: 'utan dag',
+  someone: 'Någon',
+  errorTitle: 'Fel',
+  relTime: {
+    justNow:   'nyss',
+    minAgo:    (n: number) => `${n} min sedan`,
+    hoursAgo:  (n: number) => `${n} h sedan`,
+    daysAgo:   (n: number) => `${n} dagar sedan`,
+    yesterday: 'igår',
+  },
   plusDishes: (n: number) => `+ ${n} ${n === 1 ? 'rätt' : 'rätter'}`,
   ordinals: ['Första', 'Andra', 'Tredje', 'Fjärde', 'Femte', 'Sista'] as const,
   tabs: {
@@ -78,6 +98,29 @@ export const chores = {
     biweekly:        'Varannan vecka',
     monthly:         'Månadsvis',
   },
+  // Full-fras-frekvenser (choreSummary/detaljvyn) — skiljer sig från freqLabels.
+  freqEvery: {
+    none:        'Ingen',
+    once:        'En gång',
+    daily:       'Varje dag',
+    weekly:      'Varje vecka',
+    monthly:     'Varje månad',
+    yearly:      'Varje år',
+    oncePerYear: 'En gång per år',
+  },
+  relDay:  { today: 'Idag', yesterday: 'Igår' },
+  sharing: { shared: 'Gemensam', private: 'Bara för mig' },
+  turnHistory: {
+    by:       (name: string) => ` · ${name}`,
+    turnOf:   (name: string) => ` · ${name}s tur`,
+    yourTurn: ' · att göra',
+    missedBy: (name: string) => ` · ${name} missade`,
+    missed:   ' · missad',
+  },
+  history: 'Historik',
+  doneSection: 'Klart',
+  statusTodo:  'Att göra idag',
+  filterModal: { all: 'Alla', clear: 'Rensa' },
 
   header: {
     clearDone:       'Rensa klara',
@@ -101,6 +144,7 @@ export const chores = {
     overdue:         (days: number) => `Förfallen sedan ${days} ${days === 1 ? 'dag' : 'dagar'}`,
     today:           'Förfaller idag',
     nextDate:        (date: string) => `Nästa: ${date}`,
+    doneNext:        (date: string) => `Klar · ${date}`,
   },
 
   modal: {
@@ -115,6 +159,8 @@ export const chores = {
     chooseStart:     'Välj startdatum',
     clearDate:       'Rensa datum',
     clearStartDate:  'Rensa startdatum',
+    startDateTitle:  'Startdatum',
+    endDateTitle:    'Slutdatum',
     moreSettings:    'Fler inställningar',
     fewerSettings:   'Färre inställningar',
     addButton:       'Lägg till syssla',
@@ -150,6 +196,10 @@ export const chores = {
     errorSave:       'Kunde inte spara ändringarna',
     errorComplete:   'Kunde inte markera sysslan',
     errorUncomplete: 'Kunde inte avmarkera sysslan',
+    errorLoadTitle:  'Fel',
+    errorLoad:       'Kunde inte ladda sysslor',
+    errorUndo:       'Kunde inte ångra',
+    errorDelete:     'Kunde inte ta bort syssla',
   },
 
   tips: {
@@ -345,6 +395,8 @@ export const shopping = {
     subtitle: 'Skapa en inköpslista så kan ni bocka av varor tillsammans',
     cta:      'Ny lista',
   },
+  splitPlaceholder: 'Välj en inköpslista',
+  selectedStore:    'Vald butik',
 
   createModal: {
     title:           'Ny inköpslista',
@@ -395,7 +447,29 @@ export const shoppingList = {
     title:   'Slå ihop dubbletter',
     message: 'Här slår du ihop likadana varor till en post med samlad mängd. Justera namn, enhet och kategori om du vill - appen drar ihop allt till en rad i listan.',
     merged:  (n: number, name: string) => `Slog ihop ${n} ${name}`,
+    heading:      'Dubbletter',
+    markManually: 'Markera själv',
+    instruction:  'Markera vilka som ska slås ihop',
+    noDupes:      'Inga föreslagna dubbletter — markera själv för att slå ihop varor',
+    newQtyUnit:   'Ny mängd och enhet',
+    pickTitle:    'Markera dubbletter själv',
+    pickSubtitle: 'Bocka i minst två varor som ska slås ihop',
+    nextDupe:     'Nästa dubblett →',
   },
+
+  emptyState: {
+    title:    'Listan är tom',
+    subtitle: 'Tryck på + för att importera veckomenyn, eller lägg till varor nedan',
+  },
+  staplesHeading:  'Dina vanligaste',
+  browserTitle:    'Välj kategori',
+  unitPlaceholder: 't.ex. st, dl, paket',
+  renameTitle:     'Byt namn på listan',
+  deleteList:      'Ta bort lista',
+  fallbackActor:   'Någon',
+  checkedLabel:    'Klart',
+  stapleEditor:    { saveTitle: 'Spara som basvara', editTitle: 'Redigera basvara' },
+  shopperToggle:   { start: 'Jag handlar nu', stop: 'Sluta handla' },
 
   validation: {
     nameMissing: 'Namn saknas',
@@ -500,6 +574,10 @@ export const shoppingList = {
     moreActions: {
       title:   'Mer du kan göra med listan',
       message: 'Tryck på prickarna för fler val: byt namn, byt butik, klarmarka alla, rensa listan eller importera veckomeny.',
+    },
+    suggestion: {
+      title:   'Redigera basvara',
+      message: 'Förslagen kommer från dina basvaror och tidigare ingredienser. Håll inne på ett förslag för att redigera enhet, kategori eller spara det som en ny basvara.',
     },
   },
 };
@@ -701,6 +779,8 @@ export const menu = {
 
 export const recipes = {
   title: 'Recept',
+  fallbackDish:   'rätten',
+  linkUnreadable: 'Länken gick inte att läsa',
 
   search: {
     placeholder: 'Sök på namn eller ingrediens…',
@@ -1127,10 +1207,14 @@ export const stores = {
       hidden:  'DOLDA',
     },
     hint:        'Ordningen matchar butikens layout. Dölj kategorier du inte använder och lägg till egna under "Egna kategorier".',
+    mixedHint:   'Ordna standard- och egna kategorier tillsammans. 🏷️ = egen (lokal, bara för den här butiken).',
     allHidden:   'Alla standardkategorier är dolda - du måste välja minst en.',
     hiddenHint:  'Standardkategorier du har dolt. Tryck visa-knappen för att lägga tillbaka dem sist i listan.',
     subHint:     (parent: string) => `Slå på sub-kategorier som du vill se som egna sektioner i listan. Övriga samlas under ${parent}.`,
     saveButton:  'Spara ändringar',
+    customSubPlaceholder: 'Namn på underkategori',
+    customSubAdd:         'Egen underkategori',
+    customCatPlaceholder: '＋ Ny egen kategori',
   },
 
   renameModal: {
@@ -1191,6 +1275,7 @@ export const components = {
       yearly:  'År',
     },
     every:          'Var',
+    units:          { daily: 'dag', weekly: 'vecka', monthly: 'månad', yearly: 'år' },
     weekdays:       'Veckodagar',
     repeatsEvery:   'Upprepas',
     dayOfMonth:     'Dag i månaden',
@@ -1338,6 +1423,16 @@ export const components = {
     text: 'Servern vaknar… det här tar ofta 10–20 sek första gången.',
   },
 
+  auditLog: {
+    hide:  'Dölj aktivitetslogg',
+    show:  'Visa aktivitetslogg',
+    empty: 'Inga händelser ännu.',
+  },
+  installBanner: {
+    title:           'Installera Veckis som app',
+    install:         'Installera',
+    addToHomeScreen: 'Lägg till på hemskärmen',
+  },
   spotlightTip: {
     defaultActionLabel: 'Förstått',
     next:                'Nästa',
