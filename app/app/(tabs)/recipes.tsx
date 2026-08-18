@@ -3,9 +3,11 @@ import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
+  BackHandler,
   FlatList,
   Keyboard,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,7 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useAnimatedKeyboard, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import RNAnimated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -243,16 +245,13 @@ export default function RecipesScreen() {
     const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; });
     return () => { show.remove(); hide.remove(); };
   }, []);
-  // Lyft för create-sheeten. RN:s keyboardDidShow-höjd ger fel värde inuti Modal-
-  // fönstret under edge-to-edge (över-lyft). reanimated useAnimatedKeyboard läser
-  // den KORREKTA höjden via WindowInsets (samma källa som add-baren lyfts med).
-  // Vi läser den på skärmnivå och matar in som vanligt tal i modalens paddingBottom.
+  // Create-sheeten renderas som overlay i skärmen (INTE RN Modal), för reanimated
+  // useAnimatedKeyboard ser inte tangentbordet i ett separat Modal-fönster under
+  // edge-to-edge. In-tree funkar samma reanimated-lyft som add-baren (exakt höjd).
   const createKeyboard = useAnimatedKeyboard();
-  const [modalKbHeight, setModalKbHeight] = useState(0);
-  useAnimatedReaction(
-    () => createKeyboard.height.value,
-    (h, prev) => { if (h !== prev) runOnJS(setModalKbHeight)(h); },
-  );
+  const createSheetLift = useAnimatedStyle(() => ({
+    paddingBottom: Platform.OS === 'web' ? 0 : createKeyboard.height.value,
+  }));
   // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
   // opålitligt på Android (särskilt multiline paste-fältet visar inte
   // tangentbordet), och den async:a keyboardDidHide hinner ibland nolla
@@ -425,6 +424,17 @@ export default function RecipesScreen() {
     setShowModal(true);
   }
 
+  // Overlay:n (ej RN Modal) fångar inte Android-bakåt själv → stäng den manuellt.
+  useEffect(() => {
+    if (!showModal) return;
+    const onBack = () => {
+      tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate);
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
+    return () => sub.remove();
+  }, [showModal, title, url, pasteText]);
+
   if (loading) {
     return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   }
@@ -586,13 +596,14 @@ export default function RecipesScreen() {
         </Pressable>
       )}
 
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate)}>
-        {/* Dim-lagret ÄR tryck-ytan (absolut heltäckande) — beror inte på att RN
-            Modal ger flex:1 till barn (det gör den inte tillförlitligt under
-            edge-to-edge). Sheeten ankras absolut i botten (ingen top:0) så den
-            inte täcker dim-ytan ovanför → tryck-utanför stänger, även i PWA. */}
+      {showModal && (
+      /* In-tree overlay (INTE RN Modal): så reanimated-tangentbordslyftet funkar
+         (Modal-fönstret döljer tangentbordet för reanimated under edge-to-edge)
+         och tryck-utanför funkar även i PWA. Dim-lagret är tryck-ytan; sheeten
+         ankras i botten och lyfts med reanimated paddingBottom. */
+      <View style={s.modalRoot}>
         <Pressable style={s.overlayDim} onPress={() => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate)} />
-        <View style={[s.sheetAnchor, { paddingBottom: modalKbHeight }]}>
+        <RNAnimated.View style={[s.sheetAnchor, createSheetLift]}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Pressable
@@ -697,8 +708,9 @@ export default function RecipesScreen() {
           </View>
           </ScrollView>
         </View>
-        </View>
-      </Modal>
+        </RNAnimated.View>
+      </View>
+      )}
 
       {/* Quick add-to-menu week+day picker */}
       <Modal visible={!!addToMenuFor} transparent animationType="slide" onRequestClose={() => setAddToMenuFor(null)}>
@@ -809,6 +821,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalRoot: { ...StyleSheet.absoluteFillObject, zIndex: 100, elevation: 100 },
   sheetAnchor: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   sheetClose: { position: 'absolute', top: 14, right: 16, zIndex: 10, padding: 4 },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, gap: 14 },
