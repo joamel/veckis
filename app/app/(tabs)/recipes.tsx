@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -584,7 +583,7 @@ export default function RecipesScreen() {
             edge-to-edge). Sheeten ankras absolut i botten (ingen top:0) så den
             inte täcker dim-ytan ovanför → tryck-utanför stänger, även i PWA. */}
         <Pressable style={s.overlayDim} onPress={() => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate)} />
-        <KeyboardAvoidingView behavior="padding" style={s.sheetAnchor}>
+        <View style={s.sheetAnchor}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
           <View style={s.sheetHandle} />
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
@@ -682,7 +681,7 @@ export default function RecipesScreen() {
           </View>
           </ScrollView>
         </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Quick add-to-menu week+day picker */}
