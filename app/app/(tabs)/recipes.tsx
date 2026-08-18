@@ -239,9 +239,14 @@ export default function RecipesScreen() {
   // inputfältet, och vi vill att fokus "följer med" bara om tangentbordet
   // redan var uppe. Ref (inte state) så det läses synkront utan re-render.
   const keyboardUpRef = useRef(false);
+  // Tangentbordshöjd för att lyfta create-sheeten. RN:s keyboardDidShow-höjd är
+  // opålitlig på huvudskärmen under edge-to-edge (add-baren använder reanimated),
+  // MEN fungerar inuti RN Modal-fönstret (som inte panorerar självt), så här
+  // räcker den. Lyfter sheeten med paddingBottom (ingen KAV → ingen stretch).
+  const [modalKbHeight, setModalKbHeight] = useState(0);
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => { keyboardUpRef.current = true; });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; });
+    const show = Keyboard.addListener('keyboardDidShow', (e) => { keyboardUpRef.current = true; setModalKbHeight(e.endCoordinates?.height ?? 0); });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; setModalKbHeight(0); });
     return () => { show.remove(); hide.remove(); };
   }, []);
   // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
@@ -583,9 +588,16 @@ export default function RecipesScreen() {
             edge-to-edge). Sheeten ankras absolut i botten (ingen top:0) så den
             inte täcker dim-ytan ovanför → tryck-utanför stänger, även i PWA. */}
         <Pressable style={s.overlayDim} onPress={() => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate)} />
-        <View style={s.sheetAnchor}>
+        <View style={[s.sheetAnchor, { paddingBottom: modalKbHeight }]}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
           <View style={s.sheetHandle} />
+          <Pressable
+            style={s.sheetClose}
+            onPress={() => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate)}
+            hitSlop={10}
+          >
+            <Ionicons name="close" size={22} color={c.textMuted} />
+          </Pressable>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
           <Text style={s.sheetTitle}>{str.createModal.title}</Text>
 
@@ -794,6 +806,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheetAnchor: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  sheetClose: { position: 'absolute', top: 14, right: 16, zIndex: 10, padding: 4 },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, gap: 14 },
   sheetScroll: { gap: 14, paddingBottom: 40 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
