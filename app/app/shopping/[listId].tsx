@@ -1504,15 +1504,18 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           Android Chrome PWA: browser resizes viewport → bar floats up naturally.
           KAV would double-push (bar "jumps"). Disable on non-iOS web.
           iOS Safari PWA: viewport doesn't resize → KAV needed to clear keyboard. */}
-      {/* iOS native: lyft med UPPMÄTT tangentbordshöjd (iOS resizar/pannar inte).
-          Android native: sköts av softwareKeyboardLayoutMode:"pan" (OS pannar upp
-          det fokuserade fältet) → ingen JS-padding, annars dubbel-lyft.
+      {/* Native (iOS OCH Android): lyft med UPPMÄTT tangentbordshöjd i JS.
+          SDK 54 kör Android edge-to-edge → OS:et varken resizar eller pannar
+          fönstret (softwareKeyboardLayoutMode:"pan"/"resize" är i praktiken
+          inert), så utan JS-padding hamnar fältet BAKOM tangentbordet. Vi lägger
+          därför paddingBottom = keyboardHeight på båda native-plattformar. Ingen
+          dubbel-lyft eftersom OS:et inte lyfter under edge-to-edge.
           Web: iOS Safari behöver KAV-push; Android Chrome resizar viewporten själv. */}
       <KeyboardAvoidingView
         behavior="padding"
         keyboardVerticalOffset={isIOSLike ? 90 : 0}
         enabled={keyboardVisible && Platform.OS === 'web' && isIOSLike}
-        style={{ paddingBottom: Platform.OS === 'ios' && keyboardVisible ? keyboardHeight : 0 }}
+        style={{ paddingBottom: keyboardVisible && Platform.OS !== 'web' ? keyboardHeight : 0 }}
       >
         {suggestions.length > 0 ? (
           <ScrollView
