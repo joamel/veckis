@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   FlatList,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -13,7 +14,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -31,6 +31,7 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
+import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -418,12 +419,11 @@ export default function RecipesScreen() {
 
   // Sheet-innehållet (delas ut för läsbarhet; renderas inuti KAV nedan).
   const createSheetInner = (
-    <View style={s.sheet}>
+    <View style={[s.sheet, { paddingBottom: 28 }]}>
       <View style={s.sheetHandle} />
       <Pressable style={s.sheetClose} onPress={closeCreate} hitSlop={10}>
         <Ionicons name="close" size={22} color={c.textMuted} />
       </Pressable>
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
         <Text style={s.sheetTitle}>{str.createModal.title}</Text>
 
         <View style={s.modeTabs}>
@@ -516,7 +516,6 @@ export default function RecipesScreen() {
           </>
         )}
         </View>
-      </ScrollView>
     </View>
   );
 
@@ -681,20 +680,16 @@ export default function RecipesScreen() {
         </Pressable>
       )}
 
-      {showModal && (
-        <Modal visible transparent animationType="slide" onRequestClose={closeCreate}>
-          {/* Nästlad KeyboardProvider: RN Modal är ett separat OS-fönster, så
-              keyboard-controllern måste sätta upp sin lyssnare på Modal-fönstret
-              för att KAV ska se tangentbordet (enhetligt på Android/iOS/web). */}
-          <KeyboardProvider>
-            <View pointerEvents="none" style={s.overlayDim} />
-            <Pressable style={s.overlay} onPress={closeCreate} />
-            <KeyboardAvoidingView behavior="padding">
-              {createSheetInner}
-            </KeyboardAvoidingView>
-          </KeyboardProvider>
-        </Modal>
-      )}
+      {/* Samma mönster som "Ny butik"-modalen (fungerar på Android edge-to-edge +
+          web): RN Modal + absolut heltäckande KAV + flex-end, och sheeten UTAN
+          ScrollView (en ScrollView expanderar under behavior="height" → för hög). */}
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={closeCreate}>
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={closeCreate} />
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+          {createSheetInner}
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Quick add-to-menu week+day picker */}
       <Modal visible={!!addToMenuFor} transparent animationType="slide" onRequestClose={() => setAddToMenuFor(null)}>
