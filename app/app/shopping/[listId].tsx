@@ -308,9 +308,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const revealInput = useCallback((ref: React.RefObject<TextInput | null>) => {
     setTimeout(() => {
       ref.current?.measureInWindow((_x, y, _w, h) => {
-        const kbTop = windowHeight - (kbHeightRef.current || 340);
+        // Klampa tangentbordshöjden: RN rapporterar ibland orimliga värden inuti
+        // Modal-fönstret på Android → annars blir lyftet enormt. Ett tangentbord
+        // är på sin höjd ~halva skärmen.
+        const kbH = Math.min(Math.max(kbHeightRef.current, 260), windowHeight * 0.5);
+        const kbTop = windowHeight - kbH;
         const hidden = (y + h + 24) - kbTop; // 24 = luft ovanför tangentbordet
-        if (hidden > 0) setSheetLift(prev => prev + hidden);
+        // Tak på lyftet så en hög sheet aldrig flyger upp till toppen.
+        if (hidden > 0) setSheetLift(prev => Math.min(prev + hidden, windowHeight * 0.45));
       });
     }, 250);
   }, [windowHeight]);
@@ -1663,8 +1668,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
       {/* Item edit modal */}
       <Modal visible={!!editingItem} transparent animationType="slide" onRequestClose={() => setEditingItem(null)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
+        <Pressable style={s.overlayDim} onPress={() => setEditingItem(null)} />
         <View style={[s.sheetWrap, { transform: [{ translateY: -sheetLift }] }]}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
           <View style={s.sheetHandle} />
@@ -1828,8 +1832,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
       {/* Staple edit modal (from long-press on suggestion chip) */}
       <Modal visible={!!editingStaple} transparent animationType="slide" onRequestClose={() => setEditingStaple(null)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setEditingStaple(null)} />
+        <Pressable style={s.overlayDim} onPress={() => setEditingStaple(null)} />
         <View style={[s.sheetWrap, { transform: [{ translateY: -sheetLift }] }]}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.75 }]}>
           <View style={s.sheetHandle} />
@@ -1910,9 +1913,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           All butiks-konfig sker på /stores/[storeId]-routen istället. */}
       {/* Quantity sheet */}
       <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <Pressable style={{ flex: 1 }} onPress={() => setQtySheet(null)} />
-          <View style={[s.sheetWrap, { transform: [{ translateY: -sheetLift }] }]}>
+        <Pressable style={s.overlayDim} onPress={() => setQtySheet(null)} />
+        <View style={[s.sheetWrap, { transform: [{ translateY: -sheetLift }] }]}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{capitalize(qtySheet?.name)}</Text>
@@ -2025,7 +2027,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </Pressable>
           </View>
           </View>
-        </View>
       </Modal>
 
       <Animated.View style={[s.toast, { opacity: toastOpacity }]} pointerEvents="none">
