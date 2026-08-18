@@ -56,7 +56,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem } from '@veckis/shared';
-import { isIOSLike } from '../../src/lib/platform';
+import { kavBehavior, isIOSLike } from '../../src/lib/platform';
 import { shoppingList as str, common } from '../../src/lib/svenska';
 import { enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError } from '../../src/lib/shoppingOfflineQueue';
 
@@ -1642,7 +1642,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       <Modal visible={!!editingItem} transparent animationType="slide" onRequestClose={() => setEditingItem(null)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
-        <KeyboardAvoidingView behavior="padding" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
           <View style={s.sheetHandle} />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
@@ -1803,7 +1803,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       <Modal visible={!!editingStaple} transparent animationType="slide" onRequestClose={() => setEditingStaple(null)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setEditingStaple(null)} />
-        <KeyboardAvoidingView behavior="padding" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.75 }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>
@@ -1881,7 +1881,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }}>
           <Pressable style={{ flex: 1 }} onPress={() => setQtySheet(null)} />
-          <KeyboardAvoidingView behavior="padding" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+          <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
           <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{capitalize(qtySheet?.name)}</Text>
@@ -2003,7 +2003,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       <Modal visible={!!mergeSheet} transparent animationType="slide" onRequestClose={() => setMergeSheet(null)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setMergeSheet(null)} />
-        <KeyboardAvoidingView behavior="padding" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
             <View style={s.sheetHandle} />
             <View style={s.mergeHeaderRow}>
@@ -2236,7 +2236,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       <Modal visible={showRenameModal} transparent animationType="slide" onRequestClose={() => setShowRenameModal(false)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowRenameModal(false)} />
-        <KeyboardAvoidingView behavior="padding" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{str.renameTitle}</Text>
