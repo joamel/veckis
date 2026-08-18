@@ -3,12 +3,9 @@ import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
-  BackHandler,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,8 +13,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import RNAnimated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,7 +31,6 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
-import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -248,16 +244,6 @@ export default function RecipesScreen() {
     const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; });
     return () => { show.remove(); hide.remove(); };
   }, []);
-  // Create-sheeten renderas som overlay i skärmen (INTE RN Modal), för reanimated
-  // useAnimatedKeyboard ser inte tangentbordet i ett separat Modal-fönster under
-  // edge-to-edge. In-tree funkar samma reanimated-lyft som add-baren (exakt höjd).
-  const insets = useSafeAreaInsets();
-  const createKeyboard = useAnimatedKeyboard();
-  const createSheetLift = useAnimatedStyle(() => ({
-    // Overlayn ligger i SafeAreaView (botten redan inskjuten insets.bottom), så dra
-    // av den från tangentbordshöjden annars över-lyfts sheeten.
-    paddingBottom: Math.max(0, createKeyboard.height.value - insets.bottom),
-  }));
   // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
   // opålitligt på Android (särskilt multiline paste-fältet visar inte
   // tangentbordet), och den async:a keyboardDidHide hinner ibland nolla
@@ -430,15 +416,7 @@ export default function RecipesScreen() {
     setShowModal(true);
   }
 
-  // Overlay:n (ej RN Modal) fångar inte Android-bakåt själv → stäng den manuellt.
-  useEffect(() => {
-    if (!showModal) return;
-    const onBack = () => { closeCreate(); return true; };
-    const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
-    return () => sub.remove();
-  }, [showModal, title, url, pasteText]);
-
-  // Sheet-innehållet delas mellan web- (RN Modal) och native- (in-tree overlay) rendering.
+  // Sheet-innehållet (delas ut för läsbarhet; renderas inuti KAV nedan).
   const createSheetInner = (
     <View style={s.sheet}>
       <View style={s.sheetHandle} />
@@ -703,27 +681,20 @@ export default function RecipesScreen() {
         </Pressable>
       )}
 
-      {showModal && (Platform.OS === 'web' ? (
-        /* Web/PWA: RN Modal + KAV fungerar (lyft + tryck-utanför), edge-to-edge
-           gäller inte där. */
+      {showModal && (
         <Modal visible transparent animationType="slide" onRequestClose={closeCreate}>
-          <View pointerEvents="none" style={s.overlayDim} />
-          <Pressable style={s.overlay} onPress={closeCreate} />
-          <KeyboardAvoidingView behavior={kavBehavior}>
-            {createSheetInner}
-          </KeyboardAvoidingView>
+          {/* Nästlad KeyboardProvider: RN Modal är ett separat OS-fönster, så
+              keyboard-controllern måste sätta upp sin lyssnare på Modal-fönstret
+              för att KAV ska se tangentbordet (enhetligt på Android/iOS/web). */}
+          <KeyboardProvider>
+            <View pointerEvents="none" style={s.overlayDim} />
+            <Pressable style={s.overlay} onPress={closeCreate} />
+            <KeyboardAvoidingView behavior="padding">
+              {createSheetInner}
+            </KeyboardAvoidingView>
+          </KeyboardProvider>
         </Modal>
-      ) : (
-        /* Native: in-tree overlay (INTE RN Modal) så reanimated-tangentbordslyftet
-           funkar — Modal-fönstret döljer tangentbordet för reanimated under
-           edge-to-edge. flex-end + paddingBottom-lyft, dim-Pressable stänger. */
-        <View style={s.modalRoot}>
-          <Pressable style={s.overlayDim} onPress={closeCreate} />
-          <RNAnimated.View style={createSheetLift}>
-            {createSheetInner}
-          </RNAnimated.View>
-        </View>
-      ))}
+      )}
 
       {/* Quick add-to-menu week+day picker */}
       <Modal visible={!!addToMenuFor} transparent animationType="slide" onRequestClose={() => setAddToMenuFor(null)}>
@@ -834,7 +805,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalRoot: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', zIndex: 100, elevation: 100 },
   sheetClose: { position: 'absolute', top: 14, right: 16, zIndex: 10, padding: 4 },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, gap: 14 },
   sheetScroll: { gap: 14, paddingBottom: 40 },

@@ -6,6 +6,7 @@ import { Platform, View } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useTablet } from '../src/hooks/useTablet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { HouseholdProvider, useHousehold } from '../src/context/HouseholdContext';
@@ -175,6 +176,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
       <SafeAreaProvider>
+        <KeyboardProvider>
         <ThemeProvider>
         <StatusBar style="light" />
         <StatusBarBackdrop />
@@ -198,6 +200,7 @@ export default function RootLayout() {
         </ClerkProvider>
         <AnimatedSplash />
         </ThemeProvider>
+        </KeyboardProvider>
       </SafeAreaProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>
