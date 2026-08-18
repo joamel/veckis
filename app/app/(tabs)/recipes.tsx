@@ -13,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useAnimatedKeyboard, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -237,16 +238,21 @@ export default function RecipesScreen() {
   // inputfältet, och vi vill att fokus "följer med" bara om tangentbordet
   // redan var uppe. Ref (inte state) så det läses synkront utan re-render.
   const keyboardUpRef = useRef(false);
-  // Tangentbordshöjd för att lyfta create-sheeten. RN:s keyboardDidShow-höjd är
-  // opålitlig på huvudskärmen under edge-to-edge (add-baren använder reanimated),
-  // MEN fungerar inuti RN Modal-fönstret (som inte panorerar självt), så här
-  // räcker den. Lyfter sheeten med paddingBottom (ingen KAV → ingen stretch).
-  const [modalKbHeight, setModalKbHeight] = useState(0);
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => { keyboardUpRef.current = true; setModalKbHeight(e.endCoordinates?.height ?? 0); });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; setModalKbHeight(0); });
+    const show = Keyboard.addListener('keyboardDidShow', () => { keyboardUpRef.current = true; });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; });
     return () => { show.remove(); hide.remove(); };
   }, []);
+  // Lyft för create-sheeten. RN:s keyboardDidShow-höjd ger fel värde inuti Modal-
+  // fönstret under edge-to-edge (över-lyft). reanimated useAnimatedKeyboard läser
+  // den KORREKTA höjden via WindowInsets (samma källa som add-baren lyfts med).
+  // Vi läser den på skärmnivå och matar in som vanligt tal i modalens paddingBottom.
+  const createKeyboard = useAnimatedKeyboard();
+  const [modalKbHeight, setModalKbHeight] = useState(0);
+  useAnimatedReaction(
+    () => createKeyboard.height.value,
+    (h, prev) => { if (h !== prev) runOnJS(setModalKbHeight)(h); },
+  );
   // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
   // opålitligt på Android (särskilt multiline paste-fältet visar inte
   // tangentbordet), och den async:a keyboardDidHide hinner ibland nolla
