@@ -6,6 +6,7 @@ import {
   BackHandler,
   FlatList,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -16,7 +17,7 @@ import {
   View,
 } from 'react-native';
 import RNAnimated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +34,7 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
+import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -56,6 +58,7 @@ export default function RecipesScreen() {
   const confirm = useConfirm();
   const tryCloseCreate = useDiscardDraft(confirm);
   const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setMode('manual'); };
+  const closeCreate = () => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate);
   // Sort-tipset togs bort (#11 backloggen) — det fyrade bara om recept fanns,
   // och då behövde användaren ändå inte just det tipset. Ersatt med ett
   // action-tip på "+"-knappen som förklarar hur man skapar recept första gången.
@@ -248,9 +251,12 @@ export default function RecipesScreen() {
   // Create-sheeten renderas som overlay i skärmen (INTE RN Modal), för reanimated
   // useAnimatedKeyboard ser inte tangentbordet i ett separat Modal-fönster under
   // edge-to-edge. In-tree funkar samma reanimated-lyft som add-baren (exakt höjd).
+  const insets = useSafeAreaInsets();
   const createKeyboard = useAnimatedKeyboard();
   const createSheetLift = useAnimatedStyle(() => ({
-    paddingBottom: Platform.OS === 'web' ? 0 : createKeyboard.height.value,
+    // Overlayn ligger i SafeAreaView (botten redan inskjuten insets.bottom), så dra
+    // av den från tangentbordshöjden annars över-lyfts sheeten.
+    paddingBottom: Math.max(0, createKeyboard.height.value - insets.bottom),
   }));
   // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
   // opålitligt på Android (särskilt multiline paste-fältet visar inte
@@ -427,13 +433,114 @@ export default function RecipesScreen() {
   // Overlay:n (ej RN Modal) fångar inte Android-bakåt själv → stäng den manuellt.
   useEffect(() => {
     if (!showModal) return;
-    const onBack = () => {
-      tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate);
-      return true;
-    };
+    const onBack = () => { closeCreate(); return true; };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
     return () => sub.remove();
   }, [showModal, title, url, pasteText]);
+
+  // Sheet-innehållet delas mellan web- (RN Modal) och native- (in-tree overlay) rendering.
+  const createSheetInner = (
+    <View style={s.sheet}>
+      <View style={s.sheetHandle} />
+      <Pressable style={s.sheetClose} onPress={closeCreate} hitSlop={10}>
+        <Ionicons name="close" size={22} color={c.textMuted} />
+      </Pressable>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
+        <Text style={s.sheetTitle}>{str.createModal.title}</Text>
+
+        <View style={s.modeTabs}>
+          <Pressable style={[s.modeTab, mode === 'manual' && s.modeTabActive]} onPress={() => switchMode('manual')}>
+            <Text style={[s.modeTabText, mode === 'manual' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabManual}</Text>
+          </Pressable>
+          <Pressable style={[s.modeTab, mode === 'paste' && s.modeTabActive]} onPress={() => switchMode('paste')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="sparkles" size={13} color={mode === 'paste' ? c.primary : c.textMuted} />
+              <Text style={[s.modeTabText, mode === 'paste' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabPaste}</Text>
+            </View>
+          </Pressable>
+          <Pressable style={[s.modeTab, mode === 'url' && s.modeTabActive]} onPress={() => switchMode('url')}>
+            <Text style={[s.modeTabText, mode === 'url' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabUrl}</Text>
+          </Pressable>
+        </View>
+
+        <View style={s.modeBody}>
+        {mode === 'manual' ? (
+          <>
+            <TextInput
+              ref={manualRef}
+              style={s.input}
+              placeholder={str.createModal.namePlaceholder}
+              placeholderTextColor={c.textFaint}
+              value={title}
+              onChangeText={setTitle}
+              importantForAutofill="no"
+              textContentType="none"
+              returnKeyType="done"
+              onSubmitEditing={handleCreateManual}
+            />
+            <Text style={s.createHint}>{str.createModal.createHint}</Text>
+            <Pressable
+              style={[s.button, s.modeBodyBtn, !title.trim() && s.buttonDisabled]}
+              onPress={handleCreateManual}
+              disabled={creating || !title.trim()}
+            >
+              {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.createButton}</Text>}
+            </Pressable>
+          </>
+        ) : mode === 'paste' ? (
+          <>
+            <Text style={s.pasteHint}>{str.createModal.pasteHint}</Text>
+            <TextInput
+              ref={pasteRef}
+              style={[s.input, { height: 130, textAlignVertical: 'top', paddingTop: 10 }]}
+              placeholder={str.createModal.pastePlaceholder}
+              placeholderTextColor={c.textFaint}
+              value={pasteText}
+              onChangeText={setPasteText}
+              multiline
+              scrollEnabled
+              importantForAutofill="no"
+            />
+            <Pressable
+              style={[s.button, s.modeBodyBtn, !pasteText.trim() && s.buttonDisabled]}
+              onPress={handleParseAndCreate}
+              disabled={parsing || creating || !pasteText.trim()}
+            >
+              {parsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.parseButton}</Text>}
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <TextInput
+              ref={urlRef}
+              style={s.input}
+              placeholder={str.createModal.urlPlaceholder}
+              placeholderTextColor={c.textFaint}
+              value={url}
+              onChangeText={setUrl}
+              autoCapitalize="none"
+              keyboardType="url"
+              importantForAutofill="no"
+              textContentType="none"
+              returnKeyType="done"
+              onSubmitEditing={handleScrape}
+            />
+            <Text style={s.urlHint}>{str.createModal.urlHint}</Text>
+            <Pressable
+              style={[s.button, s.modeBodyBtn, !url.trim() && s.buttonDisabled]}
+              onPress={handleScrape}
+              disabled={scraping || creating || !url.trim()}
+            >
+              {scraping || creating
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={s.buttonText}>{str.createModal.fetchButton}</Text>}
+            </Pressable>
+          </>
+        )}
+        </View>
+      </ScrollView>
+    </View>
+  );
 
   if (loading) {
     return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
@@ -596,121 +703,27 @@ export default function RecipesScreen() {
         </Pressable>
       )}
 
-      {showModal && (
-      /* In-tree overlay (INTE RN Modal): så reanimated-tangentbordslyftet funkar
-         (Modal-fönstret döljer tangentbordet för reanimated under edge-to-edge)
-         och tryck-utanför funkar även i PWA. Dim-lagret är tryck-ytan; sheeten
-         ankras i botten och lyfts med reanimated paddingBottom. */
-      <View style={s.modalRoot}>
-        <Pressable style={s.overlayDim} onPress={() => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate)} />
-        <RNAnimated.View style={[s.sheetAnchor, createSheetLift]}>
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-          <Pressable
-            style={s.sheetClose}
-            onPress={() => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate)}
-            hitSlop={10}
-          >
-            <Ionicons name="close" size={22} color={c.textMuted} />
-          </Pressable>
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
-          <Text style={s.sheetTitle}>{str.createModal.title}</Text>
-
-          <View style={s.modeTabs}>
-            <Pressable style={[s.modeTab, mode === 'manual' && s.modeTabActive]} onPress={() => switchMode('manual')}>
-              <Text style={[s.modeTabText, mode === 'manual' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabManual}</Text>
-            </Pressable>
-            <Pressable style={[s.modeTab, mode === 'paste' && s.modeTabActive]} onPress={() => switchMode('paste')}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="sparkles" size={13} color={mode === 'paste' ? c.primary : c.textMuted} />
-                <Text style={[s.modeTabText, mode === 'paste' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabPaste}</Text>
-              </View>
-            </Pressable>
-            <Pressable style={[s.modeTab, mode === 'url' && s.modeTabActive]} onPress={() => switchMode('url')}>
-              <Text style={[s.modeTabText, mode === 'url' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabUrl}</Text>
-            </Pressable>
-          </View>
-
-          <View style={s.modeBody}>
-          {mode === 'manual' ? (
-            <>
-              <TextInput
-                ref={manualRef}
-                style={s.input}
-                placeholder={str.createModal.namePlaceholder}
-                placeholderTextColor={c.textFaint}
-                value={title}
-                onChangeText={setTitle}
-                importantForAutofill="no"
-                textContentType="none"
-                returnKeyType="done"
-                onSubmitEditing={handleCreateManual}
-              />
-              <Text style={s.createHint}>{str.createModal.createHint}</Text>
-              <Pressable
-                style={[s.button, s.modeBodyBtn, !title.trim() && s.buttonDisabled]}
-                onPress={handleCreateManual}
-                disabled={creating || !title.trim()}
-              >
-                {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.createButton}</Text>}
-              </Pressable>
-            </>
-          ) : mode === 'paste' ? (
-            <>
-              <Text style={s.pasteHint}>{str.createModal.pasteHint}</Text>
-              <TextInput
-                ref={pasteRef}
-                style={[s.input, { height: 130, textAlignVertical: 'top', paddingTop: 10 }]}
-                placeholder={str.createModal.pastePlaceholder}
-                placeholderTextColor={c.textFaint}
-                value={pasteText}
-                onChangeText={setPasteText}
-                multiline
-                scrollEnabled
-                importantForAutofill="no"
-              />
-              <Pressable
-                style={[s.button, s.modeBodyBtn, !pasteText.trim() && s.buttonDisabled]}
-                onPress={handleParseAndCreate}
-                disabled={parsing || creating || !pasteText.trim()}
-              >
-                {parsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.parseButton}</Text>}
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <TextInput
-                ref={urlRef}
-                style={s.input}
-                placeholder={str.createModal.urlPlaceholder}
-                placeholderTextColor={c.textFaint}
-                value={url}
-                onChangeText={setUrl}
-                autoCapitalize="none"
-                keyboardType="url"
-                importantForAutofill="no"
-                textContentType="none"
-                returnKeyType="done"
-                onSubmitEditing={handleScrape}
-              />
-              <Text style={s.urlHint}>{str.createModal.urlHint}</Text>
-              <Pressable
-                style={[s.button, s.modeBodyBtn, !url.trim() && s.buttonDisabled]}
-                onPress={handleScrape}
-                disabled={scraping || creating || !url.trim()}
-              >
-                {scraping || creating
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.buttonText}>{str.createModal.fetchButton}</Text>}
-              </Pressable>
-            </>
-          )}
-          </View>
-          </ScrollView>
+      {showModal && (Platform.OS === 'web' ? (
+        /* Web/PWA: RN Modal + KAV fungerar (lyft + tryck-utanför), edge-to-edge
+           gäller inte där. */
+        <Modal visible transparent animationType="slide" onRequestClose={closeCreate}>
+          <View pointerEvents="none" style={s.overlayDim} />
+          <Pressable style={s.overlay} onPress={closeCreate} />
+          <KeyboardAvoidingView behavior={kavBehavior}>
+            {createSheetInner}
+          </KeyboardAvoidingView>
+        </Modal>
+      ) : (
+        /* Native: in-tree overlay (INTE RN Modal) så reanimated-tangentbordslyftet
+           funkar — Modal-fönstret döljer tangentbordet för reanimated under
+           edge-to-edge. flex-end + paddingBottom-lyft, dim-Pressable stänger. */
+        <View style={s.modalRoot}>
+          <Pressable style={s.overlayDim} onPress={closeCreate} />
+          <RNAnimated.View style={createSheetLift}>
+            {createSheetInner}
+          </RNAnimated.View>
         </View>
-        </RNAnimated.View>
-      </View>
-      )}
+      ))}
 
       {/* Quick add-to-menu week+day picker */}
       <Modal visible={!!addToMenuFor} transparent animationType="slide" onRequestClose={() => setAddToMenuFor(null)}>
@@ -821,8 +834,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalRoot: { ...StyleSheet.absoluteFillObject, zIndex: 100, elevation: 100 },
-  sheetAnchor: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  modalRoot: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', zIndex: 100, elevation: 100 },
   sheetClose: { position: 'absolute', top: 14, right: 16, zIndex: 10, padding: 4 },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, gap: 14 },
   sheetScroll: { gap: 14, paddingBottom: 40 },
