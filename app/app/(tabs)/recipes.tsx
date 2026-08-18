@@ -421,9 +421,6 @@ export default function RecipesScreen() {
   const createSheetInner = (
     <View style={[s.sheet, { paddingBottom: 28 }]}>
       <View style={s.sheetHandle} />
-      <Pressable style={s.sheetClose} onPress={closeCreate} hitSlop={10}>
-        <Ionicons name="close" size={22} color={c.textMuted} />
-      </Pressable>
         <Text style={s.sheetTitle}>{str.createModal.title}</Text>
 
         <View style={s.modeTabs}>
@@ -800,7 +797,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
   overlay: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheetClose: { position: 'absolute', top: 14, right: 16, zIndex: 10, padding: 4 },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, gap: 14 },
   sheetScroll: { gap: 14, paddingBottom: 40 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
