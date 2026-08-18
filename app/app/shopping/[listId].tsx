@@ -29,6 +29,7 @@ import {
 } from 'react-native';
 import RNAnimated, {
   useSharedValue,
+  useAnimatedKeyboard,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   interpolate,
@@ -297,7 +298,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     }
   }
   const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // Native tangentbordslyft för "lägg till vara"-baren. RN:s keyboardDidShow-höjd
+  // är opålitlig på Android under SDK 54 edge-to-edge (OS:et resizar inte fönstret),
+  // så vi läser höjden via reanimated (WindowInsets-baserat, funkar edge-to-edge) och
+  // lyfter baren med paddingBottom. Web hanteras separat av KAV/browser-resize.
+  const animKeyboard = useAnimatedKeyboard();
+  const addBarLift = useAnimatedStyle(() => ({
+    paddingBottom: Platform.OS === 'web' ? 0 : animKeyboard.height.value,
+  }));
   const inputRef = useRef<TextInput>(null);
   const editQtyRef = useRef<TextInput>(null);
   const editUnitRef = useRef<TextInput>(null);
@@ -613,13 +621,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
       setKeyboardVisible(true);
-      setKeyboardHeight(e.endCoordinates?.height ?? 0); // uppmätt höjd → deterministisk lyft av add-baren
     });
     const hideSub = Keyboard.addListener('keyboardDidHide', () => {
       setKeyboardVisible(false);
-      setKeyboardHeight(0);
     });
     return () => {
       showSub.remove();
@@ -1504,15 +1510,16 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           Android Chrome PWA: browser resizes viewport → bar floats up naturally.
           KAV would double-push (bar "jumps"). Disable on non-iOS web.
           iOS Safari PWA: viewport doesn't resize → KAV needed to clear keyboard. */}
-      {/* iOS native: lyft med UPPMÄTT tangentbordshöjd (iOS resizar/pannar inte).
-          Android native: sköts av softwareKeyboardLayoutMode:"pan" (OS pannar upp
-          det fokuserade fältet) → ingen JS-padding, annars dubbel-lyft.
+      {/* Native (iOS OCH Android): lyft med reanimated-tangentbordshöjd (WindowInsets,
+          funkar under SDK 54 edge-to-edge där OS:et varken resizar eller pannar och
+          RN:s keyboardDidShow-höjd är 0 på Android). RNAnimated.View lägger
+          paddingBottom = keyboardhöjd så baren dockar ovanför tangentbordet.
           Web: iOS Safari behöver KAV-push; Android Chrome resizar viewporten själv. */}
+      <RNAnimated.View style={addBarLift}>
       <KeyboardAvoidingView
         behavior="padding"
         keyboardVerticalOffset={isIOSLike ? 90 : 0}
         enabled={keyboardVisible && Platform.OS === 'web' && isIOSLike}
-        style={{ paddingBottom: Platform.OS === 'ios' && keyboardVisible ? keyboardHeight : 0 }}
       >
         {suggestions.length > 0 ? (
           <ScrollView
@@ -1577,6 +1584,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      </RNAnimated.View>
 
       {/* Butik-väljaren ligger nu på /stores-routen (full-screen) — caller:n
           använder pickStore()-helpern och navigerar dit i ?pick=1-läge. */}
