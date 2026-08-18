@@ -11,7 +11,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -233,7 +232,6 @@ export default function RecipesScreen() {
   }, [recipes, searchQuery, sortMode, activeTags]);
 
   // New recipe form
-  const { height: windowHeight } = useWindowDimensions();
   const [mode, setMode] = useState<'manual' | 'paste' | 'url'>('manual');
   // Håll koll på om tangentbordet är uppe just nu — vid flikbyte remountas
   // inputfältet, och vi vill att fokus "följer med" bara om tangentbordet
@@ -589,7 +587,7 @@ export default function RecipesScreen() {
             inte täcker dim-ytan ovanför → tryck-utanför stänger, även i PWA. */}
         <Pressable style={s.overlayDim} onPress={() => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate)} />
         <View style={[s.sheetAnchor, { paddingBottom: modalKbHeight }]}>
-        <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
+        <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Pressable
             style={s.sheetClose}
