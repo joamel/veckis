@@ -5,8 +5,8 @@ import {
   ActivityIndicator,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import RNAnimated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -31,7 +32,6 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
-import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -244,6 +244,14 @@ export default function RecipesScreen() {
     const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; });
     return () => { show.remove(); hide.remove(); };
   }, []);
+  // Lyft create-sheeten ovanför tangentbordet. RN:s KAV/keyboardDidShow-höjd är
+  // opålitlig på Android under SDK 54 edge-to-edge; reanimated läser höjden via
+  // WindowInsets. Sheeten ligger i normalflöde (flex-1-mönster) → paddingBottom
+  // lyfter den. Web sköts av browsern.
+  const createKeyboard = useAnimatedKeyboard();
+  const createSheetLift = useAnimatedStyle(() => ({
+    paddingBottom: Platform.OS === 'web' ? 0 : createKeyboard.height.value,
+  }));
   // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
   // opålitligt på Android (särskilt multiline paste-fältet visar inte
   // tangentbordet), och den async:a keyboardDidHide hinner ibland nolla
@@ -580,7 +588,7 @@ export default function RecipesScreen() {
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+        <RNAnimated.View style={createSheetLift}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
@@ -678,7 +686,7 @@ export default function RecipesScreen() {
           </View>
           </ScrollView>
         </View>
-        </KeyboardAvoidingView>
+        </RNAnimated.View>
       </Modal>
 
       {/* Quick add-to-menu week+day picker */}
