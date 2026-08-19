@@ -247,22 +247,27 @@ export default function RecipesScreen() {
   // browsern sköter viewporten, inget lyft. Nollställs rent vid keyboardDidHide.
   const { height: windowHeight } = useWindowDimensions();
   const focusedInputRef = useRef<TextInput | null>(null);
+  const kbHeightRef = useRef(0);
   const [sheetLift, setSheetLift] = useState(0);
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => {
-      keyboardUpRef.current = true;
-      if (Platform.OS === 'web') return;
-      const kbH = Math.min(e.endCoordinates?.height || 300, windowHeight * 0.5);
-      const ref = focusedInputRef.current;
-      if (!ref) return;
-      setTimeout(() => ref.measureInWindow((_x, y, _w, h) => {
-        const hidden = (y + h + 20) - (windowHeight - kbH);
-        setSheetLift(Math.max(0, Math.min(hidden, windowHeight * 0.5)));
-      }), 60);
-    });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; setSheetLift(0); });
-    return () => { show.remove(); hide.remove(); };
+  // Mät fokuserat fält och lyft lagom. Körs både vid keyboardDidShow och vid
+  // onFocus (så lyftet räknas om när man byter fält medan tangentbordet redan är
+  // uppe, t.ex. manuellt → klistra in).
+  const revealFocused = useCallback(() => {
+    if (Platform.OS === 'web' || kbHeightRef.current === 0) return;
+    const ref = focusedInputRef.current;
+    if (!ref) return;
+    const kbH = Math.min(kbHeightRef.current, windowHeight * 0.5);
+    setTimeout(() => ref.measureInWindow((_x, y, _w, h) => {
+      // y innehåller redan nuvarande lyft (prev) → naturlig botten = y + prev + h.
+      // Räkna mål-lyftet absolut (idempotent), klampat.
+      setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20) - (windowHeight - kbH), windowHeight * 0.5)));
+    }), 60);
   }, [windowHeight]);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => { keyboardUpRef.current = true; kbHeightRef.current = e.endCoordinates?.height ?? 0; revealFocused(); });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; kbHeightRef.current = 0; setSheetLift(0); });
+    return () => { show.remove(); hide.remove(); };
+  }, [revealFocused]);
   // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
   // opålitligt på Android (särskilt multiline paste-fältet visar inte
   // tangentbordet), och den async:a keyboardDidHide hinner ibland nolla
@@ -469,7 +474,7 @@ export default function RecipesScreen() {
               importantForAutofill="no"
               textContentType="none"
               returnKeyType="done"
-              onFocus={() => { focusedInputRef.current = manualRef.current; }}
+              onFocus={() => { focusedInputRef.current = manualRef.current; revealFocused(); }}
               onSubmitEditing={handleCreateManual}
             />
             <Text style={s.createHint}>{str.createModal.createHint}</Text>
@@ -494,7 +499,7 @@ export default function RecipesScreen() {
               multiline
               scrollEnabled
               importantForAutofill="no"
-              onFocus={() => { focusedInputRef.current = pasteRef.current; }}
+              onFocus={() => { focusedInputRef.current = pasteRef.current; revealFocused(); }}
             />
             <Pressable
               style={[s.button, s.modeBodyBtn, !pasteText.trim() && s.buttonDisabled]}
@@ -517,7 +522,7 @@ export default function RecipesScreen() {
               keyboardType="url"
               importantForAutofill="no"
               textContentType="none"
-              onFocus={() => { focusedInputRef.current = urlRef.current; }}
+              onFocus={() => { focusedInputRef.current = urlRef.current; revealFocused(); }}
               returnKeyType="done"
               onSubmitEditing={handleScrape}
             />
