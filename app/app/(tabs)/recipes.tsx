@@ -14,7 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -234,6 +234,7 @@ export default function RecipesScreen() {
     });
   }, [recipes, searchQuery, sortMode, activeTags]);
 
+  const insets = useSafeAreaInsets();
   // New recipe form
   const [mode, setMode] = useState<'manual' | 'paste' | 'url'>('manual');
   // Håll koll på om tangentbordet är uppe just nu — vid flikbyte remountas
@@ -419,7 +420,7 @@ export default function RecipesScreen() {
 
   // Sheet-innehållet (delas ut för läsbarhet; renderas inuti KAV nedan).
   const createSheetInner = (
-    <View style={[s.sheet, { paddingBottom: 28 }]}>
+    <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
       <View style={s.sheetHandle} />
         <Text style={s.sheetTitle}>{str.createModal.title}</Text>
 
@@ -680,7 +681,7 @@ export default function RecipesScreen() {
       {/* Samma mönster som "Ny butik"-modalen (fungerar på Android edge-to-edge +
           web): RN Modal + absolut heltäckande KAV + flex-end, och sheeten UTAN
           ScrollView (en ScrollView expanderar under behavior="height" → för hög). */}
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={closeCreate}>
+      <Modal visible={showModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeCreate}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={closeCreate} />
         <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
