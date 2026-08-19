@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -240,15 +241,33 @@ export default function RecipesScreen() {
   // inputfältet, och vi vill att fokus "följer med" bara om tangentbordet
   // redan var uppe. Ref (inte state) så det läses synkront utan re-render.
   const keyboardUpRef = useRef(false);
-  // Manuellt tangentbords-lyft (native): KeyboardAvoidingView återställer inte rent
-  // ihop med den kant-till-kant-modalen → luft under sheeten efter en keyboard-cykel.
-  // State-styrd paddingBottom nollställs deterministiskt när tangentbordet stängs.
-  const [kbInfo, setKbInfo] = useState({ visible: false, height: 0 });
+  // Scroll-into-view-lyft (native): mät det fokuserade fältet när tangentbordet
+  // visats (då finns rätt höjd) och lyft sheeten BARA så mycket att fältet syns
+  // ovanför tangentbordet — inte hela höjden (då flyger höga modaler upp). Web:
+  // browsern sköter viewporten, inget lyft. Nollställs rent vid keyboardDidHide.
+  const { height: windowHeight } = useWindowDimensions();
+  const focusedInputRef = useRef<TextInput | null>(null);
+  const kbHeightRef = useRef(0);
+  const [sheetLift, setSheetLift] = useState(0);
+  // Mät fokuserat fält och lyft lagom. Körs både vid keyboardDidShow och vid
+  // onFocus (så lyftet räknas om när man byter fält medan tangentbordet redan är
+  // uppe, t.ex. manuellt → klistra in).
+  const revealFocused = useCallback(() => {
+    if (Platform.OS === 'web' || kbHeightRef.current === 0) return;
+    const ref = focusedInputRef.current;
+    if (!ref) return;
+    const kbH = Math.min(kbHeightRef.current, windowHeight * 0.5);
+    setTimeout(() => ref.measureInWindow((_x, y, _w, h) => {
+      // y innehåller redan nuvarande lyft (prev) → naturlig botten = y + prev + h.
+      // Räkna mål-lyftet absolut (idempotent), klampat.
+      setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20) - (windowHeight - kbH), windowHeight * 0.5)));
+    }), 60);
+  }, [windowHeight]);
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => { keyboardUpRef.current = true; setKbInfo({ visible: true, height: e.endCoordinates?.height ?? 0 }); });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; setKbInfo({ visible: false, height: 0 }); });
+    const show = Keyboard.addListener('keyboardDidShow', (e) => { keyboardUpRef.current = true; kbHeightRef.current = e.endCoordinates?.height ?? 0; revealFocused(); });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; kbHeightRef.current = 0; setSheetLift(0); });
     return () => { show.remove(); hide.remove(); };
-  }, []);
+  }, [revealFocused]);
   // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
   // opålitligt på Android (särskilt multiline paste-fältet visar inte
   // tangentbordet), och den async:a keyboardDidHide hinner ibland nolla
@@ -425,14 +444,7 @@ export default function RecipesScreen() {
   const createSheetInner = (
     <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
       <View style={s.sheetHandle} />
-        <View style={s.sheetTitleRow}>
-          <Text style={s.sheetTitle}>{str.createModal.title}</Text>
-          {Platform.OS === 'web' && (
-            <Pressable onPress={closeCreate} hitSlop={10} style={s.sheetCloseWeb} accessibilityLabel={common.actions.close}>
-              <Ionicons name="close" size={22} color={c.textMuted} />
-            </Pressable>
-          )}
-        </View>
+        <Text style={s.sheetTitle}>{str.createModal.title}</Text>
 
         <View style={s.modeTabs}>
           <Pressable style={[s.modeTab, mode === 'manual' && s.modeTabActive]} onPress={() => switchMode('manual')}>
@@ -462,6 +474,7 @@ export default function RecipesScreen() {
               importantForAutofill="no"
               textContentType="none"
               returnKeyType="done"
+              onFocus={() => { focusedInputRef.current = manualRef.current; revealFocused(); }}
               onSubmitEditing={handleCreateManual}
             />
             <Text style={s.createHint}>{str.createModal.createHint}</Text>
@@ -486,6 +499,7 @@ export default function RecipesScreen() {
               multiline
               scrollEnabled
               importantForAutofill="no"
+              onFocus={() => { focusedInputRef.current = pasteRef.current; revealFocused(); }}
             />
             <Pressable
               style={[s.button, s.modeBodyBtn, !pasteText.trim() && s.buttonDisabled]}
@@ -508,6 +522,7 @@ export default function RecipesScreen() {
               keyboardType="url"
               importantForAutofill="no"
               textContentType="none"
+              onFocus={() => { focusedInputRef.current = urlRef.current; revealFocused(); }}
               returnKeyType="done"
               onSubmitEditing={handleScrape}
             />
@@ -699,7 +714,7 @@ export default function RecipesScreen() {
             när tangentbordet stängs); web sköts av browserns viewport-resize. */}
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={closeCreate} />
-        <View style={{ paddingBottom: Platform.OS !== 'web' && kbInfo.visible ? kbInfo.height : 0 }}>
+        <View style={{ paddingBottom: sheetLift }}>
           {createSheetInner}
         </View>
       </Modal>
@@ -817,8 +832,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   sheetScroll: { gap: 14, paddingBottom: 40 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
-  sheetTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sheetCloseWeb: { padding: 4, marginRight: -4 },
   addMenuBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   selectBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primaryTint, paddingHorizontal: 16, paddingVertical: 10 },
   selectBannerText: { fontSize: 14, fontWeight: '600', color: c.primary },

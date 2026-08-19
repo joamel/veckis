@@ -4,9 +4,7 @@ import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   FlatList,
-  Keyboard,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -27,6 +25,7 @@ import { pickStore } from '../../src/lib/storePicker';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { useTablet } from '../../src/hooks/useTablet';
+import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { ShoppingListDetail } from '../shopping/[listId]';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -62,13 +61,9 @@ export default function ShoppingScreen() {
   const [newListEmoji, setNewListEmoji] = useState<string | null>(null);
   const [newListStoreId, setNewListStoreId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  // Native tangentbords-lyft för modalen (state-styrd padding → nollställs rent).
-  const [kbInfo, setKbInfo] = useState({ visible: false, height: 0 });
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => setKbInfo({ visible: true, height: e.endCoordinates?.height ?? 0 }));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKbInfo({ visible: false, height: 0 }));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
+  // Scroll-into-view-lyft för modalen (mät fokuserat fält, lyft lagom).
+  const { sheetLift, onFocusInput } = useSheetLift();
+  const newListNameRef = useRef<TextInput>(null);
 
   // Stores administreras numera på /stores-routen — vi hämtar bara listan här
   // för att kunna visa butik-koppling i "ny lista"-formuläret.
@@ -257,18 +252,12 @@ export default function ShoppingScreen() {
       <Modal visible={showModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => tryCloseCreate(newListName.trim() !== '', discardCreate)}>
         <View pointerEvents="none" style={styles.overlayDim} />
         <Pressable style={styles.overlay} onPress={() => tryCloseCreate(newListName.trim() !== '', discardCreate)} />
-        <View style={{ paddingBottom: Platform.OS !== 'web' && kbInfo.visible ? kbInfo.height : 0 }}>
+        <View style={{ paddingBottom: sheetLift }}>
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={styles.sheetHandle} />
-            <View style={styles.sheetTitleRow}>
-              <Text style={styles.sheetTitle}>{str.createModal.title}</Text>
-              {Platform.OS === 'web' && (
-                <Pressable onPress={() => tryCloseCreate(newListName.trim() !== '', discardCreate)} hitSlop={10} style={styles.sheetCloseWeb} accessibilityLabel={common.actions.close}>
-                  <Ionicons name="close" size={22} color={c.textMuted} />
-                </Pressable>
-              )}
-            </View>
+            <Text style={styles.sheetTitle}>{str.createModal.title}</Text>
             <TextInput
+              ref={newListNameRef}
               style={styles.input}
               placeholder={str.createModal.namePlaceholder}
               placeholderTextColor={c.textFaint}
@@ -276,6 +265,7 @@ export default function ShoppingScreen() {
               onChangeText={setNewListName}
               autoFocus
               returnKeyType="done"
+              onFocus={onFocusInput(newListNameRef)}
               onSubmitEditing={createList}
             />
             <EmojiPicker value={newListEmoji} onChange={setNewListEmoji} />
@@ -405,8 +395,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     marginBottom: 4,
   },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
-  sheetTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sheetCloseWeb: { padding: 4, marginRight: -4 },
   input: { color: c.text,
     borderWidth: 1,
     borderColor: c.borderLight,
