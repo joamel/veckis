@@ -260,14 +260,7 @@ export default function ShoppingScreen() {
         <View style={{ paddingBottom: Platform.OS !== 'web' && kbInfo.visible ? kbInfo.height : 0 }}>
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={styles.sheetHandle} />
-            <View style={styles.sheetTitleRow}>
-              <Text style={styles.sheetTitle}>{str.createModal.title}</Text>
-              {Platform.OS === 'web' && (
-                <Pressable onPress={() => tryCloseCreate(newListName.trim() !== '', discardCreate)} hitSlop={10} style={styles.sheetCloseWeb} accessibilityLabel={common.actions.close}>
-                  <Ionicons name="close" size={22} color={c.textMuted} />
-                </Pressable>
-              )}
-            </View>
+            <Text style={styles.sheetTitle}>{str.createModal.title}</Text>
             <TextInput
               style={styles.input}
               placeholder={str.createModal.namePlaceholder}
@@ -405,8 +398,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     marginBottom: 4,
   },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
-  sheetTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sheetCloseWeb: { padding: 4, marginRight: -4 },
   input: { color: c.text,
     borderWidth: 1,
     borderColor: c.borderLight,
