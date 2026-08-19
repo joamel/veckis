@@ -5,8 +5,8 @@ import {
   ActivityIndicator,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,7 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,7 +31,6 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
-import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -234,15 +233,20 @@ export default function RecipesScreen() {
     });
   }, [recipes, searchQuery, sortMode, activeTags]);
 
+  const insets = useSafeAreaInsets();
   // New recipe form
   const [mode, setMode] = useState<'manual' | 'paste' | 'url'>('manual');
   // Håll koll på om tangentbordet är uppe just nu — vid flikbyte remountas
   // inputfältet, och vi vill att fokus "följer med" bara om tangentbordet
   // redan var uppe. Ref (inte state) så det läses synkront utan re-render.
   const keyboardUpRef = useRef(false);
+  // Manuellt tangentbords-lyft (native): KeyboardAvoidingView återställer inte rent
+  // ihop med den kant-till-kant-modalen → luft under sheeten efter en keyboard-cykel.
+  // State-styrd paddingBottom nollställs deterministiskt när tangentbordet stängs.
+  const [kbInfo, setKbInfo] = useState({ visible: false, height: 0 });
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => { keyboardUpRef.current = true; });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; });
+    const show = Keyboard.addListener('keyboardDidShow', (e) => { keyboardUpRef.current = true; setKbInfo({ visible: true, height: e.endCoordinates?.height ?? 0 }); });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; setKbInfo({ visible: false, height: 0 }); });
     return () => { show.remove(); hide.remove(); };
   }, []);
   // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
@@ -419,9 +423,16 @@ export default function RecipesScreen() {
 
   // Sheet-innehållet (delas ut för läsbarhet; renderas inuti KAV nedan).
   const createSheetInner = (
-    <View style={[s.sheet, { paddingBottom: 28 }]}>
+    <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
       <View style={s.sheetHandle} />
-        <Text style={s.sheetTitle}>{str.createModal.title}</Text>
+        <View style={s.sheetTitleRow}>
+          <Text style={s.sheetTitle}>{str.createModal.title}</Text>
+          {Platform.OS === 'web' && (
+            <Pressable onPress={closeCreate} hitSlop={10} style={s.sheetCloseWeb} accessibilityLabel={common.actions.close}>
+              <Ionicons name="close" size={22} color={c.textMuted} />
+            </Pressable>
+          )}
+        </View>
 
         <View style={s.modeTabs}>
           <Pressable style={[s.modeTab, mode === 'manual' && s.modeTabActive]} onPress={() => switchMode('manual')}>
@@ -680,12 +691,17 @@ export default function RecipesScreen() {
       {/* Samma mönster som "Ny butik"-modalen (fungerar på Android edge-to-edge +
           web): RN Modal + absolut heltäckande KAV + flex-end, och sheeten UTAN
           ScrollView (en ScrollView expanderar under behavior="height" → för hög). */}
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={closeCreate}>
+      <Modal visible={showModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeCreate}>
+        {/* overlayDim = dim-visual; overlay-Pressable (flex:1) = tryck-utanför-yta
+            som fyller ovanför sheeten. Sheeten ligger i NORMALFLÖDE direkt efter
+            (ingen absolut/KAV-wrapper som täcker overlayn → tryck-utanför funkar på
+            web). Native-lyft via state-padding på sheet-behållaren (nollställs rent
+            när tangentbordet stängs); web sköts av browserns viewport-resize. */}
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={closeCreate} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+        <View style={{ paddingBottom: Platform.OS !== 'web' && kbInfo.visible ? kbInfo.height : 0 }}>
           {createSheetInner}
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Quick add-to-menu week+day picker */}
@@ -801,6 +817,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   sheetScroll: { gap: 14, paddingBottom: 40 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+  sheetTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sheetCloseWeb: { padding: 4, marginRight: -4 },
   addMenuBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   selectBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primaryTint, paddingHorizontal: 16, paddingVertical: 10 },
   selectBannerText: { fontSize: 14, fontWeight: '600', color: c.primary },

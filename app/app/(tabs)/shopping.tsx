@@ -4,8 +4,9 @@ import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -33,7 +34,6 @@ import { onShoppingChanged } from '../../src/lib/shoppingEvents';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/clerk-expo';
 import { type Store } from '@veckis/shared';
-import { kavBehavior } from '../../src/lib/platform';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
 import { shopping as str, common } from '../../src/lib/svenska';
 
@@ -62,6 +62,13 @@ export default function ShoppingScreen() {
   const [newListEmoji, setNewListEmoji] = useState<string | null>(null);
   const [newListStoreId, setNewListStoreId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // Native tangentbords-lyft för modalen (state-styrd padding → nollställs rent).
+  const [kbInfo, setKbInfo] = useState({ visible: false, height: 0 });
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => setKbInfo({ visible: true, height: e.endCoordinates?.height ?? 0 }));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKbInfo({ visible: false, height: 0 }));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   // Stores administreras numera på /stores-routen — vi hämtar bara listan här
   // för att kunna visa butik-koppling i "ny lista"-formuläret.
@@ -247,13 +254,20 @@ export default function ShoppingScreen() {
         <Ionicons name="add" size={fs(30)} color="#fff" />
       </Pressable>
 
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => tryCloseCreate(newListName.trim() !== '', discardCreate)}>
+      <Modal visible={showModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => tryCloseCreate(newListName.trim() !== '', discardCreate)}>
         <View pointerEvents="none" style={styles.overlayDim} />
         <Pressable style={styles.overlay} onPress={() => tryCloseCreate(newListName.trim() !== '', discardCreate)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-          <View style={styles.sheet}>
+        <View style={{ paddingBottom: Platform.OS !== 'web' && kbInfo.visible ? kbInfo.height : 0 }}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>{str.createModal.title}</Text>
+            <View style={styles.sheetTitleRow}>
+              <Text style={styles.sheetTitle}>{str.createModal.title}</Text>
+              {Platform.OS === 'web' && (
+                <Pressable onPress={() => tryCloseCreate(newListName.trim() !== '', discardCreate)} hitSlop={10} style={styles.sheetCloseWeb} accessibilityLabel={common.actions.close}>
+                  <Ionicons name="close" size={22} color={c.textMuted} />
+                </Pressable>
+              )}
+            </View>
             <TextInput
               style={styles.input}
               placeholder={str.createModal.namePlaceholder}
@@ -299,7 +313,7 @@ export default function ShoppingScreen() {
                 : <Text style={styles.buttonText}>{str.createModal.createButton}</Text>}
             </Pressable>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
       </SafeAreaView>
       {isSplitView && (
@@ -391,6 +405,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     marginBottom: 4,
   },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+  sheetTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sheetCloseWeb: { padding: 4, marginRight: -4 },
   input: { color: c.text,
     borderWidth: 1,
     borderColor: c.borderLight,
