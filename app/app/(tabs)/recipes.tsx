@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -32,7 +31,6 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
-import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -687,17 +685,16 @@ export default function RecipesScreen() {
           web): RN Modal + absolut heltäckande KAV + flex-end, och sheeten UTAN
           ScrollView (en ScrollView expanderar under behavior="height" → för hög). */}
       <Modal visible={showModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeCreate}>
+        {/* overlayDim = dim-visual; overlay-Pressable (flex:1) = tryck-utanför-yta
+            som fyller ovanför sheeten. Sheeten ligger i NORMALFLÖDE direkt efter
+            (ingen absolut/KAV-wrapper som täcker overlayn → tryck-utanför funkar på
+            web). Native-lyft via state-padding på sheet-behållaren (nollställs rent
+            när tangentbordet stängs); web sköts av browserns viewport-resize. */}
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={closeCreate} />
-        {Platform.OS === 'web' ? (
-          <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1, justifyContent: 'flex-end' }}>
-            {createSheetInner}
-          </KeyboardAvoidingView>
-        ) : (
-          <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end', paddingBottom: kbInfo.visible ? kbInfo.height : 0 }}>
-            {createSheetInner}
-          </View>
-        )}
+        <View style={{ paddingBottom: Platform.OS !== 'web' && kbInfo.visible ? kbInfo.height : 0 }}>
+          {createSheetInner}
+        </View>
       </Modal>
 
       {/* Quick add-to-menu week+day picker */}
