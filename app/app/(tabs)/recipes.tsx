@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -240,15 +241,28 @@ export default function RecipesScreen() {
   // inputfältet, och vi vill att fokus "följer med" bara om tangentbordet
   // redan var uppe. Ref (inte state) så det läses synkront utan re-render.
   const keyboardUpRef = useRef(false);
-  // Manuellt tangentbords-lyft (native): KeyboardAvoidingView återställer inte rent
-  // ihop med den kant-till-kant-modalen → luft under sheeten efter en keyboard-cykel.
-  // State-styrd paddingBottom nollställs deterministiskt när tangentbordet stängs.
-  const [kbInfo, setKbInfo] = useState({ visible: false, height: 0 });
+  // Scroll-into-view-lyft (native): mät det fokuserade fältet när tangentbordet
+  // visats (då finns rätt höjd) och lyft sheeten BARA så mycket att fältet syns
+  // ovanför tangentbordet — inte hela höjden (då flyger höga modaler upp). Web:
+  // browsern sköter viewporten, inget lyft. Nollställs rent vid keyboardDidHide.
+  const { height: windowHeight } = useWindowDimensions();
+  const focusedInputRef = useRef<TextInput | null>(null);
+  const [sheetLift, setSheetLift] = useState(0);
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => { keyboardUpRef.current = true; setKbInfo({ visible: true, height: e.endCoordinates?.height ?? 0 }); });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; setKbInfo({ visible: false, height: 0 }); });
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      keyboardUpRef.current = true;
+      if (Platform.OS === 'web') return;
+      const kbH = Math.min(e.endCoordinates?.height || 300, windowHeight * 0.5);
+      const ref = focusedInputRef.current;
+      if (!ref) return;
+      setTimeout(() => ref.measureInWindow((_x, y, _w, h) => {
+        const hidden = (y + h + 20) - (windowHeight - kbH);
+        setSheetLift(Math.max(0, Math.min(hidden, windowHeight * 0.5)));
+      }), 60);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; setSheetLift(0); });
     return () => { show.remove(); hide.remove(); };
-  }, []);
+  }, [windowHeight]);
   // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
   // opålitligt på Android (särskilt multiline paste-fältet visar inte
   // tangentbordet), och den async:a keyboardDidHide hinner ibland nolla
@@ -455,6 +469,7 @@ export default function RecipesScreen() {
               importantForAutofill="no"
               textContentType="none"
               returnKeyType="done"
+              onFocus={() => { focusedInputRef.current = manualRef.current; }}
               onSubmitEditing={handleCreateManual}
             />
             <Text style={s.createHint}>{str.createModal.createHint}</Text>
@@ -479,6 +494,7 @@ export default function RecipesScreen() {
               multiline
               scrollEnabled
               importantForAutofill="no"
+              onFocus={() => { focusedInputRef.current = pasteRef.current; }}
             />
             <Pressable
               style={[s.button, s.modeBodyBtn, !pasteText.trim() && s.buttonDisabled]}
@@ -501,6 +517,7 @@ export default function RecipesScreen() {
               keyboardType="url"
               importantForAutofill="no"
               textContentType="none"
+              onFocus={() => { focusedInputRef.current = urlRef.current; }}
               returnKeyType="done"
               onSubmitEditing={handleScrape}
             />
@@ -692,7 +709,7 @@ export default function RecipesScreen() {
             när tangentbordet stängs); web sköts av browserns viewport-resize. */}
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={closeCreate} />
-        <View style={{ paddingBottom: Platform.OS !== 'web' && kbInfo.visible ? kbInfo.height : 0 }}>
+        <View style={{ paddingBottom: sheetLift }}>
           {createSheetInner}
         </View>
       </Modal>
