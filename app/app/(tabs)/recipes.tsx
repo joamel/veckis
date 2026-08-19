@@ -7,6 +7,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -240,9 +241,13 @@ export default function RecipesScreen() {
   // inputfältet, och vi vill att fokus "följer med" bara om tangentbordet
   // redan var uppe. Ref (inte state) så det läses synkront utan re-render.
   const keyboardUpRef = useRef(false);
+  // Manuellt tangentbords-lyft (native): KeyboardAvoidingView återställer inte rent
+  // ihop med den kant-till-kant-modalen → luft under sheeten efter en keyboard-cykel.
+  // State-styrd paddingBottom nollställs deterministiskt när tangentbordet stängs.
+  const [kbInfo, setKbInfo] = useState({ visible: false, height: 0 });
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => { keyboardUpRef.current = true; });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; });
+    const show = Keyboard.addListener('keyboardDidShow', (e) => { keyboardUpRef.current = true; setKbInfo({ visible: true, height: e.endCoordinates?.height ?? 0 }); });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; setKbInfo({ visible: false, height: 0 }); });
     return () => { show.remove(); hide.remove(); };
   }, []);
   // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
@@ -683,9 +688,15 @@ export default function RecipesScreen() {
       <Modal visible={showModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeCreate}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={closeCreate} />
-        <KeyboardAvoidingView behavior="padding" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-          {createSheetInner}
-        </KeyboardAvoidingView>
+        {Platform.OS === 'web' ? (
+          <KeyboardAvoidingView behavior="padding" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+            {createSheetInner}
+          </KeyboardAvoidingView>
+        ) : (
+          <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end', paddingBottom: kbInfo.visible ? kbInfo.height : 0 }}>
+            {createSheetInner}
+          </View>
+        )}
       </Modal>
 
       {/* Quick add-to-menu week+day picker */}
