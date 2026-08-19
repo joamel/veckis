@@ -32,6 +32,7 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
+import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -689,7 +690,7 @@ export default function RecipesScreen() {
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={closeCreate} />
         {Platform.OS === 'web' ? (
-          <KeyboardAvoidingView behavior="padding" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+          <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
             {createSheetInner}
           </KeyboardAvoidingView>
         ) : (
