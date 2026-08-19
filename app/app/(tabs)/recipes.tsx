@@ -425,7 +425,14 @@ export default function RecipesScreen() {
   const createSheetInner = (
     <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
       <View style={s.sheetHandle} />
-        <Text style={s.sheetTitle}>{str.createModal.title}</Text>
+        <View style={s.sheetTitleRow}>
+          <Text style={s.sheetTitle}>{str.createModal.title}</Text>
+          {Platform.OS === 'web' && (
+            <Pressable onPress={closeCreate} hitSlop={10} style={s.sheetCloseWeb} accessibilityLabel={common.actions.close}>
+              <Ionicons name="close" size={22} color={c.textMuted} />
+            </Pressable>
+          )}
+        </View>
 
         <View style={s.modeTabs}>
           <Pressable style={[s.modeTab, mode === 'manual' && s.modeTabActive]} onPress={() => switchMode('manual')}>
@@ -810,6 +817,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   sheetScroll: { gap: 14, paddingBottom: 40 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+  sheetTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sheetCloseWeb: { padding: 4, marginRight: -4 },
   addMenuBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   selectBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primaryTint, paddingHorizontal: 16, paddingVertical: 10 },
   selectBannerText: { fontSize: 14, fontWeight: '600', color: c.primary },
