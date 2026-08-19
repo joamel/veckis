@@ -690,7 +690,7 @@ export default function RecipesScreen() {
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={closeCreate} />
         {Platform.OS === 'web' ? (
-          <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+          <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1, justifyContent: 'flex-end' }}>
             {createSheetInner}
           </KeyboardAvoidingView>
         ) : (
