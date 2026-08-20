@@ -580,7 +580,6 @@ export default function MenuScreen() {
       const catMap: Record<string, string> = {};
       for (const sgg of suggestions) catMap[sgg.name.toLowerCase().trim()] = sgg.category;
       setIngredientCategories(catMap);
-      const transferred = new Set<string>();
       const listMap: Record<string, ListEntry[]> = {};
       // Build over ALL weeks' menu items (not just the current week) so the
       // "I inköpslistan"-tag is already correct on neighbouring week pages the
@@ -588,13 +587,11 @@ export default function MenuScreen() {
       (all.length ? all : menu).forEach(menuItem => {
         if (!listMap[menuItem.id]) listMap[menuItem.id] = [];
         activeLists.forEach(l => {
-          // Hidden items under a merge container won't appear in l.items, so trust
-          // l.linkedMenuItemIds (visible + hidden) as the source of truth.
+          // Koppling är strikt PER meny-item via linkedMenuItemIds (visible +
+          // hidden merge-container). INGEN legacy per-recept-match här — den tände
+          // kundvagnen på alla veckors förekomster av samma recept (bug).
           const linked = (l as { linkedMenuItemIds?: string[] }).linkedMenuItemIds ?? [];
-          const isLinked = linked.includes(menuItem.id) ||
-            l.items.some(item => !item.menuItemId && item.recipeId === menuItem.recipeId); // legacy
-          if (isLinked) {
-            transferred.add(menuItem.recipeId);
+          if (linked.includes(menuItem.id)) {
             const visibleCount = l.items.filter(item => item.menuItemId === menuItem.id).length;
             if (!listMap[menuItem.id].find(e => e.listId === l.id)) {
               listMap[menuItem.id].push({ listId: l.id, listName: l.name, itemCount: visibleCount });
