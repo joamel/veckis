@@ -26,14 +26,20 @@ export function useSheetLift() {
     if (Platform.OS === 'web' || kbHeightRef.current === 0) return;
     const ref = focusedInputRef.current;
     if (!ref) return;
-    const kbH = Math.min(kbHeightRef.current, windowHeight * 0.5);
-    // measureInWindow ger positionen MED nuvarande lyft applicerat → naturlig
-    // botten = y + prev + h. Räkna mål-lyftet absolut (idempotent), klampat.
-    // 260ms delay: låt Modal-slide-in + autoFocus-tangentbordet animera klart
-    // först, annars mäts fältet för lågt (mitt i sliden) → över-lyft.
-    setTimeout(() => ref.measureInWindow((_x, y, _w, h) => {
-      setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20) - (windowHeight - kbH), windowHeight * 0.5)));
-    }), 260);
+    // 260ms delay: låt Modal-slide-in + tangentbordet animera klart först, annars
+    // mäts fältet för lågt (mitt i sliden) → över-lyft.
+    setTimeout(() => {
+      // Tangentbordet kan ha stängts medan mätningen väntade (race mot
+      // keyboardDidHide som nollställer lyftet) → mät inte då, annars sätts ett
+      // "fast" lyft tillbaka och sheeten svävar med luft under.
+      if (kbHeightRef.current === 0) return;
+      const kbH = Math.min(kbHeightRef.current, windowHeight * 0.5);
+      // measureInWindow ger positionen MED nuvarande lyft applicerat → naturlig
+      // botten = y + prev + h. Räkna mål-lyftet absolut (idempotent), klampat.
+      ref.measureInWindow((_x, y, _w, h) => {
+        setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20) - (windowHeight - kbH), windowHeight * 0.5)));
+      });
+    }, 260);
   }, [windowHeight]);
 
   useEffect(() => {
