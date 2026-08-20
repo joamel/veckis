@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import Fuse from 'fuse.js';
 import { capitalize } from '../../src/lib/text';
 import { useCheckHaptic } from '../../src/hooks/useCheckHaptic';
+import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
@@ -307,9 +308,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     paddingBottom: Platform.OS === 'web' ? 0 : animKeyboard.height.value,
   }));
   const inputRef = useRef<TextInput>(null);
+  const editNameRef = useRef<TextInput>(null);
   const editQtyRef = useRef<TextInput>(null);
   const editUnitRef = useRef<TextInput>(null);
+  const stapleNameRef = useRef<TextInput>(null);
+  const stapleUnitRef = useRef<TextInput>(null);
+  const qtyValueRef = useRef<TextInput>(null);
   const qtyUnitRef = useRef<TextInput>(null);
+  // Scroll-into-view-lyft för edit-modalerna (mät fokuserat fält, lyft lagom).
+  const { sheetLift, onFocusInput } = useSheetLift();
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
   const dupeButtonScale = useRef(new Animated.Value(1)).current;
@@ -1639,16 +1646,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       </Modal>
 
       {/* Item edit modal */}
-      <Modal visible={!!editingItem} transparent animationType="slide" onRequestClose={() => setEditingItem(null)}>
+      <Modal visible={!!editingItem} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setEditingItem(null)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
+        <View style={{ paddingBottom: sheetLift }}>
+        <View style={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}>
           <View style={s.sheetHandle} />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
           <ConflictBanner message={editConflict?.msg ?? null} onShowLatest={editConflict?.latest ? applyLatestEdit : undefined} />
           <Text style={s.editLabel}>{common.fields.name}</Text>
           <TextInput
+            ref={editNameRef}
             style={s.editInput}
             value={editName}
             onChangeText={setEditName}
@@ -1656,6 +1664,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             placeholderTextColor={c.textFaint}
             autoCapitalize="none"
             returnKeyType="next"
+            onFocus={onFocusInput(editNameRef)}
             onSubmitEditing={() => editQtyRef.current?.focus()}
           />
           <View style={s.qtyStepper}>
@@ -1676,6 +1685,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               selectTextOnFocus
               returnKeyType="next"
               blurOnSubmit={false}
+              onFocus={onFocusInput(editQtyRef)}
               onSubmitEditing={() => editUnitRef.current?.focus()}
             />
             <Pressable
@@ -1692,6 +1702,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               placeholder={str.placeholders.unit}
               placeholderTextColor={c.textFaint}
               autoCapitalize="none"
+              onFocus={onFocusInput(editUnitRef)}
               returnKeyType="done"
             />
           </View>
@@ -1796,15 +1807,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </Pressable>
           </View>
         </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Staple edit modal (from long-press on suggestion chip) */}
-      <Modal visible={!!editingStaple} transparent animationType="slide" onRequestClose={() => setEditingStaple(null)}>
+      <Modal visible={!!editingStaple} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setEditingStaple(null)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setEditingStaple(null)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={[s.sheet, { maxHeight: windowHeight * 0.75 }]}>
+        <View style={{ paddingBottom: sheetLift }}>
+        <View style={[s.sheet, { maxHeight: windowHeight * 0.75, paddingBottom: insets.bottom + 20 }]}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>
             {editingStaple?.id.startsWith('suggestion:') ? str.stapleEditor.saveTitle : str.stapleEditor.editTitle}
@@ -1812,6 +1823,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
           <Text style={s.editLabel}>{common.fields.name}</Text>
           <TextInput
+            ref={stapleNameRef}
             style={s.editInput}
             value={stapleName}
             onChangeText={setStapleName}
@@ -1819,9 +1831,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             placeholderTextColor={c.textFaint}
             autoCapitalize="none"
             returnKeyType="done"
+            onFocus={onFocusInput(stapleNameRef)}
           />
           <Text style={s.editLabel}>{common.fields.unitOptional}</Text>
           <TextInput
+            ref={stapleUnitRef}
             style={s.editInput}
             value={stapleUnit}
             onChangeText={v => setStapleUnit(v.toLowerCase())}
@@ -1829,6 +1843,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             placeholderTextColor={c.textFaint}
             autoCapitalize="none"
             returnKeyType="done"
+            onFocus={onFocusInput(stapleUnitRef)}
           />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">
             <View style={s.unitChipRow}>
@@ -1872,17 +1887,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </Pressable>
           </View>
         </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Tidigare in-list category-order editor + custom-kategorier är borttagen.
           All butiks-konfig sker på /stores/[storeId]-routen istället. */}
       {/* Quantity sheet */}
-      <Modal visible={!!qtySheet} transparent animationType="slide" onRequestClose={() => setQtySheet(null)}>
+      <Modal visible={!!qtySheet} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setQtySheet(null)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }}>
           <Pressable style={{ flex: 1 }} onPress={() => setQtySheet(null)} />
-          <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-          <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
+          <View style={{ paddingBottom: sheetLift }}>
+          <View style={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{capitalize(qtySheet?.name)}</Text>
             <View style={s.qtyStepper}>
@@ -1893,6 +1908,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 <Ionicons name="remove" size={22} color={c.primary} />
               </Pressable>
               <TextInput
+                ref={qtyValueRef}
                 style={s.qtyInput}
                 value={qtyValue}
                 onChangeText={t => setQtyValue(normalizeQtyInput(t))}
@@ -1900,6 +1916,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 selectTextOnFocus
                 returnKeyType="next"
                 blurOnSubmit={false}
+                onFocus={onFocusInput(qtyValueRef)}
                 onSubmitEditing={() => qtyUnitRef.current?.focus()}
               />
               <Pressable
@@ -1917,6 +1934,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 placeholderTextColor={c.textFaint}
                 autoCapitalize="none"
                 returnKeyType="done"
+                onFocus={onFocusInput(qtyUnitRef)}
                 onSubmitEditing={confirmQtySheet}
               />
             </View>
@@ -1990,7 +2008,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 : <Text style={s.qtyConfirmText}>{common.actions.add}</Text>}
             </Pressable>
           </View>
-          </KeyboardAvoidingView>
+          </View>
         </View>
       </Modal>
 
