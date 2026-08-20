@@ -219,8 +219,20 @@ async function tick(): Promise<void> {
 
 let timer: ReturnType<typeof setInterval> | null = null;
 
+// Recept-fokus-experimentet (se app/src/lib/features.ts RECIPE_FOCUS_EXPERIMENT)
+// döljer Kalender + Sysslor ur appen. Så länge det är på finns ingen yta där
+// användaren kan se eller hantera sysslor/aktiviteter — då ska servern inte
+// heller pusha oombedda påminnelser om dem. HELA schemaläggaren är sysslo-/
+// aktivitetsbaserad (runActivityReminders + runOverdueChores), så vi startar
+// den helt enkelt inte. Sätt till false om experimentet backas.
+const RECIPE_FOCUS_EXPERIMENT = true;
+
 /** Starts the once-a-minute notification scheduler. Idempotent. */
 export function startNotificationScheduler(): void {
+  if (RECIPE_FOCUS_EXPERIMENT) {
+    console.log('Notification scheduler disabled (recept-fokus: inga sysslo-/aktivitetspåminnelser)');
+    return;
+  }
   if (timer) return;
   timer = setInterval(() => { void tick(); }, TICK_MS);
   void tick(); // run immediately on boot
