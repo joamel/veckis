@@ -29,9 +29,11 @@ export function useSheetLift() {
     const kbH = Math.min(kbHeightRef.current, windowHeight * 0.5);
     // measureInWindow ger positionen MED nuvarande lyft applicerat → naturlig
     // botten = y + prev + h. Räkna mål-lyftet absolut (idempotent), klampat.
+    // 260ms delay: låt Modal-slide-in + autoFocus-tangentbordet animera klart
+    // först, annars mäts fältet för lågt (mitt i sliden) → över-lyft.
     setTimeout(() => ref.measureInWindow((_x, y, _w, h) => {
       setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20) - (windowHeight - kbH), windowHeight * 0.5)));
-    }), 60);
+    }), 260);
   }, [windowHeight]);
 
   useEffect(() => {
