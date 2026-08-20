@@ -131,7 +131,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [mergeCategory, setMergeCategory] = useState<StoreCategory>('other');
   const [manualPickerOpen, setManualPickerOpen] = useState(false);
   const mergeScrollRef = useRef<ScrollView>(null);
-  const mergeRowY = useRef(0); // qty/unit row offset within the merge scroll content
   // Smart merge-förslag: AI/förpackningskunskap hämtas async och får bara
   // skriva över prefillen om användaren inte hunnit röra fälten (dirty-ref —
   // state vore stale i fetch-closuren). Seq-token skyddar mot att ett sent
@@ -316,6 +315,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const qtyValueRef = useRef<TextInput>(null);
   const qtyUnitRef = useRef<TextInput>(null);
   const renameInputRef = useRef<TextInput>(null);
+  const mergeQtyRef = useRef<TextInput>(null);
+  const mergeUnitRef = useRef<TextInput>(null);
   // Scroll-into-view-lyft för edit-modalerna (mät fokuserat fält, lyft lagom).
   const { sheetLift, onFocusInput } = useSheetLift();
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -641,13 +642,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     };
   }, []);
 
-  // RN doesn't auto-scroll a focused TextInput into view. The merge sheet's qty/
-  // unit row sits far down the content, so on focus we scroll it near the top of
-  // the (keyboard-shrunk) viewport using its content-relative offset from
-  // onLayout — robust vs the window/keyboard coordinate math that misfired.
-  function scrollMergeRowIntoView() {
-    setTimeout(() => mergeScrollRef.current?.scrollTo({ y: Math.max(0, mergeRowY.current - 16), animated: true }), 250);
-  }
 
   async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string, subCategory?: SubCategory | null, customCategory?: string | null, customSubCategory?: string | null) {
     let itemName = (name ?? newItem).trim().toLowerCase();
@@ -2022,7 +2016,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       <Modal visible={!!mergeSheet} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setMergeSheet(null)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setMergeSheet(null)} />
-        <View>
+        <View style={{ paddingBottom: sheetLift }}>
         <View style={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}>
             <View style={s.sheetHandle} />
             <View style={s.mergeHeaderRow}>
@@ -2069,10 +2063,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 autoCapitalize="none"
               />
               <Text style={s.editLabel}>{str.merge.newQtyUnit}</Text>
-              <View
-                style={[s.qtyStepper, { gap: 6, marginVertical: 4 }]}
-                onLayout={e => { mergeRowY.current = e.nativeEvent.layout.y; }}
-              >
+              <View style={[s.qtyStepper, { gap: 6, marginVertical: 4 }]}>
                 <Pressable
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
                   onPress={() => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeQty(v => String(Math.max(0.5, (parseFloat(v.replace(',', '.')) || 1) - 1)).replace('.', ',')); }}
@@ -2080,12 +2071,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Ionicons name="remove" size={18} color={c.primary} />
                 </Pressable>
                 <TextInput
+                  ref={mergeQtyRef}
                   style={[s.qtyInput, { fontSize: 16, fontWeight: '600', paddingVertical: 6 }]}
                   value={mergeQty}
                   onChangeText={t => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeQty(normalizeQtyInput(t)); }}
                   keyboardType="decimal-pad"
                   selectTextOnFocus
-                  onFocus={scrollMergeRowIntoView}
+                  onFocus={onFocusInput(mergeQtyRef)}
                 />
                 <Pressable
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
@@ -2094,13 +2086,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Ionicons name="add" size={18} color={c.primary} />
                 </Pressable>
                 <TextInput
+                  ref={mergeUnitRef}
                   style={[s.qtyUnitInput, { fontSize: 13, paddingVertical: 6, paddingHorizontal: 8 }]}
                   value={mergeUnit}
                   onChangeText={v => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeUnit(v.toLowerCase()); }}
                   placeholder={str.placeholders.unit}
                   placeholderTextColor={c.textFaint}
                   autoCapitalize="none"
-                  onFocus={scrollMergeRowIntoView}
+                  onFocus={onFocusInput(mergeUnitRef)}
                 />
               </View>
               {mergeSuggestionApplied && (
