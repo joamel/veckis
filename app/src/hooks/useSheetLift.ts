@@ -37,6 +37,10 @@ export function useSheetLift() {
       // measureInWindow ger positionen MED nuvarande lyft applicerat → naturlig
       // botten = y + prev + h. Räkna mål-lyftet absolut (idempotent), klampat.
       ref.measureInWindow((_x, y, _w, h) => {
+        // measureInWindow är async (native bridge) → tangentbordet kan ha stängts
+        // MEDAN mätningen pågick. Kolla igen, annars sätts ett fast lyft tillbaka
+        // efter keyboardDidHide nollställt → sheeten svävar med luft under.
+        if (kbHeightRef.current === 0) return;
         setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20) - (windowHeight - kbH), windowHeight * 0.5)));
       });
     }, 260);

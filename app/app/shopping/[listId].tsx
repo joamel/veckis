@@ -2252,7 +2252,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowRenameModal(false)} />
         <View style={{ paddingBottom: sheetLift }}>
-          <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
+          <View style={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{str.renameTitle}</Text>
             <TextInput
