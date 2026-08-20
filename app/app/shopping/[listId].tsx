@@ -315,6 +315,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const qtyValueRef = useRef<TextInput>(null);
   const qtyUnitRef = useRef<TextInput>(null);
   const renameInputRef = useRef<TextInput>(null);
+  const mergeNameRef = useRef<TextInput>(null);
   const mergeQtyRef = useRef<TextInput>(null);
   const mergeUnitRef = useRef<TextInput>(null);
   // Scroll-into-view-lyft för edit-modalerna (mät fokuserat fält, lyft lagom).
@@ -2055,12 +2056,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               <View style={s.mergeDivider} />
               <Text style={s.editLabel}>{common.fields.name}</Text>
               <TextInput
+                ref={mergeNameRef}
                 style={s.editInput}
                 value={mergeName}
                 onChangeText={setMergeName}
                 placeholder={str.placeholders.itemName}
                 placeholderTextColor={c.textFaint}
                 autoCapitalize="none"
+                onFocus={onFocusInput(mergeNameRef)}
               />
               <Text style={s.editLabel}>{str.merge.newQtyUnit}</Text>
               <View style={[s.qtyStepper, { gap: 6, marginVertical: 4 }]}>
@@ -2259,7 +2262,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               onChangeText={setRenameValue}
               placeholder={str.placeholders.listName}
               placeholderTextColor={c.textFaint}
-              autoFocus
               returnKeyType="done"
               onFocus={onFocusInput(renameInputRef)}
               onSubmitEditing={saveRename}
