@@ -33,7 +33,7 @@
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FAF7F0"
+        "backgroundColor": "#4e7a5e"
       }
     },
     "androidStatusBar": {
