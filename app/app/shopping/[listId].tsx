@@ -57,7 +57,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem } from '@veckis/shared';
-import { kavBehavior, isIOSLike } from '../../src/lib/platform';
+import { isIOSLike } from '../../src/lib/platform';
 import { shoppingList as str, common } from '../../src/lib/svenska';
 import { enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError } from '../../src/lib/shoppingOfflineQueue';
 
@@ -315,6 +315,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const stapleUnitRef = useRef<TextInput>(null);
   const qtyValueRef = useRef<TextInput>(null);
   const qtyUnitRef = useRef<TextInput>(null);
+  const renameInputRef = useRef<TextInput>(null);
   // Scroll-into-view-lyft för edit-modalerna (mät fokuserat fält, lyft lagom).
   const { sheetLift, onFocusInput } = useSheetLift();
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -2018,11 +2019,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       </Animated.View>
 
       {/* Merge duplicates sheet */}
-      <Modal visible={!!mergeSheet} transparent animationType="slide" onRequestClose={() => setMergeSheet(null)}>
+      <Modal visible={!!mergeSheet} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setMergeSheet(null)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setMergeSheet(null)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={[s.sheet, { maxHeight: windowHeight * 0.85 }]}>
+        <View>
+        <View style={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}>
             <View style={s.sheetHandle} />
             <View style={s.mergeHeaderRow}>
               <Text style={s.sheetTitle}>{str.merge.heading}</Text>
@@ -2169,7 +2170,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </Pressable>
             </>)}
         </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Actions menu (3-dot) */}
@@ -2251,14 +2252,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       </Modal>
 
       {/* Rename list modal */}
-      <Modal visible={showRenameModal} transparent animationType="slide" onRequestClose={() => setShowRenameModal(false)}>
+      <Modal visible={showRenameModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowRenameModal(false)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowRenameModal(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-          <View style={s.sheet}>
+        <View style={{ paddingBottom: sheetLift }}>
+          <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{str.renameTitle}</Text>
             <TextInput
+              ref={renameInputRef}
               style={s.editInput}
               value={renameValue}
               onChangeText={setRenameValue}
@@ -2266,6 +2268,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               placeholderTextColor={c.textFaint}
               autoFocus
               returnKeyType="done"
+              onFocus={onFocusInput(renameInputRef)}
               onSubmitEditing={saveRename}
             />
             <EmojiPicker value={renameEmoji} onChange={setRenameEmoji} />
@@ -2277,7 +2280,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               {renaming ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{common.actions.save}</Text>}
             </Pressable>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Manual duplicate picker */}
