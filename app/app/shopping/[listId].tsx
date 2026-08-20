@@ -1093,6 +1093,21 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     }
   }
 
+  // Spegling av uncheckGroup: klarmarkera alla medlemmar i en ihopbakad rad på
+  // en gång, så en aggregerad "2 st bananer" i aktiva listan flyttas som en enhet
+  // till klart-högen (och inte splittras till separata rader).
+  async function checkGroup(members: ShoppingItemWithRecipe[]) {
+    const ids = members.map(m => m.id);
+    triggerCheckHaptic();
+    setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: true } : i) } : prev);
+    try {
+      await Promise.all(ids.map(id => client.checkShoppingItem(id, true)));
+    } catch (e) {
+      setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: false } : i) } : prev);
+      showError(e, str.toasts.errorCheck);
+    }
+  }
+
   function deleteGroupWithUndo(members: ShoppingItemWithRecipe[]) {
     triggerDeleteHaptic();
     const ids = members.map(m => m.id);
@@ -1377,9 +1392,16 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 )}
                 <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={c.textFaint} />
               </Pressable>
-              {!collapsed && group.items.map(item => (
-                <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />
-              ))}
+              {!collapsed && aggregateByNameUnit(group.items).map(g => {
+                // Samma ihopbakning som i klart-högen: ensam vara → vanlig rad;
+                // flera av samma namn+enhet → en rad med summerad mängd så
+                // klarmarkering/av-klarmarkering håller dem samlade (line 77).
+                if (g.members.length === 1) {
+                  const item = g.members[0];
+                  return <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />;
+                }
+                return <ItemRow key={g.rep.id} item={{ ...g.rep, quantity: g.quantity }} onToggle={() => checkGroup(g.members)} onEdit={() => openEditItem(g.rep)} onDelete={() => deleteGroupWithUndo(g.members)} />;
+              })}
             </View>
           );
         })}

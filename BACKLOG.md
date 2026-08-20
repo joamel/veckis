@@ -74,7 +74,7 @@
 - [ ] **Dag-rubrik-layout i veckomenyn (utvärderas)** — dag-namn + datum + månad ("Måndag 15 augusti") som rubrik ovanför dagens kort i stället för datum-pill på varje kort; flera rätter grupperas under en rubrik per dag. Ligger ocommittat på develop; bedöm mot pill-varianten och committa/deploya när den känns rätt.
 
 ### Inköpslista
-- [ ] ett problem är när man avmarkerar något som är klarmarkerat som slagits ihop i klarkolumnen är att de hoppar isär när man "av-klarmarkerar" dem. det ser konstigt ut att man avklarar "2 st bananer" och då får "1 st bananer" på två rader. blir konstig användarupplevelse
+- [x] ett problem är när man avmarkerar något som är klarmarkerat som slagits ihop i klarkolumnen är att de hoppar isär när man "av-klarmarkerar" dem. det ser konstigt ut att man avklarar "2 st bananer" och då får "1 st bananer" på två rader. blir konstig användarupplevelse → aktiva listan slår nu ihop samma namn+enhet visuellt (som klart-högen), så en aggregerad rad hålls samlad i båda kolumnerna
 
 ### Internationalisering (i18n)
 
