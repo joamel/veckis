@@ -2102,7 +2102,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 </Pressable>
                 <TextInput
                   ref={mergeQtyRef}
-                  style={[s.qtyInput, { fontSize: 16, fontWeight: '600', paddingVertical: 6 }]}
+                  style={s.qtyInput}
                   value={mergeQty}
                   onChangeText={t => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeQty(normalizeQtyInput(t)); }}
                   keyboardType="decimal-pad"
@@ -2117,7 +2117,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 </Pressable>
                 <TextInput
                   ref={mergeUnitRef}
-                  style={[s.qtyUnitInput, { fontSize: 13, paddingVertical: 6, paddingHorizontal: 8 }]}
+                  style={s.qtyUnitInput}
                   value={mergeUnit}
                   onChangeText={v => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeUnit(v.toLowerCase()); }}
                   placeholder={str.placeholders.unit}
@@ -2575,8 +2575,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   qtyStepper: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
   qtyBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   // Litet antalsfält (inte flex) så enhet får plats på samma rad som i native-appen.
-  qtyInput: { width: 70, textAlign: 'center', fontSize: 22, fontWeight: '700', color: c.text, borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingVertical: 8 },
-  qtyUnitInput: { flex: 1, minWidth: 0, fontSize: 16, color: c.text, borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
+  qtyInput: { width: 70, textAlign: 'center', fontSize: 16, fontWeight: '600', color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingVertical: 10, backgroundColor: c.inputBg },
+  qtyUnitInput: { flex: 1, minWidth: 0, fontSize: 16, color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: c.inputBg },
   qtyConfirm: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   qtyConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: c.successLight, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
