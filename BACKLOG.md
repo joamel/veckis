@@ -10,6 +10,7 @@
 ### Generellt
 - [ ] 2x2-grid-startsida parkerad — omformulerad som ev. framtida "Hem"-dashboard med innehåll (dagens middag, dagens sysslor, antal varor kvar) istället för ren navigering
 - [ ] Notis-historik i appen — en "senaste 7 dagarna"-inkorg i notis-inställningarna som visar missade push-notiser (syssla avbockad, någon handlar, ny medlem etc.). Om telefonen är på tyst eller notisen sopas bort finns inget att gå tillbaka till.
+- [ ] **Dra-för-att-stänga på bottom-sheet-modaler** — svep/dra nedåt på handtaget (eller hela sheeten) för att stänga, med följsam gest som följer fingret + studs tillbaka om man inte drar tillräckligt långt, i stället för att bara kunna trycka utanför. Ger en native, taktil UX-känsla. Gäller alla bottom-sheets (lägg till/redigera vara, mängd, dubbletthantering, byt namn, ny inköpslista, nytt recept, meny-överföring m.fl.). Troligen `react-native-gesture-handler` Pan + `reanimated` (translateY följer fingret, stäng vid tröskel/velocity annars fjädra tillbaka), alternativt standardisera på ett sheet-bibliotek (`@gorhom/bottom-sheet`) om vi ändå vill enhetliga alla sheets.
 - [x] mer optimistisk uppdatering. t.ex. skala recept hoppar portioner fram och tillbaka när den laddar. bättre att den ändrar tillbaka om den failar — löst: portions-override behålls tills sparningen committat (reload nollställer inte pending), släpps vid success, reverteras bara vid fel
 
 ### Inställningar
