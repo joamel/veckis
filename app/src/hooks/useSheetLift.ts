@@ -26,27 +26,29 @@ export function useSheetLift() {
     if (Platform.OS === 'web' || kbHeightRef.current === 0) return;
     const ref = focusedInputRef.current;
     if (!ref) return;
-    // 260ms delay: låt Modal-slide-in + tangentbordet animera klart först, annars
-    // mäts fältet för lågt (mitt i sliden) → över-lyft.
-    setTimeout(() => {
+    // OBS: Keyboard.metrics() ger höjd 0 på huvudfönstret under edge-to-edge
+    // (samma skäl som keyboardDidShow.height=0 där) → använd det cachade värdet
+    // från keyboardDidShow, som fungerar i modalernas egna fönster.
+    const measure = () => {
       // Tangentbordet kan ha stängts medan mätningen väntade (race mot
-      // keyboardDidHide som nollställer lyftet) → mät inte då, annars sätts ett
-      // "fast" lyft tillbaka och sheeten svävar med luft under.
+      // keyboardDidHide som nollställer lyftet) → mät inte då.
       if (kbHeightRef.current === 0) return;
-      // OBS: Keyboard.metrics() ger höjd 0 på huvudfönstret under edge-to-edge
-      // (samma skäl som keyboardDidShow.height=0 där) → använd det cachade värdet
-      // från keyboardDidShow, som fungerar i modalernas egna fönster.
       const kbH = Math.min(kbHeightRef.current, windowHeight * 0.5);
-      // measureInWindow ger positionen MED nuvarande lyft applicerat → naturlig
-      // botten = y + prev + h. Räkna mål-lyftet absolut (idempotent), klampat.
       ref.measureInWindow((_x, y, _w, h) => {
-        // measureInWindow är async (native bridge) → tangentbordet kan ha stängts
-        // MEDAN mätningen pågick. Kolla igen, annars sätts ett fast lyft tillbaka
-        // efter keyboardDidHide nollställt → sheeten svävar med luft under.
-        if (kbHeightRef.current === 0) return;
-        setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20) - (windowHeight - kbH), windowHeight * 0.5)));
+        // measureInWindow är async → dubbelkolla att tangentbordet är kvar, och
+        // hoppa över uppenbart felaktiga (0,0)-mätningar (fält ännu ej utlagt →
+        // annars räknas det som "synligt" och lyfts inte, t.ex. enhet-fältet).
+        if (kbHeightRef.current === 0 || (y === 0 && h === 0)) return;
+        // measureInWindow ger positionen MED nuvarande lyft → naturlig botten =
+        // y + prev + h. Räkna mål-lyftet absolut (idempotent), klampat.
+        setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20) - (windowHeight - kbH), windowHeight * 0.55)));
       });
-    }, 260);
+    };
+    // Mät två gånger: 260ms låter Modal-slide + tangentbord animera klart; 520ms
+    // fångar fält som layoutas om sent (flex-fält i en rad, t.ex. enhet) där
+    // första mätningen annars ger ett övergångsvärde och fältet inte lyfts.
+    setTimeout(measure, 260);
+    setTimeout(measure, 520);
   }, [windowHeight]);
 
   useEffect(() => {
