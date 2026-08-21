@@ -33,7 +33,12 @@ export function useSheetLift() {
       // keyboardDidHide som nollställer lyftet) → mät inte då, annars sätts ett
       // "fast" lyft tillbaka och sheeten svävar med luft under.
       if (kbHeightRef.current === 0) return;
-      const kbH = Math.min(kbHeightRef.current, windowHeight * 0.5);
+      // Läs tangentbordets AKTUELLA höjd (Keyboard.metrics) i stället för det
+      // cachade keyboardDidShow-värdet. Byter man fält och tangentbordstypen
+      // ändras (sifferblock → qwerty i mängd-modalen) växer tangentbordet, men
+      // cachen ligger kvar på den lägre höjden → fältet räknas som synligt och
+      // hamnar bakom det högre qwerty. metrics() speglar den settlade höjden.
+      const kbH = Keyboard.metrics()?.height ?? kbHeightRef.current;
       // measureInWindow ger positionen MED nuvarande lyft applicerat → naturlig
       // botten = y + prev + h. Räkna mål-lyftet absolut (idempotent), klampat.
       ref.measureInWindow((_x, y, _w, h) => {
@@ -41,7 +46,7 @@ export function useSheetLift() {
         // MEDAN mätningen pågick. Kolla igen, annars sätts ett fast lyft tillbaka
         // efter keyboardDidHide nollställt → sheeten svävar med luft under.
         if (kbHeightRef.current === 0) return;
-        setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20) - (windowHeight - kbH), windowHeight * 0.5)));
+        setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20) - (windowHeight - kbH), windowHeight * 0.6)));
       });
     }, 260);
   }, [windowHeight]);
