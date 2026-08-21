@@ -2072,7 +2072,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 </Pressable>
               )}
             </View>
-            <ScrollView ref={mergeScrollRef} style={{ flexShrink: 1 }} contentContainerStyle={{ gap: 8, paddingBottom: keyboardVisible ? keyboardHeight + 24 : 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView ref={mergeScrollRef} style={{ flexShrink: 1 }} contentContainerStyle={{ gap: 8, paddingBottom: keyboardVisible ? Math.round(keyboardHeight * 0.5) : 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {mergeSheet && mergeSheet.items.length > 0 ? (
                 <Text style={s.sheetSub}>{str.merge.instruction}</Text>
               ) : (
@@ -2093,17 +2093,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               ))}
               {mergeSheet && mergeSheet.items.length > 0 && (<>
               <View style={s.mergeDivider} />
-              <Text style={s.editLabel}>{common.fields.name}</Text>
-              <TextInput
-                ref={mergeNameRef}
-                style={s.editInput}
-                value={mergeName}
-                onChangeText={setMergeName}
-                placeholder={str.placeholders.itemName}
-                placeholderTextColor={c.textFaint}
-                autoCapitalize="none"
-                onFocus={onMergeFocus}
-              />
               <Text style={s.editLabel}>{str.merge.newQtyUnit}</Text>
               <View style={[s.qtyStepper, { gap: 6, marginVertical: 4 }]}>
                 <Pressable
