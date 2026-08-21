@@ -761,7 +761,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   function openQtySheet(name: string, category?: StoreCategory) {
     const staple = staples.find(s => s.name.toLowerCase() === name.toLowerCase());
-    setQtyValue(staple?.defaultQuantity ? String(staple.defaultQuantity) : '1');
+    setQtyValue(staple?.defaultQuantity ? String(staple.defaultQuantity).replace('.', ',') : '1');
     setQtyUnit(staple?.unit ?? '');
     setQtyCategory((category ?? staple?.category ?? 'other') as StoreCategory);
     setQtySubCategory(null);
@@ -952,7 +952,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   function fillEditForm(item: ShoppingItemWithRecipe) {
     setEditName(capitalize(item.name));
-    setEditQty(item.quantity !== 1 || item.unit ? String(item.quantity) : '');
+    setEditQty(item.quantity !== 1 || item.unit ? String(item.quantity).replace('.', ',') : '');
     setEditUnit(item.unit ?? '');
     setEditCategory(item.category as StoreCategory);
     setEditCustomCategory((item as { customCategory?: string | null }).customCategory ?? null);
