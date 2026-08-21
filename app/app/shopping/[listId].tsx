@@ -303,8 +303,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // så vi läser höjden via reanimated (WindowInsets-baserat, funkar edge-to-edge) och
   // lyfter baren med paddingBottom. Web hanteras separat av KAV/browser-resize.
   const animKeyboard = useAnimatedKeyboard();
+  // Grinda på keyboardVisible: när mängd-modalen (openQtySheet) öppnas tar dess
+  // egna fönster över tangentbordet och reanimated-höjden här fryser på sitt
+  // sista värde → baren fastnar lyft när modalen stängs. JS-lyssnaren
+  // keyboardDidHide fyrar pålitligt ändå, så när tangentbordet är borta tvingar
+  // vi lyftet till 0 oavsett den frusna höjden.
   const addBarLift = useAnimatedStyle(() => ({
-    paddingBottom: Platform.OS === 'web' ? 0 : animKeyboard.height.value,
+    paddingBottom: Platform.OS === 'web' || !keyboardVisible ? 0 : animKeyboard.height.value,
   }));
   const inputRef = useRef<TextInput>(null);
   const editNameRef = useRef<TextInput>(null);
