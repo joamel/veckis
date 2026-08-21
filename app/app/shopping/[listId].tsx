@@ -2060,7 +2060,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 </Pressable>
               )}
             </View>
-            <ScrollView ref={mergeScrollRef} style={{ maxHeight: windowHeight * 0.26 }} contentContainerStyle={{ gap: 8, paddingBottom: 8 }} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled">
+            <ScrollView ref={mergeScrollRef} style={{ height: Math.min(40 + (mergeSheet?.items.length ?? 0) * 50, windowHeight * 0.32) }} contentContainerStyle={{ gap: 8, paddingBottom: 8 }} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled">
               {mergeSheet && mergeSheet.items.length > 0 ? (
                 <Text style={s.sheetSub}>{str.merge.instruction}</Text>
               ) : (
