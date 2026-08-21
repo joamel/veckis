@@ -298,6 +298,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     }
   }
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  // Tangentbordshöjd (från modalens eget fönster där keyboardDidShow.height funkar)
+  // — används för att ge merge-listans innehåll utrymme att scrollas ovanför
+  // tangentbordet, eftersom sheet-lyftet inte når fält djupt inne i en ScrollView.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   // Native tangentbordslyft för "lägg till vara"-baren. RN:s keyboardDidShow-höjd
   // är opålitlig på Android under SDK 54 edge-to-edge (OS:et resizar inte fönstret),
   // så vi läser höjden via reanimated (WindowInsets-baserat, funkar edge-to-edge) och
@@ -325,6 +329,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const mergeUnitRef = useRef<TextInput>(null);
   // Scroll-into-view-lyft för edit-modalerna (mät fokuserat fält, lyft lagom).
   const { sheetLift, onFocusInput } = useSheetLift();
+  // Merge: fälten ligger djupt i listans ScrollView → sheet-lyftet når dem inte.
+  // Scrolla listan till slutet vid fokus (två gånger, så det sker även efter att
+  // tangentbordet + innehålls-paddingen kommit på plats).
+  const onMergeFocus = useCallback(() => {
+    const f = () => mergeScrollRef.current?.scrollToEnd({ animated: true });
+    setTimeout(f, 50); setTimeout(f, 350);
+  }, []);
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
   const dupeButtonScale = useRef(new Animated.Value(1)).current;
@@ -636,8 +647,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
       setKeyboardVisible(true);
+      if (e.endCoordinates?.height) setKeyboardHeight(e.endCoordinates.height);
     });
     const hideSub = Keyboard.addListener('keyboardDidHide', () => {
       setKeyboardVisible(false);
@@ -2060,7 +2072,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 </Pressable>
               )}
             </View>
-            <ScrollView ref={mergeScrollRef} style={{ flexShrink: 1 }} contentContainerStyle={{ gap: 8, paddingBottom: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView ref={mergeScrollRef} style={{ flexShrink: 1 }} contentContainerStyle={{ gap: 8, paddingBottom: keyboardVisible ? keyboardHeight + 24 : 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {mergeSheet && mergeSheet.items.length > 0 ? (
                 <Text style={s.sheetSub}>{str.merge.instruction}</Text>
               ) : (
@@ -2090,7 +2102,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 placeholder={str.placeholders.itemName}
                 placeholderTextColor={c.textFaint}
                 autoCapitalize="none"
-                onFocus={onFocusInput(mergeNameRef)}
+                onFocus={onMergeFocus}
               />
               <Text style={s.editLabel}>{str.merge.newQtyUnit}</Text>
               <View style={[s.qtyStepper, { gap: 6, marginVertical: 4 }]}>
@@ -2107,7 +2119,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   onChangeText={t => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeQty(normalizeQtyInput(t)); }}
                   keyboardType="decimal-pad"
                   selectTextOnFocus
-                  onFocus={onFocusInput(mergeQtyRef, 80)}
+                  onFocus={onMergeFocus}
                 />
                 <Pressable
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
@@ -2123,7 +2135,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   placeholder={str.placeholders.unit}
                   placeholderTextColor={c.textFaint}
                   autoCapitalize="none"
-                  onFocus={onFocusInput(mergeUnitRef, 80)}
+                  onFocus={onMergeFocus}
                 />
               </View>
               {mergeSuggestionApplied && (
