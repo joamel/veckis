@@ -2079,7 +2079,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   )}
                 </Pressable>
               ))}
-              {mergeSheet && mergeSheet.items.length > 0 && (<>
+            </ScrollView>
+            {mergeSheet && mergeSheet.items.length > 0 && (
+            <View style={s.mergeResult}>
               <View style={s.mergeDivider} />
               <Text style={s.editLabel}>{common.fields.name}</Text>
               <TextInput
@@ -2154,8 +2156,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   ))}
                 </View>
               </ScrollView>
-              </>)}
-            </ScrollView>
+            </View>
+            )}
             {/* Fixed action bar — always visible, but hidden while typing so it
                 doesn't float above the keyboard and steal the list's height. */}
             {mergeSheet && mergeSheet.items.length > 0 && !keyboardVisible && (<>
@@ -2597,6 +2599,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   mergeItemQty: { fontSize: 15, lineHeight: 22, color: c.textMuted, width: 84, textAlign: 'right' },
   mergeSuggestionHint: { fontSize: 12, color: c.primary, marginTop: 2, marginBottom: 4 },
   mergeDivider: { height: 1, backgroundColor: c.borderLight, marginTop: 4 },
+  // Resultat-fälten (namn/mängd/enhet/chips) ligger UTANFÖR dubblett-listans
+  // ScrollView så de alltid syns, oavsett hur många dubbletter som listas.
+  mergeResult: { gap: 8, paddingTop: 4 },
   itemWrap: { position: 'relative' },
   itemDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: c.surface, borderRadius: 11 },
   editDoneBtn: { backgroundColor: c.text, padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: c.borderLight },
