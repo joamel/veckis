@@ -2177,44 +2177,43 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   ))}
                 </View>
               </ScrollView>
-              </>)}
-            </ScrollView>
-            {/* Fixed action bar — always visible, but hidden while typing so it
-                doesn't float above the keyboard and steal the list's height. */}
-            {mergeSheet && mergeSheet.items.length > 0 && !keyboardVisible && (<>
-            <Pressable
-              style={[s.qtyConfirm, (mergeSelected.size < 2 || adding) && s.saveBtnDisabled]}
-              onPress={confirmMerge}
-              disabled={adding || mergeSelected.size < 2}
-            >
-              {adding
-                ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={s.qtyConfirmText}>Slå ihop {mergeSelected.size} varor</Text>}
-            </Pressable>
-            {duplicateGroups.length > 1 && (
+              {/* Bekräfta-/nästa-/ignorera-knapparna ligger INUTI listan så man kan
+                  scrolla ner till dem även med tangentbordet uppe (paddingBottom ger
+                  utrymme). Tidigare låg de utanför + göms vid tangentbord → oåtkomliga. */}
+              <Pressable
+                style={[s.qtyConfirm, (mergeSelected.size < 2 || adding) && s.saveBtnDisabled]}
+                onPress={confirmMerge}
+                disabled={adding || mergeSelected.size < 2}
+              >
+                {adding
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={s.qtyConfirmText}>Slå ihop {mergeSelected.size} varor</Text>}
+              </Pressable>
+              {duplicateGroups.length > 1 && (
+                <Pressable
+                  style={s.mergeIgnoreBtn}
+                  onPress={() => {
+                    if (!mergeSheet) return;
+                    const idx = duplicateGroups.findIndex(g => g[0].name.toLowerCase().trim() === mergeSheet.name);
+                    const next = duplicateGroups[(idx + 1) % duplicateGroups.length];
+                    if (next && next !== duplicateGroups[idx]) openMergeForDupes(next);
+                  }}
+                >
+                  <Text style={[s.mergeIgnoreBtnText, { color: c.primary }]}>{str.merge.nextDupe}</Text>
+                </Pressable>
+              )}
               <Pressable
                 style={s.mergeIgnoreBtn}
                 onPress={() => {
-                  if (!mergeSheet) return;
-                  const idx = duplicateGroups.findIndex(g => g[0].name.toLowerCase().trim() === mergeSheet.name);
-                  const next = duplicateGroups[(idx + 1) % duplicateGroups.length];
-                  if (next && next !== duplicateGroups[idx]) openMergeForDupes(next);
+                  if (mergeSheet) dismissDupeGroup(mergeSheet.name);
+                  pendingOpenNextDupe.current = true;
+                  setMergeSheet(null);
                 }}
               >
-                <Text style={[s.mergeIgnoreBtnText, { color: c.primary }]}>{str.merge.nextDupe}</Text>
+                <Text style={s.mergeIgnoreBtnText}>{common.actions.ignore}</Text>
               </Pressable>
-            )}
-            <Pressable
-              style={s.mergeIgnoreBtn}
-              onPress={() => {
-                if (mergeSheet) dismissDupeGroup(mergeSheet.name);
-                pendingOpenNextDupe.current = true;
-                setMergeSheet(null);
-              }}
-            >
-              <Text style={s.mergeIgnoreBtnText}>{common.actions.ignore}</Text>
-            </Pressable>
-            </>)}
+              </>)}
+            </ScrollView>
         </View>
         </View>
       </Modal>
