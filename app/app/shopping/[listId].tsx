@@ -2060,7 +2060,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 </Pressable>
               )}
             </View>
-            <ScrollView ref={mergeScrollRef} style={{ height: Math.min(40 + (mergeSheet?.items.length ?? 0) * 50, windowHeight * 0.32) }} contentContainerStyle={{ gap: 8, paddingBottom: 8 }} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled">
+            <ScrollView ref={mergeScrollRef} style={{ flexShrink: 1 }} contentContainerStyle={{ gap: 8, paddingBottom: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {mergeSheet && mergeSheet.items.length > 0 ? (
                 <Text style={s.sheetSub}>{str.merge.instruction}</Text>
               ) : (
@@ -2079,9 +2079,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   )}
                 </Pressable>
               ))}
-            </ScrollView>
-            {mergeSheet && mergeSheet.items.length > 0 && (
-            <View style={s.mergeResult}>
+              {mergeSheet && mergeSheet.items.length > 0 && (<>
               <View style={s.mergeDivider} />
               <Text style={s.editLabel}>{common.fields.name}</Text>
               <TextInput
@@ -2156,8 +2154,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   ))}
                 </View>
               </ScrollView>
-            </View>
-            )}
+              </>)}
+            </ScrollView>
             {/* Fixed action bar — always visible, but hidden while typing so it
                 doesn't float above the keyboard and steal the list's height. */}
             {mergeSheet && mergeSheet.items.length > 0 && !keyboardVisible && (<>
