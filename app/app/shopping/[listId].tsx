@@ -1708,7 +1708,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               selectTextOnFocus
               returnKeyType="next"
               blurOnSubmit={false}
-              onFocus={onFocusInput(editQtyRef)}
+              onFocus={onFocusInput(editQtyRef, 80)}
               onSubmitEditing={() => editUnitRef.current?.focus()}
             />
             <Pressable
@@ -1725,7 +1725,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               placeholder={str.placeholders.unit}
               placeholderTextColor={c.textFaint}
               autoCapitalize="none"
-              onFocus={onFocusInput(editUnitRef)}
+              onFocus={onFocusInput(editUnitRef, 80)}
               returnKeyType="done"
             />
           </View>
@@ -1866,7 +1866,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             placeholderTextColor={c.textFaint}
             autoCapitalize="none"
             returnKeyType="done"
-            onFocus={onFocusInput(stapleUnitRef)}
+            onFocus={onFocusInput(stapleUnitRef, 80)}
           />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">
             <View style={s.unitChipRow}>
@@ -1939,7 +1939,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 selectTextOnFocus
                 returnKeyType="next"
                 blurOnSubmit={false}
-                onFocus={onFocusInput(qtyValueRef)}
+                onFocus={onFocusInput(qtyValueRef, 80)}
                 onSubmitEditing={() => qtyUnitRef.current?.focus()}
               />
               <Pressable
@@ -1957,7 +1957,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 placeholderTextColor={c.textFaint}
                 autoCapitalize="none"
                 returnKeyType="done"
-                onFocus={onFocusInput(qtyUnitRef)}
+                onFocus={onFocusInput(qtyUnitRef, 80)}
                 onSubmitEditing={confirmQtySheet}
               />
             </View>
@@ -2107,7 +2107,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   onChangeText={t => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeQty(normalizeQtyInput(t)); }}
                   keyboardType="decimal-pad"
                   selectTextOnFocus
-                  onFocus={onFocusInput(mergeQtyRef)}
+                  onFocus={onFocusInput(mergeQtyRef, 80)}
                 />
                 <Pressable
                   style={[s.qtyBtn, { width: 36, height: 36, borderRadius: 18 }]}
@@ -2123,7 +2123,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   placeholder={str.placeholders.unit}
                   placeholderTextColor={c.textFaint}
                   autoCapitalize="none"
-                  onFocus={onFocusInput(mergeUnitRef)}
+                  onFocus={onFocusInput(mergeUnitRef, 80)}
                 />
               </View>
               {mergeSuggestionApplied && (

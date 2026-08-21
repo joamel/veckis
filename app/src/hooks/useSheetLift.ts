@@ -20,6 +20,9 @@ export function useSheetLift() {
   const { height: windowHeight } = useWindowDimensions();
   const focusedInputRef = useRef<TextInput | null>(null);
   const kbHeightRef = useRef(0);
+  // Extra px att visa UNDER det fokuserade fältet — t.ex. enhets-chipsraden som
+  // ligger under mängd/enhet-inputen och annars hamnar bakom tangentbordet.
+  const revealBelowRef = useRef(0);
   const [sheetLift, setSheetLift] = useState(0);
 
   const revealFocused = useCallback(() => {
@@ -41,7 +44,7 @@ export function useSheetLift() {
         if (kbHeightRef.current === 0 || (y === 0 && h === 0)) return;
         // measureInWindow ger positionen MED nuvarande lyft → naturlig botten =
         // y + prev + h. Räkna mål-lyftet absolut (idempotent), klampat.
-        setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20) - (windowHeight - kbH), windowHeight * 0.55)));
+        setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20 + revealBelowRef.current) - (windowHeight - kbH), windowHeight * 0.6)));
       });
     };
     // Mät två gånger: 260ms låter Modal-slide + tangentbord animera klart; 520ms
@@ -57,8 +60,13 @@ export function useSheetLift() {
     return () => { show.remove(); hide.remove(); };
   }, [revealFocused]);
 
+  // revealBelow: extra px att hålla synliga under fältet (t.ex. enhets-chipsen).
   const onFocusInput = useCallback(
-    (ref: React.RefObject<TextInput | null>) => () => { focusedInputRef.current = ref.current; revealFocused(); },
+    (ref: React.RefObject<TextInput | null>, revealBelow = 0) => () => {
+      focusedInputRef.current = ref.current;
+      revealBelowRef.current = revealBelow;
+      revealFocused();
+    },
     [revealFocused],
   );
 
