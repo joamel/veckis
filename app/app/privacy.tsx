@@ -59,6 +59,17 @@ export default function PrivacyScreen() {
         Lämna hushåll, eller be admin ta bort hela hushållet.
       </Text>
 
+      <Text style={s.h2}>Upphovsrätt & innehåll</Text>
+      <Text style={s.p}>
+        När du importerar ett recept från en webbadress sparar Veckis en länk till
+        källan och visar bilden direkt från originalsajten (vi lagrar ingen egen
+        kopia av bilden). Recept hamnar i ditt privata hushåll och publiceras inte.
+        Veckis gör inga anspråk på innehåll som tillhör originalkällan.{'\n\n'}
+        Är du rättighetshavare och vill att ett recept eller en bild tas bort?
+        Mejla <Text style={s.link}>veckis.support@gmail.com</Text> med länken, så
+        tar vi bort det skyndsamt.
+      </Text>
+
       <Text style={s.h2}>Kontakt</Text>
       <Text style={s.p}>
         Frågor om denna policy? <Text style={s.link}>veckis.support@gmail.com</Text>

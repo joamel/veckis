@@ -221,6 +221,11 @@ model Recipe {
   description String?
   instructions String?
   sourceUrl   String?
+  // Hur receptet skapades: 'manual' (eget), 'ai_paste' (AI ur inklistrad text,
+  // ingen bild), 'url_import' (skrapat från URL — kan innehålla tredje parts
+  // hotlinkade bild + beskrivning). Används för att gate:a framtida delning:
+  // bara manual/ai_paste bör kunna delas vidare, aldrig url_import.
+  source      String   @default("manual")
   imageUrl    String?
   imagePublicId String?  // Cloudinary public_id for the uploaded image, so we can delete it on change/recipe-delete
   servings    Int      @default(4)
