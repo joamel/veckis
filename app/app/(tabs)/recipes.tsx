@@ -340,6 +340,7 @@ export default function RecipesScreen() {
         description: scraped.description,
         instructions: scraped.instructions,
         sourceUrl: url.trim(),
+        source: 'url_import',
         imageUrl: scraped.imageUrl,
         servings: scraped.servings,
         ingredients: scraped.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
@@ -384,6 +385,7 @@ export default function RecipesScreen() {
         title: usedTitle,
         description: parsed.description,
         instructions: parsed.instructions,
+        source: 'ai_paste',
         servings: parsed.servings,
         ingredients: parsed.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
       });

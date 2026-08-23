@@ -62,6 +62,7 @@ const createRecipeSchema = z.object({
   description: z.string().max(2000).nullable().optional(),
   instructions: z.string().max(8000).nullable().optional(),
   sourceUrl: z.string().url().nullable().optional(),
+  source: z.enum(['manual', 'ai_paste', 'url_import']).default('manual'),
   imageUrl: z.string().url().nullable().optional(),
   servings: z.number().int().positive().default(4),
   ingredients: z.array(ingredientSchema).default([]),
