@@ -108,9 +108,16 @@ export type ShoppingListWithItems = ShoppingList & { items: ShoppingItemWithReci
 export function useApiClient() {
   const { getToken } = useAuth();
 
-  async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  async function request<T>(path: string, options: RequestInit = {}, attempt = 0): Promise<T> {
     const token = await getToken();
     const url = `${BASE_URL}${path}`;
+    // Kallstart-retry: gratis-hosting spinner ner (Render) och Neon-DB:n
+    // autosuspendar (vaknar med 57P01 → 5xx). Retry:a BARA idempotenta anrop
+    // (GET/HEAD) med backoff, så en laddning under uppvaknandet lyckas tyst i
+    // stället för att visa råa fel. Muterande anrop retry:as ej (dubblett-risk).
+    const method = (options.method ?? 'GET').toUpperCase();
+    const canRetry = (method === 'GET' || method === 'HEAD') && attempt < 3;
+    const backoff = () => new Promise(r => setTimeout(r, [1500, 4000, 9000][attempt] ?? 9000));
     let res: Response;
     try {
       res = await fetch(url, {
@@ -124,10 +131,13 @@ export function useApiClient() {
     } catch {
       // fetch rejects (rather than resolving with !ok) when the request never
       // reached the server: no connectivity, DNS failure, server down, etc.
+      if (canRetry) { await backoff(); return request<T>(path, options, attempt + 1); }
       throw new ApiError('Network request failed', null, true);
     }
 
     if (!res.ok) {
+      // 5xx = servern uppe men beroende (oftast DB:n) vaknar → retry:a idempotenta.
+      if (res.status >= 500 && canRetry) { await backoff(); return request<T>(path, options, attempt + 1); }
       const err = await res.json().catch(() => ({ error: res.statusText }));
       throw new ApiError(err.error ?? `HTTP ${res.status}`, res.status, false);
     }
