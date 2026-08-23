@@ -730,6 +730,20 @@ export default function MenuScreen() {
     weekListRef.current?.scrollToIndex({ index: clamped + WEEK_SPAN, animated });
   }, []);
 
+  // Web/PWA: horisontellt svep för att byta vecka (den horisontella pager-FlatListan
+  // är avstängd på web pga scroll-konflikt). Riktnings-styrt: aktiverar bara på
+  // tydligt horisontella drag och failar vid vertikala, så den vertikala scrollen
+  // yieldas. touchAction="pan-y" på GestureDetectorn låter browsern behålla scroll.
+  const webWeekSwipe = useMemo(() =>
+    Gesture.Pan()
+      .activeOffsetX([-30, 30])
+      .failOffsetY([-18, 18])
+      .onEnd(e => {
+        if (Math.abs(e.translationX) < 55 || Math.abs(e.translationX) <= Math.abs(e.translationY)) return;
+        runOnJS(goToWeek)(weekOffset + (e.translationX < 0 ? 1 : -1), true);
+      }),
+    [weekOffset, goToWeek]);
+
   useEffect(() => {
     if (params.bulkTransfer === '1' && householdId && !bulkTransferTriggeredRef.current) {
       bulkTransferTriggeredRef.current = true;
@@ -1528,6 +1542,7 @@ export default function MenuScreen() {
           rak vertikal ScrollView; veckobyte sker via pilarna/Idag (goToWeek
           sätter weekOffset, scrollToIndex blir no-op utan FlatList-ref). */}
       {Platform.OS === 'web' ? (
+        <GestureDetector gesture={webWeekSwipe} touchAction="pan-y">
         <ScrollView
           ref={menuScrollRef}
           style={s.content}
@@ -1538,6 +1553,7 @@ export default function MenuScreen() {
         >
           {renderWeekContent(weekItemsForOffset(weekOffset), getWeekMonday(weekOffset), true, weekOffset < 0)}
         </ScrollView>
+        </GestureDetector>
       ) : (
       /* Virtualised week pager: each page is one week. Swiping just scrolls the
           list (no recenter → no flash); arrows/Idag/picker scrollToIndex so they
