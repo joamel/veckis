@@ -1,35 +1,7 @@
+# Backenden är flyttad till Railway (se railway.json + backend-servicen där).
+# Render kör numera BARA den statiska webb-PWA:n. Postgres ligger på Railway (Neon
+# är avvecklat). API-URL:en pekar på veckis-production.up.railway.app.
 services:
-  - type: web
-    name: veckis-backend
-    runtime: node
-    plan: free
-    region: frankfurt
-    buildCommand: npm install && npm run build:shared && npm run db:generate --workspace=backend && npm run build --workspace=backend
-    startCommand: npm run start:prod --workspace=backend
-    # DB-fri liveness: instansen räknas som frisk så fort Node bootat, även om
-    # Neon är suspenderad/onåbar. Undviker 503-spiral där /health:s SELECT 1
-    # failar under DB-väckning. DB-verifiering finns kvar på /health.
-    healthCheckPath: /healthz
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DATABASE_URL
-        sync: false
-      - key: CLERK_SECRET_KEY
-        sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: CLOUDINARY_CLOUD_NAME
-        sync: false
-      - key: CLOUDINARY_API_KEY
-        sync: false
-      - key: CLOUDINARY_API_SECRET
-        sync: false
-      # Komma-separerad whitelist. Native appar (Expo iOS/Android) skickar
-      # ingen Origin-header och släpps alltid igenom — gäller bara web/PWA.
-      - key: CORS_ORIGIN
-        value: "https://veckis-web.onrender.com,http://localhost:3000,http://localhost:19006,http://localhost:8081"
-
   # PWA-frontend som statisk site. Build kör expo export --platform web och
   # publicerar dist/. SPA-rewrite gör att direct-URL till en route som inte
   # genererats (t.ex. /shopping/<id>) faller tillbaka till index.html, som

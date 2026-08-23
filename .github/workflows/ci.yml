@@ -80,21 +80,14 @@ jobs:
         working-directory: app
 
   deploy:
-    name: "Deploy (Render: backend + web)"
+    name: "Deploy (web-PWA på Render; backend auto-deployas av Railway)"
     runs-on: ubuntu-latest
     needs: [backend, app]
     # Only after tests pass, only on a push to main (not PRs/develop).
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - name: Trigger backend deploy hook
-        run: |
-          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
-            echo "::error::RENDER_DEPLOY_HOOK secret saknas — sätt den i repo Settings → Secrets → Actions"
-            exit 1
-          fi
-          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
-          echo "Backend-deploy triggad."
-
+      # Backenden deployas numera av Railway (auto-deploy från GitHub på push till
+      # main) — ingen deploy-hook behövs här längre. Kvar: bara webb-PWA:n på Render.
       - name: Trigger web (PWA) deploy hook
         run: |
           if [ -z "${{ secrets.RENDER_WEB_DEPLOY_HOOK }}" ]; then
