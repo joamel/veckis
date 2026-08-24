@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { landing as str } from '../lib/svenska';
 
@@ -23,7 +24,39 @@ const BRAND = {
   light:     '#f1efec',
   lightMute: '#cdd8ce',
   line:      '#e7e1d6',
+  // Krittavla
+  slate:     '#26332c',
+  chalk:     '#f2ede1',
+  chalkMute: '#a9b6a5',
+  chalkTerra:'#e6c9a8',
 };
+
+// En station i krittavle-flödet (krit-ram + ikon + rubrik + text).
+function FlowStation({ icon, title, body }: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }) {
+  return (
+    <View style={fs.station}>
+      <Ionicons name={icon} size={30} color={BRAND.chalk} style={{ marginBottom: 10 }} />
+      <Text style={fs.title}>{title}</Text>
+      <Text style={fs.body}>{body}</Text>
+    </View>
+  );
+}
+
+const fs = StyleSheet.create({
+  station: {
+    flex: 1,
+    minWidth: 150,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(242,237,225,0.45)',
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    paddingVertical: 22,
+    paddingHorizontal: 16,
+  },
+  title: { fontSize: 18, fontWeight: '800', color: BRAND.chalk, textAlign: 'center', letterSpacing: 0.2 },
+  body: { fontSize: 14, lineHeight: 20, color: BRAND.chalkMute, textAlign: 'center', marginTop: 6, maxWidth: 200 },
+});
 
 export function WebLanding() {
   const router = useRouter();
@@ -36,7 +69,7 @@ export function WebLanding() {
   const year = new Date().getFullYear();
 
   const features = [str.features.shopping, str.features.recipes, str.features.menu];
-  const steps = [str.how.step1, str.how.step2, str.how.step3];
+  const arrow = narrow ? 'arrow-down' : 'arrow-forward';
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: BRAND.creme }} contentContainerStyle={{ minHeight: '100%' }}>
@@ -85,18 +118,17 @@ export function WebLanding() {
         </View>
       </View>
 
-      {/* Så funkar det */}
-      <View style={[s.section, s.sectionAlt]}>
-        <View style={s.sectionInner}>
-          <Text style={s.sectionHeading}>{str.how.heading}</Text>
-          <View style={s.stepGrid}>
-            {steps.map((st, i) => (
-              <View key={i} style={s.step}>
-                <View style={s.stepNum}><Text style={s.stepNumText}>{i + 1}</Text></View>
-                <Text style={s.stepTitle}>{st.title}</Text>
-                <Text style={s.stepBody}>{st.body}</Text>
-              </View>
-            ))}
+      {/* Krittavla — appens kärn-loop med pilar */}
+      <View style={s.board}>
+        <View style={s.boardInner}>
+          <Text style={s.boardHeading}>{str.flow.heading}</Text>
+          <View style={s.boardUnderline} />
+          <View style={[s.flowRow, narrow && s.flowCol]}>
+            <FlowStation icon="calendar-outline" title={str.flow.week.title} body={str.flow.week.body} />
+            <Ionicons name={arrow} size={30} color={BRAND.chalkTerra} style={s.flowArrow} />
+            <FlowStation icon="search-outline" title={str.flow.inventory.title} body={str.flow.inventory.body} />
+            <Ionicons name={arrow} size={30} color={BRAND.chalkTerra} style={s.flowArrow} />
+            <FlowStation icon="cart-outline" title={str.flow.list.title} body={str.flow.list.body} />
           </View>
         </View>
       </View>
@@ -149,7 +181,6 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   ctaSecondaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   section: { paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72, backgroundColor: BRAND.creme },
-  sectionAlt: { backgroundColor: BRAND.beige },
   sectionInner: { width: '100%', maxWidth: 1040, alignSelf: 'center' },
   sectionHeading: { fontSize: narrow ? 24 : 32, fontWeight: '800', color: BRAND.greenDark, textAlign: 'center', letterSpacing: -0.4, marginBottom: narrow ? 28 : 44 },
 
@@ -158,12 +189,14 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   featureTitle: { fontSize: 19, fontWeight: '800', color: BRAND.terraDark, marginBottom: 10 },
   featureBody: { fontSize: 15, lineHeight: 23, color: BRAND.inkMuted },
 
-  stepGrid: { flexDirection: narrow ? 'column' : 'row', gap: 24, justifyContent: 'center' },
-  step: { flex: narrow ? undefined : 1, alignItems: 'center', paddingHorizontal: 8 },
-  stepNum: { width: 48, height: 48, borderRadius: 24, backgroundColor: BRAND.green, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  stepNumText: { color: '#fff', fontSize: 20, fontWeight: '800' },
-  stepTitle: { fontSize: 18, fontWeight: '800', color: BRAND.greenDark, marginBottom: 6, textAlign: 'center' },
-  stepBody: { fontSize: 15, lineHeight: 22, color: BRAND.inkMuted, textAlign: 'center', maxWidth: 280 },
+  // Krittavla
+  board: { backgroundColor: BRAND.slate, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72 },
+  boardInner: { width: '100%', maxWidth: 1040, alignSelf: 'center', alignItems: 'center' },
+  boardHeading: { fontSize: narrow ? 24 : 32, fontWeight: '800', color: BRAND.chalk, textAlign: 'center', letterSpacing: -0.2, textShadowColor: 'rgba(255,255,255,0.12)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8 },
+  boardUnderline: { width: 90, height: 3, borderRadius: 2, backgroundColor: 'rgba(230,201,168,0.7)', marginTop: 14, marginBottom: narrow ? 30 : 44 },
+  flowRow: { flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'stretch', justifyContent: 'center' },
+  flowCol: { flexDirection: 'column' },
+  flowArrow: { marginHorizontal: 2 },
 
   ctaBand: { backgroundColor: BRAND.green, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 64 },
   ctaBandInner: { width: '100%', maxWidth: 720, alignSelf: 'center', alignItems: 'center' },

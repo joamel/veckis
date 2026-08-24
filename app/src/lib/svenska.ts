@@ -1755,7 +1755,7 @@ export const landing = {
     signIn:      'Logga in',
   },
   hero: {
-    tagline:     'Hushållets inköpslista, recept och veckomeny — på ett ställe.',
+    tagline:     'Hushållets inköpslista, recept och veckomeny på ett ställe.',
     subtitle:    'Samla handling, matlagning och veckoplanering i en app. Dela inköpslistan i realtid, spara recept och planera veckans måltider tillsammans med familjen.',
     ctaPrimary:  'Kom igång gratis',
     ctaSecondary:'Installera appen',
@@ -1764,7 +1764,7 @@ export const landing = {
     heading:     'Allt hushållet behöver för maten',
     shopping: {
       title:     'Delad inköpslista',
-      body:      'Lägg till varor som synkas direkt till alla i hushållet. Automatiskt sorterad efter butik och avdelning — du slipper springa fram och tillbaka.',
+      body:      'Lägg till varor som synkas direkt till alla i hushållet. Automatiskt sorterad efter butik och avdelning, så du slipper springa fram och tillbaka.',
     },
     recipes: {
       title:     'Recept & matlagning',
@@ -1775,19 +1775,21 @@ export const landing = {
       body:      'Planera veckans måltider tillsammans. Se vad som ska lagas och handla för hela veckan på en gång.',
     },
   },
-  how: {
-    heading:     'Så funkar det',
-    step1: { title: 'Skapa ett hushåll', body: 'Bjud in familjen med en enkel länk.' },
-    step2: { title: 'Planera veckan',    body: 'Lägg till recept, måltider och varor.' },
-    step3: { title: 'Handla smart',      body: 'Listan sorteras efter butik automatiskt.' },
+  // "Svarta tavlan"-flöde: appens kärn-loop (vardagen töm skafferiet → inventera
+  // → färdig inköpslista), visad som krittavla med pilar.
+  flow: {
+    heading:     'Så blir veckan en färdig inköpslista',
+    week:      { title: 'Mån, tis, ons…', body: 'Veckan rullar på och skafferiet sinar.' },
+    inventory: { title: 'Inventera',       body: 'Kolla snabbt vad som redan finns hemma.' },
+    list:      { title: 'Inköpslistan',    body: 'Klar att handla, sorterad efter butik.' },
   },
   cta: {
     heading:     'Redo att förenkla veckohandlingen?',
-    body:        'Kom igång på under en minut — det är gratis.',
+    body:        'Kom igång på under en minut. Det är gratis.',
     button:      'Kom igång',
   },
   footer: {
-    tagline:     'Handlis — hushållets mat, planerad.',
+    tagline:     'Hushållets mat, planerad.',
     privacy:     'Integritetspolicy',
     terms:       'Användarvillkor',
     install:     'Installera appen',
