@@ -5,12 +5,12 @@ export default function PrivacyScreen() {
   const s = useLegalStyles();
   return (
     <LegalPage title="Integritetspolicy">
-      <Text style={s.h1}>Integritetspolicy för Veckis</Text>
+      <Text style={s.h1}>Integritetspolicy för Handlis</Text>
       <Text style={s.meta}>Senast uppdaterad: 2026-06-04</Text>
 
       <Text style={s.h2}>Vilka uppgifter samlar vi in?</Text>
       <Text style={s.p}>
-        För att Veckis ska fungera behöver vi lagra följande information:
+        För att Handlis ska fungera behöver vi lagra följande information:
       </Text>
       <Text style={s.list}>• E-postadress (för inloggning via Clerk)</Text>
       <Text style={s.list}>• Visningsnamn du själv väljer ("nickname")</Text>
@@ -61,10 +61,10 @@ export default function PrivacyScreen() {
 
       <Text style={s.h2}>Upphovsrätt & innehåll</Text>
       <Text style={s.p}>
-        När du importerar ett recept från en webbadress sparar Veckis en länk till
+        När du importerar ett recept från en webbadress sparar Handlis en länk till
         källan och visar bilden direkt från originalsajten (vi lagrar ingen egen
         kopia av bilden). Recept hamnar i ditt privata hushåll och publiceras inte.
-        Veckis gör inga anspråk på innehåll som tillhör originalkällan.{'\n\n'}
+        Handlis gör inga anspråk på innehåll som tillhör originalkällan.{'\n\n'}
         Är du rättighetshavare och vill att ett recept eller en bild tas bort?
         Mejla <Text style={s.link}>veckis.support@gmail.com</Text> med länken, så
         tar vi bort det skyndsamt.

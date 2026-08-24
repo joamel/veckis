@@ -24,13 +24,13 @@ export async function shareInviteLink(
   code: string,
 ): Promise<ShareResult> {
   const url = buildInviteUrl(code);
-  const message = `Gå med i ${householdName} på Veckis — öppna länken:\n${url}`;
+  const message = `Gå med i ${householdName} på Handlis — öppna länken:\n${url}`;
 
   if (Platform.OS === 'web') {
     const nav = typeof navigator !== 'undefined' ? navigator : undefined;
     if (nav && typeof nav.share === 'function') {
       try {
-        await nav.share({ title: 'Veckis-inbjudan', text: message, url });
+        await nav.share({ title: 'Handlis-inbjudan', text: message, url });
         return { outcome: 'shared' };
       } catch (err) {
         // Användaren avbröt eller browsern blockerade — falla tillbaka till copy.
@@ -44,6 +44,6 @@ export async function shareInviteLink(
   }
 
   // Native: använd RN Share, som öppnar systemets share-sheet.
-  await Share.share({ message, url, title: 'Veckis-inbjudan' });
+  await Share.share({ message, url, title: 'Handlis-inbjudan' });
   return { outcome: 'shared' };
 }

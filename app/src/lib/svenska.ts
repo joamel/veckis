@@ -1,4 +1,4 @@
-// Centraliserade UI-texter för Veckis.
+// Centraliserade UI-texter för Handlis.
 // Dynamiska texter är funktioner som tar parametrar.
 
 // ─── Gemensamma åtgärder ──────────────────────────────────────────────────────
@@ -972,8 +972,8 @@ export const recipes = {
   },
 
   permissions: {
-    camera: 'Veckis behöver tillgång till kameran',
-    photos: 'Veckis behöver tillgång till bilder',
+    camera: 'Handlis behöver tillgång till kameran',
+    photos: 'Handlis behöver tillgång till bilder',
   },
 
   tips: {
@@ -1350,7 +1350,7 @@ export const components = {
     errorSave:      'Kunde inte spara notisinställningen',
     deviceStatus: {
       ok:          'Den här enheten är registrerad för notiser.',
-      denied:      'Notiser är avstängda i telefonens inställningar - slå på dem för Veckis där.',
+      denied:      'Notiser är avstängda i telefonens inställningar - slå på dem för Handlis där.',
       unsupported: 'Push kräver en fysisk enhet (funkar inte i emulator).',
       error:       (err: string) => `Kunde inte registrera: ${err}`,
     },
@@ -1388,7 +1388,7 @@ export const components = {
   },
 
   welcomeModal: {
-    title:       'Välkommen till Veckis!',
+    title:       'Välkommen till Handlis!',
     message:     'Här följer några korta tips och trix om hur appen fungerar. De dyker upp allteftersom du utforskar flikarna - meny, sysslor, kalender och inköpslista.',
     subtle:      'Tipsen visas bara en gång per styck och du kan slå av eller återställa dem under',
     subtleBold:  'Inställningar ⋮',
@@ -1411,9 +1411,9 @@ export const components = {
   },
 
   versionBanner: {
-    webText:      'Ny version av Veckis tillgänglig',
+    webText:      'Ny version av Handlis tillgänglig',
     webAction:    'Ladda om',
-    nativeText:   'Ny version av Veckis laddad',
+    nativeText:   'Ny version av Handlis laddad',
     nativeAction: 'Starta om',
   },
 
@@ -1431,7 +1431,7 @@ export const components = {
     empty: 'Inga händelser ännu.',
   },
   installBanner: {
-    title:           'Installera Veckis som app',
+    title:           'Installera Handlis som app',
     install:         'Installera',
     addToHomeScreen: 'Lägg till på hemskärmen',
   },
@@ -1459,7 +1459,7 @@ export const history = {
 // ─── Inloggning / Registrering ─────────────────────────────────────────────────
 
 export const auth = {
-  appName: 'Veckis',
+  appName: 'Handlis',
 
   placeholders: {
     email:           'E-post',
@@ -1622,7 +1622,7 @@ export const preferences = {
 
   support: {
     unknownVersion: 'okänd',
-    subject:        'Veckis-support',
+    subject:        'Handlis-support',
     body:           (version: string, platform: string) => `\n\n---\nVersion: ${version}\nPlattform: ${platform}\n`,
   },
 };
@@ -1632,7 +1632,7 @@ export const preferences = {
 export const householdSetup = {
   defaultName: 'Användare',
 
-  title:           'Välkommen till Veckis',
+  title:           'Välkommen till Handlis',
   subtitle:        'Välj ett namn - det syns för andra i hushållet',
   namePlaceholder: 'Ditt namn',
 
@@ -1666,19 +1666,19 @@ export const householdSetup = {
 
 export const install = {
   installed: {
-    title:       'Veckis är installerat',
+    title:       'Handlis är installerat',
     body:        'Du kör redan appen som installerad PWA. Öppna den från hemskärmen.',
     openApp:     'Öppna appen',
   },
 
   hero: {
-    title:       'Veckis',
+    title:       'Handlis',
     tagline:     'Veckomeny, sysslor och inköp för hushållet',
   },
 
   android: {
     cardTitle:   'Android',
-    cardBody:    'Två sätt att få Veckis på din telefon:',
+    cardBody:    'Två sätt att få Handlis på din telefon:',
     apk: {
       title:     'Ladda hem appen (APK)',
       body:      'Hela appen med pushnotiser. Du behöver godkänna installation\n              från okänd källa när Android frågar.',
@@ -1698,7 +1698,7 @@ export const install = {
 
   ios: {
     cardTitle:     'iPhone / iPad',
-    cardBody:      'Apple tillåter inte direkt-installation från web. Du installerar Veckis\n            som en webbapp via Safari:',
+    cardBody:      'Apple tillåter inte direkt-installation från web. Du installerar Handlis\n            som en webbapp via Safari:',
     warningPrefix: 'Öppna denna sida i ',
     warningSafari: 'Safari',
     warningSuffix: ' - andra browsers (Chrome/Edge på iOS)\n                kan inte installera webbappar.',
@@ -1708,16 +1708,16 @@ export const install = {
     step2Prefix:   'Bläddra ner och välj ',
     step2Bold:     'Lägg till på hemskärmen',
     step2Suffix:   '.',
-    step3:         'Bekräfta - Veckis-ikonen dyker upp på hemskärmen och fungerar som\n              en vanlig app.',
+    step3:         'Bekräfta - Handlis-ikonen dyker upp på hemskärmen och fungerar som\n              en vanlig app.',
   },
 
   desktop: {
     cardTitle:   'Desktop (Chrome / Edge / Brave)',
-    cardBody:    'Installera Veckis som ett separat fönster på datorn:',
+    cardBody:    'Installera Handlis som ett separat fönster på datorn:',
     install:     'Installera som app',
     hintPrefix:  'Klicka på install-ikonen ',
     hintMiddle:  ' i adressfältet,\n              eller via menyn → ',
-    hintBold:    'Installera Veckis',
+    hintBold:    'Installera Handlis',
     hintSuffix:  '.',
   },
 
@@ -1725,7 +1725,7 @@ export const install = {
     firefoxName:    'Firefox',
     safariName:     'Safari',
     cardTitle:      (browser: string) => `${browser} stödjer inte PWA-install`,
-    cardBodyPrefix: 'Du kan ändå använda Veckis direkt i browsern utan installation -\n            klicka bara ',
+    cardBodyPrefix: 'Du kan ändå använda Handlis direkt i browsern utan installation -\n            klicka bara ',
     cardBodyBold:   'Öppna webbappen',
     cardBodySuffix: ' nedan.',
     hintPrefix:     'För installation: öppna sidan i ',

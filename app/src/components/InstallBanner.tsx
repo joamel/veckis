@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../lib/theme';
-// Subtil banner som föreslår att installera Veckis som app, visas över
+// Subtil banner som föreslår att installera Handlis som app, visas över
 // sign-in-skärmen. En per plattform — vi tystar Chromes egna prompt genom
 // att fånga beforeinstallprompt så det blir INTE dubbla erbjudanden:
 //

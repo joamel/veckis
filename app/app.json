@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Veckis",
+    "name": "Handlis",
     "slug": "veckis",
     "version": "1.1.0",
     "runtimeVersion": {
@@ -10,7 +10,7 @@
       "url": "https://u.expo.dev/37425b58-c8af-45be-aac8-c26bbdfaa3d1"
     },
     "orientation": "default",
-    "scheme": "veckis",
+    "scheme": "handlis",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "splash": {
@@ -20,7 +20,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.veckis.app",
+      "bundleIdentifier": "com.handlis.app",
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -28,7 +28,7 @@
       }
     },
     "android": {
-      "package": "com.veckis.app",
+      "package": "com.handlis.app",
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
@@ -55,8 +55,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Veckis behöver tillgång till dina bilder för att välja receptbild.",
-          "cameraPermission": "Veckis behöver kameran för att ta en receptbild."
+          "photosPermission": "Handlis behöver tillgång till dina bilder för att välja receptbild.",
+          "cameraPermission": "Handlis behöver kameran för att ta en receptbild."
         }
       ]
     ],
