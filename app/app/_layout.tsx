@@ -103,10 +103,13 @@ function NavigationGuard() {
     // /account + /preferences är djup-vyer öppnade från Profil-headern;
     // kräver login men ska inte redirect:as till tabs när hen är där.
     const isAuthedDeepRoute = (root === 'account' || root === 'preferences') && isSignedIn;
-    if (isPublic || isAuthedDeepRoute) return;
-
     // Kall-start på "/" (index-spinnern) — skicka till favorit-landningsfliken.
     const atRoot = !root || root === 'index';
+    // Webb: utloggad besökare på "/" ska se den publika landningssidan (index.tsx
+    // renderar <WebLanding/>), inte tvingas till login. Native behåller login-
+    // redirect direkt. Krav för Googles OAuth-verifiering + marknadsföring.
+    const showWebLanding = Platform.OS === 'web' && !isSignedIn && atRoot;
+    if (isPublic || isAuthedDeepRoute || showWebLanding) return;
 
     if (!isSignedIn && !inAuthGroup) {
       router.replace('/(auth)/sign-in');

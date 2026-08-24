@@ -55,7 +55,7 @@ export default function TermsScreen() {
       <Text style={s.p}>
         Du kan när som helst lämna ett hushåll (Profil → Lämna hushåll)
         eller be admin ta bort hela hushållet. För att radera ditt
-        Clerk-konto helt, kontakta <Text style={s.link}>veckis.support@gmail.com</Text>.
+        Clerk-konto helt, kontakta <Text style={s.link}>support@handlis.app</Text>.
       </Text>
 
       <Text style={s.h2}>8. Ändringar</Text>
@@ -72,7 +72,7 @@ export default function TermsScreen() {
 
       <Text style={s.h2}>Kontakt</Text>
       <Text style={s.p}>
-        <Text style={s.link}>veckis.support@gmail.com</Text>
+        <Text style={s.link}>support@handlis.app</Text>
       </Text>
     </LegalPage>
   );

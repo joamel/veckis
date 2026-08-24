@@ -1745,3 +1745,53 @@ export const install = {
 
   openWebAppLink: 'Eller öppna webbappen direkt →',
 };
+
+// Publik landningssida (handlis.app) — visas för utloggade webbesökare istället
+// för login-vägg. Beskriver appens syfte (krav för Googles OAuth-verifiering +
+// Google Play) och funkar som marknadsförings-front.
+export const landing = {
+  brand:         'Handlis',
+  nav: {
+    signIn:      'Logga in',
+  },
+  hero: {
+    tagline:     'Hushållets inköpslista, recept och veckomeny på ett ställe.',
+    subtitle:    'Samla handling, matlagning och veckoplanering i en app. Dela inköpslistan i realtid, spara recept och planera veckans måltider tillsammans med familjen.',
+    ctaPrimary:  'Kom igång gratis',
+    ctaSecondary:'Installera appen',
+  },
+  features: {
+    heading:     'Allt hushållet behöver för maten',
+    shopping: {
+      title:     'Delad inköpslista',
+      body:      'Lägg till varor som synkas direkt till alla i hushållet. Automatiskt sorterad efter butik och avdelning, så du slipper springa fram och tillbaka.',
+    },
+    recipes: {
+      title:     'Recept & matlagning',
+      body:      'Spara dina recept, klistra in från valfri sida eller importera via länk. Lägg ingredienserna rakt på inköpslistan med ett tryck.',
+    },
+    menu: {
+      title:     'Veckomeny',
+      body:      'Planera veckans måltider tillsammans. Se vad som ska lagas och handla för hela veckan på en gång.',
+    },
+  },
+  // "Svarta tavlan"-flöde: appens kärn-loop som krittavle-illustration
+  // (koncept-board.webp) — veckomeny → inventera skafferiet → inköpslista.
+  flow: {
+    heading:     'Så funkar Handlis',
+    caption:     'Välj maträtter, se vad som redan finns hemma, och handla bara det som saknas.',
+    alt:         'Krittavla i tre steg. 1. Veckomeny: måndag carbonara, tisdag lasagne, onsdag tacos. 2. Inventera skafferiet: pasta, krossade tomater och parmesan finns; nötfärs och tacoskal saknas. 3. Inköpslista med det som saknas: nötfärs, tacoskal, sallad, tomat, grädde, lök, vitlök och riven ost.',
+  },
+  cta: {
+    heading:     'Redo att förenkla veckohandlingen?',
+    body:        'Kom igång på under en minut. Det är gratis.',
+    button:      'Kom igång',
+  },
+  footer: {
+    tagline:     'Hushållets mat, planerad.',
+    privacy:     'Integritetspolicy',
+    terms:       'Användarvillkor',
+    install:     'Installera appen',
+    rights:      (year: number) => `© ${year} Handlis`,
+  },
+};

@@ -120,7 +120,7 @@ export default function SignInScreen() {
   async function handleGoogleSignIn() {
     try {
       const { createdSessionId, setActive: setOAuthActive } = await startOAuthFlow({
-        redirectUrl: Linking.createURL('/(tabs)/shopping', { scheme: 'veckis' }),
+        redirectUrl: Linking.createURL('/(tabs)/shopping'),
       });
       if (createdSessionId && setOAuthActive) {
         await setOAuthActive({ session: createdSessionId });
