@@ -1745,3 +1745,52 @@ export const install = {
 
   openWebAppLink: 'Eller öppna webbappen direkt →',
 };
+
+// Publik landningssida (handlis.app) — visas för utloggade webbesökare istället
+// för login-vägg. Beskriver appens syfte (krav för Googles OAuth-verifiering +
+// Google Play) och funkar som marknadsförings-front.
+export const landing = {
+  brand:         'Handlis',
+  nav: {
+    signIn:      'Logga in',
+  },
+  hero: {
+    tagline:     'Hushållets inköpslista, recept och veckomeny — på ett ställe.',
+    subtitle:    'Samla handling, matlagning och veckoplanering i en app. Dela inköpslistan i realtid, spara recept och planera veckans måltider tillsammans med familjen.',
+    ctaPrimary:  'Kom igång gratis',
+    ctaSecondary:'Installera appen',
+  },
+  features: {
+    heading:     'Allt hushållet behöver för maten',
+    shopping: {
+      title:     'Delad inköpslista',
+      body:      'Lägg till varor som synkas direkt till alla i hushållet. Automatiskt sorterad efter butik och avdelning — du slipper springa fram och tillbaka.',
+    },
+    recipes: {
+      title:     'Recept & matlagning',
+      body:      'Spara dina recept, klistra in från valfri sida eller importera via länk. Lägg ingredienserna rakt på inköpslistan med ett tryck.',
+    },
+    menu: {
+      title:     'Veckomeny',
+      body:      'Planera veckans måltider tillsammans. Se vad som ska lagas och handla för hela veckan på en gång.',
+    },
+  },
+  how: {
+    heading:     'Så funkar det',
+    step1: { title: 'Skapa ett hushåll', body: 'Bjud in familjen med en enkel länk.' },
+    step2: { title: 'Planera veckan',    body: 'Lägg till recept, måltider och varor.' },
+    step3: { title: 'Handla smart',      body: 'Listan sorteras efter butik automatiskt.' },
+  },
+  cta: {
+    heading:     'Redo att förenkla veckohandlingen?',
+    body:        'Kom igång på under en minut — det är gratis.',
+    button:      'Kom igång',
+  },
+  footer: {
+    tagline:     'Handlis — hushållets mat, planerad.',
+    privacy:     'Integritetspolicy',
+    terms:       'Användarvillkor',
+    install:     'Installera appen',
+    rights:      (year: number) => `© ${year} Handlis`,
+  },
+};
