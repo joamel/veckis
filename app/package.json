@@ -17,8 +17,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "update:preview": "cross-env EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_URL=https://veckis-production.up.railway.app EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_bmV3LW9hcmZpc2gtNDguY2xlcmsuYWNjb3VudHMuZGV2JA eas update --channel preview --message \"OTA update\" --non-interactive",
-    "build:web": "cross-env EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_URL=https://veckis-production.up.railway.app EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_bmV3LW9hcmZpc2gtNDguY2xlcmsuYWNjb3VudHMuZGV2JA expo export --platform web --clear --output-dir dist && node scripts/patch-index-html.mjs",
+    "update:preview": "cross-env EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_URL=https://veckis-production.up.railway.app EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk eas update --channel preview --message \"OTA update\" --non-interactive",
+    "build:web": "cross-env EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_URL=https://veckis-production.up.railway.app EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk expo export --platform web --clear --output-dir dist && node scripts/patch-index-html.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
