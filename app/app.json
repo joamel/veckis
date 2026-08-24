@@ -16,7 +16,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#eed7c5"
+      "backgroundColor": "#4e7a5e"
     },
     "ios": {
       "supportsTablet": true,
@@ -33,7 +33,7 @@
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#eed7c5"
+        "backgroundColor": "#4e7a5e"
       }
     },
     "androidStatusBar": {

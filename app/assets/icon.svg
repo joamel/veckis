@@ -1,58 +1,46 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
 <defs>
   <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0" stop-color="#faf8f3"/><stop offset="1" stop-color="#eed7c5"/>
+    <stop offset="0" stop-color="#5d8a6d"/><stop offset="1" stop-color="#4e7a5e"/>
   </linearGradient>
   <linearGradient id="terra" x1="0" y1="0" x2="0.9" y2="1">
     <stop offset="0" stop-color="#b96a45"/><stop offset="1" stop-color="#a55a37"/>
   </linearGradient>
   <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0" stop-color="#faf8f3"/><stop offset="1" stop-color="#eed7c5"/>
+    <stop offset="0" stop-color="#faf8f3"/><stop offset="1" stop-color="#f1e9db"/>
   </linearGradient>
   <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
-    <feDropShadow dx="0" dy="10" stdDeviation="12" flood-opacity=".16"/>
+    <feDropShadow dx="0" dy="10" stdDeviation="12" flood-opacity=".22"/>
   </filter>
 </defs>
 
-<!-- Full-bleed bakgrund (OS:et maskar hörnen) -->
+<!-- Full-bleed grön bakgrund (OS:et maskar hörnen) -->
 <rect x="0" y="0" width="1024" height="1024" fill="url(#bg)"/>
 
-<!-- Shopping list -->
+<!-- Shopping list (cream) -->
 <g filter="url(#shadow)">
-  <path d="M315 180h385l88 88v430H315c-43 0-78-35-78-78V258c0-43 35-78 78-78z"
-        fill="url(#paper)"/>
+  <path d="M315 180h385l88 88v430H315c-43 0-78-35-78-78V258c0-43 35-78 78-78z" fill="url(#paper)"/>
   <path d="M700 180v78c0 25 20 45 45 45h43" fill="#4e7a5e"/>
-  <path d="M700 180l88 88" stroke="#4e7a5e" stroke-width="2" opacity=".25"/>
 </g>
-
-<!-- List checks -->
 <g fill="none" stroke="#4e7a5e" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M330 335l28 28 55-62"/>
-  <path d="M330 475l28 28 55-62"/>
-  <path d="M330 615l28 28 55-62"/>
+  <path d="M330 335l28 28 55-62"/><path d="M330 475l28 28 55-62"/><path d="M330 615l28 28 55-62"/>
 </g>
 <g stroke="#4e7a5e" stroke-width="18" stroke-linecap="round">
   <path d="M455 340h205"/><path d="M455 480h205"/><path d="M455 620h205"/>
 </g>
 
-<!-- Leaves -->
-<g fill="#4e7a5e">
+<!-- Leaves (light sage, syns mot grönt) -->
+<g fill="#c6ddcd">
   <path d="M778 650c-5-85 18-157 75-205 15 76-4 142-75 205z"/>
   <path d="M795 700c38-78 94-119 166-126-28 68-83 110-166 126z"/>
   <path d="M778 745c18-47 54-72 105-73-12 43-47 68-105 73z"/>
 </g>
-<g fill="none" stroke="#4e7a5e" stroke-width="10" stroke-linecap="round">
-  <path d="M770 790c28-88 57-166 87-236"/>
-  <path d="M810 680c48-45 91-75 139-99"/>
-</g>
 
-<!-- Basket -->
+<!-- Basket (terracotta glöder mot grönt) -->
 <g filter="url(#shadow)">
   <path d="M165 600h694l-70 270c-14 53-60 89-115 89H350c-55 0-101-36-115-89z" fill="url(#terra)"/>
   <rect x="135" y="560" width="754" height="86" rx="32" fill="#b96a45"/>
 </g>
-
-<!-- Basket slots -->
 <g fill="#faf8f3">
   <rect x="285" y="690" width="48" height="220" rx="24" transform="rotate(-4 309 800)"/>
   <rect x="420" y="690" width="48" height="220" rx="24" transform="rotate(-2 444 800)"/>
