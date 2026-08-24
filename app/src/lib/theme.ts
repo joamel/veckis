@@ -1,4 +1,4 @@
-// Central färgpalett för Veckis — semantiska tokens med LIGHT + DARK.
+// Central färgpalett för Handlis — semantiska tokens med LIGHT + DARK.
 //
 // Historik: appen byggdes med Tailwind-indigo/violett, ersattes av en varm
 // palett (salvia + beige + terrakotta). Mycket befintlig kod har fortfarande

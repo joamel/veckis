@@ -5,12 +5,12 @@ export default function TermsScreen() {
   const s = useLegalStyles();
   return (
     <LegalPage title="Användarvillkor">
-      <Text style={s.h1}>Användarvillkor för Veckis</Text>
+      <Text style={s.h1}>Användarvillkor för Handlis</Text>
       <Text style={s.meta}>Senast uppdaterad: 2026-06-04</Text>
 
       <Text style={s.h2}>1. Tjänsten</Text>
       <Text style={s.p}>
-        Veckis är ett verktyg för hushåll att planera veckomeny, sysslor och
+        Handlis är ett verktyg för hushåll att planera veckomeny, sysslor och
         inköp tillsammans. Tjänsten tillhandahålls i befintligt skick utan
         garantier. Vi gör vårt bästa för att appen ska fungera men kan inte
         utlova obruten drift.
@@ -46,7 +46,7 @@ export default function TermsScreen() {
 
       <Text style={s.h2}>6. Ansvarsbegränsning</Text>
       <Text style={s.p}>
-        Veckis är ett verktyg, inte en garanti. Vi ansvarar inte för
+        Handlis är ett verktyg, inte en garanti. Vi ansvarar inte för
         glömda inköp, missade sysslor eller felaktig data. Säkerhetskopiera
         viktigt innehåll regelbundet.
       </Text>
