@@ -1775,13 +1775,12 @@ export const landing = {
       body:      'Planera veckans måltider tillsammans. Se vad som ska lagas och handla för hela veckan på en gång.',
     },
   },
-  // "Svarta tavlan"-flöde: appens kärn-loop (vardagen töm skafferiet → inventera
-  // → färdig inköpslista), visad som krittavla med pilar.
+  // "Svarta tavlan"-flöde: appens kärn-loop som krittavle-illustration
+  // (koncept-board.webp) — veckomeny → inventera skafferiet → inköpslista.
   flow: {
-    heading:     'Så blir veckan en färdig inköpslista',
-    week:      { title: 'Mån, tis, ons…', body: 'Veckan rullar på och skafferiet sinar.' },
-    inventory: { title: 'Inventera',       body: 'Kolla snabbt vad som redan finns hemma.' },
-    list:      { title: 'Inköpslistan',    body: 'Klar att handla, sorterad efter butik.' },
+    heading:     'Så funkar Handlis',
+    caption:     'Välj maträtter, se vad som redan finns hemma, och handla bara det som saknas.',
+    alt:         'Krittavla i tre steg. 1. Veckomeny: måndag carbonara, tisdag lasagne, onsdag tacos. 2. Inventera skafferiet: pasta, krossade tomater och parmesan finns; nötfärs och tacoskal saknas. 3. Inköpslista med det som saknas: nötfärs, tacoskal, sallad, tomat, grädde, lök, vitlök och riven ost.',
   },
   cta: {
     heading:     'Redo att förenkla veckohandlingen?',

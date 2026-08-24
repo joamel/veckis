@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { landing as str } from '../lib/svenska';
 
@@ -10,6 +9,8 @@ import { landing as str } from '../lib/svenska';
 // app"). Fast varumärkespalett (grön/terrakotta) oberoende av besökarens tema
 // så sidan alltid ser ut som Handlis.
 const LOGO = require('../../assets/icon.png');
+const BOARD = require('../../assets/koncept-board.webp'); // krittavle-illustration (1536x850)
+const BOARD_RATIO = 1536 / 850;
 
 const BRAND = {
   greenDark: '#2f5340',
@@ -24,39 +25,11 @@ const BRAND = {
   light:     '#f1efec',
   lightMute: '#cdd8ce',
   line:      '#e7e1d6',
-  // Krittavla
-  slate:     '#26332c',
+  slate:     '#1c1c1c',
   chalk:     '#f2ede1',
   chalkMute: '#a9b6a5',
   chalkTerra:'#e6c9a8',
 };
-
-// En station i krittavle-flödet (krit-ram + ikon + rubrik + text).
-function FlowStation({ icon, title, body }: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }) {
-  return (
-    <View style={fs.station}>
-      <Ionicons name={icon} size={30} color={BRAND.chalk} style={{ marginBottom: 10 }} />
-      <Text style={fs.title}>{title}</Text>
-      <Text style={fs.body}>{body}</Text>
-    </View>
-  );
-}
-
-const fs = StyleSheet.create({
-  station: {
-    flex: 1,
-    minWidth: 150,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(242,237,225,0.45)',
-    borderStyle: 'dashed',
-    borderRadius: 16,
-    paddingVertical: 22,
-    paddingHorizontal: 16,
-  },
-  title: { fontSize: 18, fontWeight: '800', color: BRAND.chalk, textAlign: 'center', letterSpacing: 0.2 },
-  body: { fontSize: 14, lineHeight: 20, color: BRAND.chalkMute, textAlign: 'center', marginTop: 6, maxWidth: 200 },
-});
 
 export function WebLanding() {
   const router = useRouter();
@@ -69,7 +42,6 @@ export function WebLanding() {
   const year = new Date().getFullYear();
 
   const features = [str.features.shopping, str.features.recipes, str.features.menu];
-  const arrow = narrow ? 'arrow-down' : 'arrow-forward';
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: BRAND.creme }} contentContainerStyle={{ minHeight: '100%' }}>
@@ -118,18 +90,18 @@ export function WebLanding() {
         </View>
       </View>
 
-      {/* Krittavla — appens kärn-loop med pilar */}
+      {/* Krittavla — appens kärn-loop som illustration */}
       <View style={s.board}>
         <View style={s.boardInner}>
           <Text style={s.boardHeading}>{str.flow.heading}</Text>
           <View style={s.boardUnderline} />
-          <View style={[s.flowRow, narrow && s.flowCol]}>
-            <FlowStation icon="calendar-outline" title={str.flow.week.title} body={str.flow.week.body} />
-            <Ionicons name={arrow} size={30} color={BRAND.chalkTerra} style={s.flowArrow} />
-            <FlowStation icon="search-outline" title={str.flow.inventory.title} body={str.flow.inventory.body} />
-            <Ionicons name={arrow} size={30} color={BRAND.chalkTerra} style={s.flowArrow} />
-            <FlowStation icon="cart-outline" title={str.flow.list.title} body={str.flow.list.body} />
-          </View>
+          <Image
+            source={BOARD}
+            style={s.boardImg}
+            resizeMode="contain"
+            accessibilityLabel={str.flow.alt}
+          />
+          <Text style={s.boardCaption}>{str.flow.caption}</Text>
         </View>
       </View>
 
@@ -189,14 +161,13 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   featureTitle: { fontSize: 19, fontWeight: '800', color: BRAND.terraDark, marginBottom: 10 },
   featureBody: { fontSize: 15, lineHeight: 23, color: BRAND.inkMuted },
 
-  // Krittavla
+  // Krittavla-sektion
   board: { backgroundColor: BRAND.slate, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72 },
-  boardInner: { width: '100%', maxWidth: 1040, alignSelf: 'center', alignItems: 'center' },
+  boardInner: { width: '100%', maxWidth: 1000, alignSelf: 'center', alignItems: 'center' },
   boardHeading: { fontSize: narrow ? 24 : 32, fontWeight: '800', color: BRAND.chalk, textAlign: 'center', letterSpacing: -0.2, textShadowColor: 'rgba(255,255,255,0.12)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8 },
-  boardUnderline: { width: 90, height: 3, borderRadius: 2, backgroundColor: 'rgba(230,201,168,0.7)', marginTop: 14, marginBottom: narrow ? 30 : 44 },
-  flowRow: { flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'stretch', justifyContent: 'center' },
-  flowCol: { flexDirection: 'column' },
-  flowArrow: { marginHorizontal: 2 },
+  boardUnderline: { width: 90, height: 3, borderRadius: 2, backgroundColor: 'rgba(230,201,168,0.7)', marginTop: 14, marginBottom: narrow ? 26 : 36 },
+  boardImg: { width: '100%', maxWidth: 960, aspectRatio: BOARD_RATIO, borderRadius: 14, alignSelf: 'center' },
+  boardCaption: { fontSize: narrow ? 15 : 16, lineHeight: 24, color: BRAND.chalkMute, textAlign: 'center', marginTop: narrow ? 22 : 30, maxWidth: 560 },
 
   ctaBand: { backgroundColor: BRAND.green, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 64 },
   ctaBandInner: { width: '100%', maxWidth: 720, alignSelf: 'center', alignItems: 'center' },
