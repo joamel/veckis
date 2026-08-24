@@ -7,7 +7,7 @@ import type { Palette } from '../src/lib/theme';
 // relevant — användaren ska inte behöva läsa fel kolumn.
 //
 // Inte auth-skyddad (NavigationGuard hoppar över /install). Användare
-// hamnar här via en delad länk: https://veckis-web.onrender.com/install
+// hamnar här via en delad länk: https://handlis.app/install
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

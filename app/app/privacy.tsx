@@ -54,7 +54,7 @@ export default function PrivacyScreen() {
       <Text style={s.h2}>Dina rättigheter (GDPR)</Text>
       <Text style={s.p}>
         Du har rätt att få tillgång till, rätta eller radera dina uppgifter.
-        Kontakta oss på <Text style={s.link}>veckis.support@gmail.com</Text> så
+        Kontakta oss på <Text style={s.link}>support@handlis.app</Text> så
         hjälper vi dig. Du kan också radera ditt konto direkt i Profil →
         Lämna hushåll, eller be admin ta bort hela hushållet.
       </Text>
@@ -66,13 +66,13 @@ export default function PrivacyScreen() {
         kopia av bilden). Recept hamnar i ditt privata hushåll och publiceras inte.
         Handlis gör inga anspråk på innehåll som tillhör originalkällan.{'\n\n'}
         Är du rättighetshavare och vill att ett recept eller en bild tas bort?
-        Mejla <Text style={s.link}>veckis.support@gmail.com</Text> med länken, så
+        Mejla <Text style={s.link}>support@handlis.app</Text> med länken, så
         tar vi bort det skyndsamt.
       </Text>
 
       <Text style={s.h2}>Kontakt</Text>
       <Text style={s.p}>
-        Frågor om denna policy? <Text style={s.link}>veckis.support@gmail.com</Text>
+        Frågor om denna policy? <Text style={s.link}>support@handlis.app</Text>
       </Text>
     </LegalPage>
   );

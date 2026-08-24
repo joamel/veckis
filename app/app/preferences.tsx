@@ -64,7 +64,7 @@ export default function PreferencesScreen() {
     const version = Constants.expoConfig?.version ?? str.support.unknownVersion;
     const subject = encodeURIComponent(str.support.subject);
     const body = encodeURIComponent(str.support.body(version, Platform.OS));
-    const url = `mailto:veckis.support@gmail.com?subject=${subject}&body=${body}`;
+    const url = `mailto:support@handlis.app?subject=${subject}&body=${body}`;
     if (Platform.OS === 'web') {
       window.location.href = url;
     } else {
