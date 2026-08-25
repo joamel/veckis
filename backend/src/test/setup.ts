@@ -41,8 +41,6 @@ beforeEach(async () => {
   // Behåller schemat — bara raderar data. Snabbare än att köra om migrations.
   await p.$executeRawUnsafe(`
     TRUNCATE TABLE
-      "ChoreCompletion",
-      "Chore",
       "ShoppingItem",
       "ShoppingList",
       "Store",
@@ -51,7 +49,6 @@ beforeEach(async () => {
       "MenuTemplate",
       "RecipeIngredient",
       "Recipe",
-      "ScheduleEntry",
       "StapleItem",
       "IngredientAlias",
       "UnitEquivalence",

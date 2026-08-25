@@ -34,8 +34,6 @@ import { normalizeQtyInput } from '../../src/lib/qty';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
-import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import type { RecipeIngredient, WeekDay } from '@veckis/shared';
 
@@ -58,12 +56,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const { householdId } = useHousehold();
   const { showError, showToast } = useToast();
   const confirm = useConfirm();
-  const showTip = useSpotlightTip();
-  const tipsReady = useTipsReady();
   const tryCloseEdit = useDiscardDraft(confirm);
-  const recipeCartTip = useOnceFlag('seen-recipe-cart-tip');
-  const recipeCartTipShownRef = useRef(false);
-  const recipeCartRef = useRef<View>(null);
 
   const [recipe, setRecipe] = useState<RecipeWithIngredients | null>(null);
   const [loading, setLoading] = useState(true);
@@ -218,20 +211,6 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [planWeekStr, setPlanWeekStr] = useState('');
   const [planWeekItems, setPlanWeekItems] = useState<WeekMenuItemWithRecipe[]>([]);
-
-  // Recipe-cart-tip: visa när receptet är laddat och har ingredienser så
-  // kundvagn-FAB:en faktiskt syns och är meningsfull att förklara.
-  useEffect(() => {
-    if (!tipsReady) return;
-    if (recipeCartTip.seen !== false || recipeCartTipShownRef.current) return;
-    if (!recipe || recipe.ingredients.length === 0) return;
-    const shown = showTip({
-      title: str.tips.transfer.title,
-      message: str.tips.transfer.message,
-      targetRef: recipeCartRef,
-    });
-    if (shown) { recipeCartTipShownRef.current = true; recipeCartTip.markSeen(); }
-  }, [tipsReady, recipe, recipeCartTip.seen, recipeCartTip.markSeen, showTip]);
 
   // Load ingredient suggestions once for autocomplete in edit mode
   useEffect(() => {
@@ -813,7 +792,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>{str.detail.ingredientsLabel}</Text>
             {!editMode && recipe.ingredients.length > 0 && (
-              <Pressable ref={recipeCartRef} style={s.cookBtn} onPress={() => openTransfer()} accessibilityLabel={str.detail.transferA11y}>
+              <Pressable style={s.cookBtn} onPress={() => openTransfer()} accessibilityLabel={str.detail.transferA11y}>
                 <Ionicons name="cart-outline" size={14} color={c.primary} />
                 <Text style={s.cookBtnText}>{str.detail.addToList}</Text>
               </Pressable>

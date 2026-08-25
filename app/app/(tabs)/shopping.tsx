@@ -16,11 +16,10 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type ShoppingListWithItems } from '../../src/api/client';
-import { useHousehold } from '../../src/context/HouseholdContext';
-import { useToast } from '../../src/context/ToastContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
-import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
+import { useHousehold } from '../../src/context/HouseholdContext';
+import { useToast } from '../../src/context/ToastContext';
 import { pickStore } from '../../src/lib/storePicker';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { EmptyState } from '../../src/components/EmptyState';
@@ -51,7 +50,6 @@ export default function ShoppingScreen() {
   const storesTip = useOnceFlag('seen-stores-tip');
   const storesTipShownRef = useRef(false);
   const storesBtnRef = useRef<View>(null);
-  const wrapNewListTip = useFirstActionTip('seen-shopping-add-tip');
   const { fs, sp, isTablet, isSplitView, largeTablet } = useTablet();
   const insets = useSafeAreaInsets();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
@@ -103,17 +101,16 @@ export default function ShoppingScreen() {
     if (!isSplitView) setSelectedListId(null);
   }, [isSplitView, lists.length]);
 
-  // Butiker-tip: useFocusEffect så det bara fyrar när inköp-fliken faktiskt
-  // är aktiv. useEffect skulle fyra direkt när tabben mountar i bakgrunden
-  // (default-fliken är kalender) → tipset poppade men ring missade målet.
+  // Butiker-tip (vallgraven): förklarar att man kan skapa egna butiker och
+  // sortera kategorierna efter sin affärsrutt. useFocusEffect så det bara fyrar
+  // när inköp-fliken är aktiv; väntar tills spinnern är borta (annars är
+  // storesBtnRef.current null) och tills koncept-guiden är avklarad.
   useFocusEffect(useCallback(() => {
     if (!tipsReady) return;
-    // Vänta tills loading-spinnern är borta — annars renderar shopping bara
-    // ActivityIndicator och storesBtnRef.current är null när tipset fyrar.
     if (loading) return;
     if (storesTip.seen !== false || storesTipShownRef.current) return;
     const shown = showTip({
-      title: str.header.stores,
+      title: str.tips.stores.title,
       message: str.tips.stores.message,
       targetRef: storesBtnRef,
     });
@@ -242,10 +239,7 @@ export default function ShoppingScreen() {
         }}
       />
 
-      <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28), bottom: 20 + insets.bottom }]} onPress={wrapNewListTip(
-        () => setShowModal(true),
-        { title: str.tips.create.title, message: str.tips.create.message },
-      )}>
+      <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28), bottom: 20 + insets.bottom }]} onPress={() => setShowModal(true)}>
         <Ionicons name="add" size={fs(30)} color="#fff" />
       </Pressable>
 

@@ -25,32 +25,6 @@ export async function makeMember(
   });
 }
 
-export async function makeChore(
-  householdId: string,
-  opts: {
-    title?: string;
-    assignedToMany?: string[];
-    rotation?: boolean;
-    isShared?: boolean;
-    createdBy?: string;
-  } = {},
-) {
-  const assignedToMany = opts.assignedToMany ?? [];
-  return prisma.chore.create({
-    data: {
-      householdId,
-      title: opts.title ?? 'Testsyssla',
-      assignedToMany,
-      assignedTo: assignedToMany[0] ?? null,
-      rotation: opts.rotation ?? false,
-      isShared: opts.isShared ?? true,
-      createdBy: opts.createdBy ?? uid('clerk'),
-      days: [],
-      frequency: 'weekly',
-    },
-  });
-}
-
 export async function makeStore(householdId: string, name = 'Testbutik') {
   return prisma.store.create({
     data: { householdId, name, categoryOrder: [], customCategories: [], expandedSubs: [] },

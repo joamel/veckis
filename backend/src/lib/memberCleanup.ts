@@ -2,33 +2,15 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../db';
 
 /**
- * Rensar en medlem ur alla `assignedToMany`/`assignedTo` på hushållets chores +
- * scheduleEntries och raderar medlemsraden. Delad cascade-logik för leave,
- * admin-driven remove och Clerk `user.deleted`-webhooken. Körs inom `tx`.
+ * Raderar en medlemsrad. Delad cascade-logik för leave, admin-driven remove och
+ * Clerk `user.deleted`-webhooken. Körs inom `tx`. (Tidigare scrubbade den även
+ * chore/scheduleEntry-tilldelningar; de togs bort när kalender/sysslor fimpades.)
  */
 export async function cascadeRemoveMember(
   tx: Prisma.TransactionClient,
-  householdId: string,
+  _householdId: string,
   memberId: string,
 ): Promise<void> {
-  const chores = await tx.chore.findMany({
-    where: { householdId, assignedToMany: { has: memberId } },
-    select: { id: true, assignedToMany: true },
-  });
-  for (const c of chores) {
-    const next = c.assignedToMany.filter(id => id !== memberId);
-    await tx.chore.update({ where: { id: c.id }, data: { assignedToMany: next, assignedTo: next[0] ?? null } });
-  }
-  const entries = await tx.scheduleEntry.findMany({
-    where: { householdId, assignedToMany: { has: memberId } },
-    select: { id: true, assignedToMany: true },
-  });
-  for (const e of entries) {
-    const next = e.assignedToMany.filter(id => id !== memberId);
-    await tx.scheduleEntry.update({ where: { id: e.id }, data: { assignedToMany: next, assignedTo: next[0] ?? null } });
-  }
-  await tx.chore.updateMany({ where: { householdId, assignedTo: memberId }, data: { assignedTo: null } });
-  await tx.scheduleEntry.updateMany({ where: { householdId, assignedTo: memberId }, data: { assignedTo: null } });
   await tx.householdMember.delete({ where: { id: memberId } });
 }
 

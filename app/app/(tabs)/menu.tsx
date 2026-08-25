@@ -45,7 +45,6 @@ import type { WeekDay, MealType } from '@veckis/shared';
 import { DEFAULT_CATEGORY_ORDER, MEAL_TYPE_ORDER } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { menu as str, common, recipes as recipesStr } from '../../src/lib/svenska';
-import { RECIPE_FOCUS_EXPERIMENT } from '../../src/lib/features';
 
 const DAY_KEYS: WeekDay[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAYS: { key: WeekDay; label: string; short: string }[] = DAY_KEYS.map((key, i) => ({
@@ -255,21 +254,8 @@ export default function MenuScreen() {
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
-  const bulkRecipesTip = useOnceFlag('seen-bulk-recipes-tip');
-  const bulkRecipesTipShownRef = useRef(false);
-  const bulkInventoryTip = useOnceFlag('seen-bulk-inventory-tip');
-  const bulkInventoryTipShownRef = useRef(false);
-  const menuNavTip = useOnceFlag('seen-menu-nav-tip');
+  const menuNavTip = useOnceFlag('seen-menu-drag-tip');
   const menuNavTipShownRef = useRef(false);
-  const templatesTip = useOnceFlag('seen-templates-tip');
-  const templatesTipShownRef = useRef(false);
-  const templatesBtnRef = useRef<View>(null);
-  const cartFabTip = useOnceFlag('seen-cart-fab-tip');
-  const cartFabTipShownRef = useRef(false);
-  const cartFabRef = useRef<View>(null);
-  const recipesBtnTip = useOnceFlag('seen-recipes-btn-tip');
-  const recipesBtnTipShownRef = useRef(false);
-  const recipesBtnRef = useRef<View>(null);
   const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
@@ -620,9 +606,9 @@ export default function MenuScreen() {
   // transfer filters stay in sync (e.g. after clearing/removing items in a list).
   useEffect(() => onShoppingChanged(load), [load]);
 
-  // First time the user opens menyn with rätter inlagda: visa ett tip om att
-  // man kan dra rätter mellan dagar och svepa mellan veckor — annars missar
-  // många dessa funktioner helt.
+  // Meny-drag-tip: att långtrycka och dra en rätt till en annan dag är en gömd
+  // gest utan knapp — visa ett tip (med drag-demo) första gången menyn har
+  // rätter inlagda. Väntar tills koncept-guiden är avklarad (welcomeReady-gate).
   useFocusEffect(useCallback(() => {
     if (!tipsReady) return;
     if (menuNavTip.seen !== false || menuNavTipShownRef.current) return;
@@ -635,79 +621,6 @@ export default function MenuScreen() {
     if (shown) { menuNavTipShownRef.current = true; menuNavTip.markSeen(); }
   }, [tipsReady, menuItems, menuNavTip.seen, menuNavTip.markSeen, showTip]));
 
-  // Mallar-tip: visas EFTER att menu-nav-tipset är dismissat, så vi inte
-  // bombar användaren med två tips på en gång. Spotlightar mallar-knappen.
-  useFocusEffect(useCallback(() => {
-    if (!tipsReady) return;
-    if (templatesTip.seen !== false || templatesTipShownRef.current) return;
-    if (menuNavTip.seen !== true) return; // vänta tills nav-tipset är sett
-    if (menuItems.length === 0) return;
-    const shown = showTip({
-      title: str.tips.templates.title,
-      message: str.tips.templates.message,
-      targetRef: templatesBtnRef,
-    });
-    if (shown) { templatesTipShownRef.current = true; templatesTip.markSeen(); }
-  }, [tipsReady, menuItems.length, menuNavTip.seen, templatesTip.seen, templatesTip.markSeen, showTip]));
-
-  // Recept-knappen i meny-headern: visa direkt efter mallar-tipset så hela
-  // header-sviten introduceras i ordning.
-  useFocusEffect(useCallback(() => {
-    if (!tipsReady) return;
-    if (RECIPE_FOCUS_EXPERIMENT) return; // knappen finns inte → inget tips att rikta
-    if (recipesBtnTip.seen !== false || recipesBtnTipShownRef.current) return;
-    if (templatesTip.seen !== true) return;
-    const shown = showTip({
-      title: str.tips.recipes.title,
-      message: str.tips.recipes.message,
-      targetRef: recipesBtnRef,
-    });
-    if (shown) { recipesBtnTipShownRef.current = true; recipesBtnTip.markSeen(); }
-  }, [tipsReady, templatesTip.seen, recipesBtnTip.seen, recipesBtnTip.markSeen, showTip]));
-
-  // Cart FAB-tip: visas efter templates-tipset när det finns rätter kvar att
-  // överföra (= när FAB:en faktiskt renderas). Workflow-koppling som många missar.
-  useFocusEffect(useCallback(() => {
-    if (!tipsReady) return;
-    if (cartFabTip.seen !== false || cartFabTipShownRef.current) return;
-    if (templatesTip.seen !== true) return;
-    const fabVisible = menuItems.some(m => !recipeListMap[m.id]?.length);
-    if (!fabVisible) return;
-    const shown = showTip({
-      title: str.tips.transfer.title,
-      message: str.tips.transfer.message,
-      targetRef: cartFabRef,
-    });
-    if (shown) { cartFabTipShownRef.current = true; cartFabTip.markSeen(); }
-  }, [tipsReady, menuItems, recipeListMap, templatesTip.seen, cartFabTip.seen, cartFabTip.markSeen, showTip]));
-
-  // Bulk-transfer steg-tips: fyrar oavsett om man kom hit via meny-fliken
-  // (kundvagn-FAB) eller via import från inköpslistan. Gate på modal-state
-  // (showBulkTransferModal) istället för bulkTransferWeek som bara sätts vid
-  // import-flödet.
-  useEffect(() => {
-    if (!tipsReady) return;
-    if (!showBulkTransferModal) return;
-    if (bulkTransferStep !== 'recipe') return;
-    if (bulkRecipesTip.seen !== false || bulkRecipesTipShownRef.current) return;
-    const shown = showTip({
-      title: str.tips.selectItems.title,
-      message: str.tips.selectItems.message,
-    });
-    if (shown) { bulkRecipesTipShownRef.current = true; bulkRecipesTip.markSeen(); }
-  }, [tipsReady, showBulkTransferModal, bulkTransferStep, bulkRecipesTip.seen, bulkRecipesTip.markSeen, showTip]);
-
-  useEffect(() => {
-    if (!tipsReady) return;
-    if (!showBulkTransferModal) return;
-    if (bulkTransferStep !== 'ingredients') return;
-    if (bulkInventoryTip.seen !== false || bulkInventoryTipShownRef.current) return;
-    const shown = showTip({
-      title: str.tips.inventory.title,
-      message: str.tips.inventory.message,
-    });
-    if (shown) { bulkInventoryTipShownRef.current = true; bulkInventoryTip.markSeen(); }
-  }, [tipsReady, showBulkTransferModal, bulkTransferStep, bulkInventoryTip.seen, bulkInventoryTip.markSeen, showTip]);
   // Live menu updates: another device added/removed/moved a meal. load() refreshes
   // both the visible week and the allMenus snapshot that feeds neighbour pages.
   const menuReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1510,19 +1423,9 @@ export default function MenuScreen() {
         title={str.title}
         actionNode={
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <Pressable ref={templatesBtnRef} style={[s.headerIconBtn, { paddingHorizontal: sp(10), paddingVertical: sp(7) }]} onPress={() => setShowTemplates(true)} accessibilityLabel={str.a11y.templates}>
+            <Pressable style={[s.headerIconBtn, { paddingHorizontal: sp(10), paddingVertical: sp(7) }]} onPress={() => setShowTemplates(true)} accessibilityLabel={str.a11y.templates}>
               <Ionicons name="bookmarks-outline" size={fs(18)} color={c.primary} />
             </Pressable>
-            {/* Recept-knappen behövs bara när Recept är en gömd stack-route.
-                I recept-fokus-experimentet är Recept en egen flik → redundant. */}
-            {!RECIPE_FOCUS_EXPERIMENT && (
-              <View ref={recipesBtnRef} collapsable={false}>
-                <Pressable style={[s.headerActionBtn, { paddingHorizontal: sp(12), paddingVertical: sp(7) }]} onPress={() => router.push('/recipes' as never)}>
-                  <Ionicons name="book-outline" size={fs(16)} color={c.primary} />
-                  <Text style={[s.headerActionText, { fontSize: fs(13) }]}>{str.a11y.recipesTab}</Text>
-                </Pressable>
-              </View>
-            )}
           </View>
         }
       />
@@ -1603,7 +1506,7 @@ export default function MenuScreen() {
       {/* Overför-FAB (kundkorg) — visas bara för nuvarande/framtida veckor
           när minst en rätt inte är överförd än. */}
       {!dragState && weekOffset >= 0 && menuItems.some(m => !recipeListMap[m.id]?.length) && (
-        <Pressable ref={cartFabRef} style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={transferWeekMenu} accessibilityLabel={str.a11y.transferFab}>
+        <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={transferWeekMenu} accessibilityLabel={str.a11y.transferFab}>
           <Ionicons name="cart-outline" size={fs(26)} color="#fff" />
         </Pressable>
       )}

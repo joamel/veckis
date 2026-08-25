@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
-import type { ScheduleEntry, Chore, ChoreCompletion } from '@veckis/shared';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -10,14 +9,6 @@ function toWsUrl(householdId: string, token: string): string {
 }
 
 export type HouseholdWsMessage =
-  | { type: 'schedule_entry_added'; data: ScheduleEntry }
-  | { type: 'schedule_entry_updated'; data: ScheduleEntry; actor?: string }
-  | { type: 'schedule_entry_deleted'; data: { id: string }; actor?: string }
-  | { type: 'chore_added'; data: Chore & { completions: ChoreCompletion[] } }
-  | { type: 'chore_updated'; data: Chore; actor?: string }
-  | { type: 'chore_deleted'; data: { id: string }; actor?: string }
-  | { type: 'chore_completed'; data: ChoreCompletion }
-  | { type: 'chore_uncompleted'; data: { id: string; day: string | null; date?: string | null } }
   | { type: 'household_updated'; data: { id: string; name: string } }
   | { type: 'member_added'; data: { id: string; householdId: string; displayName: string; role: string; clerkUserId: string | null } }
   | { type: 'member_updated'; data: { id: string; householdId: string; displayName: string; role: string; clerkUserId: string | null } }

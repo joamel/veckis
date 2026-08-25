@@ -14,8 +14,6 @@ import { verifyToken } from '@clerk/backend';
 import { householdRouter } from './routes/household';
 import { shoppingRouter } from './routes/shopping';
 import { storesRouter } from './routes/stores';
-import { choresRouter } from './routes/chores';
-import { scheduleRouter } from './routes/schedule';
 import { recipesRouter } from './routes/recipes';
 import { menusRouter } from './routes/menus';
 import { staplesRouter } from './routes/staples';
@@ -27,7 +25,6 @@ import { accountRouter } from './routes/account';
 import { prisma } from './db';
 import { asyncHandler } from './lib/asyncHandler';
 import { wsSubscribe, wsUnsubscribe } from './lib/wsHub';
-import { startNotificationScheduler } from './lib/notificationScheduler';
 import { startShopperExpiry } from './lib/shopperExpiry';
 
 const app = express();
@@ -113,8 +110,6 @@ app.get('/keepalive', async (_req, res) => {
 app.use('/api/households', householdRouter);
 app.use('/api/shopping', shoppingRouter);
 app.use('/api/stores', storesRouter);
-app.use('/api/chores', choresRouter);
-app.use('/api/schedule', scheduleRouter);
 app.use('/api/recipes', recipesRouter);
 app.use('/api/menus', menusRouter);
 app.use('/api/staples', staplesRouter);
@@ -144,9 +139,6 @@ process.on('unhandledRejection', (reason) => {
 const server = app.listen(PORT, () => {
   console.log(`Veckis backend running on port ${PORT}`);
 });
-
-// Time-based push notifications (activity reminders, overdue chores).
-startNotificationScheduler();
 
 // Auto-rensa "Jag handlar"-presence efter 2h inaktivitet.
 startShopperExpiry();

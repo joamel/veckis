@@ -5,8 +5,6 @@ import * as Notifications from 'expo-notifications';
 
 interface NotifData {
   type?: string;
-  entryId?: string;
-  choreId?: string;
   listId?: string;
   householdId?: string;
 }
@@ -15,12 +13,6 @@ interface NotifData {
 function routeForNotification(data: NotifData | undefined): void {
   if (!data?.type) return;
   switch (data.type) {
-    case 'activityReminder':
-      router.push(data.entryId ? `/(tabs)/schedule?entryId=${data.entryId}` : '/(tabs)/schedule');
-      break;
-    case 'choreOverdue':
-      router.push(data.choreId ? `/(tabs)/chores?choreId=${data.choreId}` : '/(tabs)/chores');
-      break;
     case 'listCleared':
       router.push(data.listId ? `/shopping/${data.listId}` : '/(tabs)/shopping');
       break;
