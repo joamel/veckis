@@ -68,10 +68,11 @@
 ## Backlog (prioriterade features)
 
 ### Landningssida & marknadsföring (SEO)
-- [ ] **⭐ HÖG PRIO: SEO + analytics på handlis.app** — Google Analytics (eller Plausible) + grund-SEO: `<title>`, meta description, OG/Twitter-taggar (injiceras via `scripts/patch-index-html.mjs` — Expo web är en SPA så metan måste in i index.html), rubrik-hierarki (h1/h2), `sitemap.xml`, snabb laddning. Mål: ranka på "inköpslista app", "veckomeny app", "planera veckans mat" m.m. Mät konvertering (klick på "Kom igång" → registrering).
-- [ ] Landnings-copy börjar med "Handlis" — varmare/personligare ingress, t.ex. "Handlis är din vän när du planerar veckans mat — inköp, recept och veckomeny på ett ställe." i stället för generisk tagline. (`landing.hero` i svenska.ts.)
-- [ ] Krittavle-bilden i mobilvy — dela upp i swipe-bara delbilder (en i taget) alt. beskär/anpassa per breakpoint; flytta sektionen ovanför "Allt hushållet behöver..". (Delvis åtgärdat: sektion flyttad + swipe-karusell på smal skärm — se om ytterligare polish behövs.)
-- [ ] OG/social-preview-bild när handlis.app-länken delas (SEO + delning); alt-text på alla landningsbilder.
+- [ ] **⭐ HÖG PRIO: analytics på handlis.app** — Google Analytics (GA4) eller Plausible för besöks-/konverteringsmätning (klick på "Kom igång" → registrering). Kräver GA4-mät-ID eller Plausible-konto → injiceras i `patch-index-html.mjs`. (Grund-SEO är KLART, se nedan.)
+- [x] **Grund-SEO på handlis.app** — `patch-index-html.mjs` injicerar nu: SEO-`<title>` ("Handlis | Veckomeny, recept & inköpslista för hushållet"), meta description, canonical, `robots`, Open Graph + Twitter-taggar, JSON-LD (SoftwareApplication), `lang="sv"`, theme-color #4e7a5e. `public/robots.txt` + `public/sitemap.xml` (/, /install, /privacy, /terms). `manifest.json` → Handlis + nya färger.
+- [x] Landnings-copy börjar med "Handlis" — hero leder nu med "Handlis är din vän när du planerar veckans mat." (`landing.hero`).
+- [x] Krittavle-bilden i mobilvy — horisontell pager över hela bilden (snappar en box i taget, pilarna syns mellan), ‹ ›-knappar + prickar; ljus beige sektionsbakgrund; flyttad ovanför funktioner.
+- [x] OG/social-preview-bild (`public/og-image.png`, 1200×630: logga + Handlis + tagline på varumärkesbotten); refereras från og:image/twitter:image. Alt-text finns på krittavlan (`landing.alt`).
 - [ ] Skärmdumps-karusell av faktiska app-skärmar på landningssidan (förtroende + konvertering + alt-text för SEO).
 
 ### Onboarding

@@ -1,14 +1,14 @@
 {
-  "name": "Veckis",
-  "short_name": "Veckis",
-  "description": "Veckomeny, sysslor och inköp för hushållet.",
+  "name": "Handlis",
+  "short_name": "Handlis",
+  "description": "Hushållets inköpslista, recept och veckomeny på ett ställe.",
   "lang": "sv",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FAF7F0",
-  "theme_color": "#5C7F66",
+  "background_color": "#eed7c5",
+  "theme_color": "#4e7a5e",
   "icons": [
     {
       "src": "/icon-192.png",
