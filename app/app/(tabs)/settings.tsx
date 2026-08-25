@@ -23,8 +23,6 @@ import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
-import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { NotificationsModal } from '../../src/components/NotificationsModal';
 import { AuditLogSection } from '../../src/components/AuditLogSection';
@@ -34,7 +32,6 @@ import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
 import { kavBehavior } from '../../src/lib/platform';
 import { settings as str, common } from '../../src/lib/svenska';
-import { RECIPE_FOCUS_EXPERIMENT } from '../../src/lib/features';
 import { useTheme, type ThemeMode } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
 
@@ -48,14 +45,6 @@ export default function SettingsScreen() {
   const styles = useMemo(() => makeStyles(c), [c]);
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
-  const showTip = useSpotlightTip();
-  const tipsReady = useTipsReady();
-  const notifClockTip = useOnceFlag('seen-notif-clock-tip');
-  const notifClockTipShownRef = useRef(false);
-  const notifClockBtnRef = useRef<View>(null);
-  const adminTip = useOnceFlag('seen-admin-tip');
-  const adminTipShownRef = useRef(false);
-  const adminEditBtnRef = useRef<View>(null);
   const [invite, setInvite] = useState<InviteCode | null>(null);
   const [loadingInvite, setLoadingInvite] = useState(false);
   const [showAdminLogs, setShowAdminLogs] = useState(false);
@@ -64,19 +53,6 @@ export default function SettingsScreen() {
   const [editMode, setEditMode] = useState(false);
   const editModeRef = useRef(false);
   useEffect(() => { editModeRef.current = editMode; }, [editMode]);
-
-  // Notis-klocka-tip: visa första gången inställningar öppnas (klockan i högra
-  // hörnet är nyare och inte alltid uppenbar).
-  useFocusEffect(useCallback(() => {
-    if (!tipsReady) return;
-    if (notifClockTip.seen !== false || notifClockTipShownRef.current) return;
-    const shown = showTip({
-      title: str.tips.notifications.title,
-      message: str.tips.notifications.message,
-      targetRef: notifClockBtnRef,
-    });
-    if (shown) { notifClockTipShownRef.current = true; notifClockTip.markSeen(); }
-  }, [tipsReady, notifClockTip.seen, notifClockTip.markSeen, showTip]));
 
   useFocusEffect(useCallback(() => {
     return () => {
@@ -122,10 +98,6 @@ export default function SettingsScreen() {
     }
   });
 
-  // Create local profile
-  const [showCreateLocalModal, setShowCreateLocalModal] = useState(false);
-  const [localProfileName, setLocalProfileName] = useState('');
-  const [loadingLocalProfile, setLoadingLocalProfile] = useState(false);
 
   // Create household
   const [showCreateHouseholdModal, setShowCreateHouseholdModal] = useState(false);
@@ -198,10 +170,9 @@ export default function SettingsScreen() {
 
   function openMemberActions(t: { id: string; displayName: string; role: 'admin' | 'member'; clerkUserId: string | null }) {
     const isMe = t.clerkUserId === clerkUserId;
-    const isLocalProfile = !t.clerkUserId;
-    const isOtherAdmin = !isMe && !!t.clerkUserId && t.role === 'admin';
-    const canChangeName = isMe || (isAdmin && isLocalProfile);
-    const canToggleAdmin = isAdmin && !isMe && !!t.clerkUserId;
+    const isOtherAdmin = !isMe && t.role === 'admin';
+    const canChangeName = isMe;
+    const canToggleAdmin = isAdmin && !isMe;
     const canRemove = isAdmin && !isMe && !isOtherAdmin;
     const buttons: { label: string; icon?: string; style?: 'primary' | 'destructive' | 'cancel'; onPress?: () => void }[] = [];
     if (canChangeName) buttons.push({ label: str.memberActions.rename, icon: 'create-outline', onPress: () => openEditMember(t.id, t.displayName) });
@@ -235,21 +206,6 @@ export default function SettingsScreen() {
     confirm({ variant: 'action', buttons });
   }
 
-  // Admin-tip: bara för admins, efter notis-tipset. Förklarar att "Redigera"
-  // låser upp admin-åtgärder (byt hushållsnamn, hantera medlemmar, dela ut
-  // admin, ta bort hushållet).
-  useFocusEffect(useCallback(() => {
-    if (!tipsReady) return;
-    if (adminTip.seen !== false || adminTipShownRef.current) return;
-    if (!isAdmin) return;
-    if (notifClockTip.seen !== true) return;
-    const shown = showTip({
-      title: str.tips.admin.title,
-      message: str.tips.admin.message,
-      targetRef: adminEditBtnRef,
-    });
-    if (shown) { adminTipShownRef.current = true; adminTip.markSeen(); }
-  }, [tipsReady, isAdmin, notifClockTip.seen, adminTip.seen, adminTip.markSeen, showTip]));
 
   // Invite code
   async function generateInvite() {
@@ -356,23 +312,9 @@ export default function SettingsScreen() {
   async function handleRemoveMember(memberId: string, memberName: string) {
     if (!householdId) return;
 
-    // Surface what the member is responsible for so they aren't silently orphaned.
-    let warning = '';
-    try {
-      const { chores, activities } = await client.getMemberAssignments(householdId, memberId);
-      const parts: string[] = [];
-      if (chores > 0) parts.push(str.messages.choreCount(chores));
-      if (activities > 0) parts.push(str.messages.activityCount(activities));
-      if (parts.length > 0) {
-        warning = str.messages.removeMemberWarning(memberName, parts.join(' och '));
-      }
-    } catch {
-      // Non-fatal — fall back to a plain confirmation.
-    }
-
     confirm({
       title: str.confirmTitles.removeMember,
-      message: `${str.messages.removeMemberConfirm(memberName)}${warning}`,
+      message: str.messages.removeMemberConfirm(memberName),
       buttons: [
         {
           label: str.buttons.removeAnyway,
@@ -392,27 +334,6 @@ export default function SettingsScreen() {
     });
   }
 
-  // Create local profile
-  async function handleCreateLocalProfile() {
-    if (!householdId || !localProfileName.trim()) return;
-    setLoadingLocalProfile(true);
-    try {
-      const newMember = await client.createLocalMember(householdId, localProfileName);
-      // Dedup: backend broadcastar 'member_added' parallellt med att vi
-      // får response — om socket-eventet hann före är medlemmen redan i
-      // listan, och en blind push skulle ge dubblett.
-      setHousehold(h => h
-        ? { ...h, members: h.members.some(m => m.id === newMember.id) ? h.members : [...h.members, newMember] }
-        : null);
-      setShowCreateLocalModal(false);
-      setLocalProfileName('');
-      showToast(str.toasts.localProfileAdded(localProfileName));
-    } catch (e) {
-      showError(e, str.toasts.errorCreateLocalProfile);
-    } finally {
-      setLoadingLocalProfile(false);
-    }
-  }
 
   // Delete household
   async function handleDeleteHousehold() {
@@ -539,7 +460,6 @@ export default function SettingsScreen() {
               </Pressable>
             )}
             <Pressable
-              ref={notifClockBtnRef}
               style={styles.headerIconBtn}
               onPress={() => router.push('/preferences' as never)}
               accessibilityLabel={str.a11y.notifications}
@@ -575,7 +495,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionLabel}>{str.sections.household}</Text>
-            <Pressable ref={adminEditBtnRef} onPress={() => setEditMode(v => !v)} hitSlop={8}>
+            <Pressable onPress={() => setEditMode(v => !v)} hitSlop={8}>
               <Text style={[styles.editModeBtn, editMode && styles.editModeBtnActive]}>
                 {editMode ? common.actions.done : common.actions.manage}
               </Text>
@@ -641,14 +561,6 @@ export default function SettingsScreen() {
           <View style={styles.membersBox}>
             <View style={styles.membersHeader}>
               <Text style={styles.membersTitle}>{str.sections.members}</Text>
-              {/* Lokala profiler döljs i recept-fokus-experimentet — utan sysslor/
-                  aktiviteter finns inget att tilldela dem. Backend/modell orörd. */}
-              {editMode && isAdmin && !RECIPE_FOCUS_EXPERIMENT && (
-                <Pressable style={styles.addMemberBtn} onPress={() => setShowCreateLocalModal(true)}>
-                  <Ionicons name="add-circle-outline" size={15} color={c.primary} />
-                  <Text style={styles.addMemberBtnText}>{str.member.localProfile}</Text>
-                </Pressable>
-              )}
             </View>
             {loadingHousehold && <ActivityIndicator size="small" color={c.primary} style={{ marginVertical: 8 }} />}
             {householdMembers.map((member, idx) => (
@@ -662,10 +574,10 @@ export default function SettingsScreen() {
                     {member.clerkUserId === clerkUserId && <Text style={styles.memberYou}>  {str.member.you}</Text>}
                   </Text>
                   <Text style={styles.memberEmail}>
-                    {member.clerkUserId && member.role === 'admin' && (
+                    {member.role === 'admin' && (
                       <Text style={styles.memberAdminBadge}><Ionicons name="shield-checkmark" size={11} color={c.accent} />{'  '}</Text>
                     )}
-                    {member.clerkUserId ? (member.role === 'admin' ? str.member.admin : str.member.accountMember) : str.member.localProfile}
+                    {member.role === 'admin' ? str.member.admin : str.member.accountMember}
                   </Text>
                 </View>
                 <View style={styles.memberActions}>
@@ -858,38 +770,6 @@ export default function SettingsScreen() {
               {loadingMemberEdit
                 ? <ActivityIndicator color="#fff" size="small" />
                 : <Text style={styles.buttonText}>{common.actions.save}</Text>}
-            </Pressable>
-          </ScrollView>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Create Local Profile Modal */}
-      <Modal visible={showCreateLocalModal} transparent animationType="slide">
-        <Pressable style={styles.overlay} onPress={() => setShowCreateLocalModal(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>{str.modals.addProfile}</Text>
-          <ScrollView contentContainerStyle={styles.sheetScroll} keyboardShouldPersistTaps="handled">
-            <Text style={styles.sheetDesc}>{str.messages.addProfile}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={str.placeholders.memberName}
-              value={localProfileName}
-              onChangeText={setLocalProfileName}
-              placeholderTextColor={c.textFaint}
-              returnKeyType="done"
-              onSubmitEditing={handleCreateLocalProfile}
-            />
-            <Pressable
-              style={[styles.button, loadingLocalProfile && styles.buttonDisabled]}
-              onPress={handleCreateLocalProfile}
-              disabled={loadingLocalProfile}
-            >
-              {loadingLocalProfile
-                ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={styles.buttonText}>{str.buttons.createProfile}</Text>}
             </Pressable>
           </ScrollView>
         </View>

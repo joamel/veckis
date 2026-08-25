@@ -18,9 +18,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type ShoppingListWithItems } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
-import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
-import { useOnceFlag } from '../../src/hooks/useOnceFlag';
-import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { pickStore } from '../../src/lib/storePicker';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { EmptyState } from '../../src/components/EmptyState';
@@ -46,12 +43,6 @@ export default function ShoppingScreen() {
   const confirm = useConfirm();
   const tryCloseCreate = useDiscardDraft(confirm);
   const discardCreate = () => { setShowModal(false); setNewListName(''); setNewListEmoji(null); setNewListStoreId(null); };
-  const showTip = useSpotlightTip();
-  const tipsReady = useTipsReady();
-  const storesTip = useOnceFlag('seen-stores-tip');
-  const storesTipShownRef = useRef(false);
-  const storesBtnRef = useRef<View>(null);
-  const wrapNewListTip = useFirstActionTip('seen-shopping-add-tip');
   const { fs, sp, isTablet, isSplitView, largeTablet } = useTablet();
   const insets = useSafeAreaInsets();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
@@ -103,23 +94,6 @@ export default function ShoppingScreen() {
     if (!isSplitView) setSelectedListId(null);
   }, [isSplitView, lists.length]);
 
-  // Butiker-tip: useFocusEffect så det bara fyrar när inköp-fliken faktiskt
-  // är aktiv. useEffect skulle fyra direkt när tabben mountar i bakgrunden
-  // (default-fliken är kalender) → tipset poppade men ring missade målet.
-  useFocusEffect(useCallback(() => {
-    if (!tipsReady) return;
-    // Vänta tills loading-spinnern är borta — annars renderar shopping bara
-    // ActivityIndicator och storesBtnRef.current är null när tipset fyrar.
-    if (loading) return;
-    if (storesTip.seen !== false || storesTipShownRef.current) return;
-    const shown = showTip({
-      title: str.header.stores,
-      message: str.tips.stores.message,
-      targetRef: storesBtnRef,
-    });
-    if (shown) { storesTipShownRef.current = true; storesTip.markSeen(); }
-  }, [tipsReady, loading, storesTip.seen, storesTip.markSeen, showTip]));
-
   // Live cross-device refresh: the backend emits shopping_list_updated on the
   // household socket when any list's items change, so the overview counts update
   // without waiting for tab focus. Debounced — one mutation can emit several events.
@@ -169,19 +143,15 @@ export default function ShoppingScreen() {
       <ScreenHeader
         title={str.title}
         actionNode={
-          // View-wrapper med collapsable={false} så Android inte optimerar bort
-          // den ur native-hierarkin (annars returnerar measureInWindow 0).
-          <View ref={storesBtnRef} collapsable={false}>
-            <Pressable
-              style={[styles.storesHeaderBtn, { paddingHorizontal: sp(12), paddingVertical: sp(7) }]}
-              onPress={() => router.push('/stores' as never)}
-              accessibilityRole="button"
-              accessibilityLabel={str.header.stores}
-            >
-              <Ionicons name="storefront-outline" size={fs(16)} color={c.primary} />
-              <Text style={[styles.storesHeaderBtnText, { fontSize: fs(13) }]}>{str.header.stores}</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            style={[styles.storesHeaderBtn, { paddingHorizontal: sp(12), paddingVertical: sp(7) }]}
+            onPress={() => router.push('/stores' as never)}
+            accessibilityRole="button"
+            accessibilityLabel={str.header.stores}
+          >
+            <Ionicons name="storefront-outline" size={fs(16)} color={c.primary} />
+            <Text style={[styles.storesHeaderBtnText, { fontSize: fs(13) }]}>{str.header.stores}</Text>
+          </Pressable>
         }
       />
 
@@ -242,10 +212,7 @@ export default function ShoppingScreen() {
         }}
       />
 
-      <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28), bottom: 20 + insets.bottom }]} onPress={wrapNewListTip(
-        () => setShowModal(true),
-        { title: str.tips.create.title, message: str.tips.create.message },
-      )}>
+      <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28), bottom: 20 + insets.bottom }]} onPress={() => setShowModal(true)}>
         <Ionicons name="add" size={fs(30)} color="#fff" />
       </Pressable>
 

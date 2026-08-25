@@ -269,22 +269,6 @@ householdRouter.patch('/:householdId/members/:memberId', requireAuth, asyncHandl
   res.json(updated);
 }));
 
-// POST /api/households/:householdId/members
-householdRouter.post('/:householdId/members', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
-  const body = z.object({ displayName: z.string().min(1).max(100) }).safeParse(req.body);
-  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
-
-  const member = await prisma.householdMember.create({
-    data: {
-      householdId: req.params.householdId,
-      displayName: body.data.displayName,
-      role: 'member',
-    },
-  });
-  broadcastHousehold(member.householdId, 'member_added', member);
-  res.status(201).json(member);
-}));
-
 // GET /api/households/:householdId/audit
 // Returnerar senaste audit-events för hushållet, nyaste först. Admin-only —
 // audit-loggen visar känsliga handlingar som ingen vanlig medlem behöver se
@@ -317,8 +301,6 @@ householdRouter.get('/:householdId/export', requireAuth, requireAdmin, asyncHand
     include: {
       members: true,
       recipes: { include: { ingredients: true } },
-      chores: { include: { completions: true } },
-      scheduleItems: true,
       shoppingLists: { include: { items: true } },
       stores: true,
       stapleItems: true,
@@ -331,21 +313,6 @@ householdRouter.get('/:householdId/export', requireAuth, requireAdmin, asyncHand
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Content-Disposition', `attachment; filename="veckis-export-${date}.json"`);
   res.json(data);
-}));
-
-// GET /api/households/:householdId/members/:memberId/assignments
-// Count chores + activities assigned to a member, for the removal warning.
-householdRouter.get('/:householdId/members/:memberId/assignments', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
-  const { householdId, memberId } = req.params;
-  const [chores, activities] = await Promise.all([
-    prisma.chore.count({
-      where: { householdId, OR: [{ assignedTo: memberId }, { assignedToMany: { has: memberId } }] },
-    }),
-    prisma.scheduleEntry.count({
-      where: { householdId, OR: [{ assignedTo: memberId }, { assignedToMany: { has: memberId } }] },
-    }),
-  ]);
-  res.json({ chores, activities });
 }));
 
 // DELETE /api/households/:householdId/members/:memberId
@@ -371,42 +338,8 @@ householdRouter.delete('/:householdId/members/:memberId', requireAuth, requireAd
       return;
     }
   }
-  // Rensa medlemmen från alla assignedToMany-arrays innan vi raderar raden så
-  // ingen syssla/aktivitet pekar på en död id. assignedTo nullas i en separat
-  // sweep eftersom Prisma inte stödjer set-filter på enstaka fält.
   await prisma.$transaction(async (tx) => {
-    const chores = await tx.chore.findMany({
-      where: { householdId: target.householdId, assignedToMany: { has: target.id } },
-      select: { id: true, assignedToMany: true },
-    });
-    for (const c of chores) {
-      const next = c.assignedToMany.filter(id => id !== target.id);
-      await tx.chore.update({
-        where: { id: c.id },
-        data: { assignedToMany: next, assignedTo: next[0] ?? null },
-      });
-    }
-    const entries = await tx.scheduleEntry.findMany({
-      where: { householdId: target.householdId, assignedToMany: { has: target.id } },
-      select: { id: true, assignedToMany: true },
-    });
-    for (const e of entries) {
-      const next = e.assignedToMany.filter(id => id !== target.id);
-      await tx.scheduleEntry.update({
-        where: { id: e.id },
-        data: { assignedToMany: next, assignedTo: next[0] ?? null },
-      });
-    }
-    // Legacy: chores/aktiviteter som bara hade single assignedTo = memberId
-    await tx.chore.updateMany({
-      where: { householdId: target.householdId, assignedTo: target.id },
-      data: { assignedTo: null },
-    });
-    await tx.scheduleEntry.updateMany({
-      where: { householdId: target.householdId, assignedTo: target.id },
-      data: { assignedTo: null },
-    });
-    await tx.householdMember.delete({ where: { id: target.id } });
+    await cascadeRemoveMember(tx, target.householdId, target.id);
   });
   const actorId = (req as AuthenticatedRequest).clerkUserId;
   const actorName = await lookupActorName(target.householdId, actorId);

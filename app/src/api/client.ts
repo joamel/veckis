@@ -7,12 +7,7 @@ import type {
   ShoppingItem,
   Store,
   StoreCategory,
-  Chore,
-  ChoreCompletion,
-  ChoreFrequency,
-  ScheduleEntry,
   WeekDay,
-  RecurrenceType,
   Recipe,
   RecipeIngredient,
   WeekMenuItem,
@@ -22,7 +17,7 @@ import type {
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
-export type { StoreCategory, ChoreFrequency, WeekDay };
+export type { StoreCategory, WeekDay };
 
 /**
  * Error thrown by the API client. Distinguishes a failed network request
@@ -57,14 +52,10 @@ export type RecipeWithIngredients = Recipe & { ingredients: RecipeIngredient[] }
 export type WeekMenuItemWithRecipe = WeekMenuItem & { recipe: RecipeWithIngredients };
 
 export interface NotificationPreferences {
-  activityReminder: boolean;
-  choreOverdue: boolean;
   listCleared: boolean;
   newMember: boolean;
   shopperClaimed: boolean;
   shopperItemAdded: boolean;
-  choreCompleted: boolean;
-  reminderMinutes: number;
 }
 
 export interface MenuTemplate {
@@ -178,9 +169,6 @@ export function useApiClient() {
     createInvite: (householdId: string) =>
       request<InviteCode>(`/api/households/${householdId}/invite`, { method: 'POST' }),
 
-    getMemberAssignments: (householdId: string, memberId: string) =>
-      request<{ chores: number; activities: number }>(`/api/households/${householdId}/members/${memberId}/assignments`),
-
     /** Användaren lämnar hushållet själv. Sista admin blockeras med 400. */
     leaveHousehold: (householdId: string) =>
       request<void>(`/api/households/${householdId}/leave`, { method: 'POST' }),
@@ -218,12 +206,6 @@ export function useApiClient() {
       request<HouseholdMember>(`/api/households/${householdId}/members/${memberId}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
-      }),
-
-    createLocalMember: (householdId: string, displayName: string) =>
-      request<HouseholdMember>(`/api/households/${householdId}/members`, {
-        method: 'POST',
-        body: JSON.stringify({ displayName }),
       }),
 
     // Shopping
@@ -301,48 +283,6 @@ export function useApiClient() {
 
     deleteStore: (storeId: string) =>
       request<void>(`/api/stores/${storeId}`, { method: 'DELETE' }),
-
-    // Chores
-    getChores: (householdId: string) =>
-      request<(Chore & { completions: ChoreCompletion[] })[]>(`/api/chores?householdId=${householdId}`),
-
-    createChore: (data: { householdId: string; title: string; emoji?: string | null; description?: string; frequency?: ChoreFrequency; assignedTo?: string | null; assignedToMany?: string[]; rotation?: boolean; days?: WeekDay[]; isShared?: boolean; startDate?: string | null; endDate?: string | null; recurrenceType?: Chore['recurrenceType']; recurrenceWeeks?: number; monthlyType?: Chore['monthlyType']; recurrenceWeekOfMonth?: number | null }) =>
-      request<Chore>('/api/chores', { method: 'POST', body: JSON.stringify(data) }),
-
-    updateChore: (choreId: string, data: Partial<Pick<Chore, 'title' | 'emoji' | 'description' | 'frequency' | 'assignedTo' | 'assignedToMany' | 'rotation' | 'days' | 'isShared' | 'startDate' | 'endDate' | 'recurrenceType' | 'recurrenceWeeks' | 'monthlyType' | 'recurrenceWeekOfMonth'>>) =>
-      request<Chore>(`/api/chores/${choreId}`, { method: 'PATCH', body: JSON.stringify(data) }),
-
-    deleteChore: (choreId: string) =>
-      request<void>(`/api/chores/${choreId}`, { method: 'DELETE' }),
-
-    completeChore: (choreId: string, day?: WeekDay | null, note?: string, date?: string | null, performedByMemberId?: string | null) =>
-      request<ChoreCompletion>(`/api/chores/${choreId}/complete`, {
-        method: 'POST',
-        body: JSON.stringify({ day, note, date, performedByMemberId }),
-      }),
-
-    getChoreCompletions: (choreId: string) =>
-      request<ChoreCompletion[]>(`/api/chores/${choreId}/completions`),
-
-    uncompleteChore: (choreId: string, day?: WeekDay | null, date?: string | null) => {
-      const qs = date ? `?date=${date}` : day ? `?day=${day}` : '';
-      return request<void>(`/api/chores/${choreId}/complete${qs}`, { method: 'DELETE' });
-    },
-
-    // Schedule
-    getSchedule: (householdId: string) =>
-      request<ScheduleEntry[]>(`/api/schedule?householdId=${householdId}`),
-
-    createScheduleEntry: (data: { householdId: string; title: string; emoji?: string | null; day: WeekDay; description?: string; startTime?: string; endTime?: string; assignedTo?: string; assignedToMany?: string[]; isShared?: boolean; remind?: boolean; remindMinutes?: number[]; recurrenceType?: RecurrenceType; recurrenceDays?: WeekDay[]; recurrenceWeeks?: number; monthlyType?: string; recurrenceWeekOfMonth?: number | null; startDate?: string | null; endDate?: string | null }) =>
-      request<ScheduleEntry>('/api/schedule', { method: 'POST', body: JSON.stringify(data) }),
-
-    updateScheduleEntry: (entryId: string, data: Partial<Omit<ScheduleEntry, 'id' | 'householdId' | 'createdBy'>>) =>
-      request<ScheduleEntry>(`/api/schedule/${entryId}`, { method: 'PATCH', body: JSON.stringify(data) }),
-
-    deleteScheduleEntry: (entryId: string, date?: string) => {
-      const qs = date ? `?date=${date}` : '';
-      return request<void | ScheduleEntry>(`/api/schedule/${entryId}${qs}`, { method: 'DELETE' });
-    },
 
     // Recipes
     getRecipes: (householdId: string) =>

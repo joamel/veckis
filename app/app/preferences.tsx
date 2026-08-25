@@ -10,7 +10,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { NotificationsModal } from '../src/components/NotificationsModal';
-import { useOnboardingMaster } from '../src/context/SpotlightTipContext';
 import { TIP_FLAGS } from '../src/lib/onboardingTips';
 import * as SecureStore from '../src/lib/secureStorage';
 import { useToast } from '../src/context/ToastContext';
@@ -22,7 +21,6 @@ export default function PreferencesScreen() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
-  const { skipAll, setSkipAll } = useOnboardingMaster();
   const { showToast, showError } = useToast();
   const [showNotifModal, setShowNotifModal] = useState(false);
   const [hapticEnabled, setHapticEnabled] = useState(true);
@@ -41,7 +39,6 @@ export default function PreferencesScreen() {
 
   async function handleResetTips() {
     await Promise.all(TIP_FLAGS.map(k => SecureStore.deleteItemAsync(k).catch(() => {})));
-    if (skipAll) await setSkipAll(false);
     showToast(str.toasts.tipsReset, 'neutral');
   }
 
@@ -113,10 +110,10 @@ export default function PreferencesScreen() {
             <Text style={s.rowText}>{str.rows.haptics}</Text>
             <Ionicons name={hapticEnabled ? 'toggle' : 'toggle-outline'} size={22} color={hapticEnabled ? c.accent : c.textFaint} />
           </Pressable>
-          <Pressable style={[s.row, s.rowBorder]} onPress={() => { setSkipAll(skipAll !== true); handleResetTips(); }}>
+          <Pressable style={[s.row, s.rowBorder]} onPress={handleResetTips}>
             <Ionicons name="bulb-outline" size={18} color={c.accent} />
             <Text style={s.rowText}>{str.rows.onboardingTips}</Text>
-            <Ionicons name={skipAll === true ? 'toggle-outline' : 'toggle'} size={22} color={skipAll === true ? c.textFaint : c.accent} />
+            <Ionicons name="refresh-outline" size={18} color={c.textFaint} />
           </Pressable>
           {/* Favorit-landningssida: vilken flik appen öppnar på */}
           <View style={[s.row, s.rowBorder, { flexWrap: 'wrap' }]}>

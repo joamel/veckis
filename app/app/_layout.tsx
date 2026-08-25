@@ -9,11 +9,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { HouseholdProvider, useHousehold } from '../src/context/HouseholdContext';
-import { MemberFilterProvider } from '../src/context/MemberFilterContext';
 import { PendingRemovalProvider } from '../src/context/PendingRemovalContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { ConfirmProvider } from '../src/context/ConfirmContext';
-import { SpotlightTipProvider, useOnboardingMaster, useWelcomeGate } from '../src/context/SpotlightTipContext';
+import { SpotlightTipProvider, useWelcomeGate } from '../src/context/SpotlightTipContext';
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
 import { WelcomeModal } from '../src/components/WelcomeModal';
 import { VersionBanner } from '../src/components/VersionBanner';
@@ -82,16 +81,14 @@ function NavigationGuard() {
   const { householdId, isLoading: householdLoading } = useHousehold();
   const segments = useSegments();
   const router = useRouter();
-  const { setSkipAll } = useOnboardingMaster();
   const { markWelcomeReady } = useWelcomeGate();
   const { colors: c } = useTheme();
   // Favorit-landningssida — läses innan första redirecten så användaren
   // hamnar direkt i sin valda flik istället för alltid kalendern.
   const [landingTab, setLandingTabState] = useState<LandingTabKey | null>(null);
   useEffect(() => { getLandingTab().then(setLandingTabState); }, []);
-  // Visa välkomst-modalen EN gång efter att användaren har signat in OCH valt
-  // hushåll. Flagga sparas i SecureStore (seen-welcome-tip). Tips blockeras
-  // via welcomeReady-gaten i providern tills användaren har dismissat modalen.
+  // Visa koncept-guiden EN gång efter att användaren har signat in OCH valt
+  // hushåll. Flagga sparas i SecureStore (seen-concept-walkthrough).
   const [welcomeState, setWelcomeState] = useState<'loading' | 'show' | 'done'>('loading');
 
   useEffect(() => {
@@ -128,25 +125,23 @@ function NavigationGuard() {
     }
   }, [isLoaded, isSignedIn, householdId, householdLoading, segments, landingTab]);
 
-  // Välkomstmodal — visa bara när användare är inne i appen (har hushåll, inte
+  // Koncept-guide — visa bara när användare är inne i appen (har hushåll, inte
   // i auth/setup) och flaggan inte är satt.
   useEffect(() => {
     if (!isSignedIn || !householdId) return;
     if (welcomeState !== 'loading') return;
-    SecureStore.getItemAsync('seen-welcome-tip').then(v => {
+    SecureStore.getItemAsync('seen-concept-walkthrough').then(v => {
       if (v === '1') {
-        // Flaggan satt → ingen modal, släpp gaten direkt så tips kan börja fyra.
         setWelcomeState('done');
         markWelcomeReady();
       } else {
-        // Modal ska visas — gaten förblir stängd tills användaren dismissar.
         setWelcomeState('show');
       }
     }).catch(() => { setWelcomeState('done'); markWelcomeReady(); });
   }, [isSignedIn, householdId, welcomeState, markWelcomeReady]);
 
   const markWelcomeSeen = async () => {
-    await SecureStore.setItemAsync('seen-welcome-tip', '1').catch(() => {});
+    await SecureStore.setItemAsync('seen-concept-walkthrough', '1').catch(() => {});
     setWelcomeState('done');
     markWelcomeReady();
   };
@@ -157,11 +152,7 @@ function NavigationGuard() {
       <WakeupIndicator />
       <OfflineBanner />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.background } }} />
-      <WelcomeModal
-        visible={welcomeState === 'show'}
-        onContinue={markWelcomeSeen}
-        onSkipAll={async () => { await setSkipAll(true); await markWelcomeSeen(); }}
-      />
+      <WelcomeModal visible={welcomeState === 'show'} onDone={markWelcomeSeen} />
     </>
   );
 }
@@ -192,17 +183,15 @@ export default function RootLayout() {
           tokenCache={tokenCache}
         >
           <HouseholdProvider>
-            <MemberFilterProvider>
-              <PendingRemovalProvider>
-                <ToastProvider>
-                  <ConfirmProvider>
-                    <SpotlightTipProvider>
-                      <NavigationGuard />
-                    </SpotlightTipProvider>
-                  </ConfirmProvider>
-                </ToastProvider>
-              </PendingRemovalProvider>
-            </MemberFilterProvider>
+            <PendingRemovalProvider>
+              <ToastProvider>
+                <ConfirmProvider>
+                  <SpotlightTipProvider>
+                    <NavigationGuard />
+                  </SpotlightTipProvider>
+                </ConfirmProvider>
+              </ToastProvider>
+            </PendingRemovalProvider>
           </HouseholdProvider>
         </ClerkProvider>
         <AnimatedSplash />

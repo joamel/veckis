@@ -51,8 +51,6 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
-import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
@@ -85,18 +83,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const { triggerCheck: triggerCheckHaptic, triggerDelete: triggerDeleteHaptic } = useCheckHaptic();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
-  const showTip = useSpotlightTip();
-  const tipsReady = useTipsReady();
-  const mergeTip = useOnceFlag('seen-merge-tip');
-  const mergeTipShownRef = useRef(false);
-  const dupeBadgeRef = useRef<View>(null);
-  const listActionsTip = useOnceFlag('seen-list-actions-tip');
-  const listActionsTipShownRef = useRef(false);
-  const listActionsBtnRef = useRef<View>(null);
-  const suggestionTip = useOnceFlag('seen-suggestion-edit-tip');
-  const suggestionTipShownRef = useRef(false);
-  const stapleEditorTip = useOnceFlag('seen-staple-editor-tip');
-  const stapleEditorTipShownRef = useRef(false);
   const { householdId } = useHousehold();
   const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
@@ -524,49 +510,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     if (duplicateGroups.length === 0) hasPulsedDupes.current = false;
   }, [duplicateGroups.length]);
 
-  // First time the merge button pulses for the user: förklara vad den är.
-  useEffect(() => {
-    // Merge-tipset fyrar INTE när dubblett-badge:n syns — det poppar in när
-    // användaren faktiskt öppnar merge-dialogen så förklaringen kommer i
-    // direkt kontext av att de ser den.
-    if (!tipsReady) return;
-    if (mergeTip.seen !== false || mergeTipShownRef.current) return;
-    if (!mergeSheet) return;
-    const shown = showTip({
-      title: str.tips.merge.title,
-      message: str.tips.merge.message,
-    });
-    if (shown) { mergeTipShownRef.current = true; mergeTip.markSeen(); }
-  }, [tipsReady, mergeSheet, mergeTip.seen, mergeTip.markSeen, showTip]);
-
-  // Staple-editor-tip: fyrar när användaren faktiskt öppnar basvara-editorn
-  // (via long-press). Förklarar vad man kan ändra där (enhet + kategori).
-  useEffect(() => {
-    if (!tipsReady) return;
-    if (stapleEditorTip.seen !== false || stapleEditorTipShownRef.current) return;
-    if (!editingStaple) return;
-    const shown = showTip({
-      title: str.tips.categoryUnit.title,
-      message: str.tips.categoryUnit.message,
-    });
-    if (shown) { stapleEditorTipShownRef.current = true; stapleEditorTip.markSeen(); }
-  }, [tipsReady, editingStaple, stapleEditorTip.seen, stapleEditorTip.markSeen, showTip]);
-
-  // ListActions-tip (3-prickar): visas när listan har innehåll och inget annat
-  // tip körs. Förklarar att det gömmer sig fler val (rensa lista, byt butik,
-  // importera veckomeny, klarmarka alla …) bakom ikonen.
-  useEffect(() => {
-    if (!tipsReady) return;
-    if (listActionsTip.seen !== false || listActionsTipShownRef.current) return;
-    if (!list || list.items.length === 0) return;
-    const shown = showTip({
-      title: str.tips.moreActions.title,
-      message: str.tips.moreActions.message,
-      targetRef: listActionsBtnRef,
-    });
-    if (shown) { listActionsTipShownRef.current = true; listActionsTip.markSeen(); }
-  }, [tipsReady, list, listActionsTip.seen, listActionsTip.markSeen, showTip]);
-
   useEffect(() => {
     if (pendingOpenNextDupe.current && !mergeSheet && duplicateGroups.length > 0) {
       pendingOpenNextDupe.current = false;
@@ -590,19 +533,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const suggestions = newItem.trim().length >= 1
     ? fuse.search(newItem).slice(0, 8).map(r => r.item)
     : [];
-
-  // Suggestion-tip: fyrar när förslagslistan dyker upp första gången.
-  // Förklarar att man kan långtrycka för att redigera en basvara.
-  useEffect(() => {
-    if (!tipsReady) return;
-    if (suggestionTip.seen !== false || suggestionTipShownRef.current) return;
-    if (suggestions.length === 0) return;
-    const shown = showTip({
-      title: str.tips.suggestion.title,
-      message: str.tips.suggestion.message,
-    });
-    if (shown) { suggestionTipShownRef.current = true; suggestionTip.markSeen(); }
-  }, [tipsReady, suggestions.length, suggestionTip.seen, suggestionTip.markSeen, showTip]);
 
   // Most-added staples (getStaples returns them usageCount-desc) — shown as
   // quick-add chips when the add field is empty so återkommande inköp går snabbt.
@@ -1352,7 +1282,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             med kategorierna när användaren scrollar. (Butiken bor nu i navbaren.) */}
         {duplicateGroups.length > 0 && (
           <View style={s.scrollMeta}>
-            <Animated.View ref={dupeBadgeRef} style={{ transform: [{ scale: dupeButtonScale }] }}>
+            <Animated.View style={{ transform: [{ scale: dupeButtonScale }] }}>
               <Pressable
                 style={s.dupeBadge}
                 onPress={() => openMergeForDupes(duplicateGroups[0])}
@@ -1552,7 +1482,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </RNAnimated.View>
           </Pressable>
         )}
-        <Pressable ref={listActionsBtnRef} onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.a11y.moreActions}>
+        <Pressable onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.a11y.moreActions}>
           <Ionicons name="ellipsis-vertical" size={20} color={c.text} />
         </Pressable>
       </View>

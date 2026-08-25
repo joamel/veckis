@@ -26,7 +26,6 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { useFirstActionTip } from '../../src/hooks/useFirstActionTip';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -56,10 +55,6 @@ export default function RecipesScreen() {
   const tryCloseCreate = useDiscardDraft(confirm);
   const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setMode('manual'); };
   const closeCreate = () => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate);
-  // Sort-tipset togs bort (#11 backloggen) — det fyrade bara om recept fanns,
-  // och då behövde användaren ändå inte just det tipset. Ersatt med ett
-  // action-tip på "+"-knappen som förklarar hur man skapar recept första gången.
-  const wrapAddRecipeTip = useFirstActionTip('seen-recipe-add-tip');
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -697,10 +692,7 @@ export default function RecipesScreen() {
           <Text style={s.editDoneBtnText}>{common.actions.done}</Text>
         </Pressable>
       ) : (
-        <Pressable style={s.fab} onPress={wrapAddRecipeTip(
-          openModal,
-          str.tips.add,
-        )}>
+        <Pressable style={s.fab} onPress={openModal}>
           <Ionicons name="add" size={30} color="#fff" />
         </Pressable>
       )}

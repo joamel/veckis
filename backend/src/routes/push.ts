@@ -9,14 +9,10 @@ import { pushRegisterLimiter } from '../lib/rateLimits';
 export const pushRouter = Router();
 
 const DEFAULT_PREFS = {
-  activityReminder: true,
-  choreOverdue: true,
   listCleared: true,
   newMember: true,
   shopperClaimed: true,
   shopperItemAdded: true,
-  choreCompleted: true,
-  reminderMinutes: 30,
 };
 
 // POST /api/push/register — register/refresh this device's Expo push token
@@ -69,14 +65,10 @@ pushRouter.get('/preferences', requireAuth, asyncHandler(async (req, res) => {
 // PATCH /api/push/preferences — update one or more preference flags
 pushRouter.patch('/preferences', requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({
-    activityReminder: z.boolean().optional(),
-    choreOverdue: z.boolean().optional(),
     listCleared: z.boolean().optional(),
     newMember: z.boolean().optional(),
     shopperClaimed: z.boolean().optional(),
     shopperItemAdded: z.boolean().optional(),
-    choreCompleted: z.boolean().optional(),
-    reminderMinutes: z.number().int().min(0).max(1440).optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 

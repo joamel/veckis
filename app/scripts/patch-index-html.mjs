@@ -18,6 +18,7 @@ const SITE = 'https://handlis.app';
 const TITLE = 'Handlis | Veckomeny, recept & inköpslista för hushållet';
 const DESCRIPTION = 'Handlis samlar hushållets inköpslista, recept och veckomeny på ett ställe. Dela listan i realtid, spara recept och planera veckans måltider tillsammans. Gratis.';
 const OG_IMAGE = `${SITE}/og-image.png`;
+const GA_ID = 'G-XJG4FKTTSD'; // GA4 Measurement ID (handlis.app web-stream)
 
 const META = `
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
@@ -65,6 +66,15 @@ const META = `
       "url": "${SITE}/",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "SEK" }
     }
+    </script>
+
+    <!-- Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=${GA_ID}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '${GA_ID}');
     </script>
 
     <style>

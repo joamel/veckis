@@ -1,26 +1,22 @@
 // Integration: när ett Clerk-konto raderas (user.deleted-webhook) ska
-// handleClerkUserDeleted rensa medlemskap i alla hushåll, rensa assignedToMany,
-// och befordra en ny admin om den raderade var ende admin.
+// handleClerkUserDeleted rensa medlemskap i alla hushåll och befordra en ny
+// admin om den raderade var ende admin.
 
 import { describe, it, expect } from 'vitest';
 import { prisma } from '../../db';
-import { makeHousehold, makeMember, makeChore } from '../fixtures';
+import { makeHousehold, makeMember } from '../fixtures';
 import { handleClerkUserDeleted } from '../../lib/memberCleanup';
 
 describe('handleClerkUserDeleted', () => {
-  it('tar bort medlemskapet och rensar id:t ur assignedToMany', async () => {
+  it('tar bort medlemskapet i hushållet', async () => {
     const hh = await makeHousehold();
     const a = await makeMember(hh.id, { clerkUserId: 'clerk_del', role: 'member' });
-    const b = await makeMember(hh.id, { role: 'admin' });
-    const chore = await makeChore(hh.id, { assignedToMany: [a.id, b.id] });
+    await makeMember(hh.id, { role: 'admin' });
 
     const removed = await handleClerkUserDeleted('clerk_del');
 
     expect(removed).toEqual([{ householdId: hh.id, memberId: a.id }]);
     expect(await prisma.householdMember.findUnique({ where: { id: a.id } })).toBeNull();
-    const updated = await prisma.chore.findUnique({ where: { id: chore.id } });
-    expect(updated?.assignedToMany).toEqual([b.id]);
-    expect(updated?.assignedTo).toBe(b.id);
   });
 
   it('befordrar äldsta kvarvarande medlemmen när ende admin raderas', async () => {

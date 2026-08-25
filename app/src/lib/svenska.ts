@@ -1100,11 +1100,8 @@ export const settings = {
     promoteAdmin:        (name: string) => `Vill du ge ${name} admin-rättigheter? Admins kan redigera hushållet och hantera medlemmar.`,
     demoteAdmin:         (name: string) => `Vill du ta bort admin-rättigheterna från ${name}?`,
     removeMemberConfirm: (name: string) => `Är du säker på att du vill ta bort ${name}?`,
-    removeMemberWarning: (name: string, parts: string) => `\n\n${name} har ${parts} tilldelade. De blir utan ansvarig om du tar bort ${name}.`,
-    choreCount:          (n: number) => `${n} ${n === 1 ? 'syssla' : 'sysslor'}`,
-    activityCount:       (n: number) => `${n} ${n === 1 ? 'aktivitet' : 'aktiviteter'}`,
     switchHousehold:     (name: string) => `Vill du byta till "${name}"?`,
-    leaveHousehold:      'Du tas bort från hushållet. Sysslor och aktiviteter som var tilldelade dig blir otilldelade. Detta kan inte ångras - be admin bjuda in dig på nytt om du ångrar dig.',
+    leaveHousehold:      'Du tas bort från hushållet. Detta kan inte ångras - be admin bjuda in dig på nytt om du ångrar dig.',
     leaveHouseholdTitle: (name: string) => `Lämna ${name}?`,
   },
 
@@ -1336,12 +1333,9 @@ export const components = {
     title:    'Notiser',
     close:    'Stäng',
     types: {
-      activityReminder: { title: 'Påminnelse innan aktivitet', desc: 'Innan en aktivitet startar' },
-      choreOverdue:      { title: 'Förfallen syssla', desc: 'När en syssla inte hunnit bli klar' },
       listCleared:       { title: 'Inköpslista rensad', desc: 'När någon rensar en aktiv lista' },
       shopperClaimed:    { title: '"Jag handlar"', desc: 'När någon i hushållet börjar handla' },
       shopperItemAdded:  { title: 'Ny vara medan du handlar', desc: 'När någon lägger till en vara medan du har "Jag handlar" aktivt' },
-      choreCompleted:    { title: 'Syssla avbockad', desc: 'När någon bockar av en syssla' },
       newMember:         { title: 'Ny medlem', desc: 'När någon går med i hushållet' },
     },
     deviceSection:  'DEN HÄR ENHETEN',
@@ -1387,15 +1381,35 @@ export const components = {
     hint:        'Hjälpte det inte? Prova att stänga och starta om appen.',
   },
 
-  welcomeModal: {
-    title:       'Välkommen till Handlis!',
-    message:     'Här följer några korta tips och trix om hur appen fungerar. De dyker upp allteftersom du utforskar flikarna - meny, sysslor, kalender och inköpslista.',
-    subtle:      'Tipsen visas bara en gång per styck och du kan slå av eller återställa dem under',
-    subtleBold:  'Inställningar ⋮',
-    continueAction:    'Fortsätt',
-    continueA11y:      'Fortsätt med onboarding-tips',
-    skipAll:           'Jag är fullärd - hoppa över tipsen',
-    skipAllA11y:       'Hoppa över alla tips',
+  walkthrough: {
+    steps: [
+      {
+        icon:  'sparkles' as const,
+        title: 'Välkommen till Handlis!',
+        body:  'Handlis samlar hela veckans matplanering på ett ställe. Tre enkla steg – så här hänger de ihop:',
+      },
+      {
+        icon:  'book-outline' as const,
+        title: '1. Samla dina recept',
+        body:  'Spara egna favoriter, klistra in en text eller importera från en länk. Allt finns samlat under Recept.',
+      },
+      {
+        icon:  'restaurant-outline' as const,
+        title: '2. Planera veckan',
+        body:  'Lägg recepten på veckans dagar under Meny. Ni ser direkt vad ni ska äta – frukost, lunch eller middag.',
+      },
+      {
+        icon:  'cart-outline' as const,
+        title: '3. Handla tillsammans',
+        body:  'Skicka ingredienserna från veckomenyn till Inköp med ett tryck. Bocka av i realtid medan någon annan fyller på.',
+      },
+    ],
+    back:        'Tillbaka',
+    next:        'Nästa',
+    done:        'Nu kör vi!',
+    skip:        'Hoppa över',
+    skipA11y:    'Hoppa över introduktionen',
+    progressA11y: (n: number, total: number) => `Steg ${n} av ${total}`,
   },
 
   clientErrorsSection: {
@@ -1596,7 +1610,7 @@ export const preferences = {
     notifications:  'Aviseringar',
     sound:          'Ljud vid avcheckning',
     haptics:        'Vibration vid avcheckning',
-    onboardingTips: 'Visa onboarding-tips',
+    onboardingTips: 'Visa introduktionen igen',
     twoFactor:      'Tvåfaktorsautentisering',
     contactSupport: 'Kontakta support',
     privacyPolicy:  'Integritetspolicy',
@@ -1615,7 +1629,7 @@ export const preferences = {
   },
 
   toasts: {
-    tipsReset:           'Tips återställda - visas igen i nästa session',
+    tipsReset:           'Introduktionen visas igen nästa gång du öppnar appen',
     errorSecurityPortal: 'Kunde inte öppna säkerhetsinställningar',
     errorMailApp:        'Kunde inte öppna mailprogrammet',
   },

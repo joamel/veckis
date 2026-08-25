@@ -18,8 +18,6 @@ model Household {
   inviteCodes   InviteCode[]
   shoppingLists ShoppingList[]
   stores        Store[]
-  chores        Chore[]
-  scheduleItems ScheduleEntry[]
   recipes       Recipe[]
   weekMenuItems WeekMenuItem[]
   stapleItems   StapleItem[]
@@ -134,84 +132,6 @@ model ShoppingItem {
   @@index([listId])
   @@index([menuItemId])
   @@index([mergedIntoId])
-}
-
-model Chore {
-  id          String         @id @default(cuid())
-  householdId String
-  title       String
-  emoji       String?
-  description String?
-  frequency   ChoreFrequency @default(weekly)
-  assignedTo  String?
-  // Multi-assign: lista över medlems-id (lokala profiler eller Clerk-medlemmar).
-  // assignedTo behålls i sync via syncAssignedTo (många[0]) för gamla klienter.
-  assignedToMany       String[]       @default([])
-  // När true turas medlemmarna i assignedToMany om per tillfälle
-  // (turn = list[occurrenceIndex % list.length], deterministisk).
-  rotation             Boolean        @default(false)
-  days        WeekDay[]
-  isShared    Boolean        @default(true)
-  startDate   String?
-  endDate     String?
-  recurrenceType        RecurrenceType @default(none)
-  recurrenceWeeks       Int            @default(1)
-  monthlyType           String         @default("day_of_month")
-  recurrenceWeekOfMonth Int?
-  createdBy   String
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
-  household   Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  completions ChoreCompletion[]
-
-  @@index([householdId])
-}
-
-model ChoreCompletion {
-  id          String   @id @default(cuid())
-  choreId     String
-  completedBy String   // audit: clerkUserId of the user who pressed Klar
-  performedByMemberId String? // semantic: HouseholdMember who actually did it (may be a local profile); null = same as completedBy
-  completedAt DateTime @default(now())
-  note        String?
-  day         WeekDay?
-  date        String?  // YYYY-MM-DD — specific date this completion covers
-
-  chore Chore @relation(fields: [choreId], references: [id], onDelete: Cascade)
-
-  @@index([choreId])
-}
-
-model ScheduleEntry {
-  id                   String             @id @default(cuid())
-  householdId          String
-  title                String
-  emoji                String?
-  description          String?
-  day                  WeekDay
-  startTime            String?
-  endTime              String?
-  assignedTo           String?
-  assignedToMany       String[]           @default([])
-  isShared             Boolean            @default(true)
-  remind               Boolean            @default(true)
-  remindMinutes        Int[]              @default([])
-  recurrenceType       RecurrenceType     @default(none)
-  recurrenceDays       WeekDay[]
-  recurrenceWeeks      Int                @default(1)
-  monthlyType          String             @default("day_of_month")
-  recurrenceWeekOfMonth Int?
-  exceptions           String[]           @default([])
-  startDate            String?
-  endDate              String?
-  createdBy            String
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-
-  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-
-  @@index([householdId, day])
 }
 
 model Recipe {
@@ -362,14 +282,10 @@ model PushToken {
 // Per-user push preferences (global across households). Defaults all on.
 model NotificationPreference {
   clerkUserId      String   @id
-  activityReminder Boolean  @default(true)
-  choreOverdue     Boolean  @default(true)
   listCleared      Boolean  @default(true)
   newMember        Boolean  @default(true)
   shopperClaimed   Boolean  @default(true)
   shopperItemAdded Boolean  @default(true) // vara tillagd medan man handlar
-  choreCompleted   Boolean  @default(true)
-  reminderMinutes  Int      @default(30) // minutes before an activity start to remind
   updatedAt        DateTime @updatedAt
 }
 
@@ -428,14 +344,6 @@ enum StoreCategory {
   other
 }
 
-enum ChoreFrequency {
-  once
-  daily
-  weekly
-  biweekly
-  monthly
-}
-
 enum WeekDay {
   mon
   tue
@@ -444,13 +352,4 @@ enum WeekDay {
   fri
   sat
   sun
-}
-
-enum RecurrenceType {
-  none
-  daily
-  weekly
-  custom_days
-  monthly
-  yearly
 }
