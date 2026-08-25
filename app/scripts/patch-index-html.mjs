@@ -78,6 +78,11 @@ const META = `
     </script>
 
     <style>
+      /* Appen sköter sitt eget tema i JS (ThemeContext) och landningssidan är en
+         fast ljus varumärkessida. Deklarera color-scheme så Chromes "Auto dark
+         theme" inte algoritmiskt mörkar sidan (annars blev landningens mörkgröna
+         "Handlis"-ordmärke svart på en auto-mörkad bakgrund i OS-dark). */
+      :root { color-scheme: light dark; }
       html, body { margin: 0; padding: 0; height: 100%; background: #faf8f3; }
       #root { height: 100%; }
       /* iOS Safari PWA: ta bort 300ms tap-fördröjning och blå tryck-highlight */
