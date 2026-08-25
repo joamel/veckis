@@ -26,6 +26,8 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-nativ
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useAuth } from '@clerk/clerk-expo';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
@@ -250,6 +252,10 @@ export default function MenuScreen() {
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
+  const showTip = useSpotlightTip();
+  const tipsReady = useTipsReady();
+  const menuNavTip = useOnceFlag('seen-menu-drag-tip');
+  const menuNavTipShownRef = useRef(false);
   const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
@@ -599,6 +605,21 @@ export default function MenuScreen() {
   // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
   // transfer filters stay in sync (e.g. after clearing/removing items in a list).
   useEffect(() => onShoppingChanged(load), [load]);
+
+  // Meny-drag-tip: att långtrycka och dra en rätt till en annan dag är en gömd
+  // gest utan knapp — visa ett tip (med drag-demo) första gången menyn har
+  // rätter inlagda. Väntar tills koncept-guiden är avklarad (welcomeReady-gate).
+  useFocusEffect(useCallback(() => {
+    if (!tipsReady) return;
+    if (menuNavTip.seen !== false || menuNavTipShownRef.current) return;
+    if (menuItems.length === 0) return;
+    const shown = showTip({
+      title: str.tips.drag.title,
+      message: str.tips.drag.message,
+      swipeDemo: 'drag',
+    });
+    if (shown) { menuNavTipShownRef.current = true; menuNavTip.markSeen(); }
+  }, [tipsReady, menuItems, menuNavTip.seen, menuNavTip.markSeen, showTip]));
 
   // Live menu updates: another device added/removed/moved a meal. load() refreshes
   // both the visible week and the allMenus snapshot that feeds neighbour pages.

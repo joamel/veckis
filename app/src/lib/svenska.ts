@@ -413,8 +413,8 @@ export const shopping = {
 
   tips: {
     stores: {
-      title:   'Butiker',
-      message: 'Tryck här för att lägga till butiker, redigera deras kategorier eller flytta ordningen så listan matchar din affärs layout.',
+      title:   'Sortera efter din butik',
+      message: 'Skapa egna butiker och dra kategorierna i den ordning varorna dyker upp i din affär - plocklistan följer då din rutt genom butiken.',
     },
     create: {
       title:   'Skapa inköpslista',
@@ -564,8 +564,12 @@ export const shoppingList = {
 
   tips: {
     merge: {
-      title:   'Slå ihop dubbletter',
-      message: 'Tryck på knappen ovanför listan för att se alla dubbletter och slå ihop dem till en post med samlad mängd.',
+      title:   'Dubbletter hittade',
+      message: 'Samma vara tillagd flera gånger? Handlis upptäcker dubbletter - tryck på märket för att slå ihop dem till en rad med rätt mängd.',
+    },
+    shopper: {
+      title:   'Säg till att du handlar',
+      message: 'När du är i butiken: öppna ⋮-menyn och välj "Jag handlar nu". Andra i hushållet ser då att du handlar och kan skicka med varor live medan du är där.',
     },
     categoryUnit: {
       title:   'Enhet och kategori',
@@ -749,8 +753,8 @@ export const menu = {
 
   tips: {
     drag: {
-      title:   'Tips för veckomenyn',
-      message: 'Håll inne på en rätt (som demonstreras 👆) och dra den till en annan dag. Svep åt sidan för att byta vecka - eller använd pilarna högst upp.',
+      title:   'Flytta rätter mellan dagar',
+      message: 'Håll inne på en rätt (som demonstreras 👆) och dra den till en annan dag. Svep åt sidan för att byta vecka.',
     },
     templates: {
       title:   'Spara en vecka som mall',

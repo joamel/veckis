@@ -77,7 +77,7 @@
 - [ ] Skärmdumps-karusell av faktiska app-skärmar på landningssidan (förtroende + konvertering + alt-text för SEO).
 
 ### Onboarding
-- [x] **Onboarding-omtag efter recept-fokus-redesign** — de spridda spotlight-tipsen pensionerade (alla `useSpotlightTip`/`useFirstActionTip`-anrop borttagna från meny/inköp/recept/inställningar/WeekNav; SpotlightTip-infran kvar dormant). Ersatta av EN flerstegs koncept-guide vid login (`WelcomeModal` → 4 steg: välkomst + recept → veckomeny → inköpslista, samma story som landningssidans krittavla). Flagga `seen-concept-walkthrough` (visas en gång; "Visa introduktionen igen" i Inställningar → App nollställer den).
+- [x] **Onboarding-omtag efter recept-fokus-redesign** — hybrid: (1) EN flerstegs koncept-guide vid login (`WelcomeModal` → 4 steg: välkomst + recept → veckomeny → inköpslista, samma story som landningssidans krittavla, flagga `seen-concept-walkthrough`) + (2) en handplockad uppsättning kontextuella first-action-tips för de icke-uppenbara vallgravs-funktionerna: **butikssortering** (Inköp → Butiker), **dubbletter** (badgen i en lista), **dra rätter mellan dagar** (Meny, med drag-demo) och **"Jag handlar"-realtid**. De gamla 26 spridda tipsen fimpade; `welcomeReady`-gaten ser till att tipsen väntar tills guiden är stängd. "Visa introduktionen igen" i Inställningar → App nollställer allt (`TIP_FLAGS`).
 
 ### Navigation & fokus
 - [ ] **Nordstjärna: kärn-loopen** — appens kärna är *recept → veckomeny → inköpslista*. Väg framtida features mot den; familjeorganisatör-ytor (kalender/sysslor) får inte skymma den.

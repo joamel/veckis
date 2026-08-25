@@ -51,6 +51,8 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
@@ -83,6 +85,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const { triggerCheck: triggerCheckHaptic, triggerDelete: triggerDeleteHaptic } = useCheckHaptic();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
+  const showTip = useSpotlightTip();
+  const tipsReady = useTipsReady();
+  const mergeTip = useOnceFlag('seen-merge-tip');
+  const mergeTipShownRef = useRef(false);
+  const dupeBadgeRef = useRef<View>(null);
+  const shopperTip = useOnceFlag('seen-shopper-tip');
+  const shopperTipShownRef = useRef(false);
   const { householdId } = useHousehold();
   const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
@@ -509,6 +518,35 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     }
     if (duplicateGroups.length === 0) hasPulsedDupes.current = false;
   }, [duplicateGroups.length]);
+
+  // Dubblett-tip: den pulsande badgen är gåtfull utan förklaring — fyra ett tip
+  // ankrat vid badgen så fort den dyker upp. Väntar tills koncept-guiden är klar.
+  useEffect(() => {
+    if (!tipsReady) return;
+    if (mergeTip.seen !== false || mergeTipShownRef.current) return;
+    if (duplicateGroups.length === 0) return;
+    const shown = showTip({
+      title: str.tips.merge.title,
+      message: str.tips.merge.message,
+      targetRef: dupeBadgeRef,
+    });
+    if (shown) { mergeTipShownRef.current = true; mergeTip.markSeen(); }
+  }, [tipsReady, duplicateGroups.length, mergeTip.seen, mergeTip.markSeen, showTip]);
+
+  // "Jag handlar"-tip: passivt (knappen ligger gömd i ⋮-menyn) — förklarar
+  // realtidsfunktionen när listan har varor. Sekvenseras efter dubblett-tipset
+  // (vänta tills det är sett, eller om inga dubbletter finns) så inte två fyrar.
+  useEffect(() => {
+    if (!tipsReady) return;
+    if (shopperTip.seen !== false || shopperTipShownRef.current) return;
+    if (!list || list.items.length === 0) return;
+    if (duplicateGroups.length > 0 && mergeTip.seen !== true) return;
+    const shown = showTip({
+      title: str.tips.shopper.title,
+      message: str.tips.shopper.message,
+    });
+    if (shown) { shopperTipShownRef.current = true; shopperTip.markSeen(); }
+  }, [tipsReady, list, duplicateGroups.length, mergeTip.seen, shopperTip.seen, shopperTip.markSeen, showTip]);
 
   useEffect(() => {
     if (pendingOpenNextDupe.current && !mergeSheet && duplicateGroups.length > 0) {
@@ -1282,7 +1320,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             med kategorierna när användaren scrollar. (Butiken bor nu i navbaren.) */}
         {duplicateGroups.length > 0 && (
           <View style={s.scrollMeta}>
-            <Animated.View style={{ transform: [{ scale: dupeButtonScale }] }}>
+            <Animated.View ref={dupeBadgeRef} collapsable={false} style={{ transform: [{ scale: dupeButtonScale }] }}>
               <Pressable
                 style={s.dupeBadge}
                 onPress={() => openMergeForDupes(duplicateGroups[0])}
