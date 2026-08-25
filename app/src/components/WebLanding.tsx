@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { landing as str } from '../lib/svenska';
@@ -11,6 +11,13 @@ import { landing as str } from '../lib/svenska';
 const LOGO = require('../../assets/icon.png');
 const BOARD = require('../../assets/koncept-board.webp'); // krittavle-illustration (1536x850)
 const BOARD_RATIO = 1536 / 850;
+// Uppdelad i 3 paneler (en box vardera) för swipe-karusell på smal skärm.
+const BOARD_PANELS = [
+  require('../../assets/koncept-board-1.webp'),
+  require('../../assets/koncept-board-2.webp'),
+  require('../../assets/koncept-board-3.webp'),
+];
+const PANEL_RATIO = 512 / 850;
 
 const BRAND = {
   greenDark: '#2f5340',
@@ -75,6 +82,25 @@ export function WebLanding() {
         </View>
       </View>
 
+      {/* Krittavla — appens kärn-loop (ovanför funktioner). Mobil = swipe-karusell. */}
+      <View style={s.board}>
+        <View style={s.boardInner}>
+          <Text style={s.boardHeading}>{str.flow.heading}</Text>
+          <View style={s.boardUnderline} />
+          {narrow ? (
+            <BoardCarousel s={s} />
+          ) : (
+            <Image
+              source={BOARD}
+              style={s.boardImg}
+              resizeMode="contain"
+              accessibilityLabel={str.flow.alt}
+            />
+          )}
+          <Text style={s.boardCaption}>{str.flow.caption}</Text>
+        </View>
+      </View>
+
       {/* Funktioner */}
       <View style={s.section}>
         <View style={s.sectionInner}>
@@ -87,21 +113,6 @@ export function WebLanding() {
               </View>
             ))}
           </View>
-        </View>
-      </View>
-
-      {/* Krittavla — appens kärn-loop som illustration */}
-      <View style={s.board}>
-        <View style={s.boardInner}>
-          <Text style={s.boardHeading}>{str.flow.heading}</Text>
-          <View style={s.boardUnderline} />
-          <Image
-            source={BOARD}
-            style={s.boardImg}
-            resizeMode="contain"
-            accessibilityLabel={str.flow.alt}
-          />
-          <Text style={s.boardCaption}>{str.flow.caption}</Text>
         </View>
       </View>
 
@@ -129,6 +140,33 @@ export function WebLanding() {
         </View>
       </View>
     </ScrollView>
+  );
+}
+
+// Swipe-karusell (mobil): en krittavle-panel i taget + prick-indikatorer.
+function BoardCarousel({ s }: { s: ReturnType<typeof makeStyles> }) {
+  const [w, setW] = useState(0);
+  const [page, setPage] = useState(0);
+  return (
+    <View style={{ width: '100%' }} onLayout={e => setW(e.nativeEvent.layout.width)}>
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={e => { if (w) setPage(Math.round(e.nativeEvent.contentOffset.x / w)); }}
+        style={{ borderRadius: 14, overflow: 'hidden' }}
+      >
+        {w > 0 && BOARD_PANELS.map((p, i) => (
+          <Image key={i} source={p} style={{ width: w, aspectRatio: PANEL_RATIO }} resizeMode="contain" accessibilityLabel={str.flow.alt} />
+        ))}
+      </ScrollView>
+      <View style={s.dots}>
+        {BOARD_PANELS.map((_, i) => (
+          <View key={i} style={[s.dot, page === i && s.dotActive]} />
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -168,6 +206,9 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   boardUnderline: { width: 90, height: 3, borderRadius: 2, backgroundColor: 'rgba(230,201,168,0.7)', marginTop: 14, marginBottom: narrow ? 26 : 36 },
   boardImg: { width: '100%', maxWidth: 960, aspectRatio: BOARD_RATIO, borderRadius: 14, alignSelf: 'center' },
   boardCaption: { fontSize: narrow ? 15 : 16, lineHeight: 24, color: BRAND.chalkMute, textAlign: 'center', marginTop: narrow ? 22 : 30, maxWidth: 560 },
+  dots: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 16 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(242,237,225,0.28)' },
+  dotActive: { width: 20, backgroundColor: BRAND.chalkTerra },
 
   ctaBand: { backgroundColor: BRAND.green, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 64 },
   ctaBandInner: { width: '100%', maxWidth: 720, alignSelf: 'center', alignItems: 'center' },

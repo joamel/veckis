@@ -1755,8 +1755,8 @@ export const landing = {
     signIn:      'Logga in',
   },
   hero: {
-    tagline:     'Hushållets inköpslista, recept och veckomeny på ett ställe.',
-    subtitle:    'Samla handling, matlagning och veckoplanering i en app. Dela inköpslistan i realtid, spara recept och planera veckans måltider tillsammans med familjen.',
+    tagline:     'Handlis är din vän när du planerar veckans mat.',
+    subtitle:    'Inköp, recept och veckomeny på ett ställe. Dela inköpslistan i realtid, spara recept och planera veckans måltider tillsammans med familjen.',
     ctaPrimary:  'Kom igång gratis',
     ctaSecondary:'Installera appen',
   },

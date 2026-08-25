@@ -67,6 +67,16 @@
 
 ## Backlog (prioriterade features)
 
+### Landningssida & marknadsföring (SEO)
+- [ ] **⭐ HÖG PRIO: SEO + analytics på handlis.app** — Google Analytics (eller Plausible) + grund-SEO: `<title>`, meta description, OG/Twitter-taggar (injiceras via `scripts/patch-index-html.mjs` — Expo web är en SPA så metan måste in i index.html), rubrik-hierarki (h1/h2), `sitemap.xml`, snabb laddning. Mål: ranka på "inköpslista app", "veckomeny app", "planera veckans mat" m.m. Mät konvertering (klick på "Kom igång" → registrering).
+- [ ] Landnings-copy börjar med "Handlis" — varmare/personligare ingress, t.ex. "Handlis är din vän när du planerar veckans mat — inköp, recept och veckomeny på ett ställe." i stället för generisk tagline. (`landing.hero` i svenska.ts.)
+- [ ] Krittavle-bilden i mobilvy — dela upp i swipe-bara delbilder (en i taget) alt. beskär/anpassa per breakpoint; flytta sektionen ovanför "Allt hushållet behöver..". (Delvis åtgärdat: sektion flyttad + swipe-karusell på smal skärm — se om ytterligare polish behövs.)
+- [ ] OG/social-preview-bild när handlis.app-länken delas (SEO + delning); alt-text på alla landningsbilder.
+- [ ] Skärmdumps-karusell av faktiska app-skärmar på landningssidan (förtroende + konvertering + alt-text för SEO).
+
+### Onboarding
+- [ ] **Onboarding-omtag efter recept-fokus-redesign** — nuvarande spotlight-tips lirar inte längre (recept-fliken ärver menyns tips efter omflyttningen). Överväg en dedikerad startup-guide (likt landningssidans krittavla men appanpassad efter appens UI: recept → veckomeny → inköpslista) i stället för spridda spotlight-tips. Knyt ihop med befintlig "Kom igång"-vägledning (`feature/getting-started-card`) + master-toggle. Enhetlig story: onboarding-guiden och landningssidans krittavla bör berätta SAMMA flöde så varumärket känns enhetligt.
+
 ### Navigation & fokus
 - [ ] **Nordstjärna: kärn-loopen** — appens kärna är *recept → veckomeny → inköpslista*. Väg framtida features mot den; familjeorganisatör-ytor (kalender/sysslor) får inte skymma den.
 - [ ] **Experiment: recept-fokus** (branch `feature/recipe-focus-experiment`) — flikraden blir Inköp/Meny/Recept/Hushållet; Kalender + Sysslor döljs ur baren bakom flaggan `RECIPE_FOCUS_EXPERIMENT` (`src/lib/features.ts`) men rutterna/koden lämnas orörda så deep-links/notiser funkar och det är reversibelt. Recept lyfts från gömd stack-route (`recipes/index.tsx`) till egen flik (`(tabs)/recipes.tsx`). Landningssida default → Meny och erbjuder bara synliga flikar. Recept-fliken är ett rent **bibliotek** (inga selection-banners); menyns dag-väljare pushar istället till egen route `recipes/pick.tsx` (re-export av samma skärm) så "Fyll måndag" bara syns när man kommit från veckomenyn. Inuti ett recept stänger en "+"-FAB kärn-loopen: väljare "Lägg till i veckomeny" / "Lägg till i inköpslista". Lokala profiler döljs i settings bakom flaggan (utan sysslor/aktiviteter finns inget att tilldela). **Utvärderas: känns kärnan (inköp+veckomeny) tydligare utan familjeorganisatör-ytorna?** Att bedöma vidare: (a) om Sysslor/rotation är en vallgrav värd att behålla, (b) om Meny-fliken ensam täcker "vad äter vi i veckan" när Kalendern är borta.
