@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -19,6 +20,8 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { InstallBanner } from '../../src/components/InstallBanner';
 import { auth as str } from '../../src/lib/svenska';
 import * as WebBrowser from 'expo-web-browser';
+
+const LOGO = require('../../assets/icon.png');
 
 // Krävs för att OAuth-webbläsarsessionen ska slutföras och lämna tillbaka
 // resultatet till appen. Utan detta hänger Google-login på "spinner" efter att
@@ -162,6 +165,7 @@ export default function SignInScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <Image source={LOGO} style={styles.logo} resizeMode="cover" />
       <Text style={styles.title}>{str.appName}</Text>
       <Text style={styles.subtitle}>
         {mode === 'reset' ? str.signIn.subtitle.reset
@@ -295,7 +299,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     padding: 24,
     backgroundColor: c.surface,
   },
-  title: { fontSize: 36, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
+  logo: { width: 88, height: 88, borderRadius: 20, alignSelf: 'center', marginBottom: 20 },
+  title: { fontSize: 36, fontWeight: '700', color: c.text, textAlign: 'center', marginBottom: 8 },
   subtitle: { fontSize: 16, color: c.textMuted, textAlign: 'center', marginBottom: 32 },
   input: { color: c.text,
     borderWidth: 1,
