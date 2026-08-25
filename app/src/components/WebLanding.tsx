@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { landing as str } from '../lib/svenska';
 
@@ -9,15 +10,8 @@ import { landing as str } from '../lib/svenska';
 // app"). Fast varumärkespalett (grön/terrakotta) oberoende av besökarens tema
 // så sidan alltid ser ut som Handlis.
 const LOGO = require('../../assets/icon.png');
-const BOARD = require('../../assets/koncept-board.webp'); // krittavle-illustration (1536x850)
+const BOARD = require('../../assets/koncept-board.webp'); // krittavle-illustration (1536x850, 3 boxar)
 const BOARD_RATIO = 1536 / 850;
-// Uppdelad i 3 paneler (en box vardera) för swipe-karusell på smal skärm.
-const BOARD_PANELS = [
-  require('../../assets/koncept-board-1.webp'),
-  require('../../assets/koncept-board-2.webp'),
-  require('../../assets/koncept-board-3.webp'),
-];
-const PANEL_RATIO = 440 / 810;
 
 const BRAND = {
   greenDark: '#2f5340',
@@ -88,11 +82,7 @@ export function WebLanding() {
           <Text style={s.boardHeading}>{str.flow.heading}</Text>
           <View style={s.boardUnderline} />
           {narrow ? (
-            <View style={s.panelStack}>
-              {BOARD_PANELS.map((p, i) => (
-                <Image key={i} source={p} style={s.panel} resizeMode="contain" accessibilityLabel={str.flow.alt} />
-              ))}
-            </View>
+            <BoardPager s={s} />
           ) : (
             <Image
               source={BOARD}
@@ -147,6 +137,56 @@ export function WebLanding() {
   );
 }
 
+// Horisontell pager (mobil): hela krittavlan (pilarna intakta) som snappar en box
+// i taget. Swipe på touch + ‹ ›-knappar på desktop. Bilden är w*3 bred (3 boxar),
+// pagingEnabled snappar per w = en box.
+function BoardPager({ s }: { s: ReturnType<typeof makeStyles> }) {
+  const [w, setW] = useState(0);
+  const [page, setPage] = useState(0);
+  const ref = useRef<ScrollView>(null);
+  const go = (dir: number) => {
+    const next = Math.max(0, Math.min(2, page + dir));
+    ref.current?.scrollTo({ x: next * w, animated: true });
+    setPage(next);
+  };
+  return (
+    <View style={s.pagerOuter}>
+      <View style={s.pagerWrap} onLayout={e => setW(e.nativeEvent.layout.width)}>
+        <ScrollView
+          ref={ref}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={e => { if (w) setPage(Math.round(e.nativeEvent.contentOffset.x / w)); }}
+        >
+          {w > 0 && (
+            <Image
+              source={BOARD}
+              style={{ width: w * 3, height: (w * 3) / BOARD_RATIO }}
+              resizeMode="cover"
+              accessibilityLabel={str.flow.alt}
+            />
+          )}
+        </ScrollView>
+        {page > 0 && (
+          <Pressable style={[s.pagerNav, s.pagerPrev]} onPress={() => go(-1)} accessibilityLabel="Föregående">
+            <Ionicons name="chevron-back" size={22} color={BRAND.chalkTerra} />
+          </Pressable>
+        )}
+        {page < 2 && (
+          <Pressable style={[s.pagerNav, s.pagerNext]} onPress={() => go(1)} accessibilityLabel="Nästa">
+            <Ionicons name="chevron-forward" size={22} color={BRAND.chalkTerra} />
+          </Pressable>
+        )}
+      </View>
+      <View style={s.dots}>
+        {[0, 1, 2].map(i => <View key={i} style={[s.dot, page === i && s.dotActive]} />)}
+      </View>
+    </View>
+  );
+}
+
 const makeStyles = (narrow: boolean) => StyleSheet.create({
   nav: { backgroundColor: BRAND.creme, borderBottomWidth: 1, borderBottomColor: BRAND.line },
   navInner: { width: '100%', maxWidth: 1040, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -176,15 +216,21 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   featureTitle: { fontSize: 19, fontWeight: '800', color: BRAND.terraDark, marginBottom: 10 },
   featureBody: { fontSize: 15, lineHeight: 23, color: BRAND.inkMuted },
 
-  // Krittavla-sektion
-  board: { backgroundColor: BRAND.slate, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72 },
+  // Krittavla-sektion (ljus beige bakgrund så den svarta tavlan blir ett kort)
+  board: { backgroundColor: BRAND.beige, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72 },
   boardInner: { width: '100%', maxWidth: 1000, alignSelf: 'center', alignItems: 'center' },
-  boardHeading: { fontSize: narrow ? 24 : 32, fontWeight: '800', color: BRAND.chalk, textAlign: 'center', letterSpacing: -0.2, textShadowColor: 'rgba(255,255,255,0.12)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8 },
-  boardUnderline: { width: 90, height: 3, borderRadius: 2, backgroundColor: 'rgba(230,201,168,0.7)', marginTop: 14, marginBottom: narrow ? 26 : 36 },
+  boardHeading: { fontSize: narrow ? 24 : 32, fontWeight: '800', color: BRAND.greenDark, textAlign: 'center', letterSpacing: -0.2 },
+  boardUnderline: { width: 90, height: 3, borderRadius: 2, backgroundColor: BRAND.terra, marginTop: 14, marginBottom: narrow ? 26 : 36 },
   boardImg: { width: '100%', maxWidth: 960, aspectRatio: BOARD_RATIO, borderRadius: 14, alignSelf: 'center' },
-  boardCaption: { fontSize: narrow ? 15 : 16, lineHeight: 24, color: BRAND.chalkMute, textAlign: 'center', marginTop: narrow ? 22 : 30, maxWidth: 560 },
-  panelStack: { width: '100%', maxWidth: 420, alignSelf: 'center', gap: 18 },
-  panel: { width: '100%', aspectRatio: PANEL_RATIO, borderRadius: 12 },
+  boardCaption: { fontSize: narrow ? 15 : 16, lineHeight: 24, color: BRAND.inkMuted, textAlign: 'center', marginTop: narrow ? 22 : 30, maxWidth: 560 },
+  pagerOuter: { width: '100%', maxWidth: 380, alignSelf: 'center' },
+  pagerWrap: { width: '100%', borderRadius: 14, overflow: 'hidden', position: 'relative' },
+  pagerNav: { position: 'absolute', top: '50%', marginTop: -21, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1.5, borderColor: 'rgba(230,201,168,0.6)', alignItems: 'center', justifyContent: 'center' },
+  pagerPrev: { left: 6 },
+  pagerNext: { right: 6 },
+  dots: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 16 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.18)' },
+  dotActive: { width: 20, backgroundColor: BRAND.terra },
 
   ctaBand: { backgroundColor: BRAND.green, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 64 },
   ctaBandInner: { width: '100%', maxWidth: 720, alignSelf: 'center', alignItems: 'center' },
