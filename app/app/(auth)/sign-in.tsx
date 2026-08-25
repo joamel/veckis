@@ -131,10 +131,21 @@ export default function SignInScreen() {
 
   async function handleGoogleSignIn() {
     try {
+      // Webb och native kräver OLIKA OAuth-flöden.
+      if (Platform.OS === 'web') {
+        // Webb: Clerks redirect-flöde → tillbaka till /sso-callback som slutför
+        // sessionen. (native-useSSO/WebBrowser fungerar inte korrekt på webben.)
+        if (!isLoaded) return;
+        await signIn.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          redirectUrl: '/sso-callback',
+          redirectUrlComplete: '/',
+        });
+        return;
+      }
+      // Native: useSSO öppnar systembrowsern och returnerar sessionen.
       const { createdSessionId, setActive: setSSOActive } = await startSSOFlow({
         strategy: 'oauth_google',
-        // makeRedirectUri ger en dedikerad callback (handlis://…) som OAuth-sessionen
-        // fångar korrekt — till skillnad från en riktig app-route som routingen "äter".
         redirectUrl: AuthSession.makeRedirectUri(),
       });
       if (createdSessionId && setSSOActive) {
