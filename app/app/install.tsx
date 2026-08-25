@@ -16,7 +16,7 @@ import { detectInstallTarget, isAlreadyInstalled, type InstallTarget } from '../
 import { install as str } from '../src/lib/svenska';
 
 // Senaste APK från EAS preview-build. Uppdatera när vi gör nya builds.
-const APK_URL = 'https://expo.dev/artifacts/eas/Y1xHgRaqt56rNpHYlpHI4mC7mUu32bWt-Im5XVQV5kk.apk';
+const APK_URL = 'https://expo.dev/artifacts/eas/giOJOAopWfXcJ16ch343vvZv3TPbKt4rQ_lxZMUNrAc.apk';
 
 // Chromiums beforeinstallprompt-event. Sparas globalt så vi kan trigga
 // PWA-prompten på knapptryck.
