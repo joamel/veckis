@@ -1514,7 +1514,7 @@ export const auth = {
     links: {
       forgotPassword:     'Glömt lösenord?',
       backToCodeSignIn:   '← Logga in med kod istället',
-      signInWithPassword: 'Logga in med lösen istället',
+      signInWithPassword: 'Logga in med lösenord istället',
       noAccount:          'Inget konto? Skapa ett',
       backToSignIn:       '← Tillbaka till inloggning',
     },
