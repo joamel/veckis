@@ -23,6 +23,12 @@ import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { installGlobalErrorHandler } from '../src/lib/errorReport';
 import { getLandingTab, type LandingTabKey } from '../src/lib/landingTab';
 import { AnimatedSplash } from '../src/components/AnimatedSplash';
+import * as WebBrowser from 'expo-web-browser';
+
+// Slutför en ev. väntande OAuth-webbläsarsession vid app-start. MÅSTE ligga i
+// roten (körs oavsett vilken skärm appen öppnas till via djuplänken) — annars
+// returnerar native Google-login utan session (createdSessionId null → snurrar).
+WebBrowser.maybeCompleteAuthSession();
 
 // Lock app text to designed size regardless of OS "larger text" setting.
 // Tablet sizing is handled separately via useTablet().fs() so we don't lose tablet scaling.
