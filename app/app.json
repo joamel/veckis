@@ -29,7 +29,6 @@
     },
     "android": {
       "package": "com.handlis.app",
-      "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
