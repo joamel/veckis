@@ -42,20 +42,6 @@ export default function PreferencesScreen() {
     showToast(str.toasts.tipsReset, 'neutral');
   }
 
-  async function openClerkPortal(path: string, errLabel: string) {
-    const portalUrl = `https://new-oarfish-48.accounts.dev${path}`;
-    try {
-      if (Platform.OS === 'web') {
-        window.open(portalUrl, '_blank', 'noopener');
-      } else {
-        const WebBrowser = await import('expo-web-browser');
-        await WebBrowser.openBrowserAsync(portalUrl);
-      }
-    } catch (e) {
-      showError(e, errLabel);
-    }
-  }
-
   function handleContactSupport() {
     const Constants = require('expo-constants').default;
     const version = Constants.expoConfig?.version ?? str.support.unknownVersion;
@@ -135,15 +121,6 @@ export default function PreferencesScreen() {
               })}
             </View>
           </View>
-        </View>
-
-        <Text style={s.sectionLabel}>{str.sections.security}</Text>
-        <View style={s.group}>
-          <Pressable style={s.row} onPress={() => openClerkPortal('/user/security', str.toasts.errorSecurityPortal)}>
-            <Ionicons name="shield-checkmark-outline" size={18} color={c.accent} />
-            <Text style={s.rowText}>{str.rows.twoFactor}</Text>
-            <Ionicons name="open-outline" size={16} color={c.textFaint} />
-          </Pressable>
         </View>
 
         <Text style={s.sectionLabel}>{str.sections.about}</Text>
