@@ -1390,7 +1390,7 @@ export const components = {
       {
         icon:  'sparkles' as const,
         title: 'Välkommen till Handlis!',
-        body:  'Handlis samlar hela veckans matplanering på ett ställe. Tre enkla steg – så här hänger de ihop:',
+        body:  'Handlis samlar hela veckans matplanering på ett ställe. Tre enkla steg - så här hänger de ihop:',
       },
       {
         icon:  'book-outline' as const,
@@ -1400,12 +1400,12 @@ export const components = {
       {
         icon:  'restaurant-outline' as const,
         title: '2. Planera veckan',
-        body:  'Lägg recepten på veckans dagar under Meny. Ni ser direkt vad ni ska äta – frukost, lunch eller middag.',
+        body:  'Planera veckas matsedel under Meny. Ni ser direkt vad ni ska äta - frukost, lunch eller middag.',
       },
       {
         icon:  'cart-outline' as const,
         title: '3. Handla tillsammans',
-        body:  'Skicka ingredienserna från veckomenyn till Inköp med ett tryck. Bocka av i realtid medan någon annan fyller på.',
+        body:  'Inventera vad som finns hemma och överför sedan ingredienserna från veckomenyn till Inköp med ett tryck.',
       },
     ],
     back:        'Tillbaka',

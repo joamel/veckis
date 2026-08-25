@@ -141,10 +141,10 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
   // Swipe finger sweeps ±35% of the target dimension, centered on the rect.
   const swipeAmpX = rect && swipeDemo === 'horizontal' ? rect.width * 0.35 : 0;
   const swipeAmpY = rect && swipeDemo === 'vertical' ? rect.height * 0.35 : 0;
-  // Drag-demo: positionerat högt på skärmen där riktiga meny-rätter sitter
-  // (ungefär 22% från toppen), tip-kortet trycks ned i computeCalloutTop
-  // så det finns gott om plats för demon utan att de överlappar.
-  const dragCenter = { x: screen.width / 2, y: screen.height * 0.22 };
+  // Drag-demo: positionerat där riktiga meny-rätter sitter — under ScreenHeader
+  // + WeekNav (vecko-raden), annars ser det ut som att demon markerar veckorna.
+  // ~34% från toppen; tip-kortet trycks ned i computeCalloutTop så de ej överlappar.
+  const dragCenter = { x: screen.width / 2, y: screen.height * 0.34 };
 
   // Renderas som absolut overlay i app-trädet (INTE i en Modal). Med edge-to-edge
   // (RN 0.81 / Expo SDK 54) har en Modal ett annat koordinat-origin än
@@ -361,9 +361,9 @@ function computeCalloutTop(rect: Rect | null, screenH: number, swipeDemo?: 'hori
   const cardEstHeight = 200;
   if (!rect) {
     if (swipeDemo === 'drag') {
-      // Halvskärm — drag-demoen sitter på övre 22%, plats för mock-rad +
-      // drag-spann (~150px), så tip-kortet börjar runt halva höjden.
-      return Math.round(screenH * 0.45);
+      // Drag-demoen sitter på ~34% (över dagens rätter), mock-rad + drag-spann
+      // (~150px) tar plats nedåt → tip-kortet börjar en bit under det.
+      return Math.round(screenH * 0.56);
     }
     return Math.max(80, (screenH - cardEstHeight) / 2);
   }
