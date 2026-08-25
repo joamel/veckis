@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { landing as str } from '../lib/svenska';
@@ -17,7 +17,7 @@ const BOARD_PANELS = [
   require('../../assets/koncept-board-2.webp'),
   require('../../assets/koncept-board-3.webp'),
 ];
-const PANEL_RATIO = 512 / 850;
+const PANEL_RATIO = 440 / 810;
 
 const BRAND = {
   greenDark: '#2f5340',
@@ -88,7 +88,11 @@ export function WebLanding() {
           <Text style={s.boardHeading}>{str.flow.heading}</Text>
           <View style={s.boardUnderline} />
           {narrow ? (
-            <BoardCarousel s={s} />
+            <View style={s.panelStack}>
+              {BOARD_PANELS.map((p, i) => (
+                <Image key={i} source={p} style={s.panel} resizeMode="contain" accessibilityLabel={str.flow.alt} />
+              ))}
+            </View>
           ) : (
             <Image
               source={BOARD}
@@ -143,33 +147,6 @@ export function WebLanding() {
   );
 }
 
-// Swipe-karusell (mobil): en krittavle-panel i taget + prick-indikatorer.
-function BoardCarousel({ s }: { s: ReturnType<typeof makeStyles> }) {
-  const [w, setW] = useState(0);
-  const [page, setPage] = useState(0);
-  return (
-    <View style={{ width: '100%' }} onLayout={e => setW(e.nativeEvent.layout.width)}>
-      <ScrollView
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={e => { if (w) setPage(Math.round(e.nativeEvent.contentOffset.x / w)); }}
-        style={{ borderRadius: 14, overflow: 'hidden' }}
-      >
-        {w > 0 && BOARD_PANELS.map((p, i) => (
-          <Image key={i} source={p} style={{ width: w, aspectRatio: PANEL_RATIO }} resizeMode="contain" accessibilityLabel={str.flow.alt} />
-        ))}
-      </ScrollView>
-      <View style={s.dots}>
-        {BOARD_PANELS.map((_, i) => (
-          <View key={i} style={[s.dot, page === i && s.dotActive]} />
-        ))}
-      </View>
-    </View>
-  );
-}
-
 const makeStyles = (narrow: boolean) => StyleSheet.create({
   nav: { backgroundColor: BRAND.creme, borderBottomWidth: 1, borderBottomColor: BRAND.line },
   navInner: { width: '100%', maxWidth: 1040, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -206,9 +183,8 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   boardUnderline: { width: 90, height: 3, borderRadius: 2, backgroundColor: 'rgba(230,201,168,0.7)', marginTop: 14, marginBottom: narrow ? 26 : 36 },
   boardImg: { width: '100%', maxWidth: 960, aspectRatio: BOARD_RATIO, borderRadius: 14, alignSelf: 'center' },
   boardCaption: { fontSize: narrow ? 15 : 16, lineHeight: 24, color: BRAND.chalkMute, textAlign: 'center', marginTop: narrow ? 22 : 30, maxWidth: 560 },
-  dots: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 16 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(242,237,225,0.28)' },
-  dotActive: { width: 20, backgroundColor: BRAND.chalkTerra },
+  panelStack: { width: '100%', maxWidth: 420, alignSelf: 'center', gap: 18 },
+  panel: { width: '100%', aspectRatio: PANEL_RATIO, borderRadius: 12 },
 
   ctaBand: { backgroundColor: BRAND.green, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 64 },
   ctaBandInner: { width: '100%', maxWidth: 720, alignSelf: 'center', alignItems: 'center' },
