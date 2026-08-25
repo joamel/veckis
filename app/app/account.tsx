@@ -4,7 +4,7 @@ import type { Palette } from '../src/lib/theme';
 // Kontosida — namn, byt namn, ta bort konto, logga ut. Egen route med
 // tillbaka-pil. Avatar-tap på Profil-flikens header öppnar denna vy.
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -15,6 +15,13 @@ import { useToast } from '../src/context/ToastContext';
 import { useConfirm } from '../src/context/ConfirmContext';
 import { kavBehavior } from '../src/lib/platform';
 import { account as str } from '../src/lib/svenska';
+
+// Clerks konto-portal (2FA m.m.) ligger på olika domäner per instans: prod
+// (pk_live) på accounts.handlis.app, dev på .accounts.dev. Env-styrt så länken
+// inte pekar på fel instans.
+const CLERK_PORTAL_BASE = (process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '').startsWith('pk_live')
+  ? 'https://accounts.handlis.app'
+  : 'https://new-oarfish-48.accounts.dev';
 
 export default function AccountScreen() {
   const { colors: c } = useTheme();
@@ -38,6 +45,50 @@ export default function AccountScreen() {
   const [renameValue, setRenameValue] = useState(displayName);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Lösenord: lösenordsfria konton (email-code) kan lägga TILL ett; de som redan
+  // har ett kan ÄNDRA det (kräver nuvarande). user.passwordEnabled avgör vilket.
+  const hasPassword = user?.passwordEnabled ?? false;
+  const [showPassword, setShowPassword] = useState(false);
+  const [curPw, setCurPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [savingPw, setSavingPw] = useState(false);
+  const pwMatches = newPw.length > 0 && newPw === confirmPw;
+  const canSavePw = newPw.length >= 8 && pwMatches && (!hasPassword || curPw.length > 0);
+
+  function closePassword() {
+    setShowPassword(false);
+    setCurPw(''); setNewPw(''); setConfirmPw('');
+  }
+
+  async function handleSavePassword() {
+    if (!user || !canSavePw) return;
+    setSavingPw(true);
+    try {
+      await user.updatePassword(hasPassword ? { newPassword: newPw, currentPassword: curPw } : { newPassword: newPw });
+      showToast(hasPassword ? str.toasts.passwordUpdated : str.toasts.passwordAdded, 'success');
+      closePassword();
+    } catch (e) {
+      showError(e, str.toasts.errorPassword);
+    } finally {
+      setSavingPw(false);
+    }
+  }
+
+  async function openPortal(path: string) {
+    const url = `${CLERK_PORTAL_BASE}${path}`;
+    try {
+      if (Platform.OS === 'web') {
+        window.open(url, '_blank', 'noopener');
+      } else {
+        const WebBrowser = await import('expo-web-browser');
+        await WebBrowser.openBrowserAsync(url);
+      }
+    } catch (e) {
+      showError(e, str.toasts.errorPortal);
+    }
+  }
 
   async function handleSaveName() {
     if (!householdId || !myMemberId || !renameValue.trim()) return;
@@ -116,6 +167,20 @@ export default function AccountScreen() {
           </Pressable>
         </View>
 
+        <Text style={s.sectionLabel}>{str.sections.security}</Text>
+        <View style={s.group}>
+          <Pressable style={s.row} onPress={() => setShowPassword(true)}>
+            <Ionicons name="key-outline" size={18} color={c.primary} />
+            <Text style={s.rowText}>{hasPassword ? str.rows.changePassword : str.rows.addPassword}</Text>
+            <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
+          </Pressable>
+          <Pressable style={[s.row, s.rowBorder]} onPress={() => openPortal('/user/security')}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={c.primary} />
+            <Text style={s.rowText}>{str.rows.twoFactor}</Text>
+            <Ionicons name="open-outline" size={16} color={c.textFaint} />
+          </Pressable>
+        </View>
+
         <Text style={s.sectionLabel}>{str.sections.session}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={handleSignOut}>
@@ -159,6 +224,58 @@ export default function AccountScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Lösenord-modal: lägg till (lösenordsfritt konto) eller ändra */}
+      <Modal visible={showPassword} transparent animationType="slide" onRequestClose={closePassword}>
+        <Pressable style={s.overlay} onPress={closePassword} />
+        <KeyboardAvoidingView behavior={kavBehavior} style={s.kavWrap}>
+          <View style={s.sheet}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>{hasPassword ? str.passwordModal.changeTitle : str.passwordModal.addTitle}</Text>
+            <Text style={s.sheetSubtitle}>{hasPassword ? str.security.changeSubtitle : str.security.addSubtitle}</Text>
+            {hasPassword && (
+              <TextInput
+                style={s.input}
+                placeholder={str.passwordModal.currentPlaceholder}
+                placeholderTextColor={c.textFaint}
+                secureTextEntry
+                value={curPw}
+                onChangeText={setCurPw}
+              />
+            )}
+            <TextInput
+              style={s.input}
+              placeholder={str.passwordModal.newPlaceholder}
+              placeholderTextColor={c.textFaint}
+              secureTextEntry
+              value={newPw}
+              onChangeText={setNewPw}
+              textContentType="newPassword"
+              autoComplete="new-password"
+            />
+            <TextInput
+              style={[s.input, confirmPw.length > 0 && !pwMatches && s.inputError]}
+              placeholder={str.passwordModal.confirmPlaceholder}
+              placeholderTextColor={c.textFaint}
+              secureTextEntry
+              value={confirmPw}
+              onChangeText={setConfirmPw}
+              textContentType="newPassword"
+              autoComplete="new-password"
+            />
+            {confirmPw.length > 0 && !pwMatches && (
+              <Text style={s.errorText}>{str.passwordModal.mismatch}</Text>
+            )}
+            <Pressable
+              style={[s.primaryBtn, (!canSavePw || savingPw) && { opacity: 0.4 }]}
+              onPress={handleSavePassword}
+              disabled={!canSavePw || savingPw}
+            >
+              {savingPw ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{str.passwordModal.save}</Text>}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -183,7 +300,10 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 14 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+  sheetSubtitle: { fontSize: 13, color: c.textMuted, lineHeight: 19, marginTop: -6 },
   input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
+  inputError: { borderColor: c.danger },
+  errorText: { color: c.danger, fontSize: 13, marginTop: -8, marginLeft: 4 },
   primaryBtn: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

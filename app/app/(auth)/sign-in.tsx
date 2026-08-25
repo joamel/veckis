@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
-import { useSSO, useSignIn } from '@clerk/clerk-expo';
+import { useSSO, useSignIn, useSignUp } from '@clerk/clerk-expo';
 import * as AuthSession from 'expo-auth-session';
-import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -33,8 +32,8 @@ export default function SignInScreen() {
   const { colors: c } = useTheme();
   const styles = useMemo(() => makeStyles(c), [c]);
   const { signIn, setActive, isLoaded } = useSignIn();
+  const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const { startSSOFlow } = useSSO();
-  const router = useRouter();
   const confirm = useConfirm();
 
   // Värm upp webbläsaren (Android) för stabilare OAuth-flöde.
@@ -56,12 +55,24 @@ export default function SignInScreen() {
   const [codeSent, setCodeSent] = useState(false);
   const [code, setCode] = useState('');
   const [resetNewPassword, setResetNewPassword] = useState('');
+  // Enhetligt mejlflöde: samma e-postkod loggar in ETT befintligt konto eller
+  // skapar ett NYTT (lösenordsfritt). isNewAccount avgör vilket Clerk-anrop
+  // verifieringssteget kör.
+  const [isNewAccount, setIsNewAccount] = useState(false);
 
   function switchMode(next: 'password' | 'email-code' | 'reset') {
     setMode(next);
     setCodeSent(false);
     setCode('');
     setResetNewPassword('');
+    setIsNewAccount(false);
+  }
+
+  /** Clerk-fel för "hittade inget konto med den identifieraren". */
+  function isIdentifierNotFound(e: unknown): boolean {
+    return typeof e === 'object' && e !== null && 'errors' in e
+      && Array.isArray((e as { errors?: unknown }).errors)
+      && (e as { errors: { code?: string }[] }).errors.some(x => x?.code === 'form_identifier_not_found');
   }
 
   async function handleEmailSignIn() {
@@ -80,24 +91,34 @@ export default function SignInScreen() {
 
   /** Skicka kod till mail. Används av både 'email-code' och 'reset'. */
   async function handleSendCode() {
-    if (!isLoaded || !email.trim()) {
+    if (!isLoaded || !signUpLoaded || !email.trim()) {
       confirm({ title: str.errors.emailMissing.title, message: str.errors.emailMissing.message, buttons: [{ label: 'OK' }] });
       return;
     }
     setLoading(true);
     try {
-      const strategy = mode === 'reset' ? 'reset_password_email_code' : 'email_code';
-      if (mode === 'email-code') {
-        // För passwordless email_code måste vi först resolva användaren via
-        // identifier och sedan prepareFirstFactor med rätt emailAddressId.
+      if (mode === 'reset') {
+        await signIn.create({ strategy: 'reset_password_email_code', identifier: email });
+        setCodeSent(true);
+        return;
+      }
+      // Enhetligt mejlflöde. Försök först logga in ett BEFINTLIGT konto med
+      // passwordless email_code; hittas inget konto skapar vi ett NYTT och
+      // verifierar med samma sorts kod. Användaren ser ingen skillnad.
+      try {
         const attempt = await signIn.create({ identifier: email });
         const factor = attempt.supportedFirstFactors?.find(f => f.strategy === 'email_code');
         if (!factor || !('emailAddressId' in factor)) {
           throw new Error(str.errors.codeSignInUnavailable);
         }
         await signIn.prepareFirstFactor({ strategy: 'email_code', emailAddressId: factor.emailAddressId });
-      } else {
-        await signIn.create({ strategy, identifier: email });
+        setIsNewAccount(false);
+      } catch (e) {
+        if (!isIdentifierNotFound(e)) throw e;
+        // Nytt konto → skapa lösenordsfritt och skicka verifieringskod.
+        await signUp.create({ emailAddress: email });
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+        setIsNewAccount(true);
       }
       setCodeSent(true);
     } catch (err: unknown) {
@@ -108,22 +129,30 @@ export default function SignInScreen() {
     }
   }
 
-  /** Verifiera koden. För 'email-code' → in i appen direkt. För 'reset' → kräver nytt lösenord. */
+  /** Verifiera koden. Nytt konto → signUp-verifiering; befintligt → signIn.
+   *  'reset' → sätter nytt lösenord. Alla vägar landar i appen (setActive). */
   async function handleVerifyCode() {
-    if (!isLoaded) return;
+    if (!isLoaded || !signUpLoaded) return;
     if (mode === 'reset' && resetNewPassword.length < 8) {
       confirm({ title: str.errors.passwordTooShort.title, message: str.errors.passwordTooShort.message, buttons: [{ label: 'OK' }] });
       return;
     }
     setLoading(true);
     try {
-      const result = await signIn.attemptFirstFactor(
-        mode === 'reset'
-          ? { strategy: 'reset_password_email_code', code, password: resetNewPassword }
-          : { strategy: 'email_code', code },
-      );
-      if (result.status === 'complete') {
-        await setActive({ session: result.createdSessionId });
+      if (mode === 'email-code' && isNewAccount) {
+        const result = await signUp.attemptEmailAddressVerification({ code });
+        if (result.status === 'complete') {
+          await setActive({ session: result.createdSessionId });
+        }
+      } else {
+        const result = await signIn.attemptFirstFactor(
+          mode === 'reset'
+            ? { strategy: 'reset_password_email_code', code, password: resetNewPassword }
+            : { strategy: 'email_code', code },
+        );
+        if (result.status === 'complete') {
+          await setActive({ session: result.createdSessionId });
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.verifyFailed;
@@ -259,7 +288,7 @@ export default function SignInScreen() {
               )}
               <Pressable style={styles.button} onPress={handleVerifyCode} disabled={loading}>
                 {loading ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.buttonText}>{mode === 'reset' ? str.signIn.buttons.resetAndSignIn : str.signIn.buttons.signIn}</Text>}
+                  : <Text style={styles.buttonText}>{mode === 'reset' ? str.signIn.buttons.resetAndSignIn : isNewAccount ? str.signIn.buttons.createAccount : str.signIn.buttons.signIn}</Text>}
               </Pressable>
             </>
           )}
@@ -276,10 +305,6 @@ export default function SignInScreen() {
                   <Text style={styles.linkSmall}>{str.signIn.links.signInWithPassword}</Text>
                 </Pressable>
               </View>
-
-              <Pressable onPress={() => router.push('/(auth)/sign-up')}>
-                <Text style={styles.link}>{str.signIn.links.noAccount}</Text>
-              </Pressable>
             </>
           )}
 

@@ -1515,17 +1515,18 @@ export const auth = {
   signIn: {
     subtitle: {
       reset:     'Återställ lösenord',
-      emailCode: 'Logga in med kod',
+      emailCode: 'Logga in eller skapa konto',
       password:  'Logga in på ditt hushåll',
     },
     helpText: {
-      emailCode: 'Skriv din e-post så skickar vi en engångskod - säkrare än lösenord.',
+      emailCode: 'Skriv din e-post så skickar vi en engångskod. Har du inget konto skapas det automatiskt - inget lösenord behövs.',
       reset:     'Skriv din e-post så skickar vi en återställningskod.',
       codeSentTo:(email: string) => `Vi har skickat en kod till ${email}.`,
     },
     buttons: {
       signIn:            'Logga in',
-      sendCode:          'Skicka kod',
+      createAccount:     'Skapa konto',
+      sendCode:          'Fortsätt med e-post',
       resetAndSignIn:    'Återställ + logga in',
       continueWithGoogle:'Fortsätt med Google',
     },
@@ -1560,14 +1561,34 @@ export const account = {
   defaultName: 'Användare',
 
   sections: {
-    profile: 'PROFIL',
-    session: 'SESSION',
+    profile:  'PROFIL',
+    security: 'SÄKERHET',
+    session:  'SESSION',
   },
 
   rows: {
-    rename:  'Byt namn',
-    signOut: 'Logga ut',
-    delete:  'Ta bort kontot',
+    rename:        'Byt namn',
+    addPassword:   'Lägg till lösenord',
+    changePassword:'Ändra lösenord',
+    twoFactor:     'Tvåfaktorsautentisering',
+    signOut:       'Logga ut',
+    delete:        'Ta bort kontot',
+  },
+
+  security: {
+    addSubtitle:    'Du loggar in med e-postkod. Lägg till ett lösenord om du vill kunna logga in med det också.',
+    changeSubtitle: 'Uppdatera ditt lösenord.',
+  },
+
+  passwordModal: {
+    addTitle:           'Lägg till lösenord',
+    changeTitle:        'Ändra lösenord',
+    currentPlaceholder: 'Nuvarande lösenord',
+    newPlaceholder:     'Nytt lösenord (minst 8 tecken)',
+    confirmPlaceholder: 'Bekräfta nytt lösenord',
+    save:               'Spara lösenord',
+    tooShort:           'Lösenordet måste vara minst 8 tecken.',
+    mismatch:           'Lösenorden matchar inte.',
   },
 
   renameModal: {
@@ -1594,6 +1615,10 @@ export const account = {
     nameUpdated:     'Namnet har uppdaterats',
     errorUpdateName: 'Kunde inte uppdatera namnet',
     errorDelete:     'Kunde inte ta bort kontot',
+    passwordAdded:   'Lösenord tillagt',
+    passwordUpdated: 'Lösenord uppdaterat',
+    errorPassword:   'Kunde inte spara lösenordet',
+    errorPortal:     'Kunde inte öppna säkerhetsinställningarna',
   },
 };
 
