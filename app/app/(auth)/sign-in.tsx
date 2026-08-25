@@ -18,6 +18,12 @@ import {
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { InstallBanner } from '../../src/components/InstallBanner';
 import { auth as str } from '../../src/lib/svenska';
+import * as WebBrowser from 'expo-web-browser';
+
+// Krävs för att OAuth-webbläsarsessionen ska slutföras och lämna tillbaka
+// resultatet till appen. Utan detta hänger Google-login på "spinner" efter att
+// man valt konto (webbläsaren stängs aldrig / promisen resolvar aldrig).
+WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
   const { colors: c } = useTheme();
