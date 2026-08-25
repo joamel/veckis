@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
-import { useOAuth, useSignIn } from '@clerk/clerk-expo';
-import * as Linking from 'expo-linking';
+import { useSSO, useSignIn } from '@clerk/clerk-expo';
+import * as AuthSession from 'expo-auth-session';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -29,9 +29,15 @@ export default function SignInScreen() {
   const { colors: c } = useTheme();
   const styles = useMemo(() => makeStyles(c), [c]);
   const { signIn, setActive, isLoaded } = useSignIn();
-  const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
+  const { startSSOFlow } = useSSO();
   const router = useRouter();
   const confirm = useConfirm();
+
+  // Värm upp webbläsaren (Android) för stabilare OAuth-flöde.
+  useEffect(() => {
+    void WebBrowser.warmUpAsync();
+    return () => { void WebBrowser.coolDownAsync(); };
+  }, []);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -125,11 +131,14 @@ export default function SignInScreen() {
 
   async function handleGoogleSignIn() {
     try {
-      const { createdSessionId, setActive: setOAuthActive } = await startOAuthFlow({
-        redirectUrl: Linking.createURL('/(tabs)/shopping'),
+      const { createdSessionId, setActive: setSSOActive } = await startSSOFlow({
+        strategy: 'oauth_google',
+        // makeRedirectUri ger en dedikerad callback (handlis://…) som OAuth-sessionen
+        // fångar korrekt — till skillnad från en riktig app-route som routingen "äter".
+        redirectUrl: AuthSession.makeRedirectUri(),
       });
-      if (createdSessionId && setOAuthActive) {
-        await setOAuthActive({ session: createdSessionId });
+      if (createdSessionId && setSSOActive) {
+        await setSSOActive({ session: createdSessionId });
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.googleFailed;
