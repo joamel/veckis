@@ -19,6 +19,7 @@ import {
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { InstallBanner } from '../../src/components/InstallBanner';
 import { auth as str } from '../../src/lib/svenska';
+import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 
 const LOGO = require('../../assets/icon.png');
@@ -266,7 +267,8 @@ export default function SignInScreen() {
           {mode === 'email-code' && !codeSent && (
             <>
               <Pressable style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
-                <Text style={styles.buttonText}>{str.signIn.buttons.continueWithGoogle}</Text>
+                <Ionicons name="logo-google" size={18} color="#4285F4" />
+                <Text style={styles.googleButtonText}>{str.signIn.buttons.continueWithGoogle}</Text>
               </Pressable>
 
               <View style={styles.altRow}>
@@ -317,7 +319,11 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  googleButton: { backgroundColor: '#ea4335' },
+  // Google-knappen följer Googles mönster: vit/neutral yta, grå ram, mörk text
+  // + Google-loggan — inte en helröd knapp. Vit yta funkar mot både ljust och
+  // mörkt tema.
+  googleButton: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dadce0', flexDirection: 'row', justifyContent: 'center', gap: 10 },
+  googleButtonText: { color: '#3c4043', fontSize: 16, fontWeight: '600' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   link: { textAlign: 'center', color: c.primary, marginTop: 8 },
   linkSmall: { color: c.textMuted, fontSize: 13 },
