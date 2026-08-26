@@ -1805,7 +1805,7 @@ export const landing = {
     ctaSecondary:'Installera appen',
   },
   features: {
-    heading:     'Allt familjen behöver för en smidigare matplanering1',
+    heading:     'Allt familjen behöver för en smidigare veckoplanering',
     shopping: {
       title:     'Delad inköpslista',
       body:      'Lägg till varor som synkas direkt till alla i hushållet. Automatiskt sorterad efter butik och avdelning, så du slipper springa fram och tillbaka.',
