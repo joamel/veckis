@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../lib/theme';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { components as str } from '../lib/svenska';
+
+const LOGO = require('../../assets/icon.png');
 
 /**
  * Koncept-guide som fyrar EN gång vid första app-start (efter sign-in +
@@ -43,9 +45,13 @@ export function WelcomeModal({ visible, onDone }: Props) {
             <Text style={s.skipText}>{str.walkthrough.skip}</Text>
           </Pressable>
 
-          <View style={s.iconBubble}>
-            <Ionicons name={current.icon} size={32} color="#fff" />
-          </View>
+          {step === 0 ? (
+            <Image source={LOGO} style={s.logo} resizeMode="cover" />
+          ) : (
+            <View style={s.iconBubble}>
+              <Ionicons name={current.icon} size={32} color="#fff" />
+            </View>
+          )}
           <Text style={s.title}>{current.title}</Text>
           <Text style={s.message}>{current.body}</Text>
 
@@ -105,7 +111,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     width: 64, height: 64, borderRadius: 32, backgroundColor: c.accent,
     alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16, marginTop: 8,
   },
-  title: { fontSize: 22, fontWeight: '800', color: c.text, textAlign: 'center', marginBottom: 12 },
+  logo: { width: 76, height: 76, borderRadius: 18, alignSelf: 'center', marginBottom: 16, marginTop: 8 },
+  title: { fontSize: 24, fontFamily: 'Baloo2', color: c.primary, textAlign: 'center', marginBottom: 12 },
   message: { fontSize: 15, color: c.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 20 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 20 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.border },
