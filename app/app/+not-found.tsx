@@ -32,7 +32,7 @@ export default function NotFoundScreen() {
           <Text style={s.path}>{String(params.unmatched)}</Text>
         )}
         <View style={s.actions}>
-          <Pressable style={s.primaryBtn} onPress={() => router.replace('/(tabs)/schedule' as never)}>
+          <Pressable style={s.primaryBtn} onPress={() => router.replace('/' as never)}>
             <Text style={s.primaryBtnText}>{str.notFound.toCalendar}</Text>
           </Pressable>
           <Pressable style={s.secondaryBtn} onPress={() => router.back()}>

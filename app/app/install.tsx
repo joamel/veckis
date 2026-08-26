@@ -67,7 +67,7 @@ export default function InstallScreen() {
           <Ionicons name="checkmark-circle" size={56} color={c.success} />
           <Text style={s.title}>{str.installed.title}</Text>
           <Text style={s.body}>{str.installed.body}</Text>
-          <Pressable style={s.primaryBtn} onPress={() => router.replace('/(tabs)/schedule')}>
+          <Pressable style={s.primaryBtn} onPress={() => router.replace('/')}>
             <Text style={s.primaryBtnText}>{str.installed.openApp}</Text>
           </Pressable>
         </View>

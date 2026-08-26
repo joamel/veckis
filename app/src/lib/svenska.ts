@@ -1374,7 +1374,7 @@ export const components = {
   notFound: {
     title:       'Sidan hittades inte',
     body:        'Vi kunde inte hitta sidan du sökte. Den kan ha tagits bort, flyttats eller också är länken fel.',
-    toCalendar:  'Till kalendern',
+    toCalendar:  'Till appen',
     back:        'Tillbaka',
   },
 
@@ -1805,7 +1805,7 @@ export const landing = {
     ctaSecondary:'Installera appen',
   },
   features: {
-    heading:     'Allt hushållet behöver för maten',
+    heading:     'Allt familjen behöver för en smidigare matplanering1',
     shopping: {
       title:     'Delad inköpslista',
       body:      'Lägg till varor som synkas direkt till alla i hushållet. Automatiskt sorterad efter butik och avdelning, så du slipper springa fram och tillbaka.',
