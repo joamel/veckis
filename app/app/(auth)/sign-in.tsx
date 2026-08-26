@@ -18,10 +18,10 @@ import {
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { InstallBanner } from '../../src/components/InstallBanner';
 import { auth as str } from '../../src/lib/svenska';
-import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 
 const LOGO = require('../../assets/icon.png');
+const GOOGLE_G = require('../../assets/google-g.png');
 
 // Krävs för att OAuth-webbläsarsessionen ska slutföras och lämna tillbaka
 // resultatet till appen. Utan detta hänger Google-login på "spinner" efter att
@@ -296,7 +296,7 @@ export default function SignInScreen() {
           {mode === 'email-code' && !codeSent && (
             <>
               <Pressable style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
-                <Ionicons name="logo-google" size={18} color="#4285F4" />
+                <Image source={GOOGLE_G} style={styles.googleLogo} resizeMode="contain" />
                 <Text style={styles.googleButtonText}>{str.signIn.buttons.continueWithGoogle}</Text>
               </Pressable>
 
@@ -348,6 +348,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // + Google-loggan — inte en helröd knapp. Vit yta funkar mot både ljust och
   // mörkt tema.
   googleButton: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dadce0', flexDirection: 'row', justifyContent: 'center', gap: 10 },
+  googleLogo: { width: 18, height: 18 },
   googleButtonText: { color: '#3c4043', fontSize: 16, fontWeight: '600' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   link: { textAlign: 'center', color: c.primary, marginTop: 8 },
