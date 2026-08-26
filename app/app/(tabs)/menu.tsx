@@ -628,10 +628,14 @@ export default function MenuScreen() {
   // yieldas. touchAction="pan-y" på GestureDetectorn låter browsern behålla scroll.
   const webWeekSwipe = useMemo(() =>
     Gesture.Pan()
-      .activeOffsetX([-30, 30])
-      .failOffsetY([-18, 18])
+      // Aktivera redan vid ~16px horisontellt och yield:a bara vid tydligt
+      // vertikala drag (34px) - annars dödade minsta vertikala jitter svepet
+      // innan det hann kännas igen. onEnd nedan är den riktiga grinden mot
+      // att råka byta vecka vid en vertikal scroll.
+      .activeOffsetX([-16, 16])
+      .failOffsetY([-34, 34])
       .onEnd(e => {
-        if (Math.abs(e.translationX) < 55 || Math.abs(e.translationX) <= Math.abs(e.translationY)) return;
+        if (Math.abs(e.translationX) < 42 || Math.abs(e.translationX) <= Math.abs(e.translationY)) return;
         runOnJS(goToWeek)(weekOffset + (e.translationX < 0 ? 1 : -1), true);
       }),
     [weekOffset, goToWeek]);
