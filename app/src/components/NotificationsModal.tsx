@@ -109,11 +109,13 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
               ? <ActivityIndicator color={c.primary} size="small" />
               : <><Ionicons name="phone-portrait-outline" size={18} color={c.primary} /><Text style={s.btnText}>{str.notificationsModal.activate}</Text></>}
           </Pressable>
-          <Pressable style={[s.btn, s.btnTest]} onPress={sendTest} disabled={testing}>
-            {testing
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <><Ionicons name="paper-plane-outline" size={18} color="#fff" /><Text style={[s.btnText, { color: '#fff' }]}>{str.notificationsModal.sendTest}</Text></>}
-          </Pressable>
+          {__DEV__ && (
+            <Pressable style={[s.btn, s.btnTest]} onPress={sendTest} disabled={testing}>
+              {testing
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <><Ionicons name="paper-plane-outline" size={18} color="#fff" /><Text style={[s.btnText, { color: '#fff' }]}>{str.notificationsModal.sendTest}</Text></>}
+            </Pressable>
+          )}
           {deviceStatus && <Text style={s.statusText}>{deviceStatus}</Text>}
         </ScrollView>
       </View>
