@@ -80,296 +80,7 @@ export const common = {
     shopping:        'Inköp',
     menu:            'Meny',
     recipes:         'Recept',
-    schedule:        'Kalender',
-    chores:          'Sysslor',
     settings:        'Hushållet',
-  },
-};
-
-// ─── Sysslor ─────────────────────────────────────────────────────────────────
-
-export const chores = {
-  title:             'Sysslor',
-
-  freqLabels: {
-    once:            'En gång',
-    daily:           'Dagligen',
-    weekly:          'Varje vecka',
-    biweekly:        'Varannan vecka',
-    monthly:         'Månadsvis',
-  },
-  // Full-fras-frekvenser (choreSummary/detaljvyn) — skiljer sig från freqLabels.
-  freqEvery: {
-    none:        'Ingen',
-    once:        'En gång',
-    daily:       'Varje dag',
-    weekly:      'Varje vecka',
-    monthly:     'Varje månad',
-    yearly:      'Varje år',
-    oncePerYear: 'En gång per år',
-  },
-  relDay:  { today: 'Idag', yesterday: 'Igår' },
-  sharing: { shared: 'Gemensam', private: 'Bara för mig' },
-  turnHistory: {
-    by:       (name: string) => ` · ${name}`,
-    turnOf:   (name: string) => ` · ${name}s tur`,
-    yourTurn: ' · att göra',
-    missedBy: (name: string) => ` · ${name} missade`,
-    missed:   ' · missad',
-  },
-  history: 'Historik',
-  doneSection: 'Klart',
-  statusTodo:  'Att göra idag',
-  filterModal: { all: 'Alla', clear: 'Rensa' },
-
-  header: {
-    clearDone:       'Rensa klara',
-    filter:          'Filter',
-    new:             'Ny syssla',
-  },
-
-  emptyState: {
-    title:           'Inga sysslor än',
-    subtitle:        'Lägg till en syssla så syns den här och i kalendern',
-  },
-
-  card: {
-    today:   'idag',
-    overdue: (days: number) => `förfallen ${days} ${days === 1 ? 'dag' : 'dagar'}`,
-    done:    'Klar',
-  },
-
-  status: {
-    done:            'Klar',
-    overdue:         (days: number) => `Förfallen sedan ${days} ${days === 1 ? 'dag' : 'dagar'}`,
-    today:           'Förfaller idag',
-    nextDate:        (date: string) => `Nästa: ${date}`,
-    doneNext:        (date: string) => `Klar · ${date}`,
-  },
-
-  modal: {
-    createTitle:     'Ny syssla',
-    editTitle:       'Redigera syssla',
-    namePlaceholder: 'Sysslans namn, t.ex. Damma',
-    nameLabel:       'Sysslans namn',
-    dateLabel:       'Datum (valfritt)',
-    startLabel:      'Startdatum (valfritt)',
-    endLabel:        'Slutdatum',
-    chooseDate:      'Välj datum',
-    chooseStart:     'Välj startdatum',
-    clearDate:       'Rensa datum',
-    clearStartDate:  'Rensa startdatum',
-    startDateTitle:  'Startdatum',
-    endDateTitle:    'Slutdatum',
-    moreSettings:    'Fler inställningar',
-    fewerSettings:   'Färre inställningar',
-    addButton:       'Lägg till syssla',
-    saveButton:      'Spara ändringar',
-    deleteButton:    'Ta bort syssla',
-  },
-
-  clear: {
-    title:           'Rensa klara sysslor',
-    once:            (n: number) => `${n} engångssyssla${n === 1 ? '' : 'r'} tas bort`,
-    recurring:       (n: number) => `${n} återkommande syssla${n === 1 ? '' : 'r'} döljs tills nästa tillfälle`,
-    confirm:         'Rensa',
-  },
-
-  delete: {
-    title:           'Ta bort syssla',
-    message:         (title: string) => `Ta bort "${title}"?`,
-    confirm:         'Ta bort',
-  },
-
-  performer: {
-    title:           (title: string) => `Vem gjorde "${title}"?`,
-    turn:            (name: string) => `${name}s tur`,
-    filledIn:        (performer: string, turn: string) => `${performer} (hoppade in för ${turn})`,
-    missed:          (name: string) => `${name} missade`,
-  },
-
-  toasts: {
-    created:         'Syssla skapad',
-    saved:           'Syssla sparad',
-    deleted:         'Syssla borttagen',
-    errorCreate:     'Kunde inte skapa syssla',
-    errorSave:       'Kunde inte spara ändringarna',
-    errorComplete:   'Kunde inte markera sysslan',
-    errorUncomplete: 'Kunde inte avmarkera sysslan',
-    errorLoadTitle:  'Fel',
-    errorLoad:       'Kunde inte ladda sysslor',
-    errorUndo:       'Kunde inte ångra',
-    errorDelete:     'Kunde inte ta bort syssla',
-  },
-
-  tips: {
-    intro: {
-      title:   'Sysslor',
-      message: 'Här strukturerar du återkommande sysslor - disk, sopor, dammsuga. Prova ett roterande schema så alla i hushållet turas om automatiskt, och bocka av allteftersom.',
-    },
-    rotation: {
-      title:   'Turas om automatiskt',
-      message: 'När 2 eller fler är tilldelade kan du slå på "Turas om" - då växlar turen mellan er per tillfälle. Lämna av om alla är gemensamt ansvariga.',
-    },
-    details: {
-      title:   'Detaljer per syssla',
-      message: 'Här ser du frekvens, full status och historik (klara/missade tillfällen). Härifrån når du också Redigera och Ta bort.',
-    },
-    filter: {
-      title:   'Filtrera på person',
-      message: 'Tryck här för att bara visa sysslor (och aktiviteter) för en eller flera personer. Filtret gäller både sysslor-fliken och kalendern.',
-    },
-    add: {
-      title:   'Skapa syssla',
-      message: 'Här lägger du till en återkommande syssla - välj frekvens (dagligen, veckovis, månadsvis), vem som ska göra den och om ni ska turas om automatiskt.',
-    },
-  },
-};
-
-// ─── Kalender / Aktiviteter ───────────────────────────────────────────────────
-
-export const schedule = {
-  title: 'Kalender',
-
-  emptyState: {
-    title:    'Inget planerat',
-    subtitle: 'Lägg till en aktivitet på den här dagen.',
-    cta:      'Ny aktivitet',
-  },
-
-  editScope: {
-    dialogTitle: 'Redigera aktivitet',
-    title:       'Vilka tillfällen vill du redigera?',
-    single:      'Bara det här',
-    series:      'Hela serien',
-  },
-
-  deleteScope: {
-    title:      'Ta bort aktivitet',
-    message:    (title: string) => `Ta bort "${title}"?`,
-    single:     'Bara den här',
-    series:     'Hela serien',
-  },
-
-  deleteOnce: {
-    title:      'Ta bort',
-    confirm:    'Ta bort',
-  },
-
-  toasts: {
-    created:    'Aktivitet skapad',
-    saved:      'Aktivitet sparad',
-    deleted:    'Aktivitet borttagen',
-    errorLoad:  'Kunde inte ladda schemat',
-    errorCreate:'Kunde inte skapa schemapost',
-    errorSave:  'Kunde inte spara aktiviteten',
-    errorDelete:'Kunde inte ta bort',
-  },
-
-  actions: {
-    viewRecipe: 'Visa recept',
-    goToMenu:   'Gå till Meny',
-    goToChores: 'Gå till Sysslor',
-  },
-
-  sections: {
-    meals:      'MATRÄTTER',
-    chores:     'SYSSLOR',
-    entries:    'AKTIVITETER',
-  },
-
-  allDay: 'Heldag',
-
-  shared: {
-    isShared:     'Gemensam kalender',
-    isPrivate:    'Bara för mig',
-    sharedSub:    'Syns för alla i hushållet',
-    privateSub:   'Syns bara för dig',
-  },
-
-  form: {
-    titleLabel:       'Titel',
-    titlePlaceholder: 'Titel, t.ex. Träning',
-    timeLabel:        'Tid (valfritt)',
-    assignLabel:      'Tilldela personer (valfritt)',
-    responsibleLabel: 'Ansvarig',
-    noOne:            'Ingen',
-    reminderLabel:    'Påminnelse',
-    reminderOnSub:    'Notis innan aktiviteten startar',
-    reminderOffSub:   'Ingen påminnelse',
-    newTitle:         'Ny aktivitet',
-    editEntryTitle:   'Redigera aktivitet',
-    editChoreTitle:   'Redigera syssla',
-  },
-
-  filter: {
-    title:      'Filtrera på person',
-    popupTitle: 'Filter',
-    clear:      'Rensa',
-    all:        'Alla',
-  },
-
-  weekPicker: {
-    title:      'Gå till dag',
-    startDate:  'Startdatum',
-    endDate:    'Slutdatum',
-  },
-
-  weekLabel: (n: number) => `Vecka ${n}`,
-
-  view: {
-    monthToggle: 'Månad',
-    weekToggle:  'Vecka',
-  },
-
-  newRecurrence: {
-    intervalUnit: { daily: 'dag', weekly: 'vecka', monthly: 'månad', yearly: 'år' } as Record<string, string>,
-  },
-
-  recurrenceSummary: {
-    once:        'Engångstillfälle',
-    every:       (weeks: number) => weeks > 1 ? `var ${weeks}:e ` : 'varje ',
-    daily:       (weeks: number) => weeks > 1 ? `Var ${weeks}:e dag` : 'Varje dag',
-    weekly:      (every: string, days: string) => `${every}vecka${days ? ` (${days})` : ''}`,
-    monthly:     (every: string) => `${every}månad`,
-    yearly:      (every: string) => `${every}år`,
-  },
-
-  remind: {
-    presets: [
-      { label: '5 min',       value: 5 },
-      { label: '15 min',      value: 15 },
-      { label: '30 min',      value: 30 },
-      { label: '1 tim',       value: 60 },
-      { label: 'Dagen innan', value: 1440 },
-    ] as const,
-    atStart:        'Vid start',
-    customTime:     'Välj annan tid',
-    addReminder:    'Lägg till påminnelse',
-    before:         (times: string) => `${times} innan`,
-    formatMin:      (m: number) => `${m} min`,
-    formatHour:     (h: number) => `${h} tim`,
-    formatDay:      (d: number) => d === 1 ? '1 dag' : `${d} dagar`,
-    formatWeek:     (w: number) => w === 1 ? '1 vecka' : `${w} veckor`,
-  },
-
-  tips: {
-    swipe: {
-      title:   'Två svep i kalendern',
-      message: 'Svep på veckodags-raden (som lyser upp) för att byta vecka. Svep på själva dag-innehållet nedanför för att byta dag.',
-    },
-    origins: {
-      title:   'Var kommer innehållet ifrån?',
-      message: 'Maträtter på kalendern kommer från veckomenyn (Meny-fliken), och sysslor från Sysslor-fliken. Skapa eller redigera dem där - de syns sedan automatiskt i kalendern.',
-    },
-    add: {
-      title:   'Skapa aktivitet',
-      message: 'Här lägger du till en aktivitet på den valda dagen. Du kan välja om den ska upprepas (dagligen, veckovis, månadsvis), vem som ska göra den och få en påminnelse innan starttiden.',
-    },
-    filter: {
-      title:   'Filtrera på person',
-      message: 'Tryck här för att bara visa aktiviteter (och sysslor) för en eller flera personer. Filtret gäller både kalendern och sysslor-fliken.',
-    },
   },
 };
 
@@ -594,7 +305,7 @@ export const menu = {
   sections: {
     recipes:      'MATRÄTTER',
     unscheduled:  'EJ SCHEMALAGDA',
-    unscheduledHint: 'Lägg till rätter utan dag för att planera i kalendern',
+    unscheduledHint: 'Rätter utan dag - planera in dem på veckans dagar när du vill',
   },
 
   dialogs: {
@@ -1097,8 +808,8 @@ export const settings = {
   messages: {
     addProfile:          'Skapa en lokal profil för ett familjemedlem utan konto.',
     deleteConfirm:       (name: string) =>
-      `All data i "${name}" (sysslor, meny, inköpslistor) raderas permanent och kan inte återställas.\n\nSkriv DELETE för att bekräfta.`,
-    deleteConfirmIntro:  (name: string) => `All data i "${name}" (sysslor, meny, inköpslistor) raderas permanent och kan inte återställas.`,
+      `All data i "${name}" (recept, meny, inköpslistor) raderas permanent och kan inte återställas.\n\nSkriv DELETE för att bekräfta.`,
+    deleteConfirmIntro:  (name: string) => `All data i "${name}" (recept, meny, inköpslistor) raderas permanent och kan inte återställas.`,
     deleteConfirmOutro:  'för att bekräfta.',
     joinHint:            'Ange inbjudningskoden du fick från husägaren.',
     alreadyMember:       'Du är redan medlem i det hushållet.',
@@ -1122,7 +833,6 @@ export const settings = {
 
   toasts: {
     editingDone:              'Redigeringsläget avslutat',
-    errorLoadChores:          'Kunde inte ladda sysslor',
     errorInvite:              'Kunde inte skapa inbjudningskod',
     errorJoin:                'Kunde inte ansluta till hushållet. Kontrollera koden.',
     errorCreate:              'Kunde inte skapa hushållet',
@@ -1155,7 +865,7 @@ export const settings = {
   tips: {
     notifications: {
       title:   'Notisinställningar',
-      message: 'Klockan högst upp till höger öppnar dina notisinställningar - slå på/av påminnelser för aktiviteter, sysslor och inköpslistor per typ.',
+      message: 'Klockan högst upp till höger öppnar dina notisinställningar - slå på/av notiser per typ (t.ex. när någon handlar eller rensar en lista).',
     },
     admin: {
       title:   'Admin-läge',
@@ -1653,8 +1363,6 @@ export const preferences = {
       shopping: 'Inköp',
       menu:     'Meny',
       recipes:  'Recept',
-      schedule: 'Kalender',
-      chores:   'Sysslor',
     } as Record<string, string>,
   },
 
@@ -1717,7 +1425,7 @@ export const install = {
 
   hero: {
     title:       'Handlis',
-    tagline:     'Veckomeny, sysslor och inköp för hushållet',
+    tagline:     'Veckomeny, recept och inköp för hushållet',
   },
 
   android: {
