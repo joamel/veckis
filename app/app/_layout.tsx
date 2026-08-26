@@ -23,6 +23,7 @@ import { installGlobalErrorHandler } from '../src/lib/errorReport';
 import { getLandingTab, type LandingTabKey } from '../src/lib/landingTab';
 import { AnimatedSplash } from '../src/components/AnimatedSplash';
 import * as WebBrowser from 'expo-web-browser';
+import { useFonts } from 'expo-font';
 
 // Slutför en ev. väntande OAuth-webbläsarsession vid app-start. MÅSTE ligga i
 // roten (körs oavsett vilken skärm appen öppnas till via djuplänken) — annars
@@ -159,6 +160,10 @@ function NavigationGuard() {
 
 export default function RootLayout() {
   const { isTablet } = useTablet();
+  // Brand-font (Baloo 2) för "Handlis"-ordmärket — laddas via OTA (expo-font-
+  // modulen finns redan i bygget). Gate:ar tills laddad så ordmärket inte
+  // flimrar in i systemfont först; faller igenom vid fel så appen aldrig fastnar.
+  const [fontsLoaded, fontError] = useFonts({ Baloo2: require('../assets/fonts/Baloo2.ttf') });
 
   useEffect(() => { installGlobalErrorHandler(); }, []);
 
@@ -171,6 +176,9 @@ export default function RootLayout() {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
     }
   }, [isTablet]);
+
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>

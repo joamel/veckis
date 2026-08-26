@@ -192,7 +192,7 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   navInner: { width: '100%', maxWidth: 1040, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   navLogo: { width: 34, height: 34, borderRadius: 9 },
-  navName: { fontSize: 20, fontWeight: '800', color: BRAND.greenDark, letterSpacing: -0.3 },
+  navName: { fontSize: 22, fontFamily: 'Baloo2', color: BRAND.greenDark, letterSpacing: -0.3 },
   navSignIn: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999, backgroundColor: BRAND.green },
   navSignInText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 

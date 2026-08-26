@@ -325,7 +325,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     backgroundColor: c.surface,
   },
   logo: { width: 88, height: 88, borderRadius: 20, alignSelf: 'center', marginBottom: 20 },
-  title: { fontSize: 36, fontWeight: '700', color: c.text, textAlign: 'center', marginBottom: 8 },
+  title: { fontSize: 40, fontFamily: 'Baloo2', color: c.primary, textAlign: 'center', marginBottom: 8 },
   subtitle: { fontSize: 16, color: c.textMuted, textAlign: 'center', marginBottom: 32 },
   input: { color: c.text,
     borderWidth: 1,
