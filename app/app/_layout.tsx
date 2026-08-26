@@ -177,7 +177,11 @@ export default function RootLayout() {
     }
   }, [isTablet]);
 
-  if (!fontsLoaded && !fontError) return null;
+  // OBS: gate:a ALDRIG hela trädet på fontsLoaded här — det blockerar
+  // ClerkProvider + /sso-callback-rutten medan fonten laddar, vilket bröt
+  // Google-OAuth-återanropet (sessionen slutfördes aldrig → studs till login).
+  // Fonten laddas ändå via useFonts; ordmärket byts från systemfont när klar.
+  void fontsLoaded; void fontError;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

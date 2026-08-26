@@ -456,7 +456,7 @@ export default function SettingsScreen() {
                 onPress={() => setShowAdminLogs(true)}
                 accessibilityLabel={str.a11y.adminLogs}
               >
-                <Ionicons name="bar-chart-outline" size={20} color={c.primary} />
+                <Ionicons name="time-outline" size={20} color={c.primary} />
               </Pressable>
             )}
             <Pressable

@@ -61,7 +61,6 @@ export function AuditLogSection({ householdId }: Props) {
   const s = useMemo(() => makeStyles(c), [c]);
   const client = useApiClient();
   const { showError } = useToast();
-  const [expanded, setExpanded] = useState(false);
   const [events, setEvents] = useState<AuditLogEntry[] | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -77,48 +76,37 @@ export function AuditLogSection({ householdId }: Props) {
     }
   }, [client, householdId, showError]);
 
+  // Renderas i en dedikerad "Aktivitetslogg"-modal → ladda direkt vid mount
+  // (öppnas bara på admin-begäran, så ingen onödig endpoint-spam).
   useEffect(() => {
-    if (expanded && events === null) load();
-  }, [expanded, events, load]);
+    if (events === null) load();
+  }, [events, load]);
 
   return (
     <View style={s.box}>
-      <Pressable
-        style={s.header}
-        onPress={() => setExpanded(v => !v)}
-        accessibilityRole="button"
-        accessibilityLabel={expanded ? cmpStr.auditLog.hide : cmpStr.auditLog.show}
-      >
-        <Ionicons name="time-outline" size={16} color={c.primary} />
-        <Text style={s.title}>Aktivitetslogg</Text>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={c.textFaint} />
-      </Pressable>
-
-      {expanded && (
-        <View style={s.body}>
-          {loading && <ActivityIndicator size="small" color={c.primary} style={{ marginVertical: 12 }} />}
-          {!loading && events && events.length === 0 && (
-            <Text style={s.empty}>{cmpStr.auditLog.empty}</Text>
-          )}
-          {!loading && events && events.map((e, idx) => (
-            <View
-              key={e.id}
-              style={[s.row, idx === events.length - 1 && { borderBottomWidth: 0 }]}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={s.eventText}>{describeEvent(e)}</Text>
-                <Text style={s.eventTime}>{timeAgo(e.createdAt)}</Text>
-              </View>
+      <View style={s.body}>
+        {loading && <ActivityIndicator size="small" color={c.primary} style={{ marginVertical: 12 }} />}
+        {!loading && events && events.length === 0 && (
+          <Text style={s.empty}>{cmpStr.auditLog.empty}</Text>
+        )}
+        {!loading && events && events.map((e, idx) => (
+          <View
+            key={e.id}
+            style={[s.row, idx === events.length - 1 && { borderBottomWidth: 0 }]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={s.eventText}>{describeEvent(e)}</Text>
+              <Text style={s.eventTime}>{timeAgo(e.createdAt)}</Text>
             </View>
-          ))}
-          {!loading && events && events.length > 0 && (
-            <Pressable style={s.refreshBtn} onPress={load} hitSlop={6}>
-              <Ionicons name="refresh-outline" size={14} color={c.textMuted} />
-              <Text style={s.refreshText}>Uppdatera</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
+          </View>
+        ))}
+        {!loading && events && events.length > 0 && (
+          <Pressable style={s.refreshBtn} onPress={load} hitSlop={6}>
+            <Ionicons name="refresh-outline" size={14} color={c.textMuted} />
+            <Text style={s.refreshText}>Uppdatera</Text>
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }

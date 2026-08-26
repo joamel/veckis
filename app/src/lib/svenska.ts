@@ -719,7 +719,7 @@ export const settings = {
     invite:     'BJUD IN NÅGON',
     other:      'ANDRA HUSHÅLL',
     appearance: 'UTSEENDE',
-    adminLogs:  'Adminloggar',
+    adminLogs:  'Visa aktivitetslogg',
   },
 
   appearance: {
@@ -781,7 +781,7 @@ export const settings = {
 
   a11y: {
     account:               'Konto',
-    adminLogs:             'Adminloggar',
+    adminLogs:             'Aktivitetslogg',
     close:                 'Stäng',
     notifications:         'Inställningar',
     householdOptions:      'Hushållsalternativ',
