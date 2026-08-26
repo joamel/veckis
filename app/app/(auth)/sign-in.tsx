@@ -300,11 +300,9 @@ export default function SignInScreen() {
                 <Text style={styles.googleButtonText}>{str.signIn.buttons.continueWithGoogle}</Text>
               </Pressable>
 
-              <View style={styles.altRow}>
-                <Pressable onPress={() => switchMode('password')} hitSlop={6}>
-                  <Text style={styles.linkSmall}>{str.signIn.links.signInWithPassword}</Text>
-                </Pressable>
-              </View>
+              <Pressable onPress={() => switchMode('password')} hitSlop={6}>
+                <Text style={styles.link}>{str.signIn.links.signInWithPassword}</Text>
+              </Pressable>
             </>
           )}
 
