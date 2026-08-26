@@ -26,8 +26,6 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-nativ
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
-import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useAuth } from '@clerk/clerk-expo';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
@@ -252,10 +250,6 @@ export default function MenuScreen() {
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
-  const showTip = useSpotlightTip();
-  const tipsReady = useTipsReady();
-  const menuNavTip = useOnceFlag('seen-menu-drag-tip');
-  const menuNavTipShownRef = useRef(false);
   const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
@@ -605,21 +599,6 @@ export default function MenuScreen() {
   // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
   // transfer filters stay in sync (e.g. after clearing/removing items in a list).
   useEffect(() => onShoppingChanged(load), [load]);
-
-  // Meny-drag-tip: att långtrycka och dra en rätt till en annan dag är en gömd
-  // gest utan knapp — visa ett tip (med drag-demo) första gången menyn har
-  // rätter inlagda. Väntar tills koncept-guiden är avklarad (welcomeReady-gate).
-  useFocusEffect(useCallback(() => {
-    if (!tipsReady) return;
-    if (menuNavTip.seen !== false || menuNavTipShownRef.current) return;
-    if (menuItems.length === 0) return;
-    const shown = showTip({
-      title: str.tips.drag.title,
-      message: str.tips.drag.message,
-      swipeDemo: 'drag',
-    });
-    if (shown) { menuNavTipShownRef.current = true; menuNavTip.markSeen(); }
-  }, [tipsReady, menuItems, menuNavTip.seen, menuNavTip.markSeen, showTip]));
 
   // Live menu updates: another device added/removed/moved a meal. load() refreshes
   // both the visible week and the allMenus snapshot that feeds neighbour pages.
@@ -2292,7 +2271,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   emptyDayText: { fontSize: 13, color: c.textFaint, paddingVertical: 8 },
   emptyDayTap: { paddingVertical: 4, alignItems: 'flex-start' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  card: { borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.primary200, backgroundColor: c.surface, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  // Heltäckande ram + tydligare skugga så kortet syns mot den ljusa bakgrunden
+  // även i PWA (web renderar knappt shadowOpacity 0.03 → kortet såg ramlöst ut).
+  card: { borderRadius: 12, borderWidth: 1, borderColor: c.borderLight, borderLeftWidth: 3, borderLeftColor: c.primary200, backgroundColor: c.surface, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   cardInner: { backgroundColor: c.surface, borderRadius: 12, overflow: 'hidden' },
   cardMain: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
   cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
