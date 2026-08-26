@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Animated as RNAnimated,
   FlatList,
+  type GestureResponderEvent,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -626,19 +627,27 @@ export default function MenuScreen() {
   // är avstängd på web pga scroll-konflikt). Riktnings-styrt: aktiverar bara på
   // tydligt horisontella drag och failar vid vertikala, så den vertikala scrollen
   // yieldas. touchAction="pan-y" på GestureDetectorn låter browsern behålla scroll.
-  const webWeekSwipe = useMemo(() =>
-    Gesture.Pan()
-      // Aktivera redan vid ~16px horisontellt och yield:a bara vid tydligt
-      // vertikala drag (34px) - annars dödade minsta vertikala jitter svepet
-      // innan det hann kännas igen. onEnd nedan är den riktiga grinden mot
-      // att råka byta vecka vid en vertikal scroll.
-      .activeOffsetX([-16, 16])
-      .failOffsetY([-34, 34])
-      .onEnd(e => {
-        if (Math.abs(e.translationX) < 42 || Math.abs(e.translationX) <= Math.abs(e.translationY)) return;
-        runOnJS(goToWeek)(weekOffset + (e.translationX < 0 ? 1 : -1), true);
-      }),
-    [weekOffset, goToWeek]);
+  // Web/PWA: RNGH:s Pan-gest kände aldrig igen svepet tillförlitligt i
+  // webbläsare. Läs istället råa DOM-touch-koordinater via RNW:s onTouchStart/
+  // End på ScrollViewn — passivt (ingen preventDefault), så vertikal scroll är
+  // orörd, och vi byter vecka bara vid ett TYDLIGT horisontellt svep vid släpp.
+  const webTouchStart = useRef<{ x: number; y: number; t: number } | null>(null);
+  const onWebTouchStart = useCallback((e: GestureResponderEvent) => {
+    const t = e.nativeEvent.touches?.[0];
+    if (t) webTouchStart.current = { x: t.pageX, y: t.pageY, t: Date.now() };
+  }, []);
+  const onWebTouchEnd = useCallback((e: GestureResponderEvent) => {
+    const start = webTouchStart.current;
+    webTouchStart.current = null;
+    const t = e.nativeEvent.changedTouches?.[0];
+    if (!start || !t) return;
+    const dx = t.pageX - start.x;
+    const dy = t.pageY - start.y;
+    if (Date.now() - start.t > 700) return;         // svep, inte långsamt drag
+    if (Math.abs(dx) < 45) return;                   // tillräckligt horisontellt
+    if (Math.abs(dx) <= Math.abs(dy) * 1.2) return;  // måste dominera vertikalt
+    goToWeek(weekOffset + (dx < 0 ? 1 : -1), true);
+  }, [weekOffset, goToWeek]);
 
   useEffect(() => {
     if (params.bulkTransfer === '1' && householdId && !bulkTransferTriggeredRef.current) {
@@ -1428,7 +1437,6 @@ export default function MenuScreen() {
           rak vertikal ScrollView; veckobyte sker via pilarna/Idag (goToWeek
           sätter weekOffset, scrollToIndex blir no-op utan FlatList-ref). */}
       {Platform.OS === 'web' ? (
-        <GestureDetector gesture={webWeekSwipe} touchAction="pan-y">
         <ScrollView
           ref={menuScrollRef}
           style={s.content}
@@ -1436,10 +1444,11 @@ export default function MenuScreen() {
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
           onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={32}
+          onTouchStart={onWebTouchStart}
+          onTouchEnd={onWebTouchEnd}
         >
           {renderWeekContent(weekItemsForOffset(weekOffset), getWeekMonday(weekOffset), true, weekOffset < 0)}
         </ScrollView>
-        </GestureDetector>
       ) : (
       /* Virtualised week pager: each page is one week. Swiping just scrolls the
           list (no recenter → no flash); arrows/Idag/picker scrollToIndex so they
