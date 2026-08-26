@@ -81,7 +81,7 @@ export default function InstallScreen() {
         <View style={s.logoCircle}>
           <Ionicons name="checkmark" size={32} color="#fff" />
         </View>
-        <Text style={s.title}>{str.hero.title}</Text>
+        <Text style={[s.title, s.brandTitle]}>{str.hero.title}</Text>
         <Text style={s.tagline}>{str.hero.tagline}</Text>
       </View>
 
@@ -223,6 +223,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   hero: { alignItems: 'center', marginTop: 24, marginBottom: 32 },
   logoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   title: { fontSize: 32, fontWeight: '700', color: c.text, textAlign: 'center' },
+  brandTitle: { fontFamily: 'Baloo2', fontWeight: 'normal', color: c.primary, fontSize: 40 },
   tagline: { fontSize: 15, color: c.textMuted, textAlign: 'center', marginTop: 6 },
   card: { backgroundColor: c.surface, borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2, maxWidth: 560, alignSelf: 'stretch', width: '100%' },
   cardTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 6 },
