@@ -573,20 +573,29 @@ export default function RecipesScreen() {
           )}
         </View>
         {/* Tagg-filter — visas först när hushållet har taggat recept. AND-filter.
-            Radbryter (wrap) så alla taggar + rensa-krysset syns utan sidoscroll. */}
+            Chipsen ligger på en rad man swipar; rensa-krysset är pinnat till
+            höger UTANFÖR scrollen så det alltid syns utan sidoscroll. */}
         {allTags.length > 0 && (
-          <View style={s.tagFilterRow}>
-            {allTags.map(t => {
-              const active = activeTags.has(t);
-              return (
-                <Pressable key={t} style={[s.tagFilterChip, active && s.tagFilterChipActive]} onPress={() => toggleTagFilter(t)}>
-                  <Text style={[s.tagFilterChipText, active && s.tagFilterChipTextActive]}>{t}</Text>
-                </Pressable>
-              );
-            })}
+          <View style={s.tagFilterBar}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              style={s.tagFilterScroll}
+              contentContainerStyle={s.tagFilterRow}
+            >
+              {allTags.map(t => {
+                const active = activeTags.has(t);
+                return (
+                  <Pressable key={t} style={[s.tagFilterChip, active && s.tagFilterChipActive]} onPress={() => toggleTagFilter(t)}>
+                    <Text style={[s.tagFilterChipText, active && s.tagFilterChipTextActive]}>{t}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
             {activeTags.size > 0 && (
-              <Pressable style={s.tagFilterClear} onPress={() => setActiveTags(new Set())} hitSlop={6}>
-                <Ionicons name="close-circle" size={16} color={c.textFaint} />
+              <Pressable style={s.tagFilterClear} onPress={() => setActiveTags(new Set())} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color={c.textFaint} />
               </Pressable>
             )}
           </View>
@@ -798,12 +807,14 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   subHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 12 },
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.inputBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
-  tagFilterRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 8 },
+  tagFilterBar: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  tagFilterScroll: { flexShrink: 1 },
+  tagFilterRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 6 },
   tagFilterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.primaryTint, flexShrink: 0 },
   tagFilterChipActive: { backgroundColor: c.primary },
   tagFilterChipText: { fontSize: 12, fontWeight: '600', color: c.primary },
   tagFilterChipTextActive: { color: '#fff' },
-  tagFilterClear: { paddingHorizontal: 4 },
+  tagFilterClear: { paddingLeft: 8, paddingRight: 2 },
   sortBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   sortOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   sortOptionText: { fontSize: 16, color: c.text, fontWeight: '500' },
