@@ -572,25 +572,24 @@ export default function RecipesScreen() {
             </Pressable>
           )}
         </View>
-        {/* Tagg-filter — visas först när hushållet har taggat recept. AND-filter. */}
+        {/* Tagg-filter — visas först när hushållet har taggat recept. AND-filter.
+            Radbryter (wrap) så alla taggar + rensa-krysset syns utan sidoscroll. */}
         {allTags.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tagFilterScroll} keyboardShouldPersistTaps="handled">
-            <View style={s.tagFilterRow}>
-              {allTags.map(t => {
-                const active = activeTags.has(t);
-                return (
-                  <Pressable key={t} style={[s.tagFilterChip, active && s.tagFilterChipActive]} onPress={() => toggleTagFilter(t)}>
-                    <Text style={[s.tagFilterChipText, active && s.tagFilterChipTextActive]}>{t}</Text>
-                  </Pressable>
-                );
-              })}
-              {activeTags.size > 0 && (
-                <Pressable style={s.tagFilterClear} onPress={() => setActiveTags(new Set())} hitSlop={6}>
-                  <Ionicons name="close-circle" size={16} color={c.textFaint} />
+          <View style={s.tagFilterRow}>
+            {allTags.map(t => {
+              const active = activeTags.has(t);
+              return (
+                <Pressable key={t} style={[s.tagFilterChip, active && s.tagFilterChipActive]} onPress={() => toggleTagFilter(t)}>
+                  <Text style={[s.tagFilterChipText, active && s.tagFilterChipTextActive]}>{t}</Text>
                 </Pressable>
-              )}
-            </View>
-          </ScrollView>
+              );
+            })}
+            {activeTags.size > 0 && (
+              <Pressable style={s.tagFilterClear} onPress={() => setActiveTags(new Set())} hitSlop={6}>
+                <Ionicons name="close-circle" size={16} color={c.textFaint} />
+              </Pressable>
+            )}
+          </View>
         )}
       </View>
 
@@ -610,11 +609,11 @@ export default function RecipesScreen() {
         onRefresh={load}
         refreshing={loading}
         ListEmptyComponent={
-          searchQuery ? (
+          searchQuery || activeTags.size > 0 ? (
             <EmptyState
               icon="search-outline"
               title={str.emptyState.noResults}
-              subtitle={str.emptyState.noResultsFor(searchQuery)}
+              subtitle={searchQuery ? str.emptyState.noResultsFor(searchQuery) : str.emptyState.loosenFilter}
             />
           ) : (
             <EmptyState
@@ -799,8 +798,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   subHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 12 },
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.inputBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
-  tagFilterScroll: { marginTop: 8 },
-  tagFilterRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  tagFilterRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 8 },
   tagFilterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.primaryTint, flexShrink: 0 },
   tagFilterChipActive: { backgroundColor: c.primary },
   tagFilterChipText: { fontSize: 12, fontWeight: '600', color: c.primary },

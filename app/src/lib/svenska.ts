@@ -820,8 +820,9 @@ export const recipes = {
   emptyState: {
     title:       'Inga recept än',
     subtitle:    'Lägg till ett recept manuellt eller via en URL',
-    noResults:   'Inga träffar',
+    noResults:   'Inga recept matchar filtret',
     noResultsFor:(q: string) => `Inget recept matchar "${q}"`,
+    loosenFilter:'Prova att minska filtret eller söka på något annat.',
   },
 
   createModal: {

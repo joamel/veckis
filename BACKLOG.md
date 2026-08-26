@@ -66,7 +66,7 @@
 - [ ] Datakvalitet-städning: admin-vy för att slå ihop/städa basvaror & kategorier så normaliserade namn och delade kategori-minnen inte driftar över tid
 - [ ] Skafferi-minne: persistent "har hemma" som minns över sessioner (eget skafferi per hushåll) så återkommande basvaror inte behöver inventeras varje gång. Bygger vidare på den hopslagna inventeringen.
 - [ ] Radikalt alternativ för återkommande sysslor: flexibelt intervall per syssla — nästa förfallodag räknas från när man senast gjorde sysslan ("var 3:e dag" från senaste utförandet) istället för fast kalender. Ingen förfallet-hög alls; passar rytm-sysslor (vattna/dammsuga), sämre för fasta dagar (sopor på måndag). Skulle vara ett val per syssla: "fast dag" vs "ungefär var X:e dag". (Subsumerar tidigare "klarmarkera bakåt"-idén — täcks nu av förlåtande-modellen i Sysslor-sektionen.)
-- [ ] "Kom igång"-vägledning för nya hushåll: efter setup, en kort checklista (lägg till första receptet / inköpslistan / sysslan) som hjälper adoption nu när riktiga användare signar upp. **Implementation finns i `feature/getting-started-card`** — utvärderas mot befintliga onboarding-tips.
+- [ ] **"Kom igång"-checklista (popup) för nya hushåll** — ett popup-fönster efter setup med bockbar checklista som driver de första stegen och kompletterar koncept-guiden: ☐ Skapa dina första recept ☐ Skapa din lokala butik (sortera kategorierna) ☐ Planera en veckomeny ☐ Skapa en inköpslista. Bockas av automatiskt när respektive sak gjorts (läs faktiskt tillstånd från backend), försvinner när allt är klart, går att stänga/återkalla. **Implementation finns delvis i `feature/getting-started-card`** — anpassa till recept-fokus-flikarna (ingen syssla längre).
 
 ## Backlog (prioriterade features)
 
@@ -80,7 +80,7 @@
 - [ ] Skärmdumps-karusell av faktiska app-skärmar på landningssidan (förtroende + konvertering + alt-text för SEO).
 
 ### Onboarding
-- [x] **Onboarding-omtag efter recept-fokus-redesign** — hybrid: (1) EN flerstegs koncept-guide vid login (`WelcomeModal` → 4 steg: välkomst + recept → veckomeny → inköpslista, samma story som landningssidans krittavla, flagga `seen-concept-walkthrough`) + (2) en handplockad uppsättning kontextuella first-action-tips för de icke-uppenbara vallgravs-funktionerna: **butikssortering** (Inköp → Butiker), **dubbletter** (badgen i en lista), **dra rätter mellan dagar** (Meny, med drag-demo) och **"Jag handlar"-realtid**. De gamla 26 spridda tipsen fimpade; `welcomeReady`-gaten ser till att tipsen väntar tills guiden är stängd. "Visa introduktionen igen" i Inställningar → App nollställer allt (`TIP_FLAGS`).
+- [x] **Onboarding-omtag efter recept-fokus-redesign** — hybrid: (1) EN flerstegs koncept-guide vid login (`WelcomeModal` → 4 steg: välkomst + recept → veckomeny → inköpslista, samma story som landningssidans krittavla, flagga `seen-concept-walkthrough`) + (2) en handplockad uppsättning kontextuella first-action-tips för de icke-uppenbara vallgravs-funktionerna: **butikssortering** (Inköp → Butiker), **dubbletter** (badgen i en lista) och **"Jag handlar"-realtid**. (Meny-drag-tipset togs bort — onödigt + drag-gesten funkar inte i PWA.) De gamla 26 spridda tipsen fimpade; `welcomeReady`-gaten ser till att tipsen väntar tills guiden är stängd. "Visa introduktionen igen" i Inställningar → App nollställer allt (`TIP_FLAGS`).
 
 ### Navigation & fokus
 - [ ] **Nordstjärna: kärn-loopen** — appens kärna är *recept → veckomeny → inköpslista*. Väg framtida features mot den; familjeorganisatör-ytor (kalender/sysslor) får inte skymma den.
