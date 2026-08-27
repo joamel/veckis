@@ -8,7 +8,7 @@ import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../mi
 import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
-import { uploadRecipeImage, deleteRecipeImage } from '../lib/imageUpload';
+import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
 import { recipeAbuseLimiter, parseTextLimiter } from '../lib/rateLimits';
 import { safeFetch } from '../lib/ssrfGuard';
 
@@ -54,6 +54,49 @@ const tagsSchema = z.array(z.string().min(1).max(30)).max(10);
 /** Normalisera taggar: gemener, trimmade, dedupe:ade, tomma bortfiltrerade. */
 function normalizeTags(tags: string[]): string[] {
   return [...new Set(tags.map(t => t.toLowerCase().trim()).filter(Boolean))];
+}
+
+/**
+ * Skriv en färsk, EGEN beskrivning av rätten (1–2 meningar) i stället för att
+ * kopiera källans ingress. Den redaktionella ingressen är upphovsrättsskyddad;
+ * ingredienser/steg är funktionella fakta som inte skyddas. Returnerar null om
+ * AI saknas eller failar (då droppas beskrivningen hellre än att kopiera).
+ */
+async function freshDescription(title: string, ingredients: Array<{ name: string }>): Promise<string | null> {
+  if (!anthropic) return null;
+  try {
+    const ingList = ingredients.slice(0, 20).map(i => i.name).filter(Boolean).join(', ');
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      system: 'Du skriver en kort, aptitlig beskrivning av en maträtt på svenska, 1–2 meningar. Skriv HELT eget innehåll utifrån rättens namn och ingredienser — kopiera aldrig text från någon källa. Returnera enbart beskrivningen: ingen rubrik, inga citattecken.',
+      messages: [{ role: 'user', content: `Rätt: ${title}\nIngredienser: ${ingList}` }],
+    });
+    const text = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
+    return text ? text.slice(0, 2000) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Ladda ner en extern bild (SSRF-skyddat) och lägg den på vår EGEN Cloudinary
+ * i stället för att hotlinka tredje parts URL — löser både upphovsrätt och
+ * tillförlitlighet (källbilden kan dö). Returnerar null vid fel → anroparen
+ * droppar bilden hellre än att hotlinka.
+ */
+async function rehostExternalImage(imageUrl: string, householdId: string): Promise<UploadResult | null> {
+  try {
+    const res = await safeFetch(imageUrl, { maxRedirects: 3 });
+    if (!res.ok) return null;
+    const contentType = res.headers.get('content-type') ?? '';
+    if (!contentType.startsWith('image/')) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length === 0 || buf.length > 10 * 1024 * 1024) return null;
+    return await uploadRecipeImage(buf, householdId);
+  } catch {
+    return null;
+  }
 }
 
 const createRecipeSchema = z.object({
@@ -119,9 +162,18 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const { ingredients, tags, ...recipeData } = body.data;
+  // url_import-bilder får inte hotlinkas — re-hosta källbilden till vår egen
+  // Cloudinary (upphovsrätt + tillförlitlighet). Vid fel: droppa bilden.
+  let imagePublicId: string | null = null;
+  if (recipeData.source === 'url_import' && recipeData.imageUrl && !recipeData.imageUrl.includes('res.cloudinary.com')) {
+    const rehosted = await rehostExternalImage(recipeData.imageUrl, recipeData.householdId);
+    recipeData.imageUrl = rehosted?.url ?? null;
+    imagePublicId = rehosted?.publicId ?? null;
+  }
   const recipe = await prisma.recipe.create({
     data: {
       ...recipeData,
+      ...(imagePublicId ? { imagePublicId } : {}),
       ...(tags !== undefined ? { tags: normalizeTags(tags) } : {}),
       createdBy: (req as AuthenticatedRequest).clerkUserId,
       ingredients: { create: ingredients as Prisma.RecipeIngredientCreateWithoutRecipeInput[] },
@@ -235,9 +287,11 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, asyncHandler(as
     const scraped = await scrapeRecipe(body.data.url);
     // Learn from parsed names before stripping (e.g. "mjöl, siktat" → "mjöl")
     learnIngredientAliases(scraped.ingredients).catch(() => {});
+    // Ersätt källans (upphovsrättsskyddade) ingress med en färsk EGEN beskrivning.
     // Return with normalized names but quantity/unit preserved
     res.json({
       ...scraped,
+      description: await freshDescription(scraped.title, scraped.ingredients),
       ingredients: scraped.ingredients.map(i => ({ ...i, name: stripIngredient(i.name) })),
     });
   } catch (err) {
@@ -263,7 +317,7 @@ Returnera ENBART giltig JSON utan förklaringar eller markdown-kodblock.
 JSON-schema:
 {
   "title": "receptnamn (string, null om okänt)",
-  "description": "kort beskrivning/ingress om den finns, annars null",
+  "description": "skriv en kort EGEN aptitlig beskrivning av rätten (1–2 meningar) utifrån ingredienser och tillagning — kopiera INTE någon ingress/brödtext ur källtexten, formulera helt eget; null bara om du inte kan avgöra vad rätten är",
   "instructions": "tillagningssteg numrerade på separata rader: \"1. Gör X\\n2. Gör Y\\n3. Gör Z\", null om inga steg finns",
   "servings": 4,
   "ingredients": [{ "name": "ingrediensnamn", "quantity": 2.5, "unit": "dl" }]
