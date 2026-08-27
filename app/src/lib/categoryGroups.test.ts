@@ -23,6 +23,18 @@ describe('buildCategoryGroups', () => {
     expect(group.items.map(i => i.name)).toEqual(['Banan', 'Citron', 'Avokado']);
   });
 
+  it('klustrar varor per subkategori (kanonisk ordning) inom en samlad kategori', () => {
+    const items = [
+      item('Zucchini', 'fruit_veg', { subCategory: 'grönsaker' }), // rank 2
+      item('Äpple', 'fruit_veg', { subCategory: 'frukt' }),        // rank 0
+      item('Okänt', 'fruit_veg'),                                  // ingen sub → sist
+      item('Blåbär', 'fruit_veg', { subCategory: 'bär' }),         // rank 1
+    ];
+    const [group] = buildCategoryGroups(items, ['fruit_veg'] as StoreCategory[]);
+    // frukt < bär < grönsaker, sub-lösa sist — oavsett bokstavsordning.
+    expect(group.items.map(i => i.name)).toEqual(['Äpple', 'Blåbär', 'Zucchini', 'Okänt']);
+  });
+
   it('lägger custom-kategorier sist', () => {
     const items = [item('Special', 'other', { customCategory: 'Min hylla' }), item('Mjölk', 'dairy_eggs')];
     const groups = buildCategoryGroups(items, ['dairy_eggs', 'other'] as StoreCategory[], ['Min hylla']);

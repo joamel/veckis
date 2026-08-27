@@ -1,5 +1,17 @@
 import { SUB_TAXONOMY, type StoreCategory, type SubCategory } from '@veckis/shared';
 
+// Kanonisk sub-ordning = SUB_TAXONOMY:s nyckelordning (definierad grupperad per
+// parent). Används för att klustra varor per subkategori INOM en samlad kategori
+// även när subben inte är utbruten som egen sektion — samma ordningskälla som
+// plocklistan lutar sig mot. Varor utan sub hamnar sist i kategorin.
+const SUB_RANK: Map<string, number> = new Map(
+  Object.keys(SUB_TAXONOMY).map((k, i) => [k, i]),
+);
+function subRank(subCategory: string | null | undefined): number {
+  if (!subCategory) return Number.POSITIVE_INFINITY;
+  return SUB_RANK.get(subCategory) ?? Number.POSITIVE_INFINITY;
+}
+
 /** Minsta form en vara behöver ha för att kunna grupperas. */
 export interface CategoryGroupItem {
   category: string;
@@ -114,6 +126,10 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
 
   const sortItems = (arr: T[]) => arr.sort((a, b) => {
     if (a.isChecked !== b.isChecked) return a.isChecked ? 1 : -1;
+    // Klustra per subkategori (kanonisk ordning) INOM kategorin; namn inom subben.
+    const ra = subRank(a.subCategory);
+    const rb = subRank(b.subCategory);
+    if (ra !== rb) return ra - rb;
     return a.name.localeCompare(b.name, 'sv');
   });
 
