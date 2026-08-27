@@ -10,19 +10,25 @@ Status per 2026-08-27. Grundad på kodgranskning + BACKLOG.md. Kryssa av allteft
       - [x] `@sentry/react-native` i app + gated `Sentry.init` i `_layout`; DSN wire:ad i eas.json + `build:web`
       - [x] `@sentry/node` i backend + capture i felmiddleware + unhandledRejection
       - [x] Web-Sentry: aktiv efter Render-rebuild (DSN i `build:web`)
-      - [ ] **Native-Sentry: aktiveras med nästa EAS-bygge** (native-modul; DSN i eas.json). Lägg in DSN i
-            `update:preview`/`update:production` FÖRST när modul-lösa builds är utfasade (annars krasch).
+      - [~] **Native-Sentry: AAB-bygge igång** (build 924eb3b5, versionCode 3, native-modul + DSN inbakat).
+            När AAB:n + ny sideload-APK är utfasat de modul-lösa: lägg in DSN i `update:preview`/
+            `update:production` (annars turnar OTA av Sentry) + source maps-upload för läsbara stacktraces.
       - [x] **Backend: `SENTRY_DSN` satt i Railway + verifierat** — testfel landar i `handlis-backend`
             (kanonisk `instrument.ts`-init var nyckeln; env behövde en omdeploy för att slå igenom)
-- [ ] **Bekräfta Neon-backup / point-in-time-restore** på prod-DB innan riktiga användardata ligger där.
-- [ ] **GDPR-cookiebanner för GA4** – vi laddar Google Analytics; EU-användare behöver samtycke innan gtag körs.
-      (Alternativ: byt GA4 mot cookie-lös analytics, t.ex. Plausible, och slippa bannern.)
+- [~] **Neon-backup / PITR** – bekräftat: PITR (instant restore) ÄR backupen, automatisk. **Free = bara 6h
+      fönster** (default=max, cap 1 GB) → ok för betan (testdata), men tunt för riktig användardata.
+      Inför launch: **uppgradera Neon till Launch (~$19/mån) → 7 dagars PITR + always-on** (löser backup +
+      always-on-punkten ihop). Gratis-alternativ: schemalagt `pg_dump`-jobb (kräver säker lagring). OBS:
+      EN delad DB för alla klienter (app/PWA/web) → PITR återställer allas data samtidigt.
+- [x] **GDPR-cookiebanner för GA4** – GA4/gtag laddas nu ENDAST efter cookie-samtycke (Acceptera/Avvisa,
+      val i localStorage, varumärkesgrön banner). Ingen GA-cookie innan samtycke. (`patch-index-html.mjs`)
 - [ ] **Klientfel-synlighet i prod** – täcks av Sentry ovan. (In-app-viewern är nu `__DEV__`-only + minnesring töms vid omstart.)
 
 ## P1 – under beta (drift & stabilitet)
 
-- [ ] **Lågfrekvent DB-/uppetidslarm** – gles extern koll (1–2 ggr/dygn) mot `/health` som mejlar vid 500.
-      Idag får vi ingen signal om backend/DB går ner. (cron-job.org eller UptimeRobot.)
+- [x] **Lågfrekvent DB-/uppetidslarm** – GitHub Actions-workflow (`.github/workflows/uptime.yml`) pingar
+      `/health` var 6:e h (retry mot Neon-kallstart) → failar + mejlar repo-ägaren vid ihållande fel.
+      Kör manuellt via Actions → Uptime → Run workflow för test.
 - [ ] **Beslut: always-on backend** – Railway/Neon free-tier autosuspendar; keepalive-cron mildrar kallstart
       men är inte "alltid live". Uppgradera till betald tier inför riktig lansering.
 - [ ] **Graceful "servern vaknar"-retry i appen** – auto-retry + backoff när `/healthz` är uppe men DB-anrop

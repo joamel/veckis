@@ -14,6 +14,7 @@ import type {
   MealType,
   StapleItem,
 } from '@veckis/shared';
+import { trackBackendRequest } from '../lib/backendWakeup';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -111,14 +112,17 @@ export function useApiClient() {
     const backoff = () => new Promise(r => setTimeout(r, [1500, 4000, 9000][attempt] ?? 9000));
     let res: Response;
     try {
-      res = await fetch(url, {
+      // trackBackendRequest visar "Vaknar…"-indikatorn om fetch:en dröjer >3s
+      // (kallstart) och släcker den när backend svarar. Utan detta retry:ade
+      // klienten tyst utan feedback → appen såg trasig ut under uppvaknandet.
+      res = await trackBackendRequest(fetch(url, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
           ...options.headers,
         },
-      });
+      }));
     } catch {
       // fetch rejects (rather than resolving with !ok) when the request never
       // reached the server: no connectivity, DNS failure, server down, etc.
