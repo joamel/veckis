@@ -1,0 +1,33 @@
+name: Uptime
+
+# Uppetids-/DB-larm. Pingar backend-/health (som verifierar DB:n och 500:ar när
+# den är onåbar) var 6:e timme. Failar jobbet vid icke-200 → GitHub mejlar
+# repo-ägaren (standardnotis vid schemalagt jobb som failar). Fångar både
+# backend-nere och DB-nere. Manuell körning via "Run workflow" för test.
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  health:
+    name: Backend /health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health
+        run: |
+          URL="https://veckis-production.up.railway.app/health"
+          # Retry ett par gånger så en tillfällig Neon-väckning (kallstart) inte
+          # utlöser falsklarm — bara ihållande fel ska fälla jobbet.
+          for attempt in 1 2 3; do
+            code=$(curl -s -o /tmp/body.txt -w "%{http_code}" --max-time 60 "$URL" || echo "000")
+            echo "Attempt $attempt: HTTP $code — $(cat /tmp/body.txt 2>/dev/null | head -c 200)"
+            if [ "$code" = "200" ]; then
+              echo "OK: backend + DB friska."
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::Backend /health svarade inte 200 efter 3 försök — backend eller DB kan vara nere."
+          exit 1

@@ -68,13 +68,49 @@ const META = `
     }
     </script>
 
-    <!-- Google Analytics (GA4) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=${GA_ID}"></script>
+    <!-- Google Analytics (GA4) — laddas ENDAST efter cookie-samtycke (GDPR).
+         Ingen GA-cookie/-script förrän användaren trycker Acceptera. Valet sparas
+         i localStorage så bannern bara visas en gång. -->
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', '${GA_ID}');
+      (function () {
+        var KEY = 'handlis-analytics-consent';
+        function loadGA() {
+          var s = document.createElement('script');
+          s.async = true;
+          s.src = 'https://www.googletagmanager.com/gtag/js?id=${GA_ID}';
+          document.head.appendChild(s);
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){ dataLayer.push(arguments); }
+          window.gtag = gtag;
+          gtag('js', new Date());
+          gtag('config', '${GA_ID}');
+        }
+        function hideBanner() { var b = document.getElementById('cookie-banner'); if (b) b.parentNode.removeChild(b); }
+        function choose(v) { try { localStorage.setItem(KEY, v); } catch (e) {} hideBanner(); if (v === 'granted') loadGA(); }
+        function showBanner() {
+          var el = document.createElement('div');
+          el.id = 'cookie-banner';
+          el.setAttribute('role', 'dialog');
+          el.setAttribute('aria-label', 'Cookie-samtycke');
+          el.innerHTML = '<div class="cb-inner">'
+            + '<span class="cb-text">Vi använder cookies för anonym besöksstatistik (Google Analytics) för att förbättra Handlis. Inget delas för reklam.</span>'
+            + '<span class="cb-actions">'
+            + '<button type="button" class="cb-decline">Avvisa</button>'
+            + '<button type="button" class="cb-accept">Acceptera</button>'
+            + '</span></div>';
+          document.body.appendChild(el);
+          el.querySelector('.cb-accept').addEventListener('click', function () { choose('granted'); });
+          el.querySelector('.cb-decline').addEventListener('click', function () { choose('denied'); });
+        }
+        function init() {
+          var c = null;
+          try { c = localStorage.getItem(KEY); } catch (e) {}
+          if (c === 'granted') loadGA();
+          else if (c !== 'denied') showBanner();
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+        else init();
+      })();
     </script>
 
     <style>
@@ -93,6 +129,14 @@ const META = `
       /* Vecko-/dag-svep: tvinga snap till EN sida per svep (annars flyger
          veckorna förbi med momentum på web — native pagar en sida i taget). */
       [data-weekpage] { scroll-snap-align: start; scroll-snap-stop: always; }
+      /* GDPR-cookiebanner (varumärkesgrön, fast nederkant). */
+      #cookie-banner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 99999; background: #2f5340; color: #f1efec; box-shadow: 0 -2px 14px rgba(0,0,0,0.28); }
+      #cookie-banner .cb-inner { max-width: 900px; margin: 0 auto; padding: 14px 18px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      #cookie-banner .cb-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13.5px; line-height: 1.5; flex: 1; min-width: 220px; }
+      #cookie-banner .cb-actions { display: flex; gap: 10px; }
+      #cookie-banner button { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 600; border-radius: 8px; padding: 9px 18px; cursor: pointer; border: none; }
+      #cookie-banner .cb-accept { background: #b96a45; color: #fff; }
+      #cookie-banner .cb-decline { background: transparent; color: #cdd8ce; border: 1px solid rgba(255,255,255,0.3); }
     </style>
     <script>
       // SW-registrering + version-banner. När en ny SW tar över sätter vi
