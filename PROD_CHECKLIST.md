@@ -15,7 +15,11 @@ Status per 2026-08-27. Grundad på kodgranskning + BACKLOG.md. Kryssa av allteft
             `update:production` (annars turnar OTA av Sentry) + source maps-upload för läsbara stacktraces.
       - [x] **Backend: `SENTRY_DSN` satt i Railway + verifierat** — testfel landar i `handlis-backend`
             (kanonisk `instrument.ts`-init var nyckeln; env behövde en omdeploy för att slå igenom)
-- [ ] **Bekräfta Neon-backup / point-in-time-restore** på prod-DB innan riktiga användardata ligger där.
+- [~] **Neon-backup / PITR** – bekräftat: PITR (instant restore) ÄR backupen, automatisk. **Free = bara 6h
+      fönster** (default=max, cap 1 GB) → ok för betan (testdata), men tunt för riktig användardata.
+      Inför launch: **uppgradera Neon till Launch (~$19/mån) → 7 dagars PITR + always-on** (löser backup +
+      always-on-punkten ihop). Gratis-alternativ: schemalagt `pg_dump`-jobb (kräver säker lagring). OBS:
+      EN delad DB för alla klienter (app/PWA/web) → PITR återställer allas data samtidigt.
 - [x] **GDPR-cookiebanner för GA4** – GA4/gtag laddas nu ENDAST efter cookie-samtycke (Acceptera/Avvisa,
       val i localStorage, varumärkesgrön banner). Ingen GA-cookie innan samtycke. (`patch-index-html.mjs`)
 - [ ] **Klientfel-synlighet i prod** – täcks av Sentry ovan. (In-app-viewern är nu `__DEV__`-only + minnesring töms vid omstart.)
