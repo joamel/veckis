@@ -117,6 +117,10 @@ app.get('/keepalive', async (_req, res) => {
   res.json({ ok: true, db, ts: new Date().toISOString() });
 });
 
+// TEMP: Sentry-verifiering — kastar ett fel som ska landa i Sentry. Tas bort
+// direkt efter att vi bekräftat att felet dyker upp i dashboarden.
+app.get('/api/debug/boom', () => { throw new Error('Sentry backend-verifiering (boom)'); });
+
 app.use('/api/households', householdRouter);
 app.use('/api/shopping', shoppingRouter);
 app.use('/api/stores', storesRouter);
