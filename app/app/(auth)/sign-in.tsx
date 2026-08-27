@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
-import { useSSO, useSignIn, useSignUp } from '@clerk/clerk-expo';
+import { useClerk, useSSO, useSignIn, useSignUp } from '@clerk/clerk-expo';
 import * as AuthSession from 'expo-auth-session';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -29,16 +29,13 @@ const GOOGLE_G = require('../../assets/google-g.png');
 // man valt konto (webbläsaren stängs aldrig / promisen resolvar aldrig).
 WebBrowser.maybeCompleteAuthSession();
 
-// TEMP-diagnostik: fångar sista inkommande djuplänk (t.ex. Clerks redirect
-// tillbaka till handlis://…) så vi ser om redirekten når appen alls.
-let lastIncomingUrl: string | null = null;
-
 export default function SignInScreen() {
   const { colors: c } = useTheme();
   const styles = useMemo(() => makeStyles(c), [c]);
   const { signIn, setActive, isLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const { startSSOFlow } = useSSO();
+  const clerk = useClerk();
   const confirm = useConfirm();
 
   // Värm upp webbläsaren (Android) för stabilare OAuth-flöde.
@@ -47,11 +44,36 @@ export default function SignInScreen() {
     return () => { void WebBrowser.coolDownAsync(); };
   }, []);
 
-  // TEMP-diagnostik: logga varje inkommande djuplänk under OAuth-flödet.
+  // Android-fallback för Google-OAuth: Clerks redirect (handlis://…) öppnar ofta
+  // appen i en NY task i stället för att lämna tillbaka till Custom Tab-sessionen,
+  // så startSSOFlow ger 'dismiss' UTAN session. Men redirekten når appen som en
+  // djuplänk med created_session_id + rotating_token_nonce. Vi roterar token
+  // (syncar den nyskapade sessionen till klienten) och aktiverar den manuellt.
+  const completeSsoFromUrl = useCallback(async (url: string | null) => {
+    if (!url || !url.includes('created_session_id')) return;
+    const qs = url.split('?')[1] ?? '';
+    const pick = (key: string) => {
+      const m = qs.match(new RegExp(`(?:^|&)${key}=([^&]*)`));
+      return m ? decodeURIComponent(m[1]) : null;
+    };
+    const createdSessionId = pick('created_session_id');
+    const nonce = pick('rotating_token_nonce');
+    if (!createdSessionId) return;
+    try {
+      if (nonce) await clerk.client.reload({ rotatingTokenNonce: nonce });
+      await clerk.setActive({ session: createdSessionId });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : str.errors.googleFailed;
+      confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
+    }
+  }, [clerk, confirm]);
+
   useEffect(() => {
-    const sub = Linking.addEventListener('url', ({ url }) => { lastIncomingUrl = url; });
+    const sub = Linking.addEventListener('url', ({ url }) => { void completeSsoFromUrl(url); });
+    // Kall-start: appen dödad och öppnad direkt av redirekt-djuplänken.
+    void Linking.getInitialURL().then(completeSsoFromUrl);
     return () => sub.remove();
-  }, []);
+  }, [completeSsoFromUrl]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -187,54 +209,17 @@ export default function SignInScreen() {
         });
         return;
       }
-      // Native: useSSO öppnar systembrowsern och returnerar sessionen.
-      const nativeRedirect = AuthSession.makeRedirectUri();
-      const {
-        createdSessionId,
-        setActive: setSSOActive,
-        signIn: ssoSignIn,
-        signUp: ssoSignUp,
-        authSessionResult,
-      } = await startSSOFlow({
+      // Native: useSSO öppnar systembrowsern. Om den lämnar tillbaka korrekt får
+      // vi createdSessionId direkt här. På Android händer ofta att redirekten i
+      // stället kommer in som en djuplänk (ny task) → completeSsoFromUrl() ovan
+      // slutför sessionen. Därför: ingen felruta när session saknas här.
+      const { createdSessionId, setActive: setSSOActive } = await startSSOFlow({
         strategy: 'oauth_google',
-        redirectUrl: nativeRedirect,
+        redirectUrl: AuthSession.makeRedirectUri(),
       });
-      // 1) Direkt session (kontot fanns redan med Google länkat).
       if (createdSessionId && setSSOActive) {
         await setSSOActive({ session: createdSessionId });
-        return;
       }
-      // 2) Ingen session → konto-koppling behövs. Med passwordless-email kan
-      //    e-posten redan finnas som konto → Clerk returnerar ett "transferable"
-      //    läge i stället för en färdig session. Överför åt rätt håll.
-      if (ssoSignUp?.verifications?.externalAccount?.status === 'transferable' && ssoSignIn) {
-        const res = await ssoSignIn.create({ transfer: true });
-        if (res.createdSessionId && setSSOActive) {
-          await setSSOActive({ session: res.createdSessionId });
-          return;
-        }
-      }
-      if (ssoSignIn?.firstFactorVerification?.status === 'transferable' && ssoSignUp) {
-        const res = await ssoSignUp.create({ transfer: true });
-        if (res.createdSessionId && setSSOActive) {
-          await setSSOActive({ session: res.createdSessionId });
-          return;
-        }
-      }
-      // 3) Kom hit → varken session eller överförbart läge. Visa exakt läge
-      //    (temporär diagnostik) i stället för tyst retur till login.
-      confirm({
-        title: str.errors.title,
-        message:
-          `Google slutfördes inte.\n` +
-          `browser: ${authSessionResult?.type ?? '–'}\n` +
-          `redirect: ${nativeRedirect}\n` +
-          `deepLink: ${lastIncomingUrl ?? '–'}\n` +
-          `signIn: ${ssoSignIn?.status ?? '–'} / ${ssoSignIn?.firstFactorVerification?.status ?? '–'}\n` +
-          `signUp: ${ssoSignUp?.status ?? '–'} / ${ssoSignUp?.verifications?.externalAccount?.status ?? '–'}\n` +
-          `session: ${createdSessionId ?? '–'}`,
-        buttons: [{ label: 'OK' }],
-      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.googleFailed;
       confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
