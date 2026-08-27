@@ -2372,18 +2372,25 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
   const THRESHOLD = windowWidth * 0.35;
 
   const doDelete = useCallback(() => { onDelete?.(); }, [onDelete]);
+  const doEdit = useCallback(() => { onEdit(); }, [onEdit]);
+  const canDelete = !!onDelete && !pending;
 
   const panGesture = Gesture.Pan()
-    .enabled(!!onDelete && !pending)
+    .enabled(!pending)
     .activeOffsetX([-10, 10])
     .failOffsetY([-15, 15])
     .onUpdate((e) => {
-      translateX.value = Math.min(0, e.translationX);
+      // Vänster (om delete finns) = ta bort; höger = redigera.
+      translateX.value = canDelete ? e.translationX : Math.max(0, e.translationX);
     })
     .onEnd((e) => {
-      if (-translateX.value > THRESHOLD || e.velocityX < -800) {
+      if (canDelete && (-translateX.value > THRESHOLD || e.velocityX < -800)) {
         translateX.value = withSpring(-windowWidth);
         runOnJS(doDelete)();
+      } else if (translateX.value > THRESHOLD || e.velocityX > 800) {
+        // Höger → redigera (fjädra tillbaka; edit öppnar en modal).
+        translateX.value = withSpring(0);
+        runOnJS(doEdit)();
       } else {
         translateX.value = withSpring(0);
       }
@@ -2395,6 +2402,10 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
 
   const bgStyle = useAnimatedStyle(() => ({
     opacity: interpolate(-translateX.value, [0, THRESHOLD * 0.5], [0, 1], Extrapolation.CLAMP),
+  }));
+
+  const editBgStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, THRESHOLD * 0.5], [0, 1], Extrapolation.CLAMP),
   }));
 
   const rowContent = (
@@ -2415,6 +2426,9 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
     <View style={s.swipeRowWrap}>
       <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeDeleteBg, bgStyle]}>
         <Ionicons name="trash-outline" size={22} color="#fff" />
+      </RNAnimated.View>
+      <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeEditBg, editBgStyle]}>
+        <Ionicons name="pencil" size={20} color="#fff" />
       </RNAnimated.View>
       {/* touchAction="pan-y" (web-only, ignoreras på native): webbläsaren
           behåller vertikal scroll själv medan horisontella drag går till
@@ -2550,6 +2564,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   deleteBtnText: { color: c.danger, fontWeight: '600', fontSize: 15 },
   swipeRowWrap: { borderRadius: 10, overflow: 'hidden' },
   swipeDeleteBg: { backgroundColor: c.danger, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
+  swipeEditBg: { backgroundColor: c.primary, justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 20 },
   browserSheet: { maxHeight: '90%', gap: 0 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: c.background, borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: c.borderLight },
