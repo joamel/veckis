@@ -27,7 +27,6 @@
     "@clerk/clerk-expo": "^2.19.31",
     "@expo/vector-icons": "^15.0.3",
     "@react-navigation/native": "^7.1.8",
-    "@sentry/react-native": "~7.2.0",
     "@veckis/shared": "*",
     "expo": "~54.0.34",
     "expo-auth-session": "~7.0.11",
