@@ -31,8 +31,9 @@ Status per 2026-08-27. Grundad på kodgranskning + BACKLOG.md. Kryssa av allteft
       Kör manuellt via Actions → Uptime → Run workflow för test.
 - [ ] **Beslut: always-on backend** – Railway/Neon free-tier autosuspendar; keepalive-cron mildrar kallstart
       men är inte "alltid live". Uppgradera till betald tier inför riktig lansering.
-- [ ] **Graceful "servern vaknar"-retry i appen** – auto-retry + backoff när `/healthz` är uppe men DB-anrop
-      failar (Neon-väckning), i stället för råa fel. (WakeupIndicator finns – utvärdera om det räcker.)
+- [x] **Graceful "servern vaknar"-retry i appen** – retry+backoff (1.5/4/9s, idempotenta anrop) fanns redan,
+      MEN WakeupIndicator var frånkopplad (`trackBackendRequest` hade noll anropare → "Vaknar…" visades
+      aldrig). Nu inkopplad i API-klienten → feedback under kallstart i stället för tyst ~14s.
 
 ## P2 – skala & perf (inte blockerande för liten beta)
 
