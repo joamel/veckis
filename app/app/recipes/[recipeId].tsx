@@ -59,6 +59,13 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const tryCloseEdit = useDiscardDraft(confirm);
 
   const [recipe, setRecipe] = useState<RecipeWithIngredients | null>(null);
+  // Memoisera bild-source så RN Web inte laddar om bilden (flimmer) vid varje
+  // re-render/fokus-reload — objekt-identiteten hålls stabil så länge imageUrl
+  // är oförändrad, i stället för ett nytt {uri}-objekt per render.
+  const heroSource = useMemo(
+    () => (recipe?.imageUrl ? { uri: cloudinaryOptimized(recipe.imageUrl) } : undefined),
+    [recipe?.imageUrl],
+  );
   const [loading, setLoading] = useState(true);
   const [scaledServings, setScaledServings] = useState<number | null>(null);
 
@@ -684,7 +691,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         ) : recipe.imageUrl ? (
           <View style={s.heroImage}>
             <Image
-              source={{ uri: cloudinaryOptimized(recipe.imageUrl) }}
+              source={heroSource}
               style={StyleSheet.absoluteFill}
               resizeMode="cover"
               onLoadStart={() => { setHeroLoading(true); setHeroError(false); }}
