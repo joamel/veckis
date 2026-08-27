@@ -24,7 +24,9 @@
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -57,7 +59,8 @@
           "photosPermission": "Handlis behöver tillgång till dina bilder för att välja receptbild.",
           "cameraPermission": "Handlis behöver kameran för att ta en receptbild."
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true

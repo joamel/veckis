@@ -24,6 +24,19 @@ import { getLandingTab, type LandingTabKey } from '../src/lib/landingTab';
 import { AnimatedSplash } from '../src/components/AnimatedSplash';
 import * as WebBrowser from 'expo-web-browser';
 import { useFonts } from 'expo-font';
+import * as Sentry from '@sentry/react-native';
+
+// Felaggregering. init() körs ENDAST när EXPO_PUBLIC_SENTRY_DSN är satt — inte
+// bara enabled:false — så koden är ofarlig att OTA:a till en build som saknar
+// Sentry-native-modulen (init skulle annars röra en native-modul som inte
+// finns). DSN sätts bara i EAS-byggen som HAR modulen. tracesSampleRate 0 =
+// bara fel, ingen perf-tracing (håll free-tier).
+if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    tracesSampleRate: 0,
+  });
+}
 
 // Slutför en ev. väntande OAuth-webbläsarsession vid app-start. MÅSTE ligga i
 // roten (körs oavsett vilken skärm appen öppnas till via djuplänken) — annars
