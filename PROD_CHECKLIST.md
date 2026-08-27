@@ -6,15 +6,14 @@ Status per 2026-08-27. Grundad på kodgranskning + BACKLOG.md. Kryssa av allteft
 
 ## P0 – innan/vid beta (debugbarhet & efterlevnad)
 
-- [~] **Sentry (app + backend)** – kod klar, aktiveras via DSN. Free-tier (Error monitoring only).
-      - [x] `@sentry/react-native` i app + gated `Sentry.init` i `_layout`; DSN wire:ad i eas.json + `build:web`
-      - [x] `@sentry/node` i backend + capture i felmiddleware + unhandledRejection
-      - [x] Web-Sentry: aktiv efter Render-rebuild (DSN i `build:web`)
-      - [~] **Native-Sentry: AAB-bygge igång** (build 924eb3b5, versionCode 3, native-modul + DSN inbakat).
-            När AAB:n + ny sideload-APK är utfasat de modul-lösa: lägg in DSN i `update:preview`/
-            `update:production` (annars turnar OTA av Sentry) + source maps-upload för läsbara stacktraces.
-      - [x] **Backend: `SENTRY_DSN` satt i Railway + verifierat** — testfel landar i `handlis-backend`
-            (kanonisk `instrument.ts`-init var nyckeln; env behövde en omdeploy för att slå igenom)
+- [x] **Sentry BACKEND** — `@sentry/node` (kanonisk `instrument.ts`-init + `setupExpressErrorHandler` +
+      unhandledRejection), `SENTRY_DSN` i Railway, **verifierat** (testfel landar i `handlis-backend`).
+      Täcker det viktigaste: serverfel.
+- [ ] **Sentry APP — UPPSKJUTET (borttaget under betan-crunchen).** `@sentry/react-native` avinstallerat för
+      att det (1) bröt Google-OAuth på web (SDK:ns fetch/history-instrumentering krockade med Clerk-redirect)
+      och (2) failade AAB-bygget (`…_SentryUpload`-task utan auth-token). Återinför EFTER betan, korrekt: bygg
+      i preview-APK + testa OAuth först; Sentry.init utan fetch/history-instrumentering; `SENTRY_AUTH_TOKEN`
+      + org/project för source maps. (Klientfel POST:as fortfarande till backend; ErrorBoundary härdad mot vit skärm.)
 - [~] **Neon-backup / PITR** – bekräftat: PITR (instant restore) ÄR backupen, automatisk. **Free = bara 6h
       fönster** (default=max, cap 1 GB) → ok för betan (testdata), men tunt för riktig användardata.
       Inför launch: **uppgradera Neon till Launch (~$19/mån) → 7 dagars PITR + always-on** (löser backup +
