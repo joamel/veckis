@@ -19,6 +19,7 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { InstallBanner } from '../../src/components/InstallBanner';
 import { auth as str } from '../../src/lib/svenska';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 const LOGO = require('../../assets/icon.png');
 const GOOGLE_G = require('../../assets/google-g.png');
@@ -27,6 +28,10 @@ const GOOGLE_G = require('../../assets/google-g.png');
 // resultatet till appen. Utan detta hänger Google-login på "spinner" efter att
 // man valt konto (webbläsaren stängs aldrig / promisen resolvar aldrig).
 WebBrowser.maybeCompleteAuthSession();
+
+// TEMP-diagnostik: fångar sista inkommande djuplänk (t.ex. Clerks redirect
+// tillbaka till handlis://…) så vi ser om redirekten når appen alls.
+let lastIncomingUrl: string | null = null;
 
 export default function SignInScreen() {
   const { colors: c } = useTheme();
@@ -40,6 +45,12 @@ export default function SignInScreen() {
   useEffect(() => {
     void WebBrowser.warmUpAsync();
     return () => { void WebBrowser.coolDownAsync(); };
+  }, []);
+
+  // TEMP-diagnostik: logga varje inkommande djuplänk under OAuth-flödet.
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', ({ url }) => { lastIncomingUrl = url; });
+    return () => sub.remove();
   }, []);
 
   const [email, setEmail] = useState('');
@@ -218,6 +229,7 @@ export default function SignInScreen() {
           `Google slutfördes inte.\n` +
           `browser: ${authSessionResult?.type ?? '–'}\n` +
           `redirect: ${nativeRedirect}\n` +
+          `deepLink: ${lastIncomingUrl ?? '–'}\n` +
           `signIn: ${ssoSignIn?.status ?? '–'} / ${ssoSignIn?.firstFactorVerification?.status ?? '–'}\n` +
           `signUp: ${ssoSignUp?.status ?? '–'} / ${ssoSignUp?.verifications?.externalAccount?.status ?? '–'}\n` +
           `session: ${createdSessionId ?? '–'}`,
