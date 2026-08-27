@@ -39,6 +39,17 @@ export default function DeleteAccountScreen() {
         så hjälper vi dig via mejl.
       </Text>
 
+      <Text style={s.h2}>Radera viss data utan att radera kontot</Text>
+      <Text style={s.p}>
+        Du kan när som helst ta bort enskilt innehåll direkt i appen — radera
+        ett recept, en inköpslista, enskilda varor eller en receptbild — utan
+        att radera hela kontot. Vill du att vi raderar viss data åt dig, mejla{' '}
+        <Text style={s.link}>support@handlis.app</Text> från kontots
+        e-postadress och beskriv vad som ska tas bort. Vi behandlar begäran inom
+        30 dagar. Kontouppgifter (e-post, visningsnamn) behålls så länge kontot
+        finns kvar.
+      </Text>
+
       <Text style={s.h2}>Kontakt</Text>
       <Text style={s.p}>
         Frågor om radering? <Text style={s.link}>support@handlis.app</Text>
