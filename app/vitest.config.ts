@@ -8,11 +8,7 @@ import { defineConfig } from 'vitest/config';
 //    renderas i jsdom (react-native-web är ren JS, ingen native-runtime krävs).
 export default defineConfig({
   resolve: {
-    alias: {
-      'react-native': 'react-native-web',
-      // @sentry/react-native drar in react-native-interna moduler i test → stub.
-      '@sentry/react-native': new URL('./src/test/sentry-stub.ts', import.meta.url).pathname,
-    },
+    alias: { 'react-native': 'react-native-web' },
   },
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],

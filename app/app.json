@@ -59,8 +59,7 @@
           "photosPermission": "Handlis behöver tillgång till dina bilder för att välja receptbild.",
           "cameraPermission": "Handlis behöver kameran för att ta en receptbild."
         }
-      ],
-      "@sentry/react-native"
+      ]
     ],
     "experiments": {
       "typedRoutes": true
