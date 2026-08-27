@@ -107,12 +107,23 @@ app.get('/keepalive', async (_req, res) => {
   res.json({ ok: true, db, ts: new Date().toISOString() });
 });
 
-// TEMP: Sentry-verifiering — fångar + flushar direkt (isolerar sändningen från
-// middleware-vägen). Tas bort direkt efter bekräftat event i dashboarden.
+// TEMP: Sentry-diagnostik — visar vad PROCESSEN faktiskt laddat (avslöjar om
+// SENTRY_DSN når in + rätt projekt) + fångar/flushar ett testfel. Tas bort sen.
 app.get('/api/debug/boom', asyncHandler(async (_req, res) => {
+  const opts = Sentry.getClient()?.getOptions();
+  const envDsn = process.env.SENTRY_DSN;
   const eventId = Sentry.captureException(new Error('Sentry backend-verifiering (boom)'));
-  await Sentry.flush(2000);
-  res.status(500).json({ error: 'boom (Sentry-test)', eventId });
+  const flushed = await Sentry.flush(3000);
+  res.status(500).json({
+    error: 'boom (Sentry-test)',
+    eventId,
+    flushed,                                   // true = kön tömdes (skickades)
+    hasClient: !!Sentry.getClient(),
+    clientEnabled: opts?.enabled ?? null,      // false = init disabled → skickar inget
+    envDsnSet: !!envDsn,                        // ser processen SENTRY_DSN alls?
+    envDsnTail: envDsn ? envDsn.slice(-16) : null,          // projekt-id (ej hemligt)
+    clientDsnTail: typeof opts?.dsn === 'string' ? opts.dsn.slice(-16) : null,
+  });
 }));
 
 app.use('/api/households', householdRouter);
