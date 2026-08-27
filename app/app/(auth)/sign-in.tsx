@@ -38,8 +38,10 @@ export default function SignInScreen() {
   const clerk = useClerk();
   const confirm = useConfirm();
 
-  // Värm upp webbläsaren (Android) för stabilare OAuth-flöde.
+  // Värm upp webbläsaren (Android) för stabilare OAuth-flöde. Bara native —
+  // warmUpAsync/coolDownAsync finns inte på web och kastar där.
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     void WebBrowser.warmUpAsync();
     return () => { void WebBrowser.coolDownAsync(); };
   }, []);
@@ -69,6 +71,7 @@ export default function SignInScreen() {
   }, [clerk, confirm]);
 
   useEffect(() => {
+    if (Platform.OS === 'web') return; // web slutför via /sso-callback, inte djuplänk
     const sub = Linking.addEventListener('url', ({ url }) => { void completeSsoFromUrl(url); });
     // Kall-start: appen dödad och öppnad direkt av redirekt-djuplänken.
     void Linking.getInitialURL().then(completeSsoFromUrl);
