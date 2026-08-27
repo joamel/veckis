@@ -2,6 +2,16 @@ import { config } from 'dotenv';
 import { resolve } from 'path';
 config({ path: resolve(__dirname, '../.env') });
 
+import * as Sentry from '@sentry/node';
+// Felaggregering. No-op tills SENTRY_DSN satt (Railway env) → säkert att ha inne
+// utan konfig. tracesSampleRate 0 = bara fel, ingen perf-tracing (håll free-tier).
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  enabled: !!process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV ?? 'development',
+  tracesSampleRate: 0,
+});
+
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { parseAllowlist, makeOriginCheck } from './lib/corsAllowlist';
@@ -124,6 +134,7 @@ app.use((_req: Request, res: Response) => {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  Sentry.captureException(err);
   console.error(err);
   res.status(500).json({ error: 'Internal server error' });
 });
@@ -133,6 +144,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 // Node 15. Vi loggar och fortsätter — /healthz hålls uppe och jobben
 // självläker när DB:n är tillbaka. Request-fel fångas ändå av felmiddlewaren.
 process.on('unhandledRejection', (reason) => {
+  Sentry.captureException(reason);
   console.error('Unhandled rejection (fortsätter):', reason instanceof Error ? reason.message : reason);
 });
 
