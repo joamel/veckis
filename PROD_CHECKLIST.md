@@ -44,7 +44,8 @@ Status per 2026-08-27. Grundad på kodgranskning + BACKLOG.md. Kryssa av allteft
 
 ## Google Play (pågår)
 
-- [ ] AAB-bygge klart + uppladdat till **Closed testing**-spåret
+- [x] **AAB-bygge klart** (build 0fb8d9ba, versionCode 3) — funkade efter att app-Sentry togs bort.
+      Ladda ner + ladda upp till **Closed testing** när Play-konto-verifieringen är klar.
 - [ ] **12+ testare** inbjudna (mejl/Google-grupp), testar i **14 dagar** → ansök om produktion
 - [ ] Store-listning: skärmdumpar (≥2 telefon), feature graphic ✓, copy ✓ (`app/store/`), kategori, kontaktmejl
 - [ ] **Content rating**-enkät + **Data safety**-formulär (vägledning i `app/store/play-listing.md`)
