@@ -5,7 +5,7 @@
 ### Feedback från pwa Iphone-användare
 
 #### Feedback 2026-07-09
-- [ ] White screen när AI-parse av inklistrat recept failar istället för att återgå till receptsidan — trolig PWA-specifik (web unmountar till blankt vid ouppfångat fel, native visar 😵). Felhanteringen visar en confirm; behöver repro (native vs PWA + exakt feltext) för rotorsak.
+- [x] White screen vid ouppfångat fel (PWA) — härdat generellt: ErrorBoundary-fallbacken wrappas nu i try/catch med en bar reserv (kan ej faila) → om den temade fallbacken kastar på web unmountar inte hela trädet till vit skärm. Dessutom går render-krascher + globala JS-fel nu till **Sentry** (`reportClientError`→captureException) → vi får stacktrace/repro om det återkommer, i stället för att gissa. (AI-parse-handlern fångade redan felet + visade confirm.)
 
 ### Generellt
 - [ ] 2x2-grid-startsida parkerad — omformulerad som ev. framtida "Hem"-dashboard med innehåll (dagens middag, dagens sysslor, antal varor kvar) istället för ren navigering
