@@ -103,7 +103,7 @@ function NavigationGuard() {
     // Cast:ar segments[0] till string eftersom Expo Routers auto-genererade
     // typer inte plockar upp nya filer förrän en build körts.
     const root = segments[0] as string;
-    const isPublic = root === 'install' || root === 'privacy' || root === 'terms' || root === 'sso-callback';
+    const isPublic = root === 'install' || root === 'privacy' || root === 'terms' || root === 'sso-callback' || root === 'delete-account';
     // /account + /preferences är djup-vyer öppnade från Profil-headern;
     // kräver login men ska inte redirect:as till tabs när hen är där.
     const isAuthedDeepRoute = (root === 'account' || root === 'preferences') && isSignedIn;
