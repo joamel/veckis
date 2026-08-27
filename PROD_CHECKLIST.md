@@ -12,7 +12,8 @@ Status per 2026-08-27. Grundad på kodgranskning + BACKLOG.md. Kryssa av allteft
       - [x] Web-Sentry: aktiv efter Render-rebuild (DSN i `build:web`)
       - [ ] **Native-Sentry: aktiveras med nästa EAS-bygge** (native-modul; DSN i eas.json). Lägg in DSN i
             `update:preview`/`update:production` FÖRST när modul-lösa builds är utfasade (annars krasch).
-      - [ ] **Backend: sätt `SENTRY_DSN` i Railway** → deploya om → verifiera testfel i dashboarden
+      - [x] **Backend: `SENTRY_DSN` satt i Railway + verifierat** — testfel landar i `handlis-backend`
+            (kanonisk `instrument.ts`-init var nyckeln; env behövde en omdeploy för att slå igenom)
 - [ ] **Bekräfta Neon-backup / point-in-time-restore** på prod-DB innan riktiga användardata ligger där.
 - [ ] **GDPR-cookiebanner för GA4** – vi laddar Google Analytics; EU-användare behöver samtycke innan gtag körs.
       (Alternativ: byt GA4 mot cookie-lös analytics, t.ex. Plausible, och slippa bannern.)
