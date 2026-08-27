@@ -177,14 +177,16 @@ export default function SignInScreen() {
         return;
       }
       // Native: useSSO öppnar systembrowsern och returnerar sessionen.
+      const nativeRedirect = AuthSession.makeRedirectUri();
       const {
         createdSessionId,
         setActive: setSSOActive,
         signIn: ssoSignIn,
         signUp: ssoSignUp,
+        authSessionResult,
       } = await startSSOFlow({
         strategy: 'oauth_google',
-        redirectUrl: AuthSession.makeRedirectUri(),
+        redirectUrl: nativeRedirect,
       });
       // 1) Direkt session (kontot fanns redan med Google länkat).
       if (createdSessionId && setSSOActive) {
@@ -214,6 +216,8 @@ export default function SignInScreen() {
         title: str.errors.title,
         message:
           `Google slutfördes inte.\n` +
+          `browser: ${authSessionResult?.type ?? '–'}\n` +
+          `redirect: ${nativeRedirect}\n` +
           `signIn: ${ssoSignIn?.status ?? '–'} / ${ssoSignIn?.firstFactorVerification?.status ?? '–'}\n` +
           `signUp: ${ssoSignUp?.status ?? '–'} / ${ssoSignUp?.verifications?.externalAccount?.status ?? '–'}\n` +
           `session: ${createdSessionId ?? '–'}`,
