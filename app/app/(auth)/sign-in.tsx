@@ -29,6 +29,10 @@ const GOOGLE_G = require('../../assets/google-g.png');
 // man valt konto (webbläsaren stängs aldrig / promisen resolvar aldrig).
 WebBrowser.maybeCompleteAuthSession();
 
+// Redan hanterade OAuth-sessions-id:n → processa aldrig samma djuplänk två gånger
+// (skydd mot att en redan förbrukad created_session_id/nonce körs igen).
+const processedSsoSessions = new Set<string>();
+
 export default function SignInScreen() {
   const { colors: c } = useTheme();
   const styles = useMemo(() => makeStyles(c), [c]);
@@ -60,7 +64,8 @@ export default function SignInScreen() {
     };
     const createdSessionId = pick('created_session_id');
     const nonce = pick('rotating_token_nonce');
-    if (!createdSessionId) return;
+    if (!createdSessionId || processedSsoSessions.has(createdSessionId)) return;
+    processedSsoSessions.add(createdSessionId);
     try {
       if (nonce) await clerk.client.reload({ rotatingTokenNonce: nonce });
       await clerk.setActive({ session: createdSessionId });
@@ -72,9 +77,12 @@ export default function SignInScreen() {
 
   useEffect(() => {
     if (Platform.OS === 'web') return; // web slutför via /sso-callback, inte djuplänk
+    // ENBART live 'url'-events (den faktiska OAuth-redirekten under flödet, alltid
+    // färsk). Vi läser INTE Linking.getInitialURL() — den kan returnera en GAMMAL
+    // handlis://?created_session_id=…-URL från en tidigare Google-inloggning, som
+    // då kördes vid VARJE appstart → setActive med död session + förbrukad nonce →
+    // blockerade ALL inloggning (lösen + Google). Den buggen tas bort här.
     const sub = Linking.addEventListener('url', ({ url }) => { void completeSsoFromUrl(url); });
-    // Kall-start: appen dödad och öppnad direkt av redirekt-djuplänken.
-    void Linking.getInitialURL().then(completeSsoFromUrl);
     return () => sub.remove();
   }, [completeSsoFromUrl]);
 
