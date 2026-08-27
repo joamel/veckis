@@ -38,28 +38,44 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (!this.state.hasError) return this.props.children;
-    // Class-komponent → ingen hook; läs OS-schemat direkt (statisk fallback-skärm).
-    const c = paletteFor(Appearance.getColorScheme() === 'dark' ? 'dark' : 'light');
-    const s = makeStyles(c);
-    return (
-      <View style={s.container}>
-        <Text style={s.emoji}>😵</Text>
-        <Text style={s.title}>{str.errorBoundary.title}</Text>
-        <Text style={s.body}>
-          {str.errorBoundary.body}
-        </Text>
-        <Pressable style={s.btn} onPress={this.reset} accessibilityRole="button" accessibilityLabel={str.errorBoundary.retry}>
-          <Text style={s.btnText}>{str.errorBoundary.retry}</Text>
-        </Pressable>
-        {Platform.OS === 'web' ? (
-          <Pressable style={s.btnSecondary} onPress={this.reloadWeb} accessibilityRole="button" accessibilityLabel={str.errorBoundary.reloadPage}>
-            <Text style={s.btnSecondaryText}>{str.errorBoundary.reloadPage}</Text>
+    // Wrappa fallback-rendern: om DEN kastar (tema-/sträng-läsning på web etc.)
+    // propagerar felet annars uppåt och hela trädet unmountar till en VIT skärm.
+    // Reserven nedan använder bara inline-stilar + literalsträng → kan inte faila.
+    try {
+      // Class-komponent → ingen hook; läs OS-schemat direkt (statisk fallback-skärm).
+      const c = paletteFor(Appearance.getColorScheme() === 'dark' ? 'dark' : 'light');
+      const s = makeStyles(c);
+      return (
+        <View style={s.container}>
+          <Text style={s.emoji}>😵</Text>
+          <Text style={s.title}>{str.errorBoundary.title}</Text>
+          <Text style={s.body}>
+            {str.errorBoundary.body}
+          </Text>
+          <Pressable style={s.btn} onPress={this.reset} accessibilityRole="button" accessibilityLabel={str.errorBoundary.retry}>
+            <Text style={s.btnText}>{str.errorBoundary.retry}</Text>
           </Pressable>
-        ) : (
-          <Text style={s.hint}>{str.errorBoundary.hint}</Text>
-        )}
-      </View>
-    );
+          {Platform.OS === 'web' ? (
+            <Pressable style={s.btnSecondary} onPress={this.reloadWeb} accessibilityRole="button" accessibilityLabel={str.errorBoundary.reloadPage}>
+              <Text style={s.btnSecondaryText}>{str.errorBoundary.reloadPage}</Text>
+            </Pressable>
+          ) : (
+            <Text style={s.hint}>{str.errorBoundary.hint}</Text>
+          )}
+        </View>
+      );
+    } catch {
+      // Bar reserv — garanterat något synligt i stället för vit skärm.
+      return (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12, backgroundColor: '#faf8f3' }}>
+          <Text style={{ fontSize: 44 }}>😵</Text>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: '#292524', textAlign: 'center' }}>Något gick fel</Text>
+          <Pressable onPress={Platform.OS === 'web' ? this.reloadWeb : this.reset} style={{ marginTop: 8, backgroundColor: '#4e7a5e', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 28 }}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{Platform.OS === 'web' ? 'Ladda om' : 'Försök igen'}</Text>
+          </Pressable>
+        </View>
+      );
+    }
   }
 }
 
