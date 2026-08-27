@@ -72,7 +72,7 @@
 
 ### Landningssida & marknadsföring (SEO)
 - [x] **Analytics på handlis.app** — GA4 (mät-ID `G-XJG4FKTTSD`) wirad via gtag-snippet i `patch-index-html.mjs` (injiceras i `dist/index.html` vid webb-bygget). Kvar: GDPR-cookie-banner för samtycke (se nedan).
-- [ ] **GDPR-cookie-banner för GA4** — GA4 sätter cookies; landningssidan behöver en samtyckesbanner (acceptera/avvisa) innan gtag laddas, för EU-efterlevnad.
+- [x] **GDPR-cookie-banner för GA4** — GA4/gtag laddas nu ENDAST efter samtycke (Acceptera/Avvisa, val i localStorage, varumärkesgrön banner) i `patch-index-html.mjs`. Ingen GA-cookie innan samtycke.
 - [x] **Grund-SEO på handlis.app** — `patch-index-html.mjs` injicerar nu: SEO-`<title>` ("Handlis | Veckomeny, recept & inköpslista för hushållet"), meta description, canonical, `robots`, Open Graph + Twitter-taggar, JSON-LD (SoftwareApplication), `lang="sv"`, theme-color #4e7a5e. `public/robots.txt` + `public/sitemap.xml` (/, /install, /privacy, /terms). `manifest.json` → Handlis + nya färger.
 - [x] Landnings-copy börjar med "Handlis" — hero leder nu med "Handlis är din vän när du planerar veckans mat." (`landing.hero`).
 - [x] Krittavle-bilden i mobilvy — horisontell pager över hela bilden (snappar en box i taget, pilarna syns mellan), ‹ ›-knappar + prickar; ljus beige sektionsbakgrund; flyttad ovanför funktioner.
@@ -111,8 +111,8 @@ All JS-kod är plattformsneutral (Expo/RN) och `app.json` har `ios.bundleIdentif
 - [ ] **Always-on backend innan live** — free tier räcker för test men inte i drift: Render spinner ner efter 15 min (~50s kallstart) och Neon autosuspendar + har bara 100 compute-h/månad. Uppgradera till betald Neon/Render (eller flytta DB) så backend alltid är live utan kallstart innan riktig lansering. (Just nu ok med kallstart — se `Drift & stabilitet`.)
 
 ### Drift & stabilitet
-- [ ] **Lågfrekvent DB-hälsolarm** — utan keepalive finns inget larm när DB:n (eller backend) faktiskt går ner; det var cron-misset som avslöjade den här nedgången. Lägg en gles extern koll (1–2 ggr/dygn) mot `/health` (verifierar DB, 500:ar vid nere) som notifierar — väcker Neon försumbart men fångar "compute-pott slut / Neon nere" tidigt. `/healthz` (DB-fri) duger inte för DB-larm.
-- [ ] **App: graciös "servern vaknar"-retry** — när backend är uppe (`/healthz`) men DB-anrop failar (Neon-väckning/free-tier-kallstart) visar appen råa fel. En "servern vaknar, försöker igen…"-state med auto-retry + backoff gör kallstarten acceptabel i UI:t i stället för felmeddelanden — förutsättning för att gratis-strategin ska kännas bra.
+- [x] **Lågfrekvent DB-hälsolarm** — GitHub Actions-workflow (`.github/workflows/uptime.yml`) pingar `/health` var 6:e h (retry mot Neon-kallstart) → failar jobbet + mejlar repo-ägaren vid ihållande fel. Kör manuellt via Actions → Uptime → Run workflow.
+- [x] **App: graciös "servern vaknar"-retry** — retry+backoff (1.5/4/9s, idempotenta anrop) fanns redan i API-klienten, men WakeupIndicator var frånkopplad (`trackBackendRequest` hade noll anropare → "Vaknar…" visades aldrig). Nu inkopplad → feedback under kallstart i stället för tyst ~14s.
 
 ---
 

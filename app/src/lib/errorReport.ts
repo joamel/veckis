@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import * as Sentry from '@sentry/react-native';
 
 const MAX_MESSAGE = 4000;
 const MAX_STACK = 8000;
@@ -56,6 +57,8 @@ export function reportClientError(error: unknown, context: Record<string, unknow
     const now = Date.now();
     if (now - (recent.get(key) ?? 0) < DEDUPE_MS) return;
     recent.set(key, now);
+    // Sentry (no-op tills init:at) — ger grupperade stacktraces + breadcrumbs.
+    Sentry.captureException(error instanceof Error ? error : new Error(report.message), { extra: context });
     fetch(`${BASE_URL}/api/client-errors`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
