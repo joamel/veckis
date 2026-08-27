@@ -20,6 +20,7 @@
     "@anthropic-ai/sdk": "^0.95.2",
     "@clerk/backend": "^1.0.0",
     "@prisma/client": "^5.14.0",
+    "@sentry/node": "^10.71.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/morgan": "^1.9.9",
