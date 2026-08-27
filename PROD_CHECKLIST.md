@@ -6,11 +6,13 @@ Status per 2026-08-27. Grundad på kodgranskning + BACKLOG.md. Kryssa av allteft
 
 ## P0 – innan/vid beta (debugbarhet & efterlevnad)
 
-- [ ] **Sentry (app + backend)** – felaggregering, grupperade stacktraces, breadcrumbs, mejllarm.
-      Free-tier räcker (~5k fel/mån). Utan detta är app-krascher hos testare i praktiken osynliga för oss.
-      - [ ] `@sentry/react-native` i app + `Sentry.init` i `_layout` (DSN via env, `EXPO_PUBLIC_SENTRY_DSN`)
-      - [ ] `@sentry/node` i backend + init före routes + `Sentry.setupExpressErrorHandler` (eller manuell capture i felmiddlewaren)
-      - [ ] Verifiera att ett testfel dyker upp i Sentry-dashboarden
+- [~] **Sentry (app + backend)** – kod klar, aktiveras via DSN. Free-tier (Error monitoring only).
+      - [x] `@sentry/react-native` i app + gated `Sentry.init` i `_layout`; DSN wire:ad i eas.json + `build:web`
+      - [x] `@sentry/node` i backend + capture i felmiddleware + unhandledRejection
+      - [x] Web-Sentry: aktiv efter Render-rebuild (DSN i `build:web`)
+      - [ ] **Native-Sentry: aktiveras med nästa EAS-bygge** (native-modul; DSN i eas.json). Lägg in DSN i
+            `update:preview`/`update:production` FÖRST när modul-lösa builds är utfasade (annars krasch).
+      - [ ] **Backend: sätt `SENTRY_DSN` i Railway** → deploya om → verifiera testfel i dashboarden
 - [ ] **Bekräfta Neon-backup / point-in-time-restore** på prod-DB innan riktiga användardata ligger där.
 - [ ] **GDPR-cookiebanner för GA4** – vi laddar Google Analytics; EU-användare behöver samtycke innan gtag körs.
       (Alternativ: byt GA4 mot cookie-lös analytics, t.ex. Plausible, och slippa bannern.)
