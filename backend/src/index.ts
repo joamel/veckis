@@ -1,16 +1,6 @@
-import { config } from 'dotenv';
-import { resolve } from 'path';
-config({ path: resolve(__dirname, '../.env') });
-
+// Sentry-init FÖRST av allt (laddar även .env). Se instrument.ts.
+import './instrument';
 import * as Sentry from '@sentry/node';
-// Felaggregering. No-op tills SENTRY_DSN satt (Railway env) → säkert att ha inne
-// utan konfig. tracesSampleRate 0 = bara fel, ingen perf-tracing (håll free-tier).
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  enabled: !!process.env.SENTRY_DSN,
-  environment: process.env.NODE_ENV ?? 'development',
-  tracesSampleRate: 0,
-});
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -117,9 +107,13 @@ app.get('/keepalive', async (_req, res) => {
   res.json({ ok: true, db, ts: new Date().toISOString() });
 });
 
-// TEMP: Sentry-verifiering — kastar ett fel som ska landa i Sentry. Tas bort
-// direkt efter att vi bekräftat att felet dyker upp i dashboarden.
-app.get('/api/debug/boom', () => { throw new Error('Sentry backend-verifiering (boom)'); });
+// TEMP: Sentry-verifiering — fångar + flushar direkt (isolerar sändningen från
+// middleware-vägen). Tas bort direkt efter bekräftat event i dashboarden.
+app.get('/api/debug/boom', asyncHandler(async (_req, res) => {
+  const eventId = Sentry.captureException(new Error('Sentry backend-verifiering (boom)'));
+  await Sentry.flush(2000);
+  res.status(500).json({ error: 'boom (Sentry-test)', eventId });
+}));
 
 app.use('/api/households', householdRouter);
 app.use('/api/shopping', shoppingRouter);
@@ -136,9 +130,12 @@ app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not found' });
 });
 
+// Sentrys Express-felhanterare — efter alla routes, före vår egen. Rapporterar
+// fel (>=500) till Sentry MED request-kontext (vilken endpoint/metod).
+Sentry.setupExpressErrorHandler(app);
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  Sentry.captureException(err);
   console.error(err);
   res.status(500).json({ error: 'Internal server error' });
 });
