@@ -177,13 +177,48 @@ export default function SignInScreen() {
         return;
       }
       // Native: useSSO öppnar systembrowsern och returnerar sessionen.
-      const { createdSessionId, setActive: setSSOActive } = await startSSOFlow({
+      const {
+        createdSessionId,
+        setActive: setSSOActive,
+        signIn: ssoSignIn,
+        signUp: ssoSignUp,
+      } = await startSSOFlow({
         strategy: 'oauth_google',
         redirectUrl: AuthSession.makeRedirectUri(),
       });
+      // 1) Direkt session (kontot fanns redan med Google länkat).
       if (createdSessionId && setSSOActive) {
         await setSSOActive({ session: createdSessionId });
+        return;
       }
+      // 2) Ingen session → konto-koppling behövs. Med passwordless-email kan
+      //    e-posten redan finnas som konto → Clerk returnerar ett "transferable"
+      //    läge i stället för en färdig session. Överför åt rätt håll.
+      if (ssoSignUp?.verifications?.externalAccount?.status === 'transferable' && ssoSignIn) {
+        const res = await ssoSignIn.create({ transfer: true });
+        if (res.createdSessionId && setSSOActive) {
+          await setSSOActive({ session: res.createdSessionId });
+          return;
+        }
+      }
+      if (ssoSignIn?.firstFactorVerification?.status === 'transferable' && ssoSignUp) {
+        const res = await ssoSignUp.create({ transfer: true });
+        if (res.createdSessionId && setSSOActive) {
+          await setSSOActive({ session: res.createdSessionId });
+          return;
+        }
+      }
+      // 3) Kom hit → varken session eller överförbart läge. Visa exakt läge
+      //    (temporär diagnostik) i stället för tyst retur till login.
+      confirm({
+        title: str.errors.title,
+        message:
+          `Google slutfördes inte.\n` +
+          `signIn: ${ssoSignIn?.status ?? '–'} / ${ssoSignIn?.firstFactorVerification?.status ?? '–'}\n` +
+          `signUp: ${ssoSignUp?.status ?? '–'} / ${ssoSignUp?.verifications?.externalAccount?.status ?? '–'}\n` +
+          `session: ${createdSessionId ?? '–'}`,
+        buttons: [{ label: 'OK' }],
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.googleFailed;
       confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
