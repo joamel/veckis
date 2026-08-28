@@ -31,7 +31,9 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
-import { recipes as str, common } from '../../src/lib/svenska';
+import { recipes as str, common, gettingStarted } from '../../src/lib/svenska';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
 
@@ -47,6 +49,8 @@ export default function RecipesScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ create?: string; forMenuDay?: string; replaceMenuItemId?: string; replaceTitle?: string; forMenuWeek?: string; chooseDay?: string }>();
   const createTriggeredRef = useRef(false);
+  const fabRef = useRef<View>(null);
+  const showTip = useSpotlightTip();
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { getToken } = useAuth();
@@ -308,6 +312,14 @@ export default function RecipesScreen() {
   }, [householdId]);
 
   useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
+
+  // Kom igång-kortet: tänd spotlight på "+"-FAB:en om den bad om det (opt-in).
+  // Väntar tills listan renderats (spinnern släppt) så targetRef är mätbar.
+  useFocusEffect(useCallback(() => {
+    if (loading) return;
+    if (!consumeSpotlight('gs-recipe')) return;
+    showTip({ title: gettingStarted.spotlight.recipe.title, message: gettingStarted.spotlight.recipe.message, targetRef: fabRef });
+  }, [loading, showTip]));
 
   async function handleScrape() {
     if (!url.trim()) return;
@@ -700,7 +712,7 @@ export default function RecipesScreen() {
           <Text style={s.editDoneBtnText}>{common.actions.done}</Text>
         </Pressable>
       ) : (
-        <Pressable style={s.fab} onPress={openModal}>
+        <Pressable ref={fabRef} style={s.fab} onPress={openModal}>
           <Ionicons name="add" size={30} color="#fff" />
         </Pressable>
       )}

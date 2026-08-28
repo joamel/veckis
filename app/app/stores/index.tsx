@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
 import {
@@ -23,7 +23,9 @@ import { useToast } from '../../src/context/ToastContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { type Store, type StoreCategory } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
-import { stores as str, common } from '../../src/lib/svenska';
+import { stores as str, common, gettingStarted } from '../../src/lib/svenska';
+import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 
@@ -71,7 +73,16 @@ export default function StoresScreen() {
     }
   }, [householdId]);
 
+  const showTip = useSpotlightTip();
+  const storeFabRef = useRef<View>(null);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Kom igång-kortet: tänd spotlight på "Ny butik"-FAB om det begärts (opt-in).
+  useFocusEffect(useCallback(() => {
+    if (loading) return;
+    if (!consumeSpotlight('gs-store')) return;
+    showTip({ title: gettingStarted.spotlight.store.title, message: gettingStarted.spotlight.store.message, targetRef: storeFabRef });
+  }, [loading, showTip]));
   useEffect(() => { load(); }, [load]);
 
   // Pick-mode: om användaren backar utan att välja resolveras 'cancelled'
@@ -212,7 +223,7 @@ export default function StoresScreen() {
       </ScrollView>
 
       {!pickMode && (
-        <Pressable style={s.fab} onPress={() => setShowCreate(true)} accessibilityLabel={str.createModal.add}>
+        <Pressable ref={storeFabRef} style={s.fab} onPress={() => setShowCreate(true)} accessibilityLabel={str.createModal.add}>
           <Ionicons name="add" size={30} color="#fff" />
         </Pressable>
       )}

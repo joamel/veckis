@@ -96,6 +96,12 @@ export const gettingStarted = {
     menu:   'Planera en veckomeny',
     list:   'Skapa en inköpslista',
   },
+  // Spotlight-texter som pekar ut kontrollen på målskärmen (Fas 2).
+  spotlight: {
+    recipe: { title: 'Skapa ett recept', message: 'Tryck på + för att lägga till ett recept — skriv själv, klistra in text, eller importera från en länk.' },
+    store:  { title: 'Skapa din butik', message: 'Lägg upp din butik och sortera kategorierna efter din affärsrutt — inköpslistan följer då din väg genom butiken.' },
+    list:   { title: 'Skapa en inköpslista', message: 'Tryck här för att skapa en lista. Koppla den till en butik så sorteras varorna efter butikens ordning.' },
+  },
 };
 
 // ─── Inköp ────────────────────────────────────────────────────────────────────

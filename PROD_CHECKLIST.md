@@ -36,8 +36,15 @@ Status per 2026-08-27. Grundad på kodgranskning + BACKLOG.md. Kryssa av allteft
 
 ## P2 – skala & perf (inte blockerande för liten beta)
 
-- [ ] **SWR/React Query-cache** – `useFocusEffect` gör full reload vid varje flikbesök; stale-while-revalidate
-      halverar upplevd laddtid.
+- [~] **SWR/React Query-cache – UTREDD & MOOT.** Tab-navigatorn har inget `unmountOnBlur`/`freezeOnBlur` →
+      skärmarna behåller state monterat mellan flikbyten, så persisterad data visas redan direkt + `load()`
+      revalideras i bakgrunden (ingen spinner-flash). Modul-cache testad för Recept+Inköp → **återställd**
+      (gav bara nytta vid faktisk om-montering, som knappt sker). Enda kvarvarande sub-värde: kort
+      staleness-guard mot redundanta on-focus-`load()` (låg prio).
+- [ ] **Sammansatta (composite) endpoints** – flera flikar gör 2–4 parallella anrop per laddning (Meny =
+      `getWeekMenu + getRecipes + getShoppingLists + getStores + getAllMenus`, Inköp = listor+butiker+medlemmar).
+      En composite-endpoint per flik → 1 anrop, halverar latensen. Största reella perf-vinsten (till skillnad
+      från cachen minskar det faktiska round-trips på den kall-start-benägna free-tier-backenden).
 - [ ] **Paginering för recept** – hela listan skickas vid varje besök; cursor + infinite scroll vid 60+ recept.
 - [ ] **WS + Redis pub/sub** – realtiden är in-process; skalar backend till 2+ instanser slutar realtids-
       uppdateringar funka mellan användare på olika instanser.

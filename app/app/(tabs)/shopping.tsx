@@ -33,7 +33,8 @@ import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/clerk-expo';
 import { type Store } from '@veckis/shared';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
-import { shopping as str, common } from '../../src/lib/svenska';
+import { shopping as str, common, gettingStarted } from '../../src/lib/svenska';
+import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 
 export default function ShoppingScreen() {
   const { colors: c } = useTheme();
@@ -50,6 +51,7 @@ export default function ShoppingScreen() {
   const storesTip = useOnceFlag('seen-stores-tip');
   const storesTipShownRef = useRef(false);
   const storesBtnRef = useRef<View>(null);
+  const listFabRef = useRef<View>(null);
   const { fs, sp, isTablet, isSplitView, largeTablet } = useTablet();
   const insets = useSafeAreaInsets();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
@@ -92,6 +94,13 @@ export default function ShoppingScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
   // Refresh when a list changes elsewhere (e.g. deferred clear in the detail view).
   useEffect(() => onShoppingChanged(load), [load]);
+
+  // Kom igång-kortet: tänd spotlight på "Ny lista"-FAB om det begärts (opt-in).
+  useFocusEffect(useCallback(() => {
+    if (loading) return;
+    if (!consumeSpotlight('gs-list')) return;
+    showTip({ title: gettingStarted.spotlight.list.title, message: gettingStarted.spotlight.list.message, targetRef: listFabRef });
+  }, [loading, showTip]));
 
   // Split-view: auto-välj första listan i landscape; rensa när portrait återkommer.
   useEffect(() => {
@@ -239,7 +248,7 @@ export default function ShoppingScreen() {
         }}
       />
 
-      <Pressable style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28), bottom: 20 + insets.bottom }]} onPress={() => setShowModal(true)}>
+      <Pressable ref={listFabRef} style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28), bottom: 20 + insets.bottom }]} onPress={() => setShowModal(true)}>
         <Ionicons name="add" size={fs(30)} color="#fff" />
       </Pressable>
 

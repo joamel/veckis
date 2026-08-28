@@ -36,6 +36,7 @@ import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { GettingStartedCard, type GettingStartedStep } from '../../src/components/GettingStartedCard';
+import { requestSpotlight } from '../../src/lib/spotlightRequest';
 import { EmptyState } from '../../src/components/EmptyState';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
 import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
@@ -1415,10 +1416,10 @@ export default function MenuScreen() {
   // "Kom igång"-steg: done-state läses från backend-datan; tryck navigerar till
   // rätt yta (Fas 2 lägger spotlight-highlight på kontrollen där).
   const gsSteps: GettingStartedStep[] = [
-    { key: 'recipe', icon: 'restaurant-outline', label: gettingStarted.steps.recipe, done: recipes.length > 0, onPress: () => router.push('/recipes' as never) },
-    { key: 'store', icon: 'storefront-outline', label: gettingStarted.steps.store, done: stores.length > 0, onPress: () => router.push('/stores' as never) },
+    { key: 'recipe', icon: 'restaurant-outline', label: gettingStarted.steps.recipe, done: recipes.length > 0, onPress: () => { requestSpotlight('gs-recipe'); router.push('/recipes' as never); } },
+    { key: 'store', icon: 'storefront-outline', label: gettingStarted.steps.store, done: stores.length > 0, onPress: () => { requestSpotlight('gs-store'); router.push('/stores' as never); } },
     { key: 'menu', icon: 'calendar-outline', label: gettingStarted.steps.menu, done: allMenus.length > 0, onPress: () => goToWeek(0, true) },
-    { key: 'list', icon: 'cart-outline', label: gettingStarted.steps.list, done: shoppingLists.length > 0, onPress: () => router.push('/shopping' as never) },
+    { key: 'list', icon: 'cart-outline', label: gettingStarted.steps.list, done: shoppingLists.length > 0, onPress: () => { requestSpotlight('gs-list'); router.push('/shopping' as never); } },
   ];
 
   return (
