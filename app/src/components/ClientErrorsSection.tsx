@@ -59,6 +59,7 @@ export function ClientErrorsSection() {
       const data = await client.getClientErrors();
       setErrors(data);
     } catch (e) {
+      setErrors([]); // markera som laddad (även vid fel) → effekten loopar inte → inget flimmer
       showError(e, common.errors.couldNotLoad('klientfel'));
     } finally {
       setLoading(false);

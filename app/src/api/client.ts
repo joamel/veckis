@@ -135,7 +135,7 @@ export function useApiClient() {
     if (!res.ok) {
       // 5xx = servern uppe men beroende (oftast DB:n) vaknar → retry:a idempotenta.
       if (res.status >= 500 && canRetry) { await backoff(); return request<T>(path, options, attempt + 1); }
-      if (res.status === 401) reportClientError('DIAG: API 401 (token avvisad)', { path, method, hadToken: !!token, attempt });
+      if (res.status === 401 && !path.includes('client-errors')) reportClientError('DIAG: API 401 (token avvisad)', { path, method, hadToken: !!token, attempt });
       const err = await res.json().catch(() => ({ error: res.statusText }));
       throw new ApiError(err.error ?? `HTTP ${res.status}`, res.status, false);
     }
