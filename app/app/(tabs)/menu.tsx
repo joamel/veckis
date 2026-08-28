@@ -1418,7 +1418,7 @@ export default function MenuScreen() {
   const gsSteps: GettingStartedStep[] = [
     { key: 'recipe', icon: 'restaurant-outline', label: gettingStarted.steps.recipe, done: recipes.length > 0, onPress: () => { requestSpotlight('gs-recipe'); router.push('/recipes' as never); } },
     { key: 'store', icon: 'storefront-outline', label: gettingStarted.steps.store, done: stores.length > 0, onPress: () => { requestSpotlight('gs-store'); router.push('/stores' as never); } },
-    { key: 'menu', icon: 'calendar-outline', label: gettingStarted.steps.menu, done: allMenus.length > 0, onPress: () => goToWeek(0, true) },
+    { key: 'menu', icon: 'calendar-outline', label: gettingStarted.steps.menu, done: allMenus.length > 0, onPress: () => { goToWeek(0, true); openPlanner(); } },
     { key: 'list', icon: 'cart-outline', label: gettingStarted.steps.list, done: shoppingLists.length > 0, onPress: () => { requestSpotlight('gs-list'); router.push('/shopping' as never); } },
   ];
 
