@@ -40,11 +40,16 @@ export function GettingStartedOverlay() {
         client.getShoppingLists(householdId).catch(() => []),
         client.getAllMenus(householdId).catch(() => []),
       ]);
-      setStatus({ hasRecipes: recs.length > 0, hasStore: stores.length > 0, hasList: lists.length > 0, hasMenu: menus.length > 0 });
+      const st = { hasRecipes: recs.length > 0, hasStore: stores.length > 0, hasList: lists.length > 0, hasMenu: menus.length > 0 };
+      setStatus(st);
+      // Allt klart → markera sett så overlayn slutar hämta vid framtida starter.
+      if (st.hasRecipes && st.hasStore && st.hasList && st.hasMenu) markSeen();
     } catch { /* best-effort — overlayn får aldrig störa appen */ }
-  }, [householdId, client]);
+  }, [householdId, client, markSeen]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  // Hämta bara om användaren inte redan stängt/slutfört kortet (seen===false) —
+  // annars ingen anledning att belasta med 4 anrop vid varje appstart.
+  useEffect(() => { if (seen === false) void refresh(); }, [refresh, seen]);
 
   if (seen !== false || !householdId || !status) return null;
   const flags = [status.hasRecipes, status.hasStore, status.hasMenu, status.hasList];
