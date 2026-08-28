@@ -84,6 +84,20 @@ export const common = {
   },
 };
 
+// ─── Kom igång-kort (onboarding-checklista) ──────────────────────────────────
+export const gettingStarted = {
+  title:      'Kom igång',
+  subtitle:   'Tryck på ett steg så visar vi var du gör det.',
+  close:      'Stäng',
+  done:       'Klart',
+  steps: {
+    recipe: 'Lägg till ditt första recept',
+    store:  'Skapa din butik (sortera kategorierna)',
+    menu:   'Planera en veckomeny',
+    list:   'Skapa en inköpslista',
+  },
+};
+
 // ─── Inköp ────────────────────────────────────────────────────────────────────
 
 export const shopping = {
