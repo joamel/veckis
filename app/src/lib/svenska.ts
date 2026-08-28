@@ -1248,6 +1248,10 @@ export const auth = {
       noAccount:          'Inget konto? Skapa ett',
       backToSignIn:       '← Tillbaka till inloggning',
     },
+    a11y: {
+      showPassword: 'Visa lösenord',
+      hidePassword: 'Dölj lösenord',
+    },
   },
 
   signUp: {
