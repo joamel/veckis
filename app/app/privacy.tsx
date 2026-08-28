@@ -21,11 +21,11 @@ export default function PrivacyScreen() {
 
       <Text style={s.h2}>Var lagras dina uppgifter?</Text>
       <Text style={s.p}>
-        Backend (Railway) och databasen (Neon) körs inom EU. Inloggning
-        hanteras av Clerk och receptbilder lagras hos Cloudinary; dessa
-        tjänsteleverantörer kan behandla vissa uppgifter utanför EU/EES under
-        lämpliga skyddsåtgärder (EU:s standardavtalsklausuler). Vi delar inga
-        uppgifter med tredje part utöver dessa nödvändiga tjänsteleverantörer.
+        Backend och databasen körs på Railway (Railway Postgres) inom EU.
+        Inloggning hanteras av Clerk och receptbilder lagras hos Cloudinary;
+        dessa tjänsteleverantörer kan behandla vissa uppgifter utanför EU/EES
+        under lämpliga skyddsåtgärder (EU:s standardavtalsklausuler). Vi delar
+        inga uppgifter med tredje part utöver dessa nödvändiga tjänsteleverantörer.
       </Text>
 
       <Text style={s.h2}>Push-notiser</Text>
