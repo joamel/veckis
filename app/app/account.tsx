@@ -50,6 +50,7 @@ export default function AccountScreen() {
   // har ett kan ÄNDRA det (kräver nuvarande). user.passwordEnabled avgör vilket.
   const hasPassword = user?.passwordEnabled ?? false;
   const [showPassword, setShowPassword] = useState(false);
+  const [pwVisible, setPwVisible] = useState(false);
   const [curPw, setCurPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
@@ -59,6 +60,7 @@ export default function AccountScreen() {
 
   function closePassword() {
     setShowPassword(false);
+    setPwVisible(false);
     setCurPw(''); setNewPw(''); setConfirmPw('');
   }
 
@@ -238,26 +240,36 @@ export default function AccountScreen() {
                 style={s.input}
                 placeholder={str.passwordModal.currentPlaceholder}
                 placeholderTextColor={c.textFaint}
-                secureTextEntry
+                secureTextEntry={!pwVisible}
                 value={curPw}
                 onChangeText={setCurPw}
               />
             )}
-            <TextInput
-              style={s.input}
-              placeholder={str.passwordModal.newPlaceholder}
-              placeholderTextColor={c.textFaint}
-              secureTextEntry
-              value={newPw}
-              onChangeText={setNewPw}
-              textContentType="newPassword"
-              autoComplete="new-password"
-            />
+            <View style={s.pwWrap}>
+              <TextInput
+                style={[s.input, s.pwInput]}
+                placeholder={str.passwordModal.newPlaceholder}
+                placeholderTextColor={c.textFaint}
+                secureTextEntry={!pwVisible}
+                value={newPw}
+                onChangeText={setNewPw}
+                textContentType="newPassword"
+                autoComplete="new-password"
+              />
+              <Pressable
+                style={s.pwEye}
+                onPress={() => setPwVisible(v => !v)}
+                hitSlop={8}
+                accessibilityLabel={pwVisible ? str.passwordModal.hidePassword : str.passwordModal.showPassword}
+              >
+                <Ionicons name={pwVisible ? 'eye-off-outline' : 'eye-outline'} size={22} color={c.textFaint} />
+              </Pressable>
+            </View>
             <TextInput
               style={[s.input, confirmPw.length > 0 && !pwMatches && s.inputError]}
               placeholder={str.passwordModal.confirmPlaceholder}
               placeholderTextColor={c.textFaint}
-              secureTextEntry
+              secureTextEntry={!pwVisible}
               value={confirmPw}
               onChangeText={setConfirmPw}
               textContentType="newPassword"
@@ -302,6 +314,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
   sheetSubtitle: { fontSize: 13, color: c.textMuted, lineHeight: 19, marginTop: -6 },
   input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
+  pwWrap: { position: 'relative', justifyContent: 'center' },
+  pwInput: { paddingRight: 48 },
+  pwEye: { position: 'absolute', right: 6, top: 0, bottom: 0, justifyContent: 'center', paddingHorizontal: 8 },
   inputError: { borderColor: c.danger },
   errorText: { color: c.danger, fontSize: 13, marginTop: -8, marginLeft: 4 },
   primaryBtn: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
