@@ -41,6 +41,11 @@ const MENU_DAYS: { key: WeekDay; label: string }[] =
   (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as WeekDay[])
     .map((key, i) => ({ key, label: common.weekdays.long[i] }));
 
+// SWR-lite: modul-cache av receptlistan per hushåll så flikbyte visar data
+// DIREKT (ingen spinner-flash) och revalideras i bakgrunden. Additivt — load()
+// skriver alltid över med färsk data, så cachen är bara en snabb första-render.
+const recipesCache: Record<string, RecipeWithIngredients[]> = {};
+
 export default function RecipesScreen() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -55,8 +60,9 @@ export default function RecipesScreen() {
   const tryCloseCreate = useDiscardDraft(confirm);
   const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setMode('manual'); };
   const closeCreate = () => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate);
-  const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Seed:a från cachen (om samma hushåll finns) → direkt render vid flikbyte.
+  const [recipes, setRecipes] = useState<RecipeWithIngredients[]>(() => (householdId ? recipesCache[householdId] ?? [] : []));
+  const [loading, setLoading] = useState(() => !(householdId && recipesCache[householdId]));
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -299,6 +305,7 @@ export default function RecipesScreen() {
         client.getWeekMenu(householdId, weekYear, weekNumber).catch(() => [] as WeekMenuItemWithRecipe[]),
       ]);
       setRecipes(recs);
+      if (householdId) recipesCache[householdId] = recs;
       setWeekMenu(menu);
     } catch {
       confirm({ title: str.errors.generic, message: str.errors.couldNotLoad, buttons: [{ label: common.actions.ok }] });
