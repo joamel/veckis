@@ -89,7 +89,9 @@ export const gettingStarted = {
   title:      'Kom igång',
   subtitle:   'Tryck på ett steg så visar vi var du gör det.',
   close:      'Stäng',
+  collapse:   'Fäll ihop',
   done:       'Klart',
+  progress:   (done: number, total: number) => `${done}/${total}`,
   steps: {
     recipe: 'Lägg till ditt första recept',
     store:  'Skapa din butik (sortera kategorierna)',
