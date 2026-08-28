@@ -616,7 +616,22 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
-  if (!recipe) return null;
+  // Kunde inte ladda receptet (fetch-fel, borttaget recept, trasig data) → visa
+  // ett riktigt fel-tillstånd med väg tillbaka i stället för en tom VIT skärm.
+  if (!recipe) return (
+    <View style={s.center}>
+      <Ionicons name="alert-circle-outline" size={48} color={c.textFaint} />
+      <Text style={{ color: c.textMuted, fontSize: 15, marginTop: 12, marginBottom: 20, textAlign: 'center', paddingHorizontal: 24 }}>
+        {str.errors.couldNotLoad}
+      </Text>
+      <Pressable
+        onPress={() => (onClose ? onClose() : router.back())}
+        style={{ backgroundColor: c.primary, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 10 }}
+      >
+        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>{common.actions.back}</Text>
+      </Pressable>
+    </View>
+  );
 
   return (
     <SafeAreaView style={s.container}>
