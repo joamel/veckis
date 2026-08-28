@@ -36,7 +36,14 @@ export function ScreenHeader({ title, actionIcon, actionLabel, onActionPress, ac
           {householdName && (
             <View style={s.subtitleRow}>
               <Ionicons name="home-outline" size={fs(13)} color={c.textMuted} />
-              <Text style={[s.subtitle, { fontSize: fs(13), marginTop: 0 }]}>{householdName}</Text>
+              {/* Explicit bredd: Android under-mäter texten och klipper sista glyfen
+                  (samma bugg som tidigare). numberOfLines={1} + generös char-bredd. */}
+              <Text
+                numberOfLines={1}
+                style={[s.subtitle, { fontSize: fs(13), marginTop: 0, width: householdName.length * fs(8.5) + 12 }]}
+              >
+                {householdName}
+              </Text>
             </View>
           )}
         </View>

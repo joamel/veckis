@@ -1304,6 +1304,8 @@ export const account = {
     save:               'Spara lösenord',
     tooShort:           'Lösenordet måste vara minst 8 tecken.',
     mismatch:           'Lösenorden matchar inte.',
+    showPassword:       'Visa lösenord',
+    hidePassword:       'Dölj lösenord',
   },
 
   renameModal: {

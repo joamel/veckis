@@ -303,7 +303,10 @@ export default function SignInScreen() {
 
           <View style={styles.altRow}>
             <Pressable onPress={() => switchMode('reset')} hitSlop={6}>
-              <Text style={styles.linkSmall}>{str.signIn.links.forgotPassword}</Text>
+              {/* Explicit bredd → Android klipper annars sista glyfen ("?"). */}
+              <Text style={[styles.linkSmall, { width: str.signIn.links.forgotPassword.length * 8 + 10, textAlign: 'center' }]}>
+                {str.signIn.links.forgotPassword}
+              </Text>
             </Pressable>
           </View>
 
