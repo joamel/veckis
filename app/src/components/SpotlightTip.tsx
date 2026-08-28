@@ -206,7 +206,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
       )}
       {/* Tap outside the card dismisses (covers full screen, behind the card). */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
-      <View style={[s.card, { top: callout, left: 20, right: 20, maxHeight: screen.height * 0.7 }]}>
+      <View style={[s.card, callout.top != null ? { top: callout.top } : { bottom: callout.bottom }, { left: 20, right: 20, maxHeight: screen.height * 0.7 }]}>
         {/* Toprad: position-pill */}
         {total && total > 1 ? (
           <View style={s.topRow}>
@@ -357,21 +357,22 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
 // Position the callout below the target if there's room, otherwise above,
 // otherwise centred on the screen. swipeDemo='drag' utan target pushas ned
 // så det finns plats för mock-meny-raderna ovanför tip-kortet.
-function computeCalloutTop(rect: Rect | null, screenH: number, swipeDemo?: 'horizontal' | 'vertical' | 'drag'): number {
+function computeCalloutTop(rect: Rect | null, screenH: number, swipeDemo?: 'horizontal' | 'vertical' | 'drag'): { top?: number; bottom?: number } {
   const cardEstHeight = 200;
   if (!rect) {
     if (swipeDemo === 'drag') {
       // Drag-demoen sitter på ~34% (över dagens rätter), mock-rad + drag-spann
       // (~150px) tar plats nedåt → tip-kortet börjar en bit under det.
-      return Math.round(screenH * 0.56);
+      return { top: Math.round(screenH * 0.56) };
     }
-    return Math.max(80, (screenH - cardEstHeight) / 2);
+    return { top: Math.max(80, (screenH - cardEstHeight) / 2) };
   }
   const below = rect.y + rect.height + 24;
-  const above = rect.y - cardEstHeight - 24;
-  if (below + cardEstHeight < screenH - 40) return below;
-  if (above > 40) return above;
-  return 40;
+  if (below + cardEstHeight < screenH - 40) return { top: below };
+  // Ovanför: ANKRA kortets botten 24px ovanför target (växer uppåt) i stället för
+  // top+gissad höjd → ett långt kort täcker aldrig target (t.ex. "+"-FAB:en).
+  if (rect.y - 24 > 80) return { bottom: screenH - (rect.y - 24) };
+  return { top: 40 };
 }
 
 const makeStyles = (c: Palette) => StyleSheet.create({
