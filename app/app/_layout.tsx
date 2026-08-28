@@ -1,6 +1,7 @@
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
+import { reportClientError } from '../src/lib/errorReport';
 import { createElement, forwardRef, useEffect, useState, type ComponentType } from 'react';
 import { Platform, View } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -116,6 +117,7 @@ function NavigationGuard() {
     if (isPublic || isAuthedDeepRoute || showWebLanding) return;
 
     if (!isSignedIn && !inAuthGroup) {
+      reportClientError('DIAG: auth-guard → sign-in (utloggad)', { isLoaded, root, hadHousehold: !!householdId, landingTab });
       router.replace('/(auth)/sign-in');
     } else if (isSignedIn && inAuthGroup) {
       router.replace(householdId ? `/(tabs)/${landingTab}` as never : '/household/setup');
