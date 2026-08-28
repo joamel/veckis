@@ -32,9 +32,12 @@ function ErrorRow({ e, last }: { e: ClientErrorEntry; last: boolean }) {
         </View>
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={c.border} />
       </View>
+      {expanded && e.context && Object.keys(e.context).length > 0 && (
+        <Text style={s.context} selectable>{JSON.stringify(e.context)}</Text>
+      )}
       {expanded && e.stack && (
         <ScrollView horizontal showsHorizontalScrollIndicator style={s.stackScroll}>
-          <Text style={s.stack}>{e.stack}</Text>
+          <Text style={s.stack} selectable>{e.stack}</Text>
         </ScrollView>
       )}
     </Pressable>
@@ -126,6 +129,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   rowTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   errorName: { fontSize: 13, color: c.textSecondary, lineHeight: 18 },
   meta: { fontSize: 11, color: c.textFaint, marginTop: 2 },
+  context: { fontSize: 11, color: c.textSecondary, marginTop: 6, fontFamily: 'monospace', lineHeight: 15 },
   stackScroll: { marginTop: 6, maxHeight: 120 },
   stack: { fontSize: 10, color: c.textMuted, fontFamily: 'monospace', lineHeight: 14 },
   empty: { fontSize: 13, color: c.textFaint, textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' },
