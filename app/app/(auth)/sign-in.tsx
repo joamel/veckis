@@ -124,7 +124,20 @@ export default function SignInScreen() {
     setLoading(true);
     try {
       const result = await signIn.create({ identifier: email, password });
-      await setActive({ session: result.createdSessionId });
+      if (result.status === 'complete') {
+        await setActive({ session: result.createdSessionId });
+      } else {
+        // Icke-complete → visa vad som saknas i stället för tyst setActive(null)
+        // (som förr bara "laddade men gjorde inget"). Vanligast: 2FA på kontot.
+        const needs2fa = result.status === 'needs_second_factor';
+        confirm({
+          title: str.errors.title,
+          message: needs2fa
+            ? 'Kontot har tvåstegsverifiering på. Logga in med Google, eller stäng av 2FA på kontot.'
+            : `Inloggningen slutfördes inte (status: ${result.status ?? 'okänd'}).`,
+          buttons: [{ label: 'OK' }],
+        });
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.signInFailed;
       confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
