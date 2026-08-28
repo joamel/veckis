@@ -162,18 +162,18 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const { ingredients, tags, ...recipeData } = body.data;
-  // url_import-bilder får inte hotlinkas — re-hosta källbilden till vår egen
-  // Cloudinary (upphovsrätt + tillförlitlighet). Vid fel: droppa bilden.
-  let imagePublicId: string | null = null;
-  if (recipeData.source === 'url_import' && recipeData.imageUrl && !recipeData.imageUrl.includes('res.cloudinary.com')) {
-    const rehosted = await rehostExternalImage(recipeData.imageUrl, recipeData.householdId);
-    recipeData.imageUrl = rehosted?.url ?? null;
-    imagePublicId = rehosted?.publicId ?? null;
-  }
+  // url_import-bilder ska re-hostas till vår egen Cloudinary (upphovsrätt +
+  // tillförlitlighet) — men INTE synkront: det gjorde createRecipe segt (ladda
+  // ner + ladda upp) och kunde störa det direkt efterföljande getRecipe. Vi
+  // skapar receptet snabbt med käll-URL:en och re-hostar i BAKGRUNDEN nedan.
+  const externalImage =
+    recipeData.source === 'url_import' && recipeData.imageUrl && !recipeData.imageUrl.includes('res.cloudinary.com')
+      ? recipeData.imageUrl
+      : null;
+
   const recipe = await prisma.recipe.create({
     data: {
       ...recipeData,
-      ...(imagePublicId ? { imagePublicId } : {}),
       ...(tags !== undefined ? { tags: normalizeTags(tags) } : {}),
       createdBy: (req as AuthenticatedRequest).clerkUserId,
       ingredients: { create: ingredients as Prisma.RecipeIngredientCreateWithoutRecipeInput[] },
@@ -194,6 +194,20 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   }).catch(() => {});
 
   res.status(201).json(recipe);
+
+  // Bakgrunds-re-host (icke-blockerande): byt käll-bilden mot en Cloudinary-kopia
+  // när uppladdningen är klar. Håller createRecipe snabbt; kort transient period
+  // där bilden pekar på källan tills jobbet hunnit klart.
+  if (externalImage) {
+    void rehostExternalImage(externalImage, recipe.householdId).then(rehosted => {
+      if (rehosted) {
+        void prisma.recipe.update({
+          where: { id: recipe.id },
+          data: { imageUrl: rehosted.url, imagePublicId: rehosted.publicId },
+        }).catch(() => {});
+      }
+    });
+  }
 }));
 
 // PATCH /api/recipes/:recipeId
