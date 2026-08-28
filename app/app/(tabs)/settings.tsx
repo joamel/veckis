@@ -482,7 +482,7 @@ export default function SettingsScreen() {
           </View>
           <ScrollView contentContainerStyle={styles.adminLogsBody} showsVerticalScrollIndicator={false}>
             {householdId && <AuditLogSection householdId={householdId} />}
-            {__DEV__ && <ClientErrorsSection />}
+            {(__DEV__ || isAdmin) && <ClientErrorsSection />}
           </ScrollView>
         </SafeAreaView>
       </Modal>
