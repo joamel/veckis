@@ -20,6 +20,7 @@ import { InstallBanner } from '../../src/components/InstallBanner';
 import { auth as str } from '../../src/lib/svenska';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { Ionicons } from '@expo/vector-icons';
 
 const LOGO = require('../../assets/icon.png');
 const GOOGLE_G = require('../../assets/google-g.png');
@@ -88,6 +89,7 @@ export default function SignInScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   // Tre inloggnings-lägen — 'email-code' är default (säkrare än lösen för
   // medianvändaren som inte aktiverar 2FA, och eliminerar lösen-återanvändnings-
@@ -276,14 +278,24 @@ export default function SignInScreen() {
             value={email}
             onChangeText={setEmail}
           />
-          <TextInput
-            style={styles.input}
-            placeholder={str.placeholders.password}
-            placeholderTextColor={c.textFaint}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
+          <View style={styles.pwWrap}>
+            <TextInput
+              style={[styles.input, styles.pwInput]}
+              placeholder={str.placeholders.password}
+              placeholderTextColor={c.textFaint}
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+            />
+            <Pressable
+              style={styles.pwEye}
+              onPress={() => setShowPassword(v => !v)}
+              hitSlop={8}
+              accessibilityLabel={showPassword ? str.signIn.a11y.hidePassword : str.signIn.a11y.showPassword}
+            >
+              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={c.textFaint} />
+            </Pressable>
+          </View>
 
           <Pressable style={styles.button} onPress={handleEmailSignIn} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{str.signIn.buttons.signIn}</Text>}
@@ -395,6 +407,10 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     marginBottom: 12,
     fontSize: 16,
   },
+  pwWrap: { position: 'relative', justifyContent: 'center' },
+  pwInput: { paddingRight: 48 },
+  // top:0/bottom:12 centrerar knappen på själva fältet (input har marginBottom:12).
+  pwEye: { position: 'absolute', right: 6, top: 0, bottom: 12, justifyContent: 'center', paddingHorizontal: 8 },
   button: {
     backgroundColor: c.primary,
     borderRadius: 10,
