@@ -58,12 +58,36 @@ for (const name of ['Text', 'TextInput'] as const) {
   }
 }
 
+// Android: expo-secure-store har en 2048-byte-gräns per värde. Clerks session-JWT
+// (med claims) kan överskrida den → setItemAsync failar TYST → sessionen droppar
+// och native-appen loggar ut (web opåverkad — localStorage har ingen gräns). Fix:
+// chunka token:en över flera nycklar så inget enskilt värde passerar gränsen.
+// Ren JS (körs i tokenCache) → OTA-fixbart, ingen native-build. Befintliga
+// (ochunkade) värden läses bakåtkompatibelt.
+const TOKEN_CHUNK = 1800;
 const tokenCache = {
   async getToken(key: string) {
-    return SecureStore.getItemAsync(key);
+    const head = await SecureStore.getItemAsync(key);
+    if (head === null || !head.startsWith('__chunks:')) return head;
+    const n = parseInt(head.slice(9), 10);
+    let out = '';
+    for (let i = 0; i < n; i++) {
+      const part = await SecureStore.getItemAsync(`${key}.${i}`);
+      if (part === null) return null; // korrupt/ofullständig → behandla som saknad
+      out += part;
+    }
+    return out;
   },
   async saveToken(key: string, value: string) {
-    return SecureStore.setItemAsync(key, value);
+    if (value.length <= TOKEN_CHUNK) {
+      return SecureStore.setItemAsync(key, value);
+    }
+    const n = Math.ceil(value.length / TOKEN_CHUNK);
+    for (let i = 0; i < n; i++) {
+      await SecureStore.setItemAsync(`${key}.${i}`, value.slice(i * TOKEN_CHUNK, (i + 1) * TOKEN_CHUNK));
+    }
+    // Markören sparas SIST → getToken läser aldrig en markör utan sina chunks.
+    return SecureStore.setItemAsync(key, `__chunks:${n}`);
   },
 };
 
