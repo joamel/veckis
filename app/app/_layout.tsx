@@ -104,6 +104,11 @@ const tokenCache = {
   },
 };
 
+// DIAG (temp): vilken Clerk-instans kör appen faktiskt? pk_test = dev-instans
+// (=.env läckt in), pk_live = prod. Om native råkat på pk_test men PWA på pk_live
+// → instans-split → sessionen persisterar inte. Fyrar en gång vid modul-load.
+reportClientError('DIAG: Clerk-instans', { pk: (process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? 'SAKNAS').slice(0, 12) });
+
 function StatusBarBackdrop() {
   const insets = useSafeAreaInsets();
   if (insets.top === 0) return null;
