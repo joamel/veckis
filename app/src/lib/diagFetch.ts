@@ -13,6 +13,15 @@ if (Platform.OS !== 'web') {
   if (typeof orig === 'function' && !g.__diagFetchPatched) {
     g.__diagFetchPatched = true;
     g.fetch = async (input: any, init?: any) => {
+      // Fånga den SÄNDA authorization-token:en (client-token, roterande) INNAN
+      // svaret — så vi ser om två requests skickar SAMMA token (reuse → signout).
+      let sentAuth = '?';
+      try {
+        const h = init?.headers;
+        const raw = h?.get ? h.get('authorization') : (h?.authorization ?? h?.Authorization);
+        if (typeof raw === 'string' && raw.length > 0) sentAuth = `${raw.slice(0, 8)}…${raw.slice(-6)}(${raw.length})`;
+        else if (raw === '' ) sentAuth = 'tom';
+      } catch { /* headers-form varierar */ }
       const res = await orig(input, init);
       try {
         const url: string = typeof input === 'string' ? input : (input?.url ?? input?.href ?? String(input));
@@ -33,7 +42,8 @@ if (Platform.OS !== 'web') {
           reportClientError('DIAG: FAPI ' + path, {
             method: init?.method ?? 'GET',
             status: res.status,
-            authHeader: res.headers?.get?.('authorization') ? 'ja' : 'nej',
+            sentAuth, // client-token som SKICKADES (prefix…suffix(len)) — samma på 2 = reuse
+            gotNewAuth: res.headers?.get?.('authorization') ? 'ja' : 'nej', // roterad token i svaret
             sessions,
             lastActive,
             errorCode,
