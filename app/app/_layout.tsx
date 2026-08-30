@@ -1,3 +1,4 @@
+import '../src/lib/diagFetch'; // DIAG: MÅSTE ligga före clerk-expo (patchar fetch)
 import { ClerkProvider, useAuth, useClerk } from '@clerk/clerk-expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
@@ -109,34 +110,6 @@ const tokenCache = {
 // → instans-split → sessionen persisterar inte. Fyrar en gång vid modul-load.
 reportClientError('DIAG: Clerk-instans', { pk: (process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? 'SAKNAS').slice(0, 12) });
 
-// DIAG (temp): avlyssna Clerks native FAPI /client-anrop och logga EXAKT vad
-// servern returnerar vid omstart (sessions-antal + ev. felkod). Det avgör om
-// prod tappar sessionen server-side eller om den finns men klienten tappar den.
-// Patchar global.fetch (clerk-headless använder den). Native-only.
-if (Platform.OS !== 'web') {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const g = global as any;
-  const origFetch = g.fetch;
-  g.fetch = async (input: unknown, init?: { method?: string }) => {
-    const res = await origFetch(input, init);
-    try {
-      const url = typeof input === 'string' ? input : (input as { url?: string })?.url ?? '';
-      if (url.includes('clerk.') && url.includes('/client')) {
-        const body = await res.clone().json().catch(() => null) as Record<string, unknown> | null;
-        const client = (body?.response ?? body?.client) as { sessions?: unknown[] } | undefined;
-        reportClientError('DIAG: FAPI /client-svar', {
-          method: init?.method ?? 'GET',
-          status: res.status,
-          authHeader: res.headers.get('authorization') ? 'ja' : 'nej',
-          sessions: Array.isArray(client?.sessions) ? client!.sessions!.length : -1,
-          errorCode: (body?.errors as { code?: string }[] | undefined)?.[0]?.code ?? null,
-          errorMsg: (body?.errors as { message?: string }[] | undefined)?.[0]?.message ?? null,
-        });
-      }
-    } catch { /* DIAG får aldrig störa */ }
-    return res;
-  };
-}
 
 function StatusBarBackdrop() {
   const insets = useSafeAreaInsets();
