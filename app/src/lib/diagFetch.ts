@@ -38,10 +38,18 @@ if (Platform.OS !== 'web') {
             errorCode = body?.errors?.[0]?.code ?? null;
             errorMsg = body?.errors?.[0]?.message ?? null;
           } catch { /* body ej JSON */ }
+          // Klock-skew: serverns Date-header vs telefonens tid. Stor skew (>30s)
+          // → Clerk avvisar den tidskänsliga roterande token:en → signed_out.
+          let clockSkewSec: number | null = null;
+          try {
+            const serverDate = res.headers?.get?.('date');
+            if (serverDate) clockSkewSec = Math.round((Date.now() - new Date(serverDate).getTime()) / 1000);
+          } catch { /* ingen date-header */ }
           const path = url.replace(/^https?:\/\/[^/]+/, '').split('?')[0];
           reportClientError('DIAG: FAPI ' + path, {
             method: init?.method ?? 'GET',
             status: res.status,
+            clockSkewSec, // + = telefonen före servern, - = efter. |>30| = trolig orsak
             sentAuth, // client-token som SKICKADES (prefix…suffix(len)) — samma på 2 = reuse
             gotNewAuth: res.headers?.get?.('authorization') ? 'ja' : 'nej', // roterad token i svaret
             sessions,
