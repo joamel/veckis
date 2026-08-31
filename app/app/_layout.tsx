@@ -1,7 +1,6 @@
 import '../src/lib/diagFetch'; // DIAG: MÅSTE ligga före clerk-expo (patchar fetch)
 import { ClerkProvider, useAuth, useClerk } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
-import { resourceCache } from '@clerk/clerk-expo/resource-cache';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
 import { reportClientError } from '../src/lib/errorReport';
@@ -212,7 +211,6 @@ export default function RootLayout() {
         <ClerkProvider
           publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
           tokenCache={tokenCache}
-          __experimental_resourceCache={resourceCache}
         >
           <HouseholdProvider>
             <PendingRemovalProvider>
