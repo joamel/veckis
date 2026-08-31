@@ -1,4 +1,3 @@
-import '../src/lib/diagFetch'; // DIAG: MÅSTE ligga före clerk-expo (patchar fetch)
 import { ClerkProvider, useAuth, useClerk } from '@clerk/clerk-expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
@@ -88,11 +87,6 @@ const tokenCache = {
     try { await SecureStore.deleteItemAsync(key); } catch { /* best-effort */ }
   },
 };
-
-// DIAG (temp): vilken Clerk-instans kör appen faktiskt? pk_test = dev-instans
-// (=.env läckt in), pk_live = prod. Om native råkat på pk_test men PWA på pk_live
-// → instans-split → sessionen persisterar inte. Fyrar en gång vid modul-load.
-reportClientError('DIAG: Clerk-instans', { pk: (process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? 'SAKNAS').slice(0, 12) });
 
 
 function StatusBarBackdrop() {
