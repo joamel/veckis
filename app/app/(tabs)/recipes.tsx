@@ -15,7 +15,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -65,12 +65,18 @@ export default function RecipesScreen() {
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  // Fäll ihop sök+taggar när man scrollar ner i listan (frigör skärmyta); fäll ut
-  // igen via pilen eller när man scrollar tillbaka till toppen. Riktnings-medveten
-  // toggle (kollapsa vid scroll ner, expandera vid scroll upp/topp) så den inte
-  // oscillerar/hackar vid tröskeln; reanimated fade + layout gör växlingen mjuk.
-  const [filtersOpen, setFiltersOpen] = useState(true);
-  const lastScrollY = useRef(0);
+  // Sök+tagg-headern fälls ihop FÖLJSAMT med scrollen (samma mönster som inköps-
+  // listans rubrik): en absolut header vars translateY följer scrollY på UI-tråden
+  // via reanimated → mjukt, inget flimmer/hopp. Höjden mäts via onLayout och styr
+  // både translate-range och listans paddingTop.
+  const scrollY = useSharedValue(0);
+  const [headerH, setHeaderH] = useState(0);
+  const scrollHandler = useAnimatedScrollHandler(e => { scrollY.value = e.contentOffset.y; });
+  const headerAnimStyle = useAnimatedStyle(() => {
+    if (!headerH) return {};
+    const t = interpolate(scrollY.value, [0, headerH], [0, 1], Extrapolation.CLAMP);
+    return { transform: [{ translateY: -headerH * t }], opacity: 1 - t };
+  });
   const [sortMode, setSortMode] = useState<'name' | 'used' | 'recent'>('name');
   const [showSort, setShowSort] = useState(false);
   const { fs, sp } = useTablet();
@@ -573,68 +579,6 @@ export default function RecipesScreen() {
           </Pressable>
         }
       />
-      {filtersOpen ? (
-      <Animated.View style={s.subHeader} entering={FadeIn.duration(160)} exiting={FadeOut.duration(160)}>
-        <View style={s.searchRow}>
-          <Ionicons name="search" size={16} color={c.textFaint} style={s.searchIcon} />
-          <TextInput
-            style={s.searchInput}
-            placeholder={str.search.placeholder}
-            placeholderTextColor={c.textFaint}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-            autoCorrect={false}
-          />
-          {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={common.actions.clearSearch}>
-              <Ionicons name="close-circle" size={16} color={c.textFaint} />
-            </Pressable>
-          )}
-          <Pressable onPress={() => setFiltersOpen(false)} hitSlop={8} style={{ marginLeft: 4 }} accessibilityRole="button">
-            <Ionicons name="chevron-up" size={16} color={c.textFaint} />
-          </Pressable>
-        </View>
-        {/* Tagg-filter — visas först när hushållet har taggat recept. AND-filter.
-            Chipsen ligger på en rad man swipar; rensa-krysset är pinnat till
-            höger UTANFÖR scrollen så det alltid syns utan sidoscroll. */}
-        {allTags.length > 0 && (
-          <View style={s.tagFilterBar}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              style={s.tagFilterScroll}
-              contentContainerStyle={s.tagFilterRow}
-            >
-              {allTags.map(t => {
-                const active = activeTags.has(t);
-                return (
-                  <Pressable key={t} style={[s.tagFilterChip, active && s.tagFilterChipActive]} onPress={() => toggleTagFilter(t)}>
-                    <Text style={[s.tagFilterChipText, active && s.tagFilterChipTextActive]}>{t}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-            {activeTags.size > 0 && (
-              <Pressable style={s.tagFilterClear} onPress={() => setActiveTags(new Set())} hitSlop={8}>
-                <Ionicons name="close-circle" size={18} color={c.textFaint} />
-              </Pressable>
-            )}
-          </View>
-        )}
-      </Animated.View>
-      ) : (
-        <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(160)}>
-          <Pressable style={s.filtersCollapsed} onPress={() => setFiltersOpen(true)} accessibilityRole="button" accessibilityLabel={str.search.placeholder}>
-            <Ionicons name="search" size={16} color={c.textFaint} />
-            {(searchQuery.length > 0 || activeTags.size > 0) && <View style={s.filtersActiveDot} />}
-            <View style={{ flex: 1 }} />
-            <Ionicons name="chevron-down" size={16} color={c.textFaint} />
-          </Pressable>
-        </Animated.View>
-      )}
-
       {(selectionMode || chooseMode) && (
         <View style={s.selectBanner}>
           <Ionicons name="restaurant-outline" size={16} color={c.primary} />
@@ -644,22 +588,67 @@ export default function RecipesScreen() {
         </View>
       )}
 
-      <FlatList
+      <View style={{ flex: 1 }}>
+        {/* Absolut header som glider upp följsamt med scrollen (translateY = scrollY).
+            Listan får paddingTop = headerH så innehållet börjar under den. */}
+        <Animated.View
+          style={[s.subHeader, s.subHeaderAbs, headerAnimStyle]}
+          onLayout={e => setHeaderH(e.nativeEvent.layout.height)}
+        >
+          <View style={s.searchRow}>
+            <Ionicons name="search" size={16} color={c.textFaint} style={s.searchIcon} />
+            <TextInput
+              style={s.searchInput}
+              placeholder={str.search.placeholder}
+              placeholderTextColor={c.textFaint}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={common.actions.clearSearch}>
+                <Ionicons name="close-circle" size={16} color={c.textFaint} />
+              </Pressable>
+            )}
+          </View>
+          {/* Tagg-filter — visas först när hushållet har taggat recept. AND-filter. */}
+          {allTags.length > 0 && (
+            <View style={s.tagFilterBar}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                style={s.tagFilterScroll}
+                contentContainerStyle={s.tagFilterRow}
+              >
+                {allTags.map(t => {
+                  const active = activeTags.has(t);
+                  return (
+                    <Pressable key={t} style={[s.tagFilterChip, active && s.tagFilterChipActive]} onPress={() => toggleTagFilter(t)}>
+                      <Text style={[s.tagFilterChipText, active && s.tagFilterChipTextActive]}>{t}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              {activeTags.size > 0 && (
+                <Pressable style={s.tagFilterClear} onPress={() => setActiveTags(new Set())} hitSlop={8}>
+                  <Ionicons name="close-circle" size={18} color={c.textFaint} />
+                </Pressable>
+              )}
+            </View>
+          )}
+        </Animated.View>
+
+      <Animated.FlatList
+        style={{ flex: 1 }}
         data={filteredRecipes}
         keyExtractor={r => r.id}
-        contentContainerStyle={[s.list, filteredRecipes.length === 0 && s.listEmpty]}
+        contentContainerStyle={[s.list, filteredRecipes.length === 0 && s.listEmpty, { paddingTop: headerH + 4 }]}
         onRefresh={load}
         refreshing={loading}
         scrollEventThrottle={16}
-        onScroll={e => {
-          const y = e.nativeEvent.contentOffset.y;
-          const delta = y - lastScrollY.current;
-          lastScrollY.current = y;
-          // Riktnings-medveten: kollapsa bara vid tydlig scroll NER (förbi 60px),
-          // expandera vid scroll UPP eller nära toppen. Ingen oscillation vid tröskeln.
-          if (delta > 2 && y > 60 && filtersOpen) setFiltersOpen(false);
-          else if ((delta < -6 || y < 8) && !filtersOpen) setFiltersOpen(true);
-        }}
+        onScroll={scrollHandler}
         ListEmptyComponent={
           searchQuery || activeTags.size > 0 ? (
             <EmptyState
@@ -737,6 +726,7 @@ export default function RecipesScreen() {
           </View>
         )}
       />
+      </View>
 
       {editMode ? (
         <Pressable style={s.editDoneBtn} onPress={() => setEditMode(false)}>
@@ -849,8 +839,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   subHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 12 },
-  filtersCollapsed: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 8, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
-  filtersActiveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.primary },
+  subHeaderAbs: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 },
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.inputBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
   tagFilterBar: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   tagFilterScroll: { flexShrink: 1 },
