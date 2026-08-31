@@ -10,6 +10,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -211,6 +212,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [transferring, setTransferring] = useState(false);
   const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<ReturnType<typeof deduplicateIngredients>>([]);
+  const [newListName, setNewListName] = useState('');
+  const [creatingList, setCreatingList] = useState(false);
 
   // Plan in menu modal — samma dag-grid + direkt-tillägg som receptbibliotekets
   // kalenderikon-dialog (delad look). planWeekStr styr vald vecka; grid-tapp
@@ -615,6 +618,25 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     }
   }
 
+  // Ingen aktiv lista? Skapa en direkt i överförings-modalen och överför till den
+  // (samma bekvämlighet som veckomeny-överföringen), i stället för att skicka
+  // användaren till Inköp-fliken.
+  async function createListAndTransfer() {
+    if (!householdId || !newListName.trim()) return;
+    const selected = deduplicatedIngredients.filter(i => checkedIds.has(i.id));
+    if (selected.length === 0) { confirm({ title: str.errors.selectIngredients, buttons: [{ label: common.actions.ok }] }); return; }
+    setCreatingList(true);
+    try {
+      const list = await client.createShoppingList({ householdId, name: newListName.trim() });
+      setNewListName('');
+      await doTransfer(list.id);
+    } catch (e) {
+      showError(e, str.errors.couldNotTransfer);
+    } finally {
+      setCreatingList(false);
+    }
+  }
+
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   // Kunde inte ladda receptet (fetch-fel, borttaget recept, trasig data) → visa
   // ett riktigt fel-tillstånd med väg tillbaka i stället för en tom VIT skärm.
@@ -709,11 +731,19 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               source={heroSource}
               style={StyleSheet.absoluteFill}
               resizeMode="cover"
-              onLoadStart={() => { setHeroLoading(true); setHeroError(false); }}
-              onLoadEnd={() => setHeroLoading(false)}
-              onError={() => { setHeroError(true); setHeroLoading(false); }}
+              // På web sköter webbläsaren bildladdningen. onLoadStart re-fyrar där vid
+              // varje re-render → setHeroLoading(true) → re-render → loop → spinner-
+              // overlayen BLINKAR (flimret). Kör därför JS-loading-state bara på native;
+              // på web behåller vi bara onError för fel-placeholdern.
+              {...(Platform.OS === 'web'
+                ? { onError: () => setHeroError(true) }
+                : {
+                    onLoadStart: () => { setHeroLoading(true); setHeroError(false); },
+                    onLoadEnd: () => setHeroLoading(false),
+                    onError: () => { setHeroError(true); setHeroLoading(false); },
+                  })}
             />
-            {heroLoading && !heroError ? (
+            {heroLoading && !heroError && Platform.OS !== 'web' ? (
               <View style={s.heroImageOverlay}>
                 <ActivityIndicator color={c.primary} />
               </View>
@@ -1052,7 +1082,27 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           {loadingLists ? (
             <ActivityIndicator color={c.primary} style={{ marginVertical: 12 }} />
           ) : lists.length === 0 ? (
-            <Text style={s.noListsText}>{str.transfer.noLists}</Text>
+            <View>
+              <Text style={s.noListsText}>{str.transfer.noLists}</Text>
+              <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                <TextInput
+                  style={[s.editInput, { flex: 1 }]}
+                  placeholder={str.transfer.newListPlaceholder}
+                  placeholderTextColor={c.textFaint}
+                  value={newListName}
+                  onChangeText={setNewListName}
+                  returnKeyType="done"
+                  onSubmitEditing={createListAndTransfer}
+                />
+                <Pressable
+                  style={[s.saveBtn, { flex: 0, paddingHorizontal: 18 }, (!newListName.trim() || creatingList || checkedIds.size === 0) && { opacity: 0.4 }]}
+                  onPress={createListAndTransfer}
+                  disabled={!newListName.trim() || creatingList || checkedIds.size === 0}
+                >
+                  {creatingList ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>{str.transfer.createList}</Text>}
+                </Pressable>
+              </View>
+            </View>
           ) : (
             <FlatList
               data={lists}
@@ -1355,7 +1405,10 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   cookProgress: { flexDirection: 'row', gap: 5, paddingHorizontal: 20, marginBottom: 8, flexWrap: 'wrap' },
   cookDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.borderLight },
   cookDotActive: { backgroundColor: c.primary, width: 20 },
-  cookBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 32, gap: 20 },
+  // Ankra steget (+ ingredienser) mot BOTTEN så det poppar upp så långt underifrån
+  // som möjligt — nära nav-knapparna, alltid synligt utan att behöva skrolla. Långt
+  // innehåll fyller uppåt och blir skrollbart.
+  cookBody: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: 32, paddingVertical: 32, gap: 20 },
   cookIngredWrap: { maxHeight: COOK_INGRED_MAX_H },
   cookIngredItem: { fontSize: 18, color: c.textMuted, lineHeight: 28, paddingVertical: 1 },
   cookStepLabel: { fontSize: 17, fontWeight: '700', color: c.primary },

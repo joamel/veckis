@@ -35,17 +35,16 @@ import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
-import { GettingStartedCard, type GettingStartedStep } from '../../src/components/GettingStartedCard';
-import { requestSpotlight } from '../../src/lib/spotlightRequest';
+import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { EmptyState } from '../../src/components/EmptyState';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
 import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
-import type { WeekDay, MealType, Store } from '@veckis/shared';
+import type { WeekDay, MealType } from '@veckis/shared';
 import { DEFAULT_CATEGORY_ORDER, MEAL_TYPE_ORDER } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
-import { menu as str, common, recipes as recipesStr, gettingStarted } from '../../src/lib/svenska';
+import { menu as str, common, recipes as recipesStr } from '../../src/lib/svenska';
 
 const DAY_KEYS: WeekDay[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAYS: { key: WeekDay; label: string; short: string }[] = DAY_KEYS.map((key, i) => ({
@@ -304,7 +303,6 @@ export default function MenuScreen() {
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> mängd hemma
   const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // omätta ingredienser markerade "har hemma"
   const [allMenus, setAllMenus] = useState<WeekMenuItemWithRecipe[]>([]);
-  const [stores, setStores] = useState<Store[]>([]); // för "Kom igång"-kortets butik-steg
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
   // Replace recipe: item being replaced
@@ -540,15 +538,13 @@ export default function MenuScreen() {
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
-      const [menu, recs, activeLists, suggestions, all, storeList] = await Promise.all([
+      const [menu, recs, activeLists, suggestions, all] = await Promise.all([
         client.getWeekMenu(householdId, weekYear, weekNumber),
         client.getRecipes(householdId),
         client.getShoppingLists(householdId),
         client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
         client.getAllMenus(householdId).catch(() => [] as WeekMenuItemWithRecipe[]),
-        client.getStores(householdId).catch(() => [] as Store[]),
       ]);
-      setStores(storeList);
       setMenuItems(menu);
       // Behåll overrides för rätter vars sparning ännu är på gång (annars studsar
       // portionerna); resten är redan committade → persisterat värde är sanning.
@@ -592,6 +588,16 @@ export default function MenuScreen() {
       setLoading(false);
     }
   }, [householdId, weekYear, weekNumber]);
+
+  // Kom igång-overlayn: meny-steget bad om att öppna planeraren → gör det när
+  // meny-fliken fokuseras (spinnern släppt). openPlanner är hoistad; goToWeek
+  // nås via closure (körs efter render).
+  useFocusEffect(useCallback(() => {
+    if (loading) return;
+    if (!consumeSpotlight('gs-menu')) return;
+    goToWeek(0, true);
+    openPlanner();
+  }, [loading]));
 
   useFocusEffect(useCallback(() => {
     // When returning from the recipe picker (addRecipeId present), state is intact
@@ -1413,15 +1419,6 @@ export default function MenuScreen() {
     return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   }
 
-  // "Kom igång"-steg: done-state läses från backend-datan; tryck navigerar till
-  // rätt yta (Fas 2 lägger spotlight-highlight på kontrollen där).
-  const gsSteps: GettingStartedStep[] = [
-    { key: 'recipe', icon: 'restaurant-outline', label: gettingStarted.steps.recipe, done: recipes.length > 0, onPress: () => { requestSpotlight('gs-recipe'); router.push('/recipes' as never); } },
-    { key: 'store', icon: 'storefront-outline', label: gettingStarted.steps.store, done: stores.length > 0, onPress: () => { requestSpotlight('gs-store'); router.push('/stores' as never); } },
-    { key: 'menu', icon: 'calendar-outline', label: gettingStarted.steps.menu, done: allMenus.length > 0, onPress: () => { goToWeek(0, true); openPlanner(); } },
-    { key: 'list', icon: 'cart-outline', label: gettingStarted.steps.list, done: shoppingLists.length > 0, onPress: () => { requestSpotlight('gs-list'); router.push('/shopping' as never); } },
-  ];
-
   return (
     <View style={{ flex: 1 }}>
       <SafeAreaView style={s.container}>
@@ -1435,7 +1432,6 @@ export default function MenuScreen() {
           </View>
         }
       />
-      <GettingStartedCard steps={gsSteps} />
       <WeekNav
         weekLabel={weekLabel}
         isCurrentWeek={weekOffset === 0}

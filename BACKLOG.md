@@ -1,5 +1,7 @@
 # Veckis — Backlog
 
+> **Arbetslistan finns i [`BACKLOG_AFTER_PROD.md`](BACKLOG_AFTER_PROD.md)** (färsk feedback + alla öppna punkter migrerade dit). Den här filen behålls som historik + fulla detaljer.
+
 ## UI-förbättringar/buggar
 
 ### Feedback från pwa Iphone-användare

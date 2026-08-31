@@ -15,6 +15,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -28,6 +29,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { EmptyState } from '../../src/components/EmptyState';
+import { ClearableInput } from '../../src/components/ClearableInput';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
@@ -64,6 +66,18 @@ export default function RecipesScreen() {
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // Sök+tagg-headern fälls ihop FÖLJSAMT med scrollen (samma mönster som inköps-
+  // listans rubrik): en absolut header vars translateY följer scrollY på UI-tråden
+  // via reanimated → mjukt, inget flimmer/hopp. Höjden mäts via onLayout och styr
+  // både translate-range och listans paddingTop.
+  const scrollY = useSharedValue(0);
+  const [headerH, setHeaderH] = useState(0);
+  const scrollHandler = useAnimatedScrollHandler(e => { scrollY.value = e.contentOffset.y; });
+  const headerAnimStyle = useAnimatedStyle(() => {
+    if (!headerH) return {};
+    const t = interpolate(scrollY.value, [0, headerH], [0, 1], Extrapolation.CLAMP);
+    return { transform: [{ translateY: -headerH * t }], opacity: 1 - t };
+  });
   const [sortMode, setSortMode] = useState<'name' | 'used' | 'recent'>('name');
   const [showSort, setShowSort] = useState(false);
   const { fs, sp } = useTablet();
@@ -473,11 +487,10 @@ export default function RecipesScreen() {
         <View style={s.modeBody}>
         {mode === 'manual' ? (
           <>
-            <TextInput
+            <ClearableInput
               ref={manualRef}
               style={s.input}
               placeholder={str.createModal.namePlaceholder}
-              placeholderTextColor={c.textFaint}
               value={title}
               onChangeText={setTitle}
               importantForAutofill="no"
@@ -498,11 +511,10 @@ export default function RecipesScreen() {
         ) : mode === 'paste' ? (
           <>
             <Text style={s.pasteHint}>{str.createModal.pasteHint}</Text>
-            <TextInput
+            <ClearableInput
               ref={pasteRef}
               style={[s.input, { height: 130, textAlignVertical: 'top', paddingTop: 10 }]}
               placeholder={str.createModal.pastePlaceholder}
-              placeholderTextColor={c.textFaint}
               value={pasteText}
               onChangeText={setPasteText}
               multiline
@@ -520,11 +532,10 @@ export default function RecipesScreen() {
           </>
         ) : (
           <>
-            <TextInput
+            <ClearableInput
               ref={urlRef}
               style={s.input}
               placeholder={str.createModal.urlPlaceholder}
-              placeholderTextColor={c.textFaint}
               value={url}
               onChangeText={setUrl}
               autoCapitalize="none"
@@ -566,54 +577,6 @@ export default function RecipesScreen() {
           </Pressable>
         }
       />
-      <View style={s.subHeader}>
-        <View style={s.searchRow}>
-          <Ionicons name="search" size={16} color={c.textFaint} style={s.searchIcon} />
-          <TextInput
-            style={s.searchInput}
-            placeholder={str.search.placeholder}
-            placeholderTextColor={c.textFaint}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-            autoCorrect={false}
-          />
-          {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={common.actions.clearSearch}>
-              <Ionicons name="close-circle" size={16} color={c.textFaint} />
-            </Pressable>
-          )}
-        </View>
-        {/* Tagg-filter — visas först när hushållet har taggat recept. AND-filter.
-            Chipsen ligger på en rad man swipar; rensa-krysset är pinnat till
-            höger UTANFÖR scrollen så det alltid syns utan sidoscroll. */}
-        {allTags.length > 0 && (
-          <View style={s.tagFilterBar}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              style={s.tagFilterScroll}
-              contentContainerStyle={s.tagFilterRow}
-            >
-              {allTags.map(t => {
-                const active = activeTags.has(t);
-                return (
-                  <Pressable key={t} style={[s.tagFilterChip, active && s.tagFilterChipActive]} onPress={() => toggleTagFilter(t)}>
-                    <Text style={[s.tagFilterChipText, active && s.tagFilterChipTextActive]}>{t}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-            {activeTags.size > 0 && (
-              <Pressable style={s.tagFilterClear} onPress={() => setActiveTags(new Set())} hitSlop={8}>
-                <Ionicons name="close-circle" size={18} color={c.textFaint} />
-              </Pressable>
-            )}
-          </View>
-        )}
-      </View>
-
       {(selectionMode || chooseMode) && (
         <View style={s.selectBanner}>
           <Ionicons name="restaurant-outline" size={16} color={c.primary} />
@@ -623,12 +586,67 @@ export default function RecipesScreen() {
         </View>
       )}
 
-      <FlatList
+      <View style={{ flex: 1 }}>
+        {/* Absolut header som glider upp följsamt med scrollen (translateY = scrollY).
+            Listan får paddingTop = headerH så innehållet börjar under den. */}
+        <Animated.View
+          style={[s.subHeader, s.subHeaderAbs, headerAnimStyle]}
+          onLayout={e => setHeaderH(e.nativeEvent.layout.height)}
+        >
+          <View style={s.searchRow}>
+            <Ionicons name="search" size={16} color={c.textFaint} style={s.searchIcon} />
+            <TextInput
+              style={s.searchInput}
+              placeholder={str.search.placeholder}
+              placeholderTextColor={c.textFaint}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={common.actions.clearSearch}>
+                <Ionicons name="close-circle" size={16} color={c.textFaint} />
+              </Pressable>
+            )}
+          </View>
+          {/* Tagg-filter — visas först när hushållet har taggat recept. AND-filter. */}
+          {allTags.length > 0 && (
+            <View style={s.tagFilterBar}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                style={s.tagFilterScroll}
+                contentContainerStyle={s.tagFilterRow}
+              >
+                {allTags.map(t => {
+                  const active = activeTags.has(t);
+                  return (
+                    <Pressable key={t} style={[s.tagFilterChip, active && s.tagFilterChipActive]} onPress={() => toggleTagFilter(t)}>
+                      <Text style={[s.tagFilterChipText, active && s.tagFilterChipTextActive]}>{t}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              {activeTags.size > 0 && (
+                <Pressable style={s.tagFilterClear} onPress={() => setActiveTags(new Set())} hitSlop={8}>
+                  <Ionicons name="close-circle" size={18} color={c.textFaint} />
+                </Pressable>
+              )}
+            </View>
+          )}
+        </Animated.View>
+
+      <Animated.FlatList
+        style={{ flex: 1 }}
         data={filteredRecipes}
         keyExtractor={r => r.id}
-        contentContainerStyle={[s.list, filteredRecipes.length === 0 && s.listEmpty]}
+        contentContainerStyle={[s.list, filteredRecipes.length === 0 && s.listEmpty, { paddingTop: headerH + 4 }]}
         onRefresh={load}
         refreshing={loading}
+        scrollEventThrottle={16}
+        onScroll={scrollHandler}
         ListEmptyComponent={
           searchQuery || activeTags.size > 0 ? (
             <EmptyState
@@ -706,6 +724,7 @@ export default function RecipesScreen() {
           </View>
         )}
       />
+      </View>
 
       {editMode ? (
         <Pressable style={s.editDoneBtn} onPress={() => setEditMode(false)}>
@@ -818,6 +837,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   subHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 12 },
+  subHeaderAbs: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 },
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.inputBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
   tagFilterBar: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   tagFilterScroll: { flexShrink: 1 },

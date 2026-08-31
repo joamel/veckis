@@ -248,8 +248,10 @@ export default function StoresScreen() {
       {/* Skapa-modal */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); })}>
         <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); })} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+        {/* flex-1-mönster: tappbart tomrum ovanför sheeten ligger INUTI KAV:n (som
+            annars täckte hela skärmen absolut och slukade utanför-tryck på web). */}
+        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}>
+          <Pressable style={{ flex: 1 }} onPress={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); })} />
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{str.createModal.title}</Text>

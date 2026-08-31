@@ -1,6 +1,8 @@
 import { Tabs } from 'expo-router';
+import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GettingStartedOverlay } from '../../src/components/GettingStartedOverlay';
 import { usePushRegistration } from '../../src/hooks/usePushRegistration';
 import { useNotificationRouting } from '../../src/hooks/useNotificationRouting';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -14,6 +16,7 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { colors: c } = useTheme();
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: c.primary,
@@ -67,5 +70,7 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    <GettingStartedOverlay />
+    </View>
   );
 }
