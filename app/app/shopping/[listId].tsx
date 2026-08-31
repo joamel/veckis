@@ -9,6 +9,7 @@ import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
+import { ClearableInput } from '../../src/components/ClearableInput';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
@@ -1590,11 +1591,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
             <Ionicons name="grid-outline" size={22} color={c.primary} />
           </Pressable>
-          <TextInput
+          <ClearableInput
             ref={inputRef}
+            containerStyle={{ flex: 1 }}
             style={s.addInput}
             placeholder={str.placeholders.addItem}
-            placeholderTextColor={c.textFaint}
             value={newItem}
             onChangeText={setNewItem}
             returnKeyType="done"
@@ -1602,11 +1603,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             blurOnSubmit={false}
             autoCapitalize="none"
           />
-          {newItem.length > 0 && (
-            <Pressable onPress={() => setNewItem('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={common.actions.clearSearch}>
-              <Ionicons name="close-circle" size={18} color={c.textFaint} />
-            </Pressable>
-          )}
           <Pressable
             style={[s.addBtn, (!newItem.trim() || adding) && s.addBtnDisabled]}
             onPress={() => { const n = newItem.trim(); if (!n) return; setNewItem(''); openQtySheet(n); }}

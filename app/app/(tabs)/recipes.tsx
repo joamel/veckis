@@ -29,6 +29,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { EmptyState } from '../../src/components/EmptyState';
+import { ClearableInput } from '../../src/components/ClearableInput';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
@@ -486,11 +487,10 @@ export default function RecipesScreen() {
         <View style={s.modeBody}>
         {mode === 'manual' ? (
           <>
-            <TextInput
+            <ClearableInput
               ref={manualRef}
               style={s.input}
               placeholder={str.createModal.namePlaceholder}
-              placeholderTextColor={c.textFaint}
               value={title}
               onChangeText={setTitle}
               importantForAutofill="no"
@@ -511,11 +511,10 @@ export default function RecipesScreen() {
         ) : mode === 'paste' ? (
           <>
             <Text style={s.pasteHint}>{str.createModal.pasteHint}</Text>
-            <TextInput
+            <ClearableInput
               ref={pasteRef}
               style={[s.input, { height: 130, textAlignVertical: 'top', paddingTop: 10 }]}
               placeholder={str.createModal.pastePlaceholder}
-              placeholderTextColor={c.textFaint}
               value={pasteText}
               onChangeText={setPasteText}
               multiline
@@ -533,11 +532,10 @@ export default function RecipesScreen() {
           </>
         ) : (
           <>
-            <TextInput
+            <ClearableInput
               ref={urlRef}
               style={s.input}
               placeholder={str.createModal.urlPlaceholder}
-              placeholderTextColor={c.textFaint}
               value={url}
               onChangeText={setUrl}
               autoCapitalize="none"
