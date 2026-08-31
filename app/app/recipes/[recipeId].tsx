@@ -10,6 +10,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -709,11 +710,19 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               source={heroSource}
               style={StyleSheet.absoluteFill}
               resizeMode="cover"
-              onLoadStart={() => { setHeroLoading(true); setHeroError(false); }}
-              onLoadEnd={() => setHeroLoading(false)}
-              onError={() => { setHeroError(true); setHeroLoading(false); }}
+              // På web sköter webbläsaren bildladdningen. onLoadStart re-fyrar där vid
+              // varje re-render → setHeroLoading(true) → re-render → loop → spinner-
+              // overlayen BLINKAR (flimret). Kör därför JS-loading-state bara på native;
+              // på web behåller vi bara onError för fel-placeholdern.
+              {...(Platform.OS === 'web'
+                ? { onError: () => setHeroError(true) }
+                : {
+                    onLoadStart: () => { setHeroLoading(true); setHeroError(false); },
+                    onLoadEnd: () => setHeroLoading(false),
+                    onError: () => { setHeroError(true); setHeroLoading(false); },
+                  })}
             />
-            {heroLoading && !heroError ? (
+            {heroLoading && !heroError && Platform.OS !== 'web' ? (
               <View style={s.heroImageOverlay}>
                 <ActivityIndicator color={c.primary} />
               </View>
