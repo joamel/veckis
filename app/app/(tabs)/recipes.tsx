@@ -64,6 +64,9 @@ export default function RecipesScreen() {
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // Fäll ihop sök+taggar när man scrollar ner i listan (frigör skärmyta); fäll ut
+  // igen via pilen eller när man scrollar tillbaka till toppen.
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const [sortMode, setSortMode] = useState<'name' | 'used' | 'recent'>('name');
   const [showSort, setShowSort] = useState(false);
   const { fs, sp } = useTablet();
@@ -566,6 +569,7 @@ export default function RecipesScreen() {
           </Pressable>
         }
       />
+      {filtersOpen ? (
       <View style={s.subHeader}>
         <View style={s.searchRow}>
           <Ionicons name="search" size={16} color={c.textFaint} style={s.searchIcon} />
@@ -583,6 +587,9 @@ export default function RecipesScreen() {
               <Ionicons name="close-circle" size={16} color={c.textFaint} />
             </Pressable>
           )}
+          <Pressable onPress={() => setFiltersOpen(false)} hitSlop={8} style={{ marginLeft: 4 }} accessibilityRole="button">
+            <Ionicons name="chevron-up" size={16} color={c.textFaint} />
+          </Pressable>
         </View>
         {/* Tagg-filter — visas först när hushållet har taggat recept. AND-filter.
             Chipsen ligger på en rad man swipar; rensa-krysset är pinnat till
@@ -613,6 +620,14 @@ export default function RecipesScreen() {
           </View>
         )}
       </View>
+      ) : (
+        <Pressable style={s.filtersCollapsed} onPress={() => setFiltersOpen(true)} accessibilityRole="button" accessibilityLabel={str.search.placeholder}>
+          <Ionicons name="search" size={16} color={c.textFaint} />
+          {(searchQuery.length > 0 || activeTags.size > 0) && <View style={s.filtersActiveDot} />}
+          <View style={{ flex: 1 }} />
+          <Ionicons name="chevron-down" size={16} color={c.textFaint} />
+        </Pressable>
+      )}
 
       {(selectionMode || chooseMode) && (
         <View style={s.selectBanner}>
@@ -629,6 +644,13 @@ export default function RecipesScreen() {
         contentContainerStyle={[s.list, filteredRecipes.length === 0 && s.listEmpty]}
         onRefresh={load}
         refreshing={loading}
+        scrollEventThrottle={16}
+        onScroll={e => {
+          const y = e.nativeEvent.contentOffset.y;
+          // Fäll ihop när man scrollat ner en bit, fäll ut nära toppen (hysteres).
+          if (y > 80 && filtersOpen) setFiltersOpen(false);
+          else if (y < 12 && !filtersOpen) setFiltersOpen(true);
+        }}
         ListEmptyComponent={
           searchQuery || activeTags.size > 0 ? (
             <EmptyState
@@ -818,6 +840,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   subHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 12 },
+  filtersCollapsed: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 8, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
+  filtersActiveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.primary },
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.inputBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
   tagFilterBar: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   tagFilterScroll: { flexShrink: 1 },
