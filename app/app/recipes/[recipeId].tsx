@@ -212,6 +212,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [transferring, setTransferring] = useState(false);
   const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<ReturnType<typeof deduplicateIngredients>>([]);
+  const [newListName, setNewListName] = useState('');
+  const [creatingList, setCreatingList] = useState(false);
 
   // Plan in menu modal — samma dag-grid + direkt-tillägg som receptbibliotekets
   // kalenderikon-dialog (delad look). planWeekStr styr vald vecka; grid-tapp
@@ -613,6 +615,25 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     } finally {
       setTransferring(false);
       setTransferringListId(null);
+    }
+  }
+
+  // Ingen aktiv lista? Skapa en direkt i överförings-modalen och överför till den
+  // (samma bekvämlighet som veckomeny-överföringen), i stället för att skicka
+  // användaren till Inköp-fliken.
+  async function createListAndTransfer() {
+    if (!householdId || !newListName.trim()) return;
+    const selected = deduplicatedIngredients.filter(i => checkedIds.has(i.id));
+    if (selected.length === 0) { confirm({ title: str.errors.selectIngredients, buttons: [{ label: common.actions.ok }] }); return; }
+    setCreatingList(true);
+    try {
+      const list = await client.createShoppingList({ householdId, name: newListName.trim() });
+      setNewListName('');
+      await doTransfer(list.id);
+    } catch (e) {
+      showError(e, str.errors.couldNotTransfer);
+    } finally {
+      setCreatingList(false);
     }
   }
 
@@ -1061,7 +1082,27 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           {loadingLists ? (
             <ActivityIndicator color={c.primary} style={{ marginVertical: 12 }} />
           ) : lists.length === 0 ? (
-            <Text style={s.noListsText}>{str.transfer.noLists}</Text>
+            <View>
+              <Text style={s.noListsText}>{str.transfer.noLists}</Text>
+              <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                <TextInput
+                  style={[s.editInput, { flex: 1 }]}
+                  placeholder={str.transfer.newListPlaceholder}
+                  placeholderTextColor={c.textFaint}
+                  value={newListName}
+                  onChangeText={setNewListName}
+                  returnKeyType="done"
+                  onSubmitEditing={createListAndTransfer}
+                />
+                <Pressable
+                  style={[s.saveBtn, { flex: 0, paddingHorizontal: 18 }, (!newListName.trim() || creatingList || checkedIds.size === 0) && { opacity: 0.4 }]}
+                  onPress={createListAndTransfer}
+                  disabled={!newListName.trim() || creatingList || checkedIds.size === 0}
+                >
+                  {creatingList ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>{str.transfer.createList}</Text>}
+                </Pressable>
+              </View>
+            </View>
           ) : (
             <FlatList
               data={lists}

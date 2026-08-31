@@ -26,7 +26,7 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 
 ## Recept
 - [x] 🐛 **Receptbilden flimrar fortfarande i PWA** — löst: `onLoadStart` re-fyrade på RN Web vid varje re-render → `setHeroLoading` → loop → spinner-overlay blinkade. JS-loading-state körs nu bara på native; web låter webbläsaren sköta laddningen.
-- [ ] Kunna **skapa ny inköpslista direkt** när man lägger till från ett recept (som veckomeny-överföringen redan gör).
+- [x] Kunna **skapa ny inköpslista direkt** när man lägger till från ett recept — löst: överförings-modalen visar nu en skapa-rad (namn + Skapa) när hushållet saknar lista; `createListAndTransfer` skapar listan och överför direkt.
 - [ ] Laga-läget: **"steget" ska poppa upp så långt underifrån som möjligt** så man slipper skrolla i onödan.
 - [ ] Vid scroll i receptlistan: **fäll ihop sök + taggar** (pil/knapp för att fälla ut igen).
 - [ ] 🐛 Nytt recept: **"lägg till"-knappen lyfts inte tillräckligt** över tangentbordet (PWA + native).
