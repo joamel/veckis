@@ -1,6 +1,5 @@
 import '../src/lib/diagFetch'; // DIAG: MÅSTE ligga före clerk-expo (patchar fetch)
 import { ClerkProvider, useAuth, useClerk } from '@clerk/clerk-expo';
-import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
 import { reportClientError } from '../src/lib/errorReport';
@@ -60,12 +59,35 @@ for (const name of ['Text', 'TextInput'] as const) {
   }
 }
 
-// SESSIONS-FIX (2026-08-30): prod-instansen skapade en NY Clerk-klient vid varje
-// omstart (verifierat via Clerk API: 15 sessioner = 15 unika client_id) → den
-// sparade client-token:en återställde aldrig klienten → /touch → signed_out →
-// utloggad varje start. Den handrullade tokenCache:n räckte inte. Vi använder nu
-// Clerks OFFICIELLA tokenCache + __experimental_resourceCache som persisterar
-// själva KLIENT-resursen (inte bara token:en) lokalt och hydrerar den vid start.
+// SESSIONS-FIX (2026-08-30): prod-instansen (som roterar client-token aggressivt)
+// loggade ut native vid varje omstart. Rotorsak (verifierad via Clerk API + FAPI-
+// reproduktion): ett ASYNC-WRITE-RACE i tokenCache. Clerk skickar en request som
+// roterar client-token:en server-side → onAfterResponse sparar den nya token:en
+// (async SecureStore-skrivning). Men NÄSTA request läser getToken INNAN skrivningen
+// hann klart → skickar den GAMLA token:en → servern ser en återanvänd roterande
+// token → anti-session-fixation → signed_out → tom-klient-token sparas → nästa
+// start = tom klient = utloggad. (Dev-instansen roterar inte → "funkade förut".)
+//
+// FIX: hybrid-cache. saveToken uppdaterar ett MINNE synkront (innan async-persist)
+// och getToken läser minnet FÖRST → nästa request ser alltid den senaste roterade
+// token:en direkt → inget race → ingen reuse → sessionen överlever omstart.
+const memTokenCache: Record<string, string | null> = {};
+const tokenCache = {
+  async getToken(key: string) {
+    if (key in memTokenCache) return memTokenCache[key];
+    const v = await SecureStore.getItemAsync(key);
+    memTokenCache[key] = v;
+    return v;
+  },
+  async saveToken(key: string, value: string) {
+    memTokenCache[key] = value; // synkront → nästa getToken ser detta omedelbart
+    try { await SecureStore.setItemAsync(key, value); } catch { /* best-effort persist */ }
+  },
+  async clearToken(key: string) {
+    memTokenCache[key] = null;
+    try { await SecureStore.deleteItemAsync(key); } catch { /* best-effort */ }
+  },
+};
 
 // DIAG (temp): vilken Clerk-instans kör appen faktiskt? pk_test = dev-instans
 // (=.env läckt in), pk_live = prod. Om native råkat på pk_test men PWA på pk_live
