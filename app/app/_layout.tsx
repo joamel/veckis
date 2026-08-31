@@ -1,5 +1,5 @@
+import { clerkTokenMem } from '../src/lib/clerkTokenSync'; // MÅSTE ligga före clerk-expo
 import { ClerkProvider, useAuth, useClerk } from '@clerk/clerk-expo';
-import { tokenCache } from '@clerk/clerk-expo/token-cache'; // Clerks EXAKTA standard-cache
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
 import { reportClientError } from '../src/lib/errorReport';
@@ -68,10 +68,27 @@ for (const name of ['Text', 'TextInput'] as const) {
 // token → anti-session-fixation → signed_out → tom-klient-token sparas → nästa
 // start = tom klient = utloggad. (Dev-instansen roterar inte → "funkade förut".)
 //
-// REN OMSTART: tillbaka till Clerks EXAKTA standard-native-setup. All vår custom-
-// kod (fetch-patch, hybrid-cache) borttagen. tokenCache importeras från
-// @clerk/clerk-expo/token-cache — samma som tusentals appar kör felfritt på prod.
-// Om DETTA loggar ut är det miljön/instansen; om det funkar var det vår kod.
+// FIX för token-rotations-racet: hybrid-cache som delar minne (clerkTokenMem) med
+// clerkTokenSync-fetch-patchen. Patchen fångar den roterade token:en DIREKT i
+// svaret (tidigast möjligt, före clerk-js onAfterResponse); saveToken uppdaterar
+// samma minne; getToken läser minnet FÖRST → setActive:s touch ser alltid den
+// senaste roterade token:en → inget signed_out → ingen tom-klient-token.
+const tokenCache = {
+  async getToken(key: string) {
+    if (key in clerkTokenMem) return clerkTokenMem[key];
+    const v = await SecureStore.getItemAsync(key);
+    clerkTokenMem[key] = v;
+    return v;
+  },
+  async saveToken(key: string, value: string) {
+    clerkTokenMem[key] = value;
+    try { await SecureStore.setItemAsync(key, value); } catch { /* best-effort */ }
+  },
+  async clearToken(key: string) {
+    clerkTokenMem[key] = null;
+    try { await SecureStore.deleteItemAsync(key); } catch { /* best-effort */ }
+  },
+};
 
 
 function StatusBarBackdrop() {
