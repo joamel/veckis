@@ -27,7 +27,7 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 ## Recept
 - [x] 🐛 **Receptbilden flimrar fortfarande i PWA** — löst: `onLoadStart` re-fyrade på RN Web vid varje re-render → `setHeroLoading` → loop → spinner-overlay blinkade. JS-loading-state körs nu bara på native; web låter webbläsaren sköta laddningen.
 - [x] Kunna **skapa ny inköpslista direkt** när man lägger till från ett recept — löst: överförings-modalen visar nu en skapa-rad (namn + Skapa) när hushållet saknar lista; `createListAndTransfer` skapar listan och överför direkt.
-- [ ] Laga-läget: **"steget" ska poppa upp så långt underifrån som möjligt** så man slipper skrolla i onödan.
+- [x] Laga-läget: **"steget" poppar upp så långt underifrån som möjligt** — löst: `cookBody` ankras nu mot botten (`justifyContent: flex-end`) i stället för centrerat → steget sitter nära nav/tummen, synligt utan skroll.
 - [x] Vid scroll i receptlistan: **fäll ihop sök + taggar** — löst: `filtersOpen`-state; auto-hopfälls vid scroll ner (>80px), fälls ut vid toppen (<12px) eller via chevron-pilen. Kollapsad rad visar sök-ikon + aktiv-prick + chevron.
 - [ ] 🐛 Nytt recept: **"lägg till"-knappen lyfts inte tillräckligt** över tangentbordet (PWA + native).
 - [ ] 🐛 Redigera vara (recept): **mängd/enhet lyfts inte tillräckligt** vid fokus, och **enhetsvalen syns inte alls** vid klick i enhetsfältet.

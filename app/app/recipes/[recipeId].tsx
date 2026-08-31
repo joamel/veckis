@@ -1405,7 +1405,10 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   cookProgress: { flexDirection: 'row', gap: 5, paddingHorizontal: 20, marginBottom: 8, flexWrap: 'wrap' },
   cookDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.borderLight },
   cookDotActive: { backgroundColor: c.primary, width: 20 },
-  cookBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 32, gap: 20 },
+  // Ankra steget (+ ingredienser) mot BOTTEN så det poppar upp så långt underifrån
+  // som möjligt — nära nav-knapparna, alltid synligt utan att behöva skrolla. Långt
+  // innehåll fyller uppåt och blir skrollbart.
+  cookBody: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: 32, paddingVertical: 32, gap: 20 },
   cookIngredWrap: { maxHeight: COOK_INGRED_MAX_H },
   cookIngredItem: { fontSize: 18, color: c.textMuted, lineHeight: 28, paddingVertical: 1 },
   cookStepLabel: { fontSize: 17, fontWeight: '700', color: c.primary },
