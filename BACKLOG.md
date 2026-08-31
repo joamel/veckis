@@ -1,6 +1,6 @@
 # Veckis — Backlog
 
-> **Ny feedback efter lansering samlas i [`BACKLOG_AFTER_PROD.md`](BACKLOG_AFTER_PROD.md)** — den här filen är arkivet.
+> **Arbetslistan finns i [`BACKLOG_AFTER_PROD.md`](BACKLOG_AFTER_PROD.md)** (färsk feedback + alla öppna punkter migrerade dit). Den här filen behålls som historik + fulla detaljer.
 
 ## UI-förbättringar/buggar
 
