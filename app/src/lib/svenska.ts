@@ -201,7 +201,7 @@ export const shoppingList = {
   deleteList:      'Ta bort lista',
   fallbackActor:   'Någon',
   checkedLabel:    'Klart',
-  stapleEditor:    { saveTitle: 'Spara som basvara', editTitle: 'Redigera basvara' },
+  stapleEditor:    { saveTitle: 'Spara som basvara', editTitle: 'Redigera basvara', removeSuggestion: 'Ta bort förslag' },
   shopperToggle:   { start: 'Jag handlar nu', stop: 'Sluta handla' },
 
   validation: {
@@ -226,6 +226,7 @@ export const shoppingList = {
     cleared:          'Inköpslistan rensad',
     stapleSaved:      (name: string) => `${name} sparad som basvara`,
     stapleUpdated:    (name: string) => `${name} uppdaterad`,
+    suggestionHidden: (name: string) => `"${name}" borttagen som förslag`,
     errorShopper:     'Kunde inte ändra "Jag handlar"-status',
     errorRename:      'Kunde inte byta namn',
     errorAddItem:     'Kunde inte lägga till vara',
@@ -239,6 +240,7 @@ export const shoppingList = {
     errorDeleteList:  'Kunde inte ta bort listan',
     errorSaveStaple:  'Kunde inte spara basvaran',
     errorDeleteStaple:'Kunde inte ta bort basvaran',
+    errorHideSuggestion: 'Kunde inte ta bort förslaget',
     errorChangeStore: 'Kunde inte byta butik',
     errorLoad:        'Kunde inte ladda listan',
     errorDelete:      'Kunde inte ta bort',

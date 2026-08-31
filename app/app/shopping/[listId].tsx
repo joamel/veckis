@@ -1237,30 +1237,39 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   }
 
   async function deleteStaple() {
-    if (!editingStaple) return;
+    if (!editingStaple || !householdId) return;
     const target = editingStaple;
-    if (target.id.startsWith('suggestion:')) {
-      // Synthetic suggestion — nothing to delete server-side, just close.
-      setEditingStaple(null);
-      return;
-    }
-    confirm({
-      title: str.deleteStapleDialog.title,
-      message: `Ta bort "${capitalize(target.name)}" från basvarorna?`,
-      buttons: [
-        { label: str.deleteStapleDialog.confirm, style: 'destructive', onPress: async () => {
-          setStaples(prev => prev.filter(s2 => s2.id !== target.id));
-          setEditingStaple(null);
+    const name = target.name.toLowerCase();
+    // Chippen blandar riktiga basvaror (DB-rad) och syntetiska ingrediens-
+    // förslag (id "suggestion:<namn>", global alias/common-lista). "Ta bort
+    // förslag" döljer namnet per hushåll så det aldrig dyker upp igen — och
+    // raderar basvaran om det var en sådan (så den även försvinner ur basvarorna).
+    // Global IngredientAlias rörs aldrig; ångra-toasten återställer allt.
+    const isReal = !target.id.startsWith('suggestion:');
+    setEditingStaple(null);
+    setStaples(prev => prev.filter(s2 => s2.id !== target.id));
+    setIngredientSuggestions(prev => prev.filter(s2 => s2.name.toLowerCase() !== name));
+    try {
+      await client.hideSuggestion(householdId, name);
+      if (isReal) await client.deleteStaple(target.id);
+      showGlobalToast(str.toasts.suggestionHidden(capitalize(target.name)), 'neutral', {
+        label: common.actions.undo,
+        onPress: async () => {
           try {
-            await client.deleteStaple(target.id);
+            await client.unhideSuggestion(householdId, name);
+            if (isReal) await client.upsertStaple({ householdId, name, category: target.category, unit: target.unit ?? null });
+            await load();
           } catch (e) {
-            setStaples(prev => [...prev, target]);
-            showError(e, str.toasts.errorDeleteStaple);
+            showError(e, str.toasts.errorHideSuggestion);
           }
-        } },
-        { label: common.actions.cancel, style: 'cancel' },
-      ],
-    });
+        },
+      });
+    } catch (e) {
+      if (isReal) setStaples(prev => [...prev, target]);
+      setIngredientSuggestions(prev => prev.some(s2 => s2.name.toLowerCase() === name)
+        ? prev : [...prev, { name: target.name, category: target.category as string }]);
+      showError(e, str.toasts.errorHideSuggestion);
+    }
   }
 
   async function selectStore(storeId: string | null) {
@@ -1900,12 +1909,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           </ScrollView>
           </ScrollView>
           <View style={s.editActions}>
-            {!editingStaple?.id.startsWith('suggestion:') && (
-              <Pressable style={s.deleteBtn} onPress={deleteStaple}>
-                <Ionicons name="trash-outline" size={18} color={c.danger} />
-                <Text style={s.deleteBtnText}>{common.actions.delete}</Text>
-              </Pressable>
-            )}
+            <Pressable style={s.deleteBtn} onPress={deleteStaple}>
+              <Ionicons name="trash-outline" size={18} color={c.danger} />
+              <Text style={s.deleteBtnText}>{str.stapleEditor.removeSuggestion}</Text>
+            </Pressable>
             <Pressable
               style={[s.saveBtn, (savingStaple || !stapleName.trim()) && s.saveBtnDisabled, { flex: 1, marginTop: 0 }]}
               onPress={saveStapleEdit}

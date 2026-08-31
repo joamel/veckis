@@ -22,6 +22,7 @@ model Household {
   weekMenuItems WeekMenuItem[]
   stapleItems   StapleItem[]
   menuTemplates MenuTemplate[]
+  hiddenSuggestions HiddenSuggestion[]
 }
 
 model HouseholdMember {
@@ -232,6 +233,22 @@ model StapleItem {
   unit            String?
   defaultQuantity Float?
   usageCount      Int           @default(0) // times added to a list — drives "dina vanligaste"
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, name])
+  @@index([householdId])
+}
+
+// Per-hushåll dolda sök-/ingrediensförslag. Namnet (normaliserat lowercase)
+// filtreras bort ur /api/staples/suggestions så en feltolkad global alias
+// ("10 msk kako") eller felaktig basvara aldrig dyker upp som förslag för
+// hushållet. Global IngredientAlias rörs ALDRIG (den delas av alla hushåll).
+model HiddenSuggestion {
+  id          String   @id @default(cuid())
+  householdId String
+  name        String
+  createdAt   DateTime @default(now())
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
