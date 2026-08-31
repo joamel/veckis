@@ -1,5 +1,7 @@
 # Veckis — Backlog
 
+> **Ny feedback efter lansering samlas i [`BACKLOG_AFTER_PROD.md`](BACKLOG_AFTER_PROD.md)** — den här filen är arkivet.
+
 ## UI-förbättringar/buggar
 
 ### Feedback från pwa Iphone-användare
