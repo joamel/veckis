@@ -16,7 +16,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { useUser } from '@clerk/clerk-expo';
+import { useUser } from '@clerk/expo';
 import { householdSetup as str } from '../../src/lib/svenska';
 
 export default function HouseholdSetupScreen() {

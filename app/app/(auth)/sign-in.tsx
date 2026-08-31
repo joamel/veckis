@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
-import { useClerk, useSSO, useSignIn, useSignUp } from '@clerk/clerk-expo';
+import { useClerk, useSSO } from '@clerk/expo';
+import { useSignIn, useSignUp } from '@clerk/expo/legacy'; // v2-kompatibelt API (create/setActive) på v4-kärnan
 import * as AuthSession from 'expo-auth-session';
 import { useCallback, useEffect, useState } from 'react';
 import {

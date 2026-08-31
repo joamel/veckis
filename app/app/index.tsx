@@ -1,5 +1,5 @@
 import { ActivityIndicator, Platform, View } from 'react-native';
-import { useAuth } from '@clerk/clerk-expo';
+import { useAuth } from '@clerk/expo';
 import { useTheme } from '../src/context/ThemeContext';
 import { WebLanding } from '../src/components/WebLanding';
 

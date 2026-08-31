@@ -30,7 +30,7 @@ import { ShoppingListDetail } from '../shopping/[listId]';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { onShoppingChanged } from '../../src/lib/shoppingEvents';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
-import { useAuth } from '@clerk/clerk-expo';
+import { useAuth } from '@clerk/expo';
 import { type Store } from '@veckis/shared';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
 import { shopping as str, common, gettingStarted } from '../../src/lib/svenska';
