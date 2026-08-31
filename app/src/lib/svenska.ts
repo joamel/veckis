@@ -946,7 +946,7 @@ export const stores = {
     mixedHint:   'Ordna standard- och egna kategorier tillsammans. 🏷️ = egen (lokal, bara för den här butiken).',
     allHidden:   'Alla standardkategorier är dolda - du måste välja minst en.',
     hiddenHint:  'Standardkategorier du har dolt. Tryck visa-knappen för att lägga tillbaka dem sist i listan.',
-    subHint:     (parent: string) => `Slå på sub-kategorier som du vill se som egna sektioner i listan. Övriga samlas under ${parent}.`,
+    subHint:     (parent: string) => `Slå på underkategorier som du vill se som egna sektioner i listan. Övriga samlas under ${parent}.`,
     saveButton:  'Spara ändringar',
     customSubPlaceholder: 'Namn på underkategori',
     customSubAdd:         'Egen underkategori',

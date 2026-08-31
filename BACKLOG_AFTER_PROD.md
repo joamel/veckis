@@ -11,10 +11,10 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 - [ ] **Dra-för-att-stänga på bottom-sheet-modaler** — svep/dra nedåt (handtag eller hela sheeten) med följsam gest + studs tillbaka, i stället för bara "tryck utanför". Gäller alla bottom-sheets. Troligen RNGH Pan + reanimated, ev. standardisera på `@gorhom/bottom-sheet`. (Detaljer i arkivet.)
 
 ## Inköpslistan
-- [ ] Döp om "sub-kategorier" → **"underkategorier"** genomgående i UI.
+- [x] Döp om "sub-kategorier" → **"underkategorier"** genomgående i UI — löst: enda kvar-strängen (`store.detail.subHint`) bytt; övriga labels sa redan "Underkategori".
 - [ ] Kunna **sortera underkategorier utan att behöva visa dem** — idag går sub-sortering bara när man bockat i/visar en sub.
 - [ ] Kunna **ta bort felaktiga varor**: håll inne på sökresultatet → "ta bort" i redigeringsläget. Följ ångra-toast-mönstret.
-- [ ] 🐛 Avmarkerade hopslagna varor **föreslås felaktigt som dubbletter** — dubblett-detektorn bör exkludera redan klarmarkerade/hopslagna grupper.
+- [x] 🐛 Avmarkerade hopslagna varor **föreslås felaktigt som dubbletter** — löst: dubblett-detektorn (`duplicateGroups`) flaggar nu bara grupper med ≥2 OLIKA enheter; samma namn+enhet aggregeras redan visuellt till en rad → ingen redundant flagg.
 - [ ] **Auto-sidoscrolla** till vald kategori + underkategori vid redigera/lägg till (scroll-into-view).
 - [ ] Kunna **dra runt kategorier via de grå horisontella strecken** i stället för pilarna.
 - [ ] **Höga tangentbords-modaler** (antal/lägg till/redigera vara & basvara) fyller nästan hela skärmen — ideal: scrolla bara det fokuserade fältet in i bild i stället för att lyfta hela sheeten. (Detaljer i arkivet.)
@@ -31,7 +31,7 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 - [ ] Vid scroll i receptlistan: **fäll ihop sök + taggar** (pil/knapp för att fälla ut igen).
 - [ ] 🐛 Nytt recept: **"lägg till"-knappen lyfts inte tillräckligt** över tangentbordet (PWA + native).
 - [ ] 🐛 Redigera vara (recept): **mängd/enhet lyfts inte tillräckligt** vid fokus, och **enhetsvalen syns inte alls** vid klick i enhetsfältet.
-- [ ] 🐛 **Ny butik-modalen går inte att stänga genom att klicka utanför** (PWA).
+- [x] 🐛 **Ny butik-modalen går inte att stänga genom att klicka utanför** (PWA) — löst: absolut-fyllande KAV täckte utanför-tryck-Pressablen; flyttat till flex-1-mönster (tappbart tomrum inuti KAV:n) som övriga modaler.
 - [ ] **Fota ett recept** (bild → recept) — bygg på AI-paste-pipen men med bild-input (Claude vision: OCR + strukturering). Nytt läge i segment-kontrollen. Kräver kamera-permission + native build.
 - [ ] Ändra layout för "lägg till recept" om vi gör om det (t.ex. lista under varandra i stället för 4 flikar).
 

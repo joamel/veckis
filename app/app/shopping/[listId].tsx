@@ -494,7 +494,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       if (!nameMap.has(key)) nameMap.set(key, []);
       nameMap.get(key)!.push(item);
     }
-    return [...nameMap.values()].filter(g => g.length >= 2 && !dismissedDupeKeys.has(g[0].name.toLowerCase().trim()));
+    return [...nameMap.values()].filter(g => {
+      if (g.length < 2 || dismissedDupeKeys.has(g[0].name.toLowerCase().trim())) return false;
+      // Samma namn+enhet aggregeras redan visuellt till EN rad (aktiv lista + klart-
+      // högen), så de behöver ingen "slå ihop"-flagg. Flagga bara grupper med ≥2
+      // OLIKA enheter (t.ex. "gurka st" + "gurka kg") — det aggregeringen inte löser.
+      // Fixar att avmarkerade, redan hopslagna varor felaktigt föreslogs som dubbletter.
+      const units = new Set(g.map(i => (i.unit ?? '').toLowerCase().trim()));
+      return units.size >= 2;
+    });
   }, [list, dismissedDupeKeys]);
 
   function dismissDupeGroup(name: string) {
