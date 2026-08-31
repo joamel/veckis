@@ -1602,6 +1602,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             blurOnSubmit={false}
             autoCapitalize="none"
           />
+          {newItem.length > 0 && (
+            <Pressable onPress={() => setNewItem('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={common.actions.clearSearch}>
+              <Ionicons name="close-circle" size={18} color={c.textFaint} />
+            </Pressable>
+          )}
           <Pressable
             style={[s.addBtn, (!newItem.trim() || adding) && s.addBtnDisabled]}
             onPress={() => { const n = newItem.trim(); if (!n) return; setNewItem(''); openQtySheet(n); }}

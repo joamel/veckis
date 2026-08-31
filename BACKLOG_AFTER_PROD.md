@@ -6,7 +6,7 @@ behålls som **historik + fulla detaljer/beskrivningar** — jobba mot den här 
 Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 
 ## Generellt
-- [ ] "x" i inputfält för att snabbt radera text — i alla textfält (sök, lägg-till-vara, receptfält). **Ej** i lösenordsfält.
+- [~] "x" i inputfält för att snabbt radera text — **lägg-till-vara-baren klar** (clear-X mellan fält och plus). Sök-fälten hade redan. Kvar: namn-fält (ny lista/butik) + receptfält — bäst som återanvändbar `ClearableInput`-komponent. Ej lösenordsfält.
 - [ ] Bakåt-swipe inne i vissa inre komponenter (t.ex. adminloggar) går ur appen i stället för tillbaka till receptvyn.
 - [ ] **Dra-för-att-stänga på bottom-sheet-modaler** — svep/dra nedåt (handtag eller hela sheeten) med följsam gest + studs tillbaka, i stället för bara "tryck utanför". Gäller alla bottom-sheets. Troligen RNGH Pan + reanimated, ev. standardisera på `@gorhom/bottom-sheet`. (Detaljer i arkivet.)
 
