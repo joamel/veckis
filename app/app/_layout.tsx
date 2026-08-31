@@ -1,5 +1,7 @@
 import '../src/lib/diagFetch'; // DIAG: MÅSTE ligga före clerk-expo (patchar fetch)
 import { ClerkProvider, useAuth, useClerk } from '@clerk/clerk-expo';
+import { tokenCache } from '@clerk/clerk-expo/token-cache';
+import { resourceCache } from '@clerk/clerk-expo/resource-cache';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
 import { reportClientError } from '../src/lib/errorReport';
@@ -59,51 +61,12 @@ for (const name of ['Text', 'TextInput'] as const) {
   }
 }
 
-// Android: expo-secure-store har en 2048-byte-gräns per värde. Clerks session-JWT
-// (med claims) kan överskrida den → setItemAsync failar TYST → sessionen droppar
-// och native-appen loggar ut (web opåverkad — localStorage har ingen gräns). Fix:
-// chunka token:en över flera nycklar så inget enskilt värde passerar gränsen.
-// Ren JS (körs i tokenCache) → OTA-fixbart, ingen native-build. Befintliga
-// (ochunkade) värden läses bakåtkompatibelt.
-const TOKEN_CHUNK = 1800;
-const tokenCache = {
-  async getToken(key: string) {
-    const head = await SecureStore.getItemAsync(key);
-    let result: string | null;
-    if (head === null || !head.startsWith('__chunks:')) {
-      result = head;
-    } else {
-      const n = parseInt(head.slice(9), 10);
-      let out = '';
-      let ok = true;
-      for (let i = 0; i < n; i++) {
-        const part = await SecureStore.getItemAsync(`${key}.${i}`);
-        if (part === null) { ok = false; break; }
-        out += part;
-      }
-      result = ok ? out : null;
-    }
-    reportClientError('DIAG: tokenCache.getToken', { key, present: result !== null, len: result?.length ?? 0 });
-    return result;
-  },
-  async saveToken(key: string, value: string) {
-    reportClientError('DIAG: tokenCache.saveToken', { key, len: value.length, willChunk: value.length > TOKEN_CHUNK });
-    try {
-      if (value.length <= TOKEN_CHUNK) {
-        await SecureStore.setItemAsync(key, value);
-        return;
-      }
-      const n = Math.ceil(value.length / TOKEN_CHUNK);
-      for (let i = 0; i < n; i++) {
-        await SecureStore.setItemAsync(`${key}.${i}`, value.slice(i * TOKEN_CHUNK, (i + 1) * TOKEN_CHUNK));
-      }
-      // Markören sparas SIST → getToken läser aldrig en markör utan sina chunks.
-      await SecureStore.setItemAsync(key, `__chunks:${n}`);
-    } catch (e) {
-      reportClientError('DIAG: tokenCache.saveToken FEL', { key, len: value.length, err: e instanceof Error ? e.message : String(e) });
-    }
-  },
-};
+// SESSIONS-FIX (2026-08-30): prod-instansen skapade en NY Clerk-klient vid varje
+// omstart (verifierat via Clerk API: 15 sessioner = 15 unika client_id) → den
+// sparade client-token:en återställde aldrig klienten → /touch → signed_out →
+// utloggad varje start. Den handrullade tokenCache:n räckte inte. Vi använder nu
+// Clerks OFFICIELLA tokenCache + __experimental_resourceCache som persisterar
+// själva KLIENT-resursen (inte bara token:en) lokalt och hydrerar den vid start.
 
 // DIAG (temp): vilken Clerk-instans kör appen faktiskt? pk_test = dev-instans
 // (=.env läckt in), pk_live = prod. Om native råkat på pk_test men PWA på pk_live
@@ -249,6 +212,7 @@ export default function RootLayout() {
         <ClerkProvider
           publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
           tokenCache={tokenCache}
+          __experimental_resourceCache={resourceCache}
         >
           <HouseholdProvider>
             <PendingRemovalProvider>
