@@ -374,6 +374,14 @@ export function useApiClient() {
     getIngredientSuggestions: (householdId: string) =>
       request<{ name: string; category: string }[]>(`/api/staples/suggestions?householdId=${householdId}`),
 
+    // Dölj ett sök-/ingrediensförslag för hushållet (långtryck → "ta bort förslag").
+    hideSuggestion: (householdId: string, name: string) =>
+      request<void>('/api/staples/hide-suggestion', { method: 'POST', body: JSON.stringify({ householdId, name }) }),
+
+    // Ångra: visa förslaget igen.
+    unhideSuggestion: (householdId: string, name: string) =>
+      request<void>('/api/staples/hide-suggestion', { method: 'DELETE', body: JSON.stringify({ householdId, name }) }),
+
     updateShoppingList: (listId: string, data: { name?: string; emoji?: string | null; storeId?: string | null }) =>
       request<ShoppingListWithItems>(`/api/shopping/lists/${listId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 

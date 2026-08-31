@@ -13,12 +13,12 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 ## Inköpslistan
 - [x] Döp om "sub-kategorier" → **"underkategorier"** genomgående i UI — löst: enda kvar-strängen (`store.detail.subHint`) bytt; övriga labels sa redan "Underkategori".
 - [ ] Kunna **sortera underkategorier utan att behöva visa dem** — idag går sub-sortering bara när man bockat i/visar en sub.
-- [ ] Kunna **ta bort felaktiga varor**: håll inne på sökresultatet → "ta bort" i redigeringsläget. Följ ångra-toast-mönstret.
+- [x] Kunna **ta bort felaktiga varor**: håll inne på sökresultatet → "ta bort" i redigeringsläget. Följ ångra-toast-mönstret — löst tillsammans med "Ta bort förslag" per hushåll nedan (samma flöde).
 - [x] 🐛 Avmarkerade hopslagna varor **föreslås felaktigt som dubbletter** — löst: dubblett-detektorn (`duplicateGroups`) flaggar nu bara grupper med ≥2 OLIKA enheter; samma namn+enhet aggregeras redan visuellt till en rad → ingen redundant flagg.
 - [x] **Auto-sidoscrolla** till vald kategori + underkategori (redigera-vara) — löst: den aktiva chippens `onLayout` scrollar sin ScrollView så vald kategori/underkategori syns direkt vid öppning (inget timing-strul). Kan utökas till lägg-till-flödet.
 - [ ] Kunna **dra runt kategorier via de grå horisontella strecken** i stället för pilarna.
 - [ ] **Höga tangentbords-modaler** (antal/lägg till/redigera vara & basvara) fyller nästan hela skärmen — ideal: scrolla bara det fokuserade fältet in i bild i stället för att lyfta hela sheeten. (Detaljer i arkivet.)
-- [ ] **"Ta bort förslag" per hushåll** — kunna dölja vilket basvaru-/ingrediensförslag som helst (långtryck → "Ta bort förslag"), kräver per-hushåll dold-lista + filtrering i suggestions-endpointen.
+- [x] **"Ta bort förslag" per hushåll** — löst: ny `HiddenSuggestion`-tabell (per hushåll) + `POST`/`DELETE /api/staples/hide-suggestion`; `/suggestions` filtrerar bort dolda namn ur både alias- och common-källan (global `IngredientAlias` rörs aldrig). Långtryck på förslags-chippet → editorn → "Ta bort förslag" döljer namnet + raderar ev. matchande basvara, med ångra-toast som återställer allt. Kräver backend-deploy (migration).
 - [ ] **Smartare global kategori-inlärning (moderation/konsensus)** — global `IngredientAlias.category` är idag last-write-wins → en feländring kan förstöra en kategori globalt. Steg: (1) "sticky + föreslå" (skriv ej över etablerad kategori, logga förslag), (2) admin-moderationskö, (3) auto-konsensus vid skala. (Full plan i arkivet.)
 
 ## Meny
