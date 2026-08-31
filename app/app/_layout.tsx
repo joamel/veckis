@@ -1,3 +1,4 @@
+import { clerkTokenMem } from '../src/lib/clerkTokenSync'; // MÅSTE ligga före clerk-expo
 import { ClerkProvider, useAuth, useClerk } from '@clerk/clerk-expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
@@ -67,23 +68,23 @@ for (const name of ['Text', 'TextInput'] as const) {
 // token → anti-session-fixation → signed_out → tom-klient-token sparas → nästa
 // start = tom klient = utloggad. (Dev-instansen roterar inte → "funkade förut".)
 //
-// FIX: hybrid-cache. saveToken uppdaterar ett MINNE synkront (innan async-persist)
-// och getToken läser minnet FÖRST → nästa request ser alltid den senaste roterade
-// token:en direkt → inget race → ingen reuse → sessionen överlever omstart.
-const memTokenCache: Record<string, string | null> = {};
+// FIX: hybrid-cache som delar minne (clerkTokenMem) med clerkTokenSync-fetch-patchen.
+// Fetch-patchen fångar den roterade token:en DIREKT i svaret (tidigast möjligt),
+// saveToken uppdaterar samma minne, och getToken läser minnet FÖRST → nästa request
+// ser alltid den senaste roterade token:en → inget race → sessionen överlever.
 const tokenCache = {
   async getToken(key: string) {
-    if (key in memTokenCache) return memTokenCache[key];
+    if (key in clerkTokenMem) return clerkTokenMem[key];
     const v = await SecureStore.getItemAsync(key);
-    memTokenCache[key] = v;
+    clerkTokenMem[key] = v;
     return v;
   },
   async saveToken(key: string, value: string) {
-    memTokenCache[key] = value; // synkront → nästa getToken ser detta omedelbart
+    clerkTokenMem[key] = value; // synkront → nästa getToken ser detta omedelbart
     try { await SecureStore.setItemAsync(key, value); } catch { /* best-effort persist */ }
   },
   async clearToken(key: string) {
-    memTokenCache[key] = null;
+    clerkTokenMem[key] = null;
     try { await SecureStore.deleteItemAsync(key); } catch { /* best-effort */ }
   },
 };
