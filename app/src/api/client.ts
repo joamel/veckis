@@ -1,5 +1,4 @@
 import { useAuth } from '@clerk/clerk-expo';
-import { reportClientError } from '../lib/errorReport';
 import type {
   Household,
   HouseholdMember,
@@ -103,7 +102,6 @@ export function useApiClient() {
 
   async function request<T>(path: string, options: RequestInit = {}, attempt = 0): Promise<T> {
     const token = await getToken();
-    if (!token) reportClientError('DIAG: getToken tom (ingen aktiv session-token)', { path });
     const url = `${BASE_URL}${path}`;
     // Kallstart-retry: gratis-hosting spinner ner (Render) och Neon-DB:n
     // autosuspendar (vaknar med 57P01 → 5xx). Retry:a BARA idempotenta anrop
@@ -135,7 +133,6 @@ export function useApiClient() {
     if (!res.ok) {
       // 5xx = servern uppe men beroende (oftast DB:n) vaknar → retry:a idempotenta.
       if (res.status >= 500 && canRetry) { await backoff(); return request<T>(path, options, attempt + 1); }
-      if (res.status === 401 && !path.includes('client-errors')) reportClientError('DIAG: API 401 (token avvisad)', { path, method, hadToken: !!token, attempt });
       const err = await res.json().catch(() => ({ error: res.statusText }));
       throw new ApiError(err.error ?? `HTTP ${res.status}`, res.status, false);
     }

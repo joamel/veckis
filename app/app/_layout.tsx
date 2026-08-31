@@ -1,8 +1,7 @@
-import { clerkTokenMem } from '../src/lib/clerkTokenSync'; // MÅSTE ligga före clerk-expo
-import { ClerkProvider, useAuth, useClerk } from '@clerk/clerk-expo';
+import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
+import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
-import { reportClientError } from '../src/lib/errorReport';
 import { createElement, forwardRef, useEffect, useState, type ComponentType } from 'react';
 import { Platform, View } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -59,37 +58,6 @@ for (const name of ['Text', 'TextInput'] as const) {
   }
 }
 
-// SESSIONS-FIX (2026-08-30): prod-instansen (som roterar client-token aggressivt)
-// loggade ut native vid varje omstart. Rotorsak (verifierad via Clerk API + FAPI-
-// reproduktion): ett ASYNC-WRITE-RACE i tokenCache. Clerk skickar en request som
-// roterar client-token:en server-side → onAfterResponse sparar den nya token:en
-// (async SecureStore-skrivning). Men NÄSTA request läser getToken INNAN skrivningen
-// hann klart → skickar den GAMLA token:en → servern ser en återanvänd roterande
-// token → anti-session-fixation → signed_out → tom-klient-token sparas → nästa
-// start = tom klient = utloggad. (Dev-instansen roterar inte → "funkade förut".)
-//
-// FIX för token-rotations-racet: hybrid-cache som delar minne (clerkTokenMem) med
-// clerkTokenSync-fetch-patchen. Patchen fångar den roterade token:en DIREKT i
-// svaret (tidigast möjligt, före clerk-js onAfterResponse); saveToken uppdaterar
-// samma minne; getToken läser minnet FÖRST → setActive:s touch ser alltid den
-// senaste roterade token:en → inget signed_out → ingen tom-klient-token.
-const tokenCache = {
-  async getToken(key: string) {
-    if (key in clerkTokenMem) return clerkTokenMem[key];
-    const v = await SecureStore.getItemAsync(key);
-    clerkTokenMem[key] = v;
-    return v;
-  },
-  async saveToken(key: string, value: string) {
-    clerkTokenMem[key] = value;
-    try { await SecureStore.setItemAsync(key, value); } catch { /* best-effort */ }
-  },
-  async clearToken(key: string) {
-    clerkTokenMem[key] = null;
-    try { await SecureStore.deleteItemAsync(key); } catch { /* best-effort */ }
-  },
-};
-
 
 function StatusBarBackdrop() {
   const insets = useSafeAreaInsets();
@@ -103,8 +71,7 @@ function StatusBarBackdrop() {
 }
 
 function NavigationGuard() {
-  const { isLoaded, isSignedIn, userId, sessionId } = useAuth();
-  const clerk = useClerk();
+  const { isLoaded, isSignedIn } = useAuth();
   const { householdId, isLoading: householdLoading } = useHousehold();
   const segments = useSegments();
   const router = useRouter();
@@ -142,16 +109,6 @@ function NavigationGuard() {
     if (isPublic || isAuthedDeepRoute || showWebLanding) return;
 
     if (!isSignedIn && !inAuthGroup) {
-      // DECISIV DIAG: skiljer "servern tappade sessionen" (client.sessions tom)
-      // från "guarden fyrar före hydrering" (clerk har en session men isSignedIn
-      // hann inte bli true). userId/sessionId från useAuth; client.sessions =
-      // vad prod-FAPI faktiskt returnerade för den lagrade client-JWT:n.
-      reportClientError('DIAG: auth-guard → sign-in (utloggad)', {
-        isLoaded, root, hadHousehold: !!householdId, landingTab,
-        userId: userId ?? null, sessionId: sessionId ?? null,
-        clerkClientSessions: clerk?.client?.sessions?.length ?? -1,
-        clerkHasSession: !!clerk?.session, clerkStatus: clerk?.session?.status ?? null,
-      });
       router.replace('/(auth)/sign-in');
     } else if (isSignedIn && inAuthGroup) {
       router.replace(householdId ? `/(tabs)/${landingTab}` as never : '/household/setup');

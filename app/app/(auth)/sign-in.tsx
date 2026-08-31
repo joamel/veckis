@@ -258,10 +258,6 @@ export default function SignInScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Image source={LOGO} style={styles.logo} resizeMode="cover" />
-      {/* TEMP versionsmarkör — bekräftar att OTA:n/den nya koden faktiskt kör. */}
-      <Text style={{ fontSize: 11, color: c.textFaint, textAlign: 'center', marginBottom: 4 }}>
-        bygge: STD-RESET-B
-      </Text>
       <Text style={styles.title}>{str.appName}</Text>
       <Text style={styles.subtitle}>
         {mode === 'reset' ? str.signIn.subtitle.reset
