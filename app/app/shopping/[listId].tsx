@@ -316,6 +316,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const editNameRef = useRef<TextInput>(null);
   const editQtyRef = useRef<TextInput>(null);
   const editUnitRef = useRef<TextInput>(null);
+  // Auto-sidoscroll till vald kategori/underkategori i redigera-vara-modalen:
+  // den aktiva chippens onLayout scrollar sin ScrollView så vald chip syns direkt.
+  const editCatScrollRef = useRef<ScrollView>(null);
+  const editSubScrollRef = useRef<ScrollView>(null);
   const stapleNameRef = useRef<TextInput>(null);
   const stapleUnitRef = useRef<TextInput>(null);
   const qtyValueRef = useRef<TextInput>(null);
@@ -1737,7 +1741,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </View>
           </ScrollView>
           <Text style={s.editLabel}>{common.fields.category}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
+          <ScrollView ref={editCatScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
             <View style={s.catChipRow}>
               {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => {
                 const active = !editCustomCategory && editCategory === cat;
@@ -1745,6 +1749,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={cat}
                     style={[s.catChip, active && s.catChipActive]}
+                    onLayout={active ? e => { const x = e.nativeEvent.layout.x; editCatScrollRef.current?.scrollTo({ x: Math.max(0, x - 16), animated: false }); } : undefined}
                     onPress={() => { setEditCategory(cat); setEditCustomCategory(null); setEditSubCategory(null); setEditCustomSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
@@ -1773,6 +1778,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               ovan och då uppdateras sub-listan. */}
           <Text style={s.editLabel}>{common.fields.subCategoryOptional}</Text>
           <ScrollView
+            ref={editSubScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             style={s.catChipScroll}
@@ -1794,6 +1800,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={sub}
                     style={[s.catChip, active && s.catChipActive]}
+                    onLayout={active ? e => { const x = e.nativeEvent.layout.x; editSubScrollRef.current?.scrollTo({ x: Math.max(0, x - 16), animated: false }); } : undefined}
                     onPress={() => { setEditSubCategory(active ? null : sub); setEditCustomSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]}>

@@ -15,7 +15,7 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 - [ ] Kunna **sortera underkategorier utan att behöva visa dem** — idag går sub-sortering bara när man bockat i/visar en sub.
 - [ ] Kunna **ta bort felaktiga varor**: håll inne på sökresultatet → "ta bort" i redigeringsläget. Följ ångra-toast-mönstret.
 - [x] 🐛 Avmarkerade hopslagna varor **föreslås felaktigt som dubbletter** — löst: dubblett-detektorn (`duplicateGroups`) flaggar nu bara grupper med ≥2 OLIKA enheter; samma namn+enhet aggregeras redan visuellt till en rad → ingen redundant flagg.
-- [ ] **Auto-sidoscrolla** till vald kategori + underkategori vid redigera/lägg till (scroll-into-view).
+- [x] **Auto-sidoscrolla** till vald kategori + underkategori (redigera-vara) — löst: den aktiva chippens `onLayout` scrollar sin ScrollView så vald kategori/underkategori syns direkt vid öppning (inget timing-strul). Kan utökas till lägg-till-flödet.
 - [ ] Kunna **dra runt kategorier via de grå horisontella strecken** i stället för pilarna.
 - [ ] **Höga tangentbords-modaler** (antal/lägg till/redigera vara & basvara) fyller nästan hela skärmen — ideal: scrolla bara det fokuserade fältet in i bild i stället för att lyfta hela sheeten. (Detaljer i arkivet.)
 - [ ] **"Ta bort förslag" per hushåll** — kunna dölja vilket basvaru-/ingrediensförslag som helst (långtryck → "Ta bort förslag"), kräver per-hushåll dold-lista + filtrering i suggestions-endpointen.
