@@ -15,6 +15,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -65,8 +66,11 @@ export default function RecipesScreen() {
   const [editMode, setEditMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   // Fäll ihop sök+taggar när man scrollar ner i listan (frigör skärmyta); fäll ut
-  // igen via pilen eller när man scrollar tillbaka till toppen.
+  // igen via pilen eller när man scrollar tillbaka till toppen. Riktnings-medveten
+  // toggle (kollapsa vid scroll ner, expandera vid scroll upp/topp) så den inte
+  // oscillerar/hackar vid tröskeln; reanimated fade + layout gör växlingen mjuk.
   const [filtersOpen, setFiltersOpen] = useState(true);
+  const lastScrollY = useRef(0);
   const [sortMode, setSortMode] = useState<'name' | 'used' | 'recent'>('name');
   const [showSort, setShowSort] = useState(false);
   const { fs, sp } = useTablet();
@@ -570,7 +574,7 @@ export default function RecipesScreen() {
         }
       />
       {filtersOpen ? (
-      <View style={s.subHeader}>
+      <Animated.View style={s.subHeader} entering={FadeIn.duration(160)} exiting={FadeOut.duration(160)}>
         <View style={s.searchRow}>
           <Ionicons name="search" size={16} color={c.textFaint} style={s.searchIcon} />
           <TextInput
@@ -619,14 +623,16 @@ export default function RecipesScreen() {
             )}
           </View>
         )}
-      </View>
+      </Animated.View>
       ) : (
-        <Pressable style={s.filtersCollapsed} onPress={() => setFiltersOpen(true)} accessibilityRole="button" accessibilityLabel={str.search.placeholder}>
-          <Ionicons name="search" size={16} color={c.textFaint} />
-          {(searchQuery.length > 0 || activeTags.size > 0) && <View style={s.filtersActiveDot} />}
-          <View style={{ flex: 1 }} />
-          <Ionicons name="chevron-down" size={16} color={c.textFaint} />
-        </Pressable>
+        <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(160)}>
+          <Pressable style={s.filtersCollapsed} onPress={() => setFiltersOpen(true)} accessibilityRole="button" accessibilityLabel={str.search.placeholder}>
+            <Ionicons name="search" size={16} color={c.textFaint} />
+            {(searchQuery.length > 0 || activeTags.size > 0) && <View style={s.filtersActiveDot} />}
+            <View style={{ flex: 1 }} />
+            <Ionicons name="chevron-down" size={16} color={c.textFaint} />
+          </Pressable>
+        </Animated.View>
       )}
 
       {(selectionMode || chooseMode) && (
@@ -647,9 +653,12 @@ export default function RecipesScreen() {
         scrollEventThrottle={16}
         onScroll={e => {
           const y = e.nativeEvent.contentOffset.y;
-          // Fäll ihop när man scrollat ner en bit, fäll ut nära toppen (hysteres).
-          if (y > 80 && filtersOpen) setFiltersOpen(false);
-          else if (y < 12 && !filtersOpen) setFiltersOpen(true);
+          const delta = y - lastScrollY.current;
+          lastScrollY.current = y;
+          // Riktnings-medveten: kollapsa bara vid tydlig scroll NER (förbi 60px),
+          // expandera vid scroll UPP eller nära toppen. Ingen oscillation vid tröskeln.
+          if (delta > 2 && y > 60 && filtersOpen) setFiltersOpen(false);
+          else if ((delta < -6 || y < 8) && !filtersOpen) setFiltersOpen(true);
         }}
         ListEmptyComponent={
           searchQuery || activeTags.size > 0 ? (
