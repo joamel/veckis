@@ -23,40 +23,33 @@ if (Platform.OS !== 'web') {
         else if (raw === '' ) sentAuth = 'tom';
       } catch { /* headers-form varierar */ }
       const res = await orig(input, init);
+      // ICKE-BLOCKERANDE: klona + läs headers SYNKRONT nu, men parsa body:n och
+      // logga ASYNKRONT efter att vi returnerat svaret. Får ALDRIG fördröja
+      // clerk-expo:s onAfterResponse (token-sparningen) — annars läser nästa
+      // request en gammal token → reuse → signed_out.
       try {
         const url: string = typeof input === 'string' ? input : (input?.url ?? input?.href ?? String(input));
         if (url.includes('clerk.')) {
-          let sessions = -1;
-          let lastActive: string | null = null;
-          let errorCode: string | null = null;
-          let errorMsg: string | null = null;
-          try {
-            const body: any = await res.clone().json();
-            const client = body?.response ?? body?.client ?? body;
-            if (Array.isArray(client?.sessions)) sessions = client.sessions.length;
-            lastActive = client?.last_active_session_id ?? null;
-            errorCode = body?.errors?.[0]?.code ?? null;
-            errorMsg = body?.errors?.[0]?.message ?? null;
-          } catch { /* body ej JSON */ }
-          // Klock-skew: serverns Date-header vs telefonens tid. Stor skew (>30s)
-          // → Clerk avvisar den tidskänsliga roterande token:en → signed_out.
+          const clone = res.clone();
+          const status = res.status;
+          const gotNewAuth = res.headers?.get?.('authorization') ? 'ja' : 'nej';
           let clockSkewSec: number | null = null;
           try {
             const serverDate = res.headers?.get?.('date');
             if (serverDate) clockSkewSec = Math.round((Date.now() - new Date(serverDate).getTime()) / 1000);
           } catch { /* ingen date-header */ }
           const path = url.replace(/^https?:\/\/[^/]+/, '').split('?')[0];
-          reportClientError('DIAG: FAPI ' + path, {
-            method: init?.method ?? 'GET',
-            status: res.status,
-            clockSkewSec, // + = telefonen före servern, - = efter. |>30| = trolig orsak
-            sentAuth, // client-token som SKICKADES (prefix…suffix(len)) — samma på 2 = reuse
-            gotNewAuth: res.headers?.get?.('authorization') ? 'ja' : 'nej', // roterad token i svaret
-            sessions,
-            lastActive,
-            errorCode,
-            errorMsg,
-          });
+          const method = init?.method ?? 'GET';
+          void clone.json().then((body: any) => {
+            const client = body?.response ?? body?.client ?? body;
+            reportClientError('DIAG: FAPI ' + path, {
+              method, status, clockSkewSec, sentAuth, gotNewAuth,
+              sessions: Array.isArray(client?.sessions) ? client.sessions.length : -1,
+              lastActive: client?.last_active_session_id ?? null,
+              errorCode: body?.errors?.[0]?.code ?? null,
+              errorMsg: body?.errors?.[0]?.message ?? null,
+            });
+          }).catch(() => { /* body ej JSON */ });
         }
       } catch { /* DIAG får aldrig störa appen */ }
       return res;
