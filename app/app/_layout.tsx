@@ -1,5 +1,4 @@
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
-import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
 import { createElement, forwardRef, useEffect, useState, type ComponentType } from 'react';
@@ -58,6 +57,14 @@ for (const name of ['Text', 'TextInput'] as const) {
   }
 }
 
+const tokenCache = {
+  async getToken(key: string) {
+    return SecureStore.getItemAsync(key);
+  },
+  async saveToken(key: string, value: string) {
+    return SecureStore.setItemAsync(key, value);
+  },
+};
 
 function StatusBarBackdrop() {
   const insets = useSafeAreaInsets();
