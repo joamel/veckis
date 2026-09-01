@@ -1,7 +1,7 @@
 import { ClerkProvider, useAuth } from '@clerk/expo';
-import { tokenCache } from '@clerk/expo/token-cache'; // v4:s officiella cache (proaktiv refresh, ren sign-out)
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
+import { reportClientError } from '../src/lib/errorReport';
 import { createElement, forwardRef, useEffect, useState, type ComponentType } from 'react';
 import { Platform, View } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -57,6 +57,77 @@ for (const name of ['Text', 'TextInput'] as const) {
     // Om exporten inte går att skriva över: behåll originalet (skalning på, men appen fungerar).
   }
 }
+
+// ROTORSAK native session-drop (bevisad via Clerk Backend API 2026-09-01): varje
+// kallstart skapade en NY client (25 unika clients / 25 sessioner) → enheten
+// återställde aldrig den lagrade client-token:en. expo-secure-store på Android har
+// en 2048-byte-gräns per värde; en prod-client-JWT är större → setItemAsync failar
+// tyst → inget persisteras → ny client varje start → "utloggad".
+//
+// FIX: chunka värden > 1800 byte över flera SecureStore-nycklar (key__0, key__1…)
+// och sätt en meta-markör i huvudnyckeln. getToken återmonterar. DIAG-loggen
+// (roundtrip/ok) rapporterar om skrivningen faktiskt persisterade.
+const CHUNK_SIZE = 1800;
+const CHUNK_MARK = '__chunks__:';
+
+async function readCached(key: string): Promise<string | null> {
+  const head = await SecureStore.getItemAsync(key);
+  if (head == null || !head.startsWith(CHUNK_MARK)) return head;
+  const n = parseInt(head.slice(CHUNK_MARK.length), 10);
+  let out = '';
+  for (let i = 0; i < n; i++) {
+    const part = await SecureStore.getItemAsync(`${key}__${i}`);
+    if (part == null) return null; // korrupt/ofullständig → behandla som saknad
+    out += part;
+  }
+  return out;
+}
+
+async function writeCached(key: string, value: string): Promise<void> {
+  if (value.length <= CHUNK_SIZE) {
+    await SecureStore.setItemAsync(key, value);
+    return;
+  }
+  const n = Math.ceil(value.length / CHUNK_SIZE);
+  for (let i = 0; i < n; i++) {
+    await SecureStore.setItemAsync(`${key}__${i}`, value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
+  }
+  await SecureStore.setItemAsync(key, `${CHUNK_MARK}${n}`);
+}
+
+async function clearCached(key: string): Promise<void> {
+  const head = await SecureStore.getItemAsync(key).catch(() => null);
+  if (head?.startsWith(CHUNK_MARK)) {
+    const n = parseInt(head.slice(CHUNK_MARK.length), 10);
+    for (let i = 0; i < n; i++) await SecureStore.deleteItemAsync(`${key}__${i}`).catch(() => {});
+  }
+  await SecureStore.deleteItemAsync(key).catch(() => {});
+}
+
+const tokenCache = {
+  async getToken(key: string) {
+    try {
+      const v = await readCached(key);
+      reportClientError('DIAG getToken', { key, len: v?.length ?? -1 });
+      return v;
+    } catch (e) {
+      reportClientError('DIAG getToken ERR', { key, err: String(e) });
+      return null;
+    }
+  },
+  async saveToken(key: string, value: string) {
+    try {
+      await writeCached(key, value);
+      const back = await readCached(key);
+      reportClientError('DIAG saveToken', { key, len: value?.length ?? -1, roundtrip: back?.length ?? -1, ok: back === value });
+    } catch (e) {
+      reportClientError('DIAG saveToken ERR', { key, len: value?.length ?? -1, err: String(e) });
+    }
+  },
+  async clearToken(key: string) {
+    await clearCached(key);
+  },
+};
 
 function StatusBarBackdrop() {
   const insets = useSafeAreaInsets();
