@@ -76,10 +76,11 @@ export default function SignInScreen() {
       reportClientError('DIAG sso postReload', { clientId: cl()?.id ?? null, sessions: cl()?.sessions?.length ?? -1 });
       await clerk.setActive({ session: createdSessionId });
       reportClientError('DIAG sso postSetActive', { clientId: cl()?.id ?? null, sessions: cl()?.sessions?.length ?? -1, sessionId: clerk.session?.id ?? null });
-      // Tvinga persistens av den nya clientens token: token-anrop (roterar+sparar)
-      // + plain client.reload (hämtar current client MED sessionen → clerk saveToken:ar).
+      // OBS: plain client.reload() här var SKADLIG — den hämtade den gamla tomma
+      // native-clienten och skrev över den bra (session-bärande). Borttagen.
+      // Persistens av 3IjpnY sköts av clerkClientSync (fångar nonce-reload-svarets
+      // Authorization-token) — DIAG i den verifierar.
       await clerk.session?.getToken({ skipCache: true }).catch(() => {});
-      await clerk.client?.reload().catch(() => {});
       reportClientError('DIAG sso postPersist', { clientId: cl()?.id ?? null, sessions: cl()?.sessions?.length ?? -1 });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.googleFailed;
