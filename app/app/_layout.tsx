@@ -1,3 +1,4 @@
+import '../src/lib/clerkClientSync'; // MÅSTE ligga före '@clerk/expo' — patchar fetch
 import { ClerkProvider, useAuth } from '@clerk/expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
