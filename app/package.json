@@ -26,6 +26,7 @@
   "dependencies": {
     "@clerk/expo": "^4.6.1",
     "@expo/vector-icons": "^15.0.3",
+    "@react-native-google-signin/google-signin": "^16.1.4",
     "@react-navigation/native": "^7.1.8",
     "@veckis/shared": "*",
     "expo": "~54.0.34",

@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { reportClientError } from '../../src/lib/errorReport';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { InstallBanner } from '../../src/components/InstallBanner';
 import { auth as str } from '../../src/lib/svenska';
 import * as WebBrowser from 'expo-web-browser';
@@ -35,6 +36,13 @@ WebBrowser.maybeCompleteAuthSession();
 // Redan hanterade OAuth-sessions-id:n → processa aldrig samma djuplänk två gånger
 // (skydd mot att en redan förbrukad created_session_id/nonce körs igen).
 const processedSsoSessions = new Set<string>();
+
+// Native Google Sign-In (idToken-flöde). webClientId = Clerks Google Web-client.
+// Skapar sessionen i native-clientens kontext (som e-post) → persisterar över
+// omstart, till skillnad från WebBrowser/useSSO-flödet (session på browser-client).
+if (Platform.OS !== 'web') {
+  GoogleSignin.configure({ webClientId: '630229510172-97lh1jsdohiel0mgg0vec6r09gc77d6d.apps.googleusercontent.com' });
+}
 
 export default function SignInScreen() {
   const { colors: c } = useTheme();
@@ -247,17 +255,20 @@ export default function SignInScreen() {
         });
         return;
       }
-      // Native: useSSO öppnar systembrowsern. Om den lämnar tillbaka korrekt får
-      // vi createdSessionId direkt här. På Android händer ofta att redirekten i
-      // stället kommer in som en djuplänk (ny task) → completeSsoFromUrl() ovan
-      // slutför sessionen. Därför: ingen felruta när session saknas här.
-      const { createdSessionId, setActive: setSSOActive } = await startSSOFlow({
-        strategy: 'oauth_google',
-        redirectUrl: AuthSession.makeRedirectUri(),
-      });
-      if (createdSessionId && setSSOActive) {
-        await setSSOActive({ session: createdSessionId });
-      }
+      // Native: Google Sign-In → idToken → Clerk. Sessionen skapas i native-
+      // clientens kontext (som e-post) → persisterar över omstart. Ersätter
+      // WebBrowser/useSSO-flödet vars session hamnade på en browser-client.
+      if (!isLoaded) return;
+      await GoogleSignin.hasPlayServices();
+      const info = await GoogleSignin.signIn();
+      const idToken = (info as { data?: { idToken?: string | null }; idToken?: string | null }).data?.idToken
+        ?? (info as { idToken?: string | null }).idToken ?? null;
+      reportClientError('DIAG gidt', { hasIdToken: !!idToken });
+      if (!idToken) return; // användaren avbröt eller ingen token
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res = await (signIn as any).create({ strategy: 'oauth_token_google', token: idToken });
+      reportClientError('DIAG gidt clerk', { status: res?.status ?? null, hasSession: !!res?.createdSessionId });
+      if (res?.createdSessionId) await setActive({ session: res.createdSessionId });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.googleFailed;
       confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
