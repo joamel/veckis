@@ -71,6 +71,13 @@ export default function SignInScreen() {
     try {
       if (nonce) await clerk.client.reload({ rotatingTokenNonce: nonce });
       await clerk.setActive({ session: createdSessionId });
+      // FIX native Google-SSO-drop: setActive aktiverar sessionen i minnet men den
+      // via nonce-reload:ade clientens token hamnar inte alltid i SecureStore →
+      // vid omstart ligger gamla tomma native-client-token:en kvar → utloggad.
+      // Ett token-anrop med skipCache tvingar ett FAPI-varv som roterar OCH
+      // persisterar den nya client-token:en via tokenCache. (E-postlogin drabbas
+      // inte — den går via signIn.create+setActive som redan persisterar.)
+      await clerk.session?.getToken({ skipCache: true }).catch(() => {});
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.googleFailed;
       confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
