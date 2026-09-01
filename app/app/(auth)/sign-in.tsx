@@ -17,6 +17,7 @@ import {
   View,
 } from 'react-native';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { reportClientError } from '../../src/lib/errorReport';
 import { InstallBanner } from '../../src/components/InstallBanner';
 import { auth as str } from '../../src/lib/svenska';
 import * as WebBrowser from 'expo-web-browser';
@@ -69,15 +70,17 @@ export default function SignInScreen() {
     if (!createdSessionId || processedSsoSessions.has(createdSessionId)) return;
     processedSsoSessions.add(createdSessionId);
     try {
+      const cl = () => (clerk.client as unknown as { id?: string; sessions?: unknown[] } | undefined);
+      reportClientError('DIAG sso start', { hasNonce: !!nonce, sid: createdSessionId.slice(0, 10) });
       if (nonce) await clerk.client.reload({ rotatingTokenNonce: nonce });
+      reportClientError('DIAG sso postReload', { clientId: cl()?.id ?? null, sessions: cl()?.sessions?.length ?? -1 });
       await clerk.setActive({ session: createdSessionId });
-      // FIX native Google-SSO-drop: setActive aktiverar sessionen i minnet men den
-      // via nonce-reload:ade clientens token hamnar inte alltid i SecureStore →
-      // vid omstart ligger gamla tomma native-client-token:en kvar → utloggad.
-      // Ett token-anrop med skipCache tvingar ett FAPI-varv som roterar OCH
-      // persisterar den nya client-token:en via tokenCache. (E-postlogin drabbas
-      // inte — den går via signIn.create+setActive som redan persisterar.)
+      reportClientError('DIAG sso postSetActive', { clientId: cl()?.id ?? null, sessions: cl()?.sessions?.length ?? -1, sessionId: clerk.session?.id ?? null });
+      // Tvinga persistens av den nya clientens token: token-anrop (roterar+sparar)
+      // + plain client.reload (hämtar current client MED sessionen → clerk saveToken:ar).
       await clerk.session?.getToken({ skipCache: true }).catch(() => {});
+      await clerk.client?.reload().catch(() => {});
+      reportClientError('DIAG sso postPersist', { clientId: cl()?.id ?? null, sessions: cl()?.sessions?.length ?? -1 });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.googleFailed;
       confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
