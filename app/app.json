@@ -54,6 +54,7 @@
       "expo-notifications",
       "@clerk/expo",
       "./plugins/withDisableAutofill",
+      "./plugins/withSingleTask",
       [
         "expo-image-picker",
         {
