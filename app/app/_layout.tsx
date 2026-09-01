@@ -58,17 +58,51 @@ for (const name of ['Text', 'TextInput'] as const) {
   }
 }
 
-// ROTORSAK native session-drop (bevisad via Clerk Backend API 2026-09-01): varje
-// kallstart skapade en NY client (25 unika clients / 25 sessioner) → enheten
-// återställde aldrig den lagrade client-token:en. expo-secure-store på Android har
-// en 2048-byte-gräns per värde; en prod-client-JWT är större → setItemAsync failar
-// tyst → inget persisteras → ny client varje start → "utloggad".
-//
-// FIX: chunka värden > 1800 byte över flera SecureStore-nycklar (key__0, key__1…)
-// och sätt en meta-markör i huvudnyckeln. getToken återmonterar. DIAG-loggen
-// (roundtrip/ok) rapporterar om skrivningen faktiskt persisterade.
+// DIAG native session-drop (2026-09-01): token PERSISTERAS (518 b, överlever
+// omstart) men prod-servern skapar ny client vid varje start → utloggad. Storlek/
+// SecureStore uteslutet. Denna build avkodar client-JWT:ns claims vid save+get för
+// att avgöra VARFÖR servern avvisar den lagrade token:en (utgången? reused nonce?
+// refererar den ingen session?). Chunkingen är kvar (skadar inte, <1800 = no-op).
 const CHUNK_SIZE = 1800;
 const CHUNK_MARK = '__chunks__:';
+
+// Minimal base64url→sträng (ingen atob-beroende), best-effort, får ALDRIG kasta
+// in i token-flödet.
+function b64urlDecode(input: string): string {
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const s = input.replace(/-/g, '+').replace(/_/g, '/');
+  let out = '', bits = 0, val = 0;
+  for (const ch of s) {
+    const i = A.indexOf(ch);
+    if (i === -1) continue;
+    val = (val << 6) | i; bits += 6;
+    if (bits >= 8) { bits -= 8; out += String.fromCharCode((val >> bits) & 0xff); }
+  }
+  return out;
+}
+
+// Avkodar JWT-payloadens icke-hemliga claims (iat/exp/sid + nyckel-lista). Loggar
+// ALDRIG själva rotating_token-värdet — bara om det finns.
+function jwtInfo(jwt: string | null): Record<string, unknown> | null {
+  if (!jwt) return null;
+  try {
+    const parts = jwt.split('.');
+    if (parts.length < 2) return { notJwt: true };
+    const p = JSON.parse(b64urlDecode(parts[1]));
+    const now = Math.floor(Date.now() / 1000);
+    return {
+      iat: p.iat ?? null,
+      exp: p.exp ?? null,
+      expired: typeof p.exp === 'number' ? p.exp < now : null,
+      ageSec: typeof p.iat === 'number' ? now - p.iat : null,
+      hasSid: 'sid' in p ? !!p.sid : false,
+      hasRot: 'rotating_token' in p,
+      claims: Object.keys(p),
+    };
+  } catch (e) {
+    return { decodeErr: String(e) };
+  }
+}
 
 async function readCached(key: string): Promise<string | null> {
   const head = await SecureStore.getItemAsync(key);
@@ -108,7 +142,7 @@ const tokenCache = {
   async getToken(key: string) {
     try {
       const v = await readCached(key);
-      reportClientError('DIAG getToken', { key, len: v?.length ?? -1 });
+      reportClientError('DIAG getToken', { key, len: v?.length ?? -1, jwt: jwtInfo(v) });
       return v;
     } catch (e) {
       reportClientError('DIAG getToken ERR', { key, err: String(e) });
@@ -119,12 +153,13 @@ const tokenCache = {
     try {
       await writeCached(key, value);
       const back = await readCached(key);
-      reportClientError('DIAG saveToken', { key, len: value?.length ?? -1, roundtrip: back?.length ?? -1, ok: back === value });
+      reportClientError('DIAG saveToken', { key, len: value?.length ?? -1, roundtrip: back?.length ?? -1, ok: back === value, jwt: jwtInfo(value) });
     } catch (e) {
       reportClientError('DIAG saveToken ERR', { key, len: value?.length ?? -1, err: String(e) });
     }
   },
   async clearToken(key: string) {
+    reportClientError('DIAG clearToken', { key });
     await clearCached(key);
   },
 };
