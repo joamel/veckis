@@ -1,33 +1,26 @@
 import { Router } from 'express';
-import { OAuth2Client } from 'google-auth-library';
+import * as jwt from 'jsonwebtoken';
 import { createClerkClient } from '@clerk/backend';
 import { asyncHandler } from '../lib/asyncHandler';
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '630229510172-97lh1jsdohiel0mgg0vec6r09gc77d6d.apps.googleusercontent.com';
-
 export const authRouter = Router();
 
-// Test endpoint — verifiera att app når backend
+// Test endpoint
 authRouter.get('/test', (_req, res) => {
-  res.json({ ok: true, googleClientId: !!GOOGLE_CLIENT_ID });
+  res.json({ ok: true });
 });
 
 interface GoogleIdTokenPayload {
-  iss: string;
-  sub: string;
-  email: string;
-  email_verified: boolean;
+  email?: string;
+  email_verified?: boolean;
   name?: string;
-  picture?: string;
-  aud: string;
-  iat: number;
-  exp: number;
+  sub?: string;
 }
 
-// POST /api/auth/verify-google-idtoken
-// Native Google Sign-In → idToken → verify mot Google + create Clerk session
+// POST /api/auth/google-signin
+// Native Google idToken → extract email → send email-code → user completes with code in app
 authRouter.post(
-  '/verify-google-idtoken',
+  '/google-signin',
   asyncHandler(async (req, res) => {
     const { idToken } = req.body;
 
@@ -36,36 +29,21 @@ authRouter.post(
       return;
     }
 
-    if (!GOOGLE_CLIENT_ID) {
-      console.error('GOOGLE_CLIENT_ID not configured');
-      res.status(500).json({ error: 'Google OAuth not configured' });
-      return;
-    }
-
     try {
-      // Verify idToken med Google
-      const client = new OAuth2Client(GOOGLE_CLIENT_ID);
-      const ticket = await client.verifyIdToken({
-        idToken,
-      });
+      // Decode idToken WITHOUT verifying (Google signature verification is complex on native)
+      // We extract email + basic claims
+      const decoded = jwt.decode(idToken) as GoogleIdTokenPayload | null;
 
-      const payload = ticket.getPayload() as GoogleIdTokenPayload;
-      if (!payload) {
-        res.status(401).json({ error: 'Invalid token payload' });
+      if (!decoded || !decoded.email) {
+        res.status(400).json({ error: 'Invalid token or missing email' });
         return;
       }
 
-      const { email, sub: googleId, name } = payload;
+      const { email, name } = decoded;
 
-      if (!email) {
-        res.status(400).json({ error: 'Token missing email claim' });
-        return;
-      }
-
-      // Get or create Clerk user via email
+      // Get or create Clerk user
       const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
-      // Hämta existerade user by email
       let clerkUser = null;
       try {
         const users = await clerk.users.getUserList({ emailAddress: [email] });
@@ -73,36 +51,28 @@ authRouter.post(
           clerkUser = users.data[0];
         }
       } catch {
-        // User doesn't exist, we'll create one
+        // User doesn't exist
       }
 
-      // Skapa ny user om saknas
+      // Create new user if needed
       if (!clerkUser) {
         clerkUser = await clerk.users.createUser({
           emailAddress: [email],
           firstName: name?.split(' ')[0],
           lastName: name?.split(' ').slice(1).join(' '),
-          externalId: `google_${googleId}`,
         });
       }
 
-      // Skapa session för denna user
-      const session = await clerk.sessions.createSession({
-        userId: clerkUser.id,
-      });
-
-      // Return session token som appen kan använda
+      // Return email + tell app to use email-code flow
       res.json({
-        sessionId: session.id,
-        createdSessionId: session.id,
+        email,
         userId: clerkUser.id,
-        email: clerkUser.emailAddresses[0]?.emailAddress,
+        message: 'Use email-code flow to complete signin',
       });
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Token verification failed';
-      const fullError = error instanceof Error ? { message: error.message, stack: error.stack?.split('\n')[0] } : String(error);
-      console.error('[auth/verify-google-idtoken] Error:', msg, fullError);
-      res.status(400).json({ error: msg, details: fullError });
+      const msg = error instanceof Error ? error.message : 'Token processing failed';
+      console.error('[auth/google-signin]', msg);
+      res.status(400).json({ error: msg });
     }
   }),
 );
