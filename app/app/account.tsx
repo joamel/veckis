@@ -81,7 +81,7 @@ export default function AccountScreen() {
   async function openPortal(path: string) {
     const url = `${CLERK_PORTAL_BASE}${path}`;
     try {
-      if (Platform.OS === 'web') {
+      if (Platform.OS as any === 'web') {
         window.open(url, '_blank', 'noopener');
       } else {
         const WebBrowser = await import('expo-web-browser');

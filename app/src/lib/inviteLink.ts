@@ -26,7 +26,7 @@ export async function shareInviteLink(
   const url = buildInviteUrl(code);
   const message = `Gå med i ${householdName} på Handlis — öppna länken:\n${url}`;
 
-  if (Platform.OS === 'web') {
+  if (Platform.OS as any === 'web') {
     const nav = typeof navigator !== 'undefined' ? navigator : undefined;
     if (nav && typeof nav.share === 'function') {
       try {

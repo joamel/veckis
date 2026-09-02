@@ -38,7 +38,7 @@ export default function HouseholdSetupScreen() {
   // Cache + restore: om användaren klickat invite-länk innan inlogg, sparar vi
   // koden i localStorage. Den hämtas tillbaka när hen landar här efter sign-in.
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
+    if (Platform.OS as any !== 'web') return;
     if (params.code) {
       try { window.localStorage.setItem('pending_invite_code', String(params.code).toUpperCase()); } catch { /* best-effort */ }
       return;
@@ -73,7 +73,7 @@ export default function HouseholdSetupScreen() {
     setLoading(true);
     try {
       await client.joinHousehold(code.trim().toUpperCase(), nickname.trim());
-      if (Platform.OS === 'web') {
+      if (Platform.OS as any === 'web') {
         try { window.localStorage.removeItem('pending_invite_code'); } catch { /* best-effort */ }
       }
       await refresh();
@@ -87,7 +87,7 @@ export default function HouseholdSetupScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS as any === 'ios' ? 'padding' : undefined}
     >
       <Text style={styles.title}>{str.title}</Text>
       <Text style={styles.subtitle}>{str.subtitle}</Text>

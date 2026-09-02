@@ -116,7 +116,7 @@ function NavigationGuard() {
     // Webb: utloggad besökare på "/" ska se den publika landningssidan (index.tsx
     // renderar <WebLanding/>), inte tvingas till login. Native behåller login-
     // redirect direkt. Krav för Googles OAuth-verifiering + marknadsföring.
-    const showWebLanding = Platform.OS === 'web' && !isSignedIn && atRoot;
+    const showWebLanding = Platform.OS as any === 'web' && !isSignedIn && atRoot;
     if (isPublic || isAuthedDeepRoute || showWebLanding) return;
 
     if (!isSignedIn && !inAuthGroup) {
@@ -173,7 +173,7 @@ export default function RootLayout() {
 
   // Lås telefoner till portrait; tablets får rotera fritt.
   useEffect(() => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS as any === 'web') return;
     if (isTablet) {
       ScreenOrientation.unlockAsync().catch(() => {});
     } else {

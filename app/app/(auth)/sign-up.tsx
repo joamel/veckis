@@ -90,7 +90,7 @@ export default function SignUpScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS as any === 'ios' ? 'padding' : undefined}
     >
       <Text style={styles.title}>{str.signUp.title}</Text>
       <TextInput

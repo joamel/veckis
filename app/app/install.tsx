@@ -34,7 +34,7 @@ export default function InstallScreen() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
+    if (Platform.OS as any !== 'web') return;
     setTarget(detectInstallTarget());
     setInstalled(isAlreadyInstalled());
 

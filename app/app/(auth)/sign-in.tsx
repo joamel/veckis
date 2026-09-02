@@ -41,7 +41,7 @@ export default function SignInScreen() {
   // Värm upp webbläsaren (Android) för stabilare OAuth-flöde. Bara native —
   // warmUpAsync/coolDownAsync finns inte på web och kastar där.
   useEffect(() => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS as any === 'web') return;
     void WebBrowser.warmUpAsync();
     return () => { void WebBrowser.coolDownAsync(); };
   }, []);
@@ -184,7 +184,7 @@ export default function SignInScreen() {
   async function handleGoogleSignIn() {
     try {
       // Webb: Clerks redirect-flöde
-      if (Platform.OS === 'web') {
+      if (Platform.OS as any === 'web') {
         if (!isLoaded) return;
         await signIn.authenticateWithRedirect({
           strategy: 'oauth_google',
@@ -194,7 +194,7 @@ export default function SignInScreen() {
         return;
       }
       // Native: Clerks native Google Sign-In hook
-      if (Platform.OS === 'web') return; // Web handled above
+      if (Platform.OS as any === 'web') return; // Web handled above
       setLoading(true);
       const { createdSessionId, setActive: setClerkSession } = await startGoogleAuthenticationFlow();
       if (createdSessionId && setClerkSession) {
@@ -215,7 +215,7 @@ export default function SignInScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS as any === 'ios' ? 'padding' : undefined}
     >
       <Image source={LOGO} style={styles.logo} resizeMode="cover" />
       <Text style={styles.title}>{str.appName}</Text>

@@ -52,7 +52,7 @@ export function InstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
+    if (Platform.OS as any !== 'web') return;
     setTarget(detectInstallTarget());
     setInstalled(isAlreadyInstalled());
     setDismissed(recentlyDismissed());
@@ -70,7 +70,7 @@ export function InstallBanner() {
     };
   }, []);
 
-  if (Platform.OS !== 'web') return null;
+  if (Platform.OS as any !== 'web') return null;
   if (installed || dismissed) return null;
 
   async function trigger() {

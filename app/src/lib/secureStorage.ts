@@ -37,7 +37,7 @@ const webStore = {
   },
 };
 
-const impl = Platform.OS === 'web' ? webStore : Native;
+const impl = Platform.OS as any === 'web' ? webStore : Native;
 
 export const getItemAsync = impl.getItemAsync.bind(impl);
 export const setItemAsync = impl.setItemAsync.bind(impl);

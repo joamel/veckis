@@ -26,7 +26,7 @@ export function useSheetLift() {
   const [sheetLift, setSheetLift] = useState(0);
 
   const revealFocused = useCallback(() => {
-    if (Platform.OS === 'web' || kbHeightRef.current === 0) return;
+    if (Platform.OS as any === 'web' || kbHeightRef.current === 0) return;
     const ref = focusedInputRef.current;
     if (!ref) return;
     // OBS: Keyboard.metrics() ger höjd 0 på huvudfönstret under edge-to-edge

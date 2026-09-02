@@ -735,7 +735,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               // varje re-render → setHeroLoading(true) → re-render → loop → spinner-
               // overlayen BLINKAR (flimret). Kör därför JS-loading-state bara på native;
               // på web behåller vi bara onError för fel-placeholdern.
-              {...(Platform.OS === 'web'
+              {...(Platform.OS as any === 'web'
                 ? { onError: () => setHeroError(true) }
                 : {
                     onLoadStart: () => { setHeroLoading(true); setHeroError(false); },
@@ -743,7 +743,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                     onError: () => { setHeroError(true); setHeroLoading(false); },
                   })}
             />
-            {heroLoading && !heroError && Platform.OS !== 'web' ? (
+            {heroLoading && !heroError && Platform.OS as any !== 'web' ? (
               <View style={s.heroImageOverlay}>
                 <ActivityIndicator color={c.primary} />
               </View>

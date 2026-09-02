@@ -21,7 +21,7 @@ export function useCheckHaptic() {
       soundEnabledRef.current = v !== '0';
     }).catch(() => {});
 
-    if (Platform.OS !== 'web') {
+    if (Platform.OS as any !== 'web') {
       Audio.Sound.createAsync(
         require('../../assets/sounds/check.wav'),
         { shouldPlay: false, volume: 0.7 },
@@ -34,20 +34,20 @@ export function useCheckHaptic() {
   }, []);
 
   function play(soundRef: React.MutableRefObject<Audio.Sound | null>) {
-    if (!soundEnabledRef.current || Platform.OS === 'web') return;
+    if (!soundEnabledRef.current || Platform.OS as any === 'web') return;
     soundRef.current?.setPositionAsync(0).then(() => {
       soundRef.current?.playAsync().catch(() => {});
     }).catch(() => {});
   }
 
   const triggerCheck = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS as any === 'web') return;
     if (hapticEnabledRef.current) Haptics.impactAsync(style).catch(() => {});
     play(checkSoundRef);
   };
 
   const triggerDelete = () => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS as any === 'web') return;
     if (hapticEnabledRef.current) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
   };
 

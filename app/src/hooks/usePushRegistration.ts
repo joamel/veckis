@@ -7,7 +7,7 @@ import { registerForPush } from '../lib/registerPush';
 
 // Foreground behaviour: show a banner + play sound when a push arrives while
 // the app is open. Skippas på web — ExpoNotifications saknar handler-stöd där.
-if (Platform.OS !== 'web') {
+if (Platform.OS as any !== 'web') {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
@@ -29,7 +29,7 @@ export function usePushRegistration(): void {
   const done = useRef(false);
 
   useEffect(() => {
-    if (Platform.OS === 'web') return; // Web-PWA stödjer ej Expo push-token
+    if (Platform.OS as any === 'web') return; // Web-PWA stödjer ej Expo push-token
     if (!isSignedIn || done.current) return;
     done.current = true;
     registerForPush(client).then(res => {

@@ -48,7 +48,7 @@ export default function PreferencesScreen() {
     const subject = encodeURIComponent(str.support.subject);
     const body = encodeURIComponent(str.support.body(version, Platform.OS));
     const url = `mailto:support@handlis.app?subject=${subject}&body=${body}`;
-    if (Platform.OS === 'web') {
+    if (Platform.OS as any === 'web') {
       window.location.href = url;
     } else {
       const { Linking } = require('react-native');

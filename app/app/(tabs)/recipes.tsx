@@ -266,7 +266,7 @@ export default function RecipesScreen() {
   // onFocus (så lyftet räknas om när man byter fält medan tangentbordet redan är
   // uppe, t.ex. manuellt → klistra in).
   const revealFocused = useCallback(() => {
-    if (Platform.OS === 'web' || kbHeightRef.current === 0) return;
+    if (Platform.OS as any === 'web' || kbHeightRef.current === 0) return;
     const ref = focusedInputRef.current;
     if (!ref) return;
     const kbH = Math.min(kbHeightRef.current, windowHeight * 0.5);

@@ -10,7 +10,7 @@ export default function Index() {
   const { colors: c } = useTheme();
   const { isLoaded, isSignedIn } = useAuth();
 
-  if (Platform.OS === 'web' && isLoaded && !isSignedIn) {
+  if (Platform.OS as any === 'web' && isLoaded && !isSignedIn) {
     return <WebLanding />;
   }
 

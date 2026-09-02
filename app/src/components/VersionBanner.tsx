@@ -73,7 +73,7 @@ function NativeVersionBanner() {
 }
 
 export function VersionBanner() {
-  if (Platform.OS === 'web') return <WebVersionBanner />;
+  if (Platform.OS as any === 'web') return <WebVersionBanner />;
   return <NativeVersionBanner />;
 }
 

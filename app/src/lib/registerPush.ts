@@ -23,7 +23,7 @@ export async function registerForPush(client: TokenRegistrar): Promise<PushRegis
   try {
     if (!Device.isDevice) return { status: 'unsupported' };
 
-    if (Platform.OS === 'android') {
+    if (Platform.OS as any === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'Standard',
         importance: Notifications.AndroidImportance.DEFAULT,

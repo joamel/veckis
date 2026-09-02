@@ -7,7 +7,7 @@ export function useIsOnline(): boolean {
   useEffect(() => {
     // Native: browser events unavailable — needs @react-native-community/netinfo + EAS build.
     // Web/PWA: navigator.onLine + browser events cover the offline-in-the-store scenario.
-    if (Platform.OS !== 'web') return;
+    if (Platform.OS as any !== 'web') return;
     const update = () => setOnline(navigator.onLine);
     update();
     window.addEventListener('online', update);

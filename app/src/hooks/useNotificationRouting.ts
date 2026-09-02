@@ -35,7 +35,7 @@ export function useNotificationRouting(): void {
     // Push notifications hanteras inte i web-PWA — alla ExpoNotifications-
     // anrop kastar "not available on web". Routing baseras på native-tap;
     // på web finns det inget motsvarande att lyssna på.
-    if (Platform.OS === 'web') return;
+    if (Platform.OS as any === 'web') return;
 
     const handle = (res: Notifications.NotificationResponse) => {
       const id = res.notification.request.identifier;

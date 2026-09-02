@@ -1447,7 +1447,7 @@ export default function MenuScreen() {
           inte att scrolla. På web renderas därför bara aktuell vecka som en
           rak vertikal ScrollView; veckobyte sker via pilarna/Idag (goToWeek
           sätter weekOffset, scrollToIndex blir no-op utan FlatList-ref). */}
-      {Platform.OS === 'web' ? (
+      {Platform.OS as any === 'web' ? (
         <ScrollView
           ref={menuScrollRef}
           style={s.content}
@@ -2094,7 +2094,7 @@ function MenuCard({
   // blockerar webbläsarens horisontella sid-svep (kan inte byta vecka när det
   // ligger maträtter). Drag-flytt finns bara på native; på web renderas kortet
   // utan GestureDetector och flytt görs via dag-chipsen i utfällda vyn.
-  const isWeb = Platform.OS === 'web';
+  const isWeb = Platform.OS as any === 'web';
   const cardBody = (
       <View style={[s.card, isDragging && s.cardDragging, isPending && s.cardPending]}>
         <View style={s.cardInner}>
