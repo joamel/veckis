@@ -86,6 +86,7 @@ export default function SignInScreen() {
     setLoading(true);
     try {
       const result = await signIn.create({ identifier: email, password });
+      reportClientError('PASSWORD_SIGNIN_RESULT', { email, status: result.status });
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId });
       } else {
