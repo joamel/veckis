@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
-import { useClerk } from '@clerk/expo';
 import { useSignIn, useSignUp } from '@clerk/expo/legacy'; // v2-kompatibelt API (create/setActive) på v4-kärnan
-import * as AuthSession from 'expo-auth-session';
+import { useSignInWithGoogle } from '@clerk/expo/google';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -17,8 +17,6 @@ import {
   View,
 } from 'react-native';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { reportClientError } from '../../src/lib/errorReport';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { InstallBanner } from '../../src/components/InstallBanner';
 import { auth as str } from '../../src/lib/svenska';
 import * as WebBrowser from 'expo-web-browser';
@@ -32,19 +30,12 @@ const GOOGLE_G = require('../../assets/google-g.png');
 // man valt konto (webbläsaren stängs aldrig / promisen resolvar aldrig).
 WebBrowser.maybeCompleteAuthSession();
 
-// Native Google Sign-In (idToken-flöde). webClientId = Clerks Google Web-client.
-// idToken skickas till backend för verifiering + Clerk-session-skapning.
-// Sessionen skapas på native-clienten (ej browser-client) → persisterar över omstart.
-if (Platform.OS !== 'web') {
-  GoogleSignin.configure({ webClientId: '630229510172-97lh1jsdohiel0mgg0vec6r09gc77d6d.apps.googleusercontent.com' });
-}
-
 export default function SignInScreen() {
   const { colors: c } = useTheme();
   const styles = useMemo(() => makeStyles(c), [c]);
   const { signIn, setActive, isLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
-  const clerk = useClerk();
+  const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
   const confirm = useConfirm();
 
   // Värm upp webbläsaren (Android) för stabilare OAuth-flöde. Bara native —
@@ -192,10 +183,8 @@ export default function SignInScreen() {
 
   async function handleGoogleSignIn() {
     try {
-      // Webb och native kräver OLIKA OAuth-flöden.
+      // Webb: Clerks redirect-flöde
       if (Platform.OS === 'web') {
-        // Webb: Clerks redirect-flöde → tillbaka till /sso-callback som slutför
-        // sessionen. (native-useSSO/WebBrowser fungerar inte korrekt på webben.)
         if (!isLoaded) return;
         await signIn.authenticateWithRedirect({
           strategy: 'oauth_google',
@@ -204,43 +193,20 @@ export default function SignInScreen() {
         });
         return;
       }
-      // Native: Google Sign-In → idToken → backend creates Clerk session
-      if (!isLoaded) return;
+      // Native: Clerks native Google Sign-In hook
+      if (Platform.OS === 'web') return; // Web handled above
       setLoading(true);
-      await GoogleSignin.hasPlayServices();
-      const info = await GoogleSignin.signIn();
-      const idToken = (info as { data?: { idToken?: string | null }; idToken?: string | null }).data?.idToken
-        ?? (info as { idToken?: string | null }).idToken ?? null;
-      reportClientError('DIAG google signin', { hasIdToken: !!idToken });
-      if (!idToken) {
+      const { createdSessionId, setActive: setClerkSession } = await startGoogleAuthenticationFlow();
+      if (createdSessionId && setClerkSession) {
+        await setClerkSession({ session: createdSessionId });
+      }
+    } catch (err: any) {
+      if (err?.code === 'SIGN_IN_CANCELLED' || err?.code === '-5') {
         setLoading(false);
         return;
       }
-      // Skicka idToken till backend för session-skapning
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
-      const response = await fetch(`${apiUrl}/api/auth/google-signin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-      });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || `Google signin failed (${response.status})`);
-      }
-      const data = await response.json() as { sessionId?: string; createdSessionId?: string };
-      const sessionId = data.sessionId || data.createdSessionId;
-      reportClientError('DIAG google session', { hasSid: !!sessionId });
-      if (!sessionId) {
-        throw new Error('No session from backend');
-      }
-      // Activate session
-      await setActive({ session: sessionId });
-      reportClientError('DIAG google done', { sessionId: clerk.session?.id ?? null });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : str.errors.googleFailed;
-      const fullErr = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
-      reportClientError('DIAG gidt error', { msg, err: fullErr });
-      confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
+      const msg = err?.message ?? str.errors.googleFailed;
+      Alert.alert(str.errors.title, msg);
     } finally {
       setLoading(false);
     }
