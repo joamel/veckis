@@ -3,7 +3,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { createClerkClient } from '@clerk/backend';
 import { asyncHandler } from '../lib/asyncHandler';
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '630229510172-97lh1jsdohiel0mgg0vec6r09gc77d6d.apps.googleusercontent.com';
 
 export const authRouter = Router();
 
