@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
-import { useSignUp } from '@clerk/clerk-expo';
+import { useSignUp } from '@clerk/expo/legacy'; // v2-kompatibelt API på v4-kärnan
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {

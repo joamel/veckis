@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { useAuth } from '@clerk/clerk-expo';
+import { useAuth } from '@clerk/expo';
 import * as SecureStore from '../lib/secureStorage';
 import { useApiClient, type MembershipWithHousehold } from '../api/client';
 

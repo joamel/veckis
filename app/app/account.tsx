@@ -8,7 +8,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, Sc
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useAuth, useUser } from '@clerk/clerk-expo';
+import { useAuth, useUser } from '@clerk/expo';
 import { useApiClient } from '../src/api/client';
 import { useHousehold } from '../src/context/HouseholdContext';
 import { useToast } from '../src/context/ToastContext';

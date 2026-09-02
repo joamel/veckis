@@ -2,7 +2,7 @@
   "expo": {
     "name": "Handlis",
     "slug": "veckis",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -52,14 +52,17 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-notifications",
+      "@clerk/expo",
       "./plugins/withDisableAutofill",
+      "./plugins/withSingleTask",
       [
         "expo-image-picker",
         {
           "photosPermission": "Handlis behöver tillgång till dina bilder för att välja receptbild.",
           "cameraPermission": "Handlis behöver kameran för att ta en receptbild."
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true

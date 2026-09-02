@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { useClerk } from '@clerk/clerk-expo';
+import { useClerk } from '@clerk/expo';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../src/context/ThemeContext';
 
