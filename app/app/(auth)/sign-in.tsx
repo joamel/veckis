@@ -204,41 +204,63 @@ export default function SignInScreen() {
         });
         return;
       }
-      // Native: Google Sign-In → idToken → backend-verifiering → Clerk-session.
-      // Sessionen skapas på native-clienten (ej browser-client) → persisterar
-      // över omstart. Backend verifierar idToken med Google + skapar Clerk-session.
-      if (!isLoaded) return;
+      // Native: Google Sign-In → extract email → email-code auth
+      // Använder Google för identitet, email-code för session (proven flow).
+      if (!isLoaded || !signUpLoaded) return;
       setLoading(true);
       await GoogleSignin.hasPlayServices();
       const info = await GoogleSignin.signIn();
       const idToken = (info as { data?: { idToken?: string | null }; idToken?: string | null }).data?.idToken
         ?? (info as { idToken?: string | null }).idToken ?? null;
-      reportClientError('DIAG gidt', { hasIdToken: !!idToken });
+      reportClientError('DIAG google signin', { hasIdToken: !!idToken });
       if (!idToken) {
         setLoading(false);
-        return; // användaren avbröt eller ingen token
+        return;
       }
-      // Skicka idToken till backend för verifiering + session-skapning
+      // Skicka idToken till backend för email-extraktion
       const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
-      const response = await fetch(`${apiUrl}/api/auth/verify-google-idtoken`, {
+      const response = await fetch(`${apiUrl}/api/auth/google-signin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
       });
-      reportClientError('DIAG gidt post', { status: response.status });
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || `Backend verification failed (${response.status})`);
+        throw new Error(err.error || `Google signin failed (${response.status})`);
       }
-      const data = await response.json() as { sessionId?: string; createdSessionId?: string };
-      const sessionId = data.sessionId || data.createdSessionId;
-      reportClientError('DIAG gidt response', { hasSid: !!sessionId });
-      if (!sessionId) {
-        throw new Error('No session ID in response');
+      const data = await response.json() as { email?: string; userId?: string };
+      reportClientError('DIAG google email', { email: data.email });
+      if (!data.email) {
+        throw new Error('No email from Google');
       }
-      // Aktivera sessionen på native-klienten
-      await setActive({ session: sessionId });
-      reportClientError('DIAG gidt done', { sessionId: clerk.session?.id ?? null });
+      // Använd email-code-flödet för att slutföra signin
+      setEmail(data.email);
+      setMode('email-code');
+      setCodeSent(false);
+      // Skicka kod automatiskt
+      try {
+        const attempt = await signIn.create({ identifier: data.email });
+        const factor = attempt.supportedFirstFactors?.find(f => f.strategy === 'email_code');
+        if (!factor || !('emailAddressId' in factor)) {
+          throw new Error('Email code not available');
+        }
+        await signIn.prepareFirstFactor({ strategy: 'email_code', emailAddressId: factor.emailAddressId });
+        setIsNewAccount(false);
+        setCodeSent(true);
+        reportClientError('DIAG google email-code sent', { email: data.email });
+      } catch (e) {
+        if (!(typeof e === 'object' && e !== null && 'errors' in e
+          && Array.isArray((e as { errors?: unknown }).errors)
+          && (e as { errors: { code?: string }[] }).errors.some(x => x?.code === 'form_identifier_not_found'))) {
+          throw e;
+        }
+        // Nytt konto
+        await signUp.create({ emailAddress: data.email });
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+        setIsNewAccount(true);
+        setCodeSent(true);
+        reportClientError('DIAG google new account email-code sent', { email: data.email });
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.googleFailed;
       const fullErr = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
