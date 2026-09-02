@@ -7,6 +7,11 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
 export const authRouter = Router();
 
+// Test endpoint — verifiera att app når backend
+authRouter.get('/test', (_req, res) => {
+  res.json({ ok: true, googleClientId: !!GOOGLE_CLIENT_ID });
+});
+
 interface GoogleIdTokenPayload {
   iss: string;
   sub: string;
