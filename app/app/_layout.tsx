@@ -2,7 +2,6 @@ import '../src/lib/clerkClientSync'; // MÅSTE ligga före '@clerk/expo' — pat
 import { ClerkProvider, useAuth } from '@clerk/expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
-import { reportClientError } from '../src/lib/errorReport';
 import { createElement, forwardRef, useEffect, useState, type ComponentType } from 'react';
 import { Platform, View } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -59,109 +58,15 @@ for (const name of ['Text', 'TextInput'] as const) {
   }
 }
 
-// DIAG native session-drop (2026-09-01): token PERSISTERAS (518 b, överlever
-// omstart) men prod-servern skapar ny client vid varje start → utloggad. Storlek/
-// SecureStore uteslutet. Denna build avkodar client-JWT:ns claims vid save+get för
-// att avgöra VARFÖR servern avvisar den lagrade token:en (utgången? reused nonce?
-// refererar den ingen session?). Chunkingen är kvar (skadar inte, <1800 = no-op).
-const CHUNK_SIZE = 1800;
-const CHUNK_MARK = '__chunks__:';
-
-// Minimal base64url→sträng (ingen atob-beroende), best-effort, får ALDRIG kasta
-// in i token-flödet.
-function b64urlDecode(input: string): string {
-  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  const s = input.replace(/-/g, '+').replace(/_/g, '/');
-  let out = '', bits = 0, val = 0;
-  for (const ch of s) {
-    const i = A.indexOf(ch);
-    if (i === -1) continue;
-    val = (val << 6) | i; bits += 6;
-    if (bits >= 8) { bits -= 8; out += String.fromCharCode((val >> bits) & 0xff); }
-  }
-  return out;
-}
-
-// Avkodar JWT-payloadens icke-hemliga claims (iat/exp/sid + nyckel-lista). Loggar
-// ALDRIG själva rotating_token-värdet — bara om det finns.
-function jwtInfo(jwt: string | null): Record<string, unknown> | null {
-  if (!jwt) return null;
-  try {
-    const parts = jwt.split('.');
-    if (parts.length < 2) return { notJwt: true };
-    const p = JSON.parse(b64urlDecode(parts[1]));
-    const now = Math.floor(Date.now() / 1000);
-    return {
-      iat: p.iat ?? null,
-      exp: p.exp ?? null,
-      expired: typeof p.exp === 'number' ? p.exp < now : null,
-      ageSec: typeof p.iat === 'number' ? now - p.iat : null,
-      hasSid: 'sid' in p ? !!p.sid : false,
-      hasRot: 'rotating_token' in p,
-      claims: Object.keys(p),
-    };
-  } catch (e) {
-    return { decodeErr: String(e) };
-  }
-}
-
-async function readCached(key: string): Promise<string | null> {
-  const head = await SecureStore.getItemAsync(key);
-  if (head == null || !head.startsWith(CHUNK_MARK)) return head;
-  const n = parseInt(head.slice(CHUNK_MARK.length), 10);
-  let out = '';
-  for (let i = 0; i < n; i++) {
-    const part = await SecureStore.getItemAsync(`${key}__${i}`);
-    if (part == null) return null; // korrupt/ofullständig → behandla som saknad
-    out += part;
-  }
-  return out;
-}
-
-async function writeCached(key: string, value: string): Promise<void> {
-  if (value.length <= CHUNK_SIZE) {
-    await SecureStore.setItemAsync(key, value);
-    return;
-  }
-  const n = Math.ceil(value.length / CHUNK_SIZE);
-  for (let i = 0; i < n; i++) {
-    await SecureStore.setItemAsync(`${key}__${i}`, value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
-  }
-  await SecureStore.setItemAsync(key, `${CHUNK_MARK}${n}`);
-}
-
-async function clearCached(key: string): Promise<void> {
-  const head = await SecureStore.getItemAsync(key).catch(() => null);
-  if (head?.startsWith(CHUNK_MARK)) {
-    const n = parseInt(head.slice(CHUNK_MARK.length), 10);
-    for (let i = 0; i < n; i++) await SecureStore.deleteItemAsync(`${key}__${i}`).catch(() => {});
-  }
-  await SecureStore.deleteItemAsync(key).catch(() => {});
-}
-
 const tokenCache = {
   async getToken(key: string) {
-    try {
-      const v = await readCached(key);
-      reportClientError('DIAG getToken', { key, len: v?.length ?? -1, jwt: jwtInfo(v) });
-      return v;
-    } catch (e) {
-      reportClientError('DIAG getToken ERR', { key, err: String(e) });
-      return null;
-    }
+    return SecureStore.getItemAsync(key);
   },
   async saveToken(key: string, value: string) {
-    try {
-      await writeCached(key, value);
-      const back = await readCached(key);
-      reportClientError('DIAG saveToken', { key, len: value?.length ?? -1, roundtrip: back?.length ?? -1, ok: back === value, jwt: jwtInfo(value) });
-    } catch (e) {
-      reportClientError('DIAG saveToken ERR', { key, len: value?.length ?? -1, err: String(e) });
-    }
+    return SecureStore.setItemAsync(key, value);
   },
   async clearToken(key: string) {
-    reportClientError('DIAG clearToken', { key });
-    await clearCached(key);
+    return SecureStore.deleteItemAsync(key);
   },
 };
 
