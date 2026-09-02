@@ -101,8 +101,9 @@ authRouter.post(
       });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Token verification failed';
-      console.error('[auth/verify-google-idtoken]', msg);
-      res.status(401).json({ error: msg });
+      const fullError = error instanceof Error ? { message: error.message, stack: error.stack?.split('\n')[0] } : String(error);
+      console.error('[auth/verify-google-idtoken] Error:', msg, fullError);
+      res.status(400).json({ error: msg, details: fullError });
     }
   }),
 );
