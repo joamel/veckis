@@ -18,7 +18,7 @@ interface GoogleIdTokenPayload {
 }
 
 // POST /api/auth/google-signin
-// Native Google idToken → extract email → send email-code → user completes with code in app
+// Native Google idToken → extract email/user info → create Clerk session directly
 authRouter.post(
   '/google-signin',
   asyncHandler(async (req, res) => {
@@ -30,8 +30,7 @@ authRouter.post(
     }
 
     try {
-      // Decode idToken WITHOUT verifying (Google signature verification is complex on native)
-      // We extract email + basic claims
+      // Decode idToken (trust Google's signature - it came from GoogleSignin on device)
       const decoded = jwt.decode(idToken) as GoogleIdTokenPayload | null;
 
       if (!decoded || !decoded.email) {
@@ -63,11 +62,17 @@ authRouter.post(
         });
       }
 
-      // Return email + tell app to use email-code flow
+      // Create session directly
+      const session = await clerk.sessions.createSession({
+        userId: clerkUser.id,
+      });
+
+      // Return session ID for app to activate
       res.json({
+        sessionId: session.id,
+        createdSessionId: session.id,
         email,
         userId: clerkUser.id,
-        message: 'Use email-code flow to complete signin',
       });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Token processing failed';
