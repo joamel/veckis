@@ -22,6 +22,7 @@ import { pushRouter } from './routes/push';
 import { clientErrorsRouter } from './routes/clientErrors';
 import { clerkWebhookRouter } from './routes/clerkWebhook';
 import { accountRouter } from './routes/account';
+import { authRouter } from './routes/auth';
 import { prisma } from './db';
 import { asyncHandler } from './lib/asyncHandler';
 import { wsSubscribe, wsUnsubscribe } from './lib/wsHub';
@@ -107,6 +108,7 @@ app.get('/keepalive', async (_req, res) => {
   res.json({ ok: true, db, ts: new Date().toISOString() });
 });
 
+app.use('/api/auth', authRouter);
 app.use('/api/households', householdRouter);
 app.use('/api/shopping', shoppingRouter);
 app.use('/api/stores', storesRouter);
