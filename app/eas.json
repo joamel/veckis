@@ -13,7 +13,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://veckis-production.up.railway.app",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk"
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "630229510172-97lh1jsdohiel0mgg0vec6r09gc77d6d.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -27,7 +28,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://veckis-production.up.railway.app",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk"
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "630229510172-97lh1jsdohiel0mgg0vec6r09gc77d6d.apps.googleusercontent.com"
       }
     },
     "preview-simulator": {
@@ -38,7 +40,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://veckis-production.up.railway.app",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk"
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "630229510172-97lh1jsdohiel0mgg0vec6r09gc77d6d.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -53,7 +56,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://veckis-production.up.railway.app",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk"
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "630229510172-97lh1jsdohiel0mgg0vec6r09gc77d6d.apps.googleusercontent.com"
       }
     }
   },
