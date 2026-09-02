@@ -5,9 +5,9 @@ import { asyncHandler } from '../lib/asyncHandler';
 
 export const authRouter = Router();
 
-// Test endpoint
+// Test endpoint - verify prod is deployed
 authRouter.get('/test', (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, version: '2' });
 });
 
 interface GoogleIdTokenPayload {
