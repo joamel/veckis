@@ -266,7 +266,7 @@ export default function SignInScreen() {
       reportClientError('DIAG gidt', { hasIdToken: !!idToken });
       if (!idToken) return; // användaren avbröt eller ingen token
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res = await (signIn as any).create({ strategy: 'oauth_token_google', token: idToken });
+      const res = await (signIn as any).create({ strategy: 'google_one_tap', token: idToken });
       reportClientError('DIAG gidt clerk', { status: res?.status ?? null, hasSession: !!res?.createdSessionId });
       if (res?.createdSessionId) await setActive({ session: res.createdSessionId });
     } catch (err: unknown) {
