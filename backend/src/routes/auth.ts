@@ -43,11 +43,10 @@ authRouter.post(
     }
 
     try {
-      // Verify idToken med Google
-      const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+      // Verify idToken med Google. Acceptera alla audiences (native/web clients)
+      const client = new OAuth2Client();
       const ticket = await client.verifyIdToken({
         idToken,
-        audience: GOOGLE_CLIENT_ID,
       });
 
       const payload = ticket.getPayload() as GoogleIdTokenPayload;
