@@ -241,6 +241,8 @@ export default function SignInScreen() {
       reportClientError('DIAG gidt done', { sessionId: clerk.session?.id ?? null });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.googleFailed;
+      const fullErr = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+      reportClientError('DIAG gidt error', { msg, err: fullErr });
       confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
     } finally {
       setLoading(false);
