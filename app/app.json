@@ -72,7 +72,8 @@
       "eas": {
         "projectId": "37425b58-c8af-45be-aac8-c26bbdfaa3d1"
       },
-      "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "630229510172-97lh1jsdohiel0mgg0vec6r09gc77d6d.apps.googleusercontent.com"
+      "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "630229510172-97lh1jsdohiel0mgg0vec6r09gc77d6d.apps.googleusercontent.com",
+      "EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID": "630229510172-o5si76i2ce137204dtnbrjqbjmbccleq.apps.googleusercontent.com"
     },
     "owner": "joamel"
   }
