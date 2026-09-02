@@ -114,7 +114,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.close}><Ionicons name="close" size={24} color={c.textMuted} /></Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={s.body}>
+        <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled" scrollEnabled>
           <Text style={s.sectionLabel}>{str.menuTemplatesModal.saveSection}</Text>
           <View style={s.saveRow}>
             <TextInput

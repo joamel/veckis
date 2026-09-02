@@ -252,6 +252,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [1, 0], Extrapolation.CLAMP);
     return { opacity: t, maxWidth: t * 80, marginLeft: t * 6 };
   });
+  // Dubblett-pill: döljs när rubriken kollapsar (samma interpolation som storeName).
+  const dupeBadgeAnimStyle = useAnimatedStyle(() => {
+    const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [1, 0], Extrapolation.CLAMP);
+    return { opacity: t };
+  });
 
   // Collapsed categories — tap category header to fold/unfold its items.
   const [collapsedCategories, setCollapsedCategories] = useState<Set<StoreCategory | 'checked'>>(new Set());
@@ -1338,24 +1343,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         onScroll={scrollHandler}
         scrollEventThrottle={16}
       >
-        {/* Dubblettknapp som första scrollbara rad — försvinner upp tillsammans
-            med kategorierna när användaren scrollar. (Butiken bor nu i navbaren.) */}
-        {duplicateGroups.length > 0 && (
-          <View style={s.scrollMeta}>
-            <Animated.View ref={dupeBadgeRef} collapsable={false} style={{ transform: [{ scale: dupeButtonScale }] }}>
-              <Pressable
-                style={s.dupeBadge}
-                onPress={() => openMergeForDupes(duplicateGroups[0])}
-                hitSlop={8}
-              >
-                <Ionicons name="git-merge-outline" size={12} color={c.accent} />
-                <Text style={s.dupeBadgeText}>
-                  {duplicateGroups.length === 1 ? '1 dubblett' : `${duplicateGroups.length} dubbletter`}
-                </Text>
-              </Pressable>
-            </Animated.View>
-          </View>
-        )}
         {allItems.length === 0 && (
           <View style={s.emptyContainer}>
             <Pressable onPress={goToBulkTransfer} style={s.emptyImportBtn} hitSlop={12}>
@@ -1480,6 +1467,28 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           </Text>
         </RNAnimated.View>
       </RNAnimated.View>
+
+      {/* Duplicate badge — slides with title-area, positioned at right.
+          Fades out as title collapses so it doesn't hover over navbar. */}
+      {duplicateGroups.length > 0 && (
+        <RNAnimated.View
+          style={[s.titleDupeBadgeWrap, { top: HEADER_TOP + NAVBAR_HEIGHT, height: TITLE_AREA_HEIGHT }, titleAreaAnimStyle, dupeBadgeAnimStyle]}
+          pointerEvents="auto"
+        >
+          <Animated.View ref={dupeBadgeRef} collapsable={false} style={{ transform: [{ scale: dupeButtonScale }] }}>
+            <Pressable
+              style={s.dupeBadge}
+              onPress={() => openMergeForDupes(duplicateGroups[0])}
+              hitSlop={8}
+            >
+              <Ionicons name="git-merge-outline" size={12} color={c.accent} />
+              <Text style={s.dupeBadgeText}>
+                {duplicateGroups.length === 1 ? '1 dubblett' : `${duplicateGroups.length} dubbletter`}
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </RNAnimated.View>
+      )}
 
       {/* Sticky kategori-rubrik — pinnad precis under navbaren, visar kategorin
           vars rad just nu passerar navbar-linjen (uppdateras från scroll). */}
@@ -2484,6 +2493,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   navbarBgAbs: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: c.background, zIndex: 5 },
   navbarButtonsAbs: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, zIndex: 30 },
   titleTextWrap: { position: 'absolute', left: 20, right: 20, justifyContent: 'center', alignItems: 'flex-start', zIndex: 25 },
+  titleDupeBadgeWrap: { position: 'absolute', left: 20, right: 20, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 4, zIndex: 25, pointerEvents: 'box-none' },
   headerNavPinned: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   headerTitleAbs: { position: 'absolute', left: 0, right: 0, zIndex: 10, paddingHorizontal: 20, backgroundColor: c.surface, overflow: 'hidden' },
   actionsMenu: { position: 'absolute', right: 0, backgroundColor: c.surface, borderRadius: 12, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
@@ -2498,7 +2508,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   titleCompact: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: c.text, paddingHorizontal: 8 },
   progressBar: { height: 3, backgroundColor: c.borderLight },
   stickyCat: { position: 'absolute', left: 0, right: 0, zIndex: 20, backgroundColor: c.background, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
-  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: c.primary200, borderRadius: 999, backgroundColor: c.primaryTint },
+  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: c.primary200, borderRadius: 999, backgroundColor: c.primaryTint, maxWidth: '35%', flexShrink: 1 },
   navStoreNameWrap: { overflow: 'hidden', justifyContent: 'center' },
   navStoreName: { fontSize: 15, color: c.primary, fontWeight: '600' },
   shopperWrap: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
