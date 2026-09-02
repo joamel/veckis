@@ -58,7 +58,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem } from '@veckis/shared';
-import { isIOSLike } from '../../src/lib/platform';
+import { isIOSLike, isWeb } from '../../src/lib/platform';
 import { shoppingList as str, common } from '../../src/lib/svenska';
 import { enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError } from '../../src/lib/shoppingOfflineQueue';
 
@@ -315,7 +315,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // keyboardDidHide fyrar pålitligt ändå, så när tangentbordet är borta tvingar
   // vi lyftet till 0 oavsett den frusna höjden.
   const addBarLift = useAnimatedStyle(() => ({
-    paddingBottom: Platform.OS === 'web' || !keyboardVisible ? 0 : animKeyboard.height.value,
+    paddingBottom: isWeb() || !keyboardVisible ? 0 : animKeyboard.height.value,
   }));
   const inputRef = useRef<TextInput>(null);
   const editNameRef = useRef<TextInput>(null);
@@ -1569,7 +1569,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       <KeyboardAvoidingView
         behavior="padding"
         keyboardVerticalOffset={isIOSLike ? 90 : 0}
-        enabled={keyboardVisible && Platform.OS === 'web' && isIOSLike}
+        enabled={keyboardVisible && isWeb() && isIOSLike}
       >
         {suggestions.length > 0 ? (
           <ScrollView
@@ -1609,7 +1609,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </View>
           </View>
         ) : null}
-        <View style={[s.addBar, { paddingBottom: keyboardVisible && Platform.OS !== 'web' ? 20 : Math.max(12, insets.bottom) }]}>
+        <View style={[s.addBar, { paddingBottom: keyboardVisible && !isWeb() ? 20 : Math.max(12, insets.bottom) }]}>
           <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
             <Ionicons name="grid-outline" size={22} color={c.primary} />
           </Pressable>
