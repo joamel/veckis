@@ -6,7 +6,7 @@ import { Platform } from 'react-native';
  */
 export const isIOSLike =
   Platform.OS === 'ios' ||
-  (Platform.OS === 'web' &&
+  ((Platform.OS as string) === 'web' &&
     typeof navigator !== 'undefined' &&
     /iPhone|iPad|iPod/.test(navigator.userAgent));
 
