@@ -265,10 +265,18 @@ export default function SignInScreen() {
         ?? (info as { idToken?: string | null }).idToken ?? null;
       reportClientError('DIAG gidt', { hasIdToken: !!idToken });
       if (!idToken) return; // användaren avbröt eller ingen token
+      // Clerks One Tap-metod hanterar sign-in ELLER sign-up + rätt client-kontext.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res = await (signIn as any).create({ strategy: 'google_one_tap', token: idToken });
-      reportClientError('DIAG gidt clerk', { status: res?.status ?? null, hasSession: !!res?.createdSessionId });
-      if (res?.createdSessionId) await setActive({ session: res.createdSessionId });
+      const ck = clerk as any;
+      const res = await ck.authenticateWithGoogleOneTap({ token: idToken });
+      reportClientError('DIAG gidt clerk', { obj: res?.object ?? null, status: res?.status ?? null, sid: res?.createdSessionId ?? null, keys: res ? Object.keys(res).slice(0, 12) : null });
+      // authenticateWithGoogleOneTap returnerar en signIn/signUp — slutför via callbacken.
+      if (typeof ck.handleGoogleOneTapCallback === 'function') {
+        await ck.handleGoogleOneTapCallback(res, {});
+      } else if (res?.createdSessionId) {
+        await setActive({ session: res.createdSessionId });
+      }
+      reportClientError('DIAG gidt done', { sessionId: clerk.session?.id ?? null });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.googleFailed;
       confirm({ title: str.errors.title, message: msg, buttons: [{ label: 'OK' }] });
