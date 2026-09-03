@@ -66,6 +66,7 @@
     "@vitest/coverage-v8": "^4.1.8",
     "cross-env": "^10.1.0",
     "jsdom": "^25.0.1",
+    "react-dom": "^19.2.8",
     "typescript": "^5.4.0",
     "vitest": "^4.1.8"
   }
