@@ -315,7 +315,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // keyboardDidHide fyrar pålitligt ändå, så när tangentbordet är borta tvingar
   // vi lyftet till 0 oavsett den frusna höjden.
   const addBarLift = useAnimatedStyle(() => ({
-    paddingBottom: isWeb() || !keyboardVisible ? 0 : animKeyboard.height.value,
+    // isWeb() (importerad, icke-worklet-funktion) kraschade UI-tråden med "Object
+    // is not a function" — Reanimated kan bara serialisera värden/worklets in i
+    // useAnimatedStyle, inte anrop till vanliga JS-funktioner från andra moduler.
+    // Platform.OS är ett vanligt värde och fångas säkert direkt i worklet-scopet.
+    paddingBottom: (Platform.OS as any) === 'web' || !keyboardVisible ? 0 : animKeyboard.height.value,
   }));
   const inputRef = useRef<TextInput>(null);
   const editNameRef = useRef<TextInput>(null);
