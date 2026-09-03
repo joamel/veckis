@@ -35,7 +35,7 @@ jobs:
           npx expo prebuild --platform android --clean
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease -x lintVitalAnalyzeRelease --no-lint
+          ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lint
         env:
           _JAVA_OPTIONS: '-Xmx2g'
 
