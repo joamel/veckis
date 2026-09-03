@@ -218,6 +218,12 @@ export default function SignInScreen() {
       behavior={Platform.OS as any === 'ios' ? 'padding' : undefined}
     >
       <Image source={LOGO} style={styles.logo} resizeMode="cover" />
+      {/* TEMP versionsmarkör — enda sättet att se om en OTA faktiskt applicerats.
+          Utan den gick vi i blindo: testarna körde 1.1.0-era-JS medan vi trodde
+          att uppdateringarna landat. Tas bort när sessionsbuggen är avförd. */}
+      <Text style={{ fontSize: 11, color: c.textFaint, textAlign: 'center', marginBottom: 4 }}>
+        bygge: OFFICIAL-A
+      </Text>
       <Text style={styles.title}>{str.appName}</Text>
       <Text style={styles.subtitle}>
         {mode === 'reset' ? str.signIn.subtitle.reset
