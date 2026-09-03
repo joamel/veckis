@@ -35,7 +35,9 @@ jobs:
           npx expo prebuild --platform android --clean
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease -x lintVitalAnalyzeRelease --no-lint
+        env:
+          _JAVA_OPTIONS: '-Xmx2g'
 
       - name: Find APK
         id: apk
