@@ -1,4 +1,5 @@
-import '../src/lib/clerkClientSync'; // MÅSTE ligga före '@clerk/expo' — patchar fetch
+// clerkClientSync removed — Clerk Expo SDK hanterar token-rotation och session-refresh
+// internt utan workarounds. Custom cache + fetch-patching skapar race conditions.
 import { ClerkProvider, useAuth } from '@clerk/expo';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
@@ -57,18 +58,6 @@ for (const name of ['Text', 'TextInput'] as const) {
     // Om exporten inte går att skriva över: behåll originalet (skalning på, men appen fungerar).
   }
 }
-
-const tokenCache = {
-  async getToken(key: string) {
-    return SecureStore.getItemAsync(key);
-  },
-  async saveToken(key: string, value: string) {
-    return SecureStore.setItemAsync(key, value);
-  },
-  async clearToken(key: string) {
-    return SecureStore.deleteItemAsync(key);
-  },
-};
 
 function StatusBarBackdrop() {
   const insets = useSafeAreaInsets();
@@ -196,7 +185,6 @@ export default function RootLayout() {
         <StatusBarBackdrop />
         <ClerkProvider
           publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
-          tokenCache={tokenCache}
         >
           <HouseholdProvider>
             <PendingRemovalProvider>

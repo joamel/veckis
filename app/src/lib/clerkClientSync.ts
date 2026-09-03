@@ -28,8 +28,23 @@ if (!g.__clerkClientSyncPatched && typeof g.fetch === 'function') {
 
     const res = await orig(input, init);
     try {
+      // Försök läsa token från Authorization-header (primär källa)
       const auth = res.headers.get('Authorization') ?? res.headers.get('authorization');
-      if (auth && auth.split('.').length >= 2) await SecureStore.setItemAsync(CLERK_JWT_KEY, auth);
+      if (auth && auth.split('.').length >= 2) {
+        await SecureStore.setItemAsync(CLERK_JWT_KEY, auth);
+      } else if (res.ok && res.status === 200) {
+        // Om inget token i header, försök läsa från response-body som backup.
+        // Clerk kan returnera token i response-body för vissa endpoints.
+        try {
+          const cloned = res.clone();
+          const body = await cloned.json().catch(() => null);
+          if (body?.['__clerk_client_jwt']) {
+            await SecureStore.setItemAsync(CLERK_JWT_KEY, body['__clerk_client_jwt']);
+          }
+        } catch {
+          // Ignorera body-parse-fel
+        }
+      }
     } catch { /* best-effort */ }
     return res;
   };
