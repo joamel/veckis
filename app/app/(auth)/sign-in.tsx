@@ -19,6 +19,7 @@ import {
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { InstallBanner } from '../../src/components/InstallBanner';
 import { auth as str } from '../../src/lib/svenska';
+import { reportClientError } from '../../src/lib/errorReport';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -199,8 +200,21 @@ export default function SignInScreen() {
       const { createdSessionId, setActive: setClerkSession } = await startGoogleAuthenticationFlow();
       if (createdSessionId && setClerkSession) {
         await setClerkSession({ session: createdSessionId });
+      } else {
+        // DIAG: Credential Manager stängde städat men Clerk returnerade ingen
+        // session — inget fel kastas i det läget (se @clerk/expo/google-källan),
+        // så utan denna logg är felet osynligt i både app och Railway-loggar.
+        reportClientError('DIAG: Google native flow gav ingen session', {
+          hadCreatedSessionId: !!createdSessionId, hadSetActive: !!setClerkSession,
+        });
       }
     } catch (err: any) {
+      // DIAG: logga ALLTID, även "avbrutet"-fel — Android Credential Manager
+      // kan kasta cancellation-formade fel även vid riktiga konfig-/auth-fel,
+      // och den tidigare koden svalde dem helt tyst utan någon logg alls.
+      reportClientError('DIAG: Google native flow error', {
+        code: err?.code ?? null, message: err?.message ?? null, name: err?.name ?? null,
+      });
       if (err?.code === 'SIGN_IN_CANCELLED' || err?.code === '-5') {
         setLoading(false);
         return;
