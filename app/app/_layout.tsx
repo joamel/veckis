@@ -1,6 +1,15 @@
-// clerkClientSync removed — Clerk Expo SDK hanterar token-rotation och session-refresh
-// internt utan workarounds. Custom cache + fetch-patching skapar race conditions.
+// OBS: clerkClientSync (fetch-patch som skrev FAPI:s Authorization-header rakt in i
+// Clerks egen nyckel `__clerk_client_jwt`) är BORTTAGEN. Den skrev i Clerks privata
+// storage bakom ryggen på SDK:n → korrupt client-JWT (iat/exp null i prod-loggarna)
+// → Clerk läste tillbaka en token den inte kunde använda och nollade sessionen mitt
+// under användning (clerkHasSession:false, clerkClientSessions:0).
 import { ClerkProvider, useAuth } from '@clerk/expo';
+// Officiella token-cachen (expo-secure-store + keychainAccessible AFTER_FIRST_UNLOCK,
+// och self-heal: raderar posten och returnerar null om läsningen failar). Vår
+// handrullade variant saknade båda — en enda kastad SecureStore-läsning räckte för
+// att slå ut sessionen. Clerk håller token i minnet utan cache, så den MÅSTE finnas
+// för att sessionen ska överleva en omstart.
+import { tokenCache } from '@clerk/expo/token-cache';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
 import { createElement, forwardRef, useEffect, useState, type ComponentType } from 'react';
@@ -185,6 +194,7 @@ export default function RootLayout() {
         <StatusBarBackdrop />
         <ClerkProvider
           publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
+          tokenCache={tokenCache}
         >
           <HouseholdProvider>
             <PendingRemovalProvider>
