@@ -102,6 +102,9 @@ export function useApiClient() {
 
   async function request<T>(path: string, options: RequestInit = {}, attempt = 0): Promise<T> {
     const token = await getToken();
+    if (!token) {
+      throw new ApiError('Du är utloggad. Logga in igen för att fortsätta.', 401, false);
+    }
     const url = `${BASE_URL}${path}`;
     // Kallstart-retry: gratis-hosting spinner ner (Render) och Neon-DB:n
     // autosuspendar (vaknar med 57P01 → 5xx). Retry:a BARA idempotenta anrop
@@ -133,6 +136,12 @@ export function useApiClient() {
     if (!res.ok) {
       // 5xx = servern uppe men beroende (oftast DB:n) vaknar → retry:a idempotenta.
       if (res.status >= 500 && canRetry) { await backoff(); return request<T>(path, options, attempt + 1); }
+      // 401 = auth bruten, sessionen gick förlorad. Token kan ha förfallit eller
+      // Clerk-sessionen uppgraderades åt något sätt. Logga ut för att tvinga
+      // appen att uppdatera från Clerk på nytt.
+      if (res.status === 401) {
+        throw new ApiError('Din session gick förlorad. Logga in igen.', 401, false);
+      }
       const err = await res.json().catch(() => ({ error: res.statusText }));
       throw new ApiError(err.error ?? `HTTP ${res.status}`, res.status, false);
     }
