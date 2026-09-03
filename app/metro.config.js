@@ -16,10 +16,16 @@ config.resolver.nodeModulesPaths = [
 ];
 
 // Force a single React instance across the monorepo to prevent dispatcher mismatch
-// (root node_modules has react@19.2.5 via react-dom, app pins 19.1.0 — two copies = broken hooks)
+// (npm workspaces hoisting can leave a stray react copy at either level depending on
+// what else is installed — two copies = broken hooks, "Cannot read property 'useEffect'
+// of null"). Resolve via require.resolve instead of a hardcoded path: npm's hoisting
+// decision changes between installs (root vs app/node_modules) whenever the dependency
+// tree shifts, so a fixed path silently pointed at a directory that stopped existing
+// the moment a clean install re-hoisted these to root — Metro fell through to a broken
+// module reference and every OTA update built afterwards crashed the app at launch.
 config.resolver.extraNodeModules = {
-  react: path.resolve(projectRoot, 'node_modules', 'react'),
-  'react-native': path.resolve(projectRoot, 'node_modules', 'react-native'),
+  react: path.dirname(require.resolve('react/package.json', { paths: [projectRoot] })),
+  'react-native': path.dirname(require.resolve('react-native/package.json', { paths: [projectRoot] })),
 };
 
 // Prevent Metro from bundling Node.js-only packages hoisted to root node_modules by npm workspaces.
