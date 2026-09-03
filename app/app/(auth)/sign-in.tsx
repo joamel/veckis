@@ -218,6 +218,11 @@ export default function SignInScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Image source={LOGO} style={styles.logo} resizeMode="cover" />
+      {/* TEMP versionsmarkör — utan den går vi blint och kan inte skilja
+          "OTA:n landade inte" från "OTA:n landade men fixade inget". */}
+      <Text style={{ fontSize: 11, color: c.textFaint, textAlign: 'center', marginBottom: 4 }}>
+        bygge: GOOGLE-FIX-A
+      </Text>
       <Text style={styles.title}>{str.appName}</Text>
       <Text style={styles.subtitle}>
         {mode === 'reset' ? str.signIn.subtitle.reset
