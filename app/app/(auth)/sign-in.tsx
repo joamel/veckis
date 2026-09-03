@@ -219,10 +219,10 @@ export default function SignInScreen() {
     >
       <Image source={LOGO} style={styles.logo} resizeMode="cover" />
       {/* TEMP versionsmarkör — enda sättet att se om en OTA faktiskt applicerats.
-          Utan den gick vi i blindo: testarna körde 1.1.0-era-JS medan vi trodde
-          att uppdateringarna landat. Tas bort när sessionsbuggen är avförd. */}
+          Denna build: officiell tokenCache + metro.config.js-fix (OTA-kraschen,
+          se 6037cf0) + ratt Google-klient-ID. Tas bort nar allt ar verifierat. */}
       <Text style={{ fontSize: 11, color: c.textFaint, textAlign: 'center', marginBottom: 4 }}>
-        bygge: OFFICIAL-A
+        bygge: FIX-BUNDLE-A
       </Text>
       <Text style={styles.title}>{str.appName}</Text>
       <Text style={styles.subtitle}>
