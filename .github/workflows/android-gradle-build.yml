@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd app
-          npm install --legacy-peer-deps
+          npm ci --legacy-peer-deps
 
       - name: Build Android app
         run: |
