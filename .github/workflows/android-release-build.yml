@@ -29,6 +29,7 @@ jobs:
           cd app
           npx expo prebuild --platform android --clean
         env:
+          EXPO_NO_DOTENV: 1
           EXPO_PUBLIC_API_URL: https://veckis-production.up.railway.app
           EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk
           EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID: 630229510172-1nb18ugbraqrrqqcqgvvhblonslccr4f.apps.googleusercontent.com
