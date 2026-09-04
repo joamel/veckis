@@ -31,7 +31,7 @@
     },
     "android": {
       "package": "com.handlis.app",
-      "versionCode": 6,
+      "versionCode": 7,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

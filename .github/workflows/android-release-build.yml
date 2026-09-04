@@ -58,6 +58,11 @@ jobs:
           ./gradlew bundleRelease -x lint -x lintVitalAnalyzeRelease
         env:
           _JAVA_OPTIONS: '-Xmx2g'
+          EXPO_NO_DOTENV: 1
+          EXPO_PUBLIC_API_URL: https://veckis-production.up.railway.app
+          EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk
+          EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID: 630229510172-1nb18ugbraqrrqqcqgvvhblonslccr4f.apps.googleusercontent.com
+          EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID: 630229510172-o5si76i2ce137204dtnbrjqbjmbccleq.apps.googleusercontent.com
 
       - name: Find AAB
         id: aab
