@@ -219,6 +219,7 @@ export default function SignInScreen() {
       // och den tidigare koden svalde dem helt tyst utan någon logg alls.
       reportClientError('DIAG: Google native flow error', {
         code: err?.code ?? null, message: err?.message ?? null, name: err?.name ?? null,
+        clerkErrors: err?.errors ?? null, // ClerkAPIResponseError: longMessage/meta brukar avslöja tillåtna värden
       });
       if (err?.code === 'SIGN_IN_CANCELLED' || err?.code === '-5') {
         setLoading(false);
