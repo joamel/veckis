@@ -61,7 +61,11 @@ jobs:
       - name: Find AAB
         id: aab
         run: |
-          AAB=$(find app/android -name "*.aab" -type f | head -1)
+          AAB=$(find app/android/app/build/outputs/bundle/release -name "*.aab" -type f | head -1)
+          if [ -z "$AAB" ]; then
+            echo "::error::No signed AAB found in build/outputs/bundle/release"
+            exit 1
+          fi
           echo "aab=$AAB" >> $GITHUB_OUTPUT
           echo "Found: $AAB"
 
