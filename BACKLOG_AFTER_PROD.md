@@ -5,6 +5,10 @@ migrerats hit från arkivet (27 st, minus 1 föråldrad sysslo-punkt). `BACKLOG.
 behålls som **historik + fulla detaljer/beskrivningar** — jobba mot den här filen.
 Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 
+## Säkerhet
+- [ ] ⚠️ **Rotera Clerk production secret key** — `CLERK_SECRET_KEY` (sk_live_...) skrevs oavsiktligt ut i klartext i en Claude-konversation (2026-09-04, under review-kontots 2FA/hushålls-återställningsjobb). Generera ny nyckel i Clerk Dashboard → Configure → API Keys, uppdatera i Railway (veckis-tjänsten → Variables).
+- [ ] **Clerk `user.deleted`-webhooken verkar inte köra i produktion** — upptäckt samma dag: ett raderat Clerk-konto lämnade sin `HouseholdMember`-rad kvar orörd i DB (skulle ha städats av `handleClerkUserDeleted`). Kolla att `CLERK_WEBHOOK_SECRET` är satt i Railway OCH att endpointen är registrerad för `user.deleted` i Clerk Dashboard → Webhooks.
+
 ## Generellt
 - [x] "x" i inputfält (INNANFÖR fältet, höger) — löst: återanvändbar `ClearableInput`-komponent (row + fält flex:1 + absolut x). Applicerad på lägg-till-vara-baren + recept-titel/url/paste; sök-fälten hade redan. Ej lösenordsfält. Kan rullas ut på fler fält vid behov.
 - [ ] Bakåt-swipe inne i vissa inre komponenter (t.ex. adminloggar) går ur appen i stället för tillbaka till receptvyn.

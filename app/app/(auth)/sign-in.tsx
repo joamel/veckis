@@ -93,6 +93,11 @@ export default function SignInScreen() {
         // Icke-complete → visa vad som saknas i stället för tyst setActive(null)
         // (som förr bara "laddade men gjorde inget"). Vanligast: 2FA på kontot.
         const needs2fa = result.status === 'needs_second_factor';
+        reportClientError('DIAG: Email/lösen-inlogg ej complete', {
+          status: result.status ?? null,
+          supportedFirstFactors: (result as any).supportedFirstFactors ?? null,
+          supportedSecondFactors: (result as any).supportedSecondFactors ?? null,
+        });
         confirm({
           title: str.errors.title,
           message: needs2fa
