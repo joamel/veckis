@@ -7,6 +7,8 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 
 ## Säkerhet
 - [ ] ⚠️ **Rotera Clerk production secret key** — `CLERK_SECRET_KEY` (sk_live_...) skrevs oavsiktligt ut i klartext i en Claude-konversation (2026-09-04, under review-kontots 2FA/hushålls-återställningsjobb). Generera ny nyckel i Clerk Dashboard → Configure → API Keys, uppdatera i Railway (veckis-tjänsten → Variables).
+- [x] **`prisma/seed.ts` saknade skydd mot att köras mot fel DB** — löst 2026-09-04: samma "måste vara localhost"-spärr som redan fanns i `test/setup.ts` (den skyddar bara vitest-sviten, inte seed-scriptet). Grundorsak till skräphushållen nedan.
+- [ ] **Städa bort skräp-hushåll i produktions-DB** — ~40+ testhushåll (`clerk-N-...`/`testuser1`/`Medlem N`-mönster, från `db:seed` och/eller test-fixtures körda mot prod innan spärren fanns) ligger kvar i produktions-Postgres, skapade 2026-04–2026-08. Ofarligt (ingen på dem är riktiga användare) men skräpar ner listor/statistik. Identifiera via `HouseholdMember.clerkUserId` som matchar `clerk-\d+-\d+`, `testuser\d*`, `user_dev_placeholder` och radera hushållen (cascade tar resten).
 - [ ] **Clerk `user.deleted`-webhooken verkar inte köra i produktion** — upptäckt samma dag: ett raderat Clerk-konto lämnade sin `HouseholdMember`-rad kvar orörd i DB (skulle ha städats av `handleClerkUserDeleted`). Kolla att `CLERK_WEBHOOK_SECRET` är satt i Railway OCH att endpointen är registrerad för `user.deleted` i Clerk Dashboard → Webhooks.
 
 ## Generellt
