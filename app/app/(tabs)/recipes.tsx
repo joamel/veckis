@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/expo';
 import * as SecureStore from '../../src/lib/secureStorage';
 import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe } from '../../src/api/client';
+import { reportClientError } from '../../src/lib/errorReport';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useToast } from '../../src/context/ToastContext';
@@ -437,7 +438,14 @@ export default function RecipesScreen() {
       const forMenuDay = params.forMenuDay;
       const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
       router.push(`/recipes/${recipe.id}?edit=1${suffix}` as never);
-    } catch {
+    } catch (err) {
+      // DIAG: fångad tidigare via en tom catch {} — vi visade fel trots att
+      // POST:en lyckats på backend (bekräftat i Railway-loggen), så något
+      // EFTER svaret kraschar. Logga vad det faktiskt är innan vi gissar.
+      reportClientError('DIAG: handleCreateManual fel efter (ev. lyckad) POST', {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack ?? null : null,
+      });
       confirm({ title: str.errors.generic, message: str.errors.couldNotCreate, buttons: [{ label: common.actions.ok }] });
     } finally {
       setCreating(false);
