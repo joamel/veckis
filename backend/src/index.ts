@@ -63,7 +63,11 @@ if (!isDev) {
     '/api',
     rateLimit({
       windowMs: 15 * 60 * 1000,
-      max: 200,
+      // Höjd 200→600: ingen client-side cache finns än (SWR/composite-
+      // endpoints, se PROD_CHECKLIST.md), så varje skärmnavigering gör om
+      // samma anrop. Flera hushållsmedlemmar på samma wifi delar dessutom
+      // IP-kvoten. 200 var för snålt för normal användning utan cache.
+      max: 600,
       standardHeaders: true,
       legacyHeaders: false,
       message: { error: 'Too many requests, please try again later' },
