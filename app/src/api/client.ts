@@ -15,6 +15,7 @@ import type {
   StapleItem,
 } from '@veckis/shared';
 import { trackBackendRequest } from '../lib/backendWakeup';
+import { reportClientError } from '../lib/errorReport';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -103,6 +104,9 @@ export function useApiClient() {
   async function request<T>(path: string, options: RequestInit = {}, attempt = 0): Promise<T> {
     const token = await getToken();
     if (!token) {
+      // DIAG: bekräftar om "kunde inte ladda X"-vågen orsakas av att getToken()
+      // inte ger en session-JWT alls (skulle förklara varför inget når Railway).
+      reportClientError('DIAG: getToken() gav ingen token i API-klienten', { path });
       throw new ApiError('Du är utloggad. Logga in igen för att fortsätta.', 401, false);
     }
     const url = `${BASE_URL}${path}`;

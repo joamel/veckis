@@ -7,7 +7,10 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/37425b58-c8af-45be-aac8-c26bbdfaa3d1"
+      "url": "https://u.expo.dev/37425b58-c8af-45be-aac8-c26bbdfaa3d1",
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      }
     },
     "orientation": "default",
     "scheme": "handlis",
@@ -31,7 +34,7 @@
     },
     "android": {
       "package": "com.handlis.app",
-      "versionCode": 8,
+      "versionCode": 9,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
