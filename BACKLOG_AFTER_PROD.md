@@ -5,6 +5,9 @@ migrerats hit från arkivet (27 st, minus 1 föråldrad sysslo-punkt). `BACKLOG.
 behålls som **historik + fulla detaljer/beskrivningar** — jobba mot den här filen.
 Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 
+## Robusthet
+- [x] **Dubblett-butiker vid snabbt dubbeltryck** — `stores/index.tsx` `createStore()` skyddades bara av React-state (`creating`), som kan släpa ett par renders efter första trycket → ett snabbt andra tryck (Enter på tangentbordet + knappen, eller bara snabbt dubbelklick) smet igenom och skapade en dubblett. Löst med en synkron `useRef`-spärr som inte kan racea. **Samma mönster (bara state, ingen ref) finns troligen i andra "skapa X"-formulär** (recept, inköpslistor, menyer m.fl.) — värt en genomgång.
+
 ## Säkerhet
 - [ ] ⚠️ **Rotera Clerk production secret key** — `CLERK_SECRET_KEY` (sk_live_...) skrevs oavsiktligt ut i klartext i en Claude-konversation (2026-09-04, under review-kontots 2FA/hushålls-återställningsjobb). Generera ny nyckel i Clerk Dashboard → Configure → API Keys, uppdatera i Railway (veckis-tjänsten → Variables).
 - [x] **`prisma/seed.ts` saknade skydd mot att köras mot fel DB** — löst 2026-09-04: samma "måste vara localhost"-spärr som redan fanns i `test/setup.ts` (den skyddar bara vitest-sviten, inte seed-scriptet). Grundorsak till skräphushållen nedan.

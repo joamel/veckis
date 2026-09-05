@@ -103,8 +103,13 @@ export default function StoresScreen() {
     return sorted;
   }, [stores, searchQuery, sortMode]);
 
+  const creatingRef = useRef(false);
   async function createStore() {
-    if (!householdId || !newStoreName.trim()) return;
+    // Synkron spärr — React-statet `creating` kan hinna släpa ett par renders
+    // efter första trycket, så ett snabbt andra tryck (t.ex. både Enter på
+    // tangentbordet och knappen) kunde smita igenom och skapa en dubblett.
+    if (!householdId || !newStoreName.trim() || creatingRef.current) return;
+    creatingRef.current = true;
     setCreating(true);
     try {
       const store = await client.createStore({ householdId, name: newStoreName.trim() });
@@ -125,6 +130,7 @@ export default function StoresScreen() {
     } catch (e) {
       showError(e, str.toasts.errorCreate);
     } finally {
+      creatingRef.current = false;
       setCreating(false);
     }
   }
