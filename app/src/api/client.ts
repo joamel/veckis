@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useAuth } from '@clerk/expo';
 import type {
   Household,
@@ -101,9 +101,14 @@ export type ShoppingListWithItems = ShoppingList & { items: ShoppingItemWithReci
 
 export function useApiClient() {
   const { getToken } = useAuth();
+  // useAuth().getToken är inte garanterat referens-stabil mellan renders —
+  // en ref läser alltid senaste versionen utan att den behöver stå i
+  // useMemo-beroendena nedan (som annars gör klienten instabil igen).
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
 
   async function request<T>(path: string, options: RequestInit = {}, attempt = 0): Promise<T> {
-    const token = await getToken();
+    const token = await getTokenRef.current();
     if (!token) {
       // DIAG: bekräftar om "kunde inte ladda X"-vågen orsakas av att getToken()
       // inte ger en session-JWT alls (skulle förklara varför inget når Railway).
@@ -212,7 +217,7 @@ export function useApiClient() {
     },
 
     exportHouseholdData: async (householdId: string): Promise<string> => {
-      const token = await getToken();
+      const token = await getTokenRef.current();
       const res = await fetch(`${BASE_URL}/api/households/${householdId}/export`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -328,7 +333,7 @@ export function useApiClient() {
       const form = new FormData();
       // RN's FormData accepts the file blob descriptor object directly.
       form.append('image', { uri: fileUri, name: 'recipe.jpg', type: mimeType } as unknown as Blob);
-      const token = await getToken();
+      const token = await getTokenRef.current();
       const res = await fetch(`${BASE_URL}/api/recipes/${recipeId}/image`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }, // let fetch set the multipart boundary
@@ -423,6 +428,5 @@ export function useApiClient() {
 
     getClientErrors: () =>
       request<ClientErrorEntry[]>('/api/client-errors'),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [getToken]);
+  }), []);
 }
