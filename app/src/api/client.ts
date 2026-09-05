@@ -20,6 +20,9 @@ import { reportClientError } from '../lib/errorReport';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
+// Modul-nivå (delad mellan alla useApiClient()-instanser) — se request() nedan.
+const inFlightMutations = new Map<string, Promise<unknown>>();
+
 export type { StoreCategory, WeekDay };
 
 /**
@@ -107,7 +110,7 @@ export function useApiClient() {
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
 
-  async function request<T>(path: string, options: RequestInit = {}, attempt = 0): Promise<T> {
+  async function performRequest<T>(path: string, options: RequestInit = {}, attempt = 0): Promise<T> {
     const token = await getTokenRef.current();
     if (!token) {
       // DIAG: bekräftar om "kunde inte ladda X"-vågen orsakas av att getToken()
@@ -139,13 +142,13 @@ export function useApiClient() {
     } catch {
       // fetch rejects (rather than resolving with !ok) when the request never
       // reached the server: no connectivity, DNS failure, server down, etc.
-      if (canRetry) { await backoff(); return request<T>(path, options, attempt + 1); }
+      if (canRetry) { await backoff(); return performRequest<T>(path, options, attempt + 1); }
       throw new ApiError('Network request failed', null, true);
     }
 
     if (!res.ok) {
       // 5xx = servern uppe men beroende (oftast DB:n) vaknar → retry:a idempotenta.
-      if (res.status >= 500 && canRetry) { await backoff(); return request<T>(path, options, attempt + 1); }
+      if (res.status >= 500 && canRetry) { await backoff(); return performRequest<T>(path, options, attempt + 1); }
       // 401 = auth bruten, sessionen gick förlorad. Token kan ha förfallit eller
       // Clerk-sessionen uppgraderades åt något sätt. Logga ut för att tvinga
       // appen att uppdatera från Clerk på nytt.
@@ -158,6 +161,28 @@ export function useApiClient() {
 
     if (res.status === 204) return undefined as T;
     return res.json() as Promise<T>;
+  }
+
+  // Global (modul-nivå) deduplicering av muterande anrop (POST/PATCH/DELETE).
+  // Flera skärmar skyddar bara dubbeltryck med React-state (`creating`), som
+  // kan släpa ett par renders — ett snabbt andra tryck (Enter + knapp, eller
+  // bara ett snabbt dubbelklick) hann då smita igenom och skapa dubbletter
+  // (bekräftat: dubbla lyckade POST /api/stores och /api/recipes några
+  // sekunder isär i produktionsloggarna). Detta skyddar ALLA muterande anrop
+  // i hela appen på ett ställe, i stället för att lappa varje skärm för sig.
+  function request<T>(path: string, options: RequestInit = {}, attempt = 0): Promise<T> {
+    const method = (options.method ?? 'GET').toUpperCase();
+    if (method === 'GET' || method === 'HEAD') return performRequest<T>(path, options, attempt);
+
+    const dedupeKey = `${method}:${path}:${typeof options.body === 'string' ? options.body : ''}`;
+    const existing = inFlightMutations.get(dedupeKey);
+    if (existing) return existing as Promise<T>;
+
+    const promise = performRequest<T>(path, options, attempt).finally(() => {
+      if (inFlightMutations.get(dedupeKey) === promise) inFlightMutations.delete(dedupeKey);
+    });
+    inFlightMutations.set(dedupeKey, promise);
+    return promise;
   }
 
   // Memoiserat — annars är returvärdet ett nytt objekt vid varje render
