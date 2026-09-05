@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useAuth } from '@clerk/expo';
 import type {
   Household,
@@ -154,7 +155,13 @@ export function useApiClient() {
     return res.json() as Promise<T>;
   }
 
-  return {
+  // Memoiserat — annars är returvärdet ett nytt objekt vid varje render
+  // (useAuth().getToken är stabil), vilket gör klienten oanvändbar som
+  // useCallback/useEffect-dependency: varje beroende komponent (t.ex.
+  // GettingStartedOverlay) skulle då loopa om sig själv i oändlighet och
+  // spränga backendens rate limit (200 req/15 min) på sekunder — vilket är
+  // exakt vad som orsakade "kunde inte ladda X" på nya/ofärdiga konton.
+  return useMemo(() => ({
     // Households
     createHousehold: (name: string, displayName?: string) =>
       request<HouseholdWithMembers>('/api/households', {
@@ -416,5 +423,6 @@ export function useApiClient() {
 
     getClientErrors: () =>
       request<ClientErrorEntry[]>('/api/client-errors'),
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [getToken]);
 }
