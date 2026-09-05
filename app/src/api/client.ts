@@ -23,6 +23,10 @@ const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 // Modul-nivå (delad mellan alla useApiClient()-instanser) — se request() nedan.
 const inFlightMutations = new Map<string, Promise<unknown>>();
 
+function makeIdempotencyKey(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export type { StoreCategory, WeekDay };
 
 /**
@@ -120,13 +124,17 @@ export function useApiClient() {
     }
     const url = `${BASE_URL}${path}`;
     // Kallstart-retry: gratis-hosting spinner ner (Render) och Neon-DB:n
-    // autosuspendar (vaknar med 57P01 → 5xx). Retry:a BARA idempotenta anrop
-    // (GET/HEAD) med backoff, så en laddning under uppvaknandet lyckas tyst i
-    // stället för att visa råa fel. Muterande anrop retry:as ej (dubblett-risk).
+    // autosuspendar (vaknar med 57P01 → 5xx) med backoff. GET/HEAD är alltid
+    // säkra att retry:a. Muterande anrop retry:as också (samma "network
+    // request failed" hände deterministiskt varje gång på riktiga enheter —
+    // se DIAG-fyndet 2026-09-05), men bara tack vare Idempotency-Key-headern
+    // (satt i request() nedan) som gör en eventuell serverside-dubblett
+    // ofarlig: backend spelar upp samma svar istället för att köra igen.
     const method = (options.method ?? 'GET').toUpperCase();
-    const canRetry = (method === 'GET' || method === 'HEAD') && attempt < 3;
+    const canRetry = attempt < 3;
     const backoff = () => new Promise(r => setTimeout(r, [1500, 4000, 9000][attempt] ?? 9000));
     let res: Response;
+    const startedAt = Date.now();
     try {
       // trackBackendRequest visar "Vaknar…"-indikatorn om fetch:en dröjer >3s
       // (kallstart) och släcker den när backend svarar. Utan detta retry:ade
@@ -139,9 +147,15 @@ export function useApiClient() {
           ...options.headers,
         },
       }));
-    } catch {
+    } catch (err) {
       // fetch rejects (rather than resolving with !ok) when the request never
       // reached the server: no connectivity, DNS failure, server down, etc.
+      // DIAG: exakt förfluten tid — om den är i storleksordningen millisekunder
+      // avvisade fetch() direkt lokalt, utan att ens försöka nå nätverket.
+      reportClientError('DIAG: fetch() reject', {
+        path, method, attempt, elapsedMs: Date.now() - startedAt,
+        message: err instanceof Error ? err.message : String(err),
+      });
       if (canRetry) { await backoff(); return performRequest<T>(path, options, attempt + 1); }
       throw new ApiError('Network request failed', null, true);
     }
@@ -178,7 +192,16 @@ export function useApiClient() {
     const existing = inFlightMutations.get(dedupeKey);
     if (existing) return existing as Promise<T>;
 
-    const promise = performRequest<T>(path, options, attempt).finally(() => {
+    // Samma nyckel återanvänds av performRequest:s interna nätverks-retry
+    // (options-referensen ärvs oförändrad ner i rekursionen) — backend
+    // (idempotencyMiddleware) spelar upp samma svar om en retry råkar nå
+    // fram efter att ett tidigare försök redan lyckats server-side.
+    const optionsWithIdempotency: RequestInit = {
+      ...options,
+      headers: { 'Idempotency-Key': makeIdempotencyKey(), ...options.headers },
+    };
+
+    const promise = performRequest<T>(path, optionsWithIdempotency, attempt).finally(() => {
       if (inFlightMutations.get(dedupeKey) === promise) inFlightMutations.delete(dedupeKey);
     });
     inFlightMutations.set(dedupeKey, promise);

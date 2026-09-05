@@ -27,6 +27,7 @@ import { prisma } from './db';
 import { asyncHandler } from './lib/asyncHandler';
 import { wsSubscribe, wsUnsubscribe } from './lib/wsHub';
 import { startShopperExpiry } from './lib/shopperExpiry';
+import { idempotencyMiddleware } from './lib/idempotency';
 
 const app = express();
 app.disable('etag');
@@ -58,6 +59,10 @@ if (!corsAllowlist.includes('*')) {
 app.use('/api/webhooks/clerk', express.raw({ type: 'application/json' }), clerkWebhookRouter);
 app.use(express.json());
 app.use(morgan(isDev ? 'dev' : 'combined'));
+// Klienten skickar Idempotency-Key på muterande anrop och kan nu retry:a dem
+// säkert vid nätverksfel — om servern redan behandlat samma nyckel spelas
+// samma svar upp istället för att köra routen igen (undviker dubbletter).
+app.use('/api', idempotencyMiddleware);
 if (!isDev) {
   app.use(
     '/api',
