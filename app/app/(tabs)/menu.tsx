@@ -1071,11 +1071,27 @@ export default function MenuScreen() {
     });
     if (!ok) return;
     let cancelled = false;
-    // Mark as pending — the meal card is hidden immediately (optimistic) since the
-    // render filters out pending items; the actual delete commits after the 5s undo
-    // window. Register cancel callback so the toast's "Ångra" rolls back this and any
-    // other meals in the pending queue (they reappear) with one tap.
-    markPending(item.id, () => { cancelled = true; });
+    // Ta bort UR ARRAYEN direkt vid tryck — det är nu den ENDA sanningskällan
+    // för "syns/syns inte", i stället för en separat pendingMenuItemRemovals-
+    // flagga (annan React-context) som skulle rensas EFTER att arrayen
+    // filtrerats. De två uppdateringarna hade ALDRIG någon garanti om att
+    // hamna i samma React-commit (att flytta clearPending in i samma
+    // callback som filtreringen räckte INTE — bekräftat kvarstod felet ändå,
+    // DIAG v3 2026-09-06). Med bara EN sanningskälla för synlighet finns
+    // racet inte kvar att missa. markPending/pendingMenuItemRemovals lever
+    // kvar för ANDRA skärmar (inköpslistan filtrerar ingredienser på den) och
+    // för "Ångra"-räkningen — menyskärmens EGEN rendering beror inte längre
+    // på den.
+    stateVersionRef.current += 1;
+    setMenuItems(prev => prev.filter(i => i.id !== item.id));
+    setAllMenus(prev => prev.filter(i => i.id !== item.id));
+    const restore = () => {
+      cancelled = true;
+      stateVersionRef.current += 1;
+      setMenuItems(prev => prev.some(i => i.id === item.id) ? prev : [...prev, item]);
+      setAllMenus(prev => prev.some(i => i.id === item.id) ? prev : [...prev, item]);
+    };
+    markPending(item.id, restore);
     // Show stacked toast: count is current pendingCount + 1 (this call) since state hasn't flushed.
     const upcomingCount = pendingCount + 1;
     showGlobalToast(
@@ -1090,36 +1106,17 @@ export default function MenuScreen() {
         await client.deleteWeekMenuItem(item.id);
         const linked = recipeListMap[item.id] ?? [];
         if (linked.length > 0) await executeCleanup(item, linked.map(l => l.listId));
-        // Backend committed — drop from local state so it doesn't reappear when
-        // the pending flag clears. MÅSTE uppdatera allMenus också — annars blir
-        // den permanent inaktuell med borttagna rätter kvar som spökrader, och
-        // weekItemsForOffset faller tillbaka på allMenus (i stället för
-        // menuItems) så fort loadedWeekRef inte matchar perfekt, vilket visade
-        // spöket bredvid det nya tillägget (bekräftat via diagnostik 2026-09-06).
-        //
-        // clearPending MÅSTE ske i SAMMA synkrona callback som filtreringen —
-        // det var den FAKTISKA grundorsaken (bekräftad via DIAG v3
-        // 2026-09-06): clearPending låg tidigare i ett `finally` EFTER denna
-        // commitSerially, dvs i pendingMenuItemRemovals (en helt separat
-        // React-context) uppdaterades i en ANNAN commit än menuItems/allMenus.
-        // Hann context-uppdateringen rendera FÖRE array-filtreringen hunnit
-        // slå igenom stod det borttagna kortet där som "inte längre pending"
-        // men ändå kvar i menuItems — precis det synliga "gammalt+nytt
-        // samtidigt"-felet. Genom att klara båda i EXAKT samma callback
-        // tvingas React batcha dem till en enda commit.
-        await commitSerially(() => {
-          stateVersionRef.current += 1;
-          setMenuItems(prev => prev.filter(i => i.id !== item.id));
-          setAllMenus(prev => prev.filter(i => i.id !== item.id));
-          setRecipeListMap(prev => {
-            const next = { ...prev };
-            delete next[item.id];
-            return next;
-          });
-          clearPending(item.id);
+        setRecipeListMap(prev => {
+          const next = { ...prev };
+          delete next[item.id];
+          return next;
         });
       } catch (e) {
+        // Borttagningen misslyckades — raden finns fortfarande på servern,
+        // så återställ den i state (den togs bort optimistiskt ovan).
+        restore();
         showError(e, str.toasts.errorRemove);
+      } finally {
         clearPending(item.id);
       }
     }, 5000);
