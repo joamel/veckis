@@ -1348,7 +1348,15 @@ export default function MenuScreen() {
             const filled = items.length > 0;
             return (
               <View
-                key={day.key}
+                // Nyckeln inkluderar det EXAKTA innehållet (inte bara day.key) —
+                // tvingar hela dagens kort-sektion att monteras om helt vid varje
+                // ändring i sammansättningen, i stället för att React ska försöka
+                // återanvända/diffa enskilda kort. Sista utvägen mot ett synligt
+                // "gammalt+nytt kort samtidigt"-fel som bevisligen INTE berodde
+                // på fel state (grundligt uteslutet via diagnostik 2026-09-06)
+                // och INTE på OS-animationer (uteslutet — 0x animationsskala
+                // gav ingen skillnad).
+                key={`${day.key}-${items.map(i => i.id).join(',')}`}
                 style={[
                   s.daySlot,
                   isWide && s.daySlotWide,
