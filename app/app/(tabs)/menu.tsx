@@ -567,6 +567,25 @@ export default function MenuScreen() {
   // och en socket-echo som råkar överlappa). Utan detta kunde det äldre,
   // inaktuella svaret skriva över state:t och kortvarigt återuppliva ett
   // redan borttaget recept innan nästa korrekta load() rättade till det.
+  // Serialiserar menyns auktoritativa state-commits (ta bort/lägg till) så de
+  // ALDRIG körs i samma synkrona React-omgång. Misstänkt orsak till det
+  // svårfångade "gammalt+nytt kort samtidigt"-felet: en 5-sekunders
+  // borttagnings-timer och ett nyss avslutat tilläggs-svar kan råka bli
+  // klara nästan samtidigt (oberoende av varandra) — om båda committar i
+  // samma renderings-omgång kan native-lagret hinna få en motstridig
+  // layout-uppdatering. En liten paus mellan varje commit tvingar dem isär.
+  const commitQueueRef = useRef<Promise<void>>(Promise.resolve());
+  function commitSerially(fn: () => void): Promise<void> {
+    const next = commitQueueRef.current
+      .catch(() => { /* en tidigare länk fick inte stoppa kön */ })
+      .then(async () => {
+        fn();
+        await new Promise(r => setTimeout(r, 32)); // ~2 bildrutor @60fps
+      });
+    commitQueueRef.current = next;
+    return next;
+  }
+
   const loadSeqRef = useRef(0);
   // Skyddar mot att ett load()-anrop som startade INNAN en mutation (ta bort/
   // lägg till/byt) hinner svara EFTER mutationens egen direkta state-
@@ -987,9 +1006,11 @@ export default function MenuScreen() {
         if (prev.some(m => m.id === item.id)) return prev;
         return [...prev, item];
       };
-      stateVersionRef.current += 1;
-      setMenuItems(replaceOrAppend);
-      setAllMenus(replaceOrAppend);
+      await commitSerially(() => {
+        stateVersionRef.current += 1;
+        setMenuItems(replaceOrAppend);
+        setAllMenus(replaceOrAppend);
+      });
       showToast(str.toasts.recipeAdded);
     } catch (e) {
       stateVersionRef.current += 1;
@@ -1037,13 +1058,15 @@ export default function MenuScreen() {
         // weekItemsForOffset faller tillbaka på allMenus (i stället för
         // menuItems) så fort loadedWeekRef inte matchar perfekt, vilket visade
         // spöket bredvid det nya tillägget (bekräftat via diagnostik 2026-09-06).
-        stateVersionRef.current += 1;
-        setMenuItems(prev => prev.filter(i => i.id !== item.id));
-        setAllMenus(prev => prev.filter(i => i.id !== item.id));
-        setRecipeListMap(prev => {
-          const next = { ...prev };
-          delete next[item.id];
-          return next;
+        await commitSerially(() => {
+          stateVersionRef.current += 1;
+          setMenuItems(prev => prev.filter(i => i.id !== item.id));
+          setAllMenus(prev => prev.filter(i => i.id !== item.id));
+          setRecipeListMap(prev => {
+            const next = { ...prev };
+            delete next[item.id];
+            return next;
+          });
         });
       } catch (e) {
         showError(e, str.toasts.errorRemove);
