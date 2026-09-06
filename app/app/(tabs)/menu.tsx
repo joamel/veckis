@@ -922,8 +922,19 @@ export default function MenuScreen() {
     try {
       suppressMenuReloadRef.current += 1;
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
-      setMenuItems(prev => prev.map(m => m.id === tempId ? item : m));
-      setAllMenus(prev => prev.map(m => m.id === tempId ? item : m));
+      // Robust mot att temp-raden redan hunnit försvinna (t.ex. om ett load()
+      // från veckobyte/socket-echo hann skriva över hela listan innan svaret
+      // kom tillbaka) — utan detta tappades tillägget tyst (map hittade inget
+      // att ersätta), eller dubblerades om ett senare load() också inkluderade
+      // det riktiga svaret. Ersätt om temp-raden finns kvar; annars lägg bara
+      // till om det riktiga ID:t inte redan råkat komma in via ett load().
+      const replaceOrAppend = (prev: WeekMenuItemWithRecipe[]) => {
+        if (prev.some(m => m.id === tempId)) return prev.map(m => m.id === tempId ? item : m);
+        if (prev.some(m => m.id === item.id)) return prev;
+        return [...prev, item];
+      };
+      setMenuItems(replaceOrAppend);
+      setAllMenus(replaceOrAppend);
       showToast(str.toasts.recipeAdded);
     } catch (e) {
       setMenuItems(prev => prev.filter(m => m.id !== tempId));
