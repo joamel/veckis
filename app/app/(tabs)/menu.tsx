@@ -33,7 +33,6 @@ import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
-import { reportClientError } from '../../src/lib/errorReport';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
@@ -46,6 +45,14 @@ import type { WeekDay, MealType } from '@veckis/shared';
 import { DEFAULT_CATEGORY_ORDER, MEAL_TYPE_ORDER } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { menu as str, common, recipes as recipesStr } from '../../src/lib/svenska';
+
+// _stableKey håller React-nyckeln konstant genom optimistiska tillägg: när
+// temp-ID:t (satt vid lokal infogning) byts mot serverns riktiga ID ser React
+// annars ut som att ett kort tas bort och ett nytt läggs till → in/ut-
+// animationerna kolliderar synligt ("blinket" vid ta bort + lägg till samma
+// dag). Med samma _stableKey hela vägen tolkas det som en uppdatering av
+// SAMMA kort istället.
+type MenuRow = WeekMenuItemWithRecipe & { _stableKey?: string };
 
 const DAY_KEYS: WeekDay[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAYS: { key: WeekDay; label: string; short: string }[] = DAY_KEYS.map((key, i) => ({
@@ -267,7 +274,7 @@ export default function MenuScreen() {
 
   const weekLabel = useMemo(() => `Vecka ${weekNumber}`, [weekNumber]);
 
-  const [menuItems, setMenuItems] = useState<WeekMenuItemWithRecipe[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuRow[]>([]);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [shoppingLists, setShoppingLists] = useState<ShoppingListWithItems[]>([]);
   const [loading, setLoading] = useState(true);
@@ -303,7 +310,7 @@ export default function MenuScreen() {
   // bara "Har"-toggle.
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> mängd hemma
   const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // omätta ingredienser markerade "har hemma"
-  const [allMenus, setAllMenus] = useState<WeekMenuItemWithRecipe[]>([]);
+  const [allMenus, setAllMenus] = useState<MenuRow[]>([]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
   // Replace recipe: item being replaced
@@ -554,10 +561,6 @@ export default function MenuScreen() {
         client.getAllMenus(householdId).catch(() => [] as WeekMenuItemWithRecipe[]),
       ]);
       if (seq !== loadSeqRef.current) return; // en nyare load() har redan startat — kasta detta inaktuella svaret
-      reportClientError('DIAG: load() applying menuItems', {
-        at: Date.now(), seq,
-        menuSnapshot: menu.map(i => ({ id: i.id, day: i.day, title: i.recipe?.title })),
-      });
       setMenuItems(menu);
       // Behåll overrides för rätter vars sparning ännu är på gång (annars studsar
       // portionerna); resten är redan committade → persisterat värde är sanning.
@@ -870,12 +873,6 @@ export default function MenuScreen() {
 
   async function addRecipeToDay(recipe: RecipeWithIngredients, dayOverride?: WeekDay | null) {
     if (!householdId) return;
-    reportClientError('DIAG: addRecipeToDay start', {
-      at: Date.now(),
-      day: dayOverride !== undefined ? dayOverride : pickingForDay,
-      menuItemsSnapshot: menuItems.map(i => ({ id: i.id, day: i.day, title: i.recipe?.title })),
-      pendingIds: [...pendingMenuItemRemovals],
-    });
 
     if (replaceTarget) {
       closePicker();
@@ -926,7 +923,7 @@ export default function MenuScreen() {
 
     closePicker();
     const tempId = `optimistic-menu-${Date.now()}`;
-    const optimistic: WeekMenuItemWithRecipe = {
+    const optimistic: MenuRow = {
       id: tempId,
       householdId,
       recipeId: recipe.id,
@@ -937,7 +934,8 @@ export default function MenuScreen() {
       createdBy: '',
       createdAt: new Date().toISOString(),
       recipe,
-    } as WeekMenuItemWithRecipe;
+      _stableKey: tempId,
+    } as MenuRow;
     setMenuItems(prev => [...prev, optimistic]);
     setAllMenus(prev => [...prev, optimistic]); // keep snapshot in sync so non-loaded weeks render correctly
     try {
@@ -949,8 +947,8 @@ export default function MenuScreen() {
       // att ersätta), eller dubblerades om ett senare load() också inkluderade
       // det riktiga svaret. Ersätt om temp-raden finns kvar; annars lägg bara
       // till om det riktiga ID:t inte redan råkat komma in via ett load().
-      const replaceOrAppend = (prev: WeekMenuItemWithRecipe[]) => {
-        if (prev.some(m => m.id === tempId)) return prev.map(m => m.id === tempId ? item : m);
+      const replaceOrAppend = (prev: MenuRow[]) => {
+        if (prev.some(m => m.id === tempId)) return prev.map(m => m.id === tempId ? { ...item, _stableKey: tempId } : m);
         if (prev.some(m => m.id === item.id)) return prev;
         return [...prev, item];
       };
@@ -993,7 +991,6 @@ export default function MenuScreen() {
       if (cancelled) return;
       try {
         suppressMenuReloadRef.current += 1;
-        reportClientError('DIAG: removeFromMenu delete start', { itemId: item.id, at: Date.now() });
         await client.deleteWeekMenuItem(item.id);
         const linked = recipeListMap[item.id] ?? [];
         if (linked.length > 0) await executeCleanup(item, linked.map(l => l.listId));
@@ -1005,7 +1002,6 @@ export default function MenuScreen() {
           delete next[item.id];
           return next;
         });
-        reportClientError('DIAG: removeFromMenu delete committed', { itemId: item.id, at: Date.now() });
       } catch (e) {
         showError(e, str.toasts.errorRemove);
       } finally {
@@ -1271,7 +1267,7 @@ export default function MenuScreen() {
   // One week's day-sections + unscheduled + transfer button. Only the centre
   // page is interactive (drag-and-drop, drop-zone measuring, edit/transfer);
   // neighbour pages are read-only previews.
-  const renderWeekContent = (weekItems: WeekMenuItemWithRecipe[], weekMon: Date, isCenter: boolean, isPastWeek: boolean) => {
+  const renderWeekContent = (weekItems: MenuRow[], weekMon: Date, isCenter: boolean, isPastWeek: boolean) => {
     // Stable order (createdAt, then id) so a day's recipes render identically
     // whether they come from the allMenus snapshot or the live menuItems — no
     // reordering "jump" when swiping between weeks.
@@ -1335,7 +1331,7 @@ export default function MenuScreen() {
                     ) : (
                       items.map(item => (
                         <MenuCard
-                          key={item.id}
+                          key={item._stableKey ?? item.id}
                           item={item}
                           collapsedForDrag={dragging}
                           isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
@@ -1375,7 +1371,7 @@ export default function MenuScreen() {
                     ) : (
                       items.map(item => (
                       <MenuCard
-                        key={item.id}
+                        key={item._stableKey ?? item.id}
                         item={item}
                         collapsedForDrag={dragging}
                         isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
@@ -1417,7 +1413,7 @@ export default function MenuScreen() {
             </View>
             {unsched.map(item => (
               <MenuCard
-                key={item.id}
+                key={item._stableKey ?? item.id}
                 item={item}
                 collapsedForDrag={isCenter && !!dragState}
                 isTransferred={!!recipeListMap[item.id]?.length}
@@ -1901,7 +1897,7 @@ export default function MenuScreen() {
                     const selected = selectedRecipesForTransfer.has(item.id);
                     return (
                       <Pressable
-                        key={item.id}
+                        key={item._stableKey ?? item.id}
                         style={[s.bulkRecipeItem, selected && s.bulkRecipeItemActive]}
                         onPress={() => setSelectedRecipesForTransfer(prev => {
                           const n = new Set(prev);
