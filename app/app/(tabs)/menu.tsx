@@ -1096,6 +1096,17 @@ export default function MenuScreen() {
         // weekItemsForOffset faller tillbaka på allMenus (i stället för
         // menuItems) så fort loadedWeekRef inte matchar perfekt, vilket visade
         // spöket bredvid det nya tillägget (bekräftat via diagnostik 2026-09-06).
+        //
+        // clearPending MÅSTE ske i SAMMA synkrona callback som filtreringen —
+        // det var den FAKTISKA grundorsaken (bekräftad via DIAG v3
+        // 2026-09-06): clearPending låg tidigare i ett `finally` EFTER denna
+        // commitSerially, dvs i pendingMenuItemRemovals (en helt separat
+        // React-context) uppdaterades i en ANNAN commit än menuItems/allMenus.
+        // Hann context-uppdateringen rendera FÖRE array-filtreringen hunnit
+        // slå igenom stod det borttagna kortet där som "inte längre pending"
+        // men ändå kvar i menuItems — precis det synliga "gammalt+nytt
+        // samtidigt"-felet. Genom att klara båda i EXAKT samma callback
+        // tvingas React batcha dem till en enda commit.
         await commitSerially(() => {
           stateVersionRef.current += 1;
           setMenuItems(prev => prev.filter(i => i.id !== item.id));
@@ -1105,10 +1116,10 @@ export default function MenuScreen() {
             delete next[item.id];
             return next;
           });
+          clearPending(item.id);
         });
       } catch (e) {
         showError(e, str.toasts.errorRemove);
-      } finally {
         clearPending(item.id);
       }
     }, 5000);
