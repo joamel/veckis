@@ -276,19 +276,6 @@ export default function MenuScreen() {
   const weekLabel = useMemo(() => `Vecka ${weekNumber}`, [weekNumber]);
 
   const [menuItems, setMenuItems] = useState<MenuRow[]>([]);
-  // DIAG: fångar den FAKTISKA render-synliga sekvensen (inte bara vad
-  // mutations-handlerna AVSER göra) — loggar varje gång menuItems eller
-  // pendingMenuItemRemovals faktiskt ändras, med unikt löpnummer så
-  // reportClientErrors 10s-dedup inte sväljer efterföljande händelser.
-  const diagSeqRef = useRef(0);
-  useEffect(() => {
-    diagSeqRef.current += 1;
-    reportClientError(`DIAG: state#${diagSeqRef.current}`, {
-      at: Date.now(),
-      pendingIds: [...pendingMenuItemRemovals],
-      tueItems: menuItems.filter(i => i.day === 'tue').map(i => ({ id: i.id, title: i.recipe?.title })),
-    });
-  }, [pendingMenuItemRemovals, menuItems]);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [shoppingLists, setShoppingLists] = useState<ShoppingListWithItems[]>([]);
   const [loading, setLoading] = useState(true);
@@ -325,6 +312,21 @@ export default function MenuScreen() {
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> mängd hemma
   const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // omätta ingredienser markerade "har hemma"
   const [allMenus, setAllMenus] = useState<MenuRow[]>([]);
+  // DIAG: fångar den FAKTISKA render-synliga sekvensen för BÅDA
+  // datakällorna (menuItems och allMenus) — weekItemsForOffset växlar
+  // mellan dem beroende på loadedWeekRef, och om de hinner gå isär skulle
+  // en tidigare, snävare diagnostik (bara menuItems) missa det helt.
+  const diagSeqRef = useRef(0);
+  useEffect(() => {
+    diagSeqRef.current += 1;
+    reportClientError(`DIAG: state#${diagSeqRef.current}`, {
+      at: Date.now(),
+      weekOffset,
+      pendingIds: [...pendingMenuItemRemovals],
+      tueFromMenuItems: menuItems.filter(i => i.day === 'tue').map(i => ({ id: i.id, title: i.recipe?.title })),
+      tueFromAllMenus: allMenus.filter(i => i.day === 'tue' && i.weekYear === weekYear && i.weekNumber === weekNumber).map(i => ({ id: i.id, title: i.recipe?.title })),
+    });
+  }, [pendingMenuItemRemovals, menuItems, allMenus, weekOffset]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
   // Replace recipe: item being replaced
