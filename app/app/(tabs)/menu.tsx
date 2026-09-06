@@ -330,6 +330,34 @@ export default function MenuScreen() {
       });
     }
   }, [menuItems, allMenus, weekYear, weekNumber, weekOffset]);
+  // DIAG v3: v2 jämförde bara menuItems mot allMenus (id-listor) — den kunde
+  // aldrig avslöja om det FAKTISKA renderade per-dag-arrayet (efter samma
+  // day+visible-filter som renderWeekContent kör) någon gång innehåller 2
+  // rätter samtidigt. Speglar EXAKT den filtreringen här. Om detta ALDRIG
+  // triggar under en bekräftad repro är felet definitivt inte i state/data
+  // utan en ren native render-artefakt (compositor/animation), och vidare
+  // state-fixar är bortkastad tid.
+  const dayItemsSigRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    const lw = loadedWeekRef.current;
+    const weekItems: MenuRow[] = (lw && lw.wy === weekYear && lw.wn === weekNumber)
+      ? menuItems
+      : allMenus.filter(m => m.weekYear === weekYear && m.weekNumber === weekNumber);
+    for (const day of DAYS) {
+      const items = weekItems.filter(m => m.day === day.key && !pendingMenuItemRemovals.has(m.id));
+      const sig = items.map(i => `${i.id}:${i.recipe?.title ?? '?'}`).sort().join('|');
+      if (dayItemsSigRef.current[day.key] === sig) continue;
+      dayItemsSigRef.current[day.key] = sig;
+      if (items.length > 1) {
+        reportClientError(`DIAG v3: dag ${day.key} renderar ${items.length} rätter samtidigt`, {
+          at: Date.now(),
+          day: day.key,
+          weekOffset,
+          items: items.map(i => ({ id: i.id, title: i.recipe?.title })),
+        });
+      }
+    }
+  }, [menuItems, allMenus, pendingMenuItemRemovals, weekYear, weekNumber, weekOffset]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
   // Replace recipe: item being replaced
