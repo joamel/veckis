@@ -687,8 +687,8 @@ export default function MenuScreen() {
     const lw = loadedWeekRef.current;
     if (!lw || lw.wy !== weekYear || lw.wn !== weekNumber) return; // wait for load()
 
-    const recipe = recipes.find(r => r.id === params.addRecipeId);
-    if (recipe) {
+    const localRecipe = recipes.find(r => r.id === params.addRecipeId);
+    const apply = (recipe: RecipeWithIngredients) => {
       addRecipeTriggeredRef.current = true;
       if (params.replaceMenuItemId) {
         replaceMenuItem(params.replaceMenuItemId, recipe);
@@ -697,6 +697,20 @@ export default function MenuScreen() {
         addRecipeToDay(recipe, day);
       }
       router.setParams({ addRecipeId: undefined, day: undefined, replaceMenuItemId: undefined, forMenuWeek: undefined });
+    };
+    if (localRecipe) {
+      apply(localRecipe);
+    } else {
+      // Nyss skapat recept (via "Skapa nytt recept"-flödet) — load() hoppas
+      // medvetet över här (se useFocusEffect ovan) för att skydda den
+      // optimistiska infogningen, så den lokala `recipes`-listan hann aldrig
+      // uppdateras. Utan fallbacken hittades receptet aldrig och tillägget
+      // uteblev helt tyst tills man manuellt laddade om sidan.
+      addRecipeTriggeredRef.current = true;
+      client.getRecipe(params.addRecipeId).then(apply).catch((e) => {
+        addRecipeTriggeredRef.current = false;
+        showError(e, str.toasts.errorAddRecipe);
+      });
     }
   }, [params.addRecipeId, params.forMenuWeek, recipes, weekYear, weekNumber, menuItems]);
 
