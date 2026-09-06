@@ -44,6 +44,18 @@ export function useHouseholdSocket(
       const token = await getToken();
       if (!token || unmountedRef.current) return;
 
+      // Stäng en ev. redan öppen anslutning innan en ny skapas — annars kan
+      // snabba bakgrund/förgrund-växlingar (AppState-lyssnaren nedan racear
+      // mot onclose-reconnecten) lämna TVÅ levande sockets samtidigt. Servern
+      // levererar då varje broadcast två gånger till samma klient, vilket
+      // gjorde att menu_updated-echots suppress-räknare (+1) bara täckte
+      // första leveransen — den andra slank igenom som en äkta omladdning
+      // och orsakade ett synligt "blink" i menyn.
+      if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+        wsRef.current.onclose = null;
+        wsRef.current.close();
+      }
+
       const ws = new WebSocket(toWsUrl(householdId!, token));
       wsRef.current = ws;
 

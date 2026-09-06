@@ -44,6 +44,14 @@ export function useShoppingSocket(
       const token = await getToken();
       if (!token || unmountedRef.current) return;
 
+      // Se useHouseholdSocket.ts för varför — förhindrar två samtidigt
+      // levande sockets (dubblerade broadcast-leveranser) vid snabba
+      // bakgrund/förgrund-växlingar.
+      if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+        wsRef.current.onclose = null;
+        wsRef.current.close();
+      }
+
       const ws = new WebSocket(toWsUrl(listId!, token));
       wsRef.current = ws;
 
