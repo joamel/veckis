@@ -33,6 +33,7 @@ import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { reportClientError } from '../../src/lib/errorReport';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
@@ -553,6 +554,10 @@ export default function MenuScreen() {
         client.getAllMenus(householdId).catch(() => [] as WeekMenuItemWithRecipe[]),
       ]);
       if (seq !== loadSeqRef.current) return; // en nyare load() har redan startat — kasta detta inaktuella svaret
+      reportClientError('DIAG: load() applying menuItems', {
+        at: Date.now(), seq,
+        menuSnapshot: menu.map(i => ({ id: i.id, day: i.day, title: i.recipe?.title })),
+      });
       setMenuItems(menu);
       // Behåll overrides för rätter vars sparning ännu är på gång (annars studsar
       // portionerna); resten är redan committade → persisterat värde är sanning.
@@ -865,6 +870,12 @@ export default function MenuScreen() {
 
   async function addRecipeToDay(recipe: RecipeWithIngredients, dayOverride?: WeekDay | null) {
     if (!householdId) return;
+    reportClientError('DIAG: addRecipeToDay start', {
+      at: Date.now(),
+      day: dayOverride !== undefined ? dayOverride : pickingForDay,
+      menuItemsSnapshot: menuItems.map(i => ({ id: i.id, day: i.day, title: i.recipe?.title })),
+      pendingIds: [...pendingMenuItemRemovals],
+    });
 
     if (replaceTarget) {
       closePicker();
@@ -982,6 +993,7 @@ export default function MenuScreen() {
       if (cancelled) return;
       try {
         suppressMenuReloadRef.current += 1;
+        reportClientError('DIAG: removeFromMenu delete start', { itemId: item.id, at: Date.now() });
         await client.deleteWeekMenuItem(item.id);
         const linked = recipeListMap[item.id] ?? [];
         if (linked.length > 0) await executeCleanup(item, linked.map(l => l.listId));
@@ -993,6 +1005,7 @@ export default function MenuScreen() {
           delete next[item.id];
           return next;
         });
+        reportClientError('DIAG: removeFromMenu delete committed', { itemId: item.id, at: Date.now() });
       } catch (e) {
         showError(e, str.toasts.errorRemove);
       } finally {
