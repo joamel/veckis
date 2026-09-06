@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import crypto from 'crypto';
+import { verifyToken } from '@clerk/backend';
 
 /**
  * Idempotency för muterande anrop. Mobilnät kan tappa svaret efter att
@@ -11,13 +11,24 @@ import crypto from 'crypto';
  *
  * Ligger som global middleware (inte per-route) eftersom requireAuth sätts
  * per route, inte globalt — vi kan alltså inte förlita oss på req.clerkUserId
- * här. Authorization-headern (hashad) räcker för att skopa nyckeln per
- * användare utan att bero på var i kedjan auth-middlewaren körs.
+ * här.
+ *
+ * Skopas på VERIFIERAD Clerk-sub, inte en hash av hela Authorization-headern
+ * (som det var förut). Klienten hämtar token på nytt (getToken()) vid VARJE
+ * retry-försök, och Clerk kan signera om en ny token-sträng för samma
+ * användare inom loppet av en retry — då missar en header-hash-baserad
+ * cache-nyckel trots att det är exakt samma logiska försök, och servern kör
+ * routen igen → äkta dubblett. Bekräftat i produktion 2026-09-06: två skilda
+ * menu-rader skapades av en "Network request failed" (114ms, servern hade
+ * redan lyckats) följt av klientens automatiska retry. Sub är stabil per
+ * användare oavsett hur token-strängen ser ut, vilket faktiskt gör att
+ * retry:n känns igen som samma försök.
  */
 interface CacheEntry { status: number; body: unknown; expiresAt: number }
 
 const cache = new Map<string, CacheEntry>();
 const TTL_MS = 5 * 60 * 1000;
+const isDev = process.env.NODE_ENV !== 'production';
 
 setInterval(() => {
   const now = Date.now();
@@ -26,15 +37,29 @@ setInterval(() => {
   }
 }, 60 * 1000).unref();
 
-export function idempotencyMiddleware(req: Request, res: Response, next: NextFunction): void {
+export async function idempotencyMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const key = req.header('Idempotency-Key');
   if (req.method === 'GET' || req.method === 'HEAD' || !key) {
     next();
     return;
   }
 
-  const auth = req.header('authorization') ?? '';
-  const scope = crypto.createHash('sha256').update(auth).digest('hex').slice(0, 16);
+  const authHeader = req.header('authorization') ?? '';
+  const token = authHeader.replace(/^Bearer\s+/i, '');
+  let scope: string;
+  try {
+    if (isDev && token.startsWith('dev_')) {
+      scope = token.slice(4);
+    } else {
+      const payload = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
+      scope = payload.sub;
+    }
+  } catch {
+    // Ogiltig/utgången token — låt routens egen requireAuth ge rätt 401 utan
+    // att blanda in idempotency-cachen.
+    next();
+    return;
+  }
   const cacheKey = `${scope}:${key}`;
 
   const cached = cache.get(cacheKey);
