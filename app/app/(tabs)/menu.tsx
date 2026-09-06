@@ -33,7 +33,6 @@ import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
-import { reportClientError } from '../../src/lib/errorReport';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
@@ -312,21 +311,6 @@ export default function MenuScreen() {
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> mängd hemma
   const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // omätta ingredienser markerade "har hemma"
   const [allMenus, setAllMenus] = useState<MenuRow[]>([]);
-  // DIAG: fångar den FAKTISKA render-synliga sekvensen för BÅDA
-  // datakällorna (menuItems och allMenus) — weekItemsForOffset växlar
-  // mellan dem beroende på loadedWeekRef, och om de hinner gå isär skulle
-  // en tidigare, snävare diagnostik (bara menuItems) missa det helt.
-  const diagSeqRef = useRef(0);
-  useEffect(() => {
-    diagSeqRef.current += 1;
-    reportClientError(`DIAG: state#${diagSeqRef.current}`, {
-      at: Date.now(),
-      weekOffset,
-      pendingIds: [...pendingMenuItemRemovals],
-      tueFromMenuItems: menuItems.filter(i => i.day === 'tue').map(i => ({ id: i.id, title: i.recipe?.title })),
-      tueFromAllMenus: allMenus.filter(i => i.day === 'tue' && i.weekYear === weekYear && i.weekNumber === weekNumber).map(i => ({ id: i.id, title: i.recipe?.title })),
-    });
-  }, [pendingMenuItemRemovals, menuItems, allMenus, weekOffset]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
   // Replace recipe: item being replaced
@@ -1011,8 +995,13 @@ export default function MenuScreen() {
         const linked = recipeListMap[item.id] ?? [];
         if (linked.length > 0) await executeCleanup(item, linked.map(l => l.listId));
         // Backend committed — drop from local state so it doesn't reappear when
-        // the pending flag clears.
+        // the pending flag clears. MÅSTE uppdatera allMenus också — annars blir
+        // den permanent inaktuell med borttagna rätter kvar som spökrader, och
+        // weekItemsForOffset faller tillbaka på allMenus (i stället för
+        // menuItems) så fort loadedWeekRef inte matchar perfekt, vilket visade
+        // spöket bredvid det nya tillägget (bekräftat via diagnostik 2026-09-06).
         setMenuItems(prev => prev.filter(i => i.id !== item.id));
+        setAllMenus(prev => prev.filter(i => i.id !== item.id));
         setRecipeListMap(prev => {
           const next = { ...prev };
           delete next[item.id];
