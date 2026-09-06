@@ -535,8 +535,15 @@ export default function MenuScreen() {
     }, 16);
   }, [stopAutoScroll]);
 
+  // Skyddar mot att ett äldre load()-anrop svarar EFTER ett nyare (helt
+  // normalt över mobilnät med varierande svarstider — t.ex. fokus-effekten
+  // och en socket-echo som råkar överlappa). Utan detta kunde det äldre,
+  // inaktuella svaret skriva över state:t och kortvarigt återuppliva ett
+  // redan borttaget recept innan nästa korrekta load() rättade till det.
+  const loadSeqRef = useRef(0);
   const load = useCallback(async () => {
     if (!householdId) return;
+    const seq = ++loadSeqRef.current;
     try {
       const [menu, recs, activeLists, suggestions, all] = await Promise.all([
         client.getWeekMenu(householdId, weekYear, weekNumber),
@@ -545,6 +552,7 @@ export default function MenuScreen() {
         client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
         client.getAllMenus(householdId).catch(() => [] as WeekMenuItemWithRecipe[]),
       ]);
+      if (seq !== loadSeqRef.current) return; // en nyare load() har redan startat — kasta detta inaktuella svaret
       setMenuItems(menu);
       // Behåll overrides för rätter vars sparning ännu är på gång (annars studsar
       // portionerna); resten är redan committade → persisterat värde är sanning.
@@ -583,9 +591,11 @@ export default function MenuScreen() {
       });
       setRecipeListMap(listMap);
     } catch {
-      confirm({ title: str.dialogs.loadError.title, message: str.dialogs.loadError.message, buttons: [{ label: common.actions.ok }] });
+      if (seq === loadSeqRef.current) {
+        confirm({ title: str.dialogs.loadError.title, message: str.dialogs.loadError.message, buttons: [{ label: common.actions.ok }] });
+      }
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) setLoading(false);
     }
   }, [householdId, weekYear, weekNumber]);
 
