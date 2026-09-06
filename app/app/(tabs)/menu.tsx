@@ -1603,7 +1603,13 @@ export default function MenuScreen() {
         windowSize={3}
         initialNumToRender={1}
         maxToRenderPerBatch={2}
-        removeClippedSubviews
+        // AVSTÄNGT (var på): känd Android-bugg där removeClippedSubviews kan
+        // återanvända en klippt native-vy och kortvarigt visa dess GAMLA bitmap
+        // innan den hinner rita om — en ren compositor-glitch, inte ett state-
+        // fel. Matchar exakt "gammalt+nytt kort samtidigt"-buggen: diagnostik
+        // bevisade upprepat att menuItems/allMenus ALDRIG divergerade när felet
+        // syntes, dvs. datat var alltid korrekt. Se commit 2026-09-06.
+        removeClippedSubviews={false}
         scrollEventThrottle={16}
         extraData={{ weekOffset, menuItems, allMenus, recipeListMap, dragState, hoverDay, menuItemServings, pendingMenuItemRemovals }}
         onScrollToIndexFailed={() => {}}
