@@ -568,9 +568,21 @@ export default function MenuScreen() {
   // inaktuella svaret skriva över state:t och kortvarigt återuppliva ett
   // redan borttaget recept innan nästa korrekta load() rättade till det.
   const loadSeqRef = useRef(0);
+  // Skyddar mot att ett load()-anrop som startade INNAN en mutation (ta bort/
+  // lägg till/byt) hinner svara EFTER mutationens egen direkta state-
+  // uppdatering. Ett sånt sent load()-svar bär på en ögonblicksbild från
+  // innan mutationen och återupplivar kortvarigt t.ex. ett redan borttaget
+  // recept — bekräftat 2026-09-06 (exakt sekvens: nytt recept ensamt → gamla
+  // dyker upp igen en kort stund → försvinner igen). loadSeqRef skyddar bara
+  // load()-anrop mot VARANDRA. Varje mutation stegar stateVersionRef precis
+  // innan sin egen auktoritativa state-uppdatering; load() fångar versionen
+  // vid start och kastar sitt svar om den hunnit ändras under tiden — dvs.
+  // "har något mer auktoritativt redan hänt sen jag frågade servern".
+  const stateVersionRef = useRef(0);
   const load = useCallback(async () => {
     if (!householdId) return;
     const seq = ++loadSeqRef.current;
+    const versionAtStart = stateVersionRef.current;
     try {
       const [menu, recs, activeLists, suggestions, all] = await Promise.all([
         client.getWeekMenu(householdId, weekYear, weekNumber),
@@ -580,6 +592,7 @@ export default function MenuScreen() {
         client.getAllMenus(householdId).catch(() => [] as WeekMenuItemWithRecipe[]),
       ]);
       if (seq !== loadSeqRef.current) return; // en nyare load() har redan startat — kasta detta inaktuella svaret
+      if (stateVersionRef.current !== versionAtStart) return; // en mutation har hunnit ändra state medan denna load() väntade på servern
       setMenuItems(menu);
       // Behåll overrides för rätter vars sparning ännu är på gång (annars studsar
       // portionerna); resten är redan committade → persisterat värde är sanning.
@@ -837,6 +850,7 @@ export default function MenuScreen() {
       suppressMenuReloadRef.current += 2; // delete + add — suppress both socket echoes
       await client.deleteWeekMenuItem(oldId);
       const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear: wy, weekNumber: wn });
+      stateVersionRef.current += 1;
       setMenuItems(prev => prev.filter(i => i.id !== oldId).concat(item));
       setAllMenus(prev => prev.filter(i => i.id !== oldId).concat(item));
     } catch (e) {
@@ -901,6 +915,7 @@ export default function MenuScreen() {
         suppressMenuReloadRef.current += 2; // delete + add — set before any calls so both socket echos are caught
         await client.deleteWeekMenuItem(oldId);
         const item = await client.addToWeekMenu({ householdId, recipeId: recipe.id, day, weekYear, weekNumber });
+        stateVersionRef.current += 1;
         setMenuItems(prev => prev.filter(i => i.id !== oldId).concat(item));
         setAllMenus(prev => prev.filter(i => i.id !== oldId).concat(item));
       } catch (e) {
@@ -955,6 +970,7 @@ export default function MenuScreen() {
       recipe,
       _stableKey: tempId,
     } as MenuRow;
+    stateVersionRef.current += 1;
     setMenuItems(prev => [...prev, optimistic]);
     setAllMenus(prev => [...prev, optimistic]); // keep snapshot in sync so non-loaded weeks render correctly
     try {
@@ -971,10 +987,12 @@ export default function MenuScreen() {
         if (prev.some(m => m.id === item.id)) return prev;
         return [...prev, item];
       };
+      stateVersionRef.current += 1;
       setMenuItems(replaceOrAppend);
       setAllMenus(replaceOrAppend);
       showToast(str.toasts.recipeAdded);
     } catch (e) {
+      stateVersionRef.current += 1;
       setMenuItems(prev => prev.filter(m => m.id !== tempId));
       setAllMenus(prev => prev.filter(m => m.id !== tempId));
       showError(e, str.toasts.errorAddRecipe);
@@ -1019,6 +1037,7 @@ export default function MenuScreen() {
         // weekItemsForOffset faller tillbaka på allMenus (i stället för
         // menuItems) så fort loadedWeekRef inte matchar perfekt, vilket visade
         // spöket bredvid det nya tillägget (bekräftat via diagnostik 2026-09-06).
+        stateVersionRef.current += 1;
         setMenuItems(prev => prev.filter(i => i.id !== item.id));
         setAllMenus(prev => prev.filter(i => i.id !== item.id));
         setRecipeListMap(prev => {
@@ -1240,14 +1259,17 @@ export default function MenuScreen() {
       );
       if (!confirmed) return;
     }
+    stateVersionRef.current += 1;
     setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, day } : i));
     setAllMenus(prev => prev.map(i => i.id === item.id ? { ...i, day } : i));
     suppressMenuReloadRef.current += 1;
     try {
       const updated = await client.updateWeekMenuItem(item.id, { day });
+      stateVersionRef.current += 1;
       setMenuItems(prev => prev.map(i => i.id === updated.id ? updated : i));
       setAllMenus(prev => prev.map(i => i.id === updated.id ? updated : i));
     } catch (e) {
+      stateVersionRef.current += 1;
       setMenuItems(prev => prev.map(i => i.id === item.id ? item : i));
       setAllMenus(prev => prev.map(i => i.id === item.id ? item : i));
       showError(e, str.toasts.errorMove);
@@ -1258,14 +1280,17 @@ export default function MenuScreen() {
   // Toggla samma typ = rensa (null). Optimistiskt, som moveToDay.
   async function setMenuItemMeal(item: WeekMenuItemWithRecipe, meal: MealType | null) {
     const next = item.mealType === meal ? null : meal;
+    stateVersionRef.current += 1;
     setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, mealType: next } : i));
     setAllMenus(prev => prev.map(i => i.id === item.id ? { ...i, mealType: next } : i));
     suppressMenuReloadRef.current += 1;
     try {
       const updated = await client.updateWeekMenuItem(item.id, { mealType: next });
+      stateVersionRef.current += 1;
       setMenuItems(prev => prev.map(i => i.id === updated.id ? updated : i));
       setAllMenus(prev => prev.map(i => i.id === updated.id ? updated : i));
     } catch (e) {
+      stateVersionRef.current += 1;
       setMenuItems(prev => prev.map(i => i.id === item.id ? item : i));
       setAllMenus(prev => prev.map(i => i.id === item.id ? item : i));
       showError(e, common.errors.couldNotSave(common.mealTypes.entity));
