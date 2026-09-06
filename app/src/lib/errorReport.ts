@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 
 const MAX_MESSAGE = 4000;
 const MAX_STACK = 8000;
@@ -48,7 +49,16 @@ const recent = new Map<string, number>();
  */
 export function reportClientError(error: unknown, context: Record<string, unknown> = {}): void {
   try {
-    const report = buildErrorReport(error, context, {
+    // otaUpdateId gör det möjligt att i EFTERHAND se exakt vilket OTA-bygge
+    // som var aktivt när en diagnostik fyrade — annars måste man lita på att
+    // testaren verkligen hann göra hela stäng-öppna-cykeln, vilket ledde till
+    // flera bortkastade testrundor 2026-09-06.
+    const contextWithBuild = {
+      ...context,
+      otaUpdateId: Updates.updateId ?? null,
+      otaCreatedAt: Updates.createdAt?.toISOString() ?? null,
+    };
+    const report = buildErrorReport(error, contextWithBuild, {
       platform: Platform.OS,
       appVersion: Constants.expoConfig?.version ?? 'okänd',
     });

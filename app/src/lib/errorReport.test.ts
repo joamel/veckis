@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 
-// expo-constants drar in native-moduler — mocka så modulen kan importeras i test.
+// expo-constants/expo-updates drar in native-moduler — mocka så modulen kan importeras i test.
 vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '9.9.9' } } }));
+vi.mock('expo-updates', () => ({ updateId: null, createdAt: null }));
 
 import { buildErrorReport } from './errorReport';
 
