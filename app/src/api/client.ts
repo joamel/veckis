@@ -150,13 +150,24 @@ export function useApiClient() {
     } catch (err) {
       // fetch rejects (rather than resolving with !ok) when the request never
       // reached the server: no connectivity, DNS failure, server down, etc.
-      // DIAG: exakt förfluten tid — om den är i storleksordningen millisekunder
-      // avvisade fetch() direkt lokalt, utan att ens försöka nå nätverket.
+      const elapsedMs = Date.now() - startedAt;
       reportClientError('DIAG: fetch() reject', {
-        path, method, attempt, elapsedMs: Date.now() - startedAt,
+        path, method, attempt, elapsedMs,
         message: err instanceof Error ? err.message : String(err),
       });
-      if (canRetry) { await backoff(); return performRequest<T>(path, options, attempt + 1); }
+      if (canRetry) {
+        // Snabb avvisning (<1s) = troligen en död/återanvänd anslutning i
+        // nätverkspoolen (bekräftat 2026-09-06: 128ms, servern hann ändå
+        // lyckas) — då är en ny anslutning nästan alltid klar direkt, ingen
+        // anledning att vänta 1,5–9s som om backend sov. Den längre
+        // schemat (1500/4000/9000) sparas för fall där fetch() faktiskt
+        // hann dröja, vilket bättre matchar en genuint långsam/uppvaknande
+        // backend.
+        const shortBackoff = elapsedMs < 1000;
+        const ms = shortBackoff ? [300, 800, 2000][attempt] ?? 2000 : [1500, 4000, 9000][attempt] ?? 9000;
+        await new Promise(r => setTimeout(r, ms));
+        return performRequest<T>(path, options, attempt + 1);
+      }
       throw new ApiError('Network request failed', null, true);
     }
 
