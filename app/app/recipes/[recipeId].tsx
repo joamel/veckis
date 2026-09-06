@@ -521,7 +521,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       setEditMode(false);
       if (forMenuDay !== undefined) {
         const weekSuffix = forMenuWeek ? `&forMenuWeek=${forMenuWeek}` : '';
-        router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}${weekSuffix}` as never);
+        const reqId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+        router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${forMenuDay}&reqId=${reqId}${weekSuffix}` as never);
       }
     } catch {
       confirm({ title: str.errors.generic, message: str.errors.couldNotSave, buttons: [{ label: common.actions.ok }] });

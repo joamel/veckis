@@ -46,6 +46,17 @@ const MENU_DAYS: { key: WeekDay; label: string }[] =
   (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as WeekDay[])
     .map((key, i) => ({ key, label: common.weekdays.long[i] }));
 
+// Unik per faktiskt knapptryck — menyskärmens addRecipeId-effekt dedupar på
+// denna (inte på addRecipeId/recipeId), eftersom samma recept kan läggas
+// till flera separata gånger (olika dagar/tillfällen) och en bool-flagga som
+// nollställs när query-parametern blir undefined inte skyddar mot att en
+// gammal, redan applicerad navigation (samma addRecipeId) råkar "spelas upp"
+// igen av routern — bekräftat 2026-09-06: två skilda menu-rader med samma
+// recept skapades av exakt detta.
+function makeReqId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function RecipesScreen() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -207,14 +218,14 @@ export default function RecipesScreen() {
         title: str.menu.replace.title,
         message: str.menu.replace.message(params.replaceTitle ?? str.fallbackDish, recipe.title),
         buttons: [
-          { label: str.menu.replace.confirm, style: 'destructive', onPress: () => router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&replaceMenuItemId=${params.replaceMenuItemId}${weekSuffix}` as never) },
+          { label: str.menu.replace.confirm, style: 'destructive', onPress: () => router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&replaceMenuItemId=${params.replaceMenuItemId}&reqId=${makeReqId()}${weekSuffix}` as never) },
           { label: common.actions.cancel, style: 'cancel' },
         ],
       });
       return;
     }
     const day = params.forMenuDay === 'none' ? '' : (params.forMenuDay ?? '');
-    router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${day}${weekSuffix}` as never);
+    router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${day}&reqId=${makeReqId()}${weekSuffix}` as never);
   }
 
   // Tagg-filter: alla taggar som förekommer i hushållets recept, vanligast först.

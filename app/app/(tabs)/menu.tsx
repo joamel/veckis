@@ -252,8 +252,16 @@ export default function MenuScreen() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
-  const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string; replaceMenuItemId?: string; forMenuWeek?: string }>();
+  const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string; replaceMenuItemId?: string; forMenuWeek?: string; reqId?: string }>();
   const addRecipeTriggeredRef = useRef(false);
+  // Håller VILKEN reqId som senast applicerades — aldrig nollställd (till
+  // skillnad från addRecipeTriggeredRef ovan, som medvetet nollställs när
+  // addRecipeId blir undefined för att tillåta en NY tillägg-navigation).
+  // Skyddar mot att exakt samma navigation (samma reqId) appliceras två
+  // gånger om routern av någon anledning levererar samma params igen —
+  // bekräftat 2026-09-06 via DIAG v3: skapade två menu-rader med samma
+  // recept för samma dag.
+  const appliedReqIdRef = useRef<string | null>(null);
   // Always current — updated in render so it's available when useFocusEffect fires.
   const incomingAddRecipeRef = useRef(params.addRecipeId);
   incomingAddRecipeRef.current = params.addRecipeId;
@@ -770,6 +778,7 @@ export default function MenuScreen() {
   // to the requested day so the user doesn't have to re-open the picker.
   useEffect(() => {
     if (!params.addRecipeId) { addRecipeTriggeredRef.current = false; return; }
+    if (params.reqId && appliedReqIdRef.current === params.reqId) return;
     if (recipes.length === 0 || addRecipeTriggeredRef.current) return;
 
     // The picker carries the week the user was viewing. The recipe-picker
@@ -787,6 +796,7 @@ export default function MenuScreen() {
     const localRecipe = recipes.find(r => r.id === params.addRecipeId);
     const apply = (recipe: RecipeWithIngredients) => {
       addRecipeTriggeredRef.current = true;
+      if (params.reqId) appliedReqIdRef.current = params.reqId;
       if (params.replaceMenuItemId) {
         replaceMenuItem(params.replaceMenuItemId, recipe);
       } else {
@@ -809,7 +819,7 @@ export default function MenuScreen() {
         showError(e, str.toasts.errorAddRecipe);
       });
     }
-  }, [params.addRecipeId, params.forMenuWeek, recipes, weekYear, weekNumber, menuItems]);
+  }, [params.addRecipeId, params.reqId, params.forMenuWeek, recipes, weekYear, weekNumber, menuItems]);
 
   function handleCancelBulkTransfer() {
     const originListId = params.originListId;
