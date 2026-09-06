@@ -33,6 +33,7 @@ import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { reportClientError } from '../../src/lib/errorReport';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
@@ -275,6 +276,19 @@ export default function MenuScreen() {
   const weekLabel = useMemo(() => `Vecka ${weekNumber}`, [weekNumber]);
 
   const [menuItems, setMenuItems] = useState<MenuRow[]>([]);
+  // DIAG: fångar den FAKTISKA render-synliga sekvensen (inte bara vad
+  // mutations-handlerna AVSER göra) — loggar varje gång menuItems eller
+  // pendingMenuItemRemovals faktiskt ändras, med unikt löpnummer så
+  // reportClientErrors 10s-dedup inte sväljer efterföljande händelser.
+  const diagSeqRef = useRef(0);
+  useEffect(() => {
+    diagSeqRef.current += 1;
+    reportClientError(`DIAG: state#${diagSeqRef.current}`, {
+      at: Date.now(),
+      pendingIds: [...pendingMenuItemRemovals],
+      tueItems: menuItems.filter(i => i.day === 'tue').map(i => ({ id: i.id, title: i.recipe?.title })),
+    });
+  }, [pendingMenuItemRemovals, menuItems]);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [shoppingLists, setShoppingLists] = useState<ShoppingListWithItems[]>([]);
   const [loading, setLoading] = useState(true);
