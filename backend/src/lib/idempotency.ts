@@ -17,23 +17,30 @@ import { verifyToken } from '@clerk/backend';
  * (som det var förut). Klienten hämtar token på nytt (getToken()) vid VARJE
  * retry-försök, och Clerk kan signera om en ny token-sträng för samma
  * användare inom loppet av en retry — då missar en header-hash-baserad
- * cache-nyckel trots att det är exakt samma logiska försök, och servern kör
- * routen igen → äkta dubblett. Bekräftat i produktion 2026-09-06: två skilda
- * menu-rader skapades av en "Network request failed" (114ms, servern hade
- * redan lyckats) följt av klientens automatiska retry. Sub är stabil per
- * användare oavsett hur token-strängen ser ut, vilket faktiskt gör att
- * retry:n känns igen som samma försök.
+ * cache-nyckel trots att det är exakt samma logiska försök.
+ *
+ * VIKTIGARE HÅL (bekräftat i produktion 2026-09-06 — sub-fixet ovan räckte
+ * INTE ensamt): cachen skrevs bara vid COMPLETION (i den inpackade
+ * res.json), aldrig vid START. Hinner en retry fram MEDAN originalet
+ * fortfarande bearbetas (DB-skrivningen tar några ms) ser retry:n en tom
+ * cache och kör routen parallellt — trots identisk, korrekt skopad
+ * Idempotency-Key. Klassiskt idempotency-race (samma sak Stripes egen
+ * idempotency-dokumentation varnar för). Nyckeln reserveras nu synkront vid
+ * START (en "pending"-post) så en samtidig retry väntar in ORIGINALETS svar
+ * i stället för att köra routen igen.
  */
-interface CacheEntry { status: number; body: unknown; expiresAt: number }
+interface DoneEntry { status: 'done'; status_: number; body: unknown; expiresAt: number }
+interface PendingEntry { status: 'pending'; promise: Promise<{ status: number; body: unknown }> }
+type CacheValue = DoneEntry | PendingEntry;
 
-const cache = new Map<string, CacheEntry>();
+const cache = new Map<string, CacheValue>();
 const TTL_MS = 5 * 60 * 1000;
 const isDev = process.env.NODE_ENV !== 'production';
 
 setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of cache) {
-    if (entry.expiresAt < now) cache.delete(key);
+    if (entry.status === 'done' && entry.expiresAt < now) cache.delete(key);
   }
 }, 60 * 1000).unref();
 
@@ -62,19 +69,48 @@ export async function idempotencyMiddleware(req: Request, res: Response, next: N
   }
   const cacheKey = `${scope}:${key}`;
 
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    res.status(cached.status).json(cached.body);
-    return;
+  const existing = cache.get(cacheKey);
+  if (existing) {
+    if (existing.status === 'pending') {
+      // Samma nyckel bearbetas redan (en retry hann fram innan originalet var
+      // klart) — vänta in DET svaret i stället för att köra routen igen.
+      const result = await existing.promise;
+      res.status(result.status).json(result.body);
+      return;
+    }
+    if (existing.expiresAt > Date.now()) {
+      res.status(existing.status_).json(existing.body);
+      return;
+    }
   }
+
+  let resolvePending!: (r: { status: number; body: unknown }) => void;
+  const pendingPromise = new Promise<{ status: number; body: unknown }>(resolve => { resolvePending = resolve; });
+  cache.set(cacheKey, { status: 'pending', promise: pendingPromise });
 
   const originalJson = res.json.bind(res);
   res.json = ((body: unknown) => {
     if (res.statusCode < 500) {
-      cache.set(cacheKey, { status: res.statusCode, body, expiresAt: Date.now() + TTL_MS });
+      cache.set(cacheKey, { status: 'done', status_: res.statusCode, body, expiresAt: Date.now() + TTL_MS });
+    } else {
+      // Serverfel — låt en eventuell retry köra om från scratch i stället för
+      // att permanent hänga fast vid ett trasigt svar.
+      cache.delete(cacheKey);
     }
+    resolvePending({ status: res.statusCode, body });
     return originalJson(body);
   }) as typeof res.json;
+
+  // Säkerhetsnät: om routen svarar utan res.json (t.ex. kraschar innan dess)
+  // ska inte en väntande retry hänga för evigt — lös upp med det faktiska
+  // statuskoden och rensa posten så nästa försök körs på nytt.
+  res.on('finish', () => {
+    const entry = cache.get(cacheKey);
+    if (entry?.status === 'pending') {
+      cache.delete(cacheKey);
+      resolvePending({ status: res.statusCode, body: null });
+    }
+  });
 
   next();
 }
