@@ -33,6 +33,7 @@ import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { reportClientError } from '../../src/lib/errorReport';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
@@ -311,6 +312,24 @@ export default function MenuScreen() {
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> mängd hemma
   const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // omätta ingredienser markerade "har hemma"
   const [allMenus, setAllMenus] = useState<MenuRow[]>([]);
+  // DIAG v2: verifierar om allMenus-fixet räckte, eller om det finns ETT
+  // TILL hål — loggar bara när menuItems och allMenus faktiskt SKILJER SIG
+  // åt för samma dag/vecka (inte varje state-ändring, för att hålla bruset
+  // nere denna gång).
+  const diagSeqRef = useRef(0);
+  useEffect(() => {
+    const mi = menuItems.filter(i => i.weekYear === weekYear && i.weekNumber === weekNumber).map(i => i.id).sort();
+    const am = allMenus.filter(i => i.weekYear === weekYear && i.weekNumber === weekNumber).map(i => i.id).sort();
+    if (JSON.stringify(mi) !== JSON.stringify(am)) {
+      diagSeqRef.current += 1;
+      reportClientError(`DIAG: menuItems/allMenus diverged #${diagSeqRef.current}`, {
+        at: Date.now(),
+        weekOffset,
+        menuItemsFull: menuItems.filter(i => i.weekYear === weekYear && i.weekNumber === weekNumber).map(i => ({ id: i.id, day: i.day, title: i.recipe?.title })),
+        allMenusFull: allMenus.filter(i => i.weekYear === weekYear && i.weekNumber === weekNumber).map(i => ({ id: i.id, day: i.day, title: i.recipe?.title })),
+      });
+    }
+  }, [menuItems, allMenus, weekYear, weekNumber, weekOffset]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
   // Replace recipe: item being replaced
