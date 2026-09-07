@@ -259,6 +259,14 @@ export default function StoreDetailScreen() {
   function subsForResolvedParent(parentKey: string): SubCategory[] {
     return ALL_SUB_CATEGORIES.filter(s => resolveMerge(SUB_TAXONOMY[s].defaultParent) === parentKey);
   }
+  // Rent namn utan "c:"-prefix eller emoji — för brödtext (t.ex. subHint).
+  function plainLabel(key: string): string {
+    return key.startsWith('c:') ? key.slice(2) : (CATEGORY_LABELS[key as StoreCategory] ?? key);
+  }
+  // Namn + 🏷️ EFTER texten för egna kategorier — för rad-/badge-visning.
+  function labelWithTag(key: string): string {
+    return key.startsWith('c:') ? `${plainLabel(key)} 🏷️` : plainLabel(key);
+  }
   // Flytta en sub-post (standard ELLER egen) upp/ner bland sina syskon (samma
   // parent) i expandedSubs — så egna och standard-subs kan interfolieras fritt.
   function moveSubEntry(entry: string, parentKey: string, dir: -1 | 1) {
@@ -449,7 +457,7 @@ export default function StoreDetailScreen() {
     const rest = hiddenEntriesFor(parentKey, standardSubs);
     return (
       <>
-        {standardSubs.length > 0 && <Text style={s.subListHint}>{str.detail.subHint(CATEGORY_LABELS[parentKey as StoreCategory] ?? parentKey)}</Text>}
+        {standardSubs.length > 0 && <Text style={s.subListHint}>{str.detail.subHint(plainLabel(parentKey))}</Text>}
         {entries.map((entry, i) => {
           const isCustomEntry = entry.startsWith('cs:');
           const label = isCustomEntry ? entry.slice(entry.lastIndexOf(':') + 1) : SUB_TAXONOMY[entry as SubCategory].label;
@@ -576,7 +584,7 @@ export default function StoreDetailScreen() {
                       hitSlop={6}
                     >
                       <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={c.textMuted} />
-                      <Text style={s.catName}>{isCustom ? `🏷️ ${cat}` : (CATEGORY_LABELS[key as StoreCategory] ?? cat)}</Text>
+                      <Text style={s.catName}>{labelWithTag(key)}</Text>
                       {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
                     </Pressable>
                     <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -630,7 +638,7 @@ export default function StoreDetailScreen() {
             <Text style={s.sectionSub}>{str.detail.mergedHint}</Text>
             <View style={s.catList}>
               {mergedEntries.map(([source, target]) => {
-                const targetLabel = target.startsWith('c:') ? `🏷️ ${target.slice(2)}` : (CATEGORY_LABELS[target as StoreCategory] ?? target);
+                const targetLabel = labelWithTag(target);
                 return (
                   <View key={source} style={[s.catRow, s.catRowMuted]}>
                     <Text style={[s.catName, s.catNameMuted]} numberOfLines={1}>
@@ -652,11 +660,10 @@ export default function StoreDetailScreen() {
       {/* Drag-spöke — visar vilken kategori som flyttas, följer fingret vertikalt. */}
       {catDragState && (() => {
         const key = catDragState.key;
-        const label = key.startsWith('c:') ? key.slice(2) : (CATEGORY_LABELS[key as StoreCategory] ?? key);
         return (
           <View pointerEvents="none" style={[s.ghostCat, { top: catDragState.y - 24 }]}>
             <Ionicons name="reorder-three" size={18} color={c.primary} />
-            <Text style={s.ghostCatText} numberOfLines={1}>{key.startsWith('c:') ? `🏷️ ${label}` : label}</Text>
+            <Text style={s.ghostCatText} numberOfLines={1}>{labelWithTag(key)}</Text>
           </View>
         );
       })()}
@@ -685,8 +692,7 @@ export default function StoreDetailScreen() {
           <Text style={s.sectionSub}>{str.detail.mergeModal.subtitle}</Text>
           <ScrollView style={{ flexGrow: 0 }}>
             {mergingKey && mergeTargetsFor(mergingKey).map(target => {
-              const isCustom = target.startsWith('c:');
-              const label = isCustom ? `🏷️ ${target.slice(2)}` : (CATEGORY_LABELS[target as StoreCategory] ?? target);
+              const label = labelWithTag(target);
               return (
                 <Pressable
                   key={target}
