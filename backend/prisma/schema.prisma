@@ -78,6 +78,14 @@ model Store {
   // Tom = härled från categoryOrder (standard) + customCategories (sist) för
   // bakåtkompat.
   parentOrder       String[]      @default([])
+  // Kategori-ihopslagning: { sourceKey: targetKey } där sourceKey är en
+  // StoreCategory som (i stället för att bara döljas) slås ihop med en
+  // ANNAN synlig kategori i just den här butiken — varans egna category-
+  // fält ändras ALDRIG, bara vilken sektion den grupperas under vid
+  // visning. sourceKey tas bort ur parentOrder när den läggs till här.
+  // Enkel v1 (2026-09-07): bara standard-kategorier som källa (samma
+  // begränsning som "dölj" redan har), ingen kedjning.
+  categoryMerge     Json          @default("{}")
   createdAt         DateTime      @default(now())
 
   household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)

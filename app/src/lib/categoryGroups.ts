@@ -42,6 +42,18 @@ function itemParentKey(item: CategoryGroupItem): string {
   return item.customCategory ? `c:${item.customCategory}` : String(item.category);
 }
 
+/** Följer categoryMerge till slutmålet. Cykel-skydd är bara ett säkerhetsnät
+ *  — UI:t tillåter aldrig kedjor (bara en nivå), men skyddar mot trasig data. */
+function resolveMerge(key: string, categoryMerge: Record<string, string>): string {
+  let cur = key;
+  const seen = new Set<string>();
+  while (categoryMerge[cur] && !seen.has(cur)) {
+    seen.add(cur);
+    cur = categoryMerge[cur];
+  }
+  return cur;
+}
+
 /**
  * Grupperar inköpsvaror i sektioner enligt butikens kategori-ordning.
  *
@@ -56,6 +68,7 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   expandedSubs: string[] = [],
   customSubs: Record<string, string[]> = {},
   parentOrder: string[] = [],
+  categoryMerge: Record<string, string> = {},
 ): CategoryGroup<T>[] {
   const expandedSet = new Set(expandedSubs);
   const enumMap = new Map<StoreCategory, T[]>();
@@ -71,6 +84,25 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   };
 
   for (const item of items) {
+    // Ihopslagen kategori: bara standard-kategorier kan vara källa (aldrig
+    // customCategory). Går ALLTID till målets direkta hink, oavsett om varan
+    // hade en (ev. utbruten) sub — subs "slås med" automatiskt i enkel v1,
+    // de bevaras inte som egna sektioner under målet.
+    if (!item.customCategory) {
+      const resolved = resolveMerge(String(item.category), categoryMerge);
+      if (resolved !== String(item.category)) {
+        if (resolved.startsWith('c:')) {
+          const custKey = resolved.slice(2);
+          if (!customMap.has(custKey)) customMap.set(custKey, []);
+          customMap.get(custKey)!.push(item);
+        } else {
+          const cat = resolved as StoreCategory;
+          if (!enumMap.has(cat)) enumMap.set(cat, []);
+          enumMap.get(cat)!.push(item);
+        }
+        continue;
+      }
+    }
     if (item.customSubCategory) {
       pushCustomSub(itemParentKey(item), item.customSubCategory, item);
       continue;

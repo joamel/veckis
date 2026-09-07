@@ -94,10 +94,26 @@ export default function StoreDetailScreen() {
   const [renameValue, setRenameValue] = useState('');
   const [renaming, setRenaming] = useState(false);
 
+  // Kategori-ihopslagning: { sourceCategory: targetKey }. Källan (alltid en
+  // riktig StoreCategory) tas bort ur parentOrder och slås ihop med målet vid
+  // visning i just den här butiken — varans egen category ändras aldrig.
+  const [categoryMerge, setCategoryMerge] = useState<Record<string, string>>({});
+  const [mergingKey, setMergingKey] = useState<StoreCategory | null>(null);
+
+  // Dolda (döljs) ≠ ihopslagna (slås ihop med en annan synlig kategori) — en
+  // ihopslagen kategori ska INTE dyka upp i "Dolda"-listan, den har sin egen
+  // "Sammanslagna"-sektion med en "ångra"-knapp.
   const hiddenEnum = useMemo(
-    () => DEFAULT_CATEGORY_ORDER.filter(c => !visibleEnum.includes(c)),
-    [visibleEnum],
+    () => DEFAULT_CATEGORY_ORDER.filter(c => !visibleEnum.includes(c) && !(c in categoryMerge)),
+    [visibleEnum, categoryMerge],
   );
+  const mergedEntries = useMemo(
+    () => (Object.entries(categoryMerge) as [StoreCategory, string][]),
+    [categoryMerge],
+  );
+  // Kandidater att slå ihop MED (alla nuvarande synliga kategorier utom
+  // källan själv) — kan vara standard ELLER egen.
+  const mergeTargetsFor = useCallback((source: StoreCategory) => parentOrder.filter(k => k !== source), [parentOrder]);
 
   const load = useCallback(async () => {
     if (!householdId || !storeId) return;
@@ -116,6 +132,7 @@ export default function StoreDetailScreen() {
         setExpandedSubs([...((found as { expandedSubs?: string[] }).expandedSubs ?? [])]);
         setSubOrder([...((found as { subOrder?: string[] }).subOrder ?? [])]);
         setCustomSubs({ ...((found as { customSubs?: Record<string, string[]> }).customSubs ?? {}) });
+        setCategoryMerge({ ...((found as { categoryMerge?: Record<string, string> }).categoryMerge ?? {}) });
         setDirty(false);
       }
     } catch (e) {
@@ -192,6 +209,25 @@ export default function StoreDetailScreen() {
   }
   function showEnum(cat: StoreCategory) {
     setParentOrder(prev => prev.includes(cat) ? prev : [...prev, cat]);
+    setDirty(true);
+  }
+  // Slår ihop `source` med `target` i den här butiken — tar bort source ur
+  // parentOrder (den får ingen egen sektion/ordnings-slot längre) och
+  // registrerar mappningen. Varans egen category ändras aldrig, bara vilken
+  // sektion den hamnar i vid visning (se categoryGroups.ts).
+  function mergeCategory(source: StoreCategory, target: string) {
+    setParentOrder(prev => prev.filter(k => k !== source));
+    setCategoryMerge(prev => ({ ...prev, [source]: target }));
+    setMergingKey(null);
+    setDirty(true);
+  }
+  function unmergeCategory(source: StoreCategory) {
+    setCategoryMerge(prev => {
+      const next = { ...prev };
+      delete next[source];
+      return next;
+    });
+    setParentOrder(prev => prev.includes(source) ? prev : [...prev, source]);
     setDirty(true);
   }
 
@@ -325,6 +361,7 @@ export default function StoreDetailScreen() {
         expandedSubs,
         subOrder,
         customSubs,
+        categoryMerge,
       });
       setStore(updated);
       setDirty(false);
@@ -531,9 +568,14 @@ export default function StoreDetailScreen() {
                           <Ionicons name="trash-outline" size={16} color={c.danger} />
                         </Pressable>
                       ) : (
-                        <Pressable style={s.catBtnDanger} onPress={() => hideEnum(key as StoreCategory)}>
-                          <Ionicons name="eye-off-outline" size={16} color={c.danger} />
-                        </Pressable>
+                        <>
+                          <Pressable style={s.catBtn} onPress={() => setMergingKey(key as StoreCategory)} accessibilityLabel={str.detail.mergeAction}>
+                            <Ionicons name="git-merge-outline" size={16} color={c.primary} />
+                          </Pressable>
+                          <Pressable style={s.catBtnDanger} onPress={() => hideEnum(key as StoreCategory)}>
+                            <Ionicons name="eye-off-outline" size={16} color={c.danger} />
+                          </Pressable>
+                        </>
                       )}
                       <CategoryDragHandle
                         parentKey={key}
@@ -587,6 +629,28 @@ export default function StoreDetailScreen() {
           </>
         )}
 
+        {mergedEntries.length > 0 && (
+          <>
+            <Text style={[s.sectionLabel, { marginTop: 24 }]}>{str.detail.sections.merged}</Text>
+            <Text style={s.sectionSub}>{str.detail.mergedHint}</Text>
+            <View style={s.catList}>
+              {mergedEntries.map(([source, target]) => {
+                const targetLabel = target.startsWith('c:') ? `🏷️ ${target.slice(2)}` : (CATEGORY_LABELS[target as StoreCategory] ?? target);
+                return (
+                  <View key={source} style={[s.catRow, s.catRowMuted]}>
+                    <Text style={[s.catName, s.catNameMuted]} numberOfLines={1}>
+                      {CATEGORY_LABELS[source] ?? source} → {targetLabel}
+                    </Text>
+                    <Pressable style={s.catBtn} onPress={() => unmergeCategory(source)}>
+                      <Ionicons name="arrow-undo-outline" size={16} color={c.primary} />
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
+
         <View style={{ height: dirty ? 100 : 40 }} />
       </ScrollView>
 
@@ -613,6 +677,38 @@ export default function StoreDetailScreen() {
           </Pressable>
         </View>
       )}
+
+      {/* Slå ihop kategori-modal */}
+      <Modal visible={mergingKey !== null} transparent animationType="slide" onRequestClose={() => setMergingKey(null)}>
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={() => setMergingKey(null)} />
+        <View style={[s.sheet, { maxHeight: '70%' }]}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>
+            {mergingKey ? str.detail.mergeModal.title(CATEGORY_LABELS[mergingKey] ?? mergingKey) : ''}
+          </Text>
+          <Text style={s.sectionSub}>{str.detail.mergeModal.subtitle}</Text>
+          <ScrollView style={{ flexGrow: 0 }}>
+            {mergingKey && mergeTargetsFor(mergingKey).map(target => {
+              const isCustom = target.startsWith('c:');
+              const label = isCustom ? `🏷️ ${target.slice(2)}` : (CATEGORY_LABELS[target as StoreCategory] ?? target);
+              return (
+                <Pressable
+                  key={target}
+                  style={s.mergeTargetRow}
+                  onPress={() => mergeCategory(mergingKey, target)}
+                >
+                  <Text style={s.catName}>{label}</Text>
+                  <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
+                </Pressable>
+              );
+            })}
+            {mergingKey && mergeTargetsFor(mergingKey).length === 0 && (
+              <Text style={s.emptyHint}>{str.detail.mergeModal.noTargets}</Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* Byt namn-modal */}
       <Modal visible={showRename} transparent animationType="slide" onRequestClose={() => setShowRename(false)}>
@@ -660,6 +756,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   catRowMuted: { backgroundColor: c.background },
   catRowDragging: { opacity: 0.4 },
   catRowDropTarget: { borderTopWidth: 2, borderTopColor: c.primary },
+  mergeTargetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   catName: { fontSize: 15, color: c.text, flex: 1, flexShrink: 1 },
   catNameMuted: { color: c.textFaint },
   catBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryTint },

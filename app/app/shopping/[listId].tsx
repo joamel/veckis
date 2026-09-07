@@ -1315,7 +1315,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const expandedSubs: string[] = (list?.store?.expandedSubs as string[] | undefined) ?? [];
   const customSubs: Record<string, string[]> = (list?.store?.customSubs as Record<string, string[]> | undefined) ?? {};
   const parentOrder: string[] = (list?.store?.parentOrder as string[] | undefined) ?? [];
-  const categoryGroups = buildCategoryGroups(unchecked, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder);
+  const categoryMerge: Record<string, string> = (list?.store?.categoryMerge as Record<string, string> | undefined) ?? {};
+  const categoryGroups = buildCategoryGroups(unchecked, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge);
   const groupLabel = (group: CategoryGroup<ShoppingItemWithRecipe>) => {
     if (group.isSub && group.isCustom) {
       const pk = group.parentKey ?? '';
@@ -1417,7 +1418,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             kategori (samma indelning som obockade) med kategorin som underrubrik. */}
         {checked.length > 0 && (() => {
           const collapsed = collapsedCategories.has('checked');
-          const checkedGroups = buildCategoryGroups(checked, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder);
+          const checkedGroups = buildCategoryGroups(checked, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge);
           return (
             <View style={s.categoryGroup} onLayout={e => { catLayouts.current['checked'] = e.nativeEvent.layout.y; }}>
               <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={4}>
@@ -2344,7 +2345,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
             {buildCategoryGroups(
               (list?.items ?? []).filter(i => !i.isChecked && !i.id.startsWith('optimistic-')),
-              categoryOrder, customCategories, expandedSubs, customSubs, parentOrder,
+              categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge,
             ).map(group => {
               const key = groupKey(group);
               const label = groupLabel(group);

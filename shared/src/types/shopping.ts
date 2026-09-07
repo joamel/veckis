@@ -75,4 +75,9 @@ export interface Store {
   /** Ordning för STANDARD-subs som INTE är utbrutna (ej i expandedSubs) — så
    *  sorteringen kan förberedas innan en sub visas som egen sektion. */
   subOrder: string[];
+  /** Kategori-ihopslagning: { sourceCategory: targetKey }. sourceCategory
+   *  (alltid en riktig StoreCategory) slås ihop med targetKey (StoreCategory
+   *  ELLER "c:<egen kategori>") vid visning — varans egen category ändras
+   *  aldrig, bara vilken sektion den grupperas under i just den här butiken. */
+  categoryMerge: Record<string, string>;
 }
