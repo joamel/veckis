@@ -340,8 +340,24 @@ export default function StoreDetailScreen() {
     setDirty(true);
   }
   function removeCustomCategory(cat: string) {
-    setParentOrder(prev => prev.filter(k => k !== `c:${cat}`));
-    setCustomSubs(prev => { const next = { ...prev }; delete next[`c:${cat}`]; return next; });
+    const targetKey = `c:${cat}`;
+    // Kategorier som slagits ihop MED den här (targetKey som mål) måste
+    // återställas — annars pekar categoryMerge på en nyckel som inte finns,
+    // och varorna hamnar osynligt kvar under den borttagna kategorin.
+    const restoredSources = (Object.entries(categoryMerge) as [StoreCategory, string][])
+      .filter(([, target]) => target === targetKey)
+      .map(([source]) => source);
+    setParentOrder(prev => {
+      const withoutTarget = prev.filter(k => k !== targetKey);
+      const toRestore = restoredSources.filter(source => !withoutTarget.includes(source));
+      return [...withoutTarget, ...toRestore];
+    });
+    setCategoryMerge(prev => {
+      const next = { ...prev };
+      for (const source of restoredSources) delete next[source];
+      return next;
+    });
+    setCustomSubs(prev => { const next = { ...prev }; delete next[targetKey]; return next; });
     setDirty(true);
   }
   function commitCustomSub(parentKey: string) {
