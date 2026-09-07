@@ -27,6 +27,38 @@ import { stores as str, common } from '../../src/lib/svenska';
 import { sortedRestFor } from '../../src/lib/subOrder';
 import { reportClientError } from '../../src/lib/errorReport';
 
+// EGEN komponent, avgörande för att draget ska fungera: gesten byggs via
+// useMemo, keyad på stabila props (parentKey/idx + de useCallback-stabila
+// handlerna från föräldern). Låg den kvar inline i förälderns .map() byggdes
+// ett HELT NYTT Gesture.Pan()-objekt om vid VARJE omrendering — och en
+// pågående drag-gest triggar en omrendering vid VARJE onUpdate (60+ ggr/sek,
+// eftersom fingrets Y-position ligger i React-state). RNGH är inte gjort för
+// att byta ut config:en på en AKTIV gest kontinuerligt; bekräftat i
+// produktion 2026-09-07 att onFinalize då kunde trigga med ett redan
+// nollställt hover-index i stället för det senast uppmätta.
+function CategoryDragHandle({ parentKey, idx, onDragStart, onDragMove, onDragEnd }: {
+  parentKey: string;
+  idx: number;
+  onDragStart: (key: string, idx: number, absoluteY: number, touchOffsetY: number) => void;
+  onDragMove: (absoluteY: number) => void;
+  onDragEnd: () => void;
+}) {
+  const { colors: c } = useTheme();
+  const gesture = useMemo(() => Gesture.Pan()
+    .hitSlop(6)
+    .onStart(e => { runOnJS(onDragStart)(parentKey, idx, e.absoluteY, e.y); })
+    .onUpdate(e => { runOnJS(onDragMove)(e.absoluteY); })
+    .onFinalize(() => { runOnJS(onDragEnd)(); }),
+    [parentKey, idx, onDragStart, onDragMove, onDragEnd]);
+  return (
+    <GestureDetector gesture={gesture}>
+      <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="reorder-three" size={22} color={c.textFaint} />
+      </View>
+    </GestureDetector>
+  );
+}
+
 export default function StoreDetailScreen() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -43,6 +75,11 @@ export default function StoreDetailScreen() {
   // Enhetlig, ordnad lista över SYNLIGA parents — blandar standard-kategorier
   // ("fruit_veg") och egna ("c:Barn"). Källa till sanning för ordning + membership.
   const [parentOrder, setParentOrder] = useState<string[]>([]);
+  // Speglar parentOrder synkront — läses av onCatDragMove (useCallback med
+  // TOMMA deps, se motivering ovan) så funktionsidentiteten kan hållas
+  // stabil genom en hel drag-gest utan att bli inaktuell.
+  const parentOrderRef = useRef<string[]>([]);
+  parentOrderRef.current = parentOrder;
   const visibleEnum = useMemo(() => parentOrder.filter(k => !k.startsWith('c:')) as StoreCategory[], [parentOrder]);
   const customCategories = useMemo(() => parentOrder.filter(k => k.startsWith('c:')).map(k => k.slice(2)), [parentOrder]);
   // Subs som hushållet brutit ut som egna sektioner under sin parent.
@@ -114,47 +151,41 @@ export default function StoreDetailScreen() {
   // identiska meddelandetexter inom 10s, vilket gjorde att "end" försvann
   // spårlöst så fort man testat mer än en gång i rad).
   const catDragAttemptRef = useRef(0);
-  function measureCatRow(key: string, ref: View | null) {
+  const measureCatRow = useCallback((key: string, ref: View | null) => {
     if (ref) catRowRefs.current[key] = ref;
     const target = catRowRefs.current[key];
     target?.measure((_x, _y, _w, h, _px, py) => { catRowLayouts.current[key] = { y: py, height: h }; });
-  }
-  function onCatDragStart(key: string, idx: number, absoluteY: number, touchOffsetY: number) {
+  }, []);
+  // useCallback MED STABILA deps är avgörande här — se CategoryDragHandle ovan:
+  // om dessa funktioner (eller gesten som byggs av dem) byts ut på VARJE
+  // omrendering, och en drag-rörelse triggar en omrendering vid VARJE
+  // onUpdate (60+ ggr/sek), byts hela RNGH-gestobjektet ut kontinuerligt
+  // MEDAN gesten är aktiv. RNGH är inte gjort för det — bekräftat i
+  // produktion 2026-09-07: onFinalize triggade med ett redan nollställt
+  // hover-index (target:null) i stället för det senast uppmätta, vilket
+  // pekar på att gesten tappade sitt "levande" state mitt i draget.
+  const onCatDragStart = useCallback((key: string, idx: number, absoluteY: number, touchOffsetY: number) => {
     setCatDragState({ key, startIndex: idx, y: absoluteY, touchOffsetY });
     catHoverIndexRef.current = idx;
     setCatHoverIndex(idx);
-    catDragAttemptRef.current += 1;
-    // DIAG (tillfällig): kolla att raderna faktiskt är uppmätta vid dragstart.
-    reportClientError(`DIAG cat-drag: start #${catDragAttemptRef.current}`, {
-      key, idx, absoluteY,
-      measuredKeys: Object.keys(catRowLayouts.current),
-      layouts: catRowLayouts.current,
-    });
-  }
-  const catDragMoveLogCountRef = useRef(0);
-  function onCatDragMove(absoluteY: number) {
+  }, []);
+  const onCatDragMove = useCallback((absoluteY: number) => {
     setCatDragState(prev => prev ? { ...prev, y: absoluteY } : null);
-    let matched: { key: string; idx: number } | null = null;
     for (const [key, layout] of Object.entries(catRowLayouts.current)) {
       if (absoluteY >= layout.y && absoluteY <= layout.y + layout.height) {
-        const idx = parentOrder.indexOf(key);
+        const idx = parentOrderRef.current.indexOf(key);
         if (idx >= 0) {
           catHoverIndexRef.current = idx;
           setCatHoverIndex(idx);
-          matched = { key, idx };
         }
         break;
       }
     }
-    // DIAG (tillfällig): logga var femte move-event så vi ser om/var matchning sker.
-    catDragMoveLogCountRef.current += 1;
-    if (catDragMoveLogCountRef.current % 5 === 1) {
-      reportClientError(`DIAG cat-drag: move #${catDragMoveLogCountRef.current}`, { absoluteY, matched });
-    }
-  }
-  function onCatDragEnd() {
+  }, []);
+  const onCatDragEnd = useCallback(() => {
     setCatDragState(prev => {
       const target = catHoverIndexRef.current;
+      catDragAttemptRef.current += 1;
       // DIAG (tillfällig): vad hade vi vid släpp?
       reportClientError(`DIAG cat-drag: end #${catDragAttemptRef.current}`, {
         startIndex: prev?.startIndex ?? null,
@@ -174,7 +205,7 @@ export default function StoreDetailScreen() {
     });
     catHoverIndexRef.current = null;
     setCatHoverIndex(null);
-  }
+  }, []);
 
   function hideEnum(cat: StoreCategory) {
     setParentOrder(prev => prev.filter(k => k !== cat));
@@ -494,17 +525,6 @@ export default function StoreDetailScreen() {
               const isOpen = isCustom ? openCustomParents.has(cat) : openParents.has(key as StoreCategory);
               const customShownHere = (customSubs[key] ?? []).filter(label => expandedSubs.includes(`cs:${key}:${label}`)).length;
               const expandedHere = (isCustom ? 0 : subs.filter(s2 => expandedSubs.includes(s2)).length) + customShownHere;
-              const dragHandle = Gesture.Pan()
-                .hitSlop(6)
-                .onStart(e => {
-                  runOnJS(onCatDragStart)(key, idx, e.absoluteY, e.y);
-                })
-                .onUpdate(e => {
-                  runOnJS(onCatDragMove)(e.absoluteY);
-                })
-                .onFinalize(() => {
-                  runOnJS(onCatDragEnd)();
-                });
               const isBeingDragged = catDragState?.key === key;
               const isDropTarget = !!catDragState && catDragState.key !== key && catHoverIndex === idx;
               return (
@@ -534,11 +554,13 @@ export default function StoreDetailScreen() {
                           <Ionicons name="eye-off-outline" size={16} color={c.danger} />
                         </Pressable>
                       )}
-                      <GestureDetector gesture={dragHandle}>
-                        <View style={s.dragHandle}>
-                          <Ionicons name="reorder-three" size={22} color={c.textFaint} />
-                        </View>
-                      </GestureDetector>
+                      <CategoryDragHandle
+                        parentKey={key}
+                        idx={idx}
+                        onDragStart={onCatDragStart}
+                        onDragMove={onCatDragMove}
+                        onDragEnd={onCatDragEnd}
+                      />
                     </View>
                   </View>
                   {isOpen && (
@@ -665,8 +687,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // samma plats för standard-rader i den dolda sub-listan (jämte egna rader
   // som har ett extra kryss-ta-bort-knapp längst till vänster).
   catBtnSpacer: { width: 32, height: 32 },
-  // Draghandtag för att ordna om kategorier (ersätter upp/ner-pilarna).
-  dragHandle: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   ghostCat: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
   ghostCatText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
   expandedBadge: { fontSize: 11, fontWeight: '700', color: c.accent, backgroundColor: c.accent100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
