@@ -2,13 +2,14 @@ import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../lib/theme';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type MenuTemplate } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { shareTemplate } from '../lib/shareWeekMenu';
 import { components as str, common } from '../lib/svenska';
+import { DraggableBottomSheet } from './DraggableBottomSheet';
 
 interface Props {
   visible: boolean;
@@ -104,11 +105,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View pointerEvents="none" style={s.overlayDim} />
-      <Pressable style={s.overlay} onPress={onClose} />
-      <View style={s.sheet}>
-        <View style={s.handle} />
+    <DraggableBottomSheet visible={visible} onRequestClose={onClose} sheetStyle={s.sheet}>
         <View style={s.header}>
           <Text style={s.title}>{str.menuTemplatesModal.title}</Text>
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.close}><Ionicons name="close" size={24} color={c.textMuted} /></Pressable>
@@ -160,16 +157,12 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
             ))
           )}
         </ScrollView>
-      </View>
-    </Modal>
+    </DraggableBottomSheet>
   );
 }
 
 const makeStyles = (c: Palette) => StyleSheet.create({
-  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  overlay: { flex: 1 },
   sheet: { backgroundColor: c.surfaceSubtle, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, alignSelf: 'center', marginTop: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
   title: { fontSize: 20, fontWeight: '700', color: c.text },
   body: { paddingHorizontal: 16, paddingBottom: 16 },

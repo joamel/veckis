@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Animated,
   Clipboard,
-  KeyboardAvoidingView,
   Modal,
   Pressable,
   RefreshControl,
@@ -30,10 +29,10 @@ import { ClientErrorsSection } from '../../src/components/ClientErrorsSection';
 import { shareInviteLink } from '../../src/lib/inviteLink';
 import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
-import { kavBehavior } from '../../src/lib/platform';
 import { settings as str, common } from '../../src/lib/svenska';
 import { useTheme, type ThemeMode } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
+import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -676,11 +675,7 @@ export default function SettingsScreen() {
       </ScrollView>
 
       {/* Edit Household Name Modal */}
-      <Modal visible={showEditHouseholdModal} transparent animationType="slide">
-        <Pressable style={styles.overlay} onPress={() => setShowEditHouseholdModal(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
+      <DraggableBottomSheet visible={showEditHouseholdModal} onRequestClose={() => setShowEditHouseholdModal(false)} keyboardAvoiding sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.renameHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <TextInput
@@ -704,16 +699,10 @@ export default function SettingsScreen() {
                 : <Text style={styles.buttonText}>{common.actions.save}</Text>}
             </Pressable>
           </ScrollView>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Delete Household Confirmation Modal */}
-      <Modal visible={showDeleteHouseholdModal} transparent animationType="slide">
-        <Pressable style={styles.overlay} onPress={() => setShowDeleteHouseholdModal(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
+      <DraggableBottomSheet visible={showDeleteHouseholdModal} onRequestClose={() => setShowDeleteHouseholdModal(false)} keyboardAvoiding sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.deleteHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll} keyboardShouldPersistTaps="handled">
             <Text style={styles.sheetDesc}>
@@ -739,16 +728,10 @@ export default function SettingsScreen() {
                 : <Text style={styles.deleteBtnText}>{str.buttons.deleteHousehold}</Text>}
             </Pressable>
           </ScrollView>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Edit Member Modal */}
-      <Modal visible={showEditMemberModal} transparent animationType="slide">
-        <Pressable style={styles.overlay} onPress={() => setShowEditMemberModal(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
+      <DraggableBottomSheet visible={showEditMemberModal} onRequestClose={() => setShowEditMemberModal(false)} keyboardAvoiding sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.editMember}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <TextInput
@@ -772,16 +755,10 @@ export default function SettingsScreen() {
                 : <Text style={styles.buttonText}>{common.actions.save}</Text>}
             </Pressable>
           </ScrollView>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Create Household Modal */}
-      <Modal visible={showCreateHouseholdModal} transparent animationType="slide">
-        <Pressable style={styles.overlay} onPress={() => setShowCreateHouseholdModal(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
+      <DraggableBottomSheet visible={showCreateHouseholdModal} onRequestClose={() => setShowCreateHouseholdModal(false)} keyboardAvoiding sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.createHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll} keyboardShouldPersistTaps="handled">
             <TextInput
@@ -803,16 +780,10 @@ export default function SettingsScreen() {
                 : <Text style={styles.buttonText}>{common.actions.create}</Text>}
             </Pressable>
           </ScrollView>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Join Household Modal */}
-      <Modal visible={showJoinHouseholdModal} transparent animationType="slide">
-        <Pressable style={styles.overlay} onPress={() => setShowJoinHouseholdModal(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
+      <DraggableBottomSheet visible={showJoinHouseholdModal} onRequestClose={() => setShowJoinHouseholdModal(false)} keyboardAvoiding sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.joinHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <Text style={styles.sheetDesc}>{str.messages.joinHint}</Text>
@@ -836,9 +807,7 @@ export default function SettingsScreen() {
                 : <Text style={styles.buttonText}>{str.buttons.joinHousehold}</Text>}
             </Pressable>
           </ScrollView>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </DraggableBottomSheet>
 
       <NotificationsModal visible={showNotifModal} onClose={() => setShowNotifModal(false)} />
 
@@ -1009,12 +978,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   },
   toastText: { fontSize: 14, fontWeight: '600', color: '#fff' },
   toastNeutral: { backgroundColor: c.textSecondary },
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: c.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
@@ -1024,15 +988,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: -4 },
     elevation: 16,
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: c.borderLight,
-    marginTop: 12,
-    marginBottom: 16,
   },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, paddingHorizontal: 20, marginBottom: 8 },
   menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, gap: 12, borderTopWidth: 1, borderTopColor: c.borderLight },
