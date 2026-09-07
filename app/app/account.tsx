@@ -188,16 +188,20 @@ export default function AccountScreen() {
         <Text style={s.sectionLabel}>{str.sections.session}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={handleSignOut}>
-            <Ionicons name="log-out-outline" size={18} color={c.danger} />
-            <Text style={[s.rowText, { color: c.danger }]}>{str.rows.signOut}</Text>
-            <Ionicons name="chevron-forward" size={16} color={c.dangerBorder} />
-          </Pressable>
-          <Pressable style={[s.row, s.rowBorder]} onPress={handleDeleteAccount} disabled={deleting}>
-            <Ionicons name="trash-outline" size={18} color={c.danger} />
-            <Text style={[s.rowText, { color: c.danger }]}>{str.rows.delete}</Text>
-            {deleting ? <ActivityIndicator size="small" color={c.danger} /> : <Ionicons name="chevron-forward" size={16} color={c.dangerBorder} />}
+            <Ionicons name="log-out-outline" size={18} color={c.textMuted} />
+            <Text style={s.rowText}>{str.rows.signOut}</Text>
+            <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
           </Pressable>
         </View>
+
+        {/* Radera konto — medvetet nedtonad (liten textlänk, ingen ikon/kort)
+            i stället för en likvärdig rad bredvid "Logga ut". Fortsatt nåbar,
+            men ska inte se ut som ett vardagligt alternativ. */}
+        <Pressable style={s.deleteAccountLink} onPress={handleDeleteAccount} disabled={deleting} hitSlop={8}>
+          {deleting
+            ? <ActivityIndicator size="small" color={c.textFaint} />
+            : <Text style={s.deleteAccountLinkText}>{str.rows.delete}</Text>}
+        </Pressable>
       </ScrollView>
 
       {/* Byt namn-modal */}
@@ -309,6 +313,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   rowBorder: { borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
   rowText: { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
+  deleteAccountLink: { alignItems: 'center', paddingVertical: 20 },
+  deleteAccountLinkText: { fontSize: 13, color: c.textFaint, textDecorationLine: 'underline' },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.3)' },
   kavWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 14 },
