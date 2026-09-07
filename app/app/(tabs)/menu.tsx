@@ -648,7 +648,20 @@ export default function MenuScreen() {
       ]);
       if (seq !== loadSeqRef.current) return; // en nyare load() har redan startat — kasta detta inaktuella svaret
       if (stateVersionRef.current !== versionAtStart) return; // en mutation har hunnit ändra state medan denna load() väntade på servern
-      setMenuItems(menu);
+      // Filtrera bort allt som är markerat pending-borttagning INNAN vi
+      // skriver in serverns svar. Detta är INTE ett race mellan två
+      // klient-state-källor (det var redan fixat) — det är att servern
+      // fortfarande, helt korrekt, känner till raden tills 5-sekunders
+      // Ångra-fönstret går ut och den RIKTIGA DELETE:n skickas. Triggas
+      // NÅGOT som helst load() under den väntetiden (websocket-eko,
+      // fokus-effekt, vad som helst) hämtar den färsk data som fortfarande
+      // innehåller raden och skriver tillbaka den i state, mitt i
+      // väntetiden — bekräftat i produktion 2026-09-06/07 (samma
+      // "gammalt+nytt recept samtidigt"-symptom kvarstod trots att raden
+      // togs bort direkt ur arrayen vid tryck).
+      const menuFiltered = menu.filter(i => !pendingMenuItemRemovals.has(i.id));
+      const allFiltered = all.filter(i => !pendingMenuItemRemovals.has(i.id));
+      setMenuItems(menuFiltered);
       // Behåll overrides för rätter vars sparning ännu är på gång (annars studsar
       // portionerna); resten är redan committade → persisterat värde är sanning.
       setMenuItemServings(prev => {
@@ -659,7 +672,7 @@ export default function MenuScreen() {
       loadedWeekRef.current = { wy: weekYear, wn: weekNumber };
       setRecipes(recs);
       setShoppingLists(activeLists);
-      setAllMenus(all);
+      setAllMenus(allFiltered);
       // name -> category map (learned aliases + common ingredients), so the
       // inventory can group by where the item lands in the store.
       const catMap: Record<string, string> = {};
@@ -692,7 +705,7 @@ export default function MenuScreen() {
     } finally {
       if (seq === loadSeqRef.current) setLoading(false);
     }
-  }, [householdId, weekYear, weekNumber]);
+  }, [householdId, weekYear, weekNumber, pendingMenuItemRemovals]);
 
   // Kom igång-overlayn: meny-steget bad om att öppna planeraren → gör det när
   // meny-fliken fokuseras (spinnern släppt). openPlanner är hoistad; goToWeek
@@ -847,7 +860,9 @@ export default function MenuScreen() {
     if (!householdId) return;
     try {
       const all = await client.getAllMenus(householdId);
-      setAllMenus(all);
+      // Samma filtrering som load() — annars kan en pending-borttagen rad
+      // (5s Ångra-fönster) dyka upp igen via den här separata hämtningen.
+      setAllMenus(all.filter(i => !pendingMenuItemRemovals.has(i.id)));
       setBulkTransferStep('week');
       setShowBulkTransferModal(true);
     } catch (e) {
