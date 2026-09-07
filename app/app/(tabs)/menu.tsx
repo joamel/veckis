@@ -33,7 +33,6 @@ import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import { useHaptics } from '../../src/hooks/useHaptics';
-import { reportClientError } from '../../src/lib/errorReport';
 import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
@@ -320,52 +319,6 @@ export default function MenuScreen() {
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> mängd hemma
   const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // omätta ingredienser markerade "har hemma"
   const [allMenus, setAllMenus] = useState<MenuRow[]>([]);
-  // DIAG v2: verifierar om allMenus-fixet räckte, eller om det finns ETT
-  // TILL hål — loggar bara när menuItems och allMenus faktiskt SKILJER SIG
-  // åt för samma dag/vecka (inte varje state-ändring, för att hålla bruset
-  // nere denna gång).
-  const diagSeqRef = useRef(0);
-  useEffect(() => {
-    const mi = menuItems.filter(i => i.weekYear === weekYear && i.weekNumber === weekNumber).map(i => i.id).sort();
-    const am = allMenus.filter(i => i.weekYear === weekYear && i.weekNumber === weekNumber).map(i => i.id).sort();
-    if (JSON.stringify(mi) !== JSON.stringify(am)) {
-      diagSeqRef.current += 1;
-      reportClientError(`DIAG: menuItems/allMenus diverged #${diagSeqRef.current}`, {
-        at: Date.now(),
-        weekOffset,
-        menuItemsFull: menuItems.filter(i => i.weekYear === weekYear && i.weekNumber === weekNumber).map(i => ({ id: i.id, day: i.day, title: i.recipe?.title })),
-        allMenusFull: allMenus.filter(i => i.weekYear === weekYear && i.weekNumber === weekNumber).map(i => ({ id: i.id, day: i.day, title: i.recipe?.title })),
-      });
-    }
-  }, [menuItems, allMenus, weekYear, weekNumber, weekOffset]);
-  // DIAG v3: v2 jämförde bara menuItems mot allMenus (id-listor) — den kunde
-  // aldrig avslöja om det FAKTISKA renderade per-dag-arrayet (efter samma
-  // day+visible-filter som renderWeekContent kör) någon gång innehåller 2
-  // rätter samtidigt. Speglar EXAKT den filtreringen här. Om detta ALDRIG
-  // triggar under en bekräftad repro är felet definitivt inte i state/data
-  // utan en ren native render-artefakt (compositor/animation), och vidare
-  // state-fixar är bortkastad tid.
-  const dayItemsSigRef = useRef<Record<string, string>>({});
-  useEffect(() => {
-    const lw = loadedWeekRef.current;
-    const weekItems: MenuRow[] = (lw && lw.wy === weekYear && lw.wn === weekNumber)
-      ? menuItems
-      : allMenus.filter(m => m.weekYear === weekYear && m.weekNumber === weekNumber);
-    for (const day of DAYS) {
-      const items = weekItems.filter(m => m.day === day.key && !pendingMenuItemRemovals.has(m.id));
-      const sig = items.map(i => `${i.id}:${i.recipe?.title ?? '?'}`).sort().join('|');
-      if (dayItemsSigRef.current[day.key] === sig) continue;
-      dayItemsSigRef.current[day.key] = sig;
-      if (items.length > 1) {
-        reportClientError(`DIAG v3: dag ${day.key} renderar ${items.length} rätter samtidigt`, {
-          at: Date.now(),
-          day: day.key,
-          weekOffset,
-          items: items.map(i => ({ id: i.id, title: i.recipe?.title })),
-        });
-      }
-    }
-  }, [menuItems, allMenus, pendingMenuItemRemovals, weekYear, weekNumber, weekOffset]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
   // Replace recipe: item being replaced
@@ -598,18 +551,9 @@ export default function MenuScreen() {
     }, 16);
   }, [stopAutoScroll]);
 
-  // Skyddar mot att ett äldre load()-anrop svarar EFTER ett nyare (helt
-  // normalt över mobilnät med varierande svarstider — t.ex. fokus-effekten
-  // och en socket-echo som råkar överlappa). Utan detta kunde det äldre,
-  // inaktuella svaret skriva över state:t och kortvarigt återuppliva ett
-  // redan borttaget recept innan nästa korrekta load() rättade till det.
-  // Serialiserar menyns auktoritativa state-commits (ta bort/lägg till) så de
-  // ALDRIG körs i samma synkrona React-omgång. Misstänkt orsak till det
-  // svårfångade "gammalt+nytt kort samtidigt"-felet: en 5-sekunders
-  // borttagnings-timer och ett nyss avslutat tilläggs-svar kan råka bli
-  // klara nästan samtidigt (oberoende av varandra) — om båda committar i
-  // samma renderings-omgång kan native-lagret hinna få en motstridig
-  // layout-uppdatering. En liten paus mellan varje commit tvingar dem isär.
+  // Serialiserar menyns auktoritativa state-commits (t.ex. tillägg som
+  // ersätter en optimistisk temp-rad) så två commits inte hamnar i samma
+  // synkrona React-omgång, med en liten paus emellan.
   const commitQueueRef = useRef<Promise<void>>(Promise.resolve());
   function commitSerially(fn: () => void): Promise<void> {
     const next = commitQueueRef.current
@@ -1086,17 +1030,12 @@ export default function MenuScreen() {
     });
     if (!ok) return;
     let cancelled = false;
-    // Ta bort UR ARRAYEN direkt vid tryck — det är nu den ENDA sanningskällan
-    // för "syns/syns inte", i stället för en separat pendingMenuItemRemovals-
-    // flagga (annan React-context) som skulle rensas EFTER att arrayen
-    // filtrerats. De två uppdateringarna hade ALDRIG någon garanti om att
-    // hamna i samma React-commit (att flytta clearPending in i samma
-    // callback som filtreringen räckte INTE — bekräftat kvarstod felet ändå,
-    // DIAG v3 2026-09-06). Med bara EN sanningskälla för synlighet finns
-    // racet inte kvar att missa. markPending/pendingMenuItemRemovals lever
-    // kvar för ANDRA skärmar (inköpslistan filtrerar ingredienser på den) och
-    // för "Ångra"-räkningen — menyskärmens EGEN rendering beror inte längre
-    // på den.
+    // Ta bort UR ARRAYEN direkt vid tryck — enda sanningskällan för "syns/
+    // syns inte", i stället för att dölja via pendingMenuItemRemovals (en
+    // separat context) och filtrera bort den vid render. markPending/
+    // pendingMenuItemRemovals lever kvar för ANDRA skärmar (inköpslistan
+    // filtrerar ingredienser på den) och "Ångra"-räkningen, men styr inte
+    // längre menyskärmens egen synlighet.
     stateVersionRef.current += 1;
     setMenuItems(prev => prev.filter(i => i.id !== item.id));
     setAllMenus(prev => prev.filter(i => i.id !== item.id));
