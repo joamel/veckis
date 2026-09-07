@@ -72,6 +72,25 @@ const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
 // Survives navigation within the session; resets on app restart
 const dismissedDupesStore = new Map<string, Set<string>>();
 
+// Auto-sidoscroll till aktiv chip i en horisontell kategori/underkategori-rad.
+// Chip-onLayout fyller på x-positioner en gång (körs bara om positionen
+// FAKTISKT ändras, inte varje render) — det är därför den gamla varianten
+// (onLayout bara på den AKTIVA chippen) inte funkade när man förifyllde
+// kategori programmatiskt (t.ex. tryck på ett sökförslag) medan pickern redan
+// legat monterad sen tidigare: layouten hade redan skett en gång för en ANNAN
+// aktiv kategori, så inget nytt onLayout-anrop kom för att trigga scrollen.
+// Genom att spara ALLA chippars x (oavsett aktiv) och skrolla i en effekt som
+// körs varje gång `activeKey` ändras, funkar det oavsett vilken väg kategorin
+// sattes på (tryck i pickern ELLER programmatiskt).
+function useChipAutoScroll(scrollRef: { current: ScrollView | null }, activeKey: string | null) {
+  const xById = useRef<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (activeKey == null) return;
+    const x = xById.current.get(activeKey);
+    if (x !== undefined) scrollRef.current?.scrollTo({ x: Math.max(0, x - 16), animated: true });
+  }, [activeKey, scrollRef]);
+  return useCallback((key: string, x: number) => { xById.current.set(key, x); }, []);
+}
 
 export function ShoppingListDetail({ listId, onClose }: { listId: string; onClose?: () => void }) {
   const { colors: c } = useTheme();
@@ -325,10 +344,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const editNameRef = useRef<TextInput>(null);
   const editQtyRef = useRef<TextInput>(null);
   const editUnitRef = useRef<TextInput>(null);
-  // Auto-sidoscroll till vald kategori/underkategori i redigera-vara-modalen:
-  // den aktiva chippens onLayout scrollar sin ScrollView så vald chip syns direkt.
+  // Auto-sidoscroll till vald kategori/underkategori (se useChipAutoScroll ovan).
   const editCatScrollRef = useRef<ScrollView>(null);
   const editSubScrollRef = useRef<ScrollView>(null);
+  const recordEditCatChipLayout = useChipAutoScroll(editCatScrollRef, editCustomCategory ? `c:${editCustomCategory}` : editCategory);
+  const recordEditSubChipLayout = useChipAutoScroll(editSubScrollRef, editCustomSubCategory ? `cs:${editCustomSubCategory}` : (editSubCategory ?? '__none__'));
+  const stapleCatScrollRef = useRef<ScrollView>(null);
+  const recordStapleCatChipLayout = useChipAutoScroll(stapleCatScrollRef, stapleCategory);
   const stapleNameRef = useRef<TextInput>(null);
   const stapleUnitRef = useRef<TextInput>(null);
   const qtyValueRef = useRef<TextInput>(null);
@@ -1772,7 +1794,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={cat}
                     style={[s.catChip, active && s.catChipActive]}
-                    onLayout={active ? e => { const x = e.nativeEvent.layout.x; editCatScrollRef.current?.scrollTo({ x: Math.max(0, x - 16), animated: false }); } : undefined}
+                    onLayout={e => recordEditCatChipLayout(cat, e.nativeEvent.layout.x)}
                     onPress={() => { setEditCategory(cat); setEditCustomCategory(null); setEditSubCategory(null); setEditCustomSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
@@ -1788,6 +1810,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={`c:${cat}`}
                     style={[s.catChip, active && s.catChipActive]}
+                    onLayout={e => recordEditCatChipLayout(`c:${cat}`, e.nativeEvent.layout.x)}
                     onPress={() => { setEditCustomCategory(cat); setEditSubCategory(null); setEditCustomSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>🏷️ {cat}</Text>
@@ -1810,6 +1833,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             <View style={s.catChipRow}>
               <Pressable
                 style={[s.catChip, !editSubCategory && !editCustomSubCategory && s.catChipActive]}
+                onLayout={e => recordEditSubChipLayout('__none__', e.nativeEvent.layout.x)}
                 onPress={() => { setEditSubCategory(null); setEditCustomSubCategory(null); }}
               >
                 <Text style={[s.catChipText, !editSubCategory && !editCustomSubCategory && s.catChipTextActive]}>
@@ -1823,7 +1847,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={sub}
                     style={[s.catChip, active && s.catChipActive]}
-                    onLayout={active ? e => { const x = e.nativeEvent.layout.x; editSubScrollRef.current?.scrollTo({ x: Math.max(0, x - 16), animated: false }); } : undefined}
+                    onLayout={e => recordEditSubChipLayout(sub, e.nativeEvent.layout.x)}
                     onPress={() => { setEditSubCategory(active ? null : sub); setEditCustomSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]}>
@@ -1839,6 +1863,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={`cs:${label}`}
                     style={[s.catChip, active && s.catChipActive]}
+                    onLayout={e => recordEditSubChipLayout(`cs:${label}`, e.nativeEvent.layout.x)}
                     onPress={() => { setEditCustomSubCategory(active ? null : label); setEditSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]}>🏷️ {label}</Text>
@@ -1906,12 +1931,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </View>
           </ScrollView>
           <Text style={s.editLabel}>{common.fields.category}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll} keyboardShouldPersistTaps="handled">
+          <ScrollView ref={stapleCatScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll} keyboardShouldPersistTaps="handled">
             <View style={s.catChipRow}>
               {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
                 <Pressable
                   key={cat}
                   style={[s.catChip, stapleCategory === cat && s.catChipActive]}
+                  onLayout={e => recordStapleCatChipLayout(cat, e.nativeEvent.layout.x)}
                   onPress={() => setStapleCategory(cat)}
                 >
                   <Text style={[s.catChipText, stapleCategory === cat && s.catChipTextActive]} numberOfLines={1}>
