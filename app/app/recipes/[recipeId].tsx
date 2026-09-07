@@ -163,20 +163,24 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     if (activeUnitIdx === null) return;
     const input = rowRefs.current[activeUnitIdx]?.unit;
     if (!input) return;
+    // Sista raden: "Lägg till rad"-knappen kommer direkt efter chip-raden med
+    // inget emellan, och den ska också gå att nå utan att skrolla manuellt.
+    const isLastRow = activeUnitIdx === editIngredients.length - 1;
     const t = setTimeout(() => {
       input.measureInWindow((_x, y, _w, h) => {
         const screenH = Dimensions.get('window').height;
         const kbTop = screenH - (keyboardH.current || 340);
         const chipRowH = 64; // unit-chip suggestion row + gap below the field
+        const addRowBtnH = isLastRow ? 44 : 0;
         const margin = 24;   // breathing room above the keyboard
-        const hidden = (y + h + chipRowH + margin) - kbTop;
+        const hidden = (y + h + chipRowH + addRowBtnH + margin) - kbTop;
         if (hidden > 0) {
           mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + hidden, animated: true });
         }
       });
     }, 200);
     return () => clearTimeout(t);
-  }, [activeUnitIdx]);
+  }, [activeUnitIdx, editIngredients.length]);
 
   // Samma för namn-fältet: ingrediens-förslagen (chip-raden under namnet) ska
   // hoppa upp ovanför tangentbordet precis som måttenheterna, i stället för att

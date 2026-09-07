@@ -29,7 +29,12 @@ export function EmojiPicker({
           value={value ?? ''}
           onChangeText={t => onChange(t ? Array.from(t)[0] ?? null : null)}
           maxLength={8}
-          placeholder="🧹"
+          // Sätts INTE som faktiskt värde — bara en visuell antydan om vad man
+          // får om man lämnar fältet tomt. Måste därför matcha den RIKTIGA
+          // fallback-ikonen (Ionicons "cart-outline" i listkorten), annars ser
+          // det ut som att en sopkvast valdes fast listan faktiskt fick en
+          // kundvagn. Se BACKLOG_AFTER_PROD.md.
+          placeholder="🛒"
           placeholderTextColor={c.textFaint}
         />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips} keyboardShouldPersistTaps="handled">
