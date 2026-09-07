@@ -387,7 +387,7 @@ export default function StoreDetailScreen() {
   // renderItem för kategori-listan (NestableDraggableFlatList). Handtaget
   // triggar draget direkt via onPressIn={drag} — biblioteket sköter själv
   // koexistensen med den omgivande scrollen, ingen egen gest-hantering kvar.
-  const renderCategoryItem = useCallback(({ item: key, drag, isActive }: RenderItemParams<string>) => {
+  const renderCategoryItem = ({ item: key, drag, isActive }: RenderItemParams<string>) => {
     const isCustom = key.startsWith('c:');
     const cat = isCustom ? key.slice(2) : (key as StoreCategory);
     const subs = isCustom ? ([] as SubCategory[]) : subsForParent(key as StoreCategory);
@@ -428,7 +428,7 @@ export default function StoreDetailScreen() {
         )}
       </View>
     );
-  }, [openParents, openCustomParents, customSubs, expandedSubs, subOrder, s, c]);
+  };
 
   return (
     <SafeAreaView style={s.container}>
