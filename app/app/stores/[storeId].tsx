@@ -25,6 +25,7 @@ import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, t
 import { kavBehavior } from '../../src/lib/platform';
 import { stores as str, common } from '../../src/lib/svenska';
 import { sortedRestFor } from '../../src/lib/subOrder';
+import { reportClientError } from '../../src/lib/errorReport';
 
 export default function StoreDetailScreen() {
   const { colors: c } = useTheme();
@@ -117,23 +118,43 @@ export default function StoreDetailScreen() {
     setCatDragState({ key, startIndex: idx, y: absoluteY, touchOffsetY });
     catHoverIndexRef.current = idx;
     setCatHoverIndex(idx);
+    // DIAG (tillfällig): kolla att raderna faktiskt är uppmätta vid dragstart.
+    reportClientError('DIAG cat-drag: start', {
+      key, idx, absoluteY,
+      measuredKeys: Object.keys(catRowLayouts.current),
+      layouts: catRowLayouts.current,
+    });
   }
+  const catDragMoveLogCountRef = useRef(0);
   function onCatDragMove(absoluteY: number) {
     setCatDragState(prev => prev ? { ...prev, y: absoluteY } : null);
+    let matched: { key: string; idx: number } | null = null;
     for (const [key, layout] of Object.entries(catRowLayouts.current)) {
       if (absoluteY >= layout.y && absoluteY <= layout.y + layout.height) {
         const idx = parentOrder.indexOf(key);
         if (idx >= 0) {
           catHoverIndexRef.current = idx;
           setCatHoverIndex(idx);
+          matched = { key, idx };
         }
         break;
       }
+    }
+    // DIAG (tillfällig): logga var femte move-event så vi ser om/var matchning sker.
+    catDragMoveLogCountRef.current += 1;
+    if (catDragMoveLogCountRef.current % 5 === 1) {
+      reportClientError(`DIAG cat-drag: move #${catDragMoveLogCountRef.current}`, { absoluteY, matched });
     }
   }
   function onCatDragEnd() {
     setCatDragState(prev => {
       const target = catHoverIndexRef.current;
+      // DIAG (tillfällig): vad hade vi vid släpp?
+      reportClientError('DIAG cat-drag: end', {
+        startIndex: prev?.startIndex ?? null,
+        target,
+        willMove: !!(prev && target !== null && target !== prev.startIndex),
+      });
       if (prev && target !== null && target !== prev.startIndex) {
         setParentOrder(order => {
           const next = [...order];
@@ -364,7 +385,7 @@ export default function StoreDetailScreen() {
           const label = isCustomEntry ? entry.slice(entry.lastIndexOf(':') + 1) : SUB_TAXONOMY[entry as SubCategory].label;
           return (
             <View key={entry} style={s.subRow}>
-              <Text style={[s.subName, s.subNameActive]}>{isCustomEntry ? `🏷️ ${label}` : label}</Text>
+              <Text style={[s.subName, s.subNameActive]}>{isCustomEntry ? `${label} 🏷️` : label}</Text>
               <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                 <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveSubEntry(entry, parentKey, -1)}>
                   <Ionicons name="chevron-up" size={16} color={c.primary} />
@@ -391,7 +412,7 @@ export default function StoreDetailScreen() {
           return (
           <View key={entry} style={s.subRow}>
             <Pressable style={{ flex: 1 }} onPress={() => toggleSubExpanded(entry)}>
-              <Text style={s.subName}>{isCustomEntry ? `🏷️ ${label}` : label}</Text>
+              <Text style={s.subName}>{isCustomEntry ? `${label} 🏷️` : label}</Text>
             </Pressable>
             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
               {/* Krysset längst till vänster (fast platshållare för standard-
