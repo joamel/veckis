@@ -6,8 +6,6 @@ import {
   Animated as RNAnimated,
   FlatList,
   type GestureResponderEvent,
-  KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -22,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
@@ -37,13 +35,13 @@ import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { EmptyState } from '../../src/components/EmptyState';
+import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
 import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay, MealType } from '@veckis/shared';
 import { DEFAULT_CATEGORY_ORDER, MEAL_TYPE_ORDER } from '@veckis/shared';
-import { kavBehavior } from '../../src/lib/platform';
 import { menu as str, common, recipes as recipesStr } from '../../src/lib/svenska';
 
 // _stableKey håller React-nyckeln konstant genom optimistiska tillägg: när
@@ -1691,12 +1689,7 @@ export default function MenuScreen() {
         onApplied={load}
       />
 
-      <Modal visible={showPicker} transparent animationType="slide" onRequestClose={closePicker}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={closePicker} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-
+      <DraggableBottomSheet visible={showPicker} onRequestClose={closePicker} sheetStyle={s.sheet}>
           {pickerStep === 'day' ? (
             <>
               <Text style={s.sheetTitle}>{str.picker.chooseDay}</Text>
@@ -1793,15 +1786,10 @@ export default function MenuScreen() {
               )}
             </>
           )}
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Shopping list cleanup modal */}
-      <Modal visible={!!cleanupPrompt} transparent animationType="slide" onRequestClose={() => setCleanupPrompt(null)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setCleanupPrompt(null)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
+      <DraggableBottomSheet visible={!!cleanupPrompt} onRequestClose={() => setCleanupPrompt(null)} sheetStyle={s.sheet}>
           <Text style={s.sheetTitle}>{str.dialogs.removeFromShoppingList.title}</Text>
           {cleanupPrompt ? (
             <Text style={s.cleanupSub}>{str.dialogs.removeFromShoppingList.subtitle}</Text>
@@ -1849,15 +1837,9 @@ export default function MenuScreen() {
               <Text style={s.cleanupConfirmText}>{str.dialogs.removeFromShoppingList.removeFromSelected}</Text>
             </Pressable>
           </View>
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
       {/* Transfer to shopping list modal */}
-      <Modal visible={!!transferSheet} transparent animationType="slide" onRequestClose={() => setTransferSheet(null)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setTransferSheet(null)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
+      <DraggableBottomSheet visible={!!transferSheet} onRequestClose={() => setTransferSheet(null)} keyboardAvoiding sheetStyle={s.sheet}>
           <Text style={s.sheetTitle}>{str.bulk.chooseShoppingList}</Text>
           {shoppingLists.length === 0 ? (
             <>
@@ -1900,28 +1882,17 @@ export default function MenuScreen() {
               </Pressable>
             ))
           )}
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Bulk transfer modal — choose recipes and list */}
-      <Modal visible={showBulkTransferModal} transparent animationType="slide" onRequestClose={() => handleBulkBack()}>
-        {/* RN Modal är ett eget native-fönster utanför appens GestureHandlerRootView
-            — utan en egen rotvy här registreras aldrig sliderns pan/tap-gester. */}
-        <GestureHandlerRootView style={{ flex: 1 }}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => handleCancelBulkTransfer()} />
-        <KeyboardAvoidingView
-          behavior={kavBehavior}
-          // Inventerings-steget hanterar tangentbordet själv via inre ScrollView
-          // — annars hoppar Nästa-/Tillbaka-knapparna upp ovanför tangentbordet.
-          enabled={bulkTransferStep !== 'ingredients'}
-          style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}
-         
-        >
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-
+      <DraggableBottomSheet
+        visible={showBulkTransferModal}
+        onRequestClose={() => handleBulkBack()}
+        onOverlayPress={() => handleCancelBulkTransfer()}
+        keyboardAvoiding
+        keyboardAvoidingEnabled={bulkTransferStep !== 'ingredients'}
+        sheetStyle={s.sheet}
+      >
           {bulkTransferStep === 'week' ? (
             <>
               <Text style={s.sheetTitle}>{str.bulk.chooseWeekMenu}</Text>
@@ -2142,10 +2113,7 @@ export default function MenuScreen() {
               </Pressable>
             </>
           )}
-        </View>
-        </KeyboardAvoidingView>
-        </GestureHandlerRootView>
-      </Modal>
+      </DraggableBottomSheet>
 
       <DatePickerModal
         visible={showWeekPicker}
@@ -2486,11 +2454,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   assignDayBtnActive: { backgroundColor: c.primary },
   assignDayBtnText: { fontSize: 12, color: c.textSecondary, fontWeight: '500' },
   assignDayBtnTextActive: { color: '#fff', fontWeight: '600' },
-  // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
-  overlay: { flex: 1 },
-  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '80%' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 12 },
   sheetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 16 },
   sheetSub: { fontSize: 13, color: c.textMuted, marginTop: -10, marginBottom: 12 },

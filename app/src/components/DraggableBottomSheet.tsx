@@ -30,17 +30,30 @@ const DISMISS_VELOCITY = 800;
 export function DraggableBottomSheet({
   visible,
   onRequestClose,
+  onOverlayPress,
   children,
   keyboardAvoiding = false,
+  keyboardAvoidingEnabled = true,
   liftOffset = 0,
   sheetStyle,
 }: {
   visible: boolean;
+  /** Hårdvaru-back, dra-i-handtaget och (om `onOverlayPress` inte satts) tryck
+   *  utanför — den "normala" vägen ut. */
   onRequestClose: () => void;
+  /** Sätt bara om tryck UTANFÖR ska göra något ANNAT än `onRequestClose` (t.ex.
+   *  en flerstegs-sheet där back/drag stegar tillbaka ETT steg men tryck
+   *  utanför avbryter hela flödet direkt). Annars faller den tillbaka på
+   *  `onRequestClose`. */
+  onOverlayPress?: () => void;
   children: ReactNode;
   /** Sheeten innehåller ett textfält som ska förbli synligt ovanför tangentbordet
    *  — standard-fallet, löst via en vanlig KeyboardAvoidingView. */
   keyboardAvoiding?: boolean;
+  /** Stäng av KAV:n villkorligt (t.ex. ett steg i en flerstegs-sheet som hanterar
+   *  tangentbordet själv via en inre ScrollView). Ignoreras om `keyboardAvoiding`
+   *  är false. */
+  keyboardAvoidingEnabled?: boolean;
   /** Alternativ till `keyboardAvoiding` för skärmar som redan mäter fram sitt
    *  eget lyft (t.ex. "mät fokuserat fält och skrolla lagom mycket" via
    *  `useState`/`Animated.Value`) — ett px-värde som skjuter sheeten uppåt,
@@ -82,7 +95,7 @@ export function DraggableBottomSheet({
 
   const content = (
     <>
-      <Pressable style={styles.overlayTap} onPress={onRequestClose} />
+      <Pressable style={styles.overlayTap} onPress={onOverlayPress ?? onRequestClose} />
       <Animated.View style={[sheetStyle, sheetAnimStyle]}>
         <GestureDetector gesture={pan}>
           <View style={[styles.handleHitArea]}>
@@ -99,7 +112,7 @@ export function DraggableBottomSheet({
       <GestureHandlerRootView style={styles.fill}>
         <View pointerEvents="none" style={styles.overlayDim} />
         {keyboardAvoiding ? (
-          <KeyboardAvoidingView behavior={kavBehavior} style={styles.fillAbsolute}>
+          <KeyboardAvoidingView behavior={kavBehavior} enabled={keyboardAvoidingEnabled} style={styles.fillAbsolute}>
             {content}
           </KeyboardAvoidingView>
         ) : (
