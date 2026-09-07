@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
 import {
@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,15 +15,42 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type Store } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, ALL_SUB_CATEGORIES, type StoreCategory, type SubCategory, type Store } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { stores as str, common } from '../../src/lib/svenska';
 import { sortedRestFor } from '../../src/lib/subOrder';
-import { NestableDraggableFlatList, NestableScrollContainer, type RenderItemParams } from 'react-native-draggable-flatlist';
+
+// EGEN komponent — gesten byggs via useMemo, keyad på stabila props, så samma
+// gestobjekt lever kvar genom hela draget i stället för att byggas om vid
+// varje omrendering (bekräftad orsak till instabilitet i en tidigare version).
+function CategoryDragHandle({ parentKey, idx, onDragStart, onDragMove, onDragEnd }: {
+  parentKey: string;
+  idx: number;
+  onDragStart: (key: string, idx: number, absoluteY: number) => void;
+  onDragMove: (absoluteY: number) => void;
+  onDragEnd: () => void;
+}) {
+  const { colors: c } = useTheme();
+  const gesture = useMemo(() => Gesture.Pan()
+    .hitSlop(6)
+    .onStart(e => { runOnJS(onDragStart)(parentKey, idx, e.absoluteY); })
+    .onUpdate(e => { runOnJS(onDragMove)(e.absoluteY); })
+    .onFinalize(() => { runOnJS(onDragEnd)(); }),
+    [parentKey, idx, onDragStart, onDragMove, onDragEnd]);
+  return (
+    <GestureDetector gesture={gesture}>
+      <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="reorder-three" size={22} color={c.textFaint} />
+      </View>
+    </GestureDetector>
+  );
+}
 
 export default function StoreDetailScreen() {
   const { colors: c } = useTheme();
@@ -40,6 +68,11 @@ export default function StoreDetailScreen() {
   // Enhetlig, ordnad lista över SYNLIGA parents — blandar standard-kategorier
   // ("fruit_veg") och egna ("c:Barn"). Källa till sanning för ordning + membership.
   const [parentOrder, setParentOrder] = useState<string[]>([]);
+  // Speglar parentOrder synkront — läses av de useCallback-stabila (tomma
+  // deps) drag-handlerna nedan så deras identitet kan hållas stabil genom
+  // en hel drag-gest utan att bli inaktuell.
+  const parentOrderRef = useRef<string[]>([]);
+  parentOrderRef.current = parentOrder;
   const visibleEnum = useMemo(() => parentOrder.filter(k => !k.startsWith('c:')) as StoreCategory[], [parentOrder]);
   const customCategories = useMemo(() => parentOrder.filter(k => k.startsWith('c:')).map(k => k.slice(2)), [parentOrder]);
   // Subs som hushållet brutit ut som egna sektioner under sin parent.
@@ -55,16 +88,29 @@ export default function StoreDetailScreen() {
   const [addingSubFor, setAddingSubFor] = useState<string | null>(null);
   const [newSubName, setNewSubName] = useState('');
   const [saving, setSaving] = useState(false);
+  // Synkron spärr utöver `saving`-state — React hinner inte alltid rendera
+  // disabled={saving} innan ett snabbt andra tryck smiter igenom (samma
+  // mönster/orsak som dubblett-skapande-fixen i stores/index.tsx).
+  const savingRef = useRef(false);
   const [dirty, setDirty] = useState(false);
 
   const [showRename, setShowRename] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [renaming, setRenaming] = useState(false);
 
-  const hiddenEnum = useMemo(
-    () => DEFAULT_CATEGORY_ORDER.filter(c => !visibleEnum.includes(c)),
-    [visibleEnum],
+  // Kategori-ihopslagning: { sourceCategory: targetKey }. Källan (alltid en
+  // riktig StoreCategory) tas bort ur parentOrder och slås ihop med målet vid
+  // visning i just den här butiken — varans egen category ändras aldrig.
+  const [categoryMerge, setCategoryMerge] = useState<Record<string, string>>({});
+  const [mergingKey, setMergingKey] = useState<StoreCategory | null>(null);
+
+  const mergedEntries = useMemo(
+    () => (Object.entries(categoryMerge) as [StoreCategory, string][]),
+    [categoryMerge],
   );
+  // Kandidater att slå ihop MED (alla nuvarande synliga kategorier utom
+  // källan själv) — kan vara standard ELLER egen.
+  const mergeTargetsFor = useCallback((source: StoreCategory) => parentOrder.filter(k => k !== source), [parentOrder]);
 
   const load = useCallback(async () => {
     if (!householdId || !storeId) return;
@@ -78,11 +124,20 @@ export default function StoreDetailScreen() {
           : [...DEFAULT_CATEGORY_ORDER];
         const savedPO = ((found as { parentOrder?: string[] }).parentOrder ?? []);
         const cats = (found.customCategories as string[] | undefined) ?? [];
+        const mergeMap = { ...((found as { categoryMerge?: Record<string, string> }).categoryMerge ?? {}) };
         // parentOrder är källa till sanning; härled från categoryOrder + egna om tom (bakåtkompat).
-        setParentOrder(savedPO.length ? [...savedPO] : [...order, ...cats.map(c => `c:${c}`)]);
+        const finalPO = savedPO.length ? [...savedPO] : [...order, ...cats.map(c => `c:${c}`)];
+        // Migrering: "dölj" togs bort 2026-09-07 — en standardkategori som
+        // varken är synlig eller ihopslagen (gammal dold-data från innan)
+        // blir automatiskt synlig igen i stället för att bli onåbar.
+        for (const cat of DEFAULT_CATEGORY_ORDER) {
+          if (!finalPO.includes(cat) && !(cat in mergeMap)) finalPO.push(cat);
+        }
+        setParentOrder(finalPO);
         setExpandedSubs([...((found as { expandedSubs?: string[] }).expandedSubs ?? [])]);
         setSubOrder([...((found as { subOrder?: string[] }).subOrder ?? [])]);
         setCustomSubs({ ...((found as { customSubs?: Record<string, string[]> }).customSubs ?? {}) });
+        setCategoryMerge(mergeMap);
         setDirty(false);
       }
     } catch (e) {
@@ -94,12 +149,82 @@ export default function StoreDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  function hideEnum(cat: StoreCategory) {
-    setParentOrder(prev => prev.filter(k => k !== cat));
+  // Dra-och-släpp-omordning av kategorier. Mäter varje rads skärm-absoluta
+  // Y/höjd (samma teknik som menyns dag-sektioner). VIKTIG SKILLNAD mot en
+  // tidigare, misslyckad version: hover-index trackas INTE inkrementellt via
+  // en ref som skrivs på varje rörelse (flera rörliga delar, desynkade
+  // mystiskt i produktion — target blev null trots korrekt move-spårning).
+  // I stället beräknas släpp-positionen EN gång, vid själva släppet, direkt
+  // från senast kända fingerposition (catDragState.y — bevisat pålitlig).
+  type CatDragState = { key: string; startIndex: number; y: number };
+  const [catDragState, setCatDragState] = useState<CatDragState | null>(null);
+  // Rent VISUELL live-förhandsgranskning under draget (var raden skulle
+  // hamna om du släppte just nu) — påverkar bara vad som RENDERAS, aldrig
+  // den faktiska datan. Släppet räknar ändå ut sin egen slutgiltiga
+  // position oberoende (indexAtY(prev.y) i onCatDragEnd), så även om det
+  // här skulle råka bli inaktuellt en bildruta spelar det ingen roll för
+  // resultatet — bara för hur det ser ut under tiden.
+  const [catHoverIndex, setCatHoverIndex] = useState<number | null>(null);
+  const catRowRefs = useRef<Record<string, View | null>>({});
+  const catRowLayouts = useRef<Record<string, { y: number; height: number }>>({});
+  const measureCatRow = useCallback((key: string, ref: View | null) => {
+    if (ref) catRowRefs.current[key] = ref;
+    const target = catRowRefs.current[key];
+    target?.measure((_x, _y, _w, h, _px, py) => { catRowLayouts.current[key] = { y: py, height: h }; });
+  }, []);
+  const indexAtY = useCallback((absoluteY: number): number | null => {
+    for (const [key, layout] of Object.entries(catRowLayouts.current)) {
+      if (absoluteY >= layout.y && absoluteY <= layout.y + layout.height) {
+        const idx = parentOrderRef.current.indexOf(key);
+        return idx >= 0 ? idx : null;
+      }
+    }
+    return null;
+  }, []);
+  const onCatDragStart = useCallback((key: string, idx: number, absoluteY: number) => {
+    setCatDragState({ key, startIndex: idx, y: absoluteY });
+    setCatHoverIndex(idx);
+  }, []);
+  const onCatDragMove = useCallback((absoluteY: number) => {
+    setCatDragState(prev => prev ? { ...prev, y: absoluteY } : null);
+    setCatHoverIndex(indexAtY(absoluteY));
+  }, [indexAtY]);
+  const onCatDragEnd = useCallback(() => {
+    setCatDragState(prev => {
+      if (prev) {
+        const target = indexAtY(prev.y);
+        if (target !== null && target !== prev.startIndex) {
+          setParentOrder(order => {
+            const next = [...order];
+            const [moved] = next.splice(prev.startIndex, 1);
+            next.splice(target, 0, moved);
+            return next;
+          });
+          setDirty(true);
+        }
+      }
+      return null;
+    });
+    setCatHoverIndex(null);
+  }, [indexAtY]);
+
+  // Slår ihop `source` med `target` i den här butiken — tar bort source ur
+  // parentOrder (den får ingen egen sektion/ordnings-slot längre) och
+  // registrerar mappningen. Varans egen category ändras aldrig, bara vilken
+  // sektion den hamnar i vid visning (se categoryGroups.ts).
+  function mergeCategory(source: StoreCategory, target: string) {
+    setParentOrder(prev => prev.filter(k => k !== source));
+    setCategoryMerge(prev => ({ ...prev, [source]: target }));
+    setMergingKey(null);
     setDirty(true);
   }
-  function showEnum(cat: StoreCategory) {
-    setParentOrder(prev => prev.includes(cat) ? prev : [...prev, cat]);
+  function unmergeCategory(source: StoreCategory) {
+    setCategoryMerge(prev => {
+      const next = { ...prev };
+      delete next[source];
+      return next;
+    });
+    setParentOrder(prev => prev.includes(source) ? prev : [...prev, source]);
     setDirty(true);
   }
 
@@ -109,12 +234,38 @@ export default function StoreDetailScreen() {
     );
     setDirty(true);
   }
+  // Följer categoryMerge till slutmålet — samma logik som categoryGroups.ts.
+  // En standard-subs defaultParent kan peka på en egen ("c:Namn") mål-kategori
+  // om dess ursprungliga parent slagits ihop dit.
+  function resolveMerge(key: string): string {
+    let cur = key;
+    const seen = new Set<string>();
+    while (categoryMerge[cur] && !seen.has(cur)) {
+      seen.add(cur);
+      cur = categoryMerge[cur];
+    }
+    return cur;
+  }
   // Parent-nyckel för en expandedSubs-post. Egna subs kodas "cs:<parentKey>:<label>"
   // (parentKey kan själv innehålla ":" för egna parents, "c:Barn") → parenten är
-  // allt mellan "cs:" och SISTA kolonet. Standard-subs: sub:ens defaultParent.
+  // allt mellan "cs:" och SISTA kolonet. Standard-subs: sub:ens (merge-upplösta) defaultParent.
   function entryParentKey(entry: string): string {
     if (entry.startsWith('cs:')) return entry.slice(3, entry.lastIndexOf(':'));
-    return SUB_TAXONOMY[entry as SubCategory]?.defaultParent ?? '';
+    const info = SUB_TAXONOMY[entry as SubCategory];
+    return info ? resolveMerge(info.defaultParent) : '';
+  }
+  // Standard-subs vars (merge-upplösta) parent är parentKey — ärvs alltså av
+  // en ihopslagen kategoris mål, oavsett om målet är standard eller eget.
+  function subsForResolvedParent(parentKey: string): SubCategory[] {
+    return ALL_SUB_CATEGORIES.filter(s => resolveMerge(SUB_TAXONOMY[s].defaultParent) === parentKey);
+  }
+  // Rent namn utan "c:"-prefix eller emoji — för brödtext (t.ex. subHint).
+  function plainLabel(key: string): string {
+    return key.startsWith('c:') ? key.slice(2) : (CATEGORY_LABELS[key as StoreCategory] ?? key);
+  }
+  // Namn + 🏷️ EFTER texten för egna kategorier — för rad-/badge-visning.
+  function labelWithTag(key: string): string {
+    return key.startsWith('c:') ? `${plainLabel(key)} 🏷️` : plainLabel(key);
   }
   // Flytta en sub-post (standard ELLER egen) upp/ner bland sina syskon (samma
   // parent) i expandedSubs — så egna och standard-subs kan interfolieras fritt.
@@ -189,8 +340,24 @@ export default function StoreDetailScreen() {
     setDirty(true);
   }
   function removeCustomCategory(cat: string) {
-    setParentOrder(prev => prev.filter(k => k !== `c:${cat}`));
-    setCustomSubs(prev => { const next = { ...prev }; delete next[`c:${cat}`]; return next; });
+    const targetKey = `c:${cat}`;
+    // Kategorier som slagits ihop MED den här (targetKey som mål) måste
+    // återställas — annars pekar categoryMerge på en nyckel som inte finns,
+    // och varorna hamnar osynligt kvar under den borttagna kategorin.
+    const restoredSources = (Object.entries(categoryMerge) as [StoreCategory, string][])
+      .filter(([, target]) => target === targetKey)
+      .map(([source]) => source);
+    setParentOrder(prev => {
+      const withoutTarget = prev.filter(k => k !== targetKey);
+      const toRestore = restoredSources.filter(source => !withoutTarget.includes(source));
+      return [...withoutTarget, ...toRestore];
+    });
+    setCategoryMerge(prev => {
+      const next = { ...prev };
+      for (const source of restoredSources) delete next[source];
+      return next;
+    });
+    setCustomSubs(prev => { const next = { ...prev }; delete next[targetKey]; return next; });
     setDirty(true);
   }
   function commitCustomSub(parentKey: string) {
@@ -223,7 +390,8 @@ export default function StoreDetailScreen() {
 
 
   async function save() {
-    if (!store) return;
+    if (!store || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const updated = await client.updateStore(store.id, {
@@ -233,6 +401,7 @@ export default function StoreDetailScreen() {
         expandedSubs,
         subOrder,
         customSubs,
+        categoryMerge,
       });
       setStore(updated);
       setDirty(false);
@@ -240,6 +409,7 @@ export default function StoreDetailScreen() {
     } catch (e) {
       showError(e, str.toasts.errorSave);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -303,7 +473,7 @@ export default function StoreDetailScreen() {
     const rest = hiddenEntriesFor(parentKey, standardSubs);
     return (
       <>
-        {standardSubs.length > 0 && <Text style={s.subListHint}>{str.detail.subHint(CATEGORY_LABELS[parentKey as StoreCategory] ?? parentKey)}</Text>}
+        {standardSubs.length > 0 && <Text style={s.subListHint}>{str.detail.subHint(plainLabel(parentKey))}</Text>}
         {entries.map((entry, i) => {
           const isCustomEntry = entry.startsWith('cs:');
           const label = isCustomEntry ? entry.slice(entry.lastIndexOf(':') + 1) : SUB_TAXONOMY[entry as SubCategory].label;
@@ -384,52 +554,6 @@ export default function StoreDetailScreen() {
     );
   };
 
-  // renderItem för kategori-listan (NestableDraggableFlatList). Handtaget
-  // triggar draget direkt via onPressIn={drag} — biblioteket sköter själv
-  // koexistensen med den omgivande scrollen, ingen egen gest-hantering kvar.
-  const renderCategoryItem = ({ item: key, drag, isActive }: RenderItemParams<string>) => {
-    const isCustom = key.startsWith('c:');
-    const cat = isCustom ? key.slice(2) : (key as StoreCategory);
-    const subs = isCustom ? ([] as SubCategory[]) : subsForParent(key as StoreCategory);
-    const isOpen = isCustom ? openCustomParents.has(cat) : openParents.has(key as StoreCategory);
-    const customShownHere = (customSubs[key] ?? []).filter(label => expandedSubs.includes(`cs:${key}:${label}`)).length;
-    const expandedHere = (isCustom ? 0 : subs.filter(s2 => expandedSubs.includes(s2)).length) + customShownHere;
-    return (
-      <View style={isActive ? s.catRowDragging : undefined}>
-        <View style={s.catRow}>
-          <Pressable
-            onPress={() => isCustom ? toggleCustomParentOpen(cat) : toggleParentOpen(key as StoreCategory)}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
-            hitSlop={6}
-          >
-            <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={c.textMuted} />
-            <Text style={s.catName}>{isCustom ? `🏷️ ${cat}` : (CATEGORY_LABELS[key as StoreCategory] ?? cat)}</Text>
-            {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
-          </Pressable>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            {isCustom ? (
-              <Pressable style={s.catBtnDanger} onPress={() => removeCustomCategory(cat)}>
-                <Ionicons name="trash-outline" size={16} color={c.danger} />
-              </Pressable>
-            ) : (
-              <Pressable style={s.catBtnDanger} onPress={() => hideEnum(key as StoreCategory)}>
-                <Ionicons name="eye-off-outline" size={16} color={c.danger} />
-              </Pressable>
-            )}
-            <Pressable style={s.dragHandle} onPressIn={drag} disabled={isActive}>
-              <Ionicons name="reorder-three" size={22} color={c.textFaint} />
-            </Pressable>
-          </View>
-        </View>
-        {isOpen && (
-          <View style={s.subList}>
-            {renderSubs(key, isCustom ? ([] as SubCategory[]) : subs)}
-          </View>
-        )}
-      </View>
-    );
-  };
-
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
@@ -442,7 +566,7 @@ export default function StoreDetailScreen() {
         </Pressable>
       </View>
 
-      <NestableScrollContainer contentContainerStyle={s.scroll}>
+      <ScrollView contentContainerStyle={s.scroll} scrollEnabled={!catDragState}>
         <Text style={s.sectionSub}>{str.detail.hint}</Text>
 
         <Text style={s.sectionLabel}>{str.detail.sections.visible}</Text>
@@ -451,12 +575,61 @@ export default function StoreDetailScreen() {
           {parentOrder.length === 0 ? (
             <Text style={s.emptyHint}>{str.detail.allHidden}</Text>
           ) : (
-            <NestableDraggableFlatList
-              data={parentOrder}
-              keyExtractor={key => key}
-              onDragEnd={({ data }) => { setParentOrder(data); setDirty(true); }}
-              renderItem={renderCategoryItem}
-            />
+            parentOrder.map((key, idx) => {
+              const isCustom = key.startsWith('c:');
+              const cat = isCustom ? key.slice(2) : (key as StoreCategory);
+              const subs = subsForResolvedParent(key);
+              const isOpen = isCustom ? openCustomParents.has(cat) : openParents.has(key as StoreCategory);
+              const customShownHere = (customSubs[key] ?? []).filter(label => expandedSubs.includes(`cs:${key}:${label}`)).length;
+              const expandedHere = subs.filter(s2 => expandedSubs.includes(s2)).length + customShownHere;
+              const isBeingDragged = catDragState?.key === key;
+              // Drop-linje: markerar bara VILKEN rad man skulle landa på —
+              // rör inte listans faktiska ordning förrän man faktiskt släpper.
+              const isDropTarget = !!catDragState && !isBeingDragged && catHoverIndex === idx;
+              return (
+                <View
+                  key={key}
+                  ref={ref => measureCatRow(key, ref)}
+                  onLayout={() => measureCatRow(key, null)}
+                  style={[isBeingDragged && s.catRowDragging, isDropTarget && s.catRowDropTarget]}
+                >
+                  <View style={s.catRow}>
+                    <Pressable
+                      onPress={() => isCustom ? toggleCustomParentOpen(cat) : toggleParentOpen(key as StoreCategory)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
+                      hitSlop={6}
+                    >
+                      <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={c.textMuted} />
+                      <Text style={s.catName}>{labelWithTag(key)}</Text>
+                      {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
+                    </Pressable>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      {isCustom ? (
+                        <Pressable style={s.catBtnDanger} onPress={() => removeCustomCategory(cat)}>
+                          <Ionicons name="trash-outline" size={16} color={c.danger} />
+                        </Pressable>
+                      ) : (
+                        <Pressable style={s.catBtn} onPress={() => setMergingKey(key as StoreCategory)} accessibilityLabel={str.detail.mergeAction}>
+                          <Ionicons name="git-merge-outline" size={16} color={c.primary} />
+                        </Pressable>
+                      )}
+                      <CategoryDragHandle
+                        parentKey={key}
+                        idx={idx}
+                        onDragStart={onCatDragStart}
+                        onDragMove={onCatDragMove}
+                        onDragEnd={onCatDragEnd}
+                      />
+                    </View>
+                  </View>
+                  {isOpen && (
+                    <View style={s.subList}>
+                      {renderSubs(key, subs)}
+                    </View>
+                  )}
+                </View>
+              );
+            })
           )}
           {/* Lägg till egen kategori (hushålls-lokal, matar aldrig global inlärning) */}
           <View style={[s.catRow, { gap: 8 }]}>
@@ -475,25 +648,41 @@ export default function StoreDetailScreen() {
           </View>
         </View>
 
-        {hiddenEnum.length > 0 && (
+        {mergedEntries.length > 0 && (
           <>
-            <Text style={[s.sectionLabel, { marginTop: 24 }]}>{str.detail.sections.hidden}</Text>
-            <Text style={s.sectionSub}>{str.detail.hiddenHint}</Text>
+            <Text style={[s.sectionLabel, { marginTop: 24 }]}>{str.detail.sections.merged}</Text>
+            <Text style={s.sectionSub}>{str.detail.mergedHint}</Text>
             <View style={s.catList}>
-              {hiddenEnum.map(cat => (
-                <View key={cat} style={[s.catRow, s.catRowMuted]}>
-                  <Text style={[s.catName, s.catNameMuted]}>{CATEGORY_LABELS[cat] ?? cat}</Text>
-                  <Pressable style={s.catBtn} onPress={() => showEnum(cat)}>
-                    <Ionicons name="eye-outline" size={16} color={c.primary} />
-                  </Pressable>
-                </View>
-              ))}
+              {mergedEntries.map(([source, target]) => {
+                const targetLabel = labelWithTag(target);
+                return (
+                  <View key={source} style={[s.catRow, s.catRowMuted]}>
+                    <Text style={[s.catName, s.catNameMuted]} numberOfLines={1}>
+                      {CATEGORY_LABELS[source] ?? source} → {targetLabel}
+                    </Text>
+                    <Pressable style={s.catBtn} onPress={() => unmergeCategory(source)}>
+                      <Ionicons name="arrow-undo-outline" size={16} color={c.primary} />
+                    </Pressable>
+                  </View>
+                );
+              })}
             </View>
           </>
         )}
 
         <View style={{ height: dirty ? 100 : 40 }} />
-      </NestableScrollContainer>
+      </ScrollView>
+
+      {/* Drag-spöke — visar vilken kategori som flyttas, följer fingret vertikalt. */}
+      {catDragState && (() => {
+        const key = catDragState.key;
+        return (
+          <View pointerEvents="none" style={[s.ghostCat, { top: catDragState.y - 24 }]}>
+            <Ionicons name="reorder-three" size={18} color={c.primary} />
+            <Text style={s.ghostCatText} numberOfLines={1}>{labelWithTag(key)}</Text>
+          </View>
+        );
+      })()}
 
       {dirty && (
         <View style={s.saveBar}>
@@ -506,6 +695,37 @@ export default function StoreDetailScreen() {
           </Pressable>
         </View>
       )}
+
+      {/* Slå ihop kategori-modal */}
+      <Modal visible={mergingKey !== null} transparent animationType="slide" onRequestClose={() => setMergingKey(null)}>
+        <View pointerEvents="none" style={s.overlayDim} />
+        <Pressable style={s.overlay} onPress={() => setMergingKey(null)} />
+        <View style={[s.sheet, { maxHeight: '70%' }]}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>
+            {mergingKey ? str.detail.mergeModal.title(CATEGORY_LABELS[mergingKey] ?? mergingKey) : ''}
+          </Text>
+          <Text style={s.sectionSub}>{str.detail.mergeModal.subtitle}</Text>
+          <ScrollView style={{ flexGrow: 0 }}>
+            {mergingKey && mergeTargetsFor(mergingKey).map(target => {
+              const label = labelWithTag(target);
+              return (
+                <Pressable
+                  key={target}
+                  style={s.mergeTargetRow}
+                  onPress={() => mergeCategory(mergingKey, target)}
+                >
+                  <Text style={s.catName}>{label}</Text>
+                  <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
+                </Pressable>
+              );
+            })}
+            {mergingKey && mergeTargetsFor(mergingKey).length === 0 && (
+              <Text style={s.emptyHint}>{str.detail.mergeModal.noTargets}</Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* Byt namn-modal */}
       <Modal visible={showRename} transparent animationType="slide" onRequestClose={() => setShowRename(false)}>
@@ -551,7 +771,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   catList: { backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.surfaceSubtle, overflow: 'hidden' },
   catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 8 },
   catRowMuted: { backgroundColor: c.background },
-  catRowDragging: { opacity: 0.9 },
+  catRowDragging: { opacity: 0.4 },
+  catRowDropTarget: { borderTopWidth: 2, borderTopColor: c.primary },
+  mergeTargetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   catName: { fontSize: 15, color: c.text, flex: 1, flexShrink: 1 },
   catNameMuted: { color: c.textFaint },
   catBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryTint },
@@ -560,8 +782,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // samma plats för standard-rader i den dolda sub-listan (jämte egna rader
   // som har ett extra kryss-ta-bort-knapp längst till vänster).
   catBtnSpacer: { width: 32, height: 32 },
-  // Draghandtag för att ordna om kategorier (ersätter upp/ner-pilarna).
-  dragHandle: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  ghostCat: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
+  ghostCatText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
   expandedBadge: { fontSize: 11, fontWeight: '700', color: c.accent, backgroundColor: c.accent100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
   subList: { paddingLeft: 24, paddingRight: 14, paddingVertical: 8, backgroundColor: c.background, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   subListHint: { fontSize: 12, color: c.textFaint, marginBottom: 8, lineHeight: 17 },

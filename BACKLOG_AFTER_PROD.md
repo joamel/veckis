@@ -22,6 +22,10 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 - [x] "x" i inputfält (INNANFÖR fältet, höger) — löst: återanvändbar `ClearableInput`-komponent (row + fält flex:1 + absolut x). Applicerad på lägg-till-vara-baren + recept-titel/url/paste; sök-fälten hade redan. Ej lösenordsfält. Kan rullas ut på fler fält vid behov.
 - [ ] Bakåt-swipe inne i vissa inre komponenter (t.ex. adminloggar) går ur appen i stället för tillbaka till receptvyn.
 - [ ] **Dra-för-att-stänga på bottom-sheet-modaler** — svep/dra nedåt (handtag eller hela sheeten) med följsam gest + studs tillbaka, i stället för bara "tryck utanför". Gäller alla bottom-sheets. Troligen RNGH Pan + reanimated, ev. standardisera på `@gorhom/bottom-sheet`. (Detaljer i arkivet.)
+- [ ] Kunna **byta tema (ljust/mörkt) även innan man är inloggad** — temaväxlaren finns idag bara inne i appen efter inloggning, borde gå att nå från inloggnings-/registreringsskärmen också.
+
+## Konto/Profil
+- [ ] 🐛 **Hela mailadressen syns inte under namnet i profilinställningar** — ".com" (eller motsvarande slutet av domänen) klipps bort. Återkommande bugg enligt användaren — trolig samma klass av fel som `project_android_text_clipping`-minnet (Android mäter texten för smalt → sista tecknen klipps). Behöver trolig fix: explicit bredd eller `numberOfLines`/ellipsis-hantering i stället för hård klippning.
 
 ## Inköpslistan
 - [x] Döp om "sub-kategorier" → **"underkategorier"** genomgående i UI — löst: enda kvar-strängen (`store.detail.subHint`) bytt; övriga labels sa redan "Underkategori".
@@ -33,6 +37,9 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 - [ ] **Höga tangentbords-modaler** (antal/lägg till/redigera vara & basvara) fyller nästan hela skärmen — ideal: scrolla bara det fokuserade fältet in i bild i stället för att lyfta hela sheeten. (Detaljer i arkivet.)
 - [ ] **"Ta bort förslag" per hushåll** — kunna dölja vilket basvaru-/ingrediensförslag som helst (långtryck → "Ta bort förslag"), kräver per-hushåll dold-lista + filtrering i suggestions-endpointen.
 - [ ] **Smartare global kategori-inlärning (moderation/konsensus)** — global `IngredientAlias.category` är idag last-write-wins → en feländring kan förstöra en kategori globalt. Steg: (1) "sticky + föreslå" (skriv ej över etablerad kategori, logga förslag), (2) admin-moderationskö, (3) auto-konsensus vid skala. (Full plan i arkivet.)
+- [ ] 🐛 **Inventeringsläget ("vad har du hemma") glömmer ifyllda mängder om man trycker bakåt av misstag** — borde komma ihåg/återställa vad som redan angetts i stället för att nollställas.
+- [ ] 🐛 **Standardikonen för ny inköpslista matchar inte den faktiska ikonen** — visar en sopkvast i skapa-dialogen men det blir inte den ikonen på den skapade listan (eller tvärtom — förslags-/förhandsvisnings-ikonen stämmer inte med resultatet).
+- [x] **Kategori-"dölj" per butik gjorde egentligen inte det den lät som** — löst 2026-09-07 genom att ta bort dölj helt och ersätta med **ihopslagning**: en synlig standardkategori kan slås ihop med vilken annan synlig kategori som helst (standard eller egen) i just den butiken — varan behåller sin globala `category`, grupperas bara under en annan sektion vid visning (`buildCategoryGroups`). Enkel v1: en nivå, ingen kedjning, subs till den ihopslagna kategorin slås med automatiskt. Migrering: gammal dold-data (kategorier som varken var synliga eller ihopslagna) blir automatiskt synliga igen vid nästa laddning i stället för att bli onåbara.
 
 ## Meny
 - [ ] Kunna **överföra flera veckor samtidigt** till inköpslistan — slå ihop samma ingrediens över veckor + tydlig sammanfattning av vad som förs över.
@@ -43,7 +50,10 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 - [x] Laga-läget: **"steget" poppar upp så långt underifrån som möjligt** — löst: `cookBody` ankras nu mot botten (`justifyContent: flex-end`) i stället för centrerat → steget sitter nära nav/tummen, synligt utan skroll.
 - [x] Vid scroll i receptlistan: **fäll ihop sök + taggar** — löst: `filtersOpen`-state; auto-hopfälls vid scroll ner (>80px), fälls ut vid toppen (<12px) eller via chevron-pilen. Kollapsad rad visar sök-ikon + aktiv-prick + chevron.
 - [ ] 🐛 Nytt recept: **"lägg till"-knappen lyfts inte tillräckligt** över tangentbordet (PWA + native).
+- [ ] 🐛 **"Skapa nytt recept"-knappen lyfts inte tillräckligt** över tangentbordet i någon av flikarna den finns i (bredare/annan variant av samma mönster som raden ovan — flera olika entry-points).
 - [ ] 🐛 Redigera vara (recept): **mängd/enhet lyfts inte tillräckligt** vid fokus, och **enhetsvalen syns inte alls** vid klick i enhetsfältet.
+- [ ] 🐛 **Redigera recept: bakåt-swipe kastar bort osparade ändringar utan förfrågan** — borde fråga "spara eller slänga ändringar?" om något ändrats innan man lämnar receptet, i stället för att bara stänga tyst.
+- [ ] **Spara-knappen vid receptredigering syns bara efter nedskroll** — borde vara alltid synlig (svävande/fixerad längst ner) i stället för att kräva scroll för att hitta den.
 - [x] 🐛 **Ny butik-modalen går inte att stänga genom att klicka utanför** (PWA) — löst: absolut-fyllande KAV täckte utanför-tryck-Pressablen; flyttat till flex-1-mönster (tappbart tomrum inuti KAV:n) som övriga modaler.
 - [ ] **Fota ett recept** (bild → recept) — bygg på AI-paste-pipen men med bild-input (Claude vision: OCR + strukturering). Nytt läge i segment-kontrollen. Kräver kamera-permission + native build.
 - [ ] Ändra layout för "lägg till recept" om vi gör om det (t.ex. lista under varandra i stället för 4 flikar).
