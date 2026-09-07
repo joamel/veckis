@@ -22,6 +22,7 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type Store } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { stores as str, common } from '../../src/lib/svenska';
+import { sortedRestFor } from '../../src/lib/subOrder';
 
 export default function StoreDetailScreen() {
   const { colors: c } = useTheme();
@@ -43,6 +44,8 @@ export default function StoreDetailScreen() {
   const customCategories = useMemo(() => parentOrder.filter(k => k.startsWith('c:')).map(k => k.slice(2)), [parentOrder]);
   // Subs som hushållet brutit ut som egna sektioner under sin parent.
   const [expandedSubs, setExpandedSubs] = useState<string[]>([]);
+  // Ordning för icke-utbrutna standard-subs — kan sorteras UTAN att visas.
+  const [subOrder, setSubOrder] = useState<string[]>([]);
   // Hushålls-lokala egna underkategorier: parentKey → etiketter (ordnade).
   const [customSubs, setCustomSubs] = useState<Record<string, string[]>>({});
   // UI-state: vilka parents användaren har "fällt ut" lokalt för att se sub-listan.
@@ -78,6 +81,7 @@ export default function StoreDetailScreen() {
         // parentOrder är källa till sanning; härled från categoryOrder + egna om tom (bakåtkompat).
         setParentOrder(savedPO.length ? [...savedPO] : [...order, ...cats.map(c => `c:${c}`)]);
         setExpandedSubs([...((found as { expandedSubs?: string[] }).expandedSubs ?? [])]);
+        setSubOrder([...((found as { subOrder?: string[] }).subOrder ?? [])]);
         setCustomSubs({ ...((found as { customSubs?: Record<string, string[]> }).customSubs ?? {}) });
         setDirty(false);
       }
@@ -135,6 +139,28 @@ export default function StoreDetailScreen() {
       const a = siblingIdxs[pos], b = siblingIdxs[target];
       [next[a], next[b]] = [next[b], next[a]];
       return next;
+    });
+    setDirty(true);
+  }
+  // Ordnad lista av EJ utbrutna standard-subs för en parent (se subOrder.ts).
+  function hiddenSubsFor(standardSubs: SubCategory[]): SubCategory[] {
+    const notShown = standardSubs.filter(sub => !expandedSubs.includes(sub));
+    return sortedRestFor(notShown, subOrder);
+  }
+  // Flytta en EJ utbruten standard-sub upp/ner bland sina osynliga syskon —
+  // sorterbart utan att först behöva bocka i/visa den. Skriver in den nya,
+  // fullständiga ordningen för DENNA parents dolda subs i subOrder (ersätter
+  // ev. tidigare poster för samma parent).
+  function moveHiddenSub(sub: SubCategory, standardSubs: SubCategory[], dir: -1 | 1) {
+    const list = hiddenSubsFor(standardSubs);
+    const pos = list.indexOf(sub);
+    const target = pos + dir;
+    if (pos < 0 || target < 0 || target >= list.length) return;
+    const next = [...list];
+    [next[pos], next[target]] = [next[target], next[pos]];
+    setSubOrder(prev => {
+      const others = prev.filter(s => !standardSubs.includes(s as SubCategory));
+      return [...others, ...next];
     });
     setDirty(true);
   }
@@ -202,6 +228,7 @@ export default function StoreDetailScreen() {
         categoryOrder: visibleEnum,
         customCategories,
         expandedSubs,
+        subOrder,
         customSubs,
       });
       setStore(updated);
@@ -270,7 +297,7 @@ export default function StoreDetailScreen() {
   // Under: ej utbrutna standard-subs (kryssa för att bryta ut) + "lägg till egen".
   const renderSubs = (parentKey: string, standardSubs: SubCategory[]) => {
     const entries = expandedSubs.filter(e => entryParentKey(e) === parentKey);
-    const rest = standardSubs.filter(sub => !expandedSubs.includes(sub));
+    const rest = hiddenSubsFor(standardSubs);
     return (
       <>
         {standardSubs.length > 0 && <Text style={s.subListHint}>{str.detail.subHint(CATEGORY_LABELS[parentKey as StoreCategory] ?? parentKey)}</Text>}
@@ -300,11 +327,21 @@ export default function StoreDetailScreen() {
             </View>
           );
         })}
-        {rest.map(sub => (
-          <Pressable key={sub} style={s.subRow} onPress={() => toggleSubExpanded(sub)}>
-            <Text style={s.subName}>{SUB_TAXONOMY[sub as SubCategory].label}</Text>
-            <View style={s.subToggle} />
-          </Pressable>
+        {rest.map((sub, i) => (
+          <View key={sub} style={s.subRow}>
+            <Pressable style={{ flex: 1 }} onPress={() => toggleSubExpanded(sub)}>
+              <Text style={s.subName}>{SUB_TAXONOMY[sub].label}</Text>
+            </Pressable>
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveHiddenSub(sub, standardSubs, -1)}>
+                <Ionicons name="chevron-up" size={16} color={c.primary} />
+              </Pressable>
+              <Pressable style={[s.catBtn, i === rest.length - 1 && { opacity: 0.3 }]} disabled={i === rest.length - 1} onPress={() => moveHiddenSub(sub, standardSubs, 1)}>
+                <Ionicons name="chevron-down" size={16} color={c.primary} />
+              </Pressable>
+              <Pressable style={s.subToggle} onPress={() => toggleSubExpanded(sub)} />
+            </View>
+          </View>
         ))}
         {addingSubFor === parentKey ? (
           <View style={s.subRow}>

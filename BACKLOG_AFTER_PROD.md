@@ -25,7 +25,7 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 
 ## Inköpslistan
 - [x] Döp om "sub-kategorier" → **"underkategorier"** genomgående i UI — löst: enda kvar-strängen (`store.detail.subHint`) bytt; övriga labels sa redan "Underkategori".
-- [ ] Kunna **sortera underkategorier utan att behöva visa dem** — idag går sub-sortering bara när man bockat i/visar en sub.
+- [x] Kunna **sortera underkategorier utan att behöva visa dem** — löst: nytt `Store.subOrder`-fält (bara standard-subs, egna skapas alltid redan utbrutna) håller ordningen för EJ utbrutna subs separat från `expandedSubs` (som fortsatt bara styr vilka som visas som egna sektioner + deras ordning). `stores/[storeId].tsx` visar upp/ner-pilar även på dolda subs; ren sorteringslogik i `src/lib/subOrder.ts` (testad).
 - [ ] Kunna **ta bort felaktiga varor**: håll inne på sökresultatet → "ta bort" i redigeringsläget. Följ ångra-toast-mönstret.
 - [x] 🐛 Avmarkerade hopslagna varor **föreslås felaktigt som dubbletter** — löst: dubblett-detektorn (`duplicateGroups`) flaggar nu bara grupper med ≥2 OLIKA enheter; samma namn+enhet aggregeras redan visuellt till en rad → ingen redundant flagg.
 - [x] **Auto-sidoscrolla** till vald kategori + underkategori (redigera-vara) — löst: den aktiva chippens `onLayout` scrollar sin ScrollView så vald kategori/underkategori syns direkt vid öppning (inget timing-strul). Kan utökas till lägg-till-flödet.

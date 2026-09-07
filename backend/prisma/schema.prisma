@@ -63,6 +63,12 @@ model Store {
   // Övriga items grupperas under parent som idag. Strängar refererar till
   // SubCategory-värden i shared/lib/taxonomy.ts.
   expandedSubs      String[]      @default([])
+  // Ordning för STANDARD-subs som INTE är utbrutna (ej i expandedSubs) — så
+  // hushållet kan förbereda sorteringen innan man bockar i/visar en sub.
+  // Innehåller bara SubCategory-strängar (inga "cs:"-kodade egna, de skapas
+  // alltid redan utbrutna). Filtreras per parent via SUB_TAXONOMY vid render;
+  // saknade poster faller tillbaka på taxonomins standardordning.
+  subOrder          String[]      @default([])
   // Hushålls-lokala egna underkategorier: { parentKey: [subLabel, ...] } där
   // parentKey är en StoreCategory ELLER "c:<egen kategori>". Ordningen styr
   // plocklistan. Rent lokalt — matar aldrig den globala kategori-inlärningen.

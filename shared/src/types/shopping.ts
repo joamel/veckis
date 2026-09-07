@@ -72,4 +72,7 @@ export interface Store {
   /** Enhetlig parent-ordning som blandar standard-kategorier och egna
    *  ("c:<egen>") i EN lista. Tom = härled från categoryOrder + customCategories. */
   parentOrder: string[];
+  /** Ordning för STANDARD-subs som INTE är utbrutna (ej i expandedSubs) — så
+   *  sorteringen kan förberedas innan en sub visas som egen sektion. */
+  subOrder: string[];
 }
