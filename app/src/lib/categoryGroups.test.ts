@@ -83,14 +83,23 @@ describe('buildCategoryGroups', () => {
     expect(otherGroup?.items.map(i => i.name)).toEqual(['Blöjor']);
   });
 
-  it('categoryMerge: en (ev. utbruten) sub slås också med, bevaras INTE som egen sektion', () => {
-    const items = [item('Blöjor', 'baby_kids', { subCategory: 'diapers' })];
-    // 'diapers' expanderad som egen sub — ska ändå hamna i målets direkta hink.
-    const groups = buildCategoryGroups(items, ['baby_kids', 'other'] as StoreCategory[], [], ['diapers'], {}, [], { baby_kids: 'other' });
+  it('categoryMerge: en utbruten sub ÄRVS av målet som egen sektion, inte plattas ut', () => {
+    // 'blöjor' är en riktig taxonomi-sub med defaultParent baby_kids.
+    const items = [item('Pampers', 'baby_kids', { subCategory: 'blöjor' })];
+    const groups = buildCategoryGroups(items, ['baby_kids', 'other'] as StoreCategory[], [], ['blöjor'], {}, [], { baby_kids: 'other' });
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ category: 'blöjor', isCustom: false, isSub: true });
+    expect(groups[0].items.map(i => i.name)).toEqual(['Pampers']);
+  });
+
+  it('categoryMerge: en EJ utbruten sub hamnar ändå i målets direkta hink', () => {
+    const items = [item('Pampers', 'baby_kids', { subCategory: 'blöjor' })];
+    // 'blöjor' INTE i expandedSubs → ingen egen sektion, ska falla igenom till "other".
+    const groups = buildCategoryGroups(items, ['baby_kids', 'other'] as StoreCategory[], [], [], {}, [], { baby_kids: 'other' });
     expect(groups).toHaveLength(1);
     expect(groups[0]).toMatchObject({ category: 'other' });
     expect(groups[0].isSub).toBeFalsy();
-    expect(groups[0].items.map(i => i.name)).toEqual(['Blöjor']);
+    expect(groups[0].items.map(i => i.name)).toEqual(['Pampers']);
   });
 
   it('categoryMerge: kan slås ihop med en egen (custom) kategori', () => {
@@ -98,5 +107,20 @@ describe('buildCategoryGroups', () => {
     const groups = buildCategoryGroups(items, ['baby_kids'] as StoreCategory[], ['Min hylla'], [], {}, [], { baby_kids: 'c:Min hylla' });
     expect(groups).toHaveLength(1);
     expect(groups[0]).toMatchObject({ category: 'Min hylla', isCustom: true });
+  });
+
+  it('categoryMerge: en utbruten sub ärvs ÄVEN när målet är en egen kategori', () => {
+    const items = [item('Pampers', 'baby_kids', { subCategory: 'blöjor' })];
+    const groups = buildCategoryGroups(items, ['baby_kids'] as StoreCategory[], ['Övrigt inkl baby'], ['blöjor'], {}, [], { baby_kids: 'c:Övrigt inkl baby' });
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ category: 'blöjor', isCustom: false, isSub: true });
+  });
+
+  it('categoryMerge: en egen (custom) sub ärvs av målet', () => {
+    const items = [item('Specialblöja', 'baby_kids', { customSubCategory: 'Ekologiska' })];
+    const groups = buildCategoryGroups(items, ['baby_kids', 'other'] as StoreCategory[], [], [], {}, [], { baby_kids: 'other' });
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ category: 'Ekologiska', isCustom: true, isSub: true, parentKey: 'other' });
+    expect(groups[0].items.map(i => i.name)).toEqual(['Specialblöja']);
   });
 });

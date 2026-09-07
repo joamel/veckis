@@ -37,11 +37,6 @@ export interface CategoryGroup<T extends CategoryGroupItem> {
   items: T[];
 }
 
-/** parentKey för en vara: "c:<egen kategori>" om egen parent, annars enum-parenten. */
-function itemParentKey(item: CategoryGroupItem): string {
-  return item.customCategory ? `c:${item.customCategory}` : String(item.category);
-}
-
 /** Följer categoryMerge till slutmålet. Cykel-skydd är bara ett säkerhetsnät
  *  — UI:t tillåter aldrig kedjor (bara en nivå), men skyddar mot trasig data. */
 function resolveMerge(key: string, categoryMerge: Record<string, string>): string {
@@ -84,32 +79,23 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   };
 
   for (const item of items) {
+    const hasCustomParent = !!item.customCategory;
     // Ihopslagen kategori: bara standard-kategorier kan vara källa (aldrig
-    // customCategory). Går ALLTID till målets direkta hink, oavsett om varan
-    // hade en (ev. utbruten) sub — subs "slås med" automatiskt i enkel v1,
-    // de bevaras inte som egna sektioner under målet.
-    if (!item.customCategory) {
-      const resolved = resolveMerge(String(item.category), categoryMerge);
-      if (resolved !== String(item.category)) {
-        if (resolved.startsWith('c:')) {
-          const custKey = resolved.slice(2);
-          if (!customMap.has(custKey)) customMap.set(custKey, []);
-          customMap.get(custKey)!.push(item);
-        } else {
-          const cat = resolved as StoreCategory;
-          if (!enumMap.has(cat)) enumMap.set(cat, []);
-          enumMap.get(cat)!.push(item);
-        }
-        continue;
-      }
-    }
+    // customCategory), och resolveMerge är no-op om item.category inte är
+    // en ihopslagen källa. "effectiveKey" är var varan HAMNAR (direkt-hinken
+    // ELLER, om den har en utbruten sub, den parentKey subben letar upp sin
+    // sektion under) — en ihopslagen kategoris utbrutna subs ärvs alltså av
+    // målet i stället för att plattas ut, se subGroupsForParent nedan.
+    const effectiveKey = hasCustomParent ? `c:${item.customCategory}` : resolveMerge(String(item.category), categoryMerge);
+
     if (item.customSubCategory) {
-      pushCustomSub(itemParentKey(item), item.customSubCategory, item);
+      pushCustomSub(effectiveKey, item.customSubCategory, item);
       continue;
     }
-    if (item.customCategory) {
-      if (!customMap.has(item.customCategory)) customMap.set(item.customCategory, []);
-      customMap.get(item.customCategory)!.push(item);
+    if (hasCustomParent) {
+      const custKey = item.customCategory!;
+      if (!customMap.has(custKey)) customMap.set(custKey, []);
+      customMap.get(custKey)!.push(item);
       continue;
     }
     const sub = item.subCategory ?? null;
@@ -118,40 +104,49 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
       subMap.get(sub)!.push(item);
       continue;
     }
-    const cat = item.category as StoreCategory;
-    if (!enumMap.has(cat)) enumMap.set(cat, []);
-    enumMap.get(cat)!.push(item);
+    if (effectiveKey.startsWith('c:')) {
+      const custKey = effectiveKey.slice(2);
+      if (!customMap.has(custKey)) customMap.set(custKey, []);
+      customMap.get(custKey)!.push(item);
+    } else {
+      const cat = effectiveKey as StoreCategory;
+      if (!enumMap.has(cat)) enumMap.set(cat, []);
+      enumMap.get(cat)!.push(item);
+    }
   }
 
-  // Standard-parents som behöver en slot: direkta items, utbrutna subs, ELLER
-  // egna subs under en standard-parent.
-  const subParents = new Set<StoreCategory>();
+  // Parents (standard ELLER egna, via ihopslagning) som behöver en slot:
+  // direkta items, utbrutna subs, ELLER egna subs. Subs slåss upp mot sin
+  // MERGE-UPPLÖSTA parent — en standard-subs defaultParent (från taxonomin)
+  // kan alltså peka på en egen ("c:Namn") mål-kategori om dess ursprungliga
+  // parent slagits ihop dit.
+  const subParentKeys = new Set<string>();
   for (const sub of subMap.keys()) {
     const info = SUB_TAXONOMY[sub as SubCategory];
-    if (info) subParents.add(info.defaultParent);
+    if (info) subParentKeys.add(resolveMerge(info.defaultParent, categoryMerge));
   }
   for (const parentKey of customSubMap.keys()) {
-    if (!parentKey.startsWith('c:')) subParents.add(parentKey as StoreCategory);
+    subParentKeys.add(parentKey);
   }
   const orderedEnum: StoreCategory[] = [];
   for (const cat of order) {
-    if (enumMap.has(cat) || subParents.has(cat)) orderedEnum.push(cat);
+    if (enumMap.has(cat) || subParentKeys.has(cat)) orderedEnum.push(cat);
   }
   for (const cat of enumMap.keys()) {
     if (!orderedEnum.includes(cat)) orderedEnum.push(cat);
   }
-  for (const cat of subParents) {
-    if (!orderedEnum.includes(cat)) orderedEnum.push(cat);
+  for (const key of subParentKeys) {
+    if (!key.startsWith('c:') && !orderedEnum.includes(key as StoreCategory)) orderedEnum.push(key as StoreCategory);
   }
 
-  // Egna parents: de med direkta items ELLER egna subs.
+  // Egna parents: de med direkta items ELLER (egna eller ihopslagna) subs.
   const orderedCustom = [...customCategories];
   for (const cat of customMap.keys()) {
     if (!orderedCustom.includes(cat)) orderedCustom.push(cat);
   }
-  for (const parentKey of customSubMap.keys()) {
-    if (parentKey.startsWith('c:')) {
-      const cat = parentKey.slice(2);
+  for (const key of subParentKeys) {
+    if (key.startsWith('c:')) {
+      const cat = key.slice(2);
       if (!orderedCustom.includes(cat)) orderedCustom.push(cat);
     }
   }
@@ -172,13 +167,14 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   void customSubs;
   const subGroupsForParent = (parentKey: string): CategoryGroup<T>[] => {
     const acc: { order: number; g: CategoryGroup<T> }[] = [];
-    if (!parentKey.startsWith('c:')) {
-      for (const [sub, its] of subMap) {
-        const info = SUB_TAXONOMY[sub as SubCategory];
-        if (info && info.defaultParent === parentKey) {
-          const idx = expandedSubs.indexOf(sub);
-          acc.push({ order: idx === -1 ? Infinity : idx, g: { category: sub, isCustom: false, isSub: true, label: info.label, items: sortItems(its) } });
-        }
+    // INGEN "!parentKey.startsWith('c:')"-spärr här längre — en standard-subs
+    // (merge-upplösta) parent kan nu peka på en egen kategori om dess
+    // ursprungliga standard-parent slagits ihop dit.
+    for (const [sub, its] of subMap) {
+      const info = SUB_TAXONOMY[sub as SubCategory];
+      if (info && resolveMerge(info.defaultParent, categoryMerge) === parentKey) {
+        const idx = expandedSubs.indexOf(sub);
+        acc.push({ order: idx === -1 ? Infinity : idx, g: { category: sub, isCustom: false, isSub: true, label: info.label, items: sortItems(its) } });
       }
     }
     const inner = customSubMap.get(parentKey);
