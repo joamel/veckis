@@ -11,7 +11,9 @@ const categoryEnum = z.nativeEnum(StoreCategory);
 const categoryOrderSchema = z.array(categoryEnum);
 const customCategoriesSchema = z.array(z.string().min(1).max(40)).max(40);
 const expandedSubsSchema = z.array(z.string().min(1).max(40)).max(100);
-const subOrderSchema = z.array(z.string().min(1).max(40)).max(100).optional();
+// Längre max än expandedSubs — innehåller samma "cs:<parentKey>:<label>"-
+// kodning för egna, dolda subs (parentKey kan självt vara upp till 60 tecken).
+const subOrderSchema = z.array(z.string().min(1).max(120)).max(100).optional();
 // Egna underkategorier: parentKey (StoreCategory eller "c:<egen kategori>") → etiketter.
 const customSubsSchema = z.record(z.string().min(1).max(60), z.array(z.string().min(1).max(40)).max(60)).optional();
 const parentOrderSchema = z.array(z.string().min(1).max(60)).max(60).optional();

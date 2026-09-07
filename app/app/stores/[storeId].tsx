@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
 import {
@@ -15,6 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
@@ -94,17 +96,59 @@ export default function StoreDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Flytta en parent (standard eller egen) upp/ner i den enhetliga listan.
-  function moveParent(idx: number, dir: -1 | 1) {
-    setParentOrder(prev => {
-      const t = idx + dir;
-      if (idx < 0 || t < 0 || t >= prev.length) return prev;
-      const next = [...prev];
-      [next[idx], next[t]] = [next[t], next[idx]];
-      return next;
-    });
-    setDirty(true);
+  // Dra-och-släpp-omordning av kategorier (grå handtag i stället för pilar).
+  // Mäter varje rads skärm-absoluta Y/höjd (samma teknik som menyns dag-
+  // sektioner) och jämför mot fingrets absoluta Y under draget.
+  type CatDragState = { key: string; startIndex: number; y: number; touchOffsetY: number };
+  const [catDragState, setCatDragState] = useState<CatDragState | null>(null);
+  const [catHoverIndex, setCatHoverIndex] = useState<number | null>(null);
+  // Speglar catHoverIndex synkront — onCatDragEnd läser HÄRIFRÅN i stället för
+  // React-state, så ett sent onUpdate/onFinalize-race inte kan råka läsa ett
+  // inaktuellt hover-index om state hunnit uppdateras men inte re-rendrat än.
+  const catHoverIndexRef = useRef<number | null>(null);
+  const catRowRefs = useRef<Record<string, View | null>>({});
+  const catRowLayouts = useRef<Record<string, { y: number; height: number }>>({});
+  function measureCatRow(key: string, ref: View | null) {
+    if (ref) catRowRefs.current[key] = ref;
+    const target = catRowRefs.current[key];
+    target?.measure((_x, _y, _w, h, _px, py) => { catRowLayouts.current[key] = { y: py, height: h }; });
   }
+  function onCatDragStart(key: string, idx: number, absoluteY: number, touchOffsetY: number) {
+    setCatDragState({ key, startIndex: idx, y: absoluteY, touchOffsetY });
+    catHoverIndexRef.current = idx;
+    setCatHoverIndex(idx);
+  }
+  function onCatDragMove(absoluteY: number) {
+    setCatDragState(prev => prev ? { ...prev, y: absoluteY } : null);
+    for (const [key, layout] of Object.entries(catRowLayouts.current)) {
+      if (absoluteY >= layout.y && absoluteY <= layout.y + layout.height) {
+        const idx = parentOrder.indexOf(key);
+        if (idx >= 0) {
+          catHoverIndexRef.current = idx;
+          setCatHoverIndex(idx);
+        }
+        break;
+      }
+    }
+  }
+  function onCatDragEnd() {
+    setCatDragState(prev => {
+      const target = catHoverIndexRef.current;
+      if (prev && target !== null && target !== prev.startIndex) {
+        setParentOrder(order => {
+          const next = [...order];
+          const [moved] = next.splice(prev.startIndex, 1);
+          next.splice(target, 0, moved);
+          return next;
+        });
+        setDirty(true);
+      }
+      return null;
+    });
+    catHoverIndexRef.current = null;
+    setCatHoverIndex(null);
+  }
+
   function hideEnum(cat: StoreCategory) {
     setParentOrder(prev => prev.filter(k => k !== cat));
     setDirty(true);
@@ -142,24 +186,35 @@ export default function StoreDetailScreen() {
     });
     setDirty(true);
   }
-  // Ordnad lista av EJ utbrutna standard-subs för en parent (se subOrder.ts).
-  function hiddenSubsFor(standardSubs: SubCategory[]): SubCategory[] {
-    const notShown = standardSubs.filter(sub => !expandedSubs.includes(sub));
-    return sortedRestFor(notShown, subOrder);
+  // EJ utbrutna poster för en parent — BÅDE standard-subs och egna (samma
+  // "cs:parentKey:label"-kodning som expandedSubs). Egna subs börjar dolda
+  // (se commitCustomSub) och ska gå att sortera bland de dolda standard-
+  // subsen direkt, utan att först visas.
+  function hiddenEntriesRaw(parentKey: string, standardSubs: SubCategory[]): string[] {
+    const standardHidden = standardSubs.filter(sub => !expandedSubs.includes(sub));
+    const customHidden = (customSubs[parentKey] ?? [])
+      .map(label => `cs:${parentKey}:${label}`)
+      .filter(entry => !expandedSubs.includes(entry));
+    return [...standardHidden, ...customHidden];
   }
-  // Flytta en EJ utbruten standard-sub upp/ner bland sina osynliga syskon —
-  // sorterbart utan att först behöva bocka i/visa den. Skriver in den nya,
-  // fullständiga ordningen för DENNA parents dolda subs i subOrder (ersätter
-  // ev. tidigare poster för samma parent).
-  function moveHiddenSub(sub: SubCategory, standardSubs: SubCategory[], dir: -1 | 1) {
-    const list = hiddenSubsFor(standardSubs);
-    const pos = list.indexOf(sub);
+  // Ordnad lista av dolda poster för en parent (se subOrder.ts).
+  function hiddenEntriesFor(parentKey: string, standardSubs: SubCategory[]): string[] {
+    return sortedRestFor(hiddenEntriesRaw(parentKey, standardSubs), subOrder);
+  }
+  // Flytta en dold post (standard ELLER egen) upp/ner bland sina dolda
+  // syskon — sorterbart utan att först behöva bocka i/visa den. Skriver in
+  // den nya, fullständiga ordningen för DENNA parents dolda poster i
+  // subOrder (ersätter ev. tidigare poster för samma parent).
+  function moveHiddenEntry(entry: string, parentKey: string, standardSubs: SubCategory[], dir: -1 | 1) {
+    const notShown = hiddenEntriesRaw(parentKey, standardSubs);
+    const list = sortedRestFor(notShown, subOrder);
+    const pos = list.indexOf(entry);
     const target = pos + dir;
     if (pos < 0 || target < 0 || target >= list.length) return;
     const next = [...list];
     [next[pos], next[target]] = [next[target], next[pos]];
     setSubOrder(prev => {
-      const others = prev.filter(s => !standardSubs.includes(s as SubCategory));
+      const others = prev.filter(s => !notShown.includes(s));
       return [...others, ...next];
     });
     setDirty(true);
@@ -203,8 +258,10 @@ export default function StoreDetailScreen() {
       if (cur.includes(l)) return prev;
       return { ...prev, [parentKey]: [...cur, l] };
     });
-    // Lägg posten i den enhetliga sub-ordningen (interfolieras med standard-subs).
-    setExpandedSubs(prev => prev.includes(`cs:${parentKey}:${l}`) ? prev : [...prev, `cs:${parentKey}:${l}`]);
+    // Börjar DOLD (inte automatiskt visad) — hamnar i samma sorterbara,
+    // dolda lista som ej utbrutna standard-subs (se hiddenEntriesFor), så
+    // den går att placera in bland dem direkt utan att först visas och
+    // sorteras om varje gång fler subs slås på senare.
     setDirty(true);
   }
   function removeCustomSub(parentKey: string, label: string) {
@@ -215,6 +272,7 @@ export default function StoreDetailScreen() {
       return next;
     });
     setExpandedSubs(prev => prev.filter(e => e !== `cs:${parentKey}:${label}`));
+    setSubOrder(prev => prev.filter(e => e !== `cs:${parentKey}:${label}`));
     setDirty(true);
   }
 
@@ -297,7 +355,7 @@ export default function StoreDetailScreen() {
   // Under: ej utbrutna standard-subs (kryssa för att bryta ut) + "lägg till egen".
   const renderSubs = (parentKey: string, standardSubs: SubCategory[]) => {
     const entries = expandedSubs.filter(e => entryParentKey(e) === parentKey);
-    const rest = hiddenSubsFor(standardSubs);
+    const rest = hiddenEntriesFor(parentKey, standardSubs);
     return (
       <>
         {standardSubs.length > 0 && <Text style={s.subListHint}>{str.detail.subHint(CATEGORY_LABELS[parentKey as StoreCategory] ?? parentKey)}</Text>}
@@ -327,22 +385,31 @@ export default function StoreDetailScreen() {
             </View>
           );
         })}
-        {rest.map((sub, i) => (
-          <View key={sub} style={s.subRow}>
-            <Pressable style={{ flex: 1 }} onPress={() => toggleSubExpanded(sub)}>
-              <Text style={s.subName}>{SUB_TAXONOMY[sub].label}</Text>
+        {rest.map((entry, i) => {
+          const isCustomEntry = entry.startsWith('cs:');
+          const label = isCustomEntry ? entry.slice(entry.lastIndexOf(':') + 1) : SUB_TAXONOMY[entry as SubCategory].label;
+          return (
+          <View key={entry} style={s.subRow}>
+            <Pressable style={{ flex: 1 }} onPress={() => toggleSubExpanded(entry)}>
+              <Text style={s.subName}>{isCustomEntry ? `🏷️ ${label}` : label}</Text>
             </Pressable>
             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-              <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveHiddenSub(sub, standardSubs, -1)}>
+              <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveHiddenEntry(entry, parentKey, standardSubs, -1)}>
                 <Ionicons name="chevron-up" size={16} color={c.primary} />
               </Pressable>
-              <Pressable style={[s.catBtn, i === rest.length - 1 && { opacity: 0.3 }]} disabled={i === rest.length - 1} onPress={() => moveHiddenSub(sub, standardSubs, 1)}>
+              <Pressable style={[s.catBtn, i === rest.length - 1 && { opacity: 0.3 }]} disabled={i === rest.length - 1} onPress={() => moveHiddenEntry(entry, parentKey, standardSubs, 1)}>
                 <Ionicons name="chevron-down" size={16} color={c.primary} />
               </Pressable>
-              <Pressable style={s.subToggle} onPress={() => toggleSubExpanded(sub)} />
+              {isCustomEntry && (
+                <Pressable style={s.catBtnDanger} onPress={() => removeCustomSub(parentKey, label)}>
+                  <Ionicons name="close" size={16} color={c.danger} />
+                </Pressable>
+              )}
+              <Pressable style={s.subToggle} onPress={() => toggleSubExpanded(entry)} />
             </View>
           </View>
-        ))}
+          );
+        })}
         {addingSubFor === parentKey ? (
           <View style={s.subRow}>
             <TextInput
@@ -379,7 +446,7 @@ export default function StoreDetailScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={s.scroll}>
+      <ScrollView contentContainerStyle={s.scroll} scrollEnabled={!catDragState}>
         <Text style={s.sectionSub}>{str.detail.hint}</Text>
 
         <Text style={s.sectionLabel}>{str.detail.sections.visible}</Text>
@@ -393,9 +460,28 @@ export default function StoreDetailScreen() {
               const cat = isCustom ? key.slice(2) : (key as StoreCategory);
               const subs = isCustom ? ([] as SubCategory[]) : subsForParent(key as StoreCategory);
               const isOpen = isCustom ? openCustomParents.has(cat) : openParents.has(key as StoreCategory);
-              const expandedHere = (isCustom ? 0 : subs.filter(s2 => expandedSubs.includes(s2)).length) + (customSubs[key]?.length ?? 0);
+              const customShownHere = (customSubs[key] ?? []).filter(label => expandedSubs.includes(`cs:${key}:${label}`)).length;
+              const expandedHere = (isCustom ? 0 : subs.filter(s2 => expandedSubs.includes(s2)).length) + customShownHere;
+              const dragHandle = Gesture.Pan()
+                .hitSlop(6)
+                .onStart(e => {
+                  runOnJS(onCatDragStart)(key, idx, e.absoluteY, e.y);
+                })
+                .onUpdate(e => {
+                  runOnJS(onCatDragMove)(e.absoluteY);
+                })
+                .onFinalize(() => {
+                  runOnJS(onCatDragEnd)();
+                });
+              const isBeingDragged = catDragState?.key === key;
+              const isDropTarget = !!catDragState && catDragState.key !== key && catHoverIndex === idx;
               return (
-                <View key={key}>
+                <View
+                  key={key}
+                  ref={ref => measureCatRow(key, ref)}
+                  onLayout={() => measureCatRow(key, null)}
+                  style={[isBeingDragged && s.catRowDragging, isDropTarget && s.catRowDropTarget]}
+                >
                   <View style={s.catRow}>
                     <Pressable
                       onPress={() => isCustom ? toggleCustomParentOpen(cat) : toggleParentOpen(key as StoreCategory)}
@@ -407,12 +493,11 @@ export default function StoreDetailScreen() {
                       {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
                     </Pressable>
                     <View style={{ flexDirection: 'row', gap: 6 }}>
-                      <Pressable style={[s.catBtn, idx === 0 && { opacity: 0.3 }]} disabled={idx === 0} onPress={() => moveParent(idx, -1)}>
-                        <Ionicons name="chevron-up" size={18} color={c.primary} />
-                      </Pressable>
-                      <Pressable style={[s.catBtn, idx === parentOrder.length - 1 && { opacity: 0.3 }]} disabled={idx === parentOrder.length - 1} onPress={() => moveParent(idx, 1)}>
-                        <Ionicons name="chevron-down" size={18} color={c.primary} />
-                      </Pressable>
+                      <GestureDetector gesture={dragHandle}>
+                        <View style={s.dragHandle}>
+                          <Ionicons name="reorder-three" size={22} color={c.textFaint} />
+                        </View>
+                      </GestureDetector>
                       {isCustom ? (
                         <Pressable style={s.catBtnDanger} onPress={() => removeCustomCategory(cat)}>
                           <Ionicons name="trash-outline" size={16} color={c.danger} />
@@ -470,6 +555,18 @@ export default function StoreDetailScreen() {
         <View style={{ height: dirty ? 100 : 40 }} />
       </ScrollView>
 
+      {/* Drag-spöke — visar vilken kategori som flyttas, följer fingret vertikalt. */}
+      {catDragState && (() => {
+        const key = catDragState.key;
+        const label = key.startsWith('c:') ? key.slice(2) : (CATEGORY_LABELS[key as StoreCategory] ?? key);
+        return (
+          <View pointerEvents="none" style={[s.ghostCat, { top: catDragState.y - catDragState.touchOffsetY }]}>
+            <Ionicons name="reorder-three" size={18} color={c.primary} />
+            <Text style={s.ghostCatText} numberOfLines={1}>{key.startsWith('c:') ? `🏷️ ${label}` : label}</Text>
+          </View>
+        );
+      })()}
+
       {dirty && (
         <View style={s.saveBar}>
           <Pressable
@@ -526,10 +623,16 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   catList: { backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.surfaceSubtle, overflow: 'hidden' },
   catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 8 },
   catRowMuted: { backgroundColor: c.background },
+  catRowDragging: { opacity: 0.4 },
+  catRowDropTarget: { borderTopWidth: 2, borderTopColor: c.primary },
   catName: { fontSize: 15, color: c.text, flex: 1, flexShrink: 1 },
   catNameMuted: { color: c.textFaint },
   catBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryTint },
   catBtnDanger: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerTint },
+  // Draghandtag för att ordna om kategorier (ersätter upp/ner-pilarna).
+  dragHandle: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  ghostCat: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
+  ghostCatText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
   expandedBadge: { fontSize: 11, fontWeight: '700', color: c.accent, backgroundColor: c.accent100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
   subList: { paddingLeft: 24, paddingRight: 14, paddingVertical: 8, backgroundColor: c.background, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   subListHint: { fontSize: 12, color: c.textFaint, marginBottom: 8, lineHeight: 17 },
