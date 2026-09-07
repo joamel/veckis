@@ -88,6 +88,10 @@ export default function StoreDetailScreen() {
   const [addingSubFor, setAddingSubFor] = useState<string | null>(null);
   const [newSubName, setNewSubName] = useState('');
   const [saving, setSaving] = useState(false);
+  // Synkron spärr utöver `saving`-state — React hinner inte alltid rendera
+  // disabled={saving} innan ett snabbt andra tryck smiter igenom (samma
+  // mönster/orsak som dubblett-skapande-fixen i stores/index.tsx).
+  const savingRef = useRef(false);
   const [dirty, setDirty] = useState(false);
 
   const [showRename, setShowRename] = useState(false);
@@ -100,13 +104,6 @@ export default function StoreDetailScreen() {
   const [categoryMerge, setCategoryMerge] = useState<Record<string, string>>({});
   const [mergingKey, setMergingKey] = useState<StoreCategory | null>(null);
 
-  // Dolda (döljs) ≠ ihopslagna (slås ihop med en annan synlig kategori) — en
-  // ihopslagen kategori ska INTE dyka upp i "Dolda"-listan, den har sin egen
-  // "Sammanslagna"-sektion med en "ångra"-knapp.
-  const hiddenEnum = useMemo(
-    () => DEFAULT_CATEGORY_ORDER.filter(c => !visibleEnum.includes(c) && !(c in categoryMerge)),
-    [visibleEnum, categoryMerge],
-  );
   const mergedEntries = useMemo(
     () => (Object.entries(categoryMerge) as [StoreCategory, string][]),
     [categoryMerge],
@@ -127,12 +124,20 @@ export default function StoreDetailScreen() {
           : [...DEFAULT_CATEGORY_ORDER];
         const savedPO = ((found as { parentOrder?: string[] }).parentOrder ?? []);
         const cats = (found.customCategories as string[] | undefined) ?? [];
+        const mergeMap = { ...((found as { categoryMerge?: Record<string, string> }).categoryMerge ?? {}) };
         // parentOrder är källa till sanning; härled från categoryOrder + egna om tom (bakåtkompat).
-        setParentOrder(savedPO.length ? [...savedPO] : [...order, ...cats.map(c => `c:${c}`)]);
+        const finalPO = savedPO.length ? [...savedPO] : [...order, ...cats.map(c => `c:${c}`)];
+        // Migrering: "dölj" togs bort 2026-09-07 — en standardkategori som
+        // varken är synlig eller ihopslagen (gammal dold-data från innan)
+        // blir automatiskt synlig igen i stället för att bli onåbar.
+        for (const cat of DEFAULT_CATEGORY_ORDER) {
+          if (!finalPO.includes(cat) && !(cat in mergeMap)) finalPO.push(cat);
+        }
+        setParentOrder(finalPO);
         setExpandedSubs([...((found as { expandedSubs?: string[] }).expandedSubs ?? [])]);
         setSubOrder([...((found as { subOrder?: string[] }).subOrder ?? [])]);
         setCustomSubs({ ...((found as { customSubs?: Record<string, string[]> }).customSubs ?? {}) });
-        setCategoryMerge({ ...((found as { categoryMerge?: Record<string, string> }).categoryMerge ?? {}) });
+        setCategoryMerge(mergeMap);
         setDirty(false);
       }
     } catch (e) {
@@ -203,14 +208,6 @@ export default function StoreDetailScreen() {
     setCatHoverIndex(null);
   }, [indexAtY]);
 
-  function hideEnum(cat: StoreCategory) {
-    setParentOrder(prev => prev.filter(k => k !== cat));
-    setDirty(true);
-  }
-  function showEnum(cat: StoreCategory) {
-    setParentOrder(prev => prev.includes(cat) ? prev : [...prev, cat]);
-    setDirty(true);
-  }
   // Slår ihop `source` med `target` i den här butiken — tar bort source ur
   // parentOrder (den får ingen egen sektion/ordnings-slot längre) och
   // registrerar mappningen. Varans egen category ändras aldrig, bara vilken
@@ -351,7 +348,8 @@ export default function StoreDetailScreen() {
 
 
   async function save() {
-    if (!store) return;
+    if (!store || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const updated = await client.updateStore(store.id, {
@@ -369,6 +367,7 @@ export default function StoreDetailScreen() {
     } catch (e) {
       showError(e, str.toasts.errorSave);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -568,14 +567,9 @@ export default function StoreDetailScreen() {
                           <Ionicons name="trash-outline" size={16} color={c.danger} />
                         </Pressable>
                       ) : (
-                        <>
-                          <Pressable style={s.catBtn} onPress={() => setMergingKey(key as StoreCategory)} accessibilityLabel={str.detail.mergeAction}>
-                            <Ionicons name="git-merge-outline" size={16} color={c.primary} />
-                          </Pressable>
-                          <Pressable style={s.catBtnDanger} onPress={() => hideEnum(key as StoreCategory)}>
-                            <Ionicons name="eye-off-outline" size={16} color={c.danger} />
-                          </Pressable>
-                        </>
+                        <Pressable style={s.catBtn} onPress={() => setMergingKey(key as StoreCategory)} accessibilityLabel={str.detail.mergeAction}>
+                          <Ionicons name="git-merge-outline" size={16} color={c.primary} />
+                        </Pressable>
                       )}
                       <CategoryDragHandle
                         parentKey={key}
@@ -611,23 +605,6 @@ export default function StoreDetailScreen() {
             </Pressable>
           </View>
         </View>
-
-        {hiddenEnum.length > 0 && (
-          <>
-            <Text style={[s.sectionLabel, { marginTop: 24 }]}>{str.detail.sections.hidden}</Text>
-            <Text style={s.sectionSub}>{str.detail.hiddenHint}</Text>
-            <View style={s.catList}>
-              {hiddenEnum.map(cat => (
-                <View key={cat} style={[s.catRow, s.catRowMuted]}>
-                  <Text style={[s.catName, s.catNameMuted]}>{CATEGORY_LABELS[cat] ?? cat}</Text>
-                  <Pressable style={s.catBtn} onPress={() => showEnum(cat)}>
-                    <Ionicons name="eye-outline" size={16} color={c.primary} />
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          </>
-        )}
 
         {mergedEntries.length > 0 && (
           <>

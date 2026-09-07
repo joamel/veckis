@@ -944,13 +944,11 @@ export const stores = {
   detail: {
     sections: {
       visible: 'SYNLIGA KATEGORIER',
-      hidden:  'DOLDA',
       merged:  'SAMMANSLAGNA',
     },
-    hint:        'Ordningen matchar butikens layout. Dölj kategorier du inte använder och lägg till egna under "Egna kategorier".',
+    hint:        'Ordningen matchar butikens layout. Slå ihop kategorier du inte använder med en annan och lägg till egna under "Egna kategorier".',
     mixedHint:   'Ordna standard- och egna kategorier tillsammans. 🏷️ = egen (lokal, bara för den här butiken).',
-    allHidden:   'Alla standardkategorier är dolda - du måste välja minst en.',
-    hiddenHint:  'Standardkategorier du har dolt. Tryck visa-knappen för att lägga tillbaka dem sist i listan.',
+    allHidden:   'Inga kategorier valda — du måste ha minst en.',
     mergedHint:  'Kategorier som slagits ihop med en annan i den här butiken. Varorna behåller sin kategori — de grupperas bara under en annan rubrik här.',
     subHint:     (parent: string) => `Slå på underkategorier som du vill se som egna sektioner i listan. Övriga samlas under ${parent}.`,
     saveButton:  'Spara ändringar',
