@@ -21,7 +21,7 @@ import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type Store } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, ALL_SUB_CATEGORIES, type StoreCategory, type SubCategory, type Store } from '@veckis/shared';
 import { kavBehavior } from '../../src/lib/platform';
 import { stores as str, common } from '../../src/lib/svenska';
 import { sortedRestFor } from '../../src/lib/subOrder';
@@ -234,12 +234,30 @@ export default function StoreDetailScreen() {
     );
     setDirty(true);
   }
+  // Följer categoryMerge till slutmålet — samma logik som categoryGroups.ts.
+  // En standard-subs defaultParent kan peka på en egen ("c:Namn") mål-kategori
+  // om dess ursprungliga parent slagits ihop dit.
+  function resolveMerge(key: string): string {
+    let cur = key;
+    const seen = new Set<string>();
+    while (categoryMerge[cur] && !seen.has(cur)) {
+      seen.add(cur);
+      cur = categoryMerge[cur];
+    }
+    return cur;
+  }
   // Parent-nyckel för en expandedSubs-post. Egna subs kodas "cs:<parentKey>:<label>"
   // (parentKey kan själv innehålla ":" för egna parents, "c:Barn") → parenten är
-  // allt mellan "cs:" och SISTA kolonet. Standard-subs: sub:ens defaultParent.
+  // allt mellan "cs:" och SISTA kolonet. Standard-subs: sub:ens (merge-upplösta) defaultParent.
   function entryParentKey(entry: string): string {
     if (entry.startsWith('cs:')) return entry.slice(3, entry.lastIndexOf(':'));
-    return SUB_TAXONOMY[entry as SubCategory]?.defaultParent ?? '';
+    const info = SUB_TAXONOMY[entry as SubCategory];
+    return info ? resolveMerge(info.defaultParent) : '';
+  }
+  // Standard-subs vars (merge-upplösta) parent är parentKey — ärvs alltså av
+  // en ihopslagen kategoris mål, oavsett om målet är standard eller eget.
+  function subsForResolvedParent(parentKey: string): SubCategory[] {
+    return ALL_SUB_CATEGORIES.filter(s => resolveMerge(SUB_TAXONOMY[s].defaultParent) === parentKey);
   }
   // Flytta en sub-post (standard ELLER egen) upp/ner bland sina syskon (samma
   // parent) i expandedSubs — så egna och standard-subs kan interfolieras fritt.
@@ -536,10 +554,10 @@ export default function StoreDetailScreen() {
             parentOrder.map((key, idx) => {
               const isCustom = key.startsWith('c:');
               const cat = isCustom ? key.slice(2) : (key as StoreCategory);
-              const subs = isCustom ? ([] as SubCategory[]) : subsForParent(key as StoreCategory);
+              const subs = subsForResolvedParent(key);
               const isOpen = isCustom ? openCustomParents.has(cat) : openParents.has(key as StoreCategory);
               const customShownHere = (customSubs[key] ?? []).filter(label => expandedSubs.includes(`cs:${key}:${label}`)).length;
-              const expandedHere = (isCustom ? 0 : subs.filter(s2 => expandedSubs.includes(s2)).length) + customShownHere;
+              const expandedHere = subs.filter(s2 => expandedSubs.includes(s2)).length + customShownHere;
               const isBeingDragged = catDragState?.key === key;
               // Drop-linje: markerar bara VILKEN rad man skulle landa på —
               // rör inte listans faktiska ordning förrän man faktiskt släpper.
@@ -582,7 +600,7 @@ export default function StoreDetailScreen() {
                   </View>
                   {isOpen && (
                     <View style={s.subList}>
-                      {renderSubs(key, isCustom ? ([] as SubCategory[]) : subs)}
+                      {renderSubs(key, subs)}
                     </View>
                   )}
                 </View>
