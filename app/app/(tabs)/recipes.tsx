@@ -31,6 +31,7 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ClearableInput } from '../../src/components/ClearableInput';
+import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
@@ -782,11 +783,7 @@ export default function RecipesScreen() {
       </Modal>
 
       {/* Quick add-to-menu week+day picker */}
-      <Modal visible={!!addToMenuFor} transparent animationType="slide" onRequestClose={() => setAddToMenuFor(null)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setAddToMenuFor(null)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
+      <DraggableBottomSheet visible={!!addToMenuFor} onRequestClose={() => setAddToMenuFor(null)} sheetStyle={s.sheet}>
           <Text style={s.sheetTitle}>{str.menu.addToMenu}</Text>
           <Text style={s.daySheetSub} numberOfLines={1}>{addToMenuFor?.title}</Text>
 
@@ -840,15 +837,10 @@ export default function RecipesScreen() {
               <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>{str.menu.noDay}</Text>
             </Pressable>
           </View>
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Sort options */}
-      <Modal visible={showSort} transparent animationType="slide" onRequestClose={() => setShowSort(false)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowSort(false)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
+      <DraggableBottomSheet visible={showSort} onRequestClose={() => setShowSort(false)} sheetStyle={s.sheet}>
           <Text style={s.sheetTitle}>{str.sort.modalTitle}</Text>
           {([['name', str.sort.az], ['used', str.sort.popular], ['recent', str.sort.newest]] as const).map(([key, label]) => (
             <Pressable key={key} style={s.sortOption} onPress={() => chooseSort(key)}>
@@ -856,8 +848,7 @@ export default function RecipesScreen() {
               <Text style={s.sortOptionText}>{label}</Text>
             </Pressable>
           ))}
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
     </SafeAreaView>
   );
 }
