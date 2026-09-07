@@ -490,14 +490,6 @@ export default function StoreDetailScreen() {
               const expandedHere = (isCustom ? 0 : subs.filter(s2 => expandedSubs.includes(s2)).length) + customShownHere;
               const dragHandle = Gesture.Pan()
                 .hitSlop(6)
-                // Utan en kort press-fördröjning konkurrerar den nakna Pan-
-                // gesten mot ScrollView:ns egen vertikala scroll-igenkänning
-                // (scrollEnabled slås först av EFTER att draget startat, så
-                // vid själva touch-starten är listan fortfarande scrollbar) —
-                // scrollen kan då hinna "vinna" arbitreringen och kapa draget
-                // innan onFinalize någonsin committar en flytt. Samma mönster
-                // som menyns redan fungerande kort-drag (activateAfterLongPress).
-                .activateAfterLongPress(150)
                 .onStart(e => {
                   runOnJS(onCatDragStart)(key, idx, e.absoluteY, e.y);
                 })
