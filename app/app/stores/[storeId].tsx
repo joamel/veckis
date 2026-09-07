@@ -460,6 +460,11 @@ export default function StoreDetailScreen() {
               keyExtractor={key => key}
               onDragEnd={({ data }) => { setParentOrder(data); setDirty(true); }}
               renderItem={renderCategoryItem}
+              // Standardfjädern (låg massa, ingen overshoot-spärr) kan få
+              // rader som förskjuts vid släpp att studsa förbi sin slutgiltiga
+              // position och fjädra tillbaka — med kantlinjer per rad kan det
+              // uppfattas som ett kort "blink". Lugnare, icke-studsande värden.
+              animationConfig={{ damping: 24, mass: 0.6, stiffness: 180, overshootClamping: true }}
             />
           )}
           {/* Lägg till egen kategori (hushålls-lokal, matar aldrig global inlärning) */}
