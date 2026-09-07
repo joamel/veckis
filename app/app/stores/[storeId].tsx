@@ -109,6 +109,11 @@ export default function StoreDetailScreen() {
   const catHoverIndexRef = useRef<number | null>(null);
   const catRowRefs = useRef<Record<string, View | null>>({});
   const catRowLayouts = useRef<Record<string, { y: number; height: number }>>({});
+  // Räknar VARJE drag-försök (start→end) — DIAG-meddelanden nedan inkluderar
+  // detta numret så de aldrig dedupas bort (reportClientError tystar annars
+  // identiska meddelandetexter inom 10s, vilket gjorde att "end" försvann
+  // spårlöst så fort man testat mer än en gång i rad).
+  const catDragAttemptRef = useRef(0);
   function measureCatRow(key: string, ref: View | null) {
     if (ref) catRowRefs.current[key] = ref;
     const target = catRowRefs.current[key];
@@ -118,8 +123,9 @@ export default function StoreDetailScreen() {
     setCatDragState({ key, startIndex: idx, y: absoluteY, touchOffsetY });
     catHoverIndexRef.current = idx;
     setCatHoverIndex(idx);
+    catDragAttemptRef.current += 1;
     // DIAG (tillfällig): kolla att raderna faktiskt är uppmätta vid dragstart.
-    reportClientError('DIAG cat-drag: start', {
+    reportClientError(`DIAG cat-drag: start #${catDragAttemptRef.current}`, {
       key, idx, absoluteY,
       measuredKeys: Object.keys(catRowLayouts.current),
       layouts: catRowLayouts.current,
@@ -150,7 +156,7 @@ export default function StoreDetailScreen() {
     setCatDragState(prev => {
       const target = catHoverIndexRef.current;
       // DIAG (tillfällig): vad hade vi vid släpp?
-      reportClientError('DIAG cat-drag: end', {
+      reportClientError(`DIAG cat-drag: end #${catDragAttemptRef.current}`, {
         startIndex: prev?.startIndex ?? null,
         target,
         willMove: !!(prev && target !== null && target !== prev.startIndex),
