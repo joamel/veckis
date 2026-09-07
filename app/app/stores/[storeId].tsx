@@ -394,17 +394,22 @@ export default function StoreDetailScreen() {
               <Text style={s.subName}>{isCustomEntry ? `🏷️ ${label}` : label}</Text>
             </Pressable>
             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              {/* Krysset längst till vänster (fast platshållare för standard-
+                  rader) så pilarna alltid hamnar på samma plats oavsett om
+                  raden är egen eller standard. */}
+              {isCustomEntry ? (
+                <Pressable style={s.catBtnDanger} onPress={() => removeCustomSub(parentKey, label)}>
+                  <Ionicons name="close" size={16} color={c.danger} />
+                </Pressable>
+              ) : (
+                <View style={s.catBtnSpacer} />
+              )}
               <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveHiddenEntry(entry, parentKey, standardSubs, -1)}>
                 <Ionicons name="chevron-up" size={16} color={c.primary} />
               </Pressable>
               <Pressable style={[s.catBtn, i === rest.length - 1 && { opacity: 0.3 }]} disabled={i === rest.length - 1} onPress={() => moveHiddenEntry(entry, parentKey, standardSubs, 1)}>
                 <Ionicons name="chevron-down" size={16} color={c.primary} />
               </Pressable>
-              {isCustomEntry && (
-                <Pressable style={s.catBtnDanger} onPress={() => removeCustomSub(parentKey, label)}>
-                  <Ionicons name="close" size={16} color={c.danger} />
-                </Pressable>
-              )}
               <Pressable style={s.subToggle} onPress={() => toggleSubExpanded(entry)} />
             </View>
           </View>
@@ -464,6 +469,14 @@ export default function StoreDetailScreen() {
               const expandedHere = (isCustom ? 0 : subs.filter(s2 => expandedSubs.includes(s2)).length) + customShownHere;
               const dragHandle = Gesture.Pan()
                 .hitSlop(6)
+                // Utan en kort press-fördröjning konkurrerar den nakna Pan-
+                // gesten mot ScrollView:ns egen vertikala scroll-igenkänning
+                // (scrollEnabled slås först av EFTER att draget startat, så
+                // vid själva touch-starten är listan fortfarande scrollbar) —
+                // scrollen kan då hinna "vinna" arbitreringen och kapa draget
+                // innan onFinalize någonsin committar en flytt. Samma mönster
+                // som menyns redan fungerande kort-drag (activateAfterLongPress).
+                .activateAfterLongPress(150)
                 .onStart(e => {
                   runOnJS(onCatDragStart)(key, idx, e.absoluteY, e.y);
                 })
@@ -493,11 +506,6 @@ export default function StoreDetailScreen() {
                       {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
                     </Pressable>
                     <View style={{ flexDirection: 'row', gap: 6 }}>
-                      <GestureDetector gesture={dragHandle}>
-                        <View style={s.dragHandle}>
-                          <Ionicons name="reorder-three" size={22} color={c.textFaint} />
-                        </View>
-                      </GestureDetector>
                       {isCustom ? (
                         <Pressable style={s.catBtnDanger} onPress={() => removeCustomCategory(cat)}>
                           <Ionicons name="trash-outline" size={16} color={c.danger} />
@@ -507,6 +515,11 @@ export default function StoreDetailScreen() {
                           <Ionicons name="eye-off-outline" size={16} color={c.danger} />
                         </Pressable>
                       )}
+                      <GestureDetector gesture={dragHandle}>
+                        <View style={s.dragHandle}>
+                          <Ionicons name="reorder-three" size={22} color={c.textFaint} />
+                        </View>
+                      </GestureDetector>
                     </View>
                   </View>
                   {isOpen && (
@@ -629,6 +642,10 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   catNameMuted: { color: c.textFaint },
   catBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryTint },
   catBtnDanger: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerTint },
+  // Osynlig platshållare, samma mått som catBtnDanger — håller pilarna på
+  // samma plats för standard-rader i den dolda sub-listan (jämte egna rader
+  // som har ett extra kryss-ta-bort-knapp längst till vänster).
+  catBtnSpacer: { width: 32, height: 32 },
   // Draghandtag för att ordna om kategorier (ersätter upp/ner-pilarna).
   dragHandle: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   ghostCat: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
