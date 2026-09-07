@@ -641,9 +641,9 @@ export default function SettingsScreen() {
           <Text style={styles.sectionLabel}>{str.sections.appearance}</Text>
           <View style={styles.appearanceRow}>
             {([
-              { key: 'system' as ThemeMode, label: str.appearance.system, icon: 'phone-portrait-outline' as const },
-              { key: 'light' as ThemeMode, label: str.appearance.light, icon: 'sunny-outline' as const },
-              { key: 'dark' as ThemeMode, label: str.appearance.dark, icon: 'moon-outline' as const },
+              { key: 'system' as ThemeMode, label: common.appearance.system, icon: 'phone-portrait-outline' as const },
+              { key: 'light' as ThemeMode, label: common.appearance.light, icon: 'sunny-outline' as const },
+              { key: 'dark' as ThemeMode, label: common.appearance.dark, icon: 'moon-outline' as const },
             ]).map(opt => {
               const active = themeMode === opt.key;
               return (

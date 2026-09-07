@@ -82,6 +82,11 @@ export const common = {
     recipes:         'Recept',
     settings:        'Hushållet',
   },
+  appearance: {
+    system: 'System',
+    light:  'Ljust',
+    dark:   'Mörkt',
+  },
 };
 
 // ─── Kom igång-kort (onboarding-checklista) ──────────────────────────────────
@@ -746,12 +751,6 @@ export const settings = {
     other:      'ANDRA HUSHÅLL',
     appearance: 'UTSEENDE',
     adminLogs:  'Visa aktivitetslogg',
-  },
-
-  appearance: {
-    system: 'System',
-    light:  'Ljust',
-    dark:   'Mörkt',
   },
 
   household: {
