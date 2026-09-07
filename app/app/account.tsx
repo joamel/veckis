@@ -157,7 +157,9 @@ export default function AccountScreen() {
             <Text style={s.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
           </View>
           <Text style={s.name}>{displayName}</Text>
-          {email ? <Text style={s.email}>{email}</Text> : null}
+          {email ? (
+            <Text style={[s.email, { minWidth: email.length * 9 + 6, textAlign: 'center' }]}>{email}</Text>
+          ) : null}
         </View>
 
         <Text style={s.sectionLabel}>{str.sections.profile}</Text>

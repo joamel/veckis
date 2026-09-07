@@ -25,7 +25,7 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 - [ ] Kunna **byta tema (ljust/mörkt) även innan man är inloggad** — temaväxlaren finns idag bara inne i appen efter inloggning, borde gå att nå från inloggnings-/registreringsskärmen också.
 
 ## Konto/Profil
-- [ ] 🐛 **Hela mailadressen syns inte under namnet i profilinställningar** — ".com" (eller motsvarande slutet av domänen) klipps bort. Återkommande bugg enligt användaren — trolig samma klass av fel som `project_android_text_clipping`-minnet (Android mäter texten för smalt → sista tecknen klipps). Behöver trolig fix: explicit bredd eller `numberOfLines`/ellipsis-hantering i stället för hård klippning.
+- [x] 🐛 **Hela mailadressen syns inte under namnet i profilinställningar** — löst: samma klass av fel som `project_android_text_clipping`-minnet. `account.tsx` gav mail-texten explicit `minWidth: email.length * 9 + 6` så Yoga slipper mäta strängen själv (som klippte sista tecknen på Android).
 
 ## Inköpslistan
 - [x] Döp om "sub-kategorier" → **"underkategorier"** genomgående i UI — löst: enda kvar-strängen (`store.detail.subHint`) bytt; övriga labels sa redan "Underkategori".
@@ -37,7 +37,7 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 - [ ] **Höga tangentbords-modaler** (antal/lägg till/redigera vara & basvara) fyller nästan hela skärmen — ideal: scrolla bara det fokuserade fältet in i bild i stället för att lyfta hela sheeten. (Detaljer i arkivet.)
 - [ ] **"Ta bort förslag" per hushåll** — kunna dölja vilket basvaru-/ingrediensförslag som helst (långtryck → "Ta bort förslag"), kräver per-hushåll dold-lista + filtrering i suggestions-endpointen.
 - [ ] **Smartare global kategori-inlärning (moderation/konsensus)** — global `IngredientAlias.category` är idag last-write-wins → en feländring kan förstöra en kategori globalt. Steg: (1) "sticky + föreslå" (skriv ej över etablerad kategori, logga förslag), (2) admin-moderationskö, (3) auto-konsensus vid skala. (Full plan i arkivet.)
-- [ ] 🐛 **Inventeringsläget ("vad har du hemma") glömmer ifyllda mängder om man trycker bakåt av misstag** — borde komma ihåg/återställa vad som redan angetts i stället för att nollställas.
+- [x] 🐛 **Inventeringsläget ("vad har du hemma") glömmer ifyllda mängder om man trycker bakåt av misstag** — löst: `menu.tsx`s "Nästa"-knapp nollställde `haveAtHome`/`hadUnmeasured` OVILLKORLIGT varje gång man gick från recept- till ingrediens-steget, även vid en ofrivillig bakåt-och-fram-resa med oförändrat receptval. Nu jämförs receptvalet (`inventoryBuiltForRef`) mot förra gången — nollställs bara om det faktiskt ändrats.
 - [ ] 🐛 **Standardikonen för ny inköpslista matchar inte den faktiska ikonen** — visar en sopkvast i skapa-dialogen men det blir inte den ikonen på den skapade listan (eller tvärtom — förslags-/förhandsvisnings-ikonen stämmer inte med resultatet).
 - [x] **Kategori-"dölj" per butik gjorde egentligen inte det den lät som** — löst 2026-09-07 genom att ta bort dölj helt och ersätta med **ihopslagning**: en synlig standardkategori kan slås ihop med vilken annan synlig kategori som helst (standard eller egen) i just den butiken — varan behåller sin globala `category`, grupperas bara under en annan sektion vid visning (`buildCategoryGroups`). Enkel v1: en nivå, ingen kedjning, subs till den ihopslagna kategorin slås med automatiskt. Migrering: gammal dold-data (kategorier som varken var synliga eller ihopslagna) blir automatiskt synliga igen vid nästa laddning i stället för att bli onåbara.
 
@@ -52,8 +52,8 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 - [ ] 🐛 Nytt recept: **"lägg till"-knappen lyfts inte tillräckligt** över tangentbordet (PWA + native).
 - [ ] 🐛 **"Skapa nytt recept"-knappen lyfts inte tillräckligt** över tangentbordet i någon av flikarna den finns i (bredare/annan variant av samma mönster som raden ovan — flera olika entry-points).
 - [ ] 🐛 Redigera vara (recept): **mängd/enhet lyfts inte tillräckligt** vid fokus, och **enhetsvalen syns inte alls** vid klick i enhetsfältet.
-- [ ] 🐛 **Redigera recept: bakåt-swipe kastar bort osparade ändringar utan förfrågan** — borde fråga "spara eller slänga ändringar?" om något ändrats innan man lämnar receptet, i stället för att bara stänga tyst.
-- [ ] **Spara-knappen vid receptredigering syns bara efter nedskroll** — borde vara alltid synlig (svävande/fixerad längst ner) i stället för att kräva scroll för att hitta den.
+- [x] 🐛 **Redigera recept: bakåt-swipe kastar bort osparade ändringar utan förfrågan** — löst: header-backknappens `onPress` fångade bara EN väg ut (tryck på pilen); hårdvaru-back och iOS-swipe-gesten gick förbi den helt. Ny `navigation.addListener('beforeRemove', ...)` i `[recipeId].tsx` fångar ALLA vägar ut medan `editMode` är dirty och visar samma "släng utkastet?"-dialog (`useDiscardDraft`) oavsett hur man lämnar.
+- [x] **Spara-knappen vid receptredigering syns bara efter nedskroll** — löst: spara/avbryt-raden flyttad ut ur scroll-innehållet till en fast rad (`editActionsBar`) längst ner i edit-läget, kvar ovanför tangentbordet tack vare `KeyboardAvoidingView`.
 - [x] 🐛 **Ny butik-modalen går inte att stänga genom att klicka utanför** (PWA) — löst: absolut-fyllande KAV täckte utanför-tryck-Pressablen; flyttat till flex-1-mönster (tappbart tomrum inuti KAV:n) som övriga modaler.
 - [ ] **Fota ett recept** (bild → recept) — bygg på AI-paste-pipen men med bild-input (Claude vision: OCR + strukturering). Nytt läge i segment-kontrollen. Kräver kamera-permission + native build.
 - [ ] Ändra layout för "lägg till recept" om vi gör om det (t.ex. lista under varandra i stället för 4 flikar).
