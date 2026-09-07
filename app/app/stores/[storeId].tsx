@@ -279,6 +279,56 @@ export default function StoreDetailScreen() {
     });
   }
 
+  // renderItem för kategori-listan (NestableDraggableFlatList). MÅSTE vara
+  // useCallback och MÅSTE stå INNAN de tidiga return-satserna nedan (Regler
+  // för hooks) — en icke-memoiserad renderItem-referens byts ut vid VARJE
+  // omrendering, vilket fick FlatList att göra en tyngre omritning av hela
+  // listan (syntes som ett onödigt "laddar om"-blink efter varje drag-släpp).
+  // Handtaget triggar draget direkt via onPressIn={drag} — biblioteket sköter
+  // själv koexistensen med den omgivande scrollen, ingen egen gest-hantering.
+  const renderCategoryItem = useCallback(({ item: key, drag, isActive }: RenderItemParams<string>) => {
+    const isCustom = key.startsWith('c:');
+    const cat = isCustom ? key.slice(2) : (key as StoreCategory);
+    const subs = isCustom ? ([] as SubCategory[]) : subsForParent(key as StoreCategory);
+    const isOpen = isCustom ? openCustomParents.has(cat) : openParents.has(key as StoreCategory);
+    const customShownHere = (customSubs[key] ?? []).filter(label => expandedSubs.includes(`cs:${key}:${label}`)).length;
+    const expandedHere = (isCustom ? 0 : subs.filter(s2 => expandedSubs.includes(s2)).length) + customShownHere;
+    return (
+      <View style={isActive ? s.catRowDragging : undefined}>
+        <View style={s.catRow}>
+          <Pressable
+            onPress={() => isCustom ? toggleCustomParentOpen(cat) : toggleParentOpen(key as StoreCategory)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
+            hitSlop={6}
+          >
+            <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={c.textMuted} />
+            <Text style={s.catName}>{isCustom ? `🏷️ ${cat}` : (CATEGORY_LABELS[key as StoreCategory] ?? cat)}</Text>
+            {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
+          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {isCustom ? (
+              <Pressable style={s.catBtnDanger} onPress={() => removeCustomCategory(cat)}>
+                <Ionicons name="trash-outline" size={16} color={c.danger} />
+              </Pressable>
+            ) : (
+              <Pressable style={s.catBtnDanger} onPress={() => hideEnum(key as StoreCategory)}>
+                <Ionicons name="eye-off-outline" size={16} color={c.danger} />
+              </Pressable>
+            )}
+            <Pressable style={s.dragHandle} onPressIn={drag} disabled={isActive}>
+              <Ionicons name="reorder-three" size={22} color={c.textFaint} />
+            </Pressable>
+          </View>
+        </View>
+        {isOpen && (
+          <View style={s.subList}>
+            {renderSubs(key, isCustom ? ([] as SubCategory[]) : subs)}
+          </View>
+        )}
+      </View>
+    );
+  }, [openParents, openCustomParents, customSubs, expandedSubs, subOrder, s, c]);
+
   if (loading) {
     return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   }
@@ -381,52 +431,6 @@ export default function StoreDetailScreen() {
           </Pressable>
         )}
       </>
-    );
-  };
-
-  // renderItem för kategori-listan (NestableDraggableFlatList). Handtaget
-  // triggar draget direkt via onPressIn={drag} — biblioteket sköter själv
-  // koexistensen med den omgivande scrollen, ingen egen gest-hantering kvar.
-  const renderCategoryItem = ({ item: key, drag, isActive }: RenderItemParams<string>) => {
-    const isCustom = key.startsWith('c:');
-    const cat = isCustom ? key.slice(2) : (key as StoreCategory);
-    const subs = isCustom ? ([] as SubCategory[]) : subsForParent(key as StoreCategory);
-    const isOpen = isCustom ? openCustomParents.has(cat) : openParents.has(key as StoreCategory);
-    const customShownHere = (customSubs[key] ?? []).filter(label => expandedSubs.includes(`cs:${key}:${label}`)).length;
-    const expandedHere = (isCustom ? 0 : subs.filter(s2 => expandedSubs.includes(s2)).length) + customShownHere;
-    return (
-      <View style={isActive ? s.catRowDragging : undefined}>
-        <View style={s.catRow}>
-          <Pressable
-            onPress={() => isCustom ? toggleCustomParentOpen(cat) : toggleParentOpen(key as StoreCategory)}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
-            hitSlop={6}
-          >
-            <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={c.textMuted} />
-            <Text style={s.catName}>{isCustom ? `🏷️ ${cat}` : (CATEGORY_LABELS[key as StoreCategory] ?? cat)}</Text>
-            {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
-          </Pressable>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            {isCustom ? (
-              <Pressable style={s.catBtnDanger} onPress={() => removeCustomCategory(cat)}>
-                <Ionicons name="trash-outline" size={16} color={c.danger} />
-              </Pressable>
-            ) : (
-              <Pressable style={s.catBtnDanger} onPress={() => hideEnum(key as StoreCategory)}>
-                <Ionicons name="eye-off-outline" size={16} color={c.danger} />
-              </Pressable>
-            )}
-            <Pressable style={s.dragHandle} onPressIn={drag} disabled={isActive}>
-              <Ionicons name="reorder-three" size={22} color={c.textFaint} />
-            </Pressable>
-          </View>
-        </View>
-        {isOpen && (
-          <View style={s.subList}>
-            {renderSubs(key, isCustom ? ([] as SubCategory[]) : subs)}
-          </View>
-        )}
-      </View>
     );
   };
 
