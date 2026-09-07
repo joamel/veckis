@@ -32,13 +32,20 @@ export function DraggableBottomSheet({
   onRequestClose,
   children,
   keyboardAvoiding = false,
+  liftOffset = 0,
   sheetStyle,
 }: {
   visible: boolean;
   onRequestClose: () => void;
   children: ReactNode;
-  /** Sheeten innehåller ett textfält som ska förbli synligt ovanför tangentbordet. */
+  /** Sheeten innehåller ett textfält som ska förbli synligt ovanför tangentbordet
+   *  — standard-fallet, löst via en vanlig KeyboardAvoidingView. */
   keyboardAvoiding?: boolean;
+  /** Alternativ till `keyboardAvoiding` för skärmar som redan mäter fram sitt
+   *  eget lyft (t.ex. "mät fokuserat fält och skrolla lagom mycket" via
+   *  `useState`/`Animated.Value`) — ett px-värde som skjuter sheeten uppåt,
+   *  läggs ihop med det pågående draget i stället för att krocka med det. */
+  liftOffset?: number;
   /** Skärmens egen `s.sheet`-stil (bakgrund, rundade hörn, padding). */
   sheetStyle?: StyleProp<ViewStyle>;
 }) {
@@ -70,8 +77,8 @@ export function DraggableBottomSheet({
   );
 
   const sheetAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+    transform: [{ translateY: translateY.value - liftOffset }],
+  }), [liftOffset]);
 
   const content = (
     <>

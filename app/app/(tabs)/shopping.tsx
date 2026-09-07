@@ -4,7 +4,6 @@ import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   FlatList,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -33,6 +32,7 @@ import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/expo';
 import { type Store } from '@veckis/shared';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
+import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { shopping as str, common, gettingStarted } from '../../src/lib/svenska';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 
@@ -252,12 +252,12 @@ export default function ShoppingScreen() {
         <Ionicons name="add" size={fs(30)} color="#fff" />
       </Pressable>
 
-      <Modal visible={showModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => tryCloseCreate(newListName.trim() !== '', discardCreate)}>
-        <View pointerEvents="none" style={styles.overlayDim} />
-        <Pressable style={styles.overlay} onPress={() => tryCloseCreate(newListName.trim() !== '', discardCreate)} />
-        <View style={{ paddingBottom: sheetLift }}>
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}>
-            <View style={styles.sheetHandle} />
+      <DraggableBottomSheet
+        visible={showModal}
+        onRequestClose={() => tryCloseCreate(newListName.trim() !== '', discardCreate)}
+        liftOffset={sheetLift}
+        sheetStyle={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}
+      >
             <Text style={styles.sheetTitle}>{str.createModal.title}</Text>
             <TextInput
               ref={newListNameRef}
@@ -305,9 +305,7 @@ export default function ShoppingScreen() {
                 ? <ActivityIndicator color="#fff" />
                 : <Text style={styles.buttonText}>{str.createModal.createButton}</Text>}
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
       </SafeAreaView>
       {isSplitView && (
         <>
@@ -378,9 +376,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
-  overlay: { flex: 1 },
-  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
     backgroundColor: c.surface,
     borderTopLeftRadius: 20,
@@ -388,14 +383,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     padding: 24,
     paddingBottom: 40,
     gap: 14,
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: c.borderLight,
-    alignSelf: 'center',
-    marginBottom: 4,
   },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
   input: { color: c.text,

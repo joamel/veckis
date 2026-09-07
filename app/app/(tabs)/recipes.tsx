@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   FlatList,
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -490,10 +489,9 @@ export default function RecipesScreen() {
     setShowModal(true);
   }
 
-  // Sheet-innehållet (delas ut för läsbarhet; renderas inuti KAV nedan).
+  // Sheet-innehållet (delas ut för läsbarhet; renderas inuti DraggableBottomSheet nedan).
   const createSheetInner = (
-    <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
-      <View style={s.sheetHandle} />
+    <>
         <Text style={s.sheetTitle}>{str.createModal.title}</Text>
 
         <View style={s.modeTabs}>
@@ -589,7 +587,7 @@ export default function RecipesScreen() {
           </>
         )}
         </View>
-    </View>
+    </>
   );
 
   if (loading) {
@@ -766,21 +764,17 @@ export default function RecipesScreen() {
         </Pressable>
       )}
 
-      {/* Samma mönster som "Ny butik"-modalen (fungerar på Android edge-to-edge +
-          web): RN Modal + absolut heltäckande KAV + flex-end, och sheeten UTAN
-          ScrollView (en ScrollView expanderar under behavior="height" → för hög). */}
-      <Modal visible={showModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeCreate}>
-        {/* overlayDim = dim-visual; overlay-Pressable (flex:1) = tryck-utanför-yta
-            som fyller ovanför sheeten. Sheeten ligger i NORMALFLÖDE direkt efter
-            (ingen absolut/KAV-wrapper som täcker overlayn → tryck-utanför funkar på
-            web). Native-lyft via state-padding på sheet-behållaren (nollställs rent
-            när tangentbordet stängs); web sköts av browserns viewport-resize. */}
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={closeCreate} />
-        <View style={{ paddingBottom: sheetLift }}>
-          {createSheetInner}
-        </View>
-      </Modal>
+      {/* Egen keyboard-lift (sheetLift, mätt via revealFocused) i stället för
+          keyboardAvoiding-proppen — samma "mät fokuserat fält, skrolla lagom"-
+          teknik som redan fanns, nu buren av DraggableBottomSheet:s liftOffset. */}
+      <DraggableBottomSheet
+        visible={showModal}
+        onRequestClose={closeCreate}
+        liftOffset={sheetLift}
+        sheetStyle={[s.sheet, { paddingBottom: insets.bottom + 20 }]}
+      >
+        {createSheetInner}
+      </DraggableBottomSheet>
 
       {/* Quick add-to-menu week+day picker */}
       <DraggableBottomSheet visible={!!addToMenuFor} onRequestClose={() => setAddToMenuFor(null)} sheetStyle={s.sheet}>
@@ -880,12 +874,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   cardTitle: { fontSize: 16, fontWeight: '600', color: c.text },
   cardMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
-  overlay: { flex: 1 },
-  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, gap: 14 },
   sheetScroll: { gap: 14, paddingBottom: 40 },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
   addMenuBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   selectBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primaryTint, paddingHorizontal: 16, paddingVertical: 10 },

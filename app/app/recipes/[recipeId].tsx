@@ -36,6 +36,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
+import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import type { RecipeIngredient, WeekDay } from '@veckis/shared';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
@@ -1074,11 +1075,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       </KeyboardAvoidingView>
 
       {/* Transfer modal */}
-      <Modal visible={showTransfer} transparent animationType="slide" onRequestClose={() => setShowTransfer(false)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowTransfer(false)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
+      <DraggableBottomSheet visible={showTransfer} onRequestClose={() => setShowTransfer(false)} sheetStyle={s.sheet}>
           <Text style={s.sheetTitle}>{str.transfer.title}</Text>
           <Text style={s.sheetSub}>
             {scaleRatio !== 1 ? str.transfer.scaledPrefix(displayServings) : ''}{str.transfer.needToBuy}
@@ -1158,16 +1155,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               }}
             />
           )}
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Plan in menu modal — identisk look med bibliotekets kalenderikon-dialog:
           veckochips + dag-grid som lägger till direkt (toast), ingen extra knapp. */}
-      <Modal visible={showPlanModal} transparent animationType="slide" onRequestClose={() => setShowPlanModal(false)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowPlanModal(false)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
+      <DraggableBottomSheet visible={showPlanModal} onRequestClose={() => setShowPlanModal(false)} sheetStyle={s.sheet}>
           <Text style={s.sheetTitle}>{str.menu.addToMenu}</Text>
           <Text style={s.daySheetSub} numberOfLines={1}>{recipe?.title}</Text>
 
@@ -1217,8 +1209,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>{str.menu.noDay}</Text>
             </Pressable>
           </View>
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* "+"-FAB — väljare: lägg till receptet i veckomeny eller inköpslista.
           (Laga nu-läget nås från instruktions-sektionens "Laga nu"-knapp.) */}
@@ -1415,10 +1406,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   saveBtn: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: c.primary, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.4 },
   saveBtnText: { fontSize: 15, color: '#fff', fontWeight: '600' },
-  // Dim på eget absolut lager så det täcker bakom sheetens rundade hörn.
-  overlay: { flex: 1 },
-  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '85%' },
+  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '85%' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   renameTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 16 },
   renameInput: { borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: c.inputBg, color: c.text },
@@ -1452,7 +1440,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   cookNavText: { fontSize: 15, fontWeight: '600', color: c.textSecondary },
   cookNavBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: c.primary },
   cookNavTextPrimary: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 12 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
   sheetSub: { fontSize: 13, color: c.textMuted, marginTop: 2, marginBottom: 8 },
   ingredientList: { maxHeight: 220 },
