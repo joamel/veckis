@@ -136,6 +136,13 @@ export default function StoreDetailScreen() {
   // från senast kända fingerposition (catDragState.y — bevisat pålitlig).
   type CatDragState = { key: string; startIndex: number; y: number };
   const [catDragState, setCatDragState] = useState<CatDragState | null>(null);
+  // Rent VISUELL live-förhandsgranskning under draget (var raden skulle
+  // hamna om du släppte just nu) — påverkar bara vad som RENDERAS, aldrig
+  // den faktiska datan. Släppet räknar ändå ut sin egen slutgiltiga
+  // position oberoende (indexAtY(prev.y) i onCatDragEnd), så även om det
+  // här skulle råka bli inaktuellt en bildruta spelar det ingen roll för
+  // resultatet — bara för hur det ser ut under tiden.
+  const [catHoverIndex, setCatHoverIndex] = useState<number | null>(null);
   const catRowRefs = useRef<Record<string, View | null>>({});
   const catRowLayouts = useRef<Record<string, { y: number; height: number }>>({});
   const measureCatRow = useCallback((key: string, ref: View | null) => {
@@ -154,10 +161,12 @@ export default function StoreDetailScreen() {
   }, []);
   const onCatDragStart = useCallback((key: string, idx: number, absoluteY: number) => {
     setCatDragState({ key, startIndex: idx, y: absoluteY });
+    setCatHoverIndex(idx);
   }, []);
   const onCatDragMove = useCallback((absoluteY: number) => {
     setCatDragState(prev => prev ? { ...prev, y: absoluteY } : null);
-  }, []);
+    setCatHoverIndex(indexAtY(absoluteY));
+  }, [indexAtY]);
   const onCatDragEnd = useCallback(() => {
     setCatDragState(prev => {
       if (prev) {
@@ -174,7 +183,18 @@ export default function StoreDetailScreen() {
       }
       return null;
     });
+    setCatHoverIndex(null);
   }, [indexAtY]);
+  // Ordningen som faktiskt RENDERAS: under ett drag, samma flytt som skulle
+  // committas om du släppte just nu — så raderna ser ut att byta plats
+  // löpande. Rör aldrig parentOrder direkt (det sker bara vid släpp).
+  const displayOrder = useMemo(() => {
+    if (!catDragState || catHoverIndex === null || catHoverIndex === catDragState.startIndex) return parentOrder;
+    const next = [...parentOrder];
+    const [moved] = next.splice(catDragState.startIndex, 1);
+    next.splice(catHoverIndex, 0, moved);
+    return next;
+  }, [parentOrder, catDragState, catHoverIndex]);
 
   function hideEnum(cat: StoreCategory) {
     setParentOrder(prev => prev.filter(k => k !== cat));
@@ -487,7 +507,7 @@ export default function StoreDetailScreen() {
           {parentOrder.length === 0 ? (
             <Text style={s.emptyHint}>{str.detail.allHidden}</Text>
           ) : (
-            parentOrder.map((key, idx) => {
+            displayOrder.map((key, idx) => {
               const isCustom = key.startsWith('c:');
               const cat = isCustom ? key.slice(2) : (key as StoreCategory);
               const subs = isCustom ? ([] as SubCategory[]) : subsForParent(key as StoreCategory);
@@ -495,6 +515,11 @@ export default function StoreDetailScreen() {
               const customShownHere = (customSubs[key] ?? []).filter(label => expandedSubs.includes(`cs:${key}:${label}`)).length;
               const expandedHere = (isCustom ? 0 : subs.filter(s2 => expandedSubs.includes(s2)).length) + customShownHere;
               const isBeingDragged = catDragState?.key === key;
+              // Den dragade radens EGNA idx hålls konstant (dess startIndex)
+              // genom hela draget, oavsett var den visuellt förhandsvisas —
+              // annars skulle dess gest byggas om MITT I ett pågående drag
+              // (bekräftad instabilitetskälla i en tidigare version).
+              const handleIdx = isBeingDragged ? catDragState.startIndex : idx;
               return (
                 <View
                   key={key}
@@ -524,7 +549,7 @@ export default function StoreDetailScreen() {
                       )}
                       <CategoryDragHandle
                         parentKey={key}
-                        idx={idx}
+                        idx={handleIdx}
                         onDragStart={onCatDragStart}
                         onDragMove={onCatDragMove}
                         onDragEnd={onCatDragEnd}
@@ -645,7 +670,10 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   catList: { backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.surfaceSubtle, overflow: 'hidden' },
   catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 8 },
   catRowMuted: { backgroundColor: c.background },
-  catRowDragging: { opacity: 0.9 },
+  // Nästan osynlig i listan — lämnar bara ett tomrum där den låg. Spöket
+  // (som följer fingret) är den tydliga visuella representationen, så raden
+  // visas inte dubbelt.
+  catRowDragging: { opacity: 0.12 },
   catName: { fontSize: 15, color: c.text, flex: 1, flexShrink: 1 },
   catNameMuted: { color: c.textFaint },
   catBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryTint },
