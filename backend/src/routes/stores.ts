@@ -17,6 +17,11 @@ const subOrderSchema = z.array(z.string().min(1).max(120)).max(100).optional();
 // Egna underkategorier: parentKey (StoreCategory eller "c:<egen kategori>") → etiketter.
 const customSubsSchema = z.record(z.string().min(1).max(60), z.array(z.string().min(1).max(40)).max(60)).optional();
 const parentOrderSchema = z.array(z.string().min(1).max(60)).max(60).optional();
+// Kategori-ihopslagning: { sourceCategory: targetKey }. Källan måste vara en
+// riktig StoreCategory (bara standard-kategorier kan slås ihop bort, samma
+// begränsning som "dölj"); målet kan vara valfri parentOrder-nyckel (standard
+// ELLER "c:<egen kategori>").
+const categoryMergeSchema = z.record(categoryEnum, z.string().min(1).max(60)).optional();
 
 const createStoreSchema = z.object({
   householdId: z.string(),
@@ -27,6 +32,7 @@ const createStoreSchema = z.object({
   subOrder: subOrderSchema,
   customSubs: customSubsSchema,
   parentOrder: parentOrderSchema,
+  categoryMerge: categoryMergeSchema,
 });
 
 const updateStoreSchema = z.object({
@@ -37,6 +43,7 @@ const updateStoreSchema = z.object({
   subOrder: subOrderSchema,
   customSubs: customSubsSchema,
   parentOrder: parentOrderSchema,
+  categoryMerge: categoryMergeSchema,
 });
 
 // GET /api/stores?householdId=
