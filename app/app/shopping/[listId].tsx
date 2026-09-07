@@ -72,6 +72,25 @@ const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
 // Survives navigation within the session; resets on app restart
 const dismissedDupesStore = new Map<string, Set<string>>();
 
+// Auto-sidoscroll till aktiv chip i en horisontell kategori/underkategori-rad.
+// Chip-onLayout fyller på x-positioner en gång (körs bara om positionen
+// FAKTISKT ändras, inte varje render) — det är därför den gamla varianten
+// (onLayout bara på den AKTIVA chippen) inte funkade när man förifyllde
+// kategori programmatiskt (t.ex. tryck på ett sökförslag) medan pickern redan
+// legat monterad sen tidigare: layouten hade redan skett en gång för en ANNAN
+// aktiv kategori, så inget nytt onLayout-anrop kom för att trigga scrollen.
+// Genom att spara ALLA chippars x (oavsett aktiv) och skrolla i en effekt som
+// körs varje gång `activeKey` ändras, funkar det oavsett vilken väg kategorin
+// sattes på (tryck i pickern ELLER programmatiskt).
+function useChipAutoScroll(scrollRef: { current: ScrollView | null }, activeKey: string | null) {
+  const xById = useRef<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (activeKey == null) return;
+    const x = xById.current.get(activeKey);
+    if (x !== undefined) scrollRef.current?.scrollTo({ x: Math.max(0, x - 16), animated: true });
+  }, [activeKey, scrollRef]);
+  return useCallback((key: string, x: number) => { xById.current.set(key, x); }, []);
+}
 
 export function ShoppingListDetail({ listId, onClose }: { listId: string; onClose?: () => void }) {
   const { colors: c } = useTheme();
@@ -325,10 +344,20 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const editNameRef = useRef<TextInput>(null);
   const editQtyRef = useRef<TextInput>(null);
   const editUnitRef = useRef<TextInput>(null);
-  // Auto-sidoscroll till vald kategori/underkategori i redigera-vara-modalen:
-  // den aktiva chippens onLayout scrollar sin ScrollView så vald chip syns direkt.
+  // Auto-sidoscroll till vald kategori/underkategori (se useChipAutoScroll ovan).
   const editCatScrollRef = useRef<ScrollView>(null);
   const editSubScrollRef = useRef<ScrollView>(null);
+  const recordEditCatChipLayout = useChipAutoScroll(editCatScrollRef, editCustomCategory ? `c:${editCustomCategory}` : editCategory);
+  const recordEditSubChipLayout = useChipAutoScroll(editSubScrollRef, editCustomSubCategory ? `cs:${editCustomSubCategory}` : (editSubCategory ?? '__none__'));
+  const stapleCatScrollRef = useRef<ScrollView>(null);
+  const recordStapleCatChipLayout = useChipAutoScroll(stapleCatScrollRef, stapleCategory);
+  // Mängd-sheeten (öppnas av openQtySheet — det HÄR är flödet ett tryck på ett
+  // sökförslag faktiskt går via, till skillnad från redigera-vara/stapel-
+  // redigeraren ovan som redan hade (eller fick) auto-scroll.
+  const qtyCatScrollRef = useRef<ScrollView>(null);
+  const qtySubScrollRef = useRef<ScrollView>(null);
+  const recordQtyCatChipLayout = useChipAutoScroll(qtyCatScrollRef, qtyCustomCategory ? `c:${qtyCustomCategory}` : qtyCategory);
+  const recordQtySubChipLayout = useChipAutoScroll(qtySubScrollRef, qtyCustomSubCategory ? `cs:${qtyCustomSubCategory}` : (qtySubCategory ?? '__none__'));
   const stapleNameRef = useRef<TextInput>(null);
   const stapleUnitRef = useRef<TextInput>(null);
   const qtyValueRef = useRef<TextInput>(null);
@@ -1772,7 +1801,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={cat}
                     style={[s.catChip, active && s.catChipActive]}
-                    onLayout={active ? e => { const x = e.nativeEvent.layout.x; editCatScrollRef.current?.scrollTo({ x: Math.max(0, x - 16), animated: false }); } : undefined}
+                    onLayout={e => recordEditCatChipLayout(cat, e.nativeEvent.layout.x)}
                     onPress={() => { setEditCategory(cat); setEditCustomCategory(null); setEditSubCategory(null); setEditCustomSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
@@ -1788,6 +1817,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={`c:${cat}`}
                     style={[s.catChip, active && s.catChipActive]}
+                    onLayout={e => recordEditCatChipLayout(`c:${cat}`, e.nativeEvent.layout.x)}
                     onPress={() => { setEditCustomCategory(cat); setEditSubCategory(null); setEditCustomSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>🏷️ {cat}</Text>
@@ -1810,6 +1840,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             <View style={s.catChipRow}>
               <Pressable
                 style={[s.catChip, !editSubCategory && !editCustomSubCategory && s.catChipActive]}
+                onLayout={e => recordEditSubChipLayout('__none__', e.nativeEvent.layout.x)}
                 onPress={() => { setEditSubCategory(null); setEditCustomSubCategory(null); }}
               >
                 <Text style={[s.catChipText, !editSubCategory && !editCustomSubCategory && s.catChipTextActive]}>
@@ -1823,7 +1854,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={sub}
                     style={[s.catChip, active && s.catChipActive]}
-                    onLayout={active ? e => { const x = e.nativeEvent.layout.x; editSubScrollRef.current?.scrollTo({ x: Math.max(0, x - 16), animated: false }); } : undefined}
+                    onLayout={e => recordEditSubChipLayout(sub, e.nativeEvent.layout.x)}
                     onPress={() => { setEditSubCategory(active ? null : sub); setEditCustomSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]}>
@@ -1839,6 +1870,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={`cs:${label}`}
                     style={[s.catChip, active && s.catChipActive]}
+                    onLayout={e => recordEditSubChipLayout(`cs:${label}`, e.nativeEvent.layout.x)}
                     onPress={() => { setEditCustomSubCategory(active ? null : label); setEditSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]}>🏷️ {label}</Text>
@@ -1906,12 +1938,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </View>
           </ScrollView>
           <Text style={s.editLabel}>{common.fields.category}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll} keyboardShouldPersistTaps="handled">
+          <ScrollView ref={stapleCatScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll} keyboardShouldPersistTaps="handled">
             <View style={s.catChipRow}>
               {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
                 <Pressable
                   key={cat}
                   style={[s.catChip, stapleCategory === cat && s.catChipActive]}
+                  onLayout={e => recordStapleCatChipLayout(cat, e.nativeEvent.layout.x)}
                   onPress={() => setStapleCategory(cat)}
                 >
                   <Text style={[s.catChipText, stapleCategory === cat && s.catChipTextActive]} numberOfLines={1}>
@@ -1997,7 +2030,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               </View>
             </ScrollView>
             <Text style={s.editLabel}>{common.fields.category}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
+            <ScrollView ref={qtyCatScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
               <View style={s.catChipRow}>
                 {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => {
                   const active = !qtyCustomCategory && qtyCategory === cat;
@@ -2005,6 +2038,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={cat}
                     style={[s.catChip, active && s.catChipActive]}
+                    onLayout={e => recordQtyCatChipLayout(cat, e.nativeEvent.layout.x)}
                     onPress={() => { setQtyCategory(cat); setQtyCustomCategory(null); setQtySubCategory(null); setQtyCustomSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
@@ -2016,7 +2050,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 {customCategories.map(cat => {
                   const active = qtyCustomCategory === cat;
                   return (
-                    <Pressable key={`c:${cat}`} style={[s.catChip, active && s.catChipActive]} onPress={() => { setQtyCustomCategory(cat); setQtySubCategory(null); setQtyCustomSubCategory(null); }}>
+                    <Pressable key={`c:${cat}`} style={[s.catChip, active && s.catChipActive]} onLayout={e => recordQtyCatChipLayout(`c:${cat}`, e.nativeEvent.layout.x)} onPress={() => { setQtyCustomCategory(cat); setQtySubCategory(null); setQtyCustomSubCategory(null); }}>
                       <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>🏷️ {cat}</Text>
                     </Pressable>
                   );
@@ -2026,15 +2060,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             {((!qtyCustomCategory && subsForParent(qtyCategory).length > 0) || (customSubs[qtyCustomCategory ? `c:${qtyCustomCategory}` : qtyCategory] ?? []).length > 0) && (
               <>
                 <Text style={s.editLabel}>{common.fields.subCategoryOptional}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
+                <ScrollView ref={qtySubScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
                   <View style={s.catChipRow}>
-                    <Pressable style={[s.catChip, !qtySubCategory && !qtyCustomSubCategory && s.catChipActive]} onPress={() => { setQtySubCategory(null); setQtyCustomSubCategory(null); }}>
+                    <Pressable style={[s.catChip, !qtySubCategory && !qtyCustomSubCategory && s.catChipActive]} onLayout={e => recordQtySubChipLayout('__none__', e.nativeEvent.layout.x)} onPress={() => { setQtySubCategory(null); setQtyCustomSubCategory(null); }}>
                       <Text style={[s.catChipText, !qtySubCategory && !qtyCustomSubCategory && s.catChipTextActive]}>{common.fields.none}</Text>
                     </Pressable>
                     {!qtyCustomCategory && subsForParent(qtyCategory).map(sub => {
                       const active = qtySubCategory === sub && !qtyCustomSubCategory;
                       return (
-                        <Pressable key={sub} style={[s.catChip, active && s.catChipActive]} onPress={() => { setQtySubCategory(active ? null : sub); setQtyCustomSubCategory(null); }}>
+                        <Pressable key={sub} style={[s.catChip, active && s.catChipActive]} onLayout={e => recordQtySubChipLayout(sub, e.nativeEvent.layout.x)} onPress={() => { setQtySubCategory(active ? null : sub); setQtyCustomSubCategory(null); }}>
                           <Text style={[s.catChipText, active && s.catChipTextActive]}>{SUB_TAXONOMY[sub].label}</Text>
                         </Pressable>
                       );
@@ -2042,7 +2076,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                     {(customSubs[qtyCustomCategory ? `c:${qtyCustomCategory}` : qtyCategory] ?? []).map(label => {
                       const active = qtyCustomSubCategory === label;
                       return (
-                        <Pressable key={`cs:${label}`} style={[s.catChip, active && s.catChipActive]} onPress={() => { setQtyCustomSubCategory(active ? null : label); setQtySubCategory(null); }}>
+                        <Pressable key={`cs:${label}`} style={[s.catChip, active && s.catChipActive]} onLayout={e => recordQtySubChipLayout(`cs:${label}`, e.nativeEvent.layout.x)} onPress={() => { setQtyCustomSubCategory(active ? null : label); setQtySubCategory(null); }}>
                           <Text style={[s.catChipText, active && s.catChipTextActive]}>🏷️ {label}</Text>
                         </Pressable>
                       );

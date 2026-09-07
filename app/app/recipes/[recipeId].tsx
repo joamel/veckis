@@ -28,7 +28,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { normalizeQtyInput } from '../../src/lib/qty';
@@ -53,6 +53,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
+  const navigation = useNavigation();
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { showError, showToast } = useToast();
@@ -162,20 +163,24 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     if (activeUnitIdx === null) return;
     const input = rowRefs.current[activeUnitIdx]?.unit;
     if (!input) return;
+    // Sista raden: "Lägg till rad"-knappen kommer direkt efter chip-raden med
+    // inget emellan, och den ska också gå att nå utan att skrolla manuellt.
+    const isLastRow = activeUnitIdx === editIngredients.length - 1;
     const t = setTimeout(() => {
       input.measureInWindow((_x, y, _w, h) => {
         const screenH = Dimensions.get('window').height;
         const kbTop = screenH - (keyboardH.current || 340);
         const chipRowH = 64; // unit-chip suggestion row + gap below the field
+        const addRowBtnH = isLastRow ? 44 : 0;
         const margin = 24;   // breathing room above the keyboard
-        const hidden = (y + h + chipRowH + margin) - kbTop;
+        const hidden = (y + h + chipRowH + addRowBtnH + margin) - kbTop;
         if (hidden > 0) {
           mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + hidden, animated: true });
         }
       });
     }, 200);
     return () => clearTimeout(t);
-  }, [activeUnitIdx]);
+  }, [activeUnitIdx, editIngredients.length]);
 
   // Samma för namn-fältet: ingrediens-förslagen (chip-raden under namnet) ska
   // hoppa upp ovanför tangentbordet precis som måttenheterna, i stället för att
@@ -479,6 +484,29 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     }));
     return JSON.stringify(editIngredients) !== JSON.stringify(origIngs);
   }
+
+  // "Senaste version"-refs så beforeRemove-lyssnaren (registreras EN gång,
+  // se effekten nedan) alltid läser aktuellt dirty-state/tryClose utan att
+  // behöva byggas om varje render (skulle annars trigga vid varje knapptryck).
+  const isEditDirtyRef = useRef(isEditDirty);
+  isEditDirtyRef.current = isEditDirty;
+  const tryCloseEditRef = useRef(tryCloseEdit);
+  tryCloseEditRef.current = tryCloseEdit;
+
+  // Fångar ALLA vägar ut ur skärmen medan man redigerar — hårdvaru-back,
+  // bakåt-swipe (iOS-gest) OCH vår egen header-back-knapp — inte bara
+  // knappens onPress, som tidigare missade swipe/hårdvaru-back helt.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (!editMode || !isEditDirtyRef.current()) return;
+      e.preventDefault();
+      tryCloseEditRef.current(true, () => {
+        setEditMode(false);
+        navigation.dispatch(e.data.action);
+      });
+    });
+    return unsubscribe;
+  }, [navigation, editMode]);
 
   function addEditRow() {
     setEditIngredients(prev => [...prev, { name: '', quantity: '', unit: '' }]);
@@ -1028,17 +1056,21 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           </View>
         ) : null}
 
-        {editMode && (
-          <View style={s.editActions}>
-            <Pressable style={s.cancelBtn} onPress={() => tryCloseEdit(isEditDirty(), () => setEditMode(false))}>
-              <Text style={s.cancelBtnText}>{common.actions.cancel}</Text>
-            </Pressable>
-            <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled]} onPress={saveRecipe} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>{common.actions.save}</Text>}
-            </Pressable>
-          </View>
-        )}
       </ScrollView>
+
+      {/* Fast spara-rad längst ner i edit-läget — kräver ingen nedskroll för
+          att hitta spara/avbryt, till skillnad från när knapparna låg sist
+          i scroll-innehållet. */}
+      {editMode && (
+        <View style={s.editActionsBar}>
+          <Pressable style={s.cancelBtn} onPress={() => tryCloseEdit(isEditDirty(), () => setEditMode(false))}>
+            <Text style={s.cancelBtnText}>{common.actions.cancel}</Text>
+          </Pressable>
+          <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled]} onPress={saveRecipe} disabled={saving}>
+            {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>{common.actions.save}</Text>}
+          </Pressable>
+        </View>
+      )}
       </KeyboardAvoidingView>
 
       {/* Transfer modal */}
@@ -1377,7 +1409,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   unitChipActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
   unitChipText: { fontSize: 13, color: c.textSecondary, fontWeight: '500' },
   unitChipTextActive: { color: c.primary, fontWeight: '600' },
-  editActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  editActionsBar: { flexDirection: 'row', gap: 10, padding: 12, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
   cancelBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, alignItems: 'center' },
   cancelBtnText: { fontSize: 15, color: c.textMuted, fontWeight: '500' },
   saveBtn: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: c.primary, alignItems: 'center' },

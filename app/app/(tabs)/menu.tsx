@@ -318,6 +318,10 @@ export default function MenuScreen() {
   // bara "Har"-toggle.
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> mängd hemma
   const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // omätta ingredienser markerade "har hemma"
+  // Vilka recept-id:n haveAtHome/hadUnmeasured just nu är ifyllda för — så en
+  // ofrivillig bakåt-navigering (recept-steg → ingrediens-steg igen) INTE
+  // nollställer det man redan hunnit fylla i, så länge receptvalet är oförändrat.
+  const inventoryBuiltForRef = useRef<Set<string> | null>(null);
   const [allMenus, setAllMenus] = useState<MenuRow[]>([]);
   const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
 
@@ -386,6 +390,17 @@ export default function MenuScreen() {
   function resetInventory() {
     setHaveAtHome({});
     setHadUnmeasured(new Set());
+  }
+  function idSetsEqual(a: Set<string>, b: Set<string>): boolean {
+    if (a.size !== b.size) return false;
+    for (const id of a) if (!b.has(id)) return false;
+    return true;
+  }
+  // Nollställ bara om receptvalet faktiskt ändrats sedan senast — annars
+  // behåll ifyllda mängder (se inventoryBuiltForRef ovan).
+  function resetInventoryFor(ids: Set<string>) {
+    resetInventory();
+    inventoryBuiltForRef.current = new Set(ids);
   }
 
   // Menu items already transferred — scoped to the target list when we came from
@@ -1143,8 +1158,9 @@ export default function MenuScreen() {
       return;
     }
 
-    setSelectedRecipesForTransfer(new Set(notTransferred.map(m => m.id)));
-    resetInventory();
+    const freshIds = new Set(notTransferred.map(m => m.id));
+    setSelectedRecipesForTransfer(freshIds);
+    resetInventoryFor(freshIds);
     setBulkTransferStep('recipe');
     setShowBulkTransferModal(true);
   }
@@ -2012,7 +2028,9 @@ export default function MenuScreen() {
                 style={[s.button, selectedRecipesForTransfer.size === 0 && s.buttonDisabled]}
                 disabled={selectedRecipesForTransfer.size === 0}
                 onPress={() => {
-                  resetInventory();
+                  if (!inventoryBuiltForRef.current || !idSetsEqual(inventoryBuiltForRef.current, selectedRecipesForTransfer)) {
+                    resetInventoryFor(selectedRecipesForTransfer);
+                  }
                   setBulkTransferStep('ingredients');
                 }}
               >

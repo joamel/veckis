@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useConfirm } from '../../src/context/ConfirmContext';
+import { ThemeModeToggle } from '../../src/components/ThemeModeToggle';
 import { auth as str } from '../../src/lib/svenska';
 
 export default function SignUpScreen() {
@@ -92,6 +93,7 @@ export default function SignUpScreen() {
       style={styles.container}
       behavior={Platform.OS as any === 'ios' ? 'padding' : undefined}
     >
+      <ThemeModeToggle />
       <Text style={styles.title}>{str.signUp.title}</Text>
       <TextInput
         style={styles.input}

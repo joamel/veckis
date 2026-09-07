@@ -6,6 +6,8 @@ import type { Palette } from '../src/lib/theme';
 // på Profil-fliken där fokus är hushållet + dess medlemmar.
 import { useState, useEffect } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as Updates from 'expo-updates';
+import Constants from 'expo-constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -43,7 +45,6 @@ export default function PreferencesScreen() {
   }
 
   function handleContactSupport() {
-    const Constants = require('expo-constants').default;
     const version = Constants.expoConfig?.version ?? str.support.unknownVersion;
     const subject = encodeURIComponent(str.support.subject);
     const body = encodeURIComponent(str.support.body(version, Platform.OS));
@@ -141,6 +142,15 @@ export default function PreferencesScreen() {
             <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
           </Pressable>
         </View>
+
+        {/* Diagnostik för att felsöka OTA-uppdateringar (2026-09-07: flera
+            runda av "fixen syns inte" som visade sig svåra att felsöka utan
+            att kunna se vilken kanal/update-id den installerade appen faktiskt
+            kör). Ren text, inget UI-beroende — trygg att lämna kvar. */}
+        <Text style={s.versionFooter}>
+          v{Constants.expoConfig?.version ?? '?'} · {Platform.OS} · kanal: {Updates.channel ?? '(inbyggd, ingen OTA)'}
+          {Updates.isEmbeddedLaunch ? ' · inbyggd bundle' : ` · update ${Updates.updateId?.slice(0, 8) ?? '?'}`}
+        </Text>
       </ScrollView>
 
       <NotificationsModal visible={showNotifModal} onClose={() => setShowNotifModal(false)} />
@@ -158,6 +168,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   rowBorder: { borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
   rowText: { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
+  versionFooter: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 16 },
   landingChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, width: '100%', marginTop: 4, paddingLeft: 30 },
   landingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: c.surfaceSubtle },
   landingChipActive: { backgroundColor: c.primary },

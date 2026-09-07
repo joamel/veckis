@@ -271,15 +271,19 @@ export default function RecipesScreen() {
   // ovanför tangentbordet — inte hela höjden (då flyger höga modaler upp). Web:
   // browsern sköter viewporten, inget lyft. Nollställs rent vid keyboardDidHide.
   const { height: windowHeight } = useWindowDimensions();
-  const focusedInputRef = useRef<TextInput | null>(null);
+  // Mäter knappen under fältet (inte fältet självt) — annars lyfts sheeten
+  // precis nog för att fältet ska synas, men "Skapa"/"Lägg till"-knappen
+  // (som ligger under fält + hint-text) hamnar ändå bakom tangentbordet.
+  type Measurable = { measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => void };
+  const revealTargetRef = useRef<Measurable | null>(null);
   const kbHeightRef = useRef(0);
   const [sheetLift, setSheetLift] = useState(0);
-  // Mät fokuserat fält och lyft lagom. Körs både vid keyboardDidShow och vid
-  // onFocus (så lyftet räknas om när man byter fält medan tangentbordet redan är
-  // uppe, t.ex. manuellt → klistra in).
+  // Mät knappen för aktuellt läge och lyft lagom. Körs både vid keyboardDidShow
+  // och vid onFocus (så lyftet räknas om när man byter fält medan tangentbordet
+  // redan är uppe, t.ex. manuellt → klistra in).
   const revealFocused = useCallback(() => {
     if (Platform.OS as any === 'web' || kbHeightRef.current === 0) return;
-    const ref = focusedInputRef.current;
+    const ref = revealTargetRef.current;
     if (!ref) return;
     const kbH = Math.min(kbHeightRef.current, windowHeight * 0.5);
     setTimeout(() => ref.measureInWindow((_x, y, _w, h) => {
@@ -302,6 +306,9 @@ export default function RecipesScreen() {
   const manualRef = useRef<TextInput>(null);
   const pasteRef = useRef<TextInput>(null);
   const urlRef = useRef<TextInput>(null);
+  const manualBtnRef = useRef<View>(null);
+  const pasteBtnRef = useRef<View>(null);
+  const urlBtnRef = useRef<View>(null);
   const wantFocusRef = useRef(false);
   const switchMode = useCallback((next: 'manual' | 'paste' | 'url') => {
     wantFocusRef.current = keyboardUpRef.current;
@@ -515,11 +522,12 @@ export default function RecipesScreen() {
               importantForAutofill="no"
               textContentType="none"
               returnKeyType="done"
-              onFocus={() => { focusedInputRef.current = manualRef.current; revealFocused(); }}
+              onFocus={() => { revealTargetRef.current = manualBtnRef.current; revealFocused(); }}
               onSubmitEditing={handleCreateManual}
             />
             <Text style={s.createHint}>{str.createModal.createHint}</Text>
             <Pressable
+              ref={manualBtnRef}
               style={[s.button, s.modeBodyBtn, !title.trim() && s.buttonDisabled]}
               onPress={handleCreateManual}
               disabled={creating || !title.trim()}
@@ -539,9 +547,10 @@ export default function RecipesScreen() {
               multiline
               scrollEnabled
               importantForAutofill="no"
-              onFocus={() => { focusedInputRef.current = pasteRef.current; revealFocused(); }}
+              onFocus={() => { revealTargetRef.current = pasteBtnRef.current; revealFocused(); }}
             />
             <Pressable
+              ref={pasteBtnRef}
               style={[s.button, s.modeBodyBtn, !pasteText.trim() && s.buttonDisabled]}
               onPress={handleParseAndCreate}
               disabled={parsing || creating || !pasteText.trim()}
@@ -561,12 +570,13 @@ export default function RecipesScreen() {
               keyboardType="url"
               importantForAutofill="no"
               textContentType="none"
-              onFocus={() => { focusedInputRef.current = urlRef.current; revealFocused(); }}
+              onFocus={() => { revealTargetRef.current = urlBtnRef.current; revealFocused(); }}
               returnKeyType="done"
               onSubmitEditing={handleScrape}
             />
             <Text style={s.urlHint}>{str.createModal.urlHint}</Text>
             <Pressable
+              ref={urlBtnRef}
               style={[s.button, s.modeBodyBtn, !url.trim() && s.buttonDisabled]}
               onPress={handleScrape}
               disabled={scraping || creating || !url.trim()}

@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { InstallBanner } from '../../src/components/InstallBanner';
+import { ThemeModeToggle } from '../../src/components/ThemeModeToggle';
 import { auth as str } from '../../src/lib/svenska';
 import { reportClientError } from '../../src/lib/errorReport';
 import * as WebBrowser from 'expo-web-browser';
@@ -237,13 +238,8 @@ export default function SignInScreen() {
       style={styles.container}
       behavior={Platform.OS as any === 'ios' ? 'padding' : undefined}
     >
+      <ThemeModeToggle />
       <Image source={LOGO} style={styles.logo} resizeMode="cover" />
-      {/* TEMP versionsmarkör — enda sättet att se om en OTA faktiskt applicerats.
-          Denna build: officiell tokenCache + metro.config.js-fix (OTA-kraschen,
-          se 6037cf0) + ratt Google-klient-ID. Tas bort nar allt ar verifierat. */}
-      <Text style={{ fontSize: 11, color: c.textFaint, textAlign: 'center', marginBottom: 4 }}>
-        bygge: FIX-BUNDLE-A
-      </Text>
       <Text style={styles.title}>{str.appName}</Text>
       <Text style={styles.subtitle}>
         {mode === 'reset' ? str.signIn.subtitle.reset
