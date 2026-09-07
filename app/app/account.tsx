@@ -15,6 +15,7 @@ import { useToast } from '../src/context/ToastContext';
 import { useConfirm } from '../src/context/ConfirmContext';
 import { kavBehavior } from '../src/lib/platform';
 import { account as str } from '../src/lib/svenska';
+import { DraggableBottomSheet } from '../src/components/DraggableBottomSheet';
 
 // Clerks konto-portal (2FA m.m.) ligger på olika domäner per instans: prod
 // (pk_live) på accounts.handlis.app, dev på .accounts.dev. Env-styrt så länken
@@ -45,6 +46,15 @@ export default function AccountScreen() {
   const [renameValue, setRenameValue] = useState(displayName);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Radera konto kräver en extra, medveten säkerhetsåtgärd (inte bara en
+  // confirm()-dialog) eftersom det är permanent och oåterkalleligt: en
+  // ihakad checkbox OCH en exakt inskriven bekräftelseord, samma mönster
+  // som redan finns för att radera ett HUSHÅLL (settings.tsx).
+  const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const [deleteAgree, setDeleteAgree] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const canDeleteAccount = deleteAgree && deleteConfirmText === str.deleteConfirm.word;
 
   // Lösenord: lösenordsfria konton (email-code) kan lägga TILL ett; de som redan
   // har ett kan ÄNDRA det (kräver nuvarande). user.passwordEnabled avgör vilket.
@@ -120,14 +130,9 @@ export default function AccountScreen() {
   }
 
   function handleDeleteAccount() {
-    confirm({
-      title: str.deleteConfirm.title,
-      message: str.deleteConfirm.message,
-      buttons: [
-        { label: str.deleteConfirm.confirm, style: 'destructive', onPress: doDeleteAccount },
-        { label: str.deleteConfirm.cancel, style: 'cancel' },
-      ],
-    });
+    setDeleteAgree(false);
+    setDeleteConfirmText('');
+    setShowDeleteSheet(true);
   }
 
   function handleSignOut() {
@@ -183,25 +188,24 @@ export default function AccountScreen() {
             <Text style={s.rowText}>{str.rows.twoFactor}</Text>
             <Ionicons name="open-outline" size={16} color={c.textFaint} />
           </Pressable>
-        </View>
-
-        <Text style={s.sectionLabel}>{str.sections.session}</Text>
-        <View style={s.group}>
-          <Pressable style={s.row} onPress={handleSignOut}>
-            <Ionicons name="log-out-outline" size={18} color={c.textMuted} />
-            <Text style={s.rowText}>{str.rows.signOut}</Text>
-            <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
+          {/* Radera konto hör hemma bland de andra säkerhetskänsliga
+              åtgärderna (samma sektion som 2FA), inte som en egen "session"-
+              rad — men röd/danger-färgad så den ändå syns som allvarlig. */}
+          <Pressable style={[s.row, s.rowBorder]} onPress={handleDeleteAccount} disabled={deleting}>
+            <Ionicons name="trash-outline" size={18} color={c.danger} />
+            <Text style={[s.rowText, { color: c.danger }]}>{str.rows.delete}</Text>
+            {deleting ? <ActivityIndicator size="small" color={c.danger} /> : <Ionicons name="chevron-forward" size={16} color={c.dangerBorder} />}
           </Pressable>
         </View>
 
-        {/* Radera konto — medvetet nedtonad (liten textlänk, ingen ikon/kort)
-            i stället för en likvärdig rad bredvid "Logga ut". Fortsatt nåbar,
-            men ska inte se ut som ett vardagligt alternativ. */}
-        <Pressable style={s.deleteAccountLink} onPress={handleDeleteAccount} disabled={deleting} hitSlop={8}>
-          {deleting
-            ? <ActivityIndicator size="small" color={c.textFaint} />
-            : <Text style={s.deleteAccountLinkText}>{str.rows.delete}</Text>}
-        </Pressable>
+        {/* Logga ut — egen, röd (tydligt en notify-värd åtgärd) rad längst ned. */}
+        <View style={[s.group, { marginTop: 24 }]}>
+          <Pressable style={s.row} onPress={handleSignOut}>
+            <Ionicons name="log-out-outline" size={18} color={c.danger} />
+            <Text style={[s.rowText, { color: c.danger }]}>{str.rows.signOut}</Text>
+            <Ionicons name="chevron-forward" size={16} color={c.dangerBorder} />
+          </Pressable>
+        </View>
       </ScrollView>
 
       {/* Byt namn-modal */}
@@ -294,6 +298,40 @@ export default function AccountScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Radera konto — kräver ihakad checkbox + exakt inskrivet ord innan
+          knappen ens går att trycka. Permanent och oåterkalleligt. */}
+      <DraggableBottomSheet
+        visible={showDeleteSheet}
+        onRequestClose={() => setShowDeleteSheet(false)}
+        keyboardAvoiding
+        sheetStyle={s.sheet}
+      >
+        <Text style={s.sheetTitle}>{str.deleteConfirm.title}</Text>
+        <Text style={s.sheetSubtitle}>{str.deleteConfirm.intro}</Text>
+        <Pressable style={s.agreeRow} onPress={() => setDeleteAgree(v => !v)}>
+          <Ionicons name={deleteAgree ? 'checkbox' : 'square-outline'} size={22} color={deleteAgree ? c.danger : c.textFaint} />
+          <Text style={s.agreeText}>{str.deleteConfirm.agree}</Text>
+        </Pressable>
+        <Text style={s.sheetSubtitle}>{str.deleteConfirm.typeIntro(str.deleteConfirm.word)}</Text>
+        <TextInput
+          style={s.input}
+          placeholder={str.deleteConfirm.word}
+          placeholderTextColor={c.textFaint}
+          value={deleteConfirmText}
+          onChangeText={setDeleteConfirmText}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          returnKeyType="done"
+        />
+        <Pressable
+          style={[s.dangerBtn, (!canDeleteAccount || deleting) && { opacity: 0.4 }]}
+          onPress={() => { setShowDeleteSheet(false); doDeleteAccount(); }}
+          disabled={!canDeleteAccount || deleting}
+        >
+          {deleting ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{str.deleteConfirm.confirm}</Text>}
+        </Pressable>
+      </DraggableBottomSheet>
     </SafeAreaView>
   );
 }
@@ -313,8 +351,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   rowBorder: { borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
   rowText: { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
-  deleteAccountLink: { alignItems: 'center', paddingVertical: 20 },
-  deleteAccountLinkText: { fontSize: 13, color: c.textFaint, textDecorationLine: 'underline' },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.3)' },
   kavWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 14 },
@@ -329,4 +365,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   errorText: { color: c.danger, fontSize: 13, marginTop: -8, marginLeft: 4 },
   primaryBtn: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  agreeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  agreeText: { flex: 1, fontSize: 14, color: c.text, lineHeight: 20 },
+  dangerBtn: { backgroundColor: c.danger, borderRadius: 10, padding: 16, alignItems: 'center' },
 });

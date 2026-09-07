@@ -1307,7 +1307,6 @@ export const account = {
   sections: {
     profile:  'PROFIL',
     security: 'SÄKERHET',
-    session:  'SESSION',
   },
 
   rows: {
@@ -1344,10 +1343,12 @@ export const account = {
   },
 
   deleteConfirm: {
-    title:   'Ta bort kontot?',
-    message: 'Ditt konto och alla dina hushållsmedlemskap tas bort permanent. Detta kan inte ångras.',
-    confirm: 'Ta bort kontot',
-    cancel:  'Avbryt',
+    title:      'Ta bort kontot',
+    intro:      'Ditt konto och alla dina hushållsmedlemskap tas bort permanent. Detta kan inte ångras.',
+    agree:      'Jag förstår att kontot och all min data försvinner permanent och inte kan återställas.',
+    typeIntro:  (word: string) => `Skriv ${word} för att bekräfta.`,
+    word:       'DELETE',
+    confirm:    'Ta bort kontot permanent',
   },
 
   signOutConfirm: {
