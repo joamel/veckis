@@ -411,8 +411,7 @@ export function useApiClient() {
     parseRecipeText: (text: string) =>
       request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }>('/api/recipes/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
 
-    parseRecipeFromPhoto: async (photoUri: string) => {
-      // Läs bilden och konvertera till base64
+    parseRecipeFromPhoto: async (photoUri: string): Promise<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }> => {
       const response = await fetch(photoUri);
       const blob = await response.blob();
       const reader = new FileReader();
@@ -435,7 +434,7 @@ export function useApiClient() {
               const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
               throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
             }
-            const result = await res.json();
+            const result = await res.json() as { title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
             resolve(result);
           } catch (err) {
             reject(err);
