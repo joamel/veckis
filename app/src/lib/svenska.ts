@@ -1173,8 +1173,6 @@ export const components = {
   versionBanner: {
     webText:      'Ny version av Handlis tillgänglig',
     webAction:    'Ladda om',
-    nativeText:   'Ny version av Handlis laddad',
-    nativeAction: 'Starta om',
   },
 
   offlineBanner: {
