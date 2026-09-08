@@ -34,6 +34,9 @@ export interface ConfirmOptions {
 /** Luft mellan popup-kortets underkant och knappen den hör till. */
 const MENU_ANCHOR_GAP = 8;
 
+/** Tonad bakgrund bakom popup-menyer. Justera här om den känns för svag/stark. */
+const MENU_SCRIM = 'rgba(0,0,0,0.2)';
+
 export function ConfirmDialog({
   visible,
   options,
@@ -107,6 +110,11 @@ export function ConfirmDialog({
         : [s.menuCardTopRight, { top: insets.top + 4 }];
       return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
+          {/* Lätt tonad bakgrund: kortet är #ffffff mot en #faf8f3 sidbakgrund,
+              så utan den syns bara skuggan. Svagare än sheet-/action-varianternas
+              0.4 — en liten meny ska inte släcka ner halva appen — och visar
+              samtidigt att man kan trycka utanför för att stänga. */}
+          <View pointerEvents="none" style={{ ...StyleSheet.absoluteFillObject, backgroundColor: MENU_SCRIM }} />
           <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onPress={dismiss} />
           <View style={[s.menuCardBase, anchorStyle]}>{rows}</View>
         </Modal>
