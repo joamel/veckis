@@ -4,6 +4,7 @@ import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Keyboard,
   Platform,
   Pressable,
@@ -19,6 +20,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@clerk/expo';
 import * as SecureStore from '../../src/lib/secureStorage';
 import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe } from '../../src/api/client';
@@ -71,8 +73,8 @@ export default function RecipesScreen() {
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
   const tryCloseCreate = useDiscardDraft(confirm);
-  const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setMode('manual'); };
-  const closeCreate = () => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate);
+  const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setPhotoUri(null); setMode('manual'); };
+  const closeCreate = () => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '' || photoUri !== null, discardCreate);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -261,11 +263,7 @@ export default function RecipesScreen() {
 
   const insets = useSafeAreaInsets();
   // New recipe form
-  const [mode, setMode] = useState<'manual' | 'paste' | 'url'>('manual');
-  // Håll koll på om tangentbordet är uppe just nu — vid flikbyte remountas
-  // inputfältet, och vi vill att fokus "följer med" bara om tangentbordet
-  // redan var uppe. Ref (inte state) så det läses synkront utan re-render.
-  const keyboardUpRef = useRef(false);
+  const [mode, setMode] = useState<'manual' | 'paste' | 'url' | 'photo'>('manual');
   // Scroll-into-view-lyft (native): mät det fokuserade fältet när tangentbordet
   // visats (då finns rätt höjd) och lyft sheeten BARA så mycket att fältet syns
   // ovanför tangentbordet — inte hela höjden (då flyger höga modaler upp). Web:
@@ -293,39 +291,39 @@ export default function RecipesScreen() {
     }), 60);
   }, [windowHeight]);
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => { keyboardUpRef.current = true; kbHeightRef.current = e.endCoordinates?.height ?? 0; revealFocused(); });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardUpRef.current = false; kbHeightRef.current = 0; setSheetLift(0); });
+    const show = Keyboard.addListener('keyboardDidShow', (e) => { kbHeightRef.current = e.endCoordinates?.height ?? 0; revealFocused(); });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { kbHeightRef.current = 0; setSheetLift(0); });
     return () => { show.remove(); hide.remove(); };
   }, [revealFocused]);
-  // Fokus-överföring vid flikbyte. autoFocus på det remountade fältet är
-  // opålitligt på Android (särskilt multiline paste-fältet visar inte
-  // tangentbordet), och den async:a keyboardDidHide hinner ibland nolla
-  // keyboardUpRef före mount. Därför: snapshot:a "ville fokusera" i själva
-  // tabb-trycket (då är tangentbordet garanterat uppe) och fokusera aktivt
-  // fält explicit via ref i en effekt efter att läget bytts.
+  // autoFocus på det remountade fältet är opålitligt på Android (särskilt
+  // multiline paste-fältet visar inte tangentbordet), så fältet fokuseras
+  // explicit via ref i en effekt när sheeten öppnats i ett skrivläge.
   const manualRef = useRef<TextInput>(null);
   const pasteRef = useRef<TextInput>(null);
   const urlRef = useRef<TextInput>(null);
   const manualBtnRef = useRef<View>(null);
   const pasteBtnRef = useRef<View>(null);
   const urlBtnRef = useRef<View>(null);
+  const photoBtnRef = useRef<View>(null);
   const wantFocusRef = useRef(false);
-  const switchMode = useCallback((next: 'manual' | 'paste' | 'url') => {
-    wantFocusRef.current = keyboardUpRef.current;
-    setMode(next);
-  }, []);
+  // Nyckeln innehåller showModal, inte bara mode: öppnar man samma läge två
+  // gånger i rad ändras inte mode, och en effekt på enbart [mode] skulle då
+  // inte fyra igen → inget autofokus andra gången.
   useEffect(() => {
-    if (!wantFocusRef.current) return;
+    if (!showModal || !wantFocusRef.current) return;
     const target = mode === 'manual' ? manualRef : mode === 'paste' ? pasteRef : urlRef;
     const id = requestAnimationFrame(() => target.current?.focus());
     return () => cancelAnimationFrame(id);
-  }, [mode]);
+  }, [mode, showModal]);
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [pasteText, setPasteText] = useState('');
   const [parsing, setParsing] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoParsing, setPhotoParsing] = useState(false);
+  const [photoLoadingStage, setPhotoLoadingStage] = useState<'reading' | 'analyzing' | 'creating' | null>(null);
 
   const load = useCallback(async () => {
     if (!householdId) return;
@@ -470,44 +468,123 @@ export default function RecipesScreen() {
     }
   }
 
+  // Returnerar uri:n i stället för att sätta state direkt — anroparen avgör om
+  // ett foto ska öppna sheeten (popup-flödet) eller bara bytas ut i en redan
+  // öppen sheet. Avbruten kamera/bibliotek ger null, aldrig ett kastat fel.
+  async function capturePhoto(source: 'camera' | 'library'): Promise<string | null> {
+    try {
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, aspect: [4, 3] })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, aspect: [4, 3] });
+      if (result.canceled || !result.assets[0]) return null;
+      return result.assets[0].uri;
+    } catch (err) {
+      showError(err, str.errors.generic);
+      return null;
+    }
+  }
+
+  // Popup-vägen: kameran öppnas direkt och sheeten öppnas FÖRST när ett foto
+  // faktiskt kom tillbaka. Backar man ur kameran ligger man kvar i receptlistan
+  // i stället för att mötas av en tom foto-sheet (eller, som tidigare, ett
+  // taget foto som hamnade i state utan att någon vy visade det).
+  async function startPhotoFlow(source: 'camera' | 'library') {
+    const uri = await capturePhoto(source);
+    if (!uri) return;
+    wantFocusRef.current = false;
+    setTitle('');
+    setUrl('');
+    setPasteText('');
+    setMode('photo');
+    setPhotoUri(uri);
+    setShowModal(true);
+  }
+
+  function handleShowPhotoSourcePicker() {
+    confirm({
+      title: str.createModal.photo.sourceTitle,
+      message: str.createModal.photo.sourceMessage,
+      buttons: [
+        { label: str.createModal.photo.sourceCamera, icon: 'camera-outline', onPress: async () => { const uri = await capturePhoto('camera'); if (uri) setPhotoUri(uri); } },
+        { label: str.createModal.photo.sourceLibrary, icon: 'images-outline', onPress: async () => { const uri = await capturePhoto('library'); if (uri) setPhotoUri(uri); } },
+        { label: common.actions.cancel, style: 'cancel' },
+      ],
+    });
+  }
+
+  async function handlePhotoAndCreate() {
+    if (!householdId || !photoUri) return;
+    setPhotoParsing(true);
+    setPhotoLoadingStage('reading');
+    try {
+      setPhotoLoadingStage('analyzing');
+      const parsed = await client.parseRecipeFromPhoto(photoUri);
+      const usedTitle = title.trim() || parsed.title;
+      setPhotoLoadingStage('creating');
+      setCreating(true);
+      const recipe = await client.createRecipe({
+        householdId,
+        title: usedTitle,
+        description: parsed.description,
+        instructions: parsed.instructions,
+        source: 'ai_paste',
+        servings: parsed.servings,
+        ingredients: parsed.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+      });
+      setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
+      setShowModal(false);
+      setTitle('');
+      setPhotoUri(null);
+      setMode('manual');
+      const forMenuDay = params.forMenuDay;
+      const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
+      router.push(`/recipes/${recipe.id}${parsed.ingredients.length === 0 ? '?edit=1' : ''}${suffix}` as never);
+    } catch (err) {
+      confirm({ title: str.errors.generic, message: err instanceof Error ? err.message : str.errors.couldNotParse, buttons: [{ label: common.actions.ok }] });
+    } finally {
+      setPhotoParsing(false);
+      setCreating(false);
+      setPhotoLoadingStage(null);
+    }
+  }
+
   // Auto-open create modal when navigated with ?create=1
   useEffect(() => {
     if (params.create === '1' && !createTriggeredRef.current) {
       createTriggeredRef.current = true;
-      openModal();
+      handleShowCreateMenu();
       router.setParams({ create: undefined });
     }
     if (params.create !== '1') createTriggeredRef.current = false;
   }, [params.create]);
 
-  function openModal() {
-    wantFocusRef.current = false; // öppna lugnt — inget autofokus vid öppning
-    setMode('manual');
+  function openModalWithMode(m: 'manual' | 'paste' | 'url' | 'photo') {
+    wantFocusRef.current = m === 'manual' || m === 'url' || m === 'paste';
+    setMode(m);
     setTitle('');
     setUrl('');
     setPasteText('');
+    setPhotoUri(null);
     setShowModal(true);
+  }
+
+  function handleShowCreateMenu() {
+    confirm({
+      variant: 'menu',
+      buttons: [
+        { label: str.createModal.menu.manual, icon: 'pencil-outline', onPress: () => openModalWithMode('manual') },
+        { label: str.createModal.menu.url, icon: 'link-outline', onPress: () => openModalWithMode('url') },
+        { label: str.createModal.menu.paste, icon: 'sparkles', onPress: () => openModalWithMode('paste') },
+        { label: str.createModal.menu.photo, icon: 'camera-outline', onPress: () => startPhotoFlow('camera') },
+        { label: common.actions.cancel, style: 'cancel' },
+      ],
+    });
   }
 
   // Sheet-innehållet (delas ut för läsbarhet; renderas inuti DraggableBottomSheet nedan).
   const createSheetInner = (
     <>
-        <Text style={s.sheetTitle}>{str.createModal.title}</Text>
-
-        <View style={s.modeTabs}>
-          <Pressable style={[s.modeTab, mode === 'manual' && s.modeTabActive]} onPress={() => switchMode('manual')}>
-            <Text style={[s.modeTabText, mode === 'manual' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabManual}</Text>
-          </Pressable>
-          <Pressable style={[s.modeTab, mode === 'paste' && s.modeTabActive]} onPress={() => switchMode('paste')}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="sparkles" size={13} color={mode === 'paste' ? c.primary : c.textMuted} />
-              <Text style={[s.modeTabText, mode === 'paste' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabPaste}</Text>
-            </View>
-          </Pressable>
-          <Pressable style={[s.modeTab, mode === 'url' && s.modeTabActive]} onPress={() => switchMode('url')}>
-            <Text style={[s.modeTabText, mode === 'url' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabUrl}</Text>
-          </Pressable>
-        </View>
+        <Text style={s.sheetTitle}>{str.createModal.modeTitles[mode]}</Text>
 
         <View style={s.modeBody}>
         {mode === 'manual' ? (
@@ -557,7 +634,7 @@ export default function RecipesScreen() {
               {parsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.parseButton}</Text>}
             </Pressable>
           </>
-        ) : (
+        ) : mode === 'url' ? (
           <>
             <ClearableInput
               ref={urlRef}
@@ -583,6 +660,52 @@ export default function RecipesScreen() {
               {scraping || creating
                 ? <ActivityIndicator color="#fff" />
                 : <Text style={s.buttonText}>{str.createModal.fetchButton}</Text>}
+            </Pressable>
+          </>
+        ) : (
+          <>
+            {photoUri ? (
+              <>
+                <Image source={{ uri: photoUri }} style={s.photoPreview} />
+                <Pressable style={s.changePhotoBtn} onPress={handleShowPhotoSourcePicker}>
+                  <Ionicons name="pencil-outline" size={18} color={c.primary} />
+                  <Text style={s.changePhotoBtnText}>{str.createModal.photo.change}</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                style={[s.button, s.buttonRow, s.modeBodyBtn]}
+                onPress={handleShowPhotoSourcePicker}
+              >
+                <Ionicons name="image-outline" size={20} color="#fff" />
+                <Text style={s.buttonText}>{str.createModal.photo.add}</Text>
+              </Pressable>
+            )}
+            <ClearableInput
+              style={s.input}
+              placeholder={str.createModal.photo.titlePlaceholder}
+              value={title}
+              onChangeText={setTitle}
+              importantForAutofill="no"
+              textContentType="none"
+              returnKeyType="done"
+            />
+            <Pressable
+              ref={photoBtnRef}
+              style={[s.button, s.buttonRow, s.modeBodyBtn, (!photoUri || photoParsing) && s.buttonDisabled]}
+              onPress={handlePhotoAndCreate}
+              disabled={photoParsing || creating || !photoUri}
+            >
+              {photoParsing || creating ? (
+                <>
+                  <ActivityIndicator color="#fff" size="small" />
+                  <Text style={s.buttonText}>
+                    {photoLoadingStage === 'reading' ? str.createModal.photo.stageReading :
+                     photoLoadingStage === 'analyzing' ? str.createModal.photo.stageAnalyzing :
+                     photoLoadingStage === 'creating' ? str.createModal.photo.stageCreating : str.createModal.photo.parseButton}
+                  </Text>
+                </>
+              ) : <Text style={s.buttonText}>{str.createModal.photo.parseButton}</Text>}
             </Pressable>
           </>
         )}
@@ -688,7 +811,7 @@ export default function RecipesScreen() {
               title={str.emptyState.title}
               subtitle={str.emptyState.subtitle}
               actionLabel={str.createModal.addButton}
-              onAction={openModal}
+              onAction={handleShowCreateMenu}
             />
           )
         }
@@ -759,7 +882,7 @@ export default function RecipesScreen() {
           <Text style={s.editDoneBtnText}>{common.actions.done}</Text>
         </Pressable>
       ) : (
-        <Pressable ref={fabRef} style={s.fab} onPress={openModal}>
+        <Pressable ref={fabRef} style={s.fab} onPress={handleShowCreateMenu}>
           <Ionicons name="add" size={30} color="#fff" />
         </Pressable>
       )}
@@ -877,6 +1000,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, gap: 14 },
   sheetScroll: { gap: 14, paddingBottom: 40 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, marginBottom: 12 },
+  overlayDim: { backgroundColor: 'rgba(0,0,0,0.4)' },
+  overlay: { flex: 1 },
   addMenuBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   selectBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primaryTint, paddingHorizontal: 16, paddingVertical: 10 },
   selectBannerText: { fontSize: 14, fontWeight: '600', color: c.primary },
@@ -889,11 +1015,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   dayGridLabelTaken: { color: c.textFaint },
   dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: c.textFaint, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
   dayGridLabelNone: { color: c.primary },
-  modeTabs: { flexDirection: 'row', backgroundColor: c.surfaceSubtle, borderRadius: 10, padding: 4, borderWidth: 1, borderColor: c.border },
-  modeTab: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  modeTabActive: { backgroundColor: c.inputBg, borderWidth: 1, borderColor: c.border, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  modeTabText: { fontSize: 14, fontWeight: '500', color: c.textMuted },
-  modeTabTextActive: { color: c.text, fontWeight: '700' },
   modeBody: { minHeight: 246, gap: 14 },
   modeBodyBtn: { marginTop: 2 },
   input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
@@ -901,6 +1022,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   urlHint: { fontSize: 12, color: c.textFaint, marginTop: -6 },
   pasteHint: { fontSize: 13, color: c.textMuted, marginTop: -4, lineHeight: 18 },
   button: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
+  // Knappar med ikon/spinner BREDVID texten — utan detta staplar default-
+  // flexDirection 'column' ikonen ovanpå texten.
+  buttonRow: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   cardWrap: { position: 'relative' },
@@ -913,4 +1037,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   weekChipTextActive: { color: c.primary },
   weekChipSub: { fontSize: 11, color: c.textFaint, marginTop: 2 },
   weekChipSubActive: { color: c.primary400 },
+  photoPreview: { width: '100%', height: 200, borderRadius: 10, marginBottom: 12, backgroundColor: c.border },
+  changePhotoBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, marginBottom: 12 },
+  changePhotoBtnText: { fontSize: 14, color: c.primary, fontWeight: '500' },
 });

@@ -567,14 +567,36 @@ export const recipes = {
 
   createModal: {
     title:            'Nytt recept',
-    tabManual:        'Manuellt',
-    tabPaste:         'Klistra in',
+    // Rubrik i sheeten per läge — popupen har redan valt läget, så sheeten
+    // säger vad man håller på med i stället för att visa alla lägen som flikar.
+    modeTitles: {
+      manual: 'Nytt recept',
+      paste:  'Klistra in recept',
+      url:    'Hämta från länk',
+      photo:  'Fota recept',
+    },
+    menu: {
+      manual: 'Lägg till manuellt',
+      url:    'Från URL',
+      paste:  'Klistra in',
+      photo:  'Fota recept',
+    },
+    photo: {
+      sourceTitle:      'Lägg till bild',
+      sourceMessage:    'Hur vill du lägga till bilden?',
+      sourceCamera:     'Ta foto',
+      sourceLibrary:    'Välj från bibliotek',
+      add:              'Lägg till bild',
+      change:           'Byt foto',
+      titlePlaceholder: 'Valfri rubrik (auto-fylls från foto)',
+      parseButton:      'Läs & skapa',
+      stageReading:     'Läser foto…',
+      stageAnalyzing:   'Analyserar bild…',
+      stageCreating:    'Skapar recept…',
+    },
     pasteHint:        'Klistra in recept eller länktext — AI:n plockar ut titel, ingredienser och steg.',
-    tabUrl:           'Från URL',
     namePlaceholder:  'Receptets namn',
     pastePlaceholder: 'Klistra in recept eller receptsida här…',
-    pasteToggleOn:    'Dölj recepttext',
-    pasteToggleOff:   'Klistra in recepttext (AI tolkar)',
     parseButton:      'Tolka och skapa recept',
     createButton:     'Skapa recept',
     createHint:       'Du fyller i beskrivning, ingredienser och instruktioner i nästa steg.',

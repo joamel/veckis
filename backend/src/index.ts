@@ -57,7 +57,7 @@ if (!corsAllowlist.includes('*')) {
 // Clerk-webhooken MÅSTE monteras med rå body FÖRE express.json() — Svix-
 // signaturverifieringen kräver den oparsade body:n.
 app.use('/api/webhooks/clerk', express.raw({ type: 'application/json' }), clerkWebhookRouter);
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 app.use(morgan(isDev ? 'dev' : 'combined'));
 // Klienten skickar Idempotency-Key på muterande anrop och kan nu retry:a dem
 // säkert vid nätverksfel — om servern redan behandlat samma nyckel spelas
