@@ -369,6 +369,77 @@ Regler:
   res.json(result);
 }));
 
+// POST /api/recipes/from-image — ta foto av recept, OCR via Claude vision
+recipesRouter.post('/from-image', upload.single('image'), parseTextLimiter, requireAuth, asyncHandler(async (req, res) => {
+  if (!req.file) { res.status(400).json({ error: 'No image provided' }); return; }
+  if (!anthropic) { res.status(503).json({ error: 'AI parsing not available' }); return; }
+
+  let parsed: { title: string | null; description: string | null; instructions: string | null; servings?: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
+  try {
+    const base64 = req.file.buffer.toString('base64');
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
+      system: `Du är ett system som extraherar receptinformation från bilder av receptpapper eller matfotografier på svenska eller engelska.
+Returnera ENBART giltig JSON utan förklaringar eller markdown-kodblock.
+
+JSON-schema:
+{
+  "title": "receptnamn (string, null om okänt)",
+  "description": "skriv en kort EGEN aptitlig beskrivning av rätten (1–2 meningar) utifrån ingredienser och tillagning — kopiera INTE något ur receptet, formulera helt eget; null bara om du inte kan avgöra vad rätten är",
+  "instructions": "tillagningssteg numrerade på separata rader: \"1. Gör X\\n2. Gör Y\\n3. Gör Z\", null om inga steg finns",
+  "servings": 4,
+  "ingredients": [{ "name": "ingrediensnamn", "quantity": 2.5, "unit": "dl" }]
+}
+
+Regler:
+- quantity är ett tal (float) eller null om ingen mängd anges
+- unit ska vara EN av: dl, l, liter, ml, cl, msk, tsk, krm, g, kg, st, knippe, näve, nypa, klyfta — eller null
+- Extrahera ALLA ingredienser och steg du ser
+- Ingrediensnamn på svenska (översätt om fotot visar engelska)
+- instructions: om steg finns, ett steg per rad, "1. Förbered X\n2. Stek Y\n3. Servera" — varje steg på egen rad med \n emellan, annars null`,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: req.file.mimetype as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+              data: base64,
+            },
+          },
+          {
+            type: 'text',
+            text: 'Extrahera all receptinformation från denna bild.',
+          },
+        ],
+      }],
+    });
+    const raw = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
+    const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '');
+    parsed = JSON.parse(clean);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'AI-anropet misslyckades';
+    res.status(422).json({ error: msg });
+    return;
+  }
+
+  const result: ScrapedRecipe = {
+    title: typeof parsed.title === 'string' && parsed.title.trim() ? parsed.title.trim() : 'Okänt recept',
+    description: typeof parsed.description === 'string' ? parsed.description : null,
+    instructions: typeof parsed.instructions === 'string' ? parsed.instructions : null,
+    imageUrl: null,
+    servings: typeof parsed.servings === 'number' && parsed.servings > 0 ? parsed.servings : 4,
+    ingredients: Array.isArray(parsed.ingredients)
+      ? parsed.ingredients
+          .filter((i): i is { name: string; quantity: number | null; unit: string | null } => typeof i?.name === 'string' && i.name.trim().length > 0)
+          .map(i => ({ name: i.name.trim(), quantity: typeof i.quantity === 'number' ? i.quantity : null, unit: typeof i.unit === 'string' && i.unit ? i.unit : null }))
+      : [],
+  };
+  res.json(result);
+}));
+
 interface ScrapedRecipe {
   title: string;
   description: string | null;
