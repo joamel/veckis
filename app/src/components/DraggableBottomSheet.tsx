@@ -130,6 +130,6 @@ const styles = StyleSheet.create({
   overlayTap: { flex: 1 },
   // Handtaget har en generös osynlig träffyta (inte bara den smala synliga
   // stapeln) så draget är lätt att träffa med tummen.
-  handleHitArea: { alignItems: 'center', paddingVertical: 16, marginBottom: 28 },
+  handleHitArea: { alignItems: 'center', paddingVertical: 8, marginBottom: 4, paddingTop: 20 },
   handle: { width: 40, height: 4, borderRadius: 2 },
 });
