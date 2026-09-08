@@ -369,14 +369,20 @@ Regler:
   res.json(result);
 }));
 
-// POST /api/recipes/from-image — ta foto av recept, OCR via Claude vision
-recipesRouter.post('/from-image', upload.single('image'), parseTextLimiter, requireAuth, asyncHandler(async (req, res) => {
-  if (!req.file) { res.status(400).json({ error: 'No image provided' }); return; }
+// POST /api/recipes/from-photo — ta foto av recept, OCR via Claude vision (base64)
+recipesRouter.post('/from-photo', parseTextLimiter, requireAuth, asyncHandler(async (req, res) => {
+  const body = z.object({ imageBase64: z.string().min(1) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: 'No image provided' }); return; }
   if (!anthropic) { res.status(503).json({ error: 'AI parsing not available' }); return; }
 
   let parsed: { title: string | null; description: string | null; instructions: string | null; servings?: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
   try {
-    const base64 = req.file.buffer.toString('base64');
+    const base64Data = body.data.imageBase64;
+    // Extrahera media type från data URL (data:image/jpeg;base64,...)
+    const mediaTypeMatch = base64Data.match(/^data:([^;]+);base64,/);
+    const mediaType = (mediaTypeMatch?.[1] ?? 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+    const base64 = base64Data.replace(/^data:[^;]+;base64,/, '');
+
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 2048,
@@ -405,7 +411,7 @@ Regler:
             type: 'image',
             source: {
               type: 'base64',
-              media_type: req.file.mimetype as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+              media_type: mediaType,
               data: base64,
             },
           },

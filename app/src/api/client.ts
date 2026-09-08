@@ -412,25 +412,38 @@ export function useApiClient() {
       request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }>('/api/recipes/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
 
     parseRecipeFromPhoto: async (photoUri: string) => {
-      const formData = new FormData();
-      const fileBlob = await fetch(photoUri).then(res => res.blob());
-      const fileName = `recipe-photo-${Date.now()}.jpg`;
-      formData.append('image', fileBlob, fileName);
+      // Läs bilden och konvertera till base64
+      const response = await fetch(photoUri);
+      const blob = await response.blob();
+      const reader = new FileReader();
 
-      const token = await getToken();
-      const res = await fetch(`${BASE_URL}/api/recipes/from-image`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
+      return new Promise((resolve, reject) => {
+        reader.onload = async () => {
+          try {
+            const base64 = reader.result as string;
+            const token = await getToken();
+            const res = await fetch(`${BASE_URL}/api/recipes/from-photo`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({ imageBase64: base64 }),
+            });
+
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+              throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
+            }
+            const result = await res.json();
+            resolve(result);
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = () => reject(new Error('Kunde inte läsa bilden'));
+        reader.readAsDataURL(blob);
       });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
-      }
-      return res.json() as Promise<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }>;
     },
 
     // Menus
