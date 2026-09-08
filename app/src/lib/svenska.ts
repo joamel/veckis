@@ -539,7 +539,6 @@ export const recipes = {
   },
 
   sort: {
-    modalTitle: 'Sortera recept',
     a11y:       'Sortera recept',
     az:      'A–Ö',
     newest:  'Senast tillagda',
@@ -935,7 +934,6 @@ export const stores = {
   },
 
   sort: {
-    modalTitle: 'Sortera',
     a11y:      'Sortera butiker',
     az:        'A–Ö',
     addedOrder:'I tilläggsordning',

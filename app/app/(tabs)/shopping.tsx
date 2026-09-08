@@ -248,7 +248,10 @@ export default function ShoppingScreen() {
         }}
       />
 
-      <Pressable ref={listFabRef} style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28), bottom: 20 + insets.bottom }]} onPress={() => setShowModal(true)}>
+      {/* bottom: 20 som övriga flikar. Tab-baren har redan paddingBottom
+          insets.bottom, så ett extra inset här lyfte knappen högre än på
+          meny-, recept- och butiksskärmarna. */}
+      <Pressable ref={listFabRef} style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28), bottom: 20 }]} onPress={() => setShowModal(true)}>
         <Ionicons name="add" size={fs(30)} color="#fff" />
       </Pressable>
 

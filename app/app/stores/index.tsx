@@ -49,7 +49,22 @@ export default function StoresScreen() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('name');
-  const [showSort, setShowSort] = useState(false);
+
+  // Popup förankrad vid sorteringsknappen i headern — samma beteende som
+  // receptlistans sortering, i stället för en sheet nerifrån.
+  function openSortMenu() {
+    confirm({
+      variant: 'menu',
+      buttons: [
+        ...([['name', str.sort.az], ['created', str.sort.addedOrder]] as const).map(([v, label]) => ({
+          label,
+          icon: sortMode === v ? 'radio-button-on' : 'radio-button-off',
+          onPress: () => setSortMode(v),
+        })),
+        { label: common.actions.cancel, style: 'cancel' as const },
+      ],
+    });
+  }
   // Pick-läge: tapp MARKERAR butiken (highlight) men byter inte förrän man
   // trycker Spara — så man inte råkar byta av misstag. Init till nuvarande butik.
   const [chosenId, setChosenId] = useState<string | null>(currentStoreId);
@@ -147,7 +162,7 @@ export default function StoresScreen() {
             </Pressable>
             <Text style={s.title}>{str.title}</Text>
           </View>
-          <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={s.sortBtn} accessibilityLabel={str.sort.a11y}>
+          <Pressable onPress={openSortMenu} hitSlop={8} style={s.sortBtn} accessibilityLabel={str.sort.a11y}>
             <Ionicons name="swap-vertical" size={18} color={c.primary} />
           </Pressable>
         </View>
@@ -276,23 +291,6 @@ export default function StoresScreen() {
         </Pressable>
       </DraggableBottomSheet>
 
-      {/* Sort-modal */}
-      <DraggableBottomSheet visible={showSort} onRequestClose={() => setShowSort(false)} sheetStyle={s.sheet}>
-        <Text style={s.sheetTitle}>{str.sort.modalTitle}</Text>
-        {[
-          { v: 'name' as const, label: str.sort.az },
-          { v: 'created' as const, label: str.sort.addedOrder },
-        ].map(o => (
-          <Pressable
-            key={o.v}
-            style={s.sortRow}
-            onPress={() => { setSortMode(o.v); setShowSort(false); }}
-          >
-            <Text style={s.sortRowText}>{o.label}</Text>
-            {sortMode === o.v && <Ionicons name="checkmark" size={20} color={c.primary} />}
-          </Pressable>
-        ))}
-      </DraggableBottomSheet>
     </SafeAreaView>
   );
 }
@@ -330,6 +328,4 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   saveBar_btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   primaryBtn: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  sortRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
-  sortRowText: { fontSize: 15, color: c.text, fontWeight: '500' },
 });

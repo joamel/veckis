@@ -92,7 +92,6 @@ export default function RecipesScreen() {
     return { transform: [{ translateY: -headerH * t }], opacity: 1 - t };
   });
   const [sortMode, setSortMode] = useState<'name' | 'used' | 'recent'>('name');
-  const [showSort, setShowSort] = useState(false);
   const { fs, sp } = useTablet();
   useEffect(() => {
     SecureStore.getItemAsync('recipeSort').then(v => {
@@ -101,8 +100,23 @@ export default function RecipesScreen() {
   }, []);
   function chooseSort(m: 'name' | 'used' | 'recent') {
     setSortMode(m);
-    setShowSort(false);
     SecureStore.setItemAsync('recipeSort', m).catch(() => {});
+  }
+
+  // Popup förankrad vid sorteringsknappen i headern, i stället för en sheet
+  // nerifrån — valet hör ihop med knappen och är för litet för ett helt ark.
+  function openSortMenu() {
+    confirm({
+      variant: 'menu',
+      buttons: [
+        ...([['name', str.sort.az], ['used', str.sort.popular], ['recent', str.sort.newest]] as const).map(([key, label]) => ({
+          label,
+          icon: sortMode === key ? 'radio-button-on' : 'radio-button-off',
+          onPress: () => chooseSort(key),
+        })),
+        { label: common.actions.cancel, style: 'cancel' as const },
+      ],
+    });
   }
   // Quick "add to menu" from the recipe list.
   const [addToMenuFor, setAddToMenuFor] = useState<RecipeWithIngredients | null>(null);
@@ -548,6 +562,7 @@ export default function RecipesScreen() {
       // Menyn hör ihop med "+"-FAB:en i nedre högra hörnet, inte med en
       // 3-punktsmeny uppe i headern — därför bottom-right, inte default.
       menuAnchor: 'bottom-right',
+      menuAnchorRef: fabRef,
       buttons: [
         { label: str.createModal.menu.manual, icon: 'pencil-outline', onPress: () => router.push('/recipes/new' as never) },
         { label: str.createModal.menu.url, icon: 'link-outline', onPress: () => openModalWithMode('url') },
@@ -676,7 +691,7 @@ export default function RecipesScreen() {
         title={str.title}
         onBack={selectionMode || chooseMode || params.create === '1' ? () => router.back() : undefined}
         actionNode={
-          <Pressable onPress={() => setShowSort(true)} hitSlop={8} style={[s.sortBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }]} accessibilityLabel={str.sort.a11y}>
+          <Pressable onPress={openSortMenu} hitSlop={8} style={[s.sortBtn, { width: sp(36), height: sp(36), borderRadius: sp(18) }]} accessibilityLabel={str.sort.a11y}>
             <Ionicons name="swap-vertical" size={fs(18)} color={c.primary} />
           </Pressable>
         }
@@ -909,16 +924,6 @@ export default function RecipesScreen() {
           </View>
       </DraggableBottomSheet>
 
-      {/* Sort options */}
-      <DraggableBottomSheet visible={showSort} onRequestClose={() => setShowSort(false)} sheetStyle={s.sheet}>
-          <Text style={s.sheetTitle}>{str.sort.modalTitle}</Text>
-          {([['name', str.sort.az], ['used', str.sort.popular], ['recent', str.sort.newest]] as const).map(([key, label]) => (
-            <Pressable key={key} style={s.sortOption} onPress={() => chooseSort(key)}>
-              <Ionicons name={sortMode === key ? 'radio-button-on' : 'radio-button-off'} size={22} color={sortMode === key ? c.primary : c.textFaint} />
-              <Text style={s.sortOptionText}>{label}</Text>
-            </Pressable>
-          ))}
-      </DraggableBottomSheet>
     </SafeAreaView>
   );
 }
@@ -938,8 +943,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   tagFilterChipTextActive: { color: '#fff' },
   tagFilterClear: { paddingLeft: 8, paddingRight: 2 },
   sortBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
-  sortOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  sortOptionText: { fontSize: 16, color: c.text, fontWeight: '500' },
   searchIcon: { marginRight: 2 },
   searchInput: { flex: 1, fontSize: 15, color: c.text, padding: 0 },
   list: { padding: 16, gap: 2 },

@@ -79,7 +79,7 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 ## iOS (första release)
 - [ ] **Apple Developer-konto + bundle-registrering** (`com.handlis.app`) i App Store Connect innan första `eas build --platform ios`.
 - [ ] **APNs-uppsättning för push på iOS** — .p8-nyckel till EAS + Push-capability (annars `denied`/`error` i `registerForPush`).
-- [ ] **Första TestFlight-build + smoketest** — verifiera meny, recept, inköpslistor, realtime, deeplinks och push på riktig iOS-device (inte bara simulator); särskilt KAV-`padding`-grenar + Dynamic Island/safe-area.
+- [ ] **Första TestFlight-build + smoketest** — verifiera meny, recept, inköpslistor, realtime, deeplinks och push på riktig iOS-device (inte bara simulator); särskilt KAV-`padding`-grenar + Dynamic Island/safe-area. **Kolla även FAB-popupens avstånd** (`ConfirmDialog`, `menuAnchor: 'bottom-right'`): `measureInWindow` mäter på Android från appfönstret under statusbaren, så där dras `insets.top` av. iOS mäter mot hela fönstret och ska INTE korrigeras — men det är antaget, inte verifierat på hårdvara.
 
 ## Innan prodsättning
 - [ ] ⚠️ `withDisableAutofill`-pluginen (autofyll app-brett av) blockerar lösenordshanterar-autofyll på login. Utvärderad → avvaktar: app-bred med flit (Samsung Pass ignorerar fält-nivå). Riktad variant återöppnar Samsung-strulet + kräver native build + Samsung-test. Login funkar utan, bara mindre bekvämt.

@@ -70,6 +70,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   // Sätts precis innan vi navigerar bort efter ett LYCKAT sparande, så
   // beforeRemove-vakten inte hinner fråga "släng utkastet?" på vägen ut.
   const savingNavRef = useRef(false);
+  // Mäts av ConfirmDialog så "+"-popupen hamnar rätt ovanför knappen.
+  const fabRef = useRef<View>(null);
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
@@ -422,6 +424,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     confirm({
       variant: 'menu',
       menuAnchor: 'bottom-right', // popupen sitter vid "+"-FAB:en nere till höger
+      menuAnchorRef: fabRef,
       buttons: [
         { label: str.actions.addToMenu, icon: 'calendar-outline', onPress: openPlanModal },
         ...(hasIngredients ? [{ label: str.actions.addToShopping, icon: 'cart-outline' as const, onPress: () => openTransfer() }] : []),
@@ -1306,7 +1309,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       {/* "+"-FAB — väljare: lägg till receptet i veckomeny eller inköpslista.
           (Laga nu-läget nås från instruktions-sektionens "Laga nu"-knapp.) */}
       {!editMode && recipe && (
-        <Pressable style={s.fab} onPress={openAddChooser} accessibilityLabel={str.actions.addTitle}>
+        <Pressable ref={fabRef} style={s.fab} onPress={openAddChooser} accessibilityLabel={str.actions.addTitle}>
           <Ionicons name="add" size={30} color="#fff" />
         </Pressable>
       )}
