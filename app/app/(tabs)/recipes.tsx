@@ -71,8 +71,8 @@ export default function RecipesScreen() {
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
   const tryCloseCreate = useDiscardDraft(confirm);
-  const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setMode('manual'); };
-  const closeCreate = () => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '', discardCreate);
+  const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setPhotoUri(null); setMode('manual'); };
+  const closeCreate = () => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '' || photoUri !== null, discardCreate);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -261,7 +261,7 @@ export default function RecipesScreen() {
 
   const insets = useSafeAreaInsets();
   // New recipe form
-  const [mode, setMode] = useState<'manual' | 'paste' | 'url'>('manual');
+  const [mode, setMode] = useState<'manual' | 'paste' | 'url' | 'photo'>('manual');
   // Håll koll på om tangentbordet är uppe just nu — vid flikbyte remountas
   // inputfältet, och vi vill att fokus "följer med" bara om tangentbordet
   // redan var uppe. Ref (inte state) så det läses synkront utan re-render.
@@ -309,9 +309,10 @@ export default function RecipesScreen() {
   const manualBtnRef = useRef<View>(null);
   const pasteBtnRef = useRef<View>(null);
   const urlBtnRef = useRef<View>(null);
+  const photoBtnRef = useRef<View>(null);
   const wantFocusRef = useRef(false);
-  const switchMode = useCallback((next: 'manual' | 'paste' | 'url') => {
-    wantFocusRef.current = keyboardUpRef.current;
+  const switchMode = useCallback((next: 'manual' | 'paste' | 'url' | 'photo') => {
+    wantFocusRef.current = keyboardUpRef.current && next !== 'photo';
     setMode(next);
   }, []);
   useEffect(() => {
@@ -326,6 +327,8 @@ export default function RecipesScreen() {
   const [parsing, setParsing] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoParsing, setPhotoParsing] = useState(false);
 
   const load = useCallback(async () => {
     if (!householdId) return;
@@ -466,6 +469,38 @@ export default function RecipesScreen() {
       });
       confirm({ title: str.errors.generic, message: str.errors.couldNotCreate, buttons: [{ label: common.actions.ok }] });
     } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handlePhotoAndCreate() {
+    if (!householdId || !photoUri) return;
+    setPhotoParsing(true);
+    try {
+      const parsed = await client.parseRecipeFromPhoto(photoUri);
+      const usedTitle = title.trim() || parsed.title;
+      setCreating(true);
+      const recipe = await client.createRecipe({
+        householdId,
+        title: usedTitle,
+        description: parsed.description,
+        instructions: parsed.instructions,
+        source: 'ai_paste',
+        servings: parsed.servings,
+        ingredients: parsed.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+      });
+      setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
+      setShowModal(false);
+      setTitle('');
+      setPhotoUri(null);
+      setMode('manual');
+      const forMenuDay = params.forMenuDay;
+      const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
+      router.push(`/recipes/${recipe.id}${parsed.ingredients.length === 0 ? '?edit=1' : ''}${suffix}` as never);
+    } catch (err) {
+      confirm({ title: str.errors.generic, message: err instanceof Error ? err.message : str.errors.couldNotParse, buttons: [{ label: common.actions.ok }] });
+    } finally {
+      setPhotoParsing(false);
       setCreating(false);
     }
   }
