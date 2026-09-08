@@ -580,6 +580,7 @@ export const recipes = {
       url:    'Från URL',
       paste:  'Klistra in',
       photo:  'Fota recept',
+      gallery:'Välj bild ur galleriet',
     },
     photo: {
       sourceTitle:      'Lägg till bild',

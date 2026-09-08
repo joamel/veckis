@@ -568,6 +568,10 @@ export default function RecipesScreen() {
         { label: str.createModal.menu.url, icon: 'link-outline', onPress: () => openModalWithMode('url') },
         { label: str.createModal.menu.paste, icon: 'sparkles', onPress: () => openModalWithMode('paste') },
         { label: str.createModal.menu.photo, icon: 'camera-outline', onPress: () => startPhotoFlow('camera') },
+        // Egen rad i stället för en källväljare på "Fota recept": popupen har
+        // redan valt läget överallt annars, och galleriet gick tidigare bara
+        // att nå via "Byt foto" — som syns först EFTER ett taget kamerafoto.
+        { label: str.createModal.menu.gallery, icon: 'images-outline', onPress: () => startPhotoFlow('library') },
         { label: common.actions.cancel, style: 'cancel' },
       ],
     });
