@@ -27,6 +27,7 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 
 ## Konto/Profil
 - [x] 🐛 **Hela mailadressen syns inte under namnet i profilinställningar** — löst: samma klass av fel som `project_android_text_clipping`-minnet. `account.tsx` gav mail-texten explicit `minWidth: email.length * 9 + 6` så Yoga slipper mäta strängen själv (som klippte sista tecknen på Android).
+- [x] **Radera-konto-flödet stärkt + kontoskärmen omstrukturerad** (2026-09-07, feedback-driven): "Ta bort kontot" flyttat in i SÄKERHET-sektionen (bredvid 2FA-länken) i stället för en egen "session"-rad/nedtonad länk; kräver nu en ihakad checkbox ("jag förstår...") OCH att man skriver DELETE exakt (samma mönster som redan fanns för att radera ett HUSHÅLL) innan knappen ens går att trycka — byggd med den nya `DraggableBottomSheet`. "Logga ut" är röd/danger-färgad och ligger som egen rad längst ned. (2FA-länken i sig kräver att multi-faktor slås på i Clerk Dashboard — ingen kodfråga.)
 
 ## Inköpslistan
 - [x] Döp om "sub-kategorier" → **"underkategorier"** genomgående i UI — löst: enda kvar-strängen (`store.detail.subHint`) bytt; övriga labels sa redan "Underkategori".
