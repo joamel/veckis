@@ -331,6 +331,7 @@ export default function RecipesScreen() {
   const [creating, setCreating] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoParsing, setPhotoParsing] = useState(false);
+  const [photoLoadingStage, setPhotoLoadingStage] = useState<'reading' | 'analyzing' | 'creating' | null>(null);
 
   const load = useCallback(async () => {
     if (!householdId) return;
@@ -505,12 +506,27 @@ export default function RecipesScreen() {
     }
   }
 
+  function handleShowPhotoSourcePicker() {
+    confirm({
+      title: str.createModal.title,
+      message: 'Hur vill du lägga till bilden?',
+      buttons: [
+        { label: 'Ta foto', icon: 'camera-outline', onPress: pickPhoto },
+        { label: 'Välj från bibliotek', icon: 'images-outline', onPress: pickPhotoFromLibrary },
+        { label: common.actions.cancel, style: 'cancel' },
+      ],
+    });
+  }
+
   async function handlePhotoAndCreate() {
     if (!householdId || !photoUri) return;
     setPhotoParsing(true);
+    setPhotoLoadingStage('reading');
     try {
+      setPhotoLoadingStage('analyzing');
       const parsed = await client.parseRecipeFromPhoto(photoUri);
       const usedTitle = title.trim() || parsed.title;
+      setPhotoLoadingStage('creating');
       setCreating(true);
       const recipe = await client.createRecipe({
         householdId,
@@ -534,6 +550,7 @@ export default function RecipesScreen() {
     } finally {
       setPhotoParsing(false);
       setCreating(false);
+      setPhotoLoadingStage(null);
     }
   }
 
@@ -663,28 +680,19 @@ export default function RecipesScreen() {
             {photoUri ? (
               <>
                 <Image source={{ uri: photoUri }} style={s.photoPreview} />
-                <Pressable style={s.changePhotoBtn} onPress={pickPhotoFromLibrary}>
-                  <Ionicons name="images-outline" size={18} color={c.primary} />
+                <Pressable style={s.changePhotoBtn} onPress={() => handleShowPhotoSourcePicker()}>
+                  <Ionicons name="pencil-outline" size={18} color={c.primary} />
                   <Text style={s.changePhotoBtnText}>Byt foto</Text>
                 </Pressable>
               </>
             ) : (
-              <>
-                <Pressable
-                  style={[s.button, s.modeBodyBtn, { marginBottom: 12 }]}
-                  onPress={pickPhoto}
-                >
-                  <Ionicons name="camera-outline" size={20} color="#fff" />
-                  <Text style={s.buttonText}>Ta foto</Text>
-                </Pressable>
-                <Pressable
-                  style={[s.button, s.modeBodyBtn, { backgroundColor: c.border }]}
-                  onPress={pickPhotoFromLibrary}
-                >
-                  <Ionicons name="images-outline" size={20} color={c.text} />
-                  <Text style={[s.buttonText, { color: c.text }]}>Välj från bibliotek</Text>
-                </Pressable>
-              </>
+              <Pressable
+                style={[s.button, s.modeBodyBtn]}
+                onPress={() => handleShowPhotoSourcePicker()}
+              >
+                <Ionicons name="image-outline" size={20} color="#fff" />
+                <Text style={s.buttonText}>Lägg till bild</Text>
+              </Pressable>
             )}
             <ClearableInput
               style={s.input}
@@ -701,7 +709,16 @@ export default function RecipesScreen() {
               onPress={handlePhotoAndCreate}
               disabled={photoParsing || creating || !photoUri}
             >
-              {photoParsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Läs & Skapa</Text>}
+              {photoParsing || creating ? (
+                <>
+                  <ActivityIndicator color="#fff" size="small" />
+                  <Text style={s.buttonText}>
+                    {photoLoadingStage === 'reading' ? 'Läser foto...' :
+                     photoLoadingStage === 'analyzing' ? 'Analyserar bild...' :
+                     photoLoadingStage === 'creating' ? 'Skapar recept...' : 'Läs & Skapa'}
+                  </Text>
+                </>
+              ) : <Text style={s.buttonText}>Läs & Skapa</Text>}
             </Pressable>
           </>
         )}
