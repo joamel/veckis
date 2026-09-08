@@ -680,9 +680,21 @@ export default function MenuScreen() {
     // race with the addRecipeId effect's optimistic insert and wipe it from state.
     // loadedWeekRef guards the "first mount" case: if no data has ever been loaded
     // we always load, regardless of addRecipeId.
-    if (incomingAddRecipeRef.current && loadedWeekRef.current) return;
+    //
+    // …men BARA om det är målveckans data som redan ligger inne. Väljaren
+    // nollställer veckan till innevarande vid återresan, så lägger man till i en
+    // kommande vecka pekar loadedWeekRef på fel vecka. Då väntade addRecipeId-
+    // effekten på en load() som den här raden just hade bestämt sig för att
+    // hoppa över — deadlock, och rätten lades aldrig till (tyst, tills man
+    // laddade om manuellt). Bekräftat 2026-09-08: felet uppstod bara vid
+    // tillägg i en annan vecka än den innevarande.
+    const focusTarget = parseWeekParam(params.forMenuWeek);
+    const lw = loadedWeekRef.current;
+    const loadedIsTargetWeek = !focusTarget
+      || (lw != null && lw.wy === focusTarget.weekYear && lw.wn === focusTarget.weekNumber);
+    if (incomingAddRecipeRef.current && lw && loadedIsTargetWeek) return;
     load();
-  }, [load]));
+  }, [load, params.forMenuWeek]));
   // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
   // transfer filters stay in sync (e.g. after clearing/removing items in a list).
   useEffect(() => onShoppingChanged(load), [load]);
