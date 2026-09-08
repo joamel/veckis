@@ -1000,6 +1000,38 @@ export default function RecipesScreen() {
           ))}
       </DraggableBottomSheet>
 
+      {/* Manual Modal */}
+      {createMode === 'manual' && (
+        <View pointerEvents="none" style={[s.overlayDim, { position: 'absolute', inset: 0, zIndex: 100 }]} />
+      )}
+      {createMode === 'manual' && (
+        <Pressable style={[s.overlay, { position: 'absolute', inset: 0, zIndex: 101 }]} onPress={() => setCreateMode(null)} />
+      )}
+      {createMode === 'manual' && (
+        <View style={[s.sheet, { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 102, maxHeight: '85%' }]}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Lägg till manuellt</Text>
+          <ClearableInput
+            ref={manualRef}
+            style={s.input}
+            placeholder={str.createModal.namePlaceholder}
+            value={title}
+            onChangeText={setTitle}
+            returnKeyType="done"
+            onSubmitEditing={handleCreateManual}
+          />
+          <Text style={s.createHint}>{str.createModal.createHint}</Text>
+          <Pressable
+            ref={manualBtnRef}
+            style={[s.button, s.modeBodyBtn, !title.trim() && s.buttonDisabled]}
+            onPress={handleCreateManual}
+            disabled={creating || !title.trim()}
+          >
+            {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.createButton}</Text>}
+          </Pressable>
+        </View>
+      )}
+
       {/* URL Modal */}
       {createMode === 'url' && (
         <View pointerEvents="none" style={[s.overlayDim, { position: 'absolute', inset: 0, zIndex: 100 }]} />
