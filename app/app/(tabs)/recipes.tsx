@@ -564,13 +564,32 @@ export default function RecipesScreen() {
     if (params.create !== '1') createTriggeredRef.current = false;
   }, [params.create]);
 
-  function openModal() {
-    wantFocusRef.current = false; // öppna lugnt — inget autofokus vid öppning
-    setMode('manual');
+  function openModalWithMode(m: 'manual' | 'paste' | 'url' | 'photo') {
+    wantFocusRef.current = m === 'manual' || m === 'url' || m === 'paste';
+    setMode(m);
     setTitle('');
     setUrl('');
     setPasteText('');
+    setPhotoUri(null);
     setShowModal(true);
+  }
+
+  function openModal() {
+    wantFocusRef.current = false;
+    openModalWithMode('manual');
+  }
+
+  function handleShowCreateMenu() {
+    confirm({
+      title: str.createModal.title,
+      buttons: [
+        { label: 'Lägg till manuellt', icon: 'pencil-outline', onPress: () => openModalWithMode('manual') },
+        { label: 'Från URL', icon: 'link-outline', onPress: () => openModalWithMode('url') },
+        { label: 'Klistra in', icon: 'sparkles', onPress: () => openModalWithMode('paste') },
+        { label: 'Fota recept', icon: 'camera-outline', onPress: () => openModalWithMode('photo') },
+        { label: common.actions.cancel, style: 'cancel' },
+      ],
+    });
   }
 
   // Sheet-innehållet (delas ut för läsbarhet; renderas inuti DraggableBottomSheet nedan).
@@ -895,7 +914,7 @@ export default function RecipesScreen() {
           <Text style={s.editDoneBtnText}>{common.actions.done}</Text>
         </Pressable>
       ) : (
-        <Pressable ref={fabRef} style={s.fab} onPress={openModal}>
+        <Pressable ref={fabRef} style={s.fab} onPress={handleShowCreateMenu}>
           <Ionicons name="add" size={30} color="#fff" />
         </Pressable>
       )}
