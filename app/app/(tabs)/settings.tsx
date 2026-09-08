@@ -982,6 +982,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     backgroundColor: c.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    paddingTop: 20,
     paddingBottom: 30,
     shadowColor: '#000',
     shadowOpacity: 0.18,

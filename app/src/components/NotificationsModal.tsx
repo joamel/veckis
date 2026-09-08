@@ -120,7 +120,7 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
 }
 
 const makeStyles = (c: Palette) => StyleSheet.create({
-  sheet: { backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
+  sheet: { backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 20, paddingBottom: 32, maxHeight: '85%' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
   title: { fontSize: 20, fontWeight: '700', color: c.text },
   body: { paddingHorizontal: 16, paddingBottom: 16 },
