@@ -411,6 +411,28 @@ export function useApiClient() {
     parseRecipeText: (text: string) =>
       request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }>('/api/recipes/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
 
+    parseRecipeFromPhoto: async (photoUri: string) => {
+      const formData = new FormData();
+      const fileBlob = await fetch(photoUri).then(res => res.blob());
+      const fileName = `recipe-photo-${Date.now()}.jpg`;
+      formData.append('image', fileBlob, fileName);
+
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/api/recipes/from-image`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
+      }
+      return res.json() as Promise<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }>;
+    },
+
     // Menus
     getWeekMenu: (householdId: string, weekYear: number, weekNumber: number) =>
       request<WeekMenuItemWithRecipe[]>(`/api/menus?householdId=${householdId}&weekYear=${weekYear}&weekNumber=${weekNumber}`),
