@@ -570,7 +570,6 @@ export const recipes = {
     // Rubrik i sheeten per läge — popupen har redan valt läget, så sheeten
     // säger vad man håller på med i stället för att visa alla lägen som flikar.
     modeTitles: {
-      manual: 'Nytt recept',
       paste:  'Klistra in recept',
       url:    'Hämta från länk',
       photo:  'Fota recept',
@@ -595,11 +594,8 @@ export const recipes = {
       stageCreating:    'Skapar recept…',
     },
     pasteHint:        'Klistra in recept eller länktext — AI:n plockar ut titel, ingredienser och steg.',
-    namePlaceholder:  'Receptets namn',
     pastePlaceholder: 'Klistra in recept eller receptsida här…',
     parseButton:      'Tolka och skapa recept',
-    createButton:     'Skapa recept',
-    createHint:       'Du fyller i beskrivning, ingredienser och instruktioner i nästa steg.',
     urlPlaceholder:   'https://tasteline.com/recept/...',
     urlHint:          'Fungerar med de flesta receptsajter (ICA, Arla, Tasteline, m.fl.)',
     fetchButton:      'Hämta recept',
@@ -650,6 +646,7 @@ export const recipes = {
     imageLabel:     'Bild',
     gallery:        'Galleri',
     camera:         'Kamera',
+    imageAfterSave: 'Du kan lägga till en bild när receptet är sparat.',
     nameLabel:      'Receptnamn',
     addRow:         'Lägg till rad',
     cook:           'Laga',

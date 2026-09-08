@@ -49,8 +49,27 @@ const MENU_DAYS: { key: WeekDay; label: string }[] =
   (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as WeekDay[])
     .map((key, i) => ({ key, label: common.weekdays.long[i] }));
 
+// Tomt utkast för "nytt recept". Receptet finns INTE på servern förrän man
+// trycker Spara — draften ligger bara i state, så ett avbrutet försök lämnar
+// inga skräprecept i hushållet.
+function makeDraftRecipe(householdId: string): RecipeWithIngredients {
+  const now = new Date().toISOString();
+  return {
+    id: '', householdId, title: '', description: null, instructions: null,
+    sourceUrl: null, imageUrl: null, imagePublicId: null, servings: 4,
+    timesUsed: 0, tags: [], createdBy: '', createdAt: now, updatedAt: now,
+    ingredients: [],
+  };
+}
+
 export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; onClose?: () => void }) {
   const edit = editParam;
+  // Sentinel-id från /recipes/new. Riktiga id:n är cuid, så ingen krock.
+  const isNew = recipeId === 'new';
+  const newDraftInitedRef = useRef(false);
+  // Sätts precis innan vi navigerar bort efter ett LYCKAT sparande, så
+  // beforeRemove-vakten inte hinner fråga "släng utkastet?" på vägen ut.
+  const savingNavRef = useRef(false);
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
@@ -251,6 +270,32 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   }, [householdId]);
 
   const load = useCallback(async () => {
+    // Nytt recept: inget att hämta. Sätt upp utkastet EN gång (ref-vakt, inte
+    // recipe-state — load körs om vid varje fokus och skulle annars nollställa
+    // det man skrivit) och gå direkt in i redigeringsläget.
+    if (isNew) {
+      if (!newDraftInitedRef.current) {
+        newDraftInitedRef.current = true;
+        setRecipe(makeDraftRecipe(householdId ?? ''));
+        setEditTitle('');
+        setEditDesc('');
+        setEditInstr('');
+        setEditImage('');
+        setEditTags([]);
+        setEditServings(4);
+        setEditIngredients([{ name: '', quantity: '', unit: '' }]);
+        setEditMode(true);
+        if (householdId) {
+          client.getRecipes(householdId).then(rs => {
+            const tags = new Set<string>();
+            for (const r of rs) for (const t of r.tags ?? []) tags.add(t);
+            setKnownTags([...tags]);
+          }).catch(() => {});
+        }
+      }
+      setLoading(false);
+      return;
+    }
     if (!recipeId) return;
     try {
       const r = await client.getRecipe(recipeId);
@@ -272,7 +317,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     } finally {
       setLoading(false);
     }
-  }, [recipeId, transfer, edit]);
+  }, [recipeId, transfer, edit, isNew, householdId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -499,6 +544,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   // knappens onPress, som tidigare missade swipe/hårdvaru-back helt.
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (savingNavRef.current) return;
       if (!editMode || !isEditDirtyRef.current()) return;
       e.preventDefault();
       tryCloseEditRef.current(true, () => {
@@ -536,6 +582,27 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           quantity: r.quantity ? parseFloat(r.quantity.replace(',', '.')) || null : null,
           unit: r.unit.trim() || null,
         }));
+      // Nytt recept skapas FÖRST här — fram till nu har det bara funnits i state.
+      if (isNew) {
+        if (!householdId) return;
+        const created = await client.createRecipe({
+          householdId,
+          title: t,
+          description: editDesc.trim() || null,
+          instructions: editInstr.trim() || null,
+          imageUrl: img || null,
+          servings: editServings,
+          ingredients,
+          tags: editTags,
+          source: 'manual',
+        });
+        setEditMode(false);
+        savingNavRef.current = true;
+        // replace, inte push: bakåt ska leda till receptlistan, inte tillbaka
+        // in i ett tomt utkast.
+        router.replace(`/recipes/${created.id}` as never);
+        return;
+      }
       const updated = await client.updateRecipe(recipe.id, {
         title: t,
         description: editDesc.trim() || null,
@@ -563,7 +630,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   // Pick a photo (camera or library), resize+compress locally to keep upload
   // small, then send to backend → Cloudinary → recipe.imageUrl is updated.
   async function pickAndUploadImage(source: 'library' | 'camera') {
-    if (!recipe) return;
+    // Uppladdningen adresserar receptet via id, så den kräver ett sparat recept.
+    if (!recipe || isNew) return;
     try {
       const perm = source === 'camera'
         ? await ImagePicker.requestCameraPermissionsAsync()
@@ -688,7 +756,20 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Pressable onPress={() => { if (editMode) { tryCloseEdit(isEditDirty(), () => setEditMode(false)); return; } if (onClose) onClose(); else router.back(); }} style={s.backBtn} accessibilityRole="button" accessibilityLabel={common.actions.back}>
+        <Pressable onPress={() => {
+          if (editMode) {
+            tryCloseEdit(isEditDirty(), () => {
+              setEditMode(false);
+              // Ett nytt recept har inget sparat läge att falla tillbaka på —
+              // att slänga utkastet betyder att lämna skärmen. savingNavRef
+              // stänger av beforeRemove-vakten så man inte får frågan två gånger
+              // (setEditMode hinner inte slå igenom före navigeringen).
+              if (isNew) { savingNavRef.current = true; if (onClose) onClose(); else router.back(); }
+            });
+            return;
+          }
+          if (onClose) onClose(); else router.back();
+        }} style={s.backBtn} accessibilityRole="button" accessibilityLabel={common.actions.back}>
           <Ionicons name="arrow-back" size={24} color={c.text} />
         </Pressable>
         {editMode ? (
@@ -702,9 +783,13 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         ) : (
           <Text style={s.headerTitle} numberOfLines={1}>{recipe.title}</Text>
         )}
-        <Pressable onPress={openRecipeActions} style={s.transferBtn} accessibilityLabel={common.actions.more}>
-          <Ionicons name="ellipsis-vertical" size={20} color={c.text} />
-        </Pressable>
+        {/* Actions-menyn (radera, överför, planera …) rör ett sparat recept —
+            tom platshållare för nya så rubriken inte hoppar i sidled. */}
+        {isNew ? <View style={s.transferBtn} /> : (
+          <Pressable onPress={openRecipeActions} style={s.transferBtn} accessibilityLabel={common.actions.more}>
+            <Ionicons name="ellipsis-vertical" size={20} color={c.text} />
+          </Pressable>
+        )}
       </View>
 
       <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1 }}>
@@ -725,6 +810,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 <Ionicons name="image-outline" size={32} color={c.textFaint} />
               </View>
             )}
+            {isNew ? (
+              <Text style={s.imgAfterSaveHint}>{str.detail.imageAfterSave}</Text>
+            ) : (
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Pressable
                 style={[s.imgBtn, { flex: 1 }, uploadingImage && s.imgBtnDisabled]}
@@ -753,6 +841,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 </Pressable>
               ) : null}
             </View>
+            )}
             {uploadingImage ? <ActivityIndicator color={c.primary} /> : null}
           </View>
         ) : recipe.imageUrl ? (
@@ -1064,7 +1153,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           i scroll-innehållet. */}
       {editMode && (
         <View style={s.editActionsBar}>
-          <Pressable style={s.cancelBtn} onPress={() => tryCloseEdit(isEditDirty(), () => setEditMode(false))}>
+          <Pressable style={s.cancelBtn} onPress={() => tryCloseEdit(isEditDirty(), () => {
+            setEditMode(false);
+            if (isNew) { savingNavRef.current = true; if (onClose) onClose(); else router.back(); }
+          })}>
             <Text style={s.cancelBtnText}>{common.actions.cancel}</Text>
           </Pressable>
           <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled]} onPress={saveRecipe} disabled={saving}>
@@ -1358,6 +1450,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   imgBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: c.primaryTint },
   imgBtnText: { color: c.primary, fontWeight: '600', fontSize: 14 },
   imgBtnDisabled: { opacity: 0.5 },
+  imgAfterSaveHint: { fontSize: 13, color: c.textFaint, textAlign: 'center', paddingVertical: 8 },
   imgRemoveBtn: { width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: c.dangerTint },
   editImagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: c.surfaceSubtle, marginTop: 8 },
   metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },

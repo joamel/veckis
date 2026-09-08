@@ -24,7 +24,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@clerk/expo';
 import * as SecureStore from '../../src/lib/secureStorage';
 import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe } from '../../src/api/client';
-import { reportClientError } from '../../src/lib/errorReport';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useToast } from '../../src/context/ToastContext';
@@ -73,7 +72,7 @@ export default function RecipesScreen() {
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
   const tryCloseCreate = useDiscardDraft(confirm);
-  const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setPhotoUri(null); setMode('manual'); };
+  const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setPhotoUri(null); setMode('url'); };
   const closeCreate = () => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '' || photoUri !== null, discardCreate);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [loading, setLoading] = useState(true);
@@ -263,7 +262,9 @@ export default function RecipesScreen() {
 
   const insets = useSafeAreaInsets();
   // New recipe form
-  const [mode, setMode] = useState<'manual' | 'paste' | 'url' | 'photo'>('manual');
+  // Manuellt saknas med flit: det läget är numera en egen skärm (/recipes/new)
+  // som skapar receptet först vid Spara, i stället för en namn-fråga i sheeten.
+  const [mode, setMode] = useState<'paste' | 'url' | 'photo'>('url');
   // Scroll-into-view-lyft (native): mät det fokuserade fältet när tangentbordet
   // visats (då finns rätt höjd) och lyft sheeten BARA så mycket att fältet syns
   // ovanför tangentbordet — inte hela höjden (då flyger höga modaler upp). Web:
@@ -298,10 +299,8 @@ export default function RecipesScreen() {
   // autoFocus på det remountade fältet är opålitligt på Android (särskilt
   // multiline paste-fältet visar inte tangentbordet), så fältet fokuseras
   // explicit via ref i en effekt när sheeten öppnats i ett skrivläge.
-  const manualRef = useRef<TextInput>(null);
   const pasteRef = useRef<TextInput>(null);
   const urlRef = useRef<TextInput>(null);
-  const manualBtnRef = useRef<View>(null);
   const pasteBtnRef = useRef<View>(null);
   const urlBtnRef = useRef<View>(null);
   const photoBtnRef = useRef<View>(null);
@@ -311,7 +310,7 @@ export default function RecipesScreen() {
   // inte fyra igen → inget autofokus andra gången.
   useEffect(() => {
     if (!showModal || !wantFocusRef.current) return;
-    const target = mode === 'manual' ? manualRef : mode === 'paste' ? pasteRef : urlRef;
+    const target = mode === 'paste' ? pasteRef : urlRef;
     const id = requestAnimationFrame(() => target.current?.focus());
     return () => cancelAnimationFrame(id);
   }, [mode, showModal]);
@@ -401,7 +400,7 @@ export default function RecipesScreen() {
         title: str.errors.parseFailed.title,
         message: str.errors.parseFailed.message(err instanceof Error ? err.message : str.linkUnreadable),
         buttons: [
-          { label: str.errors.parseFailed.manual, onPress: () => setMode('manual') },
+          { label: str.errors.parseFailed.manual, onPress: () => { setShowModal(false); router.push('/recipes/new' as never); } },
           { label: common.actions.cancel, style: 'cancel' },
         ],
       });
@@ -431,7 +430,7 @@ export default function RecipesScreen() {
       setShowModal(false);
       setTitle('');
       setPasteText('');
-      setMode('manual');
+      setMode('url');
       const forMenuDay = params.forMenuDay;
       const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
       router.push(`/recipes/${recipe.id}${parsed.ingredients.length === 0 ? '?edit=1' : ''}${suffix}` as never);
@@ -439,31 +438,6 @@ export default function RecipesScreen() {
       confirm({ title: str.errors.generic, message: err instanceof Error ? err.message : str.errors.couldNotParse, buttons: [{ label: common.actions.ok }] });
     } finally {
       setParsing(false);
-      setCreating(false);
-    }
-  }
-
-  async function handleCreateManual() {
-    if (!householdId || !title.trim()) return;
-    setCreating(true);
-    try {
-      const recipe = await client.createRecipe({ householdId, title: title.trim() });
-      setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
-      setShowModal(false);
-      setTitle('');
-      const forMenuDay = params.forMenuDay;
-      const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
-      router.push(`/recipes/${recipe.id}?edit=1${suffix}` as never);
-    } catch (err) {
-      // DIAG: fångad tidigare via en tom catch {} — vi visade fel trots att
-      // POST:en lyckats på backend (bekräftat i Railway-loggen), så något
-      // EFTER svaret kraschar. Logga vad det faktiskt är innan vi gissar.
-      reportClientError('DIAG: handleCreateManual fel efter (ev. lyckad) POST', {
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack ?? null : null,
-      });
-      confirm({ title: str.errors.generic, message: str.errors.couldNotCreate, buttons: [{ label: common.actions.ok }] });
-    } finally {
       setCreating(false);
     }
   }
@@ -535,7 +509,7 @@ export default function RecipesScreen() {
       setShowModal(false);
       setTitle('');
       setPhotoUri(null);
-      setMode('manual');
+      setMode('url');
       const forMenuDay = params.forMenuDay;
       const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
       router.push(`/recipes/${recipe.id}${parsed.ingredients.length === 0 ? '?edit=1' : ''}${suffix}` as never);
@@ -558,8 +532,8 @@ export default function RecipesScreen() {
     if (params.create !== '1') createTriggeredRef.current = false;
   }, [params.create]);
 
-  function openModalWithMode(m: 'manual' | 'paste' | 'url' | 'photo') {
-    wantFocusRef.current = m === 'manual' || m === 'url' || m === 'paste';
+  function openModalWithMode(m: 'paste' | 'url' | 'photo') {
+    wantFocusRef.current = m === 'url' || m === 'paste';
     setMode(m);
     setTitle('');
     setUrl('');
@@ -571,8 +545,11 @@ export default function RecipesScreen() {
   function handleShowCreateMenu() {
     confirm({
       variant: 'menu',
+      // Menyn hör ihop med "+"-FAB:en i nedre högra hörnet, inte med en
+      // 3-punktsmeny uppe i headern — därför bottom-right, inte default.
+      menuAnchor: 'bottom-right',
       buttons: [
-        { label: str.createModal.menu.manual, icon: 'pencil-outline', onPress: () => openModalWithMode('manual') },
+        { label: str.createModal.menu.manual, icon: 'pencil-outline', onPress: () => router.push('/recipes/new' as never) },
         { label: str.createModal.menu.url, icon: 'link-outline', onPress: () => openModalWithMode('url') },
         { label: str.createModal.menu.paste, icon: 'sparkles', onPress: () => openModalWithMode('paste') },
         { label: str.createModal.menu.photo, icon: 'camera-outline', onPress: () => startPhotoFlow('camera') },
@@ -587,31 +564,7 @@ export default function RecipesScreen() {
         <Text style={s.sheetTitle}>{str.createModal.modeTitles[mode]}</Text>
 
         <View style={s.modeBody}>
-        {mode === 'manual' ? (
-          <>
-            <ClearableInput
-              ref={manualRef}
-              style={s.input}
-              placeholder={str.createModal.namePlaceholder}
-              value={title}
-              onChangeText={setTitle}
-              importantForAutofill="no"
-              textContentType="none"
-              returnKeyType="done"
-              onFocus={() => { revealTargetRef.current = manualBtnRef.current; revealFocused(); }}
-              onSubmitEditing={handleCreateManual}
-            />
-            <Text style={s.createHint}>{str.createModal.createHint}</Text>
-            <Pressable
-              ref={manualBtnRef}
-              style={[s.button, s.modeBodyBtn, !title.trim() && s.buttonDisabled]}
-              onPress={handleCreateManual}
-              disabled={creating || !title.trim()}
-            >
-              {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.createButton}</Text>}
-            </Pressable>
-          </>
-        ) : mode === 'paste' ? (
+        {mode === 'paste' ? (
           <>
             <Text style={s.pasteHint}>{str.createModal.pasteHint}</Text>
             <ClearableInput
@@ -1018,7 +971,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   modeBody: { minHeight: 246, gap: 14 },
   modeBodyBtn: { marginTop: 2 },
   input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
-  createHint: { fontSize: 13, color: c.textFaint, marginTop: -4 },
   urlHint: { fontSize: 12, color: c.textFaint, marginTop: -6 },
   pasteHint: { fontSize: 13, color: c.textMuted, marginTop: -4, lineHeight: 18 },
   button: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
