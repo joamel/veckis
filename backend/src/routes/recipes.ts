@@ -377,11 +377,28 @@ recipesRouter.post('/from-photo', parseTextLimiter, requireAuth, asyncHandler(as
 
   let parsed: { title: string | null; description: string | null; instructions: string | null; servings?: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
   try {
-    const base64Data = body.data.imageBase64;
-    // Extrahera media type från data URL (data:image/jpeg;base64,...)
-    const mediaTypeMatch = base64Data.match(/^data:([^;]+);base64,/);
-    const mediaType = (mediaTypeMatch?.[1] ?? 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
-    const base64 = base64Data.replace(/^data:[^;]+;base64,/, '');
+    let base64Data = body.data.imageBase64;
+
+    // Extrahera media type och base64 från data URL (data:image/jpeg;base64,...)
+    // eller använd direkta base64 utan data URL-prefix
+    let mediaType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' = 'image/jpeg';
+    let base64 = base64Data;
+
+    if (base64Data.startsWith('data:')) {
+      const colonIdx = base64Data.indexOf(':');
+      const commaIdx = base64Data.indexOf(',');
+      if (colonIdx > 0 && commaIdx > colonIdx) {
+        const header = base64Data.substring(colonIdx + 1, commaIdx);
+        const mimeMatch = header.match(/^([^;]+)/);
+        if (mimeMatch) {
+          const mime = mimeMatch[1];
+          if (['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(mime)) {
+            mediaType = mime as typeof mediaType;
+          }
+        }
+        base64 = base64Data.substring(commaIdx + 1);
+      }
+    }
 
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -423,11 +440,13 @@ Regler:
       }],
     });
     const raw = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
+    if (!raw) throw new Error('Tomt svar från Claude');
     const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '');
     parsed = JSON.parse(clean);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'AI-anropet misslyckades';
-    res.status(422).json({ error: msg });
+    const errMsg = err instanceof Error ? err.message : 'AI-anropet misslyckades';
+    console.error('Photo parsing error:', errMsg, 'Base64 length:', body.data.imageBase64.length);
+    res.status(422).json({ error: errMsg });
     return;
   }
 
