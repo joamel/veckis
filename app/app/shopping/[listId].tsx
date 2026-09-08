@@ -73,6 +73,15 @@ const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
 // Survives navigation within the session; resets on app restart
 const dismissedDupesStore = new Map<string, Set<string>>();
 
+// Signaturen innehåller varu-ID:na, inte bara namnet. Ignorerar man "gurka st +
+// gurka kg" gäller det just DEN uppsättningen — läggs en ny gurka till senare
+// ändras signaturen och förslaget dyker upp igen. Med enbart namnet som nyckel
+// blev ignoreringen permanent för resten av sessionen, så knappen förblev dold
+// medan merge-modalen (som inte läser listan) ändå fortsatte öppnas.
+function dupeGroupSignature(items: { id: string; name: string }[]): string {
+  return `${items[0].name.toLowerCase().trim()}|${items.map(i => i.id).sort().join(',')}`;
+}
+
 // Auto-sidoscroll till aktiv chip i en horisontell kategori/underkategori-rad.
 // Chip-onLayout fyller på x-positioner en gång (körs bara om positionen
 // FAKTISKT ändras, inte varje render) — det är därför den gamla varianten
@@ -111,6 +120,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const mergeTip = useOnceFlag('seen-merge-tip');
   const mergeTipShownRef = useRef(false);
   const dupeBadgeRef = useRef<View>(null);
+  // Lägg-till-barens höjd — dubblettknappen svävar precis ovanför den.
+  const [addBarH, setAddBarH] = useState(0);
   const shopperTip = useOnceFlag('seen-shopper-tip');
   const shopperTipShownRef = useRef(false);
   const { householdId } = useHousehold();
@@ -273,11 +284,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     return { opacity: t, maxWidth: t * 80, marginLeft: t * 6 };
   });
   // Dubblett-pill: döljs när rubriken kollapsar (samma interpolation som storeName).
-  const dupeBadgeAnimStyle = useAnimatedStyle(() => {
-    const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [1, 0], Extrapolation.CLAMP);
-    return { opacity: t };
-  });
-
   // Collapsed categories — tap category header to fold/unfold its items.
   const [collapsedCategories, setCollapsedCategories] = useState<Set<StoreCategory | 'checked'>>(new Set());
   function toggleCategoryCollapsed(cat: StoreCategory | 'checked') {
@@ -539,7 +545,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       nameMap.get(key)!.push(item);
     }
     return [...nameMap.values()].filter(g => {
-      if (g.length < 2 || dismissedDupeKeys.has(g[0].name.toLowerCase().trim())) return false;
+      if (g.length < 2 || dismissedDupeKeys.has(dupeGroupSignature(g))) return false;
       // Samma namn+enhet aggregeras redan visuellt till EN rad (aktiv lista + klart-
       // högen), så de behöver ingen "slå ihop"-flagg. Flagga bara grupper med ≥2
       // OLIKA enheter (t.ex. "gurka st" + "gurka kg") — det aggregeringen inte löser.
@@ -549,9 +555,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     });
   }, [list, dismissedDupeKeys]);
 
-  function dismissDupeGroup(name: string) {
-    const key = name.toLowerCase().trim();
-    const next = new Set([...dismissedDupeKeys, key]);
+  function dismissDupeGroup(items: ShoppingItemWithRecipe[]) {
+    if (items.length === 0) return;
+    const next = new Set([...dismissedDupeKeys, dupeGroupSignature(items)]);
     dismissedDupesStore.set(listId ?? '', next);
     setDismissedDupeKeys(next);
   }
@@ -1503,28 +1509,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         </RNAnimated.View>
       </RNAnimated.View>
 
-      {/* Duplicate badge — slides with title-area, positioned at right.
-          Fades out as title collapses so it doesn't hover over navbar. */}
-      {duplicateGroups.length > 0 && (
-        <RNAnimated.View
-          style={[s.titleDupeBadgeWrap, { top: HEADER_TOP + NAVBAR_HEIGHT, height: TITLE_AREA_HEIGHT }, titleAreaAnimStyle, dupeBadgeAnimStyle]}
-          pointerEvents="auto"
-        >
-          <Animated.View ref={dupeBadgeRef} collapsable={false} style={{ transform: [{ scale: dupeButtonScale }] }}>
-            <Pressable
-              style={s.dupeBadge}
-              onPress={() => openMergeForDupes(duplicateGroups[0])}
-              hitSlop={8}
-            >
-              <Ionicons name="git-merge-outline" size={12} color={c.accent} />
-              <Text style={s.dupeBadgeText}>
-                {duplicateGroups.length === 1 ? '1 dubblett' : `${duplicateGroups.length} dubbletter`}
-              </Text>
-            </Pressable>
-          </Animated.View>
-        </RNAnimated.View>
-      )}
-
       {/* Sticky kategori-rubrik — pinnad precis under navbaren, visar kategorin
           vars rad just nu passerar navbar-linjen (uppdateras från scroll). */}
       {stickyCat && (
@@ -1600,8 +1584,36 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           RN:s keyboardDidShow-höjd är 0 på Android). RNAnimated.View lägger
           paddingBottom = keyboardhöjd så baren dockar ovanför tangentbordet.
           Web: iOS Safari behöver KAV-push; Android Chrome resizar viewporten själv. */}
+      {/* Svävar över listan strax ovanför lägg-till-baren, i stället för i den
+          scroll-animerade headern. Där följde den med rubriken upp och tonades
+          bort vid scroll — knappen försvann alltså när man scrollat ned, och
+          onboarding-spotlighten ringade in tom yta eftersom den mäter refens
+          position. Höjden på baren mäts (den varierar med förslags-chipsen och
+          tangentbordslyftet) så knappen alltid hamnar precis ovanför den. */}
+      {duplicateGroups.length > 0 && addBarH > 0 && !keyboardVisible && (
+        <View style={[s.dupeFloatWrap, { bottom: addBarH + 12 }]} pointerEvents="box-none">
+          <Animated.View ref={dupeBadgeRef} collapsable={false} style={{ transform: [{ scale: dupeButtonScale }] }}>
+            <Pressable style={s.dupeFloatBtn} onPress={() => openMergeForDupes(duplicateGroups[0])} hitSlop={8}>
+              <Ionicons name="git-merge-outline" size={14} color="#fff" />
+              <Text style={s.dupeFloatText}>
+                {duplicateGroups.length === 1 ? str.merge.floatOne : str.merge.floatMany(duplicateGroups.length)}
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </View>
+      )}
+
       <RNAnimated.View style={addBarLift}>
+      {/* Mätningen sitter INNANFÖR lyftet: addBarLift:s paddingBottom kommer
+          från ett reanimated-värde som animeras varje frame när tangentbordet
+          öppnas, så en onLayout där uppe sköt en setState per frame och fick
+          hela skärmen att hoppa. Här ändras höjden bara när förslags-chipsen
+          dyker upp eller försvinner — och bara då skrivs state. */}
       <KeyboardAvoidingView
+        onLayout={e => {
+          const h = e.nativeEvent.layout.height;
+          setAddBarH(prev => (Math.abs(prev - h) > 1 ? h : prev));
+        }}
         behavior="padding"
         keyboardVerticalOffset={isIOSLike ? 90 : 0}
         enabled={keyboardVisible && isWeb() && isIOSLike}
@@ -2232,7 +2244,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               <Pressable
                 style={s.mergeIgnoreBtn}
                 onPress={() => {
-                  if (mergeSheet) dismissDupeGroup(mergeSheet.name);
+                  if (mergeSheet) dismissDupeGroup(mergeSheet.items);
                   pendingOpenNextDupe.current = true;
                   setMergeSheet(null);
                 }}
@@ -2511,7 +2523,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   navbarBgAbs: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: c.background, zIndex: 5 },
   navbarButtonsAbs: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, zIndex: 30 },
   titleTextWrap: { position: 'absolute', left: 20, right: 20, justifyContent: 'center', alignItems: 'flex-start', zIndex: 25 },
-  titleDupeBadgeWrap: { position: 'absolute', left: 20, right: 20, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 4, zIndex: 25, pointerEvents: 'box-none' },
   headerNavPinned: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   headerTitleAbs: { position: 'absolute', left: 0, right: 0, zIndex: 10, paddingHorizontal: 20, backgroundColor: c.surface, overflow: 'hidden' },
   actionsMenu: { position: 'absolute', right: 0, backgroundColor: c.surface, borderRadius: 12, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
@@ -2540,6 +2551,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   emptyImportBtn: { marginBottom: 4 },
   emptyText: { fontSize: 17, fontWeight: '600', color: c.textSecondary, marginTop: 12 },
   emptySubtext: { fontSize: 13, color: c.textFaint, marginTop: 4, textAlign: 'center', paddingHorizontal: 32 },
+  dupeFloatWrap: { position: 'absolute', right: 16, zIndex: 5 },
+  dupeFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
+  dupeFloatText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   dupeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.accent100, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   dupeBadgeText: { fontSize: 12, fontWeight: '600', color: c.accent },
   mergeIgnoreBtn: { paddingVertical: 10 },

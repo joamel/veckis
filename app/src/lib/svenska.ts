@@ -186,6 +186,8 @@ export const shoppingList = {
     message: 'Här slår du ihop likadana varor till en post med samlad mängd. Justera namn, enhet och kategori om du vill - appen drar ihop allt till en rad i listan.',
     merged:  (n: number, name: string) => `Slog ihop ${n} ${name}`,
     heading:      'Dubbletter',
+    floatOne:     '1 dubblett',
+    floatMany:    (n: number) => `${n} dubbletter`,
     markManually: 'Markera själv',
     instruction:  'Markera vilka som ska slås ihop',
     noDupes:      'Inga föreslagna dubbletter — markera själv för att slå ihop varor',
