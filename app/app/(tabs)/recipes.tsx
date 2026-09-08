@@ -78,7 +78,6 @@ export default function RecipesScreen() {
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [createMode, setCreateMode] = useState<'manual' | 'url' | 'paste' | 'photo' | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   // Sök+tagg-headern fälls ihop FÖLJSAMT med scrollen (samma mönster som inköps-
@@ -582,12 +581,12 @@ export default function RecipesScreen() {
 
   function handleShowCreateMenu() {
     confirm({
-      title: str.createModal.title,
+      variant: 'menu',
       buttons: [
-        { label: 'Lägg till manuellt', icon: 'pencil-outline', onPress: () => { setTitle(''); setCreateMode('manual'); } },
-        { label: 'Från URL', icon: 'link-outline', onPress: () => { setUrl(''); setCreateMode('url'); } },
-        { label: 'Klistra in', icon: 'sparkles', onPress: () => { setPasteText(''); setCreateMode('paste'); } },
-        { label: 'Fota recept', icon: 'camera-outline', onPress: () => { setPhotoUri(null); setCreateMode('photo'); } },
+        { label: 'Lägg till manuellt', icon: 'pencil-outline', onPress: () => { setTitle(''); setUrl(''); setPasteText(''); setPhotoUri(null); setMode('manual'); setShowModal(true); } },
+        { label: 'Från URL', icon: 'link-outline', onPress: () => { setTitle(''); setUrl(''); setPasteText(''); setPhotoUri(null); setMode('url'); setShowModal(true); } },
+        { label: 'Klistra in', icon: 'sparkles', onPress: () => { setTitle(''); setUrl(''); setPasteText(''); setPhotoUri(null); setMode('paste'); setShowModal(true); } },
+        { label: 'Fota recept', icon: 'camera-outline', onPress: pickPhoto },
         { label: common.actions.cancel, style: 'cancel' },
       ],
     });
@@ -999,159 +998,6 @@ export default function RecipesScreen() {
             </Pressable>
           ))}
       </DraggableBottomSheet>
-
-      {/* Manual Modal */}
-      {createMode === 'manual' && (
-        <View pointerEvents="none" style={[s.overlayDim, { position: 'absolute', inset: 0, zIndex: 100 }]} />
-      )}
-      {createMode === 'manual' && (
-        <Pressable style={[s.overlay, { position: 'absolute', inset: 0, zIndex: 101 }]} onPress={() => setCreateMode(null)} />
-      )}
-      {createMode === 'manual' && (
-        <View style={[s.sheet, { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 102, maxHeight: '85%' }]}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Lägg till manuellt</Text>
-          <ClearableInput
-            ref={manualRef}
-            style={s.input}
-            placeholder={str.createModal.namePlaceholder}
-            value={title}
-            onChangeText={setTitle}
-            returnKeyType="done"
-            onSubmitEditing={handleCreateManual}
-          />
-          <Text style={s.createHint}>{str.createModal.createHint}</Text>
-          <Pressable
-            ref={manualBtnRef}
-            style={[s.button, s.modeBodyBtn, !title.trim() && s.buttonDisabled]}
-            onPress={handleCreateManual}
-            disabled={creating || !title.trim()}
-          >
-            {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.createButton}</Text>}
-          </Pressable>
-        </View>
-      )}
-
-      {/* URL Modal */}
-      {createMode === 'url' && (
-        <View pointerEvents="none" style={[s.overlayDim, { position: 'absolute', inset: 0, zIndex: 100 }]} />
-      )}
-      {createMode === 'url' && (
-        <Pressable style={[s.overlay, { position: 'absolute', inset: 0, zIndex: 101 }]} onPress={() => setCreateMode(null)} />
-      )}
-      {createMode === 'url' && (
-        <View style={[s.sheet, { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 102, maxHeight: '70%' }]}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Från URL</Text>
-          <ClearableInput
-            ref={urlRef}
-            style={s.input}
-            placeholder={str.createModal.urlPlaceholder}
-            value={url}
-            onChangeText={setUrl}
-            autoCapitalize="none"
-            keyboardType="url"
-            returnKeyType="done"
-            onSubmitEditing={handleScrape}
-          />
-          <Text style={s.urlHint}>{str.createModal.urlHint}</Text>
-          <Pressable
-            style={[s.button, s.modeBodyBtn, !url.trim() && s.buttonDisabled]}
-            onPress={handleScrape}
-            disabled={scraping || creating || !url.trim()}
-          >
-            {scraping || creating
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={s.buttonText}>{str.createModal.fetchButton}</Text>}
-          </Pressable>
-        </View>
-      )}
-
-      {/* Paste Modal */}
-      {createMode === 'paste' && (
-        <View pointerEvents="none" style={[s.overlayDim, { position: 'absolute', inset: 0, zIndex: 100 }]} />
-      )}
-      {createMode === 'paste' && (
-        <Pressable style={[s.overlay, { position: 'absolute', inset: 0, zIndex: 101 }]} onPress={() => setCreateMode(null)} />
-      )}
-      {createMode === 'paste' && (
-        <View style={[s.sheet, { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 102, maxHeight: '70%' }]}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Klistra in</Text>
-          <Text style={s.pasteHint}>{str.createModal.pasteHint}</Text>
-          <ClearableInput
-            ref={pasteRef}
-            style={[s.input, { height: 130, textAlignVertical: 'top', paddingTop: 10 }]}
-            placeholder={str.createModal.pastePlaceholder}
-            value={pasteText}
-            onChangeText={setPasteText}
-            multiline
-            scrollEnabled
-          />
-          <Pressable
-            ref={pasteBtnRef}
-            style={[s.button, s.modeBodyBtn, !pasteText.trim() && s.buttonDisabled]}
-            onPress={handleParseAndCreate}
-            disabled={parsing || creating || !pasteText.trim()}
-          >
-            {parsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.parseButton}</Text>}
-          </Pressable>
-        </View>
-      )}
-
-      {/* Photo Modal */}
-      {createMode === 'photo' && (
-        <View pointerEvents="none" style={[s.overlayDim, { position: 'absolute', inset: 0, zIndex: 100 }]} />
-      )}
-      {createMode === 'photo' && (
-        <Pressable style={[s.overlay, { position: 'absolute', inset: 0, zIndex: 101 }]} onPress={() => setCreateMode(null)} />
-      )}
-      {createMode === 'photo' && (
-        <View style={[s.sheet, { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 102, maxHeight: '85%' }]}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Fota recept</Text>
-          {photoUri ? (
-            <>
-              <Image source={{ uri: photoUri }} style={s.photoPreview} />
-              <Pressable style={s.changePhotoBtn} onPress={handleShowPhotoSourcePicker}>
-                <Ionicons name="pencil-outline" size={18} color={c.primary} />
-                <Text style={s.changePhotoBtnText}>Byt foto</Text>
-              </Pressable>
-            </>
-          ) : (
-            <Pressable
-              style={[s.button, s.modeBodyBtn]}
-              onPress={handleShowPhotoSourcePicker}
-            >
-              <Ionicons name="image-outline" size={20} color="#fff" />
-              <Text style={s.buttonText}>Lägg till bild</Text>
-            </Pressable>
-          )}
-          <ClearableInput
-            style={s.input}
-            placeholder="Valfri rubrik (auto-fylls från foto)"
-            value={title}
-            onChangeText={setTitle}
-          />
-          <Pressable
-            ref={photoBtnRef}
-            style={[s.button, s.modeBodyBtn, (!photoUri || photoParsing) && s.buttonDisabled]}
-            onPress={handlePhotoAndCreate}
-            disabled={photoParsing || creating || !photoUri}
-          >
-            {photoParsing || creating ? (
-              <>
-                <ActivityIndicator color="#fff" size="small" />
-                <Text style={s.buttonText}>
-                  {photoLoadingStage === 'reading' ? 'Läser foto...' :
-                   photoLoadingStage === 'analyzing' ? 'Analyserar bild...' :
-                   photoLoadingStage === 'creating' ? 'Skapar recept...' : 'Läs & Skapa'}
-                </Text>
-              </>
-            ) : <Text style={s.buttonText}>Läs & Skapa</Text>}
-          </Pressable>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
