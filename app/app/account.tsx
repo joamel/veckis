@@ -4,7 +4,7 @@ import type { Palette } from '../src/lib/theme';
 // Kontosida — namn, byt namn, ta bort konto, logga ut. Egen route med
 // tillbaka-pil. Avatar-tap på Profil-flikens header öppnar denna vy.
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -13,7 +13,6 @@ import { useApiClient } from '../src/api/client';
 import { useHousehold } from '../src/context/HouseholdContext';
 import { useToast } from '../src/context/ToastContext';
 import { useConfirm } from '../src/context/ConfirmContext';
-import { kavBehavior } from '../src/lib/platform';
 import { account as str } from '../src/lib/svenska';
 import { DraggableBottomSheet } from '../src/components/DraggableBottomSheet';
 
@@ -209,95 +208,83 @@ export default function AccountScreen() {
       </ScrollView>
 
       {/* Byt namn-modal */}
-      <Modal visible={showRename} transparent animationType="slide" onRequestClose={() => setShowRename(false)}>
-        <Pressable style={s.overlay} onPress={() => setShowRename(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={s.kavWrap}>
-          <View style={s.sheet}>
-            <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>{str.renameModal.title}</Text>
-            <TextInput
-              style={s.input}
-              placeholder={str.renameModal.placeholder}
-              placeholderTextColor={c.textFaint}
-              value={renameValue}
-              onChangeText={setRenameValue}
-              autoFocus
-              selectTextOnFocus
-              returnKeyType="done"
-              onSubmitEditing={handleSaveName}
-            />
-            <Pressable
-              style={[s.primaryBtn, (saving || !renameValue.trim()) && { opacity: 0.4 }]}
-              onPress={handleSaveName}
-              disabled={saving || !renameValue.trim()}
-            >
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{str.renameModal.save}</Text>}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} keyboardAvoiding sheetStyle={s.sheetDraggable}>
+        <Text style={s.sheetTitle}>{str.renameModal.title}</Text>
+        <TextInput
+          style={s.input}
+          placeholder={str.renameModal.placeholder}
+          placeholderTextColor={c.textFaint}
+          value={renameValue}
+          onChangeText={setRenameValue}
+          autoFocus
+          selectTextOnFocus
+          returnKeyType="done"
+          onSubmitEditing={handleSaveName}
+        />
+        <Pressable
+          style={[s.primaryBtn, (saving || !renameValue.trim()) && { opacity: 0.4 }]}
+          onPress={handleSaveName}
+          disabled={saving || !renameValue.trim()}
+        >
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{str.renameModal.save}</Text>}
+        </Pressable>
+      </DraggableBottomSheet>
 
       {/* Lösenord-modal: lägg till (lösenordsfritt konto) eller ändra */}
-      <Modal visible={showPassword} transparent animationType="slide" onRequestClose={closePassword}>
-        <Pressable style={s.overlay} onPress={closePassword} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={s.kavWrap}>
-          <View style={s.sheet}>
-            <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>{hasPassword ? str.passwordModal.changeTitle : str.passwordModal.addTitle}</Text>
-            <Text style={s.sheetSubtitle}>{hasPassword ? str.security.changeSubtitle : str.security.addSubtitle}</Text>
-            {hasPassword && (
-              <TextInput
-                style={s.input}
-                placeholder={str.passwordModal.currentPlaceholder}
-                placeholderTextColor={c.textFaint}
-                secureTextEntry={!pwVisible}
-                value={curPw}
-                onChangeText={setCurPw}
-              />
-            )}
-            <View style={s.pwWrap}>
-              <TextInput
-                style={[s.input, s.pwInput]}
-                placeholder={str.passwordModal.newPlaceholder}
-                placeholderTextColor={c.textFaint}
-                secureTextEntry={!pwVisible}
-                value={newPw}
-                onChangeText={setNewPw}
-                textContentType="newPassword"
-                autoComplete="new-password"
-              />
-              <Pressable
-                style={s.pwEye}
-                onPress={() => setPwVisible(v => !v)}
-                hitSlop={8}
-                accessibilityLabel={pwVisible ? str.passwordModal.hidePassword : str.passwordModal.showPassword}
-              >
-                <Ionicons name={pwVisible ? 'eye-off-outline' : 'eye-outline'} size={22} color={c.textFaint} />
-              </Pressable>
-            </View>
-            <TextInput
-              style={[s.input, confirmPw.length > 0 && !pwMatches && s.inputError]}
-              placeholder={str.passwordModal.confirmPlaceholder}
-              placeholderTextColor={c.textFaint}
-              secureTextEntry={!pwVisible}
-              value={confirmPw}
-              onChangeText={setConfirmPw}
-              textContentType="newPassword"
-              autoComplete="new-password"
-            />
-            {confirmPw.length > 0 && !pwMatches && (
-              <Text style={s.errorText}>{str.passwordModal.mismatch}</Text>
-            )}
-            <Pressable
-              style={[s.primaryBtn, (!canSavePw || savingPw) && { opacity: 0.4 }]}
-              onPress={handleSavePassword}
-              disabled={!canSavePw || savingPw}
-            >
-              {savingPw ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{str.passwordModal.save}</Text>}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <DraggableBottomSheet visible={showPassword} onRequestClose={closePassword} keyboardAvoiding sheetStyle={s.sheetDraggable}>
+        <Text style={s.sheetTitle}>{hasPassword ? str.passwordModal.changeTitle : str.passwordModal.addTitle}</Text>
+        <Text style={s.sheetSubtitle}>{hasPassword ? str.security.changeSubtitle : str.security.addSubtitle}</Text>
+        {hasPassword && (
+          <TextInput
+            style={s.input}
+            placeholder={str.passwordModal.currentPlaceholder}
+            placeholderTextColor={c.textFaint}
+            secureTextEntry={!pwVisible}
+            value={curPw}
+            onChangeText={setCurPw}
+          />
+        )}
+        <View style={s.pwWrap}>
+          <TextInput
+            style={[s.input, s.pwInput]}
+            placeholder={str.passwordModal.newPlaceholder}
+            placeholderTextColor={c.textFaint}
+            secureTextEntry={!pwVisible}
+            value={newPw}
+            onChangeText={setNewPw}
+            textContentType="newPassword"
+            autoComplete="new-password"
+          />
+          <Pressable
+            style={s.pwEye}
+            onPress={() => setPwVisible(v => !v)}
+            hitSlop={8}
+            accessibilityLabel={pwVisible ? str.passwordModal.hidePassword : str.passwordModal.showPassword}
+          >
+            <Ionicons name={pwVisible ? 'eye-off-outline' : 'eye-outline'} size={22} color={c.textFaint} />
+          </Pressable>
+        </View>
+        <TextInput
+          style={[s.input, confirmPw.length > 0 && !pwMatches && s.inputError]}
+          placeholder={str.passwordModal.confirmPlaceholder}
+          placeholderTextColor={c.textFaint}
+          secureTextEntry={!pwVisible}
+          value={confirmPw}
+          onChangeText={setConfirmPw}
+          textContentType="newPassword"
+          autoComplete="new-password"
+        />
+        {confirmPw.length > 0 && !pwMatches && (
+          <Text style={s.errorText}>{str.passwordModal.mismatch}</Text>
+        )}
+        <Pressable
+          style={[s.primaryBtn, (!canSavePw || savingPw) && { opacity: 0.4 }]}
+          onPress={handleSavePassword}
+          disabled={!canSavePw || savingPw}
+        >
+          {savingPw ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{str.passwordModal.save}</Text>}
+        </Pressable>
+      </DraggableBottomSheet>
 
       {/* Radera konto — kräver ihakad checkbox + exakt inskrivet ord innan
           knappen ens går att trycka. Permanent och oåterkalleligt. */}
@@ -351,10 +338,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   rowBorder: { borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
   rowText: { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.3)' },
-  kavWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 14 },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
+  sheetDraggable: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, gap: 14 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
   sheetSubtitle: { fontSize: 13, color: c.textMuted, lineHeight: 19, marginTop: -6 },
   input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
