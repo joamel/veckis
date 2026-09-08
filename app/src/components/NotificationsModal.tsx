@@ -2,12 +2,13 @@ import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../lib/theme';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type NotificationPreferences } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { registerForPush } from '../lib/registerPush';
 import { components as str } from '../lib/svenska';
+import { DraggableBottomSheet } from './DraggableBottomSheet';
 
 const TYPES: { key: keyof NotificationPreferences; title: string; desc: string }[] = (
   Object.entries(str.notificationsModal.types) as [keyof NotificationPreferences, { title: string; desc: string }][]
@@ -69,11 +70,7 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View pointerEvents="none" style={s.overlayDim} />
-      <Pressable style={s.overlay} onPress={onClose} />
-      <View style={s.sheet}>
-        <View style={s.handle} />
+    <DraggableBottomSheet visible={visible} onRequestClose={onClose} sheetStyle={s.sheet}>
         <View style={s.header}>
           <Text style={s.title}>{str.notificationsModal.title}</Text>
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.notificationsModal.close}>
@@ -118,16 +115,12 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
           )}
           {deviceStatus && <Text style={s.statusText}>{deviceStatus}</Text>}
         </ScrollView>
-      </View>
-    </Modal>
+    </DraggableBottomSheet>
   );
 }
 
 const makeStyles = (c: Palette) => StyleSheet.create({
-  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  overlay: { flex: 1 },
-  sheet: { backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: '85%' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, alignSelf: 'center', marginTop: 10 },
+  sheet: { backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 20, paddingBottom: 32, maxHeight: '85%' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
   title: { fontSize: 20, fontWeight: '700', color: c.text },
   body: { paddingHorizontal: 16, paddingBottom: 16 },

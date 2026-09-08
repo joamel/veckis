@@ -3,8 +3,6 @@ import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,8 +20,8 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, ALL_SUB_CATEGORIES, type StoreCategory, type SubCategory, type Store } from '@veckis/shared';
-import { kavBehavior } from '../../src/lib/platform';
 import { stores as str, common } from '../../src/lib/svenska';
+import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { sortedRestFor } from '../../src/lib/subOrder';
 
 // EGEN komponent — gesten byggs via useMemo, keyad på stabila props, så samma
@@ -697,11 +695,7 @@ export default function StoreDetailScreen() {
       )}
 
       {/* Slå ihop kategori-modal */}
-      <Modal visible={mergingKey !== null} transparent animationType="slide" onRequestClose={() => setMergingKey(null)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setMergingKey(null)} />
-        <View style={[s.sheet, { maxHeight: '70%' }]}>
-          <View style={s.sheetHandle} />
+      <DraggableBottomSheet visible={mergingKey !== null} onRequestClose={() => setMergingKey(null)} sheetStyle={[s.sheet, { maxHeight: '70%' }]}>
           <Text style={s.sheetTitle}>
             {mergingKey ? str.detail.mergeModal.title(CATEGORY_LABELS[mergingKey] ?? mergingKey) : ''}
           </Text>
@@ -724,16 +718,10 @@ export default function StoreDetailScreen() {
               <Text style={s.emptyHint}>{str.detail.mergeModal.noTargets}</Text>
             )}
           </ScrollView>
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Byt namn-modal */}
-      <Modal visible={showRename} transparent animationType="slide" onRequestClose={() => setShowRename(false)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowRename(false)} />
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
-          <View style={s.sheet}>
-            <View style={s.sheetHandle} />
+      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} keyboardAvoiding sheetStyle={s.sheet}>
             <Text style={s.sheetTitle}>{str.renameModal.title}</Text>
             <TextInput
               style={s.input}
@@ -750,9 +738,7 @@ export default function StoreDetailScreen() {
             >
               {renaming ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{common.actions.save}</Text>}
             </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </DraggableBottomSheet>
     </SafeAreaView>
   );
 }
@@ -801,12 +787,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   saveBar: { position: 'absolute', left: 16, right: 16, bottom: 20 },
   primaryBtn: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', shadowColor: c.primary, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  // flex:1 + eget dim-lager: transparent Pressable puttar ner sheeten till botten
-  // (annars hamnar den i toppen) och dimmen täcker bakom de rundade hörnen.
-  overlay: { flex: 1 },
-  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
-  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, marginBottom: 12 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 10 },
   input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: c.text },
 });

@@ -11,6 +11,7 @@ import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryG
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { ClearableInput } from '../../src/components/ClearableInput';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
+import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
@@ -1674,11 +1675,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           använder pickStore()-helpern och navigerar dit i ?pick=1-läge. */}
 
       {/* Category browser modal */}
-      <Modal visible={showBrowser} transparent animationType="slide" onRequestClose={() => setShowBrowser(false)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowBrowser(false)} />
-        <View style={[s.sheet, s.browserSheet]}>
-          <View style={s.sheetHandle} />
+      <DraggableBottomSheet visible={showBrowser} onRequestClose={() => setShowBrowser(false)} sheetStyle={[s.sheet, s.browserSheet]}>
           {browserCategory === null ? (
             <>
               <Text style={s.sheetTitle}>{str.browserTitle}</Text>
@@ -1719,16 +1716,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               </ScrollView>
             </>
           )}
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Item edit modal */}
-      <Modal visible={!!editingItem} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setEditingItem(null)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setEditingItem(null)} />
-        <View style={{ paddingBottom: sheetLift }}>
-        <View style={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}>
-          <View style={s.sheetHandle} />
+      <DraggableBottomSheet
+        visible={!!editingItem}
+        onRequestClose={() => setEditingItem(null)}
+        liftOffset={sheetLift}
+        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}
+      >
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
           <ConflictBanner message={editConflict?.msg ?? null} onShowLatest={editConflict?.latest ? applyLatestEdit : undefined} />
           <Text style={s.editLabel}>{common.fields.name}</Text>
@@ -1889,17 +1885,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>{common.actions.save}</Text>}
             </Pressable>
           </View>
-        </View>
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Staple edit modal (from long-press on suggestion chip) */}
-      <Modal visible={!!editingStaple} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setEditingStaple(null)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setEditingStaple(null)} />
-        <View style={{ paddingBottom: sheetLift }}>
-        <View style={[s.sheet, { maxHeight: windowHeight * 0.75, paddingBottom: insets.bottom + 20 }]}>
-          <View style={s.sheetHandle} />
+      <DraggableBottomSheet
+        visible={!!editingStaple}
+        onRequestClose={() => setEditingStaple(null)}
+        liftOffset={sheetLift}
+        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.75, paddingBottom: insets.bottom + 20 }]}
+      >
           <Text style={s.sheetTitle}>
             {editingStaple?.id.startsWith('suggestion:') ? str.stapleEditor.saveTitle : str.stapleEditor.editTitle}
           </Text>
@@ -1968,19 +1962,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               {savingStaple ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>{common.actions.save}</Text>}
             </Pressable>
           </View>
-        </View>
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Tidigare in-list category-order editor + custom-kategorier är borttagen.
           All butiks-konfig sker på /stores/[storeId]-routen istället. */}
       {/* Quantity sheet */}
-      <Modal visible={!!qtySheet} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setQtySheet(null)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <Pressable style={{ flex: 1 }} onPress={() => setQtySheet(null)} />
-          <View style={{ paddingBottom: sheetLift }}>
-          <View style={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}>
-            <View style={s.sheetHandle} />
+      <DraggableBottomSheet
+        visible={!!qtySheet}
+        onRequestClose={() => setQtySheet(null)}
+        liftOffset={sheetLift}
+        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}
+      >
             <Text style={s.sheetTitle}>{capitalize(qtySheet?.name)}</Text>
             <View style={s.qtyStepper}>
               <Pressable
@@ -2090,10 +2082,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 ? <ActivityIndicator color="#fff" size="small" />
                 : <Text style={s.qtyConfirmText}>{common.actions.add}</Text>}
             </Pressable>
-          </View>
-          </View>
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
 
       <Animated.View style={[s.toast, { opacity: toastOpacity }]} pointerEvents="none">
         <Ionicons name="checkmark-circle" size={20} color="#fff" />
@@ -2101,12 +2090,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       </Animated.View>
 
       {/* Merge duplicates sheet */}
-      <Modal visible={!!mergeSheet} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setMergeSheet(null)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setMergeSheet(null)} />
-        <View style={{ paddingBottom: sheetLift }}>
-        <View style={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}>
-            <View style={s.sheetHandle} />
+      <DraggableBottomSheet
+        visible={!!mergeSheet}
+        onRequestClose={() => setMergeSheet(null)}
+        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}
+      >
             <View style={s.mergeHeaderRow}>
               <Text style={s.sheetTitle}>{str.merge.heading}</Text>
               {!manualPickerOpen && (
@@ -2253,9 +2241,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               </Pressable>
               </>)}
             </ScrollView>
-        </View>
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Actions menu (3-dot) */}
       <Modal visible={showActionsMenu} transparent animationType="fade" onRequestClose={() => setShowActionsMenu(false)}>
@@ -2336,12 +2322,12 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       </Modal>
 
       {/* Rename list modal */}
-      <Modal visible={showRenameModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowRenameModal(false)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowRenameModal(false)} />
-        <View style={{ paddingBottom: sheetLift }}>
-          <View style={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}>
-            <View style={s.sheetHandle} />
+      <DraggableBottomSheet
+        visible={showRenameModal}
+        onRequestClose={() => setShowRenameModal(false)}
+        liftOffset={sheetLift}
+        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}
+      >
             <Text style={s.sheetTitle}>{str.renameTitle}</Text>
             <TextInput
               ref={renameInputRef}
@@ -2362,16 +2348,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             >
               {renaming ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{common.actions.save}</Text>}
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
 
       {/* Manual duplicate picker */}
-      <Modal visible={manualPickerOpen} transparent animationType="slide" onRequestClose={() => setManualPickerOpen(false)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setManualPickerOpen(false)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
+      <DraggableBottomSheet visible={manualPickerOpen} onRequestClose={() => setManualPickerOpen(false)} sheetStyle={s.sheet}>
           <Text style={s.sheetTitle}>{str.merge.pickTitle}</Text>
           <Text style={s.sheetSub}>{str.merge.pickSubtitle}</Text>
           {/* Samma kategori-gruppering som den vanliga listan så det är lätt att
@@ -2429,8 +2409,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           >
             <Text style={s.qtyConfirmText}>Fortsätt med {manualPickerSelected.size} varor</Text>
           </Pressable>
-        </View>
-      </Modal>
+      </DraggableBottomSheet>
     </View>
   );
 }
@@ -2606,7 +2585,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // width:100% + maxWidth + alignSelf:center → full bredd på telefon (<480), men
   // capad och centrerad på bred/webb-viewport så sheeten inte blir "fullscreen".
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '85%', width: '100%', maxWidth: 480, alignSelf: 'center' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderLight, alignSelf: 'center', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
   sheetSub: { fontSize: 13, color: c.textMuted, marginTop: -4 },
   storeOption: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 10, backgroundColor: c.background },

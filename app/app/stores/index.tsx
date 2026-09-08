@@ -3,8 +3,6 @@ import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,8 +19,8 @@ import { useApiClient } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { EmptyState } from '../../src/components/EmptyState';
+import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { type Store, type StoreCategory } from '@veckis/shared';
-import { kavBehavior } from '../../src/lib/platform';
 import { stores as str, common, gettingStarted } from '../../src/lib/svenska';
 import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
@@ -252,58 +250,49 @@ export default function StoresScreen() {
       )}
 
       {/* Skapa-modal */}
-      <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); })}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        {/* flex-1-mönster: tappbart tomrum ovanför sheeten ligger INUTI KAV:n (som
-            annars täckte hela skärmen absolut och slukade utanför-tryck på web). */}
-        <KeyboardAvoidingView behavior={kavBehavior} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}>
-          <Pressable style={{ flex: 1 }} onPress={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); })} />
-          <View style={s.sheet}>
-            <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>{str.createModal.title}</Text>
-            <TextInput
-              style={s.input}
-              placeholder={str.createModal.placeholder}
-              placeholderTextColor={c.textFaint}
-              value={newStoreName}
-              onChangeText={setNewStoreName}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={createStore}
-            />
-            <Pressable
-              style={[s.primaryBtn, (!newStoreName.trim() || creating) && { opacity: 0.4 }]}
-              onPress={createStore}
-              disabled={creating || !newStoreName.trim()}
-            >
-              {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{str.createModal.create}</Text>}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <DraggableBottomSheet
+        visible={showCreate}
+        onRequestClose={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); })}
+        keyboardAvoiding
+        sheetStyle={s.sheet}
+      >
+        <Text style={s.sheetTitle}>{str.createModal.title}</Text>
+        <TextInput
+          style={s.input}
+          placeholder={str.createModal.placeholder}
+          placeholderTextColor={c.textFaint}
+          value={newStoreName}
+          onChangeText={setNewStoreName}
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={createStore}
+        />
+        <Pressable
+          style={[s.primaryBtn, (!newStoreName.trim() || creating) && { opacity: 0.4 }]}
+          onPress={createStore}
+          disabled={creating || !newStoreName.trim()}
+        >
+          {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{str.createModal.create}</Text>}
+        </Pressable>
+      </DraggableBottomSheet>
 
       {/* Sort-modal */}
-      <Modal visible={showSort} transparent animationType="slide" onRequestClose={() => setShowSort(false)}>
-        <View pointerEvents="none" style={s.overlayDim} />
-        <Pressable style={s.overlay} onPress={() => setShowSort(false)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>{str.sort.modalTitle}</Text>
-          {[
-            { v: 'name' as const, label: str.sort.az },
-            { v: 'created' as const, label: str.sort.addedOrder },
-          ].map(o => (
-            <Pressable
-              key={o.v}
-              style={s.sortRow}
-              onPress={() => { setSortMode(o.v); setShowSort(false); }}
-            >
-              <Text style={s.sortRowText}>{o.label}</Text>
-              {sortMode === o.v && <Ionicons name="checkmark" size={20} color={c.primary} />}
-            </Pressable>
-          ))}
-        </View>
-      </Modal>
+      <DraggableBottomSheet visible={showSort} onRequestClose={() => setShowSort(false)} sheetStyle={s.sheet}>
+        <Text style={s.sheetTitle}>{str.sort.modalTitle}</Text>
+        {[
+          { v: 'name' as const, label: str.sort.az },
+          { v: 'created' as const, label: str.sort.addedOrder },
+        ].map(o => (
+          <Pressable
+            key={o.v}
+            style={s.sortRow}
+            onPress={() => { setSortMode(o.v); setShowSort(false); }}
+          >
+            <Text style={s.sortRowText}>{o.label}</Text>
+            {sortMode === o.v && <Ionicons name="checkmark" size={20} color={c.primary} />}
+          </Pressable>
+        ))}
+      </DraggableBottomSheet>
     </SafeAreaView>
   );
 }
@@ -330,12 +319,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   cardMetaCurrent: { color: c.accent, fontWeight: '600' },
   cardClearBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerTint },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  // flex:1 (inte absolut) så den transparenta Pressablen puttar ner sheeten till
-  // botten; dim ligger på eget absolut lager (overlayDim) bakom de rundade hörnen.
-  overlay: { flex: 1 },
-  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
-  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, marginBottom: 12 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 6 },
   input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: c.text },
   saveBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
