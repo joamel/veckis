@@ -4,6 +4,7 @@ import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Keyboard,
   Platform,
   Pressable,
@@ -19,6 +20,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@clerk/expo';
 import * as SecureStore from '../../src/lib/secureStorage';
 import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe } from '../../src/api/client';
@@ -473,6 +475,36 @@ export default function RecipesScreen() {
     }
   }
 
+  async function pickPhoto() {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        aspect: [4, 3],
+      });
+      if (!result.canceled && result.assets[0]) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch (err) {
+      showError(err, str.errors.generic);
+    }
+  }
+
+  async function pickPhotoFromLibrary() {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        aspect: [4, 3],
+      });
+      if (!result.canceled && result.assets[0]) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch (err) {
+      showError(err, str.errors.generic);
+    }
+  }
+
   async function handlePhotoAndCreate() {
     if (!householdId || !photoUri) return;
     setPhotoParsing(true);
@@ -542,6 +574,12 @@ export default function RecipesScreen() {
           <Pressable style={[s.modeTab, mode === 'url' && s.modeTabActive]} onPress={() => switchMode('url')}>
             <Text style={[s.modeTabText, mode === 'url' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{str.createModal.tabUrl}</Text>
           </Pressable>
+          <Pressable style={[s.modeTab, mode === 'photo' && s.modeTabActive]} onPress={() => switchMode('photo')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="camera-outline" size={13} color={mode === 'photo' ? c.primary : c.textMuted} />
+              <Text style={[s.modeTabText, mode === 'photo' && s.modeTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Fota</Text>
+            </View>
+          </Pressable>
         </View>
 
         <View style={s.modeBody}>
@@ -592,7 +630,7 @@ export default function RecipesScreen() {
               {parsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.parseButton}</Text>}
             </Pressable>
           </>
-        ) : (
+        ) : mode === 'url' ? (
           <>
             <ClearableInput
               ref={urlRef}
@@ -618,6 +656,52 @@ export default function RecipesScreen() {
               {scraping || creating
                 ? <ActivityIndicator color="#fff" />
                 : <Text style={s.buttonText}>{str.createModal.fetchButton}</Text>}
+            </Pressable>
+          </>
+        ) : (
+          <>
+            {photoUri ? (
+              <>
+                <Image source={{ uri: photoUri }} style={s.photoPreview} />
+                <Pressable style={s.changePhotoBtn} onPress={pickPhotoFromLibrary}>
+                  <Ionicons name="images-outline" size={18} color={c.primary} />
+                  <Text style={s.changePhotoBtnText}>Byt foto</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Pressable
+                  style={[s.button, s.modeBodyBtn, { marginBottom: 12 }]}
+                  onPress={pickPhoto}
+                >
+                  <Ionicons name="camera-outline" size={20} color="#fff" />
+                  <Text style={s.buttonText}>Ta foto</Text>
+                </Pressable>
+                <Pressable
+                  style={[s.button, s.modeBodyBtn, { backgroundColor: c.border }]}
+                  onPress={pickPhotoFromLibrary}
+                >
+                  <Ionicons name="images-outline" size={20} color={c.text} />
+                  <Text style={[s.buttonText, { color: c.text }]}>Välj från bibliotek</Text>
+                </Pressable>
+              </>
+            )}
+            <ClearableInput
+              style={s.input}
+              placeholder="Valfri rubrik (auto-fylls från foto)"
+              value={title}
+              onChangeText={setTitle}
+              importantForAutofill="no"
+              textContentType="none"
+              returnKeyType="done"
+            />
+            <Pressable
+              ref={photoBtnRef}
+              style={[s.button, s.modeBodyBtn, (!photoUri || photoParsing) && s.buttonDisabled]}
+              onPress={handlePhotoAndCreate}
+              disabled={photoParsing || creating || !photoUri}
+            >
+              {photoParsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Läs & Skapa</Text>}
             </Pressable>
           </>
         )}
@@ -948,4 +1032,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   weekChipTextActive: { color: c.primary },
   weekChipSub: { fontSize: 11, color: c.textFaint, marginTop: 2 },
   weekChipSubActive: { color: c.primary400 },
+  photoPreview: { width: '100%', height: 200, borderRadius: 10, marginBottom: 12, backgroundColor: c.border },
+  changePhotoBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, marginBottom: 12 },
+  changePhotoBtnText: { fontSize: 14, color: c.primary, fontWeight: '500' },
 });
