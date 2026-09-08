@@ -418,7 +418,7 @@ export function useApiClient() {
       formData.append('image', fileBlob, fileName);
 
       const token = await getToken();
-      const res = await fetch(`${API_URL}/api/recipes/from-image`, {
+      const res = await fetch(`${BASE_URL}/api/recipes/from-image`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
