@@ -205,6 +205,7 @@ export const shoppingList = {
   browserTitle:    'Välj kategori',
   unitPlaceholder: 't.ex. st, dl, paket',
   renameTitle:     'Redigera lista',
+    showAllChecked:  (n: number) => `Visa ${n} till`,
   deleteList:      'Ta bort lista',
   fallbackActor:   'Någon',
   checkedLabel:    'Klart',

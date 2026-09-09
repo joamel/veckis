@@ -70,6 +70,10 @@ const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
   cleaning: '🧹', personal_care: '🧴', baby_kids: '👶', other: '📦',
 };
 
+// Tak för hur många avbockade rader som renderas innan "visa alla". Listan
+// virtualiserar inte, så utan tak monteras hela högen på en gång.
+const CHECKED_RENDER_CAP = 50;
+
 // Survives navigation within the session; resets on app restart
 const dismissedDupesStore = new Map<string, Set<string>>();
 
@@ -285,7 +289,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   });
   // Dubblett-pill: döljs när rubriken kollapsar (samma interpolation som storeName).
   // Collapsed categories — tap category header to fold/unfold its items.
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<StoreCategory | 'checked'>>(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<StoreCategory | 'checked'>>(new Set(['checked']));
+  // Tak på hur många avbockade rader som renderas. Listan virtualiserar inte
+  // (ScrollView + .map), så utan tak växer render-trädet obegränsat med högen.
+  const [showAllChecked, setShowAllChecked] = useState(false);
   function toggleCategoryCollapsed(cat: StoreCategory | 'checked') {
     setCollapsedCategories(prev => {
       const next = new Set(prev);
@@ -1454,7 +1461,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             kategori (samma indelning som obockade) med kategorin som underrubrik. */}
         {checked.length > 0 && (() => {
           const collapsed = collapsedCategories.has('checked');
-          const checkedGroups = buildCategoryGroups(checked, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge);
+          // Rendera bara de första CHECKED_RENDER_CAP tills man ber om resten.
+          const capped = showAllChecked ? checked : checked.slice(0, CHECKED_RENDER_CAP);
+          const hiddenCount = checked.length - capped.length;
+          const checkedGroups = buildCategoryGroups(capped, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge);
           return (
             <View style={s.categoryGroup} onLayout={e => { catLayouts.current['checked'] = e.nativeEvent.layout.y; }}>
               <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={4}>
@@ -1477,6 +1487,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   })}
                 </View>
               ))}
+              {!collapsed && hiddenCount > 0 && (
+                <Pressable style={s.showAllChecked} onPress={() => setShowAllChecked(true)}>
+                  <Text style={s.showAllCheckedText}>{str.showAllChecked(hiddenCount)}</Text>
+                </Pressable>
+              )}
             </View>
           );
         })()}
@@ -2571,6 +2586,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   categorySubHeader: { paddingVertical: 4 },
   categorySubLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: c.primary },
   checkedCatLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.4, paddingHorizontal: 2, paddingTop: 8, paddingBottom: 1 },
+  showAllChecked: { alignItems: 'center', paddingVertical: 12, marginTop: 2 },
+  showAllCheckedText: { fontSize: 14, fontWeight: '600', color: c.primary },
   categoryCount: { fontSize: 11, color: c.textFaint, fontWeight: '600' },
   item: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 10, padding: 14, gap: 12 },
   itemChecked: { opacity: 0.55 },
