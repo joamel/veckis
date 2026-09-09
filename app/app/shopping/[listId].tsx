@@ -2572,7 +2572,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   categorySubLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: c.primary },
   checkedCatLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.4, paddingHorizontal: 2, paddingTop: 8, paddingBottom: 1 },
   categoryCount: { fontSize: 11, color: c.textFaint, fontWeight: '600' },
-  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, padding: 14, gap: 12 },
   itemChecked: { opacity: 0.55 },
   itemPending: { opacity: 0.4, backgroundColor: c.dangerTint },
   itemContent: { flex: 1 },
@@ -2629,7 +2629,11 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   editActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: c.dangerBorder, backgroundColor: c.dangerTint },
   deleteBtnText: { color: c.danger, fontWeight: '600', fontSize: 15 },
-  swipeRowWrap: { borderRadius: 10, overflow: 'hidden' },
+  // Skuggan ligger HÄR, inte på s.item: wrappern har overflow:'hidden' för att
+  // klippa svep-bakgrunderna till hörnen, och det klipper barnens skuggor. En
+  // vy klipper aldrig sin EGEN skugga, så den måste sitta på wrappern.
+  // backgroundColor krävs för att Android ska rita elevation-skuggan alls.
+  swipeRowWrap: { borderRadius: 10, overflow: 'hidden', backgroundColor: c.surface, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   swipeDeleteBg: { backgroundColor: c.danger, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
   swipeEditBg: { backgroundColor: c.primary, justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 20 },
   browserSheet: { maxHeight: '90%', gap: 0 },
