@@ -263,6 +263,8 @@ export default function MenuScreen() {
   const incomingAddRecipeRef = useRef(params.addRecipeId);
   incomingAddRecipeRef.current = params.addRecipeId;
   const bulkTransferTriggeredRef = useRef(false);
+  // Ankare för överförings-popupen, så den hamnar ovanför kundkorgs-FAB:en.
+  const transferFabRef = useRef<View>(null);
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
@@ -321,7 +323,10 @@ export default function MenuScreen() {
   // nollställer det man redan hunnit fylla i, så länge receptvalet är oförändrat.
   const inventoryBuiltForRef = useRef<Set<string> | null>(null);
   const [allMenus, setAllMenus] = useState<MenuRow[]>([]);
-  const [bulkTransferWeek, setBulkTransferWeek] = useState<{ weekYear: number; weekNumber: number } | null>(null);
+  // Nycklar "år-vecka". Flera veckor kan väljas samtidigt; aggregeringen slår
+  // ihop samma ingrediens över dem, vilket är hela poängen med att kunna ta mer
+  // än en vecka i taget. Tom mängd = ingen veckofiltrering (nuvarande vecka).
+  const [bulkTransferWeeks, setBulkTransferWeeks] = useState<Set<string>>(new Set());
 
   // Replace recipe: item being replaced
   const [replaceTarget, setReplaceTarget] = useState<WeekMenuItemWithRecipe | null>(null);
@@ -419,15 +424,23 @@ export default function MenuScreen() {
     return s;
   }, [shoppingLists, params.originListId]);
 
+  // Vilka menyrader som är i spel för bulk-överföringen. Låg tidigare
+  // triplicerad (aggregeringen, receptsteget och executeBulkTransfer) med små
+  // skillnader sinsemellan — en delad memo håller dem i synk, och gör att en
+  // AVMARKERAD vecka inte kan smita med via kvarglömda id:n i selectionen.
+  const bulkPool = useMemo(
+    () => (bulkTransferWeeks.size > 0
+      ? allMenus.filter(m => bulkTransferWeeks.has(`${m.weekYear}-${m.weekNumber}`))
+      : menuItems),
+    [bulkTransferWeeks, allMenus, menuItems],
+  );
+
   // Ingredients across the selected recipes, merged into one row per name+unit
   // (with provenance), so a shared ingredient isn't inventoried multiple times.
   // Restricted to the active week and excludes already-transferred recipes so it
   // matches exactly what step 1 offered + the user picked.
   const aggregatedInventory = useMemo<AggIngredient[]>(() => {
-    const pool = bulkTransferWeek
-      ? allMenus.filter(m => m.weekYear === bulkTransferWeek.weekYear && m.weekNumber === bulkTransferWeek.weekNumber)
-      : menuItems;
-    const selected = pool.filter(m => selectedRecipesForTransfer.has(m.id) && !transferredMenuItemIds.has(m.id));
+    const selected = bulkPool.filter(m => selectedRecipesForTransfer.has(m.id) && !transferredMenuItemIds.has(m.id));
     const map = new Map<string, AggIngredient>();
     for (const item of selected) {
       const ratio = getScaleRatio(item);
@@ -458,7 +471,7 @@ export default function MenuScreen() {
     return [...map.values()]
       .map(a => (a.measured && (a.totalQty ?? 0) > 0 ? a : { ...a, measured: false, totalQty: null }))
       .sort((a, b) => (catIdx(a.category) - catIdx(b.category)) || a.name.localeCompare(b.name, 'sv'));
-  }, [selectedRecipesForTransfer, bulkTransferWeek, allMenus, menuItems, menuItemServings, transferredMenuItemIds, ingredientCategories]);
+  }, [selectedRecipesForTransfer, bulkPool, menuItemServings, transferredMenuItemIds, ingredientCategories]);
 
   // Inventory: en flat lista där varje rad har en dra-bar + ✓-knapp. Cap höjden
   // så Överför-/Tillbaka-knapparna inte klipps på korta skärmar.
@@ -822,6 +835,8 @@ export default function MenuScreen() {
   function handleBulkBack() {
     if (bulkTransferStep === 'list') { setBulkTransferStep('ingredients'); return; }
     if (bulkTransferStep === 'ingredients') { setBulkTransferStep('recipe'); return; }
+    // Kom man in via vecko-steget ska bakåt leda dit, inte stänga hela guiden.
+    if (bulkTransferStep === 'recipe' && bulkTransferWeeks.size > 0) { setBulkTransferStep('week'); return; }
     handleCancelBulkTransfer();
   }
 
@@ -832,6 +847,11 @@ export default function MenuScreen() {
       // Samma filtrering som load() — annars kan en pending-borttagen rad
       // (5s Ångra-fönster) dyka upp igen via den här separata hämtningen.
       setAllMenus(all.filter(i => !pendingMenuItemRemovals.has(i.id)));
+      // Nollställ urvalet vid ingången. Tidigare ERSATTE ett veckoklick hela
+      // urvalet, så gammalt skräp maskerades; nu adderas/tas rätter bort per
+      // vecka och kvarglömda id:n skulle följa med in i överföringen.
+      setBulkTransferWeeks(new Set());
+      setSelectedRecipesForTransfer(new Set());
       setBulkTransferStep('week');
       setShowBulkTransferModal(true);
     } catch (e) {
@@ -842,7 +862,7 @@ export default function MenuScreen() {
   useEffect(() => {
     if (!showBulkTransferModal) {
       if (params.originListId) router.setParams({ originListId: undefined });
-      setBulkTransferWeek(null);
+      setBulkTransferWeeks(new Set());
     }
   }, [showBulkTransferModal, params.originListId]);
 
@@ -1156,6 +1176,22 @@ export default function MenuScreen() {
     }
   }
 
+
+  // Popupen väljer omfattning innan guiden öppnas: den visade veckan (som förut,
+  // rakt in i rätt-steget) eller flera veckor (via veckovalet). Utan den fanns
+  // flerveckorsvägen bara från en inköpslista, vilket ingen hittade.
+  function handleShowTransferMenu() {
+    confirm({
+      variant: 'menu',
+      menuAnchor: 'bottom-right',
+      menuAnchorRef: transferFabRef,
+      buttons: [
+        { label: str.bulk.transferThisWeek, icon: 'cart-outline', onPress: transferWeekMenu },
+        { label: str.bulk.transferMultipleWeeks, icon: 'calendar-outline', onPress: openWeekPicker },
+        { label: common.actions.cancel, style: 'cancel' },
+      ],
+    });
+  }
   async function transferWeekMenu() {
     if (menuItems.length === 0) {
       confirm({ title: str.dialogs.weekEmpty.title, message: str.dialogs.weekEmpty.message, buttons: [{ label: 'OK' }] });
@@ -1182,8 +1218,7 @@ export default function MenuScreen() {
     }
 
     try {
-      const sourcePool = bulkTransferWeek ? allMenus : menuItems;
-      const toTransfer = sourcePool.filter(item => selectedRecipesForTransfer.has(item.id));
+      const toTransfer = bulkPool.filter(item => selectedRecipesForTransfer.has(item.id));
       const existingMenuItemIds = new Set(shoppingLists
         .find(l => l.id === listId)?.items
         .map(i => i.menuItemId)
@@ -1665,7 +1700,7 @@ export default function MenuScreen() {
       {/* Overför-FAB (kundkorg) — visas bara för nuvarande/framtida veckor
           när minst en rätt inte är överförd än. */}
       {!dragState && weekOffset >= 0 && menuItems.some(m => !recipeListMap[m.id]?.length) && (
-        <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={transferWeekMenu} accessibilityLabel={str.a11y.transferFab}>
+        <Pressable ref={transferFabRef} style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={handleShowTransferMenu} accessibilityLabel={str.a11y.transferFab}>
           <Ionicons name="cart-outline" size={fs(26)} color="#fff" />
         </Pressable>
       )}
@@ -1911,13 +1946,15 @@ export default function MenuScreen() {
               <Text style={s.sheetSub}>{str.bulk.chooseWeekMenuSub}</Text>
               <ScrollView style={s.bulkRecipeList}>
                 {(() => {
-                  // Only mark "already transferred" against the destination list, if known
-                  const destList = params.originListId
-                    ? shoppingLists.find(l => l.id === params.originListId)
-                    : null;
-                  const transferredIds = new Set(
-                    (destList?.items ?? []).map(i => i.menuItemId).filter(Boolean) as string[]
-                  );
+                  // Samma källa som receptsteget och aggregeringen använder:
+                  // transferredMenuItemIds är scopad till destinationslistan när
+                  // vi kommer från en (originListId), annars över ALLA listor.
+                  // Den lokala varianten här tittade bara på destList.items och
+                  // gav en tom mängd när man kom från menyfliken — då gick det
+                  // att välja en vecka vars rätter redan var överförda, och
+                  // landa på ett tomt receptsteg. Den läser dessutom
+                  // linkedMenuItemIds, som även fångar dolda merge-containers.
+                  const transferredIds = transferredMenuItemIds;
                   const byWeek = new Map<string, WeekMenuItemWithRecipe[]>();
                   for (const m of allMenus) {
                     const key = `${m.weekYear}-${m.weekNumber}`;
@@ -1940,45 +1977,69 @@ export default function MenuScreen() {
                   }
                   return weeks.map(([key, items]) => {
                     const [wy, wn] = key.split('-').map(Number);
-                    const newCount = items.filter(i => !transferredIds.has(i.id)).length;
-                    const allTransferred = newCount === 0;
+                    const freshIds = items.filter(i => !transferredIds.has(i.id)).map(i => i.id);
+                    const allTransferred = freshIds.length === 0;
+                    const weekSelected = bulkTransferWeeks.has(key);
                     return (
                       <Pressable
                         key={key}
-                        style={[s.bulkRecipeItem, allTransferred && { opacity: 0.5 }]}
+                        style={[s.bulkRecipeItem, allTransferred && { opacity: 0.5 }, weekSelected && s.bulkRecipeItemActive]}
                         disabled={allTransferred}
                         onPress={() => {
-                          setBulkTransferWeek({ weekYear: wy, weekNumber: wn });
-                          setSelectedRecipesForTransfer(new Set(items.filter(i => !transferredIds.has(i.id)).map(i => i.id)));
-                          setBulkTransferStep('recipe');
+                          setBulkTransferWeeks(prev => {
+                            const n = new Set(prev);
+                            if (n.has(key)) n.delete(key); else n.add(key);
+                            return n;
+                          });
+                          // Håll rätt-valet i takt med veckovalet: en påslagen vecka
+                          // tar med sina nya rätter, en avslagen plockar bort sina —
+                          // annars ligger id:n kvar från en vecka man ångrat.
+                          setSelectedRecipesForTransfer(prev => {
+                            const n = new Set(prev);
+                            for (const id of freshIds) {
+                              if (weekSelected) n.delete(id); else n.add(id);
+                            }
+                            return n;
+                          });
                         }}
                       >
-                        <Ionicons name="calendar-outline" size={22} color={c.primary} />
+                        <Ionicons
+                          name={weekSelected ? 'checkbox' : 'square-outline'}
+                          size={22}
+                          color={weekSelected ? c.primary : c.textFaint}
+                        />
                         <View style={{ flex: 1 }}>
                           <Text style={s.bulkRecipeTitle}>{str.bulk.weekLabel(wn, wy)}</Text>
                           <Text style={s.bulkRecipeDay}>
                             {str.bulk.dishesCount(items.length)}
-                            {destList ? ` · ${allTransferred ? str.bulk.allAlreadyAdded : str.bulk.newCount(newCount)}` : ''}
+                            {` · ${allTransferred ? str.bulk.allAlreadyAdded : str.bulk.newCount(freshIds.length)}`}
                           </Text>
                         </View>
-                        {!allTransferred && <Ionicons name="chevron-forward" size={20} color={c.textFaint} />}
                       </Pressable>
                     );
                   });
                 })()}
               </ScrollView>
+              <Pressable
+                style={[s.button, bulkTransferWeeks.size === 0 && s.buttonDisabled]}
+                disabled={bulkTransferWeeks.size === 0}
+                onPress={() => setBulkTransferStep('recipe')}
+              >
+                <Text style={s.buttonText}>{str.bulk.weeksNext(bulkTransferWeeks.size)}</Text>
+              </Pressable>
             </>
           ) : bulkTransferStep === 'recipe' ? (
             <>
               <Text style={s.sheetTitle}>{str.bulk.chooseDishes}</Text>
-              <Text style={s.sheetSub}>{bulkTransferWeek ? str.bulk.weekLabel(bulkTransferWeek.weekNumber, bulkTransferWeek.weekYear) : str.bulk.chooseDishesSub}</Text>
+              <Text style={s.sheetSub}>
+                {bulkTransferWeeks.size > 0
+                  ? str.bulk.fromWeeks(selectedRecipesForTransfer.size, bulkTransferWeeks.size)
+                  : str.bulk.chooseDishesSub}
+              </Text>
               <ScrollView style={s.bulkRecipeList}>
-                {(bulkTransferWeek
-                  ? allMenus.filter(m => m.weekYear === bulkTransferWeek.weekYear && m.weekNumber === bulkTransferWeek.weekNumber)
-                  : menuItems
-                )
-                  .filter(item => !transferredMenuItemIds.has(item.id))
-                  .map(item => {
+                {(() => {
+                  const rows = bulkPool.filter(item => !transferredMenuItemIds.has(item.id));
+                  const renderRow = (item: (typeof rows)[number]) => {
                     const selected = selectedRecipesForTransfer.has(item.id);
                     return (
                       <Pressable
@@ -2005,7 +2066,29 @@ export default function MenuScreen() {
                         </View>
                       </Pressable>
                     );
-                  })}
+                  };
+                  // Utan veckorubriker går det inte att se vilken vecka en rätt
+                  // hör till när man valt flera — och samma rätt kan ligga i två.
+                  if (bulkTransferWeeks.size <= 1) return rows.map(renderRow);
+                  const byWeek = new Map<string, typeof rows>();
+                  for (const m of rows) {
+                    const k = `${m.weekYear}-${m.weekNumber}`;
+                    if (!byWeek.has(k)) byWeek.set(k, []);
+                    byWeek.get(k)!.push(m);
+                  }
+                  return [...byWeek.entries()]
+                    .sort(([a], [b]) => {
+                      const [ay, aw] = a.split('-').map(Number);
+                      const [by, bw] = b.split('-').map(Number);
+                      return ay - by || aw - bw; // numeriskt: "2026-9" före "2026-10"
+                    })
+                    .map(([k, items]) => (
+                      <View key={k}>
+                        <Text style={s.bulkWeekHeader}>{str.bulk.weekShort(Number(k.split('-')[1]))}</Text>
+                        {items.map(renderRow)}
+                      </View>
+                    ));
+                })()}
               </ScrollView>
               <Pressable
                 style={[s.button, selectedRecipesForTransfer.size === 0 && s.buttonDisabled]}
@@ -2019,6 +2102,14 @@ export default function MenuScreen() {
               >
                 <Text style={s.buttonText}>{str.bulk.next}</Text>
               </Pressable>
+              {/* Bara när man kom hit via veckovalet — annars är receptsteget
+                  första steget och har inget att gå tillbaka till. Samma villkor
+                  som hårdvaru-back använder i handleBulkBack. */}
+              {bulkTransferWeeks.size > 0 && (
+                <Pressable style={s.cancelBtn} onPress={() => setBulkTransferStep('week')}>
+                  <Text style={s.cancelBtnText}>{str.bulk.back}</Text>
+                </Pressable>
+              )}
             </>
           ) : bulkTransferStep === 'ingredients' ? (
             <>
@@ -2475,6 +2566,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   bulkRecipeItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: c.background, borderWidth: 1, borderColor: c.borderLight, marginBottom: 6 },
   bulkRecipeItemActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
   bulkRecipeTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  bulkWeekHeader: { fontSize: 12, fontWeight: '700', color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 4 },
   bulkRecipeDay: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   dayGrid: { gap: 10 },
   dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.surfaceSubtle, borderRadius: 12 },

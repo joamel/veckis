@@ -460,8 +460,15 @@ export const menu = {
   },
 
   bulk: {
-    chooseWeekMenu:          'Välj veckomeny',
-    chooseWeekMenuSub:       'Vilken veckomeny vill du importera?',
+    chooseWeekMenu:          'Välj veckomenyer',
+    chooseWeekMenuSub:       'Välj en eller flera veckor. Samma ingrediens slås ihop över veckorna.',
+    transferThisWeek:        'Överför veckomeny',
+    transferMultipleWeeks:   'Överför flera veckor',
+    weeksNext:               (n: number) => n === 1 ? 'Fortsätt med 1 vecka' : `Fortsätt med ${n} veckor`,
+    weekShort:               (n: number) => `Vecka ${n}`,
+    // Sammanfattning i ingrediens-steget: vad är det egentligen som förs över?
+    fromWeeks:               (dishes: number, weeks: number) =>
+      `${dishes} ${dishes === 1 ? 'rätt' : 'rätter'} från ${weeks} ${weeks === 1 ? 'vecka' : 'veckor'}`,
     noActiveWeek:            'Ingen veckomeny med planerade rätter',
     weekLabel:               (n: number, y: number) => `Vecka ${n}, ${y}`,
     dishesCount:             (n: number) => `${n} ${n === 1 ? 'rätt' : 'rätter'}`,
