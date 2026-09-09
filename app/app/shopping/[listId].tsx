@@ -80,6 +80,20 @@ const CHECKED_RENDER_CAP = 50;
 // direkt när en ny kategori kommer in uppifrån.
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 0 };
 
+// Ett stylesheet per PALETT, inte per rad. makeStyles bygger hela skärmens
+// stilar; med useMemo inne i varje ItemRow gjordes det om vid varje mount, och
+// vid långsam scroll monteras rader kontinuerligt. Cachen är modulglobal och
+// byts bara när temat byts, alltså i praktiken en gång.
+let itemRowPalette: Palette | null = null;
+let itemRowStyles: ReturnType<typeof makeStyles> | null = null;
+function getItemRowStyles(c: Palette) {
+  if (itemRowPalette !== c || !itemRowStyles) {
+    itemRowPalette = c;
+    itemRowStyles = makeStyles(c);
+  }
+  return itemRowStyles;
+}
+
 // Rad-typen kommer från den testade byggaren i src/lib/shoppingListRows.
 type ListRow = ShoppingListRow<ShoppingItemWithRecipe, CategoryGroup<ShoppingItemWithRecipe>>;
 
@@ -2480,7 +2494,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
 function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; onDelete?: () => void; pending?: boolean }) {
   const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  // Delad cache i stället för egen useMemo per rad: makeStyles bygger HELA
+  // skärmens stylesheet (~150 entries), och med useMemo(…, [c]) gjorde varje
+  // monterad rad det en gång var. Vid långsam scroll monteras rader i jämn
+  // ström, så det blev ett stylesheet per rad — den dyraste posten i scrollen.
+  const s = getItemRowStyles(c);
   const { width: windowWidth } = useWindowDimensions();
   const translateX = useSharedValue(0);
   const THRESHOLD = windowWidth * 0.35;
@@ -2489,7 +2507,9 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
   const doEdit = useCallback(() => { onEdit(); }, [onEdit]);
   const canDelete = !!onDelete && !pending;
 
-  const panGesture = Gesture.Pan()
+  // Memoiserad: Gesture.Pan() byggde annars om hela gest-objektet med sina
+  // worklets vid varje render, inte bara vid mount.
+  const panGesture = useMemo(() => Gesture.Pan()
     .enabled(!pending)
     .activeOffsetX([-10, 10])
     .failOffsetY([-15, 15])
@@ -2508,7 +2528,7 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
       } else {
         translateX.value = withSpring(0);
       }
-    });
+    }), [pending, canDelete, THRESHOLD, windowWidth, translateX, doDelete, doEdit]);
 
   const rowAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
