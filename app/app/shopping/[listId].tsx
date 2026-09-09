@@ -1390,7 +1390,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Rubriker, varurader, klart-högens underrubriker och "visa fler" är alla
   // rader av olika sort. Logiken ligger i src/lib/shoppingListRows och är
   // enhetstestad — ordning, hopfällning och tak är där felen gömmer sig.
-  const listRows = useMemo<ListRow[]>(() => buildShoppingListRows({
+  // INTE useMemo: den här punkten ligger efter komponentens early returns
+  // (loading / !list), och en villkorad hook kraschar med "Rendered more hooks
+  // than during the previous render". Byggandet är O(n) och gjordes redan
+  // ovillkorat inline i den gamla JSX-versionen, så inget är förlorat.
+  const listRows: ListRow[] = buildShoppingListRows({
     activeGroups: categoryGroups,
     checked,
     checkedGroupsFor: items => buildCategoryGroups(items, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge),
@@ -1403,7 +1407,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     isCollapsed: key => collapsedCategories.has(key as StoreCategory | 'checked'),
     checkedLabel: str.checkedLabel,
     checkedLimit,
-  }), [categoryGroups, collapsedCategories, checked, checkedLimit, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge]);
+  });
 
   const renderListRow = ({ item: row }: { item: ListRow }) => {
     switch (row.kind) {
