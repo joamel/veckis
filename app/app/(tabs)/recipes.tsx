@@ -945,7 +945,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   tagFilterChipActive: { backgroundColor: c.primary },
   tagFilterChipText: { fontSize: 12, fontWeight: '600', color: c.primary },
   tagFilterChipTextActive: { color: '#fff' },
-  tagFilterClear: { paddingLeft: 8, paddingRight: 2 },
+  // Rund och symmetrisk, men smalare än originalets 28 px: rutans bredd äter
+  // direkt av taggarnas utrymme eftersom scrollen bredvid har flexShrink.
+  tagFilterClear: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginLeft: 2 },
   sortBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   searchIcon: { marginRight: 2 },
   searchInput: { flex: 1, fontSize: 15, color: c.text, padding: 0 },

@@ -2259,7 +2259,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       <Modal visible={showActionsMenu} transparent animationType="fade" onRequestClose={() => setShowActionsMenu(false)}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowActionsMenu(false)} />
-        <View style={[s.actionsMenu, { top: 0 }]}>
+        {/* insets.top: modalen täcker HELA skärmen, så top:0 la menyn över
+            statusfältet. Samma fälla som ConfirmDialog redan fixat — den här
+            menyn är handrullad och missade den. */}
+        <View style={[s.actionsMenu, { top: insets.top + 4 }]}>
           <Pressable
             style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); toggleIAmShopping(); }}
@@ -2569,7 +2572,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   categorySubLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: c.primary },
   checkedCatLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.4, paddingHorizontal: 2, paddingTop: 8, paddingBottom: 1 },
   categoryCount: { fontSize: 11, color: c.textFaint, fontWeight: '600' },
-  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 10, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 10, borderWidth: 1, borderColor: c.surfaceSubtle, padding: 14, gap: 12, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   itemChecked: { opacity: 0.55 },
   itemPending: { opacity: 0.4, backgroundColor: c.dangerTint },
   itemContent: { flex: 1 },

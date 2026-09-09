@@ -204,7 +204,7 @@ export const shoppingList = {
   staplesHeading:  'Dina vanligaste',
   browserTitle:    'Välj kategori',
   unitPlaceholder: 't.ex. st, dl, paket',
-  renameTitle:     'Byt namn på listan',
+  renameTitle:     'Redigera lista',
   deleteList:      'Ta bort lista',
   fallbackActor:   'Någon',
   checkedLabel:    'Klart',

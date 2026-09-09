@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../lib/theme';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type MenuTemplate } from '../api/client';
@@ -10,6 +10,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { shareTemplate } from '../lib/shareWeekMenu';
 import { components as str, common } from '../lib/svenska';
 import { DraggableBottomSheet } from './DraggableBottomSheet';
+import { useSheetLift } from '../hooks/useSheetLift';
 
 interface Props {
   visible: boolean;
@@ -30,6 +31,10 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
   const client = useApiClient();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
+  // Utan detta doldes fältet bakom tangentbordet — varje annan sheet med ett
+  // textfält använder useSheetLift, den här hade bara aldrig fått det.
+  const { sheetLift, onFocusInput } = useSheetLift();
+  const nameRef = useRef<TextInput>(null);
   const [templates, setTemplates] = useState<MenuTemplate[] | null>(null);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -105,7 +110,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
   }
 
   return (
-    <DraggableBottomSheet visible={visible} onRequestClose={onClose} sheetStyle={s.sheet}>
+    <DraggableBottomSheet visible={visible} onRequestClose={onClose} liftOffset={sheetLift} sheetStyle={s.sheet}>
         <View style={s.header}>
           <Text style={s.title}>{str.menuTemplatesModal.title}</Text>
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.close}><Ionicons name="close" size={24} color={c.textMuted} /></Pressable>
@@ -115,6 +120,8 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
           <Text style={s.sectionLabel}>{str.menuTemplatesModal.saveSection}</Text>
           <View style={s.saveRow}>
             <TextInput
+              ref={nameRef}
+              onFocus={onFocusInput(nameRef)}
               style={s.input}
               placeholder={str.menuTemplatesModal.namePlaceholder}
               placeholderTextColor={c.textFaint}
