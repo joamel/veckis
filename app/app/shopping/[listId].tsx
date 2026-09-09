@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
 import * as Haptics from 'expo-haptics';
@@ -96,6 +96,8 @@ function getItemRowStyles(c: Palette) {
 
 // Rad-typen kommer från den testade byggaren i src/lib/shoppingListRows.
 type ListRow = ShoppingListRow<ShoppingItemWithRecipe, CategoryGroup<ShoppingItemWithRecipe>>;
+// Varurad-varianten, den enda ItemRow bryr sig om.
+type RowListRow = Extract<ListRow, { kind: 'row' }>;
 
 // Survives navigation within the session; resets on app restart
 const dismissedDupesStore = new Map<string, Set<string>>();
@@ -1444,6 +1446,29 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     checkedLimit,
   }), [categoryGroups, collapsedCategories, checked, checkedLimit, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge]);
 
+  // Stabila dispatchers till varuraderna. Handlarna nedan är vanliga funktioner
+  // som får ny identitet varje render; en ref håller dem färska medan de
+  // utåtvända funktionerna aldrig byter identitet. Utan det kan ItemRow inte
+  // memoiseras meningsfullt — nya props varje render slår ut varje jämförelse.
+  const rowFnsRef = useRef({ isPending, toggleItem, uncheckGroup, checkGroup, openEditItem, deleteItemWithUndo, deleteGroupWithUndo });
+  rowFnsRef.current = { isPending, toggleItem, uncheckGroup, checkGroup, openEditItem, deleteItemWithUndo, deleteGroupWithUndo };
+  const rowHandlers = useMemo(() => ({
+    toggle: (row: RowListRow) => {
+      const fns = rowFnsRef.current;
+      if (row.members.length === 1) fns.toggleItem(row.item);
+      else if (row.done) fns.uncheckGroup(row.members);
+      else fns.checkGroup(row.members);
+    },
+    // aggregateByNameUnit sätter rep = members[0], så en ihopslagen rad
+    // redigeras via sin första medlem.
+    edit: (row: RowListRow) => rowFnsRef.current.openEditItem(row.members.length === 1 ? row.item : row.members[0]),
+    remove: (row: RowListRow) => {
+      const fns = rowFnsRef.current;
+      if (row.members.length === 1) fns.deleteItemWithUndo(row.item);
+      else fns.deleteGroupWithUndo(row.members);
+    },
+  }), []);
+
   const renderListRow = useCallback(({ item: row }: { item: ListRow }) => {
     switch (row.kind) {
       case 'catHeader': {
@@ -1498,25 +1523,19 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             <Text style={s.showAllCheckedText}>{str.showAllChecked(Math.min(row.remaining, CHECKED_RENDER_CAP))}</Text>
           </Pressable>
         );
-      case 'row': {
-        const single = row.members.length === 1;
-        // aggregateByNameUnit sätter rep = members[0], så en ihopslagen rad
-        // redigeras via sin första medlem.
-        const rep = row.members[0];
+      case 'row':
+        // Raden får rad-OBJEKTET och stabila dispatchers, inte färska closures.
+        // Med closures per rad blev varje ItemRow-prop ny vid varje render, och
+        // då hjälper ingen memoisering — raden renderades om ändå.
         return (
           <ItemRow
-            item={row.item}
-            pending={single ? isPending(row.item) : undefined}
-            onToggle={() => {
-              if (single) toggleItem(row.item);
-              else if (row.done) uncheckGroup(row.members);
-              else checkGroup(row.members);
-            }}
-            onEdit={() => openEditItem(single ? row.item : rep)}
-            onDelete={() => (single ? deleteItemWithUndo(row.item) : deleteGroupWithUndo(row.members))}
+            row={row}
+            pending={row.members.length === 1 ? isPending(row.item) : undefined}
+            onToggle={rowHandlers.toggle}
+            onEdit={rowHandlers.edit}
+            onDelete={rowHandlers.remove}
           />
         );
-      }
     }
   }, [confirm, markAllInCategory, toggleCategoryCollapsed, isPending, toggleItem, uncheckGroup, checkGroup, openEditItem, deleteItemWithUndo, deleteGroupWithUndo, s, c]);
 
@@ -2517,7 +2536,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   );
 }
 
-function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: ShoppingItemWithRecipe; onToggle: () => void; onEdit: () => void; onDelete?: () => void; pending?: boolean }) {
+// memo: FlatList renderar om monterade rader vid varje förälder-render. Med
+// rad-objektet från den memoiserade listRows och stabila dispatchers som props
+// blir jämförelsen sann, och raden hoppar över renderingen helt.
+const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending }: {
+  row: RowListRow;
+  onToggle: (row: RowListRow) => void;
+  onEdit: (row: RowListRow) => void;
+  onDelete?: (row: RowListRow) => void;
+  pending?: boolean;
+}) {
+  const item = row.item;
   const { colors: c } = useTheme();
   // Delad cache i stället för egen useMemo per rad: makeStyles bygger HELA
   // skärmens stylesheet (~150 entries), och med useMemo(…, [c]) gjorde varje
@@ -2528,8 +2557,8 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
   const translateX = useSharedValue(0);
   const THRESHOLD = windowWidth * 0.35;
 
-  const doDelete = useCallback(() => { onDelete?.(); }, [onDelete]);
-  const doEdit = useCallback(() => { onEdit(); }, [onEdit]);
+  const doDelete = useCallback(() => { onDelete?.(row); }, [onDelete, row]);
+  const doEdit = useCallback(() => { onEdit(row); }, [onEdit, row]);
   const canDelete = !!onDelete && !pending;
 
   // Memoiserad: Gesture.Pan() byggde annars om hela gest-objektet med sina
@@ -2597,8 +2626,8 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
         <RNAnimated.View style={rowAnimStyle}>
           <Pressable
             style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
-            onPress={pending ? undefined : onToggle}
-            onLongPress={pending ? undefined : onEdit}
+            onPress={pending ? undefined : () => onToggle(row)}
+            onLongPress={pending ? undefined : doEdit}
           >
             {rowContent}
           </Pressable>
@@ -2606,7 +2635,7 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
       </GestureDetector>
     </View>
   );
-}
+});
 
 const makeStyles = (c: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
