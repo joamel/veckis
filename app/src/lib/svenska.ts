@@ -597,6 +597,7 @@ export const recipes = {
       sourceLibrary:    'Välj från bibliotek',
       add:              'Lägg till bild',
       change:           'Byt foto',
+      previewHint:      'Hela fotot läses av — även det som hamnar utanför kanterna här.',
       titlePlaceholder: 'Valfri rubrik (auto-fylls från foto)',
       parseButton:      'Läs & skapa',
       stageReading:     'Läser foto…',

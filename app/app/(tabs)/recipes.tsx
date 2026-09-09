@@ -638,7 +638,8 @@ export default function RecipesScreen() {
           <>
             {photoUri ? (
               <>
-                <Image source={{ uri: photoUri }} style={s.photoPreview} />
+                <Image source={{ uri: photoUri }} style={s.photoPreview} resizeMode="contain" />
+                <Text style={s.photoPreviewHint}>{str.createModal.photo.previewHint}</Text>
                 <Pressable style={s.changePhotoBtn} onPress={handleShowPhotoSourcePicker}>
                   <Ionicons name="pencil-outline" size={18} color={c.primary} />
                   <Text style={s.changePhotoBtnText}>{str.createModal.photo.change}</Text>
@@ -998,7 +999,11 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   weekChipTextActive: { color: c.primary },
   weekChipSub: { fontSize: 11, color: c.textFaint, marginTop: 2 },
   weekChipSubActive: { color: c.primary400 },
-  photoPreview: { width: '100%', height: 200, borderRadius: 10, marginBottom: 12, backgroundColor: c.border },
+  // resizeMode contain, inte cover: en beskuren förhandsvisning fick det att se
+  // ut som att bara den synliga delen av fotot skulle läsas. Hellre brevlåde-
+  // kanter än tvivel om att hela receptet kommer med.
+  photoPreviewHint: { fontSize: 12, color: c.textFaint, textAlign: 'center', marginBottom: 8 },
+  photoPreview: { width: '100%', height: 220, borderRadius: 10, marginBottom: 4, backgroundColor: c.surfaceSubtle },
   changePhotoBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, marginBottom: 12 },
   changePhotoBtnText: { fontSize: 14, color: c.primary, fontWeight: '500' },
 });
