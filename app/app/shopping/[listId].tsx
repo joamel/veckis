@@ -35,6 +35,7 @@ import RNAnimated, {
   useSharedValue,
   useAnimatedKeyboard,
   useAnimatedScrollHandler,
+  useAnimatedReaction,
   useAnimatedStyle,
   interpolate,
   Extrapolation,
@@ -223,16 +224,18 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const next = viewableItems[0]?.item?.catLabel ?? null;
     setVisibleCat(prev => (prev === next ? prev : next));
   }).current;
-  // Bara en boolean-växling: setState två gånger per scroll-session, inte per
-  // frame. En setState per frame härifrån fick skärmen att hoppa en gång förr.
-  const updateScrolledPastTitle = useCallback((y: number) => {
-    const next = y > TITLE_AREA_HEIGHT * 0.5;
-    setScrolledPastTitle(prev => (prev === next ? prev : next));
-  }, [TITLE_AREA_HEIGHT]);
   const scrollHandler = useAnimatedScrollHandler(e => {
     scrollY.value = e.contentOffset.y;
-    runOnJS(updateScrolledPastTitle)(e.contentOffset.y);
   });
+  // Tröskeln beräknas på UI-tråden och hoppar till JS BARA när booleanen vänder.
+  // Tidigare kördes ett runOnJS per scroll-frame, alltså ~60 hopp i sekunden
+  // till JS-tråden mitt under scrollen — bara för att jämföra ett värde som
+  // ändras två gånger per svep.
+  useAnimatedReaction(
+    () => scrollY.value > TITLE_AREA_HEIGHT * 0.5,
+    (past, prev) => { if (past !== prev) runOnJS(setScrolledPastTitle)(past); },
+    [TITLE_AREA_HEIGHT],
+  );
   // Whole title-area slides up so its background disappears under the navbar.
   const titleAreaAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: interpolate(scrollY.value, [0, COLLAPSE_RANGE], [0, -TITLE_AREA_HEIGHT], Extrapolation.CLAMP) }],
@@ -1353,21 +1356,33 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     await selectStore(result);
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
-  if (!list) return null;
-
+  // OBS: inga early returns här. Allt härlett nedan matar en useMemo, och en
+  // hook efter en villkorad return kraschar med "Rendered more hooks than
+  // during the previous render". Returnerna ligger i stället precis före JSX:en.
   // Items tied to a meal that's pending removal stay visible but rendered
   // in a pending state (faded + strikethrough) until backend commits in 5s.
   const isPending = (item: ShoppingItemWithRecipe) => !!item.menuItemId && pendingMenuItemRemovals.has(item.menuItemId);
-  const unchecked = list.items.filter(i => !i.isChecked);
-  const checked = list.items.filter(i => i.isChecked);
-  const allItems = [...unchecked, ...checked];
-  const customCategories: string[] = (list?.store?.customCategories as string[] | undefined) ?? [];
-  const expandedSubs: string[] = (list?.store?.expandedSubs as string[] | undefined) ?? [];
-  const customSubs: Record<string, string[]> = (list?.store?.customSubs as Record<string, string[]> | undefined) ?? {};
-  const parentOrder: string[] = (list?.store?.parentOrder as string[] | undefined) ?? [];
-  const categoryMerge: Record<string, string> = (list?.store?.categoryMerge as Record<string, string> | undefined) ?? {};
-  const categoryGroups = buildCategoryGroups(unchecked, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge);
+  // Allt härlett i EN memo. Låg tidigare som fristående const:ar, vilket gav
+  // nya array-identiteter varje render — då bommade listRows-memon nedanför
+  // varje gång och FlatList renderade om alla monterade rader under scroll.
+  const derived = useMemo(() => {
+    const items = list?.items ?? [];
+    const unchecked = items.filter(i => !i.isChecked);
+    const checked = items.filter(i => i.isChecked);
+    const customCategories: string[] = (list?.store?.customCategories as string[] | undefined) ?? [];
+    const expandedSubs: string[] = (list?.store?.expandedSubs as string[] | undefined) ?? [];
+    const customSubs: Record<string, string[]> = (list?.store?.customSubs as Record<string, string[]> | undefined) ?? {};
+    const parentOrder: string[] = (list?.store?.parentOrder as string[] | undefined) ?? [];
+    const categoryMerge: Record<string, string> = (list?.store?.categoryMerge as Record<string, string> | undefined) ?? {};
+    return {
+      unchecked,
+      checked,
+      allItems: [...unchecked, ...checked],
+      customCategories, expandedSubs, customSubs, parentOrder, categoryMerge,
+      categoryGroups: buildCategoryGroups(unchecked, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge),
+    };
+  }, [list, categoryOrder]);
+  const { unchecked, checked, allItems, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge, categoryGroups } = derived;
   const groupLabel = (group: CategoryGroup<ShoppingItemWithRecipe>) => {
     if (group.isSub && group.isCustom) {
       const pk = group.parentKey ?? '';
@@ -1390,11 +1405,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Rubriker, varurader, klart-högens underrubriker och "visa fler" är alla
   // rader av olika sort. Logiken ligger i src/lib/shoppingListRows och är
   // enhetstestad — ordning, hopfällning och tak är där felen gömmer sig.
-  // INTE useMemo: den här punkten ligger efter komponentens early returns
-  // (loading / !list), och en villkorad hook kraschar med "Rendered more hooks
-  // than during the previous render". Byggandet är O(n) och gjordes redan
-  // ovillkorat inline i den gamla JSX-versionen, så inget är förlorat.
-  const listRows: ListRow[] = buildShoppingListRows({
+  // Memoiserad: utan stabil identitet renderar FlatList om alla monterade rader
+  // vid varje förälder-render, och föräldern renderar om under scroll.
+  const listRows = useMemo<ListRow[]>(() => buildShoppingListRows({
     activeGroups: categoryGroups,
     checked,
     checkedGroupsFor: items => buildCategoryGroups(items, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge),
@@ -1407,9 +1420,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     isCollapsed: key => collapsedCategories.has(key as StoreCategory | 'checked'),
     checkedLabel: str.checkedLabel,
     checkedLimit,
-  });
+  }), [categoryGroups, collapsedCategories, checked, checkedLimit, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge]);
 
-  const renderListRow = ({ item: row }: { item: ListRow }) => {
+  const renderListRow = useCallback(({ item: row }: { item: ListRow }) => {
     switch (row.kind) {
       case 'catHeader': {
         const group = row.group;
@@ -1483,7 +1496,12 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         );
       }
     }
-  };
+  }, [confirm, markAllInCategory, toggleCategoryCollapsed, isPending, toggleItem, uncheckGroup, checkGroup, openEditItem, deleteItemWithUndo, deleteGroupWithUndo, s, c]);
+
+  // Early returns FÖRST här, efter alla hooks — inte uppe bland de härledda
+  // värdena, där de gjorde listRows-memon villkorad och kraschade skärmen.
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
+  if (!list) return null;
 
   return (
     <View style={s.container}>
