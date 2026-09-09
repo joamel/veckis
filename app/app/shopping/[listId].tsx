@@ -290,9 +290,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Dubblett-pill: döljs när rubriken kollapsar (samma interpolation som storeName).
   // Collapsed categories — tap category header to fold/unfold its items.
   const [collapsedCategories, setCollapsedCategories] = useState<Set<StoreCategory | 'checked'>>(new Set(['checked']));
-  // Tak på hur många avbockade rader som renderas. Listan virtualiserar inte
-  // (ScrollView + .map), så utan tak växer render-trädet obegränsat med högen.
-  const [showAllChecked, setShowAllChecked] = useState(false);
+  // Hur många avbockade rader som renderas just nu. Höjs stegvis, aldrig till
+  // "alla" — listan virtualiserar inte, så ett obegränsat läge skulle montera
+  // hela högen på en gång och ge tillbaka precis den lagg vi byggde bort.
+  const [checkedLimit, setCheckedLimit] = useState(CHECKED_RENDER_CAP);
   function toggleCategoryCollapsed(cat: StoreCategory | 'checked') {
     setCollapsedCategories(prev => {
       const next = new Set(prev);
@@ -1461,8 +1462,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             kategori (samma indelning som obockade) med kategorin som underrubrik. */}
         {checked.length > 0 && (() => {
           const collapsed = collapsedCategories.has('checked');
-          // Rendera bara de första CHECKED_RENDER_CAP tills man ber om resten.
-          const capped = showAllChecked ? checked : checked.slice(0, CHECKED_RENDER_CAP);
+          // Aldrig hela högen på en gång — checkedLimit höjs 50 i taget.
+          const capped = checked.slice(0, checkedLimit);
           const hiddenCount = checked.length - capped.length;
           const checkedGroups = buildCategoryGroups(capped, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge);
           return (
@@ -1488,8 +1489,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 </View>
               ))}
               {!collapsed && hiddenCount > 0 && (
-                <Pressable style={s.showAllChecked} onPress={() => setShowAllChecked(true)}>
-                  <Text style={s.showAllCheckedText}>{str.showAllChecked(hiddenCount)}</Text>
+                <Pressable style={s.showAllChecked} onPress={() => setCheckedLimit(n => n + CHECKED_RENDER_CAP)}>
+                  <Text style={s.showAllCheckedText}>{str.showAllChecked(Math.min(hiddenCount, CHECKED_RENDER_CAP))}</Text>
                 </Pressable>
               )}
             </View>
