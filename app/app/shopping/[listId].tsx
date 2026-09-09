@@ -8,6 +8,7 @@ import { useCheckHaptic } from '../../src/hooks/useCheckHaptic';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
+import { buildShoppingListRows, type ShoppingListRow } from '../../src/lib/shoppingListRows';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { ClearableInput } from '../../src/components/ClearableInput';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
@@ -73,6 +74,13 @@ const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
 // Tak för hur många avbockade rader som renderas innan "visa alla". Listan
 // virtualiserar inte, så utan tak monteras hela högen på en gång.
 const CHECKED_RENDER_CAP = 50;
+
+// Rad räknas som synlig så snart någon del syns — sticky-rubriken ska byta
+// direkt när en ny kategori kommer in uppifrån.
+const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 0 };
+
+// Rad-typen kommer från den testade byggaren i src/lib/shoppingListRows.
+type ListRow = ShoppingListRow<ShoppingItemWithRecipe, CategoryGroup<ShoppingItemWithRecipe>>;
 
 // Survives navigation within the session; resets on app restart
 const dismissedDupesStore = new Map<string, Set<string>>();
@@ -203,28 +211,27 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Sticky kategori-rubrik: pinnas precis under navbaren och visar den kategori
   // vars rad just nu passerar navbar-linjen. Drivs från scroll-offset + per-grupp
   // onLayout-y (relativt scroll-innehållet).
-  const catLayouts = useRef<Record<string, number>>({});
-  const catOrderRef = useRef<Array<{ key: string; label: string }>>([]);
-  const [stickyCat, setStickyCat] = useState<string | null>(null);
-  const updateSticky = useCallback((y: number) => {
-    const top = y + HEADER_TOP + NAVBAR_HEIGHT;
-    // Välj rubriken vars y ligger närmast OVANFÖR navbar-linjen. Tidigare bröts
-    // loopen vid första gruppen ovanför linjen, vilket gav fel rubrik (t.ex.
-    // "Klart" ovanför en obockad vara) om en grupps onLayout-y ännu inte mätts
-    // eller kom i annan ordning på web.
-    let cur: { key: string; label: string } | null = null;
-    let bestY = -Infinity;
-    for (const g of catOrderRef.current) {
-      const gy = catLayouts.current[g.key];
-      if (gy == null) continue;
-      if (gy <= top + 1 && gy > bestY) { bestY = gy; cur = g; }
-    }
-    const next = y > TITLE_AREA_HEIGHT * 0.5 && cur ? cur.label : null;
-    setStickyCat(prev => (prev === next ? prev : next));
-  }, [HEADER_TOP, NAVBAR_HEIGHT, TITLE_AREA_HEIGHT]);
+  // Läses ur listans SYNLIGA rader, inte ur uppmätta y-positioner: med
+  // virtualisering är rader utanför vyn omonterade och har inga positioner.
+  // Varje rad bär sin catLabel, så översta synliga raden ger kategorin.
+  const [visibleCat, setVisibleCat] = useState<string | null>(null);
+  const [scrolledPastTitle, setScrolledPastTitle] = useState(false);
+  const stickyCat = scrolledPastTitle ? visibleCat : null;
+  // Måste vara stabil mellan renders — FlatList kastar annars
+  // "Changing onViewableItemsChanged on the fly is not supported".
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<{ item: ListRow }> }) => {
+    const next = viewableItems[0]?.item?.catLabel ?? null;
+    setVisibleCat(prev => (prev === next ? prev : next));
+  }).current;
+  // Bara en boolean-växling: setState två gånger per scroll-session, inte per
+  // frame. En setState per frame härifrån fick skärmen att hoppa en gång förr.
+  const updateScrolledPastTitle = useCallback((y: number) => {
+    const next = y > TITLE_AREA_HEIGHT * 0.5;
+    setScrolledPastTitle(prev => (prev === next ? prev : next));
+  }, [TITLE_AREA_HEIGHT]);
   const scrollHandler = useAnimatedScrollHandler(e => {
     scrollY.value = e.contentOffset.y;
-    runOnJS(updateSticky)(e.contentOffset.y);
+    runOnJS(updateScrolledPastTitle)(e.contentOffset.y);
   });
   // Whole title-area slides up so its background disappears under the navbar.
   const titleAreaAnimStyle = useAnimatedStyle(() => ({
@@ -1379,20 +1386,119 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Ordnad lista (= visuell ordning = stigande y) som sticky-beräkningen läser.
   // "Klart"-sektionen ligger sist (efter de obockade grupperna) och ska också
   // haka i toppen när man scrollar in på den.
-  catOrderRef.current = [
-    ...categoryGroups.map(g => ({ key: groupKey(g), label: groupLabel(g) })),
-    ...(checked.length > 0 ? [{ key: 'checked', label: str.checkedLabel }] : []),
-  ];
+  // Hela listan platt-packad till EN array som FlatList kan virtualisera.
+  // Rubriker, varurader, klart-högens underrubriker och "visa fler" är alla
+  // rader av olika sort. Logiken ligger i src/lib/shoppingListRows och är
+  // enhetstestad — ordning, hopfällning och tak är där felen gömmer sig.
+  const listRows = useMemo<ListRow[]>(() => buildShoppingListRows({
+    activeGroups: categoryGroups,
+    checked,
+    checkedGroupsFor: items => buildCategoryGroups(items, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge),
+    groupItems: g => g.items,
+    groupKey,
+    groupLabel,
+    aggregate: aggregateByNameUnit,
+    itemId: i => i.id,
+    withQuantity: (rep, quantity) => ({ ...rep, quantity }),
+    isCollapsed: key => collapsedCategories.has(key as StoreCategory | 'checked'),
+    checkedLabel: str.checkedLabel,
+    checkedLimit,
+  }), [categoryGroups, collapsedCategories, checked, checkedLimit, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge]);
+
+  const renderListRow = ({ item: row }: { item: ListRow }) => {
+    switch (row.kind) {
+      case 'catHeader': {
+        const group = row.group;
+        return (
+          <Pressable
+            style={[s.categoryHeader, group.isSub && s.categorySubHeader]}
+            onPress={() => toggleCategoryCollapsed(groupKey(group) as StoreCategory | 'checked')}
+            hitSlop={4}
+          >
+            <Text style={[s.categoryLabel, group.isSub && s.categorySubLabel]} numberOfLines={2}>
+              {row.label}{row.collapsed ? ` (${group.items.length})` : ''}
+            </Text>
+            {group.items.some(i => !i.isChecked) && (
+              <Pressable
+                onPress={e => {
+                  e.stopPropagation();
+                  const n = group.items.filter(i => !i.isChecked).length;
+                  confirm({
+                    title: str.categoryDialog.title,
+                    message: `${n} vara${n === 1 ? '' : 'r'} markeras som klar${n === 1 ? '' : 'a'}.`,
+                    buttons: [
+                      { label: str.categoryDialog.confirm, onPress: () => void markAllInCategory(group.items) },
+                      { label: common.actions.cancel, style: 'cancel' },
+                    ],
+                  });
+                }}
+                hitSlop={8}
+                accessibilityLabel={str.a11y.checkAllDone}
+              >
+                <Ionicons name="checkmark-circle-outline" size={20} color={c.success} />
+              </Pressable>
+            )}
+            <Ionicons name={row.collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={c.textFaint} />
+          </Pressable>
+        );
+      }
+      case 'checkedHeader':
+        return (
+          <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={4}>
+            <Text style={[s.categoryLabel, { color: c.textFaint }]}>
+              {str.checkedLabel}{row.collapsed ? ` (${row.count})` : ''}
+            </Text>
+            <Ionicons name={row.collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={c.border} />
+          </Pressable>
+        );
+      case 'checkedSubLabel':
+        return <Text style={s.checkedCatLabel} numberOfLines={1}>{row.label}</Text>;
+      case 'showMore':
+        return (
+          <Pressable style={s.showAllChecked} onPress={() => setCheckedLimit(n => n + CHECKED_RENDER_CAP)}>
+            <Text style={s.showAllCheckedText}>{str.showAllChecked(Math.min(row.remaining, CHECKED_RENDER_CAP))}</Text>
+          </Pressable>
+        );
+      case 'row': {
+        const single = row.members.length === 1;
+        // aggregateByNameUnit sätter rep = members[0], så en ihopslagen rad
+        // redigeras via sin första medlem.
+        const rep = row.members[0];
+        return (
+          <ItemRow
+            item={row.item}
+            pending={single ? isPending(row.item) : undefined}
+            onToggle={() => {
+              if (single) toggleItem(row.item);
+              else if (row.done) uncheckGroup(row.members);
+              else checkGroup(row.members);
+            }}
+            onEdit={() => openEditItem(single ? row.item : rep)}
+            onDelete={() => (single ? deleteItemWithUndo(row.item) : deleteGroupWithUndo(row.members))}
+          />
+        );
+      }
+    }
+  };
 
   return (
     <View style={s.container}>
-      <RNAnimated.ScrollView
+      <RNAnimated.FlatList
         style={{ flex: 1 }}
+        data={listRows}
+        keyExtractor={(r: ListRow) => r.key}
+        renderItem={renderListRow}
         contentContainerStyle={[s.list, allItems.length === 0 && s.listEmpty, { paddingTop: HEADER_TOP + NAVBAR_HEIGHT + TITLE_AREA_HEIGHT + 8 }]}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
-      >
-        {allItems.length === 0 && (
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={VIEWABILITY_CONFIG}
+        keyboardShouldPersistTaps="handled"
+        // Android defaultar till true, vilket kan lämna tomma rader när barnen
+        // innehåller reanimated-vyer — och varje rad har svep-animationer.
+        // Virtualiseringen står för vinsten; det här är inte värt risken.
+        removeClippedSubviews={false}
+        ListEmptyComponent={
           <View style={s.emptyContainer}>
             <Pressable onPress={goToBulkTransfer} style={s.emptyImportBtn} hitSlop={12}>
               <Ionicons name="add-circle" size={64} color={c.primary} />
@@ -1400,103 +1506,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             <Text style={s.emptyText}>{str.emptyState.title}</Text>
             <Text style={s.emptySubtext}>{str.emptyState.subtitle}</Text>
           </View>
-        )}
-
-        {/* Category groups */}
-        {categoryGroups.map(group => {
-          const key = groupKey(group);
-          const collapsed = collapsedCategories.has(key as StoreCategory | 'checked');
-          const label = groupLabel(group);
-          return (
-            <View
-              key={key}
-              style={s.categoryGroup}
-              onLayout={e => { catLayouts.current[key] = e.nativeEvent.layout.y; }}
-            >
-              <Pressable
-                style={[s.categoryHeader, group.isSub && s.categorySubHeader]}
-                onPress={() => toggleCategoryCollapsed(key as StoreCategory | 'checked')}
-                hitSlop={4}
-              >
-                <Text style={[s.categoryLabel, group.isSub && s.categorySubLabel]} numberOfLines={2}>
-                  {label}
-                  {collapsed ? ` (${group.items.length})` : ''}
-                </Text>
-                {group.items.some(i => !i.isChecked) && (
-                  <Pressable
-                    onPress={e => {
-                      e.stopPropagation();
-                      const uncheckedCount = group.items.filter(i => !i.isChecked).length;
-                      confirm({
-                        title: str.categoryDialog.title,
-                        message: `${uncheckedCount} vara${uncheckedCount === 1 ? '' : 'r'} markeras som klar${uncheckedCount === 1 ? '' : 'a'}.`,
-                        buttons: [
-                          { label: str.categoryDialog.confirm, onPress: () => void markAllInCategory(group.items) },
-                          { label: common.actions.cancel, style: 'cancel' },
-                        ],
-                      });
-                    }}
-                    hitSlop={8}
-                    accessibilityLabel={str.a11y.checkAllDone}
-                  >
-                    <Ionicons name="checkmark-circle-outline" size={20} color={c.success} />
-                  </Pressable>
-                )}
-                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={c.textFaint} />
-              </Pressable>
-              {!collapsed && aggregateByNameUnit(group.items).map(g => {
-                // Samma ihopbakning som i klart-högen: ensam vara → vanlig rad;
-                // flera av samma namn+enhet → en rad med summerad mängd så
-                // klarmarkering/av-klarmarkering håller dem samlade (line 77).
-                if (g.members.length === 1) {
-                  const item = g.members[0];
-                  return <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />;
-                }
-                return <ItemRow key={g.rep.id} item={{ ...g.rep, quantity: g.quantity }} onToggle={() => checkGroup(g.members)} onEdit={() => openEditItem(g.rep)} onDelete={() => deleteGroupWithUndo(g.members)} />;
-              })}
-            </View>
-          );
-        })}
-
-        {/* Checked items — kvar i klart-högen längst ned, men grupperade per
-            kategori (samma indelning som obockade) med kategorin som underrubrik. */}
-        {checked.length > 0 && (() => {
-          const collapsed = collapsedCategories.has('checked');
-          // Aldrig hela högen på en gång — checkedLimit höjs 50 i taget.
-          const capped = checked.slice(0, checkedLimit);
-          const hiddenCount = checked.length - capped.length;
-          const checkedGroups = buildCategoryGroups(capped, categoryOrder, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge);
-          return (
-            <View style={s.categoryGroup} onLayout={e => { catLayouts.current['checked'] = e.nativeEvent.layout.y; }}>
-              <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={4}>
-                <Text style={[s.categoryLabel, { color: c.textFaint }]}>
-                  Klart{collapsed ? ` (${checked.length})` : ''}
-                </Text>
-                <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={c.border} />
-              </Pressable>
-              {!collapsed && checkedGroups.map(group => (
-                <View key={groupKey(group)}>
-                  <Text style={s.checkedCatLabel} numberOfLines={1}>{groupLabel(group)}</Text>
-                  {aggregateByNameUnit(group.items).map(g => {
-                    // Ensam vara → vanlig rad. Flera av samma namn+enhet → en
-                    // ihopbakad rad med summerad mängd; åtgärder gäller hela gruppen.
-                    if (g.members.length === 1) {
-                      const item = g.members[0];
-                      return <ItemRow key={item.id} item={item} pending={isPending(item)} onToggle={() => toggleItem(item)} onEdit={() => openEditItem(item)} onDelete={() => deleteItemWithUndo(item)} />;
-                    }
-                    return <ItemRow key={g.rep.id} item={{ ...g.rep, quantity: g.quantity }} onToggle={() => uncheckGroup(g.members)} onEdit={() => openEditItem(g.rep)} onDelete={() => deleteGroupWithUndo(g.members)} />;
-                  })}
-                </View>
-              ))}
-              {!collapsed && hiddenCount > 0 && (
-                <Pressable style={s.showAllChecked} onPress={() => setCheckedLimit(n => n + CHECKED_RENDER_CAP)}>
-                  <Text style={s.showAllCheckedText}>{str.showAllChecked(Math.min(hiddenCount, CHECKED_RENDER_CAP))}</Text>
-                </Pressable>
-              )}
-            </View>
-          );
-        })()}
-      </RNAnimated.ScrollView>
+        }
+      />
 
       {/* Navbar background — pinned (incl. safe area top) */}
       <View style={[s.navbarBgAbs, { height: HEADER_TOP + NAVBAR_HEIGHT }]} pointerEvents="none" />
