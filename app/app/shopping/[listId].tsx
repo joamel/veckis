@@ -1557,6 +1557,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={VIEWABILITY_CONFIG}
         keyboardShouldPersistTaps="handled"
+        // windowSize defaultar till 21 — tio skärmar över och tio under den
+        // synliga. Med ett par hundra rader hålls då i praktiken HELA listan
+        // monterad och virtualiseringen gör ingen nytta. 5 = två skärmar åt
+        // vardera hållet, vilket räcker för att inget hinner blänka till.
+        windowSize={5}
+        initialNumToRender={12}
+        maxToRenderPerBatch={8}
+        updateCellsBatchingPeriod={50}
         // Android defaultar till true, vilket kan lämna tomma rader när barnen
         // innehåller reanimated-vyer — och varje rad har svep-animationer.
         // Virtualiseringen står för vinsten; det här är inte värt risken.
