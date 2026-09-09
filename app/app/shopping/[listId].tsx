@@ -2488,7 +2488,7 @@ function ItemRow({ item, onToggle, onEdit, onDelete, pending }: { item: Shopping
   );
 
   return (
-    <View style={s.swipeRowWrap}>
+    <View style={[s.swipeRowWrap, !item.isChecked && s.swipeRowWrapShadow]}>
       <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeDeleteBg, bgStyle]}>
         <Ionicons name="trash-outline" size={22} color="#fff" />
       </RNAnimated.View>
@@ -2632,8 +2632,12 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // Skuggan ligger HÄR, inte på s.item: wrappern har overflow:'hidden' för att
   // klippa svep-bakgrunderna till hörnen, och det klipper barnens skuggor. En
   // vy klipper aldrig sin EGEN skugga, så den måste sitta på wrappern.
-  // backgroundColor krävs för att Android ska rita elevation-skuggan alls.
-  swipeRowWrap: { borderRadius: 10, overflow: 'hidden', backgroundColor: c.surface, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  swipeRowWrap: { borderRadius: 10, overflow: 'hidden', backgroundColor: c.surface },
+  // Bara på AKTIVA rader. Listan renderas i en ScrollView med .map(), alltså
+  // helt utan virtualisering — varje avklarad rad är monterad. Med elevation på
+  // samtliga fick Android rita en skugga per rad och scrollen blev ryckig.
+  // Avklarade rader ska dessutom ligga tillbaka visuellt.
+  swipeRowWrapShadow: { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   swipeDeleteBg: { backgroundColor: c.danger, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
   swipeEditBg: { backgroundColor: c.primary, justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 20 },
   browserSheet: { maxHeight: '90%', gap: 0 },
