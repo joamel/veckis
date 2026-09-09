@@ -190,6 +190,7 @@ export const shoppingList = {
     floatMany:    (n: number) => `${n} dubbletter`,
     markManually: 'Markera själv',
     instruction:  'Markera vilka som ska slås ihop',
+    mergeRows:        (n: number) => `Slå ihop ${n} ${n === 1 ? 'rad' : 'rader'}`,
     noDupes:      'Inga föreslagna dubbletter — markera själv för att slå ihop varor',
     newQtyUnit:   'Ny mängd och enhet',
     pickTitle:    'Markera dubbletter själv',

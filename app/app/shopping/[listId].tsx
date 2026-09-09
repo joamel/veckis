@@ -587,6 +587,12 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     });
   }, [list, dismissedDupeKeys]);
 
+  // Antal AGGREGERADE rader som är helt valda i dubblett-arket. Knappen och
+  // dess disabled-villkor räknar rader, inte råvaror.
+  const selectedMergeRows = mergeSheet
+    ? aggregateByNameUnit(mergeSheet.items).filter(g => g.members.every(m => mergeSelected.has(m.id))).length
+    : 0;
+
   function dismissDupeGroup(items: ShoppingItemWithRecipe[]) {
     if (items.length === 0) return;
     const next = new Set([...dismissedDupeKeys, dupeGroupSignature(items)]);
@@ -2189,19 +2195,36 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               ) : (
                 <Text style={s.sheetSub}>{str.merge.noDupes}</Text>
               )}
-              {mergeSheet?.items.map(item => (
-                <Pressable key={item.id} style={s.mergeItem} onPress={() => toggleMergeSelected(item.id)}>
-                  <Ionicons
-                    name={mergeSelected.has(item.id) ? 'checkbox' : 'square-outline'}
-                    size={22}
-                    color={mergeSelected.has(item.id) ? c.primary : c.textFaint}
-                  />
-                  <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(item.name)}</Text>
-                  {(item.quantity !== 1 || item.unit) && (
-                    <Text style={s.mergeItemQty}>{String(item.quantity ?? 1).replace('.', ',')}{item.unit ? ` ${item.unit.toLowerCase()}` : ''}</Text>
-                  )}
-                </Pressable>
-              ))}
+              {/* Samma aggregering som listan (namn+enhet). Arket listade tidigare
+                  RÅVARORNA, så två enhetslösa "Bröd" à 1 — som listan visar som en
+                  rad "Bröd 2" — dök upp som två kryssrutor. Tre rader här mot två
+                  i listan gick inte att få ihop. En kryssruta styr nu alla varor
+                  bakom raden. */}
+              {mergeSheet && aggregateByNameUnit(mergeSheet.items).map(g => {
+                const ids = g.members.map(m => m.id);
+                const allSelected = ids.every(id => mergeSelected.has(id));
+                return (
+                  <Pressable
+                    key={g.rep.id}
+                    style={s.mergeItem}
+                    onPress={() => setMergeSelected(prev => {
+                      const n = new Set(prev);
+                      for (const id of ids) { if (allSelected) n.delete(id); else n.add(id); }
+                      return n;
+                    })}
+                  >
+                    <Ionicons
+                      name={allSelected ? 'checkbox' : 'square-outline'}
+                      size={22}
+                      color={allSelected ? c.primary : c.textFaint}
+                    />
+                    <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(g.rep.name)}</Text>
+                    {(g.quantity !== 1 || g.rep.unit) && (
+                      <Text style={s.mergeItemQty}>{String(g.quantity).replace('.', ',')}{g.rep.unit ? ` ${g.rep.unit.toLowerCase()}` : ''}</Text>
+                    )}
+                  </Pressable>
+                );
+              })}
               {mergeSheet && mergeSheet.items.length > 0 && (<>
               <View style={s.mergeDivider} />
               {new Set(mergeSheet.items.map(i => i.name.toLowerCase().trim())).size > 1 && (<>
@@ -2282,14 +2305,18 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               {/* Bekräfta-/nästa-/ignorera-knapparna ligger INUTI listan så man kan
                   scrolla ner till dem även med tangentbordet uppe (paddingBottom ger
                   utrymme). Tidigare låg de utanför + göms vid tangentbord → oåtkomliga. */}
+              {/* Räknas i RADER, inte råvaror: arket visar aggregerade rader, och
+                  två varor bakom EN rad är inget att slå ihop — villkoret på
+                  mergeSelected.size hade aktiverat knappen för en ensam rad med
+                  två varor bakom sig. */}
               <Pressable
-                style={[s.qtyConfirm, (mergeSelected.size < 2 || adding) && s.saveBtnDisabled]}
+                style={[s.qtyConfirm, (selectedMergeRows < 2 || adding) && s.saveBtnDisabled]}
                 onPress={confirmMerge}
-                disabled={adding || mergeSelected.size < 2}
+                disabled={adding || selectedMergeRows < 2}
               >
                 {adding
                   ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={s.qtyConfirmText}>Slå ihop {mergeSelected.size} varor</Text>}
+                  : <Text style={s.qtyConfirmText}>{str.merge.mergeRows(selectedMergeRows)}</Text>}
               </Pressable>
               {duplicateGroups.length > 1 && (
                 <Pressable
