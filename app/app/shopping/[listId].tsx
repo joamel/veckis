@@ -578,12 +578,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     }
     return [...nameMap.values()].filter(g => {
       if (g.length < 2 || dismissedDupeKeys.has(dupeGroupSignature(g))) return false;
-      // Samma namn+enhet aggregeras redan visuellt till EN rad (aktiv lista + klart-
-      // högen), så de behöver ingen "slå ihop"-flagg. Flagga bara grupper med ≥2
-      // OLIKA enheter (t.ex. "gurka st" + "gurka kg") — det aggregeringen inte löser.
-      // Fixar att avmarkerade, redan hopslagna varor felaktigt föreslogs som dubbletter.
-      const units = new Set(g.map(i => (i.unit ?? '').toLowerCase().trim()));
-      return units.size >= 2;
+      // Flagga bara om gruppen faktiskt ger ≥2 RADER efter samma aggregering som
+      // listan och dubblett-arket använder. Tidigare var regeln "≥2 olika
+      // enheter", en egen variant som kunde ge annat svar än aggregeringen — då
+      // flaggades grupper som kollapsade till en enda rad, och arket visade ett
+      // ensamt förslag med "Slå ihop 1 rad" utgråad. Samma regel överallt nu:
+      // föreslå ihopslagning bara när listan visar mer än en rad för namnet.
+      return aggregateByNameUnit(g).length >= 2;
     });
   }, [list, dismissedDupeKeys]);
 
@@ -843,14 +844,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setQtySheet(null);
   }
 
-  function toggleMergeSelected(id: string) {
+  // Tar en RAD (alla varor bakom den aggregerade raden), inte en enskild vara —
+  // arket visar samma aggregering som listan.
+  function toggleMergeRow(ids: string[], allSelected: boolean) {
     // Förslaget beräknades för hela gruppen — annat urval gör det ogiltigt.
     mergeFieldsDirtyRef.current = true;
     setMergeSuggestionApplied(false);
     setMergeSelected(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      for (const id of ids) { if (allSelected) next.delete(id); else next.add(id); }
       return next;
     });
   }
@@ -2207,11 +2209,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={g.rep.id}
                     style={s.mergeItem}
-                    onPress={() => setMergeSelected(prev => {
-                      const n = new Set(prev);
-                      for (const id of ids) { if (allSelected) n.delete(id); else n.add(id); }
-                      return n;
-                    })}
+                    onPress={() => toggleMergeRow(ids, allSelected)}
                   >
                     <Ionicons
                       name={allSelected ? 'checkbox' : 'square-outline'}
