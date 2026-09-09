@@ -96,7 +96,11 @@ export function DraggableBottomSheet({
   const content = (
     <>
       <Pressable style={styles.overlayTap} onPress={onOverlayPress ?? onRequestClose} />
-      <Animated.View style={[sheetStyle, sheetAnimStyle]}>
+      {/* Vit bakgrund som default — den ligger FÖRST i arrayen, så en anropare
+          som skickar egen backgroundColor i sheetStyle vinner fortfarande. Utan
+          defaulten fick varje sheet komma ihåg den själv, och två (mall- och
+          notismodalen) hade råkat sätta beige i stället. */}
+      <Animated.View style={[{ backgroundColor: c.surface }, sheetStyle, sheetAnimStyle]}>
         <GestureDetector gesture={pan}>
           <View style={[styles.handleHitArea]}>
             <View style={[styles.handle, { backgroundColor: c.border }]} />

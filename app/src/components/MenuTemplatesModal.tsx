@@ -162,7 +162,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
 }
 
 const makeStyles = (c: Palette) => StyleSheet.create({
-  sheet: { backgroundColor: c.surfaceSubtle, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 20, paddingBottom: 32, maxHeight: '85%' },
+  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 20, paddingBottom: 32, maxHeight: '85%' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
   title: { fontSize: 20, fontWeight: '700', color: c.text },
   body: { paddingHorizontal: 16, paddingBottom: 16 },
@@ -173,7 +173,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   hint: { fontSize: 13, color: c.textFaint, marginTop: 8, marginLeft: 4 },
-  tplRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 12, marginBottom: 8 },
+  tplRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surfaceSubtle, borderRadius: 12, marginBottom: 8 },
   tplMain: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   tplName: { fontSize: 15, fontWeight: '600', color: c.text },
   tplMeta: { fontSize: 13, color: c.textFaint, marginTop: 2 },
