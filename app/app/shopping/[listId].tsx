@@ -2572,7 +2572,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   categorySubLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: c.primary },
   checkedCatLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.4, paddingHorizontal: 2, paddingTop: 8, paddingBottom: 1 },
   categoryCount: { fontSize: 11, color: c.textFaint, fontWeight: '600' },
-  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, padding: 14, gap: 12 },
+  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 10, padding: 14, gap: 12 },
   itemChecked: { opacity: 0.55 },
   itemPending: { opacity: 0.4, backgroundColor: c.dangerTint },
   itemContent: { flex: 1 },
