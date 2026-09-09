@@ -107,7 +107,7 @@ export function ConfirmDialog({
               ? windowHeight - anchorTop - anchorOffset + MENU_ANCHOR_GAP
               : insets.bottom + 76 + MENU_ANCHOR_GAP,
           }]
-        : [s.menuCardTopRight, { top: insets.top + 4 }];
+        : [s.menuCardTopRight, { top: insets.top + 8 }];
       return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
           {/* Lätt tonad bakgrund: kortet är #ffffff mot en #faf8f3 sidbakgrund,
