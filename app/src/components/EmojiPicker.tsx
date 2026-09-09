@@ -3,10 +3,13 @@ import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../lib/theme';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
+// Mat och storhandling först — appen handlar om inköpslistor, och de gamla
+// förslagen inleddes med städ och badrum (🧹🧽🧺🧼🛁🚿) medan 🛒 låg sjua.
+// Hushåll/apotek finns kvar längre ned för listor som inte är matinköp.
 const SUGGESTIONS = [
-  '🧹', '🧽', '🧺', '🧼', '🛁', '🚿', '🛒', '🍳', '🍽️', '🧑‍🍳',
-  '🌿', '🌸', '🪴', '🐕', '🐈', '🚗', '🚲', '⚽', '🎾', '🎵',
-  '📚', '🎂', '🎉', '💼', '💊', '💡', '🔧', '🧰', '📦', '✏️',
+  '🛒', '🍎', '🥕', '🥛', '🍞', '🧀', '🥩', '🐟', '🥚', '🍝',
+  '🍕', '🍫', '☕', '🍺', '🧊', '🍳', '🍽️', '🧑‍🍳', '🎂', '🎉',
+  '🧻', '🧼', '🧹', '🧽', '🪴', '🌿', '💊', '🐕', '🐈', '📦',
 ];
 
 // Inget textfält för fri inmatning — bara förslags-chips. Vald/ej vald syns

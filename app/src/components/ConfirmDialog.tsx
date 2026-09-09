@@ -208,7 +208,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // mätning av knappen (se menuAnchorRef) — en fast offset går inte, eftersom
   // modalen täcker hela skärmen medan FAB:en sitter i en förminskad vy vars
   // höjd varierar med tab-bar och säkerhetszon.
-  menuCardBottomRight: { position: 'absolute', right: 16 },
+  menuCardBottomRight: { position: 'absolute', right: 0 },
   menuBtn: { paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   menuBtnText: { fontSize: 15, fontWeight: '500', color: c.primary },
   menuDivider: { height: 1, backgroundColor: c.surfaceSubtle, marginVertical: 4 },

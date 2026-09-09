@@ -2548,7 +2548,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   shopperText: { fontSize: 13, color: c.pink, fontWeight: '600' },
   shopperIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.pinkTint, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
   progressFill: { height: 3, backgroundColor: c.success },
-  list: { padding: 16, gap: 2, paddingBottom: 8 },
+  list: { padding: 16, gap: 1, paddingBottom: 8 },
   listEmpty: { flex: 1 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   emptyImportBtn: { marginBottom: 4 },
