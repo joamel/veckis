@@ -1,0 +1,107 @@
+name: Underhållspåminnelser
+
+# Två sorters påminnelser, båda som GitHub Issues (GitHub mejlar repo-ägaren när
+# ett issue skapas, och ett issue går att bocka av — till skillnad från ett mejl).
+# Ingen extra tjänst, ingen extra hemlighet, ingen extra kvot.
+#
+# 1) Kadens — månad (1:a) och kvartal (15:e jan/apr/jul/okt).
+#    Checklistorna bor i .github/reminders/*.md. Redigera dem där, inte här.
+#
+# 2) Förfallodatum — kollas DAGLIGEN mot .github/reminders/forfallodatum.tsv och
+#    larmar i god tid FÖRE datumet, inte på ett gissat årsdatum. Ett issue per
+#    sak, och bara ett: finns det redan öppet skapas inget nytt.
+#
+# Test: Actions → Underhållspåminnelser → Run workflow (välj kadens, eller
+# "forfall" för att köra datumkontrollen direkt).
+
+on:
+  schedule:
+    - cron: '0 6 1 * *'
+    - cron: '0 6 15 1,4,7,10 *'
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      kadens:
+        description: Vad som ska köras
+        type: choice
+        options: [forfall, manad, kvartal]
+        default: forfall
+
+permissions:
+  issues: write
+
+jobs:
+  kadens:
+    name: Checklista
+    if: github.event.schedule != '0 6 * * *' && inputs.kadens != 'forfall'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Skapa issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SCHEDULE: ${{ github.event.schedule }}
+          MANUAL: ${{ inputs.kadens }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          case "${MANUAL:-}${SCHEDULE:-}" in
+            manad|'0 6 1 * *')           FIL=manad;   RUBRIK=Månadstillsyn ;;
+            kvartal|'0 6 15 1,4,7,10 *') FIL=kvartal; RUBRIK=Kvartalstillsyn ;;
+            *) echo "::error::Okänd kadens: '${MANUAL:-}${SCHEDULE:-}'"; exit 1 ;;
+          esac
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "$RUBRIK $(date -u +'%Y-%m')" \
+            --body-file ".github/reminders/${FIL}.md" \
+            --assignee "$OWNER"
+
+  forfall:
+    name: Förfallodatum
+    if: github.event.schedule == '0 6 * * *' || inputs.kadens == 'forfall'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Kolla datum
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          IDAG=$(date -u +%s)
+
+          # Tabbseparerat: datum, dagar-före, beskrivning. Kommentarer och
+          # tomrader hoppas över.
+          grep -v '^\s*#' .github/reminders/forfallodatum.tsv | grep -v '^\s*$' \
+          | while IFS=$'\t' read -r DATUM FONSTER VAD; do
+              [ -n "${VAD:-}" ] || continue
+
+              FORFALL=$(date -u -d "$DATUM" +%s 2>/dev/null) || {
+                echo "::warning::Ogiltigt datum '$DATUM' — hoppar över: $VAD"; continue; }
+
+              DAGAR=$(( (FORFALL - IDAG) / 86400 ))
+              if [ "$DAGAR" -gt "$FONSTER" ]; then
+                echo "OK ($DAGAR dagar kvar): $VAD"
+                continue
+              fi
+
+              if [ "$DAGAR" -lt 0 ]; then
+                TITEL="FÖRFALLET för $(( -DAGAR )) dagar sedan: $VAD"
+              else
+                TITEL="Förfaller om $DAGAR dagar: $VAD"
+              fi
+
+              # Dagligt jobb → skapa inte samma issue om och om igen.
+              BEFINTLIGT=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+                --search "\"$VAD\" in:title" --json number --jq 'length')
+              if [ "$BEFINTLIGT" != "0" ]; then
+                echo "Redan öppet issue: $VAD"
+                continue
+              fi
+
+              printf '%s\n\n- **Förfaller:** %s\n- **Källa:** `.github/reminders/forfallodatum.tsv`\n\nFörnya, och **uppdatera sedan datumet i TSV-filen** — annars larmar den inte nästa gång.\n' \
+                "$VAD" "$DATUM" > /tmp/body.md
+
+              gh issue create --repo "$GITHUB_REPOSITORY" \
+                --title "$TITEL" --body-file /tmp/body.md --assignee "$OWNER"
+              echo "Skapade: $TITEL"
+            done

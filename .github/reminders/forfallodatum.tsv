@@ -1,0 +1,15 @@
+# Saker som förfaller på ett datum. Kontrolleras dagligen av
+# .github/workflows/maintenance-reminders.yml, som öppnar ett issue när något
+# är inom varningsfönstret — alltså i god tid INNAN, inte efter.
+#
+# Format (tabbseparerat):  ÅÅÅÅ-MM-DD <TAB> dagar-före <TAB> vad
+# Rader som börjar med # ignoreras. Uppdatera datumet när du förnyat.
+#
+# Play-datumet är Googles typiska årsdeadline (~31 aug) — justera när Google mejlar det
+# faktiska datumet. Övriga datum är verifierade. Uppdatera raden när du förnyat något.
+
+2027-08-24	60	Domänen handlis.app förfaller — bär både webbsajten och Clerk-inloggningen
+2027-12-27	30	Betalkort på Railway går ut
+2027-12-27	30	Betalkort på Anthropic går ut (tar credits slut dör foto-import tyst)
+2027-12-27	30	Betalkort hos domänregistraren går ut
+2027-08-31	90	Play: target API level-kravet skärps — kolla Play Console > App bundle explorer att bygget klarar nya nivån, annars går appen inte att uppdatera
