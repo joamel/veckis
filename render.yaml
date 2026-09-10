@@ -1,6 +1,13 @@
-# Backenden är flyttad till Railway (se railway.json + backend-servicen där).
-# Render kör numera BARA den statiska webb-PWA:n. Postgres ligger på Railway (Neon
-# är avvecklat). API-URL:en pekar på veckis-production.up.railway.app.
+# Render kör BARA den statiska webb-PWA:n. Backenden och Postgres ligger på
+# Railway (se railway.json); Neon är avvecklat.
+#
+# veckis-web är den enda tjänst som ska finnas här — den serverar handlis.app
+# via Cloudflare. Den gamla backend-tjänsten "veckis" låg kvar som zombie efter
+# flytten: den byggde om vid varje push till main och svarade 500 på allt
+# DB-beroende, eftersom databasen var borta. Borttagen 2026-09-10.
+#
+# Dyker den upp igen är det för att någon återskapat den i Render-UI:t — den
+# har aldrig stått i den här filen.
 services:
   # PWA-frontend som statisk site. Build kör expo export --platform web och
   # publicerar dist/. SPA-rewrite gör att direct-URL till en route som inte

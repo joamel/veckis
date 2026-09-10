@@ -14,7 +14,7 @@ Senast granskad: 2026-09-10 (Railway uppgraderad till Hobby samma dag).
 | Tjänst | Vad den gör | Plan / kostnad | Går sönder om… |
 |---|---|---|---|
 | **Railway** | Backend (Express+Prisma) + Postgres, EU | Hobby, $5/mån minimum + förbrukning (sedan 2026-09-10) | **betalningen fallerar → HELA appen ligger nere**, DB fylls, public networking stängs av |
-| **Render** | ENBART statiska webb-PWA:n (`app/dist`) | free | — (backenden ligger inte här längre) |
+| **Render** | ENBART statiska webb-PWA:n (`veckis-web`) — serverar handlis.app via Cloudflare | free | tas tjänsten bort försvinner webbappen; backenden ligger INTE här |
 | **Anthropic Console** | `ANTHROPIC_API_KEY` → foto-import, ingrediensnormalisering, smart merge | pay-as-you-go, credits | **credits tar slut → AI-funktionerna dör tyst** |
 | **Clerk** | Inloggning (`pk_live` / `sk_live`) + `user.deleted`-webhook | free tier | dev/prod-instanserna blandas, nyckel roteras fel |
 | **Cloudinary** | Recept- och profilbilder | free tier | lagringskvot slut |
