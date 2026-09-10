@@ -22,6 +22,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
+  FlatList,
   Platform,
   Pressable,
   ScrollView,
@@ -87,6 +88,19 @@ const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 0 };
 // Egen reanimated-wrapper: paketets AnimatedFlashList använder RN Animated, och
 // scroll-handlern som driver rubrikanimationen är reanimated.
 const AnimatedFlashList = RNAnimated.createAnimatedComponent(FlashList<ListRow>);
+
+// FlashList v2 är byggd för New Architecture på native; webbstödet är sekundärt
+// och trasigt för vårt bruk — någonstans i dess webbimplementation når en
+// stil-ARRAY ett DOM-element, och React DOM kastar då
+//   "Failed to set an indexed property [0] on CSSStyleDeclaration"
+// vilket kraschade hela inköpslistan i PWA:n (bekräftat i den minifierade
+// stacken: React DOMs setValueForStyles loopar över stilnycklar och får "0").
+//
+// Webben har inte problemet FlashList löser: listorna är korta och scrollas med
+// mus på en snabb maskin. FlatList är RNW:s egen och beter sig som förväntat.
+const AnimatedFlatList = RNAnimated.createAnimatedComponent(FlatList<ListRow>);
+const ÄR_WEBB = Platform.OS === 'web';
+const Lista = (ÄR_WEBB ? AnimatedFlatList : AnimatedFlashList) as typeof AnimatedFlashList;
 
 // Ett stylesheet per PALETT, inte per rad. makeStyles bygger hela skärmens
 // stilar; med useMemo inne i varje ItemRow gjordes det om vid varje mount, och
@@ -1557,17 +1571,31 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   // Early returns FÖRST här, efter alla hooks — inte uppe bland de härledda
   // värdena, där de gjorde listRows-memon villkorad och kraschade skärmen.
+  // MÅSTE vara ett objekt, inte en array. ScrollView (som listan använde före
+  // FlashList) flatar arrayer själv på webben; FlashList v2 skickar stilen vidare
+  // som den är, och react-native-web försöker då sätta style[0] på DOM-noden:
+  //   "Failed to set an indexed property [0] on CSSStyleDeclaration"
+  // — vilket kraschade hela inköpslistan i PWA:n. Native påverkades inte.
+  const listContentStyle = useMemo(
+    () => StyleSheet.flatten([
+      s.list,
+      allItems.length === 0 && s.listEmpty,
+      { paddingTop: HEADER_TOP + NAVBAR_HEIGHT + TITLE_AREA_HEIGHT + 8 },
+    ]),
+    [s, allItems.length],
+  );
+
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   if (!list) return null;
 
   return (
     <View style={s.container}>
-      <AnimatedFlashList
+      <Lista
         style={{ flex: 1 }}
         data={listRows}
         keyExtractor={(r: ListRow) => r.key}
         renderItem={renderListRow}
-        contentContainerStyle={[s.list, allItems.length === 0 && s.listEmpty, { paddingTop: HEADER_TOP + NAVBAR_HEIGHT + TITLE_AREA_HEIGHT + 8 }]}
+        contentContainerStyle={listContentStyle}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         onViewableItemsChanged={onViewableItemsChanged}
@@ -1576,7 +1604,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         // FlashList v2 mäter rader själv — ingen estimatedItemSize behövs, och
         // FlatLists windowSize/batch-rattar finns inte. drawDistance styr hur
         // långt utanför vyn den förbereder.
-        drawDistance={250}
+        {...(ÄR_WEBB ? {} : { drawDistance: 250 })}
         ListEmptyComponent={
           <View style={s.emptyContainer}>
             <Pressable onPress={goToBulkTransfer} style={s.emptyImportBtn} hitSlop={12}>
