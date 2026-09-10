@@ -24,3 +24,6 @@ backend/prisma/migrations/*.sql.bak
 backend/server.err
 sandbox-sounds/
 sound-sandbox.mjs
+
+# Nedladdade AAB:er från Actions — hör inte i repot (82 MB styck)
+builds/

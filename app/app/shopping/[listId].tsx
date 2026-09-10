@@ -9,6 +9,7 @@ import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
 import { buildShoppingListRows, type ShoppingListRow } from '../../src/lib/shoppingListRows';
+import { FlashList } from '@shopify/flash-list';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { ClearableInput } from '../../src/components/ClearableInput';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
@@ -79,6 +80,13 @@ const CHECKED_RENDER_CAP = 50;
 // Rad räknas som synlig så snart någon del syns — sticky-rubriken ska byta
 // direkt när en ny kategori kommer in uppifrån.
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 0 };
+
+// FlashList återvinner komponentinstanser i stället för att montera om, så den
+// dyra reanimated-uppsättningen per rad (shared value + Pan-gest + animated
+// style) sker en gång per synlig PLATS i stället för en gång per vara.
+// Egen reanimated-wrapper: paketets AnimatedFlashList använder RN Animated, och
+// scroll-handlern som driver rubrikanimationen är reanimated.
+const AnimatedFlashList = RNAnimated.createAnimatedComponent(FlashList<ListRow>);
 
 // Ett stylesheet per PALETT, inte per rad. makeStyles bygger hela skärmens
 // stilar; med useMemo inne i varje ItemRow gjordes det om vid varje mount, och
@@ -1554,7 +1562,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   return (
     <View style={s.container}>
-      <RNAnimated.FlatList
+      <AnimatedFlashList
         style={{ flex: 1 }}
         data={listRows}
         keyExtractor={(r: ListRow) => r.key}
@@ -1565,18 +1573,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={VIEWABILITY_CONFIG}
         keyboardShouldPersistTaps="handled"
-        // windowSize defaultar till 21 — tio skärmar över och tio under den
-        // synliga. Med ett par hundra rader hålls då i praktiken HELA listan
-        // monterad och virtualiseringen gör ingen nytta. 5 = två skärmar åt
-        // vardera hållet, vilket räcker för att inget hinner blänka till.
-        windowSize={5}
-        initialNumToRender={12}
-        maxToRenderPerBatch={8}
-        updateCellsBatchingPeriod={50}
-        // Android defaultar till true, vilket kan lämna tomma rader när barnen
-        // innehåller reanimated-vyer — och varje rad har svep-animationer.
-        // Virtualiseringen står för vinsten; det här är inte värt risken.
-        removeClippedSubviews={false}
+        // FlashList v2 mäter rader själv — ingen estimatedItemSize behövs, och
+        // FlatLists windowSize/batch-rattar finns inte. drawDistance styr hur
+        // långt utanför vyn den förbereder.
+        drawDistance={250}
         ListEmptyComponent={
           <View style={s.emptyContainer}>
             <Pressable onPress={goToBulkTransfer} style={s.emptyImportBtn} hitSlop={12}>
