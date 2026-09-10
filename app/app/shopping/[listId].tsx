@@ -586,7 +586,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       // flaggades grupper som kollapsade till en enda rad, och arket visade ett
       // ensamt förslag med "Slå ihop 1 rad" utgråad. Samma regel överallt nu:
       // föreslå ihopslagning bara när listan visar mer än en rad för namnet.
-      return aggregateByNameUnit(g).length >= 2;
+      return isMergeableDupe(g);
     });
   }, [list, dismissedDupeKeys]);
 
@@ -814,7 +814,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         const currentItems = prev.items.filter(i => i.id !== tempId);
         const realItem = currentItems.find(i => i.id === item.id) ?? { ...item, recipe: null };
         const dupes = currentItems.filter(i => !i.isChecked && i.name.toLowerCase().trim() === itemName);
-        if (dupes.length >= 2) openMergeForDupes(dupes, realItem);
+        if (isMergeableDupe(dupes)) openMergeForDupes(dupes, realItem);
         return prev;
       });
     } catch (err) {
@@ -1084,7 +1084,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         if (sameUnit) {
           autoMergeDupes(dupes, name, editCategory, unit);
         } else {
-          openMergeForDupes(dupes, updated);
+          if (isMergeableDupe(dupes)) openMergeForDupes(dupes, updated);
         }
       }
     } catch (e) {
@@ -1165,6 +1165,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Baka ihop (för visning) klarmarkerade varor med samma namn + enhet till en
   // rad med summerad mängd, så det inte ligger t.ex. 4× "1 st gurka" under
   // varandra. Olika enheter bakas inte ihop.
+  // ENDA stället som avgör om en grupp är en föreslagsbar dubblett. Fanns
+  // tidigare i tre varianter — detektorn, lägg-till-flödet och redigera-flödet
+  // — som gav olika svar, så arket kunde öppnas med rader som aggregerade till
+  // EN och knappen "Slå ihop 1 rad" stod utgråad.
+  function isMergeableDupe(items: ShoppingItemWithRecipe[]) {
+    return items.length >= 2 && aggregateByNameUnit(items).length >= 2;
+  }
+
   function aggregateByNameUnit(items: ShoppingItemWithRecipe[]) {
     const map = new Map<string, { rep: ShoppingItemWithRecipe; quantity: number; members: ShoppingItemWithRecipe[] }>();
     for (const it of items) {

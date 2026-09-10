@@ -263,6 +263,8 @@ export default function MenuScreen() {
   const incomingAddRecipeRef = useRef(params.addRecipeId);
   incomingAddRecipeRef.current = params.addRecipeId;
   const bulkTransferTriggeredRef = useRef(false);
+  // Har guiden varit öppen? Skiljer "stängdes nyss" från "har aldrig öppnats".
+  const bulkWasOpenRef = useRef(false);
   // Ankare för överförings-popupen, så den hamnar ovanför kundkorgs-FAB:en.
   const transferFabRef = useRef<View>(null);
   const client = useApiClient();
@@ -860,10 +862,15 @@ export default function MenuScreen() {
   }
 
   useEffect(() => {
-    if (!showBulkTransferModal) {
-      if (params.originListId) router.setParams({ originListId: undefined });
-      setBulkTransferWeeks(new Set());
-    }
+    // Bara vid STÄNGNING, inte vid mount. Kommer man in via
+    // ?bulkTransfer=1&originListId=… är modalen ännu inte öppnad när effekten
+    // först kör, och den rensade då destinationslistan direkt — varpå "redan
+    // tillagd" räknades mot ALLA listor i stället för den man kom ifrån.
+    if (showBulkTransferModal) { bulkWasOpenRef.current = true; return; }
+    if (!bulkWasOpenRef.current) return;
+    bulkWasOpenRef.current = false;
+    if (params.originListId) router.setParams({ originListId: undefined });
+    setBulkTransferWeeks(new Set());
   }, [showBulkTransferModal, params.originListId]);
 
   // Pick a recipe for a day by opening the full recipe view in "select" mode,
