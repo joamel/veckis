@@ -345,6 +345,9 @@ export default function RecipesScreen() {
   // betydelsebärande — ingredienser står ofta på en sida och tillagningen på
   // nästa — så det är en lista, inte en mängd.
   const [photoUris, setPhotoUris] = useState<string[]>([]);
+  // Tolkade recept som väntar på att användaren väljer vilka som ska sparas.
+  const [flerRecept, setFlerRecept] = useState<TolkatRecept[] | null>(null);
+  const [valdaRecept, setValdaRecept] = useState<Set<number>>(new Set());
   const [photoParsing, setPhotoParsing] = useState(false);
   const [photoLoadingStage, setPhotoLoadingStage] = useState<'reading' | 'analyzing' | 'creating' | null>(null);
 
@@ -548,26 +551,13 @@ export default function RecipesScreen() {
     setMode('url');
   }
 
-  // Valet är "skapa alla" eller "bara den här" — inte "slå ihop till ett". Är det
-  // två olika rätter finns inget vettigt sammanslaget recept att skapa.
+  // Kryssrutor i stället för en knapp per recept: samma mönster som när rätter
+  // överförs till inköpslistan, och det skalar när uppslaget innehåller fler än
+  // två. Allt förmarkerat — att spara alla är det vanliga, att välja bort
+  // undantaget.
   function visaFlerReceptVal(funna: TolkatRecept[]) {
-    confirm({
-      title: str.createModal.photo.multiTitle(funna.length),
-      message: str.createModal.photo.multiMessage,
-      buttons: [
-        {
-          label: str.createModal.photo.multiCreateAll(funna.length),
-          icon: 'documents-outline',
-          onPress: () => skapaFlera(funna),
-        },
-        ...funna.map(rec => ({
-          label: str.createModal.photo.multiOnly(rec.title),
-          icon: 'document-outline' as const,
-          onPress: () => skapaFlera([rec]),
-        })),
-        { label: common.actions.cancel, style: 'cancel' as const },
-      ],
-    });
+    setFlerRecept(funna);
+    setValdaRecept(new Set(funna.map((_, i) => i)));
   }
 
   // Skapas i följd, inte parallellt: backend deduplicerar muterande anrop på
@@ -996,6 +986,56 @@ export default function RecipesScreen() {
       </DraggableBottomSheet>
 
       {/* Quick add-to-menu week+day picker */}
+      <DraggableBottomSheet
+        visible={!!flerRecept}
+        onRequestClose={() => setFlerRecept(null)}
+        sheetStyle={s.sheet}
+      >
+        <Text style={s.sheetTitle}>{str.createModal.photo.multiTitle(flerRecept?.length ?? 0)}</Text>
+        <Text style={s.daySheetSub}>{str.createModal.photo.multiMessage}</Text>
+
+        <ScrollView style={s.multiList} showsVerticalScrollIndicator={false}>
+        {flerRecept?.map((rec, idx) => {
+          const vald = valdaRecept.has(idx);
+          return (
+            <Pressable
+              key={`${rec.title}:${idx}`}
+              style={[s.multiRow, vald && s.multiRowActive]}
+              onPress={() => setValdaRecept(prev => {
+                const n = new Set(prev);
+                if (n.has(idx)) n.delete(idx); else n.add(idx);
+                return n;
+              })}
+            >
+              <Ionicons
+                name={vald ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={vald ? c.primary : c.textFaint}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={s.multiTitle} numberOfLines={2}>{rec.title}</Text>
+                <Text style={s.multiSub}>{str.createModal.photo.multiSummary(rec.ingredients.length)}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+        </ScrollView>
+
+        <Pressable
+          style={[s.button, s.buttonRow, valdaRecept.size === 0 && s.buttonDisabled]}
+          disabled={valdaRecept.size === 0 || creating}
+          onPress={() => {
+            const valda = (flerRecept ?? []).filter((_, idx) => valdaRecept.has(idx));
+            setFlerRecept(null);
+            void skapaFlera(valda);
+          }}
+        >
+          {creating
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={s.buttonText}>{str.createModal.photo.multiSave(valdaRecept.size)}</Text>}
+        </Pressable>
+      </DraggableBottomSheet>
+
       <DraggableBottomSheet visible={!!addToMenuFor} onRequestClose={() => setAddToMenuFor(null)} sheetStyle={s.sheet}>
           <Text style={s.sheetTitle}>{str.menu.addToMenu}</Text>
           <Text style={s.daySheetSub} numberOfLines={1}>{addToMenuFor?.title}</Text>
@@ -1138,4 +1178,13 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   pageRemove: { position: 'absolute', top: -6, right: -6, width: 24, height: 24, borderRadius: 12, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' },
   pageAdd: { width: 110, height: 150, borderRadius: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: c.border, alignItems: 'center', justifyContent: 'center', gap: 4 },
   pageAddText: { fontSize: 12, color: c.primary, fontWeight: '600' },
+  // Kryssruteraden i välj-recept-sheeten. Samma utseende som bulk-överföringen i
+  // veckomenyn, inklusive den gröna markeringen, så de känns igen som samma val.
+  multiRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: c.background, borderWidth: 1, borderColor: c.borderLight, marginBottom: 6 },
+  multiRowActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
+  // Listan scrollar och knappen ligger utanför den: med fler än tre recept
+  // hamnade knappen annars utanför skärmkanten.
+  multiList: { maxHeight: 320 },
+  multiTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  multiSub: { fontSize: 12, color: c.textFaint, marginTop: 2 },
 });
