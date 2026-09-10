@@ -18,8 +18,8 @@ jobs:
       - name: Ping /health
         run: |
           URL="https://veckis-production.up.railway.app/health"
-          # Retry ett par gånger så en tillfällig Neon-väckning (kallstart) inte
-          # utlöser falsklarm — bara ihållande fel ska fälla jobbet.
+          # Retry ett par gånger så ett tillfälligt nätverksfel eller en pågående
+          # omdeploy inte utlöser falsklarm — bara ihållande fel ska fälla jobbet.
           for attempt in 1 2 3; do
             code=$(curl -s -o /tmp/body.txt -w "%{http_code}" --max-time 60 "$URL" || echo "000")
             echo "Attempt $attempt: HTTP $code — $(cat /tmp/body.txt 2>/dev/null | head -c 200)"

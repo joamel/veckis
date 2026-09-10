@@ -31,9 +31,9 @@ import { idempotencyMiddleware } from './lib/idempotency';
 
 const app = express();
 app.disable('etag');
-// Render (and most PaaS) front the app with a proxy that sets X-Forwarded-For.
-// Trust the first hop so express-rate-limit can read the real client IP instead
-// of throwing ERR_ERL_UNEXPECTED_X_FORWARDED_FOR on every /api request.
+// Railway (som de flesta PaaS) lägger en proxy framför appen som sätter
+// X-Forwarded-For. Lita på första hoppet så express-rate-limit läser klientens
+// riktiga IP i stället för att kasta ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
 app.set('trust proxy', 1);
 const PORT = process.env.PORT ?? 3000;
 const isDev = process.env.NODE_ENV !== 'production';
@@ -80,13 +80,18 @@ if (!isDev) {
   );
 }
 
-// Liveness — rör ALDRIG DB:n. Render:s healthCheckPath + keepalive-pingern
-// använder denna: processen räknas som frisk/hålls varm så fort Node bootat,
-// oberoende av Neon. Det gör att (a) en suspenderad/blinkad DB inte får Render
-// att döda instansen, och (b) att hålla backend varm inte väcker Neon och
-// bränner free-tier-computen. DB-status finns i /health och /keepalive.
+// Liveness — rör ALDRIG DB:n. Railways healthcheck (railway.json) pekar hit:
+// processen räknas som frisk så fort Node bootat. Vore den DB-beroende skulle
+// en tio sekunders DB-hicka få Railway att döda och starta om containern, och
+// en övergående störning bli ett riktigt avbrott. DB-status finns i /health.
+// Commit-sha:n gör det möjligt att se UTIFRÅN vilken version som faktiskt kör.
+// Utan den går det inte att avgöra om en deploy landat, vilket spelar roll när
+// en backend-ändring måste vara ute innan appens OTA skickas.
+// Railway sätter RAILWAY_GIT_COMMIT_SHA automatiskt; lokalt blir den 'dev'.
+const COMMIT = (process.env.RAILWAY_GIT_COMMIT_SHA ?? 'dev').substring(0, 7);
+
 app.get('/healthz', (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, commit: COMMIT });
 });
 
 // Readiness — verifierar DB. 500:ar om DB:n är onåbar (för manuell diagnostik).
@@ -97,25 +102,6 @@ app.get(
     res.json({ ok: true });
   }),
 );
-
-// Keep-alive för gratis-hosting (Render free spinner ner efter ~15 min idle,
-// Neon-computen autosuspendar efter ~5 min). En extern cron-pinger (t.ex.
-// cron-job.org) som träffar denna var ~10:e minut håller BÅDE backend-processen
-// och DB-computen vakna → riktiga användare slipper 50s-kallstarten.
-//
-// Till skillnad från /health 500:ar den ALDRIG (även om DB-väckningen failar) —
-// annars larmar pingern "sajt nere" vid en tillfällig Neon-blink. DB-statusen
-// rapporteras i svaret för diagnostik, inte via HTTP-koden.
-app.get('/keepalive', async (_req, res) => {
-  let db = false;
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    db = true;
-  } catch {
-    // Svälj — Neon kan vara mitt i uppvaknandet; queryn har ändå triggat den.
-  }
-  res.json({ ok: true, db, ts: new Date().toISOString() });
-});
 
 app.use('/api/auth', authRouter);
 app.use('/api/households', householdRouter);
@@ -144,7 +130,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 // Safety net: en ohanterad promise-rejection (t.ex. ett bakgrundsjobb som
-// queryar en nedsuspenderad Neon-DB) kraschar annars hela processen sedan
+// queryar en onåbar DB) kraschar annars hela processen sedan
 // Node 15. Vi loggar och fortsätter — /healthz hålls uppe och jobben
 // självläker när DB:n är tillbaka. Request-fel fångas ändå av felmiddlewaren.
 process.on('unhandledRejection', (reason) => {
@@ -186,10 +172,10 @@ startWsRateLimitGc();
 
 server.on('upgrade', async (req, socket, head) => {
   try {
-    // Per-IP rate limit innan vi gör tunga DB-lookups. Render sätter
+    // Per-IP rate limit innan vi gör tunga DB-lookups. Railway sätter
     // X-Forwarded-For; vi tog 'trust proxy' i app:en ovan, men för WS
     // måste vi läsa headern direkt eftersom socket.remoteAddress är
-    // Renders interna proxy-IP.
+    // proxyns interna IP.
     const fwd = req.headers['x-forwarded-for'];
     const ip = (typeof fwd === 'string' ? fwd.split(',')[0].trim() : '') || req.socket.remoteAddress || 'unknown';
     if (!checkWsRateLimit(ip)) {

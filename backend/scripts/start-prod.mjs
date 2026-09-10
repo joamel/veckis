@@ -1,17 +1,21 @@
-// Production entrypoint for Render.
+// Produktionsentrypoint (Railway).
 //
-// Runs `prisma migrate deploy` before booting the server, but is SELF-HEALING:
-// Neon (free tier) autosuspends/scales to zero and can be briefly unreachable
-// (SQLSTATE 57P01) or fully suspended when the monthly compute allowance is
-// spent (P1001). Tidigare gjorde ett misslyckat migrate `exit(1)` → hela
-// backend låg nere tills en manuell omdeploy. Nu bootar servern ändå så att
-// /healthz svarar (Render håller instansen vid liv), och migrationen körs om
-// i bakgrunden tills den lyckas. DB-beroende rutter felar tills dess, men
-// tjänsten reser sig själv när Neon är tillbaka — ingen handpåläggning.
+// Kör `prisma migrate deploy` innan servern startar, men ger inte upp om det
+// misslyckas: databasen kan vara onåbar några sekunder vid en samtidig omstart
+// av båda tjänsterna. Ett `exit(1)` där hade lagt hela backenden nere tills
+// någon deployade om för hand. Nu bootar servern ändå så att /healthz svarar,
+// och migrationen körs om i bakgrunden tills den lyckas — DB-beroende rutter
+// felar under tiden, men tjänsten reser sig själv.
+//
+// Retryn skrevs ursprungligen för Neons autosuspend på gratisnivån. Neon är
+// avvecklat och Railway Hobby suspenderar inte, så det scenariot är borta —
+// men självläkningen är billig och skyddar fortfarande mot startordning och
+// tillfälliga nätverksfel.
+
 import { spawnSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-const BOOT_ATTEMPTS = 3;          // snabba försök vid boot (täcker vanlig Neon-väckning)
+const BOOT_ATTEMPTS = 3;          // snabba försök vid boot
 const BOOT_RETRY_MS = 5_000;
 const BACKGROUND_RETRY_MS = 60_000; // därefter tålmodig bakgrundsretry
 
@@ -35,7 +39,7 @@ for (let attempt = 1; attempt <= BOOT_ATTEMPTS; attempt++) {
 if (!migrated) {
   // Boota ändå — servern serverar /healthz och icke-DB-ytor, och migrationen
   // körs om i bakgrunden tills DB:n är nåbar. (Är DB:n redan migrerad är detta
-  // en no-op när den vaknar; är den ny appliceras migrationen så snart Neon är uppe.)
+  // en no-op; är den ny appliceras migrationen så snart DB:n svarar.)
   console.error('migrate deploy failed at boot — starting server anyway; retrying migration in background');
   (async () => {
     while (!migrated) {
@@ -50,6 +54,6 @@ if (!migrated) {
   })();
 }
 
-// Boot the server in this same process so Render's signals (SIGTERM on
-// redeploy) propagate normally.
+// Servern startas i samma process så Railways SIGTERM vid omdeploy
+// propagerar normalt.
 await import('../dist/index.js');
