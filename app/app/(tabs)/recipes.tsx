@@ -43,6 +43,13 @@ import { useTablet } from '../../src/hooks/useTablet';
 
 // Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
 // dagnamn är hårdkodat i komponenten — då räcker det att översätta svenska.ts.
+/**
+ * Tak för antal sidor per recept. Måste matcha MAX_SIDOR i backendens
+ * from-photo-route — den avvisar fler. Varje sida kostar tokens och latens
+ * linjärt, och ett recept som inte ryms på fem sidor är sannolikt ett misstag.
+ */
+const MAX_SIDOR = 5;
+
 const MENU_DAYS: { key: WeekDay; label: string }[] =
   (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as WeekDay[])
     .map((key, i) => ({ key, label: common.weekdays.long[i] }));
@@ -72,8 +79,8 @@ export default function RecipesScreen() {
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
   const tryCloseCreate = useDiscardDraft(confirm);
-  const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setPhotoUri(null); setMode('url'); };
-  const closeCreate = () => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '' || photoUri !== null, discardCreate);
+  const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setPhotoUris([]); setMode('url'); };
+  const closeCreate = () => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '' || photoUris.length > 0, discardCreate);
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -334,7 +341,10 @@ export default function RecipesScreen() {
   const [parsing, setParsing] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  // Ett recept kan spänna över flera sidor i en kokbok. Ordningen är
+  // betydelsebärande — ingredienser står ofta på en sida och tillagningen på
+  // nästa — så det är en lista, inte en mängd.
+  const [photoUris, setPhotoUris] = useState<string[]>([]);
   const [photoParsing, setPhotoParsing] = useState(false);
   const [photoLoadingStage, setPhotoLoadingStage] = useState<'reading' | 'analyzing' | 'creating' | null>(null);
 
@@ -456,19 +466,27 @@ export default function RecipesScreen() {
     }
   }
 
-  // Returnerar uri:n i stället för att sätta state direkt — anroparen avgör om
-  // ett foto ska öppna sheeten (popup-flödet) eller bara bytas ut i en redan
-  // öppen sheet. Avbruten kamera/bibliotek ger null, aldrig ett kastat fel.
-  async function capturePhoto(source: 'camera' | 'library'): Promise<string | null> {
+  // Returnerar uri:erna i stället för att sätta state direkt — anroparen avgör
+  // om ett foto ska öppna sheeten (popup-flödet) eller läggas till i en redan
+  // öppen. Avbruten kamera/bibliotek ger tom lista, aldrig ett kastat fel.
+  // `platsKvar` hindrar att man plockar fler sidor än taket tillåter.
+  async function capturePhoto(source: 'camera' | 'library', platsKvar: number): Promise<string[]> {
     try {
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, aspect: [4, 3] })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, aspect: [4, 3] });
-      if (result.canceled || !result.assets[0]) return null;
-      return result.assets[0].uri;
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            quality: 0.8,
+            aspect: [4, 3],
+            // Biblioteket får plocka flera på en gång; kameran ger en i taget.
+            allowsMultipleSelection: platsKvar > 1,
+            selectionLimit: platsKvar,
+          });
+      if (result.canceled || result.assets.length === 0) return [];
+      return result.assets.slice(0, platsKvar).map(a => a.uri);
     } catch (err) {
       showError(err, str.errors.generic);
-      return null;
+      return [];
     }
   }
 
@@ -477,56 +495,133 @@ export default function RecipesScreen() {
   // i stället för att mötas av en tom foto-sheet (eller, som tidigare, ett
   // taget foto som hamnade i state utan att någon vy visade det).
   async function startPhotoFlow(source: 'camera' | 'library') {
-    const uri = await capturePhoto(source);
-    if (!uri) return;
+    const uris = await capturePhoto(source, MAX_SIDOR);
+    if (uris.length === 0) return;
     wantFocusRef.current = false;
     setTitle('');
     setUrl('');
     setPasteText('');
     setMode('photo');
-    setPhotoUri(uri);
+    setPhotoUris(uris);
     setShowModal(true);
   }
 
-  function handleShowPhotoSourcePicker() {
+  // Lägger till sidor i stället för att ersätta: har man redan fotat sida 1 vill
+  // man nästan alltid fylla på, inte börja om.
+  function handleAddPages() {
+    const platsKvar = MAX_SIDOR - photoUris.length;
+    if (platsKvar <= 0) { showToast(str.createModal.photo.maxPages(MAX_SIDOR)); return; }
     confirm({
       title: str.createModal.photo.sourceTitle,
       message: str.createModal.photo.sourceMessage,
       buttons: [
-        { label: str.createModal.photo.sourceCamera, icon: 'camera-outline', onPress: async () => { const uri = await capturePhoto('camera'); if (uri) setPhotoUri(uri); } },
-        { label: str.createModal.photo.sourceLibrary, icon: 'images-outline', onPress: async () => { const uri = await capturePhoto('library'); if (uri) setPhotoUri(uri); } },
+        { label: str.createModal.photo.sourceCamera, icon: 'camera-outline', onPress: async () => { const uris = await capturePhoto('camera', platsKvar); if (uris.length) setPhotoUris(prev => [...prev, ...uris].slice(0, MAX_SIDOR)); } },
+        { label: str.createModal.photo.sourceLibrary, icon: 'images-outline', onPress: async () => { const uris = await capturePhoto('library', platsKvar); if (uris.length) setPhotoUris(prev => [...prev, ...uris].slice(0, MAX_SIDOR)); } },
         { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
 
+  type TolkatRecept = Awaited<ReturnType<typeof client.parseRecipeFromPhoto>>;
+
+  // Skapar ett tolkat recept och lägger in det i listan. Bryts ut för att kunna
+  // anropas både för ett ensamt recept och i följd för flera.
+  async function skapaTolkat(r: TolkatRecept, egenTitel: string | null) {
+    if (!householdId) throw new Error(str.errors.generic);
+    const recipe = await client.createRecipe({
+      householdId,
+      title: egenTitel?.trim() || r.title,
+      description: r.description,
+      instructions: r.instructions,
+      source: 'ai_paste',
+      servings: r.servings,
+      ingredients: r.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+    });
+    setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
+    return recipe;
+  }
+
+  function stangSkapaSheet() {
+    setShowModal(false);
+    setTitle('');
+    setPhotoUris([]);
+    setMode('url');
+  }
+
+  // Valet är "skapa alla" eller "bara den här" — inte "slå ihop till ett". Är det
+  // två olika rätter finns inget vettigt sammanslaget recept att skapa.
+  function visaFlerReceptVal(funna: TolkatRecept[]) {
+    confirm({
+      title: str.createModal.photo.multiTitle(funna.length),
+      message: str.createModal.photo.multiMessage,
+      buttons: [
+        {
+          label: str.createModal.photo.multiCreateAll(funna.length),
+          icon: 'documents-outline',
+          onPress: () => skapaFlera(funna),
+        },
+        ...funna.map(rec => ({
+          label: str.createModal.photo.multiOnly(rec.title),
+          icon: 'document-outline' as const,
+          onPress: () => skapaFlera([rec]),
+        })),
+        { label: common.actions.cancel, style: 'cancel' as const },
+      ],
+    });
+  }
+
+  // Skapas i följd, inte parallellt: backend deduplicerar muterande anrop på
+  // modulnivå, och två samtidiga createRecipe med olika innehåll är dessutom
+  // svårare att felsöka när ett av dem fallerar.
+  async function skapaFlera(funna: TolkatRecept[]) {
+    setCreating(true);
+    try {
+      const skapade = [];
+      for (const rec of funna) skapade.push(await skapaTolkat(rec, null));
+      stangSkapaSheet();
+      showToast(skapade.length === 1
+        ? str.createModal.photo.multiCreatedOne(skapade[0].title)
+        : str.createModal.photo.multiCreatedMany(skapade.length), 'success');
+      if (skapade.length === 1) {
+        const forMenuDay = params.forMenuDay;
+        const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
+        router.push(`/recipes/${skapade[0].id}${suffix}` as never);
+      }
+    } catch (err) {
+      showError(err, str.errors.generic);
+    } finally {
+      setCreating(false);
+    }
+  }
+
   async function handlePhotoAndCreate() {
-    if (!householdId || !photoUri) return;
+    if (!householdId || photoUris.length === 0) return;
     setPhotoParsing(true);
     setPhotoLoadingStage('reading');
     try {
       setPhotoLoadingStage('analyzing');
-      const parsed = await client.parseRecipeFromPhoto(photoUri);
-      const usedTitle = title.trim() || parsed.title;
+      const parsed = await client.parseRecipeFromPhoto(photoUris);
+
+      // Äldre backend svarar utan recipes-listan; då är svaret själv receptet.
+      const funna: TolkatRecept[] = parsed.recipes?.length ? parsed.recipes : [parsed];
+
+      // Flera separata rätter på bilderna slogs tidigare tyst ihop till ett recept
+      // med alla ingredienser blandade — ett fel som såg ut som ett riktigt recept.
+      // Nu får man välja i stället.
+      if (funna.length > 1) {
+        setPhotoParsing(false);
+        setPhotoLoadingStage(null);
+        visaFlerReceptVal(funna);
+        return;
+      }
+
       setPhotoLoadingStage('creating');
       setCreating(true);
-      const recipe = await client.createRecipe({
-        householdId,
-        title: usedTitle,
-        description: parsed.description,
-        instructions: parsed.instructions,
-        source: 'ai_paste',
-        servings: parsed.servings,
-        ingredients: parsed.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
-      });
-      setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
-      setShowModal(false);
-      setTitle('');
-      setPhotoUri(null);
-      setMode('url');
+      const recipe = await skapaTolkat(funna[0], title);
+      stangSkapaSheet();
       const forMenuDay = params.forMenuDay;
       const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
-      router.push(`/recipes/${recipe.id}${parsed.ingredients.length === 0 ? '?edit=1' : ''}${suffix}` as never);
+      router.push(`/recipes/${recipe.id}${funna[0].ingredients.length === 0 ? '?edit=1' : ''}${suffix}` as never);
     } catch (err) {
       confirm({ title: str.errors.generic, message: err instanceof Error ? err.message : str.errors.couldNotParse, buttons: [{ label: common.actions.ok }] });
     } finally {
@@ -552,7 +647,7 @@ export default function RecipesScreen() {
     setTitle('');
     setUrl('');
     setPasteText('');
-    setPhotoUri(null);
+    setPhotoUris([]);
     setShowModal(true);
   }
 
@@ -636,19 +731,47 @@ export default function RecipesScreen() {
           </>
         ) : (
           <>
-            {photoUri ? (
+            {photoUris.length > 0 ? (
               <>
-                <Image source={{ uri: photoUri }} style={s.photoPreview} resizeMode="contain" />
-                <Text style={s.photoPreviewHint}>{str.createModal.photo.previewHint}</Text>
-                <Pressable style={s.changePhotoBtn} onPress={handleShowPhotoSourcePicker}>
-                  <Ionicons name="pencil-outline" size={18} color={c.primary} />
-                  <Text style={s.changePhotoBtnText}>{str.createModal.photo.change}</Text>
-                </Pressable>
+                {/* Sidorna ligger i rad och scrollar i sidled — en kokbokssida är
+                    hög och smal, så staplade helbilder hade tvingat fram scroll
+                    genom hela sheeten innan man når knappen. */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.pageStrip}
+                >
+                  {photoUris.map((uri, idx) => (
+                    <View key={`${uri}:${idx}`} style={s.pageThumbWrap}>
+                      <Image source={{ uri }} style={s.pageThumb} resizeMode="cover" />
+                      <View style={s.pageBadge}>
+                        <Text style={s.pageBadgeText}>{idx + 1}</Text>
+                      </View>
+                      <Pressable
+                        style={s.pageRemove}
+                        onPress={() => setPhotoUris(prev => prev.filter((_, i) => i !== idx))}
+                        accessibilityLabel={str.createModal.photo.removePage(idx + 1)}
+                        hitSlop={8}
+                      >
+                        <Ionicons name="close" size={14} color="#fff" />
+                      </Pressable>
+                    </View>
+                  ))}
+                  {photoUris.length < MAX_SIDOR && (
+                    <Pressable style={s.pageAdd} onPress={handleAddPages}>
+                      <Ionicons name="add" size={26} color={c.primary} />
+                      <Text style={s.pageAddText}>{str.createModal.photo.addPage}</Text>
+                    </Pressable>
+                  )}
+                </ScrollView>
+                <Text style={s.photoPreviewHint}>
+                  {photoUris.length > 1 ? str.createModal.photo.pagesHint : str.createModal.photo.previewHint}
+                </Text>
               </>
             ) : (
               <Pressable
                 style={[s.button, s.buttonRow, s.modeBodyBtn]}
-                onPress={handleShowPhotoSourcePicker}
+                onPress={handleAddPages}
               >
                 <Ionicons name="image-outline" size={20} color="#fff" />
                 <Text style={s.buttonText}>{str.createModal.photo.add}</Text>
@@ -665,16 +788,16 @@ export default function RecipesScreen() {
             />
             <Pressable
               ref={photoBtnRef}
-              style={[s.button, s.buttonRow, s.modeBodyBtn, (!photoUri || photoParsing) && s.buttonDisabled]}
+              style={[s.button, s.buttonRow, s.modeBodyBtn, (photoUris.length === 0 || photoParsing) && s.buttonDisabled]}
               onPress={handlePhotoAndCreate}
-              disabled={photoParsing || creating || !photoUri}
+              disabled={photoParsing || creating || photoUris.length === 0}
             >
               {photoParsing || creating ? (
                 <>
                   <ActivityIndicator color="#fff" size="small" />
                   <Text style={s.buttonText}>
                     {photoLoadingStage === 'reading' ? str.createModal.photo.stageReading :
-                     photoLoadingStage === 'analyzing' ? str.createModal.photo.stageAnalyzing :
+                     photoLoadingStage === 'analyzing' ? (photoUris.length > 1 ? str.createModal.photo.stageAnalyzingMulti(photoUris.length) : str.createModal.photo.stageAnalyzing) :
                      photoLoadingStage === 'creating' ? str.createModal.photo.stageCreating : str.createModal.photo.parseButton}
                   </Text>
                 </>
@@ -1003,7 +1126,16 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // ut som att bara den synliga delen av fotot skulle läsas. Hellre brevlåde-
   // kanter än tvivel om att hela receptet kommer med.
   photoPreviewHint: { fontSize: 12, color: c.textFaint, textAlign: 'center', marginBottom: 8 },
-  photoPreview: { width: '100%', height: 220, borderRadius: 10, marginBottom: 4, backgroundColor: c.surfaceSubtle },
-  changePhotoBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, marginBottom: 12 },
-  changePhotoBtnText: { fontSize: 14, color: c.primary, fontWeight: '500' },
+  // paddingTop/Right ger plats åt kryssknappen, som sticker ut 6 px utanför
+  // miniatyren och annars klipps av scrollens kant.
+  pageStrip: { gap: 8, paddingTop: 8, paddingRight: 8, paddingBottom: 8 },
+  pageThumbWrap: { width: 110, height: 150, borderRadius: 10, overflow: 'visible' },
+  pageThumb: { width: 110, height: 150, borderRadius: 10, backgroundColor: c.surfaceSubtle },
+  // Sidnumret ligger inne i bilden: ordningen är betydelsebärande och måste
+  // synas utan att man räknar miniatyrer.
+  pageBadge: { position: 'absolute', left: 6, bottom: 6, minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
+  pageBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  pageRemove: { position: 'absolute', top: -6, right: -6, width: 24, height: 24, borderRadius: 12, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' },
+  pageAdd: { width: 110, height: 150, borderRadius: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: c.border, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  pageAddText: { fontSize: 12, color: c.primary, fontWeight: '600' },
 });

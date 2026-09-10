@@ -11,6 +11,9 @@ import { stripIngredient } from '../lib/stripIngredient';
 import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
 import { recipeAbuseLimiter, parseTextLimiter } from '../lib/rateLimits';
 import { safeFetch } from '../lib/ssrfGuard';
+import { tolkaJsonSvar, saknarReceptinnehåll, InteJsonError, textUr } from '../lib/aiJson';
+import { bokförAiKostnad } from '../lib/aiCost';
+import { taFotokvot, MAX_FOTON_PER_MANAD } from '../lib/photoQuota';
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -72,7 +75,8 @@ async function freshDescription(title: string, ingredients: Array<{ name: string
       system: 'Du skriver en kort, aptitlig beskrivning av en maträtt på svenska, 1–2 meningar. Skriv HELT eget innehåll utifrån rättens namn och ingredienser — kopiera aldrig text från någon källa. Returnera enbart beskrivningen: ingen rubrik, inga citattecken.',
       messages: [{ role: 'user', content: `Rätt: ${title}\nIngredienser: ${ingList}` }],
     });
-    const text = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
+    await bokförAiKostnad('claude-haiku-4-5-20251001', msg.usage);
+    const text = textUr(msg);
     return text ? text.slice(0, 2000) : null;
   } catch {
     return null;
@@ -328,13 +332,17 @@ recipesRouter.post('/parse-text', parseTextLimiter, requireAuth, asyncHandler(as
       system: `Du är ett system som extraherar receptinformation från fri text på svenska eller engelska.
 Returnera ENBART giltig JSON utan förklaringar eller markdown-kodblock.
 
-JSON-schema:
+JSON-schema — ETT objekt per separat recept på bilderna:
 {
-  "title": "receptnamn (string, null om okänt)",
-  "description": "skriv en kort EGEN aptitlig beskrivning av rätten (1–2 meningar) utifrån ingredienser och tillagning — kopiera INTE någon ingress/brödtext ur källtexten, formulera helt eget; null bara om du inte kan avgöra vad rätten är",
-  "instructions": "tillagningssteg numrerade på separata rader: \"1. Gör X\\n2. Gör Y\\n3. Gör Z\", null om inga steg finns",
-  "servings": 4,
-  "ingredients": [{ "name": "ingrediensnamn", "quantity": 2.5, "unit": "dl" }]
+  "recipes": [
+    {
+      "title": "receptnamn (string, null om okänt)",
+      "description": "skriv en kort EGEN aptitlig beskrivning av rätten (1–2 meningar) utifrån ingredienser och tillagning — kopiera INTE något ur receptet, formulera helt eget; null bara om du inte kan avgöra vad rätten är",
+      "instructions": "tillagningssteg numrerade på separata rader: \\"1. Gör X\\n2. Gör Y\\", null om inga steg finns",
+      "servings": 4,
+      "ingredients": [{ "name": "ingrediensnamn", "quantity": 2.5, "unit": "dl" }]
+    }
+  ]
 }
 
 Regler:
@@ -345,10 +353,15 @@ Regler:
 - instructions: om steg finns, ett steg per rad, "1. Förbered X\n2. Stek Y\n3. Servera" — varje steg på egen rad med \n emellan, annars null`,
       messages: [{ role: 'user', content: body.data.text.slice(0, 80000) }],
     });
-    const raw = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
-    const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '');
-    parsed = JSON.parse(clean);
+    await bokförAiKostnad('claude-haiku-4-5-20251001', msg.usage);
+    const raw = textUr(msg);
+    parsed = tolkaJsonSvar(raw) as typeof parsed;
   } catch (err) {
+    if (err instanceof InteJsonError) {
+      console.error('Text parsing: inget recept i texten.', err.råtext.slice(0, 200));
+      res.status(422).json({ error: INGET_RECEPT_I_TEXT });
+      return;
+    }
     const msg = err instanceof Error ? err.message : 'AI-anropet misslyckades';
     res.status(422).json({ error: msg });
     return;
@@ -369,40 +382,104 @@ Regler:
   res.json(result);
 }));
 
+/**
+ * Tak för hur många sidor ett recept får bestå av. Varje sida kostar tokens och
+ * latens linjärt, och ett recept som inte ryms på fem sidor är sannolikt ett
+ * misstag snarare än ett recept.
+ */
+/** Samma text oavsett om modellen svarade med prosa eller med tomt recept — för
+ *  användaren är det samma situation: bilden innehöll inget recept. */
+const FOTOKVOT_SLUT = `Du har tolkat ${MAX_FOTON_PER_MANAD} recept från foto den här månaden, vilket är taket. Klistra in receptet som text så länge, eller vänta till nästa månad.`;
+const INGET_RECEPT_I_BILD = 'Hittade inget recept i bilden. Prova en tydligare bild på receptet, eller fota fler sidor.';
+const INGET_RECEPT_I_TEXT = 'Hittade inget recept i texten. Klistra in receptets ingredienser och tillagning.';
+
+export const MAX_SIDOR = 5;
+
+type Bild = { mediaType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'; base64: string };
+
+/**
+ * Klienten kan skicka antingen ren base64 eller en data-URL
+ * (data:image/jpeg;base64,...). Plocka isär den senare; annars antas JPEG,
+ * vilket är vad appen komprimerar till.
+ */
+export function delaUppDataUrl(rå: string): Bild {
+  if (!rå.startsWith('data:')) return { mediaType: 'image/jpeg', base64: rå };
+
+  const colonIdx = rå.indexOf(':');
+  const commaIdx = rå.indexOf(',');
+  if (colonIdx < 0 || commaIdx <= colonIdx) return { mediaType: 'image/jpeg', base64: rå };
+
+  const mime = rå.substring(colonIdx + 1, commaIdx).match(/^([^;]+)/)?.[1];
+  const känd = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
+  const mediaType = (känd as readonly string[]).includes(mime ?? '')
+    ? (mime as Bild['mediaType'])
+    : 'image/jpeg';
+  return { mediaType, base64: rå.substring(commaIdx + 1) };
+}
+
+type ReceptRå = {
+  title?: unknown; description?: unknown; instructions?: unknown;
+  servings?: unknown; ingredients?: unknown;
+};
+
+/**
+ * Normaliserar ett rått receptobjekt från modellen. Allt är osäkert tills det
+ * validerats — fel typ på ett fält ska ge ett tomt värde, inte krascha svaret.
+ */
+function städaRecept(r: ReceptRå): ScrapedRecipe {
+  return {
+    title: typeof r.title === 'string' && r.title.trim() ? r.title.trim() : 'Okänt recept',
+    description: typeof r.description === 'string' ? r.description : null,
+    instructions: typeof r.instructions === 'string' ? r.instructions : null,
+    imageUrl: null,
+    servings: typeof r.servings === 'number' && r.servings > 0 ? r.servings : 4,
+    ingredients: Array.isArray(r.ingredients)
+      ? r.ingredients
+          .filter((i): i is { name: string; quantity: number | null; unit: string | null } => typeof (i as { name?: unknown })?.name === 'string' && (i as { name: string }).name.trim().length > 0)
+          .map(i => ({ name: i.name.trim(), quantity: typeof i.quantity === 'number' ? i.quantity : null, unit: typeof i.unit === 'string' && i.unit ? i.unit : null }))
+      : [],
+  };
+}
+
 // POST /api/recipes/from-photo — ta foto av recept, OCR via Claude vision (base64)
 recipesRouter.post('/from-photo', parseTextLimiter, requireAuth, asyncHandler(async (req, res) => {
-  const body = z.object({ imageBase64: z.string().min(1) }).safeParse(req.body);
+  // Appar på äldre runtime skickar en enda sträng; nyare skickar en lista med
+  // sidor i ordning. Båda måste fungera — en OTA når inte alla samtidigt.
+  const body = z.object({
+    imageBase64: z.union([z.string().min(1), z.array(z.string().min(1)).min(1).max(MAX_SIDOR)]),
+  }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: 'No image provided' }); return; }
   if (!anthropic) { res.status(503).json({ error: 'AI parsing not available' }); return; }
 
-  let parsed: { title: string | null; description: string | null; instructions: string | null; servings?: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
+  // Kvoten tas FÖRE anropet: annars kan ett misslyckat men dyrt anrop upprepas
+  // fritt. En användare som fotar av en hel kokbok ska inte kunna bränna den
+  // gemensamma budgeten så att funktionen dör för alla andra.
+  const kvot = await taFotokvot((req as AuthenticatedRequest).clerkUserId);
+  if (!kvot.tillåtet) {
+    res.status(429).json({ error: FOTOKVOT_SLUT });
+    return;
+  }
+
+  let parsed: { recipes?: unknown[] };
+  let rawSvar = '';
+  const sidorAntal = Array.isArray(body.data.imageBase64) ? body.data.imageBase64.length : 1;
   try {
-    let base64Data = body.data.imageBase64;
-
-    // Extrahera media type och base64 från data URL (data:image/jpeg;base64,...)
-    // eller använd direkta base64 utan data URL-prefix
-    let mediaType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' = 'image/jpeg';
-    let base64 = base64Data;
-
-    if (base64Data.startsWith('data:')) {
-      const colonIdx = base64Data.indexOf(':');
-      const commaIdx = base64Data.indexOf(',');
-      if (colonIdx > 0 && commaIdx > colonIdx) {
-        const header = base64Data.substring(colonIdx + 1, commaIdx);
-        const mimeMatch = header.match(/^([^;]+)/);
-        if (mimeMatch) {
-          const mime = mimeMatch[1];
-          if (['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(mime)) {
-            mediaType = mime as typeof mediaType;
-          }
-        }
-        base64 = base64Data.substring(commaIdx + 1);
-      }
-    }
+    const sidor = (Array.isArray(body.data.imageBase64) ? body.data.imageBase64 : [body.data.imageBase64])
+      .map(delaUppDataUrl);
 
     const msg = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
+      // Sonnet 5 för foton: Haiku läste fel på riktiga kokbokssidor ('tapelsin',
+      // 'hal dinkel') och missade en ingrediens helt. Sonnet läser lika rent som
+      // Opus till en tredjedel av priset — 13 öre mot 41 per foto. Mätt i
+      // experiments/bildrutor/ på samma uppslag.
+      model: 'claude-sonnet-5',
+      // Ett uppslag kan innehålla flera recept, och varje recept har beskrivning,
+      // alla steg och alla ingredienser. Två fulla recept landade på ~1500–2500
+      // tokens; med 2048 kapades svaret mitt i JSON:en och felet visade sig som
+      // "hittade inget recept" — trots att modellen läst allt rätt. Taket är satt
+      // med marginal för MAX_SIDOR sidor. Ökat max_tokens kostar ingenting i sig;
+      // bara faktiskt genererade tokens debiteras.
+      max_tokens: 8192,
       system: `Du är ett system som extraherar receptinformation från bilder av receptpapper eller matfotografier på svenska eller engelska.
 Returnera ENBART giltig JSON utan förklaringar eller markdown-kodblock.
 
@@ -420,49 +497,84 @@ Regler:
 - unit ska vara EN av: dl, l, liter, ml, cl, msk, tsk, krm, g, kg, st, knippe, näve, nypa, klyfta — eller null
 - Extrahera ALLA ingredienser och steg du ser
 - Ingrediensnamn på svenska (översätt om fotot visar engelska)
+- Står det FLERA separata recept på bilderna blir det ett objekt per recept. Ett recept som
+  sträcker sig över flera sidor är däremot ETT objekt — sidnumreringen ovan säger vilka som
+  hör ihop. Slå aldrig ihop två olika rätter, och dela aldrig upp en rätt.
+- Ser du inget recept i bilderna: returnera ÄNDÅ giltig JSON med tom recipes-lista.
 - instructions: om steg finns, ett steg per rad, "1. Förbered X\n2. Stek Y\n3. Servera" — varje steg på egen rad med \n emellan, annars null`,
       messages: [{
         role: 'user',
         content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: mediaType,
-              data: base64,
+          // Sidordningen är betydelsebärande: ingredienser står ofta på första
+          // sidan och tillagningen på nästa. Numrera dem explicit så modellen
+          // inte behöver gissa hur bilderna hänger ihop.
+          ...sidor.flatMap((sida, idx) => [
+            ...(sidor.length > 1
+              ? [{ type: 'text' as const, text: `Sida ${idx + 1} av ${sidor.length}:` }]
+              : []),
+            {
+              type: 'image' as const,
+              source: { type: 'base64' as const, media_type: sida.mediaType, data: sida.base64 },
             },
-          },
+          ]),
           {
-            type: 'text',
-            text: 'Extrahera all receptinformation från denna bild.',
+            type: 'text' as const,
+            text: sidor.length > 1
+              ? `Bilderna ovan är ${sidor.length} sidor ur SAMMA recept, i ordning. Slå ihop dem till ett recept — upprepa inte ingredienser som syns på flera sidor.`
+              : 'Extrahera all receptinformation från denna bild.',
           },
         ],
       }],
     });
-    const raw = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
+    await bokförAiKostnad('claude-sonnet-5', msg.usage);
+    const raw = textUr(msg);
     if (!raw) throw new Error('Tomt svar från Claude');
-    const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '');
-    parsed = JSON.parse(clean);
+    if (msg.stop_reason === 'max_tokens') {
+      // Kapat svar ger trasig JSON. Utan den här kontrollen ser det ut som att
+      // modellen inte hittade något recept, vilket skickar felsökningen åt fel håll.
+      throw new Error('Svaret från AI:n blev för långt och kapades. Prova med färre sidor åt gången.');
+    }
+    rawSvar = raw;
+    parsed = tolkaJsonSvar(raw) as typeof parsed;
   } catch (err) {
+    // Modellen svarar med prosa i stället för JSON när bilden inte föreställer
+    // ett recept. Det är inget serverfel — det är ett svar på en fråga som inte
+    // hade något svar, och användaren ska få veta det, inte se en parse-error.
+    if (err instanceof InteJsonError) {
+      console.error('Photo parsing: inget recept i bilden.', `sidor: ${sidorAntal}`, err.råtext.slice(0, 200));
+      res.status(422).json({ error: INGET_RECEPT_I_BILD });
+      return;
+    }
     const errMsg = err instanceof Error ? err.message : 'AI-anropet misslyckades';
-    console.error('Photo parsing error:', errMsg, 'Base64 length:', body.data.imageBase64.length);
+    console.error('Photo parsing error:', errMsg, `sidor: ${sidorAntal}`);
     res.status(422).json({ error: errMsg });
     return;
   }
 
-  const result: ScrapedRecipe = {
-    title: typeof parsed.title === 'string' && parsed.title.trim() ? parsed.title.trim() : 'Okänt recept',
-    description: typeof parsed.description === 'string' ? parsed.description : null,
-    instructions: typeof parsed.instructions === 'string' ? parsed.instructions : null,
-    imageUrl: null,
-    servings: typeof parsed.servings === 'number' && parsed.servings > 0 ? parsed.servings : 4,
-    ingredients: Array.isArray(parsed.ingredients)
-      ? parsed.ingredients
-          .filter((i): i is { name: string; quantity: number | null; unit: string | null } => typeof i?.name === 'string' && i.name.trim().length > 0)
-          .map(i => ({ name: i.name.trim(), quantity: typeof i.quantity === 'number' ? i.quantity : null, unit: typeof i.unit === 'string' && i.unit ? i.unit : null }))
-      : [],
-  };
-  res.json(result);
+  // Ett recept utan både ingredienser och steg är inget recept, även om det är
+  // giltig JSON. Utan den här kontrollen skapades ett tomt "Okänt recept" när man
+  // fotade något annat. Tomma objekt sållas bort; blir listan tom är svaret nej.
+  // Modellen ombeds svara med en recipes-lista, men den kan falla tillbaka på
+  // ett ensamt receptobjekt — och då är svaret rätt även om formen är fel. Att
+  // tolka det som "inget recept hittat" vore att kasta ett giltigt resultat.
+  const kandidater: ReceptRå[] = Array.isArray(parsed.recipes)
+    ? (parsed.recipes as ReceptRå[])
+    : [parsed as ReceptRå];
+  const funna = kandidater.filter(x => x && !saknarReceptinnehåll(x));
+  if (funna.length === 0) {
+    // Utan råsvaret går det inte att skilja "modellen såg inget recept" från
+    // "vi tolkade svaret fel" — och båda ser likadana ut för användaren.
+    console.error('Photo parsing: noll recept i svaret.', `sidor: ${sidorAntal}`, rawSvar.slice(0, 400));
+    res.status(422).json({ error: INGET_RECEPT_I_BILD });
+    return;
+  }
+
+  const alla = funna.map(städaRecept);
+
+  // Bakåtkompatibelt: appar på äldre runtime läser fälten på toppnivå och känner
+  // inte till recipes. De får första receptet, precis som förut. Nyare appar läser
+  // listan och kan erbjuda ett val när det finns flera.
+  res.json({ ...alla[0], recipes: alla });
 }));
 
 interface ScrapedRecipe {

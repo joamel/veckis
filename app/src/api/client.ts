@@ -17,6 +17,23 @@ import type {
 } from '@veckis/shared';
 import { trackBackendRequest } from '../lib/backendWakeup';
 import { reportClientError } from '../lib/errorReport';
+import { Image } from 'react-native';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { common } from '../lib/svenska';
+import { passaInom, type Resize } from '../lib/bildstorlek';
+
+/**
+ * Läser bildens mått och räknar ut hur den ska skalas. Själva uträkningen bor
+ * i bildstorlek.ts där den går att testa; här är bara måtthämtningen, som
+ * kräver en riktig bild. Går måtten inte att läsa faller vi tillbaka på att
+ * begränsa bredden — sämre gissning, men aldrig större än max.
+ */
+async function resizeFor(uri: string, max: number): Promise<Resize> {
+  const mått = await new Promise<{ w: number; h: number } | null>(resolve => {
+    Image.getSize(uri, (w, h) => resolve({ w, h }), () => resolve(null));
+  });
+  return mått ? passaInom(mått.w, mått.h, max) : { width: max };
+}
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -411,38 +428,42 @@ export function useApiClient() {
     parseRecipeText: (text: string) =>
       request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }>('/api/recipes/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
 
-    parseRecipeFromPhoto: async (photoUri: string): Promise<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }> => {
-      const response = await fetch(photoUri);
-      const blob = await response.blob();
-      const reader = new FileReader();
+    parseRecipeFromPhoto: async (photoUris: string[]): Promise<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> } & { recipes?: { title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }[] }> => {
+      // Skala ner och komprimera INNAN uppladdning. En okomprimerad mobilbild är
+      // ~4 MB, och som base64 ~5,3 MB över mobilnät — det är den överföringen som
+      // dominerar väntetiden. Modellen skalar ändå ner allt över 1568 px längsta
+      // sida, så en större bild kostar bara tid och tokens utan bättre tolkning.
+      // base64 hämtas direkt ur manipulatorn, vilket slipper varvet via
+      // fetch → blob → FileReader.
+      //
+      // Sidorna komprimeras i följd, inte parallellt: flera samtidiga
+      // bilddekodningar är ett minnestopp som fäller appen på svagare telefoner.
+      const sidor: string[] = [];
+      for (const uri of photoUris) {
+        const compressed = await ImageManipulator.manipulateAsync(
+          uri,
+          [{ resize: await resizeFor(uri, 1568) }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+        );
+        if (!compressed.base64) throw new Error(common.errors.couldNotLoad('bilden'));
+        sidor.push(compressed.base64);
+      }
 
-      return new Promise((resolve, reject) => {
-        reader.onload = async () => {
-          try {
-            const base64 = reader.result as string;
-            const token = await getToken();
-            const res = await fetch(`${BASE_URL}/api/recipes/from-photo`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-              },
-              body: JSON.stringify({ imageBase64: base64 }),
-            });
-
-            if (!res.ok) {
-              const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-              throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
-            }
-            const result = await res.json() as { title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
-            resolve(result);
-          } catch (err) {
-            reject(err);
-          }
-        };
-        reader.onerror = () => reject(new Error('Kunde inte läsa bilden'));
-        reader.readAsDataURL(blob);
+      const token = await getToken();
+      const res = await fetch(`${BASE_URL}/api/recipes/from-photo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ imageBase64: sidor }),
       });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
+      }
+      return res.json() as Promise<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> } & { recipes?: { title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> }[] }>;
     },
 
     // Menus

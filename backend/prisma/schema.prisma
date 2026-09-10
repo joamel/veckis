@@ -384,3 +384,39 @@ enum WeekDay {
   sat
   sun
 }
+
+/// Löpande AI-kostnad per kalendermånad. Finns för att kostnaden ska gå att se
+/// och larma på — en räknare i processminnet nollställs vid varje omdeploy, och
+/// Railway deployar ofta.
+///
+/// En rad per månad, uppdaterad efter varje AI-anrop. Ingen koppling till
+/// hushåll: syftet är den totala notan, inte vem som orsakade den.
+model AiUsage {
+  /// "2026-09" — kalendermånad i UTC.
+  month        String   @id
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  /// Ackumulerad kostnad i ÖRE. Heltal — flyttal och pengar hör inte ihop.
+  costOre      Int      @default(0)
+  /// Sätts när månadens varningsgräns passerats, så larmet bara går en gång.
+  warnedAt     DateTime?
+  updatedAt    DateTime @updatedAt
+}
+
+/// Månadstak för fototolkning, per användare.
+///
+/// Det globala kostnadslarmet skyddar notan men inte de andra användarna: hinner
+/// någon fota in en hel kokbok innan larmet går, står alla utan funktionen. Det
+/// här taket gör att en enskild användare inte kan förstöra för resten.
+///
+/// Räknas per Clerk-användare och inte per hushåll, eftersom from-photo-routen
+/// inte får något hushålls-id — receptet skapas i ett separat anrop efteråt.
+model PhotoQuota {
+  clerkUserId String
+  /// "2026-09" — kalendermånad i UTC.
+  month       String
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@id([clerkUserId, month])
+}

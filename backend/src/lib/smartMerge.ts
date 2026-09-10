@@ -10,6 +10,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '../db';
 import { VOLUME_TO_ML, MASS_TO_G, combineQuantities } from './unitOrder';
+import { textUr } from './aiJson';
+import { bokförAiKostnad } from './aiCost';
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -167,7 +169,8 @@ export async function fetchEquivalenceFromAI(name: string, unit: string): Promis
       system: EQUIVALENCE_PROMPT,
       messages: [{ role: 'user', content: JSON.stringify({ name, unit }) }],
     });
-    const text = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
+    await bokförAiKostnad('claude-haiku-4-5-20251001', msg.usage);
+    const text = textUr(msg);
     if (!text || text === 'null') return null;
     const parsed = JSON.parse(text) as { baseAmount?: unknown; baseUnit?: unknown } | null;
     if (!parsed || typeof parsed !== 'object') return null;

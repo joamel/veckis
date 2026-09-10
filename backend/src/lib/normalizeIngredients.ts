@@ -2,6 +2,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '../db';
 import { stripIngredient } from './stripIngredient';
 import type { StoreCategory } from '@prisma/client';
+import { textUr } from './aiJson';
+import { bokförAiKostnad } from './aiCost';
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -33,7 +35,8 @@ async function aiNormalizeNames(strippedNames: string[]): Promise<string[]> {
       }],
       system: SYSTEM_PROMPT,
     });
-    const text = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : '';
+    await bokförAiKostnad('claude-haiku-4-5-20251001', msg.usage);
+    const text = textUr(msg);
     const parsed = JSON.parse(text) as string[];
     if (!Array.isArray(parsed) || parsed.length !== strippedNames.length) return strippedNames;
     return parsed.map((n, i) => (typeof n === 'string' && n.length > 0 ? n.toLowerCase().trim() : strippedNames[i]));
