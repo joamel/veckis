@@ -14,7 +14,8 @@
     "db:migrate": "npm run db:migrate --workspace=backend",
     "db:migrate:prod": "npm run db:migrate:prod --workspace=backend",
     "db:seed": "npm run db:seed --workspace=backend",
-    "db:studio": "npm run db:studio --workspace=backend"
+    "db:studio": "npm run db:studio --workspace=backend",
+    "bildrutor": "node experiments/bildrutor/kor.mjs"
   },
   "dependencies": {
     "react": "19.1.0",
