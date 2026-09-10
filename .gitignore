@@ -27,3 +27,10 @@ sound-sandbox.mjs
 
 # Nedladdade AAB:er från Actions — hör inte i repot (82 MB styck)
 builds/
+
+# Databasdumpar — innehåller användardata, ska ALDRIG committas
+backups/
+
+# Experimentbilder och deras resultat — kokbokssidor, inget som hör hemma i repot
+experiments/**/bilder/
+experiments/**/*-rutor.html

@@ -13,6 +13,8 @@
  * "måste vara localhost"-spärr, eftersom det är skrivet för att köras mot
  * produktion. Skyddet ligger i stället i att torrkörning är default.
  */
+import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import { createClerkClient } from '@clerk/backend';
 import { prisma as sharedPrisma } from '../src/db';
@@ -26,6 +28,7 @@ const prisma = new PrismaClient({ log: ['error'] });
 
 const args = new Set(process.argv.slice(2));
 const APPLY = args.has('--apply');
+const SKIP_BACKUP = args.has('--skip-backup');
 
 // Mönstren kommer från db:seed och gamla test-fixtures som kördes mot prod
 // innan seed-spärren fanns.
@@ -131,6 +134,27 @@ async function runTestData() {
   console.log(`Raderade ${count} hushåll.`);
 }
 
+/**
+ * Skarp körning raderar hushåll med kaskad — listor, recept och menyer följer
+ * med. Railway Hobby har inga automatiska backuper, så vi tar en egen dump
+ * först. Misslyckas dumpen körs INGEN radering: hellre avbryta än att radera
+ * utan väg tillbaka. --skip-backup finns för den som redan har en färsk dump.
+ */
+function backupFirst(): void {
+  if (SKIP_BACKUP) {
+    console.log('--skip-backup angivet — hoppar över säkerhetskopian.\n');
+    return;
+  }
+  console.log('Tar en säkerhetskopia innan radering …');
+  const result = spawnSync(process.execPath, [join(__dirname, 'backup-db.mjs')], { stdio: 'inherit' });
+  if (result.status !== 0) {
+    console.error('\nSäkerhetskopian misslyckades — avbryter utan att radera något.');
+    console.error('Kör med --skip-backup om du medvetet vill fortsätta ändå.');
+    process.exit(1);
+  }
+  console.log('');
+}
+
 async function main() {
   const wantsOrphans = args.has('--orphans');
   const wantsTestData = args.has('--test-data');
@@ -140,6 +164,7 @@ async function main() {
   }
 
   console.log(APPLY ? '*** SKARP KÖRNING — raderar på riktigt ***\n' : 'Torrkörning — inget raderas. Lägg till --apply för att köra skarpt.\n');
+  if (APPLY) backupFirst();
   if (wantsOrphans) await runOrphans();
   else await runTestData();
 }

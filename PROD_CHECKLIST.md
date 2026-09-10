@@ -1,80 +1,121 @@
 # Handlis – Produktions-checklista
 
-Status per 2026-08-27. Grundad på kodgranskning + BACKLOG.md. Kryssa av allteftersom.
+**Appen är lanserad.** Play: 1.2.1 / versionCode 10. Kvarvarande punkter är drift- och
+skalningsarbete, inte lanseringsblockerare.
+
+Städad 2026-09-10 (ursprunglig status 2026-08-27). Kontoöversikt, hemligheter och löpande
+tillsyn ligger i [DRIFT.md](DRIFT.md) — den här filen är engångsuppgifter.
 
 ---
 
-## P0 – innan/vid beta (debugbarhet & efterlevnad)
+## Öppet
 
-- [x] **Sentry BACKEND** — `@sentry/node` (kanonisk `instrument.ts`-init + `setupExpressErrorHandler` +
-      unhandledRejection), `SENTRY_DSN` i Railway, **verifierat** (testfel landar i `handlis-backend`).
-      Täcker det viktigaste: serverfel.
-- [ ] **Sentry APP — UPPSKJUTET (borttaget under betan-crunchen).** `@sentry/react-native` avinstallerat för
-      att det (1) bröt Google-OAuth på web (SDK:ns fetch/history-instrumentering krockade med Clerk-redirect)
-      och (2) failade AAB-bygget (`…_SentryUpload`-task utan auth-token). Återinför EFTER betan, korrekt: bygg
-      i preview-APK + testa OAuth först; Sentry.init utan fetch/history-instrumentering; `SENTRY_AUTH_TOKEN`
-      + org/project för source maps. (Klientfel POST:as fortfarande till backend; ErrorBoundary härdad mot vit skärm.)
-- [~] **Neon-backup / PITR** – bekräftat: PITR (instant restore) ÄR backupen, automatisk. **Free = bara 6h
-      fönster** (default=max, cap 1 GB) → ok för betan (testdata), men tunt för riktig användardata.
-      Inför launch: **uppgradera Neon till Launch (~$19/mån) → 7 dagars PITR + always-on** (löser backup +
-      always-on-punkten ihop). Gratis-alternativ: schemalagt `pg_dump`-jobb (kräver säker lagring). OBS:
-      EN delad DB för alla klienter (app/PWA/web) → PITR återställer allas data samtidigt.
-- [x] **GDPR-cookiebanner för GA4** – GA4/gtag laddas nu ENDAST efter cookie-samtycke (Acceptera/Avvisa,
-      val i localStorage, varumärkesgrön banner). Ingen GA-cookie innan samtycke. (`patch-index-html.mjs`)
-- [ ] **Klientfel-synlighet i prod** – täcks av Sentry ovan. (In-app-viewern är nu `__DEV__`-only + minnesring töms vid omstart.)
+### Backup av produktionsdatabasen — **den enda riktiga risken kvar**
+Neon är avvecklat; DB:n ligger på **Railway Postgres** (Hobby sedan 2026-09-10). **Hobby har inga
+automatiska backuper** — bekräftat 2026-09-10. Produktionsdatan har alltså inget skyddsnät i dag.
 
-## P1 – under beta (drift & stabilitet)
+Verktyget finns: `npm run backup --workspace=backend` dumpar och gzippar till `backups/`
+(gitignorerad). Kräver den publika TCP-proxy-URL:en från Railway → Postgres → Connect, satt som
+`BACKUP_DATABASE_URL`. Kör pg_dump direkt om binären finns, annars via Docker.
 
-- [x] **Lågfrekvent DB-/uppetidslarm** – GitHub Actions-workflow (`.github/workflows/uptime.yml`) pingar
-      `/health` var 6:e h (retry mot Neon-kallstart) → failar + mejlar repo-ägaren vid ihållande fel.
-      Kör manuellt via Actions → Uptime → Run workflow för test.
-- [ ] **Beslut: always-on backend** – Railway/Neon free-tier autosuspendar; keepalive-cron mildrar kallstart
-      men är inte "alltid live". Uppgradera till betald tier inför riktig lansering.
-- [x] **Graceful "servern vaknar"-retry i appen** – retry+backoff (1.5/4/9s, idempotenta anrop) fanns redan,
-      MEN WakeupIndicator var frånkopplad (`trackBackendRequest` hade noll anropare → "Vaknar…" visades
-      aldrig). Nu inkopplad i API-klienten → feedback under kallstart i stället för tyst ~14s.
+**Skydd på plats:** `cleanup-members.ts --apply` tar numera en dump automatiskt innan den
+raderar, och avbryter helt om dumpen misslyckas. Det täcker den troligaste katastrofen — att
+vi själva kör något destruktivt mot prod — utan cronjobb och utan att exponera databasen.
 
-## P2 – skala & perf (inte blockerande för liten beta)
+Kvar:
+- [ ] **Verifiera hela kedjan.** Börja med schemat, så lämnar ingen persondata Railway:
+      ```powershell
+      # PowerShell — variabeln sätts som eget kommando, inte som prefix (det är bash-syntax)
+      $env:BACKUP_DATABASE_URL = "postgresql://...@....proxy.rlwy.net:PORT/railway"
+      npm run backup --workspace=backend -- --schema-only
+      npm run restore-test --workspace=backend
+      ```
+      Postgres-versionen upptäcks automatiskt (Railway kör 18.6) och bakas in i filnamnet,
+      Strängen är `DATABASE_PUBLIC_URL` i Railway → Postgres → Variables. Den privata
+      (`.railway.internal`) går inte att nå utifrån och avvisas av scriptet.
+      Fungerar det, ta en full dump och kör `restore-test` igen. Den startar en
+      engångscontainer, återställer dit och rapporterar radantal per tabell — produktions-
+      databasen rörs aldrig. En dump som aldrig återställts är en gissning, inte en backup.
+- [ ] Ta en dump manuellt innan varje deploy som innehåller en ny Prisma-migrering.
+      Migreringar körs automatiskt vid boot i `start-prod.mjs` — det finns alltså ingen lokal
+      punkt att haka fast en spärr i, det måste bli en vana.
+- [x] **Kryptering finns** — `npm run backup --workspace=backend -- --encrypt` (AES-256-GCM,
+      lösenfras ur `BACKUP_PASSPHRASE`). Verifierad rundtur: kryptera, dekryptera, återställa
+      2512 rader. Återställningsrutin i DRIFT.md § 6.
+- [ ] Var dumparna ska lagras långsiktigt. Ligger de bara på din maskin skyddar de mot att vi
+      sabbar prod, men inte mot att maskinen dör. Kryptera när filen flyttas.
+- [ ] Nattlig cron är möjlig senare, men ger bara frekvens — off-site-egenskapen kommer av
+      var filen hamnar, inte av att en cron skapade den.
 
-- [~] **SWR/React Query-cache – UTREDD & MOOT.** Tab-navigatorn har inget `unmountOnBlur`/`freezeOnBlur` →
-      skärmarna behåller state monterat mellan flikbyten, så persisterad data visas redan direkt + `load()`
-      revalideras i bakgrunden (ingen spinner-flash). Modul-cache testad för Recept+Inköp → **återställd**
-      (gav bara nytta vid faktisk om-montering, som knappt sker). Enda kvarvarande sub-värde: kort
-      staleness-guard mot redundanta on-focus-`load()` (låg prio).
-- [ ] **Sammansatta (composite) endpoints** – flera flikar gör 2–4 parallella anrop per laddning (Meny =
-      `getWeekMenu + getRecipes + getShoppingLists + getStores + getAllMenus`, Inköp = listor+butiker+medlemmar).
-      En composite-endpoint per flik → 1 anrop, halverar latensen. Största reella perf-vinsten (till skillnad
-      från cachen minskar det faktiska round-trips på den kall-start-benägna free-tier-backenden).
-- [ ] **Paginering för recept** – hela listan skickas vid varje besök; cursor + infinite scroll vid 60+ recept.
-- [ ] **WS + Redis pub/sub** – realtiden är in-process; skalar backend till 2+ instanser slutar realtids-
-      uppdateringar funka mellan användare på olika instanser.
+En delad DB för alla klienter (app/PWA/webb) → en återställning återställer allas data samtidigt.
 
-## Google Play (pågår)
+### Sentry i appen — uppskjutet, medvetet
+`@sentry/react-native` avinstallerat under lanseringsrusningen eftersom det (1) bröt Google-OAuth
+på webben (SDK:ns fetch/history-instrumentering krockade med Clerk-redirect) och (2) fällde
+AAB-bygget (`…_SentryUpload` utan auth-token).
 
-- [x] **AAB-bygge klart** (build 0fb8d9ba, versionCode 3) — funkade efter att app-Sentry togs bort.
-      Ladda ner + ladda upp till **Closed testing** när Play-konto-verifieringen är klar.
-- [ ] **12+ testare** inbjudna (mejl/Google-grupp), testar i **14 dagar** → ansök om produktion
-- [ ] Store-listning: skärmdumpar (≥2 telefon), feature graphic ✓, copy ✓ (`app/store/`), kategori, kontaktmejl
-- [ ] **Content rating**-enkät + **Data safety**-formulär (vägledning i `app/store/play-listing.md`)
-- [ ] **OAuth-consent → Production** i Google Cloud Console (grund-scopes → ingen granskning) så alla kan Google-logga in
-- [ ] Utvecklarnamn + utvecklarmejl satt (rek: "Handlis" / support@handlis.app om inkorgen läses)
-- [x] versionCode auto-inkrement (EAS remote) + `update:production`-kanal
+Återinför i den här ordningen: bygg preview-APK → testa OAuth först → `Sentry.init` **utan**
+fetch/history-instrumentering → `SENTRY_AUTH_TOKEN` + org/project för source maps.
 
-## Säkerhet – mestadels klart (verifierat i kod)
+Klientfel POST:as fortfarande till backend under tiden, och ErrorBoundary är härdad mot vit skärm.
 
-- [x] Clerk-JWT verifieras backend (`verifyToken` + `sk_live`)
-- [x] helmet, CORS-allowlist (`CORS_ORIGIN`), rate limiting (200/15min + per-route), zod-validering
-- [x] Felhanteraren läcker inte stacktraces; auditlogg för känsliga handlingar; `trust proxy`
-- [x] Secrets i env (DB-URL-referens, `sk_live` i Railway); Postgres-lösen roterat
-- [ ] **Clerk Bot Protection** – beslut: av (för att native passwordless-signup ska funka). Slå på igen +
-      bygg captcha-hantering om spam-konton dyker upp (övervaka via Clerk → Users).
-- [ ] **iOS** (senare): APNs-nyckel, bundle-registrering, TestFlight-smoketest
+### Google OAuth-consent → Production
+Verifiera i Google Cloud Console att consent-skärmen står i **Production**, inte Testing. Står den
+kvar i Testing kan bara uppräknade testare Google-logga in. Grund-scopes → ingen granskning krävs.
+
+### iOS — inte påbörjat
+APNs-nyckel, bundle-registrering, TestFlight-smoketest.
+
+### Clerk Bot Protection — medvetet av
+Avstängd för att native passwordless-signup ska fungera. Slå på igen och bygg captcha-hantering
+om spam-konton dyker upp (övervaka via Clerk → Users; kvartalspunkt i DRIFT.md).
 
 ---
 
-## Snabb prioritering
-1. Sentry (störst hävstång för fjärr-felsökning)
-2. DB-larm + bekräfta Neon-backup
-3. GDPR-cookiebanner (GA4)
-4. Play closed testing (pågår)
-5. Perf (SWR, paginering) + WS+Redis vid faktisk skalning
+## Perf & skalning (ingen brådska, men kända)
+
+- [ ] **Sammansatta endpoints** — flera flikar gör 2–4 parallella anrop per laddning (Meny =
+      `getWeekMenu + getRecipes + getShoppingLists + getStores + getAllMenus`; Inköp =
+      listor+butiker+medlemmar). En composite-endpoint per flik → 1 anrop, halverad latens.
+      Största reella perf-vinsten som återstår på backendsidan.
+- [ ] **Paginering för recept** — hela listan skickas vid varje besök; cursor + infinite scroll
+      vid 60+ recept.
+- [ ] **WS + Redis pub/sub** — realtiden är in-process. Skalas backend till 2+ instanser slutar
+      realtidsuppdateringar fungera mellan användare på olika instanser. WebSockets är också det
+      som driver RAM-kostnaden på Railway, se DRIFT.md.
+
+---
+
+## Klart
+
+- [x] **Sentry backend** — `@sentry/node` (`instrument.ts` + `setupExpressErrorHandler` +
+      unhandledRejection), `SENTRY_DSN` i Railway, verifierat mot `handlis-backend`.
+- [x] **Uppetids-/DB-larm** — `.github/workflows/uptime.yml` pingar `/health` var 6:e timme med
+      retry, failar och mejlar repo-ägaren vid ihållande fel.
+- [x] **Always-on backend** — löst av Railway Hobby. Free-tiern autosuspenderade; det gör inte den
+      betalda.
+- [x] **"Servern vaknar"-retry** — retry+backoff (1.5/4/9 s, idempotenta anrop) inkopplad i
+      API-klienten, `WakeupIndicator` faktiskt ansluten (den hade noll anropare tidigare).
+- [x] **GDPR-cookiebanner för GA4** — gtag laddas enbart efter samtycke, val i localStorage
+      (`patch-index-html.mjs`).
+- [x] **Inköpslistans scrollprestanda** — FlashList + memoiserade rader, levererat i 1.2.1.
+- [x] **Google Play — publicerad.** Stängd testning, 14 dagars testperiod, content rating,
+      data safety och store-listning genomförda. Nu i produktion.
+- [x] **Säkerhet** — Clerk-JWT verifieras i backend (`verifyToken` + `sk_live`); helmet,
+      CORS-allowlist, rate limiting (200/15 min + per route), zod-validering; felhanteraren läcker
+      inte stacktraces; auditlogg för känsliga handlingar; `trust proxy`; secrets i env;
+      Postgres-lösenord roterat.
+- [~] **SWR/React Query-cache — utredd och avskriven.** Tab-navigatorn saknar
+      `unmountOnBlur`/`freezeOnBlur`, så skärmarna behåller state mellan flikbyten och persisterad
+      data visas direkt medan `load()` revalideras i bakgrunden. Modul-cache testades för Recept
+      och Inköp och **återställdes** — gav bara nytta vid faktisk ommontering, som knappt sker.
+      Kvarvarande sub-värde: en kort staleness-guard mot redundanta on-focus-`load()`. Låg prio.
+
+---
+
+## Notera
+
+Native-byggen görs **manuellt** via GitHub Actions → `android-release-build` → AAB → Play Console.
+EAS-byggkvoten är slut, och `versionCode` inkrementeras därför inte automatiskt — bumpa `version`
+**och** `android.versionCode` i `app/app.json` för hand före varje bygge. Missas `version` drar den
+nya binären förra runtime-versionens OTA och skriver över själva native-ändringen.

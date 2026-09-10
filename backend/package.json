@@ -15,7 +15,9 @@
     "db:migrate:prod": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "cleanup": "tsx scripts/cleanup-members.ts"
+    "cleanup": "tsx scripts/cleanup-members.ts",
+    "backup": "node scripts/backup-db.mjs",
+    "restore-test": "node scripts/restore-test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.2",
