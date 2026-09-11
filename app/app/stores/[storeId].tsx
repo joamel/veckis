@@ -22,6 +22,7 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, ALL_SUB_CATEGORIES, type StoreCategory, type SubCategory, type Store } from '@veckis/shared';
 import { stores as str, common } from '../../src/lib/svenska';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
+import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { sortedRestFor } from '../../src/lib/subOrder';
 
 // EGEN komponent — gesten byggs via useMemo, keyad på stabila props, så samma
@@ -59,6 +60,10 @@ export default function StoreDetailScreen() {
   const { householdId } = useHousehold();
   const { showError, showToast } = useToast();
   const confirm = useConfirm();
+  // Mät-och-lyft i stället för KeyboardAvoidingView: den krympte arket och
+  // lämnade ett tomrum när tangentbordet stängdes.
+  const { sheetLift, onFocusInput } = useSheetLift();
+  const renameRef = useRef<TextInput>(null);
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
   // Synliga enum-kategorier (i ordning) + dolda räknas ut från diffen mellan
@@ -721,9 +726,11 @@ export default function StoreDetailScreen() {
       </DraggableBottomSheet>
 
       {/* Byt namn-modal */}
-      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} keyboardAvoiding sheetStyle={s.sheet}>
+      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} liftOffset={sheetLift} sheetStyle={s.sheet}>
             <Text style={s.sheetTitle}>{str.renameModal.title}</Text>
             <TextInput
+              ref={renameRef}
+              onFocus={onFocusInput(renameRef)}
               style={s.input}
               value={renameValue}
               onChangeText={setRenameValue}

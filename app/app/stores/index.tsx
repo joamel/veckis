@@ -20,6 +20,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
+import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { type Store, type StoreCategory } from '@veckis/shared';
 import { stores as str, common, gettingStarted } from '../../src/lib/svenska';
 import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
@@ -71,6 +72,11 @@ export default function StoresScreen() {
 
   // Skapa-modal
   const [showCreate, setShowCreate] = useState(false);
+  // Samma lyft-teknik som övriga ark med textfält: mät fältet och lyft precis
+  // så mycket att det syns. KeyboardAvoidingView krympte i stället hela arket
+  // och lämnade ett tomrum när tangentbordet stängdes.
+  const { sheetLift, onFocusInput } = useSheetLift();
+  const newStoreRef = useRef<TextInput>(null);
   const [newStoreName, setNewStoreName] = useState('');
   const [creating, setCreating] = useState(false);
 
@@ -268,11 +274,13 @@ export default function StoresScreen() {
       <DraggableBottomSheet
         visible={showCreate}
         onRequestClose={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); })}
-        keyboardAvoiding
+        liftOffset={sheetLift}
         sheetStyle={s.sheet}
       >
         <Text style={s.sheetTitle}>{str.createModal.title}</Text>
         <TextInput
+          ref={newStoreRef}
+          onFocus={onFocusInput(newStoreRef)}
           style={s.input}
           placeholder={str.createModal.placeholder}
           placeholderTextColor={c.textFaint}

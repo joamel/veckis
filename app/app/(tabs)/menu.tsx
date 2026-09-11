@@ -36,6 +36,7 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { EmptyState } from '../../src/components/EmptyState';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
+import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
 import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
@@ -277,6 +278,10 @@ export default function MenuScreen() {
   const { fs, sp, isTablet } = useTablet();
   const { width: weekPageW, height: windowHeight } = useWindowDimensions();
 
+  // Mät-och-lyft i stället för KeyboardAvoidingView: den krympte arket och
+  // lämnade ett tomrum när tangentbordet stängdes.
+  const { sheetLift, onFocusInput } = useSheetLift();
+  const newListRef = useRef<TextInput>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [showWeekPicker, setShowWeekPicker] = useState(false);
   const weekMonday = useMemo(() => getWeekMonday(weekOffset), [weekOffset]);
@@ -1893,13 +1898,15 @@ export default function MenuScreen() {
           </View>
       </DraggableBottomSheet>
       {/* Transfer to shopping list modal */}
-      <DraggableBottomSheet visible={!!transferSheet} onRequestClose={() => setTransferSheet(null)} keyboardAvoiding sheetStyle={s.sheet}>
+      <DraggableBottomSheet visible={!!transferSheet} onRequestClose={() => setTransferSheet(null)} liftOffset={sheetLift} sheetStyle={s.sheet}>
           <Text style={s.sheetTitle}>{str.bulk.chooseShoppingList}</Text>
           {shoppingLists.length === 0 ? (
             <>
               <Text style={s.pickerEmptyText}>{str.bulk.noActiveList}</Text>
               <View style={s.createListRow}>
                 <TextInput
+                  ref={newListRef}
+                  onFocus={onFocusInput(newListRef)}
                   style={[s.input, { flex: 1, marginTop: 0 }]}
                   placeholder={str.bulk.newListNamePlaceholder}
                   placeholderTextColor={c.textFaint}
@@ -1943,8 +1950,6 @@ export default function MenuScreen() {
         visible={showBulkTransferModal}
         onRequestClose={() => handleBulkBack()}
         onOverlayPress={() => handleCancelBulkTransfer()}
-        keyboardAvoiding
-        keyboardAvoidingEnabled={bulkTransferStep !== 'ingredients'}
         sheetStyle={s.sheet}
       >
           {bulkTransferStep === 'week' ? (

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useTheme } from '../src/context/ThemeContext';
 import type { Palette } from '../src/lib/theme';
 // Kontosida — namn, byt namn, ta bort konto, logga ut. Egen route med
@@ -15,6 +15,7 @@ import { useToast } from '../src/context/ToastContext';
 import { useConfirm } from '../src/context/ConfirmContext';
 import { account as str } from '../src/lib/svenska';
 import { DraggableBottomSheet } from '../src/components/DraggableBottomSheet';
+import { useSheetLift } from '../src/hooks/useSheetLift';
 
 // Clerks konto-portal (2FA m.m.) ligger på olika domäner per instans: prod
 // (pk_live) på accounts.handlis.app, dev på .accounts.dev. Env-styrt så länken
@@ -41,6 +42,14 @@ export default function AccountScreen() {
   const displayName = myMember?.displayName ?? user?.firstName ?? user?.emailAddresses[0]?.emailAddress.split('@')[0] ?? str.defaultName;
   const email = user?.emailAddresses[0]?.emailAddress ?? '';
 
+  // Mät-och-lyft i stället för KeyboardAvoidingView: den krympte arket och
+  // lämnade ett tomrum när tangentbordet stängdes.
+  const { sheetLift, onFocusInput } = useSheetLift();
+  const renameRef = useRef<TextInput>(null);
+  const curPwRef = useRef<TextInput>(null);
+  const newPwRef = useRef<TextInput>(null);
+  const confirmPwRef = useRef<TextInput>(null);
+  const deleteRef = useRef<TextInput>(null);
   const [showRename, setShowRename] = useState(false);
   const [renameValue, setRenameValue] = useState(displayName);
   const [saving, setSaving] = useState(false);
@@ -208,9 +217,11 @@ export default function AccountScreen() {
       </ScrollView>
 
       {/* Byt namn-modal */}
-      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} keyboardAvoiding sheetStyle={s.sheetDraggable}>
+      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} liftOffset={sheetLift} sheetStyle={s.sheetDraggable}>
         <Text style={s.sheetTitle}>{str.renameModal.title}</Text>
         <TextInput
+          ref={renameRef}
+          onFocus={onFocusInput(renameRef)}
           style={s.input}
           placeholder={str.renameModal.placeholder}
           placeholderTextColor={c.textFaint}
@@ -231,11 +242,13 @@ export default function AccountScreen() {
       </DraggableBottomSheet>
 
       {/* Lösenord-modal: lägg till (lösenordsfritt konto) eller ändra */}
-      <DraggableBottomSheet visible={showPassword} onRequestClose={closePassword} keyboardAvoiding sheetStyle={s.sheetDraggable}>
+      <DraggableBottomSheet visible={showPassword} onRequestClose={closePassword} liftOffset={sheetLift} sheetStyle={s.sheetDraggable}>
         <Text style={s.sheetTitle}>{hasPassword ? str.passwordModal.changeTitle : str.passwordModal.addTitle}</Text>
         <Text style={s.sheetSubtitle}>{hasPassword ? str.security.changeSubtitle : str.security.addSubtitle}</Text>
         {hasPassword && (
           <TextInput
+            ref={curPwRef}
+            onFocus={onFocusInput(curPwRef)}
             style={s.input}
             placeholder={str.passwordModal.currentPlaceholder}
             placeholderTextColor={c.textFaint}
@@ -246,6 +259,8 @@ export default function AccountScreen() {
         )}
         <View style={s.pwWrap}>
           <TextInput
+            ref={newPwRef}
+            onFocus={onFocusInput(newPwRef)}
             style={[s.input, s.pwInput]}
             placeholder={str.passwordModal.newPlaceholder}
             placeholderTextColor={c.textFaint}
@@ -265,6 +280,8 @@ export default function AccountScreen() {
           </Pressable>
         </View>
         <TextInput
+          ref={confirmPwRef}
+          onFocus={onFocusInput(confirmPwRef)}
           style={[s.input, confirmPw.length > 0 && !pwMatches && s.inputError]}
           placeholder={str.passwordModal.confirmPlaceholder}
           placeholderTextColor={c.textFaint}
@@ -291,7 +308,7 @@ export default function AccountScreen() {
       <DraggableBottomSheet
         visible={showDeleteSheet}
         onRequestClose={() => setShowDeleteSheet(false)}
-        keyboardAvoiding
+        liftOffset={sheetLift}
         sheetStyle={s.sheet}
       >
         <Text style={s.sheetTitle}>{str.deleteConfirm.title}</Text>
@@ -302,6 +319,8 @@ export default function AccountScreen() {
         </Pressable>
         <Text style={s.sheetSubtitle}>{str.deleteConfirm.typeIntro(str.deleteConfirm.word)}</Text>
         <TextInput
+          ref={deleteRef}
+          onFocus={onFocusInput(deleteRef)}
           style={s.input}
           placeholder={str.deleteConfirm.word}
           placeholderTextColor={c.textFaint}

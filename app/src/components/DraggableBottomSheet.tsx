@@ -1,6 +1,5 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
 import {
-  KeyboardAvoidingView,
   Modal,
   Pressable,
   StyleSheet,
@@ -17,7 +16,6 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { useTheme } from '../context/ThemeContext';
-import { kavBehavior } from '../lib/platform';
 
 // Dra nedåt (i handtaget) för att stänga en bottom-sheet, i stället för att
 // bara kunna trycka utanför. RN:s <Modal> renderas i ett eget nativt fönster
@@ -32,8 +30,6 @@ export function DraggableBottomSheet({
   onRequestClose,
   onOverlayPress,
   children,
-  keyboardAvoiding = false,
-  keyboardAvoidingEnabled = true,
   liftOffset = 0,
   sheetStyle,
 }: {
@@ -47,17 +43,13 @@ export function DraggableBottomSheet({
    *  `onRequestClose`. */
   onOverlayPress?: () => void;
   children: ReactNode;
-  /** Sheeten innehåller ett textfält som ska förbli synligt ovanför tangentbordet
-   *  — standard-fallet, löst via en vanlig KeyboardAvoidingView. */
-  keyboardAvoiding?: boolean;
-  /** Stäng av KAV:n villkorligt (t.ex. ett steg i en flerstegs-sheet som hanterar
-   *  tangentbordet själv via en inre ScrollView). Ignoreras om `keyboardAvoiding`
-   *  är false. */
-  keyboardAvoidingEnabled?: boolean;
-  /** Alternativ till `keyboardAvoiding` för skärmar som redan mäter fram sitt
-   *  eget lyft (t.ex. "mät fokuserat fält och skrolla lagom mycket" via
-   *  `useState`/`Animated.Value`) — ett px-värde som skjuter sheeten uppåt,
-   *  läggs ihop med det pågående draget i stället för att krocka med det. */
+  /** Px som skjuter sheeten uppåt, ihoplagt med ett pågående drag.
+   *
+   *  Detta är ENDA sättet att hålla ett textfält synligt ovanför tangentbordet
+   *  här. KeyboardAvoidingView fanns tidigare som alternativ men togs bort:
+   *  behavior "height" krympte arket och lämnade ett tomrum när tangentbordet
+   *  stängdes, och "padding" hjälpte inte. Använd useSheetLift, som mäter det
+   *  fokuserade fältet och lyfter precis så mycket att det syns. */
   liftOffset?: number;
   /** Skärmens egen `s.sheet`-stil (bakgrund, rundade hörn, padding). */
   sheetStyle?: StyleProp<ViewStyle>;
@@ -115,13 +107,7 @@ export function DraggableBottomSheet({
     <Modal visible={visible} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={onRequestClose}>
       <GestureHandlerRootView style={styles.fill}>
         <View pointerEvents="none" style={styles.overlayDim} />
-        {keyboardAvoiding ? (
-          <KeyboardAvoidingView behavior={kavBehavior} enabled={keyboardAvoidingEnabled} style={styles.fillAbsolute}>
-            {content}
-          </KeyboardAvoidingView>
-        ) : (
-          content
-        )}
+        {content}
       </GestureHandlerRootView>
     </Modal>
   );

@@ -33,6 +33,7 @@ import { settings as str, common } from '../../src/lib/svenska';
 import { useTheme, type ThemeMode } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
+import { useSheetLift } from '../../src/hooks/useSheetLift';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -44,6 +45,14 @@ export default function SettingsScreen() {
   const styles = useMemo(() => makeStyles(c), [c]);
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
+  // Mät-och-lyft i stället för KeyboardAvoidingView: den krympte arket och
+  // lämnade ett tomrum när tangentbordet stängdes.
+  const { sheetLift, onFocusInput } = useSheetLift();
+  const editHouseholdRef = useRef<TextInput>(null);
+  const deleteConfirmRef = useRef<TextInput>(null);
+  const editMemberRef = useRef<TextInput>(null);
+  const newHouseholdRef = useRef<TextInput>(null);
+  const joinCodeRef = useRef<TextInput>(null);
   const [invite, setInvite] = useState<InviteCode | null>(null);
   const [loadingInvite, setLoadingInvite] = useState(false);
   const [showAdminLogs, setShowAdminLogs] = useState(false);
@@ -675,10 +684,12 @@ export default function SettingsScreen() {
       </ScrollView>
 
       {/* Edit Household Name Modal */}
-      <DraggableBottomSheet visible={showEditHouseholdModal} onRequestClose={() => setShowEditHouseholdModal(false)} keyboardAvoiding sheetStyle={styles.sheet}>
+      <DraggableBottomSheet visible={showEditHouseholdModal} onRequestClose={() => setShowEditHouseholdModal(false)} liftOffset={sheetLift} sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.renameHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <TextInput
+              ref={editHouseholdRef}
+              onFocus={onFocusInput(editHouseholdRef)}
               style={styles.input}
               placeholder={str.placeholders.householdName}
               value={editingHouseholdName}
@@ -702,7 +713,7 @@ export default function SettingsScreen() {
       </DraggableBottomSheet>
 
       {/* Delete Household Confirmation Modal */}
-      <DraggableBottomSheet visible={showDeleteHouseholdModal} onRequestClose={() => setShowDeleteHouseholdModal(false)} keyboardAvoiding sheetStyle={styles.sheet}>
+      <DraggableBottomSheet visible={showDeleteHouseholdModal} onRequestClose={() => setShowDeleteHouseholdModal(false)} liftOffset={sheetLift} sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.deleteHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll} keyboardShouldPersistTaps="handled">
             <Text style={styles.sheetDesc}>
@@ -710,6 +721,8 @@ export default function SettingsScreen() {
               Skriv <Text style={{ fontWeight: '700', color: c.danger }}>{str.placeholders.deleteConfirm}</Text> {str.messages.deleteConfirmOutro}
             </Text>
             <TextInput
+              ref={deleteConfirmRef}
+              onFocus={onFocusInput(deleteConfirmRef)}
               style={[styles.input, styles.deleteInput]}
               placeholder={str.placeholders.deleteConfirm}
               value={deleteConfirmText}
@@ -731,10 +744,12 @@ export default function SettingsScreen() {
       </DraggableBottomSheet>
 
       {/* Edit Member Modal */}
-      <DraggableBottomSheet visible={showEditMemberModal} onRequestClose={() => setShowEditMemberModal(false)} keyboardAvoiding sheetStyle={styles.sheet}>
+      <DraggableBottomSheet visible={showEditMemberModal} onRequestClose={() => setShowEditMemberModal(false)} liftOffset={sheetLift} sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.editMember}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <TextInput
+              ref={editMemberRef}
+              onFocus={onFocusInput(editMemberRef)}
               style={styles.input}
               placeholder={str.placeholders.memberName}
               value={editingDisplayName}
@@ -758,10 +773,12 @@ export default function SettingsScreen() {
       </DraggableBottomSheet>
 
       {/* Create Household Modal */}
-      <DraggableBottomSheet visible={showCreateHouseholdModal} onRequestClose={() => setShowCreateHouseholdModal(false)} keyboardAvoiding sheetStyle={styles.sheet}>
+      <DraggableBottomSheet visible={showCreateHouseholdModal} onRequestClose={() => setShowCreateHouseholdModal(false)} liftOffset={sheetLift} sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.createHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll} keyboardShouldPersistTaps="handled">
             <TextInput
+              ref={newHouseholdRef}
+              onFocus={onFocusInput(newHouseholdRef)}
               style={styles.input}
               placeholder={str.placeholders.householdName}
               value={newHouseholdName}
@@ -783,11 +800,13 @@ export default function SettingsScreen() {
       </DraggableBottomSheet>
 
       {/* Join Household Modal */}
-      <DraggableBottomSheet visible={showJoinHouseholdModal} onRequestClose={() => setShowJoinHouseholdModal(false)} keyboardAvoiding sheetStyle={styles.sheet}>
+      <DraggableBottomSheet visible={showJoinHouseholdModal} onRequestClose={() => setShowJoinHouseholdModal(false)} liftOffset={sheetLift} sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.joinHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <Text style={styles.sheetDesc}>{str.messages.joinHint}</Text>
             <TextInput
+              ref={joinCodeRef}
+              onFocus={onFocusInput(joinCodeRef)}
               style={styles.input}
               placeholder={str.placeholders.inviteCode}
               value={joinCode}
