@@ -16,17 +16,18 @@ export const isIOSLike =
     typeof navigator !== 'undefined' &&
     /iPhone|iPad|iPod/.test(navigator.userAgent));
 
-export const kavBehavior: 'padding' | 'height' = isIOSLike ? 'padding' : 'height';
-
 /**
- * Ska KeyboardAvoidingView vara på?
+ * 'padding' på alla plattformar.
  *
- * Nej på Android: app.json sätter `softwareKeyboardLayoutMode: "pan"`, så
- * systemet panorerar redan hela fönstret när tangentbordet öppnas. En
- * KeyboardAvoidingView ovanpå det krymper innehållet EN GÅNG TILL, och
- * krympningen ligger kvar ett ögonblick när tangentbordet stängs — synligt som
- * ett tomrum under bottom-sheets.
+ * 'height' krympte containern på Android, och krympningen låg kvar ett ögonblick
+ * efter att tangentbordet stängts — synligt som ett tomrum under bottom-sheets.
+ * 'padding' skjuter i stället innehållet uppåt och nollställs rent när
+ * tangentbordet försvinner.
  *
- * iOS panorerar inte av sig självt och behöver den fortfarande.
+ * Att i stället stänga av KeyboardAvoidingView på Android (eftersom app.json
+ * sätter softwareKeyboardLayoutMode 'pan') var FEL: pan gäller appens fönster,
+ * och arken ligger i en <Modal> med eget fönster som inte panoreras. Utan KAV
+ * lyfte de inte alls.
  */
-export const kavEnabledPerPlattform = Platform.OS !== 'android';
+export const kavBehavior: 'padding' | 'height' = 'padding';
+

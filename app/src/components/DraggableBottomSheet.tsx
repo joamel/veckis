@@ -17,7 +17,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { useTheme } from '../context/ThemeContext';
-import { kavBehavior, kavEnabledPerPlattform } from '../lib/platform';
+import { kavBehavior } from '../lib/platform';
 
 // Dra nedåt (i handtaget) för att stänga en bottom-sheet, i stället för att
 // bara kunna trycka utanför. RN:s <Modal> renderas i ett eget nativt fönster
@@ -116,7 +116,7 @@ export function DraggableBottomSheet({
       <GestureHandlerRootView style={styles.fill}>
         <View pointerEvents="none" style={styles.overlayDim} />
         {keyboardAvoiding ? (
-          <KeyboardAvoidingView behavior={kavBehavior} enabled={keyboardAvoidingEnabled && kavEnabledPerPlattform} style={styles.fillAbsolute}>
+          <KeyboardAvoidingView behavior={kavBehavior} enabled={keyboardAvoidingEnabled} style={styles.fillAbsolute}>
             {content}
           </KeyboardAvoidingView>
         ) : (
