@@ -1538,11 +1538,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       }
       case 'checkedHeader':
         return (
-          <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={4}>
+          <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={12}>
             <Text style={[s.categoryLabel, { color: c.textFaint }]}>
               {str.checkedLabel}{row.collapsed ? ` (${row.count})` : ''}
             </Text>
-            <Ionicons name={row.collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={c.border} />
+            {/* Större och tydligare än kategoripilarna: klart-sektionen är ofta
+                hopfälld, och pilen är då enda vägen in. Den var 16 px i c.border,
+                alltså nästan osynlig mot bakgrunden. */}
+            <Ionicons name={row.collapsed ? 'chevron-down' : 'chevron-up'} size={22} color={c.textFaint} />
           </Pressable>
         );
       case 'checkedSubLabel':
@@ -2715,7 +2718,10 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   shopperText: { fontSize: 13, color: c.pink, fontWeight: '600' },
   shopperIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.pinkTint, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
   progressFill: { height: 3, backgroundColor: c.success },
-  list: { padding: 16, gap: 2, paddingBottom: 8 },
+  // Inget gap här: FlashList lägger inte ut raderna i en flex-container, så gap
+  // i contentContainerStyle tappades vid bytet i 1.2.1 och korten satt ihop.
+  // Avståndet ligger på raden i stället — det fungerar i båda listorna.
+  list: { padding: 16, paddingBottom: 8 },
   listEmpty: { flex: 1 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   emptyImportBtn: { marginBottom: 4 },
@@ -2801,7 +2807,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // Skuggan ligger HÄR, inte på s.item: wrappern har overflow:'hidden' för att
   // klippa svep-bakgrunderna till hörnen, och det klipper barnens skuggor. En
   // vy klipper aldrig sin EGEN skugga, så den måste sitta på wrappern.
-  swipeRowWrap: { borderRadius: 10, overflow: 'hidden', backgroundColor: c.surface },
+  swipeRowWrap: { borderRadius: 10, marginBottom: 2, overflow: 'hidden', backgroundColor: c.surface },
   // Bara på AKTIVA rader. Listan renderas i en ScrollView med .map(), alltså
   // helt utan virtualisering — varje avklarad rad är monterad. Med elevation på
   // samtliga fick Android rita en skugga per rad och scrollen blev ryckig.
