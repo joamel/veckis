@@ -1538,7 +1538,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       }
       case 'checkedHeader':
         return (
-          <Pressable style={s.categoryHeader} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={12}>
+          <Pressable style={[s.categoryHeader, s.checkedHeaderSpacing]} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={12}>
             <Text style={[s.categoryLabel, { color: c.textFaint }]}>
               {str.checkedLabel}{row.collapsed ? ` (${row.count})` : ''}
             </Text>
@@ -2737,6 +2737,10 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   mergeHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   categoryGroup: { gap: 2 },
   categoryHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 2, paddingVertical: 4, gap: 8 },
+  // Extra luft OVANFÖR klart-rubriken: den avslutar listan och behöver skiljas
+  // från sista varan tydligare än kategorirubriker behöver skiljas från varandra.
+  // Egen stil, annars glesnar alla rubriker.
+  checkedHeaderSpacing: { marginTop: 20, marginBottom: 4 },
   categoryLabel: { fontSize: 12, fontWeight: '700', color: c.primary, textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 },
   // Sub-grupp-rubriker: inget uppercase + ingen letterSpacing (annars klipps
   // långa subnamn som "Toalett- & hushållspapper"); lite indenterad + dämpad
