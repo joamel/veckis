@@ -81,7 +81,7 @@ function StatusBarBackdrop() {
 
 function NavigationGuard() {
   const { isLoaded, isSignedIn } = useAuth();
-  const { householdId, isLoading: householdLoading } = useHousehold();
+  const { householdId, isLoading: householdLoading, loadFailed: householdLoadFailed } = useHousehold();
   const segments = useSegments();
   const router = useRouter();
   const { markWelcomeReady } = useWelcomeGate();
@@ -123,10 +123,13 @@ function NavigationGuard() {
       router.replace(householdId ? `/(tabs)/${landingTab}` as never : '/household/setup');
     } else if (isSignedIn && (inSetup || atRoot) && householdId) {
       router.replace(`/(tabs)/${landingTab}` as never);
-    } else if (isSignedIn && !inAuthGroup && !householdId && !inSetup) {
+    } else if (isSignedIn && !inAuthGroup && !householdId && !inSetup && !householdLoadFailed) {
+      // householdLoadFailed: ett nätverksglapp betyder inte att användaren
+      // saknar hushåll. Utan villkoret kastades man till Skapa/gå med vid varje
+      // misslyckat anrop och blev kvar där.
       router.replace('/household/setup');
     }
-  }, [isLoaded, isSignedIn, householdId, householdLoading, segments, landingTab]);
+  }, [isLoaded, isSignedIn, householdId, householdLoading, householdLoadFailed, segments, landingTab]);
 
   // Koncept-guide — visa bara när användare är inne i appen (har hushåll, inte
   // i auth/setup) och flaggan inte är satt.

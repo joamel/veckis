@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type RefObject } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { Animated, Easing, Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -50,6 +50,20 @@ export function ConfirmDialog({
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const s = useMemo(() => makeStyles(c), [c]);
+
+  // Menyn växer ur knappen den hör till i stället för att bara tonas in.
+  // Skala + en liten förskjutning nedåt (menyn ligger OVANFÖR knappen) läser
+  // som att pluset blir alternativen. Modal:ens egen fade sköter bakgrunden.
+  const menuAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!visible) { menuAnim.setValue(0); return; }
+    Animated.timing(menuAnim, {
+      toValue: 1,
+      duration: 160,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [visible, menuAnim]);
 
   // Mät ankarknappen när menyn öppnas. Nollställs vid stängning så nästa
   // öppning inte ritar kortet på förra knappens plats innan mätningen hunnit in.
@@ -116,7 +130,21 @@ export function ConfirmDialog({
               samtidigt att man kan trycka utanför för att stänga. */}
           <View pointerEvents="none" style={{ ...StyleSheet.absoluteFillObject, backgroundColor: MENU_SCRIM }} />
           <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onPress={dismiss} />
-          <View style={[s.menuCardBase, anchorStyle]}>{rows}</View>
+          <Animated.View
+            style={[
+              s.menuCardBase,
+              anchorStyle,
+              {
+                opacity: menuAnim,
+                transform: [
+                  { scale: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1] }) },
+                  { translateY: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [options.menuAnchor === 'bottom-right' ? 12 : -12, 0] }) },
+                ],
+              },
+            ]}
+          >
+            {rows}
+          </Animated.View>
         </Modal>
       );
     }
