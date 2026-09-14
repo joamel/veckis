@@ -2604,6 +2604,15 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
   const translateX = useSharedValue(0);
   const THRESHOLD = windowWidth * 0.35;
 
+  // FlashList återvinner komponentinstanser i stället för att montera om dem.
+  // En rad som svepts bort ligger kvar på translateX = -windowWidth, och när
+  // instansen återanvänds för en annan vara ärver den positionen — då syns det
+  // röda raderings-underlaget i stället för varan. Nollställ när raden byter
+  // identitet; utan återvinning hade en ny instans börjat på 0 av sig själv.
+  useEffect(() => {
+    translateX.value = 0;
+  }, [item.id, translateX]);
+
   const doDelete = useCallback(() => { onDelete?.(row); }, [onDelete, row]);
   const doEdit = useCallback(() => { onEdit(row); }, [onEdit, row]);
   const canDelete = !!onDelete && !pending;
