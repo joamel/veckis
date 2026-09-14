@@ -421,6 +421,19 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const qtySubScrollRef = useRef<ScrollView>(null);
   const recordQtyCatChipLayout = useChipAutoScroll(qtyCatScrollRef, qtyCustomCategory ? `c:${qtyCustomCategory}` : qtyCategory);
   const recordQtySubChipLayout = useChipAutoScroll(qtySubScrollRef, qtyCustomSubCategory ? `cs:${qtyCustomSubCategory}` : (qtySubCategory ?? '__none__'));
+  // Enhetsraderna och sammanslagningens kategorirad saknade auto-scroll: den
+  // valda chippen kunde ligga utanför synligt område, särskilt när värdet satts
+  // programmatiskt (sökförslag, dubblettförslag) i stället för genom ett tryck.
+  const editUnitScrollRef = useRef<ScrollView>(null);
+  const recordEditUnitChipLayout = useChipAutoScroll(editUnitScrollRef, editUnit || null);
+  const stapleUnitScrollRef = useRef<ScrollView>(null);
+  const recordStapleUnitChipLayout = useChipAutoScroll(stapleUnitScrollRef, stapleUnit || null);
+  const qtyUnitScrollRef = useRef<ScrollView>(null);
+  const recordQtyUnitChipLayout = useChipAutoScroll(qtyUnitScrollRef, qtyUnit || null);
+  const mergeUnitScrollRef = useRef<ScrollView>(null);
+  const recordMergeUnitChipLayout = useChipAutoScroll(mergeUnitScrollRef, mergeUnit || null);
+  const mergeCatScrollRef = useRef<ScrollView>(null);
+  const recordMergeCatChipLayout = useChipAutoScroll(mergeCatScrollRef, mergeCategory ?? null);
   const stapleNameRef = useRef<TextInput>(null);
   const stapleUnitRef = useRef<TextInput>(null);
   const qtyValueRef = useRef<TextInput>(null);
@@ -1928,10 +1941,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               returnKeyType="done"
             />
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
+          <ScrollView ref={editUnitScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
             <View style={s.unitChipRow}>
               {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
-                <Pressable key={u} style={[s.unitChip, editUnit === u && s.unitChipActive]} onPress={() => setEditUnit(v => v === u ? '' : u)}>
+                <Pressable key={u} onLayout={e => recordEditUnitChipLayout(u, e.nativeEvent.layout.x)} style={[s.unitChip, editUnit === u && s.unitChipActive]} onPress={() => setEditUnit(v => v === u ? '' : u)}>
                   <Text style={[s.unitChipText, editUnit === u && s.unitChipTextActive]}>{u}</Text>
                 </Pressable>
               ))}
@@ -2071,10 +2084,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             returnKeyType="done"
             onFocus={onFocusInput(stapleUnitRef, 80)}
           />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">
+          <ScrollView ref={stapleUnitScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">
             <View style={s.unitChipRow}>
               {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
-                <Pressable key={u} style={[s.unitChip, stapleUnit === u && s.unitChipActive]} onPress={() => setStapleUnit(v => v === u ? '' : u)}>
+                <Pressable key={u} onLayout={e => recordStapleUnitChipLayout(u, e.nativeEvent.layout.x)} style={[s.unitChip, stapleUnit === u && s.unitChipActive]} onPress={() => setStapleUnit(v => v === u ? '' : u)}>
                   <Text style={[s.unitChipText, stapleUnit === u && s.unitChipTextActive]}>{u}</Text>
                 </Pressable>
               ))}
@@ -2161,10 +2174,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 onSubmitEditing={confirmQtySheet}
               />
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
+            <ScrollView ref={qtyUnitScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll}>
               <View style={s.unitChipRow}>
                 {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
-                  <Pressable key={u} style={[s.unitChip, qtyUnit === u && s.unitChipActive]} onPress={() => setQtyUnit(v => v === u ? '' : u)}>
+                  <Pressable key={u} onLayout={e => recordQtyUnitChipLayout(u, e.nativeEvent.layout.x)} style={[s.unitChip, qtyUnit === u && s.unitChipActive]} onPress={() => setQtyUnit(v => v === u ? '' : u)}>
                     <Text style={[s.unitChipText, qtyUnit === u && s.unitChipTextActive]}>{u}</Text>
                   </Pressable>
                 ))}
@@ -2341,21 +2354,22 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               {mergeSuggestionApplied && (
                 <Text style={s.mergeSuggestionHint}>✨ AI-förslag: hela förpackningar</Text>
               )}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">
+              <ScrollView ref={mergeUnitScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="handled">
                 <View style={s.unitChipRow}>
                   {['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'].map(u => (
-                    <Pressable key={u} style={[s.unitChip, mergeUnit === u && s.unitChipActive]} onPress={() => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeUnit(v => v === u ? '' : u); }}>
+                    <Pressable key={u} onLayout={e => recordMergeUnitChipLayout(u, e.nativeEvent.layout.x)} style={[s.unitChip, mergeUnit === u && s.unitChipActive]} onPress={() => { mergeFieldsDirtyRef.current = true; setMergeSuggestionApplied(false); setMergeUnit(v => v === u ? '' : u); }}>
                       <Text style={[s.unitChipText, mergeUnit === u && s.unitChipTextActive]}>{u}</Text>
                     </Pressable>
                   ))}
                 </View>
               </ScrollView>
               <Text style={s.editLabel}>{common.fields.category}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll} keyboardShouldPersistTaps="handled">
+              <ScrollView ref={mergeCatScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll} keyboardShouldPersistTaps="handled">
                 <View style={s.catChipRow}>
                   {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
                     <Pressable
                       key={cat}
+                      onLayout={e => recordMergeCatChipLayout(cat, e.nativeEvent.layout.x)}
                       style={[s.catChip, mergeCategory === cat && s.catChipActive]}
                       onPress={() => setMergeCategory(cat)}
                     >

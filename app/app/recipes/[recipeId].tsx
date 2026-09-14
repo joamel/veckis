@@ -1025,7 +1025,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                       returnKeyType={idx < editIngredients.length - 1 ? 'next' : 'done'}
                       blurOnSubmit={false}
                       onFocus={() => setActiveUnitIdx(idx)}
-                      onPressIn={() => setActiveUnitIdx(idx)}
+                      // Inget onPressIn här: den utlöses så fort fingret rör fältet,
+                      // alltså även mitt i en scrollrörelse — då fälldes enhetsraden ut
+                      // och layouten hoppade så man tappade scrollen. onFocus räcker;
+                      // fokus sätts ändå när fingret släpps.
                       onBlur={() => setTimeout(() => setActiveUnitIdx(a => a === idx ? null : a), 120)}
                       onSubmitEditing={() => {
                         setActiveUnitIdx(null);
