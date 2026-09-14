@@ -582,7 +582,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     dupes: ShoppingItemWithRecipe[],
     lastItem?: { quantity?: number | null; unit?: string | null },
   ) => {
-    if (dupes.length < 2) return;
+    // Skyddsnät: öppna aldrig arket för något som inte GÅR att slå ihop.
+    // "Minst två varor" räcker inte — två varor med samma namn och enhet
+    // aggregeras till en rad, och då blir arket ett dödläge med "Slå ihop 1
+    // rad" utgråad. Regeln finns i isMergeableDupe och ska inte upprepas här.
+    if (!isMergeableDupe(dupes)) return;
     const totalQty = dupes.reduce((sum, d) => sum + (d.quantity ?? 1), 0);
     const bestUnit = lastItem?.unit
       || [...dupes].reverse().map(d => d.unit ?? '').find(Boolean)
@@ -946,7 +950,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       const nextGroup = [...nameMap.entries()]
         .filter(([k]) => k !== justMergedKey) // skip the group we just dealt with
         .map(([, g]) => g)
-        .find(g => g.length >= 2 && !dismissedDupeKeys.has(g[0].name.toLowerCase().trim()));
+        // SAMMA regel som detektorn: isMergeableDupe, inte "minst två rader".
+        // Den här vägen hade en egen variant (g.length >= 2) och öppnade därför
+        // grupper som kollapsar till EN aggregerad rad — arket visade ett ensamt
+        // förslag med "Slå ihop 1 rad" utgråad, alltså ett dödläge. Fjärde
+        // gången samma fråga besvarats på ett eget sätt i den här filen.
+        //
+        // Även avfärdandet: detektorn nycklar på dupeGroupSignature, den här
+        // gjorde det på bara namnet, så ett ignorerat förslag kunde dyka upp igen.
+        .find(g => isMergeableDupe(g) && !dismissedDupeKeys.has(dupeGroupSignature(g)));
       if (nextGroup) openMergeForDupes(nextGroup);
       else setMergeSheet(null);
       // Undo = delete the container, which fully unmerges (restores the sources).
