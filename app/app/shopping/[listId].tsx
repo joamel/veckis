@@ -145,12 +145,26 @@ function dupeGroupSignature(items: { id: string; name: string }[]): string {
 // sattes på (tryck i pickern ELLER programmatiskt).
 function useChipAutoScroll(scrollRef: { current: ScrollView | null }, activeKey: string | null) {
   const xById = useRef<Map<string, number>>(new Map());
-  useEffect(() => {
-    if (activeKey == null) return;
-    const x = xById.current.get(activeKey);
+  const activeRef = useRef<string | null>(activeKey);
+  activeRef.current = activeKey;
+
+  const scrollTill = useCallback((key: string) => {
+    const x = xById.current.get(key);
     if (x !== undefined) scrollRef.current?.scrollTo({ x: Math.max(0, x - 16), animated: true });
-  }, [activeKey, scrollRef]);
-  return useCallback((key: string, x: number) => { xById.current.set(key, x); }, []);
+  }, [scrollRef]);
+
+  useEffect(() => {
+    if (activeKey != null) scrollTill(activeKey);
+  }, [activeKey, scrollTill]);
+
+  // Mätningen kan komma EFTER effekten: när ett ark öppnas med ett redan valt
+  // värde (enheten på en vara man redigerar) hinner effekten köra innan
+  // chipsen layoutats, och då finns inget x att skrolla till. Skrolla därför
+  // också när den aktiva chippens mått landar.
+  return useCallback((key: string, x: number) => {
+    xById.current.set(key, x);
+    if (key === activeRef.current) scrollTill(key);
+  }, [scrollTill]);
 }
 
 export function ShoppingListDetail({ listId, onClose }: { listId: string; onClose?: () => void }) {
