@@ -19,6 +19,12 @@ export const ny = {
   bricka: '#d2dcc4',
   /** Bottenrader och små knappar ovanpå kort. */
   ljus: '#f8faf4',
+  /** Ljus platshållare för recept utan bild — egen ton, så den inte blir
+   *  vit mot de ljusa korten. */
+  platsLjus: '#cddcb3',
+  /** Destruktiva handlingar (Ta bort). */
+  fara: '#b3261e',
+  faraYta: '#f8e1de',
   text: '#1d2a22',
   textDampad: '#6b7a6f',
   chipText: '#2c4a3b',

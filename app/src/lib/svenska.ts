@@ -454,6 +454,11 @@ export const menu = {
     addAnother:       'Lägg till rätt',
   },
 
+  // Ny design (beta)
+  nyDesign: {
+    today: 'Idag',
+  },
+
   cleanup: {
     listIngredientsCount: (n: number) => `${n} ingredienser`,
   },

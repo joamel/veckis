@@ -16,7 +16,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, useAnimatedReaction, withTiming, interpolate, Extrapolation } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -106,6 +106,41 @@ export default function RecipesScreen() {
     const t = interpolate(scrollY.value, [0, headerH], [0, 1], Extrapolation.CLAMP);
     return { transform: [{ translateY: -headerH * t }], opacity: 1 - t };
   });
+  // Ny design: sökfältet fälls ihop med scrollen, taggarna står kvar under
+  // sidhuvudet. Står det något i fältet ligger det kvar — annars försvinner
+  // det man just skrivit ur sikte.
+  const SOK_HOJD = 58; // fältet (44) + mellanrummet mot rubriken (14)
+  const sokHalls = searchQuery.length > 0;
+  // Fälls ihop vid en tröskel, inte i takt med scrollen: att krympa höjden
+  // för varje scrollhändelse tvingade fram en ny layout av hela listan i
+  // varje bildruta och laggade. Nu ändras höjden bara under en kort övergång.
+  const sokSynlig = useSharedValue(1);
+  const sokMal = useSharedValue(1);
+  useAnimatedReaction(
+    () => scrollY.value,
+    y => {
+      if (sokHalls) return;
+      if (y > 40 && sokMal.value === 1) {
+        sokMal.value = 0;
+        sokSynlig.value = withTiming(0, { duration: 180 });
+      } else if (y < 12 && sokMal.value === 0) {
+        sokMal.value = 1;
+        sokSynlig.value = withTiming(1, { duration: 180 });
+      }
+    },
+    [sokHalls],
+  );
+  useEffect(() => {
+    if (!sokHalls) return;
+    sokMal.value = 1;
+    sokSynlig.value = withTiming(1, { duration: 180 });
+  }, [sokHalls, sokMal, sokSynlig]);
+  const sokAnimStyle = useAnimatedStyle(() => ({
+    height: SOK_HOJD * sokSynlig.value,
+    opacity: sokSynlig.value,
+  }));
+  // Byte av vy börjar om högst upp — då ska sökfältet synas igen.
+  useEffect(() => { scrollY.value = 0; }, [receptVy, scrollY]);
   const [sortMode, setSortMode] = useState<'name' | 'used' | 'recent'>('name');
   const { fs, sp } = useTablet();
   useEffect(() => {
@@ -917,6 +952,7 @@ export default function RecipesScreen() {
             onBack={selectionMode || chooseMode || params.create === '1' ? () => router.back() : undefined}
             right={<VyVaxel value={receptVy} onChange={setReceptVy} bildLabel={str.view.image} kompaktLabel={str.view.compact} />}
           >
+            <Animated.View style={[s.nySokYta, sokAnimStyle]}>
             <View style={s.nySokRad}>
               <View style={s.nySok}>
                 <Ionicons name="search" size={16} color={ny.underrubrik} />
@@ -937,15 +973,19 @@ export default function RecipesScreen() {
               </View>
               <NyIkonKnapp icon="swap-vertical" onPress={openSortMenu} label={str.sort.a11y} size={18} />
             </View>
+            </Animated.View>
           </NyHeader>
           {valjBanner}
+          {/* Taggarna står kvar när man scrollar — det är sökfältet som fälls ihop. */}
+          {nyTaggrad && <View style={s.nyTaggBar}>{nyTaggrad}</View>}
           {receptVy === 'bild' ? (
-            <ScrollView
+            <Animated.ScrollView
               contentContainerStyle={s.nyLista}
               refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
               keyboardShouldPersistTaps="handled"
+              onScroll={scrollHandler}
+              scrollEventThrottle={16}
             >
-              {nyTaggrad}
               {filteredRecipes.length === 0 ? tomLista : (
                 <Murverk
                   items={filteredRecipes}
@@ -954,13 +994,14 @@ export default function RecipesScreen() {
                   rendera={(r, h) => <ReceptBildkort hojd={h} {...kortProps(r)} />}
                 />
               )}
-            </ScrollView>
+            </Animated.ScrollView>
           ) : (
-            <FlatList
+            <Animated.FlatList
               data={filteredRecipes}
               keyExtractor={r => r.id}
               contentContainerStyle={s.nyLista}
-              ListHeaderComponent={nyTaggrad}
+              onScroll={scrollHandler}
+              scrollEventThrottle={16}
               ListEmptyComponent={tomLista}
               onRefresh={load}
               refreshing={loading}
@@ -1249,7 +1290,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   nySokRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   nySok: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: ny.glasSvag, borderRadius: 14, paddingHorizontal: 14, height: 44 },
   nySokInput: { flex: 1, fontSize: 15, color: ny.rubrikLjus, padding: 0 },
-  nyLista: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 110, gap: 10 },
+  nySokYta: { overflow: 'hidden', justifyContent: 'flex-end' },
+  nyTaggBar: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 2, backgroundColor: ny.bakgrund },
+  nyLista: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 110, gap: 10 },
   nyTaggar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 4 },
   nyTagg: { paddingHorizontal: 13, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: ny.kontur },
   nyTaggAktiv: { backgroundColor: ny.skog, borderColor: ny.skog },

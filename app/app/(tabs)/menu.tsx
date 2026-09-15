@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Animated as RNAnimated,
   FlatList,
+  Image,
   type GestureResponderEvent,
   Platform,
   Pressable,
@@ -40,6 +41,10 @@ import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
 import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
+import { useDesign } from '../../src/context/DesignContext';
+import { ny, nyFont } from '../../src/lib/nyDesign';
+import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
+import { platshallare } from '../../src/lib/receptPlatshallare';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay, MealType } from '@veckis/shared';
 import { DEFAULT_CATEGORY_ORDER, MEAL_TYPE_ORDER } from '@veckis/shared';
@@ -272,7 +277,8 @@ export default function MenuScreen() {
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
   const scaleWarnedRef = useRef<Set<string>>(new Set());
-  const { householdId } = useHousehold();
+  const { householdId, householdName } = useHousehold();
+  const { nyDesign } = useDesign();
   const { getToken } = useAuth();
   const { markPending, clearPending, cancelAllPending, pendingMenuItemRemovals, pendingCount } = usePendingRemoval();
   const { fs, sp, isTablet } = useTablet();
@@ -1420,9 +1426,35 @@ export default function MenuScreen() {
     const anyScheduled = weekItems.some(i => i.day !== null && visible(i));
     const noop = () => {};
     const isWide = false;
+    // Ett kort i telefonvyn — samma props oavsett design, så de inte glider isär.
+    const renderKort = (item: MenuRow, hero = false, idag = false) => (
+      <MenuCard
+        key={item._stableKey ?? item.id}
+        item={item}
+        hero={hero}
+        idag={idag}
+        collapsedForDrag={isCenter && !!dragState}
+        isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
+        isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
+        isPastWeek={isPastWeek}
+        onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
+        onCookRecipe={() => {
+          router.push(`/recipes/${item.recipeId}?cook=1` as never);
+        }}
+        onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
+        onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
+        onDragStart={isCenter && !isPastWeek ? ((x, y, ty) => onDragStart(item, x, y, ty)) : noop}
+        onDragMove={isCenter ? onDragMove : noop}
+        onDragEnd={isCenter ? onDragEnd : noop}
+        isDragging={isCenter && dragState?.item.id === item.id}
+        scaledServings={scaledServingsOf(item)}
+        onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
+        onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
+      />
+    );
     return (
       <>
-        <View style={isWide ? s.daysRow : s.daysCol}>
+        <View style={[isWide ? s.daysRow : s.daysCol, nyDesign && s.nyDagar]}>
           {DAYS.map((day, i) => {
             const items = weekItems.filter(m => m.day === day.key && visible(m)).sort(byCreated);
             const date = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + i);
@@ -1430,6 +1462,20 @@ export default function MenuScreen() {
             const dragging = isCenter && !!dragState;
             const dayLabel = { abbr: day.short.toLowerCase(), date: date.getDate() };
             const filled = items.length > 0;
+            const isToday = date.toDateString() === new Date().toDateString();
+            // Ny design: dagens rubrik — namn, datum och ev. "Idag"-märke.
+            const dagRubrik = (
+              <>
+                <Text style={s.nyDagNamn}>{day.label}</Text>
+                <Text style={s.nyDagDatum}>{dayLabel.date} {common.months.long[date.getMonth()]}</Text>
+                {isToday && (
+                  <View style={s.nyIdagMarke}>
+                    <Text style={s.nyIdagMarkeText}>{str.nyDesign.today}</Text>
+                  </View>
+                )}
+                <View style={{ flex: 1 }} />
+              </>
+            );
             return (
               <View
                 // Nyckeln inkluderar det EXAKTA innehållet (inte bara day.key) —
@@ -1504,6 +1550,55 @@ export default function MenuScreen() {
                       ))
                     )}
                   </>
+                ) : nyDesign ? (
+                  // Ny design: hela dagen är en egen ruta med rubriken överst
+                  // och korten i full bredd under, så flera rätter samma dag
+                  // syns som en grupp. En datumbricka till vänster gav en lång,
+                  // smal tom yta så fort ett kort fälldes ut. En tom dag är en
+                  // streckad ruta som markeras när man drar ett kort över den.
+                  // Den yttre dag-vyn, som mäts som droppmål, är densamma.
+                  <View style={[s.nyDag, !filled && s.nyDagTomRuta, !filled && isHovered && s.nyDagTomRutaHover]}>
+                    {filled || isPastWeek || !isCenter ? (
+                      <View style={s.nyDagHuvud}>
+                        {dagRubrik}
+                        {/* Fler rätter samma dag direkt härifrån — ersätter
+                            "Lägg till rätt" längst ned i veckan. */}
+                        {filled && !isPastWeek && isCenter && (
+                          <Pressable
+                            style={s.nyDagPlus}
+                            onPress={() => openPicker(day.key)}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${str.card.addAnother} · ${day.label}`}
+                          >
+                            <Ionicons name="add" size={18} color={ny.chipText} />
+                          </Pressable>
+                        )}
+                      </View>
+                    ) : (
+                      <Pressable
+                        style={s.nyDagHuvud}
+                        onPress={() => openPicker(day.key)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${str.card.addAnother} · ${day.label}`}
+                      >
+                        {dagRubrik}
+                        <View style={s.nyDagLaggTill}>
+                          <Ionicons name="add" size={16} color={ny.chipText} />
+                          <Text style={s.nyDagTomText}>{str.card.addAnother}</Text>
+                        </View>
+                      </Pressable>
+                    )}
+                    {filled && (
+                      <View style={s.nyDagKortLista}>
+                        {dragging && (
+                          <View pointerEvents="none" style={[s.dropOutline, s.dropOutlineContent, isHovered && s.dropOutlineHovered]} />
+                        )}
+                        {/* Dagens första rätt får bildbanderoll — kvällens mat syns direkt. */}
+                        {items.map((item, idx) => renderKort(item, isToday && idx === 0, isToday))}
+                      </View>
+                    )}
+                  </View>
                 ) : (
                   // Phone: dag-rubrik ("Måndag 15") ovanför dagens kort
                   <>
@@ -1527,29 +1622,7 @@ export default function MenuScreen() {
                       {dragging && (
                         <View pointerEvents="none" style={[s.dropOutline, s.dropOutlineContent, isHovered && s.dropOutlineHovered]} />
                       )}
-                      {items.map(item => (
-                      <MenuCard
-                        key={item._stableKey ?? item.id}
-                        item={item}
-                        collapsedForDrag={dragging}
-                        isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
-                        isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
-                        isPastWeek={isPastWeek}
-                        onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
-                        onCookRecipe={() => {
-                          router.push(`/recipes/${item.recipeId}?cook=1` as never);
-                        }}
-                        onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
-                        onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
-                        onDragStart={isCenter && !isPastWeek ? ((x, y, ty) => onDragStart(item, x, y, ty)) : noop}
-                        onDragMove={isCenter ? onDragMove : noop}
-                        onDragEnd={isCenter ? onDragEnd : noop}
-                        isDragging={isCenter && dragState?.item.id === item.id}
-                        scaledServings={scaledServingsOf(item)}
-                        onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
-                        onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
-                      />
-                      ))}
+                      {items.map(item => renderKort(item))}
                       </View>
                     )}
                   </>
@@ -1598,7 +1671,9 @@ export default function MenuScreen() {
 
         {/* Botten-"+": lägg till en rätt var som helst i veckan — öppnar
             receptväljaren där man väljer dag/vecka (inkl. utan dag) via popupen. */}
-        {isCenter && !isPastWeek && (anyScheduled || unsched.length > 0) && (
+        {/* Ny design: varje dag har ett eget "+" på rubrikraden, så knappen
+            längst ned behövs inte där. */}
+        {!nyDesign && isCenter && !isPastWeek && (anyScheduled || unsched.length > 0) && (
           <Pressable style={s.weekAddBtn} onPress={openPlanner}>
             <Ionicons name="add" size={fs(18)} color={c.primary} />
             <Text style={[s.weekAddBtnText, { fontSize: fs(14) }]}>{str.card.addAnother}</Text>
@@ -1618,13 +1693,35 @@ export default function MenuScreen() {
     );
   };
 
+  const veckoNav = (
+    <WeekNav
+      variant={nyDesign ? 'ny' : undefined}
+      weekLabel={weekLabel}
+      isCurrentWeek={weekOffset === 0}
+      isPastWeek={weekOffset < 0}
+      onPrev={() => goToWeek(weekOffset - 1, true)}
+      onNext={() => goToWeek(weekOffset + 1, true)}
+      onToday={() => goToWeek(0, true)}
+      onPickDate={() => setShowWeekPicker(true)}
+    />
+  );
+
   if (loading) {
     return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   }
 
   return (
     <View style={{ flex: 1 }}>
-      <SafeAreaView style={s.container}>
+      <SafeAreaView style={[s.container, nyDesign && s.nyContainer]} edges={nyDesign ? ['top', 'left', 'right'] : undefined}>
+      {nyDesign ? (
+        <NyHeader
+          title={str.title}
+          subtitle={householdName}
+          right={<NyIkonKnapp icon="bookmarks-outline" onPress={() => setShowTemplates(true)} label={str.a11y.templates} />}
+        >
+          <View style={s.nyVeckaNav}>{veckoNav}</View>
+        </NyHeader>
+      ) : (<>
       <ScreenHeader
         title={str.title}
         actionNode={
@@ -1635,15 +1732,8 @@ export default function MenuScreen() {
           </View>
         }
       />
-      <WeekNav
-        weekLabel={weekLabel}
-        isCurrentWeek={weekOffset === 0}
-        isPastWeek={weekOffset < 0}
-        onPrev={() => goToWeek(weekOffset - 1, true)}
-        onNext={() => goToWeek(weekOffset + 1, true)}
-        onToday={() => goToWeek(0, true)}
-        onPickDate={() => setShowWeekPicker(true)}
-      />
+      {veckoNav}
+      </>)}
 
       {/* Web/PWA: en nästlad vertikal ScrollView i en horisontell pager gör att
           webbläsaren aldrig delegerar vertikala drag till innerlistan → gick
@@ -1653,8 +1743,8 @@ export default function MenuScreen() {
       {Platform.OS as any === 'web' ? (
         <ScrollView
           ref={menuScrollRef}
-          style={s.content}
-          contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet]}
+          style={[s.content, nyDesign && s.nyInnehall]}
+          contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet, nyDesign && s.nyInnehallInner]}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
           onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={32}
@@ -1675,7 +1765,7 @@ export default function MenuScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        style={s.content}
+        style={[s.content, nyDesign && s.nyInnehall]}
         scrollEnabled={!dragState}
         initialScrollIndex={weekOffset + WEEK_SPAN}
         getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
@@ -1702,7 +1792,7 @@ export default function MenuScreen() {
             <ScrollView
               ref={isCenter ? menuScrollRef : undefined}
               style={{ width: weekPageW }}
-              contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet]}
+              contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet, nyDesign && s.nyInnehallInner]}
               refreshControl={isCenter ? <RefreshControl refreshing={false} onRefresh={load} /> : undefined}
               onScroll={isCenter ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }) : undefined}
               scrollEventThrottle={32}
@@ -1718,14 +1808,14 @@ export default function MenuScreen() {
       {/* Overför-FAB (kundkorg) — visas bara för nuvarande/framtida veckor
           när minst en rätt inte är överförd än. */}
       {!dragState && weekOffset >= 0 && menuItems.some(m => !recipeListMap[m.id]?.length) && (
-        <Pressable ref={transferFabRef} style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={handleShowTransferMenu} accessibilityLabel={str.a11y.transferFab}>
-          <Ionicons name="cart-outline" size={fs(26)} color="#fff" />
+        <Pressable ref={transferFabRef} style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }, nyDesign && s.nyFab]} onPress={handleShowTransferMenu} accessibilityLabel={str.a11y.transferFab}>
+          <Ionicons name="cart-outline" size={fs(26)} color={nyDesign ? ny.skog : '#fff'} />
         </Pressable>
       )}
       {/* Mall-FAB — visas för gamla veckor med rätter så de lätt kan sparas som mall */}
       {!dragState && weekOffset < 0 && menuItems.length > 0 && (
-        <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }]} onPress={() => setShowTemplates(true)} accessibilityLabel={str.a11y.saveWeekAsTemplate}>
-          <Ionicons name="bookmark-outline" size={fs(24)} color="#fff" />
+        <Pressable style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }, nyDesign && s.nyFab]} onPress={() => setShowTemplates(true)} accessibilityLabel={str.a11y.saveWeekAsTemplate}>
+          <Ionicons name="bookmark-outline" size={fs(24)} color={nyDesign ? ny.skog : '#fff'} />
         </Pressable>
       )}
 
@@ -2319,6 +2409,8 @@ function MenuCard({
   onSetMeal,
   dayLabel,
   collapsedForDrag,
+  hero,
+  idag,
 }: {
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
@@ -2337,6 +2429,10 @@ function MenuCard({
   onScaleServings: (n: number) => void;
   onSetMeal: (meal: MealType | null) => void;
   collapsedForDrag?: boolean;
+  /** Ny design: dagens första rätt visar receptbilden som banderoll. */
+  hero?: boolean;
+  /** Ny design: dagens rätter visar Laga direkt i det hopfällda kortet. */
+  idag?: boolean;
 }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -2346,6 +2442,13 @@ function MenuCard({
   const isExpanded = expanded && !collapsedForDrag;
   useEffect(() => { if (collapsedForDrag) setExpanded(false); }, [collapsedForDrag]);
   const { fs, sp } = useTablet();
+  const { nyDesign } = useDesign();
+  const bildUrl = item.recipe.imageUrl ?? null;
+  const visaHero = nyDesign && !!hero && !!bildUrl;
+  // Samma platshållare som receptlistan, så ett recept ser likadant ut i båda.
+  const ph = nyDesign && !bildUrl
+    ? platshallare(item.recipe.id, [item.recipe.title, ...(item.recipe.tags ?? [])].join(' '))
+    : null;
 
   function handlePress() {
     setExpanded(e => !e);
@@ -2364,8 +2467,13 @@ function MenuCard({
   // direkt. Ett dedikerat handtag löser bådadera.
   const isWeb = Platform.OS as any === 'web';
   const cardBody = (
-      <View style={[s.card, isDragging && s.cardDragging, isPending && s.cardPending]}>
-        <View style={s.cardInner}>
+      <View style={[s.card, nyDesign && s.nyKort, isDragging && s.cardDragging, isPending && s.cardPending]}>
+        <View style={[s.cardInner, nyDesign && s.nyKortInner]}>
+          {visaHero && (
+            <View style={s.nyHero}>
+              <Image source={{ uri: bildUrl! }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            </View>
+          )}
           {/* Egen rad för den hopfällda delen: cardInner staplar vertikalt (den
               bär även den utfällda delen), så handtaget hamnade annars på en ny
               rad under kortet i stället för i högerkanten. */}
@@ -2374,12 +2482,20 @@ function MenuCard({
               summan av den HÄR paddingen och handtagets inre marginal (ikonen
               är 22 px i en 36 px bred yta, alltså 7 px på var sida). Med 14 blev
               glappet ~21 px mot kundvagnens 12. 5 + 7 ≈ 12 — samma rytm. */}
-          <Pressable style={[s.cardMain, { padding: sp(14), paddingRight: sp(5), gap: sp(12) }]} onPress={handlePress}>
+          <Pressable style={[s.cardMain, { padding: sp(14), paddingRight: sp(5), gap: sp(12) }, nyDesign && s.nyKortMain]} onPress={handlePress}>
             {dayLabel ? (
               <View style={[s.dayLabelBox, { width: sp(36), height: sp(36) }]}>
                 <Text style={[s.dayLabelAbbr, { fontSize: fs(11) }]}>{dayLabel.abbr}</Text>
                 <Text style={[s.dayLabelDate, { fontSize: fs(13) }]}>{dayLabel.date}</Text>
               </View>
+            ) : nyDesign ? (
+              visaHero ? null : bildUrl ? (
+                <Image source={{ uri: bildUrl }} style={s.nyTumnagel} resizeMode="cover" />
+              ) : (
+                <View style={[s.nyTumnagel, s.nyTumnagelTom, ph?.ton === 'mork' ? s.nyTumMork : s.nyTumLjus]}>
+                  <Ionicons name={ph!.ikon} size={20} color={ph?.ton === 'mork' ? ny.lime : ny.skog} />
+                </View>
+              )
             ) : (
               <View style={[s.cardIcon, { width: sp(30), height: sp(30) }]}>
                 <Ionicons name="restaurant-outline" size={fs(16)} color={c.primary} />
@@ -2387,19 +2503,31 @@ function MenuCard({
             )}
             <View style={s.cardContent}>
               {item.mealType && (
-                <Text style={[s.cardMealTag, { fontSize: fs(10) }]}>{common.mealTypes[item.mealType].toUpperCase()}</Text>
+                <Text style={[s.cardMealTag, { fontSize: fs(10) }, nyDesign && s.nyMaltid]}>{common.mealTypes[item.mealType].toUpperCase()}</Text>
               )}
-              <Text style={[s.cardTitle, { fontSize: fs(16) }, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
+              <Text style={[s.cardTitle, { fontSize: fs(16) }, nyDesign && s.nyKortTitel, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
             </View>
             {/* Kundvagnen före chevronen, och chevronen närmast draghandtaget:
                 de två sitter ihop som kortets högerkant. Båda ligger utanför
                 innehållskolumnen så cardMain centrerar dem mot kortet — inne i
                 kolumnen hamnade chevronen under mitten så fort måltidsetiketten
                 fanns ovanför rubriken. */}
-            {isTransferred && (
+            {/* Dagens rätter: Laga direkt i det hopfällda kortet — det är vad
+                man oftast vill göra med kvällens mat. Utfällt ligger den bland
+                de andra knapparna, på samma plats som för övriga dagar. */}
+            {nyDesign && idag && !isExpanded && (
+              <Pressable style={s.nyLagaSnabb} onPress={onCookRecipe} hitSlop={6} accessibilityRole="button" accessibilityLabel={str.card.cook}>
+                <Ionicons name="flame-outline" size={15} color={ny.skog} />
+                <Text style={s.nyLagaSnabbText}>{str.card.cook}</Text>
+              </Pressable>
+            )}
+            {/* Ny design: ingen kundvagn i det hopfällda läget — det utfällda
+                visar om rätten ligger i inköpslistan, och utrymmet behövs till
+                titeln. Chevronen visar att kortet går att fälla ut. */}
+            {!nyDesign && isTransferred && (
               <Ionicons name="cart" size={fs(16)} color={c.success} />
             )}
-            <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color={c.textFaint} />
+            <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color={nyDesign ? ny.kontur : c.textFaint} />
           </Pressable>
 
           {/* Eget draghandtag, samma som kategorilistan. Ett dedikerat handtag
@@ -2413,7 +2541,86 @@ function MenuCard({
           )}
           </View>
 
-          {isExpanded && (
+          {/* Ny design: eget utfällt läge i stället för den gamla designens
+              grå chips och textknappar. */}
+          {isExpanded && nyDesign && (
+            <View style={s.nyUtfallt}>
+              {/* Inköpslistan och portionerna på samma rad, lika höga kapslar. */}
+              <View style={s.nyUtfalltRad}>
+                {isTransferred ? (
+                  <View style={s.nyMarke}>
+                    <Ionicons name="cart" size={14} color={ny.skog} />
+                    <Text style={s.nyMarkeText}>{str.card.inShoppingList}</Text>
+                  </View>
+                ) : <View />}
+                <View style={s.nyPortioner}>
+                  <Pressable onPress={() => onScaleServings(Math.max(1, scaledServings - 1))} style={s.nyPortionKnapp} hitSlop={6}>
+                    <Ionicons name="remove" size={14} color={ny.skog} />
+                  </Pressable>
+                  <Text style={s.nyPortionVarde}>{str.card.servingsOnly(scaledServings)}</Text>
+                  <Pressable onPress={() => onScaleServings(scaledServings + 1)} style={s.nyPortionKnapp} hitSlop={6}>
+                    <Ionicons name="add" size={14} color={ny.skog} />
+                  </Pressable>
+                </View>
+              </View>
+
+              {!isPastWeek && (
+                <View style={s.nyUtfalltSektion}>
+                  <Text style={s.nyEtikett}>{common.mealTypes.label}</Text>
+                  {/* Sidscroll i stället för radbrytning — raden håller samma höjd
+                      oavsett hur många måltider som finns. */}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.nyChipScroll}>
+                    {MEAL_TYPE_ORDER.map(mt => {
+                      const active = item.mealType === mt;
+                      return (
+                        <Pressable key={mt} style={[s.nyChip, active && s.nyChipAktiv]} onPress={() => onSetMeal(mt)}>
+                          <Text style={[s.nyChipText, active && s.nyChipTextAktiv]}>{common.mealTypes[mt]}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Flytta med ett klick på webben — med mus bekvämare än att dra. */}
+              {isWeb && !isPastWeek && (
+                <View style={s.nyUtfalltSektion}>
+                  <Text style={s.nyEtikett}>{str.card.moveToDay}</Text>
+                  <View style={s.nyChipRad}>
+                    {DAYS.map(d => {
+                      const active = item.day === d.key;
+                      return (
+                        <Pressable key={d.key} style={[s.nyChip, active && s.nyChipAktiv]} onPress={() => { if (!active) onMoveToDay(d.key); }}>
+                          <Text style={[s.nyChipText, active && s.nyChipTextAktiv]}>{d.short}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              <View style={s.nyKnappRad}>
+                <Pressable style={[s.nyKnapp, s.nyKnappLime]} onPress={onCookRecipe}>
+                  <Ionicons name="flame-outline" size={15} color={ny.skog} />
+                  <Text style={s.nyKnappText}>{str.card.cook}</Text>
+                </Pressable>
+                {!isPastWeek && (
+                  <Pressable style={s.nyKnapp} onPress={onReplace}>
+                    <Ionicons name="swap-horizontal-outline" size={15} color={ny.skog} />
+                    <Text style={s.nyKnappText}>{str.card.replace}</Text>
+                  </Pressable>
+                )}
+                {!isPastWeek && (
+                  <Pressable style={[s.nyKnapp, s.nyKnappFara]} onPress={onRemove}>
+                    <Ionicons name="trash-outline" size={15} color={ny.fara} />
+                    <Text style={[s.nyKnappText, s.nyKnappTextFara]}>{str.card.remove}</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          )}
+
+          {isExpanded && !nyDesign && (
             <View style={s.cardExpanded}>
               {/* Meta — moved here to keep the collapsed row to a single line */}
               <Text style={[s.cardMeta, { fontSize: fs(12), marginBottom: sp(4) }]}>
@@ -2556,6 +2763,64 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   invAllBtnText: { fontSize: 12, fontWeight: '700', color: c.textMuted },
   invAllBtnTextOn: { color: '#fff' },
   content: { flex: 1 },
+  // Ny design (beta)
+  nyContainer: { backgroundColor: ny.skog },
+  nyInnehall: { backgroundColor: ny.bakgrund },
+  nyVeckaNav: { paddingTop: 14 },
+  nyInnehallInner: { paddingHorizontal: 12 },
+  nyDagar: { gap: 10 },
+  nyDag: { padding: 8, paddingTop: 6, gap: 6, borderRadius: 18, backgroundColor: ny.kort },
+  // Borderns 1,5 px dras av från utfyllnaden, så en tom dag är lika bred som en fylld.
+  nyDagTomRuta: { backgroundColor: 'transparent', borderWidth: 1.5, borderStyle: 'dashed', borderColor: ny.kontur, padding: 6.5, paddingTop: 4.5 },
+  nyDagTomRutaHover: { borderStyle: 'solid', borderColor: ny.skog, backgroundColor: ny.kort },
+  nyDagHuvud: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30, paddingHorizontal: 4 },
+  nyDagNamn: { fontFamily: nyFont.fet, fontSize: 15, color: ny.skog },
+  nyDagDatum: { fontSize: 13, color: ny.textDampad },
+  nyIdagMarke: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: ny.skog },
+  nyIdagMarkeText: { fontSize: 11, fontWeight: '700', color: ny.lime },
+  nyDagLaggTill: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  nyDagKortLista: { gap: 6 },
+  nyDagTomText: { fontSize: 13, fontWeight: '600', color: ny.chipText },
+  // Korten är ljusa inuti dagens gröntonade ruta.
+  nyKort: { borderRadius: 14, borderWidth: 0, borderLeftWidth: 0, backgroundColor: ny.ljus, shadowOpacity: 0, elevation: 0 },
+  nyKortInner: { backgroundColor: ny.ljus, borderRadius: 14 },
+  nyKortMain: { padding: 6, paddingRight: 2, gap: 10 },
+  // Outfit har vikten i själva typsnittet — en fontWeight till gör att
+  // Android väljer ett reservtypsnitt.
+  nyKortTitel: { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 15, letterSpacing: -0.3, color: ny.text },
+  nyMaltid: { color: ny.chipText },
+  nyTumnagel: { width: 44, height: 44, borderRadius: 11 },
+  nyTumnagelTom: { alignItems: 'center', justifyContent: 'center' },
+  nyTumMork: { backgroundColor: ny.skogMellan },
+  nyTumLjus: { backgroundColor: ny.platsLjus },
+  nyHero: { height: 120 },
+  nyLagaSnabb: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 32, paddingHorizontal: 11, borderRadius: 16, backgroundColor: ny.lime },
+  nyLagaSnabbText: { fontSize: 13, fontWeight: '700', color: ny.skog },
+  // Utfällt kort
+  nyUtfallt: { paddingHorizontal: 10, paddingTop: 2, paddingBottom: 10, gap: 12 },
+  nyUtfalltRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  nyUtfalltSektion: { gap: 6 },
+  // Samma höjd som portionskapseln (3 + 28 + 3), så raden linjerar.
+  nyMarke: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 17, backgroundColor: ny.bricka },
+  nyMarkeText: { fontSize: 12, fontWeight: '600', color: ny.skog },
+  nyPortioner: { flexDirection: 'row', alignItems: 'center', gap: 2, padding: 3, borderRadius: 17, backgroundColor: ny.kort },
+  nyPortionKnapp: { width: 28, height: 28, borderRadius: 14, backgroundColor: ny.ljus, alignItems: 'center', justifyContent: 'center' },
+  nyPortionVarde: { fontSize: 13, fontWeight: '700', color: ny.skog, paddingHorizontal: 6 },
+  nyEtikett: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, color: ny.textDampad },
+  nyChipRad: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  nyChipScroll: { flexDirection: 'row', gap: 6, paddingRight: 4 },
+  nyChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 14, backgroundColor: ny.kort },
+  nyChipAktiv: { backgroundColor: ny.skog },
+  nyChipText: { fontSize: 12, fontWeight: '600', color: ny.chipText },
+  nyChipTextAktiv: { color: ny.lime },
+  nyKnappRad: { flexDirection: 'row', gap: 8 },
+  nyKnapp: { flex: 1, height: 38, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: ny.kort },
+  nyKnappLime: { backgroundColor: ny.lime },
+  nyKnappFara: { backgroundColor: ny.faraYta },
+  nyKnappText: { fontSize: 13, fontWeight: '700', color: ny.skog },
+  nyKnappTextFara: { color: ny.fara },
+  nyDagPlus: { width: 28, height: 28, borderRadius: 14, backgroundColor: ny.bricka, alignItems: 'center', justifyContent: 'center' },
+  nyFab: { backgroundColor: ny.lime, shadowColor: ny.skog, shadowOpacity: 0.3 },
   contentInner: { padding: 16, gap: 2, paddingBottom: 80 },
   contentInnerTablet: { padding: 8, gap: 2 },
   daysRow: { flexDirection: 'row', gap: 6, alignItems: 'stretch' },

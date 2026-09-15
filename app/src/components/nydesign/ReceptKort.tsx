@@ -112,7 +112,7 @@ function TaBortKnapp(p: Props) {
 const st = StyleSheet.create({
   bildkort: { borderRadius: 20, overflow: 'hidden', backgroundColor: ny.skogMellan },
   ytaMork: { backgroundColor: ny.skogMellan },
-  ytaLjus: { backgroundColor: ny.bricka },
+  ytaLjus: { backgroundColor: ny.platsLjus },
   ikonStor: { position: 'absolute', top: 12, left: 12 },
   hornknapp: {
     position: 'absolute', top: 9, right: 9, width: 36, height: 36, borderRadius: 18,
@@ -137,8 +137,7 @@ const st = StyleSheet.create({
   },
   tumnagel: { width: 60, height: 60, borderRadius: 14 },
   tumnagelTom: { alignItems: 'center', justifyContent: 'center' },
-  // På den gröntonade raden behövs en tydligare ljus ton än i murverket.
-  ytaLjusRad: { backgroundColor: ny.ljus },
+  ytaLjusRad: { backgroundColor: ny.platsLjus },
   radText: { flex: 1, gap: 2 },
   radTitel: { fontFamily: nyFont.fet, fontSize: 16, lineHeight: 20, letterSpacing: -0.3, color: ny.text },
   radMeta: { fontSize: 12, color: ny.textDampad },

@@ -53,7 +53,6 @@ const st = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 16,
-    gap: 14,
   },
   rad: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   titelyta: { flex: 1, gap: 2 },
