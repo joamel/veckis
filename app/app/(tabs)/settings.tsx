@@ -265,7 +265,10 @@ export default function SettingsScreen() {
   }
 
   // Member editing
+  // Startvärdet, så arket vet om namnet faktiskt ändrats (isDirty nedan).
+  const editMemberOrigRef = useRef('');
   function openEditMember(memberId: string, currentName: string) {
+    editMemberOrigRef.current = currentName;
     setEditingMemberId(memberId);
     setEditingDisplayName(currentName);
     setShowEditMemberModal(true);
@@ -684,7 +687,7 @@ export default function SettingsScreen() {
       </ScrollView>
 
       {/* Edit Household Name Modal */}
-      <DraggableBottomSheet visible={showEditHouseholdModal} onRequestClose={() => setShowEditHouseholdModal(false)} liftOffset={sheetLift} sheetStyle={styles.sheet}>
+      <DraggableBottomSheet visible={showEditHouseholdModal} onRequestClose={() => setShowEditHouseholdModal(false)} isDirty={editingHouseholdName.trim() !== (householdName || '').trim()} liftOffset={sheetLift} sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.renameHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <TextInput
@@ -744,7 +747,7 @@ export default function SettingsScreen() {
       </DraggableBottomSheet>
 
       {/* Edit Member Modal */}
-      <DraggableBottomSheet visible={showEditMemberModal} onRequestClose={() => setShowEditMemberModal(false)} liftOffset={sheetLift} sheetStyle={styles.sheet}>
+      <DraggableBottomSheet visible={showEditMemberModal} onRequestClose={() => setShowEditMemberModal(false)} isDirty={editingDisplayName.trim() !== editMemberOrigRef.current.trim()} liftOffset={sheetLift} sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.editMember}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <TextInput
@@ -773,7 +776,7 @@ export default function SettingsScreen() {
       </DraggableBottomSheet>
 
       {/* Create Household Modal */}
-      <DraggableBottomSheet visible={showCreateHouseholdModal} onRequestClose={() => setShowCreateHouseholdModal(false)} liftOffset={sheetLift} sheetStyle={styles.sheet}>
+      <DraggableBottomSheet visible={showCreateHouseholdModal} onRequestClose={() => { setShowCreateHouseholdModal(false); setNewHouseholdName(''); }} isDirty={newHouseholdName.trim() !== ''} liftOffset={sheetLift} sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.createHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll} keyboardShouldPersistTaps="handled">
             <TextInput
@@ -800,7 +803,7 @@ export default function SettingsScreen() {
       </DraggableBottomSheet>
 
       {/* Join Household Modal */}
-      <DraggableBottomSheet visible={showJoinHouseholdModal} onRequestClose={() => setShowJoinHouseholdModal(false)} liftOffset={sheetLift} sheetStyle={styles.sheet}>
+      <DraggableBottomSheet visible={showJoinHouseholdModal} onRequestClose={() => { setShowJoinHouseholdModal(false); setJoinCode(''); }} isDirty={joinCode.trim() !== ''} liftOffset={sheetLift} sheetStyle={styles.sheet}>
           <Text style={styles.sheetTitle}>{str.modals.joinHousehold}</Text>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <Text style={styles.sheetDesc}>{str.messages.joinHint}</Text>

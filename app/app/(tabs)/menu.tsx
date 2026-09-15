@@ -1339,22 +1339,10 @@ export default function MenuScreen() {
   }
 
   async function moveToDay(item: WeekMenuItemWithRecipe, day: WeekDay | null) {
-    // Ignore dishes pending removal (5s undo window) — the user already removed
-    // them, so the day shouldn't count as occupied.
-    if (day !== null && menuItems.some(i => i.day === day && i.id !== item.id && !pendingMenuItemRemovals.has(i.id))) {
-      const dayLabel = DAYS.find(d => d.key === day)?.label ?? day;
-      const confirmed = await new Promise<boolean>(resolve =>
-        confirm({
-          title: str.dialogs.dayOccupiedMove.title,
-          message: str.dialogs.dayOccupiedMove.message(dayLabel),
-          buttons: [
-            { label: str.dialogs.dayOccupiedMove.confirm, onPress: () => resolve(true) },
-            { label: common.actions.cancel, style: 'cancel', onPress: () => resolve(false) },
-          ],
-        })
-      );
-      if (!confirmed) return;
-    }
+    // Ingen fråga när måldagen redan har en rätt. Den skyddade mot något som går
+    // att ångra med ett drag till, och blev bara friktion: flera rätter samma dag
+    // är tillåtet och syns direkt. (Att LÄGGA TILL en rätt på en upptagen dag
+    // frågar fortfarande — där är risken en oavsiktlig andra rätt, inte en flytt.)
     stateVersionRef.current += 1;
     setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, day } : i));
     setAllMenus(prev => prev.map(i => i.id === item.id ? { ...i, day } : i));
@@ -1461,12 +1449,21 @@ export default function MenuScreen() {
                   !isWide && s.daySlotFilled,
                   isWide && filled && s.daySlotFilled,
                   isWide && !filled && s.daySlotEmptyWide,
-                  dragging && s.daySlotDropTarget,
-                  isHovered && s.daySlotHovered,
+                  // Bara surfplatta markerar hela dagen: där är dagen en kolumn
+                  // och rubriken en del av den. På telefon ringas korten in
+                  // (se nedan) — rubriken är en etikett, inte ett droppmål.
+                  dragging && isWide && s.daySlotDropTarget,
+                  isHovered && isWide && s.daySlotHovered,
                 ]}
                 ref={isCenter ? (ref => measureDaySection(day.key, ref)) : undefined}
                 onLayout={isCenter ? (() => measureDaySection(day.key, daySectionRefs.current[day.key] ?? null)) : undefined}
               >
+                {/* Ramen ritas ovanpå i stället för att läggas till på dagen:
+                    en border som tänds ändrar annars lådmodellen, och hela
+                    veckan hoppade till så fort ett drag började. */}
+                {dragging && isWide && (
+                  <View pointerEvents="none" style={[s.dropOutline, isHovered && s.dropOutlineHovered]} />
+                )}
                 {isWide ? (
                   // Tablet: column layout — header always visible, content below
                   <>
@@ -1515,14 +1512,22 @@ export default function MenuScreen() {
                       <Text style={[s.dayHeaderDate, !filled && s.dayHeaderMuted, { fontSize: fs(13) }]}>{dayLabel.date} {common.months.long[date.getMonth()]}</Text>
                     </View>
                     {items.length === 0 ? (
+                      // Tom dag: den streckade ytan ÄR redan droppmålet, så den
+                      // får bara en tydligare markering när man svävar över den.
                       <Pressable
                         onPress={isCenter && !isPastWeek ? (() => openPicker(day.key)) : noop}
-                        style={s.dayEmptyTap}
+                        style={[s.dayEmptyTap, isHovered && s.dayEmptyTapHovered]}
                       >
                         {!isPastWeek && <Ionicons name="add" size={fs(20)} color={c.textFaint} />}
                       </Pressable>
                     ) : (
-                      items.map(item => (
+                      // Ramen runt dagens kort, inte runt rubriken — samma
+                      // känsla som den streckade ytan på en tom dag.
+                      <View>
+                      {dragging && (
+                        <View pointerEvents="none" style={[s.dropOutline, s.dropOutlineContent, isHovered && s.dropOutlineHovered]} />
+                      )}
+                      {items.map(item => (
                       <MenuCard
                         key={item._stableKey ?? item.id}
                         item={item}
@@ -1544,7 +1549,8 @@ export default function MenuScreen() {
                         onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
                         onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
                       />
-                      ))
+                      ))}
+                      </View>
                     )}
                   </>
                 )}
@@ -1898,7 +1904,7 @@ export default function MenuScreen() {
           </View>
       </DraggableBottomSheet>
       {/* Transfer to shopping list modal */}
-      <DraggableBottomSheet visible={!!transferSheet} onRequestClose={() => setTransferSheet(null)} liftOffset={sheetLift} sheetStyle={s.sheet}>
+      <DraggableBottomSheet isDirty={newListName.trim() !== ''} visible={!!transferSheet} onRequestClose={() => { setTransferSheet(null); setNewListName(''); }} liftOffset={sheetLift} sheetStyle={s.sheet}>
           <Text style={s.sheetTitle}>{str.bulk.chooseShoppingList}</Text>
           {shoppingLists.length === 0 ? (
             <>
@@ -2577,8 +2583,20 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   daySlot: { borderWidth: 1, borderColor: c.primary200, borderRadius: 12, padding: 6, gap: 2, backgroundColor: c.surface },
   daySlotEmpty: { borderStyle: 'dashed', borderColor: c.border, backgroundColor: 'transparent', minHeight: 64, alignItems: 'center', justifyContent: 'center', padding: 0 },
   daySlotFilled: { borderWidth: 0, padding: 0, backgroundColor: 'transparent' },
-  daySlotDropTarget: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.primary200, borderRadius: 12, padding: 6, backgroundColor: c.background },
-  daySlotHovered: { borderWidth: 1.5, borderStyle: 'solid', borderColor: c.primary, backgroundColor: c.primaryTint },
+  // Droppmålets ram ligger i ett ABSOLUT överlägg (dropOutline), inte på
+  // dagen själv. Tidigare satte den borderWidth 1.5 + padding 6 på en dag som
+  // annars har 0 och 0 — varje dag växte alltså 15 px så fort ett drag
+  // började, och hela veckan hoppade till. Bara bakgrunden ändras här.
+  daySlotDropTarget: { backgroundColor: c.background },
+  daySlotHovered: { backgroundColor: c.primaryTint },
+  // Absolut placerad ram: påverkar inte layouten, så inget hoppar när den
+  // tänds. borderRadius matchar dagens egen så hörnen ligger rätt.
+  dropOutline: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.primary200, borderRadius: 12 },
+  dropOutlineHovered: { borderStyle: 'solid', borderColor: c.primary },
+  // Telefon: ramen ligger runt korten och sticker ut 4 px, så den inte göms
+  // under kortens egna rundade hörn och skugga. Absolut — ingen layoutpåverkan.
+  dropOutlineContent: { top: -4, right: -4, bottom: -4, left: -4, borderRadius: 14 },
+  dayEmptyTapHovered: { borderStyle: 'solid', borderColor: c.primary, backgroundColor: c.primaryTint },
   daySlotEmptyTap: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: c.accent, letterSpacing: 0.8 },

@@ -42,6 +42,8 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
 
   useEffect(() => {
     if (visible && householdId) {
+      // Ett slängt namn ska inte ligga kvar nästa gång arket öppnas.
+      setName('');
       setTemplates(null);
       client.getMenuTemplates(householdId).then(setTemplates).catch(() => setTemplates([]));
     }
@@ -110,7 +112,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
   }
 
   return (
-    <DraggableBottomSheet visible={visible} onRequestClose={onClose} liftOffset={sheetLift} sheetStyle={s.sheet}>
+    <DraggableBottomSheet isDirty={name.trim() !== ''} visible={visible} onRequestClose={onClose} liftOffset={sheetLift} sheetStyle={s.sheet}>
         <View style={s.header}>
           <Text style={s.title}>{str.menuTemplatesModal.title}</Text>
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.close}><Ionicons name="close" size={24} color={c.textMuted} /></Pressable>

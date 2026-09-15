@@ -22,6 +22,8 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, ALL_SUB_CATEGORIES, type StoreCategory, type SubCategory, type Store } from '@veckis/shared';
 import { stores as str, common } from '../../src/lib/svenska';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
+import { useWebLeaveGuard } from '../../src/hooks/useWebLeaveGuard';
+import { storeDrafts } from '../../src/lib/drafts';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { sortedRestFor } from '../../src/lib/subOrder';
 
@@ -99,6 +101,8 @@ export default function StoreDetailScreen() {
   // mönster/orsak som dubblett-skapande-fixen i stores/index.tsx).
   const savingRef = useRef(false);
   const [dirty, setDirty] = useState(false);
+  // Sant när kategoriordningen återställdes från ett utkast (se drafts.ts).
+  const [visarUtkast, setVisarUtkast] = useState(false);
 
   const [showRename, setShowRename] = useState(false);
   const [renameValue, setRenameValue] = useState('');
@@ -145,6 +149,22 @@ export default function StoreDetailScreen() {
         setCustomSubs({ ...((found as { customSubs?: Record<string, string[]> }).customSubs ?? {}) });
         setCategoryMerge(mergeMap);
         setDirty(false);
+
+        // Osparad ordning från förra besöket? Lägg den ovanpå det nyss hämtade.
+        // Ingen fråga — utkastet ÄR det användaren senast gjorde; banderollen
+        // säger att det hände och erbjuder att slänga.
+        const utkast = storeDrafts.hamta(found.id);
+        if (utkast) {
+          setParentOrder([...utkast.parentOrder]);
+          setExpandedSubs([...utkast.expandedSubs]);
+          setSubOrder([...utkast.subOrder]);
+          setCustomSubs({ ...utkast.customSubs });
+          setCategoryMerge({ ...utkast.categoryMerge });
+          setDirty(true);
+          setVisarUtkast(true);
+        } else {
+          setVisarUtkast(false);
+        }
       }
     } catch (e) {
       showError(e, str.toasts.errorLoad('butiken'));
@@ -395,6 +415,16 @@ export default function StoreDetailScreen() {
   }
 
 
+  // Osparad kategoriordning sparas som utkast i stället för att vägen ut ur
+  // skärmen blockeras — samma mönster som receptredigeringen, se drafts.ts.
+  useEffect(() => {
+    if (!store || !dirty) return;
+    storeDrafts.spara(store.id, { parentOrder, expandedSubs, subOrder, customSubs, categoryMerge });
+  }, [store, dirty, parentOrder, expandedSubs, subOrder, customSubs, categoryMerge]);
+
+  // Bara omladdning/stängd flik på web, där ett minnesutkast går förlorat.
+  useWebLeaveGuard(dirty);
+
   async function save() {
     if (!store || savingRef.current) return;
     savingRef.current = true;
@@ -411,6 +441,8 @@ export default function StoreDetailScreen() {
       });
       setStore(updated);
       setDirty(false);
+      storeDrafts.slang(store.id);
+      setVisarUtkast(false);
       showToast(str.toasts.saved, 'success');
     } catch (e) {
       showError(e, str.toasts.errorSave);
@@ -573,6 +605,22 @@ export default function StoreDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.scroll} scrollEnabled={!catDragState}>
+        {visarUtkast && (
+          <View style={s.draftBanner}>
+            <Ionicons name="time-outline" size={16} color={c.primary} />
+            <Text style={s.draftBannerText}>{common.discardDraft.restored}</Text>
+            <Pressable
+              onPress={() => {
+                if (store) storeDrafts.slang(store.id);
+                setVisarUtkast(false);
+                load();
+              }}
+              hitSlop={8}
+            >
+              <Text style={s.draftBannerAction}>{common.discardDraft.discardShort}</Text>
+            </Pressable>
+          </View>
+        )}
         <Text style={s.sectionSub}>{str.detail.hint}</Text>
 
         <Text style={s.sectionLabel}>{str.detail.sections.visible}</Text>
@@ -729,7 +777,7 @@ export default function StoreDetailScreen() {
       </DraggableBottomSheet>
 
       {/* Byt namn-modal */}
-      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} liftOffset={sheetLift} sheetStyle={s.sheet}>
+      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} isDirty={renameValue.trim() !== store.name.trim()} liftOffset={sheetLift} sheetStyle={s.sheet}>
             <Text style={s.sheetTitle}>{str.renameModal.title}</Text>
             <TextInput
               ref={renameRef}
@@ -795,6 +843,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   addSubText: { fontSize: 14, color: c.primary, fontWeight: '600' },
   addBtn: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
   saveBar: { position: 'absolute', left: 16, right: 16, bottom: 20 },
+  draftBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12, borderRadius: 10, backgroundColor: c.primaryTint, borderWidth: 1, borderColor: c.primary200 },
+  draftBannerText: { flex: 1, fontSize: 13, color: c.text },
+  draftBannerAction: { fontSize: 13, fontWeight: '700', color: c.primary },
   primaryBtn: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', shadowColor: c.primary, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },

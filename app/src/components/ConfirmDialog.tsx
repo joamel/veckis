@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Animated, Easing, Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const ÄR_WEBB = Platform.OS as any === 'web';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../lib/theme';
@@ -162,9 +164,15 @@ export function ConfirmDialog({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
-      <View style={s.overlay}>
+      {/* height 100dvh på web: Modal blir annars 100% hög, och Chrome på
+          Android räknar in ytan BAKOM adressfältet. Arket hamnade då delvis
+          utanför synfältet — underkanten kapad och bara ena hörnet rundat i
+          bild. dvh följer den synliga viewporten och krymper när fältet visas.
+          Ignoreras av native. */}
+      <View style={[s.overlay, ÄR_WEBB && ({ height: '100dvh' } as object)]}>
         <Pressable style={{ flex: 1 }} onPress={dismiss} />
-        <View style={s.sheet}>
+        {/* Safe area i botten så gestindikatorn inte ligger över knappen. */}
+        <View style={[s.sheet, { paddingBottom: 36 + insets.bottom }]}>
           <View style={s.handle} />
           {options.title ? <Text style={s.title}>{options.title}</Text> : null}
           {options.message ? <Text style={s.message}>{options.message}</Text> : null}

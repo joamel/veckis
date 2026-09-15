@@ -35,6 +35,8 @@ export const common = {
     none:                'Ingen',
   },
   discardDraft: {
+    restored:     'Dina osparade ändringar är återställda.',
+    discardShort: 'Släng',
     title:    'Vill du slänga utkastet?',
     discard:  'Släng utkast',
     keep:     'Fortsätt redigera',
@@ -380,11 +382,6 @@ export const menu = {
     removeFromMenu: {
       title:  'Ta bort från menyn?',
       remove: 'Ta bort',
-    },
-    dayOccupiedMove: {
-      title:   'Dag redan planerad',
-      message: (day: string) => `${day} har redan en rätt planerad. Flytta ändå?`,
-      confirm: 'Flytta',
     },
     replaceRecipe: {
       title:   'Byt ut rätt',

@@ -66,6 +66,7 @@ import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, t
 import { isIOSLike, isWeb } from '../../src/lib/platform';
 import { shoppingList as str, common } from '../../src/lib/svenska';
 import { enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError } from '../../src/lib/shoppingOfflineQueue';
+import { useDirtySince } from '../../src/hooks/useDirtySince';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
   fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', cheese: '🧀', dairy_eggs: '🥛',
@@ -374,6 +375,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+
+  // Osparade ändringar i arken — jämförs mot en ögonblicksbild tagen när
+  // arket öppnades, eftersom fälten fylls i med formatering (komma i mängden,
+  // versal i namnet) och en jämförelse mot källvaran annars sa "ändrat"
+  // direkt. DraggableBottomSheet frågar då innan arket stängs.
+  const editDirty = useDirtySince(editingItem, [editName, editQty, editUnit, editCategory, editCustomCategory, editSubCategory, editCustomSubCategory]);
+  const stapleDirty = useDirtySince(editingStaple, [stapleName, stapleUnit, stapleCategory]);
+  const qtyDirty = useDirtySince(qtySheet, [qtyValue, qtyUnit, qtyCategory, qtySubCategory, qtyCustomCategory, qtyCustomSubCategory]);
+  const renameDirty = useDirtySince(showRenameModal, [renameValue]);
   const [renameEmoji, setRenameEmoji] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
 
@@ -1089,8 +1099,16 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setEditCustomSubCategory((item as { customSubCategory?: string | null }).customSubCategory ?? null);
   }
 
-  function openEditItem(item: ShoppingItemWithRecipe) {
+  // Varorna bakom en AGGREGERAD rad (samma namn + enhet, t.ex. 5 × "2 st ägg"
+  // som visas som "10 st"). Null när raden är en enda vara.
+  const [editingMembers, setEditingMembers] = useState<ShoppingItemWithRecipe[] | null>(null);
+
+  // `item` är det som visas i listan — för en aggregerad rad alltså den
+  // summerade mängden. Tidigare öppnades i stället members[0], så listan sa
+  // "10 st ägg" medan redigeringen visade "2": samma rad, två olika svar.
+  function openEditItem(item: ShoppingItemWithRecipe, members?: ShoppingItemWithRecipe[]) {
     setEditingItem(item);
+    setEditingMembers(members && members.length > 1 ? members : null);
     setEditConflict(null);
     fillEditForm(item);
   }
@@ -1109,6 +1127,55 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const unit = editUnit.trim() || null;
     const name = (editName.trim() || editingItem.name).toLowerCase();
     const snapshot = editingItem;
+
+    // Aggregerad rad: användaren redigerade SUMMAN ("10 st"), inte en av varorna
+    // bakom den. Att spara på en enskild medlem gav fel mängd, och dubblett-
+    // logiken efteråt slog dessutom ihop resten ovanpå — 2 → 3 blev 11.
+    // Slå i stället ihop medlemmarna till en vara med de nya värdena, via samma
+    // mjuka sammanslagning som dubblettarket: originalen döljs men finns kvar,
+    // så kopplingen till receptet de kom från bevaras.
+    //
+    // Bara för obockade rader. Sammanslagningen skapar en obockad vara och
+    // updateShoppingItem kan inte sätta isChecked, så en avbockad rad hade
+    // hoppat tillbaka upp i listan. Den faller till vanlig redigering tills
+    // vidare (se backloggen).
+    const members = editingMembers;
+    if (members && members.length > 1 && members.every(m => !m.isChecked)) {
+      const sourceIds = members.map(m => m.id);
+      const hide = new Set(sourceIds);
+      const optimistic: ShoppingItemWithRecipe = {
+        ...snapshot, name, quantity: qty, unit, category: editCategory,
+        customCategory: editCustomCategory, subCategory: editSubCategory, customSubCategory: editCustomSubCategory,
+      } as ShoppingItemWithRecipe;
+      setList(prev => prev ? { ...prev, items: [...prev.items.filter(i => !hide.has(i.id)), optimistic] } : prev);
+      setEditingItem(null);
+      setEditingMembers(null);
+      try {
+        let container = await client.mergeShoppingItems({ sourceIds, name, quantity: qty, unit, category: editCategory });
+        if (editCustomCategory || editSubCategory || editCustomSubCategory) {
+          container = await client.updateShoppingItem(container.id, {
+            customCategory: editCustomCategory,
+            subCategory: editSubCategory,
+            customSubCategory: editCustomSubCategory,
+          });
+        }
+        setList(prev => prev ? {
+          ...prev,
+          items: [
+            ...prev.items.filter(i => i.id !== snapshot.id && !hide.has(i.id) && i.id !== container.id),
+            { ...container, recipe: null } as ShoppingItemWithRecipe,
+          ],
+        } : prev);
+        emitShoppingChanged();
+      } catch (e) {
+        showError(e, str.toasts.errorSave);
+        load();
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     // Optimistic: update list + close modal before awaiting backend
     const optimisticItems = (list?.items ?? []).map(i =>
       i.id === editingItem.id ? { ...i, name, quantity: qty, unit, category: editCategory, customCategory: editCustomCategory, subCategory: editSubCategory, customSubCategory: editCustomSubCategory } : i
@@ -1530,7 +1597,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     },
     // aggregateByNameUnit sätter rep = members[0], så en ihopslagen rad
     // redigeras via sin första medlem.
-    edit: (row: RowListRow) => rowFnsRef.current.openEditItem(row.members.length === 1 ? row.item : row.members[0]),
+    edit: (row: RowListRow) => rowFnsRef.current.openEditItem(row.item, row.members),
     remove: (row: RowListRow) => {
       const fns = rowFnsRef.current;
       if (row.members.length === 1) fns.deleteItemWithUndo(row.item);
@@ -1909,6 +1976,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       {/* Item edit modal */}
       <DraggableBottomSheet
         visible={!!editingItem}
+        isDirty={editDirty}
         onRequestClose={() => setEditingItem(null)}
         liftOffset={sheetLift}
         sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}
@@ -2078,6 +2146,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       {/* Staple edit modal (from long-press on suggestion chip) */}
       <DraggableBottomSheet
         visible={!!editingStaple}
+        isDirty={stapleDirty}
         onRequestClose={() => setEditingStaple(null)}
         liftOffset={sheetLift}
         sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.75, paddingBottom: insets.bottom + 20 }]}
@@ -2157,6 +2226,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       {/* Quantity sheet */}
       <DraggableBottomSheet
         visible={!!qtySheet}
+        isDirty={qtyDirty}
         onRequestClose={() => setQtySheet(null)}
         liftOffset={sheetLift}
         sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}
@@ -2533,6 +2603,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       {/* Rename list modal */}
       <DraggableBottomSheet
         visible={showRenameModal}
+        isDirty={renameDirty}
         onRequestClose={() => setShowRenameModal(false)}
         liftOffset={sheetLift}
         sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}

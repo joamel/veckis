@@ -28,7 +28,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { normalizeQtyInput } from '../../src/lib/qty';
@@ -38,6 +38,8 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import type { RecipeIngredient, WeekDay } from '@veckis/shared';
+import { useWebLeaveGuard } from '../../src/hooks/useWebLeaveGuard';
+import { sparaUtkast, hamtaUtkast, slangUtkast } from '../../src/lib/recipeDrafts';
 
 const UNITS = ['st', 'dl', 'ml', 'l', 'g', 'kg', 'msk', 'tsk', 'krm', 'paket', 'påse', 'burk', 'flaska'];
 
@@ -75,7 +77,6 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   const router = useRouter();
-  const navigation = useNavigation();
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { showError, showToast } = useToast();
@@ -93,6 +94,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [loading, setLoading] = useState(true);
   const [scaledServings, setScaledServings] = useState<number | null>(null);
 
+  // Sant när redigeringsläget fylldes från ett återställt utkast.
+  const [visarUtkast, setVisarUtkast] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editInstr, setEditInstr] = useState('');
@@ -469,6 +472,28 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     if (!recipe) return;
     rowRefs.current = [];
     setActiveUnitIdx(null);
+
+    // Fanns osparade ändringar sedan förra gången skärmen lämnades? Återställ
+    // dem i stället för receptets sparade värden. Ingen fråga här — utkastet ÄR
+    // det användaren senast skrev, och en dialog vid varje ingång vore i vägen.
+    // Banderollen i redigeringsläget säger att det hände och erbjuder att slänga.
+    const draft = hamtaUtkast(recipe.id);
+    if (draft) {
+      setEditTitle(draft.title);
+      setEditDesc(draft.description);
+      setEditInstr(draft.instructions);
+      setEditImage(draft.imageUrl);
+      setEditTags(draft.tags);
+      setEditServings(draft.servings ?? recipe.servings);
+      setEditIngredients(draft.ingredients);
+      setCustomTag('');
+      setScaledServings(null);
+      setVisarUtkast(true);
+      setEditMode(true);
+      return;
+    }
+
+    setVisarUtkast(false);
     setEditTitle(recipe.title);
     setEditDesc(recipe.description ?? '');
     setEditInstr(recipe.instructions ?? '');
@@ -545,29 +570,34 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     return JSON.stringify(editIngredients) !== JSON.stringify(origIngs);
   }
 
-  // "Senaste version"-refs så beforeRemove-lyssnaren (registreras EN gång,
-  // se effekten nedan) alltid läser aktuellt dirty-state/tryClose utan att
-  // behöva byggas om varje render (skulle annars trigga vid varje knapptryck).
-  const isEditDirtyRef = useRef(isEditDirty);
-  isEditDirtyRef.current = isEditDirty;
-  const tryCloseEditRef = useRef(tryCloseEdit);
-  tryCloseEditRef.current = tryCloseEdit;
 
-  // Fångar ALLA vägar ut ur skärmen medan man redigerar — hårdvaru-back,
-  // bakåt-swipe (iOS-gest) OCH vår egen header-back-knapp — inte bara
-  // knappens onPress, som tidigare missade swipe/hårdvaru-back helt.
+  // Osparade ändringar sparas som utkast i stället för att vägen ut blockeras.
+  //
+  // Blockeringen fanns här i tre versioner — beforeRemove, egen historikpost med
+  // popstate, och usePreventRemove — och ingen var pålitlig i PWA:n. expo-router
+  // äger historiken, så en avbruten navigering hann rendera nästa skärm innan
+  // den ångrades, och ibland gick den igenom ändå. Tre försök, tre beteenden.
+  //
+  // Nu hindras ingenting. Lämnar man skärmen mitt i en redigering ligger
+  // ändringarna kvar när man kommer tillbaka, oavsett HUR man lämnade. Det
+  // fungerar likadant på native och web eftersom det inte rör navigeringen alls.
+  const dirty = editMode && isEditDirty();
   useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      if (savingNavRef.current) return;
-      if (!editMode || !isEditDirtyRef.current()) return;
-      e.preventDefault();
-      tryCloseEditRef.current(true, () => {
-        setEditMode(false);
-        navigation.dispatch(e.data.action);
-      });
+    if (!recipe || !dirty || savingNavRef.current) return;
+    sparaUtkast(recipe.id, {
+      title: editTitle,
+      description: editDesc,
+      instructions: editInstr,
+      imageUrl: editImage,
+      servings: editServings,
+      tags: editTags,
+      ingredients: editIngredients,
     });
-    return unsubscribe;
-  }, [navigation, editMode]);
+  }, [dirty, recipe, editTitle, editDesc, editInstr, editImage, editServings, editTags, editIngredients]);
+
+  // Kvar men bantad: varnar bara vid omladdning och stängd flik, där utkastet
+  // (som bara lever i minnet) faktiskt skulle gå förlorat.
+  useWebLeaveGuard(dirty);
 
   function addEditRow() {
     setEditIngredients(prev => [...prev, { name: '', quantity: '', unit: '' }]);
@@ -611,6 +641,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           source: 'manual',
         });
         setEditMode(false);
+        slangUtkast(recipe.id);
         savingNavRef.current = true;
         // replace, inte push: bakåt ska leda till receptlistan, inte tillbaka
         // in i ett tomt utkast.
@@ -626,6 +657,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         ingredients,
         tags: editTags,
       });
+      // Sparat = utkastet har tjänat ut.
+      slangUtkast(recipe.id);
       setRecipe(updated);
       setScaledServings(null); // visa nya bas-portionerna, inte gammal skalning
       setEditMode(false);
@@ -773,6 +806,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         <Pressable onPress={() => {
           if (editMode) {
             tryCloseEdit(isEditDirty(), () => {
+              if (recipe) slangUtkast(recipe.id);
+              setVisarUtkast(false);
               setEditMode(false);
               // Ett nytt recept har inget sparat läge att falla tillbaka på —
               // att slänga utkastet betyder att lämna skärmen. savingNavRef
@@ -816,6 +851,25 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       >
         {editMode ? (
           <View style={{ gap: 8 }}>
+            {/* Syns bara när fälten fylldes från ett återställt utkast. Utan den
+                skulle användaren inte förstå varför ändringar hen trodde var
+                borta plötsligt är tillbaka. */}
+            {visarUtkast && (
+              <View style={s.draftBanner}>
+                <Ionicons name="time-outline" size={16} color={c.primary} />
+                <Text style={s.draftBannerText}>{common.discardDraft.restored}</Text>
+                <Pressable
+                  onPress={() => {
+                    if (recipe) slangUtkast(recipe.id);
+                    setVisarUtkast(false);
+                    startEdit();
+                  }}
+                  hitSlop={8}
+                >
+                  <Text style={s.draftBannerAction}>{common.discardDraft.discardShort}</Text>
+                </Pressable>
+              </View>
+            )}
             <Text style={s.editLabel}>{str.detail.imageLabel}</Text>
             {editImage.trim() ? (
               <Image source={{ uri: editImage.trim() }} style={s.heroImage} resizeMode="cover" />
@@ -1520,6 +1574,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   renameTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 16 },
   renameInput: { borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: c.inputBg, color: c.text },
+  draftBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: c.primaryTint, borderWidth: 1, borderColor: c.primary200 },
+  draftBannerText: { flex: 1, fontSize: 13, color: c.text },
+  draftBannerAction: { fontSize: 13, fontWeight: '700', color: c.primary },
   editLabel: { fontSize: 13, fontWeight: '600', color: c.textMuted, marginBottom: 6, marginTop: 14 },
   editMultiline: { minHeight: 70, textAlignVertical: 'top' },
   editMultilineTall: { minHeight: 140, textAlignVertical: 'top' },

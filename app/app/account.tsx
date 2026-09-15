@@ -217,7 +217,7 @@ export default function AccountScreen() {
       </ScrollView>
 
       {/* Byt namn-modal */}
-      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} liftOffset={sheetLift} sheetStyle={s.sheetDraggable}>
+      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} isDirty={renameValue.trim() !== (displayName ?? '').trim()} liftOffset={sheetLift} sheetStyle={s.sheetDraggable}>
         <Text style={s.sheetTitle}>{str.renameModal.title}</Text>
         <TextInput
           ref={renameRef}
@@ -242,7 +242,7 @@ export default function AccountScreen() {
       </DraggableBottomSheet>
 
       {/* Lösenord-modal: lägg till (lösenordsfritt konto) eller ändra */}
-      <DraggableBottomSheet visible={showPassword} onRequestClose={closePassword} liftOffset={sheetLift} sheetStyle={s.sheetDraggable}>
+      <DraggableBottomSheet visible={showPassword} onRequestClose={closePassword} isDirty={!!(curPw || newPw || confirmPw)} liftOffset={sheetLift} sheetStyle={s.sheetDraggable}>
         <Text style={s.sheetTitle}>{hasPassword ? str.passwordModal.changeTitle : str.passwordModal.addTitle}</Text>
         <Text style={s.sheetSubtitle}>{hasPassword ? str.security.changeSubtitle : str.security.addSubtitle}</Text>
         {hasPassword && (
