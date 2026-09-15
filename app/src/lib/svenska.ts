@@ -446,7 +446,7 @@ export const menu = {
   },
 
   card: {
-    show:             'Visa',
+    cook:             'Laga',
     replace:          'Byt ut',
     remove:           'Ta bort',
     moveToDay:        'Flytta till dag',

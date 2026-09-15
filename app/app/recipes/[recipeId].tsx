@@ -62,7 +62,7 @@ function makeDraftRecipe(householdId: string): RecipeWithIngredients {
   };
 }
 
-export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; onClose?: () => void }) {
+export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, cook, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; onClose?: () => void }) {
   const edit = editParam;
   // Sentinel-id från /recipes/new. Riktiga id:n är cuid, så ingen krock.
   const isNew = recipeId === 'new';
@@ -107,6 +107,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
   // Cooking mode
   const [cookMode, setCookMode] = useState(false);
+  // cook=1 öppnar laga-läget direkt. Veckomenyns kort går hit i stället för att
+  // först visa receptet — avsikten därifrån är oftast att laga. Laga-läget
+  // ligger ovanpå receptsidan, så ett bakåt lämnar användaren på receptet.
+  const cookRequested = cook === '1';
   const [cookStep, setCookStep] = useState(0);
   const [heroLoading, setHeroLoading] = useState(false);
   const [heroError, setHeroError] = useState(false);
@@ -304,6 +308,13 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       setRecipe(r);
       setScaledServings(null);
       if (transfer === '1') openTransfer(r);
+      // Öppnas först när receptet finns: laga-läget renderar stegen, och utan
+      // data hade det visat ett tomt skal en kort stund.
+      if (cookRequested && (r.instructions ?? '').trim()) {
+        setCookStep(0);
+        setCookMode(true);
+        if (!onClose) router.setParams({ cook: undefined });
+      }
       if (edit === '1' && r.ingredients.length === 0) {
         setEditTitle(r.title);
         setEditDesc(r.description ?? '');
@@ -1570,6 +1581,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
 });
 
 export default function RecipeDetailScreen() {
-  const { recipeId, transfer, edit, forMenuDay, forMenuWeek, from } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string }>();
-  return <RecipeDetail recipeId={recipeId} transfer={transfer} edit={edit} forMenuDay={forMenuDay} forMenuWeek={forMenuWeek} from={from} />;
+  const { recipeId, transfer, edit, forMenuDay, forMenuWeek, from, cook } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string }>();
+  return <RecipeDetail recipeId={recipeId} transfer={transfer} edit={edit} forMenuDay={forMenuDay} forMenuWeek={forMenuWeek} from={from} cook={cook} />;
 }

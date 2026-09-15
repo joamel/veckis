@@ -1491,8 +1491,8 @@ export default function MenuScreen() {
                           isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
                           isPastWeek={isPastWeek}
                           onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
-                          onViewRecipe={() => {
-                          router.push(`/recipes/${item.recipeId}` as never);
+                          onCookRecipe={() => {
+                          router.push(`/recipes/${item.recipeId}?cook=1` as never);
                         }}
                           onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
                           onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
@@ -1531,8 +1531,8 @@ export default function MenuScreen() {
                         isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
                         isPastWeek={isPastWeek}
                         onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
-                        onViewRecipe={() => {
-                          router.push(`/recipes/${item.recipeId}` as never);
+                        onCookRecipe={() => {
+                          router.push(`/recipes/${item.recipeId}?cook=1` as never);
                         }}
                         onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
                         onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
@@ -1573,8 +1573,8 @@ export default function MenuScreen() {
                 isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
                 isPastWeek={isPastWeek}
                 onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
-                onViewRecipe={() => {
-                          router.push(`/recipes/${item.recipeId}` as never);
+                onCookRecipe={() => {
+                          router.push(`/recipes/${item.recipeId}?cook=1` as never);
                         }}
                 onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
                 onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
@@ -2256,13 +2256,52 @@ export default function MenuScreen() {
   );
 }
 
+/**
+ * Draghandtag på menykortet — samma affordans som kategorilistan i butiksvyn.
+ *
+ * Gesten ligger på handtaget i stället för på hela kortet, av ett skäl som bara
+ * gäller webben: ett kort måste släppa igenom vertikal scroll (touchAction
+ * "pan-y"), och då avbryter webbläsaren gesten så fort fingret rör sig nedåt —
+ * draget grep tag men släppte direkt. Ett dedikerat handtag får touchAction
+ * "none" utan att stjäla scroll, eftersom ytan inte är något annat än handtaget.
+ *
+ * Inget långtryck här: handtaget ÄR avsikten, så draget ska starta direkt.
+ * Gestobjektet memoiseras så det lever genom hela draget i stället för att
+ * byggas om vid varje omrendering.
+ */
+function MenuCardDragHandle({ onDragStart, onDragMove, onDragEnd }: {
+  onDragStart: (x: number, y: number, touchOffsetY: number) => void;
+  onDragMove: (x: number, y: number) => void;
+  onDragEnd: () => void;
+}) {
+  const { colors: c } = useTheme();
+  const { medium } = useHaptics();
+  const gesture = useMemo(() => Gesture.Pan()
+    .hitSlop(8)
+    .onStart(e => {
+      runOnJS(medium)();
+      runOnJS(onDragStart)(e.absoluteX, e.absoluteY, e.y);
+    })
+    .onUpdate(e => { runOnJS(onDragMove)(e.absoluteX, e.absoluteY); })
+    .onFinalize(() => { runOnJS(onDragEnd)(); }),
+    [onDragStart, onDragMove, onDragEnd, medium]);
+
+  return (
+    <GestureDetector gesture={gesture} touchAction="none">
+      <View style={{ width: 36, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' }}>
+        <Ionicons name="reorder-two" size={22} color={c.textFaint} />
+      </View>
+    </GestureDetector>
+  );
+}
+
 function MenuCard({
   item,
   isTransferred,
   isPending,
   isPastWeek,
   onRemove,
-  onViewRecipe,
+  onCookRecipe,
   onReplace,
   onMoveToDay,
   onDragStart,
@@ -2281,7 +2320,7 @@ function MenuCard({
   isPastWeek?: boolean;
   dayLabel?: { abbr: string; date: number };
   onRemove: () => void;
-  onViewRecipe: () => void;
+  onCookRecipe: () => void;
   onMoveToDay: (day: WeekDay | null) => void;
   onReplace: () => void;
   onDragStart: (x: number, y: number, touchOffsetY: number) => void;
@@ -2300,36 +2339,36 @@ function MenuCard({
   // Also clear the expanded state so cards stay collapsed after the move.
   const isExpanded = expanded && !collapsedForDrag;
   useEffect(() => { if (collapsedForDrag) setExpanded(false); }, [collapsedForDrag]);
-  const { medium } = useHaptics();
   const { fs, sp } = useTablet();
-
-  // Pan gesture for drag — use only onFinalize to avoid double-fire
-  const panGesture = Gesture.Pan()
-    .activateAfterLongPress(300)
-    .onStart(e => {
-      runOnJS(medium)();
-      runOnJS(onDragStart)(e.absoluteX, e.absoluteY, e.y);
-    })
-    .onUpdate(e => {
-      runOnJS(onDragMove)(e.absoluteX, e.absoluteY);
-    })
-    .onFinalize(() => {
-      runOnJS(onDragEnd)();
-    });
 
   function handlePress() {
     setExpanded(e => !e);
   }
 
-  // På web sätter RNGH:s GestureDetector `touch-action: none` på kortet, vilket
-  // blockerar webbläsarens horisontella sid-svep (kan inte byta vecka när det
-  // ligger maträtter). Drag-flytt finns bara på native; på web renderas kortet
-  // utan GestureDetector och flytt görs via dag-chipsen i utfällda vyn.
+  // Drag-flytt sker via handtaget på kortet (MenuCardDragHandle), på alla
+  // plattformar. Tidigare var det långtryck på hela kortet på native och
+  // saknades helt på web.
+  //
+  // Avstängningen på web motiverades en gång med att RNGH:s touch-action: none
+  // blockerade webbläsarens horisontella sid-svep för veckobyte. Det svepet
+  // togs bort i en senare ändring — web renderar bara aktuell vecka och byter
+  // via pilarna — men avstängningen blev kvar. touchAction="pan-y" på kortet
+  // provades sedan och fungerade inte: browsern startar sin scroll så fort
+  // fingret rör sig nedåt och avbryter gesten, så draget grep tag och släppte
+  // direkt. Ett dedikerat handtag löser bådadera.
   const isWeb = Platform.OS as any === 'web';
   const cardBody = (
       <View style={[s.card, isDragging && s.cardDragging, isPending && s.cardPending]}>
         <View style={s.cardInner}>
-          <Pressable style={[s.cardMain, { padding: sp(14), gap: sp(12) }]} onPress={handlePress}>
+          {/* Egen rad för den hopfällda delen: cardInner staplar vertikalt (den
+              bär även den utfällda delen), så handtaget hamnade annars på en ny
+              rad under kortet i stället för i högerkanten. */}
+          <View style={s.cardTopRow}>
+          {/* paddingRight mindre än övrig padding: avståndet till handtaget är
+              summan av den HÄR paddingen och handtagets inre marginal (ikonen
+              är 22 px i en 36 px bred yta, alltså 7 px på var sida). Med 14 blev
+              glappet ~21 px mot kundvagnens 12. 5 + 7 ≈ 12 — samma rytm. */}
+          <Pressable style={[s.cardMain, { padding: sp(14), paddingRight: sp(5), gap: sp(12) }]} onPress={handlePress}>
             {dayLabel ? (
               <View style={[s.dayLabelBox, { width: sp(36), height: sp(36) }]}>
                 <Text style={[s.dayLabelAbbr, { fontSize: fs(11) }]}>{dayLabel.abbr}</Text>
@@ -2346,11 +2385,27 @@ function MenuCard({
               )}
               <Text style={[s.cardTitle, { fontSize: fs(16) }, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
             </View>
+            {/* Kundvagnen före chevronen, och chevronen närmast draghandtaget:
+                de två sitter ihop som kortets högerkant. Båda ligger utanför
+                innehållskolumnen så cardMain centrerar dem mot kortet — inne i
+                kolumnen hamnade chevronen under mitten så fort måltidsetiketten
+                fanns ovanför rubriken. */}
             {isTransferred && (
               <Ionicons name="cart" size={fs(16)} color={c.success} />
             )}
             <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color={c.textFaint} />
           </Pressable>
+
+          {/* Eget draghandtag, samma som kategorilistan. Ett dedikerat handtag
+              är enda sättet som fungerar i PWA:n: på HELA kortet måste
+              touchAction vara "pan-y" för att listan ska gå att scrolla, och då
+              avbryter webbläsaren gesten så fort fingret rör sig nedåt — draget
+              grep tag men släppte direkt. Här är ytan dedikerad till draget, så
+              touchAction "none" är korrekt och gesten blir pålitlig. */}
+          {!isPastWeek && (
+            <MenuCardDragHandle onDragStart={onDragStart} onDragMove={onDragMove} onDragEnd={onDragEnd} />
+          )}
+          </View>
 
           {isExpanded && (
             <View style={s.cardExpanded}>
@@ -2407,9 +2462,13 @@ function MenuCard({
               )}
 
               <View style={s.cardActions}>
-                <Pressable style={s.cardAction} onPress={onViewRecipe}>
-                  <Ionicons name="open-outline" size={15} color={c.textMuted} />
-                  <Text style={s.cardActionText}>{str.card.show}</Text>
+                {/* "Laga" i stället för "Visa": från veckomenyn är avsikten
+                    oftast att laga rätten, inte att läsa om den. Receptet nås
+                    ändå — laga-läget öppnas ovanpå receptsidan, så ett bakåt
+                    lämnar en där. */}
+                <Pressable style={s.cardAction} onPress={onCookRecipe}>
+                  <Ionicons name="flame-outline" size={15} color={c.textMuted} />
+                  <Text style={s.cardActionText}>{str.card.cook}</Text>
                 </Pressable>
                 {!isPastWeek && (
                   <Pressable style={s.cardAction} onPress={onReplace}>
@@ -2425,7 +2484,9 @@ function MenuCard({
                 )}
               </View>
 
-              {/* Web saknar drag (touch-action) → flytta via dag-chips i stället */}
+              {/* Dag-chipsen tillkom när web saknade drag. Draget finns nu även
+                  där, men chipsen är kvar: med mus är ett klick bekvämare än
+                  att dra, och de fungerar utan att man hittar handtaget. */}
               {isWeb && !isPastWeek && (
                 <View style={s.moveRow}>
                   <Text style={s.moveLabel}>{str.card.moveToDay}</Text>
@@ -2451,7 +2512,10 @@ function MenuCard({
       </View>
   );
 
-  return isWeb ? cardBody : <GestureDetector gesture={panGesture}>{cardBody}</GestureDetector>;
+  // Draget startas från handtaget, på alla plattformar. Tidigare låg det som ett
+  // långtryck på hela kortet på native och saknades helt på web — två olika sätt
+  // att göra samma sak, beroende på var man råkade vara.
+  return cardBody;
 }
 
 const makeStyles = (c: Palette) => StyleSheet.create({
@@ -2530,10 +2594,15 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // även i PWA (web renderar knappt shadowOpacity 0.03 → kortet såg ramlöst ut).
   card: { borderRadius: 12, borderWidth: 1, borderColor: c.borderLight, borderLeftWidth: 3, borderLeftColor: c.primary200, backgroundColor: c.surface, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   cardInner: { backgroundColor: c.surface, borderRadius: 12, overflow: 'hidden' },
-  cardMain: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  // Raden som bär hopfällda kortet + draghandtaget. cardMain får flex:1 så
+  // handtaget hamnar i högerkanten oavsett hur lång rubriken är.
+  cardTopRow: { flexDirection: 'row', alignItems: 'stretch' },
+  cardMain: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
   cardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
+  // flex:1 så kundvagn och chevron pressas ut mot draghandtaget i stället för
+  // att klibba vid rubriken — de tre bildar kortets högerkant tillsammans.
   cardContent: { flex: 1 },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  cardTitle: { fontSize: 15, fontWeight: '600', color: c.text, flexShrink: 1 },
   cardMealTag: { fontSize: 10, fontWeight: '700', color: c.primary, letterSpacing: 0.5, marginBottom: 1 },
   mealPicker: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 8 },
   mealPickerLabel: { fontSize: 12, color: c.textMuted, fontWeight: '500' },

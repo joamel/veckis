@@ -43,9 +43,12 @@ function CategoryDragHandle({ parentKey, idx, onDragStart, onDragMove, onDragEnd
     .onFinalize(() => { runOnJS(onDragEnd)(); }),
     [parentKey, idx, onDragStart, onDragMove, onDragEnd]);
   return (
-    <GestureDetector gesture={gesture}>
+    // touchAction="none" (web-only): handtaget är dedikerat till draget, så
+    // webbläsaren ska INTE ta pekarhändelserna för scroll. RNGH sätter det som
+    // default, men explicit här eftersom hela poängen med ytan är draget.
+    <GestureDetector gesture={gesture} touchAction="none">
       <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name="reorder-three" size={22} color={c.textFaint} />
+        <Ionicons name="reorder-two" size={22} color={c.textFaint} />
       </View>
     </GestureDetector>
   );
@@ -681,7 +684,7 @@ export default function StoreDetailScreen() {
         const key = catDragState.key;
         return (
           <View pointerEvents="none" style={[s.ghostCat, { top: catDragState.y - 24 }]}>
-            <Ionicons name="reorder-three" size={18} color={c.primary} />
+            <Ionicons name="reorder-two" size={18} color={c.primary} />
             <Text style={s.ghostCatText} numberOfLines={1}>{labelWithTag(key)}</Text>
           </View>
         );
