@@ -33,6 +33,8 @@ import type { HouseholdWithMembers } from '../../src/api/client';
 import { settings as str, common } from '../../src/lib/svenska';
 import { useTheme, type ThemeMode } from '../../src/context/ThemeContext';
 import { useDesign } from '../../src/context/DesignContext';
+import { ny, nyFont } from '../../src/lib/nyDesign';
+import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import type { Palette } from '../../src/lib/theme';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
@@ -45,7 +47,7 @@ export default function SettingsScreen() {
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
   const { colors: c, mode: themeMode, setMode: setThemeMode } = useTheme();
   const { nyDesign, setNyDesign } = useDesign();
-  const styles = useMemo(() => makeStyles(c), [c]);
+  const styles = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
   // Mät-och-lyft i stället för KeyboardAvoidingView: den krympte arket och
@@ -450,7 +452,30 @@ export default function SettingsScreen() {
     : null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={nyDesign ? ['top', 'left', 'right'] : undefined}>
+      {nyDesign ? (
+        <NyHeader
+          title={str.title}
+          subtitle={householdName}
+          right={
+            <View style={styles.nyHuvudKnappar}>
+              <Pressable
+                onPress={() => router.push('/account' as never)}
+                hitSlop={6}
+                accessibilityLabel={str.a11y.account}
+                style={styles.nyAvatar}
+              >
+                <Text style={styles.nyAvatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+                {isAdmin && <View style={styles.nyAvatarPrick} />}
+              </Pressable>
+              {isAdmin && (
+                <NyIkonKnapp icon="time-outline" onPress={() => setShowAdminLogs(true)} label={str.a11y.adminLogs} />
+              )}
+              <NyIkonKnapp icon="settings-outline" onPress={() => router.push('/preferences' as never)} label={str.a11y.notifications} />
+            </View>
+          }
+        />
+      ) : (
       <ScreenHeader
         title={str.title}
         actionNode={
@@ -483,6 +508,7 @@ export default function SettingsScreen() {
           </View>
         }
       />
+      )}
 
       {/* Admin-loggar — aktivitetslogg + klientfel som fullskärmsvy */}
       <Modal visible={showAdminLogs} animationType="slide" onRequestClose={() => setShowAdminLogs(false)}>
@@ -502,6 +528,7 @@ export default function SettingsScreen() {
       </Modal>
 
       <ScrollView
+        style={styles.innehall}
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
       >
@@ -632,7 +659,7 @@ export default function SettingsScreen() {
                   </Pressable>
                 </View>
                 <Pressable style={styles.shareLinkBtn} onPress={shareInvite}>
-                  <Ionicons name="share-outline" size={18} color="#fff" />
+                  <Ionicons name="share-outline" size={18} color={nyDesign ? ny.skog : '#fff'} />
                   <Text style={styles.shareLinkBtnText}>{str.invite.shareLink}</Text>
                 </Pressable>
               </>
@@ -662,7 +689,7 @@ export default function SettingsScreen() {
               const active = themeMode === opt.key;
               return (
                 <Pressable key={opt.key} style={[styles.appearanceOpt, active && styles.appearanceOptActive]} onPress={() => setThemeMode(opt.key)}>
-                  <Ionicons name={opt.icon} size={16} color={active ? c.primary : c.textMuted} />
+                  <Ionicons name={opt.icon} size={16} color={active ? (nyDesign ? ny.lime : c.primary) : c.textMuted} />
                   <Text style={[styles.appearanceOptText, active && styles.appearanceOptTextActive]}>{opt.label}</Text>
                 </Pressable>
               );
@@ -861,12 +888,23 @@ export default function SettingsScreen() {
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.background },
+// Den nya designens kort: gröntonade, rundare, utan vänsterkant och skugga.
+const KORT_NY = { backgroundColor: ny.kort, borderRadius: 18, borderLeftWidth: 0, shadowOpacity: 0, elevation: 0 };
+
+// nyD: den nya designen (beta) skriver över de stilar som skiljer.
+const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
+  innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
   scroll: { paddingBottom: 40 },
+  nyHuvudKnappar: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  nyAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: ny.bricka, alignItems: 'center', justifyContent: 'center' },
+  nyAvatarText: { fontFamily: nyFont.fet, fontSize: 18, color: ny.skog },
+  nyAvatarPrick: { position: 'absolute', right: -1, bottom: -1, width: 12, height: 12, borderRadius: 6, backgroundColor: ny.lime, borderWidth: 2, borderColor: ny.skog },
   section: { marginTop: 24, paddingHorizontal: 16 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginBottom: 8 },
+  sectionLabel: nyD
+    ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.skog, marginBottom: 8 }
+    : { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginBottom: 8 },
   editModeBtn: { fontSize: 13, fontWeight: '600', color: c.primary },
   editModeBtnActive: { color: c.danger },
   card: {
@@ -883,6 +921,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
+    ...(nyD ? KORT_NY : {}),
   },
   cardActions: { flexDirection: 'row', gap: 4 },
   avatar: {
@@ -898,13 +937,15 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: c.primaryTint,
+    backgroundColor: nyD ? ny.bricka : c.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   userInfo: { flex: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  userName: { fontSize: 16, fontWeight: '600', color: c.text },
+  userName: nyD
+    ? { fontFamily: nyFont.fet, fontSize: 17, letterSpacing: -0.3, color: ny.text }
+    : { fontSize: 16, fontWeight: '600', color: c.text },
   userEmail: { fontSize: 13, color: c.textMuted, marginTop: 2 },
   adminBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.primaryTint, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
   adminBadgeText: { fontSize: 11, fontWeight: '600', color: c.primary },
@@ -920,6 +961,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
+    ...(nyD ? KORT_NY : {}),
   },
   membersHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   membersTitle: { fontSize: 14, fontWeight: '600', color: c.text },
@@ -931,7 +973,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: c.borderLight,
+    borderBottomColor: nyD ? ny.bricka : c.borderLight,
   },
   memberInfo: { flex: 1 },
   memberName: { fontSize: 14, fontWeight: '500', color: c.text },
@@ -952,6 +994,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
+    ...(nyD ? KORT_NY : {}),
   },
   inviteDesc: { fontSize: 14, color: c.textMuted, lineHeight: 20 },
   headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: c.primaryTint, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
@@ -963,8 +1006,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    backgroundColor: c.surfaceSubtle,
-    borderRadius: 10,
+    backgroundColor: nyD ? ny.ljus : c.surfaceSubtle,
+    borderRadius: nyD ? 14 : 10,
     paddingVertical: 14,
   },
   codeText: { fontSize: 28, fontWeight: '700', color: c.text, letterSpacing: 6 },
@@ -972,15 +1015,15 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   expiresText: { fontSize: 12, color: c.textFaint, textAlign: 'center' },
   inviteBtn: {
     borderWidth: 1.5,
-    borderColor: c.primary,
-    borderRadius: 10,
+    borderColor: nyD ? ny.skog : c.primary,
+    borderRadius: nyD ? 12 : 10,
     padding: 14,
     alignItems: 'center',
   },
   inviteBtnDisabled: { opacity: 0.4 },
-  inviteBtnText: { fontSize: 15, fontWeight: '600', color: c.primary },
-  shareLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: 10, paddingVertical: 12, marginTop: 4 },
-  shareLinkBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  inviteBtnText: { fontSize: 15, fontWeight: '600', color: nyD ? ny.skog : c.primary },
+  shareLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: nyD ? ny.lime : c.accent, borderRadius: nyD ? 12 : 10, paddingVertical: 12, marginTop: 4 },
+  shareLinkBtnText: { fontSize: 15, fontWeight: '700', color: nyD ? ny.skog : '#fff' },
   overflowPopover: { position: 'absolute', right: 0, alignItems: 'flex-end' },
   overflowPopoverInner: { backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 4, width: 280, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
   overflowRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
@@ -988,22 +1031,22 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   memberActionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 16 },
   memberActionRowBorder: { borderTopWidth: 1, borderTopColor: c.borderLight },
   memberActionRowText: { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
-  inlineExpand: { backgroundColor: c.background, borderRadius: 12, marginTop: 6, marginHorizontal: 4, paddingHorizontal: 14, paddingVertical: 4, borderWidth: 1, borderColor: c.borderLight },
+  inlineExpand: { backgroundColor: nyD ? ny.ljus : c.background, borderRadius: 12, marginTop: 6, marginHorizontal: 4, paddingHorizontal: 14, paddingVertical: 4, borderWidth: 1, borderColor: nyD ? ny.bricka : c.borderLight },
   inlineRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
   inlineRowBorder: { borderTopWidth: 1, borderTopColor: c.borderLight },
   inlineRowText: { flex: 1, fontSize: 14, color: c.text, fontWeight: '500' },
-  linkBox: { backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  linkBox: { backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, ...(nyD ? KORT_NY : {}) },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  linkRowBorder: { borderTopWidth: 1, borderTopColor: c.borderLight },
+  linkRowBorder: { borderTopWidth: 1, borderTopColor: nyD ? ny.bricka : c.borderLight },
   linkRowText: { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
   devBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
   devBtnText: { fontSize: 14, fontWeight: '500', color: c.textMuted },
-  appearanceRow: { flexDirection: 'row', gap: 8, backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, padding: 8, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  appearanceOpt: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 10, backgroundColor: 'transparent' },
-  appearanceOptActive: { backgroundColor: c.primaryTint },
+  appearanceRow: { flexDirection: 'row', gap: 8, backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, padding: 8, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, ...(nyD ? { ...KORT_NY, padding: 5 } : {}) },
+  appearanceOpt: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: nyD ? 13 : 10, backgroundColor: 'transparent' },
+  appearanceOptActive: { backgroundColor: nyD ? ny.skog : c.primaryTint },
   appearanceOptText: { fontSize: 14, fontWeight: '600', color: c.textMuted },
-  appearanceOptTextActive: { color: c.primary },
-  betaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 12, padding: 14 },
+  appearanceOptTextActive: { color: nyD ? ny.lime : c.primary },
+  betaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 12, padding: 14, ...(nyD ? KORT_NY : {}) },
   betaText: { flex: 1, gap: 2 },
   betaTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   betaHint: { fontSize: 12, lineHeight: 17, color: c.textMuted },

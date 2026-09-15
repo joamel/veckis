@@ -12,6 +12,8 @@ import { buildShoppingListRows, type ShoppingListRow } from '../../src/lib/shopp
 import { FlashList } from '@shopify/flash-list';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { ClearableInput } from '../../src/components/ClearableInput';
+import { useDesign } from '../../src/context/DesignContext';
+import { ny, nyFont } from '../../src/lib/nyDesign';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -107,12 +109,15 @@ const Lista = (ÄR_WEBB ? AnimatedFlatList : AnimatedFlashList) as typeof Animat
 // stilar; med useMemo inne i varje ItemRow gjordes det om vid varje mount, och
 // vid långsam scroll monteras rader kontinuerligt. Cachen är modulglobal och
 // byts bara när temat byts, alltså i praktiken en gång.
+// Nyckeln är palett + designval (Ny design, beta) — båda byts sällan.
 let itemRowPalette: Palette | null = null;
+let itemRowNy = false;
 let itemRowStyles: ReturnType<typeof makeStyles> | null = null;
-function getItemRowStyles(c: Palette) {
-  if (itemRowPalette !== c || !itemRowStyles) {
+function getItemRowStyles(c: Palette, nyD: boolean) {
+  if (itemRowPalette !== c || itemRowNy !== nyD || !itemRowStyles) {
     itemRowPalette = c;
-    itemRowStyles = makeStyles(c);
+    itemRowNy = nyD;
+    itemRowStyles = makeStyles(c, nyD);
   }
   return itemRowStyles;
 }
@@ -170,7 +175,8 @@ function useChipAutoScroll(scrollRef: { current: ScrollView | null }, activeKey:
 
 export function ShoppingListDetail({ listId, onClose }: { listId: string; onClose?: () => void }) {
   const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { nyDesign } = useDesign();
+  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
   const router = useRouter();
   const goBack = useCallback(() => {
     if (onClose) { onClose(); return; }
@@ -1773,10 +1779,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           de). Ikonen pulserar var ~10:e sekund. Tryck → toast med vem som handlar. */}
       <View style={[s.navbarButtonsAbs, { top: HEADER_TOP, height: NAVBAR_HEIGHT }]}>
         <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.a11y.back}>
-          <Ionicons name="arrow-back" size={22} color={c.text} />
+          <Ionicons name="arrow-back" size={22} color={nyDesign ? ny.rubrikLjus : c.text} />
         </Pressable>
         <Pressable onPress={openStorePicker} hitSlop={8} style={s.navStoreBtn} accessibilityRole="button" accessibilityLabel={list.store ? str.a11y.store(list.store.name) : str.a11y.chooseStore}>
-          <Ionicons name="storefront" size={18} color={c.primary} />
+          <Ionicons name="storefront" size={18} color={nyDesign ? ny.rubrikLjus : c.primary} />
           <RNAnimated.View style={[s.navStoreNameWrap, storeNameAnimStyle]}>
             <Text style={s.navStoreName} numberOfLines={1}>{list.store?.name ?? str.a11y.chooseStore}</Text>
           </RNAnimated.View>
@@ -1814,7 +1820,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           </Pressable>
         )}
         <Pressable onPress={() => setShowActionsMenu(true)} style={s.doneBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.a11y.moreActions}>
-          <Ionicons name="ellipsis-vertical" size={20} color={c.text} />
+          <Ionicons name="ellipsis-vertical" size={20} color={nyDesign ? ny.rubrikLjus : c.text} />
         </Pressable>
       </View>
 
@@ -1920,7 +1926,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             onPress={() => { const n = newItem.trim(); if (!n) return; setNewItem(''); openQtySheet(n); }}
             disabled={adding || !newItem.trim()}
           >
-            {adding ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="add" size={22} color="#fff" />}
+            {adding
+              ? <ActivityIndicator color={nyDesign ? ny.skog : '#fff'} size="small" />
+              : <Ionicons name="add" size={22} color={nyDesign ? ny.skog : '#fff'} />}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -2710,7 +2718,8 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
   // skärmens stylesheet (~150 entries), och med useMemo(…, [c]) gjorde varje
   // monterad rad det en gång var. Vid långsam scroll monteras rader i jämn
   // ström, så det blev ett stylesheet per rad — den dyraste posten i scrollen.
-  const s = getItemRowStyles(c);
+  const { nyDesign } = useDesign();
+  const s = getItemRowStyles(c, nyDesign);
   const { width: windowWidth } = useWindowDimensions();
   const translateX = useSharedValue(0);
   const THRESHOLD = windowWidth * 0.35;
@@ -2765,7 +2774,11 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
 
   const rowContent = (
     <>
-      <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? c.success : c.primary} />
+      {nyDesign ? (
+        <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={ny.skog} />
+      ) : (
+        <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? c.success : c.primary} />
+      )}
       <View style={s.itemContent}>
         <View style={s.itemRow}>
           <Text style={[s.itemName, (item.isChecked || pending) && s.itemNameChecked]}>{capitalize(item.name)}</Text>
@@ -2804,16 +2817,18 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
   );
 });
 
-const makeStyles = (c: Palette) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.background },
+// nyD: den nya designen (beta) skriver över de stilar som skiljer. Det
+// scrollanimerade sidhuvudet behåller sin struktur — bara färger och former.
+const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: nyD ? ny.bakgrund : c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, paddingBottom: 12 },
   headerNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6 },
   headerStack: { backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   titleSlide: { paddingHorizontal: 20, paddingBottom: 6 },
   scrollMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: 8, paddingTop: 4, gap: 8 },
-  titleAreaAbs: { position: 'absolute', left: 0, right: 0, backgroundColor: c.background, zIndex: 10 },
-  navbarBgAbs: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: c.background, zIndex: 5 },
+  titleAreaAbs: { position: 'absolute', left: 0, right: 0, backgroundColor: nyD ? ny.skog : c.background, zIndex: 10, ...(nyD ? { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 } : {}) },
+  navbarBgAbs: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: nyD ? ny.skog : c.background, zIndex: 5 },
   navbarButtonsAbs: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, zIndex: 30 },
   titleTextWrap: { position: 'absolute', left: 20, right: 20, justifyContent: 'center', alignItems: 'flex-start', zIndex: 25 },
   headerNavPinned: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
@@ -2826,18 +2841,22 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   headerMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   backBtn: { padding: 4 },
   doneBtn: { padding: 4 },
-  title: { fontSize: 26, fontWeight: '700', color: c.text },
+  // Outfit har vikten i själva typsnittet — ingen fontWeight, annars väljer
+  // Android ett reservtypsnitt.
+  title: nyD
+    ? { fontFamily: nyFont.fet, fontSize: 28, letterSpacing: -0.6, color: ny.rubrikLjus }
+    : { fontSize: 26, fontWeight: '700', color: c.text },
   titleCompact: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: c.text, paddingHorizontal: 8 },
-  progressBar: { height: 3, backgroundColor: c.borderLight },
-  stickyCat: { position: 'absolute', left: 0, right: 0, zIndex: 20, backgroundColor: c.background, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
-  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: c.primary200, borderRadius: 999, backgroundColor: c.primaryTint, maxWidth: '35%', flexShrink: 1 },
+  progressBar: { height: 3, backgroundColor: nyD ? ny.glas : c.borderLight },
+  stickyCat: { position: 'absolute', left: 0, right: 0, zIndex: 20, backgroundColor: nyD ? ny.bakgrund : c.background, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: nyD ? ny.bricka : c.surfaceSubtle },
+  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: nyD ? 'transparent' : c.primary200, borderRadius: 999, backgroundColor: nyD ? ny.glas : c.primaryTint, maxWidth: '35%', flexShrink: 1 },
   navStoreNameWrap: { overflow: 'hidden', justifyContent: 'center' },
-  navStoreName: { fontSize: 15, color: c.primary, fontWeight: '600' },
+  navStoreName: { fontSize: 15, color: nyD ? ny.rubrikLjus : c.primary, fontWeight: '600' },
   shopperWrap: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
   shopperTextWrap: { overflow: 'hidden', justifyContent: 'center' },
   shopperText: { fontSize: 13, color: c.pink, fontWeight: '600' },
   shopperIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.pinkTint, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
-  progressFill: { height: 3, backgroundColor: c.success },
+  progressFill: { height: 3, backgroundColor: nyD ? ny.lime : c.success },
   // Inget gap här: FlashList lägger inte ut raderna i en flex-container, så gap
   // i contentContainerStyle tappades vid bytet i 1.2.1 och korten satt ihop.
   // Avståndet ligger på raden i stället — det fungerar i båda listorna.
@@ -2848,8 +2867,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   emptyText: { fontSize: 17, fontWeight: '600', color: c.textSecondary, marginTop: 12 },
   emptySubtext: { fontSize: 13, color: c.textFaint, marginTop: 4, textAlign: 'center', paddingHorizontal: 32 },
   dupeFloatWrap: { position: 'absolute', right: 16, zIndex: 5 },
-  dupeFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
-  dupeFloatText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  dupeFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: nyD ? ny.skog : c.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
+  dupeFloatText: { fontSize: 13, fontWeight: '700', color: nyD ? ny.lime : '#fff' },
   dupeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.accent100, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   dupeBadgeText: { fontSize: 12, fontWeight: '600', color: c.accent },
   mergeIgnoreBtn: { paddingVertical: 10 },
@@ -2861,17 +2880,19 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // från sista varan tydligare än kategorirubriker behöver skiljas från varandra.
   // Egen stil, annars glesnar alla rubriker.
   checkedHeaderSpacing: { marginTop: 20, marginBottom: 4 },
-  categoryLabel: { fontSize: 12, fontWeight: '700', color: c.primary, textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 },
+  categoryLabel: nyD
+    ? { fontFamily: nyFont.fet, fontSize: 13, color: ny.skog, textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 }
+    : { fontSize: 12, fontWeight: '700', color: c.primary, textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 },
   // Sub-grupp-rubriker: inget uppercase + ingen letterSpacing (annars klipps
   // långa subnamn som "Toalett- & hushållspapper"); lite indenterad + dämpad
   // för att visuellt tillhöra sin parent.
   categorySubHeader: { paddingVertical: 4 },
-  categorySubLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: c.primary },
+  categorySubLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: nyD ? ny.chipText : c.primary },
   checkedCatLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.4, paddingHorizontal: 2, paddingTop: 8, paddingBottom: 1 },
   showAllChecked: { alignItems: 'center', paddingVertical: 12, marginTop: 2 },
   showAllCheckedText: { fontSize: 14, fontWeight: '600', color: c.primary },
   categoryCount: { fontSize: 11, color: c.textFaint, fontWeight: '600' },
-  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 10, padding: 14, gap: 12 },
+  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: nyD ? ny.kort : c.surface, borderRadius: nyD ? 14 : 10, padding: 14, gap: 12 },
   itemChecked: { opacity: 0.55 },
   itemPending: { opacity: 0.4, backgroundColor: c.dangerTint },
   itemContent: { flex: 1 },
@@ -2879,19 +2900,21 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   itemName: { fontSize: 16, color: c.text, flex: 1 },
   itemNameChecked: { textDecorationLine: 'line-through', color: c.textFaint },
   itemQty: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
-  chipScroll: { backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.surfaceSubtle, maxHeight: 44 },
-  commonScroll: { backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.surfaceSubtle, paddingTop: 6, paddingBottom: 2 },
+  chipScroll: { backgroundColor: nyD ? ny.ljus : c.surface, borderTopWidth: 1, borderTopColor: nyD ? ny.bricka : c.surfaceSubtle, maxHeight: 44 },
+  commonScroll: { backgroundColor: nyD ? ny.ljus : c.surface, borderTopWidth: 1, borderTopColor: nyD ? ny.bricka : c.surfaceSubtle, paddingTop: 6, paddingBottom: 2 },
   chipHint: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5, paddingHorizontal: 12 },
   chipRowWrap: { paddingHorizontal: 12, paddingVertical: 6, gap: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   chipRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: c.primaryTint, borderRadius: 20 },
-  chipText: { fontSize: 13, color: c.primary, fontWeight: '500' },
-  addBar: { flexDirection: 'row', padding: 12, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.surfaceSubtle, gap: 10, alignItems: 'center' },
-  browseBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: nyD ? ny.bricka : c.primaryTint, borderRadius: nyD ? 16 : 20 },
+  chipText: { fontSize: 13, color: nyD ? ny.chipText : c.primary, fontWeight: nyD ? '600' : '500' },
+  addBar: { flexDirection: 'row', padding: 12, backgroundColor: nyD ? ny.ljus : c.surface, borderTopWidth: 1, borderTopColor: nyD ? ny.bricka : c.surfaceSubtle, gap: 10, alignItems: 'center' },
+  browseBtn: { width: 44, height: 44, borderRadius: nyD ? 12 : 10, backgroundColor: nyD ? ny.bricka : c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   // minWidth:0 så input:en får krympa under sin intrinsiska content-bredd på web
   // (annars trycks "+"-knappen ut utanför högerkanten — min-width:auto på <input>).
-  addInput: { color: c.text, flex: 1, minWidth: 0, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: c.inputBg },
-  addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
+  addInput: nyD
+    ? { color: ny.text, flex: 1, minWidth: 0, borderWidth: 0, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, fontSize: 16, backgroundColor: ny.bakgrund }
+    : { color: c.text, flex: 1, minWidth: 0, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: c.inputBg },
+  addBtn: { width: 44, height: 44, borderRadius: nyD ? 12 : 10, backgroundColor: nyD ? ny.lime : c.primary, alignItems: 'center', justifyContent: 'center' },
   addBtnDisabled: { opacity: 0.4 },
   // Dim ligger på ett eget absolut lager (overlayDim) så det täcker HELA skärmen
   // inkl. bakom sheetens rundade hörn; overlay-Pressablen är transparent och
@@ -2931,12 +2954,13 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // Skuggan ligger HÄR, inte på s.item: wrappern har overflow:'hidden' för att
   // klippa svep-bakgrunderna till hörnen, och det klipper barnens skuggor. En
   // vy klipper aldrig sin EGEN skugga, så den måste sitta på wrappern.
-  swipeRowWrap: { borderRadius: 10, marginBottom: 2, overflow: 'hidden', backgroundColor: c.surface },
+  swipeRowWrap: { borderRadius: nyD ? 14 : 10, marginBottom: nyD ? 6 : 2, overflow: 'hidden', backgroundColor: nyD ? ny.kort : c.surface },
   // Bara på AKTIVA rader. Listan renderas i en ScrollView med .map(), alltså
   // helt utan virtualisering — varje avklarad rad är monterad. Med elevation på
   // samtliga fick Android rita en skugga per rad och scrollen blev ryckig.
   // Avklarade rader ska dessutom ligga tillbaka visuellt.
-  swipeRowWrapShadow: { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  // Ny design: ingen skugga — de gröntonade korten skiljer sig mot bakgrunden ändå.
+  swipeRowWrapShadow: nyD ? {} : { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   swipeDeleteBg: { backgroundColor: c.danger, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
   swipeEditBg: { backgroundColor: c.primary, justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 20 },
   browserSheet: { maxHeight: '90%', gap: 0 },

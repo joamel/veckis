@@ -45,7 +45,24 @@ export function NyIkonKnapp({ icon, onPress, label, color = ny.ikonLjus, size = 
   );
 }
 
+/** Textknapp i sidhuvudet, för en tydlig huvudåtgärd (t.ex. Butiker). Samma
+ *  genomskinliga vita yta som ikonknapparna, med ikon och etikett. */
+export function NyTextKnapp({ icon, label, onPress }: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} hitSlop={4} style={st.textKnapp} accessibilityRole="button" accessibilityLabel={label}>
+      <Ionicons name={icon} size={16} color={ny.rubrikLjus} />
+      <Text style={st.textKnappText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const st = StyleSheet.create({
+  textKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 42, paddingHorizontal: 14, borderRadius: 14, backgroundColor: ny.glas },
+  textKnappText: { fontSize: 14, fontWeight: '600', color: ny.rubrikLjus },
   band: {
     backgroundColor: ny.skog,
     borderBottomLeftRadius: 24,

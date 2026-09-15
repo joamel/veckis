@@ -8,6 +8,8 @@ import { useNotificationRouting } from '../../src/hooks/useNotificationRouting';
 import { useTablet } from '../../src/hooks/useTablet';
 import { common } from '../../src/lib/svenska';
 import { useTheme } from '../../src/context/ThemeContext';
+import { useDesign } from '../../src/context/DesignContext';
+import { ny } from '../../src/lib/nyDesign';
 
 export default function TabLayout() {
   usePushRegistration();
@@ -15,21 +17,24 @@ export default function TabLayout() {
   const { fs, sp } = useTablet();
   const insets = useSafeAreaInsets();
   const { colors: c } = useTheme();
+  // Ny design (beta): mörk flikrad med lime för den aktiva fliken. Den tas
+  // först nu, när alla flikar har den nya designen — annars blev det lapptäcke.
+  const { nyDesign } = useDesign();
   return (
     <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: c.primary,
-        tabBarInactiveTintColor: c.textFaint,
+        tabBarActiveTintColor: nyDesign ? ny.lime : c.primary,
+        tabBarInactiveTintColor: nyDesign ? ny.flikInaktiv : c.textFaint,
         headerShown: false,
         tabBarLabelStyle: { fontSize: fs(11) },
         tabBarStyle: {
           height: sp(60) + insets.bottom,
           paddingBottom: insets.bottom,
-          backgroundColor: c.surface,
-          borderTopColor: c.surfaceSubtle,
+          backgroundColor: nyDesign ? ny.skog : c.surface,
+          borderTopColor: nyDesign ? ny.skog : c.surfaceSubtle,
         },
-        sceneStyle: { backgroundColor: c.background },
+        sceneStyle: { backgroundColor: nyDesign ? ny.bakgrund : c.background },
         tabBarIconStyle: { marginTop: sp(2) },
       }}
     >

@@ -26,6 +26,9 @@ import { useWebLeaveGuard } from '../../src/hooks/useWebLeaveGuard';
 import { storeDrafts } from '../../src/lib/drafts';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { sortedRestFor } from '../../src/lib/subOrder';
+import { useDesign } from '../../src/context/DesignContext';
+import { ny, nyFont } from '../../src/lib/nyDesign';
+import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 
 // EGEN komponent — gesten byggs via useMemo, keyad på stabila props, så samma
 // gestobjekt lever kvar genom hela draget i stället för att byggas om vid
@@ -58,7 +61,8 @@ function CategoryDragHandle({ parentKey, idx, onDragStart, onDragMove, onDragEnd
 
 export default function StoreDetailScreen() {
   const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { nyDesign } = useDesign();
+  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
   const { storeId } = useLocalSearchParams<{ storeId: string }>();
   const router = useRouter();
   const client = useApiClient();
@@ -592,19 +596,30 @@ export default function StoreDetailScreen() {
     );
   };
 
+  // Delas av gammalt och nytt sidhuvud.
+  const oppnaButiksmeny = () => confirm({ variant: 'menu', buttons: [{ label: str.actions.rename, icon: 'pencil-outline', onPress: () => { setRenameValue(store.name); setShowRename(true); } }, { label: str.actions.delete, icon: 'trash-outline', style: 'destructive', onPress: deleteStore }, { label: common.actions.cancel, style: 'cancel' }] });
+
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={nyDesign ? ['top', 'left', 'right'] : undefined}>
+      {nyDesign ? (
+        <NyHeader
+          title={store.name}
+          onBack={() => router.back()}
+          right={<NyIkonKnapp icon="ellipsis-vertical" onPress={oppnaButiksmeny} label={common.actions.more} color={ny.rubrikLjus} />}
+        />
+      ) : (
       <View style={s.header}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={s.navBtn}>
           <Ionicons name="arrow-back" size={24} color={c.text} />
         </Pressable>
         <Text style={[s.title, { flex: 1 }]} numberOfLines={1}>{store.name}</Text>
-        <Pressable onPress={() => confirm({ variant: 'menu', buttons: [{ label: str.actions.rename, icon: 'pencil-outline', onPress: () => { setRenameValue(store.name); setShowRename(true); } }, { label: str.actions.delete, icon: 'trash-outline', style: 'destructive', onPress: deleteStore }, { label: common.actions.cancel, style: 'cancel' }] })} hitSlop={8} style={s.navBtn} accessibilityLabel={common.actions.more}>
+        <Pressable onPress={oppnaButiksmeny} hitSlop={8} style={s.navBtn} accessibilityLabel={common.actions.more}>
           <Ionicons name="ellipsis-vertical" size={22} color={c.text} />
         </Pressable>
       </View>
+      )}
 
-      <ScrollView contentContainerStyle={s.scroll} scrollEnabled={!catDragState}>
+      <ScrollView style={s.innehall} contentContainerStyle={s.scroll} scrollEnabled={!catDragState}>
         {visarUtkast && (
           <View style={s.draftBanner}>
             <Ionicons name="time-outline" size={16} color={c.primary} />
@@ -801,8 +816,10 @@ export default function StoreDetailScreen() {
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.background },
+// nyD: den nya designen (beta) skriver över de stilar som skiljer.
+const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
+  innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
   header: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   navBtn: { padding: 8 },
@@ -810,44 +827,48 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   scroll: { padding: 16 },
   empty: { textAlign: 'center', color: c.textFaint, marginTop: 40 },
   emptyHint: { padding: 14, color: c.danger, fontSize: 13, textAlign: 'center' },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: c.textMuted, letterSpacing: 0.5, marginBottom: 6 },
+  sectionLabel: nyD
+    ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.skog, marginBottom: 6 }
+    : { fontSize: 12, fontWeight: '700', color: c.textMuted, letterSpacing: 0.5, marginBottom: 6 },
   sectionSub: { fontSize: 13, color: c.textMuted, marginBottom: 14, lineHeight: 18 },
-  catList: { backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.surfaceSubtle, overflow: 'hidden' },
-  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 8 },
+  catList: nyD
+    ? { backgroundColor: ny.kort, borderRadius: 18, overflow: 'hidden' }
+    : { backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.surfaceSubtle, overflow: 'hidden' },
+  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: nyD ? ny.bricka : c.surfaceSubtle, gap: 8 },
   catRowMuted: { backgroundColor: c.background },
   catRowDragging: { opacity: 0.4 },
-  catRowDropTarget: { borderTopWidth: 2, borderTopColor: c.primary },
+  catRowDropTarget: { borderTopWidth: 2, borderTopColor: nyD ? ny.skog : c.primary },
   mergeTargetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   catName: { fontSize: 15, color: c.text, flex: 1, flexShrink: 1 },
   catNameMuted: { color: c.textFaint },
-  catBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryTint },
+  catBtn: { width: 32, height: 32, borderRadius: nyD ? 10 : 8, alignItems: 'center', justifyContent: 'center', backgroundColor: nyD ? ny.bricka : c.primaryTint },
   catBtnDanger: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerTint },
   // Osynlig platshållare, samma mått som catBtnDanger — håller pilarna på
   // samma plats för standard-rader i den dolda sub-listan (jämte egna rader
   // som har ett extra kryss-ta-bort-knapp längst till vänster).
   catBtnSpacer: { width: 32, height: 32 },
-  ghostCat: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
+  ghostCat: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: nyD ? ny.ljus : c.surface, borderRadius: nyD ? 14 : 12, paddingVertical: 12, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100, ...(nyD ? { borderWidth: 1.5, borderColor: ny.skog } : {}) },
   ghostCatText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
-  expandedBadge: { fontSize: 11, fontWeight: '700', color: c.accent, backgroundColor: c.accent100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
-  subList: { paddingLeft: 24, paddingRight: 14, paddingVertical: 8, backgroundColor: c.background, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
+  expandedBadge: { fontSize: 11, fontWeight: '700', color: nyD ? ny.skog : c.accent, backgroundColor: nyD ? ny.bricka : c.accent100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  subList: { paddingLeft: 24, paddingRight: 14, paddingVertical: 8, backgroundColor: nyD ? ny.ljus : c.background, borderBottomWidth: 1, borderBottomColor: nyD ? ny.bricka : c.surfaceSubtle },
   subListHint: { fontSize: 12, color: c.textFaint, marginBottom: 8, lineHeight: 17 },
   subRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 12 },
   subName: { fontSize: 14, color: c.textSecondary, flex: 1, flexShrink: 1 },
-  subNameActive: { color: c.accent, fontWeight: '600' },
-  subToggle: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
-  subToggleActive: { borderColor: c.accent, backgroundColor: c.accent },
+  subNameActive: { color: nyD ? ny.skog : c.accent, fontWeight: '600' },
+  subToggle: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: nyD ? ny.kontur : c.border, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
+  subToggleActive: { borderColor: nyD ? ny.skog : c.accent, backgroundColor: nyD ? ny.skog : c.accent },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   addInput: { flex: 1, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: c.text, backgroundColor: c.inputBg },
   addSubInput: { flex: 1, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: c.text, backgroundColor: c.inputBg },
   addSubRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
-  addSubText: { fontSize: 14, color: c.primary, fontWeight: '600' },
+  addSubText: { fontSize: 14, color: nyD ? ny.skog : c.primary, fontWeight: '600' },
   addBtn: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
   saveBar: { position: 'absolute', left: 16, right: 16, bottom: 20 },
-  draftBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12, borderRadius: 10, backgroundColor: c.primaryTint, borderWidth: 1, borderColor: c.primary200 },
+  draftBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12, borderRadius: nyD ? 14 : 10, backgroundColor: nyD ? ny.kort : c.primaryTint, borderWidth: 1, borderColor: nyD ? ny.bricka : c.primary200 },
   draftBannerText: { flex: 1, fontSize: 13, color: c.text },
   draftBannerAction: { fontSize: 13, fontWeight: '700', color: c.primary },
-  primaryBtn: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', shadowColor: c.primary, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  primaryBtn: { backgroundColor: nyD ? ny.lime : c.primary, borderRadius: nyD ? 14 : 12, paddingVertical: 14, alignItems: 'center', shadowColor: nyD ? ny.skog : c.primary, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  primaryBtnText: { color: nyD ? ny.skog : '#fff', fontSize: 15, fontWeight: '700' },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 10 },
   input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: c.text },

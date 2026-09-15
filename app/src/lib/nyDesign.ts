@@ -33,6 +33,8 @@ export const ny = {
   rubrikLjus: '#f1f3ec',
   underrubrik: '#9fbfa9',
   ikonLjus: '#b9cfc0',
+  /** Inaktiva flikar i den mörka flikraden. */
+  flikInaktiv: '#8aa595',
   glas: 'rgba(255,255,255,0.12)',
   glasSvag: 'rgba(255,255,255,0.1)',
 } as const;
