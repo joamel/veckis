@@ -5,24 +5,45 @@ import { ny, nyFont } from '../../lib/nyDesign';
 
 /** Mörkgrönt sidhuvud med rundade nederkanter (ny design). `children` hamnar
  *  under rubrikraden, t.ex. ett sökfält. */
-export function NyHeader({ title, subtitle, onBack, backLabel, right, children }: {
+export function NyHeader({ title, subtitle, onBack, backLabel, right, children, kompakt }: {
   title: string;
   subtitle?: string | null;
   onBack?: () => void;
   backLabel?: string;
   right?: ReactNode;
   children?: ReactNode;
+  /** Mindre rubrik som får bryta på två rader — för långa namn (t.ex. butiker). */
+  kompakt?: boolean;
 }) {
+  const titelyta = (iRad: boolean) => (
+    <View style={[st.titelyta, iRad && st.titelytaRad]}>
+      <Text style={[st.titel, kompakt && st.titelKompakt]} numberOfLines={kompakt ? 2 : 1}>{title}</Text>
+      {!!subtitle && <Text style={st.underrubrik} numberOfLines={1}>{subtitle}</Text>}
+    </View>
+  );
+
+  // Med bakåtpil: pilen och knapparna får en egen översta rad, rubriken ligger
+  // under i full bredd. På samma rad gick pilen (42 px) aldrig att linjera med
+  // rubriken — raden linjerade i underkant, och med en underrubrik hamnade pilen
+  // i höjd med den i stället för med rubriken.
+  if (onBack) {
+    return (
+      <View style={[st.band, st.bandMedBakat]}>
+        <View style={st.toppRad}>
+          <NyIkonKnapp icon="arrow-back" onPress={onBack} label={backLabel} color={ny.rubrikLjus} />
+          <View style={st.fyll} />
+          {right}
+        </View>
+        {titelyta(false)}
+        {children}
+      </View>
+    );
+  }
+
   return (
     <View style={st.band}>
       <View style={st.rad}>
-        {onBack && (
-          <NyIkonKnapp icon="arrow-back" onPress={onBack} label={backLabel} color={ny.rubrikLjus} />
-        )}
-        <View style={st.titelyta}>
-          <Text style={st.titel} numberOfLines={1}>{title}</Text>
-          {!!subtitle && <Text style={st.underrubrik} numberOfLines={1}>{subtitle}</Text>}
-        </View>
+        {titelyta(true)}
         {right}
       </View>
       {children}
@@ -71,9 +92,17 @@ const st = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 16,
   },
+  bandMedBakat: { paddingTop: 10 },
   rad: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
-  titelyta: { flex: 1, gap: 2 },
+  toppRad: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, marginLeft: -6 },
+  fyll: { flex: 1 },
+  titelyta: { gap: 2 },
+  // Bara i raden, där rubriken ska fylla bredden bredvid knapparna. I kolumnen
+  // (med bakåtpil) har bandet automatisk höjd, och där gav flex: 1 höjden 0 —
+  // rubriken försvann helt.
+  titelytaRad: { flex: 1 },
   titel: { fontFamily: nyFont.fet, fontSize: 34, lineHeight: 38, letterSpacing: -0.8, color: ny.rubrikLjus },
+  titelKompakt: { fontSize: 26, lineHeight: 30, letterSpacing: -0.5 },
   underrubrik: { fontSize: 13, color: ny.underrubrik },
   ikonKnapp: { width: 42, height: 42, borderRadius: 14, backgroundColor: ny.glas, alignItems: 'center', justifyContent: 'center' },
 });

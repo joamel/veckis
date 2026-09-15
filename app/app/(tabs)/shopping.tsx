@@ -30,6 +30,8 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { useDesign } from '../../src/context/DesignContext';
 import { ny, nyFont } from '../../src/lib/nyDesign';
 import { NyHeader, NyTextKnapp } from '../../src/components/nydesign/NyHeader';
+import { IkonValjare } from '../../src/components/nydesign/IkonValjare';
+import { listIkon } from '../../src/lib/listIkoner';
 import { onShoppingChanged } from '../../src/lib/shoppingEvents';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/expo';
@@ -237,9 +239,14 @@ export default function ShoppingScreen() {
                 onPress={() => isSplitView ? setSelectedListId(item.id) : router.push(`/shopping/${item.id}` as never)}
               >
                 <View style={styles.cardLeft}>
-                  {item.emoji
-                    ? <Text style={{ fontSize: fs(22) }}>{item.emoji}</Text>
-                    : <Ionicons name="cart-outline" size={fs(20)} color={nyDesign ? ny.skog : c.accent} />}
+                  {/* Ikonkod (i:korg) visas som ikon i båda designerna. Gammal
+                      emoji bara i den gamla — i den nya krockar färgemoji med
+                      paletten, så där blir det kundvagnen. */}
+                  {listIkon(item.emoji)
+                    ? <Ionicons name={listIkon(item.emoji)!} size={fs(20)} color={nyDesign ? ny.skog : c.accent} />
+                    : item.emoji && !nyDesign
+                      ? <Text style={{ fontSize: fs(22) }}>{item.emoji}</Text>
+                      : <Ionicons name="cart-outline" size={fs(20)} color={nyDesign ? ny.skog : c.accent} />}
                 </View>
                 <View style={styles.cardContent}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -292,7 +299,9 @@ export default function ShoppingScreen() {
               onFocus={onFocusInput(newListNameRef)}
               onSubmitEditing={createList}
             />
-            <EmojiPicker value={newListEmoji} onChange={setNewListEmoji} />
+            {nyDesign
+              ? <IkonValjare value={newListEmoji} onChange={setNewListEmoji} label={common.iconOptional} />
+              : <EmojiPicker value={newListEmoji} onChange={setNewListEmoji} />}
             <Text style={styles.pickStoreLabel}>{str.createModal.storeLabel}</Text>
             <Pressable
               style={styles.storePickBtn}

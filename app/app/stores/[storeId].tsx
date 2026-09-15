@@ -604,6 +604,7 @@ export default function StoreDetailScreen() {
       {nyDesign ? (
         <NyHeader
           title={store.name}
+          kompakt
           onBack={() => router.back()}
           right={<NyIkonKnapp icon="ellipsis-vertical" onPress={oppnaButiksmeny} label={common.actions.more} color={ny.rubrikLjus} />}
         />

@@ -14,6 +14,7 @@ import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { ClearableInput } from '../../src/components/ClearableInput';
 import { useDesign } from '../../src/context/DesignContext';
 import { ny, nyFont } from '../../src/lib/nyDesign';
+import { IkonValjare } from '../../src/components/nydesign/IkonValjare';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -352,10 +353,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Butiken ligger alltid i navbaren (vänster). Ikonen syns alltid; namnet
   // kollapsar (opacity + maxWidth) när rubriken fälls upp till mitten, så det
   // inte krockar med den centrerade rubriken.
+  // Ny design: "Du handlar"-texten är borta ur navbaren, så butiksnamnet får
+  // ta den platsen i stället för att kapas vid 80 px.
+  const butiksnamnMax = nyDesign ? 200 : 80;
   const storeNameAnimStyle = useAnimatedStyle(() => {
     const t = interpolate(scrollY.value, [0, COLLAPSE_RANGE], [1, 0], Extrapolation.CLAMP);
-    return { opacity: t, maxWidth: t * 80, marginLeft: t * 6 };
-  });
+    return { opacity: t, maxWidth: t * butiksnamnMax, marginLeft: t * 6 };
+  }, [butiksnamnMax]);
   // Dubblett-pill: döljs när rubriken kollapsar (samma interpolation som storeName).
   // Collapsed categories — tap category header to fold/unfold its items.
   const [collapsedCategories, setCollapsedCategories] = useState<Set<StoreCategory | 'checked'>>(new Set(['checked']));
@@ -1651,6 +1655,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       case 'checkedHeader':
         return (
           <Pressable style={[s.categoryHeader, s.checkedHeaderSpacing]} onPress={() => toggleCategoryCollapsed('checked')} hitSlop={12}>
+            {nyDesign && <Ionicons name="checkmark-circle" size={18} color={ny.chipText} />}
             <Text style={[s.categoryLabel, { color: c.textFaint }]}>
               {str.checkedLabel}{row.collapsed ? ` (${row.count})` : ''}
             </Text>
@@ -1809,13 +1814,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             accessibilityRole="button"
             accessibilityLabel={iAmShopping ? str.a11y.iAmShopping : str.a11y.otherShopping(activeShopper.displayName)}
           >
-            <RNAnimated.View style={[s.shopperTextWrap, shopperTextAnimStyle]}>
-              <Text style={s.shopperText} numberOfLines={1}>
-                {iAmShopping ? str.shopper.you : str.shopper.other(activeShopper.displayName)}
-              </Text>
-            </RNAnimated.View>
+            {/* Ny design: bara ikonen — texten tog butiksnamnets plats. Vem som
+                handlar syns fortfarande vid tryck (toast) och i skärmläsaren. */}
+            {!nyDesign && (
+              <RNAnimated.View style={[s.shopperTextWrap, shopperTextAnimStyle]}>
+                <Text style={s.shopperText} numberOfLines={1}>
+                  {iAmShopping ? str.shopper.you : str.shopper.other(activeShopper.displayName)}
+                </Text>
+              </RNAnimated.View>
+            )}
             <RNAnimated.View style={[s.shopperIconBtn, shopperIconAnimStyle]}>
-              <Ionicons name="walk" size={20} color={c.pink} />
+              <Ionicons name="walk" size={20} color={nyDesign ? ny.lime : c.pink} />
             </RNAnimated.View>
           </Pressable>
         )}
@@ -2628,7 +2637,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               onFocus={onFocusInput(renameInputRef)}
               onSubmitEditing={saveRename}
             />
-            <EmojiPicker value={renameEmoji} onChange={setRenameEmoji} />
+            {nyDesign
+              ? <IkonValjare value={renameEmoji} onChange={setRenameEmoji} label={common.iconOptional} />
+              : <EmojiPicker value={renameEmoji} onChange={setRenameEmoji} />}
             <Pressable
               style={[s.saveBtn, (!renameValue.trim() || renaming) && s.saveBtnDisabled]}
               onPress={saveRename}
@@ -2849,13 +2860,13 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   titleCompact: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: c.text, paddingHorizontal: 8 },
   progressBar: { height: 3, backgroundColor: nyD ? ny.glas : c.borderLight },
   stickyCat: { position: 'absolute', left: 0, right: 0, zIndex: 20, backgroundColor: nyD ? ny.bakgrund : c.background, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: nyD ? ny.bricka : c.surfaceSubtle },
-  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: nyD ? 'transparent' : c.primary200, borderRadius: 999, backgroundColor: nyD ? ny.glas : c.primaryTint, maxWidth: '35%', flexShrink: 1 },
+  navStoreBtn: { flexDirection: 'row', alignItems: 'center', marginLeft: 14, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: nyD ? 'transparent' : c.primary200, borderRadius: 999, backgroundColor: nyD ? ny.glas : c.primaryTint, maxWidth: nyD ? '65%' : '35%', flexShrink: 1 },
   navStoreNameWrap: { overflow: 'hidden', justifyContent: 'center' },
   navStoreName: { fontSize: 15, color: nyD ? ny.rubrikLjus : c.primary, fontWeight: '600' },
   shopperWrap: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
   shopperTextWrap: { overflow: 'hidden', justifyContent: 'center' },
   shopperText: { fontSize: 13, color: c.pink, fontWeight: '600' },
-  shopperIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.pinkTint, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+  shopperIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: nyD ? ny.glas : c.pinkTint, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
   progressFill: { height: 3, backgroundColor: nyD ? ny.lime : c.success },
   // Inget gap här: FlashList lägger inte ut raderna i en flex-container, så gap
   // i contentContainerStyle tappades vid bytet i 1.2.1 och korten satt ihop.
