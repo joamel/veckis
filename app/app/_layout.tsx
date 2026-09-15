@@ -25,6 +25,8 @@ import { ToastProvider } from '../src/context/ToastContext';
 import { ConfirmProvider } from '../src/context/ConfirmContext';
 import { SpotlightTipProvider, useWelcomeGate } from '../src/context/SpotlightTipContext';
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
+import { DesignProvider, useDesign } from '../src/context/DesignContext';
+import { ny } from '../src/lib/nyDesign';
 import { WelcomeModal } from '../src/components/WelcomeModal';
 import { VersionBanner } from '../src/components/VersionBanner';
 import { WakeupIndicator } from '../src/components/WakeupIndicator';
@@ -70,11 +72,13 @@ for (const name of ['Text', 'TextInput'] as const) {
 
 function StatusBarBackdrop() {
   const insets = useSafeAreaInsets();
+  // Den nya designens sidhuvud är skog-grönt; en grå rand ovanför det bröt av.
+  const { nyDesign } = useDesign();
   if (insets.top === 0) return null;
   return (
     <View
       pointerEvents="none"
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: '#292524', zIndex: 1000 }}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: nyDesign ? ny.skog : '#292524', zIndex: 1000 }}
     />
   );
 }
@@ -168,7 +172,12 @@ export default function RootLayout() {
   // Brand-font (Baloo 2) för "Handlis"-ordmärket — laddas via OTA (expo-font-
   // modulen finns redan i bygget). Gate:ar tills laddad så ordmärket inte
   // flimrar in i systemfont först; faller igenom vid fel så appen aldrig fastnar.
-  const [fontsLoaded, fontError] = useFonts({ Baloo2: require('../assets/fonts/Baloo2.ttf') });
+  // Outfit hör till den nya designen (beta) — samma OTA-väg som Baloo 2.
+  const [fontsLoaded, fontError] = useFonts({
+    Baloo2: require('../assets/fonts/Baloo2.ttf'),
+    Outfit_600SemiBold: require('../assets/fonts/Outfit_600SemiBold.ttf'),
+    Outfit_700Bold: require('../assets/fonts/Outfit_700Bold.ttf'),
+  });
 
   useEffect(() => { installGlobalErrorHandler(); }, []);
 
@@ -193,6 +202,7 @@ export default function RootLayout() {
       <ErrorBoundary>
       <SafeAreaProvider>
         <ThemeProvider>
+        <DesignProvider>
         <StatusBar style="light" />
         <StatusBarBackdrop />
         <ClerkProvider
@@ -212,6 +222,7 @@ export default function RootLayout() {
           </HouseholdProvider>
         </ClerkProvider>
         <AnimatedSplash />
+        </DesignProvider>
         </ThemeProvider>
       </SafeAreaProvider>
       </ErrorBoundary>

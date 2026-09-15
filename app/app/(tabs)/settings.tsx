@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  Switch,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,6 +32,7 @@ import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
 import { settings as str, common } from '../../src/lib/svenska';
 import { useTheme, type ThemeMode } from '../../src/context/ThemeContext';
+import { useDesign } from '../../src/context/DesignContext';
 import type { Palette } from '../../src/lib/theme';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
@@ -42,6 +44,7 @@ export default function SettingsScreen() {
   const client = useApiClient();
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
   const { colors: c, mode: themeMode, setMode: setThemeMode } = useTheme();
+  const { nyDesign, setNyDesign } = useDesign();
   const styles = useMemo(() => makeStyles(c), [c]);
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
@@ -667,6 +670,24 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Ny design (beta): testas vy för vy innan den blir standard */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{str.sections.newDesign}</Text>
+          <View style={styles.betaRow}>
+            <View style={styles.betaText}>
+              <Text style={styles.betaTitle}>{str.newDesign.title}</Text>
+              <Text style={styles.betaHint}>{str.newDesign.hint}</Text>
+            </View>
+            <Switch
+              value={nyDesign}
+              onValueChange={setNyDesign}
+              trackColor={{ true: c.primary, false: c.border }}
+              thumbColor="#fff"
+              accessibilityLabel={str.newDesign.title}
+            />
+          </View>
+        </View>
+
         {/* Andra hushåll: skapa nytt eller gå med via kod */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{str.sections.other}</Text>
@@ -982,6 +1003,10 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   appearanceOptActive: { backgroundColor: c.primaryTint },
   appearanceOptText: { fontSize: 14, fontWeight: '600', color: c.textMuted },
   appearanceOptTextActive: { color: c.primary },
+  betaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 12, padding: 14 },
+  betaText: { flex: 1, gap: 2 },
+  betaTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  betaHint: { fontSize: 12, lineHeight: 17, color: c.textMuted },
   toast: {
     position: 'absolute',
     bottom: 32,
