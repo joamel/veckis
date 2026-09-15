@@ -3,6 +3,7 @@ import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
+  AppState,
   Animated as RNAnimated,
   FlatList,
   Image,
@@ -545,6 +546,13 @@ export default function MenuScreen() {
   type DragState = { item: WeekMenuItemWithRecipe; y: number; touchOffsetY: number };
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [hoverDay, setHoverDay] = useState<WeekDay | null | 'unscheduled' | undefined>(undefined);
+  // Refs speglar dragläget. Gestens slut kan komma innan React hunnit rendera
+  // om efter starten — t.ex. när systemets bakåtgest tar över fingret direkt.
+  // onDragEnd såg då ett gammalt dragState = null, gick ur tidigt utan att
+  // nollställa, och kortet blev hängande i luften, även vid byte av vecka och
+  // flik. Refs läses alltid färska.
+  const dragRef = useRef<DragState | null>(null);
+  const hoverRef = useRef<WeekDay | null | 'unscheduled' | undefined>(undefined);
 
   // Refs for measuring day section positions (screen coords)
   const daySectionRefs = useRef<Record<string, View | null>>({});
@@ -724,6 +732,16 @@ export default function MenuScreen() {
   // Reload when a shopping list changes elsewhere so the "I inköpslistan"-tag and
   // transfer filters stay in sync (e.g. after clearing/removing items in a list).
   useEffect(() => onShoppingChanged(load), [load]);
+
+  // Säkerhetsspärr: ett drag får aldrig överleva att fliken tappar fokus eller
+  // att appen går i bakgrunden, vad som än avbröt gesten.
+  const avbrytDragRef = useRef(avbrytDrag);
+  avbrytDragRef.current = avbrytDrag;
+  useFocusEffect(useCallback(() => () => avbrytDragRef.current(), []));
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', st => { if (st !== 'active') avbrytDragRef.current(); });
+    return () => sub.remove();
+  }, []);
 
   // Live menu updates: another device added/removed/moved a meal. load() refreshes
   // both the visible week and the allMenus snapshot that feeds neighbour pages.
@@ -943,10 +961,14 @@ export default function MenuScreen() {
   }
 
   function onDragStart(item: WeekMenuItemWithRecipe, _x: number, y: number, touchOffsetY: number) {
-    setDragState({ item, y, touchOffsetY });
+    const drag = { item, y, touchOffsetY };
+    dragRef.current = drag;
+    hoverRef.current = undefined;
+    setDragState(drag);
   }
 
   function onDragMove(_x: number, y: number) {
+    if (dragRef.current) dragRef.current = { ...dragRef.current, y };
     setDragState(prev => prev ? { ...prev, y } : null);
     // Auto-scroll the menu list when finger nears screen edge
     const screenH = windowHeight;
@@ -959,19 +981,27 @@ export default function MenuScreen() {
         break;
       }
     }
+    hoverRef.current = found;
     setHoverDay(found);
   }
 
-  function onDragEnd() {
+  // Nollställer alltid — även när draget avbröts innan det hann renderas.
+  function avbrytDrag() {
     stopAutoScroll();
-    if (!dragState) return;
-    const item = dragState.item;
+    dragRef.current = null;
+    hoverRef.current = undefined;
     setDragState(null);
     setHoverDay(undefined);
-    if (hoverDay === undefined) return;
-    const targetDay = hoverDay === 'unscheduled' ? null : hoverDay as WeekDay | null;
-    if (targetDay !== item.day) {
-      moveToDay(item, targetDay);
+  }
+
+  function onDragEnd() {
+    const drag = dragRef.current;
+    const hover = hoverRef.current;
+    avbrytDrag();
+    if (!drag || hover === undefined) return;
+    const targetDay = hover === 'unscheduled' ? null : hover as WeekDay | null;
+    if (targetDay !== drag.item.day) {
+      moveToDay(drag.item, targetDay);
     }
   }
 
@@ -1823,10 +1853,10 @@ export default function MenuScreen() {
       {dragState && (
         <View
           pointerEvents="none"
-          style={[s.ghostCard, { top: dragState.y - dragState.touchOffsetY }]}
+          style={[s.ghostCard, nyDesign && s.nyGhost, { top: dragState.y - dragState.touchOffsetY }]}
         >
-          <View style={s.ghostCardIcon}>
-            <Ionicons name="restaurant-outline" size={18} color={c.primary} />
+          <View style={[s.ghostCardIcon, nyDesign && s.nyGhostIkon]}>
+            <Ionicons name="restaurant-outline" size={18} color={nyDesign ? ny.lime : c.primary} />
           </View>
           <Text style={s.ghostCardText} numberOfLines={1}>{dragState.item.recipe.title}</Text>
         </View>
@@ -2821,6 +2851,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   nyKnappTextFara: { color: ny.fara },
   nyDagPlus: { width: 28, height: 28, borderRadius: 14, backgroundColor: ny.bricka, alignItems: 'center', justifyContent: 'center' },
   nyFab: { backgroundColor: ny.lime, shadowColor: ny.skog, shadowOpacity: 0.3 },
+  nyGhost: { backgroundColor: ny.ljus, borderRadius: 14, borderWidth: 1.5, borderColor: ny.skog, shadowColor: ny.skog },
+  nyGhostIkon: { backgroundColor: ny.skogMellan },
   contentInner: { padding: 16, gap: 2, paddingBottom: 80 },
   contentInnerTablet: { padding: 8, gap: 2 },
   daysRow: { flexDirection: 'row', gap: 6, alignItems: 'stretch' },
