@@ -1367,10 +1367,6 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 </Pressable>
               );
             })}
-            <Pressable style={[s.dayGridItem, s.dayGridItemNone]} onPress={() => planRecipeToMenu(null)}>
-              <Ionicons name="calendar-clear-outline" size={18} color={c.primary} />
-              <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>{str.menu.noDay}</Text>
-            </Pressable>
           </View>
       </DraggableBottomSheet>
 
@@ -1624,11 +1620,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   dayGrid: { gap: 8, marginTop: 4 },
   dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
   dayGridItemTaken: { backgroundColor: c.background },
-  dayGridItemNone: { backgroundColor: c.primaryTint, borderWidth: 1, borderColor: c.primary200, justifyContent: 'flex-start' },
   dayGridLabel: { fontSize: 15, fontWeight: '600', color: c.text },
   dayGridLabelTaken: { color: c.textFaint },
   dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: c.textFaint, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
-  dayGridLabelNone: { color: c.primary },
   weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight, alignItems: 'center' },
   weekChipActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
   weekChipText: { fontSize: 13, fontWeight: '600', color: c.textSecondary },

@@ -444,7 +444,8 @@ export default function MenuScreen() {
   // AVMARKERAD vecka inte kan smita med via kvarglömda id:n i selectionen.
   const bulkPool = useMemo(
     () => (bulkTransferWeeks.size > 0
-      ? allMenus.filter(m => bulkTransferWeeks.has(`${m.weekYear}-${m.weekNumber}`))
+      // Rätter utan dag syns inte längre i menyn — de ska inte följa med osynligt.
+      ? allMenus.filter(m => m.day !== null && bulkTransferWeeks.has(`${m.weekYear}-${m.weekNumber}`))
       : menuItems),
     [bulkTransferWeeks, allMenus, menuItems],
   );
@@ -545,14 +546,14 @@ export default function MenuScreen() {
   // Drag state — y = absolute screen Y; touchOffsetY = finger position within card
   type DragState = { item: WeekMenuItemWithRecipe; y: number; touchOffsetY: number };
   const [dragState, setDragState] = useState<DragState | null>(null);
-  const [hoverDay, setHoverDay] = useState<WeekDay | null | 'unscheduled' | undefined>(undefined);
+  const [hoverDay, setHoverDay] = useState<WeekDay | undefined>(undefined);
   // Refs speglar dragläget. Gestens slut kan komma innan React hunnit rendera
   // om efter starten — t.ex. när systemets bakåtgest tar över fingret direkt.
   // onDragEnd såg då ett gammalt dragState = null, gick ur tidigt utan att
   // nollställa, och kortet blev hängande i luften, även vid byte av vecka och
   // flik. Refs läses alltid färska.
   const dragRef = useRef<DragState | null>(null);
-  const hoverRef = useRef<WeekDay | null | 'unscheduled' | undefined>(undefined);
+  const hoverRef = useRef<WeekDay | undefined>(undefined);
 
   // Refs for measuring day section positions (screen coords)
   const daySectionRefs = useRef<Record<string, View | null>>({});
@@ -974,10 +975,10 @@ export default function MenuScreen() {
     const screenH = windowHeight;
     ensureAutoScroll(y, screenH);
     // Find which day section we're hovering over
-    let found: WeekDay | null | 'unscheduled' | undefined = undefined;
+    let found: WeekDay | undefined = undefined;
     for (const [key, layout] of Object.entries(dayLayouts.current)) {
       if (y >= layout.y && y <= layout.y + layout.height) {
-        found = key === 'unscheduled' ? 'unscheduled' : key as WeekDay;
+        found = key as WeekDay;
         break;
       }
     }
@@ -999,9 +1000,8 @@ export default function MenuScreen() {
     const hover = hoverRef.current;
     avbrytDrag();
     if (!drag || hover === undefined) return;
-    const targetDay = hover === 'unscheduled' ? null : hover as WeekDay | null;
-    if (targetDay !== drag.item.day) {
-      moveToDay(drag.item, targetDay);
+    if (hover !== drag.item.day) {
+      moveToDay(drag.item, hover);
     }
   }
 
@@ -1246,7 +1246,8 @@ export default function MenuScreen() {
       return;
     }
 
-    const notTransferred = menuItems.filter(m => !transferredMenuItemIds.has(m.id));
+    // Rätter utan dag syns inte längre i menyn — de ska inte följa med osynligt.
+    const notTransferred = menuItems.filter(m => m.day !== null && !transferredMenuItemIds.has(m.id));
     if (notTransferred.length === 0) {
       confirm({ title: str.dialogs.alreadyTransferred.title, message: str.dialogs.alreadyTransferred.message, buttons: [{ label: 'OK' }] });
       return;
@@ -1452,7 +1453,6 @@ export default function MenuScreen() {
     // disappears at once. They're still in state until the delete commits, so the
     // toast's "Ångra" restores them.
     const visible = (i: WeekMenuItemWithRecipe) => !pendingMenuItemRemovals.has(i.id);
-    const unsched = weekItems.filter(i => i.day === null && visible(i)).sort(byCreated);
     const anyScheduled = weekItems.some(i => i.day !== null && visible(i));
     const noop = () => {};
     const isWide = false;
@@ -1662,55 +1662,20 @@ export default function MenuScreen() {
           })}
         </View>
 
-        {/* Ej schemalagda — sektionen (och rubriken) syns bara när det faktiskt
-            finns rätter utan dag. Man lägger dit via "Lägg till utan dag" i
-            planerar-popupen, inte via ett eget "+". */}
-        {unsched.length > 0 && (
-          <View
-            style={[s.section, s.unscheduledSection, isCenter && hoverDay === 'unscheduled' && s.sectionHovered]}
-            ref={isCenter ? (ref => measureDaySection('unscheduled', ref)) : undefined}
-          >
-            <View style={s.sectionRow}>
-              <Text style={s.sectionLabel}>{str.sections.unscheduled}</Text>
-            </View>
-            {unsched.map(item => (
-              <MenuCard
-                key={item._stableKey ?? item.id}
-                item={item}
-                collapsedForDrag={isCenter && !!dragState}
-                isTransferred={!!recipeListMap[item.id]?.length}
-                isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
-                isPastWeek={isPastWeek}
-                onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
-                onCookRecipe={() => {
-                          router.push(`/recipes/${item.recipeId}?cook=1` as never);
-                        }}
-                onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
-                onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
-                onDragStart={isCenter && !isPastWeek ? ((x, y, ty) => onDragStart(item, x, y, ty)) : noop}
-                onDragMove={isCenter ? onDragMove : noop}
-                onDragEnd={isCenter ? onDragEnd : noop}
-                isDragging={isCenter && dragState?.item.id === item.id}
-                scaledServings={scaledServingsOf(item)}
-                onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
-                onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
-              />
-            ))}
-          </View>
-        )}
+        {/* Rätter utan dag finns inte längre: varken valet "Utan dag" eller
+            sektionen Ej schemalagda. Flera rätter samma dag ersätter dem. */}
 
         {/* Botten-"+": lägg till en rätt var som helst i veckan — öppnar
-            receptväljaren där man väljer dag/vecka (inkl. utan dag) via popupen. */}
-        {/* Ny design: varje dag har ett eget "+" på rubrikraden, så knappen
-            längst ned behövs inte där. */}
-        {!nyDesign && isCenter && !isPastWeek && (anyScheduled || unsched.length > 0) && (
+            receptväljaren där man väljer dag/vecka via popupen. Ny design:
+            varje dag har ett eget "+" på rubrikraden, så knappen behövs inte. */}
+        {!nyDesign && isCenter && !isPastWeek && anyScheduled && (
           <Pressable style={s.weekAddBtn} onPress={openPlanner}>
             <Ionicons name="add" size={fs(18)} color={c.primary} />
             <Text style={[s.weekAddBtnText, { fontSize: fs(14) }]}>{str.card.addAnother}</Text>
           </Pressable>
         )}
 
-        {!anyScheduled && unsched.length === 0 && (
+        {!anyScheduled && (
           <EmptyState
             icon="restaurant-outline"
             title={str.emptyState.noDishesPlanned.title}
@@ -1888,12 +1853,6 @@ export default function MenuScreen() {
                     <Text style={s.dayGridLabel}>{d.label}</Text>
                   </Pressable>
                 ))}
-                <Pressable
-                  style={[s.dayGridItem, s.dayGridItemNone]}
-                  onPress={() => { setPickingForDay(null); setPickerStep('recipe'); }}
-                >
-                  <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>{str.picker.noDay}</Text>
-                </Pressable>
               </View>
             </>
           ) : (
@@ -2864,7 +2823,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   dayColHeader: { alignItems: 'center', paddingTop: 4, paddingBottom: 2 },
   dayColEmptyTap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40 },
   section: { gap: 2 },
-  unscheduledSection: { marginTop: 18 },
   dayLabelBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   dayLabelAbbr: { fontSize: 11, fontWeight: '800', color: c.accent, letterSpacing: 0.3 },
   dayLabelDate: { fontSize: 13, fontWeight: '700', color: c.primary },
@@ -2901,7 +2859,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   dayHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dayLabel: { fontSize: 14, fontWeight: '700', color: c.text },
   dayDate: { fontSize: 11, color: c.textMuted },
-  unscheduledEmpty: { fontSize: 13, color: c.textFaint, paddingVertical: 8 },
   emptyDayText: { fontSize: 13, color: c.textFaint, paddingVertical: 8 },
   emptyDayTap: { paddingVertical: 4, alignItems: 'flex-start' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
@@ -2966,9 +2923,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   bulkRecipeDay: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   dayGrid: { gap: 10 },
   dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
-  dayGridItemNone: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.borderLight },
   dayGridLabel: { fontSize: 15, fontWeight: '600', color: c.text },
-  dayGridLabelNone: { color: c.textFaint },
   pickerList: { maxHeight: 480 },
   recipeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: c.surfaceSubtle },
   recipeCardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.background, alignItems: 'center', justifyContent: 'center' },

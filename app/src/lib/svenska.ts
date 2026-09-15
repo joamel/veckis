@@ -339,8 +339,6 @@ export const menu = {
 
   sections: {
     recipes:      'MATRÄTTER',
-    unscheduled:  'EJ SCHEMALAGDA',
-    unscheduledHint: 'Rätter utan dag - planera in dem på veckans dagar när du vill',
   },
 
   dialogs: {

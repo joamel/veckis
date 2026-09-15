@@ -1243,13 +1243,6 @@ export default function RecipesScreen() {
                 </Pressable>
               );
             })}
-            <Pressable
-              style={[s.dayGridItem, s.dayGridItemNone]}
-              onPress={() => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, null); }}
-            >
-              <Ionicons name="calendar-clear-outline" size={18} color={c.primary} />
-              <Text style={[s.dayGridLabel, s.dayGridLabelNone]}>{str.menu.noDay}</Text>
-            </Pressable>
           </View>
       </DraggableBottomSheet>
 
@@ -1312,11 +1305,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   dayGrid: { gap: 8, marginTop: 4 },
   dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
   dayGridItemTaken: { backgroundColor: c.background },
-  dayGridItemNone: { backgroundColor: c.primaryTint, borderWidth: 1, borderColor: c.primary200, justifyContent: 'flex-start' },
   dayGridLabel: { fontSize: 15, fontWeight: '600', color: c.text },
   dayGridLabelTaken: { color: c.textFaint },
   dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: c.textFaint, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
-  dayGridLabelNone: { color: c.primary },
   modeBody: { minHeight: 246, gap: 14 },
   modeBodyBtn: { marginTop: 2 },
   input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
