@@ -454,6 +454,11 @@ export const menu = {
     addAnother:       'Lägg till rätt',
   },
 
+  // Ny design (beta)
+  nyDesign: {
+    today: 'Idag',
+  },
+
   cleanup: {
     listIngredientsCount: (n: number) => `${n} ingredienser`,
   },
@@ -556,6 +561,14 @@ export const recipes = {
   card: {
     meta: (servings: number, ingredients: number) =>
       `${servings} port · ${ingredients} ingredienser`,
+  },
+
+  // Ny design (beta)
+  subtitle: (household: string, count: number) =>
+    `${household} · ${count} ${count === 1 ? 'rätt' : 'rätter'}`,
+  view: {
+    image:   'Visa som bildkort',
+    compact: 'Visa som lista',
   },
 
   selection: {
@@ -789,6 +802,7 @@ export const settings = {
     invite:     'BJUD IN NÅGON',
     other:      'ANDRA HUSHÅLL',
     appearance: 'UTSEENDE',
+    newDesign:  'NY DESIGN (BETA)',
     adminLogs:  'Visa aktivitetslogg',
   },
 
@@ -829,6 +843,11 @@ export const settings = {
     generate:      'Skapa inbjudningskod',
     regenerate:    'Ny kod',
     shareLink:     'Dela länk',
+  },
+
+  newDesign: {
+    title: 'Ny design',
+    hint:  'Testa appens nya utseende. Just nu gäller det receptlistan — fler vyer kommer.',
   },
 
   otherHousehold: {

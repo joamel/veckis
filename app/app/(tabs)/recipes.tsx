@@ -8,6 +8,7 @@ import {
   Keyboard,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,7 +16,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, useAnimatedReaction, withTiming, interpolate, Extrapolation } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -40,6 +41,12 @@ import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
+import { useDesign } from '../../src/context/DesignContext';
+import { ny } from '../../src/lib/nyDesign';
+import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
+import { VyVaxel } from '../../src/components/nydesign/VyVaxel';
+import { ReceptBildkort, ReceptKompaktRad, type ReceptKortLage } from '../../src/components/nydesign/ReceptKort';
+import { Murverk, murverkHojd } from '../../src/components/nydesign/Murverk';
 
 // Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
 // dagnamn är hårdkodat i komponenten — då räcker det att översätta svenska.ts.
@@ -74,7 +81,8 @@ export default function RecipesScreen() {
   const fabRef = useRef<View>(null);
   const showTip = useSpotlightTip();
   const client = useApiClient();
-  const { householdId } = useHousehold();
+  const { householdId, householdName } = useHousehold();
+  const { nyDesign, receptVy, setReceptVy } = useDesign();
   const { getToken } = useAuth();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
@@ -98,6 +106,41 @@ export default function RecipesScreen() {
     const t = interpolate(scrollY.value, [0, headerH], [0, 1], Extrapolation.CLAMP);
     return { transform: [{ translateY: -headerH * t }], opacity: 1 - t };
   });
+  // Ny design: sökfältet fälls ihop med scrollen, taggarna står kvar under
+  // sidhuvudet. Står det något i fältet ligger det kvar — annars försvinner
+  // det man just skrivit ur sikte.
+  const SOK_HOJD = 58; // fältet (44) + mellanrummet mot rubriken (14)
+  const sokHalls = searchQuery.length > 0;
+  // Fälls ihop vid en tröskel, inte i takt med scrollen: att krympa höjden
+  // för varje scrollhändelse tvingade fram en ny layout av hela listan i
+  // varje bildruta och laggade. Nu ändras höjden bara under en kort övergång.
+  const sokSynlig = useSharedValue(1);
+  const sokMal = useSharedValue(1);
+  useAnimatedReaction(
+    () => scrollY.value,
+    y => {
+      if (sokHalls) return;
+      if (y > 40 && sokMal.value === 1) {
+        sokMal.value = 0;
+        sokSynlig.value = withTiming(0, { duration: 180 });
+      } else if (y < 12 && sokMal.value === 0) {
+        sokMal.value = 1;
+        sokSynlig.value = withTiming(1, { duration: 180 });
+      }
+    },
+    [sokHalls],
+  );
+  useEffect(() => {
+    if (!sokHalls) return;
+    sokMal.value = 1;
+    sokSynlig.value = withTiming(1, { duration: 180 });
+  }, [sokHalls, sokMal, sokSynlig]);
+  const sokAnimStyle = useAnimatedStyle(() => ({
+    height: SOK_HOJD * sokSynlig.value,
+    opacity: sokSynlig.value,
+  }));
+  // Byte av vy börjar om högst upp — då ska sökfältet synas igen.
+  useEffect(() => { scrollY.value = 0; }, [receptVy, scrollY]);
   const [sortMode, setSortMode] = useState<'name' | 'used' | 'recent'>('name');
   const { fs, sp } = useTablet();
   useEffect(() => {
@@ -248,6 +291,38 @@ export default function RecipesScreen() {
     }
     const day = params.forMenuDay === 'none' ? '' : (params.forMenuDay ?? '');
     router.replace(`/(tabs)/menu?addRecipeId=${recipe.id}&day=${day}&reqId=${makeReqId()}${weekSuffix}` as never);
+  }
+
+  // Tryckbeteendet på ett receptkort, delat av gammal och ny design — en
+  // definition, så lägena (redigera/välj/planera) inte glider isär mellan dem.
+  function tryckRecept(recipe: RecipeWithIngredients) {
+    if (editMode) return;
+    if (chooseMode) { openPlanFor(recipe); return; }
+    if (selectionMode) { selectRecipeForMenu(recipe); return; }
+    router.push(`/recipes/${recipe.id}` as never);
+  }
+  function langtryckRecept() {
+    if (!selectionMode && !chooseMode) setEditMode(true);
+  }
+  function planeraFranLista(recipe: RecipeWithIngredients) {
+    const { weekYear, weekNumber } = getISOWeek(new Date());
+    setAddToMenuWeekStr(`${weekYear}-${String(weekNumber).padStart(2, '0')}`);
+    setAddToMenuFor(recipe);
+  }
+  function bekraftaTaBort(recipe: RecipeWithIngredients) {
+    confirm({
+      title: str.delete.title,
+      message: str.delete.messageSimple(recipe.title),
+      buttons: [
+        { label: common.actions.delete, style: 'destructive', onPress: async () => {
+          try {
+            await client.deleteRecipe(recipe.id);
+            setRecipes(prev => prev.filter(r => r.id !== recipe.id));
+          } catch { confirm({ title: str.errors.generic, message: str.errors.couldNotDelete, buttons: [{ label: common.actions.ok }] }); }
+        }},
+        { label: common.actions.cancel, style: 'cancel' },
+      ],
+    });
   }
 
   // Tagg-filter: alla taggar som förekommer i hushållets recept, vanligast först.
@@ -799,12 +874,143 @@ export default function RecipesScreen() {
     </>
   );
 
+  // Delas av gammal och ny design.
+  const valjBanner = (selectionMode || chooseMode) ? (
+    <View style={s.selectBanner}>
+      <Ionicons name="restaurant-outline" size={16} color={c.primary} />
+      <Text style={s.selectBannerText} numberOfLines={1}>
+        {chooseMode ? str.selection.plan : replaceMode ? str.selection.replace(params.replaceTitle ?? '') : str.selection.pick(selectionDayLabel ?? common.noDay)}
+      </Text>
+    </View>
+  ) : null;
+  const tomLista = searchQuery || activeTags.size > 0 ? (
+    <EmptyState
+      icon="search-outline"
+      title={str.emptyState.noResults}
+      subtitle={searchQuery ? str.emptyState.noResultsFor(searchQuery) : str.emptyState.loosenFilter}
+    />
+  ) : (
+    <EmptyState
+      icon="book-outline"
+      title={str.emptyState.title}
+      subtitle={str.emptyState.subtitle}
+      actionLabel={str.createModal.addButton}
+      onAction={handleShowCreateMenu}
+    />
+  );
+
+  // Ny design (beta)
+  const kortLage: ReceptKortLage = editMode ? 'redigera' : chooseMode ? 'planera' : selectionMode ? 'valj' : 'normal';
+  const kortProps = (recipe: RecipeWithIngredients) => ({
+    id: recipe.id,
+    titel: recipe.title,
+    sokord: [recipe.title, ...(recipe.tags ?? [])].join(' '),
+    meta: str.card.meta(recipe.servings, recipe.ingredients.length),
+    bildUrl: recipe.imageUrl ?? null,
+    lage: kortLage,
+    onPress: () => tryckRecept(recipe),
+    onLongPress: langtryckRecept,
+    onPlanera: () => planeraFranLista(recipe),
+    onTaBort: () => bekraftaTaBort(recipe),
+    planeraLabel: str.createModal.addToMenu,
+    taBortLabel: common.actions.delete,
+  });
+  const nyTaggrad = allTags.length > 0 ? (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={s.nyTaggar}
+    >
+      {allTags.map(t => {
+        const aktiv = activeTags.has(t);
+        return (
+          <Pressable key={t} style={[s.nyTagg, aktiv && s.nyTaggAktiv]} onPress={() => toggleTagFilter(t)}>
+            <Text style={[s.nyTaggText, aktiv && s.nyTaggTextAktiv]}>{t}</Text>
+          </Pressable>
+        );
+      })}
+      {activeTags.size > 0 && (
+        <Pressable onPress={() => setActiveTags(new Set())} hitSlop={8} accessibilityRole="button">
+          <Ionicons name="close-circle" size={20} color={ny.textDampad} />
+        </Pressable>
+      )}
+    </ScrollView>
+  ) : null;
+
   if (loading) {
     return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={[s.container, nyDesign && s.nyContainer]} edges={nyDesign ? ['top', 'left', 'right'] : undefined}>
+      {nyDesign ? (
+        <View style={s.nyYta}>
+          <NyHeader
+            title={str.title}
+            subtitle={householdName ? str.subtitle(householdName, recipes.length) : null}
+            onBack={selectionMode || chooseMode || params.create === '1' ? () => router.back() : undefined}
+            right={<VyVaxel value={receptVy} onChange={setReceptVy} bildLabel={str.view.image} kompaktLabel={str.view.compact} />}
+          >
+            <Animated.View style={[s.nySokYta, sokAnimStyle]}>
+            <View style={s.nySokRad}>
+              <View style={s.nySok}>
+                <Ionicons name="search" size={16} color={ny.underrubrik} />
+                <TextInput
+                  style={s.nySokInput}
+                  placeholder={str.search.placeholder}
+                  placeholderTextColor={ny.underrubrik}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                  autoCorrect={false}
+                />
+                {searchQuery.length > 0 && (
+                  <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={common.actions.clearSearch}>
+                    <Ionicons name="close-circle" size={16} color={ny.underrubrik} />
+                  </Pressable>
+                )}
+              </View>
+              <NyIkonKnapp icon="swap-vertical" onPress={openSortMenu} label={str.sort.a11y} size={18} />
+            </View>
+            </Animated.View>
+          </NyHeader>
+          {valjBanner}
+          {/* Taggarna står kvar när man scrollar — det är sökfältet som fälls ihop. */}
+          {nyTaggrad && <View style={s.nyTaggBar}>{nyTaggrad}</View>}
+          {receptVy === 'bild' ? (
+            <Animated.ScrollView
+              contentContainerStyle={s.nyLista}
+              refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+              keyboardShouldPersistTaps="handled"
+              onScroll={scrollHandler}
+              scrollEventThrottle={16}
+            >
+              {filteredRecipes.length === 0 ? tomLista : (
+                <Murverk
+                  items={filteredRecipes}
+                  hojd={r => murverkHojd(r.id, !!r.imageUrl)}
+                  nyckel={r => r.id}
+                  rendera={(r, h) => <ReceptBildkort hojd={h} {...kortProps(r)} />}
+                />
+              )}
+            </Animated.ScrollView>
+          ) : (
+            <Animated.FlatList
+              data={filteredRecipes}
+              keyExtractor={r => r.id}
+              contentContainerStyle={s.nyLista}
+              onScroll={scrollHandler}
+              scrollEventThrottle={16}
+              ListEmptyComponent={tomLista}
+              onRefresh={load}
+              refreshing={loading}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => <ReceptKompaktRad {...kortProps(item)} />}
+            />
+          )}
+        </View>
+      ) : (<>
       <ScreenHeader
         title={str.title}
         onBack={selectionMode || chooseMode || params.create === '1' ? () => router.back() : undefined}
@@ -814,14 +1020,7 @@ export default function RecipesScreen() {
           </Pressable>
         }
       />
-      {(selectionMode || chooseMode) && (
-        <View style={s.selectBanner}>
-          <Ionicons name="restaurant-outline" size={16} color={c.primary} />
-          <Text style={s.selectBannerText} numberOfLines={1}>
-            {chooseMode ? str.selection.plan : replaceMode ? str.selection.replace(params.replaceTitle ?? '') : str.selection.pick(selectionDayLabel ?? common.noDay)}
-          </Text>
-        </View>
-      )}
+      {valjBanner}
 
       <View style={{ flex: 1 }}>
         {/* Absolut header som glider upp följsamt med scrollen (translateY = scrollY).
@@ -884,34 +1083,13 @@ export default function RecipesScreen() {
         refreshing={loading}
         scrollEventThrottle={16}
         onScroll={scrollHandler}
-        ListEmptyComponent={
-          searchQuery || activeTags.size > 0 ? (
-            <EmptyState
-              icon="search-outline"
-              title={str.emptyState.noResults}
-              subtitle={searchQuery ? str.emptyState.noResultsFor(searchQuery) : str.emptyState.loosenFilter}
-            />
-          ) : (
-            <EmptyState
-              icon="book-outline"
-              title={str.emptyState.title}
-              subtitle={str.emptyState.subtitle}
-              actionLabel={str.createModal.addButton}
-              onAction={handleShowCreateMenu}
-            />
-          )
-        }
+        ListEmptyComponent={tomLista}
         renderItem={({ item }) => (
           <View style={s.cardWrap}>
             <Pressable
               style={s.card}
-              onPress={() => {
-                if (editMode) return;
-                if (chooseMode) { openPlanFor(item); return; }
-                if (selectionMode) { selectRecipeForMenu(item); return; }
-                router.push(`/recipes/${item.id}` as never);
-              }}
-              onLongPress={() => { if (!selectionMode && !chooseMode) setEditMode(true); }}
+              onPress={() => tryckRecept(item)}
+              onLongPress={langtryckRecept}
             >
               <View style={s.cardIcon}>
                 <Ionicons name="restaurant-outline" size={20} color={c.primary} />
@@ -926,11 +1104,7 @@ export default function RecipesScreen() {
                 // Hela kortet öppnar planerar-popupen — kalender-ikonen signalerar det.
                 <Ionicons name="calendar-outline" size={20} color={c.primary} />
               ) : !editMode && (
-                <Pressable style={s.addMenuBtn} onPress={() => {
-                  const { weekYear, weekNumber } = getISOWeek(new Date());
-                  setAddToMenuWeekStr(`${weekYear}-${String(weekNumber).padStart(2, '0')}`);
-                  setAddToMenuFor(item);
-                }} hitSlop={8} accessibilityLabel={str.createModal.addToMenu}>
+                <Pressable style={s.addMenuBtn} onPress={() => planeraFranLista(item)} hitSlop={8} accessibilityLabel={str.createModal.addToMenu}>
                   <Ionicons name="calendar-outline" size={20} color={c.primary} />
                 </Pressable>
               )}
@@ -939,21 +1113,7 @@ export default function RecipesScreen() {
             {editMode && (
               <Pressable
                 style={s.cardDeleteBtn}
-                onPress={() =>
-                  confirm({
-                    title: str.delete.title,
-                    message: str.delete.messageSimple(item.title),
-                    buttons: [
-                      { label: common.actions.delete, style: 'destructive', onPress: async () => {
-                        try {
-                          await client.deleteRecipe(item.id);
-                          setRecipes(prev => prev.filter(r => r.id !== item.id));
-                        } catch { confirm({ title: str.errors.generic, message: str.errors.couldNotDelete, buttons: [{ label: common.actions.ok }] }); }
-                      }},
-                      { label: common.actions.cancel, style: 'cancel' },
-                    ],
-                  })
-                }
+                onPress={() => bekraftaTaBort(item)}
               >
                 <Ionicons name="remove-circle" size={22} color={c.danger} />
               </Pressable>
@@ -962,14 +1122,15 @@ export default function RecipesScreen() {
         )}
       />
       </View>
+      </>)}
 
       {editMode ? (
         <Pressable style={s.editDoneBtn} onPress={() => setEditMode(false)}>
           <Text style={s.editDoneBtnText}>{common.actions.done}</Text>
         </Pressable>
       ) : (
-        <Pressable ref={fabRef} style={s.fab} onPress={handleShowCreateMenu}>
-          <Ionicons name="add" size={30} color="#fff" />
+        <Pressable ref={fabRef} style={[s.fab, nyDesign && s.nyFab]} onPress={handleShowCreateMenu}>
+          <Ionicons name="add" size={30} color={nyDesign ? ny.skog : '#fff'} />
         </Pressable>
       )}
 
@@ -1123,6 +1284,21 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   cardTitle: { fontSize: 16, fontWeight: '600', color: c.text },
   cardMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  // Ny design (beta)
+  nyContainer: { backgroundColor: ny.skog },
+  nyYta: { flex: 1, backgroundColor: ny.bakgrund },
+  nySokRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  nySok: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: ny.glasSvag, borderRadius: 14, paddingHorizontal: 14, height: 44 },
+  nySokInput: { flex: 1, fontSize: 15, color: ny.rubrikLjus, padding: 0 },
+  nySokYta: { overflow: 'hidden', justifyContent: 'flex-end' },
+  nyTaggBar: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 2, backgroundColor: ny.bakgrund },
+  nyLista: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 110, gap: 10 },
+  nyTaggar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 4 },
+  nyTagg: { paddingHorizontal: 13, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: ny.kontur },
+  nyTaggAktiv: { backgroundColor: ny.skog, borderColor: ny.skog },
+  nyTaggText: { fontSize: 13, fontWeight: '600', color: ny.chipText },
+  nyTaggTextAktiv: { color: ny.lime },
+  nyFab: { backgroundColor: ny.lime, shadowColor: ny.skog, shadowOpacity: 0.3 },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, gap: 14 },
   sheetScroll: { gap: 14, paddingBottom: 40 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
