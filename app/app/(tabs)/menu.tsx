@@ -1497,17 +1497,20 @@ export default function MenuScreen() {
             const filled = items.length > 0;
             const isToday = date.toDateString() === new Date().toDateString();
             // Ny design: dagens rubrik — namn, datum och ev. "Idag"-märke.
-            // Idag-märket direkt efter dagens namn — efter datumet hamnade det
-            // en bit in på raden.
+            // Kort månad ("16 sep") och EXPLICIT bredd ur teckenantalet: utan
+            // den försvann månaden helt på Android. flexShrink: 0 räckte inte,
+            // så det är textmätningen som är fel, inte flex. Se minnet
+            // android-text-clipping.
+            const datumText = `${dayLabel.date} ${common.months.short[date.getMonth()]}`;
             const dagRubrik = (
               <>
-                <Text style={s.nyDagNamn}>{day.label}</Text>
+                <Text style={s.nyDagNamn} numberOfLines={1}>{day.label}</Text>
+                <Text style={[s.nyDagDatum, { width: datumText.length * 8 + 8 }]} numberOfLines={1}>{datumText}</Text>
                 {isToday && (
                   <View style={s.nyIdagMarke}>
                     <Text style={s.nyIdagMarkeText}>{str.nyDesign.today}</Text>
                   </View>
                 )}
-                <Text style={s.nyDagDatum}>{dayLabel.date} {common.months.long[date.getMonth()]}</Text>
                 <View style={{ flex: 1 }} />
               </>
             );
@@ -2555,7 +2558,8 @@ function MenuCard({
                 {isTransferred ? (
                   <View style={s.nyMarke}>
                     <Ionicons name="cart" size={13} color={ny.textDampad} />
-                    <Text style={s.nyMarkeText}>{str.card.inShoppingList}</Text>
+                    {/* Explicit bredd — utan den klipptes texten till "I". */}
+                    <Text style={[s.nyMarkeText, { width: str.card.inShoppingList.length * 8 + 8 }]} numberOfLines={1}>{str.card.inShoppingList}</Text>
                   </View>
                 ) : <View />}
                 <View style={s.nyPortioner}>
@@ -2780,13 +2784,15 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   nyDagTomRuta: { backgroundColor: 'transparent', borderWidth: 1.5, borderStyle: 'dashed', borderColor: ny.kontur, padding: 6.5, paddingTop: 4.5 },
   nyDagTomRutaHover: { borderStyle: 'solid', borderColor: ny.skog, backgroundColor: ny.kort },
   nyDagHuvud: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30, paddingHorizontal: 4 },
-  nyDagNamn: { fontFamily: nyFont.fet, fontSize: 15, color: ny.skog },
-  nyDagDatum: { fontSize: 13, color: ny.textDampad },
-  nyIdagMarke: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: ny.skog },
-  nyIdagMarkeText: { fontSize: 11, fontWeight: '700', color: ny.lime },
+  // flexShrink: 0 hindrar texterna från att krympa mot flex-utfyllnaden, men
+  // räckte inte ensamt — datumet och "I inköpslistan" får explicit bredd i JSX.
+  nyDagNamn: { fontFamily: nyFont.fet, fontSize: 15, color: ny.skog, flexShrink: 0 },
+  nyDagDatum: { fontSize: 13, color: ny.textDampad, flexShrink: 0 },
+  nyIdagMarke: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: ny.skog, flexShrink: 0 },
+  nyIdagMarkeText: { fontSize: 11, fontWeight: '700', color: ny.lime, flexShrink: 0 },
   nyDagLaggTill: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   nyDagKortLista: { gap: 6 },
-  nyDagTomText: { fontSize: 13, fontWeight: '600', color: ny.chipText },
+  nyDagTomText: { fontSize: 13, fontWeight: '600', color: ny.chipText, flexShrink: 0 },
   // Korten är ljusa inuti dagens gröntonade ruta.
   nyKort: { borderRadius: 14, borderWidth: 0, borderLeftWidth: 0, backgroundColor: ny.ljus, shadowOpacity: 0, elevation: 0 },
   nyKortInner: { backgroundColor: ny.ljus, borderRadius: 14 },
@@ -2809,11 +2815,11 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   nyUtfalltRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   nyUtfalltSektion: { gap: 6 },
   // Text, ingen bricka — men samma höjd som portionskapseln så raden linjerar.
-  nyMarke: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 34, paddingLeft: 2 },
-  nyMarkeText: { fontSize: 12, color: ny.textDampad },
+  nyMarke: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 34, paddingLeft: 2, flexShrink: 0 },
+  nyMarkeText: { fontSize: 12, color: ny.textDampad, flexShrink: 0 },
   nyPortioner: { flexDirection: 'row', alignItems: 'center', gap: 2, padding: 3, borderRadius: 17, backgroundColor: ny.kort },
   nyPortionKnapp: { width: 28, height: 28, borderRadius: 14, backgroundColor: ny.ljus, alignItems: 'center', justifyContent: 'center' },
-  nyPortionVarde: { fontSize: 13, fontWeight: '700', color: ny.skog, paddingHorizontal: 6 },
+  nyPortionVarde: { fontSize: 13, fontWeight: '700', color: ny.skog, paddingHorizontal: 6, flexShrink: 0 },
   nyEtikett: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, color: ny.textDampad },
   nyChipRad: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   nyChipScroll: { flexDirection: 'row', gap: 6, paddingRight: 4 },
@@ -2823,10 +2829,10 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   nyChipTextAktiv: { color: ny.lime },
   nyKnappRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   nyKnappFyll: { flex: 1 },
-  nyKnapp: { height: 38, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 16, backgroundColor: ny.kort },
+  nyKnapp: { height: 38, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 16, backgroundColor: ny.kort, flexShrink: 0 },
   nyKnappLime: { backgroundColor: ny.lime },
   nyIkonKnapp: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: ny.kort },
-  nyKnappText: { fontSize: 13, fontWeight: '700', color: ny.skog },
+  nyKnappText: { fontSize: 13, fontWeight: '700', color: ny.skog, flexShrink: 0 },
   nyDagPlus: { width: 28, height: 28, borderRadius: 14, backgroundColor: ny.bricka, alignItems: 'center', justifyContent: 'center' },
   nyFab: { backgroundColor: ny.lime, shadowColor: ny.skog, shadowOpacity: 0.3 },
   nyGhost: { backgroundColor: ny.ljus, borderRadius: 14, borderWidth: 1.5, borderColor: ny.skog, shadowColor: ny.skog },
