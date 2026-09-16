@@ -342,6 +342,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
   const displayServings = scaledServings ?? recipe?.servings ?? 1;
   const scaleRatio = recipe ? displayServings / recipe.servings : 1;
+  // Lässtegen i receptvyn; samma uppdelning som Laga nu-läget.
+  const readSteps = recipe?.instructions ? parseSteps(recipe.instructions) : [];
 
   function adjustServings(delta: number) {
     if (!recipe) return;
@@ -1032,13 +1034,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         {/* Ingredients */}
         <View style={s.section}>
           <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>{str.detail.ingredientsLabel}</Text>
-            {!editMode && recipe.ingredients.length > 0 && (
-              <Pressable style={s.cookBtn} onPress={() => openTransfer()} accessibilityLabel={str.detail.transferA11y}>
-                <Ionicons name="cart-outline" size={14} color={c.primary} />
-                <Text style={s.cookBtnText}>{str.detail.addToList}</Text>
-              </Pressable>
-            )}
+            <Text style={s.sectionTitle}>
+              {str.detail.ingredientsLabel}
+              {!editMode && recipe.ingredients.length > 0 ? (
+                <Text style={s.sectionCount}>{str.detail.sectionCount(recipe.ingredients.length)}</Text>
+              ) : null}
+            </Text>
           </View>
 
           {editMode ? (
@@ -1182,14 +1183,23 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               <Text style={s.noIngredientsText}>{str.detail.noIngredients}</Text>
             </Pressable>
           ) : (
-            recipe.ingredients.map(ing => (
-              <View key={ing.id} style={s.ingredientRow}>
-                <View style={s.ingredientBullet} />
-                <Text style={s.ingredientText}>
-                  {formatIngredient(ing, scaleRatio)}
-                </Text>
+            <>
+              {/* Som en inköpslapp: mängden i en fast kolumn till vänster, så
+                  man kan läsa "300 g" mot "nötfärs" uppifrån och ned. */}
+              <View style={s.ingCard}>
+                {recipe.ingredients.map((ing, i) => (
+                  <View key={ing.id} style={[s.ingRow, i > 0 && s.ingRowBorder]}>
+                    <Text style={s.ingQty}>{formatQty(ing, scaleRatio)}</Text>
+                    <Text style={s.ingName}>{ing.name}</Text>
+                  </View>
+                ))}
               </View>
-            ))
+              {/* Sidans huvudhandling, därför full bredd och lime. */}
+              <Pressable style={s.wideBtnLime} onPress={() => openTransfer()} accessibilityLabel={str.detail.transferA11y}>
+                <Ionicons name="cart-outline" size={20} color={ny.skog} />
+                <Text style={s.wideBtnLimeText}>{str.detail.addToList}</Text>
+              </Pressable>
+            </>
           )}
         </View>
 
@@ -1210,13 +1220,31 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         ) : recipe.instructions ? (
           <View style={s.section}>
             <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>{str.detail.instructionsLabel}</Text>
-              <Pressable style={s.lagaBtn} onPress={() => { setCookStep(0); setCookMode(true); }}>
-                <Ionicons name="restaurant-outline" size={14} color={c.primary} />
-                <Text style={s.lagaBtnText}>{str.detail.cook}</Text>
-              </Pressable>
+              <Text style={s.sectionTitle}>
+                {str.detail.instructionsLabel}
+                {readSteps.length > 1 ? <Text style={s.sectionCount}>{str.detail.sectionCount(readSteps.length)}</Text> : null}
+              </Text>
             </View>
-            <Text style={s.instructionsText}>{recipe.instructions}</Text>
+            {/* Samma uppdelning som Laga nu-läget. Ett enda textblock utan
+                radbrytningar visas som det är — en ensam 1:a vore missvisande. */}
+            {readSteps.length > 1 ? (
+              <View style={s.stepList}>
+                {readSteps.map((step, i) => (
+                  <View key={i} style={s.stepRow}>
+                    <View style={s.stepNum}>
+                      <Text style={s.stepNumText}>{i + 1}</Text>
+                    </View>
+                    <Text style={s.stepText}>{step}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={s.instructionsText}>{recipe.instructions}</Text>
+            )}
+            <Pressable style={s.wideBtnSkog} onPress={() => { setCookStep(0); setCookMode(true); }} accessibilityLabel={str.detail.cookA11y}>
+              <Ionicons name="restaurant-outline" size={20} color={ny.lime} />
+              <Text style={s.wideBtnSkogText}>{str.detail.cookNow}</Text>
+            </Pressable>
           </View>
         ) : null}
 
@@ -1377,7 +1405,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           (Laga nu-läget nås från instruktions-sektionens "Laga nu"-knapp.) */}
       {!editMode && recipe && (
         <Pressable ref={fabRef} style={s.fab} onPress={openAddChooser} accessibilityLabel={str.actions.addTitle}>
-          <Ionicons name="add" size={30} color="#fff" />
+          <Ionicons name="add" size={30} color={ny.skog} />
         </Pressable>
       )}
 
@@ -1494,6 +1522,18 @@ function roundQty(n: number): number {
   return Math.round(n * 2) / 2;
 }
 
+/** Bara mängd + enhet ("300 g"), för receptvyns mängdkolumn. Tom sträng om
+ *  ingrediensen saknar mängd ("salt"). */
+function formatQty(ing: { quantity: number | null; unit: string | null }, scaleRatio = 1): string {
+  const parts: string[] = [];
+  if (ing.quantity != null) {
+    const scaled = roundQty(ing.quantity * scaleRatio);
+    parts.push(String(scaled % 1 === 0 ? scaled : scaled.toFixed(2).replace(/.?0+$/, '').replace('.', ',')));
+  }
+  if (ing.unit) parts.push(ing.unit);
+  return parts.join(' ');
+}
+
 function formatIngredient(ing: { quantity: number | null; unit: string | null; name: string }, scaleRatio = 1): string {
   const parts: string[] = [];
   if (ing.quantity != null) {
@@ -1553,13 +1593,26 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   sectionTitle: nyD
     ? { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 18, letterSpacing: -0.3, color: ny.skog }
     : { fontSize: 17, fontWeight: '700', color: c.text },
-  lagaBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.lime : c.primaryTint },
-  lagaBtnText: { fontSize: 13, fontWeight: '600', color: nyD ? ny.skog : c.primary },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   editBtnText: { fontSize: 14, color: nyD ? ny.skog : c.primary, fontWeight: '500' },
-  ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  ingredientBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: nyD ? ny.skog : c.primary, marginTop: 1 },
-  ingredientText: { fontSize: 15, color: nyD ? ny.text : c.textSecondary, flex: 1 },
+  sectionCount: { fontFamily: nyFont.halvfet, color: ny.textDampad },
+  // Ingredienserna som en inköpslapp på ett ljusgrönt kort.
+  ingCard: { backgroundColor: ny.kort, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 4 },
+  ingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 11 },
+  ingRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ny.kontur },
+  // Fast bredd: kolumnen linjerar, och Android klipper inte sista glyfen.
+  ingQty: { width: 76, fontFamily: nyFont.halvfet, fontSize: 15, color: ny.skog },
+  ingName: { flex: 1, fontSize: 15, lineHeight: 21, color: ny.text },
+  wideBtnLime: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 26, backgroundColor: ny.lime, marginTop: 4 },
+  wideBtnLimeText: { fontFamily: nyFont.halvfet, fontSize: 16, color: ny.skog },
+  wideBtnSkog: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 26, backgroundColor: ny.skog, marginTop: 4 },
+  wideBtnSkogText: { fontFamily: nyFont.halvfet, fontSize: 16, color: ny.rubrikLjus },
+  // Numrerade steg: mörkgrön rund siffra med lime text.
+  stepList: { gap: 14 },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  stepNum: { width: 28, height: 28, borderRadius: 14, backgroundColor: ny.skog, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  stepNumText: { width: 24, textAlign: 'center', fontFamily: nyFont.halvfet, fontSize: 13, color: ny.lime },
+  stepText: { flex: 1, fontSize: 15, lineHeight: 23, color: ny.text },
   noIngredients: { paddingVertical: 16, alignItems: 'center' },
   noIngredientsText: { fontSize: 14, color: c.textFaint },
   editList: { gap: 8 },
@@ -1597,11 +1650,9 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   editLabel: { fontSize: 13, fontWeight: '600', color: c.textMuted, marginBottom: 6, marginTop: 14 },
   editMultiline: { minHeight: 70, textAlignVertical: 'top' },
   editMultilineTall: { minHeight: 140, textAlignVertical: 'top' },
-  instructionsText: { fontSize: 15, color: c.textSecondary, lineHeight: 22 },
+  instructionsText: { fontSize: 15, color: ny.text, lineHeight: 23 },
   renameSave: { marginTop: 16, backgroundColor: c.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   renameSaveText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  cookBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, backgroundColor: c.primaryTint },
-  cookBtnText: { fontSize: 13, fontWeight: '600', color: c.primary },
   // "Laga nu" använder appens ljusa/varma tema (inte mörkt) för konsekvens.
   cookContainer: { flex: 1, backgroundColor: c.background },
   cookHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
