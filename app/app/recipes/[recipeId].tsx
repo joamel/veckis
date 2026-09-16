@@ -1528,7 +1528,7 @@ function formatQty(ing: { quantity: number | null; unit: string | null }, scaleR
   const parts: string[] = [];
   if (ing.quantity != null) {
     const scaled = roundQty(ing.quantity * scaleRatio);
-    parts.push(String(scaled % 1 === 0 ? scaled : scaled.toFixed(2).replace(/.?0+$/, '').replace('.', ',')));
+    parts.push(String(scaled % 1 === 0 ? scaled : scaled.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')));
   }
   if (ing.unit) parts.push(ing.unit);
   return parts.join(' ');
@@ -1618,7 +1618,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   editList: { gap: 8 },
   editRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   editInput: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, backgroundColor: c.inputBg },
-  editInputQty: { width: 60 },
+  editInputQty: { width: 70 },
   editInputUnit: { width: 60 },
   editInputName: { flex: 1 },
   editRemove: { padding: 2 },

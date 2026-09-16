@@ -913,26 +913,29 @@ export default function RecipesScreen() {
     taBortLabel: common.actions.delete,
   });
   const nyTaggrad = allTags.length > 0 ? (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={s.nyTaggar}
-    >
-      {allTags.map(t => {
-        const aktiv = activeTags.has(t);
-        return (
-          <Pressable key={t} style={[s.nyTagg, aktiv && s.nyTaggAktiv]} onPress={() => toggleTagFilter(t)}>
-            <Text style={[s.nyTaggText, aktiv && s.nyTaggTextAktiv]}>{t}</Text>
-          </Pressable>
-        );
-      })}
+    <View style={s.nyTaggRad}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        style={s.nyTaggScroll}
+        contentContainerStyle={s.nyTaggar}
+      >
+        {allTags.map(t => {
+          const aktiv = activeTags.has(t);
+          return (
+            <Pressable key={t} style={[s.nyTagg, aktiv && s.nyTaggAktiv]} onPress={() => toggleTagFilter(t)}>
+              <Text style={[s.nyTaggText, aktiv && s.nyTaggTextAktiv]}>{t}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
       {activeTags.size > 0 && (
-        <Pressable onPress={() => setActiveTags(new Set())} hitSlop={8} accessibilityRole="button">
+        <Pressable style={s.nyTaggClear} onPress={() => setActiveTags(new Set())} hitSlop={8} accessibilityRole="button">
           <Ionicons name="close-circle" size={20} color={ny.textDampad} />
         </Pressable>
       )}
-    </ScrollView>
+    </View>
   ) : null;
 
   if (loading) {
@@ -1282,7 +1285,10 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   nySokYta: { overflow: 'hidden', justifyContent: 'flex-end' },
   nyTaggBar: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 2, backgroundColor: ny.bakgrund },
   nyLista: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 110, gap: 10 },
-  nyTaggar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 4 },
+  nyTaggRad: { flexDirection: 'row', alignItems: 'center' },
+  nyTaggScroll: { flexShrink: 1 },
+  nyTaggClear: { marginLeft: 6, paddingBottom: 4 },
+  nyTaggar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 4, paddingRight: 6 },
   nyTagg: { paddingHorizontal: 13, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: ny.kontur },
   nyTaggAktiv: { backgroundColor: ny.skog, borderColor: ny.skog },
   nyTaggText: { fontSize: 13, fontWeight: '600', color: ny.chipText },
