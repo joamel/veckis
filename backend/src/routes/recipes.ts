@@ -318,18 +318,7 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, asyncHandler(as
   }
 }));
 
-// POST /api/recipes/parse-text
-recipesRouter.post('/parse-text', parseTextLimiter, requireAuth, asyncHandler(async (req, res) => {
-  const body = z.object({ text: z.string().min(1).max(100000) }).safeParse(req.body);
-  if (!body.success) { res.status(400).json({ error: 'Invalid text' }); return; }
-  if (!anthropic) { res.status(503).json({ error: 'AI parsing not available' }); return; }
-
-  let parsed: { title: string | null; description: string | null; instructions: string | null; servings?: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
-  try {
-    const msg = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
-      system: `Du är ett system som extraherar receptinformation från fri text på svenska eller engelska.
+const RECEPT_TEXT_SYSTEM_PROMPT = `Du är ett system som extraherar receptinformation från fri text på svenska eller engelska.
 Returnera ENBART giltig JSON utan förklaringar eller markdown-kodblock.
 
 JSON-schema — ETT objekt per separat recept på bilderna:
@@ -350,24 +339,32 @@ Regler:
 - unit ska vara EN av: dl, l, liter, ml, cl, msk, tsk, krm, g, kg, st, knippe, näve, nypa, klyfta — eller null
 - Extrahera ALLA ingredienser och steg du ser, ignorera navigation, annonser och annat sidinnehåll
 - Ingrediensnamn på svenska (översätt om texten är på engelska)
-- instructions: om steg finns, ett steg per rad, "1. Förbered X\n2. Stek Y\n3. Servera" — varje steg på egen rad med \n emellan, annars null`,
-      messages: [{ role: 'user', content: body.data.text.slice(0, 80000) }],
-    });
-    await bokförAiKostnad('claude-haiku-4-5-20251001', msg.usage);
-    const raw = textUr(msg);
-    parsed = tolkaJsonSvar(raw) as typeof parsed;
-  } catch (err) {
-    if (err instanceof InteJsonError) {
-      console.error('Text parsing: inget recept i texten.', err.råtext.slice(0, 200));
-      res.status(422).json({ error: INGET_RECEPT_I_TEXT });
-      return;
-    }
-    const msg = err instanceof Error ? err.message : 'AI-anropet misslyckades';
-    res.status(422).json({ error: msg });
-    return;
-  }
+- instructions: om steg finns, ett steg per rad, "1. Förbered X\n2. Stek Y\n3. Servera" — varje steg på egen rad med \n emellan, annars null`;
 
-  const result: ScrapedRecipe = {
+/**
+ * Tolkar fri text (inklistrad eller extraherad ur en sida utan strukturerad
+ * receptdata) till ett recept via Claude. Delad av /parse-text och
+ * URL-scrapingens fallback när ingen JSON-LD hittas.
+ */
+async function parseRecipeTextWithAI(text: string): Promise<ScrapedRecipe> {
+  if (!anthropic) throw new Error('AI parsing not available');
+
+  const msg = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 2048,
+    system: RECEPT_TEXT_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: text.slice(0, 80000) }],
+  });
+  await bokförAiKostnad('claude-haiku-4-5-20251001', msg.usage);
+  const raw = textUr(msg);
+  type RåttRecept = { title: string | null; description: string | null; instructions: string | null; servings?: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
+  const tolkat = tolkaJsonSvar(raw) as { recipes?: RåttRecept[] } & Partial<RåttRecept>;
+  // Systemprompten ber modellen packa in svaret i { recipes: [...] } (samma
+  // schema som fotoflödet), så det formatet måste läsas i första hand. Faller
+  // tillbaka på plattat objekt ifall modellen ändå svarar utan omslag.
+  const parsed: RåttRecept = Array.isArray(tolkat.recipes) && tolkat.recipes[0] ? tolkat.recipes[0] : (tolkat as RåttRecept);
+
+  return {
     title: typeof parsed.title === 'string' && parsed.title.trim() ? parsed.title.trim() : 'Okänt recept',
     description: typeof parsed.description === 'string' ? parsed.description : null,
     instructions: typeof parsed.instructions === 'string' ? parsed.instructions : null,
@@ -379,7 +376,25 @@ Regler:
           .map(i => ({ name: i.name.trim(), quantity: typeof i.quantity === 'number' ? i.quantity : null, unit: typeof i.unit === 'string' && i.unit ? i.unit : null }))
       : [],
   };
-  res.json(result);
+}
+
+// POST /api/recipes/parse-text
+recipesRouter.post('/parse-text', parseTextLimiter, requireAuth, asyncHandler(async (req, res) => {
+  const body = z.object({ text: z.string().min(1).max(100000) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: 'Invalid text' }); return; }
+  if (!anthropic) { res.status(503).json({ error: 'AI parsing not available' }); return; }
+
+  try {
+    res.json(await parseRecipeTextWithAI(body.data.text));
+  } catch (err) {
+    if (err instanceof InteJsonError) {
+      console.error('Text parsing: inget recept i texten.', err.råtext.slice(0, 200));
+      res.status(422).json({ error: INGET_RECEPT_I_TEXT });
+      return;
+    }
+    const msg = err instanceof Error ? err.message : 'AI-anropet misslyckades';
+    res.status(422).json({ error: msg });
+  }
 }));
 
 /**
@@ -632,7 +647,57 @@ async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
       if (recipe) return parseJsonLdRecipe(recipe, url);
     } catch { /* skip malformed blocks */ }
   }
-  throw new Error('No recipe data found on this page');
+
+  // Många sajter (t.ex. magasinsartiklar utan receptplugin) publicerar recept
+  // som ren HTML utan schema.org-markup. Då finns ingen maskinläsbar struktur
+  // att lita på — sidans synliga text körs istället genom samma AI-parser som
+  // "klistra in text" använder. Dyrare än regex men funkar oavsett sajtens
+  // klassnamn/struktur, som annars kräver en parser per sajt.
+  try {
+    const text = htmlTillText(html);
+    if (!text) throw new Error('No recipe data found on this page');
+    const parsed = await parseRecipeTextWithAI(text);
+    if (!parsed.imageUrl) parsed.imageUrl = extractOgImage(html);
+    return parsed;
+  } catch (err) {
+    if (err instanceof InteJsonError) throw new Error('No recipe data found on this page');
+    throw err;
+  }
+}
+
+const HTML_BRUS_TAGGAR = /<(script|style|nav|header|footer|noscript|svg|form)[^>]*>[\s\S]*?<\/\1>/gi;
+
+/**
+ * Städar en sidas HTML till ren text för AI-tolkning: bort med script/style/
+ * nav/footer och annan brus-uppmärkning, taggar strippas, entiteter avkodas.
+ * Begränsad längd — receptsidor ryms gott inom detta, och en för lång text
+ * kostar bara extra tokens utan att ge mer information.
+ */
+function htmlTillText(html: string): string {
+  const utanBrus = html.replace(HTML_BRUS_TAGGAR, ' ');
+  const utanTaggar = utanBrus.replace(/<[^>]+>/g, '\n');
+  const avkodad = utanTaggar
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&aring;/g, 'å').replace(/&Aring;/g, 'Å')
+    .replace(/&auml;/g, 'ä').replace(/&Auml;/g, 'Ä')
+    .replace(/&ouml;/g, 'ö').replace(/&Ouml;/g, 'Ö');
+  return avkodad
+    .split('\n')
+    .map(rad => rad.trim())
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, 60000);
+}
+
+function extractOgImage(html: string): string | null {
+  const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+    ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+  return m ? m[1] : null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
