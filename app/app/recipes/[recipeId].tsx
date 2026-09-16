@@ -259,14 +259,24 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [planWeekStr, setPlanWeekStr] = useState('');
   const [planWeekItems, setPlanWeekItems] = useState<WeekMenuItemWithRecipe[]>([]);
 
-  // Load ingredient suggestions once for autocomplete in edit mode
+  // Load ingredient suggestions once for autocomplete in edit mode. Hushållets
+  // egna varor (getStaples, ingen tröskel) slås ihop med den globala poolen —
+  // en vara du precis skrev in själv ska föreslås direkt, inte vänta på att bli
+  // vanlig nog globalt (den globala poolen har dessutom sin egen, separata
+  // tröskel — se MIN_HOUSEHOLDS_FOR_GLOBAL_SUGGESTION i staples.ts).
   useEffect(() => {
     if (!householdId) return;
-    client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[])
-      .then(s => setNameSuggestions(Array.isArray(s) ? s : []));
-    // Staples give us each ingredient's usual unit + the household's most-used unit,
-    // used to pre-fill / hint the unit field.
-    client.getStaples(householdId).then(staples => {
+    Promise.all([
+      client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
+      client.getStaples(householdId).catch(() => []),
+    ]).then(([global, staples]) => {
+      const own = staples.map(st => ({ name: st.name, category: st.category }));
+      const ownNames = new Set(own.map(o => o.name.toLowerCase()));
+      const merged = [...own, ...global.filter(g => !ownNames.has(g.name.toLowerCase()))];
+      setNameSuggestions(merged);
+
+      // Staples ger dessutom varje ingrediens vanliga enhet + hushållets
+      // mest använda enhet, för att förifylla/hinta enhetsfältet.
       const byName: Record<string, string> = {};
       const tally: Record<string, number> = {};
       for (const st of staples) {
@@ -278,7 +288,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       setUnitByName(byName);
       const best = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
       setDefaultUnit(best ? best[0] : '');
-    }).catch(() => {});
+    });
   }, [householdId]);
 
   const load = useCallback(async () => {

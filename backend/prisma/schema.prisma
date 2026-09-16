@@ -279,6 +279,18 @@ model IngredientAlias {
   @@index([canonical])
 }
 
+// Vilka hushåll som sett ett givet ingrediensnamn — grunden för att kunna kräva
+// ≥N DISTINKTA hushåll (inte bara N totala förekomster) innan namnet syns
+// globalt för andra. Avstängt under betan (se MIN_HOUSEHOLDS_FOR_GLOBAL_SUGGESTION
+// i staples.ts) men börjar samla data redan nu.
+model IngredientAliasHousehold {
+  raw         String
+  householdId String
+  createdAt   DateTime @default(now())
+
+  @@id([raw, householdId])
+}
+
 // Global förpacknings-kunskap: "1 paket krossade tomater ≈ 400 g".
 // name = kanoniskt gemener-namn (stripIngredient-output), unit = förpacknings-
 // enhet ("paket","burk","påse",…). source: 'seed' | 'ai' | 'user' — 'user'

@@ -104,13 +104,18 @@ export async function storeIngredientCategory(name: string, category: StoreCateg
 }
 
 export async function learnIngredientAliases(
-  ingredients: Array<{ name: string; category?: StoreCategory }>
+  ingredients: Array<{ name: string; category?: StoreCategory }>,
+  householdId: string
 ): Promise<void> {
   if (ingredients.length === 0) return;
 
+  // Fångar BÅDE stökiga varianter ("mjöl, siktat" → "mjöl") OCH redan rena namn
+  // som skrivs in direkt ("sojafärs") — annars lärde vi oss aldrig ett helt nytt
+  // ingrediensnamn som råkar sakna deskriptorer att strippa, trots att det är
+  // precis den typen av tillväxt vi vill fånga upp.
   const pairs = ingredients
     .map(i => ({ raw: i.name.toLowerCase().trim(), canonical: stripIngredient(i.name), category: i.category ?? 'other' as StoreCategory }))
-    .filter(p => p.raw !== p.canonical && p.raw.length > 0);
+    .filter(p => p.raw.length > 0);
 
   if (pairs.length === 0) return;
 
@@ -123,4 +128,11 @@ export async function learnIngredientAliases(
       })
     )
   );
+
+  // Registrera vilka hushåll (distinkt) som sett varje namn — se kommentaren på
+  // IngredientAliasHousehold i schemat för varför.
+  await prisma.ingredientAliasHousehold.createMany({
+    data: [...new Set(pairs.map(p => p.raw))].map(raw => ({ raw, householdId })),
+    skipDuplicates: true,
+  }).catch(() => {});
 }

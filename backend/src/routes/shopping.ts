@@ -323,7 +323,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
       where: { id: existing.id },
       data: { quantity: existing.quantity + (body.data.quantity ?? 1) },
     });
-    if (!isLocalPlacement) learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
+    if (!isLocalPlacement) learnIngredientAliases([{ name: normalizedName, category }], list.householdId).catch(() => {});
     notifyActiveShopper(list, (req as AuthenticatedRequest).clerkUserId, item.name).catch(() => {});
     bcast(list, { type: 'item_updated', data: item });
     res.status(200).json(item);
@@ -334,7 +334,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
     data: { listId: list.id, ...body.data, name: normalizedName, category, subCategory, addedBy: (req as AuthenticatedRequest).clerkUserId },
   });
 
-  if (!isLocalPlacement) learnIngredientAliases([{ name: normalizedName, category }]).catch(() => {});
+  if (!isLocalPlacement) learnIngredientAliases([{ name: normalizedName, category }], list.householdId).catch(() => {});
   notifyActiveShopper(list, (req as AuthenticatedRequest).clerkUserId, item.name).catch(() => {});
   bcast(list, { type: 'item_added', data: item });
   res.status(201).json(item);

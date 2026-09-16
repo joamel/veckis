@@ -197,6 +197,11 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
     skipDuplicates: true,
   }).catch(() => {});
 
+  // Mata den GLOBALA ingrediens-poolen oavsett hur receptet kom till —
+  // manuellt, AI-inklistrat, foto eller URL. Bara FAKTISKT sparade recept ska
+  // räknas (from-url:s förhandsgranskning lär sig medvetet inget förrän hit).
+  learnIngredientAliases(recipe.ingredients, recipe.householdId).catch(() => {});
+
   res.status(201).json(recipe);
 
   // Bakgrunds-re-host (icke-blockerande): byt käll-bilden mot en Cloudinary-kopia
@@ -248,6 +253,7 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
     });
   });
   if (clearingImage && recipe.imagePublicId) void deleteRecipeImage(recipe.imagePublicId);
+  if (ingredients !== undefined) learnIngredientAliases(updated.ingredients, updated.householdId).catch(() => {});
   res.json(updated);
 }));
 
@@ -303,8 +309,6 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, asyncHandler(as
 
   try {
     const scraped = await scrapeRecipe(body.data.url);
-    // Learn from parsed names before stripping (e.g. "mjöl, siktat" → "mjöl")
-    learnIngredientAliases(scraped.ingredients).catch(() => {});
     // Ersätt källans (upphovsrättsskyddade) ingress med en färsk EGEN beskrivning.
     // Return with normalized names but quantity/unit preserved
     res.json({

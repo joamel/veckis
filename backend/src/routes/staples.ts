@@ -10,6 +10,13 @@ import { startsWithUnit } from '../lib/stripIngredient';
 
 export const staplesRouter = Router();
 
+// Under betan (pålitliga testare, litet urval) vill vi noll friktion för att
+// nya ingredienser ska synas globalt — sätt till 1 så ingen filtrering sker.
+// Höj till 2 (kräver ≥2 DISTINKTA hushåll, se IngredientAliasHousehold i
+// schemat) efter den riktiga lanseringen, när enstaka hushålls
+// stavfel/udda varor annars skulle läcka till alla andra direkt.
+const MIN_HOUSEHOLDS_FOR_GLOBAL_SUGGESTION = 1;
+
 const categoryEnum = z.nativeEnum(StoreCategory);
 
 // GET /api/staples?householdId=
@@ -66,12 +73,27 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
   const [aliases, hidden] = await Promise.all([
     prisma.ingredientAlias.findMany({
       distinct: ['canonical'],
-      select: { canonical: true, category: true },
+      select: { raw: true, canonical: true, category: true },
       orderBy: { seenCount: 'desc' },
       take: 500,
     }),
     prisma.hiddenSuggestion.findMany({ where: { householdId }, select: { name: true } }),
   ]);
+
+  // Global tröskel: kräv att minst N distinkta hushåll sett namnet innan det
+  // syns för ANDRA hushåll (se konstanten ovan). No-op medan tröskeln är 1 —
+  // frågan körs bara när den faktiskt filtrerar bort något.
+  const eligibleAliases = MIN_HOUSEHOLDS_FOR_GLOBAL_SUGGESTION > 1
+    ? await (async () => {
+        const counts = await prisma.ingredientAliasHousehold.groupBy({
+          by: ['raw'],
+          where: { raw: { in: aliases.map(a => a.raw) } },
+          _count: { householdId: true },
+        });
+        const countByRaw = new Map(counts.map(c => [c.raw, c._count.householdId]));
+        return aliases.filter(a => (countByRaw.get(a.raw) ?? 0) >= MIN_HOUSEHOLDS_FOR_GLOBAL_SUGGESTION);
+      })()
+    : aliases;
 
   // Per-hushåll dolda förslag (långtryck → "ta bort förslag") filtreras bort ur
   // bägge källorna. Global IngredientAlias rörs inte — bara det här hushållet
@@ -81,7 +103,7 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
   // Filtrera bort trasiga legacy-alias där en måttenhet fastnat först i namnet
   // ("kg potatis") — de ska aldrig dyka upp som förslag. Nya alias stoppas redan
   // i stripIngredient, det här skyddar mot rader som redan finns i DB.
-  const cleanAliases = aliases.filter(a => !startsWithUnit(a.canonical) && !hiddenNames.has(a.canonical.toLowerCase()));
+  const cleanAliases = eligibleAliases.filter(a => !startsWithUnit(a.canonical) && !hiddenNames.has(a.canonical.toLowerCase()));
   const aliasNames = new Set(cleanAliases.map(a => a.canonical.toLowerCase()));
   const common = COMMON_INGREDIENTS.filter(c => !aliasNames.has(c.name.toLowerCase()) && !hiddenNames.has(c.name.toLowerCase()));
 
