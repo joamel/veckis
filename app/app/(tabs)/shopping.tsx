@@ -27,6 +27,11 @@ import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { ShoppingListDetail } from '../shopping/[listId]';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { useDesign } from '../../src/context/DesignContext';
+import { ny, nyFont } from '../../src/lib/nyDesign';
+import { NyHeader, NyTextKnapp } from '../../src/components/nydesign/NyHeader';
+import { IkonValjare } from '../../src/components/nydesign/IkonValjare';
+import { listIkon } from '../../src/lib/listIkoner';
 import { onShoppingChanged } from '../../src/lib/shoppingEvents';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useAuth } from '@clerk/expo';
@@ -38,10 +43,11 @@ import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 
 export default function ShoppingScreen() {
   const { colors: c } = useTheme();
-  const styles = useMemo(() => makeStyles(c), [c]);
+  const { nyDesign } = useDesign();
+  const styles = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
   const router = useRouter();
   const client = useApiClient();
-  const { householdId } = useHousehold();
+  const { householdId, householdName } = useHousehold();
   const { showError } = useToast();
   const confirm = useConfirm();
   const tryCloseCreate = useDiscardDraft(confirm);
@@ -171,7 +177,19 @@ export default function ShoppingScreen() {
   const leftWidth = largeTablet ? 400 : 360;
   return (
     <View style={isSplitView ? { flex: 1, flexDirection: 'row', backgroundColor: c.background } : { flex: 1 }}>
-      <SafeAreaView style={[styles.container, isSplitView && { width: leftWidth, flex: 0 }]}>
+      <SafeAreaView style={[styles.container, isSplitView && { width: leftWidth, flex: 0 }]} edges={nyDesign ? ['top', 'left', 'right'] : undefined}>
+      {nyDesign ? (
+        <NyHeader
+          title={str.title}
+          subtitle={householdName}
+          right={
+            // Samma ref som i den gamla designen — introduktionstipset mäter knappen.
+            <View ref={storesBtnRef} collapsable={false}>
+              <NyTextKnapp icon="storefront-outline" label={str.header.stores} onPress={() => router.push('/stores' as never)} />
+            </View>
+          }
+        />
+      ) : (
       <ScreenHeader
         title={str.title}
         actionNode={
@@ -190,8 +208,10 @@ export default function ShoppingScreen() {
           </View>
         }
       />
+      )}
 
       <FlatList
+        style={styles.innehall}
         data={lists}
         keyExtractor={item => item.id}
         contentContainerStyle={[styles.list, lists.length === 0 && styles.listEmpty]}
@@ -207,8 +227,10 @@ export default function ShoppingScreen() {
             onAction={() => setShowModal(true)}
           />
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const unchecked = item.items.filter(i => !i.isChecked).length;
+          // Varannan bricka mörk, varannan ljus — samma rytm som medlemslistan.
+          const morkBricka = nyDesign && index % 2 === 0;
           const total = item.items.length;
           const shopper = item.activeShopperMemberId ? members.find(m => m.id === item.activeShopperMemberId) : null;
           const iAmShopper = !!shopper && !!userId && shopper.clerkUserId === userId;
@@ -218,10 +240,15 @@ export default function ShoppingScreen() {
                 style={[styles.card, isSplitView && item.id === selectedListId && styles.cardSelected]}
                 onPress={() => isSplitView ? setSelectedListId(item.id) : router.push(`/shopping/${item.id}` as never)}
               >
-                <View style={styles.cardLeft}>
-                  {item.emoji
-                    ? <Text style={{ fontSize: fs(22) }}>{item.emoji}</Text>
-                    : <Ionicons name="cart-outline" size={fs(20)} color={c.accent} />}
+                <View style={[styles.cardLeft, morkBricka && styles.nyBrickaMork]}>
+                  {/* Ikonkod (i:korg) visas som ikon i båda designerna. Gammal
+                      emoji bara i den gamla — i den nya krockar färgemoji med
+                      paletten, så där blir det kundvagnen. */}
+                  {listIkon(item.emoji)
+                    ? <Ionicons name={listIkon(item.emoji)!} size={fs(20)} color={nyDesign ? (morkBricka ? ny.lime : ny.skog) : c.accent} />
+                    : item.emoji && !nyDesign
+                      ? <Text style={{ fontSize: fs(22) }}>{item.emoji}</Text>
+                      : <Ionicons name="cart-outline" size={fs(20)} color={nyDesign ? (morkBricka ? ny.lime : ny.skog) : c.accent} />}
                 </View>
                 <View style={styles.cardContent}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -252,7 +279,7 @@ export default function ShoppingScreen() {
           insets.bottom, så ett extra inset här lyfte knappen högre än på
           meny-, recept- och butiksskärmarna. */}
       <Pressable ref={listFabRef} style={[styles.fab, { width: sp(56), height: sp(56), borderRadius: sp(28), bottom: 20 }]} onPress={() => setShowModal(true)}>
-        <Ionicons name="add" size={fs(30)} color="#fff" />
+        <Ionicons name="add" size={fs(30)} color={nyDesign ? ny.skog : '#fff'} />
       </Pressable>
 
       <DraggableBottomSheet
@@ -274,7 +301,9 @@ export default function ShoppingScreen() {
               onFocus={onFocusInput(newListNameRef)}
               onSubmitEditing={createList}
             />
-            <EmojiPicker value={newListEmoji} onChange={setNewListEmoji} />
+            {nyDesign
+              ? <IkonValjare value={newListEmoji} onChange={setNewListEmoji} label={common.iconOptional} />
+              : <EmojiPicker value={newListEmoji} onChange={setNewListEmoji} />}
             <Text style={styles.pickStoreLabel}>{str.createModal.storeLabel}</Text>
             <Pressable
               style={styles.storePickBtn}
@@ -325,15 +354,18 @@ export default function ShoppingScreen() {
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.background },
+// nyD: den nya designen (beta) skriver över de stilar som skiljer.
+const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
+  innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
+  nyBrickaMork: { backgroundColor: ny.skog },
   storesHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primaryTint, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
   storesHeaderBtnText: { fontWeight: '600', color: c.primary, fontSize: 13 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  list: { padding: 16, gap: 2 },
+  list: { padding: 16, gap: nyD ? 10 : 2 },
   listEmpty: { flex: 1 },
   cardSelected: {
-    backgroundColor: c.primaryTint,
+    backgroundColor: nyD ? ny.bricka : c.primaryTint,
     borderLeftColor: c.primary,
   },
   card: {
@@ -350,6 +382,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
+    ...(nyD ? { backgroundColor: ny.kort, borderRadius: 18, borderLeftWidth: 0, shadowOpacity: 0, elevation: 0 } : {}),
   },
   cardLeft: {
     width: 36,
@@ -358,9 +391,12 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     backgroundColor: c.accentTint,
     alignItems: 'center',
     justifyContent: 'center',
+    ...(nyD ? { width: 44, height: 44, borderRadius: 13, backgroundColor: ny.bricka } : {}),
   },
   cardContent: { flex: 1 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: c.text },
+  cardTitle: nyD
+    ? { fontFamily: nyFont.fet, letterSpacing: -0.3, color: ny.text }
+    : { fontSize: 16, fontWeight: '600', color: c.text },
   cardMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
   shopperPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.accent100, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
   shopperPillText: { fontSize: 11, color: c.accentDark, fontWeight: '600' },
@@ -370,10 +406,10 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: c.primary,
+    backgroundColor: nyD ? ny.lime : c.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: c.primary,
+    shadowColor: nyD ? ny.skog : c.primary,
     shadowOpacity: 0.4,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 },

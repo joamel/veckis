@@ -4,6 +4,9 @@
 // ─── Gemensamma åtgärder ──────────────────────────────────────────────────────
 
 export const common = {
+  // Ny design (beta): etikett för ikonval på inköpslistor.
+  iconOptional: 'Ikon (valfritt)',
+
   actions: {
     save:            'Spara',
     saveChanges:     'Spara ändringar',

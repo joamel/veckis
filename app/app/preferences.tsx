@@ -18,10 +18,14 @@ import { useToast } from '../src/context/ToastContext';
 import { HAPTIC_CHECKOUT_KEY, SOUND_CHECKOUT_KEY } from '../src/hooks/useCheckHaptic';
 import { LANDING_TABS, DEFAULT_LANDING_TAB, getLandingTab, setLandingTab, type LandingTabKey } from '../src/lib/landingTab';
 import { preferences as str } from '../src/lib/svenska';
+import { useDesign } from '../src/context/DesignContext';
+import { ny, nyFont } from '../src/lib/nyDesign';
+import { NyHeader } from '../src/components/nydesign/NyHeader';
 
 export default function PreferencesScreen() {
   const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { nyDesign } = useDesign();
+  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
   const router = useRouter();
   const { showToast, showError } = useToast();
   const [showNotifModal, setShowNotifModal] = useState(false);
@@ -58,7 +62,10 @@ export default function PreferencesScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={nyDesign ? ['top', 'left', 'right'] : undefined}>
+      {nyDesign ? (
+        <NyHeader title={str.title} onBack={() => router.back()} backLabel={str.backA11y} />
+      ) : (
       <View style={s.header}>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel={str.backA11y}>
           <Ionicons name="arrow-back" size={24} color={c.text} />
@@ -66,14 +73,19 @@ export default function PreferencesScreen() {
         <Text style={s.headerTitle}>{str.title}</Text>
         <View style={{ width: 24 }} />
       </View>
+      )}
 
-      <ScrollView contentContainerStyle={s.scroll}>
+      <ScrollView style={s.innehall} contentContainerStyle={s.scroll}>
         <Text style={s.sectionLabel}>{str.sections.notifications}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={() => setShowNotifModal(true)}>
-            <Ionicons name="notifications-outline" size={18} color={c.primary} />
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundMork]}><Ionicons name="notifications-outline" size={18} color={ny.lime} /></View>
+            ) : (
+              <Ionicons name="notifications-outline" size={18} color={c.primary} />
+            )}
             <Text style={s.rowText}>{str.rows.notifications}</Text>
-            <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
+            <Ionicons name="chevron-forward" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
           </Pressable>
         </View>
 
@@ -84,27 +96,51 @@ export default function PreferencesScreen() {
             setSoundEnabled(next);
             await SecureStore.setItemAsync(SOUND_CHECKOUT_KEY, next ? '1' : '0').catch(() => {});
           }}>
-            <Ionicons name="musical-note-outline" size={18} color={c.accent} />
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="musical-note-outline" size={18} color={ny.skog} /></View>
+            ) : (
+              <Ionicons name="musical-note-outline" size={18} color={c.accent} />
+            )}
             <Text style={s.rowText}>{str.rows.sound}</Text>
-            <Ionicons name={soundEnabled ? 'toggle' : 'toggle-outline'} size={22} color={soundEnabled ? c.accent : c.textFaint} />
+            <Ionicons
+              name={soundEnabled ? 'toggle' : 'toggle-outline'}
+              size={22}
+              color={nyDesign ? (soundEnabled ? ny.skog : ny.kontur) : (soundEnabled ? c.accent : c.textFaint)}
+            />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={async () => {
             const next = !hapticEnabled;
             setHapticEnabled(next);
             await SecureStore.setItemAsync(HAPTIC_CHECKOUT_KEY, next ? '1' : '0').catch(() => {});
           }}>
-            <Ionicons name="phone-portrait-outline" size={18} color={c.accent} />
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="phone-portrait-outline" size={18} color={ny.skog} /></View>
+            ) : (
+              <Ionicons name="phone-portrait-outline" size={18} color={c.accent} />
+            )}
             <Text style={s.rowText}>{str.rows.haptics}</Text>
-            <Ionicons name={hapticEnabled ? 'toggle' : 'toggle-outline'} size={22} color={hapticEnabled ? c.accent : c.textFaint} />
+            <Ionicons
+              name={hapticEnabled ? 'toggle' : 'toggle-outline'}
+              size={22}
+              color={nyDesign ? (hapticEnabled ? ny.skog : ny.kontur) : (hapticEnabled ? c.accent : c.textFaint)}
+            />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={handleResetTips}>
-            <Ionicons name="bulb-outline" size={18} color={c.accent} />
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="bulb-outline" size={18} color={ny.skog} /></View>
+            ) : (
+              <Ionicons name="bulb-outline" size={18} color={c.accent} />
+            )}
             <Text style={s.rowText}>{str.rows.onboardingTips}</Text>
-            <Ionicons name="refresh-outline" size={18} color={c.textFaint} />
+            <Ionicons name="refresh-outline" size={18} color={nyDesign ? ny.kontur : c.textFaint} />
           </Pressable>
           {/* Favorit-landningssida: vilken flik appen öppnar på */}
           <View style={[s.row, s.rowBorder, { flexWrap: 'wrap' }]}>
-            <Ionicons name="home-outline" size={18} color={c.accent} />
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="home-outline" size={18} color={ny.skog} /></View>
+            ) : (
+              <Ionicons name="home-outline" size={18} color={c.accent} />
+            )}
             <Text style={s.rowText}>{str.landing.label}</Text>
             <View style={s.landingChips}>
               {LANDING_TABS.map(t => {
@@ -115,7 +151,7 @@ export default function PreferencesScreen() {
                     style={[s.landingChip, active && s.landingChipActive]}
                     onPress={() => { setLandingTabState(t.key); setLandingTab(t.key).catch(() => {}); }}
                   >
-                    <Ionicons name={t.icon as never} size={13} color={active ? '#fff' : c.textMuted} />
+                    <Ionicons name={t.icon as never} size={13} color={nyDesign ? (active ? ny.lime : ny.chipText) : (active ? '#fff' : c.textMuted)} />
                     <Text style={[s.landingChipText, active && s.landingChipTextActive]}>{str.landing.tabs[t.labelKey]}</Text>
                   </Pressable>
                 );
@@ -127,19 +163,31 @@ export default function PreferencesScreen() {
         <Text style={s.sectionLabel}>{str.sections.about}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={handleContactSupport}>
-            <Ionicons name="mail-outline" size={18} color={c.primary} />
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundMork]}><Ionicons name="mail-outline" size={18} color={ny.lime} /></View>
+            ) : (
+              <Ionicons name="mail-outline" size={18} color={c.primary} />
+            )}
             <Text style={s.rowText}>{str.rows.contactSupport}</Text>
-            <Ionicons name="open-outline" size={16} color={c.textFaint} />
+            <Ionicons name="open-outline" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={() => router.push('/privacy' as never)}>
-            <Ionicons name="shield-outline" size={18} color={c.textMuted} />
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="shield-outline" size={18} color={ny.skog} /></View>
+            ) : (
+              <Ionicons name="shield-outline" size={18} color={c.textMuted} />
+            )}
             <Text style={s.rowText}>{str.rows.privacyPolicy}</Text>
-            <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
+            <Ionicons name="chevron-forward" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={() => router.push('/terms' as never)}>
-            <Ionicons name="document-text-outline" size={18} color={c.textMuted} />
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="document-text-outline" size={18} color={ny.skog} /></View>
+            ) : (
+              <Ionicons name="document-text-outline" size={18} color={c.textMuted} />
+            )}
             <Text style={s.rowText}>{str.rows.terms}</Text>
-            <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
+            <Ionicons name="chevron-forward" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
           </Pressable>
         </View>
 
@@ -158,20 +206,30 @@ export default function PreferencesScreen() {
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.background },
+// nyD: den nya designen (beta) skriver över de stilar som skiljer.
+const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
+  innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
+  // Runda ikonbrickor, samma mönster som i Hushållet.
+  nyRund: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  nyRundMork: { backgroundColor: ny.skog },
+  nyRundLjus: { backgroundColor: ny.bricka },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   headerTitle: { fontSize: 16, fontWeight: '700', color: c.text },
   scroll: { padding: 16, paddingBottom: 40 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginTop: 16, marginBottom: 8, paddingHorizontal: 4 },
-  group: { backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, paddingHorizontal: 14 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  rowBorder: { borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
-  rowText: { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
-  versionFooter: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 16 },
-  landingChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, width: '100%', marginTop: 4, paddingLeft: 30 },
-  landingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: c.surfaceSubtle },
-  landingChipActive: { backgroundColor: c.primary },
-  landingChipText: { fontSize: 12, fontWeight: '600', color: c.textMuted },
-  landingChipTextActive: { color: '#fff' },
+  sectionLabel: nyD
+    ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.skog, marginTop: 16, marginBottom: 8, paddingHorizontal: 4 }
+    : { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginTop: 16, marginBottom: 8, paddingHorizontal: 4 },
+  group: { backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, paddingHorizontal: 14, ...(nyD ? { backgroundColor: ny.kort, borderRadius: 18, borderLeftWidth: 0, shadowOpacity: 0, elevation: 0 } : {}) },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: nyD ? 10 : 14 },
+  rowBorder: { borderTopWidth: 1, borderTopColor: nyD ? ny.bricka : c.surfaceSubtle },
+  rowText: nyD
+    ? { flex: 1, fontFamily: nyFont.fet, fontSize: 16, letterSpacing: -0.2, color: ny.text }
+    : { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
+  versionFooter: { fontSize: 11, color: nyD ? ny.textDampad : c.textFaint, textAlign: 'center', marginTop: 16 },
+  landingChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, width: '100%', marginTop: 4, paddingLeft: nyD ? 50 : 30 },
+  landingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.bricka : c.surfaceSubtle },
+  landingChipActive: { backgroundColor: nyD ? ny.skog : c.primary },
+  landingChipText: { fontSize: 12, fontWeight: '600', color: nyD ? ny.chipText : c.textMuted },
+  landingChipTextActive: { color: nyD ? ny.lime : '#fff' },
 });

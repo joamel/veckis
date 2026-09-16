@@ -1434,7 +1434,7 @@ export default function MenuScreen() {
     return allMenus.filter(m => m.weekYear === wk.weekYear && m.weekNumber === wk.weekNumber);
   };
 
-  // One week's day-sections + unscheduled + transfer button. Only the centre
+  // One week's day-sections + transfer button. Only the centre
   // page is interactive (drag-and-drop, drop-zone measuring, edit/transfer);
   // neighbour pages are read-only previews.
   const renderWeekContent = (weekItems: MenuRow[], weekMon: Date, isCenter: boolean, isPastWeek: boolean) => {
@@ -1443,6 +1443,9 @@ export default function MenuScreen() {
     // reordering "jump" when swiping between weeks.
     // Sortera dagens rätter efter måltidsordning (frukost→middag→efterrätt),
     // därefter skapandeordning. Rätter utan måltidstyp hamnar sist.
+    // Känd nackdel: byter man måltid flyttar rätten, och eftersom dagens nyckel
+    // bygger på ordningen monteras dagen om och ett utfällt kort stängs. Löses
+    // av egen ordning inom dagen (se backloggen), inte av att sluta sortera.
     const mealRank = (i: WeekMenuItemWithRecipe) => {
       const idx = i.mealType ? MEAL_TYPE_ORDER.indexOf(i.mealType) : -1;
       return idx === -1 ? MEAL_TYPE_ORDER.length : idx;
@@ -1494,15 +1497,17 @@ export default function MenuScreen() {
             const filled = items.length > 0;
             const isToday = date.toDateString() === new Date().toDateString();
             // Ny design: dagens rubrik — namn, datum och ev. "Idag"-märke.
+            // Idag-märket direkt efter dagens namn — efter datumet hamnade det
+            // en bit in på raden.
             const dagRubrik = (
               <>
                 <Text style={s.nyDagNamn}>{day.label}</Text>
-                <Text style={s.nyDagDatum}>{dayLabel.date} {common.months.long[date.getMonth()]}</Text>
                 {isToday && (
                   <View style={s.nyIdagMarke}>
                     <Text style={s.nyIdagMarkeText}>{str.nyDesign.today}</Text>
                   </View>
                 )}
+                <Text style={s.nyDagDatum}>{dayLabel.date} {common.months.long[date.getMonth()]}</Text>
                 <View style={{ flex: 1 }} />
               </>
             );
@@ -2494,7 +2499,16 @@ function MenuCard({
               {item.mealType && (
                 <Text style={[s.cardMealTag, { fontSize: fs(10) }, nyDesign && s.nyMaltid]}>{common.mealTypes[item.mealType].toUpperCase()}</Text>
               )}
-              <Text style={[s.cardTitle, { fontSize: fs(16) }, nyDesign && s.nyKortTitel, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
+              {nyDesign ? (
+                // Chevronen direkt efter rubriken, långt från draghandtaget —
+                // i högerkanten var det lätt att träffa handtaget i stället.
+                <View style={s.nyTitelRad}>
+                  <Text style={[s.cardTitle, { fontSize: fs(16) }, s.nyKortTitel, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
+                  <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={ny.kontur} />
+                </View>
+              ) : (
+                <Text style={[s.cardTitle, { fontSize: fs(16) }, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
+              )}
             </View>
             {/* Kundvagnen före chevronen, och chevronen närmast draghandtaget:
                 de två sitter ihop som kortets högerkant. Båda ligger utanför
@@ -2512,11 +2526,13 @@ function MenuCard({
             )}
             {/* Ny design: ingen kundvagn i det hopfällda läget — det utfällda
                 visar om rätten ligger i inköpslistan, och utrymmet behövs till
-                titeln. Chevronen visar att kortet går att fälla ut. */}
+                titeln. Chevronen sitter vid rubriken i stället för här. */}
             {!nyDesign && isTransferred && (
               <Ionicons name="cart" size={fs(16)} color={c.success} />
             )}
-            <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color={nyDesign ? ny.kontur : c.textFaint} />
+            {!nyDesign && (
+              <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={fs(16)} color={c.textFaint} />
+            )}
           </Pressable>
 
           {/* Eget draghandtag, samma som kategorilistan. Ett dedikerat handtag
@@ -2534,11 +2550,11 @@ function MenuCard({
               grå chips och textknappar. */}
           {isExpanded && nyDesign && (
             <View style={s.nyUtfallt}>
-              {/* Inköpslistan och portionerna på samma rad, lika höga kapslar. */}
+              {/* "I inköpslistan" som vanlig text — som bricka såg den tryckbar ut. */}
               <View style={s.nyUtfalltRad}>
                 {isTransferred ? (
                   <View style={s.nyMarke}>
-                    <Ionicons name="cart" size={14} color={ny.skog} />
+                    <Ionicons name="cart" size={13} color={ny.textDampad} />
                     <Text style={s.nyMarkeText}>{str.card.inShoppingList}</Text>
                   </View>
                 ) : <View />}
@@ -2588,21 +2604,22 @@ function MenuCard({
                 </View>
               )}
 
+              {/* Laga med text till vänster; byt ut och ta bort som ikonknappar
+                  till höger — tre textknappar blev plottrigt. */}
               <View style={s.nyKnappRad}>
                 <Pressable style={[s.nyKnapp, s.nyKnappLime]} onPress={onCookRecipe}>
                   <Ionicons name="flame-outline" size={15} color={ny.skog} />
                   <Text style={s.nyKnappText}>{str.card.cook}</Text>
                 </Pressable>
+                <View style={s.nyKnappFyll} />
                 {!isPastWeek && (
-                  <Pressable style={s.nyKnapp} onPress={onReplace}>
-                    <Ionicons name="swap-horizontal-outline" size={15} color={ny.skog} />
-                    <Text style={s.nyKnappText}>{str.card.replace}</Text>
+                  <Pressable style={s.nyIkonKnapp} onPress={onReplace} accessibilityRole="button" accessibilityLabel={str.card.replace}>
+                    <Ionicons name="swap-horizontal-outline" size={18} color={ny.skog} />
                   </Pressable>
                 )}
                 {!isPastWeek && (
-                  <Pressable style={[s.nyKnapp, s.nyKnappFara]} onPress={onRemove}>
-                    <Ionicons name="trash-outline" size={15} color={ny.fara} />
-                    <Text style={[s.nyKnappText, s.nyKnappTextFara]}>{str.card.remove}</Text>
+                  <Pressable style={s.nyIkonKnapp} onPress={onRemove} accessibilityRole="button" accessibilityLabel={str.card.remove}>
+                    <Ionicons name="trash-outline" size={18} color={ny.skog} />
                   </Pressable>
                 )}
               </View>
@@ -2778,20 +2795,22 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // Android väljer ett reservtypsnitt.
   nyKortTitel: { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 15, letterSpacing: -0.3, color: ny.text },
   nyMaltid: { color: ny.chipText },
+  nyTitelRad: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   nyTumnagel: { width: 44, height: 44, borderRadius: 11 },
   nyTumnagelTom: { alignItems: 'center', justifyContent: 'center' },
   nyTumMork: { backgroundColor: ny.skogMellan },
   nyTumLjus: { backgroundColor: ny.platsLjus },
   nyHero: { height: 120 },
-  nyLagaSnabb: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 32, paddingHorizontal: 11, borderRadius: 16, backgroundColor: ny.lime },
+  // Luft mot draghandtaget, så Laga inte hamnar tätt intill strecken.
+  nyLagaSnabb: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 32, paddingHorizontal: 11, borderRadius: 16, marginRight: 8, backgroundColor: ny.lime },
   nyLagaSnabbText: { fontSize: 13, fontWeight: '700', color: ny.skog },
   // Utfällt kort
   nyUtfallt: { paddingHorizontal: 10, paddingTop: 2, paddingBottom: 10, gap: 12 },
   nyUtfalltRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   nyUtfalltSektion: { gap: 6 },
-  // Samma höjd som portionskapseln (3 + 28 + 3), så raden linjerar.
-  nyMarke: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 17, backgroundColor: ny.bricka },
-  nyMarkeText: { fontSize: 12, fontWeight: '600', color: ny.skog },
+  // Text, ingen bricka — men samma höjd som portionskapseln så raden linjerar.
+  nyMarke: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 34, paddingLeft: 2 },
+  nyMarkeText: { fontSize: 12, color: ny.textDampad },
   nyPortioner: { flexDirection: 'row', alignItems: 'center', gap: 2, padding: 3, borderRadius: 17, backgroundColor: ny.kort },
   nyPortionKnapp: { width: 28, height: 28, borderRadius: 14, backgroundColor: ny.ljus, alignItems: 'center', justifyContent: 'center' },
   nyPortionVarde: { fontSize: 13, fontWeight: '700', color: ny.skog, paddingHorizontal: 6 },
@@ -2802,12 +2821,12 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   nyChipAktiv: { backgroundColor: ny.skog },
   nyChipText: { fontSize: 12, fontWeight: '600', color: ny.chipText },
   nyChipTextAktiv: { color: ny.lime },
-  nyKnappRad: { flexDirection: 'row', gap: 8 },
-  nyKnapp: { flex: 1, height: 38, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: ny.kort },
+  nyKnappRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  nyKnappFyll: { flex: 1 },
+  nyKnapp: { height: 38, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 16, backgroundColor: ny.kort },
   nyKnappLime: { backgroundColor: ny.lime },
-  nyKnappFara: { backgroundColor: ny.faraYta },
+  nyIkonKnapp: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: ny.kort },
   nyKnappText: { fontSize: 13, fontWeight: '700', color: ny.skog },
-  nyKnappTextFara: { color: ny.fara },
   nyDagPlus: { width: 28, height: 28, borderRadius: 14, backgroundColor: ny.bricka, alignItems: 'center', justifyContent: 'center' },
   nyFab: { backgroundColor: ny.lime, shadowColor: ny.skog, shadowOpacity: 0.3 },
   nyGhost: { backgroundColor: ny.ljus, borderRadius: 14, borderWidth: 1.5, borderColor: ny.skog, shadowColor: ny.skog },

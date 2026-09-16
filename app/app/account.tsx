@@ -16,6 +16,9 @@ import { useConfirm } from '../src/context/ConfirmContext';
 import { account as str } from '../src/lib/svenska';
 import { DraggableBottomSheet } from '../src/components/DraggableBottomSheet';
 import { useSheetLift } from '../src/hooks/useSheetLift';
+import { useDesign } from '../src/context/DesignContext';
+import { ny, nyFont } from '../src/lib/nyDesign';
+import { NyHeader } from '../src/components/nydesign/NyHeader';
 
 // Clerks konto-portal (2FA m.m.) ligger på olika domäner per instans: prod
 // (pk_live) på accounts.handlis.app, dev på .accounts.dev. Env-styrt så länken
@@ -26,7 +29,8 @@ const CLERK_PORTAL_BASE = (process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '').
 
 export default function AccountScreen() {
   const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { nyDesign } = useDesign();
+  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
   const router = useRouter();
   const { signOut } = useAuth();
   const { user } = useUser();
@@ -155,7 +159,10 @@ export default function AccountScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={nyDesign ? ['top', 'left', 'right'] : undefined}>
+      {nyDesign ? (
+        <NyHeader title={str.title} onBack={() => router.back()} backLabel={str.backA11y} />
+      ) : (
       <View style={s.header}>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel={str.backA11y}>
           <Ionicons name="arrow-back" size={24} color={c.text} />
@@ -163,8 +170,9 @@ export default function AccountScreen() {
         <Text style={s.headerTitle}>{str.title}</Text>
         <View style={{ width: 24 }} />
       </View>
+      )}
 
-      <ScrollView contentContainerStyle={s.scroll}>
+      <ScrollView style={s.innehall} contentContainerStyle={s.scroll}>
         <View style={s.avatarCard}>
           <View style={s.avatar}>
             <Text style={s.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
@@ -178,40 +186,62 @@ export default function AccountScreen() {
         <Text style={s.sectionLabel}>{str.sections.profile}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={() => { setRenameValue(displayName); setShowRename(true); }}>
-            <Ionicons name="create-outline" size={18} color={c.primary} />
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="create-outline" size={18} color={ny.skog} /></View>
+            ) : (
+              <Ionicons name="create-outline" size={18} color={c.primary} />
+            )}
             <Text style={s.rowText}>{str.rows.rename}</Text>
-            <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
+            <Ionicons name="chevron-forward" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
           </Pressable>
         </View>
 
         <Text style={s.sectionLabel}>{str.sections.security}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={() => setShowPassword(true)}>
-            <Ionicons name="key-outline" size={18} color={c.primary} />
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundMork]}><Ionicons name="key-outline" size={18} color={ny.lime} /></View>
+            ) : (
+              <Ionicons name="key-outline" size={18} color={c.primary} />
+            )}
             <Text style={s.rowText}>{hasPassword ? str.rows.changePassword : str.rows.addPassword}</Text>
-            <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
+            <Ionicons name="chevron-forward" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={() => openPortal('/user/security')}>
-            <Ionicons name="shield-checkmark-outline" size={18} color={c.primary} />
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="shield-checkmark-outline" size={18} color={ny.skog} /></View>
+            ) : (
+              <Ionicons name="shield-checkmark-outline" size={18} color={c.primary} />
+            )}
             <Text style={s.rowText}>{str.rows.twoFactor}</Text>
-            <Ionicons name="open-outline" size={16} color={c.textFaint} />
+            <Ionicons name="open-outline" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
           </Pressable>
           {/* Radera konto hör hemma bland de andra säkerhetskänsliga
               åtgärderna (samma sektion som 2FA), inte som en egen "session"-
               rad — men röd/danger-färgad så den ändå syns som allvarlig. */}
           <Pressable style={[s.row, s.rowBorder]} onPress={handleDeleteAccount} disabled={deleting}>
-            <Ionicons name="trash-outline" size={18} color={c.danger} />
-            <Text style={[s.rowText, { color: c.danger }]}>{str.rows.delete}</Text>
-            {deleting ? <ActivityIndicator size="small" color={c.danger} /> : <Ionicons name="chevron-forward" size={16} color={c.dangerBorder} />}
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundFara]}><Ionicons name="trash-outline" size={18} color={ny.fara} /></View>
+            ) : (
+              <Ionicons name="trash-outline" size={18} color={c.danger} />
+            )}
+            <Text style={[s.rowText, { color: nyDesign ? ny.fara : c.danger }]}>{str.rows.delete}</Text>
+            {deleting
+              ? <ActivityIndicator size="small" color={nyDesign ? ny.fara : c.danger} />
+              : <Ionicons name="chevron-forward" size={16} color={nyDesign ? ny.kontur : c.dangerBorder} />}
           </Pressable>
         </View>
 
         {/* Logga ut — egen, röd (tydligt en notify-värd åtgärd) rad längst ned. */}
         <View style={[s.group, { marginTop: 24 }]}>
           <Pressable style={s.row} onPress={handleSignOut}>
-            <Ionicons name="log-out-outline" size={18} color={c.danger} />
-            <Text style={[s.rowText, { color: c.danger }]}>{str.rows.signOut}</Text>
-            <Ionicons name="chevron-forward" size={16} color={c.dangerBorder} />
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundFara]}><Ionicons name="log-out-outline" size={18} color={ny.fara} /></View>
+            ) : (
+              <Ionicons name="log-out-outline" size={18} color={c.danger} />
+            )}
+            <Text style={[s.rowText, { color: nyDesign ? ny.fara : c.danger }]}>{str.rows.signOut}</Text>
+            <Ionicons name="chevron-forward" size={16} color={nyDesign ? ny.kontur : c.dangerBorder} />
           </Pressable>
         </View>
       </ScrollView>
@@ -342,21 +372,36 @@ export default function AccountScreen() {
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.background },
+// nyD: den nya designen (beta) skriver över de stilar som skiljer.
+const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
+  innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
+  // Runda ikonbrickor, samma mönster som i Hushållet.
+  nyRund: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  nyRundMork: { backgroundColor: ny.skog },
+  nyRundLjus: { backgroundColor: ny.bricka },
+  nyRundFara: { backgroundColor: ny.faraYta },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   headerTitle: { fontSize: 16, fontWeight: '700', color: c.text },
   scroll: { padding: 16, paddingBottom: 40 },
   avatarCard: { alignItems: 'center', paddingVertical: 24 },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  avatarText: { fontSize: 32, fontWeight: '700', color: '#fff' },
-  name: { fontSize: 20, fontWeight: '700', color: c.text },
+  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: nyD ? ny.skog : c.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  avatarText: nyD
+    ? { fontFamily: nyFont.fet, fontSize: 34, color: ny.lime }
+    : { fontSize: 32, fontWeight: '700', color: '#fff' },
+  name: nyD
+    ? { fontFamily: nyFont.fet, fontSize: 22, letterSpacing: -0.4, color: ny.text }
+    : { fontSize: 20, fontWeight: '700', color: c.text },
   email: { fontSize: 14, color: c.textMuted, marginTop: 4 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginTop: 12, marginBottom: 8, paddingHorizontal: 4 },
-  group: { backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, paddingHorizontal: 14 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  rowBorder: { borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
-  rowText: { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
+  sectionLabel: nyD
+    ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.skog, marginTop: 12, marginBottom: 8, paddingHorizontal: 4 }
+    : { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginTop: 12, marginBottom: 8, paddingHorizontal: 4 },
+  group: { backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, paddingHorizontal: 14, ...(nyD ? { backgroundColor: ny.kort, borderRadius: 18, borderLeftWidth: 0, shadowOpacity: 0, elevation: 0 } : {}) },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: nyD ? 10 : 14 },
+  rowBorder: { borderTopWidth: 1, borderTopColor: nyD ? ny.bricka : c.surfaceSubtle },
+  rowText: nyD
+    ? { flex: 1, fontFamily: nyFont.fet, fontSize: 16, letterSpacing: -0.2, color: ny.text }
+    : { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 14 },
   sheetDraggable: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, gap: 14 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },

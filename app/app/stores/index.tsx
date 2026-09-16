@@ -27,12 +27,16 @@ import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
+import { useDesign } from '../../src/context/DesignContext';
+import { ny, nyFont } from '../../src/lib/nyDesign';
+import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 
 type SortMode = 'name' | 'created';
 
 export default function StoresScreen() {
   const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { nyDesign } = useDesign();
+  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
   const router = useRouter();
   const { pick, current } = useLocalSearchParams<{ pick?: string; current?: string }>();
   // pick=1 → kort-tap returnerar valt butik-id istället för att navigera in.
@@ -159,7 +163,32 @@ export default function StoresScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={nyDesign ? ['top', 'left', 'right'] : undefined}>
+      {nyDesign ? (
+        <NyHeader
+          title={str.title}
+          onBack={() => router.back()}
+          right={<NyIkonKnapp icon="swap-vertical" onPress={openSortMenu} label={str.sort.a11y} size={18} />}
+        >
+          <View style={s.nySok}>
+            <Ionicons name="search" size={16} color={ny.underrubrik} />
+            <TextInput
+              style={s.nySokInput}
+              placeholder={str.search.placeholder}
+              placeholderTextColor={ny.underrubrik}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={common.actions.clearSearch}>
+                <Ionicons name="close-circle" size={16} color={ny.underrubrik} />
+              </Pressable>
+            )}
+          </View>
+        </NyHeader>
+      ) : (
       <View style={s.header}>
         <View style={s.headerRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -190,8 +219,9 @@ export default function StoresScreen() {
           )}
         </View>
       </View>
+      )}
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 120 }}>
+      <ScrollView style={s.innehall} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: nyDesign ? 16 : 12, paddingBottom: 120 }}>
         {filteredSorted.length === 0 ? (
           searchQuery ? (
             <Text style={s.empty}>{str.emptyState.noResults(searchQuery)}</Text>
@@ -205,8 +235,10 @@ export default function StoresScreen() {
             />
           )
         ) : (
-          filteredSorted.map(store => {
+          filteredSorted.map((store, idx) => {
             const catCount = (store.categoryOrder as StoreCategory[]).length || 0;
+            // Varannan bricka mörk, varannan ljus — samma rytm som medlemslistan.
+            const morkBricka = nyDesign && idx % 2 === 0;
             // Highlight/bock = MARKERAD (pending) butik. "Nuvarande"-etiketten
             // ligger kvar på den faktiskt SPARADE butiken så man vet vilken man
             // har om man avbryter.
@@ -224,8 +256,12 @@ export default function StoresScreen() {
                   }
                 }}
               >
-                <View style={[s.cardIcon, isChosen && s.cardIconCurrent]}>
-                  <Ionicons name="storefront-outline" size={20} color={isChosen ? c.accent : c.primary} />
+                <View style={[s.cardIcon, morkBricka && s.nyBrickaMork, isChosen && s.cardIconCurrent]}>
+                  <Ionicons
+                    name="storefront-outline"
+                    size={20}
+                    color={isChosen ? c.accent : (nyDesign ? (morkBricka ? ny.lime : ny.skog) : c.primary)}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[s.cardTitle, isChosen && s.cardTitleCurrent]}>{store.name}</Text>
@@ -249,7 +285,7 @@ export default function StoresScreen() {
 
       {!pickMode && (
         <Pressable ref={storeFabRef} style={s.fab} onPress={() => setShowCreate(true)} accessibilityLabel={str.createModal.add}>
-          <Ionicons name="add" size={30} color="#fff" />
+          <Ionicons name="add" size={30} color={nyDesign ? ny.skog : '#fff'} />
         </Pressable>
       )}
 
@@ -303,8 +339,13 @@ export default function StoresScreen() {
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.background },
+// nyD: den nya designen (beta) skriver över de stilar som skiljer.
+const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
+  innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
+  nyBrickaMork: { backgroundColor: ny.skog },
+  nySok: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, marginTop: 14, paddingHorizontal: 14, borderRadius: 14, backgroundColor: ny.glasSvag },
+  nySokInput: { flex: 1, fontSize: 15, color: ny.rubrikLjus, padding: 0 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
   header: { backgroundColor: c.surface, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 10 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -315,16 +356,22 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   searchIcon: {},
   searchInput: { flex: 1, fontSize: 15, color: c.text, paddingVertical: 4 },
   empty: { textAlign: 'center', color: c.textFaint, marginTop: 40 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 2, borderWidth: 1, borderColor: c.surfaceSubtle },
+  card: nyD
+    ? { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: ny.kort, borderRadius: 18, padding: 12, marginBottom: 10, borderWidth: 2, borderColor: 'transparent' }
+    : { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 2, borderWidth: 1, borderColor: c.surfaceSubtle },
   cardCurrent: { borderColor: c.primary, backgroundColor: c.primaryTint, borderWidth: 2 },
-  cardIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
+  cardIcon: nyD
+    ? { width: 44, height: 44, borderRadius: 13, backgroundColor: ny.bricka, alignItems: 'center', justifyContent: 'center' }
+    : { width: 36, height: 36, borderRadius: 10, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   cardIconCurrent: { backgroundColor: c.accent100 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: c.text },
+  cardTitle: nyD
+    ? { fontFamily: nyFont.fet, fontSize: 17, letterSpacing: -0.3, color: ny.text }
+    : { fontSize: 16, fontWeight: '600', color: c.text },
   cardTitleCurrent: { color: c.accentDark },
   cardMeta: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   cardMetaCurrent: { color: c.accent, fontWeight: '600' },
   cardClearBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerTint },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: nyD ? ny.lime : c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: nyD ? ny.skog : c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 6 },
   input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: c.text },
@@ -332,8 +379,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   noStoreBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   noStoreText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
   noStoreTextActive: { color: c.primary, fontWeight: '600' },
-  saveBar_btn: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
-  saveBar_btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  saveBar_btn: { backgroundColor: nyD ? ny.lime : c.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
+  saveBar_btnText: { color: nyD ? ny.skog : '#fff', fontSize: 15, fontWeight: '700' },
   primaryBtn: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
