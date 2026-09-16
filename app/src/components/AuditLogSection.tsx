@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { useDesign } from '../context/DesignContext';
+import { ny, nyFont } from '../lib/nyDesign';
 import type { Palette } from '../lib/theme';
 // Aktivitetslogg för admin — listar senaste audit-events för hushållet.
 // Lazy-laddat: hämtar inte förrän användaren expanderar sektionen, så
@@ -58,7 +60,8 @@ function timeAgo(iso: string): string {
 
 export function AuditLogSection({ householdId }: Props) {
   const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { nyDesign } = useDesign();
+  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
   const client = useApiClient();
   const { showError } = useToast();
   const [events, setEvents] = useState<AuditLogEntry[] | null>(null);
@@ -102,7 +105,7 @@ export function AuditLogSection({ householdId }: Props) {
         ))}
         {!loading && events && events.length > 0 && (
           <Pressable style={s.refreshBtn} onPress={load} hitSlop={6}>
-            <Ionicons name="refresh-outline" size={14} color={c.textMuted} />
+            <Ionicons name="refresh-outline" size={14} color={nyDesign ? ny.skog : c.textMuted} />
             <Text style={s.refreshText}>Uppdatera</Text>
           </Pressable>
         )}
@@ -111,7 +114,8 @@ export function AuditLogSection({ householdId }: Props) {
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
+// nyD: den nya designen skriver over de stilar som skiljer.
+const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   box: {
     backgroundColor: c.surface,
     borderRadius: 12,
@@ -124,14 +128,19 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
     overflow: 'hidden',
+    // Ljus yta i det kort-fargade arket, samma skiktning som ovriga listor.
+    ...(nyD ? { backgroundColor: ny.ljus, borderRadius: 18, borderLeftWidth: 0, shadowOpacity: 0, elevation: 0 } : {}),
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
-  title: { flex: 1, fontSize: 14, fontWeight: '600', color: c.text },
+  // Outfit bar vikten i typsnittet — fontWeight till ger reservtypsnitt.
+  title: nyD
+    ? { flex: 1, fontFamily: nyFont.halvfet, fontWeight: 'normal', fontSize: 15, color: ny.skog }
+    : { flex: 1, fontSize: 14, fontWeight: '600', color: c.text },
   body: { paddingHorizontal: 14, paddingBottom: 10 },
-  row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
-  eventText: { fontSize: 13, color: c.textSecondary, lineHeight: 18 },
-  eventTime: { fontSize: 11, color: c.textFaint, marginTop: 2 },
-  empty: { fontSize: 13, color: c.textFaint, textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' },
+  row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: nyD ? ny.kontur : c.surfaceSubtle },
+  eventText: { fontSize: 13, color: nyD ? ny.text : c.textSecondary, lineHeight: 18 },
+  eventTime: { fontSize: 11, color: nyD ? ny.textDampad : c.textFaint, marginTop: 2 },
+  empty: { fontSize: 13, color: nyD ? ny.textDampad : c.textFaint, textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' },
   refreshBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, marginTop: 4 },
-  refreshText: { fontSize: 12, color: c.textMuted },
+  refreshText: { fontSize: 12, color: nyD ? ny.skog : c.textMuted },
 });

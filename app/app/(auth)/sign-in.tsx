@@ -23,6 +23,8 @@ import { auth as str } from '../../src/lib/svenska';
 import { reportClientError } from '../../src/lib/errorReport';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ny, nyFont } from '../../src/lib/nyDesign';
 
 const LOGO = require('../../assets/icon.png');
 const GOOGLE_G = require('../../assets/google-g.png');
@@ -39,6 +41,7 @@ export default function SignInScreen() {
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
   const confirm = useConfirm();
+  const insets = useSafeAreaInsets();
 
   // Värm upp webbläsaren (Android) för stabilare OAuth-flöde. Bara native —
   // warmUpAsync/coolDownAsync finns inte på web och kastar där.
@@ -238,156 +241,181 @@ export default function SignInScreen() {
       style={styles.container}
       behavior={Platform.OS as any === 'ios' ? 'padding' : undefined}
     >
-      <ThemeModeToggle />
-      <Image source={LOGO} style={styles.logo} resizeMode="cover" />
-      <Text style={styles.title}>{str.appName}</Text>
-      <Text style={styles.subtitle}>
-        {mode === 'reset' ? str.signIn.subtitle.reset
-          : mode === 'email-code' ? str.signIn.subtitle.emailCode
-          : str.signIn.subtitle.password}
-      </Text>
+      {/* Samma anatomi som appens ark: mörkgrönt huvud med logga, ordmärke
+          och slogan, ljusgrön kropp med formuläret. Huvudet växer och skjuter ned kroppen, så den ljusgröna ytan bara
+          blir så hög som formuläret. Tema-växlaren ligger överst, utanför den
+          centrerade loggan. */}
+      <View style={[styles.hero, { paddingTop: insets.top + 12 }]}>
+        <ThemeModeToggle />
+        <View style={styles.heroCenter}>
+          <Image source={LOGO} style={styles.logo} resizeMode="cover" />
+          <Text style={styles.title}>{str.appName}</Text>
+          <Text style={styles.subtitle}>{str.tagline}</Text>
+          <Text style={styles.subtitleSub}>{str.taglineSub}</Text>
+        </View>
+      </View>
 
-      <InstallBanner />
+      <View style={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
+        <Text style={styles.bodyTitle}>
+          {mode === 'reset' ? str.signIn.subtitle.reset
+            : mode === 'email-code' ? str.signIn.subtitle.emailCode
+            : str.signIn.subtitle.password}
+        </Text>
+        <InstallBanner />
 
-      {mode === 'password' && (
-        <>
-          <TextInput
-            style={styles.input}
-            placeholder={str.placeholders.email}
-            placeholderTextColor={c.textFaint}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <View style={styles.pwWrap}>
+        {mode === 'password' && (
+          <>
             <TextInput
-              style={[styles.input, styles.pwInput]}
-              placeholder={str.placeholders.password}
-              placeholderTextColor={c.textFaint}
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
+              style={styles.input}
+              placeholder={str.placeholders.email}
+              placeholderTextColor={ny.textDampad}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
             />
-            <Pressable
-              style={styles.pwEye}
-              onPress={() => setShowPassword(v => !v)}
-              hitSlop={8}
-              accessibilityLabel={showPassword ? str.signIn.a11y.hidePassword : str.signIn.a11y.showPassword}
-            >
-              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={c.textFaint} />
-            </Pressable>
-          </View>
-
-          <Pressable style={styles.button} onPress={handleEmailSignIn} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{str.signIn.buttons.signIn}</Text>}
-          </Pressable>
-
-          <View style={styles.altRow}>
-            <Pressable onPress={() => switchMode('reset')} hitSlop={6}>
-              {/* Explicit bredd → Android klipper annars sista glyfen ("?"). */}
-              <Text style={[styles.linkSmall, { width: str.signIn.links.forgotPassword.length * 8 + 10, textAlign: 'center' }]}>
-                {str.signIn.links.forgotPassword}
-              </Text>
-            </Pressable>
-          </View>
-
-          <Pressable onPress={() => switchMode('email-code')}>
-            <Text style={styles.link}>{str.signIn.links.backToCodeSignIn}</Text>
-          </Pressable>
-        </>
-      )}
-
-      {(mode === 'email-code' || mode === 'reset') && (
-        <>
-          {!codeSent ? (
-            <>
-              <Text style={styles.helpText}>
-                {mode === 'email-code'
-                  ? str.signIn.helpText.emailCode
-                  : str.signIn.helpText.reset}
-              </Text>
+            <View style={styles.pwWrap}>
               <TextInput
-                style={styles.input}
-                placeholder={str.placeholders.email}
-                placeholderTextColor={c.textFaint}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                value={email}
-                onChangeText={setEmail}
+                style={[styles.input, styles.pwInput]}
+                placeholder={str.placeholders.password}
+                placeholderTextColor={ny.textDampad}
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
               />
-              <Pressable style={styles.button} onPress={handleSendCode} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{str.signIn.buttons.sendCode}</Text>}
+              <Pressable
+                style={styles.pwEye}
+                onPress={() => setShowPassword(v => !v)}
+                hitSlop={8}
+                accessibilityLabel={showPassword ? str.signIn.a11y.hidePassword : str.signIn.a11y.showPassword}
+              >
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={ny.textDampad} />
               </Pressable>
-            </>
-          ) : (
-            <>
-              <Text style={styles.helpText}>{str.signIn.helpText.codeSentTo(email)}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={str.placeholders.codeFromEmail}
-                placeholderTextColor={c.textFaint}
-                keyboardType="number-pad"
-                value={code}
-                onChangeText={setCode}
-              />
-              {mode === 'reset' && (
+            </View>
+
+            <Pressable style={styles.button} onPress={handleEmailSignIn} disabled={loading}>
+              {loading ? <ActivityIndicator color={ny.skog} /> : <Text style={styles.buttonText}>{str.signIn.buttons.signIn}</Text>}
+            </Pressable>
+
+            <View style={styles.altRow}>
+              <Pressable onPress={() => switchMode('reset')} hitSlop={6}>
+                {/* Explicit bredd → Android klipper annars sista glyfen ("?"). */}
+                <Text style={[styles.linkSmall, { width: str.signIn.links.forgotPassword.length * 8 + 10, textAlign: 'center' }]}>
+                  {str.signIn.links.forgotPassword}
+                </Text>
+              </Pressable>
+            </View>
+
+            <Pressable onPress={() => switchMode('email-code')}>
+              <Text style={styles.link}>{str.signIn.links.backToCodeSignIn}</Text>
+            </Pressable>
+          </>
+        )}
+
+        {(mode === 'email-code' || mode === 'reset') && (
+          <>
+            {!codeSent ? (
+              <>
+                <Text style={styles.helpText}>
+                  {mode === 'email-code'
+                    ? str.signIn.helpText.emailCode
+                    : str.signIn.helpText.reset}
+                </Text>
                 <TextInput
                   style={styles.input}
-                  placeholder={str.placeholders.newPassword}
-                  placeholderTextColor={c.textFaint}
-                  secureTextEntry
-                  value={resetNewPassword}
-                  onChangeText={setResetNewPassword}
-                  textContentType="newPassword"
-                  autoComplete="new-password"
+                  placeholder={str.placeholders.email}
+                  placeholderTextColor={ny.textDampad}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={setEmail}
                 />
-              )}
-              <Pressable style={styles.button} onPress={handleVerifyCode} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.buttonText}>{mode === 'reset' ? str.signIn.buttons.resetAndSignIn : isNewAccount ? str.signIn.buttons.createAccount : str.signIn.buttons.signIn}</Text>}
-              </Pressable>
-            </>
-          )}
+                <Pressable style={styles.button} onPress={handleSendCode} disabled={loading}>
+                  {loading ? <ActivityIndicator color={ny.skog} /> : <Text style={styles.buttonText}>{str.signIn.buttons.sendCode}</Text>}
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={styles.helpText}>{str.signIn.helpText.codeSentTo(email)}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={str.placeholders.codeFromEmail}
+                  placeholderTextColor={ny.textDampad}
+                  keyboardType="number-pad"
+                  value={code}
+                  onChangeText={setCode}
+                />
+                {mode === 'reset' && (
+                  <TextInput
+                    style={styles.input}
+                    placeholder={str.placeholders.newPassword}
+                    placeholderTextColor={ny.textDampad}
+                    secureTextEntry
+                    value={resetNewPassword}
+                    onChangeText={setResetNewPassword}
+                    textContentType="newPassword"
+                    autoComplete="new-password"
+                  />
+                )}
+                <Pressable style={styles.button} onPress={handleVerifyCode} disabled={loading}>
+                  {loading ? <ActivityIndicator color={ny.skog} />
+                    : <Text style={styles.buttonText}>{mode === 'reset' ? str.signIn.buttons.resetAndSignIn : isNewAccount ? str.signIn.buttons.createAccount : str.signIn.buttons.signIn}</Text>}
+                </Pressable>
+              </>
+            )}
 
-          {mode === 'email-code' && !codeSent && (
-            <>
-              <Pressable style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
-                <Image source={GOOGLE_G} style={styles.googleLogo} resizeMode="contain" />
-                <Text style={styles.googleButtonText}>{str.signIn.buttons.continueWithGoogle}</Text>
-              </Pressable>
+            {mode === 'email-code' && !codeSent && (
+              <>
+                <Pressable style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
+                  <Image source={GOOGLE_G} style={styles.googleLogo} resizeMode="contain" />
+                  <Text style={styles.googleButtonText}>{str.signIn.buttons.continueWithGoogle}</Text>
+                </Pressable>
 
-              <Pressable onPress={() => switchMode('password')} hitSlop={6}>
-                <Text style={styles.link}>{str.signIn.links.signInWithPassword}</Text>
-              </Pressable>
-            </>
-          )}
+                <Pressable onPress={() => switchMode('password')} hitSlop={6}>
+                  <Text style={styles.link}>{str.signIn.links.signInWithPassword}</Text>
+                </Pressable>
+              </>
+            )}
 
-          {mode === 'reset' && (
-            <Pressable onPress={() => switchMode('email-code')}>
-              <Text style={styles.link}>{str.signIn.links.backToSignIn}</Text>
-            </Pressable>
-          )}
-        </>
-      )}
+            {mode === 'reset' && (
+              <Pressable onPress={() => switchMode('email-code')}>
+                <Text style={styles.link}>{str.signIn.links.backToSignIn}</Text>
+              </Pressable>
+            )}
+          </>
+        )}
+      </View>
     </KeyboardAvoidingView>
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-    backgroundColor: c.surface,
+// Inloggningen är appens första intryck och följer den nya designen: mörkgrönt
+// huvud med ordmärket i Outfit, ljusgrön kropp, lime huvudknapp med mörkgrön
+// text. Designen har bara ljust läge än, så paletten `c` används inte här.
+const makeStyles = (_c: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: ny.skog },
+  hero: { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingBottom: 28 },
+  heroCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' },
+  body: {
+    backgroundColor: ny.kort,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 28,
   },
-  logo: { width: 88, height: 88, borderRadius: 20, alignSelf: 'center', marginBottom: 20 },
-  title: { fontSize: 40, fontFamily: 'Baloo2', color: c.primary, textAlign: 'center', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: c.textMuted, textAlign: 'center', marginBottom: 32 },
-  input: { color: c.text,
+  logo: { width: 88, height: 88, borderRadius: 22, marginTop: 8, marginBottom: 16 },
+  // Outfit bär vikten i typsnittet — en fontWeight till ger reservtypsnitt.
+  title: { fontSize: 40, fontFamily: nyFont.fet, letterSpacing: -1, color: ny.rubrikLjus, textAlign: 'center', alignSelf: 'stretch', marginBottom: 6 },
+  subtitle: { fontSize: 16, color: ny.underrubrik, textAlign: 'center', alignSelf: 'stretch' },
+  // Andra raden: mindre och svagare, så de tre orden förblir sloganen.
+  subtitleSub: { fontSize: 14, color: ny.flikInaktiv, textAlign: 'center', alignSelf: 'stretch', marginTop: 4 },
+  bodyTitle: { fontFamily: nyFont.fet, fontSize: 22, letterSpacing: -0.4, color: ny.skog, textAlign: 'center', marginBottom: 12 },
+  input: {
+    color: ny.text,
+    backgroundColor: ny.ljus,
     borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 10,
+    borderColor: ny.kontur,
+    borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     fontSize: 16,
@@ -397,22 +425,20 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // top:0/bottom:12 centrerar knappen på själva fältet (input har marginBottom:12).
   pwEye: { position: 'absolute', right: 6, top: 0, bottom: 12, justifyContent: 'center', paddingHorizontal: 8 },
   button: {
-    backgroundColor: c.primary,
-    borderRadius: 10,
+    backgroundColor: ny.lime,
+    borderRadius: 14,
     padding: 16,
     alignItems: 'center',
     marginBottom: 12,
   },
   // Google-knappen följer Googles mönster: vit/neutral yta, grå ram, mörk text
-  // + Google-loggan — inte en helröd knapp. Vit yta funkar mot både ljust och
-  // mörkt tema.
+  // + Google-loggan — inte en helröd knapp.
   googleButton: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dadce0', flexDirection: 'row', justifyContent: 'center', gap: 10 },
   googleLogo: { width: 18, height: 18 },
   googleButtonText: { color: '#3c4043', fontSize: 16, fontWeight: '600' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  link: { textAlign: 'center', color: c.primary, marginTop: 8 },
-  linkSmall: { color: c.textMuted, fontSize: 13 },
+  buttonText: { color: ny.skog, fontSize: 16, fontFamily: nyFont.halvfet },
+  link: { textAlign: 'center', color: ny.skog, fontWeight: '600', marginTop: 8 },
+  linkSmall: { color: ny.textDampad, fontSize: 13 },
   altRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: -4, marginBottom: 8, flexWrap: 'wrap' },
-  altSep: { color: c.border, fontSize: 13 },
-  helpText: { fontSize: 14, color: c.textMuted, textAlign: 'center', marginBottom: 16 },
+  helpText: { fontSize: 14, color: ny.textDampad, textAlign: 'center', marginBottom: 16 },
 });

@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { useDesign } from '../context/DesignContext';
+import { ny, nyFont } from '../lib/nyDesign';
 import type { Palette } from '../lib/theme';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -10,6 +12,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { shareTemplate } from '../lib/shareWeekMenu';
 import { components as str, common } from '../lib/svenska';
 import { DraggableBottomSheet } from './DraggableBottomSheet';
+import { SHEET_HEADER_ICON } from './SheetHeader';
 import { useSheetLift } from '../hooks/useSheetLift';
 
 interface Props {
@@ -27,7 +30,8 @@ interface Props {
 
 export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, weekNumber, weekHasItems, readOnly, onApplied }: Props) {
   const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { nyDesign } = useDesign();
+  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
   const client = useApiClient();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
@@ -112,12 +116,14 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
   }
 
   return (
-    <DraggableBottomSheet isDirty={name.trim() !== ''} visible={visible} onRequestClose={onClose} liftOffset={sheetLift} sheetStyle={s.sheet}>
-        <View style={s.header}>
-          <Text style={s.title}>{str.menuTemplatesModal.title}</Text>
-          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.close}><Ionicons name="close" size={24} color={c.textMuted} /></Pressable>
-        </View>
-
+    <DraggableBottomSheet isDirty={name.trim() !== ''} visible={visible} onRequestClose={onClose} liftOffset={sheetLift} sheetStyle={s.sheet}
+      title={str.menuTemplatesModal.title}
+      headerRight={
+        <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.close}>
+          <Ionicons name="close" size={24} color={SHEET_HEADER_ICON} />
+        </Pressable>
+      }
+    >
         <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled" scrollEnabled>
           <Text style={s.sectionLabel}>{str.menuTemplatesModal.saveSection}</Text>
           <View style={s.saveRow}>
@@ -154,13 +160,13 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
                   </View>
                   {busyId === tpl.id
                     ? <ActivityIndicator color={c.primary} size="small" />
-                    : !readOnly && <Ionicons name="add-circle-outline" size={22} color={c.primary} />}
+                    : !readOnly && <Ionicons name="add-circle-outline" size={22} color={nyDesign ? ny.skog : c.primary} />}
                 </Pressable>
                 <Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.shareA11y(tpl.name)}>
-                  <Ionicons name="share-outline" size={18} color={c.primary} />
+                  <Ionicons name="share-outline" size={18} color={nyDesign ? ny.skog : c.primary} />
                 </Pressable>
                 <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.deleteA11y(tpl.name)}>
-                  <Ionicons name="trash-outline" size={18} color={c.textFaint} />
+                  <Ionicons name="trash-outline" size={18} color={nyDesign ? ny.textDampad : c.textFaint} />
                 </Pressable>
               </View>
             ))
@@ -170,22 +176,24 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 20, paddingBottom: 32, maxHeight: '85%' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
-  title: { fontSize: 20, fontWeight: '700', color: c.text },
-  body: { paddingHorizontal: 16, paddingBottom: 16 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginBottom: 8, marginLeft: 4 },
+// nyD: den nya designen (beta) skriver over de stilar som skiljer.
+const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+  // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
+  sheet: { maxHeight: '85%' },
+  body: { paddingBottom: 16 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: nyD ? ny.textDampad : c.textFaint, letterSpacing: 0.8, marginBottom: 8, marginLeft: 4 },
   saveRow: { flexDirection: 'row', gap: 8 },
-  input: { flex: 1, backgroundColor: c.inputBg, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: c.text },
-  saveBtn: { backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center' },
+  input: { flex: 1, backgroundColor: nyD ? ny.ljus : c.inputBg, borderRadius: nyD ? 14 : 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: nyD ? ny.text : c.text },
+  saveBtn: { backgroundColor: nyD ? ny.skog : c.primary, borderRadius: nyD ? 14 : 10, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  hint: { fontSize: 13, color: c.textFaint, marginTop: 8, marginLeft: 4 },
-  tplRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surfaceSubtle, borderRadius: 12, marginBottom: 8 },
+  saveBtnText: { color: nyD ? ny.lime : '#fff', fontWeight: '700', fontSize: 15 },
+  hint: { fontSize: 13, color: nyD ? ny.textDampad : c.textFaint, marginTop: 8, marginLeft: 4 },
+  tplRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: nyD ? ny.ljus : c.surfaceSubtle, borderRadius: nyD ? 16 : 12, marginBottom: 8 },
   tplMain: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
-  tplName: { fontSize: 15, fontWeight: '600', color: c.text },
-  tplMeta: { fontSize: 13, color: c.textFaint, marginTop: 2 },
+  tplName: nyD
+    ? { fontFamily: nyFont.halvfet, fontWeight: 'normal', fontSize: 15, color: ny.text }
+    : { fontSize: 15, fontWeight: '600', color: c.text },
+  tplMeta: { fontSize: 13, color: nyD ? ny.textDampad : c.textFaint, marginTop: 2 },
   tplShare: { paddingHorizontal: 10, paddingVertical: 14 },
   tplDelete: { paddingHorizontal: 14, paddingVertical: 14 },
 });

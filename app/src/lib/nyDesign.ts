@@ -20,11 +20,15 @@ export const ny = {
   /** Bottenrader och små knappar ovanpå kort. */
   ljus: '#f8faf4',
   /** Ljus platshållare för recept utan bild — egen ton, så den inte blir
-   *  vit mot de ljusa korten. */
+   *  vit mot de ljusa korten. Bär även dagens ruta i veckomenyn: de ljusa
+   *  korten behövde en tydligare yta att ligga på än `kort`. */
   platsLjus: '#cddcb3',
   /** Destruktiva handlingar (Ta bort). */
   fara: '#b3261e',
   faraYta: '#f8e1de',
+  /** Destruktiv text på skog. `fara` är för mörk mot mörkgrönt och
+   *  `faraYta` som knappbakgrund blev en skrikig ljusröd lapp. */
+  faraLjus: '#f2b8b5',
   text: '#1d2a22',
   textDampad: '#6b7a6f',
   chipText: '#2c4a3b',
@@ -35,6 +39,8 @@ export const ny = {
   ikonLjus: '#b9cfc0',
   /** Inaktiva flikar i den mörka flikraden. */
   flikInaktiv: '#8aa595',
+  /** Draghandtaget i arkens mörka huvud. */
+  handtagSkog: 'rgba(255,255,255,0.3)',
   glas: 'rgba(255,255,255,0.12)',
   glasSvag: 'rgba(255,255,255,0.1)',
 } as const;

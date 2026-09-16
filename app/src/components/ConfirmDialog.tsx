@@ -5,6 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const ÄR_WEBB = Platform.OS as any === 'web';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useDesign } from '../context/DesignContext';
+import { ny, nyFont } from '../lib/nyDesign';
+import { SheetHeader } from './SheetHeader';
 import type { Palette } from '../lib/theme';
 
 export type ConfirmButtonStyle = 'primary' | 'destructive' | 'cancel';
@@ -49,9 +52,10 @@ export function ConfirmDialog({
   onClose: () => void;
 }) {
   const { colors: c } = useTheme();
+  const { nyDesign } = useDesign();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
 
   // Menyn växer ur knappen den hör till i stället för att bara tonas in.
   // Skala + en liten förskjutning nedåt (menyn ligger OVANFÖR knappen) läser
@@ -88,7 +92,9 @@ export function ConfirmDialog({
     const firstDestructiveIdx = actionButtons.findIndex(b => b.style === 'destructive');
     const rows = actionButtons.map((b, i) => {
       const isDestructive = b.style === 'destructive';
-      const color = isDestructive ? c.danger : c.primary;
+      const color = nyDesign
+        ? (isDestructive ? ny.fara : ny.skog)
+        : (isDestructive ? c.danger : c.primary);
       const showDivider = i === firstDestructiveIdx && firstDestructiveIdx > 0;
       return (
         <View key={i}>
@@ -162,6 +168,11 @@ export function ConfirmDialog({
     );
   }
 
+  // Samma anatomi som alla andra ark: rubrik och text i det mörkgröna huvudet,
+  // knapparna i den ljusa kroppen. BARA den första primära knappen är fylld
+  // mörkgrön — två fyllda staplade tävlar om uppmärksamheten.
+  const forstaPrimar = options.buttons.findIndex(b => (b.style ?? 'primary') === 'primary');
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
       {/* height 100dvh på web: Modal blir annars 100% hög, och Chrome på
@@ -171,65 +182,65 @@ export function ConfirmDialog({
           Ignoreras av native. */}
       <View style={[s.overlay, ÄR_WEBB && ({ height: '100dvh' } as object)]}>
         <Pressable style={{ flex: 1 }} onPress={dismiss} />
-        {/* Safe area i botten så gestindikatorn inte ligger över knappen. */}
-        <View style={[s.sheet, { paddingBottom: 36 + insets.bottom }]}>
-          <View style={s.handle} />
-          {options.title ? <Text style={s.title}>{options.title}</Text> : null}
-          {options.message ? <Text style={s.message}>{options.message}</Text> : null}
-          {options.buttons.map((b, i) => {
-            const style = b.style ?? 'primary';
-            return (
-              <Pressable
-                key={i}
-                style={[s.btn, i > 0 && s.btnTopBorder]}
-                onPress={() => { onClose(); b.onPress?.(); }}
-                accessibilityRole="button"
-                accessibilityLabel={b.label}
-              >
-                <Text
+        <View style={s.sheet}>
+          <SheetHeader title={options.title} subtitle={options.message} />
+          {/* Safe area i botten så gestindikatorn inte ligger över knappen.
+              Knapparna staplas i stället för att ligga sida vid sida: svenska
+              etiketter som "Lägg till i veckan" ryms inte på en halv bredd. */}
+          <View style={[s.body, { paddingBottom: 24 + insets.bottom }]}>
+            {options.buttons.map((b, i) => {
+              const style = b.style ?? 'primary';
+              return (
+                <Pressable
+                  key={i}
                   style={[
-                    s.btnText,
-                    style === 'primary' && s.btnTextPrimary,
-                    style === 'destructive' && s.btnTextDestructive,
-                    style === 'cancel' && s.btnTextCancel,
+                    s.btn,
+                    style === 'cancel' ? s.btnAvbryt : i === forstaPrimar ? s.btnPrimar : s.btnSekundar,
                   ]}
+                  onPress={() => { onClose(); b.onPress?.(); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={b.label}
                 >
-                  {b.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+                  <Text
+                    style={[
+                      s.btnText,
+                      style === 'destructive' && s.btnTextDestructive,
+                      style === 'cancel' && s.btnTextCancel,
+                      i === forstaPrimar && s.btnTextPrimar,
+                    ]}
+                  >
+                    {b.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
       </View>
     </Modal>
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
+// nyD: den nya designen skriver over de stilar som skiljer (menyvarianterna).
+const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   // Sheet variant (default)
-  overlay: { flex: 1, backgroundColor: 'rgba(41,37,36,0.55)' },
-  sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 8,
-    paddingBottom: 36,
-    paddingHorizontal: 24,
-  },
-  handle: { alignSelf: 'center', width: 36, height: 4, backgroundColor: c.borderLight, borderRadius: 2, marginBottom: 12 },
-  title: { fontSize: 17, fontWeight: '700', color: c.text, textAlign: 'center', marginBottom: 4 },
-  message: { fontSize: 14, color: c.textMuted, textAlign: 'center', marginBottom: 12 },
-  btn: { paddingVertical: 14, alignItems: 'center' },
-  btnTopBorder: { borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
-  btnText: { fontSize: 16, fontWeight: '600' },
-  btnTextPrimary: { color: c.primary },
-  btnTextDestructive: { color: c.danger },
-  btnTextCancel: { color: c.textMuted, fontWeight: '500' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheet: { backgroundColor: ny.kort, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+  body: { paddingHorizontal: 24, paddingTop: 20, gap: 10 },
+  btn: { height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  btnPrimar: { backgroundColor: ny.skog },
+  btnSekundar: { backgroundColor: ny.ljus },
+  btnAvbryt: { backgroundColor: 'transparent' },
+  // Outfit bär vikten i typsnittet — en fontWeight till ger reservtypsnitt.
+  btnText: { fontFamily: nyFont.halvfet, fontWeight: 'normal', fontSize: 16, color: ny.skog },
+  btnTextPrimar: { color: ny.rubrikLjus },
+  btnTextDestructive: { color: ny.fara },
+  btnTextCancel: { color: ny.textDampad },
 
   // Menu/action variants
   menuCardBase: {
-    backgroundColor: c.surface,
-    borderRadius: 12,
+    backgroundColor: nyD ? ny.ljus : c.surface,
+    borderRadius: nyD ? 16 : 12,
     paddingVertical: 6,
     minWidth: 220,
     shadowColor: '#000',
@@ -246,6 +257,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // höjd varierar med tab-bar och säkerhetszon.
   menuCardBottomRight: { position: 'absolute', right: 8 },
   menuBtn: { paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  menuBtnText: { fontSize: 15, fontWeight: '500', color: c.primary },
-  menuDivider: { height: 1, backgroundColor: c.surfaceSubtle, marginVertical: 4 },
+  menuBtnText: { fontSize: 15, fontWeight: '500', color: nyD ? ny.skog : c.primary },
+  menuDivider: { height: 1, backgroundColor: nyD ? ny.kontur : c.surfaceSubtle, marginVertical: 4 },
 });

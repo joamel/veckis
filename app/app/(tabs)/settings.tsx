@@ -46,7 +46,7 @@ export default function SettingsScreen() {
   const client = useApiClient();
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
   const { colors: c, mode: themeMode, setMode: setThemeMode } = useTheme();
-  const { nyDesign, setNyDesign } = useDesign();
+  const { nyDesign } = useDesign();
   const styles = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
@@ -513,14 +513,21 @@ export default function SettingsScreen() {
       {/* Admin-loggar — aktivitetslogg + klientfel som fullskärmsvy */}
       <Modal visible={showAdminLogs} animationType="slide" onRequestClose={() => setShowAdminLogs(false)}>
         <SafeAreaView style={styles.adminLogsContainer}>
-          <View style={styles.adminLogsHeader}>
-            <Pressable onPress={() => setShowAdminLogs(false)} hitSlop={10} accessibilityLabel={str.a11y.close}>
-              <Ionicons name="arrow-back" size={24} color={c.text} />
-            </Pressable>
-            <Text style={styles.adminLogsTitle}>{str.sections.adminLogs}</Text>
-            <View style={{ width: 24 }} />
-          </View>
-          <ScrollView contentContainerStyle={styles.adminLogsBody} showsVerticalScrollIndicator={false}>
+          {/* Samma mörkgröna band som övriga vyer. Den handbyggda headern
+              missades när vyerna gjordes om — den låg i en modal, inte i en
+              route, och blev vit mitt i en annars grön app. */}
+          {nyDesign ? (
+            <NyHeader title={str.sections.adminLogs} onBack={() => setShowAdminLogs(false)} backLabel={str.a11y.close} kompakt />
+          ) : (
+            <View style={styles.adminLogsHeader}>
+              <Pressable onPress={() => setShowAdminLogs(false)} hitSlop={10} accessibilityLabel={str.a11y.close}>
+                <Ionicons name="arrow-back" size={24} color={c.text} />
+              </Pressable>
+              <Text style={styles.adminLogsTitle}>{str.sections.adminLogs}</Text>
+              <View style={{ width: 24 }} />
+            </View>
+          )}
+          <ScrollView style={styles.innehall} contentContainerStyle={styles.adminLogsBody} showsVerticalScrollIndicator={false}>
             {householdId && <AuditLogSection householdId={householdId} />}
             {__DEV__ && <ClientErrorsSection />}
           </ScrollView>
@@ -618,7 +625,7 @@ export default function SettingsScreen() {
             {householdMembers.map((member, idx) => (
               <View
                 key={member.id}
-                style={[styles.memberRow, idx === householdMembers.length - 1 && { borderBottomWidth: 0 }]}
+                style={[styles.memberRow, idx === householdMembers.length - 1 && { borderBottomWidth: 0, marginBottom: 0 }]}
               >
                 {/* Ny design: rund initial som växlar mörk/ljus rad för rad —
                     sektionen var annars bara svart text på ljus yta. */}
@@ -725,23 +732,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Ny design (beta): testas vy för vy innan den blir standard */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{str.sections.newDesign}</Text>
-          <View style={styles.betaRow}>
-            <View style={styles.betaText}>
-              <Text style={styles.betaTitle}>{str.newDesign.title}</Text>
-              <Text style={styles.betaHint}>{str.newDesign.hint}</Text>
-            </View>
-            <Switch
-              value={nyDesign}
-              onValueChange={setNyDesign}
-              trackColor={{ true: c.primary, false: c.border }}
-              thumbColor="#fff"
-              accessibilityLabel={str.newDesign.title}
-            />
-          </View>
-        </View>
 
         {/* Andra hushåll: skapa nytt eller gå med via kod */}
         <View style={styles.section}>
@@ -776,8 +766,7 @@ export default function SettingsScreen() {
       </ScrollView>
 
       {/* Edit Household Name Modal */}
-      <DraggableBottomSheet visible={showEditHouseholdModal} onRequestClose={() => setShowEditHouseholdModal(false)} isDirty={editingHouseholdName.trim() !== (householdName || '').trim()} liftOffset={sheetLift} sheetStyle={styles.sheet}>
-          <Text style={styles.sheetTitle}>{str.modals.renameHousehold}</Text>
+      <DraggableBottomSheet visible={showEditHouseholdModal} onRequestClose={() => setShowEditHouseholdModal(false)} isDirty={editingHouseholdName.trim() !== (householdName || '').trim()} liftOffset={sheetLift} title={str.modals.renameHousehold}>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <TextInput
               ref={editHouseholdRef}
@@ -805,8 +794,7 @@ export default function SettingsScreen() {
       </DraggableBottomSheet>
 
       {/* Delete Household Confirmation Modal */}
-      <DraggableBottomSheet visible={showDeleteHouseholdModal} onRequestClose={() => setShowDeleteHouseholdModal(false)} liftOffset={sheetLift} sheetStyle={styles.sheet}>
-          <Text style={styles.sheetTitle}>{str.modals.deleteHousehold}</Text>
+      <DraggableBottomSheet visible={showDeleteHouseholdModal} onRequestClose={() => setShowDeleteHouseholdModal(false)} liftOffset={sheetLift} title={str.modals.deleteHousehold}>
           <ScrollView contentContainerStyle={styles.sheetScroll} keyboardShouldPersistTaps="handled">
             <Text style={styles.sheetDesc}>
               {str.messages.deleteConfirmIntro(householdName ?? '')}{'\n\n'}
@@ -836,8 +824,7 @@ export default function SettingsScreen() {
       </DraggableBottomSheet>
 
       {/* Edit Member Modal */}
-      <DraggableBottomSheet visible={showEditMemberModal} onRequestClose={() => setShowEditMemberModal(false)} isDirty={editingDisplayName.trim() !== editMemberOrigRef.current.trim()} liftOffset={sheetLift} sheetStyle={styles.sheet}>
-          <Text style={styles.sheetTitle}>{str.modals.editMember}</Text>
+      <DraggableBottomSheet visible={showEditMemberModal} onRequestClose={() => setShowEditMemberModal(false)} isDirty={editingDisplayName.trim() !== editMemberOrigRef.current.trim()} liftOffset={sheetLift} title={str.modals.editMember}>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
             <TextInput
               ref={editMemberRef}
@@ -865,8 +852,7 @@ export default function SettingsScreen() {
       </DraggableBottomSheet>
 
       {/* Create Household Modal */}
-      <DraggableBottomSheet visible={showCreateHouseholdModal} onRequestClose={() => { setShowCreateHouseholdModal(false); setNewHouseholdName(''); }} isDirty={newHouseholdName.trim() !== ''} liftOffset={sheetLift} sheetStyle={styles.sheet}>
-          <Text style={styles.sheetTitle}>{str.modals.createHousehold}</Text>
+      <DraggableBottomSheet visible={showCreateHouseholdModal} onRequestClose={() => { setShowCreateHouseholdModal(false); setNewHouseholdName(''); }} isDirty={newHouseholdName.trim() !== ''} liftOffset={sheetLift} title={str.modals.createHousehold}>
           <ScrollView contentContainerStyle={styles.sheetScroll} keyboardShouldPersistTaps="handled">
             <TextInput
               ref={newHouseholdRef}
@@ -892,10 +878,8 @@ export default function SettingsScreen() {
       </DraggableBottomSheet>
 
       {/* Join Household Modal */}
-      <DraggableBottomSheet visible={showJoinHouseholdModal} onRequestClose={() => { setShowJoinHouseholdModal(false); setJoinCode(''); }} isDirty={joinCode.trim() !== ''} liftOffset={sheetLift} sheetStyle={styles.sheet}>
-          <Text style={styles.sheetTitle}>{str.modals.joinHousehold}</Text>
+      <DraggableBottomSheet visible={showJoinHouseholdModal} onRequestClose={() => { setShowJoinHouseholdModal(false); setJoinCode(''); }} isDirty={joinCode.trim() !== ''} liftOffset={sheetLift} title={str.modals.joinHousehold} subtitle={str.messages.joinHint}>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
-            <Text style={styles.sheetDesc}>{str.messages.joinHint}</Text>
             <TextInput
               ref={joinCodeRef}
               onFocus={onFocusInput(joinCodeRef)}
@@ -1029,7 +1013,9 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: nyD ? ny.bricka : c.borderLight,
-    ...(nyD ? { gap: 12 } : {}),
+    // Nya designen: varje medlem ar ett eget ljust kort i den grona sektionen,
+    // i stallet for rader avdelade med streck.
+    ...(nyD ? { gap: 12, borderBottomWidth: 0, backgroundColor: ny.ljus, borderRadius: 14, paddingHorizontal: 10, marginBottom: 8 } : {}),
   },
   memberInfo: { flex: 1 },
   memberName: nyD
@@ -1128,27 +1114,15 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   },
   toastText: { fontSize: 14, fontWeight: '600', color: '#fff' },
   toastNeutral: { backgroundColor: c.textSecondary },
-  sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: -4 },
-    elevation: 16,
-  },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, paddingHorizontal: 20, marginBottom: 8 },
   menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, gap: 12, borderTopWidth: 1, borderTopColor: c.borderLight },
   menuRowLabel: { fontSize: 15, fontWeight: '600', color: c.text },
   menuRowSub: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   menuBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 16, borderTopWidth: 1, borderTopColor: c.borderLight },
   menuBtnLast: { justifyContent: 'center', borderTopWidth: 0 },
   menuBtnText: { fontSize: 15, fontWeight: '600', color: c.text },
-  sheetDesc: { fontSize: 14, color: c.textMuted, paddingHorizontal: 20, marginBottom: 16, lineHeight: 20 },
-  sheetScroll: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8, gap: 16 },
+  sheetDesc: { fontSize: 14, color: c.textMuted, lineHeight: 20 },
+  // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
+  sheetScroll: { gap: 16 },
   input: {
     borderWidth: 1,
     borderColor: c.border,
@@ -1174,7 +1148,8 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
     alignItems: 'center',
   },
   deleteBtnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
-  adminLogsContainer: { flex: 1, backgroundColor: c.background },
+  // Skog överst så säkerhetszonen bakom statusraden går ihop med bandet.
+  adminLogsContainer: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
   adminLogsHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.borderLight },
   adminLogsTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: c.text, textAlign: 'center' },
   adminLogsBody: { padding: 16, paddingBottom: 40 },

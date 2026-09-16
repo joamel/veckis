@@ -311,9 +311,8 @@ export default function StoresScreen() {
         visible={showCreate}
         onRequestClose={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); })}
         liftOffset={sheetLift}
-        sheetStyle={s.sheet}
+        title={str.createModal.title}
       >
-        <Text style={s.sheetTitle}>{str.createModal.title}</Text>
         <TextInput
           ref={newStoreRef}
           onFocus={onFocusInput(newStoreRef)}
@@ -372,8 +371,6 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   cardMetaCurrent: { color: c.accent, fontWeight: '600' },
   cardClearBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerTint },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: nyD ? ny.lime : c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: nyD ? ny.skog : c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 6 },
   input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: c.text },
   saveBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
   noStoreBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },

@@ -247,8 +247,7 @@ export default function AccountScreen() {
       </ScrollView>
 
       {/* Byt namn-modal */}
-      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} isDirty={renameValue.trim() !== (displayName ?? '').trim()} liftOffset={sheetLift} sheetStyle={s.sheetDraggable}>
-        <Text style={s.sheetTitle}>{str.renameModal.title}</Text>
+      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} isDirty={renameValue.trim() !== (displayName ?? '').trim()} liftOffset={sheetLift} bodyStyle={s.sheetBody} title={str.renameModal.title}>
         <TextInput
           ref={renameRef}
           onFocus={onFocusInput(renameRef)}
@@ -272,9 +271,11 @@ export default function AccountScreen() {
       </DraggableBottomSheet>
 
       {/* Lösenord-modal: lägg till (lösenordsfritt konto) eller ändra */}
-      <DraggableBottomSheet visible={showPassword} onRequestClose={closePassword} isDirty={!!(curPw || newPw || confirmPw)} liftOffset={sheetLift} sheetStyle={s.sheetDraggable}>
-        <Text style={s.sheetTitle}>{hasPassword ? str.passwordModal.changeTitle : str.passwordModal.addTitle}</Text>
-        <Text style={s.sheetSubtitle}>{hasPassword ? str.security.changeSubtitle : str.security.addSubtitle}</Text>
+      <DraggableBottomSheet visible={showPassword} onRequestClose={closePassword} isDirty={!!(curPw || newPw || confirmPw)} liftOffset={sheetLift}
+        bodyStyle={s.sheetBody}
+        title={hasPassword ? str.passwordModal.changeTitle : str.passwordModal.addTitle}
+        subtitle={hasPassword ? str.security.changeSubtitle : str.security.addSubtitle}
+      >
         {hasPassword && (
           <TextInput
             ref={curPwRef}
@@ -339,10 +340,10 @@ export default function AccountScreen() {
         visible={showDeleteSheet}
         onRequestClose={() => setShowDeleteSheet(false)}
         liftOffset={sheetLift}
-        sheetStyle={s.sheet}
+        bodyStyle={s.sheetBody}
+        title={str.deleteConfirm.title}
+        subtitle={str.deleteConfirm.intro}
       >
-        <Text style={s.sheetTitle}>{str.deleteConfirm.title}</Text>
-        <Text style={s.sheetSubtitle}>{str.deleteConfirm.intro}</Text>
         <Pressable style={s.agreeRow} onPress={() => setDeleteAgree(v => !v)}>
           <Ionicons name={deleteAgree ? 'checkbox' : 'square-outline'} size={22} color={deleteAgree ? c.danger : c.textFaint} />
           <Text style={s.agreeText}>{str.deleteConfirm.agree}</Text>
@@ -402,10 +403,9 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   rowText: nyD
     ? { flex: 1, fontFamily: nyFont.fet, fontSize: 16, letterSpacing: -0.2, color: ny.text }
     : { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 14 },
-  sheetDraggable: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, gap: 14 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
-  sheetSubtitle: { fontSize: 13, color: c.textMuted, lineHeight: 19, marginTop: -6 },
+  // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
+  sheetBody: { gap: 14 },
+  sheetSubtitle: { fontSize: 13, color: c.textMuted, lineHeight: 19 },
   input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
   pwWrap: { position: 'relative', justifyContent: 'center' },
   pwInput: { paddingRight: 48 },

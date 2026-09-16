@@ -9,6 +9,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -17,7 +18,8 @@ import Animated, {
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
-import { useTheme } from '../context/ThemeContext';
+import { ny } from '../lib/nyDesign';
+import { SheetHandle, SheetHeader } from './SheetHeader';
 
 // Dra nedåt (i handtaget) för att stänga en bottom-sheet, i stället för att
 // bara kunna trycka utanför. RN:s <Modal> renderas i ett eget nativt fönster
@@ -34,6 +36,11 @@ export function DraggableBottomSheet({
   children,
   liftOffset = 0,
   sheetStyle,
+  bodyStyle,
+  title,
+  subtitle,
+  headerLeft,
+  headerRight,
   isDirty = false,
 }: {
   visible: boolean;
@@ -54,8 +61,19 @@ export function DraggableBottomSheet({
    *  stängdes, och "padding" hjälpte inte. Använd useSheetLift, som mäter det
    *  fokuserade fältet och lyfter precis så mycket att det syns. */
   liftOffset?: number;
-  /** Skärmens egen `s.sheet`-stil (bakgrund, rundade hörn, padding). */
+  /** Arkets yttre ram — bara maxHeight och liknande. Bakgrund, rundning och
+   *  padding sköts här, så att alla ark ser likadana ut. */
   sheetStyle?: StyleProp<ViewStyle>;
+  /** Den ljusa kroppen under huvudet. Default: 24 px sidomarginal, 20 ovanför,
+   *  säkerhetszonen + 24 under. Skriv över för rader som ska gå kant i kant. */
+  bodyStyle?: StyleProp<ViewStyle>;
+  /** Rubrik i arkets mörka huvud. Utan rubrik blir huvudet bara handtaget. */
+  title?: string;
+  subtitle?: string;
+  /** T.ex. en tillbakapil före rubriken. Ikonfärg: SHEET_HEADER_ICON. */
+  headerLeft?: ReactNode;
+  /** T.ex. en stängknapp efter rubriken. */
+  headerRight?: ReactNode;
   /** Arket har osparade ändringar. Då frågar ALLA stängningsvägar — drag,
    *  tryck utanför och bakåtknapp — "Vill du slänga utkastet?" innan de
    *  stänger. Ett ark är lokalt tillstånd utan navigering, så frågan är
@@ -63,7 +81,7 @@ export function DraggableBottomSheet({
    *  Påverkar inte `onOverlayPress`: flerstegs-ark som satt den styr själva. */
   isDirty?: boolean;
 }) {
-  const { colors: c } = useTheme();
+  const insets = useSafeAreaInsets();
   const translateY = useSharedValue(0);
 
   // Refs i stället för deps: useDiscardDraft returnerar en ny funktion varje
@@ -135,17 +153,25 @@ export function DraggableBottomSheet({
   const content = (
     <>
       <Pressable style={styles.overlayTap} onPress={onOverlayPress ?? guardedClose} />
-      {/* Vit bakgrund som default — den ligger FÖRST i arrayen, så en anropare
-          som skickar egen backgroundColor i sheetStyle vinner fortfarande. Utan
-          defaulten fick varje sheet komma ihåg den själv, och två (mall- och
-          notismodalen) hade råkat sätta beige i stället. */}
-      <Animated.View style={[{ backgroundColor: c.surface }, sheetStyle, sheetAnimStyle]}>
-        <GestureDetector gesture={pan}>
-          <View style={[styles.handleHitArea]}>
-            <View style={[styles.handle, { backgroundColor: c.border }]} />
-          </View>
-        </GestureDetector>
-        {children}
+      {/* Alla ark har samma anatomi: mörkgrönt huvud (handtag + rubrik) och
+          ljusgrön kropp. Samma huvud används av ConfirmDialog. */}
+      <Animated.View style={[styles.sheet, sheetStyle, sheetAnimStyle]}>
+        <SheetHeader
+          title={title}
+          subtitle={subtitle}
+          left={headerLeft}
+          right={headerRight}
+          handle={
+            <GestureDetector gesture={pan}>
+              <View>
+                <SheetHandle />
+              </View>
+            </GestureDetector>
+          }
+        />
+        <View style={[styles.body, { paddingBottom: insets.bottom + 24 }, bodyStyle]}>
+          {children}
+        </View>
       </Animated.View>
     </>
   );
@@ -162,11 +188,8 @@ export function DraggableBottomSheet({
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  fillAbsolute: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   overlayTap: { flex: 1 },
-  // Handtaget har en generös osynlig träffyta (inte bara den smala synliga
-  // stapeln) så draget är lätt att träffa med tummen.
-  handleHitArea: { alignItems: 'center', paddingVertical: 8, marginBottom: 4, paddingTop: 20 },
-  handle: { width: 40, height: 4, borderRadius: 2 },
+  sheet: { backgroundColor: ny.kort, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+  body: { paddingHorizontal: 24, paddingTop: 20, flexShrink: 1 },
 });

@@ -38,6 +38,7 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { EmptyState } from '../../src/components/EmptyState';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
+import { SHEET_HEADER_ICON } from '../../src/components/SheetHeader';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
 import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
@@ -236,7 +237,7 @@ function InvMeasuredRow({ agg, haveAmt, onCommit }: {
           style={[s.invAllBtn, covered && s.invAllBtnOn]}
           onPress={() => onCommit(covered ? 0 : total)}
         >
-          <Ionicons name="checkmark" size={15} color={covered ? '#fff' : c.textFaint} />
+          <Ionicons name="checkmark" size={15} color={covered ? ny.skog : ny.textDampad} />
           <Text style={[s.invAllBtnText, covered && s.invAllBtnTextOn]}>{str.inventory.have}</Text>
         </Pressable>
       </View>
@@ -515,7 +516,7 @@ export default function MenuScreen() {
             style={[s.invAllBtn, have && s.invAllBtnOn]}
             onPress={() => toggleUnmeasured(agg.key)}
           >
-            <Ionicons name="checkmark" size={15} color={have ? '#fff' : c.textFaint} />
+            <Ionicons name="checkmark" size={15} color={have ? ny.skog : ny.textDampad} />
             <Text style={[s.invAllBtnText, have && s.invAllBtnTextOn]}>{str.inventory.have}</Text>
           </Pressable>
         </View>
@@ -1507,7 +1508,12 @@ export default function MenuScreen() {
                 <Text style={s.nyDagNamn} numberOfLines={1}>{day.label}</Text>
                 <Text style={[s.nyDagDatum, { width: datumText.length * 8 + 8 }]} numberOfLines={1}>{datumText}</Text>
                 {isToday && (
-                  <View style={s.nyIdagMarke}>
+                  // Datumets box ar avsiktligt bredare an texten (explicit bredd
+                  // mot klippbuggen). Overskottet hamnar till hoger, sa market
+                  // dras in i det — annars ser gapet dag→datum och datum→marke
+                  // olika stora ut. Samma formel som bredden, sa den foljer med
+                  // nar strangen byter langd ("3 sep" vs "16 sep").
+                  <View style={[s.nyIdagMarke, { marginLeft: -Math.round(datumText.length * 1.5 + 8) }]}>
                     <Text style={s.nyIdagMarkeText}>{str.nyDesign.today}</Text>
                   </View>
                 )}
@@ -1847,10 +1853,25 @@ export default function MenuScreen() {
         onApplied={load}
       />
 
-      <DraggableBottomSheet visible={showPicker} onRequestClose={closePicker} sheetStyle={s.sheet}>
+      <DraggableBottomSheet
+        visible={showPicker}
+        onRequestClose={closePicker}
+        sheetStyle={s.sheet}
+        title={pickerStep === 'day'
+          ? str.picker.chooseDay
+          : replaceTarget
+            ? str.picker.replaceTitle(replaceTarget.recipe.title)
+            : pickingForDay
+              ? DAYS.find(d => d.key === pickingForDay)?.label
+              : str.picker.noDay}
+        headerLeft={pickerStep !== 'day' && !replaceTarget ? (
+          <Pressable onPress={() => setPickerStep('day')} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.bulk.back}>
+            <Ionicons name="chevron-back" size={22} color={SHEET_HEADER_ICON} />
+          </Pressable>
+        ) : undefined}
+      >
           {pickerStep === 'day' ? (
             <>
-              <Text style={s.sheetTitle}>{str.picker.chooseDay}</Text>
               <View style={s.dayGrid}>
                 {DAYS.map(d => (
                   <Pressable
@@ -1865,20 +1886,6 @@ export default function MenuScreen() {
             </>
           ) : (
             <>
-              <View style={s.sheetTitleRow}>
-                {!replaceTarget && (
-                  <Pressable onPress={() => setPickerStep('day')} style={s.backBtn}>
-                    <Ionicons name="chevron-back" size={20} color={c.primary} />
-                  </Pressable>
-                )}
-                <Text style={s.sheetTitle}>
-                  {replaceTarget
-                    ? str.picker.replaceTitle(replaceTarget.recipe.title)
-                    : pickingForDay
-                      ? DAYS.find(d => d.key === pickingForDay)?.label
-                      : str.picker.noDay}
-                </Text>
-              </View>
               {recipes.length === 0 ? (
                 <View style={s.pickerEmpty}>
                   <Text style={s.pickerEmptyText}>{str.picker.noRecipesYet}</Text>
@@ -1941,11 +1948,13 @@ export default function MenuScreen() {
       </DraggableBottomSheet>
 
       {/* Shopping list cleanup modal */}
-      <DraggableBottomSheet visible={!!cleanupPrompt} onRequestClose={() => setCleanupPrompt(null)} sheetStyle={s.sheet}>
-          <Text style={s.sheetTitle}>{str.dialogs.removeFromShoppingList.title}</Text>
-          {cleanupPrompt ? (
-            <Text style={s.cleanupSub}>{str.dialogs.removeFromShoppingList.subtitle}</Text>
-          ) : null}
+      <DraggableBottomSheet
+        visible={!!cleanupPrompt}
+        onRequestClose={() => setCleanupPrompt(null)}
+        sheetStyle={s.sheet}
+        title={str.dialogs.removeFromShoppingList.title}
+        subtitle={cleanupPrompt ? str.dialogs.removeFromShoppingList.subtitle : undefined}
+      >
           <View style={s.cleanupList}>
             {cleanupPrompt?.lists.map(l => {
               const selected = selectedCleanupLists.has(l.listId);
@@ -1991,8 +2000,7 @@ export default function MenuScreen() {
           </View>
       </DraggableBottomSheet>
       {/* Transfer to shopping list modal */}
-      <DraggableBottomSheet isDirty={newListName.trim() !== ''} visible={!!transferSheet} onRequestClose={() => { setTransferSheet(null); setNewListName(''); }} liftOffset={sheetLift} sheetStyle={s.sheet}>
-          <Text style={s.sheetTitle}>{str.bulk.chooseShoppingList}</Text>
+      <DraggableBottomSheet isDirty={newListName.trim() !== ''} visible={!!transferSheet} onRequestClose={() => { setTransferSheet(null); setNewListName(''); }} liftOffset={sheetLift} sheetStyle={s.sheet} title={str.bulk.chooseShoppingList}>
           {shoppingLists.length === 0 ? (
             <>
               <Text style={s.pickerEmptyText}>{str.bulk.noActiveList}</Text>
@@ -2044,11 +2052,25 @@ export default function MenuScreen() {
         onRequestClose={() => handleBulkBack()}
         onOverlayPress={() => handleCancelBulkTransfer()}
         sheetStyle={s.sheet}
+        title={bulkTransferStep === 'week'
+          ? str.bulk.chooseWeekMenu
+          : bulkTransferStep === 'recipe'
+            ? str.bulk.chooseDishes
+            : bulkTransferStep === 'ingredients'
+              ? str.bulk.whatDoYouHave
+              : str.bulk.chooseShoppingList}
+        subtitle={bulkTransferStep === 'week'
+          ? str.bulk.chooseWeekMenuSub
+          : bulkTransferStep === 'recipe'
+            ? (bulkTransferWeeks.size > 0
+              ? str.bulk.fromWeeks(selectedRecipesForTransfer.size, bulkTransferWeeks.size)
+              : str.bulk.chooseDishesSub)
+            : bulkTransferStep === 'ingredients'
+              ? str.bulk.haveHint
+              : str.bulk.dishesToTransfer(selectedRecipesForTransfer.size)}
       >
           {bulkTransferStep === 'week' ? (
             <>
-              <Text style={s.sheetTitle}>{str.bulk.chooseWeekMenu}</Text>
-              <Text style={s.sheetSub}>{str.bulk.chooseWeekMenuSub}</Text>
               <ScrollView style={s.bulkRecipeList}>
                 {(() => {
                   // Samma källa som receptsteget och aggregeringen använder:
@@ -2135,12 +2157,6 @@ export default function MenuScreen() {
             </>
           ) : bulkTransferStep === 'recipe' ? (
             <>
-              <Text style={s.sheetTitle}>{str.bulk.chooseDishes}</Text>
-              <Text style={s.sheetSub}>
-                {bulkTransferWeeks.size > 0
-                  ? str.bulk.fromWeeks(selectedRecipesForTransfer.size, bulkTransferWeeks.size)
-                  : str.bulk.chooseDishesSub}
-              </Text>
               <ScrollView style={s.bulkRecipeList}>
                 {(() => {
                   const rows = bulkPool.filter(item => !transferredMenuItemIds.has(item.id));
@@ -2218,10 +2234,6 @@ export default function MenuScreen() {
             </>
           ) : bulkTransferStep === 'ingredients' ? (
             <>
-              <Text style={s.sheetTitle}>{str.bulk.whatDoYouHave}</Text>
-              <Text style={s.invSub}>
-                {str.bulk.haveHint}
-              </Text>
               <ScrollView
                 style={{ maxHeight: invMaxListH, marginBottom: 12 }}
                 keyboardShouldPersistTaps="handled"
@@ -2253,8 +2265,6 @@ export default function MenuScreen() {
             </>
           ) : (
             <>
-              <Text style={s.sheetTitle}>{str.bulk.chooseShoppingList}</Text>
-              <Text style={s.sheetSub}>{str.bulk.dishesToTransfer(selectedRecipesForTransfer.size)}</Text>
               {shoppingLists.length === 0 ? (
                 <>
                   <Text style={s.pickerEmptyText}>{str.bulk.noActiveList}</Text>
@@ -2466,10 +2476,13 @@ function MenuCard({
   const cardBody = (
       <View style={[s.card, nyDesign && s.nyKort, isDragging && s.cardDragging, isPending && s.cardPending]}>
         <View style={[s.cardInner, nyDesign && s.nyKortInner]}>
+          {/* Bilden faller ocksa ut kortet. Den ar kortets storsta yta, alltsa
+              det lattaste att traffa — att bara rubrikraden fungerade gjorde
+              utfallningen onodigt svar pa dagens ratt. */}
           {visaHero && (
-            <View style={s.nyHero}>
+            <Pressable style={s.nyHero} onPress={handlePress} accessibilityRole="button" accessibilityLabel={item.recipe.title}>
               <Image source={{ uri: bildUrl! }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-            </View>
+            </Pressable>
           )}
           {/* Egen rad för den hopfällda delen: cardInner staplar vertikalt (den
               bär även den utfällda delen), så handtaget hamnade annars på en ny
@@ -2502,16 +2515,9 @@ function MenuCard({
               {item.mealType && (
                 <Text style={[s.cardMealTag, { fontSize: fs(10) }, nyDesign && s.nyMaltid]}>{common.mealTypes[item.mealType].toUpperCase()}</Text>
               )}
-              {nyDesign ? (
-                // Chevronen direkt efter rubriken, långt från draghandtaget —
-                // i högerkanten var det lätt att träffa handtaget i stället.
-                <View style={s.nyTitelRad}>
-                  <Text style={[s.cardTitle, { fontSize: fs(16) }, s.nyKortTitel, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
-                  <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={ny.kontur} />
-                </View>
-              ) : (
-                <Text style={[s.cardTitle, { fontSize: fs(16) }, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
-              )}
+              {/* Ingen chevron i nya designen: att kortet gar att falla ut
+                  forstar man anda, och den satt i vagen bredvid rubriken. */}
+              <Text style={[s.cardTitle, { fontSize: fs(16) }, nyDesign && s.nyKortTitel, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
             </View>
             {/* Kundvagnen före chevronen, och chevronen närmast draghandtaget:
                 de två sitter ihop som kortets högerkant. Båda ligger utanför
@@ -2591,22 +2597,6 @@ function MenuCard({
                 </View>
               )}
 
-              {/* Flytta med ett klick på webben — med mus bekvämare än att dra. */}
-              {isWeb && !isPastWeek && (
-                <View style={s.nyUtfalltSektion}>
-                  <Text style={s.nyEtikett}>{str.card.moveToDay}</Text>
-                  <View style={s.nyChipRad}>
-                    {DAYS.map(d => {
-                      const active = item.day === d.key;
-                      return (
-                        <Pressable key={d.key} style={[s.nyChip, active && s.nyChipAktiv]} onPress={() => { if (!active) onMoveToDay(d.key); }}>
-                          <Text style={[s.nyChipText, active && s.nyChipTextAktiv]}>{d.short}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-              )}
 
               {/* Laga med text till vänster; byt ut och ta bort som ikonknappar
                   till höger — tre textknappar blev plottrigt. */}
@@ -2747,7 +2737,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   headerActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primaryTint, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
   headerActionText: { fontWeight: '600', color: c.primary, fontSize: 13 },
   headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: c.primaryTint, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
-  invSub: { fontSize: 13, color: c.textMuted, textAlign: 'left', marginTop: 12, marginBottom: 10, lineHeight: 18 },
   // En rad i den nya inventerings-vyn: namn + behov till vänster, "Har"-input
   // + ✓ Allt-knapp till höger. Allt på samma rad, ingen mode-toggle.
   invRowV2: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.surfaceSubtle, gap: 6 },
@@ -2763,15 +2752,19 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // ("kg", "dl", "tsk") för smalt och klipper annars sista glyfen.
   invValue: { fontSize: 14, color: c.primary, fontWeight: '700' },
   invSliderTrack: { height: 26, justifyContent: 'center', marginTop: 2 },
-  invSliderRail: { position: 'absolute', left: 0, right: 0, height: 6, borderRadius: 3, backgroundColor: c.borderLight },
-  invSliderFill: { position: 'absolute', left: 0, height: 6, borderRadius: 3, backgroundColor: c.primary },
-  invSliderThumb: { position: 'absolute', left: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: c.surface, borderWidth: 2, borderColor: c.primary, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
+  // borderLight/surface försvann mot arkets ljusgröna botten. Spåret i kontur,
+  // fyllnaden mörkgrön och knoppen lime med mörkgrön kant — samma par som
+  // notistogglen. Knoppens mått (18) används i thumbStyle, ändra inte ensidigt.
+  invSliderRail: { position: 'absolute', left: 0, right: 0, height: 6, borderRadius: 3, backgroundColor: ny.kontur },
+  invSliderFill: { position: 'absolute', left: 0, height: 6, borderRadius: 3, backgroundColor: ny.skog },
+  invSliderThumb: { position: 'absolute', left: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: ny.lime, borderWidth: 2, borderColor: ny.skog, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
   // Default-läge: NEUTRAL grå/vit så knappen INTE ser tryckt ut. Aktivt läge
   // (tryckt) blir grön + ifylld.
-  invAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: c.borderLight, backgroundColor: c.surface },
-  invAllBtnOn: { backgroundColor: c.success, borderColor: c.success },
-  invAllBtnText: { fontSize: 12, fontWeight: '700', color: c.textMuted },
-  invAllBtnTextOn: { color: '#fff' },
+  // Lime när varan finns: designens "vald". Av-läget ljust på den gröna botten.
+  invAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: ny.kontur, backgroundColor: ny.ljus },
+  invAllBtnOn: { backgroundColor: ny.lime, borderColor: ny.lime },
+  invAllBtnText: { fontSize: 12, fontWeight: '700', color: ny.textDampad },
+  invAllBtnTextOn: { color: ny.skog },
   content: { flex: 1 },
   // Ny design (beta)
   nyContainer: { backgroundColor: ny.skog },
@@ -2779,14 +2772,20 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   nyVeckaNav: { paddingTop: 14 },
   nyInnehallInner: { paddingHorizontal: 12 },
   nyDagar: { gap: 10 },
-  nyDag: { padding: 8, paddingTop: 6, gap: 6, borderRadius: 18, backgroundColor: ny.kort },
+  // Dagens ruta i samma distinkta ton som receptens platshållare: mot `kort`
+  // syntes knappt var en dag började, och med flera rätter samma dag gick det
+  // inte att se att de hörde ihop.
+  nyDag: { padding: 8, paddingTop: 6, gap: 6, borderRadius: 18, backgroundColor: ny.platsLjus },
   // Borderns 1,5 px dras av från utfyllnaden, så en tom dag är lika bred som en fylld.
   nyDagTomRuta: { backgroundColor: 'transparent', borderWidth: 1.5, borderStyle: 'dashed', borderColor: ny.kontur, padding: 6.5, paddingTop: 4.5 },
-  nyDagTomRutaHover: { borderStyle: 'solid', borderColor: ny.skog, backgroundColor: ny.kort },
+  nyDagTomRutaHover: { borderStyle: 'solid', borderColor: ny.skog, backgroundColor: ny.platsLjus },
   nyDagHuvud: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30, paddingHorizontal: 4 },
   // flexShrink: 0 hindrar texterna från att krympa mot flex-utfyllnaden, men
   // räckte inte ensamt — datumet och "I inköpslistan" får explicit bredd i JSX.
   nyDagNamn: { fontFamily: nyFont.fet, fontSize: 15, color: ny.skog, flexShrink: 0 },
+  // Vansterstalld: centrerad delade overskottet i boxen lika och skot i stallet
+  // ivag datumet fran dagens namn. Market kompenserar i stallet med negativ
+  // marginal, se dagRubrik.
   nyDagDatum: { fontSize: 13, color: ny.textDampad, flexShrink: 0 },
   nyIdagMarke: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: ny.skog, flexShrink: 0 },
   nyIdagMarkeText: { fontSize: 11, fontWeight: '700', color: ny.lime, flexShrink: 0 },
@@ -2801,17 +2800,24 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // Android väljer ett reservtypsnitt.
   nyKortTitel: { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 15, letterSpacing: -0.3, color: ny.text },
   nyMaltid: { color: ny.chipText },
-  nyTitelRad: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   nyTumnagel: { width: 44, height: 44, borderRadius: 11 },
   nyTumnagelTom: { alignItems: 'center', justifyContent: 'center' },
   nyTumMork: { backgroundColor: ny.skogMellan },
-  nyTumLjus: { backgroundColor: ny.platsLjus },
+  // Samma ljusgröna bricka som ikonerna i inköpslistor och butiker. platsLjus
+  // gick inte längre att använda: dagens ruta bär den tonen nu, så ikonen
+  // smälte ihop med bakgrunden i stället för att läsa som en egen bricka.
+  nyTumLjus: { backgroundColor: ny.bricka },
   nyHero: { height: 120 },
   // Luft mot draghandtaget, så Laga inte hamnar tätt intill strecken.
   nyLagaSnabb: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 32, paddingHorizontal: 11, borderRadius: 16, marginRight: 8, backgroundColor: ny.lime },
   nyLagaSnabbText: { fontSize: 13, fontWeight: '700', color: ny.skog },
   // Utfällt kort
-  nyUtfallt: { paddingHorizontal: 10, paddingTop: 2, paddingBottom: 10, gap: 12 },
+  // Utfällt: SAMMA färg som kortet — varje avvikande ton (mörkgrön, och sedan
+  // vit) lästes som ett annat kort. Bara en hårfin linje mot rubrikraden.
+  nyUtfallt: {
+    paddingHorizontal: 10, paddingTop: 10, paddingBottom: 10, gap: 12,
+    borderTopWidth: 1, borderTopColor: ny.kontur,
+  },
   nyUtfalltRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   nyUtfalltSektion: { gap: 6 },
   // Text, ingen bricka — men samma höjd som portionskapseln så raden linjerar.
@@ -2935,11 +2941,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   assignDayBtnActive: { backgroundColor: c.primary },
   assignDayBtnText: { fontSize: 12, color: c.textSecondary, fontWeight: '500' },
   assignDayBtnTextActive: { color: '#fff', fontWeight: '600' },
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '80%' },
-  sheetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 16 },
-  sheetSub: { fontSize: 13, color: c.textMuted, marginTop: -10, marginBottom: 12 },
-  backBtn: { padding: 4, marginBottom: 16 },
+  // Bakgrund, rundning och padding kommer från DraggableBottomSheet.
+  sheet: { maxHeight: '80%' },
   bulkRecipeList: { maxHeight: 400, marginBottom: 12 },
   bulkRecipeItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: c.background, borderWidth: 1, borderColor: c.borderLight, marginBottom: 6 },
   bulkRecipeItemActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
@@ -2966,7 +2969,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   createListRow: { flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 8 },
   createListBtn: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: c.primary, borderRadius: 10 },
   createListBtnText: { fontSize: 14, color: '#fff', fontWeight: '600' },
-  cleanupSub: { fontSize: 13, color: c.textMuted, marginTop: -10 },
   cleanupList: { gap: 8 },
   cleanupItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: c.background, borderWidth: 1, borderColor: c.borderLight },
   cleanupItemActive: { backgroundColor: c.primaryTint, borderColor: c.primary },

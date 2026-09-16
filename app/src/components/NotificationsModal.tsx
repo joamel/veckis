@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { useDesign } from '../context/DesignContext';
+import { ny, nyFont } from '../lib/nyDesign';
 import type { Palette } from '../lib/theme';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
@@ -9,6 +11,7 @@ import { useToast } from '../context/ToastContext';
 import { registerForPush } from '../lib/registerPush';
 import { components as str } from '../lib/svenska';
 import { DraggableBottomSheet } from './DraggableBottomSheet';
+import { SHEET_HEADER_ICON } from './SheetHeader';
 
 const TYPES: { key: keyof NotificationPreferences; title: string; desc: string }[] = (
   Object.entries(str.notificationsModal.types) as [keyof NotificationPreferences, { title: string; desc: string }][]
@@ -16,7 +19,8 @@ const TYPES: { key: keyof NotificationPreferences; title: string; desc: string }
 
 export function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { nyDesign } = useDesign();
+  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
   const client = useApiClient();
   const { showToast, showError } = useToast();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
@@ -70,14 +74,14 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
   }
 
   return (
-    <DraggableBottomSheet visible={visible} onRequestClose={onClose} sheetStyle={s.sheet}>
-        <View style={s.header}>
-          <Text style={s.title}>{str.notificationsModal.title}</Text>
-          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.notificationsModal.close}>
-            <Ionicons name="close" size={24} color={c.textMuted} />
-          </Pressable>
-        </View>
-
+    <DraggableBottomSheet visible={visible} onRequestClose={onClose} sheetStyle={s.sheet}
+      title={str.notificationsModal.title}
+      headerRight={
+        <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.notificationsModal.close}>
+          <Ionicons name="close" size={24} color={SHEET_HEADER_ICON} />
+        </Pressable>
+      }
+    >
         <ScrollView contentContainerStyle={s.body}>
           {prefs ? (
             <View style={s.card}>
@@ -90,7 +94,11 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
                   <Switch
                     value={prefs[key] as boolean}
                     onValueChange={v => toggle(key, v)}
-                    trackColor={{ true: c.primary, false: c.border }}
+                    // Lime spar med morkgron knopp. Morkgront spar lamnade
+                    // knoppen till Androids standard — en grav it knopp mot
+                    // mork botten, vilket sag trasigt ut.
+                    trackColor={{ true: nyDesign ? ny.lime : c.primary, false: nyDesign ? ny.kontur : c.border }}
+                    thumbColor={nyDesign ? ny.skog : undefined}
                     accessibilityLabel={title}
                   />
                 </View>
@@ -104,7 +112,7 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
           <Pressable style={s.btn} onPress={activateOnDevice} disabled={activating}>
             {activating
               ? <ActivityIndicator color={c.primary} size="small" />
-              : <><Ionicons name="phone-portrait-outline" size={18} color={c.primary} /><Text style={s.btnText}>{str.notificationsModal.activate}</Text></>}
+              : <><Ionicons name="phone-portrait-outline" size={18} color={nyDesign ? ny.skog : c.primary} /><Text style={s.btnText}>{str.notificationsModal.activate}</Text></>}
           </Pressable>
           {__DEV__ && (
             <Pressable style={[s.btn, s.btnTest]} onPress={sendTest} disabled={testing}>
@@ -119,11 +127,11 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 20, paddingBottom: 32, maxHeight: '85%' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
-  title: { fontSize: 20, fontWeight: '700', color: c.text },
-  body: { paddingHorizontal: 16, paddingBottom: 16 },
+// nyD: den nya designen (beta) skriver over de stilar som skiljer.
+const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+  // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
+  sheet: { maxHeight: '85%' },
+  body: { paddingBottom: 16 },
   card: {
     backgroundColor: c.surfaceSubtle,
     borderRadius: 12,
@@ -135,15 +143,18 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
+    ...(nyD ? { backgroundColor: ny.ljus, borderRadius: 18, borderLeftWidth: 0, shadowOpacity: 0, elevation: 0 } : {}),
   },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },
-  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderLight },
+  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: nyD ? ny.kontur : c.borderLight },
   rowText: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: c.text },
-  rowDesc: { fontSize: 13, color: c.textFaint, marginTop: 2 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginTop: 22, marginBottom: 8, marginLeft: 4 },
-  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primaryTint, borderRadius: 12, paddingVertical: 14, marginBottom: 10 },
-  btnText: { fontSize: 15, fontWeight: '600', color: c.primary },
-  btnTest: { backgroundColor: c.primary },
-  statusText: { fontSize: 13, color: c.textMuted, marginTop: 4, marginHorizontal: 4, lineHeight: 19 },
+  rowTitle: nyD
+    ? { fontFamily: nyFont.halvfet, fontWeight: 'normal', fontSize: 15, color: ny.text }
+    : { fontSize: 15, fontWeight: '600', color: c.text },
+  rowDesc: { fontSize: 13, color: nyD ? ny.textDampad : c.textFaint, marginTop: 2 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: nyD ? ny.textDampad : c.textFaint, letterSpacing: 0.8, marginTop: 22, marginBottom: 8, marginLeft: 4 },
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: nyD ? ny.ljus : c.primaryTint, borderRadius: nyD ? 14 : 12, paddingVertical: 14, marginBottom: 10 },
+  btnText: { fontSize: 15, fontWeight: '600', color: nyD ? ny.skog : c.primary },
+  btnTest: { backgroundColor: nyD ? ny.skog : c.primary },
+  statusText: { fontSize: 13, color: nyD ? ny.textDampad : c.textMuted, marginTop: 4, marginHorizontal: 4, lineHeight: 19 },
 });

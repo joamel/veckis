@@ -17,7 +17,7 @@ import {
   View,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, useAnimatedReaction, withTiming, interpolate, Extrapolation } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -356,7 +356,6 @@ export default function RecipesScreen() {
     });
   }, [recipes, searchQuery, sortMode, activeTags]);
 
-  const insets = useSafeAreaInsets();
   // New recipe form
   // Manuellt saknas med flit: det läget är numera en egen skärm (/recipes/new)
   // som skapar receptet först vid Spara, i stället för en namn-fråga i sheeten.
@@ -740,8 +739,6 @@ export default function RecipesScreen() {
   // Sheet-innehållet (delas ut för läsbarhet; renderas inuti DraggableBottomSheet nedan).
   const createSheetInner = (
     <>
-        <Text style={s.sheetTitle}>{str.createModal.modeTitles[mode]}</Text>
-
         <View style={s.modeBody}>
         {mode === 'paste' ? (
           <>
@@ -1141,7 +1138,8 @@ export default function RecipesScreen() {
         visible={showModal}
         onRequestClose={closeCreate}
         liftOffset={sheetLift}
-        sheetStyle={[s.sheet, { paddingBottom: insets.bottom + 20 }]}
+        bodyStyle={s.sheetBody}
+        title={str.createModal.modeTitles[mode]}
       >
         {createSheetInner}
       </DraggableBottomSheet>
@@ -1150,10 +1148,10 @@ export default function RecipesScreen() {
       <DraggableBottomSheet
         visible={!!flerRecept}
         onRequestClose={() => setFlerRecept(null)}
-        sheetStyle={s.sheet}
+        bodyStyle={s.sheetBody}
+        title={str.createModal.photo.multiTitle(flerRecept?.length ?? 0)}
+        subtitle={str.createModal.photo.multiMessage}
       >
-        <Text style={s.sheetTitle}>{str.createModal.photo.multiTitle(flerRecept?.length ?? 0)}</Text>
-        <Text style={s.daySheetSub}>{str.createModal.photo.multiMessage}</Text>
 
         <ScrollView style={s.multiList} showsVerticalScrollIndicator={false}>
         {flerRecept?.map((rec, idx) => {
@@ -1197,9 +1195,7 @@ export default function RecipesScreen() {
         </Pressable>
       </DraggableBottomSheet>
 
-      <DraggableBottomSheet visible={!!addToMenuFor} onRequestClose={() => setAddToMenuFor(null)} sheetStyle={s.sheet}>
-          <Text style={s.sheetTitle}>{str.menu.addToMenu}</Text>
-          <Text style={s.daySheetSub} numberOfLines={1}>{addToMenuFor?.title}</Text>
+      <DraggableBottomSheet visible={!!addToMenuFor} onRequestClose={() => setAddToMenuFor(null)} bodyStyle={s.sheetBody} title={str.menu.addToMenu} subtitle={addToMenuFor?.title}>
 
           {/* Week chips */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: -4 }}>
@@ -1292,16 +1288,13 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   nyTaggText: { fontSize: 13, fontWeight: '600', color: ny.chipText },
   nyTaggTextAktiv: { color: ny.lime },
   nyFab: { backgroundColor: ny.lime, shadowColor: ny.skog, shadowOpacity: 0.3 },
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 0, gap: 14 },
-  sheetScroll: { gap: 14, paddingBottom: 40 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
-  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, marginBottom: 12 },
+  // Bakgrund, rundning och padding kommer från DraggableBottomSheet.
+  sheetBody: { gap: 14 },
   overlayDim: { backgroundColor: 'rgba(0,0,0,0.4)' },
   overlay: { flex: 1 },
   addMenuBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   selectBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primaryTint, paddingHorizontal: 16, paddingVertical: 10 },
   selectBannerText: { fontSize: 14, fontWeight: '600', color: c.primary },
-  daySheetSub: { fontSize: 13, color: c.textMuted, marginTop: -8 },
   dayGrid: { gap: 8, marginTop: 4 },
   dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
   dayGridItemTaken: { backgroundColor: c.background },

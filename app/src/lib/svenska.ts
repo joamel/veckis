@@ -128,7 +128,8 @@ export const shopping = {
   listCard: {
     empty:      'Tom',
     allChecked: 'Allt bockat',
-    remaining:  (done: number, total: number) => `${total - done} av ${total} kvar`,
+    // Bara antalet kvar: "3 av 209 kvar" sa mer an man behover veta i oversikten.
+    remaining:  (kvar: number) => `${kvar} ${kvar === 1 ? 'vara' : 'varor'} kvar`,
     youShop:    'Du handlar',
     otherShops: (name: string) => `${name} handlar`,
   },
@@ -211,6 +212,7 @@ export const shoppingList = {
   browserTitle:    'Välj kategori',
   unitPlaceholder: 't.ex. st, dl, paket',
   renameTitle:     'Redigera lista',
+  editItemTitle:   'Redigera vara',
     showAllChecked:  (n: number) => `Visa ${n} till`,
   deleteList:      'Ta bort lista',
   fallbackActor:   'Någon',
@@ -803,7 +805,6 @@ export const settings = {
     invite:     'BJUD IN NÅGON',
     other:      'ANDRA HUSHÅLL',
     appearance: 'UTSEENDE',
-    newDesign:  'NY DESIGN (BETA)',
     adminLogs:  'Visa aktivitetslogg',
   },
 
@@ -846,10 +847,6 @@ export const settings = {
     shareLink:     'Dela länk',
   },
 
-  newDesign: {
-    title: 'Ny design',
-    hint:  'Testa appens nya utseende. Just nu gäller det receptlistan — fler vyer kommer.',
-  },
 
   otherHousehold: {
     create:        'Skapa nytt hushåll',
@@ -1276,6 +1273,9 @@ export const history = {
 
 export const auth = {
   appName: 'Handlis',
+  // Samma slogan som landningssidans sidfot. Tankstreck, inte bindestreck.
+  tagline: 'Planera – Inventera – Handla',
+  taglineSub: 'Enkelt och tillsammans',
 
   placeholders: {
     email:           'E-post',
@@ -1634,7 +1634,7 @@ export const landing = {
     button:      'Kom igång',
   },
   footer: {
-    tagline:     'Hushållets mat, planerad.',
+    tagline:     'Planera – Inventera – Handla',
     privacy:     'Integritetspolicy',
     terms:       'Användarvillkor',
     install:     'Installera appen',

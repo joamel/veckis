@@ -767,11 +767,10 @@ export default function StoreDetailScreen() {
       )}
 
       {/* Slå ihop kategori-modal */}
-      <DraggableBottomSheet visible={mergingKey !== null} onRequestClose={() => setMergingKey(null)} sheetStyle={[s.sheet, { maxHeight: '70%' }]}>
-          <Text style={s.sheetTitle}>
-            {mergingKey ? str.detail.mergeModal.title(CATEGORY_LABELS[mergingKey] ?? mergingKey) : ''}
-          </Text>
-          <Text style={s.sectionSub}>{str.detail.mergeModal.subtitle}</Text>
+      <DraggableBottomSheet visible={mergingKey !== null} onRequestClose={() => setMergingKey(null)} sheetStyle={s.mergeSheet}
+        title={mergingKey ? str.detail.mergeModal.title(CATEGORY_LABELS[mergingKey] ?? mergingKey) : ''}
+        subtitle={str.detail.mergeModal.subtitle}
+      >
           <ScrollView style={{ flexGrow: 0 }}>
             {mergingKey && mergeTargetsFor(mergingKey).map(target => {
               const label = labelWithTag(target);
@@ -793,8 +792,7 @@ export default function StoreDetailScreen() {
       </DraggableBottomSheet>
 
       {/* Byt namn-modal */}
-      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} isDirty={renameValue.trim() !== store.name.trim()} liftOffset={sheetLift} sheetStyle={s.sheet}>
-            <Text style={s.sheetTitle}>{str.renameModal.title}</Text>
+      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} isDirty={renameValue.trim() !== store.name.trim()} liftOffset={sheetLift} title={str.renameModal.title}>
             <TextInput
               ref={renameRef}
               onFocus={onFocusInput(renameRef)}
@@ -870,7 +868,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   draftBannerAction: { fontSize: 13, fontWeight: '700', color: c.primary },
   primaryBtn: { backgroundColor: nyD ? ny.lime : c.primary, borderRadius: nyD ? 14 : 12, paddingVertical: 14, alignItems: 'center', shadowColor: nyD ? ny.skog : c.primary, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   primaryBtnText: { color: nyD ? ny.skog : '#fff', fontSize: 15, fontWeight: '700' },
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 10 },
+  // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
+  mergeSheet: { maxHeight: '70%' },
   input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: c.text },
 });

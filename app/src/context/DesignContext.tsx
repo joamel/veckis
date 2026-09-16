@@ -4,41 +4,38 @@ import * as SecureStore from '../lib/secureStorage';
 export type ReceptVy = 'bild' | 'kompakt';
 
 interface DesignContextValue {
-  /** Inställningen "Ny design (beta)". */
+  /** Alltid true — se DesignProvider. Kvar tills de gamla stilgrenarna är
+   *  bortstädade, så inga anrop behöver skrivas om i samma veva. */
   nyDesign: boolean;
-  setNyDesign: (on: boolean) => void;
-  /** Receptlistans visning i den nya designen. */
+  /** Receptlistans visning. */
   receptVy: ReceptVy;
   setReceptVy: (v: ReceptVy) => void;
 }
 
 const DesignCtx = createContext<DesignContextValue | null>(null);
-const NYCKEL_NY_DESIGN = 'nyDesignBeta';
 const NYCKEL_RECEPT_VY = 'receptVy';
 
-// Samma lagring som temavalet (ThemeContext): per enhet, inte per konto —
-// betan är något man testar på just den här telefonen.
+// Nya designen är inte längre en beta som kan stängas av — den ÄR appens
+// utseende. Den sparade inställningen läses med flit INTE längre: enheter som
+// hade togglat av hade ett '0' liggande och skulle annars ha slagit tillbaka
+// till den gamla designen. Flaggan finns kvar i kontexten så länge de gamla
+// stilgrenarna gör det; de städas bort när sista vyn är omgjord.
 export function DesignProvider({ children }: { children: ReactNode }) {
-  const [nyDesign, setNyDesignState] = useState(false);
+  const nyDesign = true;
   const [receptVy, setReceptVyState] = useState<ReceptVy>('bild');
 
   useEffect(() => {
-    SecureStore.getItemAsync(NYCKEL_NY_DESIGN).then(v => { if (v === '1') setNyDesignState(true); }).catch(() => {});
     SecureStore.getItemAsync(NYCKEL_RECEPT_VY).then(v => { if (v === 'bild' || v === 'kompakt') setReceptVyState(v); }).catch(() => {});
   }, []);
 
   const value = useMemo<DesignContextValue>(() => ({
     nyDesign,
-    setNyDesign: (on: boolean) => {
-      setNyDesignState(on);
-      SecureStore.setItemAsync(NYCKEL_NY_DESIGN, on ? '1' : '0').catch(() => {});
-    },
     receptVy,
     setReceptVy: (v: ReceptVy) => {
       setReceptVyState(v);
       SecureStore.setItemAsync(NYCKEL_RECEPT_VY, v).catch(() => {});
     },
-  }), [nyDesign, receptVy]);
+  }), [receptVy]);
 
   return <DesignCtx.Provider value={value}>{children}</DesignCtx.Provider>;
 }

@@ -17,6 +17,7 @@ import { ny, nyFont } from '../../src/lib/nyDesign';
 import { IkonValjare } from '../../src/components/nydesign/IkonValjare';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
+import { SHEET_HEADER_ICON } from '../../src/components/SheetHeader';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
@@ -1947,10 +1948,20 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           använder pickStore()-helpern och navigerar dit i ?pick=1-läge. */}
 
       {/* Category browser modal */}
-      <DraggableBottomSheet visible={showBrowser} onRequestClose={() => setShowBrowser(false)} sheetStyle={[s.sheet, s.browserSheet]}>
+      <DraggableBottomSheet
+        visible={showBrowser}
+        onRequestClose={() => setShowBrowser(false)}
+        sheetStyle={[s.sheet, s.browserSheet]}
+        bodyStyle={s.browserBody}
+        title={browserCategory === null ? str.browserTitle : `${CATEGORY_EMOJIS[browserCategory]} ${CATEGORY_LABELS[browserCategory]}`}
+        headerLeft={browserCategory !== null ? (
+          <Pressable onPress={() => setBrowserCategory(null)} hitSlop={10} accessibilityRole="button" accessibilityLabel={common.actions.back}>
+            <Ionicons name="chevron-back" size={22} color={SHEET_HEADER_ICON} />
+          </Pressable>
+        ) : undefined}
+      >
           {browserCategory === null ? (
             <>
-              <Text style={s.sheetTitle}>{str.browserTitle}</Text>
               <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={[s.categoryGrid, { paddingBottom: 24 }]}>
                 {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
                   <Pressable key={cat} style={s.categoryTile} onPress={() => setBrowserCategory(cat)}>
@@ -1962,13 +1973,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </>
           ) : (
             <>
-              <View style={s.browserHeader}>
-                <Pressable style={s.browserBack} onPress={() => setBrowserCategory(null)}>
-                  <Ionicons name="chevron-back" size={20} color={c.primary} />
-                  <Text style={s.browserBackText}>{common.actions.back}</Text>
-                </Pressable>
-                <Text style={s.browserTitle}>{CATEGORY_EMOJIS[browserCategory]} {CATEGORY_LABELS[browserCategory]}</Text>
-              </View>
               <ScrollView style={s.browserList}>
                 {searchList
                   .filter(s2 => s2.category === browserCategory)
@@ -1996,7 +2000,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         isDirty={editDirty}
         onRequestClose={() => setEditingItem(null)}
         liftOffset={sheetLift}
-        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}
+        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85 }]}
+        bodyStyle={s.sheetBody}
+        title={str.editItemTitle}
       >
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
           <ConflictBanner message={editConflict?.msg ?? null} onShowLatest={editConflict?.latest ? applyLatestEdit : undefined} />
@@ -2166,11 +2172,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         isDirty={stapleDirty}
         onRequestClose={() => setEditingStaple(null)}
         liftOffset={sheetLift}
-        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.75, paddingBottom: insets.bottom + 20 }]}
+        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.75 }]}
+        bodyStyle={s.sheetBody}
+        title={editingStaple?.id.startsWith('suggestion:') ? str.stapleEditor.saveTitle : str.stapleEditor.editTitle}
       >
-          <Text style={s.sheetTitle}>
-            {editingStaple?.id.startsWith('suggestion:') ? str.stapleEditor.saveTitle : str.stapleEditor.editTitle}
-          </Text>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
           <Text style={s.editLabel}>{common.fields.name}</Text>
           <TextInput
@@ -2246,9 +2251,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         isDirty={qtyDirty}
         onRequestClose={() => setQtySheet(null)}
         liftOffset={sheetLift}
-        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}
+        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85 }]}
+        bodyStyle={s.sheetBody}
+        title={capitalize(qtySheet?.name)}
       >
-            <Text style={s.sheetTitle}>{capitalize(qtySheet?.name)}</Text>
             <View style={s.qtyStepper}>
               <Pressable
                 style={s.qtyBtn}
@@ -2368,10 +2374,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       <DraggableBottomSheet
         visible={!!mergeSheet}
         onRequestClose={() => setMergeSheet(null)}
-        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}
-      >
-            <View style={s.mergeHeaderRow}>
-              <Text style={s.sheetTitle}>{str.merge.heading}</Text>
+        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85 }]}
+        bodyStyle={s.sheetBody}
+        title={str.merge.heading}
+        headerRight={<>
               {!manualPickerOpen && (
                 <Pressable
                   style={s.dupeBadge}
@@ -2382,7 +2388,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Text style={s.dupeBadgeText}>{str.merge.markManually}</Text>
                 </Pressable>
               )}
-            </View>
+        </>}
+      >
             <ScrollView ref={mergeScrollRef} style={{ flexShrink: 1 }} contentContainerStyle={{ gap: 8, paddingBottom: keyboardVisible ? keyboardHeight + 24 : 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" onScroll={e => { mergeScrollY.current = e.nativeEvent.contentOffset.y; }} scrollEventThrottle={32}>
               {mergeSheet && mergeSheet.items.length > 0 ? (
                 <Text style={s.sheetSub}>{str.merge.instruction}</Text>
@@ -2623,9 +2630,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         isDirty={renameDirty}
         onRequestClose={() => setShowRenameModal(false)}
         liftOffset={sheetLift}
-        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85, paddingBottom: insets.bottom + 20 }]}
+        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85 }]}
+        bodyStyle={s.sheetBody}
+        title={str.renameTitle}
       >
-            <Text style={s.sheetTitle}>{str.renameTitle}</Text>
             <TextInput
               ref={renameInputRef}
               style={s.editInput}
@@ -2650,9 +2658,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       </DraggableBottomSheet>
 
       {/* Manual duplicate picker */}
-      <DraggableBottomSheet visible={manualPickerOpen} onRequestClose={() => setManualPickerOpen(false)} sheetStyle={s.sheet}>
-          <Text style={s.sheetTitle}>{str.merge.pickTitle}</Text>
-          <Text style={s.sheetSub}>{str.merge.pickSubtitle}</Text>
+      <DraggableBottomSheet visible={manualPickerOpen} onRequestClose={() => setManualPickerOpen(false)} sheetStyle={s.sheet} bodyStyle={s.sheetBody} title={str.merge.pickTitle} subtitle={str.merge.pickSubtitle}>
           {/* Samma kategori-gruppering som den vanliga listan så det är lätt att
               hitta rätt varor (i st. f. en platt bokstavsordnad lista). */}
           <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
@@ -2884,7 +2890,6 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   dupeBadgeText: { fontSize: 12, fontWeight: '600', color: c.accent },
   mergeIgnoreBtn: { paddingVertical: 10 },
   mergeIgnoreBtnText: { fontSize: 14, color: c.textFaint, textAlign: 'center' },
-  mergeHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   categoryGroup: { gap: 2 },
   categoryHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 2, paddingVertical: 4, gap: 8 },
   // Extra luft OVANFÖR klart-rubriken: den avslutar listan och behöver skiljas
@@ -2934,8 +2939,9 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(41,37,36,0.55)' },
   // width:100% + maxWidth + alignSelf:center → full bredd på telefon (<480), men
   // capad och centrerad på bred/webb-viewport så sheeten inte blir "fullscreen".
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 12, maxHeight: '85%', width: '100%', maxWidth: 480, alignSelf: 'center' },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+  // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
+  sheet: { maxHeight: '85%', width: '100%', maxWidth: 480, alignSelf: 'center' },
+  sheetBody: { gap: 12 },
   sheetSub: { fontSize: 13, color: c.textMuted, marginTop: -4 },
   storeOption: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 10, backgroundColor: c.background },
   storeOptionFlex: { flex: 1 },
@@ -2974,15 +2980,12 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   swipeRowWrapShadow: nyD ? {} : { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   swipeDeleteBg: { backgroundColor: c.danger, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
   swipeEditBg: { backgroundColor: c.primary, justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 20 },
-  browserSheet: { maxHeight: '90%', gap: 0 },
+  browserSheet: { maxHeight: '90%' },
+  browserBody: { paddingTop: 4 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: c.background, borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: c.borderLight },
   categoryTileEmoji: { fontSize: 28 },
   categoryTileLabel: { fontSize: 13, fontWeight: '600', color: c.textSecondary, textAlign: 'center' },
-  browserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
-  browserBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  browserBackText: { fontSize: 14, color: c.primary, fontWeight: '500' },
-  browserTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: c.text, textAlign: 'right' },
   browserList: { marginTop: 12, maxHeight: 400 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   browserItemText: { flex: 1, fontSize: 16, color: c.text },

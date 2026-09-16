@@ -1,5 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
+import { useDesign } from '../../src/context/DesignContext';
+import { ny, nyFont } from '../../src/lib/nyDesign';
 import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
@@ -75,7 +77,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   // Mäts av ConfirmDialog så "+"-popupen hamnar rätt ovanför knappen.
   const fabRef = useRef<View>(null);
   const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { nyDesign } = useDesign();
+  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -819,7 +822,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           }
           if (onClose) onClose(); else router.back();
         }} style={s.backBtn} accessibilityRole="button" accessibilityLabel={common.actions.back}>
-          <Ionicons name="arrow-back" size={24} color={c.text} />
+          <Ionicons name="arrow-back" size={24} color={nyDesign ? ny.rubrikLjus : c.text} />
         </Pressable>
         {editMode ? (
           <TextInput
@@ -827,7 +830,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             value={editTitle}
             onChangeText={setEditTitle}
             placeholder={str.detail.nameLabel}
-            placeholderTextColor={c.textFaint}
+            placeholderTextColor={nyDesign ? ny.underrubrik : c.textFaint}
           />
         ) : (
           <Text style={s.headerTitle} numberOfLines={1}>{recipe.title}</Text>
@@ -836,7 +839,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             tom platshållare för nya så rubriken inte hoppar i sidled. */}
         {isNew ? <View style={s.transferBtn} /> : (
           <Pressable onPress={openRecipeActions} style={s.transferBtn} accessibilityLabel={common.actions.more}>
-            <Ionicons name="ellipsis-vertical" size={20} color={c.text} />
+            <Ionicons name="ellipsis-vertical" size={20} color={nyDesign ? ny.rubrikLjus : c.text} />
           </Pressable>
         )}
       </View>
@@ -1238,11 +1241,13 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       </KeyboardAvoidingView>
 
       {/* Transfer modal */}
-      <DraggableBottomSheet visible={showTransfer} onRequestClose={() => setShowTransfer(false)} sheetStyle={s.sheet}>
-          <Text style={s.sheetTitle}>{str.transfer.title}</Text>
-          <Text style={s.sheetSub}>
-            {scaleRatio !== 1 ? str.transfer.scaledPrefix(displayServings) : ''}{str.transfer.needToBuy}
-          </Text>
+      <DraggableBottomSheet
+        visible={showTransfer}
+        onRequestClose={() => setShowTransfer(false)}
+        sheetStyle={s.sheet}
+        title={str.transfer.title}
+        subtitle={`${scaleRatio !== 1 ? str.transfer.scaledPrefix(displayServings) : ''}${str.transfer.needToBuy}`}
+      >
 
           <ScrollView style={s.ingredientList} showsVerticalScrollIndicator={false}>
             {deduplicatedIngredients.map(ing => {
@@ -1322,9 +1327,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
       {/* Plan in menu modal — identisk look med bibliotekets kalenderikon-dialog:
           veckochips + dag-grid som lägger till direkt (toast), ingen extra knapp. */}
-      <DraggableBottomSheet visible={showPlanModal} onRequestClose={() => setShowPlanModal(false)} sheetStyle={s.sheet}>
-          <Text style={s.sheetTitle}>{str.menu.addToMenu}</Text>
-          <Text style={s.daySheetSub} numberOfLines={1}>{recipe?.title}</Text>
+      <DraggableBottomSheet visible={showPlanModal} onRequestClose={() => setShowPlanModal(false)} sheetStyle={s.sheet} title={str.menu.addToMenu} subtitle={recipe?.title}>
 
           {/* Week chips */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: -4 }}>
@@ -1502,13 +1505,25 @@ function formatIngredient(ing: { quantity: number | null; unit: string | null; n
   return parts.join(' ');
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.background },
+// nyD: den nya designen (beta) skriver over de stilar som skiljer.
+const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: nyD ? ny.bakgrund : c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 12 },
+  // Morkgront band som ovriga vyers NyHeader. Hogre an 48 for att rubriken ska
+  // fa samma luft som pa andra skarmar.
+  header: nyD
+    ? { flexDirection: 'row', alignItems: 'center', height: 56, paddingHorizontal: 8, backgroundColor: ny.skog, gap: 12 }
+    : { flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 8, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 12 },
   backBtn: { padding: 8 },
-  headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: c.text },
-  headerTitleInput: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: c.inputBg },
+  // Outfit bar vikten i typsnittet — fontWeight till ger reservtypsnitt.
+  headerTitle: nyD
+    ? { flex: 1, fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 20, letterSpacing: -0.3, color: ny.rubrikLjus }
+    : { flex: 1, fontSize: 18, fontWeight: '700', color: c.text },
+  // Redigeringsfaltet ligger PA det morka bandet: glasyta med ljus text, annars
+  // blir det en vit lapp mitt i headern.
+  headerTitleInput: nyD
+    ? { color: ny.rubrikLjus, borderWidth: 0, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: ny.glas }
+    : { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: c.inputBg },
   transferBtn: { padding: 8 },
   scroll: { padding: 20, gap: 16 },
   heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, backgroundColor: c.surfaceSubtle },
@@ -1521,28 +1536,30 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   imgRemoveBtn: { width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: c.dangerTint },
   editImagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: c.surfaceSubtle, marginTop: 8 },
   metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  metaChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.surfaceSubtle, flexShrink: 0 },
+  metaChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, flexShrink: 0 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  tagChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.primaryTint, flexShrink: 0 },
-  tagChipActive: { backgroundColor: c.primary },
-  tagChipText: { fontSize: 12, fontWeight: '600', color: c.primary },
-  tagChipTextActive: { color: '#fff' },
+  tagChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.kort : c.primaryTint, flexShrink: 0 },
+  tagChipActive: { backgroundColor: nyD ? ny.skog : c.primary },
+  tagChipText: { fontSize: 12, fontWeight: '600', color: nyD ? ny.chipText : c.primary },
+  tagChipTextActive: { color: nyD ? ny.lime : '#fff' },
   tagAddRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  tagAddBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
-  servingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.surfaceSubtle, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
+  tagAddBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: nyD ? ny.skog : c.primary, alignItems: 'center', justifyContent: 'center' },
+  servingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
   servingBtn: { padding: 2 },
-  metaText: { fontSize: 13, color: c.textMuted },
-  description: { fontSize: 14, color: c.textSecondary, lineHeight: 22 },
+  metaText: { fontSize: 13, color: nyD ? ny.textDampad : c.textMuted },
+  description: { fontSize: 14, color: nyD ? ny.text : c.textSecondary, lineHeight: 22 },
   section: { gap: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: c.text },
-  lagaBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.primaryTint },
-  lagaBtnText: { fontSize: 13, fontWeight: '600', color: c.primary },
+  sectionTitle: nyD
+    ? { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 18, letterSpacing: -0.3, color: ny.skog }
+    : { fontSize: 17, fontWeight: '700', color: c.text },
+  lagaBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.lime : c.primaryTint },
+  lagaBtnText: { fontSize: 13, fontWeight: '600', color: nyD ? ny.skog : c.primary },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  editBtnText: { fontSize: 14, color: c.primary, fontWeight: '500' },
+  editBtnText: { fontSize: 14, color: nyD ? ny.skog : c.primary, fontWeight: '500' },
   ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  ingredientBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.primary, marginTop: 1 },
-  ingredientText: { fontSize: 15, color: c.textSecondary, flex: 1 },
+  ingredientBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: nyD ? ny.skog : c.primary, marginTop: 1 },
+  ingredientText: { fontSize: 15, color: nyD ? ny.text : c.textSecondary, flex: 1 },
   noIngredients: { paddingVertical: 16, alignItems: 'center' },
   noIngredientsText: { fontSize: 14, color: c.textFaint },
   editList: { gap: 8 },
@@ -1556,19 +1573,23 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   addRowBtnText: { fontSize: 14, color: c.primary, fontWeight: '500' },
   unitChipScroll: { marginBottom: 4 },
   unitChipRow: { flexDirection: 'row', gap: 6, paddingVertical: 4 },
-  unitChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight },
-  unitChipActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
-  unitChipText: { fontSize: 13, color: c.textSecondary, fontWeight: '500' },
-  unitChipTextActive: { color: c.primary, fontWeight: '600' },
-  editActionsBar: { flexDirection: 'row', gap: 10, padding: 12, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
-  cancelBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, alignItems: 'center' },
-  cancelBtnText: { fontSize: 15, color: c.textMuted, fontWeight: '500' },
-  saveBtn: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: c.primary, alignItems: 'center' },
+  unitChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, borderWidth: 1, borderColor: nyD ? ny.kontur : c.borderLight },
+  unitChipActive: { backgroundColor: nyD ? ny.skog : c.primaryTint, borderColor: nyD ? ny.skog : c.primary },
+  unitChipText: { fontSize: 13, color: nyD ? ny.chipText : c.textSecondary, fontWeight: '500' },
+  unitChipTextActive: { color: nyD ? ny.lime : c.primary, fontWeight: '600' },
+  editActionsBar: { flexDirection: 'row', gap: 10, padding: 12, backgroundColor: nyD ? ny.ljus : c.surface, borderTopWidth: 1, borderTopColor: nyD ? ny.kontur : c.surfaceSubtle },
+  cancelBtn: { flex: 1, padding: 12, borderRadius: nyD ? 14 : 10, borderWidth: 1, borderColor: nyD ? ny.kontur : c.borderLight, alignItems: 'center' },
+  cancelBtnText: { fontSize: 15, color: nyD ? ny.textDampad : c.textMuted, fontWeight: '500' },
+  // Lime ar designens "tryck har": morkgron text pa lime, inte vit.
+  saveBtn: { flex: 1, padding: 12, borderRadius: nyD ? 14 : 10, backgroundColor: nyD ? ny.lime : c.primary, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.4 },
-  saveBtnText: { fontSize: 15, color: '#fff', fontWeight: '600' },
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: '85%' },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  renameTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 16 },
+  saveBtnText: { fontSize: 15, color: nyD ? ny.skog : '#fff', fontWeight: '600' },
+  // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
+  sheet: { maxHeight: '85%' },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: nyD ? ny.lime : c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: nyD ? ny.skog : c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  renameTitle: nyD
+    ? { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 19, letterSpacing: -0.3, color: ny.skog, marginBottom: 16 }
+    : { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 16 },
   renameInput: { borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: c.inputBg, color: c.text },
   draftBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: c.primaryTint, borderWidth: 1, borderColor: c.primary200 },
   draftBannerText: { flex: 1, fontSize: 13, color: c.text },
@@ -1603,8 +1624,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   cookNavText: { fontSize: 15, fontWeight: '600', color: c.textSecondary },
   cookNavBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: c.primary },
   cookNavTextPrimary: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
-  sheetSub: { fontSize: 13, color: c.textMuted, marginTop: 2, marginBottom: 8 },
   ingredientList: { maxHeight: 220 },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.background },
   checkLabel: { fontSize: 15, color: c.text, flex: 1 },
@@ -1616,17 +1635,18 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   listPicker: {},
   listPickerItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: c.background, borderRadius: 10, marginBottom: 6 },
   listPickerItemText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
-  daySheetSub: { fontSize: 13, color: c.textMuted, marginTop: -8 },
   dayGrid: { gap: 8, marginTop: 4 },
-  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
-  dayGridItemTaken: { backgroundColor: c.background },
-  dayGridLabel: { fontSize: 15, fontWeight: '600', color: c.text },
-  dayGridLabelTaken: { color: c.textFaint },
-  dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: c.textFaint, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
-  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight, alignItems: 'center' },
-  weekChipActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
-  weekChipText: { fontSize: 13, fontWeight: '600', color: c.textSecondary },
-  weekChipTextActive: { color: c.primary },
+  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, borderRadius: nyD ? 16 : 12 },
+  dayGridItemTaken: { backgroundColor: nyD ? ny.bricka : c.background },
+  dayGridLabel: nyD
+    ? { fontFamily: nyFont.halvfet, fontWeight: 'normal', fontSize: 15, color: ny.text }
+    : { fontSize: 15, fontWeight: '600', color: c.text },
+  dayGridLabelTaken: { color: nyD ? ny.textDampad : c.textFaint },
+  dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: nyD ? ny.textDampad : c.textFaint, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
+  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, borderWidth: 1, borderColor: nyD ? ny.kontur : c.borderLight, alignItems: 'center' },
+  weekChipActive: { backgroundColor: nyD ? ny.skog : c.primaryTint, borderColor: nyD ? ny.skog : c.primary },
+  weekChipText: { fontSize: 13, fontWeight: '600', color: nyD ? ny.chipText : c.textSecondary },
+  weekChipTextActive: { color: nyD ? ny.lime : c.primary },
   weekChipSub: { fontSize: 11, color: c.textFaint, marginTop: 2 },
   weekChipSubActive: { color: c.primary400 },
 });

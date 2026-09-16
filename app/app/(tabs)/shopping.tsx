@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -59,7 +59,6 @@ export default function ShoppingScreen() {
   const storesBtnRef = useRef<View>(null);
   const listFabRef = useRef<View>(null);
   const { fs, sp, isTablet, isSplitView, largeTablet } = useTablet();
-  const insets = useSafeAreaInsets();
   const [lists, setLists] = useState<ShoppingListWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -262,13 +261,15 @@ export default function ShoppingScreen() {
                   </View>
                   <Text style={[styles.cardMeta, { fontSize: fs(13) }]}>
                     {item.store ? `${item.store.name} · ` : ''}
-                    {total === 0 ? str.listCard.empty : unchecked === 0 ? str.listCard.allChecked : str.listCard.remaining(total - unchecked, total)}
+                    {total === 0 ? str.listCard.empty : unchecked === 0 ? str.listCard.allChecked : str.listCard.remaining(unchecked)}
                   </Text>
                 </View>
+                {/* Bocken foljer paletten i nya designen — den grona accenten
+                    horde till den gamla och skar sig mot skog/lime. */}
                 {unchecked === 0 && total > 0 && (
-                  <Ionicons name="checkmark-circle" size={fs(20)} color={c.success} />
+                  <Ionicons name="checkmark-circle" size={fs(20)} color={nyDesign ? ny.skog : c.success} />
                 )}
-                <Ionicons name="chevron-forward" size={fs(18)} color={c.border} />
+                <Ionicons name="chevron-forward" size={fs(18)} color={nyDesign ? ny.kontur : c.border} />
               </Pressable>
             </View>
           );
@@ -286,9 +287,9 @@ export default function ShoppingScreen() {
         visible={showModal}
         onRequestClose={() => tryCloseCreate(newListName.trim() !== '', discardCreate)}
         liftOffset={sheetLift}
-        sheetStyle={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}
+        bodyStyle={styles.sheetBody}
+        title={str.createModal.title}
       >
-            <Text style={styles.sheetTitle}>{str.createModal.title}</Text>
             <TextInput
               ref={newListNameRef}
               style={styles.input}
@@ -415,15 +416,8 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: 40,
-    gap: 14,
-  },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+  // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
+  sheetBody: { gap: 14 },
   input: { color: c.text,
     borderWidth: 1,
     borderColor: c.borderLight,
