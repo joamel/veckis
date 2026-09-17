@@ -48,6 +48,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: 32 },
   title: { fontWeight: '600', color: c.textSecondary, marginTop: 16, textAlign: 'center' },
   subtitle: { color: c.textFaint, marginTop: 6, textAlign: 'center' },
-  btn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primary },
+  btn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primaryBtn },
   btnText: { color: '#fff', fontWeight: '700' },
 });

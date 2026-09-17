@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ny } from '../../lib/nyDesign';
+import type { NyPalett } from '../../lib/nyDesign';
+import { useNy } from '../../context/ThemeContext';
 import { LIST_IKONER } from '../../lib/listIkoner';
 
 /** Ny design: val av ikon för en inköpslista, i stället för EmojiPicker.
@@ -10,6 +12,8 @@ export function IkonValjare({ value, onChange, label }: {
   onChange: (v: string | null) => void;
   label: string;
 }) {
+  const ny = useNy();
+  const st = useMemo(() => gorSt(ny), [ny]);
   return (
     <>
       <Text style={st.etikett}>{label}</Text>
@@ -24,7 +28,7 @@ export function IkonValjare({ value, onChange, label }: {
               accessibilityRole="button"
               accessibilityState={{ selected: vald }}
             >
-              <Ionicons name={ikon} size={20} color={vald ? ny.lime : ny.skog} />
+              <Ionicons name={ikon} size={20} color={vald ? ny.lime : ny.padYta} />
             </Pressable>
           );
         })}
@@ -33,9 +37,9 @@ export function IkonValjare({ value, onChange, label }: {
   );
 }
 
-const st = StyleSheet.create({
+const gorSt = (ny: NyPalett) => StyleSheet.create({
   etikett: { fontSize: 14, fontWeight: '600', color: ny.chipText },
   rad: { gap: 6, paddingVertical: 2 },
   ikon: { width: 42, height: 42, borderRadius: 14, backgroundColor: ny.kort, alignItems: 'center', justifyContent: 'center' },
-  ikonVald: { backgroundColor: ny.skog },
+  ikonVald: { backgroundColor: ny.valdYta },
 });

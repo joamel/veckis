@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useDesign } from '../context/DesignContext';
-import { ny, nyFont } from '../lib/nyDesign';
+import { nyFont, type NyPalett } from '../lib/nyDesign';
 import type { Palette } from '../lib/theme';
 import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,9 +34,9 @@ function isoWeek(d: Date): number {
 }
 
 export function DatePickerModal({ value, onChange, onClose, title, visible, clearable = false, minimumDate, maximumDate }: DatePickerModalProps) {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
-  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const initial = value ? new Date(value + 'T00:00:00') : new Date();
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
@@ -125,7 +125,7 @@ export function DatePickerModal({ value, onChange, onClose, title, visible, clea
 }
 
 // nyD: den nya designen (beta) skriver over de stilar som skiljer.
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
   container: { position: 'absolute', top: '15%', left: 20, right: 20, backgroundColor: ny.kort, borderRadius: 24, overflow: 'hidden', elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } },
   // Outfit bar vikten i typsnittet — fontWeight till ger reservtypsnitt.
@@ -152,5 +152,5 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   clearBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: nyD ? 12 : 8, borderWidth: 1, borderColor: nyD ? ny.faraYta : c.dangerBorder, backgroundColor: nyD ? ny.faraYta : c.dangerTint },
   clearBtnText: { color: nyD ? ny.fara : c.danger, fontWeight: '600', fontSize: 14 },
   closeBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: nyD ? 12 : 8, backgroundColor: nyD ? ny.ljus : c.surfaceSubtle },
-  closeBtnText: { color: nyD ? ny.skog : c.textSecondary, fontWeight: '600', fontSize: 14 },
+  closeBtnText: { color: nyD ? ny.padYta : c.textSecondary, fontWeight: '600', fontSize: 14 },
 });

@@ -28,7 +28,7 @@ import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { ShoppingListDetail } from '../shopping/[listId]';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { useDesign } from '../../src/context/DesignContext';
-import { ny, nyFont } from '../../src/lib/nyDesign';
+import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyTextKnapp } from '../../src/components/nydesign/NyHeader';
 import { IkonValjare } from '../../src/components/nydesign/IkonValjare';
 import { listIkon } from '../../src/lib/listIkoner';
@@ -42,9 +42,9 @@ import { shopping as str, common, gettingStarted } from '../../src/lib/svenska';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 
 export default function ShoppingScreen() {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
-  const styles = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const styles = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const router = useRouter();
   const client = useApiClient();
   const { householdId, householdName } = useHousehold();
@@ -244,10 +244,10 @@ export default function ShoppingScreen() {
                       emoji bara i den gamla — i den nya krockar färgemoji med
                       paletten, så där blir det kundvagnen. */}
                   {listIkon(item.emoji)
-                    ? <Ionicons name={listIkon(item.emoji)!} size={fs(20)} color={nyDesign ? (morkBricka ? ny.lime : ny.skog) : c.accent} />
+                    ? <Ionicons name={listIkon(item.emoji)!} size={fs(20)} color={nyDesign ? (morkBricka ? ny.lime : ny.padYta) : c.accent} />
                     : item.emoji && !nyDesign
                       ? <Text style={{ fontSize: fs(22) }}>{item.emoji}</Text>
-                      : <Ionicons name="cart-outline" size={fs(20)} color={nyDesign ? (morkBricka ? ny.lime : ny.skog) : c.accent} />}
+                      : <Ionicons name="cart-outline" size={fs(20)} color={nyDesign ? (morkBricka ? ny.lime : ny.padYta) : c.accent} />}
                 </View>
                 <View style={styles.cardContent}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -267,7 +267,7 @@ export default function ShoppingScreen() {
                 {/* Bocken foljer paletten i nya designen — den grona accenten
                     horde till den gamla och skar sig mot skog/lime. */}
                 {unchecked === 0 && total > 0 && (
-                  <Ionicons name="checkmark-circle" size={fs(20)} color={nyDesign ? ny.skog : c.success} />
+                  <Ionicons name="checkmark-circle" size={fs(20)} color={nyDesign ? ny.padYta : c.success} />
                 )}
                 <Ionicons name="chevron-forward" size={fs(18)} color={nyDesign ? ny.kontur : c.border} />
               </Pressable>
@@ -356,10 +356,10 @@ export default function ShoppingScreen() {
 }
 
 // nyD: den nya designen (beta) skriver över de stilar som skiljer.
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
   innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
-  nyBrickaMork: { backgroundColor: ny.skog },
+  nyBrickaMork: { backgroundColor: ny.valdYta },
   storesHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primaryTint, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
   storesHeaderBtnText: { fontWeight: '600', color: c.primary, fontSize: 13 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -426,9 +426,9 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
     fontSize: 16,
     backgroundColor: c.background,
   },
-  button: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
+  button: { backgroundColor: ny.lime, borderRadius: 14, padding: 16, alignItems: 'center' },
   buttonDisabled: { opacity: 0.4 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  buttonText: { color: ny.skog, fontSize: 16, fontWeight: '600' },
   sheetSub: { fontSize: 13, color: c.textMuted, marginTop: -8 },
   storesEmpty: { fontSize: 14, color: c.textFaint, textAlign: 'center', paddingVertical: 16 },
   storeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
@@ -436,7 +436,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   storeActions: { flexDirection: 'row', gap: 4 },
   storeActionBtn: { padding: 8 },
   newStoreRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  addStoreBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
+  addStoreBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: ny.lime, alignItems: 'center', justifyContent: 'center' },
   addStoreBtnDisabled: { opacity: 0.4 },
   catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.background },
   catRowLabel: { flex: 1, fontSize: 15, color: c.textSecondary },

@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ny, nyFont } from '../../lib/nyDesign';
+import { nyFont, type NyPalett } from '../../lib/nyDesign';
+import { useNy } from '../../context/ThemeContext';
 import { platshallare, type PlatshallarTon } from '../../lib/receptPlatshallare';
 
 /** Hur kortet beter sig — speglar receptlistans lägen. */
@@ -26,6 +28,8 @@ interface Props {
  *  grönt band, så den syns även på ljusa bilder. Utan bild: ljus eller mörk
  *  grön yta med en matikon. */
 export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
+  const ny = useNy();
+  const st = useMemo(() => gorSt(ny), [ny]);
   const ph = p.bildUrl ? null : platshallare(p.id, p.sokord);
   const mork = ph?.ton === 'mork';
   return (
@@ -38,7 +42,7 @@ export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
         {p.bildUrl ? (
           <Image source={{ uri: p.bildUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : (
-          <Ionicons name={ph!.ikon} size={76} color={mork ? 'rgba(205,230,107,0.3)' : 'rgba(29,59,46,0.16)'} style={st.ikonStor} />
+          <Ionicons name={ph!.ikon} size={76} color={mork ? ny.ytIkonMork : ny.ytIkon} style={st.ikonStor} />
         )}
         <Hornknapp {...p} ton={ph?.ton} />
         <View style={p.bildUrl ? st.band : st.textUtanBild}>
@@ -53,6 +57,8 @@ export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
 
 /** Kompakt rad: liten bild, titel, meta och planera-knapp. */
 export function ReceptKompaktRad(p: Props) {
+  const ny = useNy();
+  const st = useMemo(() => gorSt(ny), [ny]);
   const ph = p.bildUrl ? null : platshallare(p.id, p.sokord);
   const mork = ph?.ton === 'mork';
   return (
@@ -62,7 +68,7 @@ export function ReceptKompaktRad(p: Props) {
           <Image source={{ uri: p.bildUrl }} style={st.tumnagel} resizeMode="cover" />
         ) : (
           <View style={[st.tumnagel, st.tumnagelTom, mork ? st.ytaMork : st.ytaLjusRad]}>
-            <Ionicons name={ph!.ikon} size={28} color={mork ? ny.lime : ny.skog} />
+            <Ionicons name={ph!.ikon} size={28} color={mork ? ny.lime : ny.padYta} />
           </View>
         )}
         <View style={st.radText}>
@@ -74,8 +80,8 @@ export function ReceptKompaktRad(p: Props) {
             <Ionicons name="calendar-outline" size={18} color={ny.chipText} />
           </Pressable>
         )}
-        {p.lage === 'valj' && <Ionicons name="add-circle" size={26} color={ny.skog} />}
-        {p.lage === 'planera' && <Ionicons name="calendar-outline" size={20} color={ny.skog} />}
+        {p.lage === 'valj' && <Ionicons name="add-circle" size={26} color={ny.padYta} />}
+        {p.lage === 'planera' && <Ionicons name="calendar-outline" size={20} color={ny.padYta} />}
       </Pressable>
       {p.lage === 'redigera' && <TaBortKnapp {...p} />}
     </View>
@@ -83,6 +89,8 @@ export function ReceptKompaktRad(p: Props) {
 }
 
 function Hornknapp(p: Props & { ton?: PlatshallarTon }) {
+  const ny = useNy();
+  const st = useMemo(() => gorSt(ny), [ny]);
   if (p.lage === 'redigera') return null;
   // Lime syns dåligt mot den ljusa ytan — där blir knappen skog-grön.
   const ljus = p.ton === 'ljus';
@@ -102,6 +110,8 @@ function Hornknapp(p: Props & { ton?: PlatshallarTon }) {
 }
 
 function TaBortKnapp(p: Props) {
+  const ny = useNy();
+  const st = useMemo(() => gorSt(ny), [ny]);
   return (
     <Pressable style={st.taBort} onPress={p.onTaBort} hitSlop={6} accessibilityRole="button" accessibilityLabel={p.taBortLabel}>
       <Ionicons name="remove-circle" size={24} color="#ef4444" />
@@ -109,7 +119,7 @@ function TaBortKnapp(p: Props) {
   );
 }
 
-const st = StyleSheet.create({
+const gorSt = (ny: NyPalett) => StyleSheet.create({
   bildkort: { borderRadius: 20, overflow: 'hidden', backgroundColor: ny.skogMellan },
   ytaMork: { backgroundColor: ny.skogMellan },
   ytaLjus: { backgroundColor: ny.platsLjus },
@@ -118,12 +128,12 @@ const st = StyleSheet.create({
     position: 'absolute', top: 9, right: 9, width: 36, height: 36, borderRadius: 18,
     backgroundColor: ny.lime, alignItems: 'center', justifyContent: 'center',
   },
-  hornknappMork: { backgroundColor: ny.skog },
+  hornknappMork: { backgroundColor: ny.hornMorkYta },
   // Bandet täcker hela kortets bredd; kortets rundade hörn klipper det.
   band: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10, gap: 2,
-    backgroundColor: 'rgba(29,59,46,0.8)',
+    backgroundColor: ny.bandOverlay,
   },
   textUtanBild: { position: 'absolute', left: 12, right: 12, bottom: 11, gap: 2 },
   titel: { fontFamily: nyFont.fet, fontSize: 16, lineHeight: 19, letterSpacing: -0.3, color: '#ffffff' },

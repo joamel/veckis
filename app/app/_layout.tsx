@@ -24,9 +24,8 @@ import { PendingRemovalProvider } from '../src/context/PendingRemovalContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { ConfirmProvider } from '../src/context/ConfirmContext';
 import { SpotlightTipProvider, useWelcomeGate } from '../src/context/SpotlightTipContext';
-import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
+import { ThemeProvider, useTheme, useNy } from '../src/context/ThemeContext';
 import { DesignProvider, useDesign } from '../src/context/DesignContext';
-import { ny } from '../src/lib/nyDesign';
 import { WelcomeModal } from '../src/components/WelcomeModal';
 import { VersionBanner } from '../src/components/VersionBanner';
 import { WakeupIndicator } from '../src/components/WakeupIndicator';
@@ -72,6 +71,7 @@ for (const name of ['Text', 'TextInput'] as const) {
 
 function StatusBarBackdrop() {
   const insets = useSafeAreaInsets();
+  const ny = useNy();
   // Den nya designens sidhuvud är skog-grönt; en grå rand ovanför det bröt av.
   const { nyDesign } = useDesign();
   if (insets.top === 0) return null;
@@ -89,7 +89,7 @@ function NavigationGuard() {
   const segments = useSegments();
   const router = useRouter();
   const { markWelcomeReady } = useWelcomeGate();
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   // Favorit-landningssida — läses innan första redirecten så användaren
   // hamnar direkt i sin valda flik istället för alltid kalendern.
   const [landingTab, setLandingTabState] = useState<LandingTabKey | null>(null);

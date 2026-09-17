@@ -17,7 +17,7 @@ import { account as str } from '../src/lib/svenska';
 import { DraggableBottomSheet } from '../src/components/DraggableBottomSheet';
 import { useSheetLift } from '../src/hooks/useSheetLift';
 import { useDesign } from '../src/context/DesignContext';
-import { ny, nyFont } from '../src/lib/nyDesign';
+import { nyFont, type NyPalett } from '../src/lib/nyDesign';
 import { NyHeader } from '../src/components/nydesign/NyHeader';
 
 // Clerks konto-portal (2FA m.m.) ligger på olika domäner per instans: prod
@@ -28,9 +28,9 @@ const CLERK_PORTAL_BASE = (process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '').
   : 'https://new-oarfish-48.accounts.dev';
 
 export default function AccountScreen() {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
-  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const router = useRouter();
   const { signOut } = useAuth();
   const { user } = useUser();
@@ -187,7 +187,7 @@ export default function AccountScreen() {
         <View style={s.group}>
           <Pressable style={s.row} onPress={() => { setRenameValue(displayName); setShowRename(true); }}>
             {nyDesign ? (
-              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="create-outline" size={18} color={ny.skog} /></View>
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="create-outline" size={18} color={ny.padYta} /></View>
             ) : (
               <Ionicons name="create-outline" size={18} color={c.primary} />
             )}
@@ -209,7 +209,7 @@ export default function AccountScreen() {
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={() => openPortal('/user/security')}>
             {nyDesign ? (
-              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="shield-checkmark-outline" size={18} color={ny.skog} /></View>
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="shield-checkmark-outline" size={18} color={ny.padYta} /></View>
             ) : (
               <Ionicons name="shield-checkmark-outline" size={18} color={c.primary} />
             )}
@@ -374,12 +374,12 @@ export default function AccountScreen() {
 }
 
 // nyD: den nya designen (beta) skriver över de stilar som skiljer.
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
   innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
   // Runda ikonbrickor, samma mönster som i Hushållet.
   nyRund: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  nyRundMork: { backgroundColor: ny.skog },
+  nyRundMork: { backgroundColor: ny.valdYta },
   nyRundLjus: { backgroundColor: ny.bricka },
   nyRundFara: { backgroundColor: ny.faraYta },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
@@ -395,7 +395,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
     : { fontSize: 20, fontWeight: '700', color: c.text },
   email: { fontSize: 14, color: c.textMuted, marginTop: 4 },
   sectionLabel: nyD
-    ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.skog, marginTop: 12, marginBottom: 8, paddingHorizontal: 4 }
+    ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.padYta, marginTop: 12, marginBottom: 8, paddingHorizontal: 4 }
     : { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginTop: 12, marginBottom: 8, paddingHorizontal: 4 },
   group: { backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, paddingHorizontal: 14, ...(nyD ? { backgroundColor: ny.kort, borderRadius: 18, borderLeftWidth: 0, shadowOpacity: 0, elevation: 0 } : {}) },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: nyD ? 10 : 14 },
@@ -406,14 +406,14 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
   sheetBody: { gap: 14 },
   sheetSubtitle: { fontSize: 13, color: c.textMuted, lineHeight: 19 },
-  input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
+  input: { color: ny.text, borderWidth: 1, borderColor: ny.kontur, borderRadius: 14, padding: 14, fontSize: 16, backgroundColor: ny.bakgrund },
   pwWrap: { position: 'relative', justifyContent: 'center' },
   pwInput: { paddingRight: 48 },
   pwEye: { position: 'absolute', right: 6, top: 0, bottom: 0, justifyContent: 'center', paddingHorizontal: 8 },
   inputError: { borderColor: c.danger },
   errorText: { color: c.danger, fontSize: 13, marginTop: -8, marginLeft: 4 },
-  primaryBtn: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  primaryBtn: { backgroundColor: ny.lime, borderRadius: 14, padding: 16, alignItems: 'center' },
+  primaryBtnText: { color: ny.skog, fontSize: 16, fontWeight: '600' },
   agreeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   agreeText: { flex: 1, fontSize: 14, color: c.text, lineHeight: 20 },
   dangerBtn: { backgroundColor: c.danger, borderRadius: 10, padding: 16, alignItems: 'center' },

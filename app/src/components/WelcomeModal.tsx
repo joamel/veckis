@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useDesign } from '../context/DesignContext';
-import { ny, nyFont } from '../lib/nyDesign';
+import { nyFont, type NyPalett } from '../lib/nyDesign';
 import type { Palette } from '../lib/theme';
 import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,9 +24,9 @@ interface Props {
 }
 
 export function WelcomeModal({ visible, onDone }: Props) {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
-  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const [step, setStep] = useState(0);
   const steps = str.walkthrough.steps;
   const isLast = step === steps.length - 1;
@@ -93,7 +93,7 @@ export function WelcomeModal({ visible, onDone }: Props) {
 }
 
 // nyD: den nya designen (beta) skriver over de stilar som skiljer.
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   dim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.85)' },
   cardWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   card: {
@@ -116,7 +116,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16, marginTop: 8,
   },
   logo: { width: 76, height: 76, borderRadius: 18, alignSelf: 'center', marginBottom: 16, marginTop: 8 },
-  title: { fontSize: 24, fontFamily: nyD ? nyFont.fet : 'Baloo2', color: nyD ? ny.skog : c.primary, textAlign: 'center', marginBottom: 12 },
+  title: { fontSize: 24, fontFamily: nyD ? nyFont.fet : 'Baloo2', color: nyD ? ny.padYta : c.primary, textAlign: 'center', marginBottom: 12 },
   message: { fontSize: 15, color: nyD ? ny.textDampad : c.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 20 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 20 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: nyD ? ny.kontur : c.border },

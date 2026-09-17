@@ -2,12 +2,15 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { Appearance } from 'react-native';
 import * as SecureStore from '../lib/secureStorage';
 import { paletteFor, type Palette, type ThemeScheme } from '../lib/theme';
+import { nyFor, type NyPalett } from '../lib/nyDesign';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
 interface ThemeContextValue {
   /** Aktiv palett (efter system-upplösning). */
   colors: Palette;
+  /** Aktiv skog & lime-palett — samma nycklar i båda lägena. */
+  ny: NyPalett;
   /** Faktiskt aktivt schema. */
   scheme: ThemeScheme;
   /** Användarens val: följ systemet, eller tvinga ljust/mörkt. */
@@ -46,7 +49,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const scheme: ThemeScheme = mode === 'system' ? osScheme : mode;
   const value = useMemo<ThemeContextValue>(
-    () => ({ colors: paletteFor(scheme), scheme, mode, setMode }),
+    () => ({ colors: paletteFor(scheme), ny: nyFor(scheme), scheme, mode, setMode }),
     [scheme, mode],
   );
 
@@ -57,4 +60,9 @@ export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeCtx);
   if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
   return ctx;
+}
+
+/** Bara skog & lime-paletten — för vyer som inte behöver resten av temat. */
+export function useNy(): NyPalett {
+  return useTheme().ny;
 }

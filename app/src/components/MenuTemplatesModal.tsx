@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useDesign } from '../context/DesignContext';
-import { ny, nyFont } from '../lib/nyDesign';
+import { nyFont, type NyPalett } from '../lib/nyDesign';
 import type { Palette } from '../lib/theme';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -29,9 +29,9 @@ interface Props {
 }
 
 export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, weekNumber, weekHasItems, readOnly, onApplied }: Props) {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
-  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const client = useApiClient();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
@@ -160,10 +160,10 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
                   </View>
                   {busyId === tpl.id
                     ? <ActivityIndicator color={c.primary} size="small" />
-                    : !readOnly && <Ionicons name="add-circle-outline" size={22} color={nyDesign ? ny.skog : c.primary} />}
+                    : !readOnly && <Ionicons name="add-circle-outline" size={22} color={nyDesign ? ny.padYta : c.primary} />}
                 </Pressable>
                 <Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.shareA11y(tpl.name)}>
-                  <Ionicons name="share-outline" size={18} color={nyDesign ? ny.skog : c.primary} />
+                  <Ionicons name="share-outline" size={18} color={nyDesign ? ny.padYta : c.primary} />
                 </Pressable>
                 <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.deleteA11y(tpl.name)}>
                   <Ionicons name="trash-outline" size={18} color={nyDesign ? ny.textDampad : c.textFaint} />
@@ -177,16 +177,16 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
 }
 
 // nyD: den nya designen (beta) skriver over de stilar som skiljer.
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
   sheet: { maxHeight: '85%' },
   body: { paddingBottom: 16 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: nyD ? ny.textDampad : c.textFaint, letterSpacing: 0.8, marginBottom: 8, marginLeft: 4 },
   saveRow: { flexDirection: 'row', gap: 8 },
   input: { flex: 1, backgroundColor: nyD ? ny.ljus : c.inputBg, borderRadius: nyD ? 14 : 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: nyD ? ny.text : c.text },
-  saveBtn: { backgroundColor: nyD ? ny.skog : c.primary, borderRadius: nyD ? 14 : 10, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center' },
+  saveBtn: { backgroundColor: nyD ? ny.lime : c.primary, borderRadius: nyD ? 14 : 10, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: nyD ? ny.lime : '#fff', fontWeight: '700', fontSize: 15 },
+  saveBtnText: { color: nyD ? ny.skog : '#fff', fontWeight: '700', fontSize: 15 },
   hint: { fontSize: 13, color: nyD ? ny.textDampad : c.textFaint, marginTop: 8, marginLeft: 4 },
   tplRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: nyD ? ny.ljus : c.surfaceSubtle, borderRadius: nyD ? 16 : 12, marginBottom: 8 },
   tplMain: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },

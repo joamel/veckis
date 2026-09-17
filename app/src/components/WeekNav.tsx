@@ -5,7 +5,7 @@ import { useTablet } from '../hooks/useTablet';
 import { components as str } from '../lib/svenska';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../lib/theme';
-import { ny, nyFont } from '../lib/nyDesign';
+import { nyFont, type NyPalett } from '../lib/nyDesign';
 
 interface WeekNavProps {
   weekLabel: string;
@@ -23,8 +23,8 @@ interface WeekNavProps {
 export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onPickDate, disablePrev, isPastWeek, variant }: WeekNavProps) {
   const arNy = variant === 'ny';
   const { fs, sp } = useTablet();
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, ny } = useTheme();
+  const s = useMemo(() => makeStyles(c, ny), [c, ny]);
 
   return (
     <View style={[s.container, arNy && s.nyContainer, { paddingHorizontal: sp(arNy ? 4 : 12), paddingVertical: sp(arNy ? 3 : 10) }]}>
@@ -49,7 +49,7 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
+const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

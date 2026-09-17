@@ -42,7 +42,7 @@ import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
 import { useDesign } from '../../src/context/DesignContext';
-import { ny } from '../../src/lib/nyDesign';
+import type { NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import { VyVaxel } from '../../src/components/nydesign/VyVaxel';
 import { ReceptBildkort, ReceptKompaktRad, type ReceptKortLage } from '../../src/components/nydesign/ReceptKort';
@@ -73,8 +73,8 @@ function makeReqId(): string {
 }
 
 export default function RecipesScreen() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, ny } = useTheme();
+  const s = useMemo(() => makeStyles(c, ny), [c, ny]);
   const router = useRouter();
   const params = useLocalSearchParams<{ create?: string; forMenuDay?: string; replaceMenuItemId?: string; replaceTitle?: string; forMenuWeek?: string; chooseDay?: string }>();
   const createTriggeredRef = useRef(false);
@@ -1249,7 +1249,7 @@ export default function RecipesScreen() {
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
+const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   subHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 12 },
@@ -1259,7 +1259,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   tagFilterScroll: { flexShrink: 1 },
   tagFilterRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 6 },
   tagFilterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.primaryTint, flexShrink: 0 },
-  tagFilterChipActive: { backgroundColor: c.primary },
+  tagFilterChipActive: { backgroundColor: c.primaryBtn },
   tagFilterChipText: { fontSize: 12, fontWeight: '600', color: c.primary },
   tagFilterChipTextActive: { color: '#fff' },
   // Rund och symmetrisk, men smalare än originalets 28 px: rutans bredd äter
@@ -1275,7 +1275,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   cardContent: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: c.text },
   cardMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primaryBtn, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   // Ny design (beta)
   nyContainer: { backgroundColor: ny.skog },
   nyYta: { flex: 1, backgroundColor: ny.bakgrund },
@@ -1309,15 +1309,15 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: c.textFaint, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
   modeBody: { minHeight: 246, gap: 14 },
   modeBodyBtn: { marginTop: 2 },
-  input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, padding: 14, fontSize: 16, backgroundColor: c.inputBg },
+  input: { color: ny.text, borderWidth: 1, borderColor: ny.kontur, borderRadius: 14, padding: 14, fontSize: 16, backgroundColor: ny.bakgrund },
   urlHint: { fontSize: 12, color: c.textFaint, marginTop: -6 },
   pasteHint: { fontSize: 13, color: c.textMuted, marginTop: -4, lineHeight: 18 },
-  button: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center' },
+  button: { backgroundColor: ny.lime, borderRadius: 14, padding: 16, alignItems: 'center' },
   // Knappar med ikon/spinner BREDVID texten — utan detta staplar default-
   // flexDirection 'column' ikonen ovanpå texten.
   buttonRow: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
   buttonDisabled: { opacity: 0.4 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  buttonText: { color: ny.skog, fontSize: 16, fontWeight: '600' },
   cardWrap: { position: 'relative' },
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: c.surface, borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: c.text, borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },

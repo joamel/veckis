@@ -84,7 +84,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   emoji: { fontSize: 48 },
   title: { fontSize: 22, fontWeight: '700', color: c.text },
   body: { fontSize: 15, color: c.textMuted, textAlign: 'center', lineHeight: 21 },
-  btn: { marginTop: 8, backgroundColor: c.primary, borderRadius: 10, paddingVertical: 14, paddingHorizontal: 28 },
+  btn: { marginTop: 8, backgroundColor: c.primaryBtn, borderRadius: 10, paddingVertical: 14, paddingHorizontal: 28 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   btnSecondary: { paddingVertical: 10, paddingHorizontal: 20 },
   btnSecondaryText: { color: c.primary, fontSize: 15, fontWeight: '600' },

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useDesign } from '../context/DesignContext';
-import { ny, nyFont } from '../lib/nyDesign';
+import { nyFont, type NyPalett } from '../lib/nyDesign';
 import type { Palette } from '../lib/theme';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
@@ -18,9 +18,9 @@ const TYPES: { key: keyof NotificationPreferences; title: string; desc: string }
 ).map(([key, { title, desc }]) => ({ key, title, desc }));
 
 export function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
-  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const client = useApiClient();
   const { showToast, showError } = useToast();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
@@ -112,7 +112,7 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
           <Pressable style={s.btn} onPress={activateOnDevice} disabled={activating}>
             {activating
               ? <ActivityIndicator color={c.primary} size="small" />
-              : <><Ionicons name="phone-portrait-outline" size={18} color={nyDesign ? ny.skog : c.primary} /><Text style={s.btnText}>{str.notificationsModal.activate}</Text></>}
+              : <><Ionicons name="phone-portrait-outline" size={18} color={nyDesign ? ny.padYta : c.primary} /><Text style={s.btnText}>{str.notificationsModal.activate}</Text></>}
           </Pressable>
           {__DEV__ && (
             <Pressable style={[s.btn, s.btnTest]} onPress={sendTest} disabled={testing}>
@@ -128,7 +128,7 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
 }
 
 // nyD: den nya designen (beta) skriver over de stilar som skiljer.
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
   sheet: { maxHeight: '85%' },
   body: { paddingBottom: 16 },
@@ -154,7 +154,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   rowDesc: { fontSize: 13, color: nyD ? ny.textDampad : c.textFaint, marginTop: 2 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: nyD ? ny.textDampad : c.textFaint, letterSpacing: 0.8, marginTop: 22, marginBottom: 8, marginLeft: 4 },
   btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: nyD ? ny.ljus : c.primaryTint, borderRadius: nyD ? 14 : 12, paddingVertical: 14, marginBottom: 10 },
-  btnText: { fontSize: 15, fontWeight: '600', color: nyD ? ny.skog : c.primary },
+  btnText: { fontSize: 15, fontWeight: '600', color: nyD ? ny.padYta : c.primary },
   btnTest: { backgroundColor: nyD ? ny.skog : c.primary },
   statusText: { fontSize: 13, color: nyD ? ny.textDampad : c.textMuted, marginTop: 4, marginHorizontal: 4, lineHeight: 19 },
 });

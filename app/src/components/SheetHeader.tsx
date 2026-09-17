@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { ny, nyFont } from '../lib/nyDesign';
+import { nyFont, nyLjus, type NyPalett } from '../lib/nyDesign';
+import { useNy } from '../context/ThemeContext';
 
 /** Arkens gemensamma huvud: mörkgrönt, med handtag, rubrik och ev. knappar
  *  på sidorna. Delas av DraggableBottomSheet och ConfirmDialog.
@@ -18,6 +19,8 @@ export function SheetHeader({
   right?: ReactNode;
   handle?: ReactNode;
 }) {
+  const ny = useNy();
+  const styles = useMemo(() => gorStilar(ny), [ny]);
   const harRad = !!(title || left || right);
   return (
     <View style={[styles.header, !harRad && !subtitle && styles.headerTom]}>
@@ -34,10 +37,11 @@ export function SheetHeader({
   );
 }
 
-/** Ikonfärg för knappar i arkets mörka huvud. */
-export const SHEET_HEADER_ICON = ny.rubrikLjus;
+/** Ikonfärg för knappar i arkets mörka huvud. Konstant: `rubrikLjus` är samma
+ *  i ljust och mörkt läge — huvudet är grönt i båda. */
+export const SHEET_HEADER_ICON = nyLjus.rubrikLjus;
 
-const styles = StyleSheet.create({
+const gorStilar = (ny: NyPalett) => StyleSheet.create({
   header: { backgroundColor: ny.skog, paddingHorizontal: 24, paddingBottom: 20 },
   // Bara handtaget: en smal mörk list i stället för ett tomt huvud.
   headerTom: { paddingBottom: 2 },
@@ -53,6 +57,8 @@ const styles = StyleSheet.create({
 
 /** Draghandtaget, för ark som lägger en gest runt det. */
 export function SheetHandle() {
+  const ny = useNy();
+  const styles = useMemo(() => gorStilar(ny), [ny]);
   return (
     <View style={styles.handleHitArea}>
       <View style={styles.handle} />

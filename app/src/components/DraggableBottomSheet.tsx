@@ -18,7 +18,7 @@ import Animated, {
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
-import { ny } from '../lib/nyDesign';
+import { useNy } from '../context/ThemeContext';
 import { SheetHandle, SheetHeader } from './SheetHeader';
 
 // Dra nedåt (i handtaget) för att stänga en bottom-sheet, i stället för att
@@ -87,6 +87,7 @@ export function DraggableBottomSheet({
   // Refs i stället för deps: useDiscardDraft returnerar en ny funktion varje
   // render, och drag-gesten nedan får inte byggas om vid varje render — det
   // har tidigare gjort draget instabilt mitt i en rörelse.
+  const ny = useNy();
   const confirm = useConfirm();
   const tryClose = useDiscardDraft(confirm);
   const guardRef = useRef({ isDirty, onRequestClose, tryClose });
@@ -155,7 +156,7 @@ export function DraggableBottomSheet({
       <Pressable style={styles.overlayTap} onPress={onOverlayPress ?? guardedClose} />
       {/* Alla ark har samma anatomi: mörkgrönt huvud (handtag + rubrik) och
           ljusgrön kropp. Samma huvud används av ConfirmDialog. */}
-      <Animated.View style={[styles.sheet, sheetStyle, sheetAnimStyle]}>
+      <Animated.View style={[styles.sheet, { backgroundColor: ny.kort }, sheetStyle, sheetAnimStyle]}>
         <SheetHeader
           title={title}
           subtitle={subtitle}
@@ -190,6 +191,6 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   overlayTap: { flex: 1 },
-  sheet: { backgroundColor: ny.kort, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
   body: { paddingHorizontal: 24, paddingTop: 20, flexShrink: 1 },
 });

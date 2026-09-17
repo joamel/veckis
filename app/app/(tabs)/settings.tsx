@@ -33,7 +33,7 @@ import type { HouseholdWithMembers } from '../../src/api/client';
 import { settings as str, common } from '../../src/lib/svenska';
 import { useTheme, type ThemeMode } from '../../src/context/ThemeContext';
 import { useDesign } from '../../src/context/DesignContext';
-import { ny, nyFont } from '../../src/lib/nyDesign';
+import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import type { Palette } from '../../src/lib/theme';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
@@ -45,9 +45,9 @@ export default function SettingsScreen() {
   const { user } = useUser();
   const client = useApiClient();
   const { householdId, householdName, memberRole, allMemberships, setActiveHouseholdId, refresh } = useHousehold();
-  const { colors: c, mode: themeMode, setMode: setThemeMode } = useTheme();
+  const { colors: c, ny, mode: themeMode, setMode: setThemeMode } = useTheme();
   const { nyDesign } = useDesign();
-  const styles = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const styles = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
   // Mät-och-lyft i stället för KeyboardAvoidingView: den krympte arket och
@@ -598,7 +598,7 @@ export default function SettingsScreen() {
                         ljusgröna — raderna var annars bleka och grå. */}
                     {nyDesign ? (
                       <View style={[styles.nyRund, styles.nyRundLiten, active ? styles.nyRundMork : styles.nyRundLjus]}>
-                        <Ionicons name={active ? 'home' : 'home-outline'} size={16} color={active ? ny.lime : ny.skog} />
+                        <Ionicons name={active ? 'home' : 'home-outline'} size={16} color={active ? ny.lime : ny.padYta} />
                       </View>
                     ) : (
                       <Ionicons
@@ -610,7 +610,7 @@ export default function SettingsScreen() {
                     <Text style={[styles.inlineRowText, nyDesign && styles.nyInlineText, active && (nyDesign ? styles.nyInlineTextAktiv : { color: c.success, fontWeight: '700' })]}>
                       {membership.household.name}
                     </Text>
-                    {active && <Ionicons name="checkmark-circle" size={16} color={nyDesign ? ny.skog : c.success} />}
+                    {active && <Ionicons name="checkmark-circle" size={16} color={nyDesign ? ny.padYta : c.success} />}
                   </Pressable>
                 );
               })}
@@ -741,7 +741,7 @@ export default function SettingsScreen() {
               {/* Samma runda brickor som medlemmarna, mörk och ljus varannan rad. */}
               {nyDesign ? (
                 <View style={[styles.nyRund, styles.nyRundLjus]}>
-                  <Ionicons name="add-circle-outline" size={18} color={ny.skog} />
+                  <Ionicons name="add-circle-outline" size={18} color={ny.padYta} />
                 </View>
               ) : (
                 <Ionicons name="add-circle-outline" size={18} color={c.primary} />
@@ -752,7 +752,7 @@ export default function SettingsScreen() {
             <Pressable style={[styles.linkRow, styles.linkRowBorder]} onPress={() => setShowJoinHouseholdModal(true)}>
               {nyDesign ? (
                 <View style={[styles.nyRund, styles.nyRundLjus]}>
-                  <Ionicons name="log-in-outline" size={18} color={ny.skog} />
+                  <Ionicons name="log-in-outline" size={18} color={ny.padYta} />
                 </View>
               ) : (
                 <Ionicons name="log-in-outline" size={18} color={c.primary} />
@@ -914,33 +914,33 @@ export default function SettingsScreen() {
 }
 
 // Den nya designens kort: gröntonade, rundare, utan vänsterkant och skugga.
-const KORT_NY = { backgroundColor: ny.kort, borderRadius: 18, borderLeftWidth: 0, shadowOpacity: 0, elevation: 0 };
+const kortNy = (ny: NyPalett) => ({ backgroundColor: ny.kort, borderRadius: 18, borderLeftWidth: 0, shadowOpacity: 0, elevation: 0 });
 
 // nyD: den nya designen (beta) skriver över de stilar som skiljer.
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
   innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
   scroll: { paddingBottom: 40 },
   nyHuvudKnappar: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   nyAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: ny.bricka, alignItems: 'center', justifyContent: 'center' },
-  nyAvatarText: { fontFamily: nyFont.fet, fontSize: 18, color: ny.skog },
+  nyAvatarText: { fontFamily: nyFont.fet, fontSize: 18, color: ny.padYta },
   nyAvatarPrick: { position: 'absolute', right: -1, bottom: -1, width: 12, height: 12, borderRadius: 6, backgroundColor: ny.lime, borderWidth: 2, borderColor: ny.skog },
   // Rund bricka som växlar mörk/ljus rad för rad — medlemmar och andra hushåll.
   nyRund: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  nyRundMork: { backgroundColor: ny.skog },
+  nyRundMork: { backgroundColor: ny.valdYta },
   nyRundLjus: { backgroundColor: ny.bricka },
   nyRundLiten: { width: 32, height: 32, borderRadius: 16 },
   nyInlineText: { fontFamily: nyFont.fet, fontSize: 15, letterSpacing: -0.2, color: ny.text, fontWeight: 'normal' },
-  nyInlineTextAktiv: { color: ny.skog },
+  nyInlineTextAktiv: { color: ny.padYta },
   nyMedlemText: { fontFamily: nyFont.fet, fontSize: 17 },
   nyMedlemTextMork: { color: ny.lime },
-  nyMedlemTextLjus: { color: ny.skog },
+  nyMedlemTextLjus: { color: ny.padYta },
   nyAdminMarke: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: ny.lime },
   nyAdminMarkeText: { fontSize: 11, fontWeight: '700', color: ny.skog },
   section: { marginTop: 24, paddingHorizontal: 16 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   sectionLabel: nyD
-    ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.skog, marginBottom: 8 }
+    ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.padYta, marginBottom: 8 }
     : { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginBottom: 8 },
   editModeBtn: { fontSize: 13, fontWeight: '600', color: c.primary },
   editModeBtnActive: { color: c.danger },
@@ -958,14 +958,14 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
-    ...(nyD ? KORT_NY : {}),
+    ...(nyD ? kortNy(ny) : {}),
   },
   cardActions: { flexDirection: 'row', gap: 4 },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: c.primary,
+    backgroundColor: c.primaryBtn,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -998,11 +998,11 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
-    ...(nyD ? KORT_NY : {}),
+    ...(nyD ? kortNy(ny) : {}),
   },
   membersHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   membersTitle: nyD
-    ? { fontFamily: nyFont.fet, fontSize: 15, letterSpacing: -0.2, color: ny.skog }
+    ? { fontFamily: nyFont.fet, fontSize: 15, letterSpacing: -0.2, color: ny.padYta }
     : { fontSize: 14, fontWeight: '600', color: c.text },
   addMemberBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   addMemberBtnText: { fontSize: 12, color: c.primary, fontWeight: '600' },
@@ -1038,11 +1038,11 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
-    ...(nyD ? KORT_NY : {}),
+    ...(nyD ? kortNy(ny) : {}),
   },
   inviteDesc: { fontSize: 14, color: c.textMuted, lineHeight: 20 },
   headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: c.primaryTint, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
-  headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
+  headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryBtn, alignItems: 'center', justifyContent: 'center' },
   headerAvatarText: { fontSize: 15, fontWeight: '700', color: '#fff' },
   headerAvatarAdminDot: { position: 'absolute', bottom: -2, right: -2, width: 12, height: 12, borderRadius: 6, backgroundColor: c.accent, borderWidth: 2, borderColor: c.surface },
   codeRow: {
@@ -1059,13 +1059,13 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   expiresText: { fontSize: 12, color: c.textFaint, textAlign: 'center' },
   inviteBtn: {
     borderWidth: 1.5,
-    borderColor: nyD ? ny.skog : c.primary,
+    borderColor: nyD ? ny.padYta : c.primary,
     borderRadius: nyD ? 12 : 10,
     padding: 14,
     alignItems: 'center',
   },
   inviteBtnDisabled: { opacity: 0.4 },
-  inviteBtnText: { fontSize: 15, fontWeight: '600', color: nyD ? ny.skog : c.primary },
+  inviteBtnText: { fontSize: 15, fontWeight: '600', color: nyD ? ny.padYta : c.primary },
   shareLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: nyD ? ny.lime : c.accent, borderRadius: nyD ? 12 : 10, paddingVertical: 12, marginTop: 4 },
   shareLinkBtnText: { fontSize: 15, fontWeight: '700', color: nyD ? ny.skog : '#fff' },
   overflowPopover: { position: 'absolute', right: 0, alignItems: 'flex-end' },
@@ -1079,7 +1079,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   inlineRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
   inlineRowBorder: { borderTopWidth: 1, borderTopColor: c.borderLight },
   inlineRowText: { flex: 1, fontSize: 14, color: c.text, fontWeight: '500' },
-  linkBox: { backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, ...(nyD ? KORT_NY : {}) },
+  linkBox: { backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, ...(nyD ? kortNy(ny) : {}) },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   linkRowBorder: { borderTopWidth: 1, borderTopColor: nyD ? ny.bricka : c.borderLight },
   linkRowText: nyD
@@ -1087,12 +1087,12 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
     : { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
   devBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
   devBtnText: { fontSize: 14, fontWeight: '500', color: c.textMuted },
-  appearanceRow: { flexDirection: 'row', gap: 8, backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, padding: 8, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, ...(nyD ? { ...KORT_NY, padding: 5 } : {}) },
+  appearanceRow: { flexDirection: 'row', gap: 8, backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, padding: 8, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, ...(nyD ? { ...kortNy(ny), padding: 5 } : {}) },
   appearanceOpt: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: nyD ? 13 : 10, backgroundColor: 'transparent' },
   appearanceOptActive: { backgroundColor: nyD ? ny.skog : c.primaryTint },
   appearanceOptText: { fontSize: 14, fontWeight: '600', color: c.textMuted },
   appearanceOptTextActive: { color: nyD ? ny.lime : c.primary },
-  betaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 12, padding: 14, ...(nyD ? KORT_NY : {}) },
+  betaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 12, padding: 14, ...(nyD ? kortNy(ny) : {}) },
   betaText: { flex: 1, gap: 2 },
   betaTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   betaHint: { fontSize: 12, lineHeight: 17, color: c.textMuted },
@@ -1134,7 +1134,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   },
   deleteInput: { color: c.text, borderColor: c.danger, backgroundColor: c.inputBg },
   button: {
-    backgroundColor: c.primary,
+    backgroundColor: c.primaryBtn,
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',

@@ -6,7 +6,7 @@ const ÄR_WEBB = Platform.OS as any === 'web';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useDesign } from '../context/DesignContext';
-import { ny, nyFont } from '../lib/nyDesign';
+import { nyFont, type NyPalett } from '../lib/nyDesign';
 import { SheetHeader } from './SheetHeader';
 import type { Palette } from '../lib/theme';
 
@@ -51,11 +51,11 @@ export function ConfirmDialog({
   options: ConfirmOptions | null;
   onClose: () => void;
 }) {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
 
   // Menyn växer ur knappen den hör till i stället för att bara tonas in.
   // Skala + en liten förskjutning nedåt (menyn ligger OVANFÖR knappen) läser
@@ -93,7 +93,7 @@ export function ConfirmDialog({
     const rows = actionButtons.map((b, i) => {
       const isDestructive = b.style === 'destructive';
       const color = nyDesign
-        ? (isDestructive ? ny.fara : ny.skog)
+        ? (isDestructive ? ny.fara : ny.padYta)
         : (isDestructive ? c.danger : c.primary);
       const showDivider = i === firstDestructiveIdx && firstDestructiveIdx > 0;
       return (
@@ -222,17 +222,17 @@ export function ConfirmDialog({
 }
 
 // nyD: den nya designen skriver over de stilar som skiljer (menyvarianterna).
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   // Sheet variant (default)
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: ny.kort, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
   body: { paddingHorizontal: 24, paddingTop: 20, gap: 10 },
   btn: { height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  btnPrimar: { backgroundColor: ny.skog },
+  btnPrimar: { backgroundColor: ny.valdYta },
   btnSekundar: { backgroundColor: ny.ljus },
   btnAvbryt: { backgroundColor: 'transparent' },
   // Outfit bär vikten i typsnittet — en fontWeight till ger reservtypsnitt.
-  btnText: { fontFamily: nyFont.halvfet, fontWeight: 'normal', fontSize: 16, color: ny.skog },
+  btnText: { fontFamily: nyFont.halvfet, fontWeight: 'normal', fontSize: 16, color: ny.padYta },
   btnTextPrimar: { color: ny.rubrikLjus },
   btnTextDestructive: { color: ny.fara },
   btnTextCancel: { color: ny.textDampad },
@@ -257,6 +257,6 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   // höjd varierar med tab-bar och säkerhetszon.
   menuCardBottomRight: { position: 'absolute', right: 8 },
   menuBtn: { paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  menuBtnText: { fontSize: 15, fontWeight: '500', color: nyD ? ny.skog : c.primary },
+  menuBtnText: { fontSize: 15, fontWeight: '500', color: nyD ? ny.padYta : c.primary },
   menuDivider: { height: 1, backgroundColor: nyD ? ny.kontur : c.surfaceSubtle, marginVertical: 4 },
 });

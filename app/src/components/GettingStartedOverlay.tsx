@@ -114,7 +114,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   pill: {
     position: 'absolute',
     left: 12,
-    backgroundColor: c.primary,
+    backgroundColor: c.primaryBtn,
     borderRadius: 22,
     paddingVertical: 9,
     paddingHorizontal: 14,

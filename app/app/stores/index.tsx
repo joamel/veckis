@@ -28,15 +28,15 @@ import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { useDesign } from '../../src/context/DesignContext';
-import { ny, nyFont } from '../../src/lib/nyDesign';
+import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 
 type SortMode = 'name' | 'created';
 
 export default function StoresScreen() {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
-  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const router = useRouter();
   const { pick, current } = useLocalSearchParams<{ pick?: string; current?: string }>();
   // pick=1 → kort-tap returnerar valt butik-id istället för att navigera in.
@@ -260,7 +260,7 @@ export default function StoresScreen() {
                   <Ionicons
                     name="storefront-outline"
                     size={20}
-                    color={isChosen ? c.accent : (nyDesign ? (morkBricka ? ny.lime : ny.skog) : c.primary)}
+                    color={isChosen ? c.accent : (nyDesign ? (morkBricka ? ny.lime : ny.padYta) : c.primary)}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -339,10 +339,10 @@ export default function StoresScreen() {
 }
 
 // nyD: den nya designen (beta) skriver över de stilar som skiljer.
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
   innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
-  nyBrickaMork: { backgroundColor: ny.skog },
+  nyBrickaMork: { backgroundColor: ny.valdYta },
   nySok: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, marginTop: 14, paddingHorizontal: 14, borderRadius: 14, backgroundColor: ny.glasSvag },
   nySokInput: { flex: 1, fontSize: 15, color: ny.rubrikLjus, padding: 0 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
@@ -371,13 +371,13 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   cardMetaCurrent: { color: c.accent, fontWeight: '600' },
   cardClearBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerTint },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: nyD ? ny.lime : c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: nyD ? ny.skog : c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: c.text },
+  input: { borderWidth: 1, borderColor: ny.kontur, borderRadius: 14, backgroundColor: ny.bakgrund, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: ny.text },
   saveBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
   noStoreBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   noStoreText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
   noStoreTextActive: { color: c.primary, fontWeight: '600' },
   saveBar_btn: { backgroundColor: nyD ? ny.lime : c.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
   saveBar_btnText: { color: nyD ? ny.skog : '#fff', fontSize: 15, fontWeight: '700' },
-  primaryBtn: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  primaryBtn: { backgroundColor: ny.lime, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  primaryBtnText: { color: ny.skog, fontSize: 15, fontWeight: '700' },
 });

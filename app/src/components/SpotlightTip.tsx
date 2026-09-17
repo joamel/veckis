@@ -448,7 +448,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   mockMealLine: { height: 10, borderRadius: 5, backgroundColor: c.borderLight },
   title: { fontSize: 17, fontWeight: '700', color: c.text, marginBottom: 6, textAlign: 'center' },
   message: { fontSize: 14, color: c.textSecondary, marginBottom: 14, textAlign: 'center', lineHeight: 20 },
-  btn: { backgroundColor: c.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  btn: { backgroundColor: c.primaryBtn, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   topRow: { marginBottom: 10 },
   positionPill: { alignSelf: 'flex-start', backgroundColor: c.accent100, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },

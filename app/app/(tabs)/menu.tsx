@@ -44,7 +44,7 @@ import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
 import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { useDesign } from '../../src/context/DesignContext';
-import { ny, nyFont } from '../../src/lib/nyDesign';
+import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import { platshallare } from '../../src/lib/receptPlatshallare';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
@@ -139,8 +139,8 @@ function InvSlider({ total, value, step, onLive, onCommit, onDragEnd }: {
   onCommit: (v: number) => void;
   onDragEnd: () => void;
 }) {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, ny } = useTheme();
+  const s = useMemo(() => makeStyles(c, ny), [c, ny]);
   const trackW = useSharedValue(0);
   const dragPct = useSharedValue(-1); // -1 = ingen aktiv dragning
   const basePct = useSharedValue(total > 0 ? Math.min(1, value / total) : 0);
@@ -216,8 +216,8 @@ function InvMeasuredRow({ agg, haveAmt, onCommit }: {
   haveAmt: number;
   onCommit: (v: number) => void;
 }) {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, ny } = useTheme();
+  const s = useMemo(() => makeStyles(c, ny), [c, ny]);
   const [liveVal, setLiveVal] = useState<number | null>(null);
   const unitLabel = agg.unit ? ` ${agg.unit}` : '';
   const total = agg.totalQty ?? 0;
@@ -254,8 +254,8 @@ function InvMeasuredRow({ agg, haveAmt, onCommit }: {
 }
 
 export default function MenuScreen() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, ny } = useTheme();
+  const s = useMemo(() => makeStyles(c, ny), [c, ny]);
   const router = useRouter();
   const params = useLocalSearchParams<{ bulkTransfer?: string; originListId?: string; addRecipeId?: string; day?: string; replaceMenuItemId?: string; forMenuWeek?: string; reqId?: string }>();
   const addRecipeTriggeredRef = useRef(false);
@@ -2351,10 +2351,10 @@ export default function MenuScreen() {
                 </Pressable>
               )}
               <Pressable
-                style={[s.button, { backgroundColor: c.borderLight }]}
+                style={[s.button, { backgroundColor: ny.ljus }]}
                 onPress={() => setBulkTransferStep('ingredients')}
               >
-                <Text style={[s.buttonText, { color: c.textSecondary }]}>{str.bulk.back}</Text>
+                <Text style={[s.buttonText, { color: ny.padYta }]}>{str.bulk.back}</Text>
               </Pressable>
             </>
           )}
@@ -2404,7 +2404,7 @@ function MenuCardDragHandle({ onDragStart, onDragMove, onDragEnd }: {
   onDragMove: (x: number, y: number) => void;
   onDragEnd: () => void;
 }) {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { medium } = useHaptics();
   const gesture = useMemo(() => Gesture.Pan()
     .hitSlop(8)
@@ -2468,8 +2468,8 @@ function MenuCard({
   /** Ny design: dagens rätter visar Laga direkt i det hopfällda kortet. */
   idag?: boolean;
 }) {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, ny } = useTheme();
+  const s = useMemo(() => makeStyles(c, ny), [c, ny]);
   const [expanded, setExpanded] = useState(false);
   // While any card is being dragged, collapse every card so the list is compact.
   // Also clear the expanded state so cards stay collapsed after the move.
@@ -2530,7 +2530,7 @@ function MenuCard({
                 <Image source={{ uri: bildUrl }} style={s.nyTumnagel} resizeMode="cover" />
               ) : (
                 <View style={[s.nyTumnagel, s.nyTumnagelTom, ph?.ton === 'mork' ? s.nyTumMork : s.nyTumLjus]}>
-                  <Ionicons name={ph!.ikon} size={20} color={ph?.ton === 'mork' ? ny.lime : ny.skog} />
+                  <Ionicons name={ph!.ikon} size={20} color={ph?.ton === 'mork' ? ny.lime : ny.padYta} />
                 </View>
               )
             ) : (
@@ -2597,11 +2597,11 @@ function MenuCard({
                 ) : <View />}
                 <View style={s.nyPortioner}>
                   <Pressable onPress={() => onScaleServings(Math.max(1, scaledServings - 1))} style={s.nyPortionKnapp} hitSlop={6}>
-                    <Ionicons name="remove" size={14} color={ny.skog} />
+                    <Ionicons name="remove" size={14} color={ny.padYta} />
                   </Pressable>
                   <Text style={s.nyPortionVarde}>{str.card.servingsOnly(scaledServings)}</Text>
                   <Pressable onPress={() => onScaleServings(scaledServings + 1)} style={s.nyPortionKnapp} hitSlop={6}>
-                    <Ionicons name="add" size={14} color={ny.skog} />
+                    <Ionicons name="add" size={14} color={ny.padYta} />
                   </Pressable>
                 </View>
               </View>
@@ -2635,12 +2635,12 @@ function MenuCard({
                 <View style={s.nyKnappFyll} />
                 {!isPastWeek && (
                   <Pressable style={s.nyIkonKnapp} onPress={onReplace} accessibilityRole="button" accessibilityLabel={str.card.replace}>
-                    <Ionicons name="swap-horizontal-outline" size={18} color={ny.skog} />
+                    <Ionicons name="swap-horizontal-outline" size={18} color={ny.padYta} />
                   </Pressable>
                 )}
                 {!isPastWeek && (
                   <Pressable style={s.nyIkonKnapp} onPress={onRemove} accessibilityRole="button" accessibilityLabel={str.card.remove}>
-                    <Ionicons name="trash-outline" size={18} color={ny.skog} />
+                    <Ionicons name="trash-outline" size={18} color={ny.padYta} />
                   </Pressable>
                 )}
               </View>
@@ -2758,7 +2758,7 @@ function MenuCard({
   return cardBody;
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
+const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primaryTint, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
@@ -2766,24 +2766,24 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: c.primaryTint, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
   // En rad i den nya inventerings-vyn: namn + behov till vänster, "Har"-input
   // + ✓ Allt-knapp till höger. Allt på samma rad, ingen mode-toggle.
-  invRowV2: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.surfaceSubtle, gap: 6 },
-  invRowCol: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.surfaceSubtle, gap: 4 },
-  invName: { fontSize: 15, color: c.text, fontWeight: '500' },
-  invNameDone: { color: c.textFaint, textDecorationLine: 'line-through' },
-  invProvenance: { fontSize: 12, color: c.textFaint, marginTop: 2 },
+  invRowV2: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: ny.kontur, gap: 6 },
+  invRowCol: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: ny.kontur, gap: 4 },
+  invName: { fontSize: 15, color: ny.text, fontWeight: '500' },
+  invNameDone: { color: ny.textDampad, textDecorationLine: 'line-through' },
+  invProvenance: { fontSize: 12, color: ny.textDampad, marginTop: 2 },
   // minWidth = baseline; växer automatiskt om enheten är lång (paket, påse…)
   // så enheten alltid syns helt. paddingHorizontal lite mindre för att inte
   // knappen ska bli onödigt bred.
   invRowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   // Explicit minWidth (beräknas per label) — Android mäter vissa strängar
   // ("kg", "dl", "tsk") för smalt och klipper annars sista glyfen.
-  invValue: { fontSize: 14, color: c.primary, fontWeight: '700' },
+  invValue: { fontSize: 14, color: ny.padYta, fontWeight: '700' },
   invSliderTrack: { height: 26, justifyContent: 'center', marginTop: 2 },
   // borderLight/surface försvann mot arkets ljusgröna botten. Spåret i kontur,
   // fyllnaden mörkgrön och knoppen lime med mörkgrön kant — samma par som
   // notistogglen. Knoppens mått (18) används i thumbStyle, ändra inte ensidigt.
   invSliderRail: { position: 'absolute', left: 0, right: 0, height: 6, borderRadius: 3, backgroundColor: ny.kontur },
-  invSliderFill: { position: 'absolute', left: 0, height: 6, borderRadius: 3, backgroundColor: ny.skog },
+  invSliderFill: { position: 'absolute', left: 0, height: 6, borderRadius: 3, backgroundColor: ny.padYta },
   invSliderThumb: { position: 'absolute', left: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: ny.lime, borderWidth: 2, borderColor: ny.skog, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
   // Default-läge: NEUTRAL grå/vit så knappen INTE ser tryckt ut. Aktivt läge
   // (tryckt) blir grön + ifylld.
@@ -2809,7 +2809,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   nyDagHuvud: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30, paddingHorizontal: 4 },
   // flexShrink: 0 hindrar texterna från att krympa mot flex-utfyllnaden, men
   // räckte inte ensamt — datumet och "I inköpslistan" får explicit bredd i JSX.
-  nyDagNamn: { fontFamily: nyFont.fet, fontSize: 15, color: ny.skog, flexShrink: 0 },
+  nyDagNamn: { fontFamily: nyFont.fet, fontSize: 15, color: ny.padYta, flexShrink: 0 },
   // Vansterstalld: centrerad delade overskottet i boxen lika och skot i stallet
   // ivag datumet fran dagens namn. Market kompenserar i stallet med negativ
   // marginal, se dagRubrik.
@@ -2852,7 +2852,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   nyMarkeText: { fontSize: 12, color: ny.textDampad, flexShrink: 0 },
   nyPortioner: { flexDirection: 'row', alignItems: 'center', gap: 2, padding: 3, borderRadius: 17, backgroundColor: ny.kort },
   nyPortionKnapp: { width: 28, height: 28, borderRadius: 14, backgroundColor: ny.ljus, alignItems: 'center', justifyContent: 'center' },
-  nyPortionVarde: { fontSize: 13, fontWeight: '700', color: ny.skog, paddingHorizontal: 6, flexShrink: 0 },
+  nyPortionVarde: { fontSize: 13, fontWeight: '700', color: ny.padYta, paddingHorizontal: 6, flexShrink: 0 },
   nyEtikett: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, color: ny.textDampad },
   nyChipRad: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   nyChipScroll: { flexDirection: 'row', gap: 6, paddingRight: 4 },
@@ -2919,7 +2919,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   dayDate: { fontSize: 11, color: c.textMuted },
   emptyDayText: { fontSize: 13, color: c.textFaint, paddingVertical: 8 },
   emptyDayTap: { paddingVertical: 4, alignItems: 'flex-start' },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: c.primaryBtn, alignItems: 'center', justifyContent: 'center', shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   // Heltäckande ram + tydligare skugga så kortet syns mot den ljusa bakgrunden
   // även i PWA (web renderar knappt shadowOpacity 0.03 → kortet såg ramlöst ut).
   card: { borderRadius: 12, borderWidth: 1, borderColor: c.borderLight, borderLeftWidth: 3, borderLeftColor: c.primary200, backgroundColor: c.surface, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
@@ -2965,7 +2965,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   assignDayLabel: { fontSize: 12, color: c.textFaint },
   assignDayBtns: { flexDirection: 'row', gap: 6 },
   assignDayBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: c.surfaceSubtle },
-  assignDayBtnActive: { backgroundColor: c.primary },
+  assignDayBtnActive: { backgroundColor: c.primaryBtn },
   assignDayBtnText: { fontSize: 12, color: c.textSecondary, fontWeight: '500' },
   assignDayBtnTextActive: { color: '#fff', fontWeight: '600' },
   // Bakgrund, rundning och padding kommer från DraggableBottomSheet.
@@ -2973,8 +2973,8 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   bulkRecipeList: { maxHeight: 400, marginBottom: 12 },
   bulkRecipeItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: c.background, borderWidth: 1, borderColor: c.borderLight, marginBottom: 6 },
   bulkRecipeItemActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
-  bulkRecipeTitle: { fontSize: 15, fontWeight: '600', color: c.text },
-  bulkWeekHeader: { fontSize: 12, fontWeight: '700', color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 4 },
+  bulkRecipeTitle: { fontSize: 15, fontWeight: '600', color: ny.text },
+  bulkWeekHeader: { fontSize: 12, fontWeight: '700', color: ny.chipText, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 4 },
   bulkRecipeDay: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   dayGrid: { gap: 10 },
   dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
@@ -2984,18 +2984,18 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   recipeCardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.background, alignItems: 'center', justifyContent: 'center' },
   recipeCardTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   recipeCardMeta: { fontSize: 12, color: c.textMuted, marginTop: 2 },
-  pickerItem: { paddingVertical: 14, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, flexDirection: 'row', alignItems: 'center' },
-  pickerItemActive: { backgroundColor: c.primaryTint, borderRadius: 10, borderBottomColor: 'transparent' },
+  pickerItem: { paddingVertical: 14, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: ny.kontur, flexDirection: 'row', alignItems: 'center' },
+  pickerItemActive: { backgroundColor: ny.bricka, borderRadius: 10, borderBottomColor: 'transparent' },
   pickerItemDisabled: { opacity: 0.5 },
-  pickerItemTitle: { fontSize: 16, fontWeight: '600', color: c.text },
-  pickerItemMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
+  pickerItemTitle: { fontSize: 16, fontWeight: '600', color: ny.text },
+  pickerItemMeta: { fontSize: 13, color: ny.textDampad, marginTop: 2 },
   pickerEmpty: { alignItems: 'center', paddingVertical: 24, gap: 12 },
-  pickerEmptyText: { fontSize: 14, color: c.textMuted, textAlign: 'center' },
-  pickerEmptyBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: c.primary, borderRadius: 8 },
-  pickerEmptyBtnText: { fontSize: 14, color: '#fff', fontWeight: '600' },
+  pickerEmptyText: { fontSize: 14, color: ny.textDampad, textAlign: 'center' },
+  pickerEmptyBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: ny.lime, borderRadius: 14 },
+  pickerEmptyBtnText: { fontSize: 14, color: ny.skog, fontWeight: '600' },
   createListRow: { flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 8 },
-  createListBtn: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: c.primary, borderRadius: 10 },
-  createListBtnText: { fontSize: 14, color: '#fff', fontWeight: '600' },
+  createListBtn: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: ny.lime, borderRadius: 14 },
+  createListBtnText: { fontSize: 14, color: ny.skog, fontWeight: '600' },
   cleanupList: { gap: 8 },
   cleanupItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: c.background, borderWidth: 1, borderColor: c.borderLight },
   cleanupItemActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
@@ -3015,11 +3015,11 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   newListBtnDisabled: { backgroundColor: c.surfaceSubtle, borderColor: c.borderLight },
   newListBtnText: { fontSize: 16, fontWeight: '600', color: c.primary },
   newListBtnTextDisabled: { color: c.textFaint },
-  input: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: c.inputBg },
-  button: { backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', minWidth: 44 },
+  input: { color: ny.text, borderWidth: 1, borderColor: ny.kontur, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: ny.bakgrund },
+  button: { backgroundColor: ny.lime, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', minWidth: 44 },
   cancelBtn: { paddingVertical: 10, alignItems: 'center' },
-  cancelBtnText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  cancelBtnText: { fontSize: 14, color: ny.textDampad, fontWeight: '500' },
+  buttonText: { color: ny.skog, fontSize: 16, fontWeight: '600' },
   buttonDisabled: { opacity: 0.4 },
   // Edit mode
   sectionHovered: { backgroundColor: c.primaryTint, borderRadius: 12, borderWidth: 1, borderColor: c.primary },

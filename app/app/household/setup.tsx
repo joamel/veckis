@@ -211,7 +211,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   },
   hint: { fontSize: 13, color: c.textFaint, textAlign: 'center' },
   button: {
-    backgroundColor: c.primary,
+    backgroundColor: c.primaryBtn,
     borderRadius: 10,
     padding: 16,
     alignItems: 'center',

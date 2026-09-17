@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ny, nyFont } from '../../lib/nyDesign';
+import { nyFont, nyLjus, type NyPalett } from '../../lib/nyDesign';
+import { useNy } from '../../context/ThemeContext';
 
 /** Mörkgrönt sidhuvud med rundade nederkanter (ny design). `children` hamnar
  *  under rubrikraden, t.ex. ett sökfält. */
@@ -15,6 +16,8 @@ export function NyHeader({ title, subtitle, onBack, backLabel, right, children, 
   /** Mindre rubrik som får bryta på två rader — för långa namn (t.ex. butiker). */
   kompakt?: boolean;
 }) {
+  const ny = useNy();
+  const st = useMemo(() => gorSt(ny), [ny]);
   return (
     <View style={st.band}>
       {/* Med bakåtpil linjerar raden i MITTEN. Med underkant hamnade pilen
@@ -37,13 +40,17 @@ export function NyHeader({ title, subtitle, onBack, backLabel, right, children, 
 }
 
 /** Ikonknapp i sidhuvudet: samma mönster överallt (42 px, genomskinligt vitt). */
-export function NyIkonKnapp({ icon, onPress, label, color = ny.ikonLjus, size = 20 }: {
+// `ikonLjus` är samma i ljust och mörkt läge (sidhuvudet är grönt i båda), så
+// den duger som standardvärde i signaturen — där finns ingen hook att ropa.
+export function NyIkonKnapp({ icon, onPress, label, color = nyLjus.ikonLjus, size = 20 }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   onPress: () => void;
   label?: string;
   color?: string;
   size?: number;
 }) {
+  const ny = useNy();
+  const st = useMemo(() => gorSt(ny), [ny]);
   return (
     <Pressable onPress={onPress} hitSlop={4} style={st.ikonKnapp} accessibilityRole="button" accessibilityLabel={label}>
       <Ionicons name={icon} size={size} color={color} />
@@ -58,6 +65,8 @@ export function NyTextKnapp({ icon, label, onPress }: {
   label: string;
   onPress: () => void;
 }) {
+  const ny = useNy();
+  const st = useMemo(() => gorSt(ny), [ny]);
   return (
     <Pressable onPress={onPress} hitSlop={4} style={st.textKnapp} accessibilityRole="button" accessibilityLabel={label}>
       <Ionicons name={icon} size={16} color={ny.rubrikLjus} />
@@ -66,7 +75,7 @@ export function NyTextKnapp({ icon, label, onPress }: {
   );
 }
 
-const st = StyleSheet.create({
+const gorSt = (ny: NyPalett) => StyleSheet.create({
   textKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 42, paddingHorizontal: 14, borderRadius: 14, backgroundColor: ny.glas },
   textKnappText: { fontSize: 14, fontWeight: '600', color: ny.rubrikLjus },
   band: {

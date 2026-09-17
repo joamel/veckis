@@ -13,7 +13,7 @@ import { FlashList } from '@shopify/flash-list';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
 import { ClearableInput } from '../../src/components/ClearableInput';
 import { useDesign } from '../../src/context/DesignContext';
-import { ny, nyFont } from '../../src/lib/nyDesign';
+import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { IkonValjare } from '../../src/components/nydesign/IkonValjare';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
@@ -114,12 +114,14 @@ const Lista = (ÄR_WEBB ? AnimatedFlatList : AnimatedFlashList) as typeof Animat
 // Nyckeln är palett + designval (Ny design, beta) — båda byts sällan.
 let itemRowPalette: Palette | null = null;
 let itemRowNy = false;
+let itemRowPalettNy: NyPalett | null = null;
 let itemRowStyles: ReturnType<typeof makeStyles> | null = null;
-function getItemRowStyles(c: Palette, nyD: boolean) {
-  if (itemRowPalette !== c || itemRowNy !== nyD || !itemRowStyles) {
+function getItemRowStyles(c: Palette, nyD: boolean, ny: NyPalett) {
+  if (itemRowPalette !== c || itemRowNy !== nyD || itemRowPalettNy !== ny || !itemRowStyles) {
     itemRowPalette = c;
     itemRowNy = nyD;
-    itemRowStyles = makeStyles(c, nyD);
+    itemRowPalettNy = ny;
+    itemRowStyles = makeStyles(c, nyD, ny);
   }
   return itemRowStyles;
 }
@@ -176,9 +178,9 @@ function useChipAutoScroll(scrollRef: { current: ScrollView | null }, activeKey:
 }
 
 export function ShoppingListDetail({ listId, onClose }: { listId: string; onClose?: () => void }) {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
-  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const router = useRouter();
   const goBack = useCallback(() => {
     if (onClose) { onClose(); return; }
@@ -2730,13 +2732,13 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
   pending?: boolean;
 }) {
   const item = row.item;
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   // Delad cache i stället för egen useMemo per rad: makeStyles bygger HELA
   // skärmens stylesheet (~150 entries), och med useMemo(…, [c]) gjorde varje
   // monterad rad det en gång var. Vid långsam scroll monteras rader i jämn
   // ström, så det blev ett stylesheet per rad — den dyraste posten i scrollen.
   const { nyDesign } = useDesign();
-  const s = getItemRowStyles(c, nyDesign);
+  const s = getItemRowStyles(c, nyDesign, ny);
   const { width: windowWidth } = useWindowDimensions();
   const translateX = useSharedValue(0);
   const THRESHOLD = windowWidth * 0.35;
@@ -2792,7 +2794,7 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
   const rowContent = (
     <>
       {nyDesign ? (
-        <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={ny.skog} />
+        <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={ny.padYta} />
       ) : (
         <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? c.success : c.primary} />
       )}
@@ -2836,7 +2838,7 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
 
 // nyD: den nya designen (beta) skriver över de stilar som skiljer. Det
 // scrollanimerade sidhuvudet behåller sin struktur — bara färger och former.
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   container: { flex: 1, backgroundColor: nyD ? ny.bakgrund : c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, paddingBottom: 12 },
@@ -2884,7 +2886,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   emptyText: { fontSize: 17, fontWeight: '600', color: c.textSecondary, marginTop: 12 },
   emptySubtext: { fontSize: 13, color: c.textFaint, marginTop: 4, textAlign: 'center', paddingHorizontal: 32 },
   dupeFloatWrap: { position: 'absolute', right: 16, zIndex: 5 },
-  dupeFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: nyD ? ny.skog : c.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
+  dupeFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: nyD ? ny.valdYta : c.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
   dupeFloatText: { fontSize: 13, fontWeight: '700', color: nyD ? ny.lime : '#fff' },
   dupeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.accent100, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   dupeBadgeText: { fontSize: 12, fontWeight: '600', color: c.accent },
@@ -2897,7 +2899,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   // Egen stil, annars glesnar alla rubriker.
   checkedHeaderSpacing: { marginTop: 20, marginBottom: 4 },
   categoryLabel: nyD
-    ? { fontFamily: nyFont.fet, fontSize: 13, color: ny.skog, textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 }
+    ? { fontFamily: nyFont.fet, fontSize: 13, color: ny.padYta, textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 }
     : { fontSize: 12, fontWeight: '700', color: c.primary, textTransform: 'uppercase', letterSpacing: 0.6, flex: 1, flexShrink: 1 },
   // Sub-grupp-rubriker: inget uppercase + ingen letterSpacing (annars klipps
   // långa subnamn som "Toalett- & hushållspapper"); lite indenterad + dämpad
@@ -2953,9 +2955,9 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.background },
   catRowLabel: { flex: 1, fontSize: 15, color: c.textSecondary },
   catArrow: { padding: 6 },
-  saveBtn: { backgroundColor: c.primary, borderRadius: 10, padding: 16, alignItems: 'center', marginTop: 4 },
+  saveBtn: { backgroundColor: ny.lime, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 4 },
   saveBtnDisabled: { opacity: 0.4 },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  saveBtnText: { color: ny.skog, fontSize: 16, fontWeight: '600' },
   editRow: { flexDirection: 'row', gap: 12 },
   editLabel: { fontSize: 13, fontWeight: '600', color: c.textMuted, marginBottom: 6 },
   editInput: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, backgroundColor: c.inputBg },
@@ -2979,7 +2981,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   // Ny design: ingen skugga — de gröntonade korten skiljer sig mot bakgrunden ändå.
   swipeRowWrapShadow: nyD ? {} : { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   swipeDeleteBg: { backgroundColor: c.danger, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
-  swipeEditBg: { backgroundColor: c.primary, justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 20 },
+  swipeEditBg: { backgroundColor: c.primaryBtn, justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 20 },
   browserSheet: { maxHeight: '90%' },
   browserBody: { paddingTop: 4 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
@@ -2994,8 +2996,8 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   // Litet antalsfält (inte flex) så enhet får plats på samma rad som i native-appen.
   qtyInput: { width: 70, textAlign: 'center', fontSize: 16, fontWeight: '600', color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingVertical: 10, backgroundColor: c.inputBg },
   qtyUnitInput: { flex: 1, minWidth: 0, fontSize: 16, color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: c.inputBg },
-  qtyConfirm: { backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
-  qtyConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  qtyConfirm: { backgroundColor: ny.lime, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  qtyConfirmText: { color: ny.skog, fontSize: 16, fontWeight: '600' },
   toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: c.successLight, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   mergeList: { maxHeight: 200, flexGrow: 0 },

@@ -9,14 +9,13 @@ import { useTablet } from '../../src/hooks/useTablet';
 import { common } from '../../src/lib/svenska';
 import { useTheme } from '../../src/context/ThemeContext';
 import { useDesign } from '../../src/context/DesignContext';
-import { ny } from '../../src/lib/nyDesign';
 
 export default function TabLayout() {
   usePushRegistration();
   useNotificationRouting();
   const { fs, sp } = useTablet();
   const insets = useSafeAreaInsets();
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   // Ny design (beta): mörk flikrad med lime för den aktiva fliken. Den tas
   // först nu, när alla flikar har den nya designen — annars blev det lapptäcke.
   const { nyDesign } = useDesign();

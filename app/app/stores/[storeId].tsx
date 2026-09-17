@@ -27,7 +27,7 @@ import { storeDrafts } from '../../src/lib/drafts';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { sortedRestFor } from '../../src/lib/subOrder';
 import { useDesign } from '../../src/context/DesignContext';
-import { ny, nyFont } from '../../src/lib/nyDesign';
+import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 
 // EGEN komponent — gesten byggs via useMemo, keyad på stabila props, så samma
@@ -40,7 +40,7 @@ function CategoryDragHandle({ parentKey, idx, onDragStart, onDragMove, onDragEnd
   onDragMove: (absoluteY: number) => void;
   onDragEnd: () => void;
 }) {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const gesture = useMemo(() => Gesture.Pan()
     .hitSlop(6)
     // Provade .activateAfterLongPress(150) för konsekvens med receptets
@@ -64,9 +64,9 @@ function CategoryDragHandle({ parentKey, idx, onDragStart, onDragMove, onDragEnd
 }
 
 export default function StoreDetailScreen() {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
-  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const { storeId } = useLocalSearchParams<{ storeId: string }>();
   const router = useRouter();
   const client = useApiClient();
@@ -498,7 +498,7 @@ export default function StoreDetailScreen() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color={nyDesign ? ny.skog : c.primary} /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color={nyDesign ? ny.padYta : c.primary} /></View>;
   }
   if (!store) {
     return (
@@ -530,10 +530,10 @@ export default function StoreDetailScreen() {
               <Text style={[s.subName, s.subNameActive]}>{isCustomEntry ? `${label} (egen)` : label}</Text>
               <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                 <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveSubEntry(entry, parentKey, -1)}>
-                  <Ionicons name="chevron-up" size={16} color={nyDesign ? ny.skog : c.primary} />
+                  <Ionicons name="chevron-up" size={16} color={nyDesign ? ny.padYta : c.primary} />
                 </Pressable>
                 <Pressable style={[s.catBtn, i === entries.length - 1 && { opacity: 0.3 }]} disabled={i === entries.length - 1} onPress={() => moveSubEntry(entry, parentKey, 1)}>
-                  <Ionicons name="chevron-down" size={16} color={nyDesign ? ny.skog : c.primary} />
+                  <Ionicons name="chevron-down" size={16} color={nyDesign ? ny.padYta : c.primary} />
                 </Pressable>
                 {isCustomEntry ? (
                   <Pressable style={s.catBtnDanger} onPress={() => removeCustomSub(parentKey, label)}>
@@ -568,10 +568,10 @@ export default function StoreDetailScreen() {
                 <View style={s.catBtnSpacer} />
               )}
               <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveHiddenEntry(entry, parentKey, standardSubs, -1)}>
-                <Ionicons name="chevron-up" size={16} color={nyDesign ? ny.skog : c.primary} />
+                <Ionicons name="chevron-up" size={16} color={nyDesign ? ny.padYta : c.primary} />
               </Pressable>
               <Pressable style={[s.catBtn, i === rest.length - 1 && { opacity: 0.3 }]} disabled={i === rest.length - 1} onPress={() => moveHiddenEntry(entry, parentKey, standardSubs, 1)}>
-                <Ionicons name="chevron-down" size={16} color={nyDesign ? ny.skog : c.primary} />
+                <Ionicons name="chevron-down" size={16} color={nyDesign ? ny.padYta : c.primary} />
               </Pressable>
               <Pressable style={s.subToggle} onPress={() => toggleSubExpanded(entry)} />
             </View>
@@ -594,7 +594,7 @@ export default function StoreDetailScreen() {
           </View>
         ) : (
           <Pressable style={s.addSubRow} onPress={() => { setAddingSubFor(parentKey); setNewSubName(''); }}>
-            <Ionicons name="add" size={16} color={nyDesign ? ny.skog : c.primary} />
+            <Ionicons name="add" size={16} color={nyDesign ? ny.padYta : c.primary} />
             <Text style={s.addSubText}>{str.detail.customSubAdd}</Text>
           </Pressable>
         )}
@@ -629,7 +629,7 @@ export default function StoreDetailScreen() {
       <ScrollView style={s.innehall} contentContainerStyle={s.scroll} scrollEnabled={!catDragState}>
         {visarUtkast && (
           <View style={s.draftBanner}>
-            <Ionicons name="time-outline" size={16} color={nyDesign ? ny.skog : c.primary} />
+            <Ionicons name="time-outline" size={16} color={nyDesign ? ny.padYta : c.primary} />
             <Text style={s.draftBannerText}>{common.discardDraft.restored}</Text>
             <Pressable
               onPress={() => {
@@ -691,7 +691,7 @@ export default function StoreDetailScreen() {
                         </Pressable>
                       ) : (
                         <Pressable style={s.catBtn} onPress={() => setMergingKey(key as StoreCategory)} accessibilityLabel={str.detail.mergeAction}>
-                          <Ionicons name="git-merge-outline" size={16} color={nyDesign ? ny.skog : c.primary} />
+                          <Ionicons name="git-merge-outline" size={16} color={nyDesign ? ny.padYta : c.primary} />
                         </Pressable>
                       )}
                       <CategoryDragHandle
@@ -724,7 +724,7 @@ export default function StoreDetailScreen() {
               returnKeyType="done"
             />
             <Pressable style={[s.catBtnAdd, !newCatName.trim() && { opacity: 0.4 }]} onPress={addCustomCategory} disabled={!newCatName.trim()}>
-              <Ionicons name="add" size={20} color={nyDesign ? ny.skog : c.primary} />
+              <Ionicons name="add" size={20} color={nyDesign ? ny.padYta : c.primary} />
             </Pressable>
           </View>
         </View>
@@ -742,7 +742,7 @@ export default function StoreDetailScreen() {
                       {CATEGORY_LABELS[source] ?? source} → {targetLabel}
                     </Text>
                     <Pressable style={s.catBtn} onPress={() => unmergeCategory(source)}>
-                      <Ionicons name="arrow-undo-outline" size={16} color={nyDesign ? ny.skog : c.primary} />
+                      <Ionicons name="arrow-undo-outline" size={16} color={nyDesign ? ny.padYta : c.primary} />
                     </Pressable>
                   </View>
                 );
@@ -759,7 +759,7 @@ export default function StoreDetailScreen() {
         const key = catDragState.key;
         return (
           <View pointerEvents="none" style={[s.ghostCat, { top: catDragState.y - 24 }]}>
-            <Ionicons name="reorder-two" size={18} color={nyDesign ? ny.skog : c.primary} />
+            <Ionicons name="reorder-two" size={18} color={nyDesign ? ny.padYta : c.primary} />
             <Text style={s.ghostCatText} numberOfLines={1}>{labelWithTag(key)}</Text>
           </View>
         );
@@ -827,7 +827,7 @@ export default function StoreDetailScreen() {
 }
 
 // nyD: den nya designen (beta) skriver över de stilar som skiljer.
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
   innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
@@ -838,7 +838,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   empty: { textAlign: 'center', color: c.textFaint, marginTop: 40 },
   emptyHint: { padding: 14, color: c.danger, fontSize: 13, textAlign: 'center' },
   sectionLabel: nyD
-    ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.skog, marginBottom: 6 }
+    ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.padYta, marginBottom: 6 }
     : { fontSize: 12, fontWeight: '700', color: c.textMuted, letterSpacing: 0.5, marginBottom: 6 },
   sectionSub: { fontSize: 13, color: c.textMuted, marginBottom: 14, lineHeight: 18 },
   catList: nyD
@@ -847,7 +847,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: nyD ? ny.bricka : c.surfaceSubtle, gap: 8 },
   catRowMuted: { backgroundColor: c.background },
   catRowDragging: { opacity: 0.4 },
-  catRowDropTarget: { borderTopWidth: 2, borderTopColor: nyD ? ny.skog : c.primary },
+  catRowDropTarget: { borderTopWidth: 2, borderTopColor: nyD ? ny.padYta : c.primary },
   mergeTargetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   catName: { fontSize: 15, color: c.text, flex: 1, flexShrink: 1 },
   catNameMuted: { color: c.textFaint },
@@ -860,24 +860,24 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   // samma plats för standard-rader i den dolda sub-listan (jämte egna rader
   // som har ett extra kryss-ta-bort-knapp längst till vänster).
   catBtnSpacer: { width: 32, height: 32 },
-  ghostCat: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: nyD ? ny.ljus : c.surface, borderRadius: nyD ? 14 : 12, paddingVertical: 12, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100, ...(nyD ? { borderWidth: 1.5, borderColor: ny.skog } : {}) },
+  ghostCat: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: nyD ? ny.ljus : c.surface, borderRadius: nyD ? 14 : 12, paddingVertical: 12, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100, ...(nyD ? { borderWidth: 1.5, borderColor: ny.padYta } : {}) },
   ghostCatText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
-  expandedBadge: { fontSize: 11, fontWeight: '700', color: nyD ? ny.lime : c.accent, backgroundColor: nyD ? ny.skog : c.accent100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
-  ownBadge: { backgroundColor: nyD ? ny.skog : c.textFaint, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999 },
+  expandedBadge: { fontSize: 11, fontWeight: '700', color: nyD ? ny.lime : c.accent, backgroundColor: nyD ? ny.valdYta : c.accent100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  ownBadge: { backgroundColor: nyD ? ny.valdYta : c.textFaint, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999 },
   ownBadgeText: { fontSize: 10, fontWeight: '700', color: nyD ? ny.lime : '#fff' },
   subList: { paddingLeft: 24, paddingRight: 14, paddingVertical: 8, backgroundColor: nyD ? ny.ljus : c.background, borderBottomWidth: 1, borderBottomColor: nyD ? ny.bricka : c.surfaceSubtle },
   subListHint: { fontSize: 12, color: c.textFaint, marginBottom: 8, lineHeight: 17 },
   subRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 12 },
   subName: { fontSize: 14, color: c.textSecondary, flex: 1, flexShrink: 1 },
-  subNameActive: { color: nyD ? ny.skog : c.accent, fontWeight: '600' },
+  subNameActive: { color: nyD ? ny.padYta : c.accent, fontWeight: '600' },
   subToggle: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: nyD ? ny.kontur : c.border, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
-  subToggleActive: { borderColor: nyD ? ny.skog : c.accent, backgroundColor: nyD ? ny.skog : c.accent },
+  subToggleActive: { borderColor: nyD ? ny.valdYta : c.accent, backgroundColor: nyD ? ny.valdYta : c.accent },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   addInput: { flex: 1, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: c.text, backgroundColor: c.inputBg },
   addSubInput: { flex: 1, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: c.text, backgroundColor: c.inputBg },
   addSubRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
-  addSubText: { fontSize: 14, color: nyD ? ny.skog : c.primary, fontWeight: '600' },
-  addBtn: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
+  addSubText: { fontSize: 14, color: nyD ? ny.padYta : c.primary, fontWeight: '600' },
+  addBtn: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryBtn },
   saveBar: { position: 'absolute', left: 16, right: 16, bottom: 20 },
   draftBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12, borderRadius: nyD ? 14 : 10, backgroundColor: nyD ? ny.kort : c.primaryTint, borderWidth: 1, borderColor: nyD ? ny.bricka : c.primary200 },
   draftBannerText: { flex: 1, fontSize: 13, color: c.text },
@@ -886,5 +886,5 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   primaryBtnText: { color: nyD ? ny.skog : '#fff', fontSize: 15, fontWeight: '700' },
   // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
   mergeSheet: { maxHeight: '70%' },
-  input: { borderWidth: 1, borderColor: c.borderLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: c.text },
+  input: { borderWidth: 1, borderColor: ny.kontur, borderRadius: 14, backgroundColor: ny.bakgrund, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: ny.text },
 });

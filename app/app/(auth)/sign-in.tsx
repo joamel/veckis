@@ -24,7 +24,7 @@ import { reportClientError } from '../../src/lib/errorReport';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ny, nyFont } from '../../src/lib/nyDesign';
+import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 
 const LOGO = require('../../assets/icon.png');
 const GOOGLE_G = require('../../assets/google-g.png');
@@ -35,8 +35,8 @@ const GOOGLE_G = require('../../assets/google-g.png');
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
-  const { colors: c } = useTheme();
-  const styles = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, ny } = useTheme();
+  const styles = useMemo(() => makeStyles(c, ny), [c, ny]);
   const { signIn, setActive, isLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
@@ -392,7 +392,7 @@ export default function SignInScreen() {
 // Inloggningen är appens första intryck och följer den nya designen: mörkgrönt
 // huvud med ordmärket i Outfit, ljusgrön kropp, lime huvudknapp med mörkgrön
 // text. Designen har bara ljust läge än, så paletten `c` används inte här.
-const makeStyles = (_c: Palette) => StyleSheet.create({
+const makeStyles = (_c: Palette, ny: NyPalett) => StyleSheet.create({
   container: { flex: 1, backgroundColor: ny.skog },
   hero: { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingBottom: 28 },
   heroCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' },
@@ -409,7 +409,7 @@ const makeStyles = (_c: Palette) => StyleSheet.create({
   subtitle: { fontSize: 16, color: ny.underrubrik, textAlign: 'center', alignSelf: 'stretch' },
   // Andra raden: mindre och svagare, så de tre orden förblir sloganen.
   subtitleSub: { fontSize: 14, color: ny.flikInaktiv, textAlign: 'center', alignSelf: 'stretch', marginTop: 4 },
-  bodyTitle: { fontFamily: nyFont.fet, fontSize: 22, letterSpacing: -0.4, color: ny.skog, textAlign: 'center', marginBottom: 12 },
+  bodyTitle: { fontFamily: nyFont.fet, fontSize: 22, letterSpacing: -0.4, color: ny.padYta, textAlign: 'center', marginBottom: 12 },
   input: {
     color: ny.text,
     backgroundColor: ny.ljus,
@@ -437,7 +437,7 @@ const makeStyles = (_c: Palette) => StyleSheet.create({
   googleLogo: { width: 18, height: 18 },
   googleButtonText: { color: '#3c4043', fontSize: 16, fontWeight: '600' },
   buttonText: { color: ny.skog, fontSize: 16, fontFamily: nyFont.halvfet },
-  link: { textAlign: 'center', color: ny.skog, fontWeight: '600', marginTop: 8 },
+  link: { textAlign: 'center', color: ny.padYta, fontWeight: '600', marginTop: 8 },
   linkSmall: { color: ny.textDampad, fontSize: 13 },
   altRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: -4, marginBottom: 8, flexWrap: 'wrap' },
   helpText: { fontSize: 14, color: ny.textDampad, textAlign: 'center', marginBottom: 16 },

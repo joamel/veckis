@@ -19,13 +19,13 @@ import { HAPTIC_CHECKOUT_KEY, SOUND_CHECKOUT_KEY } from '../src/hooks/useCheckHa
 import { LANDING_TABS, DEFAULT_LANDING_TAB, getLandingTab, setLandingTab, type LandingTabKey } from '../src/lib/landingTab';
 import { preferences as str } from '../src/lib/svenska';
 import { useDesign } from '../src/context/DesignContext';
-import { ny, nyFont } from '../src/lib/nyDesign';
+import { nyFont, type NyPalett } from '../src/lib/nyDesign';
 import { NyHeader } from '../src/components/nydesign/NyHeader';
 
 export default function PreferencesScreen() {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
-  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const router = useRouter();
   const { showToast, showError } = useToast();
   const [showNotifModal, setShowNotifModal] = useState(false);
@@ -97,7 +97,7 @@ export default function PreferencesScreen() {
             await SecureStore.setItemAsync(SOUND_CHECKOUT_KEY, next ? '1' : '0').catch(() => {});
           }}>
             {nyDesign ? (
-              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="musical-note-outline" size={18} color={ny.skog} /></View>
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="musical-note-outline" size={18} color={ny.padYta} /></View>
             ) : (
               <Ionicons name="musical-note-outline" size={18} color={c.accent} />
             )}
@@ -105,7 +105,7 @@ export default function PreferencesScreen() {
             <Ionicons
               name={soundEnabled ? 'toggle' : 'toggle-outline'}
               size={22}
-              color={nyDesign ? (soundEnabled ? ny.skog : ny.kontur) : (soundEnabled ? c.accent : c.textFaint)}
+              color={nyDesign ? (soundEnabled ? ny.padYta : ny.kontur) : (soundEnabled ? c.accent : c.textFaint)}
             />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={async () => {
@@ -114,7 +114,7 @@ export default function PreferencesScreen() {
             await SecureStore.setItemAsync(HAPTIC_CHECKOUT_KEY, next ? '1' : '0').catch(() => {});
           }}>
             {nyDesign ? (
-              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="phone-portrait-outline" size={18} color={ny.skog} /></View>
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="phone-portrait-outline" size={18} color={ny.padYta} /></View>
             ) : (
               <Ionicons name="phone-portrait-outline" size={18} color={c.accent} />
             )}
@@ -122,12 +122,12 @@ export default function PreferencesScreen() {
             <Ionicons
               name={hapticEnabled ? 'toggle' : 'toggle-outline'}
               size={22}
-              color={nyDesign ? (hapticEnabled ? ny.skog : ny.kontur) : (hapticEnabled ? c.accent : c.textFaint)}
+              color={nyDesign ? (hapticEnabled ? ny.padYta : ny.kontur) : (hapticEnabled ? c.accent : c.textFaint)}
             />
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={handleResetTips}>
             {nyDesign ? (
-              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="bulb-outline" size={18} color={ny.skog} /></View>
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="bulb-outline" size={18} color={ny.padYta} /></View>
             ) : (
               <Ionicons name="bulb-outline" size={18} color={c.accent} />
             )}
@@ -137,7 +137,7 @@ export default function PreferencesScreen() {
           {/* Favorit-landningssida: vilken flik appen öppnar på */}
           <View style={[s.row, s.rowBorder, { flexWrap: 'wrap' }]}>
             {nyDesign ? (
-              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="home-outline" size={18} color={ny.skog} /></View>
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="home-outline" size={18} color={ny.padYta} /></View>
             ) : (
               <Ionicons name="home-outline" size={18} color={c.accent} />
             )}
@@ -173,7 +173,7 @@ export default function PreferencesScreen() {
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={() => router.push('/privacy' as never)}>
             {nyDesign ? (
-              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="shield-outline" size={18} color={ny.skog} /></View>
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="shield-outline" size={18} color={ny.padYta} /></View>
             ) : (
               <Ionicons name="shield-outline" size={18} color={c.textMuted} />
             )}
@@ -182,7 +182,7 @@ export default function PreferencesScreen() {
           </Pressable>
           <Pressable style={[s.row, s.rowBorder]} onPress={() => router.push('/terms' as never)}>
             {nyDesign ? (
-              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="document-text-outline" size={18} color={ny.skog} /></View>
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="document-text-outline" size={18} color={ny.padYta} /></View>
             ) : (
               <Ionicons name="document-text-outline" size={18} color={c.textMuted} />
             )}
@@ -207,18 +207,18 @@ export default function PreferencesScreen() {
 }
 
 // nyD: den nya designen (beta) skriver över de stilar som skiljer.
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
   innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
   // Runda ikonbrickor, samma mönster som i Hushållet.
   nyRund: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  nyRundMork: { backgroundColor: ny.skog },
+  nyRundMork: { backgroundColor: ny.valdYta },
   nyRundLjus: { backgroundColor: ny.bricka },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   headerTitle: { fontSize: 16, fontWeight: '700', color: c.text },
   scroll: { padding: 16, paddingBottom: 40 },
   sectionLabel: nyD
-    ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.skog, marginTop: 16, marginBottom: 8, paddingHorizontal: 4 }
+    ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.padYta, marginTop: 16, marginBottom: 8, paddingHorizontal: 4 }
     : { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.8, marginTop: 16, marginBottom: 8, paddingHorizontal: 4 },
   group: { backgroundColor: c.surface, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.border, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 1, paddingHorizontal: 14, ...(nyD ? { backgroundColor: ny.kort, borderRadius: 18, borderLeftWidth: 0, shadowOpacity: 0, elevation: 0 } : {}) },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: nyD ? 10 : 14 },
@@ -229,7 +229,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   versionFooter: { fontSize: 11, color: nyD ? ny.textDampad : c.textFaint, textAlign: 'center', marginTop: 16 },
   landingChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, width: '100%', marginTop: 4, paddingLeft: nyD ? 50 : 30 },
   landingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.bricka : c.surfaceSubtle },
-  landingChipActive: { backgroundColor: nyD ? ny.skog : c.primary },
+  landingChipActive: { backgroundColor: nyD ? ny.valdYta : c.primary },
   landingChipText: { fontSize: 12, fontWeight: '600', color: nyD ? ny.chipText : c.textMuted },
   landingChipTextActive: { color: nyD ? ny.lime : '#fff' },
 });

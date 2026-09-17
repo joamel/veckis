@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import { useDesign } from '../../src/context/DesignContext';
-import { ny, nyFont } from '../../src/lib/nyDesign';
+import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
@@ -78,7 +78,7 @@ function IngredientDragHandle({ idx, onDragStart, onDragMove, onDragEnd }: {
   onDragMove: (absoluteY: number) => void;
   onDragEnd: () => void;
 }) {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const gesture = useMemo(() => Gesture.Pan()
     .hitSlop(6)
     // Ingredienslistan är TÄTARE packad än butikens kategorilista (fler
@@ -113,9 +113,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const savingNavRef = useRef(false);
   // Mäts av ConfirmDialog så "+"-popupen hamnar rätt ovanför knappen.
   const fabRef = useRef<View>(null);
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
-  const s = useMemo(() => makeStyles(c, nyDesign), [c, nyDesign]);
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -900,7 +900,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       </Text>
       <Pressable
         onPress={() => (onClose ? onClose() : router.back())}
-        style={{ backgroundColor: c.primary, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 10 }}
+        style={{ backgroundColor: c.primaryBtn, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 10 }}
       >
         <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>{common.actions.back}</Text>
       </Pressable>
@@ -1165,7 +1165,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 accessibilityLabel={str.detail.convertUnitA11y}
                 onPress={() => setShowAllConverted(v => !v)}
               >
-                <Ionicons name="swap-horizontal" size={18} color={showAllConverted ? ny.skog : ny.underrubrik} />
+                <Ionicons name="swap-horizontal" size={18} color={showAllConverted ? ny.padYta : ny.underrubrik} />
               </Pressable>
             )}
           </View>
@@ -1727,7 +1727,7 @@ function formatIngredient(ing: { quantity: number | null; unit: string | null; n
 }
 
 // nyD: den nya designen (beta) skriver over de stilar som skiljer.
-const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   container: { flex: 1, backgroundColor: nyD ? ny.bakgrund : c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   // Morkgront band som ovriga vyers NyHeader. Hogre an 48 for att rubriken ska
@@ -1776,17 +1776,17 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   section: { gap: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: nyD
-    ? { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 18, letterSpacing: -0.3, color: ny.skog }
+    ? { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 18, letterSpacing: -0.3, color: ny.padYta }
     : { fontSize: 17, fontWeight: '700', color: c.text },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  editBtnText: { fontSize: 14, color: nyD ? ny.skog : c.primary, fontWeight: '500' },
+  editBtnText: { fontSize: 14, color: nyD ? ny.padYta : c.primary, fontWeight: '500' },
   sectionCount: { fontFamily: nyFont.halvfet, color: ny.textDampad },
   // Ingredienserna som en inköpslapp på ett ljusgrönt kort.
   ingCard: { backgroundColor: ny.kort, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 4 },
   ingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 11 },
   ingRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ny.kontur },
   // Fast bredd: kolumnen linjerar, och Android klipper inte sista glyfen.
-  ingQty: { width: 76, fontFamily: nyFont.halvfet, fontSize: 15, color: ny.skog },
+  ingQty: { width: 76, fontFamily: nyFont.halvfet, fontSize: 15, color: ny.padYta },
   ingName: { flex: 1, fontSize: 15, lineHeight: 21, color: ny.text },
   ingConvertBtn: { padding: 4 },
   wideBtnLime: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 26, backgroundColor: ny.lime, marginTop: 4 },
@@ -1831,7 +1831,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   sheet: { maxHeight: '85%' },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: nyD ? ny.lime : c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: nyD ? ny.skog : c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   renameTitle: nyD
-    ? { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 19, letterSpacing: -0.3, color: ny.skog, marginBottom: 16 }
+    ? { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 19, letterSpacing: -0.3, color: ny.padYta, marginBottom: 16 }
     : { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 16 },
   renameInput: { borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: c.inputBg, color: c.text },
   draftBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: c.primaryTint, borderWidth: 1, borderColor: c.primary200 },
@@ -1841,8 +1841,8 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   editMultiline: { minHeight: 70, textAlignVertical: 'top' },
   editMultilineTall: { minHeight: 140, textAlignVertical: 'top' },
   instructionsText: { fontSize: 15, color: ny.text, lineHeight: 23 },
-  renameSave: { marginTop: 16, backgroundColor: c.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
-  renameSaveText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  renameSave: { marginTop: 16, backgroundColor: ny.lime, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  renameSaveText: { color: ny.skog, fontSize: 16, fontWeight: '600' },
   // "Laga nu" använder appens ljusa/varma tema (inte mörkt) för konsekvens.
   cookContainer: { flex: 1, backgroundColor: c.background },
   cookHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
@@ -1850,7 +1850,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   cookClose: { padding: 8 },
   cookProgress: { flexDirection: 'row', gap: 5, paddingHorizontal: 20, marginBottom: 8, flexWrap: 'wrap' },
   cookDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.borderLight },
-  cookDotActive: { backgroundColor: c.primary, width: 20 },
+  cookDotActive: { backgroundColor: c.primaryBtn, width: 20 },
   // Ankra steget (+ ingredienser) mot BOTTEN så det poppar upp så långt underifrån
   // som möjligt — nära nav-knapparna, alltid synligt utan att behöva skrolla. Långt
   // innehåll fyller uppåt och blir skrollbart.
@@ -1863,7 +1863,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   cookNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 14, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight },
   cookNavBtnDisabled: { opacity: 0.35 },
   cookNavText: { fontSize: 15, fontWeight: '600', color: c.textSecondary },
-  cookNavBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: c.primary },
+  cookNavBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: c.primaryBtn },
   cookNavTextPrimary: { fontSize: 15, fontWeight: '700', color: '#fff' },
   ingredientList: { maxHeight: 220 },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.background },
