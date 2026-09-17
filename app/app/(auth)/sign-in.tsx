@@ -95,8 +95,17 @@ export default function SignInScreen() {
         await setActive({ session: result.createdSessionId });
       } else {
         // Icke-complete → visa vad som saknas i stället för tyst setActive(null)
-        // (som förr bara "laddade men gjorde inget"). Vanligast: 2FA på kontot.
-        const needs2fa = result.status === 'needs_second_factor';
+        // (som förr bara "laddade men gjorde inget").
+        //
+        // Strategierna skrivs ut i dialogen, inte bara till klientfelsloggen.
+        // Loggen ligger i en minnesring på backend och läses via adminvyn — men
+        // den som fastnar här är per definition UTLÅST och kan inte logga in för
+        // att läsa den. Det gjorde ett låst testkonto onödigt svårt att felsöka:
+        // meddelandet sa "tvåstegsverifiering" utan att säga VILKEN faktor
+        // Clerk ville ha, vilket är hela skillnaden mellan ett konto man kan
+        // rädda själv och ett som måste rensas via Clerks backend-API.
+        const second: { strategy?: string }[] = (result as any).supportedSecondFactors ?? [];
+        const strategier = second.map(f => f?.strategy).filter(Boolean).join(', ');
         reportClientError('DIAG: Email/lösen-inlogg ej complete', {
           status: result.status ?? null,
           supportedFirstFactors: (result as any).supportedFirstFactors ?? null,
@@ -104,8 +113,9 @@ export default function SignInScreen() {
         });
         confirm({
           title: str.errors.title,
-          message: needs2fa
-            ? 'Kontot har tvåstegsverifiering på. Logga in med Google, eller stäng av 2FA på kontot.'
+          message: result.status === 'needs_second_factor'
+            ? `Clerk kräver ett andra steg för det här kontot${strategier ? ` (${strategier})` : ''}. `
+              + 'Kan du inte slutföra det steget är kontot låst och behöver rensas i Clerk.'
             : `Inloggningen slutfördes inte (status: ${result.status ?? 'okänd'}).`,
           buttons: [{ label: 'OK' }],
         });
