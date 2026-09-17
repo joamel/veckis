@@ -178,20 +178,35 @@ export default function SignInScreen() {
     }
     setLoading(true);
     try {
-      if (mode === 'email-code' && isNewAccount) {
-        const result = await signUp.attemptEmailAddressVerification({ code });
-        if (result.status === 'complete') {
-          await setActive({ session: result.createdSessionId });
-        }
-      } else {
-        const result = await signIn.attemptFirstFactor(
+      // Samma fälla som lösenordsvägen hade: allt annat än 'complete' ledde
+      // till att funktionen tyst gjorde INGENTING. Spinnern slocknade, koden
+      // låg kvar, och inget hände — utan att något gick att felsöka. Non-
+      // complete är sällsynt men fullt möjligt (t.ex. needs_second_factor), och
+      // då måste det synas vad Clerk väntar på.
+      const result = mode === 'email-code' && isNewAccount
+        ? await signUp.attemptEmailAddressVerification({ code })
+        : await signIn.attemptFirstFactor(
           mode === 'reset'
             ? { strategy: 'reset_password_email_code', code, password: resetNewPassword }
             : { strategy: 'email_code', code },
         );
-        if (result.status === 'complete') {
-          await setActive({ session: result.createdSessionId });
-        }
+      if (result.status === 'complete') {
+        await setActive({ session: result.createdSessionId });
+      } else {
+        const second: { strategy?: string }[] = (result as any).supportedSecondFactors ?? [];
+        const strategier = second.map(f => f?.strategy).filter(Boolean).join(', ');
+        reportClientError('DIAG: Kodverifiering ej complete', {
+          mode,
+          isNewAccount,
+          status: result.status ?? null,
+          supportedSecondFactors: (result as any).supportedSecondFactors ?? null,
+        });
+        confirm({
+          title: str.errors.title,
+          message: `Verifieringen slutfördes inte (status: ${result.status ?? 'okänd'}`
+            + `${strategier ? `, väntar på: ${strategier}` : ''}).`,
+          buttons: [{ label: 'OK' }],
+        });
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : str.errors.verifyFailed;
