@@ -5,3 +5,4 @@ export * from './types/recipe';
 export * from './types/staple';
 export * from './lib/taxonomy';
 export * from './lib/inferSubCategory';
+export * from './lib/unitConversion';

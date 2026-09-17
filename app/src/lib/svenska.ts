@@ -696,6 +696,7 @@ export const recipes = {
     cookA11y:       'Laga nu',
     cookNow:        'Laga nu',
     transferA11y:   'Lägg i inköpslista',
+    convertUnitA11y:'Visa i svenska mått',
     cookClose:      'Avsluta',
     removeImage:    'Ta bort bild',
     imageLoadError: 'Kunde inte ladda bilden',

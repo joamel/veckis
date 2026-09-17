@@ -40,6 +40,7 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import type { RecipeIngredient, WeekDay } from '@veckis/shared';
+import { convertToMetric, isConvertibleUnit } from '@veckis/shared';
 import { useWebLeaveGuard } from '../../src/hooks/useWebLeaveGuard';
 import { sparaUtkast, hamtaUtkast, slangUtkast } from '../../src/lib/recipeDrafts';
 
@@ -130,6 +131,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [nameSuggestions, setNameSuggestions] = useState<{ name: string; category: string }[]>([]);
   const [unitByName, setUnitByName] = useState<Record<string, string>>({});
   const [defaultUnit, setDefaultUnit] = useState('');
+  // Visningsval, inte sparat: vilka importerade ingredienser (icke-svensk
+  // enhet, t.ex. "cup") som just nu visas konverterade till dl/g/msk osv.
+  // Källans råa mängd rörs aldrig — bara vad som RENDERAS växlar.
+  const [convertedIngredientIds, setConvertedIngredientIds] = useState<Set<string>>(new Set());
   type RowRef = { qty: TextInput | null; unit: TextInput | null; name: TextInput | null };
   const rowRefs = useRef<RowRef[]>([]);
   const mainScrollRef = useRef<ScrollView>(null);
@@ -1197,12 +1202,31 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               {/* Som en inköpslapp: mängden i en fast kolumn till vänster, så
                   man kan läsa "300 g" mot "nötfärs" uppifrån och ned. */}
               <View style={s.ingCard}>
-                {recipe.ingredients.map((ing, i) => (
+                {recipe.ingredients.map((ing, i) => {
+                  const convertible = isConvertibleUnit(ing.unit);
+                  const showConverted = convertible && convertedIngredientIds.has(ing.id);
+                  return (
                   <View key={ing.id} style={[s.ingRow, i > 0 && s.ingRowBorder]}>
-                    <Text style={s.ingQty}>{formatQty(ing, scaleRatio)}</Text>
+                    <Text style={s.ingQty}>{formatQty(ing, scaleRatio, showConverted)}</Text>
                     <Text style={s.ingName}>{ing.name}</Text>
+                    {convertible && (
+                      <Pressable
+                        style={s.ingConvertBtn}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={str.detail.convertUnitA11y}
+                        onPress={() => setConvertedIngredientIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(ing.id)) next.delete(ing.id); else next.add(ing.id);
+                          return next;
+                        })}
+                      >
+                        <Ionicons name="swap-horizontal" size={16} color={ny.underrubrik} />
+                      </Pressable>
+                    )}
                   </View>
-                ))}
+                  );
+                })}
               </View>
               {/* Sidans huvudhandling, därför full bredd och lime. */}
               <Pressable style={s.wideBtnLime} onPress={() => openTransfer()} accessibilityLabel={str.detail.transferA11y}>
@@ -1534,13 +1558,18 @@ function roundQty(n: number): number {
 
 /** Bara mängd + enhet ("300 g"), för receptvyns mängdkolumn. Tom sträng om
  *  ingrediensen saknar mängd ("salt"). */
-function formatQty(ing: { quantity: number | null; unit: string | null }, scaleRatio = 1): string {
-  const parts: string[] = [];
-  if (ing.quantity != null) {
-    const scaled = roundQty(ing.quantity * scaleRatio);
-    parts.push(String(scaled % 1 === 0 ? scaled : scaled.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')));
+function formatQty(ing: { quantity: number | null; unit: string | null }, scaleRatio = 1, showConverted = false): string {
+  let quantity = ing.quantity != null ? roundQty(ing.quantity * scaleRatio) : null;
+  let unit = ing.unit;
+  if (showConverted && quantity != null && unit) {
+    const converted = convertToMetric(quantity, unit);
+    if (converted) { quantity = converted.quantity; unit = converted.unit; }
   }
-  if (ing.unit) parts.push(ing.unit);
+  const parts: string[] = [];
+  if (quantity != null) {
+    parts.push(String(quantity % 1 === 0 ? quantity : quantity.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')));
+  }
+  if (unit) parts.push(unit);
   return parts.join(' ');
 }
 
@@ -1613,6 +1642,7 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   // Fast bredd: kolumnen linjerar, och Android klipper inte sista glyfen.
   ingQty: { width: 76, fontFamily: nyFont.halvfet, fontSize: 15, color: ny.skog },
   ingName: { flex: 1, fontSize: 15, lineHeight: 21, color: ny.text },
+  ingConvertBtn: { padding: 4 },
   wideBtnLime: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 26, backgroundColor: ny.lime, marginTop: 4 },
   wideBtnLimeText: { fontFamily: nyFont.halvfet, fontSize: 16, color: ny.skog },
   wideBtnSkog: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 26, backgroundColor: ny.skog, marginTop: 4 },

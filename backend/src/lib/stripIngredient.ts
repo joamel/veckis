@@ -117,8 +117,13 @@ const PREP_WORDS = new Set([
 // Måttenheter som ibland fastnar först i namnet när källan saknar mängd
 // ("kg potatis" → "potatis"). Håll i synk med parserns unit-lista i recipes.ts.
 const UNITS = new Set([
-  'dl', 'ml', 'l', 'cl', 'msk', 'tsk', 'krm', 'g', 'kg', 'hg', 'st', 'port',
-  'burk', 'förp', 'pkt', 'paket', 'påse', 'cups', 'cup', 'tbsp', 'tsp', 'oz', 'lb',
+  'dl', 'ml', 'l', 'liter', 'cl', 'msk', 'tsk', 'krm', 'g', 'kg', 'hg', 'st', 'port',
+  'burk', 'förp', 'pkt', 'paket', 'påse', 'näve', 'skiva', 'skivor',
+  'cup', 'cups', 'tsp', 'tbsp', 'teaspoon', 'teaspoons', 'tablespoon', 'tablespoons',
+  'oz', 'ounce', 'ounces', 'lb', 'lbs', 'pound', 'pounds',
+  'pint', 'pints', 'quart', 'quarts', 'gallon', 'gallons',
+  'stick', 'sticks', 'clove', 'cloves', 'pinch', 'dash',
+  'can', 'cans', 'package', 'packages', 'slice', 'slices',
 ]);
 
 /** True om namnet inleds med en måttenhet följt av ett riktigt ord

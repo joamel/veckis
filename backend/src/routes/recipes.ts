@@ -8,6 +8,7 @@ import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../mi
 import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
+import { parseIngredientString } from '../lib/parseIngredientString';
 import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
 import { recipeAbuseLimiter, parseTextLimiter } from '../lib/rateLimits';
 import { safeFetch } from '../lib/ssrfGuard';
@@ -305,7 +306,7 @@ recipesRouter.delete('/:recipeId', requireAuth, asyncHandler(async (req, res) =>
 // POST /api/recipes/from-url
 recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({ url: z.string().url() }).safeParse(req.body);
-  if (!body.success) { res.status(400).json({ error: 'Invalid URL' }); return; }
+  if (!body.success) { res.status(400).json({ error: 'Ogiltig URL' }); return; }
 
   try {
     const scraped = await scrapeRecipe(body.data.url);
@@ -317,7 +318,7 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, asyncHandler(as
       ingredients: scraped.ingredients.map(i => ({ ...i, name: stripIngredient(i.name) })),
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Could not scrape recipe';
+    const msg = err instanceof Error ? err.message : 'Kunde inte hämta receptet';
     res.status(422).json({ error: msg });
   }
 }));
@@ -351,7 +352,7 @@ Regler:
  * URL-scrapingens fallback när ingen JSON-LD hittas.
  */
 async function parseRecipeTextWithAI(text: string): Promise<ScrapedRecipe> {
-  if (!anthropic) throw new Error('AI parsing not available');
+  if (!anthropic) throw new Error('AI-tolkning inte tillgänglig');
 
   const msg = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
@@ -386,7 +387,7 @@ async function parseRecipeTextWithAI(text: string): Promise<ScrapedRecipe> {
 recipesRouter.post('/parse-text', parseTextLimiter, requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({ text: z.string().min(1).max(100000) }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: 'Invalid text' }); return; }
-  if (!anthropic) { res.status(503).json({ error: 'AI parsing not available' }); return; }
+  if (!anthropic) { res.status(503).json({ error: 'AI-tolkning inte tillgänglig' }); return; }
 
   try {
     res.json(await parseRecipeTextWithAI(body.data.text));
@@ -468,7 +469,7 @@ recipesRouter.post('/from-photo', parseTextLimiter, requireAuth, asyncHandler(as
     imageBase64: z.union([z.string().min(1), z.array(z.string().min(1)).min(1).max(MAX_SIDOR)]),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: 'No image provided' }); return; }
-  if (!anthropic) { res.status(503).json({ error: 'AI parsing not available' }); return; }
+  if (!anthropic) { res.status(503).json({ error: 'AI-tolkning inte tillgänglig' }); return; }
 
   // Kvoten tas FÖRE anropet: annars kan ett misslyckat men dyrt anrop upprepas
   // fritt. En användare som fotar av en hel kokbok ska inte kunna bränna den
@@ -638,7 +639,7 @@ async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Veckis/1.0; +https://veckis.app)' },
     signal: AbortSignal.timeout(10000),
   });
-  if (!res.ok) throw new Error(`Could not fetch page (${res.status})`);
+  if (!res.ok) throw new Error(`Kunde inte hämta sidan (${res.status})`);
   const html = await res.text();
 
   // Extract JSON-LD blocks
@@ -659,12 +660,12 @@ async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
   // klassnamn/struktur, som annars kräver en parser per sajt.
   try {
     const text = htmlTillText(html);
-    if (!text) throw new Error('No recipe data found on this page');
+    if (!text) throw new Error('Hittade inget recept på sidan');
     const parsed = await parseRecipeTextWithAI(text);
     if (!parsed.imageUrl) parsed.imageUrl = extractOgImage(html);
     return parsed;
   } catch (err) {
-    if (err instanceof InteJsonError) throw new Error('No recipe data found on this page');
+    if (err instanceof InteJsonError) throw new Error('Hittade inget recept på sidan');
     throw err;
   }
 }
@@ -751,35 +752,3 @@ function parseJsonLdRecipe(r: any, sourceUrl: string): ScrapedRecipe {
   return { title, description, imageUrl, instructions, servings, ingredients };
 }
 
-function parseIngredientString(raw: string): { name: string; quantity: number | null; unit: string | null } {
-  const s = raw.trim();
-  // Match patterns like "2 dl mjöl", "½ tsk salt", "3-4 tomater", "1.5 kg potatis"
-  const re = /^([\d½¼¾⅓⅔,./\-–]+)?\s*([a-zA-ZåäöÅÄÖ]+(?:\s+[a-zA-ZåäöÅÄÖ]+)?)?\s+(.+)$/u;
-  const m = s.match(re);
-  if (!m) return { name: s, quantity: null, unit: null };
-
-  const units = new Set([
-    'dl', 'ml', 'l', 'cl', 'msk', 'tsk', 'krm', 'g', 'kg', 'st', 'port', 'burk', 'förp',
-    'cups', 'cup', 'tbsp', 'tsp', 'oz', 'lb', 'pkt', 'påse', 'näve', 'skiva', 'skivor',
-  ]);
-
-  const maybeQty = m[1];
-  const maybeUnit = m[2]?.toLowerCase();
-  const rest = m[3];
-
-  if (!maybeQty) return { name: s, quantity: null, unit: null };
-
-  const qty = parseQuantity(maybeQty);
-  if (maybeUnit && units.has(maybeUnit)) {
-    return { name: rest ?? '', quantity: qty, unit: maybeUnit };
-  }
-  // No recognized unit — the "unit" token is part of the name
-  return { name: `${maybeUnit ?? ''} ${rest ?? ''}`.trim(), quantity: qty, unit: null };
-}
-
-function parseQuantity(s: string): number | null {
-  const fractions: Record<string, number> = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 0.333, '⅔': 0.667 };
-  if (fractions[s]) return fractions[s];
-  const n = parseFloat(s.replace(',', '.').replace(/–|-/, '.'));
-  return isNaN(n) ? null : n;
-}
