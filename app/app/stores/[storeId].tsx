@@ -43,6 +43,10 @@ function CategoryDragHandle({ parentKey, idx, onDragStart, onDragMove, onDragEnd
   const { colors: c } = useTheme();
   const gesture = useMemo(() => Gesture.Pan()
     .hitSlop(6)
+    // Provade .activateAfterLongPress(150) för konsekvens med receptets
+    // ingrediens-drag, men här gjorde det handtaget svårt att haka tag i —
+    // kortare kategorilista, mindre risk för scroll-krock, så den direkta
+    // aktiveringen är kvar.
     .onStart(e => { runOnJS(onDragStart)(parentKey, idx, e.absoluteY); })
     .onUpdate(e => { runOnJS(onDragMove)(e.absoluteY); })
     .onFinalize(() => { runOnJS(onDragEnd)(); }),
@@ -293,9 +297,11 @@ export default function StoreDetailScreen() {
   function plainLabel(key: string): string {
     return key.startsWith('c:') ? key.slice(2) : (CATEGORY_LABELS[key as StoreCategory] ?? key);
   }
-  // Namn + 🏷️ EFTER texten för egna kategorier — för rad-/badge-visning.
+  // Namn + "(egen)" EFTER texten för egna kategorier, för rader/etiketter i
+  // ren textkontext (slå ihop-modalen, ihopslagnings-pilen, drag-spöket) —
+  // se ownBadge-komponenten för den riktiga radens visuella badge.
   function labelWithTag(key: string): string {
-    return key.startsWith('c:') ? `${plainLabel(key)} 🏷️` : plainLabel(key);
+    return key.startsWith('c:') ? `${plainLabel(key)} (egen)` : plainLabel(key);
   }
   // Flytta en sub-post (standard ELLER egen) upp/ner bland sina syskon (samma
   // parent) i expandedSubs — så egna och standard-subs kan interfolieras fritt.
@@ -492,7 +498,7 @@ export default function StoreDetailScreen() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color={nyDesign ? ny.skog : c.primary} /></View>;
   }
   if (!store) {
     return (
@@ -521,17 +527,17 @@ export default function StoreDetailScreen() {
           const label = isCustomEntry ? entry.slice(entry.lastIndexOf(':') + 1) : SUB_TAXONOMY[entry as SubCategory].label;
           return (
             <View key={entry} style={s.subRow}>
-              <Text style={[s.subName, s.subNameActive]}>{isCustomEntry ? `${label} 🏷️` : label}</Text>
+              <Text style={[s.subName, s.subNameActive]}>{isCustomEntry ? `${label} (egen)` : label}</Text>
               <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                 <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveSubEntry(entry, parentKey, -1)}>
-                  <Ionicons name="chevron-up" size={16} color={c.primary} />
+                  <Ionicons name="chevron-up" size={16} color={nyDesign ? ny.skog : c.primary} />
                 </Pressable>
                 <Pressable style={[s.catBtn, i === entries.length - 1 && { opacity: 0.3 }]} disabled={i === entries.length - 1} onPress={() => moveSubEntry(entry, parentKey, 1)}>
-                  <Ionicons name="chevron-down" size={16} color={c.primary} />
+                  <Ionicons name="chevron-down" size={16} color={nyDesign ? ny.skog : c.primary} />
                 </Pressable>
                 {isCustomEntry ? (
                   <Pressable style={s.catBtnDanger} onPress={() => removeCustomSub(parentKey, label)}>
-                    <Ionicons name="close" size={16} color={c.danger} />
+                    <Ionicons name="close" size={16} color={nyDesign ? ny.fara : c.danger} />
                   </Pressable>
                 ) : (
                   <Pressable style={[s.subToggle, s.subToggleActive]} onPress={() => toggleSubExpanded(entry)}>
@@ -548,7 +554,7 @@ export default function StoreDetailScreen() {
           return (
           <View key={entry} style={s.subRow}>
             <Pressable style={{ flex: 1 }} onPress={() => toggleSubExpanded(entry)}>
-              <Text style={s.subName}>{isCustomEntry ? `${label} 🏷️` : label}</Text>
+              <Text style={s.subName}>{isCustomEntry ? `${label} (egen)` : label}</Text>
             </Pressable>
             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
               {/* Krysset längst till vänster (fast platshållare för standard-
@@ -556,16 +562,16 @@ export default function StoreDetailScreen() {
                   raden är egen eller standard. */}
               {isCustomEntry ? (
                 <Pressable style={s.catBtnDanger} onPress={() => removeCustomSub(parentKey, label)}>
-                  <Ionicons name="close" size={16} color={c.danger} />
+                  <Ionicons name="close" size={16} color={nyDesign ? ny.fara : c.danger} />
                 </Pressable>
               ) : (
                 <View style={s.catBtnSpacer} />
               )}
               <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveHiddenEntry(entry, parentKey, standardSubs, -1)}>
-                <Ionicons name="chevron-up" size={16} color={c.primary} />
+                <Ionicons name="chevron-up" size={16} color={nyDesign ? ny.skog : c.primary} />
               </Pressable>
               <Pressable style={[s.catBtn, i === rest.length - 1 && { opacity: 0.3 }]} disabled={i === rest.length - 1} onPress={() => moveHiddenEntry(entry, parentKey, standardSubs, 1)}>
-                <Ionicons name="chevron-down" size={16} color={c.primary} />
+                <Ionicons name="chevron-down" size={16} color={nyDesign ? ny.skog : c.primary} />
               </Pressable>
               <Pressable style={s.subToggle} onPress={() => toggleSubExpanded(entry)} />
             </View>
@@ -588,7 +594,7 @@ export default function StoreDetailScreen() {
           </View>
         ) : (
           <Pressable style={s.addSubRow} onPress={() => { setAddingSubFor(parentKey); setNewSubName(''); }}>
-            <Ionicons name="add" size={16} color={c.primary} />
+            <Ionicons name="add" size={16} color={nyDesign ? ny.skog : c.primary} />
             <Text style={s.addSubText}>{str.detail.customSubAdd}</Text>
           </Pressable>
         )}
@@ -623,7 +629,7 @@ export default function StoreDetailScreen() {
       <ScrollView style={s.innehall} contentContainerStyle={s.scroll} scrollEnabled={!catDragState}>
         {visarUtkast && (
           <View style={s.draftBanner}>
-            <Ionicons name="time-outline" size={16} color={c.primary} />
+            <Ionicons name="time-outline" size={16} color={nyDesign ? ny.skog : c.primary} />
             <Text style={s.draftBannerText}>{common.discardDraft.restored}</Text>
             <Pressable
               onPress={() => {
@@ -670,17 +676,22 @@ export default function StoreDetailScreen() {
                       hitSlop={6}
                     >
                       <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={c.textMuted} />
-                      <Text style={s.catName}>{labelWithTag(key)}</Text>
+                      <Text style={s.catName}>{plainLabel(key)}</Text>
+                      {isCustom && (
+                        <View style={s.ownBadge}>
+                          <Text style={s.ownBadgeText}>{str.detail.ownTag}</Text>
+                        </View>
+                      )}
                       {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
                     </Pressable>
                     <View style={{ flexDirection: 'row', gap: 6 }}>
                       {isCustom ? (
                         <Pressable style={s.catBtnDanger} onPress={() => removeCustomCategory(cat)}>
-                          <Ionicons name="trash-outline" size={16} color={c.danger} />
+                          <Ionicons name="trash-outline" size={16} color={nyDesign ? ny.fara : c.danger} />
                         </Pressable>
                       ) : (
                         <Pressable style={s.catBtn} onPress={() => setMergingKey(key as StoreCategory)} accessibilityLabel={str.detail.mergeAction}>
-                          <Ionicons name="git-merge-outline" size={16} color={c.primary} />
+                          <Ionicons name="git-merge-outline" size={16} color={nyDesign ? ny.skog : c.primary} />
                         </Pressable>
                       )}
                       <CategoryDragHandle
@@ -712,8 +723,8 @@ export default function StoreDetailScreen() {
               onSubmitEditing={addCustomCategory}
               returnKeyType="done"
             />
-            <Pressable style={s.catBtn} onPress={addCustomCategory} disabled={!newCatName.trim()}>
-              <Ionicons name="add" size={20} color={newCatName.trim() ? c.primary : c.textFaint} />
+            <Pressable style={[s.catBtnAdd, !newCatName.trim() && { opacity: 0.4 }]} onPress={addCustomCategory} disabled={!newCatName.trim()}>
+              <Ionicons name="add" size={20} color={nyDesign ? ny.skog : c.primary} />
             </Pressable>
           </View>
         </View>
@@ -731,7 +742,7 @@ export default function StoreDetailScreen() {
                       {CATEGORY_LABELS[source] ?? source} → {targetLabel}
                     </Text>
                     <Pressable style={s.catBtn} onPress={() => unmergeCategory(source)}>
-                      <Ionicons name="arrow-undo-outline" size={16} color={c.primary} />
+                      <Ionicons name="arrow-undo-outline" size={16} color={nyDesign ? ny.skog : c.primary} />
                     </Pressable>
                   </View>
                 );
@@ -748,7 +759,7 @@ export default function StoreDetailScreen() {
         const key = catDragState.key;
         return (
           <View pointerEvents="none" style={[s.ghostCat, { top: catDragState.y - 24 }]}>
-            <Ionicons name="reorder-two" size={18} color={c.primary} />
+            <Ionicons name="reorder-two" size={18} color={nyDesign ? ny.skog : c.primary} />
             <Text style={s.ghostCatText} numberOfLines={1}>{labelWithTag(key)}</Text>
           </View>
         );
@@ -841,14 +852,19 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   catName: { fontSize: 15, color: c.text, flex: 1, flexShrink: 1 },
   catNameMuted: { color: c.textFaint },
   catBtn: { width: 32, height: 32, borderRadius: nyD ? 10 : 8, alignItems: 'center', justifyContent: 'center', backgroundColor: nyD ? ny.bricka : c.primaryTint },
-  catBtnDanger: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerTint },
+  // Ljus limegrön bakgrund (i stället för catBtns dova bricka) — ett "+" är
+  // en primär åtgärd, ska sticka ut mer än chevroner/slå ihop.
+  catBtnAdd: { width: 32, height: 32, borderRadius: nyD ? 10 : 8, alignItems: 'center', justifyContent: 'center', backgroundColor: nyD ? ny.lime : c.primaryTint },
+  catBtnDanger: { width: 32, height: 32, borderRadius: nyD ? 10 : 8, alignItems: 'center', justifyContent: 'center', backgroundColor: nyD ? ny.faraYta : c.dangerTint },
   // Osynlig platshållare, samma mått som catBtnDanger — håller pilarna på
   // samma plats för standard-rader i den dolda sub-listan (jämte egna rader
   // som har ett extra kryss-ta-bort-knapp längst till vänster).
   catBtnSpacer: { width: 32, height: 32 },
   ghostCat: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: nyD ? ny.ljus : c.surface, borderRadius: nyD ? 14 : 12, paddingVertical: 12, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100, ...(nyD ? { borderWidth: 1.5, borderColor: ny.skog } : {}) },
   ghostCatText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
-  expandedBadge: { fontSize: 11, fontWeight: '700', color: nyD ? ny.skog : c.accent, backgroundColor: nyD ? ny.bricka : c.accent100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  expandedBadge: { fontSize: 11, fontWeight: '700', color: nyD ? ny.lime : c.accent, backgroundColor: nyD ? ny.skog : c.accent100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  ownBadge: { backgroundColor: nyD ? ny.skog : c.textFaint, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999 },
+  ownBadgeText: { fontSize: 10, fontWeight: '700', color: nyD ? ny.lime : '#fff' },
   subList: { paddingLeft: 24, paddingRight: 14, paddingVertical: 8, backgroundColor: nyD ? ny.ljus : c.background, borderBottomWidth: 1, borderBottomColor: nyD ? ny.bricka : c.surfaceSubtle },
   subListHint: { fontSize: 12, color: c.textFaint, marginBottom: 8, lineHeight: 17 },
   subRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 12 },

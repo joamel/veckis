@@ -1005,7 +1005,7 @@ export const stores = {
       merged:  'SAMMANSLAGNA',
     },
     hint:        'Ordningen matchar butikens layout. Slå ihop kategorier du inte använder med en annan och lägg till egna under "Egna kategorier".',
-    mixedHint:   'Ordna standard- och egna kategorier tillsammans. 🏷️ = egen (lokal, bara för den här butiken).',
+    mixedHint:   'Ordna standard- och egna kategorier tillsammans. Märkta "Egen" = lokal, bara för den här butiken.',
     allHidden:   'Inga kategorier valda — du måste ha minst en.',
     mergedHint:  'Kategorier som slagits ihop med en annan i den här butiken. Varorna behåller sin kategori — de grupperas bara under en annan rubrik här.',
     subHint:     (parent: string) => `Slå på underkategorier som du vill se som egna sektioner i listan. Övriga samlas under ${parent}.`,
@@ -1013,6 +1013,7 @@ export const stores = {
     customSubPlaceholder: 'Namn på underkategori',
     customSubAdd:         'Egen underkategori',
     customCatPlaceholder: '＋ Ny egen kategori',
+    ownTag: 'Egen',
     mergeAction: 'Slå ihop med en annan kategori',
     mergeModal: {
       title:     (cat: string) => `Slå ihop "${cat}" med…`,
