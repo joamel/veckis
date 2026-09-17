@@ -864,10 +864,15 @@ export default function MenuScreen() {
     }
   }
 
-  // Hardware/gesture back steps through the wizard instead of closing it.
+  // Hardware/gesture back steps through the wizard instead of closing it —
+  // UTOM på ingrediens-steget (inventeringen), där ett drag nedåt kändes fel:
+  // man hoppade till "välj rätter" i stället för att stänga, trots att
+  // stängning via tryck utanför redan gjorde exakt det (onOverlayPress).
+  // Stänger nu riktigt där också; öppnas guiden igen återupptas samma steg
+  // om inget val ändrats sedan (se transferWeekMenu/openWeekPicker).
   function handleBulkBack() {
     if (bulkTransferStep === 'list') { setBulkTransferStep('ingredients'); return; }
-    if (bulkTransferStep === 'ingredients') { setBulkTransferStep('recipe'); return; }
+    if (bulkTransferStep === 'ingredients') { handleCancelBulkTransfer(); return; }
     // Kom man in via vecko-steget ska bakåt leda dit, inte stänga hela guiden.
     if (bulkTransferStep === 'recipe' && bulkTransferWeeks.size > 0) { setBulkTransferStep('week'); return; }
     handleCancelBulkTransfer();
@@ -880,12 +885,16 @@ export default function MenuScreen() {
       // Samma filtrering som load() — annars kan en pending-borttagen rad
       // (5s Ångra-fönster) dyka upp igen via den här separata hämtningen.
       setAllMenus(all.filter(i => !pendingMenuItemRemovals.has(i.id)));
-      // Nollställ urvalet vid ingången. Tidigare ERSATTE ett veckoklick hela
-      // urvalet, så gammalt skräp maskerades; nu adderas/tas rätter bort per
-      // vecka och kvarglömda id:n skulle följa med in i överföringen.
-      setBulkTransferWeeks(new Set());
-      setSelectedRecipesForTransfer(new Set());
-      setBulkTransferStep('week');
+      // Nollställ urvalet vid ingången — MEN bara om det inte redan finns ett
+      // pågående val att återuppta (stängde man guiden mitt i, t.ex. på
+      // inventeringssteget, ska den återöppnas där man var). Tidigare
+      // ERSATTE ett veckoklick hela urvalet, så gammalt skräp maskerades; nu
+      // adderas/tas rätter bort per vecka och kvarglömda id:n skulle följa
+      // med in i överföringen — det är därför just den nollställningen är
+      // ovillkorlig i själva veckoväljar-flödet, inte vid själva öppningen.
+      if (bulkTransferWeeks.size === 0 && selectedRecipesForTransfer.size === 0) {
+        setBulkTransferStep('week');
+      }
       setShowBulkTransferModal(true);
     } catch (e) {
       showError(e, str.toasts.errorFetchWeeks);
@@ -901,8 +910,11 @@ export default function MenuScreen() {
     if (!bulkWasOpenRef.current) return;
     bulkWasOpenRef.current = false;
     if (params.originListId) router.setParams({ originListId: undefined });
-    setBulkTransferWeeks(new Set());
-  }, [showBulkTransferModal, params.originListId]);
+    // Rensa bara veckovalet om guiden stängdes UTAN ett pågående receptval
+    // att återuppta (avbruten eller helt tom) — annars vore det just det
+    // valet som skulle finnas kvar vid nästa öppning.
+    if (selectedRecipesForTransfer.size === 0) setBulkTransferWeeks(new Set());
+  }, [showBulkTransferModal, params.originListId, selectedRecipesForTransfer]);
 
   // Pick a recipe for a day by opening the full recipe view in "select" mode,
   // instead of a separate in-menu picker dialog. The recipe screen routes back
@@ -1254,10 +1266,16 @@ export default function MenuScreen() {
       return;
     }
 
-    const freshIds = new Set(notTransferred.map(m => m.id));
-    setSelectedRecipesForTransfer(freshIds);
-    resetInventoryFor(freshIds);
-    setBulkTransferStep('recipe');
+    // Stängde man guiden mitt i (inventeringssteget) i stället för att
+    // fullfölja den, ska ett nytt tryck på "Överför" återuppta där man var
+    // — inte kasta bort ifyllda "har hemma"-bockar och hoppa tillbaka till
+    // receptvalet. Bara en genuint ny överföring (inget pågående val) nollställer.
+    if (selectedRecipesForTransfer.size === 0) {
+      const freshIds = new Set(notTransferred.map(m => m.id));
+      setSelectedRecipesForTransfer(freshIds);
+      resetInventoryFor(freshIds);
+      setBulkTransferStep('recipe');
+    }
     setShowBulkTransferModal(true);
   }
 
@@ -1336,6 +1354,15 @@ export default function MenuScreen() {
       }
       setBulkTransferringListId(null);
       setShowBulkTransferModal(false);
+      // En LYCKAD överföring är klar, inte "stängd mitt i" — nollställ så
+      // nästa öppning inte tror att den ska återuppta redan överförda rätter
+      // (se transferWeekMenu/openWeekPicker, som bara nollställer om det INTE
+      // finns ett pågående val).
+      setSelectedRecipesForTransfer(new Set());
+      setBulkTransferWeeks(new Set());
+      resetInventory();
+      inventoryBuiltForRef.current = null;
+      setBulkTransferStep('recipe');
       load();
       showToast(str.toasts.transferred(actuallyTransfer.length));
     } catch (e) {
