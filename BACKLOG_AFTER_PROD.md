@@ -154,7 +154,7 @@ Skisser: "Handlis omdesign" (claude.ai-artefakt). Stil: skog & lime — mörkgr�
 - [ ] 💡 Engelska recept: hur göra med engelska mått (cups/oz/lb/tbsp/tsp/°F)? Konvertera eller låta vara kvar? AI som konverterar direkt, eller en knapp användaren själv trycker på? Ingen riktning bestämd.
 - [ ] 💡 Veckans butiksrabatter/kampanjer i appen (feedback, Thomas) — det enda han skulle sakna från Ica-appen vid byte till Handlis. Hämtas från flera butikers hemsidor (ofta PDF, t.ex. "Kampanjveckan"); kan läggas in redan söndag för kommande vecka. Ingen lösning vald än.
 - [ ] **Streckkodsläsare** — utredd & nedprioriterad (OpenFoodFacts svag på svenska varor). Återupptas om bättre datakälla dyker upp.
-- [ ] **Sökbar butiksdatabas** — dela butiker andra lagt in, slipp återskapa. Möjligt premium.
+- [ ] **Sökbar butiksdatabas** — dela butiker andra lagt in, slipp återskapa. Möjligt premium. Två nyanser att ha med när det blir aktuellt: (1) det är en datadelningsfråga även om butiksnamn+kategoriuppsättning knappast är personlig data — kan behöva en "dela data"-post i Play Store-deklarationen; (2) möjligt "ge och ta"-mönster: för att SE andras delade butiker måste man själv ha delat sina egna (reciprocitet, inte bara enkelriktad hämtning). Inget beslutat.
 - [ ] **Statistik/insikter** — "mest lagade rätter", "vanligaste inköp" m.m. Möjligt premium tillsammans med butiksdatabasen.
 - [ ] **Skafferi-minne** — persistent "har hemma" per hushåll så återkommande basvaror inte inventeras varje gång.
 - [ ] **Datakvalitet-städning (admin)** — slå ihop/städa basvaror & kategorier så namn och kategori-minnen inte driftar.
