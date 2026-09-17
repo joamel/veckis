@@ -20,6 +20,13 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Actionens default begär även paketet "tools", som Google tagit
+          # bort helt ur SDK-katalogen (ersatt av cmdline-tools för länge
+          # sen) — sdkmanager svarar "Failed to find package 'tools'" och
+          # hela steget faller. platform-tools räcker; Gradle/AGP hämtar
+          # själv de plattforms-/build-tools-versioner den faktiskt behöver.
+          packages: platform-tools
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
