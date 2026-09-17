@@ -74,3 +74,26 @@ describe('parseQuantity', () => {
     expect(parseQuantity('1.5')).toBe(1.5);
   });
 });
+
+describe('blandade tal', () => {
+  it('summerar blandat tal med snedstreck', () => {
+    // Formen bakedabundance.com skickar i sin JSON-LD.
+    expect(parseIngredientString('1 3/4 cup all-purpose flour, spooned and leveled'))
+      .toEqual({ name: 'all-purpose flour, spooned and leveled', quantity: 1.75, unit: 'cup' });
+  });
+
+  it('summerar blandat tal med unicode-bråk, med och utan mellanslag', () => {
+    // Låg fel länge: mängden blev 1 och "¾ cup ..." hamnade i namnet.
+    expect(parseIngredientString('1 ¾ cup all-purpose flour'))
+      .toEqual({ name: 'all-purpose flour', quantity: 1.75, unit: 'cup' });
+    expect(parseIngredientString('1¾ cup all-purpose flour'))
+      .toEqual({ name: 'all-purpose flour', quantity: 1.75, unit: 'cup' });
+    expect(parseQuantity('2 ½')).toBe(2.5);
+    expect(parseQuantity('2½')).toBe(2.5);
+  });
+
+  it('läser inte ihop ett snedstrecksbråk utan mellanslag som blandat tal', () => {
+    // "13/4" är tretton fjärdedelar, inte 1 + 3/4.
+    expect(parseQuantity('13/4')).toBe(3.25);
+  });
+});

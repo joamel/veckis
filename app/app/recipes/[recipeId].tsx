@@ -35,7 +35,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems, type WeekMenuItemWithRecipe } from '../../src/api/client';
-import { normalizeQtyInput } from '../../src/lib/qty';
+import { normalizeQtyInput, skalaQty } from '../../src/lib/qty';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
@@ -1688,20 +1688,15 @@ function deduplicateIngredients(ingredients: RecipeIngredient[], scaleRatio: num
   }
   return [...map.values()].map(ing => ({
     ...ing,
-    quantity: ing.quantity != null ? roundQty(ing.quantity * scaleRatio) : null,
+    quantity: ing.quantity != null ? skalaQty(ing.quantity, scaleRatio) : null,
   }));
 }
 
-function roundQty(n: number): number {
-  if (n % 1 === 0) return n;
-  if (n < 1) return Math.round(n * 4) / 4;
-  return Math.round(n * 2) / 2;
-}
 
 /** Bara mängd + enhet ("300 g"), för receptvyns mängdkolumn. Tom sträng om
  *  ingrediensen saknar mängd ("salt"). */
 function formatQty(ing: { quantity: number | null; unit: string | null }, scaleRatio = 1, showConverted = false): string {
-  let quantity = ing.quantity != null ? roundQty(ing.quantity * scaleRatio) : null;
+  let quantity = ing.quantity != null ? skalaQty(ing.quantity, scaleRatio) : null;
   let unit = ing.unit;
   if (showConverted && quantity != null && unit) {
     const converted = convertToMetric(quantity, unit);
@@ -1718,7 +1713,7 @@ function formatQty(ing: { quantity: number | null; unit: string | null }, scaleR
 function formatIngredient(ing: { quantity: number | null; unit: string | null; name: string }, scaleRatio = 1): string {
   const parts: string[] = [];
   if (ing.quantity != null) {
-    const scaled = roundQty(ing.quantity * scaleRatio);
+    const scaled = skalaQty(ing.quantity, scaleRatio);
     parts.push(String(scaled % 1 === 0 ? scaled : scaled.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')));
   }
   if (ing.unit) parts.push(ing.unit);
