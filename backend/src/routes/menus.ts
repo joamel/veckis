@@ -11,6 +11,7 @@ import { wsBroadcast } from '../lib/wsHub';
 import { planIncomingMatch, planAutoMerge } from '../lib/importDedupe';
 import { loadConfirmedEquivalencesByName } from '../lib/smartMerge';
 import { notifyActiveShopper } from '../lib/sendPush';
+import { convertToMetric } from '@veckis/shared';
 
 export const menusRouter = Router();
 
@@ -316,10 +317,18 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   // Normalize ingredient names (strips prep instructions, canonicalizes synonyms)
   const rawNames = body.data.ingredients.map(i => i.name);
   const normalizedNames = await normalizeIngredientNames(rawNames);
-  const ingredients = body.data.ingredients.map((ing, i) => ({
-    ...ing,
-    name: normalizedNames[i] ?? ing.name,
-  }));
+  const ingredients = body.data.ingredients.map((ing, i) => {
+    const name = normalizedNames[i] ?? ing.name;
+    // Importerade recept kan ha kvar en rå amerikansk enhet ("cup", "oz") som
+    // sparas orörd på RECEPTET (se parseIngredientString.ts) — men den ska
+    // ALDRIG hamna i inköpslistan, som bara känner till svenska/metriska
+    // enheter. Konverteras tyst här, vid den enda överföringsvägen alla tre
+    // flöden (recept, veckomeny, flerveckor) går igenom.
+    const converted = convertToMetric(ing.quantity, ing.unit);
+    return converted
+      ? { ...ing, name, quantity: converted.quantity, unit: converted.unit }
+      : { ...ing, name };
+  });
 
   // Deduplicate within batch: same name+unit+menuItemId → sum quantities
   const deduped = new Map<string, typeof ingredients[0]>();

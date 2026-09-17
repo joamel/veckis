@@ -692,7 +692,7 @@ export const recipes = {
     descPlaceholder:'Beskrivning (valfritt)',
     instrPlaceholder:'Steg för steg (valfritt)',
     ingNamePlaceholder: 'Ingrediens',
-    ingQtyPlaceholder:  'Mängd',
+    ingQtyPlaceholder:  '1',
     cookA11y:       'Laga nu',
     cookNow:        'Laga nu',
     transferA11y:   'Lägg i inköpslista',

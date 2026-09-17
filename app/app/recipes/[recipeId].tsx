@@ -32,6 +32,8 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems, type WeekMenuItemWithRecipe } from '../../src/api/client';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { useHousehold } from '../../src/context/HouseholdContext';
@@ -65,6 +67,31 @@ function makeDraftRecipe(householdId: string): RecipeWithIngredients {
     timesUsed: 0, tags: [], createdBy: '', createdAt: now, updatedAt: now,
     ingredients: [],
   };
+}
+
+// Samma mönster som butikens kategori-drag (stores/[storeId].tsx): egen
+// komponent så gesten byggs via useMemo, keyad på stabila props, i stället
+// för att byggas om vid varje omrendering.
+function IngredientDragHandle({ idx, onDragStart, onDragMove, onDragEnd }: {
+  idx: number;
+  onDragStart: (idx: number, absoluteY: number) => void;
+  onDragMove: (absoluteY: number) => void;
+  onDragEnd: () => void;
+}) {
+  const { colors: c } = useTheme();
+  const gesture = useMemo(() => Gesture.Pan()
+    .hitSlop(6)
+    .onStart(e => { runOnJS(onDragStart)(idx, e.absoluteY); })
+    .onUpdate(e => { runOnJS(onDragMove)(e.absoluteY); })
+    .onFinalize(() => { runOnJS(onDragEnd)(); }),
+    [idx, onDragStart, onDragMove, onDragEnd]);
+  return (
+    <GestureDetector gesture={gesture} touchAction="none">
+      <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="reorder-two" size={22} color={c.textFaint} />
+      </View>
+    </GestureDetector>
+  );
 }
 
 export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, cook, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; onClose?: () => void }) {
@@ -131,12 +158,53 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [nameSuggestions, setNameSuggestions] = useState<{ name: string; category: string }[]>([]);
   const [unitByName, setUnitByName] = useState<Record<string, string>>({});
   const [defaultUnit, setDefaultUnit] = useState('');
-  // Visningsval, inte sparat: vilka importerade ingredienser (icke-svensk
-  // enhet, t.ex. "cup") som just nu visas konverterade till dl/g/msk osv.
-  // Källans råa mängd rörs aldrig — bara vad som RENDERAS växlar.
-  const [convertedIngredientIds, setConvertedIngredientIds] = useState<Set<string>>(new Set());
+  // Visningsval, inte sparat: EN knapp för hela receptet (inte en per rad —
+  // kändes stökigt) som växlar om importerade ingredienser med icke-svensk
+  // enhet (t.ex. "cup") visas konverterade till dl/g/msk osv. Källans råa
+  // mängd rörs aldrig — bara vad som RENDERAS växlar.
+  const [showAllConverted, setShowAllConverted] = useState(false);
   type RowRef = { qty: TextInput | null; unit: TextInput | null; name: TextInput | null };
   const rowRefs = useRef<RowRef[]>([]);
+  // Dra-för-att-ordna ingredienser i redigeringsläget — samma teknik som
+  // butikens kategori-drag (stores/[storeId].tsx): mäter varje rads
+  // skärm-absoluta position, jämför mot fingrets Y under draget, och räknar
+  // ut släpp-positionen EN gång från senast kända Y i stället för att lita på
+  // en löpande "hover"-ref (bevisat instabilt i det tidigare fallet).
+  type IngDragState = { startIndex: number; y: number };
+  const [ingDragState, setIngDragState] = useState<IngDragState | null>(null);
+  const [ingHoverIndex, setIngHoverIndex] = useState<number | null>(null);
+  const ingRowRefs = useRef<Record<number, View | null>>({});
+  const ingRowLayouts = useRef<Record<number, { y: number; height: number }>>({});
+  const measureIngRow = useCallback((idx: number, ref: View | null) => {
+    if (ref) ingRowRefs.current[idx] = ref;
+    const target = ingRowRefs.current[idx];
+    target?.measure((_x, _y, _w, h, _px, py) => { ingRowLayouts.current[idx] = { y: py, height: h }; });
+  }, []);
+  const ingIndexAtY = useCallback((absoluteY: number): number | null => {
+    for (const [idxStr, layout] of Object.entries(ingRowLayouts.current)) {
+      if (absoluteY >= layout.y && absoluteY <= layout.y + layout.height) return Number(idxStr);
+    }
+    return null;
+  }, []);
+  const onIngDragStart = useCallback((idx: number, absoluteY: number) => {
+    setIngDragState({ startIndex: idx, y: absoluteY });
+    setIngHoverIndex(idx);
+  }, []);
+  const onIngDragMove = useCallback((absoluteY: number) => {
+    setIngDragState(prev => prev ? { ...prev, y: absoluteY } : null);
+    setIngHoverIndex(ingIndexAtY(absoluteY));
+  }, [ingIndexAtY]);
+  const onIngDragEnd = useCallback(() => {
+    setIngDragState(prev => {
+      if (prev) {
+        const target = ingIndexAtY(prev.y);
+        if (target !== null && target !== prev.startIndex) moveEditRow(prev.startIndex, target);
+      }
+      return null;
+    });
+    setIngHoverIndex(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ingIndexAtY]);
   const mainScrollRef = useRef<ScrollView>(null);
   const scrollOffsetY = useRef(0);
 
@@ -631,6 +699,15 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     setEditIngredients(prev => prev.filter((_, i) => i !== idx));
   }
 
+  function moveEditRow(from: number, to: number) {
+    setEditIngredients(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }
+
   async function saveRecipe() {
     if (!recipe) return;
     const t = editTitle.trim();
@@ -1055,12 +1132,31 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 <Text style={s.sectionCount}>{str.detail.sectionCount(recipe.ingredients.length)}</Text>
               ) : null}
             </Text>
+            {!editMode && recipe.ingredients.some(i => isConvertibleUnit(i.unit)) && (
+              <Pressable
+                style={s.ingConvertBtn}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={str.detail.convertUnitA11y}
+                onPress={() => setShowAllConverted(v => !v)}
+              >
+                <Ionicons name="swap-horizontal" size={18} color={showAllConverted ? ny.skog : ny.underrubrik} />
+              </Pressable>
+            )}
           </View>
 
           {editMode ? (
             <View style={s.editList} {...({ importantForAutofill: 'noExcludeDescendants' } as object)}>
               {editIngredients.map((row, idx) => (
-                <View key={idx}>
+                <View
+                  key={idx}
+                  ref={ref => measureIngRow(idx, ref)}
+                  onLayout={() => measureIngRow(idx, null)}
+                  style={[
+                    ingDragState?.startIndex === idx && s.ingEditRowDragging,
+                    ingHoverIndex === idx && ingDragState?.startIndex !== idx && s.ingEditRowDropTarget,
+                  ]}
+                >
                   <View style={s.editRow}>
                     <TextInput
                       ref={el => { getRowRef(idx).name = el; }}
@@ -1078,7 +1174,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                       returnKeyType="next"
                       blurOnSubmit={false}
                       onFocus={() => setActiveNameIdx(idx)}
-                      onBlur={() => setTimeout(() => setActiveNameIdx(a => a === idx ? null : a), 120)}
+                      onBlur={() => {
+                        // Utan detta visar RN kvar det utskrollade slutet av namnet
+                        // efter fokus lämnat fältet — man ser "...kockshjärtan" i
+                        // stället för "kronärtskock...". Nollställ markören så
+                        // vyn hoppar tillbaka till början när man inte längre skriver.
+                        getRowRef(idx).name?.setNativeProps({ selection: { start: 0, end: 0 } });
+                        setTimeout(() => setActiveNameIdx(a => a === idx ? null : a), 120);
+                      }}
                       onSubmitEditing={() => getRowRef(idx).qty?.focus()}
                     />
                     <TextInput
@@ -1106,7 +1209,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                       spellCheck={false}
                       textContentType="none"
                       importantForAutofill="no"
-                      returnKeyType={idx < editIngredients.length - 1 ? 'next' : 'done'}
+                      // Alltid "nästa": på sista raden skapar submit en ny rad i
+                      // stället för att bara stänga tangentbordet, så man slipper
+                      // trycka "Lägg till rad" manuellt mellan varje ingrediens.
+                      returnKeyType="next"
                       blurOnSubmit={false}
                       onFocus={() => setActiveUnitIdx(idx)}
                       // Inget onPressIn här: den utlöses så fort fingret rör fältet,
@@ -1116,12 +1222,26 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                       onBlur={() => setTimeout(() => setActiveUnitIdx(a => a === idx ? null : a), 120)}
                       onSubmitEditing={() => {
                         setActiveUnitIdx(null);
-                        if (idx < editIngredients.length - 1) getRowRef(idx + 1).name?.focus();
+                        if (idx < editIngredients.length - 1) {
+                          getRowRef(idx + 1).name?.focus();
+                        } else {
+                          const newIdx = editIngredients.length;
+                          addEditRow();
+                          setTimeout(() => getRowRef(newIdx).name?.focus(), 50);
+                        }
                       }}
                     />
                     <Pressable onPress={() => removeEditRow(idx)} style={s.editRemove} accessibilityRole="button" accessibilityLabel={common.actions.delete}>
                       <Ionicons name="close-circle" size={20} color={c.border} />
                     </Pressable>
+                    {editIngredients.length > 1 && (
+                      <IngredientDragHandle
+                        idx={idx}
+                        onDragStart={onIngDragStart}
+                        onDragMove={onIngDragMove}
+                        onDragEnd={onIngDragEnd}
+                      />
+                    )}
                   </View>
                   {activeUnitIdx === idx && (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.unitChipScroll} keyboardShouldPersistTaps="always">
@@ -1136,9 +1256,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                                 updateEditRow(idx, 'unit', active ? '' : u);
                                 if (!active) {
                                   setActiveUnitIdx(null);
-                                  // Move focus to the next row's name input (or stay if last)
+                                  // Flytta fokus till nästa rads namnfält — på sista raden
+                                  // skapas en ny rad i stället för att bara stanna kvar.
                                   if (idx < editIngredients.length - 1) {
                                     setTimeout(() => getRowRef(idx + 1).name?.focus(), 50);
+                                  } else {
+                                    const newIdx = editIngredients.length;
+                                    addEditRow();
+                                    setTimeout(() => getRowRef(newIdx).name?.focus(), 50);
                                   }
                                 }
                               }}
@@ -1202,31 +1327,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               {/* Som en inköpslapp: mängden i en fast kolumn till vänster, så
                   man kan läsa "300 g" mot "nötfärs" uppifrån och ned. */}
               <View style={s.ingCard}>
-                {recipe.ingredients.map((ing, i) => {
-                  const convertible = isConvertibleUnit(ing.unit);
-                  const showConverted = convertible && convertedIngredientIds.has(ing.id);
-                  return (
+                {recipe.ingredients.map((ing, i) => (
                   <View key={ing.id} style={[s.ingRow, i > 0 && s.ingRowBorder]}>
-                    <Text style={s.ingQty}>{formatQty(ing, scaleRatio, showConverted)}</Text>
+                    <Text style={s.ingQty}>{formatQty(ing, scaleRatio, showAllConverted)}</Text>
                     <Text style={s.ingName}>{ing.name}</Text>
-                    {convertible && (
-                      <Pressable
-                        style={s.ingConvertBtn}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel={str.detail.convertUnitA11y}
-                        onPress={() => setConvertedIngredientIds(prev => {
-                          const next = new Set(prev);
-                          if (next.has(ing.id)) next.delete(ing.id); else next.add(ing.id);
-                          return next;
-                        })}
-                      >
-                        <Ionicons name="swap-horizontal" size={16} color={ny.underrubrik} />
-                      </Pressable>
-                    )}
                   </View>
-                  );
-                })}
+                ))}
               </View>
               {/* Sidans huvudhandling, därför full bredd och lime. */}
               <Pressable style={s.wideBtnLime} onPress={() => openTransfer()} accessibilityLabel={str.detail.transferA11y}>
@@ -1658,10 +1764,12 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   editList: { gap: 8 },
   editRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   editInput: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, backgroundColor: c.inputBg },
-  editInputQty: { width: 70 },
-  editInputUnit: { width: 60 },
-  editInputName: { flex: 1 },
+  editInputQty: { width: 54, textAlign: 'left' },
+  editInputUnit: { width: 52, textAlign: 'left' },
+  editInputName: { flex: 1, textAlign: 'left' },
   editRemove: { padding: 2 },
+  ingEditRowDragging: { opacity: 0.4 },
+  ingEditRowDropTarget: { borderTopWidth: 2, borderTopColor: nyD ? ny.skog : c.primary },
   addRowBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   addRowBtnText: { fontSize: 14, color: c.primary, fontWeight: '500' },
   unitChipScroll: { marginBottom: 4 },
