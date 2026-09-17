@@ -81,6 +81,15 @@ function IngredientDragHandle({ idx, onDragStart, onDragMove, onDragEnd }: {
   const { colors: c } = useTheme();
   const gesture = useMemo(() => Gesture.Pan()
     .hitSlop(6)
+    // Ingredienslistan är TÄTARE packad än butikens kategorilista (fler
+    // handtag på en skärmyta man ofta scrollar), så ett snabbt scroll-svep
+    // som råkar starta exakt på handtaget kapades annars som ett drag i
+    // stället för att fortsätta som scroll (touchAction="none" gör att
+    // webbläsaren/OS:et aldrig hinner tolka det som scroll om Pan-gesten
+    // triggar direkt). Kräver ett kort håll innan draget "arm:as" — en snabb
+    // genomgående rörelse hinner då lämnas kvar åt scrollen, medan ett
+    // medvetet tryck-och-håll på handtaget fortfarande ger ett drag.
+    .activateAfterLongPress(150)
     .onStart(e => { runOnJS(onDragStart)(idx, e.absoluteY); })
     .onUpdate(e => { runOnJS(onDragMove)(e.absoluteY); })
     .onFinalize(() => { runOnJS(onDragEnd)(); }),
@@ -128,6 +137,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   // Sant när redigeringsläget fylldes från ett återställt utkast.
   const [visarUtkast, setVisarUtkast] = useState(false);
   const [editTitle, setEditTitle] = useState('');
+  const [titleFocused, setTitleFocused] = useState(false);
   const [editDesc, setEditDesc] = useState('');
   const [editInstr, setEditInstr] = useState('');
   const [editImage, setEditImage] = useState('');
@@ -919,13 +929,28 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           <Ionicons name="arrow-back" size={24} color={nyDesign ? ny.rubrikLjus : c.text} />
         </Pressable>
         {editMode ? (
-          <TextInput
-            style={[s.headerTitle, s.headerTitleInput]}
-            value={editTitle}
-            onChangeText={setEditTitle}
-            placeholder={str.detail.nameLabel}
-            placeholderTextColor={nyDesign ? ny.underrubrik : c.textFaint}
-          />
+          <View style={[s.headerTitleInput, { flex: 1, position: 'relative' }]}>
+            <TextInput
+              style={[
+                s.headerTitle,
+                s.headerTitleField,
+                // Samma fix som ingrediens-namnen: döljer HELA fältet (inte bara
+                // textfärgen) när det inte är fokuserat och har text att ersätta
+                // med overlayn — annars visar RN kvar slutet av titeln i stället
+                // för början efter man skrivit klart.
+                !titleFocused && editTitle.length > 0 && { opacity: 0 },
+              ]}
+              value={editTitle}
+              onChangeText={setEditTitle}
+              placeholder={str.detail.nameLabel}
+              placeholderTextColor={nyDesign ? ny.underrubrik : c.textFaint}
+              onFocus={() => setTitleFocused(true)}
+              onBlur={() => setTitleFocused(false)}
+            />
+            {!titleFocused && editTitle.length > 0 && (
+              <Text pointerEvents="none" numberOfLines={1} style={s.headerTitleOverlay}>{editTitle}</Text>
+            )}
+          </View>
         ) : (
           <Text style={s.headerTitle} numberOfLines={1}>{recipe.title}</Text>
         )}
@@ -1158,32 +1183,43 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                   ]}
                 >
                   <View style={s.editRow}>
-                    <TextInput
-                      ref={el => { getRowRef(idx).name = el; }}
-                      style={[s.editInput, s.editInputName]}
-                      placeholder={str.detail.ingNamePlaceholder}
-                      placeholderTextColor={c.textFaint}
-                      value={row.name}
-                      onChangeText={v => updateEditRow(idx, 'name', v)}
-                      autoCapitalize="none"
-                      autoComplete="off"
-                      autoCorrect={false}
-                      spellCheck={false}
-                      textContentType="none"
-                      importantForAutofill="no"
-                      returnKeyType="next"
-                      blurOnSubmit={false}
-                      onFocus={() => setActiveNameIdx(idx)}
-                      onBlur={() => {
-                        // Utan detta visar RN kvar det utskrollade slutet av namnet
-                        // efter fokus lämnat fältet — man ser "...kockshjärtan" i
-                        // stället för "kronärtskock...". Nollställ markören så
-                        // vyn hoppar tillbaka till början när man inte längre skriver.
-                        getRowRef(idx).name?.setNativeProps({ selection: { start: 0, end: 0 } });
-                        setTimeout(() => setActiveNameIdx(a => a === idx ? null : a), 120);
-                      }}
-                      onSubmitEditing={() => getRowRef(idx).qty?.focus()}
-                    />
+                    <View style={[s.editInput, s.editInputName, { position: 'relative' }]}>
+                      <TextInput
+                        ref={el => { getRowRef(idx).name = el; }}
+                        style={[
+                          s.editInputNameField,
+                          // Döljer TextInputen HELT (inte bara textfärgen — på vissa
+                          // enheter/plattformar rensar `color: transparent` inte
+                          // textrenderingen fullt ut, vilket gav dubbelexponerad,
+                          // suddig text ovanpå overlayn) när fältet inte är
+                          // fokuserat OCH har ett värde att visa via overlayn i
+                          // stället. RN scrollar annars TextInputen kvar till
+                          // markörens position (slutet, efter man skrivit klart)
+                          // och visar "…kockshjärtan" i stället för "kronärtskock…".
+                          // Tom (placeholder syns) lämnas orörd — annars försvinner
+                          // placeholdern med.
+                          activeNameIdx !== idx && row.name.length > 0 && { opacity: 0 },
+                        ]}
+                        placeholder={str.detail.ingNamePlaceholder}
+                        placeholderTextColor={c.textFaint}
+                        value={row.name}
+                        onChangeText={v => updateEditRow(idx, 'name', v)}
+                        autoCapitalize="none"
+                        autoComplete="off"
+                        autoCorrect={false}
+                        spellCheck={false}
+                        textContentType="none"
+                        importantForAutofill="no"
+                        returnKeyType="next"
+                        blurOnSubmit={false}
+                        onFocus={() => setActiveNameIdx(idx)}
+                        onBlur={() => setTimeout(() => setActiveNameIdx(a => a === idx ? null : a), 120)}
+                        onSubmitEditing={() => getRowRef(idx).qty?.focus()}
+                      />
+                      {activeNameIdx !== idx && row.name.length > 0 && (
+                        <Text pointerEvents="none" numberOfLines={1} style={s.editInputNameOverlay}>{row.name}</Text>
+                      )}
+                    </View>
                     <TextInput
                       ref={el => { getRowRef(idx).qty = el; }}
                       style={[s.editInput, s.editInputQty]}
@@ -1702,13 +1738,17 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   backBtn: { padding: 8 },
   // Outfit bar vikten i typsnittet — fontWeight till ger reservtypsnitt.
   headerTitle: nyD
-    ? { flex: 1, fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 20, letterSpacing: -0.3, color: ny.rubrikLjus }
-    : { flex: 1, fontSize: 18, fontWeight: '700', color: c.text },
+    ? { flex: 1, fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 18, letterSpacing: -0.3, color: ny.rubrikLjus }
+    : { flex: 1, fontSize: 17, fontWeight: '700', color: c.text },
   // Redigeringsfaltet ligger PA det morka bandet: glasyta med ljus text, annars
   // blir det en vit lapp mitt i headern.
   headerTitleInput: nyD
     ? { color: ny.rubrikLjus, borderWidth: 0, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: ny.glas }
     : { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: c.inputBg },
+  headerTitleField: { padding: 0, borderWidth: 0, backgroundColor: 'transparent' },
+  headerTitleOverlay: nyD
+    ? { position: 'absolute', left: 12, right: 12, top: 8, bottom: 8, fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 18, letterSpacing: -0.3, color: ny.rubrikLjus }
+    : { position: 'absolute', left: 10, right: 10, top: 6, bottom: 6, fontSize: 17, fontWeight: '700', color: c.text },
   transferBtn: { padding: 8 },
   scroll: { padding: 20, gap: 16 },
   heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, backgroundColor: c.surfaceSubtle },
@@ -1766,7 +1806,9 @@ const makeStyles = (c: Palette, nyD = false) => StyleSheet.create({
   editInput: { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, backgroundColor: c.inputBg },
   editInputQty: { width: 54, textAlign: 'left' },
   editInputUnit: { width: 52, textAlign: 'left' },
-  editInputName: { flex: 1, textAlign: 'left' },
+  editInputName: { flex: 1 },
+  editInputNameField: { flex: 1, padding: 0, fontSize: 14, textAlign: 'left' },
+  editInputNameOverlay: { position: 'absolute', left: 10, right: 10, top: 8, bottom: 8, fontSize: 14, color: c.text },
   editRemove: { padding: 2 },
   ingEditRowDragging: { opacity: 0.4 },
   ingEditRowDropTarget: { borderTopWidth: 2, borderTopColor: nyD ? ny.skog : c.primary },
