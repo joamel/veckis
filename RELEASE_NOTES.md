@@ -1,8 +1,8 @@
 # Handlis 2.0.0 — release notes
 
-Samlar ihop flera veckors arbete: fullständig rebrand, ny design i hela
-appen, receptimport som faktiskt fungerar tillförlitligt, och en lång rad
-buggfixar som kommit direkt ur användarfeedback.
+Samlar ihop flera veckors arbete: ny visuell identitet (logga, ikon, design
+rakt igenom appen), receptimport som faktiskt fungerar tillförlitligt, och
+en lång rad buggfixar som kommit direkt ur användarfeedback.
 
 ## Play Store — kort "Vad är nytt" (klistra in i Play Console)
 
@@ -17,13 +17,13 @@ buggfixar som kommit direkt ur användarfeedback.
 
 ---
 
-## 1. Ny branding
+## 1. Ny visuell identitet
 
-- **Nytt namn:** Veckis → **Handlis** (veckis.se var redan upptaget).
 - **Ny logga:** korg + inköpslista, i appens nya färgpalett "skog & lime"
   (mörkgrönt + limegrönt i stället för det gamla indigo/violett).
-- Ny app-ikon, splash-skärm och PWA-ikoner genererade från samma koncept.
-- **Nytt paketnamn** `com.handlis.app` (första gången det syns på Play).
+- Ny app-ikon, splash-skärm och PWA-ikoner genererade från samma koncept —
+  det här är första gången den nya loggan syns som riktig app-ikon på Play
+  (tidigare bygge hade en äldre ikon, namnet Handlis var redan på plats).
 
 ## 2. Ny design i hela appen ("skog & lime")
 
