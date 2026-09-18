@@ -699,7 +699,8 @@ export const recipes = {
     cookA11y:       'Laga nu',
     cookNow:        'Laga nu',
     transferA11y:   'Lägg i inköpslista',
-    convertUnitA11y:'Visa i svenska mått',
+    showSourceA11y: 'Visa som i källan',
+    showSwedishA11y:'Visa på svenska',
     cookClose:      'Avsluta',
     removeImage:    'Ta bort bild',
     imageLoadError: 'Kunde inte ladda bilden',
@@ -1535,7 +1536,7 @@ export const install = {
     cardBody:    'Handlis funkar redan perfekt som webbapp på Android:',
     comingSoon: {
       title: 'Google Play-appen kommer snart',
-      body:  'Vi jobbar på att få ut Handlis som riktig app i Google Play.\n              Installera webbappen nedan så funkar allt redan idag - även\n              offline.',
+      body:  'Vi jobbar på att få ut Handlis som riktig app i Google Play.\n              Installera webbappen nedan så funkar allt redan idag - även offline.',
     },
     pwa: {
       title:       'Installera som webbapp (PWA)',

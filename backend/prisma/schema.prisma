@@ -189,6 +189,12 @@ model RecipeIngredient {
   unit     String?
   category StoreCategory @default(other)
 
+  // Ingrediensnamnet exakt som KÄLLAN skrev det, satt bara när importen
+  // översatte namnet ("all-purpose flour" → "vetemjöl"). null för allt som
+  // redan var svenskt, skrevs in för hand eller importerades innan fältet
+  // fanns. Receptvyns ↔-knapp växlar mellan name och originalName.
+  originalName String?
+
   recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@index([recipeId])

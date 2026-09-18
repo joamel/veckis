@@ -6,16 +6,18 @@ import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../mi
 import { asyncHandler } from '../lib/asyncHandler';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { COMMON_INGREDIENTS } from '../lib/commonIngredients';
-import { startsWithUnit } from '../lib/stripIngredient';
+import { duglingGlobalt } from '../lib/normalizeIngredients';
 
 export const staplesRouter = Router();
 
-// Under betan (pålitliga testare, litet urval) vill vi noll friktion för att
-// nya ingredienser ska synas globalt — sätt till 1 så ingen filtrering sker.
-// Höj till 2 (kräver ≥2 DISTINKTA hushåll, se IngredientAliasHousehold i
-// schemat) efter den riktiga lanseringen, när enstaka hushålls
-// stavfel/udda varor annars skulle läcka till alla andra direkt.
-const MIN_HOUSEHOLDS_FOR_GLOBAL_SUGGESTION = 1;
+// Ett namn måste ha setts av minst så här många DISTINKTA hushåll (se
+// IngredientAliasHousehold i schemat) innan det föreslås för ANDRA hushåll.
+//
+// Höjd från 1 till 2 inför den öppna testomgången (2026-09-19). Med 1 syntes
+// varje enskilt hushålls stavfel och udda varor direkt för alla andra, vilket
+// var acceptabelt medan testarna var en handfull kända personer och inte är
+// det längre.
+const MIN_HOUSEHOLDS_FOR_GLOBAL_SUGGESTION = 2;
 
 const categoryEnum = z.nativeEnum(StoreCategory);
 
@@ -100,10 +102,11 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
   // slutar se namnet.
   const hiddenNames = new Set(hidden.map(h => h.name.toLowerCase()));
 
-  // Filtrera bort trasiga legacy-alias där en måttenhet fastnat först i namnet
-  // ("kg potatis") — de ska aldrig dyka upp som förslag. Nya alias stoppas redan
-  // i stripIngredient, det här skyddar mot rader som redan finns i DB.
-  const cleanAliases = eligibleAliases.filter(a => !startsWithUnit(a.canonical) && !hiddenNames.has(a.canonical.toLowerCase()));
+  // Filtrera bort trasiga legacy-alias där en mängd fastnat först i namnet
+  // ("kg potatis", "400g ost") — de ska aldrig dyka upp som förslag. Nya alias
+  // stoppas redan av samma predikat på skriv-sidan; det här skyddar mot rader
+  // som redan ligger i DB och mot att de två sidorna glider isär.
+  const cleanAliases = eligibleAliases.filter(a => duglingGlobalt(a.canonical) && !hiddenNames.has(a.canonical.toLowerCase()));
   const aliasNames = new Set(cleanAliases.map(a => a.canonical.toLowerCase()));
   const common = COMMON_INGREDIENTS.filter(c => !aliasNames.has(c.name.toLowerCase()) && !hiddenNames.has(c.name.toLowerCase()));
 

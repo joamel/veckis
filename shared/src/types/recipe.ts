@@ -26,6 +26,10 @@ export interface RecipeIngredient {
   quantity: number | null;
   unit: string | null;
   category: StoreCategory;
+  /** Namnet som källan skrev det, satt bara när importen översatte det till
+   *  svenska. null för allt annat. Receptvyns ↔-knapp växlar mellan name och
+   *  originalName, på samma sätt som den växlar enhet. */
+  originalName?: string | null;
 }
 
 /** Måltidstyp så flera rätter kan samsas på samma dag (frukost + middag …). */

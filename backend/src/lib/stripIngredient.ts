@@ -126,11 +126,38 @@ const UNITS = new Set([
   'can', 'cans', 'package', 'packages', 'slice', 'slices',
 ]);
 
-/** True om namnet inleds med en måttenhet följt av ett riktigt ord
- *  ("kg potatis", "dl grädde") — används för att filtrera bort trasiga alias. */
+// Ett tal: heltal, decimaltal med komma eller punkt, intervall ("3-4"), bråk
+// ("1/2") eller unicode-bråk ("½", "1¾").
+const TAL = /^(\d+(?:[.,]\d+)?(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?|\d+\/\d+|\d*\s*[½¼¾⅓⅔⅛⅜⅝⅞])$/u;
+
+// Tal och enhet hopskrivna, som sajter och OCR ofta skriver dem: "400g", "2dl",
+// "1kg". Enhetsdelen måste finnas i UNITS — annars skulle "7up" räknas som mängd.
+const TAL_MED_ENHET = /^(\d+(?:[.,]\d+)?)([a-zåäö]+)$/u;
+
+/**
+ * True om ordet är en mängdangivelse snarare än en del av varunamnet: en ren
+ * måttenhet ("kg"), ett tal ("400", "1/2", "½") eller de två hopskrivna
+ * ("400g").
+ *
+ * Talen saknades länge, och det var hela orsaken till skräpet i den globala
+ * ingredienspoolen: strippningen skalade bara bort ett ENSAMT enhetsord, så
+ * "400 g ost" och "400g ost" gick rakt igenom och blev egna globala alias.
+ */
+export function ärMängdOrd(word: string): boolean {
+  const w = word.trim().toLowerCase();
+  if (!w) return false;
+  if (UNITS.has(w) || QUANTITY_DESCRIPTORS.has(w)) return true;
+  if (TAL.test(w)) return true;
+  const fused = w.match(TAL_MED_ENHET);
+  return fused ? UNITS.has(fused[2]) : false;
+}
+
+/** True om namnet inleds med en mängd följt av ett riktigt ord ("kg potatis",
+ *  "400g ost", "2 dl grädde") — används för att filtrera bort trasiga alias.
+ *  Håll i synk med strippningen nedan: samma predikat, samma bedömning. */
 export function startsWithUnit(name: string): boolean {
   const w = name.trim().toLowerCase().split(/\s+/);
-  return w.length >= 2 && UNITS.has(w[0]);
+  return w.length >= 2 && ärMängdOrd(w[0]);
 }
 
 // Introductory approximation words
@@ -163,10 +190,12 @@ export function stripIngredient(raw: string): string {
 
   let result = words.join(' ').toLowerCase().trim();
 
-  // Strip leading quantity descriptors + stray measurement units
-  // ("klyftor vitlök" → "vitlök", "kg potatis" → "potatis")
+  // Skala bort ledande mängd: portionsord, måttenheter OCH tal, i vilken
+  // kombination som helst ("klyftor vitlök", "kg potatis", "400 g ost",
+  // "400g ost", "1/2 dl grädde"). Villkoret >= 2 gör att ett namn aldrig kan
+  // strippas till tomt.
   const resultWords = result.split(/\s+/);
-  while (resultWords.length >= 2 && (QUANTITY_DESCRIPTORS.has(resultWords[0]) || UNITS.has(resultWords[0]))) {
+  while (resultWords.length >= 2 && ärMängdOrd(resultWords[0])) {
     resultWords.shift();
   }
   result = resultWords.join(' ');
