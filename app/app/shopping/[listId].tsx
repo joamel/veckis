@@ -2778,6 +2778,21 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
       }
     }), [pending, canDelete, THRESHOLD, windowWidth, translateX, doDelete]);
 
+  // Den FAKTISKA orsaken till att checkboxen var svår att träffa: RNGH tar
+  // över pekhanteringen för hela ytan panGesture är kopplad till, och en
+  // vanlig nästlad Pressable (checkboxen, redigera-raden) kan bli av med sin
+  // touch till förmån för gestigenkännaren — även för ett stillastående tryck
+  // som aldrig blir ett svep. Gesture.Native() talar om för RNGH att en
+  // native-komponents egen touch (en Pressable) kan pågå SAMTIDIGT i samma
+  // yta, i stället för att konkurrera om den. Detta är RNGH:s dokumenterade
+  // lösning för just "nästlad Pressable inuti en Pan-svepbar rad", och löser
+  // roten till problemet i stället för att gissa på storlekar.
+  const nativeGesture = useMemo(() => Gesture.Native(), []);
+  const composedGesture = useMemo(
+    () => Gesture.Simultaneous(panGesture, nativeGesture),
+    [panGesture, nativeGesture],
+  );
+
   const rowAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
@@ -2829,7 +2844,7 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
           behåller vertikal scroll själv medan horisontella drag går till
           swipe-gesten — utan den sätter RNGH touch-action:none och all
           scroll som börjar på en rad blockeras i PWA:n. */}
-      <GestureDetector gesture={panGesture} touchAction="pan-y">
+      <GestureDetector gesture={composedGesture} touchAction="pan-y">
         <RNAnimated.View style={rowAnimStyle}>
           {/* Tryck på RADEN öppnar redigering — checkboxen ovan har en egen
               Pressable och fångar sitt tryck innan det når hit. Långtryck
@@ -2927,9 +2942,13 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // utan att texten flyttar sig märkbart — nettoeffekten är ~8px, inte 20.
   item: { flexDirection: 'row', alignItems: 'center', backgroundColor: nyD ? ny.kort : c.surface, borderRadius: nyD ? 14 : 10, paddingVertical: 14, paddingLeft: 8, paddingRight: 14, gap: 6 },
   // Riktig tryckyta (inte hitSlop) för bocken — se kommentaren där den
-  // används. 44x44 möter Apples/Googles minimimått för en touch-yta; ikonen
-  // (24px) ligger centrerad inuti, oförändrad i utseende.
-  checkboxHit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  // används. Bredd 44 möter Apples/Googles minimimått; HÖJDEN sätts INTE
+  // explicit (alignSelf: 'stretch' fyller radens egen höjd i stället) — annars
+  // blir 44 den nya minsta radhöjden och tvingar upp EN RAD I TAGET till 44px
+  // hög, vilket gjorde alla rader märkbart högre. Radens höjd (padding + text)
+  // var redan gott och väl över 44px, så det kostar ingenting att låta den
+  // bestämma. Ikonen (24px) ligger centrerad inuti, oförändrad i utseende.
+  checkboxHit: { width: 44, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
   itemChecked: { opacity: 0.55 },
   itemPending: { opacity: 0.4, backgroundColor: c.dangerTint },
   itemContent: { flex: 1 },
