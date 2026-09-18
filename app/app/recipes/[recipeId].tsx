@@ -161,7 +161,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
   // Ingredient editing
   const [editMode, setEditMode] = useState(false);
-  const [editIngredients, setEditIngredients] = useState<Array<{ name: string; quantity: string; unit: string }>>([]);
+  // originalName följer med genom redigeringen utan att kunna ändras: rättar man
+  // ett översatt namn för hand är källans rad fortfarande sann, och ↔-knappen
+  // ska inte tappa den bara för att raden rörts.
+  const [editIngredients, setEditIngredients] = useState<Array<{ name: string; quantity: string; unit: string; originalName: string | null }>>([]);
   const [saving, setSaving] = useState(false);
   const [activeUnitIdx, setActiveUnitIdx] = useState<number | null>(null);
   const [activeNameIdx, setActiveNameIdx] = useState<number | null>(null);
@@ -169,10 +172,16 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [unitByName, setUnitByName] = useState<Record<string, string>>({});
   const [defaultUnit, setDefaultUnit] = useState('');
   // Visningsval, inte sparat: EN knapp för hela receptet (inte en per rad —
-  // kändes stökigt) som växlar om importerade ingredienser med icke-svensk
-  // enhet (t.ex. "cup") visas konverterade till dl/g/msk osv. Källans råa
-  // mängd rörs aldrig — bara vad som RENDERAS växlar.
-  const [showAllConverted, setShowAllConverted] = useState(false);
+  // kändes stökigt) som växlar hela receptet mellan svenska och källans
+  // original — både enhet ("cup" ↔ "dl") och namn ("cilantro" ↔ "koriander").
+  //
+  // Svenska är default, tvärtom mot tidigare. Förut visades källans enheter
+  // först och knappen räknade om till svenska; nu översätts importen redan
+  // vid hämtningen, och då vore det bakvänt att visa "1 cup" bredvid ett
+  // svenskt namn. Källans råa mängd och namn rörs ALDRIG i databasen — bara
+  // vad som RENDERAS växlar. Svenska recept påverkas inte: convertToMetric
+  // returnerar null för dl/msk/g, och originalName är null.
+  const [visaOriginal, setVisaOriginal] = useState(false);
   type RowRef = { qty: TextInput | null; unit: TextInput | null; name: TextInput | null };
   const rowRefs = useRef<RowRef[]>([]);
   // Dra-för-att-ordna ingredienser i redigeringsläget — samma teknik som
@@ -388,7 +397,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         setEditImage('');
         setEditTags([]);
         setEditServings(4);
-        setEditIngredients([{ name: '', quantity: '', unit: '' }]);
+        setEditIngredients([{ name: '', quantity: '', unit: '', originalName: null }]);
         setEditMode(true);
         if (householdId) {
           client.getRecipes(householdId).then(rs => {
@@ -419,7 +428,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         setEditDesc(r.description ?? '');
         setEditInstr(r.instructions ?? '');
         setEditImage(r.imageUrl ?? '');
-        setEditIngredients([{ name: '', quantity: '', unit: '' }]);
+        setEditIngredients([{ name: '', quantity: '', unit: '', originalName: null }]);
         setEditMode(true);
         if (!onClose) router.setParams({ edit: undefined });
         setTimeout(() => getRowRef(0).name?.focus(), 250);
@@ -583,7 +592,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       setEditImage(draft.imageUrl);
       setEditTags(draft.tags);
       setEditServings(draft.servings ?? recipe.servings);
-      setEditIngredients(draft.ingredients);
+      setEditIngredients(draft.ingredients.map(i => ({ ...i, originalName: i.originalName ?? null })));
       setCustomTag('');
       setScaledServings(null);
       setVisarUtkast(true);
@@ -612,6 +621,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       name: i.name,
       quantity: i.quantity != null ? String(i.quantity).replace('.', ',') : '',
       unit: i.unit ?? '',
+      originalName: i.originalName ?? null,
     })));
     setEditMode(true);
   }
@@ -664,6 +674,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       name: i.name,
       quantity: i.quantity != null ? String(i.quantity).replace('.', ',') : '',
       unit: i.unit ?? '',
+      originalName: i.originalName ?? null,
     }));
     return JSON.stringify(editIngredients) !== JSON.stringify(origIngs);
   }
@@ -698,7 +709,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   useWebLeaveGuard(dirty);
 
   function addEditRow() {
-    setEditIngredients(prev => [...prev, { name: '', quantity: '', unit: '' }]);
+    setEditIngredients(prev => [...prev, { name: '', quantity: '', unit: '', originalName: null }]);
   }
 
   function updateEditRow(idx: number, field: 'name' | 'quantity' | 'unit', val: string) {
@@ -732,6 +743,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           name: r.name.trim(),
           quantity: r.quantity ? parseFloat(r.quantity.replace(',', '.')) || null : null,
           unit: r.unit.trim() || null,
+          originalName: r.originalName ?? null,
         }));
       // Nytt recept skapas FÖRST här — fram till nu har det bara funnits i state.
       if (isNew) {
@@ -1157,15 +1169,15 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 <Text style={s.sectionCount}>{str.detail.sectionCount(recipe.ingredients.length)}</Text>
               ) : null}
             </Text>
-            {!editMode && recipe.ingredients.some(i => isConvertibleUnit(i.unit)) && (
+            {!editMode && recipe.ingredients.some(i => isConvertibleUnit(i.unit) || i.originalName) && (
               <Pressable
                 style={s.ingConvertBtn}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={str.detail.convertUnitA11y}
-                onPress={() => setShowAllConverted(v => !v)}
+                accessibilityLabel={visaOriginal ? str.detail.showSwedishA11y : str.detail.showSourceA11y}
+                onPress={() => setVisaOriginal(v => !v)}
               >
-                <Ionicons name="swap-horizontal" size={18} color={showAllConverted ? ny.padYta : ny.underrubrik} />
+                <Ionicons name="swap-horizontal" size={18} color={visaOriginal ? ny.padYta : ny.underrubrik} />
               </Pressable>
             )}
           </View>
@@ -1365,8 +1377,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               <View style={s.ingCard}>
                 {recipe.ingredients.map((ing, i) => (
                   <View key={ing.id} style={[s.ingRow, i > 0 && s.ingRowBorder]}>
-                    <Text style={s.ingQty}>{formatQty(ing, scaleRatio, showAllConverted)}</Text>
-                    <Text style={s.ingName}>{ing.name}</Text>
+                    <Text style={s.ingQty}>{formatQty(ing, scaleRatio, visaOriginal)}</Text>
+                    <Text style={s.ingName}>{visaOriginal && ing.originalName ? ing.originalName : ing.name}</Text>
                   </View>
                 ))}
               </View>
@@ -1694,11 +1706,12 @@ function deduplicateIngredients(ingredients: RecipeIngredient[], scaleRatio: num
 
 
 /** Bara mängd + enhet ("300 g"), för receptvyns mängdkolumn. Tom sträng om
- *  ingrediensen saknar mängd ("salt"). */
-function formatQty(ing: { quantity: number | null; unit: string | null }, scaleRatio = 1, showConverted = false): string {
+ *  ingrediensen saknar mängd ("salt"). visaOriginal=false (default) räknar om
+ *  amerikanska enheter till svenska; true visar källans mängd orörd. */
+function formatQty(ing: { quantity: number | null; unit: string | null }, scaleRatio = 1, visaOriginal = false): string {
   let quantity = ing.quantity != null ? skalaQty(ing.quantity, scaleRatio) : null;
   let unit = ing.unit;
-  if (showConverted && quantity != null && unit) {
+  if (!visaOriginal && quantity != null && unit) {
     const converted = convertToMetric(quantity, unit);
     if (converted) { quantity = converted.quantity; unit = converted.unit; }
   }

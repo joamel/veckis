@@ -481,7 +481,7 @@ export default function RecipesScreen() {
         source: 'url_import',
         imageUrl: scraped.imageUrl,
         servings: scraped.servings,
-        ingredients: scraped.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+        ingredients: scraped.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit, originalName: i.originalName ?? null })),
       });
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
       setShowModal(false);

@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '../db';
-import { stripIngredient } from './stripIngredient';
+import { stripIngredient, ärMängdOrd, startsWithUnit } from './stripIngredient';
 import type { StoreCategory } from '@prisma/client';
 import { textUr } from './aiJson';
 import { bokförAiKostnad } from './aiCost';
@@ -103,6 +103,23 @@ export async function storeIngredientCategory(name: string, category: StoreCateg
   }).catch(() => {});
 }
 
+/**
+ * Får namnet delas med ANDRA hushåll? Hårdare krav än vad en användare får
+ * skriva i sin egen lista: ett kanoniskt varunamn får aldrig börja med en
+ * siffra, och får inte bestå av enbart en mängdangivelse.
+ *
+ * Siffer-regeln är avsiktligt absolut. Den offrar udda men äkta namn ("7up"),
+ * som fortfarande fungerar lokalt — de föreslås bara inte vidare till andra.
+ * Priset är litet jämfört med att "400g ost" och "2 ägg" sprider sig som
+ * ingrediensnamn till alla hushåll, vilket är precis vad som hände.
+ */
+export function duglingGlobalt(canonical: string): boolean {
+  const c = canonical.trim();
+  if (c.length === 0) return false;
+  if (/^\d/.test(c)) return false;
+  return !ärMängdOrd(c) && !startsWithUnit(c);
+}
+
 export async function learnIngredientAliases(
   ingredients: Array<{ name: string; category?: StoreCategory }>,
   householdId: string
@@ -115,7 +132,11 @@ export async function learnIngredientAliases(
   // precis den typen av tillväxt vi vill fånga upp.
   const pairs = ingredients
     .map(i => ({ raw: i.name.toLowerCase().trim(), canonical: stripIngredient(i.name), category: i.category ?? 'other' as StoreCategory }))
-    .filter(p => p.raw.length > 0);
+    // Andra spärren mot skräp i den globala poolen: strippningen skalar bort
+    // ledande mängder, men blir det ändå inget riktigt varunamn kvar ("400g",
+    // "2", "kg") ska raden aldrig skrivas. Filtret på läs-sidan i staples.ts
+    // fångar bara det som redan hunnit in — här slipper det in alls.
+    .filter(p => p.raw.length > 0 && duglingGlobalt(p.canonical));
 
   if (pairs.length === 0) return;
 

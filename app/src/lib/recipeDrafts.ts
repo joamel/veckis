@@ -12,7 +12,9 @@ export interface RecipeFields {
   imageUrl: string;
   servings: number | null;
   tags: string[];
-  ingredients: Array<{ name: string; quantity: string; unit: string }>;
+  // originalName kan saknas i utkast sparade före fältet fanns — därför
+  // valfritt här, och normaliserat till null när utkastet läses in.
+  ingredients: Array<{ name: string; quantity: string; unit: string; originalName?: string | null }>;
 }
 
 export type RecipeDraft = MedTid<RecipeFields>;

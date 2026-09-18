@@ -7,6 +7,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases } from '../lib/normalizeIngredients';
+import { översättIngrediensnamn } from '../lib/translateIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
 import { parseIngredientString } from '../lib/parseIngredientString';
 import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
@@ -52,6 +53,10 @@ const ingredientSchema = z.object({
   quantity: z.number().positive().nullable().default(null),
   unit: z.string().max(50).nullable().default(null),
   category: categoryEnum.default('other'),
+  // Sätts bara av importen när namnet översattes från källans språk. Skickas
+  // tillbaka oförändrat vid redigering så ↔-knappen fortsätter kunna visa
+  // originalraden även efter att receptet rättats för hand.
+  originalName: z.string().max(200).nullable().default(null),
 });
 
 const tagsSchema = z.array(z.string().min(1).max(30)).max(10);
@@ -310,12 +315,30 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, asyncHandler(as
 
   try {
     const scraped = await scrapeRecipe(body.data.url);
+
+    // Översätt INNAN stripIngredient: strippningen kan bara svenska
+    // deskriptorer, så "fresh chopped parsley" måste bli "färsk hackad
+    // persilja" först för att "hackad" ska kunna falla bort.
+    //
+    // Gäller i praktiken bara JSON-LD-grenen. AI-fallbacken (sajter utan
+    // schema.org) ombeds redan svara på svenska, så där ändrar heuristiken
+    // ingenting — vilket var den udda konsekvensen förut: ju bättre uppmärkt
+    // sajten var, desto mer engelska blev kvar i receptet.
+    const översatta = await översättIngrediensnamn(scraped.ingredients.map(i => i.name));
+
     // Ersätt källans (upphovsrättsskyddade) ingress med en färsk EGEN beskrivning.
     // Return with normalized names but quantity/unit preserved
     res.json({
       ...scraped,
       description: await freshDescription(scraped.title, scraped.ingredients),
-      ingredients: scraped.ingredients.map(i => ({ ...i, name: stripIngredient(i.name) })),
+      ingredients: scraped.ingredients.map((i, idx) => ({
+        ...i,
+        name: stripIngredient(översatta[idx]),
+        // Bara när översättningen faktiskt ändrade något — annars vore
+        // originalName en meningslös kopia av name, och ↔-knappen skulle dyka
+        // upp på rader där den inte har något att visa.
+        originalName: översatta[idx] !== i.name ? i.name : null,
+      })),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Kunde inte hämta receptet';
@@ -603,7 +626,7 @@ interface ScrapedRecipe {
   imageUrl: string | null;
   instructions: string | null;
   servings: number;
-  ingredients: Array<{ name: string; quantity: number | null; unit: string | null }>;
+  ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }>;
 }
 
 // JSON-LD recipeInstructions comes in many shapes: a plain string, an array of

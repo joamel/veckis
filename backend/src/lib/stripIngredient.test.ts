@@ -23,6 +23,31 @@ describe('stripIngredient — leading units', () => {
   });
 });
 
+describe('stripIngredient — ledande mängd', () => {
+  it('skalar bort tal + enhet, hopskrivet eller isär', () => {
+    expect(stripIngredient('400 g ost')).toBe('ost');
+    expect(stripIngredient('400g ost')).toBe('ost');
+    expect(stripIngredient('2 dl grädde')).toBe('grädde');
+    expect(stripIngredient('1/2 dl grädde')).toBe('grädde');
+    expect(stripIngredient('½ dl grädde')).toBe('grädde');
+    expect(stripIngredient('3-4 morötter')).toBe('morot');
+  });
+
+  it('skalar bort ett ensamt tal utan enhet', () => {
+    expect(stripIngredient('2 gula lökar')).toBe('gula lökar');
+  });
+
+  it('lämnar namn som bara RÅKAR innehålla siffror ifred', () => {
+    // Enhetsdelen måste vara en riktig enhet — annars vore "7up" en mängd.
+    expect(stripIngredient('7up')).toBe('7up');
+  });
+
+  it('strippar aldrig till tomt', () => {
+    expect(stripIngredient('400g')).toBe('400g');
+    expect(stripIngredient('2')).toBe('2');
+  });
+});
+
 describe('startsWithUnit', () => {
   it('flags unit-prefixed names', () => {
     expect(startsWithUnit('kg potatis')).toBe(true);
@@ -32,5 +57,11 @@ describe('startsWithUnit', () => {
     expect(startsWithUnit('potatis')).toBe(false);
     expect(startsWithUnit('grädde')).toBe(false);
     expect(startsWithUnit('kg')).toBe(false); // ensamt ord
+  });
+  it('flaggar tal-prefix — det som släppte igenom "400g ost"', () => {
+    expect(startsWithUnit('400g ost')).toBe(true);
+    expect(startsWithUnit('400 g ost')).toBe(true);
+    expect(startsWithUnit('2 ägg')).toBe(true);
+    expect(startsWithUnit('½ gurka')).toBe(true);
   });
 });
