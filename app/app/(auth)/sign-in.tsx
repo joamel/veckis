@@ -70,6 +70,15 @@ export default function SignInScreen() {
   // skapar ett NYTT (lösenordsfritt). isNewAccount avgör vilket Clerk-anrop
   // verifieringssteget kör.
   const [isNewAccount, setIsNewAccount] = useState(false);
+  // Clerk kan kräva ett ANDRA steg efter att första faktorn gått igenom, även
+  // för konton helt utan MFA: instansen har `reverification` påslagen, och en
+  // klient den inte känner igen får `client_trust_state: "pending"` och måste
+  // bekräfta med en e-postkod. Det ser ut som tvåfaktor i svaret
+  // (`needs_second_factor`) men är en enhetskontroll.
+  //
+  // Steget saknades helt här, så inloggningen tog slut mitt i: koden skickades
+  // aldrig, och kontot framstod som låst fast det var i sin ordning.
+  const [andraSteget, setAndraSteget] = useState(false);
 
   function switchMode(next: 'password' | 'email-code' | 'reset') {
     setMode(next);
@@ -77,6 +86,7 @@ export default function SignInScreen() {
     setCode('');
     setResetNewPassword('');
     setIsNewAccount(false);
+    setAndraSteget(false);
   }
 
   /** Clerk-fel för "hittade inget konto med den identifieraren". */
@@ -104,18 +114,36 @@ export default function SignInScreen() {
         // meddelandet sa "tvåstegsverifiering" utan att säga VILKEN faktor
         // Clerk ville ha, vilket är hela skillnaden mellan ett konto man kan
         // rädda själv och ett som måste rensas via Clerks backend-API.
-        const second: { strategy?: string }[] = (result as any).supportedSecondFactors ?? [];
-        const strategier = second.map(f => f?.strategy).filter(Boolean).join(', ');
+        const second: { strategy?: string; emailAddressId?: string }[] =
+          (result as any).supportedSecondFactors ?? [];
+        const epostFaktor = second.find(f => f?.strategy === 'email_code');
         reportClientError('DIAG: Email/lösen-inlogg ej complete', {
           status: result.status ?? null,
           supportedFirstFactors: (result as any).supportedFirstFactors ?? null,
           supportedSecondFactors: (result as any).supportedSecondFactors ?? null,
         });
+
+        // Andra steget med e-postkod går att slutföra — be Clerk skicka koden
+        // och visa samma kodfält som det lösenordsfria flödet använder.
+        if (result.status === 'needs_second_factor' && epostFaktor) {
+          await signIn.prepareSecondFactor(
+            epostFaktor.emailAddressId
+              ? ({ strategy: 'email_code', emailAddressId: epostFaktor.emailAddressId } as never)
+              : ({ strategy: 'email_code' } as never),
+          );
+          setAndraSteget(true);
+          setIsNewAccount(false);
+          setCode('');
+          setCodeSent(true);
+          setMode('email-code');
+          return;
+        }
+
+        const strategier = second.map(f => f?.strategy).filter(Boolean).join(', ');
         confirm({
           title: str.errors.title,
           message: result.status === 'needs_second_factor'
-            ? `Clerk kräver ett andra steg för det här kontot${strategier ? ` (${strategier})` : ''}. `
-              + 'Kan du inte slutföra det steget är kontot låst och behöver rensas i Clerk.'
+            ? `Clerk kräver ett andra steg som appen inte stödjer${strategier ? ` (${strategier})` : ''}.`
             : `Inloggningen slutfördes inte (status: ${result.status ?? 'okänd'}).`,
           buttons: [{ label: 'OK' }],
         });
@@ -183,24 +211,48 @@ export default function SignInScreen() {
       // låg kvar, och inget hände — utan att något gick att felsöka. Non-
       // complete är sällsynt men fullt möjligt (t.ex. needs_second_factor), och
       // då måste det synas vad Clerk väntar på.
-      const result = mode === 'email-code' && isNewAccount
-        ? await signUp.attemptEmailAddressVerification({ code })
-        : await signIn.attemptFirstFactor(
-          mode === 'reset'
-            ? { strategy: 'reset_password_email_code', code, password: resetNewPassword }
-            : { strategy: 'email_code', code },
-        );
+      const result = andraSteget
+        ? await signIn.attemptSecondFactor({ strategy: 'email_code', code } as never)
+        : mode === 'email-code' && isNewAccount
+          ? await signUp.attemptEmailAddressVerification({ code })
+          : await signIn.attemptFirstFactor(
+            mode === 'reset'
+              ? { strategy: 'reset_password_email_code', code, password: resetNewPassword }
+              : { strategy: 'email_code', code },
+          );
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId });
       } else {
-        const second: { strategy?: string }[] = (result as any).supportedSecondFactors ?? [];
-        const strategier = second.map(f => f?.strategy).filter(Boolean).join(', ');
+        const second: { strategy?: string; emailAddressId?: string }[] =
+          (result as any).supportedSecondFactors ?? [];
+        const epostFaktor = second.find(f => f?.strategy === 'email_code');
         reportClientError('DIAG: Kodverifiering ej complete', {
           mode,
           isNewAccount,
+          andraSteget,
           status: result.status ?? null,
           supportedSecondFactors: (result as any).supportedSecondFactors ?? null,
         });
+
+        // Även kodvägen kan landa i enhetskontrollen (se andraSteget ovan):
+        // första faktorn godkänns, och sedan vill Clerk ha en kod till.
+        if (result.status === 'needs_second_factor' && epostFaktor && !andraSteget) {
+          await signIn.prepareSecondFactor(
+            epostFaktor.emailAddressId
+              ? ({ strategy: 'email_code', emailAddressId: epostFaktor.emailAddressId } as never)
+              : ({ strategy: 'email_code' } as never),
+          );
+          setAndraSteget(true);
+          setCode('');
+          confirm({
+            title: str.signIn.buttons.sendCode,
+            message: str.signIn.helpText.codeSentTo(email),
+            buttons: [{ label: 'OK' }],
+          });
+          return;
+        }
+
+        const strategier = second.map(f => f?.strategy).filter(Boolean).join(', ');
         confirm({
           title: str.errors.title,
           message: `Verifieringen slutfördes inte (status: ${result.status ?? 'okänd'}`
