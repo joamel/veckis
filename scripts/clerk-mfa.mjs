@@ -44,12 +44,36 @@ async function anropa(sokvag, metod = 'GET') {
   return text ? JSON.parse(text) : null;
 }
 
-const users = await anropa(`/users?email_address=${encodeURIComponent(epost)}`);
-if (!Array.isArray(users) || users.length === 0) {
+// Exakt träff på adressen, PLUS Clerks luddiga sökning. Den senare finns för
+// att dubbletter sällan är exakta: samma person kan ha två konton där adresserna
+// skiljer sig på punkter, plus-tillägg eller versaler, och då hittar
+// email_address-frågan bara det ena. Två konton med "samma" adress men olika
+// user-id är annars lätt att missa och förklarar motsägelsefulla symptom.
+const exakta = await anropa(`/users?email_address=${encodeURIComponent(epost)}`);
+const lokaldel = epost.split('@')[0].split('+')[0];
+const luddiga = await anropa(`/users?query=${encodeURIComponent(lokaldel)}&limit=20`);
+
+const alla = new Map();
+for (const u of [...(exakta ?? []), ...(luddiga ?? [])]) alla.set(u.id, u);
+
+if (alla.size === 0) {
   console.error(`Hittade ingen användare med ${epost} i instansen ${instans}.`);
   console.error('Är kontot kanske i den andra instansen? Byt nyckel i så fall.');
   process.exit(2);
 }
+
+if (alla.size > 1) {
+  console.log(`\nOBS: ${alla.size} konton matchar "${lokaldel}" i ${instans}:`);
+  for (const u of alla.values()) {
+    const adresser = (u.email_addresses ?? []).map(e => e.email_address).join(', ');
+    console.log(`  ${u.id} — ${adresser}`);
+  }
+  console.log('Är fler än ett tänkt att vara samma person är det en dubblett.');
+}
+
+// Bara den exakta adressen får detaljutskriften; de luddiga är till för att
+// synliggöra dubbletter, inte för att rensas av misstag.
+const users = (exakta ?? []).length > 0 ? exakta : [...alla.values()];
 
 for (const u of users) {
   const telefonerForAndraSteg = (u.phone_numbers ?? [])
