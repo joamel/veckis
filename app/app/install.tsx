@@ -82,7 +82,7 @@ export default function InstallScreen() {
     <ScrollView contentContainerStyle={s.container}>
       <View style={s.hero}>
         <View style={s.logoCircle}>
-          <Ionicons name="checkmark" size={32} color="#fff" />
+          <Ionicons name="checkmark" size={32} color={ny.skog} />
         </View>
         <Text style={[s.title, s.brandTitle]}>{str.hero.title}</Text>
         <Text style={s.tagline}>{str.hero.tagline}</Text>
@@ -114,9 +114,9 @@ export default function InstallScreen() {
                 {str.android.pwa.body}
               </Text>
               {deferredPrompt ? (
-                <Pressable style={s.secondaryBtn} onPress={triggerPwaInstall}>
+                <Pressable style={s.primaryBtn} onPress={triggerPwaInstall}>
                   <Ionicons name="add-circle-outline" size={18} color={ny.skog} />
-                  <Text style={s.secondaryBtnText}>{str.android.pwa.install}</Text>
+                  <Text style={s.primaryBtnText}>{str.android.pwa.install}</Text>
                 </Pressable>
               ) : (
                 <Text style={s.hint}>
@@ -217,24 +217,22 @@ export default function InstallScreen() {
 }
 
 const makeStyles = (c: Palette) => StyleSheet.create({
-  container: { padding: 24, paddingBottom: 60, backgroundColor: ny.bakgrund, minHeight: '100%', alignItems: 'center' },
+  container: { padding: 24, paddingBottom: 60, backgroundColor: ny.skog, minHeight: '100%', alignItems: 'center' },
   hero: { alignItems: 'center', marginTop: 24, marginBottom: 32 },
-  logoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: ny.skog, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  logoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: ny.lime, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   title: { fontSize: 32, fontWeight: '700', color: ny.text, textAlign: 'center' },
-  brandTitle: { fontFamily: 'Outfit_700Bold', fontWeight: 'normal', color: ny.skog, fontSize: 40 },
-  tagline: { fontSize: 15, color: ny.textDampad, textAlign: 'center', marginTop: 6 },
+  brandTitle: { fontFamily: 'Outfit_700Bold', fontWeight: 'normal', color: ny.rubrikLjus, fontSize: 40 },
+  tagline: { fontSize: 15, color: ny.underrubrik, textAlign: 'center', marginTop: 6 },
   card: { backgroundColor: ny.bricka, borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2, maxWidth: 560, alignSelf: 'center', width: '100%' },
-  cardTitle: { fontSize: 18, fontWeight: '700', color: ny.text, marginBottom: 6 },
-  cardBody: { fontSize: 14, color: ny.textDampad, lineHeight: 20, marginBottom: 12 },
-  optionBox: { padding: 14, borderRadius: 12, backgroundColor: ny.ljus, borderLeftWidth: 3, borderLeftColor: ny.lime },
-  optionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  optionTitle: { fontSize: 15, fontWeight: '700', color: ny.text },
-  optionBody: { fontSize: 13, color: ny.textDampad, marginBottom: 10, lineHeight: 18 },
-  primaryBtn: { backgroundColor: ny.lime, borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4 },
+  cardTitle: { fontSize: 18, fontWeight: '700', color: ny.text, marginBottom: 6, textAlign: 'center' },
+  cardBody: { fontSize: 14, color: ny.textDampad, lineHeight: 20, marginBottom: 12, textAlign: 'center' },
+  optionBox: { padding: 14, borderRadius: 12, backgroundColor: ny.ljus, alignItems: 'center' },
+  optionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 4 },
+  optionTitle: { fontSize: 15, fontWeight: '700', color: ny.text, textAlign: 'center' },
+  optionBody: { fontSize: 13, color: ny.textDampad, marginBottom: 10, lineHeight: 18, textAlign: 'center' },
+  primaryBtn: { backgroundColor: ny.lime, borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4, width: '100%' },
   primaryBtnText: { color: ny.skog, fontSize: 15, fontWeight: '700' },
-  secondaryBtn: { backgroundColor: ny.bricka, borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4, borderWidth: 1, borderColor: ny.kontur },
-  secondaryBtnText: { color: ny.skog, fontSize: 15, fontWeight: '700' },
-  hint: { fontSize: 13, color: ny.textDampad, lineHeight: 20, fontStyle: 'italic' },
+  hint: { fontSize: 13, color: ny.textDampad, lineHeight: 20, fontStyle: 'italic', textAlign: 'center' },
   bold: { fontWeight: '700', color: ny.text, fontStyle: 'normal' },
   stepRow: { flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'flex-start' },
   stepNum: { fontSize: 14, fontWeight: '700', color: ny.skog, width: 20 },
@@ -243,5 +241,5 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   warningText: { flex: 1, fontSize: 13, color: c.warningText, lineHeight: 18 },
   body: { fontSize: 14, color: ny.textDampad, textAlign: 'center', marginTop: 8, marginBottom: 16 },
   linkBtn: { padding: 12, alignSelf: 'center' },
-  linkBtnText: { fontSize: 14, color: ny.skog, fontWeight: '600' },
+  linkBtnText: { fontSize: 14, color: ny.lime, fontWeight: '600', textDecorationLine: 'underline' },
 });
