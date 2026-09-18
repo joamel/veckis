@@ -2758,26 +2758,25 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
 
   // Memoiserad: Gesture.Pan() byggde annars om hela gest-objektet med sina
   // worklets vid varje render, inte bara vid mount.
+  //
+  // Bara vänster-svep (ta bort) finns kvar. Höger-svep till redigering blev
+  // överflödigt när ett vanligt tryck på raden öppnar redigering — två gester
+  // som gjorde samma sak, och den andra syntes bara om man svepte fel håll.
   const panGesture = useMemo(() => Gesture.Pan()
-    .enabled(!pending)
+    .enabled(!pending && canDelete)
     .activeOffsetX([-10, 10])
     .failOffsetY([-15, 15])
     .onUpdate((e) => {
-      // Vänster (om delete finns) = ta bort; höger = redigera.
-      translateX.value = canDelete ? e.translationX : Math.max(0, e.translationX);
+      translateX.value = Math.min(0, e.translationX);
     })
     .onEnd((e) => {
-      if (canDelete && (-translateX.value > THRESHOLD || e.velocityX < -800)) {
+      if (-translateX.value > THRESHOLD || e.velocityX < -800) {
         translateX.value = withSpring(-windowWidth);
         runOnJS(doDelete)();
-      } else if (translateX.value > THRESHOLD || e.velocityX > 800) {
-        // Höger → redigera (fjädra tillbaka; edit öppnar en modal).
-        translateX.value = withSpring(0);
-        runOnJS(doEdit)();
       } else {
         translateX.value = withSpring(0);
       }
-    }), [pending, canDelete, THRESHOLD, windowWidth, translateX, doDelete, doEdit]);
+    }), [pending, canDelete, THRESHOLD, windowWidth, translateX, doDelete]);
 
   const rowAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
@@ -2787,17 +2786,26 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
     opacity: interpolate(-translateX.value, [0, THRESHOLD * 0.5], [0, 1], Extrapolation.CLAMP),
   }));
 
-  const editBgStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [0, THRESHOLD * 0.5], [0, 1], Extrapolation.CLAMP),
-  }));
-
   const rowContent = (
     <>
-      {nyDesign ? (
-        <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={ny.padYta} />
-      ) : (
-        <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? c.success : c.primary} />
-      )}
+      {/* Egen tryckyta för bocken: hitSlop breddar TRÄFFYTAN till ~48px utan
+          att den synliga ikonen (24px) växer — samma mönster som ikonknapparna
+          i sidhuvudena. Bockningen är den handling man gör oftast, ofta
+          enhänt i butiken, så den ska vara lätt att träffa utan att se ut som
+          en stor knapp. */}
+      <Pressable
+        onPress={pending ? undefined : () => onToggle(row)}
+        hitSlop={12}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: item.isChecked }}
+        accessibilityLabel={item.isChecked ? str.a11y.uncheckItem(item.name) : str.a11y.checkItem(item.name)}
+      >
+        {nyDesign ? (
+          <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={ny.padYta} />
+        ) : (
+          <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? c.success : c.primary} />
+        )}
+      </Pressable>
       <View style={s.itemContent}>
         <View style={s.itemRow}>
           <Text style={[s.itemName, (item.isChecked || pending) && s.itemNameChecked]}>{capitalize(item.name)}</Text>
@@ -2814,19 +2822,21 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
       <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeDeleteBg, bgStyle]}>
         <Ionicons name="trash-outline" size={22} color="#fff" />
       </RNAnimated.View>
-      <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeEditBg, editBgStyle]}>
-        <Ionicons name="pencil" size={20} color="#fff" />
-      </RNAnimated.View>
       {/* touchAction="pan-y" (web-only, ignoreras på native): webbläsaren
           behåller vertikal scroll själv medan horisontella drag går till
           swipe-gesten — utan den sätter RNGH touch-action:none och all
           scroll som börjar på en rad blockeras i PWA:n. */}
       <GestureDetector gesture={panGesture} touchAction="pan-y">
         <RNAnimated.View style={rowAnimStyle}>
+          {/* Tryck på RADEN öppnar redigering — checkboxen ovan har en egen
+              Pressable och fångar sitt tryck innan det når hit. Långtryck
+              togs bort: det hittar ingen, och nu finns en vanlig knapp
+              i stället. */}
           <Pressable
             style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
-            onPress={pending ? undefined : () => onToggle(row)}
-            onLongPress={pending ? undefined : doEdit}
+            onPress={pending ? undefined : doEdit}
+            accessibilityRole="button"
+            accessibilityLabel={str.a11y.editItem(item.name)}
           >
             {rowContent}
           </Pressable>
@@ -2981,7 +2991,6 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // Ny design: ingen skugga — de gröntonade korten skiljer sig mot bakgrunden ändå.
   swipeRowWrapShadow: nyD ? {} : { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   swipeDeleteBg: { backgroundColor: c.danger, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
-  swipeEditBg: { backgroundColor: c.primaryBtn, justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 20 },
   browserSheet: { maxHeight: '90%' },
   browserBody: { paddingTop: 4 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
