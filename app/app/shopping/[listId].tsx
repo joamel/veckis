@@ -2788,14 +2788,17 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
 
   const rowContent = (
     <>
-      {/* Egen tryckyta för bocken: hitSlop breddar TRÄFFYTAN till ~48px utan
-          att den synliga ikonen (24px) växer — samma mönster som ikonknapparna
-          i sidhuvudena. Bockningen är den handling man gör oftast, ofta
-          enhänt i butiken, så den ska vara lätt att träffa utan att se ut som
-          en stor knapp. */}
+      {/* Egen tryckyta för bocken, med en RIKTIG (inte hitSlop-baserad) yta:
+          nästlad inuti GestureDetector-svepet är hitSlop opålitlig — RNGH tar
+          över touch-hanteringen för hela ytan och respekterar inte alltid den
+          osynliga hitSlop-utökningen, vilket gjorde att man i praktiken
+          fortfarande fick träffa ikonen exakt. En egen View med riktiga
+          mått (44x44) löser det, eftersom ytan då är på riktigt, inte bara
+          en beräknad "sloppy hit rect". Ikonen är fortfarande 24px och
+          centrerad — synligt oförändrad, bara mer luft runt den. */}
       <Pressable
         onPress={pending ? undefined : () => onToggle(row)}
-        hitSlop={12}
+        style={s.checkboxHit}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: item.isChecked }}
         accessibilityLabel={item.isChecked ? str.a11y.uncheckItem(item.name) : str.a11y.checkItem(item.name)}
@@ -2920,7 +2923,13 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   showAllChecked: { alignItems: 'center', paddingVertical: 12, marginTop: 2 },
   showAllCheckedText: { fontSize: 14, fontWeight: '600', color: c.primary },
   categoryCount: { fontSize: 11, color: c.textFaint, fontWeight: '600' },
-  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: nyD ? ny.kort : c.surface, borderRadius: nyD ? 14 : 10, padding: 14, gap: 12 },
+  // paddingLeft komprimerad (14→8) för att göra plats åt checkboxHit (44px)
+  // utan att texten flyttar sig märkbart — nettoeffekten är ~8px, inte 20.
+  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: nyD ? ny.kort : c.surface, borderRadius: nyD ? 14 : 10, paddingVertical: 14, paddingLeft: 8, paddingRight: 14, gap: 6 },
+  // Riktig tryckyta (inte hitSlop) för bocken — se kommentaren där den
+  // används. 44x44 möter Apples/Googles minimimått för en touch-yta; ikonen
+  // (24px) ligger centrerad inuti, oförändrad i utseende.
+  checkboxHit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   itemChecked: { opacity: 0.55 },
   itemPending: { opacity: 0.4, backgroundColor: c.dangerTint },
   itemContent: { flex: 1 },
