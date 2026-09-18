@@ -1529,11 +1529,10 @@ export const install = {
 
   android: {
     cardTitle:   'Android',
-    cardBody:    'Två sätt att få Handlis på din telefon:',
-    apk: {
-      title:     'Ladda hem appen (APK)',
-      body:      'Hela appen med pushnotiser. Du behöver godkänna installation\n              från okänd källa när Android frågar.',
-      download:  'Ladda hem APK',
+    cardBody:    'Handlis funkar redan perfekt som webbapp på Android:',
+    comingSoon: {
+      title: 'Google Play-appen kommer snart',
+      body:  'Vi jobbar på att få ut Handlis som riktig app i Google Play.\n              Installera webbappen nedan så funkar allt redan idag - även\n              offline.',
     },
     pwa: {
       title:       'Installera som webbapp (PWA)',
@@ -1590,15 +1589,13 @@ export const install = {
 
   fallback: {
     cardTitle:   'Använd webbappen direkt',
-    cardBody:    'På din enhet är det enklast att bara öppna webbappen. Du kan\n            också ladda ner Android-APK om du har en Android-telefon.',
-    downloadApk: 'Ladda hem Android-APK',
+    cardBody:    'På din enhet är det enklast att bara öppna webbappen. Fungerar\n            direkt i browsern, ingen installation krävs.',
   },
 
   openWebAppLink: 'Eller öppna webbappen direkt →',
-  // Visas på iOS/desktop-korten så man vet att en Android-app också finns,
+  // Visas på iOS/desktop-korten så man vet att en Android-app är på gång,
   // inte bara det plattformen råkade auto-detektera.
-  androidAlsoAvailable: 'Har du även en Android-telefon? ',
-  androidAlsoLink: 'Ladda hem Android-appen (APK)',
+  androidComingSoon: 'Har du en Android-telefon? Google Play-appen kommer snart - webbappen funkar precis lika bra redan idag.',
 };
 
 // Publik landningssida (handlis.app) — visas för utloggade webbesökare istället

@@ -21,9 +21,6 @@ import { useRouter } from 'expo-router';
 import { detectInstallTarget, isAlreadyInstalled, type InstallTarget } from '../src/lib/installDetect';
 import { install as str } from '../src/lib/svenska';
 
-// Senaste APK från EAS preview-build. Uppdatera när vi gör nya builds.
-const APK_URL = 'https://expo.dev/artifacts/eas/g2C5-p1R7zS1DLZJ-DnsqY5GGqxe_LBS-bZCZIhr424.apk';
-
 // Chromiums beforeinstallprompt-event. Sparas globalt så vi kan trigga
 // PWA-prompten på knapptryck.
 interface BeforeInstallPromptEvent extends Event {
@@ -100,15 +97,11 @@ export default function InstallScreen() {
           <View style={s.optionBox}>
             <View style={s.optionHeader}>
               <Ionicons name="logo-android" size={22} color={ny.skog} />
-              <Text style={s.optionTitle}>{str.android.apk.title}</Text>
+              <Text style={s.optionTitle}>{str.android.comingSoon.title}</Text>
             </View>
             <Text style={s.optionBody}>
-              {str.android.apk.body}
+              {str.android.comingSoon.body}
             </Text>
-            <Pressable style={s.primaryBtn} onPress={() => { window.location.href = APK_URL; }}>
-              <Ionicons name="download-outline" size={18} color={ny.skog} />
-              <Text style={s.primaryBtnText}>{str.android.apk.download}</Text>
-            </Pressable>
           </View>
 
           {target === 'android-chrome' && (
@@ -169,10 +162,7 @@ export default function InstallScreen() {
               {str.ios.step3}
             </Text>
           </View>
-          <Text style={s.hint}>
-            {str.androidAlsoAvailable}
-            <Text style={s.androidLink} onPress={() => { window.location.href = APK_URL; }}>{str.androidAlsoLink}</Text>
-          </Text>
+          <Text style={s.hint}>{str.androidComingSoon}</Text>
         </View>
       )}
 
@@ -191,10 +181,7 @@ export default function InstallScreen() {
               {str.desktop.hintPrefix}<Ionicons name="download-outline" size={16} color={ny.skog} />{str.desktop.hintMiddle}<Text style={s.bold}>"{str.desktop.hintBold}"</Text>{str.desktop.hintSuffix}
             </Text>
           )}
-          <Text style={s.hint}>
-            {str.androidAlsoAvailable}
-            <Text style={s.androidLink} onPress={() => { window.location.href = APK_URL; }}>{str.androidAlsoLink}</Text>
-          </Text>
+          <Text style={s.hint}>{str.androidComingSoon}</Text>
         </View>
       )}
 
@@ -208,10 +195,7 @@ export default function InstallScreen() {
           <Text style={s.hint}>
             {str.unsupportedDesktop.hintPrefix}<Text style={s.bold}>{str.unsupportedDesktop.hintChrome}</Text>{str.unsupportedDesktop.hintComma}<Text style={s.bold}>{str.unsupportedDesktop.hintEdge}</Text>{str.unsupportedDesktop.hintOr}<Text style={s.bold}>{str.unsupportedDesktop.hintBrave}</Text>{str.unsupportedDesktop.hintSuffix}
           </Text>
-          <Text style={s.hint}>
-            {str.androidAlsoAvailable}
-            <Text style={s.androidLink} onPress={() => { window.location.href = APK_URL; }}>{str.androidAlsoLink}</Text>
-          </Text>
+          <Text style={s.hint}>{str.androidComingSoon}</Text>
         </View>
       )}
 
@@ -222,10 +206,6 @@ export default function InstallScreen() {
           <Text style={s.cardBody}>
             {str.fallback.cardBody}
           </Text>
-          <Pressable style={s.secondaryBtn} onPress={() => { window.location.href = APK_URL; }}>
-            <Ionicons name="logo-android" size={18} color={ny.skog} />
-            <Text style={s.secondaryBtnText}>{str.fallback.downloadApk}</Text>
-          </Pressable>
         </View>
       )}
 
@@ -237,16 +217,16 @@ export default function InstallScreen() {
 }
 
 const makeStyles = (c: Palette) => StyleSheet.create({
-  container: { padding: 24, paddingBottom: 60, backgroundColor: ny.bakgrund, minHeight: '100%' },
+  container: { padding: 24, paddingBottom: 60, backgroundColor: ny.bakgrund, minHeight: '100%', alignItems: 'center' },
   hero: { alignItems: 'center', marginTop: 24, marginBottom: 32 },
   logoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: ny.skog, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   title: { fontSize: 32, fontWeight: '700', color: ny.text, textAlign: 'center' },
   brandTitle: { fontFamily: 'Outfit_700Bold', fontWeight: 'normal', color: ny.skog, fontSize: 40 },
   tagline: { fontSize: 15, color: ny.textDampad, textAlign: 'center', marginTop: 6 },
-  card: { backgroundColor: ny.ljus, borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2, maxWidth: 560, alignSelf: 'stretch', width: '100%' },
+  card: { backgroundColor: ny.bricka, borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2, maxWidth: 560, alignSelf: 'center', width: '100%' },
   cardTitle: { fontSize: 18, fontWeight: '700', color: ny.text, marginBottom: 6 },
   cardBody: { fontSize: 14, color: ny.textDampad, lineHeight: 20, marginBottom: 12 },
-  optionBox: { padding: 14, borderRadius: 12, backgroundColor: ny.bricka, borderLeftWidth: 3, borderLeftColor: ny.lime },
+  optionBox: { padding: 14, borderRadius: 12, backgroundColor: ny.ljus, borderLeftWidth: 3, borderLeftColor: ny.lime },
   optionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   optionTitle: { fontSize: 15, fontWeight: '700', color: ny.text },
   optionBody: { fontSize: 13, color: ny.textDampad, marginBottom: 10, lineHeight: 18 },
@@ -256,7 +236,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   secondaryBtnText: { color: ny.skog, fontSize: 15, fontWeight: '700' },
   hint: { fontSize: 13, color: ny.textDampad, lineHeight: 20, fontStyle: 'italic' },
   bold: { fontWeight: '700', color: ny.text, fontStyle: 'normal' },
-  androidLink: { fontWeight: '700', color: ny.skog, fontStyle: 'normal', textDecorationLine: 'underline' },
   stepRow: { flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'flex-start' },
   stepNum: { fontSize: 14, fontWeight: '700', color: ny.skog, width: 20 },
   stepText: { flex: 1, fontSize: 14, color: ny.textDampad, lineHeight: 20 },
