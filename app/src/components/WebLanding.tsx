@@ -3,34 +3,42 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensio
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { landing as str } from '../lib/svenska';
+import { nyLjus as ny, nyFont } from '../lib/nyDesign';
 
 // Publik landningssida på handlis.app. Renderas bara på webben för utloggade
 // besökare (se app/index.tsx + NavigationGuard). Marknadsförings-front +
 // uppfyller Googles OAuth-verifiering ("home page must be public + explain the
-// app"). Fast varumärkespalett (grön/terrakotta) oberoende av besökarens tema
-// så sidan alltid ser ut som Handlis.
+// app"). Fast varumärkespalett — alltid LJUSA "skog & lime" (samma som
+// appen), oberoende av besökarens tema, så sidan alltid ser ut som Handlis.
 const LOGO = require('../../assets/icon.png');
 const BOARD = require('../../assets/koncept-board.webp'); // krittavle-illustration (1536x850, 3 boxar)
 const BOARD_RATIO = 1536 / 850;
 
+// Alias in på appens egen "skog & lime"-palett (nyDesign.ts) i stället för
+// en egen varumärkespalett — landningssidan såg tidigare ut som den GAMLA
+// varma grön/terrakotta-designen, helt frånkopplad från hur appen faktiskt
+// ser ut idag.
 const BRAND = {
-  greenDark: '#2f5340',
-  green:     '#4e7a5e',
-  terra:     '#b96a45',
-  terraDark: '#a55a37',
-  creme:     '#faf8f3',
-  beige:     '#eed7c5',
-  card:      '#ffffff',
-  ink:       '#292524',
-  inkMuted:  '#57534e',
-  light:     '#f1efec',
-  lightMute: '#cdd8ce',
-  line:      '#e7e1d6',
-  slate:     '#1c1c1c',
-  chalk:     '#f2ede1',
-  chalkMute: '#a9b6a5',
-  chalkTerra:'#e6c9a8',
+  greenDark: ny.skog,
+  green:     ny.skog,
+  terra:     ny.lime,
+  terraDark: ny.lime,
+  creme:     ny.bakgrund,
+  beige:     ny.bricka,
+  card:      ny.ljus,
+  ink:       ny.text,
+  inkMuted:  ny.textDampad,
+  light:     ny.rubrikLjus,
+  lightMute: ny.underrubrik,
+  line:      ny.kontur,
+  slate:     ny.skog,
+  chalk:     ny.rubrikLjus,
+  chalkMute: ny.underrubrik,
+  chalkTerra:ny.lime,
 };
+// Text OVANPÅ lime (knappar, aktiv punkt) ska vara mörkgrön, inte vit —
+// lime är för ljust för att bära vit text läsbart.
+const ON_LIME = ny.skog;
 
 export function WebLanding() {
   const router = useRouter();
@@ -192,40 +200,40 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   navInner: { width: '100%', maxWidth: 1040, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   navLogo: { width: 34, height: 34, borderRadius: 9 },
-  navName: { fontSize: 22, fontFamily: 'Baloo2', color: BRAND.greenDark, letterSpacing: -0.3 },
+  navName: { fontSize: 22, fontFamily: nyFont.fet, fontWeight: 'normal', color: BRAND.greenDark, letterSpacing: -0.3 },
   navSignIn: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999, backgroundColor: BRAND.green },
   navSignInText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   hero: { backgroundColor: BRAND.greenDark, paddingHorizontal: 20, paddingVertical: narrow ? 48 : 80 },
   heroInner: { width: '100%', maxWidth: 780, alignSelf: 'center', alignItems: 'center' },
   heroLogo: { width: 96, height: 96, borderRadius: 22, marginBottom: 24 },
-  heroTitle: { fontSize: narrow ? 30 : 44, lineHeight: narrow ? 38 : 52, fontWeight: '800', color: '#fff', textAlign: 'center', letterSpacing: -0.6, maxWidth: 640 },
+  heroTitle: { fontSize: narrow ? 30 : 44, lineHeight: narrow ? 38 : 52, fontFamily: nyFont.fet, fontWeight: 'normal', color: '#fff', textAlign: 'center', letterSpacing: -0.6, maxWidth: 640 },
   heroSubtitle: { fontSize: narrow ? 16 : 18, lineHeight: narrow ? 24 : 28, color: BRAND.lightMute, textAlign: 'center', marginTop: 18, maxWidth: 560 },
   heroCtas: { flexDirection: narrow ? 'column' : 'row', gap: 12, marginTop: 32, alignItems: 'center', alignSelf: 'stretch', justifyContent: 'center' },
   ctaPrimary: { backgroundColor: BRAND.terra, paddingHorizontal: 28, paddingVertical: 15, borderRadius: 12, alignItems: 'center', minWidth: narrow ? '100%' : 200 },
-  ctaPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  ctaPrimaryText: { color: ON_LIME, fontSize: 16, fontWeight: '800' },
   ctaSecondary: { paddingHorizontal: 28, paddingVertical: 15, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', minWidth: narrow ? '100%' : 180 },
   ctaSecondaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   section: { paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72, backgroundColor: BRAND.creme },
   sectionInner: { width: '100%', maxWidth: 1040, alignSelf: 'center' },
-  sectionHeading: { fontSize: narrow ? 24 : 32, fontWeight: '800', color: BRAND.greenDark, textAlign: 'center', letterSpacing: -0.4, marginBottom: narrow ? 28 : 44 },
+  sectionHeading: { fontSize: narrow ? 24 : 32, fontFamily: nyFont.fet, fontWeight: 'normal', color: BRAND.greenDark, textAlign: 'center', letterSpacing: -0.4, marginBottom: narrow ? 28 : 44 },
 
   featureGrid: { flexDirection: narrow ? 'column' : 'row', gap: 20, justifyContent: 'center' },
   featureCard: { flex: narrow ? undefined : 1, backgroundColor: BRAND.card, borderRadius: 18, padding: 26, borderWidth: 1, borderColor: BRAND.line },
-  featureTitle: { fontSize: 19, fontWeight: '800', color: BRAND.terraDark, marginBottom: 10 },
+  featureTitle: { fontSize: 19, fontWeight: '800', color: BRAND.greenDark, marginBottom: 10 },
   featureBody: { fontSize: 15, lineHeight: 23, color: BRAND.inkMuted },
 
-  // Krittavla-sektion (ljus beige bakgrund så den svarta tavlan blir ett kort)
+  // Krittavla-sektion (ljusgrön bricka-bakgrund så den svarta tavlan blir ett kort)
   board: { backgroundColor: BRAND.beige, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72 },
   boardInner: { width: '100%', maxWidth: 1000, alignSelf: 'center', alignItems: 'center' },
-  boardHeading: { fontSize: narrow ? 24 : 32, fontWeight: '800', color: BRAND.greenDark, textAlign: 'center', letterSpacing: -0.2 },
+  boardHeading: { fontSize: narrow ? 24 : 32, fontFamily: nyFont.fet, fontWeight: 'normal', color: BRAND.greenDark, textAlign: 'center', letterSpacing: -0.2 },
   boardUnderline: { width: 90, height: 3, borderRadius: 2, backgroundColor: BRAND.terra, marginTop: 14, marginBottom: narrow ? 26 : 36 },
   boardImg: { width: '100%', maxWidth: 960, aspectRatio: BOARD_RATIO, borderRadius: 14, alignSelf: 'center' },
   boardCaption: { fontSize: narrow ? 15 : 16, lineHeight: 24, color: BRAND.inkMuted, textAlign: 'center', marginTop: narrow ? 22 : 30, maxWidth: 560 },
   pagerOuter: { width: '100%', maxWidth: 380, alignSelf: 'center' },
   pagerWrap: { width: '100%', borderRadius: 14, overflow: 'hidden', position: 'relative' },
-  pagerNav: { position: 'absolute', top: '50%', marginTop: -21, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1.5, borderColor: 'rgba(230,201,168,0.6)', alignItems: 'center', justifyContent: 'center' },
+  pagerNav: { position: 'absolute', top: '50%', marginTop: -21, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1.5, borderColor: 'rgba(205,230,107,0.6)', alignItems: 'center', justifyContent: 'center' },
   pagerPrev: { left: 6 },
   pagerNext: { right: 6 },
   dots: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 16 },
@@ -234,7 +242,7 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
 
   ctaBand: { backgroundColor: BRAND.green, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 64 },
   ctaBandInner: { width: '100%', maxWidth: 720, alignSelf: 'center', alignItems: 'center' },
-  ctaBandHeading: { fontSize: narrow ? 24 : 30, fontWeight: '800', color: '#fff', textAlign: 'center', letterSpacing: -0.4 },
+  ctaBandHeading: { fontSize: narrow ? 24 : 30, fontFamily: nyFont.fet, fontWeight: 'normal', color: '#fff', textAlign: 'center', letterSpacing: -0.4 },
   ctaBandBody: { fontSize: 16, color: BRAND.lightMute, textAlign: 'center', marginTop: 12, marginBottom: 28 },
   ctaBandBtn: { backgroundColor: BRAND.terra, paddingHorizontal: 34, paddingVertical: 16, borderRadius: 12, alignItems: 'center', minWidth: narrow ? '100%' : 220 },
 

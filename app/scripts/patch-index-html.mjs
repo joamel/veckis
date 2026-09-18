@@ -26,7 +26,7 @@ const META = `
     <link rel="canonical" href="${SITE}/" />
     <meta name="robots" content="index, follow" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#4e7a5e" />
+    <meta name="theme-color" content="#1d3b2e" />
     <meta name="application-name" content="Handlis" />
     <link rel="icon" href="/favicon.png" sizes="48x48" />
     <link rel="icon" href="/icon-192.png" sizes="192x192" />
@@ -130,13 +130,13 @@ const META = `
          veckorna förbi med momentum på web — native pagar en sida i taget). */
       [data-weekpage] { scroll-snap-align: start; scroll-snap-stop: always; }
       /* GDPR-cookiebanner (varumärkesgrön, fast nederkant). */
-      #cookie-banner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 99999; background: #2f5340; color: #f1efec; box-shadow: 0 -2px 14px rgba(0,0,0,0.28); }
+      #cookie-banner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 99999; background: #1d3b2e; color: #f1f3ec; box-shadow: 0 -2px 14px rgba(0,0,0,0.28); }
       #cookie-banner .cb-inner { max-width: 900px; margin: 0 auto; padding: 14px 18px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: center; }
       #cookie-banner .cb-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13.5px; line-height: 1.5; flex: 1; min-width: 220px; }
       #cookie-banner .cb-actions { display: flex; gap: 10px; }
       #cookie-banner button { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 600; border-radius: 8px; padding: 9px 18px; cursor: pointer; border: none; }
-      #cookie-banner .cb-accept { background: #b96a45; color: #fff; }
-      #cookie-banner .cb-decline { background: transparent; color: #cdd8ce; border: 1px solid rgba(255,255,255,0.3); }
+      #cookie-banner .cb-accept { background: #cde66b; color: #1d3b2e; }
+      #cookie-banner .cb-decline { background: transparent; color: #9fbfa9; border: 1px solid rgba(255,255,255,0.3); }
     </style>
     <script>
       // SW-registrering + version-banner. När en ny SW tar över sätter vi

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../lib/theme';
+import type { NyPalett } from '../lib/nyDesign';
 // "Ny version tillgänglig"-hantering.
 // - Web (PWA): triggas av SW:s controllerchange-/updatefound-event. Kräver
 //   fortsatt ett klick (en sidladdning är billig/förväntad UX på webben).
@@ -18,9 +19,9 @@ import * as Updates from 'expo-updates';
 import { components as str, common } from '../lib/svenska';
 
 function WebVersionBanner() {
-  const { colors: c } = useTheme();
+  const { colors: c, ny } = useTheme();
   const insets = useSafeAreaInsets();
-  const s = useMemo(() => makeStyles(c, insets.top), [c, insets.top]);
+  const s = useMemo(() => makeStyles(c, ny, insets.top), [c, ny, insets.top]);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -36,13 +37,13 @@ function WebVersionBanner() {
   if (!visible) return null;
   return (
     <View style={s.banner}>
-      <Ionicons name="sparkles-outline" size={16} color="#fff" />
+      <Ionicons name="sparkles-outline" size={16} color={ny.lime} />
       <Text style={s.text}>{str.versionBanner.webText}</Text>
       <Pressable style={s.btn} onPress={() => window.location.reload()}>
         <Text style={s.btnText}>{str.versionBanner.webAction}</Text>
       </Pressable>
       <Pressable onPress={() => setVisible(false)} hitSlop={8} accessibilityLabel={common.actions.close}>
-        <Ionicons name="close" size={16} color={c.accent200} />
+        <Ionicons name="close" size={16} color={ny.underrubrik} />
       </Pressable>
     </View>
   );
@@ -68,18 +69,18 @@ export function VersionBanner() {
   return <NativeAutoUpdate />;
 }
 
-const makeStyles = (c: Palette, insetTop: number) => StyleSheet.create({
+const makeStyles = (c: Palette, ny: NyPalett, insetTop: number) => StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: c.accent,
+    backgroundColor: ny.skog,
     paddingHorizontal: 14,
     paddingTop: insetTop + 10,
     paddingBottom: 10,
     zIndex: 9999,
   },
-  text: { flex: 1, color: '#fff', fontSize: 13, fontWeight: '600' },
-  btn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
-  btnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  text: { flex: 1, color: ny.rubrikLjus, fontSize: 13, fontWeight: '600' },
+  btn: { backgroundColor: ny.lime, borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
+  btnText: { color: ny.skog, fontSize: 13, fontWeight: '700' },
 });

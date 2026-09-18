@@ -1595,6 +1595,10 @@ export const install = {
   },
 
   openWebAppLink: 'Eller öppna webbappen direkt →',
+  // Visas på iOS/desktop-korten så man vet att en Android-app också finns,
+  // inte bara det plattformen råkade auto-detektera.
+  androidAlsoAvailable: 'Har du även en Android-telefon? ',
+  androidAlsoLink: 'Ladda hem Android-appen (APK)',
 };
 
 // Publik landningssida (handlis.app) — visas för utloggade webbesökare istället

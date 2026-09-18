@@ -163,6 +163,10 @@ export default function InstallScreen() {
               {str.ios.step3}
             </Text>
           </View>
+          <Text style={s.hint}>
+            {str.androidAlsoAvailable}
+            <Text style={s.androidLink} onPress={() => { window.location.href = APK_URL; }}>{str.androidAlsoLink}</Text>
+          </Text>
         </View>
       )}
 
@@ -181,6 +185,10 @@ export default function InstallScreen() {
               {str.desktop.hintPrefix}<Ionicons name="download-outline" size={16} color={c.primary} />{str.desktop.hintMiddle}<Text style={s.bold}>"{str.desktop.hintBold}"</Text>{str.desktop.hintSuffix}
             </Text>
           )}
+          <Text style={s.hint}>
+            {str.androidAlsoAvailable}
+            <Text style={s.androidLink} onPress={() => { window.location.href = APK_URL; }}>{str.androidAlsoLink}</Text>
+          </Text>
         </View>
       )}
 
@@ -193,6 +201,10 @@ export default function InstallScreen() {
           </Text>
           <Text style={s.hint}>
             {str.unsupportedDesktop.hintPrefix}<Text style={s.bold}>{str.unsupportedDesktop.hintChrome}</Text>{str.unsupportedDesktop.hintComma}<Text style={s.bold}>{str.unsupportedDesktop.hintEdge}</Text>{str.unsupportedDesktop.hintOr}<Text style={s.bold}>{str.unsupportedDesktop.hintBrave}</Text>{str.unsupportedDesktop.hintSuffix}
+          </Text>
+          <Text style={s.hint}>
+            {str.androidAlsoAvailable}
+            <Text style={s.androidLink} onPress={() => { window.location.href = APK_URL; }}>{str.androidAlsoLink}</Text>
           </Text>
         </View>
       )}
@@ -223,7 +235,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   hero: { alignItems: 'center', marginTop: 24, marginBottom: 32 },
   logoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   title: { fontSize: 32, fontWeight: '700', color: c.text, textAlign: 'center' },
-  brandTitle: { fontFamily: 'Baloo2', fontWeight: 'normal', color: c.primary, fontSize: 40 },
+  brandTitle: { fontFamily: 'Outfit_700Bold', fontWeight: 'normal', color: c.primary, fontSize: 40 },
   tagline: { fontSize: 15, color: c.textMuted, textAlign: 'center', marginTop: 6 },
   card: { backgroundColor: c.surface, borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2, maxWidth: 560, alignSelf: 'stretch', width: '100%' },
   cardTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 6 },
@@ -238,6 +250,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   secondaryBtnText: { color: c.accent, fontSize: 15, fontWeight: '700' },
   hint: { fontSize: 13, color: c.textMuted, lineHeight: 20, fontStyle: 'italic' },
   bold: { fontWeight: '700', color: c.text, fontStyle: 'normal' },
+  androidLink: { fontWeight: '700', color: c.accent, fontStyle: 'normal', textDecorationLine: 'underline' },
   stepRow: { flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'flex-start' },
   stepNum: { fontSize: 14, fontWeight: '700', color: c.accent, width: 20 },
   stepText: { flex: 1, fontSize: 14, color: c.textSecondary, lineHeight: 20 },
