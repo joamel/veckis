@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTheme } from '../src/context/ThemeContext';
 import type { Palette } from '../src/lib/theme';
+import { nyLjus as ny } from '../src/lib/nyDesign';
 // Publik landningssida för installation: APK-nedladdning för Android,
 // PWA-install-prompt där browsern stödjer det, manuell instruktion för
 // iOS Safari. Detekterar plattform via UA och visar bara det som är
@@ -8,6 +9,11 @@ import type { Palette } from '../src/lib/theme';
 //
 // Inte auth-skyddad (NavigationGuard hoppar över /install). Användare
 // hamnar här via en delad länk: https://handlis.app/install
+//
+// Fast varumärkespalett (skog & lime, samma som WebLanding/nyDesign),
+// oberoende av besökarens tema — precis som landningssidan ska den här
+// sidan alltid se ut som Handlis. c/theme.ts används bara kvar för
+// varnings-tonerna (warningTint/warningText), som inte är kärn-brand.
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -64,7 +70,7 @@ export default function InstallScreen() {
     return (
       <View style={s.container}>
         <View style={s.card}>
-          <Ionicons name="checkmark-circle" size={56} color={c.success} />
+          <Ionicons name="checkmark-circle" size={56} color={ny.skog} />
           <Text style={s.title}>{str.installed.title}</Text>
           <Text style={s.body}>{str.installed.body}</Text>
           <Pressable style={s.primaryBtn} onPress={() => router.replace('/')}>
@@ -93,14 +99,14 @@ export default function InstallScreen() {
 
           <View style={s.optionBox}>
             <View style={s.optionHeader}>
-              <Ionicons name="logo-android" size={22} color={c.success} />
+              <Ionicons name="logo-android" size={22} color={ny.skog} />
               <Text style={s.optionTitle}>{str.android.apk.title}</Text>
             </View>
             <Text style={s.optionBody}>
               {str.android.apk.body}
             </Text>
             <Pressable style={s.primaryBtn} onPress={() => { window.location.href = APK_URL; }}>
-              <Ionicons name="download-outline" size={18} color="#fff" />
+              <Ionicons name="download-outline" size={18} color={ny.skog} />
               <Text style={s.primaryBtnText}>{str.android.apk.download}</Text>
             </Pressable>
           </View>
@@ -108,7 +114,7 @@ export default function InstallScreen() {
           {target === 'android-chrome' && (
             <View style={[s.optionBox, { marginTop: 12 }]}>
               <View style={s.optionHeader}>
-                <Ionicons name="globe-outline" size={22} color={c.accent} />
+                <Ionicons name="globe-outline" size={22} color={ny.skog} />
                 <Text style={s.optionTitle}>{str.android.pwa.title}</Text>
               </View>
               <Text style={s.optionBody}>
@@ -116,7 +122,7 @@ export default function InstallScreen() {
               </Text>
               {deferredPrompt ? (
                 <Pressable style={s.secondaryBtn} onPress={triggerPwaInstall}>
-                  <Ionicons name="add-circle-outline" size={18} color={c.accent} />
+                  <Ionicons name="add-circle-outline" size={18} color={ny.skog} />
                   <Text style={s.secondaryBtnText}>{str.android.pwa.install}</Text>
                 </Pressable>
               ) : (
@@ -147,7 +153,7 @@ export default function InstallScreen() {
           <View style={s.stepRow}>
             <Text style={s.stepNum}>1.</Text>
             <Text style={s.stepText}>
-              {str.ios.step1Prefix}<Ionicons name="share-outline" size={18} color={c.primary} />{' '}
+              {str.ios.step1Prefix}<Ionicons name="share-outline" size={18} color={ny.skog} />{' '}
               <Text style={s.bold}>{str.ios.step1Bold}</Text>{str.ios.step1Suffix}
             </Text>
           </View>
@@ -177,12 +183,12 @@ export default function InstallScreen() {
           <Text style={s.cardBody}>{str.desktop.cardBody}</Text>
           {deferredPrompt ? (
             <Pressable style={s.primaryBtn} onPress={triggerPwaInstall}>
-              <Ionicons name="desktop-outline" size={18} color="#fff" />
+              <Ionicons name="desktop-outline" size={18} color={ny.skog} />
               <Text style={s.primaryBtnText}>{str.desktop.install}</Text>
             </Pressable>
           ) : (
             <Text style={s.hint}>
-              {str.desktop.hintPrefix}<Ionicons name="download-outline" size={16} color={c.primary} />{str.desktop.hintMiddle}<Text style={s.bold}>"{str.desktop.hintBold}"</Text>{str.desktop.hintSuffix}
+              {str.desktop.hintPrefix}<Ionicons name="download-outline" size={16} color={ny.skog} />{str.desktop.hintMiddle}<Text style={s.bold}>"{str.desktop.hintBold}"</Text>{str.desktop.hintSuffix}
             </Text>
           )}
           <Text style={s.hint}>
@@ -217,7 +223,7 @@ export default function InstallScreen() {
             {str.fallback.cardBody}
           </Text>
           <Pressable style={s.secondaryBtn} onPress={() => { window.location.href = APK_URL; }}>
-            <Ionicons name="logo-android" size={18} color={c.accent} />
+            <Ionicons name="logo-android" size={18} color={ny.skog} />
             <Text style={s.secondaryBtnText}>{str.fallback.downloadApk}</Text>
           </Pressable>
         </View>
@@ -231,32 +237,32 @@ export default function InstallScreen() {
 }
 
 const makeStyles = (c: Palette) => StyleSheet.create({
-  container: { padding: 24, paddingBottom: 60, backgroundColor: c.accentTint, minHeight: '100%' },
+  container: { padding: 24, paddingBottom: 60, backgroundColor: ny.bakgrund, minHeight: '100%' },
   hero: { alignItems: 'center', marginTop: 24, marginBottom: 32 },
-  logoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  title: { fontSize: 32, fontWeight: '700', color: c.text, textAlign: 'center' },
-  brandTitle: { fontFamily: 'Outfit_700Bold', fontWeight: 'normal', color: c.primary, fontSize: 40 },
-  tagline: { fontSize: 15, color: c.textMuted, textAlign: 'center', marginTop: 6 },
-  card: { backgroundColor: c.surface, borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2, maxWidth: 560, alignSelf: 'stretch', width: '100%' },
-  cardTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 6 },
-  cardBody: { fontSize: 14, color: c.textSecondary, lineHeight: 20, marginBottom: 12 },
-  optionBox: { padding: 14, borderRadius: 12, backgroundColor: c.background, borderLeftWidth: 3, borderLeftColor: c.accent300 },
+  logoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: ny.skog, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  title: { fontSize: 32, fontWeight: '700', color: ny.text, textAlign: 'center' },
+  brandTitle: { fontFamily: 'Outfit_700Bold', fontWeight: 'normal', color: ny.skog, fontSize: 40 },
+  tagline: { fontSize: 15, color: ny.textDampad, textAlign: 'center', marginTop: 6 },
+  card: { backgroundColor: ny.ljus, borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2, maxWidth: 560, alignSelf: 'stretch', width: '100%' },
+  cardTitle: { fontSize: 18, fontWeight: '700', color: ny.text, marginBottom: 6 },
+  cardBody: { fontSize: 14, color: ny.textDampad, lineHeight: 20, marginBottom: 12 },
+  optionBox: { padding: 14, borderRadius: 12, backgroundColor: ny.bricka, borderLeftWidth: 3, borderLeftColor: ny.lime },
   optionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  optionTitle: { fontSize: 15, fontWeight: '700', color: c.text },
-  optionBody: { fontSize: 13, color: c.textMuted, marginBottom: 10, lineHeight: 18 },
-  primaryBtn: { backgroundColor: c.accent, borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4 },
-  primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  secondaryBtn: { backgroundColor: c.accentTint, borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4, borderWidth: 1, borderColor: c.accent300 },
-  secondaryBtnText: { color: c.accent, fontSize: 15, fontWeight: '700' },
-  hint: { fontSize: 13, color: c.textMuted, lineHeight: 20, fontStyle: 'italic' },
-  bold: { fontWeight: '700', color: c.text, fontStyle: 'normal' },
-  androidLink: { fontWeight: '700', color: c.accent, fontStyle: 'normal', textDecorationLine: 'underline' },
+  optionTitle: { fontSize: 15, fontWeight: '700', color: ny.text },
+  optionBody: { fontSize: 13, color: ny.textDampad, marginBottom: 10, lineHeight: 18 },
+  primaryBtn: { backgroundColor: ny.lime, borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4 },
+  primaryBtnText: { color: ny.skog, fontSize: 15, fontWeight: '700' },
+  secondaryBtn: { backgroundColor: ny.bricka, borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4, borderWidth: 1, borderColor: ny.kontur },
+  secondaryBtnText: { color: ny.skog, fontSize: 15, fontWeight: '700' },
+  hint: { fontSize: 13, color: ny.textDampad, lineHeight: 20, fontStyle: 'italic' },
+  bold: { fontWeight: '700', color: ny.text, fontStyle: 'normal' },
+  androidLink: { fontWeight: '700', color: ny.skog, fontStyle: 'normal', textDecorationLine: 'underline' },
   stepRow: { flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'flex-start' },
-  stepNum: { fontSize: 14, fontWeight: '700', color: c.accent, width: 20 },
-  stepText: { flex: 1, fontSize: 14, color: c.textSecondary, lineHeight: 20 },
+  stepNum: { fontSize: 14, fontWeight: '700', color: ny.skog, width: 20 },
+  stepText: { flex: 1, fontSize: 14, color: ny.textDampad, lineHeight: 20 },
   warningBox: { flexDirection: 'row', gap: 8, padding: 10, borderRadius: 8, backgroundColor: c.warningTint, alignItems: 'flex-start', marginBottom: 12 },
   warningText: { flex: 1, fontSize: 13, color: c.warningText, lineHeight: 18 },
-  body: { fontSize: 14, color: c.textSecondary, textAlign: 'center', marginTop: 8, marginBottom: 16 },
+  body: { fontSize: 14, color: ny.textDampad, textAlign: 'center', marginTop: 8, marginBottom: 16 },
   linkBtn: { padding: 12, alignSelf: 'center' },
-  linkBtnText: { fontSize: 14, color: c.accent, fontWeight: '600' },
+  linkBtnText: { fontSize: 14, color: ny.skog, fontWeight: '600' },
 });
