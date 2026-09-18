@@ -64,6 +64,18 @@ for (const u of users) {
   console.log(`backup_code_enabled:${u.backup_code_enabled}`);
   console.log(`telefon som 2:a steg: ${telefonerForAndraSteg.join(', ') || '—'}`);
   console.log(`lösenord satt:      ${u.password_enabled}`);
+  console.log(`användarnamn:       ${u.username ?? '—'}`);
+  console.log(`utelåst (locked):   ${u.locked} (banned: ${u.banned})`);
+
+  // Clerk slår upp inloggningen på IDENTIFIERARE, inte på användarposten. En
+  // e-post som finns på kontot men inte duger som identifierare ger samma
+  // "Couldn't find your account" som om kontot inte fanns alls — därför listas
+  // adresserna med verifieringsstatus och vilken som är primär.
+  console.log('\nE-postadresser på kontot:');
+  for (const e of u.email_addresses ?? []) {
+    const primar = e.id === u.primary_email_address_id ? ' [primär]' : '';
+    console.log(`  ${e.email_address}${primar} — verifiering: ${e.verification?.status ?? 'ingen'}`);
+  }
 
   if (!rensa) {
     console.log('\nLäsläge. Lägg till --rensa för att ta bort alla MFA-metoder.');
