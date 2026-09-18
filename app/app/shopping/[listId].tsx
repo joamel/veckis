@@ -2801,40 +2801,6 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
     opacity: interpolate(-translateX.value, [0, THRESHOLD * 0.5], [0, 1], Extrapolation.CLAMP),
   }));
 
-  const rowContent = (
-    <>
-      {/* Egen tryckyta för bocken, med en RIKTIG (inte hitSlop-baserad) yta:
-          nästlad inuti GestureDetector-svepet är hitSlop opålitlig — RNGH tar
-          över touch-hanteringen för hela ytan och respekterar inte alltid den
-          osynliga hitSlop-utökningen, vilket gjorde att man i praktiken
-          fortfarande fick träffa ikonen exakt. En egen View med riktiga
-          mått (44x44) löser det, eftersom ytan då är på riktigt, inte bara
-          en beräknad "sloppy hit rect". Ikonen är fortfarande 24px och
-          centrerad — synligt oförändrad, bara mer luft runt den. */}
-      <Pressable
-        onPress={pending ? undefined : () => onToggle(row)}
-        style={s.checkboxHit}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: item.isChecked }}
-        accessibilityLabel={item.isChecked ? str.a11y.uncheckItem(item.name) : str.a11y.checkItem(item.name)}
-      >
-        {nyDesign ? (
-          <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={ny.padYta} />
-        ) : (
-          <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? c.success : c.primary} />
-        )}
-      </Pressable>
-      <View style={s.itemContent}>
-        <View style={s.itemRow}>
-          <Text style={[s.itemName, (item.isChecked || pending) && s.itemNameChecked]}>{capitalize(item.name)}</Text>
-          {(item.quantity !== 1 || item.unit) && (
-            <Text style={[s.itemQty, (item.isChecked || pending) && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}</Text>
-          )}
-        </View>
-      </View>
-    </>
-  );
-
   return (
     <View style={[s.swipeRowWrap, !item.isChecked && s.swipeRowWrapShadow]}>
       <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeDeleteBg, bgStyle]}>
@@ -2846,18 +2812,44 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
           scroll som börjar på en rad blockeras i PWA:n. */}
       <GestureDetector gesture={composedGesture} touchAction="pan-y">
         <RNAnimated.View style={rowAnimStyle}>
-          {/* Tryck på RADEN öppnar redigering — checkboxen ovan har en egen
-              Pressable och fångar sitt tryck innan det når hit. Långtryck
-              togs bort: det hittar ingen, och nu finns en vanlig knapp
-              i stället. */}
-          <Pressable
-            style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
-            onPress={pending ? undefined : doEdit}
-            accessibilityRole="button"
-            accessibilityLabel={str.a11y.editItem(item.name)}
-          >
-            {rowContent}
-          </Pressable>
+          {/* TVÅ SYSKON-ytor i stället för en checkbox nästlad i radens egen
+              Pressable. Nästlade Pressables visade sig INTE vara pålitliga —
+              varken en större hitSlop eller Gesture.Native() räckte: en touch
+              som geometriskt låg inuti checkboxens egen box men utanför den
+              synliga ikonen landade ändå på FÖRÄLDERNS onPress (redigera).
+              Med två fristående, sida-vid-sida-Pressables finns ingen
+              förälder-barn-relation kvar att tvista om touchen med — vilken
+              av dem den landar i äger den, alltid. Item-View:n är nu en
+              vanlig View (inte Pressable): den håller bara ihop bakgrund och
+              form, allt tryck sker i zonerna under den. */}
+          <View style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}>
+            <Pressable
+              onPress={pending ? undefined : () => onToggle(row)}
+              style={s.checkboxZone}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: item.isChecked }}
+              accessibilityLabel={item.isChecked ? str.a11y.uncheckItem(item.name) : str.a11y.checkItem(item.name)}
+            >
+              {nyDesign ? (
+                <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={ny.padYta} />
+              ) : (
+                <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? c.success : c.primary} />
+              )}
+            </Pressable>
+            <Pressable
+              onPress={pending ? undefined : doEdit}
+              style={s.contentZone}
+              accessibilityRole="button"
+              accessibilityLabel={str.a11y.editItem(item.name)}
+            >
+              <View style={s.itemRow}>
+                <Text style={[s.itemName, (item.isChecked || pending) && s.itemNameChecked]}>{capitalize(item.name)}</Text>
+                {(item.quantity !== 1 || item.unit) && (
+                  <Text style={[s.itemQty, (item.isChecked || pending) && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}</Text>
+                )}
+              </View>
+            </Pressable>
+          </View>
         </RNAnimated.View>
       </GestureDetector>
     </View>
@@ -2938,20 +2930,24 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   showAllChecked: { alignItems: 'center', paddingVertical: 12, marginTop: 2 },
   showAllCheckedText: { fontSize: 14, fontWeight: '600', color: c.primary },
   categoryCount: { fontSize: 11, color: c.textFaint, fontWeight: '600' },
-  // paddingLeft komprimerad (14→8) för att göra plats åt checkboxHit (44px)
-  // utan att texten flyttar sig märkbart — nettoeffekten är ~8px, inte 20.
-  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: nyD ? ny.kort : c.surface, borderRadius: nyD ? 14 : 10, paddingVertical: 14, paddingLeft: 8, paddingRight: 14, gap: 6 },
-  // Riktig tryckyta (inte hitSlop) för bocken — se kommentaren där den
-  // används. Bredd 44 möter Apples/Googles minimimått; HÖJDEN sätts INTE
-  // explicit (alignSelf: 'stretch' fyller radens egen höjd i stället) — annars
-  // blir 44 den nya minsta radhöjden och tvingar upp EN RAD I TAGET till 44px
-  // hög, vilket gjorde alla rader märkbart högre. Radens höjd (padding + text)
-  // var redan gott och väl över 44px, så det kostar ingenting att låta den
-  // bestämma. Ikonen (24px) ligger centrerad inuti, oförändrad i utseende.
-  checkboxHit: { width: 44, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  // Bara bakgrund och form nu — item är en View, inte en Pressable. Ingen
+  // padding här: den ligger i checkboxZone/contentZone nedan, en per zon,
+  // så varje zon äger sin egen tryckyta rakt av utan gemensam förälder-padding
+  // att räkna in.
+  item: { flexDirection: 'row', backgroundColor: nyD ? ny.kort : c.surface, borderRadius: nyD ? 14 : 10 },
+  // Checkboxens EGEN tryckyta som syskon till contentZone, inte nästlad i en
+  // förälder-Pressable — se kommentaren vid JSX:en för varför. 56 bred är
+  // gott och väl över Apples/Googles 44px-minimum. alignSelf: 'stretch' gör
+  // att den fyller radens höjd (bestämd av contentZone/texten) i stället för
+  // att sätta en egen — annars blir DEN höjden radens minimihöjd och alla
+  // rader växer märkbart. Ikonen (24px) ligger centrerad inuti.
+  checkboxZone: { width: 56, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  // flex: 1 äter allt utrymme checkboxZone inte tar. Vertikal padding här
+  // ersätter den gamla radens paddingVertical; paddingRight matchar radens
+  // gamla högerpadding.
+  contentZone: { flex: 1, justifyContent: 'center', paddingVertical: 14, paddingRight: 14 },
   itemChecked: { opacity: 0.55 },
   itemPending: { opacity: 0.4, backgroundColor: c.dangerTint },
-  itemContent: { flex: 1 },
   itemRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
   itemName: { fontSize: 16, color: c.text, flex: 1 },
   itemNameChecked: { textDecorationLine: 'line-through', color: c.textFaint },
