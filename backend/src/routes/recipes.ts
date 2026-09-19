@@ -8,6 +8,7 @@ import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../mi
 import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases } from '../lib/normalizeIngredients';
 import { översättIngrediensnamn } from '../lib/translateIngredients';
+import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { stripIngredient } from '../lib/stripIngredient';
 import { parseIngredientString } from '../lib/parseIngredientString';
 import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
@@ -58,6 +59,20 @@ const ingredientSchema = z.object({
   // originalraden även efter att receptet rättats för hand.
   originalName: z.string().max(200).nullable().default(null),
 });
+
+/**
+ * Klassificerar receptingredienser som saknar kategori. Appen skickar ingen
+ * kategori för receptingredienser, så zod-schemat defaultar till 'other' — och
+ * det värdet spreds vidare till StapleItem och till den GLOBALA
+ * ingredienspoolen, där det sedan vann över nyckelordsklassaren vid varje
+ * framtida tillägg. Receptet är källan till alla tre, så det är här det ska
+ * stoppas.
+ */
+function medKategori<T extends { name: string; category: StoreCategory }>(ingredients: T[]): T[] {
+  return ingredients.map(i =>
+    i.category === 'other' ? { ...i, category: categorizeIngredient(i.name) } : i
+  );
+}
 
 const tagsSchema = z.array(z.string().min(1).max(30)).max(10);
 /** Normalisera taggar: gemener, trimmade, dedupe:ade, tomma bortfiltrerade. */
@@ -171,7 +186,8 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   const body = createRecipeSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const { ingredients, tags, ...recipeData } = body.data;
+  const { ingredients: råaIngredienser, tags, ...recipeData } = body.data;
+  const ingredients = medKategori(råaIngredienser);
   // url_import-bilder ska re-hostas till vår egen Cloudinary (upphovsrätt +
   // tillförlitlighet) — men INTE synkront: det gjorde createRecipe segt (ladda
   // ner + ladda upp) och kunde störa det direkt efterföljande getRecipe. Vi
@@ -238,7 +254,8 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
   const body = updateRecipeSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const { ingredients, tags, ...restData } = body.data;
+  const { ingredients: råaIngredienser, tags, ...restData } = body.data;
+  const ingredients = råaIngredienser === undefined ? undefined : medKategori(råaIngredienser);
   const recipeData = { ...restData, ...(tags !== undefined ? { tags: normalizeTags(tags) } : {}) };
 
   // If the user clears the image (imageUrl: null), also clear the Cloudinary asset.

@@ -5,6 +5,13 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
+
+/** Ett lagrat 'other' betyder "ingen vet", inte "kategorin är Övrigt" — den
+ *  skillnaden avgör om ett sämre svar får slå ut ett bättre längre ned i
+ *  kedjan. null gör att ?? går vidare till nästa källa. */
+function känd(category: StoreCategory | null | undefined): StoreCategory | null {
+  return category && category !== 'other' ? category : null;
+}
 import { learnIngredientAliases, getStoredCategory, storeIngredientCategory } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
 import { suggestMerge, resolveEquivalences, learnEquivalenceFromMerge, isPackagingUnit, loadConfirmedEquivalencesByName } from '../lib/smartMerge';
@@ -305,7 +312,11 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
     ? body.data.category
     : subCategory
       ? parentForSub(subCategory as SubCategory)
-      : (staplePref?.category ?? await getStoredCategory(normalizedName) ?? categorizeIngredient(normalizedName));
+      // 'other' räknas INTE som ett svar i den här kedjan. Hushållets stapel och
+      // det globala aliaset får gå före nyckelordsklassaren bara när de faktiskt
+      // säger något — annars vann ett tomt "vet inte" över ett korrekt svar, och
+      // varan hamnade under Övrigt trots att klassaren kände igen namnet.
+      : (känd(staplePref?.category) ?? känd(await getStoredCategory(normalizedName)) ?? categorizeIngredient(normalizedName));
 
   // If an unchecked item with the same name+unit already exists, increment its quantity
   const existing = await prisma.shoppingItem.findFirst({
