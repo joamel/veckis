@@ -13,9 +13,8 @@ import { tokenCache } from '@clerk/expo/token-cache';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
 import { createElement, forwardRef, useEffect, useState, type ComponentType } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, View, useWindowDimensions } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { useTablet } from '../src/hooks/useTablet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -168,7 +167,7 @@ function NavigationGuard() {
 }
 
 export default function RootLayout() {
-  const { isTablet } = useTablet();
+  const { width: fönsterB, height: fönsterH } = useWindowDimensions();
   // Brand-font (Baloo 2) för "Handlis"-ordmärket — laddas via OTA (expo-font-
   // modulen finns redan i bygget). Gate:ar tills laddad så ordmärket inte
   // flimrar in i systemfont först; faller igenom vid fel så appen aldrig fastnar.
@@ -182,14 +181,23 @@ export default function RootLayout() {
   useEffect(() => { installGlobalErrorHandler(); }, []);
 
   // Lås telefoner till portrait; tablets får rotera fritt.
+  //
+  // Bedömningen görs på den KORTA sidan, inte på useTablet().isTablet som
+  // mäter bredden: en telefon i liggande läge är bredare än 600 och såg
+  // därmed ut som en surfplatta. Effekten kördes då om vid varje rotation,
+  // och laga-lägets frisläppta rotation (recipes/[recipeId].tsx) låstes om så
+  // fort man vred tillbaka telefonen — man kunde inte rotera igen utan att
+  // stänga och öppna laga-läget. Den korta sidan ändras inte när man vrider,
+  // så effekten kör en gång och lämnar sedan låset ifred.
+  const ärTelefon = Math.min(fönsterB, fönsterH) < 600;
   useEffect(() => {
     if (Platform.OS as any === 'web') return;
-    if (isTablet) {
-      ScreenOrientation.unlockAsync().catch(() => {});
-    } else {
+    if (ärTelefon) {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    } else {
+      ScreenOrientation.unlockAsync().catch(() => {});
     }
-  }, [isTablet]);
+  }, [ärTelefon]);
 
   // OBS: gate:a ALDRIG hela trädet på fontsLoaded här — det blockerar
   // ClerkProvider + /sso-callback-rutten medan fonten laddar, vilket bröt

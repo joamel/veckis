@@ -22,6 +22,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Notifications from 'expo-notifications';
 import { hittaMinuter, formateraNedräkning, formateraTidsetikett } from '../../src/lib/cookTimer';
 
@@ -595,6 +596,27 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       ],
     });
   }
+
+  // Telefoner är låsta till stående i _layout.tsx; bara surfplattor får rotera.
+  // Låset är rent JS (AndroidManifest står på "unspecified"), så laga-läget kan
+  // släppa det medan det är öppet och ta tillbaka det när det stängs.
+  //
+  // Telefon-bedömningen görs på den KORTA sidan, inte på bredden som
+  // useTablet gör: en telefon i liggande läge är bredare än 600 och skulle
+  // annars se ut som en surfplatta i just det ögonblick vi behöver veta bäst.
+  // Den ligger i en ref så att en rotation inte river effekten och låser om
+  // mitt i tillagningen.
+  const ärTelefonRef = useRef(true);
+  ärTelefonRef.current = Math.min(cookW, cookH) < 600;
+  useEffect(() => {
+    if (!cookMode) return;
+    ScreenOrientation.unlockAsync().catch(() => {});
+    return () => {
+      if (ärTelefonRef.current) {
+        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+      }
+    };
+  }, [cookMode]);
 
   // Skärmen får inte slockna mitt i ett steg när man står med kladdiga händer.
   // expo-keep-awake är en beroende av expo självt och alltså redan länkad in i
