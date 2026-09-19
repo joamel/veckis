@@ -18,6 +18,16 @@ services:
     env: static
     region: frankfurt
     rootDir: app
+    # Deployen ägs av CI (.github/workflows/ci.yml, jobbet deploy-web) via
+    # deploy-hook, inte av Render själv. Skälet är rootDir ovan: Render hoppar
+    # över bygg när inget under den katalogen ändrats, så en commit som bara rör
+    # shared/ hade aldrig nått webben — trots att shared kompileras in i
+    # webbundlen av npm run build:web. Hooken bryr sig inte om vilken katalog
+    # som ändrats.
+    #
+    # Slår du på det här igen: ta samtidigt bort deploy-web-jobbet, annars
+    # byggs varje commit två gånger.
+    autoDeploy: false
     buildCommand: npm install && npm run build:web
     staticPublishPath: ./dist
     routes:

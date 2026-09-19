@@ -49,6 +49,7 @@ console.anthropic.com med separat fakturering. Pro ger noll API-credits.
 | `ANTHROPIC_API_KEY` | Railway | console.anthropic.com → API keys |
 | `CLOUDINARY_*` | Railway | Cloudinary dashboard |
 | `SENTRY_DSN` | Railway | Sentry → projekt `handlis-backend` |
+| `RENDER_WEB_DEPLOY_HOOK` | GitHub → Settings → Secrets → Actions | Render → **veckis-web** → Settings → Deploy Hook. Kontrollera att den tillhör just den tjänsten — en hook till en borttagen tjänst svarar 409 och ser ut som en kö som fastnat. |
 | `CORS_ORIGIN` | Railway | sätts manuellt |
 | `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | **npm-scripten i `app/package.json`** | inte hemliga; INTE `app/.env` |
 
@@ -96,6 +97,18 @@ Google OAuth-consent (ska stå i Production, inte Testing) sitter i kvartalslist
 - **Native byggs manuellt**: GitHub Actions → `android-release-build` → AAB-artefakt → Play Console.
   EAS-byggkvoten är slut, kör inte `eas build`.
 - **Railway**: public networking PÅ för backend, AV för Postgres.
+- **Webb-deployen ägs av CI, inte av Render.** `veckis-web` har `autoDeploy: false` i
+  `render.yaml`; jobbet `deploy-web` i `ci.yml` triggar den via secreten
+  `RENDER_WEB_DEPLOY_HOOK`. Skälet är att tjänsten har `rootDir: app` — Render hoppar över
+  bygg när inget under den katalogen ändrats, så en commit som bara rör `shared/` hade aldrig
+  nått webben trots att `shared` kompileras in i bundlen. **De två hör ihop**: slår du på
+  auto-deployen igen, ta bort jobbet, annars byggs varje commit två gånger.
+- **En deploy-hook från en BORTTAGEN Render-tjänst svarar 409.** 409 betyder normalt "en deploy
+  pågår redan", och det är den tolkningen man gör först — men webben stod stilla i timmar medan
+  hooken envist gav 409. Det var hooken till den gamla backend-tjänsten som togs bort ur Render
+  2026-09-10. Rätt hook svarade 200 direkt och webben publicerades 90 sekunder senare.
+  Står du inför upprepade 409: kontrollera VILKEN tjänst hooken tillhör innan du felsöker
+  köer och låsningar.
 - **Railway Hobby har inga automatiska backuper.** `npm run backup --workspace=backend`
   är hela skyddsnätet. `cleanup-members.ts --apply` tar en dump själv innan den raderar.
   Ta en manuellt innan deploys med nya Prisma-migreringar.
@@ -110,7 +123,7 @@ Google OAuth-consent (ska stå i Production, inte Testing) sitter i kvartalslist
 |---|---|---|
 | Bara JS/TS i `app/` | push `main` → `npm run update:production` | direkt vid omstart av appen |
 | Backend | push `main` → GitHub Actions deployar till Railway | direkt |
-| Webb-PWA | `npm run build:web` → Render | vid deploy |
+| Webb-PWA | push `main` → GitHub Actions (jobbet `deploy-web`) → Render-hook → `npm run build:web` | ~90 s efter grön CI |
 | Nya native-beroenden | bumpa `version` + `versionCode` → Actions-bygge → Play | efter Google-granskning |
 
 ---

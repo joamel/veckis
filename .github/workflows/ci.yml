@@ -79,20 +79,59 @@ jobs:
         run: npx tsc --noEmit
         working-directory: app
 
-  deploy:
-    name: "Deploy (web-PWA på Render; backend auto-deployas av Railway)"
+  deploy-web:
+    name: "Deploy webb-PWA (Render). Backenden deployas av Railway."
     runs-on: ubuntu-latest
     needs: [backend, app]
-    # Only after tests pass, only on a push to main (not PRs/develop).
+    # Bara efter gröna tester, bara vid push till main (inte PR:er/develop).
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      # Backenden deployas numera av Railway (auto-deploy från GitHub på push till
-      # main) — ingen deploy-hook behövs här längre. Kvar: bara webb-PWA:n på Render.
+      # Det här är den ENDA triggern för webb-PWA:n: render.yaml har
+      # autoDeploy: false på veckis-web. Håll ihop de två — slås auto-deployen
+      # på igen utan att det här steget tas bort byggs varje commit två gånger.
+      #
+      # Anledningen till att CI äger deployen i stället för Render: tjänsten har
+      # rootDir: app, och Render hoppar över bygg när inget under den katalogen
+      # ändrats. En commit som bara rör shared/ hade då aldrig nått webben, trots
+      # att shared kompileras in i webbundlen av npm run build:web.
+      #
+      # Steget FELAR om secreten saknas. Tidigare skrev det bara en varning, och
+      # den varningen lästes som att webben inte deployats fast Render då ännu
+      # gjorde det åt oss. Nu finns ingen sådan reserv, så tystnad vore farligt.
       - name: Trigger web (PWA) deploy hook
         run: |
           if [ -z "${{ secrets.RENDER_WEB_DEPLOY_HOOK }}" ]; then
-            echo "::warning::RENDER_WEB_DEPLOY_HOOK saknas — webb-PWA:n (veckis-web) deployades INTE. Lägg till hooken (Render → veckis-web → Settings → Deploy Hook) i repo Settings → Secrets → Actions."
-          else
-            curl -fsSL -X POST "${{ secrets.RENDER_WEB_DEPLOY_HOOK }}"
-            echo "Webb-deploy triggad."
+            echo "::error::RENDER_WEB_DEPLOY_HOOK saknas — webb-PWA:n (veckis-web) deployades INTE, och ingen annan trigger finns kvar. Lägg till hooken (Render → veckis-web → Settings → Deploy Hook) under repo Settings → Secrets and variables → Actions."
+            exit 1
           fi
+          # Render svarar 409 när en deploy redan pågår för tjänsten. Det är
+          # INTE ett fel, men det är heller inte klart: den pågående deployen
+          # kan bygga en ÄLDRE commit, och då hade den här aldrig nått webben.
+          # Därför väntas det ut i stället för att antingen fela direkt eller
+          # rapportera falsk framgång. Fem försök à 60 s täcker ett normalt
+          # statiskt bygge; håller konflikten i sig längre är något fel och då
+          # ska jobbet fela högt.
+          # OBS: bara ASCII i variabelnamn. "för in $(seq...)" gav
+          # "not a valid identifier", loopen kördes aldrig, och jobbet föll rakt
+          # ned i slutfelet som påstod att 409 hållit i sig i fem minuter — ett
+          # larm om något som aldrig ens provats.
+          kod=0
+          for forsok in 1 2 3 4 5; do
+            kod=$(curl -s -o /dev/null -w '%{http_code}' -X POST "${{ secrets.RENDER_WEB_DEPLOY_HOOK }}")
+            case "$kod" in
+              200|201|202)
+                echo "Webb-deploy triggad (HTTP $kod, försök $forsok)."
+                exit 0
+                ;;
+              409)
+                echo "En deploy pågår redan för veckis-web (409). Väntar 60 s, försök $forsok av 5."
+                sleep 60
+                ;;
+              *)
+                echo "::error::Deploy-hooken svarade HTTP $kod — webb-PWA:n deployades INTE."
+                exit 1
+                ;;
+            esac
+          done
+          echo "::error::Deploy-hooken svarade $kod vid varje försök i fem minuter — en deploy verkar ha fastnat. Kontrollera veckis-web i Render."
+          exit 1
