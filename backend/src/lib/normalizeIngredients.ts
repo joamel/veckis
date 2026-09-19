@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '../db';
 import { stripIngredient, ärMängdOrd, startsWithUnit } from './stripIngredient';
+import { categorizeIngredient } from './categorizeIngredient';
 import type { StoreCategory } from '@prisma/client';
 import { textUr } from './aiJson';
 import { bokförAiKostnad } from './aiCost';
@@ -120,6 +121,22 @@ export function duglingGlobalt(canonical: string): boolean {
   return !ärMängdOrd(c) && !startsWithUnit(c);
 }
 
+/**
+ * 'other' är inte ett svar, det är frånvaron av ett. Kommer kategorin in som
+ * 'other' (t.ex. från en receptingrediens, där zod-schemat defaultar dit när
+ * appen inte skickar någon kategori alls) frågar vi nyckelordsklassaren i
+ * stället för att skriva ned okunskapen i databasen.
+ *
+ * Det var exakt så "avokado" och "bacon" hamnade under Övrigt globalt: de dök
+ * upp i ett importerat recept, aliaset föddes som 'other', och därefter läste
+ * varje tillägg det lagrade 'other' i stället för att fråga klassaren — som
+ * hela tiden visste att de hör hemma i frukt/grönt respektive kött.
+ */
+export function känndKategori(category: StoreCategory | undefined, canonical: string): StoreCategory {
+  if (category && category !== 'other') return category;
+  return categorizeIngredient(canonical);
+}
+
 export async function learnIngredientAliases(
   ingredients: Array<{ name: string; category?: StoreCategory }>,
   householdId: string
@@ -131,7 +148,10 @@ export async function learnIngredientAliases(
   // ingrediensnamn som råkar sakna deskriptorer att strippa, trots att det är
   // precis den typen av tillväxt vi vill fånga upp.
   const pairs = ingredients
-    .map(i => ({ raw: i.name.toLowerCase().trim(), canonical: stripIngredient(i.name), category: i.category ?? 'other' as StoreCategory }))
+    .map(i => {
+      const canonical = stripIngredient(i.name);
+      return { raw: i.name.toLowerCase().trim(), canonical, category: känndKategori(i.category, canonical) };
+    })
     // Andra spärren mot skräp i den globala poolen: strippningen skalar bort
     // ledande mängder, men blir det ändå inget riktigt varunamn kvar ("400g",
     // "2", "kg") ska raden aldrig skrivas. Filtret på läs-sidan i staples.ts
@@ -140,15 +160,27 @@ export async function learnIngredientAliases(
 
   if (pairs.length === 0) return;
 
-  await prisma.$transaction(
-    pairs.map(p =>
+  await prisma.$transaction([
+    ...pairs.map(p =>
       prisma.ingredientAlias.upsert({
         where: { raw: p.raw },
         create: { raw: p.raw, canonical: p.canonical, category: p.category, seenCount: 1 },
         update: { seenCount: { increment: 1 } },
       })
-    )
-  );
+    ),
+    // Självläkning för rader som redan föddes som 'other': fyll i en riktig
+    // kategori när vi nu vet bättre. Villkoret category: 'other' i where gör
+    // det medvetet ENKELRIKTAT — en etablerad kategori skrivs aldrig över
+    // här, så det här är inte ännu en väg för ett hushåll att ändra globalt.
+    ...pairs
+      .filter(p => p.category !== 'other')
+      .map(p =>
+        prisma.ingredientAlias.updateMany({
+          where: { raw: p.raw, category: 'other' },
+          data: { category: p.category },
+        })
+      ),
+  ]);
 
   // Registrera vilka hushåll (distinkt) som sett varje namn — se kommentaren på
   // IngredientAliasHousehold i schemat för varför.

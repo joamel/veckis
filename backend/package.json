@@ -18,7 +18,8 @@
     "cleanup": "tsx scripts/cleanup-members.ts",
     "backup": "node scripts/backup-db.mjs",
     "restore-test": "node scripts/restore-test.mjs",
-    "clean:aliases": "tsx scripts/clean-ingredient-aliases.ts"
+    "clean:aliases": "tsx scripts/clean-ingredient-aliases.ts",
+    "repair:categories": "tsx scripts/repair-other-categories.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.2",
