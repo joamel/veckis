@@ -19,7 +19,11 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import * as Notifications from 'expo-notifications';
+import { hittaMinuter, formateraNedräkning, formateraTidsetikett } from '../../src/lib/cookTimer';
 
 import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
@@ -151,11 +155,28 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
   // Cooking mode
   const [cookMode, setCookMode] = useState(false);
+  // Landskap = telefonen står på sidan vid spisen. Då ryms ingredienser och
+  // steg bredvid varandra, vilket är hela poängen: man slipper skrolla mellan
+  // dem mitt i tillagningen. app.json har redan orientation: "default", så
+  // rotationen finns — det som saknades var layouten.
+  const { width: cookW, height: cookH } = useWindowDimensions();
+  const cookLandskap = cookW > cookH;
   // cook=1 öppnar laga-läget direkt. Veckomenyns kort går hit i stället för att
   // först visa receptet — avsikten därifrån är oftast att laga. Laga-läget
   // ligger ovanpå receptsidan, så ett bakåt lämnar användaren på receptet.
   const cookRequested = cook === '1';
   const [cookStep, setCookStep] = useState(0);
+  // Avbockade ingredienser i laga-läget. Lever bara i sessionen — den som
+  // lagar vill veta vad som redan hällts i NU, inte nästa gång rätten lagas.
+  // Nollställs när laga-läget stängs, inte mellan steg.
+  const [cookChecked, setCookChecked] = useState<Set<string>>(new Set());
+  // Nedräkning för steget man står på. slutTid är en absolut tidpunkt, inte en
+  // räknare som tickar ned: en räknare som minskar med 1 per sekund driver isär
+  // när appen bakgrundas eller JS-tråden hackar. Notisen är den som faktiskt
+  // väcker användaren — nedräkningen i rutan är bara en avläsning.
+  const [timerSlut, setTimerSlut] = useState<number | null>(null);
+  const [timerKvar, setTimerKvar] = useState(0);
+  const timerNotisId = useRef<string | null>(null);
   const [heroLoading, setHeroLoading] = useState(false);
   const [heroError, setHeroError] = useState(false);
 
@@ -243,6 +264,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       cookIngredAnim.stopAnimation();
       cookIngredAnim.setValue(0);
       cookIngredStarted.current = false;
+      setCookChecked(new Set());
+      setTimerSlut(null);
     }
   }, [cookMode]);
 
@@ -572,6 +595,63 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       ],
     });
   }
+
+  // Skärmen får inte slockna mitt i ett steg när man står med kladdiga händer.
+  // expo-keep-awake är en beroende av expo självt och alltså redan länkad in i
+  // den publicerade binären — det här går att skicka som OTA.
+  useEffect(() => {
+    if (!cookMode) return;
+    let aktiv = true;
+    activateKeepAwakeAsync('laga').catch(() => {});
+    return () => {
+      if (!aktiv) return;
+      aktiv = false;
+      try { deactivateKeepAwake('laga'); } catch { /* redan släppt */ }
+    };
+  }, [cookMode]);
+
+  // Nedräkningens avläsning. Räknar mot en absolut sluttid, så en bakgrundad
+  // app eller en hackig frame inte får timern att glida.
+  useEffect(() => {
+    if (timerSlut === null) { setTimerKvar(0); return; }
+    const uppdatera = () => setTimerKvar(Math.max(0, (timerSlut - Date.now()) / 1000));
+    uppdatera();
+    const id = setInterval(uppdatera, 500);
+    return () => clearInterval(id);
+  }, [timerSlut]);
+
+  /** Startar nedräkning på steget och schemalägger notisen som faktiskt larmar.
+   *  Utan notis vore timern bara en siffra man måste stå och titta på. */
+  const startaTimer = useCallback(async (minuter: number) => {
+    setTimerSlut(Date.now() + minuter * 60_000);
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      // Be aldrig om notis-tillstånd här: den som just tryckt på en timer står
+      // vid spisen och ska inte mötas av en systemdialog. Saknas tillståndet
+      // får man nedräkningen på skärmen, vilket fortfarande är användbart.
+      if (status !== 'granted') return;
+      timerNotisId.current = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: str.detail.cookTimerNotisTitel,
+          body: str.detail.cookTimerNotisText(recipe?.title ?? ''),
+          sound: true,
+        },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: minuter * 60 },
+      });
+    } catch { /* notisen är en bonus, nedräkningen fungerar ändå */ }
+  }, [recipe?.title]);
+
+  const stoppaTimer = useCallback(() => {
+    setTimerSlut(null);
+    const id = timerNotisId.current;
+    timerNotisId.current = null;
+    if (id) Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+  }, []);
+
+  // Byte av steg (eller stängt laga-läge) avbryter en pågående nedräkning:
+  // timern hör till steget man står på, och en notis för ett steg man lämnat
+  // är bara förvirrande.
+  useEffect(() => { stoppaTimer(); }, [cookStep, cookMode, stoppaTimer]);
 
   // Edit everything (name, image, description, ingredients, instructions) inline
   // in the detail view.
@@ -1601,6 +1681,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       {recipe.instructions ? (() => {
         const steps = parseSteps(recipe.instructions!);
         const step = steps[cookStep] ?? '';
+        const stegMinuter = hittaMinuter(step);
         return (
           <Modal visible={cookMode} transparent={false} animationType="slide" onRequestClose={() => setCookMode(false)}>
             <View style={{ flex: 1, backgroundColor: '#1c1917' }}>
@@ -1616,11 +1697,18 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                   <View key={i} style={[s.cookDot, i === cookStep && s.cookDotActive]} />
                 ))}
               </View>
-              <ScrollView style={{ flex: 1 }} contentContainerStyle={s.cookBody} showsVerticalScrollIndicator={false}>
+              {/* Ingredienser och steg ligger i VAR SIN yta, inte i samma
+                  flödande scroll. Förut ankrades hela kroppen nedåt för att
+                  steget skulle sitta tumnära, men då trycktes ingredienserna
+                  med och allt tomrum samlades överst. Nu sitter ingredienserna
+                  kvar i överkant och bara steget ankras mot botten.
+                  I landskap blir samma två ytor kolumner i stället. */}
+              <View style={cookLandskap ? s.cookSplitRad : s.cookSplitKolumn}>
                 {recipe.ingredients.length > 0 && (
                   <ScrollView
                     ref={cookIngredScrollRef}
-                    style={s.cookIngredWrap}
+                    style={cookLandskap ? s.cookIngredKolumn : s.cookIngredWrap}
+                    contentContainerStyle={s.cookIngredInnehall}
                     showsVerticalScrollIndicator={false}
                     nestedScrollEnabled
                     fadingEdgeLength={cookIngredScrolling ? 20 : 0}
@@ -1634,17 +1722,68 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                     onScrollEndDrag={() => setCookIngredScrolling(false)}
                     onMomentumScrollEnd={() => setCookIngredScrolling(false)}
                   >
-                    {recipe.ingredients.map(ing => (
-                      <Text key={ing.id} style={s.cookIngredItem}>
-                        {formatIngredient(ing, 1)}
-                      </Text>
-                    ))}
+                    {recipe.ingredients.map(ing => {
+                      const avbockad = cookChecked.has(ing.id);
+                      return (
+                        <Pressable
+                          key={ing.id}
+                          onPress={() => setCookChecked(prev => {
+                            const nästa = new Set(prev);
+                            if (nästa.has(ing.id)) nästa.delete(ing.id); else nästa.add(ing.id);
+                            return nästa;
+                          })}
+                          style={s.cookIngredRad}
+                          hitSlop={4}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: avbockad }}
+                          accessibilityLabel={str.detail.cookIngredA11y(formatIngredient(ing, 1), avbockad)}
+                        >
+                          <Ionicons
+                            name={avbockad ? 'checkmark-circle' : 'ellipse-outline'}
+                            size={20}
+                            color={avbockad ? c.primary : c.borderLight}
+                          />
+                          <Text style={[s.cookIngredItem, avbockad && s.cookIngredItemAvbockad]}>
+                            {formatIngredient(ing, 1)}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
                   </ScrollView>
                 )}
-                <Text style={s.cookStepLabel}>{str.detail.cookStep(cookStep + 1, steps.length)}</Text>
-                <Text style={s.cookStepText}>{step}</Text>
-              </ScrollView>
-              <View style={s.cookNav}>
+                <ScrollView
+                  style={cookLandskap ? s.cookStegKolumn : undefined}
+                  contentContainerStyle={s.cookBody}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <Text style={s.cookStepLabel}>{str.detail.cookStep(cookStep + 1, steps.length)}</Text>
+                  <Text style={s.cookStepText}>{step}</Text>
+                  {stegMinuter !== null && (
+                    <Pressable
+                      style={[s.cookTimer, timerSlut !== null && s.cookTimerAktiv]}
+                      onPress={() => (timerSlut === null ? startaTimer(stegMinuter) : stoppaTimer())}
+                      accessibilityRole="button"
+                      accessibilityLabel={timerSlut === null
+                        ? str.detail.cookTimerStart(formateraTidsetikett(stegMinuter))
+                        : str.detail.cookTimerStopp}
+                    >
+                      <Ionicons
+                        name={timerSlut === null ? 'timer-outline' : 'stop-circle-outline'}
+                        size={20}
+                        color={timerSlut === null ? c.primary : '#fff'}
+                      />
+                      <Text style={[s.cookTimerText, timerSlut !== null && s.cookTimerTextAktiv]}>
+                        {timerSlut === null
+                          ? formateraTidsetikett(stegMinuter)
+                          : timerKvar <= 0
+                            ? str.detail.cookTimerKlar
+                            : formateraNedräkning(timerKvar)}
+                      </Text>
+                    </Pressable>
+                  )}
+                </ScrollView>
+              </View>
+              <View style={[s.cookNav, cookLandskap && s.cookNavLandskap]}>
                 <Pressable
                   style={[s.cookNavBtn, cookStep === 0 && s.cookNavBtnDisabled]}
                   onPress={() => setCookStep(p => Math.max(0, p - 1))}
@@ -1862,12 +2001,31 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // Ankra steget (+ ingredienser) mot BOTTEN så det poppar upp så långt underifrån
   // som möjligt — nära nav-knapparna, alltid synligt utan att behöva skrolla. Långt
   // innehåll fyller uppåt och blir skrollbart.
+  // flex-end ligger kvar, men nu bara på STEGETS yta. Det var när den satt på
+  // en gemensam kropp med ingredienserna som allt tomrum samlades överst.
   cookBody: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: 32, paddingVertical: 32, gap: 20 },
-  cookIngredWrap: { maxHeight: COOK_INGRED_MAX_H },
-  cookIngredItem: { fontSize: 18, color: c.textMuted, lineHeight: 28, paddingVertical: 1 },
+  cookSplitKolumn: { flex: 1 },
+  cookSplitRad: { flex: 1, flexDirection: 'row' },
+  cookIngredWrap: { maxHeight: COOK_INGRED_MAX_H, paddingHorizontal: 32, paddingTop: 8 },
+  // I landskap är ingredienserna en egen kolumn med full höjd i stället för en
+  // låg ruta — då är listan läsbar utan att skrollas, vilket är poängen.
+  cookIngredKolumn: { flex: 1, paddingLeft: 32, paddingRight: 16, paddingTop: 8 },
+  cookStegKolumn: { flex: 1.2 },
+  cookIngredInnehall: { paddingBottom: 8 },
+  cookIngredRad: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 3 },
+  cookIngredItem: { flex: 1, fontSize: 18, color: c.textMuted, lineHeight: 28, paddingVertical: 1 },
+  cookIngredItemAvbockad: { textDecorationLine: 'line-through', opacity: 0.45 },
+  cookTimer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 8, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 999, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight },
+  cookTimerAktiv: { backgroundColor: c.primaryBtn, borderColor: c.primaryBtn },
+  cookTimerText: { fontSize: 16, fontWeight: '700', color: c.primary },
+  cookTimerTextAktiv: { color: '#fff' },
   cookStepLabel: { fontSize: 17, fontWeight: '700', color: c.primary },
   cookStepText: { fontSize: 22, color: c.text, lineHeight: 34, fontWeight: '400' },
   cookNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16, gap: 12 },
+  // I landskap ligger stegkolumnen till höger, så navigeringen ska ligga under
+  // DEN och inte sträcka sig över ingredienskolumnen — annars blir knapparna
+  // långt från tummen som just bläddrat.
+  cookNavLandskap: { alignSelf: 'flex-end', width: '54%', paddingRight: 32 },
   cookNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 14, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight },
   cookNavBtnDisabled: { opacity: 0.35 },
   cookNavText: { fontSize: 15, fontWeight: '600', color: c.textSecondary },
