@@ -311,6 +311,9 @@ export const shoppingList = {
     otherShopping:  (name: string) => `${name} handlar nu`,
     moreActions:    'Fler åtgärder',
     checkAllDone:   'Markera alla som klara',
+    checkItem:      (name: string) => `Bocka av ${name}`,
+    uncheckItem:    (name: string) => `Bocka upp ${name}`,
+    editItem:       (name: string) => `Redigera ${name}`,
   },
 
   tips: {

@@ -2758,26 +2758,40 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
 
   // Memoiserad: Gesture.Pan() byggde annars om hela gest-objektet med sina
   // worklets vid varje render, inte bara vid mount.
+  //
+  // Bara vänster-svep (ta bort) finns kvar. Höger-svep till redigering blev
+  // överflödigt när ett vanligt tryck på raden öppnar redigering — två gester
+  // som gjorde samma sak, och den andra syntes bara om man svepte fel håll.
   const panGesture = useMemo(() => Gesture.Pan()
-    .enabled(!pending)
+    .enabled(!pending && canDelete)
     .activeOffsetX([-10, 10])
     .failOffsetY([-15, 15])
     .onUpdate((e) => {
-      // Vänster (om delete finns) = ta bort; höger = redigera.
-      translateX.value = canDelete ? e.translationX : Math.max(0, e.translationX);
+      translateX.value = Math.min(0, e.translationX);
     })
     .onEnd((e) => {
-      if (canDelete && (-translateX.value > THRESHOLD || e.velocityX < -800)) {
+      if (-translateX.value > THRESHOLD || e.velocityX < -800) {
         translateX.value = withSpring(-windowWidth);
         runOnJS(doDelete)();
-      } else if (translateX.value > THRESHOLD || e.velocityX > 800) {
-        // Höger → redigera (fjädra tillbaka; edit öppnar en modal).
-        translateX.value = withSpring(0);
-        runOnJS(doEdit)();
       } else {
         translateX.value = withSpring(0);
       }
-    }), [pending, canDelete, THRESHOLD, windowWidth, translateX, doDelete, doEdit]);
+    }), [pending, canDelete, THRESHOLD, windowWidth, translateX, doDelete]);
+
+  // Den FAKTISKA orsaken till att checkboxen var svår att träffa: RNGH tar
+  // över pekhanteringen för hela ytan panGesture är kopplad till, och en
+  // vanlig nästlad Pressable (checkboxen, redigera-raden) kan bli av med sin
+  // touch till förmån för gestigenkännaren — även för ett stillastående tryck
+  // som aldrig blir ett svep. Gesture.Native() talar om för RNGH att en
+  // native-komponents egen touch (en Pressable) kan pågå SAMTIDIGT i samma
+  // yta, i stället för att konkurrera om den. Detta är RNGH:s dokumenterade
+  // lösning för just "nästlad Pressable inuti en Pan-svepbar rad", och löser
+  // roten till problemet i stället för att gissa på storlekar.
+  const nativeGesture = useMemo(() => Gesture.Native(), []);
+  const composedGesture = useMemo(
+    () => Gesture.Simultaneous(panGesture, nativeGesture),
+    [panGesture, nativeGesture],
+  );
 
   const rowAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
@@ -2787,49 +2801,55 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
     opacity: interpolate(-translateX.value, [0, THRESHOLD * 0.5], [0, 1], Extrapolation.CLAMP),
   }));
 
-  const editBgStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [0, THRESHOLD * 0.5], [0, 1], Extrapolation.CLAMP),
-  }));
-
-  const rowContent = (
-    <>
-      {nyDesign ? (
-        <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={ny.padYta} />
-      ) : (
-        <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? c.success : c.primary} />
-      )}
-      <View style={s.itemContent}>
-        <View style={s.itemRow}>
-          <Text style={[s.itemName, (item.isChecked || pending) && s.itemNameChecked]}>{capitalize(item.name)}</Text>
-          {(item.quantity !== 1 || item.unit) && (
-            <Text style={[s.itemQty, (item.isChecked || pending) && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}</Text>
-          )}
-        </View>
-      </View>
-    </>
-  );
-
   return (
     <View style={[s.swipeRowWrap, !item.isChecked && s.swipeRowWrapShadow]}>
       <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeDeleteBg, bgStyle]}>
         <Ionicons name="trash-outline" size={22} color="#fff" />
       </RNAnimated.View>
-      <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeEditBg, editBgStyle]}>
-        <Ionicons name="pencil" size={20} color="#fff" />
-      </RNAnimated.View>
       {/* touchAction="pan-y" (web-only, ignoreras på native): webbläsaren
           behåller vertikal scroll själv medan horisontella drag går till
           swipe-gesten — utan den sätter RNGH touch-action:none och all
           scroll som börjar på en rad blockeras i PWA:n. */}
-      <GestureDetector gesture={panGesture} touchAction="pan-y">
+      <GestureDetector gesture={composedGesture} touchAction="pan-y">
         <RNAnimated.View style={rowAnimStyle}>
-          <Pressable
-            style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}
-            onPress={pending ? undefined : () => onToggle(row)}
-            onLongPress={pending ? undefined : doEdit}
-          >
-            {rowContent}
-          </Pressable>
+          {/* TVÅ SYSKON-ytor i stället för en checkbox nästlad i radens egen
+              Pressable. Nästlade Pressables visade sig INTE vara pålitliga —
+              varken en större hitSlop eller Gesture.Native() räckte: en touch
+              som geometriskt låg inuti checkboxens egen box men utanför den
+              synliga ikonen landade ändå på FÖRÄLDERNS onPress (redigera).
+              Med två fristående, sida-vid-sida-Pressables finns ingen
+              förälder-barn-relation kvar att tvista om touchen med — vilken
+              av dem den landar i äger den, alltid. Item-View:n är nu en
+              vanlig View (inte Pressable): den håller bara ihop bakgrund och
+              form, allt tryck sker i zonerna under den. */}
+          <View style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}>
+            <Pressable
+              onPress={pending ? undefined : () => onToggle(row)}
+              style={s.checkboxZone}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: item.isChecked }}
+              accessibilityLabel={item.isChecked ? str.a11y.uncheckItem(item.name) : str.a11y.checkItem(item.name)}
+            >
+              {nyDesign ? (
+                <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={ny.padYta} />
+              ) : (
+                <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? c.success : c.primary} />
+              )}
+            </Pressable>
+            <Pressable
+              onPress={pending ? undefined : doEdit}
+              style={s.contentZone}
+              accessibilityRole="button"
+              accessibilityLabel={str.a11y.editItem(item.name)}
+            >
+              <View style={s.itemRow}>
+                <Text style={[s.itemName, (item.isChecked || pending) && s.itemNameChecked]}>{capitalize(item.name)}</Text>
+                {(item.quantity !== 1 || item.unit) && (
+                  <Text style={[s.itemQty, (item.isChecked || pending) && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}</Text>
+                )}
+              </View>
+            </Pressable>
+          </View>
         </RNAnimated.View>
       </GestureDetector>
     </View>
@@ -2910,10 +2930,24 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   showAllChecked: { alignItems: 'center', paddingVertical: 12, marginTop: 2 },
   showAllCheckedText: { fontSize: 14, fontWeight: '600', color: c.primary },
   categoryCount: { fontSize: 11, color: c.textFaint, fontWeight: '600' },
-  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: nyD ? ny.kort : c.surface, borderRadius: nyD ? 14 : 10, padding: 14, gap: 12 },
+  // Bara bakgrund och form nu — item är en View, inte en Pressable. Ingen
+  // padding här: den ligger i checkboxZone/contentZone nedan, en per zon,
+  // så varje zon äger sin egen tryckyta rakt av utan gemensam förälder-padding
+  // att räkna in.
+  item: { flexDirection: 'row', backgroundColor: nyD ? ny.kort : c.surface, borderRadius: nyD ? 14 : 10 },
+  // Checkboxens EGEN tryckyta som syskon till contentZone, inte nästlad i en
+  // förälder-Pressable — se kommentaren vid JSX:en för varför. 56 bred är
+  // gott och väl över Apples/Googles 44px-minimum. alignSelf: 'stretch' gör
+  // att den fyller radens höjd (bestämd av contentZone/texten) i stället för
+  // att sätta en egen — annars blir DEN höjden radens minimihöjd och alla
+  // rader växer märkbart. Ikonen (24px) ligger centrerad inuti.
+  checkboxZone: { width: 56, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  // flex: 1 äter allt utrymme checkboxZone inte tar. Vertikal padding här
+  // ersätter den gamla radens paddingVertical; paddingRight matchar radens
+  // gamla högerpadding.
+  contentZone: { flex: 1, justifyContent: 'center', paddingVertical: 14, paddingRight: 14 },
   itemChecked: { opacity: 0.55 },
   itemPending: { opacity: 0.4, backgroundColor: c.dangerTint },
-  itemContent: { flex: 1 },
   itemRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
   itemName: { fontSize: 16, color: c.text, flex: 1 },
   itemNameChecked: { textDecorationLine: 'line-through', color: c.textFaint },
@@ -2981,7 +3015,6 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // Ny design: ingen skugga — de gröntonade korten skiljer sig mot bakgrunden ändå.
   swipeRowWrapShadow: nyD ? {} : { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   swipeDeleteBg: { backgroundColor: c.danger, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
-  swipeEditBg: { backgroundColor: c.primaryBtn, justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 20 },
   browserSheet: { maxHeight: '90%' },
   browserBody: { paddingTop: 4 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
