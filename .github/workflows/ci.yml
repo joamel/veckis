@@ -79,20 +79,15 @@ jobs:
         run: npx tsc --noEmit
         working-directory: app
 
-  deploy:
-    name: "Deploy (web-PWA på Render; backend auto-deployas av Railway)"
-    runs-on: ubuntu-latest
-    needs: [backend, app]
-    # Only after tests pass, only on a push to main (not PRs/develop).
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    steps:
-      # Backenden deployas numera av Railway (auto-deploy från GitHub på push till
-      # main) — ingen deploy-hook behövs här längre. Kvar: bara webb-PWA:n på Render.
-      - name: Trigger web (PWA) deploy hook
-        run: |
-          if [ -z "${{ secrets.RENDER_WEB_DEPLOY_HOOK }}" ]; then
-            echo "::warning::RENDER_WEB_DEPLOY_HOOK saknas — webb-PWA:n (veckis-web) deployades INTE. Lägg till hooken (Render → veckis-web → Settings → Deploy Hook) i repo Settings → Secrets → Actions."
-          else
-            curl -fsSL -X POST "${{ secrets.RENDER_WEB_DEPLOY_HOOK }}"
-            echo "Webb-deploy triggad."
-          fi
+# INGET deploy-jobb här, med flit. Båda tjänsterna deployar sig själva vid push
+# till main: backenden av Railway, webb-PWA:n av Render (blueprint-tjänst i
+# render.yaml, autoDeploy är på som standard).
+#
+# Ett hook-steg fanns här tidigare och skrev ut en varning när secreten
+# RENDER_WEB_DEPLOY_HOOK saknades. Varningen var bokstavligt sann men
+# vilseledande: webben deployades ändå, av Render själv, och varningen läste
+# som att den INTE gjorde det. Den kostade en felsökning 2026-09-19.
+#
+# Lägg inte tillbaka steget utan att samtidigt sätta autoDeploy: false på
+# tjänsten i render.yaml — annars byggs varje commit två gånger, och två
+# triggers som gör samma sak är svåra att felsöka när en av dem slutar fungera.
