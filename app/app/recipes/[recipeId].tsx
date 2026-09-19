@@ -25,6 +25,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Notifications from 'expo-notifications';
 import { hittaMinuter, formateraNedräkning, formateraTidsetikett } from '../../src/lib/cookTimer';
+import { kvarvarandePåSteg } from '../../src/lib/cookIngredients';
 
 import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
@@ -167,10 +168,15 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   // ligger ovanpå receptsidan, så ett bakåt lämnar användaren på receptet.
   const cookRequested = cook === '1';
   const [cookStep, setCookStep] = useState(0);
-  // Avbockade ingredienser i laga-läget. Lever bara i sessionen — den som
-  // lagar vill veta vad som redan hällts i NU, inte nästa gång rätten lagas.
-  // Nollställs när laga-läget stängs, inte mellan steg.
-  const [cookChecked, setCookChecked] = useState<Set<string>>(new Set());
+  // Avbockade ingredienser i laga-läget: ingrediens-id → steget den bockades
+  // av på. Lever bara i sessionen — den som lagar vill veta vad som redan
+  // hällts i NU, inte nästa gång rätten lagas. Nollställs när läget stängs.
+  //
+  // Steget sparas, inte bara att den är avbockad, för att listan ska kunna
+  // krympa allt eftersom: en ingrediens visas så länge den är obockad ELLER
+  // bockades av på det steg man står på. Då ser man sin egen bock som
+  // bekräftelse, och nästa steg visar bara det som återstår.
+  const [cookChecked, setCookChecked] = useState<Map<string, number>>(new Map());
   // Nedräkning för steget man står på. slutTid är en absolut tidpunkt, inte en
   // räknare som tickar ned: en räknare som minskar med 1 per sekund driver isär
   // när appen bakgrundas eller JS-tråden hackar. Notisen är den som faktiskt
@@ -265,7 +271,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       cookIngredAnim.stopAnimation();
       cookIngredAnim.setValue(0);
       cookIngredStarted.current = false;
-      setCookChecked(new Set());
+      setCookChecked(new Map());
       setTimerSlut(null);
     }
   }, [cookMode]);
@@ -1704,6 +1710,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         const steps = parseSteps(recipe.instructions!);
         const step = steps[cookStep] ?? '';
         const stegMinuter = hittaMinuter(step);
+        // Listan krymper allt eftersom: det som bockades av på ett TIDIGARE
+        // steg är redan i grytan och tar bara plats. Det som bockades av på
+        // det här steget ligger kvar överstruket — dels som kvitto på att
+        // trycket gick fram, dels så att en felaktig bock går att ångra innan
+        // man går vidare. Backar man till steget där en ingrediens bockades av
+        // dyker den upp igen, vilket också är vägen tillbaka om man bockat fel
+        // och redan bläddrat.
+        const kvarvarandeIngredienser = kvarvarandePåSteg(recipe.ingredients, cookChecked, cookStep);
         return (
           <Modal visible={cookMode} transparent={false} animationType="slide" onRequestClose={() => setCookMode(false)}>
             <View style={{ flex: 1, backgroundColor: '#1c1917' }}>
@@ -1726,7 +1740,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                   kvar i överkant och bara steget ankras mot botten.
                   I landskap blir samma två ytor kolumner i stället. */}
               <View style={cookLandskap ? s.cookSplitRad : s.cookSplitKolumn}>
-                {recipe.ingredients.length > 0 && (
+                {kvarvarandeIngredienser.length > 0 && (
                   <ScrollView
                     ref={cookIngredScrollRef}
                     style={cookLandskap ? s.cookIngredKolumn : s.cookIngredWrap}
@@ -1744,14 +1758,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                     onScrollEndDrag={() => setCookIngredScrolling(false)}
                     onMomentumScrollEnd={() => setCookIngredScrolling(false)}
                   >
-                    {recipe.ingredients.map(ing => {
+                    {kvarvarandeIngredienser.map(ing => {
                       const avbockad = cookChecked.has(ing.id);
                       return (
                         <Pressable
                           key={ing.id}
                           onPress={() => setCookChecked(prev => {
-                            const nästa = new Set(prev);
-                            if (nästa.has(ing.id)) nästa.delete(ing.id); else nästa.add(ing.id);
+                            const nästa = new Map(prev);
+                            if (nästa.has(ing.id)) nästa.delete(ing.id); else nästa.set(ing.id, cookStep);
                             return nästa;
                           })}
                           style={s.cookIngredRad}
