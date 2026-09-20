@@ -25,6 +25,7 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
       // "fläsk" som ordbörjan täcker fläskfilé, fläskkarré och fläskkotlett.
       // "sidfläsk" fångas av en egen post, eftersom det inte BÖRJAR på fläsk.
       'fläsk', 'sidfläsk', 'rimmat sidfläsk',
+      'kalkon', 'kalkonfilé', 'kalkonbröst', 'kalv', 'kalvkött',
       'nötkött', 'nötfärs', 'köttfärs', 'biff', 'entrecôte', 'oxfilé', 'högrev', 'innanlår',
       'fläskkött', 'fläskfilé', 'fläskkarré', 'fläskkotlett', 'revbensspjäll',
       'lamm', 'lammkotlett', 'lammfärs', 'lammbog',
@@ -177,11 +178,26 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
  * Nyckelord med mellanslag ("gul lök", "kokt skinka") matchas mot hela namnet,
  * eftersom de aldrig kan vara ett enskilt ord.
  */
-/** Tar bort diakriter: "crème fraîche" och "creme fraiche" ska vara samma sak.
- *  Olika receptsajter stavar lånord olika, och stavningen ska inte avgöra
- *  vilken hylla varan hamnar på. */
+// Diakriter i LÅNORD, och bara de. Å, Ä och Ö är egna bokstäver i svenskan,
+// inte a/o med prickar — de får aldrig vikas ihop.
+//
+// Första versionen använde Unicode-normalisering rakt av, vilket gjorde "kål"
+// till "kal" och därmed en delsträng av "kallrökt". Kallrökt lax klassades som
+// frukt & grönt. Samma fälla hade träffat kalkon, kalvkött och kalops.
+const LÅNORDSDIAKRITER: Record<string, string> = {
+  é: 'e', è: 'e', ê: 'e', ë: 'e',
+  í: 'i', ì: 'i', î: 'i', ï: 'i',
+  ó: 'o', ò: 'o', ô: 'o',
+  ú: 'u', ù: 'u', û: 'u', ü: 'u',
+  á: 'a', à: 'a', â: 'a',
+  ç: 'c', ñ: 'n',
+};
+
+/** "crème fraîche" och "creme fraiche" ska vara samma vara — olika receptsajter
+ *  stavar lånord olika, och stavningen ska inte avgöra vilken hylla varan
+ *  hamnar på. Svenska bokstäver lämnas orörda. */
 function utanAccent(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return s.replace(/[éèêëíìîïóòôúùûüáàâçñ]/g, c => LÅNORDSDIAKRITER[c] ?? c);
 }
 
 function matchar(namn: string, ord: string[], kw: string): boolean {
@@ -218,7 +234,12 @@ const UNDANTAG: { frasar: string[]; category: StoreCategory }[] = [
     // Sylt och rårörda bär är skafferi/kyl, inte bär. Måste stå FÖRE
     // bär-regeln nedan, som annars drar med sig allt som börjar på "lingon".
     category: 'canned_dry',
-    frasar: ['rårörda lingon', 'lingonsylt', 'hjortronsylt', 'blåbärssylt', 'sylt', 'marmelad'],
+    frasar: [
+      'rårörda lingon', 'lingonsylt', 'hjortronsylt', 'blåbärssylt', 'sylt', 'marmelad',
+      // Torkade och malda former av grönsaker är kryddor, inte grönsaker.
+      // Måste stå före råvaruregeln, som annars ser "vitlök" i "vitlökspulver".
+      'vitlökspulver', 'lökpulver', 'paprikapulver', 'chilipulver', 'ingefärspulver', 'senapspulver',
+    ],
   },
   {
     // Färska ärtsorter, FÖRE både frys-undantaget nedan och socker-regeln.
@@ -236,6 +257,30 @@ const UNDANTAG: { frasar: string[]; category: StoreCategory }[] = [
     frasar: ['ärtor', 'ärter', 'gröna ärtor', 'lingon'],
   },
 ];
+
+/**
+ * Bara de KURERADE undantagen — inga nyckelordsregler.
+ *
+ * Undantagen är uttryckliga påståenden om var en vara står i butiken
+ * ("lingon köps frysta", "krossade tomater är skafferi"), skrivna för hand när
+ * någon sett varan hamna fel. De ska därför väga tyngre än en automatisk
+ * gissning på underkategori — inferSubCategory säger att lingon är ett bär,
+ * vilket är sant men irrelevant för vilken hylla man går till.
+ *
+ * Returnerar null när inget undantag träffar, så kallaren kan gå vidare till
+ * sina egna källor i stället för att få ett svagt svar.
+ */
+export function kureratUndantag(name: string): StoreCategory | null {
+  const lower = name.toLowerCase().trim();
+  const ord = lower.split(/[\s,.;:()[\]/\|+–—-]+/).filter(Boolean);
+
+  if (ord[0] === 'torkad' || ord[0] === 'torkade' || ord[0] === 'torkat') return 'canned_dry';
+
+  for (const u of UNDANTAG) {
+    if (u.frasar.some(f => (f.includes(' ') ? lower.includes(f) : ord.includes(f)))) return u.category;
+  }
+  return null;
+}
 
 export function categorizeIngredient(name: string): StoreCategory {
   const lower = name.toLowerCase().trim();

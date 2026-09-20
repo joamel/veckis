@@ -34,3 +34,7 @@ backups/
 # Experimentbilder och deras resultat — kokbokssidor, inget som hör hemma i repot
 experiments/**/bilder/
 experiments/**/*-rutor.html
+
+# Granskningsfiler från städskripten (backend/scripts) — lokala arbetsfiler,
+# genereras ur databasen och hör inte hemma i repot.
+granskning*.txt

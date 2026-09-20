@@ -9,6 +9,7 @@ import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases, normalizeIngredientNames } from '../lib/normalizeIngredients';
 import { översättIngrediensnamn } from '../lib/translateIngredients';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
+import { delaAlternativ } from '../lib/alternativ';
 import { stripIngredient } from '../lib/stripIngredient';
 import { parseIngredientString } from '../lib/parseIngredientString';
 import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
@@ -216,8 +217,14 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   // inköpslistan (menus.ts) normaliserade redan, så samma recept gav två olika
   // svar beroende på vilken väg man tog.
   void (async () => {
-    const kanoniska = await normalizeIngredientNames(recipe.ingredients.map(i => i.name));
-    const varor = recipe.ingredients.map((ing, i) => ({
+    // Alternativ delas upp FÖRE normaliseringen, så basvarorna får "nötfärs"
+    // och "vegofärs" var för sig i stället för en hopskrivning ingen butik har.
+    // Receptets egen rad och varan i inköpslistan behåller hela texten.
+    const grenar = recipe.ingredients.flatMap(ing =>
+      delaAlternativ(ing.name).map(namn => ({ ...ing, name: namn }))
+    );
+    const kanoniska = await normalizeIngredientNames(grenar.map(i => i.name));
+    const varor = grenar.map((ing, i) => ({
       ...ing,
       name: kanoniska[i] ?? ing.name,
     }));

@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '../db';
 import { stripIngredient, ärMängdOrd, startsWithUnit } from './stripIngredient';
 import { categorizeIngredient } from './categorizeIngredient';
+import { delaAlternativ } from './alternativ';
 import type { StoreCategory } from '@prisma/client';
 import { textUr, tolkaJsonArray } from './aiJson';
 import { bokförAiKostnad } from './aiCost';
@@ -18,8 +19,10 @@ Regler:
 - Ta bort portionsdeskriptorer (klyftor, skivor, blad, kvistar etc.)
 - Ta bort varumärken (Kikkoman sojasås → sojasås, Felix ketchup → ketchup)
 - Förenkla sammansatta ord till basform BARA när delen inte är en egen vara i butiken (vitlöksklyftor → vitlök, laxfilé → lax, kycklingbröst → kyckling)
-- Singularis av pluraler (tomater → tomat, morötter → morot, gurkor → gurka)
+- Singularis av pluraler BARA när namnet är ETT ord (tomater → tomat, morötter → morot, gurkor → gurka)
+- Består namnet av flera ord: rör INTE böjningen. Svenska adjektiv böjs efter huvudordet, och "mjuka skal" blir "mjuk skal", "glutenfria makaroner" blir "glutenfri makaron" — obegriplig svenska. Vissa varor heter dessutom bara plural: makaroner, cornflakes, cashewnötter. Ta bort tillagningsord som vanligt, men lämna resten som det står.
 - Mjölktyper → mjölk (standardmjölk → mjölk, lättmjölk → mjölk), men behåll äkta alternativ (kokosmjölk, havremjölk)
+- ALTERNATIV lämnas ALLTID orörda: "nötfärs alt. vegofärs", "körsbärstomater eller romanticatomater", "falukorv eller kycklingstekkorv". Välj ALDRIG ett av alternativen och slå ALDRIG ihop dem till ett tredje namn. Valet tillhör den som handlar — en vegetarian som får "nötfärs" har blivit fråntagen sitt alternativ. Ta bort tillagningsord som vanligt, men behåll alternativen och kopplingsordet.
 - VIKTIGAST: slå aldrig ihop två saker man köper var för sig. salladslök, purjolök, rödlök och gul lök är FYRA olika varor och ska behållas som de är — samma sak för basmatiris, jasminris och risgrynsgröt, och för sesamolja, olivolja och rapsolja. Hellre för specifikt än fel vara i kassen.
 - Returnera ENBART ett JSON-array med kanoniska namn i exakt samma ordning som indata, inga förklaringar.
 
@@ -34,7 +37,13 @@ Input: ["krossade tomater","soltorkade tomater, klippta i bitar","lingon rårör
 Output: ["krossade tomater","soltorkade tomater","rårörda lingon","rimmat sidfläsk","tomat"]
 
 Input: ["torkad dragon","färsk dragon, hackad","frysta hallon","hallon färska","fryst spenat"]
-Output: ["torkad dragon","dragon","frysta hallon","hallon","fryst spenat"]`;
+Output: ["torkad dragon","dragon","frysta hallon","hallon","fryst spenat"]
+
+Input: ["mjuka skal","glutenfria makaroner","tomater","krossade tomater, finhackade","gula lökar"]
+Output: ["mjuka skal","glutenfria makaroner","tomat","krossade tomater","gula lökar"]
+
+Input: ["körsbärstomater eller romanticatomater","falukorv eller kycklingstekkorv","nötfärs alt. vegofärs, stekt","finhackad gul lök"]
+Output: ["körsbärstomater eller romanticatomater","falukorv eller kycklingstekkorv","nötfärs alt. vegofärs","gul lök"]`;
 
 /**
  * Kanonisera namn UTAN att gå via alias-cachen.
@@ -157,6 +166,12 @@ export function duglingGlobalt(canonical: string): boolean {
   const c = canonical.trim();
   if (c.length === 0) return false;
   if (/^\d/.test(c)) return false;
+  // Ett namn med alternativ ("nötfärs alt. vegofärs") är ingen vara och ska
+  // aldrig föreslås i sökningen — varken för hushållet eller globalt. Själva
+  // ALTERNATIVEN lärs in var för sig (se delaAlternativ), och raden i
+  // inköpslistan behåller hela texten så valet finns kvar för den som handlar.
+  // Skyddar också mot rader som redan hunnit in i databasen.
+  if (/\s(?:eller|alt\.?|alternativt)\s/i.test(c)) return false;
   return !ärMängdOrd(c) && !startsWithUnit(c);
 }
 
@@ -186,7 +201,12 @@ export async function learnIngredientAliases(
   // som skrivs in direkt ("sojafärs") — annars lärde vi oss aldrig ett helt nytt
   // ingrediensnamn som råkar sakna deskriptorer att strippa, trots att det är
   // precis den typen av tillväxt vi vill fånga upp.
+  // Ett namn med alternativ är TVÅ varor, inte en: "nötfärs alt. vegofärs" ska
+  // lära in både nötfärs och vegofärs, så bägge kan kategoriseras och föreslås
+  // var för sig. Varans namn i inköpslistan rörs inte — där står alternativet
+  // kvar, eftersom valet tillhör den som handlar.
   const pairs = ingredients
+    .flatMap(i => delaAlternativ(i.name).map(namn => ({ ...i, name: namn })))
     .map(i => {
       const canonical = stripIngredient(i.name);
       return { raw: i.name.toLowerCase().trim(), canonical, category: känndKategori(i.category, canonical) };

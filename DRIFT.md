@@ -98,6 +98,12 @@ Google OAuth-consent (ska stå i Production, inte Testing) sitter i kvartalslist
 - **Native byggs manuellt**: GitHub Actions → `android-release-build` → AAB-artefakt → Play Console.
   EAS-byggkvoten är slut, kör inte `eas build`.
 - **Railway**: public networking PÅ för backend, AV för Postgres.
+- **Skript mot prod-DB kräver `DATABASE_PUBLIC_URL`, inte `DATABASE_URL`.** Railways interna adress
+  (`postgres.railway.internal`) går bara att nå från en tjänst inne i Railway — från din dator ger den
+  bara "Can't reach database server". Den publika är `...proxy.rlwy.net:PORT`, samma som backup-scriptet
+  använder. Är TCP-proxyn avstängd (vilket är utgångsläget för Postgres): slå på Public Networking,
+  kör, stäng av igen. Skripten i `backend/scripts/` skriver ut vilken databas de pratar med på första
+  raden och avbryter med en förklaring om de får den interna adressen.
 - **Webb-deployen ägs av CI, inte av Render.** `veckis-web` har `autoDeploy: false` i
   `render.yaml`; jobbet `deploy-web` i `ci.yml` triggar den via secreten
   `RENDER_WEB_DEPLOY_HOOK`. Skälet är att tjänsten har `rootDir: app` — Render hoppar över

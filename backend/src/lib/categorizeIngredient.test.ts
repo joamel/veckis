@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { categorizeIngredient } from './categorizeIngredient';
+import { categorizeIngredient, kureratUndantag } from './categorizeIngredient';
 
 describe('categorizeIngredient — delsträngsfällan', () => {
   it('matchar inte ett nyckelord mitt inne i ett ord', () => {
@@ -69,6 +69,32 @@ describe('categorizeIngredient — delsträngsfällan', () => {
     // bär-regeln, annars drar den med sig allt som börjar på "lingon".
     expect(categorizeIngredient('rårörda lingon')).toBe('canned_dry');
     expect(categorizeIngredient('lingonsylt')).toBe('canned_dry');
+  });
+
+  it('viker inte ihop å, ä och ö med a och o', () => {
+    // Regression från accent-normaliseringen: "kål" blev "kal" och därmed en
+    // delsträng av "kallrökt", så kallrökt lax klassades som frukt & grönt.
+    expect(categorizeIngredient('kallrökt lax')).toBe('meat_fish');
+    expect(categorizeIngredient('kalkonfilé')).toBe('meat_fish');
+    expect(categorizeIngredient('kål')).toBe('fruit_veg');
+  });
+
+  it('kureratUndantag svarar bara på undantagen', () => {
+    // Skiljer de handskrivna påståendena från nyckelordsreglerna, så en
+    // gissad underkategori kan gå före reglerna men aldrig före undantagen.
+    expect(kureratUndantag('lingon')).toBe('frozen');
+    expect(kureratUndantag('rårörda lingon')).toBe('canned_dry');
+    expect(kureratUndantag('torkad timjan')).toBe('canned_dry');
+    // Vanliga varor täcks av reglerna, inte av undantagen.
+    expect(kureratUndantag('mjölk')).toBeNull();
+    expect(kureratUndantag('kyckling')).toBeNull();
+  });
+
+  it('lägger pulverformer i kryddhyllan', () => {
+    // "vitlök" i "vitlökspulver" gjorde en krydda till färskvara.
+    expect(categorizeIngredient('vitlökspulver')).toBe('canned_dry');
+    expect(categorizeIngredient('paprikapulver')).toBe('canned_dry');
+    expect(categorizeIngredient('vitlök')).toBe('fruit_veg');
   });
 
   it('bryr sig inte om accenter', () => {

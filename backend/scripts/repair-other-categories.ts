@@ -25,17 +25,38 @@
  * inlärd (2026-09-19): värden som skrevs av den gamla last-write-wins-vägen
  * lever annars kvar utan att kunna rättas av någon.
  */
+import { visaMåldatabas } from './visaDb';
+import { skrivGranskningsfil, läsGranskningsfil, lägeskontroll, type Granskningsrad } from './granskningsfil';
 import { PrismaClient, StoreCategory } from '@prisma/client';
 import { parentForSub, SUB_TAXONOMY, type SubCategory } from '@veckis/shared';
-import { categorizeIngredient } from '../src/lib/categorizeIngredient';
+import { categorizeIngredient, kureratUndantag } from '../src/lib/categorizeIngredient';
 
 const prisma = new PrismaClient({ log: ['error'] });
 
-const args = new Set(process.argv.slice(2));
+const argv = process.argv.slice(2);
+const args = new Set(argv);
 const APPLY = args.has('--apply');
+
+/** --fil <sökväg> / --från-fil <sökväg> */
+function flaggvärde(namn: string): string | null {
+  const i = argv.indexOf(namn);
+  return i >= 0 && argv[i + 1] ? argv[i + 1] : null;
+}
+const SKRIV_FIL = flaggvärde('--fil');
+const LÄS_FIL = flaggvärde('--från-fil');
+
+type Förslag = Granskningsrad;
 
 /** Bästa kända kategori för ett namn, eller null när ingen vet. */
 function bättreKategori(name: string, subCategory?: string | null): StoreCategory | null {
+  // Kurerade undantag FÖRE underkategorin. Underkategorin är gissad ur namnet
+  // av inferSubCategory; undantaget är skrivet för hand av någon som sett
+  // varan hamna fel. Utan den här ordningen föreslogs "lingon -> fruit_veg"
+  // (bär) trots regeln att lingon köps frysta — och basvaror och varor i
+  // listor fick olika svar för samma namn i samma körning.
+  const undantag = kureratUndantag(name);
+  if (undantag) return undantag;
+
   if (subCategory && SUB_TAXONOMY[subCategory as SubCategory]) {
     const frånSub = parentForSub(subCategory as SubCategory);
     if (frånSub !== 'other') return frånSub;
@@ -53,6 +74,8 @@ function rapportera(rubrik: string, rader: Array<{ namn: string; till: StoreCate
 }
 
 async function main() {
+  visaMåldatabas();
+
   // -- 1. IngredientAlias ----------------------------------------------------
   //
   // Med --kurerad räknas HELA poolen om från de kurerade reglerna, inte bara
@@ -94,21 +117,38 @@ async function main() {
     .filter((i): i is { id: string; namn: string; till: StoreCategory } => i.till !== null);
   rapportera('3. ShoppingItem (varor i listor)', itemFix);
 
-  if (!APPLY) {
-    console.log('\nTorrkörning. Inget skrevs. Kör om med --apply för att genomföra.');
+  // Alla förslag i EN lista, så granskningsfilen kan blanda tabellerna och
+  // ändå tillämpas exakt rad för rad.
+  const alla: Förslag[] = [
+    ...aliasFix.map(a => ({ tabell: 'alias' as const, nyckel: a.raw, namn: a.namn, till: a.till as string })),
+    ...stapleFix.map(s => ({ tabell: 'staple' as const, nyckel: s.id, namn: s.namn, till: s.till as string })),
+    ...itemFix.map(i => ({ tabell: 'item' as const, nyckel: i.id, namn: i.namn, till: i.till as string })),
+  ];
+
+  if (SKRIV_FIL) {
+    skrivGranskningsfil(SKRIV_FIL, alla);
     return;
   }
 
-  for (const a of aliasFix) {
-    await prisma.ingredientAlias.update({ where: { raw: a.raw }, data: { category: a.till } });
+  if (!APPLY) {
+    console.log('\nTorrkörning. Inget skrevs.');
+    console.log('  --fil <sökväg>   skriver ALLA förslag till en textfil du granskar i Anteckningar');
+    console.log('  --apply          tillämpar allt direkt (utan granskning)');
+    return;
   }
-  for (const s of stapleFix) {
-    await prisma.stapleItem.update({ where: { id: s.id }, data: { category: s.till } });
+
+  // Med --från-fil är filen facit: bara raderna som står kvar där tillämpas,
+  // med kategorin som står i den. Utan fil tillämpas allt skriptet föreslog.
+  const attSkriva = LÄS_FIL ? läsGranskningsfil(LÄS_FIL) : alla;
+
+  let antalAlias = 0, antalStaple = 0, antalItem = 0;
+  for (const f of attSkriva) {
+    const category = f.till as StoreCategory;
+    if (f.tabell === 'alias') { await prisma.ingredientAlias.update({ where: { raw: f.nyckel }, data: { category } }); antalAlias++; }
+    else if (f.tabell === 'staple') { await prisma.stapleItem.update({ where: { id: f.nyckel }, data: { category } }); antalStaple++; }
+    else if (f.tabell === 'item') { await prisma.shoppingItem.update({ where: { id: f.nyckel }, data: { category } }); antalItem++; }
   }
-  for (const i of itemFix) {
-    await prisma.shoppingItem.update({ where: { id: i.id }, data: { category: i.till } });
-  }
-  console.log(`\nKLART: ${aliasFix.length} alias, ${stapleFix.length} basvaror, ${itemFix.length} varor rättade.`);
+  console.log(`\nKLART: ${antalAlias} alias, ${antalStaple} basvaror, ${antalItem} varor rättade.`);
 }
 
 main()

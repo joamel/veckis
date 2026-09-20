@@ -39,7 +39,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'oliver_antipasto', patterns: ['gröna oliver', 'svarta oliver', 'oliver', 'antipasto', 'soltorkade tomater', 'kapris', 'cornichoner', 'inlagda paprika', 'pepparoni (inlagda)'] },
   { sub: 'färdigmat_kyld', patterns: ['färdig sallad', 'pastasallad', 'kyld färdigrätt', 'färdig soppa', 'sushi'] },
   // Mejeri & ägg
-  { sub: 'laktosfritt', patterns: ['laktosfri', 'laktosfritt'] }, // KÖRS FÖRST — överstyr mjölk/ost om "laktosfri" finns i namnet
+  { sub: 'laktosfritt', patterns: ['laktosfri', 'laktosfritt', 'lactose free', 'lactose-free'] }, // KÖRS FÖRST — överstyr mjölk/ost om "laktosfri" finns i namnet
   { sub: 'mejerisubstitut', patterns: ['havremjölk', 'havredryck', 'sojamjölk', 'sojadryck', 'mandelmjölk', 'kokosmjölk', 'havregrädde', 'sojagrädde', 'växtbaserad'] },
   { sub: 'mjölk', patterns: ['standardmjölk', 'mellanmjölk', 'lättmjölk', 'minimjölk', 'mjölk'] },
   { sub: 'yoghurt_fil', patterns: ['yoghurt', 'fil', 'filmjölk', 'kefir', 'naturell yoghurt', 'grekisk yoghurt', 'turkisk yoghurt'] },
@@ -90,7 +90,9 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'alkoholfritt_öl_cider', patterns: ['alkoholfri öl', 'alkoholfri cider', 'alkoholfritt'] },
   { sub: 'alkoholhaltigt', patterns: ['öl', 'vin', 'rödvin', 'vitt vin', 'rosévin', 'cider', 'sprit', 'whisky', 'vodka', 'rom', 'gin'] },
   // Specialkost
-  { sub: 'glutenfritt', patterns: ['glutenfri', 'glutenfritt'] },
+  // Engelska former också: importerade recept kan innehålla oöversatta namn
+  // ("gluten free pasta"), och de ska hamna i specialkost som alla andra.
+  { sub: 'glutenfritt', patterns: ['glutenfri', 'glutenfritt', 'glutenfria', 'gluten free', 'gluten-free'] },
   { sub: 'veg_protein', patterns: ['tofu', 'tempeh', 'quorn', 'oumph', 'seitan', 'sojafärs', 'vegofärs', 'sojabitar', 'falafel', 'växtbaserad färs', 'beyond meat'] },
   { sub: 'vegan', patterns: ['vegan'] },
   // Städ & rengöring

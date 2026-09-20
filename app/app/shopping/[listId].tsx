@@ -66,7 +66,7 @@ import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem , visningsnamn } from '@veckis/shared';
 import { isIOSLike, isWeb } from '../../src/lib/platform';
 import { shoppingList as str, common } from '../../src/lib/svenska';
 import { enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError } from '../../src/lib/shoppingOfflineQueue';
@@ -2891,7 +2891,12 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
               accessibilityLabel={str.a11y.editItem(item.name)}
             >
               <View style={s.itemRow}>
-                <Text style={[s.itemName, (item.isChecked || pending) && s.itemNameChecked]}>{capitalize(item.name)}</Text>
+                {/* Plural vid fler än en: "5 gurka" är fel svenska. Bara när
+                    varan RÄKNAS — saknad enhet eller "st". "5 dl mjölk" är
+                    fem deciliter av en vara, inte fem mjölkar. */}
+                <Text style={[s.itemName, (item.isChecked || pending) && s.itemNameChecked]}>
+                  {capitalize(visningsnamn(item.name, !item.unit || item.unit === 'st' ? item.quantity : 1))}
+                </Text>
                 {(item.quantity !== 1 || item.unit) && (
                   <Text style={[s.itemQty, (item.isChecked || pending) && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}</Text>
                 )}

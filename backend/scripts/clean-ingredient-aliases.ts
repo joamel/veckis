@@ -17,6 +17,7 @@
  * Torrkörning som standard — skriver bara ut vad som skulle hända. --apply för
  * att faktiskt skriva. Kör mot produktion genom att peka DATABASE_URL dit.
  */
+import { visaMåldatabas } from './visaDb';
 import { PrismaClient } from '@prisma/client';
 import { duglingGlobalt } from '../src/lib/normalizeIngredients';
 import { stripIngredient } from '../src/lib/stripIngredient';
@@ -54,6 +55,8 @@ async function seddaAv(): Promise<Map<string, Set<string>>> {
 }
 
 async function main() {
+  visaMåldatabas();
+
   const alias = await prisma.ingredientAlias.findMany({
     select: { raw: true, canonical: true },
   });

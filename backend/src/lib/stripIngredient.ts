@@ -118,7 +118,8 @@ const PREP_WORDS = new Set([
 // ("kg potatis" → "potatis"). Håll i synk med parserns unit-lista i recipes.ts.
 const UNITS = new Set([
   'dl', 'ml', 'l', 'liter', 'cl', 'msk', 'tsk', 'krm', 'g', 'kg', 'hg', 'st', 'port',
-  'burk', 'förp', 'pkt', 'paket', 'påse', 'näve', 'skiva', 'skivor',
+  'burk', 'förp', 'förpackning', 'förpackningar', 'pkt', 'paket', 'påse', 'ask',
+  'kartong', 'näve', 'skiva', 'skivor',
   'cup', 'cups', 'tsp', 'tbsp', 'teaspoon', 'teaspoons', 'tablespoon', 'tablespoons',
   'oz', 'ounce', 'ounces', 'lb', 'lbs', 'pound', 'pounds',
   'pint', 'pints', 'quart', 'quarts', 'gallon', 'gallons',
@@ -163,11 +164,21 @@ export function startsWithUnit(name: string): boolean {
 // Introductory approximation words
 const APPROX_PREFIX = /^(ca\.?\s*|ungefär\s*|circa\s*|typ\s*)/i;
 
+
 export function stripIngredient(raw: string): string {
   let s = raw.trim();
 
   // Remove parenthetical content
   s = s.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+
+  // OBS: alternativ ("nötfärs alt. vegofärs", "körsbärstomater eller
+  // romanticatomater") klipps AVSIKTLIGT inte bort här.
+  //
+  // Ett försök till det backades 2026-09-20: strippningen matar namnet på
+  // varan i inköpslistan, och att behålla bara första alternativet tar bort
+  // användarens val. En vegetarian som överför rätten skulle få "nötfärs" och
+  // inget mer. Valet mellan alternativ tillhör den som handlar, inte
+  // normaliseringen — och kostar den här raden ingenting att lämna kvar.
 
   // Remove approximation prefix
   s = s.replace(APPROX_PREFIX, '').trim();

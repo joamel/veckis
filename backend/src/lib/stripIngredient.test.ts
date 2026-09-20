@@ -48,6 +48,24 @@ describe('stripIngredient — ledande mängd', () => {
   });
 });
 
+describe('stripIngredient — alternativ och förpackningar', () => {
+  it('BEHÅLLER alternativ — valet tillhör den som handlar', () => {
+    // Ett försök att klippa vid "eller" backades: strippningen matar namnet på
+    // varan i inköpslistan, så en vegetarian som överför rätten hade fått
+    // "nötfärs" utan att se att sojafärs var ett alternativ.
+    expect(stripIngredient('nötfärs alt. vegofärs')).toBe('nötfärs alt. vegofärs');
+    expect(stripIngredient('havre- eller sojadryck')).toBe('havre- eller sojadryck');
+  });
+
+  it('skalar bort "förpackning" som den enhet den är', () => {
+    expect(stripIngredient('förpackning bacon')).toBe('bacon');
+  });
+
+  it('rör inte namn där "eller" inte finns', () => {
+    expect(stripIngredient('rökt skinka')).toBe('rökt skinka');
+  });
+});
+
 describe('startsWithUnit', () => {
   it('flags unit-prefixed names', () => {
     expect(startsWithUnit('kg potatis')).toBe(true);

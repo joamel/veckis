@@ -64,3 +64,16 @@ describe('inferSubCategory', () => {
     }
   });
 });
+
+describe('specialkost på engelska', () => {
+  it('känner igen oöversatta importnamn', () => {
+    // Översättningen vid import är förstahandsskyddet, men den gäller bara
+    // URL-importens JSON-LD-gren. Skrivs namnet in för hand, eller faller
+    // AI-anropet, kan engelska ändå nå databasen — och där låg redan
+    // "gluten free pasta" utan att matcha något mönster alls.
+    expect(inferSubCategory('gluten free pasta')).toBe('glutenfritt');
+    expect(inferSubCategory('gluten-free bread')).toBe('glutenfritt');
+    expect(inferSubCategory('glutenfria makaroner')).toBe('glutenfritt');
+    expect(inferSubCategory('lactose free milk')).toBe('laktosfritt');
+  });
+});

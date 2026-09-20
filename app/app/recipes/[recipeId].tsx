@@ -304,9 +304,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   }, [cookStep, cookMode, cookIngredAnim, startCookIngredAnim]);
 
   const keyboardH = useRef(0);
+  // Samma värde som state också: refen räcker för uträkningarna ovan, men
+  // bottenutrymmet nedan måste orsaka en omrendering för att ge effekt.
+  const [tangentbordH, setTangentbordH] = useState(0);
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', e => { keyboardH.current = e.endCoordinates.height; });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardH.current = 0; });
+    const show = Keyboard.addListener('keyboardDidShow', e => { keyboardH.current = e.endCoordinates.height; setTangentbordH(e.endCoordinates.height); });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardH.current = 0; setTangentbordH(0); });
     return () => { show.remove(); hide.remove(); };
   }, []);
 
@@ -348,15 +351,19 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         const screenH = Dimensions.get('window').height;
         const kbTop = screenH - (keyboardH.current || 340);
         const chipRowH = 64; // förslags-chip-raden + gap under fältet
+        // Sista raden har "Lägg till rad"-knappen direkt under sig, precis som
+        // i enhets-effekten ovan. Saknades här, så en nyss tillagd rad — som
+        // alltid är sist — lyftes för lite även när det fanns utrymme.
+        const addRowBtnH = activeNameIdx === editIngredients.length - 1 ? 44 : 0;
         const margin = 24;
-        const hidden = (y + h + chipRowH + margin) - kbTop;
+        const hidden = (y + h + chipRowH + addRowBtnH + margin) - kbTop;
         if (hidden > 0) {
           mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + hidden, animated: true });
         }
       });
     }, 200);
     return () => clearTimeout(t);
-  }, [activeNameIdx]);
+  }, [activeNameIdx, editIngredients.length]);
 
   function getRowRef(idx: number): RowRef {
     if (!rowRefs.current[idx]) rowRefs.current[idx] = { qty: null, unit: null, name: null };
@@ -1086,7 +1093,18 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       <KeyboardAvoidingView behavior={kavBehavior} style={{ flex: 1 }}>
       <ScrollView
         ref={mainScrollRef}
-        contentContainerStyle={s.scroll}
+        contentContainerStyle={[
+          s.scroll,
+          // Utan extra botten går den SISTA raden inte att lyfta: scrollTo
+          // klampas mot innehållets slut, så det finns helt enkelt inget att
+          // skrolla till. Rader mitt i listan har resten av formuläret under
+          // sig och lyfts därför hela vägen — vilket är precis varför en nyss
+          // tillagd rad (som alltid är sist) bara flyttade sig en aning.
+          //
+          // Bara medan ett fält är fokuserat, annars vore det en tom lucka
+          // under formuläret.
+          editMode && tangentbordH > 0 && (activeNameIdx !== null || activeUnitIdx !== null) && { paddingBottom: tangentbordH + 80 },
+        ]}
         keyboardShouldPersistTaps="always"
         scrollEventThrottle={16}
         onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
@@ -1990,7 +2008,12 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   editInputQty: { width: 54, textAlign: 'left' },
   editInputUnit: { width: 52, textAlign: 'left' },
   editInputName: { flex: 1 },
-  editInputNameField: { flex: 1, padding: 0, fontSize: 14, textAlign: 'left' },
+  // color MÅSTE stå här. s.editInput sitter på wrappern, som är en View, och
+  // RN ärver inte textfärg genom en View — fältet föll därför tillbaka på
+  // plattformens svarta standardfärg. I ljust läge såg det rätt ut av en
+  // slump; i mörkt läge blev texten svart på mörk bakgrund så fort fältet
+  // fokuserades (overlayn, som har rätt färg, döljs då).
+  editInputNameField: { flex: 1, padding: 0, fontSize: 14, textAlign: 'left', color: c.text },
   editInputNameOverlay: { position: 'absolute', left: 10, right: 10, top: 8, bottom: 8, fontSize: 14, color: c.text },
   editRemove: { padding: 2 },
   ingEditRowDragging: { opacity: 0.4 },

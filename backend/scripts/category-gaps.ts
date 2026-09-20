@@ -11,12 +11,15 @@
  * Samma data som GET /api/admin/category-gaps, men utan att behöva en
  * Clerk-token. Kör mot prod genom att peka DATABASE_URL dit.
  */
+import { visaMåldatabas } from './visaDb';
 import { PrismaClient } from '@prisma/client';
 import { categorizeIngredient } from '../src/lib/categorizeIngredient';
 
 const prisma = new PrismaClient({ log: ['error'] });
 
 async function main() {
+  visaMåldatabas();
+
   const alias = await prisma.ingredientAlias.findMany({
     orderBy: { seenCount: 'desc' },
     select: { canonical: true, category: true, seenCount: true },

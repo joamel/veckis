@@ -23,6 +23,7 @@
  *
  * Torrkörning som standard. --apply för att skriva.
  */
+import { visaMåldatabas } from './visaDb';
 import { PrismaClient } from '@prisma/client';
 import { kanoniseraUtanCache } from '../src/lib/normalizeIngredients';
 
@@ -37,8 +38,14 @@ const BATCH = 40;
 
 /** Kandidater: flerordsnamn som aldrig kanoniserats (canonical === raw). Ett
  *  enordsnamn är redan så naket det blir, och att köra det genom modellen
- *  kostar bara pengar. */
+ *  kostar bara pengar.
+ *
+ *  Namn med ALTERNATIV hoppas över helt. De ska varken kortas eller väljas
+ *  mellan — "falukorv eller kycklingstekkorv" är inte "falukorv". De filtreras
+ *  redan bort ur sökförslagen av duglingGlobalt, och alternativen lärs in var
+ *  för sig (delaAlternativ), så raden gör ingen skada där den ligger. */
 function ärKandidat(raw: string, canonical: string): boolean {
+  if (/\s(?:eller|alt\.?|alternativt)\s/i.test(canonical)) return false;
   return raw === canonical && raw.trim().split(/\s+/).length >= 2;
 }
 
@@ -57,6 +64,8 @@ async function kanoniseraAlla(namn: string[]): Promise<Map<string, string>> {
 }
 
 async function main() {
+  visaMåldatabas();
+
   // -- 1. IngredientAlias ----------------------------------------------------
   const alias = await prisma.ingredientAlias.findMany({ select: { raw: true, canonical: true } });
   const kandidater = alias.filter(a => ärKandidat(a.raw, a.canonical)).map(a => a.raw);
@@ -82,6 +91,7 @@ async function main() {
     select: { id: true, householdId: true, name: true, usageCount: true },
   });
   const stapleÄndringar = staples
+    .filter(s => !/\s(?:eller|alt\.?|alternativt)\s/i.test(s.name))
     .map(s => ({ ...s, till: karta.get(s.name) }))
     .filter((s): s is typeof s & { till: string } => !!s.till);
 

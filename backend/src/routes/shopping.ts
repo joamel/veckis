@@ -4,7 +4,7 @@ import { StoreCategory, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
-import { categorizeIngredient } from '../lib/categorizeIngredient';
+import { categorizeIngredient, kureratUndantag } from '../lib/categorizeIngredient';
 
 /** Ett lagrat 'other' betyder "ingen vet", inte "kategorin är Övrigt" — den
  *  skillnaden avgör om ett sämre svar får slå ut ett bättre längre ned i
@@ -327,6 +327,11 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
     // tomt "vet inte" över ett korrekt svar längre ned, och varan hamnade under
     // Övrigt trots att klassaren kände igen namnet.
     : känd(staplePref?.category)
+      // Kurerade undantag före underkategorin: underkategorin är gissad ur
+      // namnet, undantaget är skrivet för hand av någon som sett varan hamna
+      // fel ("lingon köps frysta" väger tyngre än "lingon är ett bär").
+      // Samma ordning som städskriptet, annars säger de emot varandra.
+      ?? kureratUndantag(normalizedName)
       ?? (subCategory ? känd(parentForSub(subCategory as SubCategory)) : null)
       ?? känd(await getStoredCategory(normalizedName))
       ?? categorizeIngredient(normalizedName);
