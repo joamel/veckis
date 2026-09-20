@@ -20,7 +20,8 @@
     "restore-test": "node scripts/restore-test.mjs",
     "clean:aliases": "tsx scripts/clean-ingredient-aliases.ts",
     "repair:categories": "tsx scripts/repair-other-categories.ts",
-    "clean:names": "tsx scripts/clean-recipe-names.ts"
+    "clean:names": "tsx scripts/clean-recipe-names.ts",
+    "category-gaps": "tsx scripts/category-gaps.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.2",

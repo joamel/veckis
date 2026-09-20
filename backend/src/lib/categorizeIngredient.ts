@@ -22,6 +22,9 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
     category: 'meat_fish',
     keywords: [
       'kyckling', 'kycklingfilé', 'kycklinglår', 'kycklingvinge', 'kycklinglever',
+      // "fläsk" som ordbörjan täcker fläskfilé, fläskkarré och fläskkotlett.
+      // "sidfläsk" fångas av en egen post, eftersom det inte BÖRJAR på fläsk.
+      'fläsk', 'sidfläsk', 'rimmat sidfläsk',
       'nötkött', 'nötfärs', 'köttfärs', 'biff', 'entrecôte', 'oxfilé', 'högrev', 'innanlår',
       'fläskkött', 'fläskfilé', 'fläskkarré', 'fläskkotlett', 'revbensspjäll',
       'lamm', 'lammkotlett', 'lammfärs', 'lammbog',
@@ -38,7 +41,7 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
   {
     category: 'cheese',
     keywords: [
-      'ost', 'cheddar', 'mozzarella', 'parmesan', 'brie', 'camembert', 'gouda',
+      'ost', 'cheddar', 'mozzarella', 'burrata', 'parmesan', 'brie', 'camembert', 'gouda',
       'fetaost', 'halloumi', 'ricotta', 'mascarpone', 'roquefort', 'gorgonzola',
       'gruyère', 'pecorino', 'manchego', 'emmentaler', 'edam', 'raclette',
     ],
@@ -67,6 +70,7 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
     category: 'frozen',
     keywords: [
       'fryst', 'frysta', 'frysvaror', 'frozen', 'glass', 'sorbet',
+      'quorn', 'quornbitar', 'quornfärs',
       'fryst pizza', 'fryst fisk', 'fryst grönsak', 'fryst bär',
       'pizzabotten', 'peas frozen', 'ärtor frysta',
     ],
@@ -74,6 +78,10 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
   {
     category: 'canned_dry',
     keywords: [
+      // Fonder skrivs ihop ("grönsaksfond"), och regeln matchar på ordbörjan —
+      // så varje sammansättning behöver stå för sig.
+      'garam masala', 'fond', 'grönsaksfond', 'kycklingfond', 'köttfond',
+      'fiskfond', 'svampfond', 'buljong', 'buljongtärning',
       'pasta', 'spaghetti', 'penne', 'fusilli', 'tagliatelle', 'linguine', 'rigatoni',
       'ris', 'basmatiris', 'jasminris', 'råris', 'parboiledris',
       'nudlar', 'glasnudlar', 'ramen', 'udon',
@@ -138,6 +146,7 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
   {
     category: 'personal_care',
     keywords: [
+      'toalettpapper', 'hushållspapper', 'pappersservett', 'näsduk',
       'schampo', 'balsam', 'hårinpackning',
       'tandkräm', 'tandborste', 'tandtråd', 'munskölj',
       'deodorant', 'antiperspirant',
@@ -168,9 +177,20 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
  * Nyckelord med mellanslag ("gul lök", "kokt skinka") matchas mot hela namnet,
  * eftersom de aldrig kan vara ett enskilt ord.
  */
+/** Tar bort diakriter: "crème fraîche" och "creme fraiche" ska vara samma sak.
+ *  Olika receptsajter stavar lånord olika, och stavningen ska inte avgöra
+ *  vilken hylla varan hamnar på. */
+function utanAccent(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
 function matchar(namn: string, ord: string[], kw: string): boolean {
-  if (kw.includes(' ')) return namn.includes(kw);
-  return ord.some(o => o.startsWith(kw));
+  const nyckel = utanAccent(kw);
+  // Flerordsnyckelord kan aldrig vara ett enskilt ord — de jämförs mot hela
+  // namnet. Också de utan accenter: annars matchade "crème fraiche 34%" men
+  // inte "creme fraiche", vilket är samma vara stavad på två sätt.
+  if (kw.includes(' ')) return utanAccent(namn).includes(nyckel);
+  return ord.some(o => utanAccent(o).startsWith(nyckel));
 }
 
 /**
@@ -195,6 +215,12 @@ const UNDANTAG: { frasar: string[]; category: StoreCategory }[] = [
     frasar: ['jäst'],
   },
   {
+    // Sylt och rårörda bär är skafferi/kyl, inte bär. Måste stå FÖRE
+    // bär-regeln nedan, som annars drar med sig allt som börjar på "lingon".
+    category: 'canned_dry',
+    frasar: ['rårörda lingon', 'lingonsylt', 'hjortronsylt', 'blåbärssylt', 'sylt', 'marmelad'],
+  },
+  {
     // Färska ärtsorter, FÖRE både frys-undantaget nedan och socker-regeln.
     // "sockerärtor" börjar på "socker" och blev torrvara — samma sorts fel som
     // "läsk" i "sidfläsk", fast via ordbörjan i stället för delsträng.
@@ -202,16 +228,30 @@ const UNDANTAG: { frasar: string[]; category: StoreCategory }[] = [
     frasar: ['sockerärtor', 'ärtskidor', 'ärtskott'],
   },
   {
-    // Ärtor köps nästan alltid frysta. Exakt ordmatchning, så färska sorter
+    // Ärtor och lingon köps nästan alltid frysta — lingon som de där bären man
+    // toppar en biff Rydberg med, inte som sylt. Sylten fångas av
+    // undantaget ovan, som prövas först. Exakt ordmatchning, så färska sorter
     // ovan inte dras med.
     category: 'frozen',
-    frasar: ['ärtor', 'ärter', 'gröna ärtor'],
+    frasar: ['ärtor', 'ärter', 'gröna ärtor', 'lingon'],
   },
 ];
 
 export function categorizeIngredient(name: string): StoreCategory {
   const lower = name.toLowerCase().trim();
-  const ord = lower.split(/[^a-zåäöé0-9]+/).filter(Boolean);
+  // Dela på skiljetecken, inte på "allt som inte är en svensk bokstav". Den
+  // förra varianten listade tillåtna tecken, och då blev varje accent en
+  // ordgräns: "crème fraîche" styckades i cr/me/fra/che och matchade förstås
+  // ingenting. Lånorden i en matbutik är fulla av accenter.
+  const ord = lower.split(/[\s,.;:()[\]/\|+–—-]+/).filter(Boolean);
+
+  // Torkat prövas FÖRE reglerna. Som nyckelord i skafferi-regeln hade det inte
+  // räckt: örterna ligger i frukt & grönt-regeln, som kommer först, så
+  // "torkad timjan" blev färskvara. Det är själva ordet "torkad" som avgör
+  // hyllan, oavsett vad som kommer efter.
+  if (ord[0] === 'torkad' || ord[0] === 'torkade' || ord[0] === 'torkat') {
+    return 'canned_dry';
+  }
 
   for (const u of UNDANTAG) {
     if (u.frasar.some(f => (f.includes(' ') ? lower.includes(f) : ord.includes(f)))) {
