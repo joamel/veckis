@@ -250,6 +250,11 @@ model StapleItem {
   householdId     String
   name            String
   category        StoreCategory @default(other)
+  // Hushållets val av underkategori för varan, satt i basvaru-editorn
+  // (långtryck på ett sökförslag). null = inget val gjort, då får
+  // inferSubCategory gissa vid tillägg. Sträng av samma skäl som
+  // ShoppingItem.subCategory: frikopplad från enum-deploys.
+  subCategory     String?
   unit            String?
   defaultQuantity Float?
   usageCount      Int           @default(0) // times added to a list — drives "dina vanligaste"

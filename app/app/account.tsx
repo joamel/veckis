@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, useUser } from '@clerk/expo';
-import { useApiClient } from '../src/api/client';
+import { useApiClient, ApiError } from '../src/api/client';
 import { useHousehold } from '../src/context/HouseholdContext';
 import { useToast } from '../src/context/ToastContext';
 import { useConfirm } from '../src/context/ConfirmContext';
@@ -137,6 +137,14 @@ export default function AccountScreen() {
       router.replace('/(auth)/sign-in');
     } catch (e) {
       setDeleting(false);
+      // 409 = appadmin-spärren i backend. Den förklarar i klartext VARFÖR
+      // raderingen vägrades och vad som måste göras först, och den texten är
+      // hela poängen — showError visar annars bara den generiska fallbacken,
+      // och spärren hade sett ut som ett slumpmässigt fel.
+      if (e instanceof ApiError && e.status === 409) {
+        showToast(e.message, 'error');
+        return;
+      }
       showError(e, str.toasts.errorDelete);
     }
   }

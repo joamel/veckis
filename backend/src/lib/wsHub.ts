@@ -22,3 +22,17 @@ export function wsBroadcast(listId: string, message: object): void {
     if (ws.readyState === WebSocket.OPEN) ws.send(payload);
   }
 }
+
+/**
+ * En listhändelse till både listans egen kanal och hushållets: listan så att
+ * den som har den öppen ser ändringen, hushållet så att översikten uppdateras.
+ *
+ * Ligger här och inte i shopping-routen eftersom fler än inköpslistan skriver
+ * till listor — basvaru-editorn flyttar varor mellan kategorier och måste
+ * skicka samma händelse, annars ser den som står i affären ingenting förrän
+ * hen laddar om.
+ */
+export function wsListUpdate(listId: string, householdId: string, message: object): void {
+  wsBroadcast(listId, message);
+  wsBroadcast(`household:${householdId}`, { type: 'shopping_list_updated', data: { listId } });
+}

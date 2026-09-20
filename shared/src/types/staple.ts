@@ -5,6 +5,9 @@ export interface StapleItem {
   householdId: string;
   name: string;
   category: StoreCategory;
+  /** Hushållets val av underkategori, satt i basvaru-editorn. null = inget val
+   *  gjort, då gissar inferSubCategory vid tillägg. */
+  subCategory: string | null;
   unit: string | null;
   defaultQuantity: number | null;
   usageCount: number;

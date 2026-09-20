@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { createClerkClient } from '@clerk/backend';
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, ärAppAdmin, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { wsBroadcast } from '../lib/wsHub';
 import { handleClerkUserDeleted } from '../lib/memberCleanup';
@@ -16,6 +16,24 @@ export const accountRouter = Router();
 // finns inga medlemskap kvar att städa och raderingen körs igen.
 accountRouter.delete('/', requireAuth, asyncHandler(async (req, res) => {
   const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+
+  // Appadmin kan inte radera sig själv härifrån.
+  //
+  // Raderingen tar Clerk-kontot, och därmed det id som står i
+  // ADMIN_CLERK_USER_IDS. Variabeln pekar då på en användare som inte finns,
+  // och det går inte att laga inifrån appen — man måste in i Railway med ett
+  // nytt id. Ett feltryck i kontovyn skulle alltså låsa ut ägaren ur sin egen
+  // drift, permanent tills någon redigerar miljövariabler.
+  //
+  // Spärren är avsiktligt inte en bekräftelsedialog till: den ska kräva ett
+  // medvetet steg på ett ANNAT ställe (ta bort sig ur variabeln först), inte
+  // bara ett tryck till i samma flöde.
+  if (ärAppAdmin(clerkUserId)) {
+    res.status(409).json({
+      error: 'Du är appadmin och kan inte radera kontot härifrån. Ta först bort ditt id ur ADMIN_CLERK_USER_IDS.',
+    });
+    return;
+  }
 
   const removed = await handleClerkUserDeleted(clerkUserId);
   for (const r of removed) {

@@ -12,7 +12,7 @@ import { categorizeIngredient } from '../lib/categorizeIngredient';
 function känd(category: StoreCategory | null | undefined): StoreCategory | null {
   return category && category !== 'other' ? category : null;
 }
-import { learnIngredientAliases, getStoredCategory, storeIngredientCategory } from '../lib/normalizeIngredients';
+import { learnIngredientAliases, getStoredCategory } from '../lib/normalizeIngredients';
 import { stripIngredient } from '../lib/stripIngredient';
 import { suggestMerge, resolveEquivalences, learnEquivalenceFromMerge, isPackagingUnit, loadConfirmedEquivalencesByName } from '../lib/smartMerge';
 import { wsBroadcast } from '../lib/wsHub';
@@ -290,7 +290,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   const normalizedName = stripIngredient(body.data.name);
   const staplePref = await prisma.stapleItem.findUnique({
     where: { householdId_name: { householdId: list.householdId, name: normalizedName } },
-    select: { category: true },
+    select: { category: true, subCategory: true },
   });
   // Track usage so the most-added staples surface as "dina vanligaste".
   if (staplePref) {
@@ -306,17 +306,30 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   // inferens av standard-sub OCH den globala inlärningen; det är rena lokala
   // etiketter som inte ska påverka cross-household-datan.
   const isLocalPlacement = !!(body.data.customCategory || body.data.customSubCategory);
-  const inferredSub = isLocalPlacement ? (body.data.subCategory ?? null) : (body.data.subCategory ?? inferSubCategory(normalizedName));
+  // Hushållets egen basvara går före auto-inferensen. inferSubCategory är en
+  // gissning på namnet, och en gissning ska aldrig slå ett val någon gjort för
+  // hand — det var precis vad som hände: satte man kategori i basvaru-editorn
+  // ignorerades den tyst för varje namn som råkade ha en underkategori
+  // ("aubergine", "bröd"), medan namn utan ("avokado", "bacon") respekterades.
+  // Utifrån såg det ut som att ändringen slog igenom ibland och ibland inte.
+  const inferredSub = isLocalPlacement
+    ? (body.data.subCategory ?? null)
+    : (body.data.subCategory ?? staplePref?.subCategory ?? inferSubCategory(normalizedName));
   const subCategory = inferredSub ?? null;
   const category = body.data.category !== 'other'
     ? body.data.category
-    : subCategory
-      ? parentForSub(subCategory as SubCategory)
-      // 'other' räknas INTE som ett svar i den här kedjan. Hushållets stapel och
-      // det globala aliaset får gå före nyckelordsklassaren bara när de faktiskt
-      // säger något — annars vann ett tomt "vet inte" över ett korrekt svar, och
-      // varan hamnade under Övrigt trots att klassaren kände igen namnet.
-      : (känd(staplePref?.category) ?? känd(await getStoredCategory(normalizedName)) ?? categorizeIngredient(normalizedName));
+    // Basvaran FÖRE underkategorin, av samma skäl som ovan: har hushållet sagt
+    // "bacon hör till chark" ska en inferens om namnet inte flytta tillbaka den.
+    // Ordningen: hushållets eget val, sedan underkategorin, sedan det globala
+    // aliaset, sist nyckelordsklassaren.
+    //
+    // 'other' räknas INTE som ett svar någonstans i kedjan — annars vann ett
+    // tomt "vet inte" över ett korrekt svar längre ned, och varan hamnade under
+    // Övrigt trots att klassaren kände igen namnet.
+    : känd(staplePref?.category)
+      ?? (subCategory ? känd(parentForSub(subCategory as SubCategory)) : null)
+      ?? känd(await getStoredCategory(normalizedName))
+      ?? categorizeIngredient(normalizedName);
 
   // If an unchecked item with the same name+unit already exists, increment its quantity
   const existing = await prisma.shoppingItem.findFirst({
@@ -407,7 +420,29 @@ shoppingRouter.patch('/items/:itemId', requireAuth, asyncHandler(async (req, res
   const item = await prisma.shoppingItem.update({ where: { id: existing.id }, data });
 
   if (data.category && data.category !== existing.category) {
-    storeIngredientCategory(item.name, data.category as StoreCategory).catch(() => {});
+    // Kategorin skrivs AVSIKTLIGT inte till den globala IngredientAlias längre.
+    //
+    // Den skrivningen var last-write-wins: ett hushålls tryck ändrade kategorin
+    // för alla andra, omedelbart. Alternativet var en konsensusregel med röster
+    // och tröskel — maskineri för när man inte kan kurera. Men den kurerade
+    // sanningen finns redan i categorizeIngredient + SUB_TAXONOMY, och två
+    // hushåll som tycker lika är inte statistik utan två datapunkter ur en
+    // mycket korrelerad population. Man behöver inte rösta om att bacon är chark.
+    //
+    // Kategori = kurerad. Namn = inlärt (learnIngredientAliases lever kvar, den
+    // datan är genuint användbar). Hushållets val = lokalt, och vinner alltid.
+
+    // Spegla valet i hushållets basvara. Utan det sa de två vägarna emot
+    // varandra: redigerade man varan i listan skrevs varan och det globala
+    // aliaset, men inte basvaran — som sedan vann vid nästa tillägg och
+    // flyttade tillbaka varan. Ren lokal placering (egen kategori) speglas
+    // inte, den hör till just den varan.
+    if (!item.customCategory && !item.customSubCategory) {
+      prisma.stapleItem.updateMany({
+        where: { householdId: list.householdId, name: item.name },
+        data: { category: data.category as StoreCategory, subCategory: item.subCategory },
+      }).catch(() => {});
+    }
   }
 
   bcast(list, { type: 'item_updated', data: item });

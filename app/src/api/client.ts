@@ -504,7 +504,7 @@ export function useApiClient() {
     getStaples: (householdId: string) =>
       request<StapleItem[]>(`/api/staples?householdId=${householdId}`),
 
-    upsertStaple: (data: { householdId: string; name: string; category?: string; unit?: string | null; defaultQuantity?: number | null }) =>
+    upsertStaple: (data: { householdId: string; name: string; category?: string; subCategory?: string | null; unit?: string | null; defaultQuantity?: number | null }) =>
       request<StapleItem>('/api/staples', { method: 'POST', body: JSON.stringify(data) }),
 
     deleteStaple: (stapleId: string) =>

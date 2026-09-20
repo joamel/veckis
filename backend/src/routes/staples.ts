@@ -7,6 +7,7 @@ import { asyncHandler } from '../lib/asyncHandler';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { COMMON_INGREDIENTS } from '../lib/commonIngredients';
 import { duglingGlobalt } from '../lib/normalizeIngredients';
+import { wsListUpdate } from '../lib/wsHub';
 
 export const staplesRouter = Router();
 
@@ -44,6 +45,7 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
     householdId: z.string(),
     name: z.string().min(1).max(200),
     category: categoryEnum.default('other'),
+    subCategory: z.string().max(60).nullable().optional(),
     unit: z.string().max(50).nullable().optional(),
     defaultQuantity: z.number().positive().nullable().optional(),
   }).safeParse(req.body);
@@ -53,12 +55,47 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   const category = body.data.category === 'other'
     ? categorizeIngredient(normalizedName)
     : body.data.category;
+  const subCategory = body.data.subCategory ?? null;
 
   const staple = await prisma.stapleItem.upsert({
     where: { householdId_name: { householdId: body.data.householdId, name: normalizedName } },
-    create: { ...body.data, name: normalizedName, category } as Prisma.StapleItemUncheckedCreateInput,
-    update: { category, unit: body.data.unit, defaultQuantity: body.data.defaultQuantity },
+    create: { ...body.data, name: normalizedName, category, subCategory } as Prisma.StapleItemUncheckedCreateInput,
+    update: { category, subCategory, unit: body.data.unit, defaultQuantity: body.data.defaultQuantity },
   });
+
+  // Ändringen ska synas NU, inte först nästa gång varan läggs till. Varor med
+  // samma namn i hushållets öppna listor flyttas med, och varje lista får en
+  // WS-broadcast så den som står i affären ser raden byta sektion direkt.
+  //
+  // Varor med egen lokal placering (customCategory/customSubCategory) lämnas
+  // ifred: det är ett uttryckligt val på just den varan och ska inte skrivas
+  // över av ett val på basvaran. Avbockade varor rörs inte heller — de är
+  // redan i kundvagnen och att flytta dem bara får högen att hoppa.
+  const berörda = await prisma.shoppingItem.findMany({
+    where: {
+      name: normalizedName,
+      isChecked: false,
+      customCategory: null,
+      customSubCategory: null,
+      list: { householdId: body.data.householdId, completedAt: null },
+      NOT: { AND: [{ category }, { subCategory }] },
+    },
+    select: { id: true, listId: true },
+  });
+
+  if (berörda.length > 0) {
+    await prisma.shoppingItem.updateMany({
+      where: { id: { in: berörda.map(i => i.id) } },
+      data: { category, subCategory },
+    });
+    const uppdaterade = await prisma.shoppingItem.findMany({
+      where: { id: { in: berörda.map(i => i.id) } },
+    });
+    for (const item of uppdaterade) {
+      wsListUpdate(item.listId, body.data.householdId, { type: 'item_updated', data: item });
+    }
+  }
+
   res.status(201).json(staple);
 }));
 

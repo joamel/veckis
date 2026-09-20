@@ -19,6 +19,11 @@
  * satte subben utan att någonsin räkna om parent-kategorin.
  *
  * Torrkörning som standard. --apply för att skriva.
+ *
+ * --kurerad räknar dessutom om HELA aliaspoolen från de kurerade reglerna, inte
+ * bara raderna som står på 'other'. Använd den efter att kategorin slutade vara
+ * inlärd (2026-09-19): värden som skrevs av den gamla last-write-wins-vägen
+ * lever annars kvar utan att kunna rättas av någon.
  */
 import { PrismaClient, StoreCategory } from '@prisma/client';
 import { parentForSub, SUB_TAXONOMY, type SubCategory } from '@veckis/shared';
@@ -39,22 +44,33 @@ function bättreKategori(name: string, subCategory?: string | null): StoreCatego
   return frånNamn === 'other' ? null : frånNamn;
 }
 
-function rapportera(rubrik: string, rader: Array<{ namn: string; till: StoreCategory }>) {
+function rapportera(rubrik: string, rader: Array<{ namn: string; till: StoreCategory; från?: StoreCategory }>) {
   console.log(`\n${rubrik}: ${rader.length} rader kan rättas.`);
-  for (const r of rader.slice(0, 25)) console.log(`   ~ ${r.namn}  ->  ${r.till}`);
+  for (const r of rader.slice(0, 25)) {
+    console.log(`   ~ ${r.namn}  ${r.från ? `${r.från} -> ` : '-> '}${r.till}`);
+  }
   if (rader.length > 25) console.log(`   ... och ${rader.length - 25} till.`);
 }
 
 async function main() {
   // -- 1. IngredientAlias ----------------------------------------------------
+  //
+  // Med --kurerad räknas HELA poolen om från de kurerade reglerna, inte bara
+  // raderna som står på 'other'. Det behövs sedan kategorin slutade vara
+  // inlärd: värden som en gång skrevs av ett enskilt hushålls tryck (den
+  // borttagna last-write-wins-vägen) lever annars kvar utan att någon kan
+  // rätta dem. Säger klassaren 'other' lämnas raden ifred — då vet vi inget
+  // bättre, och att skriva 'other' vore att kasta bort information.
+  const kurerad = args.has('--kurerad');
   const alias = await prisma.ingredientAlias.findMany({
-    where: { category: 'other' },
-    select: { raw: true, canonical: true },
+    where: kurerad ? undefined : { category: 'other' },
+    select: { raw: true, canonical: true, category: true },
   });
   const aliasFix = alias
-    .map(a => ({ raw: a.raw, namn: a.canonical, till: bättreKategori(a.canonical) }))
-    .filter((a): a is { raw: string; namn: string; till: StoreCategory } => a.till !== null);
-  rapportera('1. IngredientAlias (global pool)', aliasFix);
+    .map(a => ({ raw: a.raw, namn: a.canonical, från: a.category, till: bättreKategori(a.canonical) }))
+    .filter((a): a is { raw: string; namn: string; från: StoreCategory; till: StoreCategory } =>
+      a.till !== null && a.till !== a.från);
+  rapportera(kurerad ? '1. IngredientAlias (räknas om från kurerade regler)' : '1. IngredientAlias (global pool)', aliasFix);
 
   // -- 2. StapleItem ---------------------------------------------------------
   const staples = await prisma.stapleItem.findMany({

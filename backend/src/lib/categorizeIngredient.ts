@@ -151,10 +151,75 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
   },
 ];
 
+/**
+ * Matchar ett nyckelord mot ett varunamn.
+ *
+ * Nyckelordet måste börja ett ORD i namnet, inte bara förekomma någonstans i
+ * det. Ren delsträngssökning gav absurda utfall, eftersom flera nyckelord är
+ * två–tre tecken långa: "sidfläsk" innehåller "läsk" och "toalettpapper"
+ * innehåller "te", så bägge klassades som dryck. Det upptäcktes först när den
+ * kurerade klassaren skulle bli sanning för hela poolen (2026-09-19).
+ *
+ * Ordbörjan och inte helt ord, för svenskan bygger sammansättningar: "kyckling"
+ * ska fortfarande träffa "kycklingfilé" och "lax" träffa "laxfilé". Däremot
+ * slutar "smör" träffa "jordnötssmör", vilket är rätt — det är en skafferivara,
+ * inte mejeri.
+ *
+ * Nyckelord med mellanslag ("gul lök", "kokt skinka") matchas mot hela namnet,
+ * eftersom de aldrig kan vara ett enskilt ord.
+ */
+function matchar(namn: string, ord: string[], kw: string): boolean {
+  if (kw.includes(' ')) return namn.includes(kw);
+  return ord.some(o => o.startsWith(kw));
+}
+
+/**
+ * Undantag som prövas FÖRE reglerna, för varor där råvarans namn leder fel.
+ *
+ * Krossade tomater är en skafferivara, inte en färskvara — men innehåller
+ * "tomat" och hamnade därför i frukt & grönt. Jäst står i kyldisken vid
+ * mejeriet i svensk butik, inte i skafferiet. Sådant går inte att lösa med
+ * nyckelord i råvaruregeln, eftersom första träffande regel vinner.
+ *
+ * Det HÄR är kureringen: ser du en vara ligga fel i /api/admin/category-gaps
+ * eller i torrkörningen av repair:categories, lägg till en rad här.
+ */
+const UNDANTAG: { frasar: string[]; category: StoreCategory }[] = [
+  {
+    category: 'canned_dry',
+    frasar: ['krossade tomater', 'passerade tomater', 'soltorkade tomater', 'tomatpuré', 'tomatpure', 'körsbärstomater på burk'],
+  },
+  {
+    // Färsk jäst är kylvara och står vid mejeriet.
+    category: 'dairy_eggs',
+    frasar: ['jäst'],
+  },
+  {
+    // Färska ärtsorter, FÖRE både frys-undantaget nedan och socker-regeln.
+    // "sockerärtor" börjar på "socker" och blev torrvara — samma sorts fel som
+    // "läsk" i "sidfläsk", fast via ordbörjan i stället för delsträng.
+    category: 'fruit_veg',
+    frasar: ['sockerärtor', 'ärtskidor', 'ärtskott'],
+  },
+  {
+    // Ärtor köps nästan alltid frysta. Exakt ordmatchning, så färska sorter
+    // ovan inte dras med.
+    category: 'frozen',
+    frasar: ['ärtor', 'ärter', 'gröna ärtor'],
+  },
+];
+
 export function categorizeIngredient(name: string): StoreCategory {
   const lower = name.toLowerCase().trim();
+  const ord = lower.split(/[^a-zåäöé0-9]+/).filter(Boolean);
+
+  for (const u of UNDANTAG) {
+    if (u.frasar.some(f => (f.includes(' ') ? lower.includes(f) : ord.includes(f)))) {
+      return u.category;
+    }
+  }
   for (const rule of RULES) {
-    if (rule.keywords.some(kw => lower.includes(kw))) {
+    if (rule.keywords.some(kw => matchar(lower, ord, kw))) {
       return rule.category;
     }
   }

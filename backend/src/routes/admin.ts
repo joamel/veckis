@@ -1,16 +1,21 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db';
-import { requireAuth } from '../middleware/auth';
+import { categorizeIngredient } from '../lib/categorizeIngredient';
+import { requireAuth, requireAppAdmin } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { stripIngredient } from '../lib/stripIngredient';
 import { adminSyncLimiter } from '../lib/rateLimits';
 
 export const adminRouter = Router();
 
+// Hela routern, inte per endpoint: en ny admin-endpoint ska vara skyddad för
+// att den ligger här, inte för att någon kom ihåg att skriva middlewaren.
+adminRouter.use(requireAuth, requireAppAdmin);
+
 // POST /api/admin/sync-ingredients
 // Scrapes a list of recipe URLs, extracts ingredient strings and learns aliases.
-adminRouter.post('/sync-ingredients', adminSyncLimiter, requireAuth, asyncHandler(async (req, res) => {
+adminRouter.post('/sync-ingredients', adminSyncLimiter, asyncHandler(async (req, res) => {
   const body = z.object({
     urls: z.array(z.string().url()).min(1).max(50),
   }).safeParse(req.body);
@@ -48,7 +53,7 @@ adminRouter.post('/sync-ingredients', adminSyncLimiter, requireAuth, asyncHandle
 
 // GET /api/admin/aliases?q=
 // Quick lookup/debug endpoint
-adminRouter.get('/aliases', requireAuth, asyncHandler(async (req, res) => {
+adminRouter.get('/aliases', asyncHandler(async (req, res) => {
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
   const aliases = await prisma.ingredientAlias.findMany({
     where: q ? { raw: { contains: q, mode: 'insensitive' } } : undefined,
@@ -56,6 +61,41 @@ adminRouter.get('/aliases', requireAuth, asyncHandler(async (req, res) => {
     take: 100,
   });
   res.json(aliases);
+}));
+
+// GET /api/admin/category-gaps
+//
+// Granskningsrapport, inte en arbetskö: namnen som den KURERADE klassaren inte
+// känner igen, alltså precis de varor som hamnar under Övrigt för ett hushåll
+// som inte själv sagt något om dem.
+//
+// Det här ersätter den konsensus-/moderationsmaskin som en gång var planerad.
+// Kategorin är kurerad, inte inlärd — rätt åtgärd på en rad här är att lägga
+// till ett nyckelord i categorizeIngredient.ts, inte att klicka i ett UI. Därför
+// finns ingen skrivväg: rapporten läses, koden ändras, och nästa deploy gäller
+// för alla. Sorterad på seenCount så det vanligaste kureras först.
+adminRouter.get('/category-gaps', asyncHandler(async (req, res) => {
+  const alias = await prisma.ingredientAlias.findMany({
+    orderBy: { seenCount: 'desc' },
+    select: { raw: true, canonical: true, category: true, seenCount: true },
+  });
+
+  const luckor = alias
+    .filter(a => categorizeIngredient(a.canonical) === 'other')
+    .map(a => ({
+      namn: a.canonical,
+      raw: a.raw,
+      seenCount: a.seenCount,
+      // Vad som ligger lagrat idag. Skiljer det sig från 'other' är det ett
+      // arv från den gamla inlärningen, innan kategorin blev kurerad.
+      lagradKategori: a.category,
+    }));
+
+  res.json({
+    totalt: alias.length,
+    utanRegel: luckor.length,
+    luckor: luckor.slice(0, 200),
+  });
 }));
 
 async function scrapeIngredients(url: string): Promise<string[]> {

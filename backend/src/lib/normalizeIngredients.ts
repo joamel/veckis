@@ -3,7 +3,7 @@ import { prisma } from '../db';
 import { stripIngredient, ärMängdOrd, startsWithUnit } from './stripIngredient';
 import { categorizeIngredient } from './categorizeIngredient';
 import type { StoreCategory } from '@prisma/client';
-import { textUr } from './aiJson';
+import { textUr, tolkaJsonArray } from './aiJson';
 import { bokförAiKostnad } from './aiCost';
 
 const anthropic = process.env.ANTHROPIC_API_KEY
@@ -12,17 +12,41 @@ const anthropic = process.env.ANTHROPIC_API_KEY
 
 const SYSTEM_PROMPT = `Du är ett system som normaliserar svenska matvarunamn till sin enklaste kanoniska form för en inköpslista.
 Regler:
-- Ta bort tillagningsbeskrivningar (hackad, riven, fryst, skalad, strimlad etc.)
+- Ta bort tillagningsbeskrivningar som beskriver vad MAN GÖR HEMMA (hackad, riven, skalad, strimlad, kokt, vispad, finhackad, i tärningar)
+- Men BEHÅLL ord som ingår i en färdig produkt man köper som den är: krossade tomater, passerade tomater, soltorkade tomater, rårörda lingon, rökt skinka, inlagd gurka, kokt skinka. Skillnaden: "hackad lök" är lök du hackat, "krossade tomater" är en burk med eget namn i hyllan.
+- BEHÅLL särskilt "torkad" och "fryst"/"frysta" — de står i en annan del av butiken än färskvaran och är egna varor: torkad dragon ≠ dragon, torkad timjan ≠ timjan, frysta hallon ≠ hallon, fryst spenat ≠ spenat.
 - Ta bort portionsdeskriptorer (klyftor, skivor, blad, kvistar etc.)
-- Förenkla sammansatta ord till basform (vitlöksklyftor → vitlök, laxfilé → lax, kycklingbröst → kyckling)
+- Ta bort varumärken (Kikkoman sojasås → sojasås, Felix ketchup → ketchup)
+- Förenkla sammansatta ord till basform BARA när delen inte är en egen vara i butiken (vitlöksklyftor → vitlök, laxfilé → lax, kycklingbröst → kyckling)
 - Singularis av pluraler (tomater → tomat, morötter → morot, gurkor → gurka)
 - Mjölktyper → mjölk (standardmjölk → mjölk, lättmjölk → mjölk), men behåll äkta alternativ (kokosmjölk, havremjölk)
-- Behåll specifika ingredienser separata om de är genuint olika (smör ≠ margarin, vitlök ≠ lök)
+- VIKTIGAST: slå aldrig ihop två saker man köper var för sig. salladslök, purjolök, rödlök och gul lök är FYRA olika varor och ska behållas som de är — samma sak för basmatiris, jasminris och risgrynsgröt, och för sesamolja, olivolja och rapsolja. Hellre för specifikt än fel vara i kassen.
 - Returnera ENBART ett JSON-array med kanoniska namn i exakt samma ordning som indata, inga förklaringar.
 
 Exempel:
 Input: ["vitlöksklyftor","riven parmesanost","färsk basilika","standardmjölk","körsbärstomater","kycklingfilé"]
-Output: ["vitlök","parmesanost","basilika","mjölk","tomat","kyckling"]`;
+Output: ["vitlök","parmesanost","basilika","mjölk","tomat","kyckling"]
+
+Input: ["ägg vispade","kokt, svalt basmatiris","Kikkoman naturligt bryggd sojasås","salladslök finhackad","morötter i tärningar"]
+Output: ["ägg","basmatiris","sojasås","salladslök","morot"]
+
+Input: ["krossade tomater","soltorkade tomater, klippta i bitar","lingon rårörda","rimmat sidfläsk, skivat","tomater i klyftor"]
+Output: ["krossade tomater","soltorkade tomater","rårörda lingon","rimmat sidfläsk","tomat"]
+
+Input: ["torkad dragon","färsk dragon, hackad","frysta hallon","hallon färska","fryst spenat"]
+Output: ["torkad dragon","dragon","frysta hallon","hallon","fryst spenat"]`;
+
+/**
+ * Kanonisera namn UTAN att gå via alias-cachen.
+ *
+ * Finns för städskriptet: de rader som ska rättas är just de som ligger i
+ * cachen, så en vanlig normalizeIngredientNames hade slagit upp skräpet och
+ * fått tillbaka sig självt. Använd inte i vanliga flöden — där är cachen hela
+ * poängen, både för latens och för kostnad.
+ */
+export function kanoniseraUtanCache(names: string[]): Promise<string[]> {
+  return aiNormalizeNames(names);
+}
 
 async function aiNormalizeNames(strippedNames: string[]): Promise<string[]> {
   if (!anthropic || strippedNames.length === 0) return strippedNames;
@@ -37,9 +61,13 @@ async function aiNormalizeNames(strippedNames: string[]): Promise<string[]> {
       system: SYSTEM_PROMPT,
     });
     await bokförAiKostnad('claude-haiku-4-5-20251001', msg.usage);
-    const text = textUr(msg);
-    const parsed = JSON.parse(text) as string[];
-    if (!Array.isArray(parsed) || parsed.length !== strippedNames.length) return strippedNames;
+    // tolkaJsonArray, inte JSON.parse: modellen lindar gärna svaret i en
+    // ```json-fence, och då kastade parsningen rakt ned i catchen nedan — som
+    // returnerade indata. Normaliseringen såg alltså ut att fungera medan den
+    // inte gjorde någonting alls, och varje "Kikkoman rostad sesamolja" blev
+    // en egen vara i poolen.
+    const parsed = tolkaJsonArray(textUr(msg)) as string[];
+    if (parsed.length !== strippedNames.length) return strippedNames;
     return parsed.map((n, i) => (typeof n === 'string' && n.length > 0 ? n.toLowerCase().trim() : strippedNames[i]));
   } catch {
     return strippedNames;
@@ -96,6 +124,17 @@ export async function getStoredCategory(name: string): Promise<StoreCategory | n
   return (alias?.category as StoreCategory | undefined) ?? null;
 }
 
+/**
+ * Skriver en kategori till den globala poolen.
+ *
+ * ANVÄNDS INTE av något användarflöde, med flit. Kategorin är kurerad
+ * (categorizeIngredient + SUB_TAXONOMY), inte inlärd: en användares tryck i sin
+ * egen lista ska aldrig ändra vad andra hushåll ser. Funktionen finns kvar för
+ * KURERING — ett seed- eller städskript som medvetet sätter ett värde.
+ *
+ * Kopplar du den till ett användarflöde igen återinför du last-write-wins:
+ * ett hushåll, ett tryck, ändrad kategori för alla.
+ */
 export async function storeIngredientCategory(name: string, category: StoreCategory): Promise<void> {
   await prisma.ingredientAlias.upsert({
     where: { raw: name },

@@ -383,6 +383,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [stapleName, setStapleName] = useState('');
   const [stapleUnit, setStapleUnit] = useState('');
   const [stapleCategory, setStapleCategory] = useState<StoreCategory>('other');
+  const [stapleSubCategory, setStapleSubCategory] = useState<SubCategory | null>(null);
   const [savingStaple, setSavingStaple] = useState(false);
 
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -1434,6 +1435,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setStapleName(suggestion.name);
     setStapleUnit(suggestion.unit ?? '');
     setStapleCategory(suggestion.category as StoreCategory);
+    setStapleSubCategory((suggestion.subCategory as SubCategory | null) ?? null);
   }
 
   async function saveStapleEdit() {
@@ -1443,7 +1445,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setSavingStaple(true);
     const original = editingStaple;
     const isNew = original.id.startsWith('suggestion:');
-    const optimistic: StapleItem = { ...original, name: newName, unit: stapleUnit.trim() || null, category: stapleCategory };
+    const optimistic: StapleItem = { ...original, name: newName, unit: stapleUnit.trim() || null, category: stapleCategory, subCategory: stapleSubCategory };
     if (!isNew) {
       setStaples(prev => prev.map(s2 => s2.id === original.id ? optimistic : s2));
     }
@@ -1457,8 +1459,21 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         householdId,
         name: newName,
         category: stapleCategory,
+        subCategory: stapleSubCategory,
         unit: stapleUnit.trim() || null,
       });
+      // Varor som redan ligger i listan flyttas av backend (som också
+      // broadcastar). Uppdatera optimistiskt här också, annars hinner den som
+      // gjorde ändringen se sin egen rad ligga kvar i fel sektion tills
+      // WS-meddelandet kommit tillbaka.
+      setList(prev => prev && ({
+        ...prev,
+        items: prev.items.map(it =>
+          it.name === newName && !it.isChecked && !it.customCategory && !it.customSubCategory
+            ? { ...it, category: stapleCategory, subCategory: stapleSubCategory }
+            : it
+        ),
+      }));
       setStaples(prev => {
         const without = prev.filter(s2 => s2.id !== original.id && s2.id !== saved.id);
         return [...without, saved];
@@ -2220,7 +2235,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   key={cat}
                   style={[s.catChip, stapleCategory === cat && s.catChipActive]}
                   onLayout={e => recordStapleCatChipLayout(cat, e.nativeEvent.layout.x)}
-                  onPress={() => setStapleCategory(cat)}
+                  // Byte av parent nollställer underkategorin — en sub hör till
+                  // exakt en parent, och att bära med sig den gamla hade gett
+                  // en omöjlig kombination.
+                  onPress={() => { setStapleCategory(cat); setStapleSubCategory(null); }}
                 >
                   <Text style={[s.catChipText, stapleCategory === cat && s.catChipTextActive]} numberOfLines={1}>
                     {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
@@ -2229,6 +2247,36 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               ))}
             </View>
           </ScrollView>
+          {/* Underkategori. Bara standard-subs här: egna underkategorier är
+              butiks-lokala etiketter och hör inte hemma på en basvara, som
+              gäller hela hushållet oavsett butik. */}
+          {subsForParent(stapleCategory).length > 0 && (
+            <>
+              <Text style={s.editLabel}>{common.fields.subCategoryOptional}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll} keyboardShouldPersistTaps="handled">
+                <View style={s.catChipRow}>
+                  <Pressable
+                    style={[s.catChip, !stapleSubCategory && s.catChipActive]}
+                    onPress={() => setStapleSubCategory(null)}
+                  >
+                    <Text style={[s.catChipText, !stapleSubCategory && s.catChipTextActive]}>{common.fields.none}</Text>
+                  </Pressable>
+                  {subsForParent(stapleCategory).map(sub => {
+                    const active = stapleSubCategory === sub;
+                    return (
+                      <Pressable
+                        key={sub}
+                        style={[s.catChip, active && s.catChipActive]}
+                        onPress={() => setStapleSubCategory(active ? null : sub)}
+                      >
+                        <Text style={[s.catChipText, active && s.catChipTextActive]}>{SUB_TAXONOMY[sub].label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </>
+          )}
           </ScrollView>
           <View style={s.editActions}>
             <Pressable style={s.deleteBtn} onPress={deleteStaple}>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tolkaJsonSvar, saknarReceptinnehåll, InteJsonError, textUr } from './aiJson';
+import { tolkaJsonSvar, tolkaJsonArray, saknarReceptinnehåll, InteJsonError, textUr } from './aiJson';
 
 describe('tolkaJsonSvar', () => {
   it('ren JSON', () => {
@@ -73,5 +73,27 @@ describe('textUr', () => {
 
   it('trimmar', () => {
     expect(textUr({ content: [{ type: 'text', text: '  x  ' }] })).toBe('x');
+  });
+});
+
+describe('tolkaJsonArray', () => {
+  it('klarar en naken array', () => {
+    expect(tolkaJsonArray('["ägg","morot"]')).toEqual(['ägg', 'morot']);
+  });
+
+  it('klarar en array inlindad i en kodfence', () => {
+    // Det HÄR var buggen: modellen svarar gärna med fence, JSON.parse kastade,
+    // och catchen returnerade indata — normaliseringen gjorde alltså ingenting
+    // medan den såg ut att fungera.
+    expect(tolkaJsonArray('```json\n["ägg","basmatiris","sojasås"]\n```')).toEqual(['ägg', 'basmatiris', 'sojasås']);
+  });
+
+  it('klarar prat runt omkring', () => {
+    expect(tolkaJsonArray('Output: ["ägg"] — klart')).toEqual(['ägg']);
+  });
+
+  it('kastar när det inte finns någon array', () => {
+    expect(() => tolkaJsonArray('inget här')).toThrow();
+    expect(() => tolkaJsonArray('{"a":1}')).toThrow();
   });
 });

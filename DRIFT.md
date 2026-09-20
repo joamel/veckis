@@ -50,6 +50,7 @@ console.anthropic.com med separat fakturering. Pro ger noll API-credits.
 | `CLOUDINARY_*` | Railway | Cloudinary dashboard |
 | `SENTRY_DSN` | Railway | Sentry → projekt `handlis-backend` |
 | `RENDER_WEB_DEPLOY_HOOK` | GitHub → Settings → Secrets → Actions | Render → **veckis-web** → Settings → Deploy Hook. Kontrollera att den tillhör just den tjänsten — en hook till en borttagen tjänst svarar 409 och ser ut som en kö som fastnat. |
+| `ADMIN_CLERK_USER_IDS` | Railway (backend-tjänsten) | Clerk Dashboard → **live**-instansen → Users → ditt user_-id. Styr `/api/admin/*`. Saknas den nekas alla, även du. Dev- och prod-instansen har OLIKA id för samma person. Ägaren kan inte radera sitt konto i appen så länge id:t står här — ta bort det ur variabeln först. |
 | `CORS_ORIGIN` | Railway | sätts manuellt |
 | `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | **npm-scripten i `app/package.json`** | inte hemliga; INTE `app/.env` |
 

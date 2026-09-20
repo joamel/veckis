@@ -60,6 +60,33 @@ export function saknarReceptinnehåll(parsed: {
  * sträng, och felet visar sig som "modellen svarade inte med JSON" — långt från
  * orsaken. Upptäckt i bildrutor-experimentet vid ett modellbyte.
  */
+/**
+ * Som tolkaJsonSvar, men för svar som är en ARRAY.
+ *
+ * Behövs för att modellen gärna lindar in svaret i en ```json-fence, och en
+ * rak JSON.parse på den strängen kastar. Där det felet satt i en catch som
+ * föll tillbaka på indata blev följden att funktionen såg ut att fungera
+ * medan den tyst inte gjorde någonting alls — så var det för både
+ * ingrediensnormaliseringen och översättningen fram till 2026-09-20.
+ *
+ * Kastar InteJsonError om ingen array går att hitta, så en trasig körning
+ * märks av kallaren i stället för att tolkas som "inget att ändra".
+ */
+export function tolkaJsonArray(rå: string): unknown[] {
+  const text = rå.trim();
+  const start = text.indexOf('[');
+  const slut = text.lastIndexOf(']');
+  if (start < 0 || slut <= start) throw new InteJsonError(text);
+
+  try {
+    const värde = JSON.parse(text.slice(start, slut + 1));
+    if (!Array.isArray(värde)) throw new InteJsonError(text);
+    return värde;
+  } catch {
+    throw new InteJsonError(text);
+  }
+}
+
 export function textUr(msg: { content: Array<{ type: string; text?: string }> }): string {
   return msg.content.find(b => b.type === 'text')?.text?.trim() ?? '';
 }

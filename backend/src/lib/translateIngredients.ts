@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { textUr } from './aiJson';
+import { textUr, tolkaJsonArray } from './aiJson';
 import { bokförAiKostnad } from './aiCost';
 
 const anthropic = process.env.ANTHROPIC_API_KEY
@@ -67,8 +67,11 @@ export async function översättIngrediensnamn(names: string[]): Promise<string[
       messages: [{ role: 'user', content: `Input: ${JSON.stringify(names)}\nOutput:` }],
     });
     await bokförAiKostnad(MODELL, msg.usage);
-    const parsed = JSON.parse(textUr(msg)) as unknown;
-    if (!Array.isArray(parsed) || parsed.length !== names.length) return names;
+    // Samma fence-fälla som i normalizeIngredients: JSON.parse rakt på svaret
+    // kastar när modellen lindar det i ```json, och catchen nedan hade då
+    // returnerat namnen oöversatta utan att någon märkt det.
+    const parsed = tolkaJsonArray(textUr(msg));
+    if (parsed.length !== names.length) return names;
     return parsed.map((n, i) =>
       typeof n === 'string' && n.trim().length > 0 ? n.trim() : names[i]
     );

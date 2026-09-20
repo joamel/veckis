@@ -6,7 +6,7 @@ import multer from 'multer';
 import Anthropic from '@anthropic-ai/sdk';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
-import { learnIngredientAliases } from '../lib/normalizeIngredients';
+import { learnIngredientAliases, normalizeIngredientNames } from '../lib/normalizeIngredients';
 import { översättIngrediensnamn } from '../lib/translateIngredients';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { stripIngredient } from '../lib/stripIngredient';
@@ -207,22 +207,37 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
     include: { ingredients: true },
   });
 
-  // Learn ingredients as household staples (fire-and-forget)
-  prisma.stapleItem.createMany({
-    data: recipe.ingredients.map(ing => ({
-      householdId: body.data.householdId,
-      name: ing.name,
-      category: ing.category,
-      unit: ing.unit ?? undefined,
-      defaultQuantity: ing.quantity ?? undefined,
-    })),
-    skipDuplicates: true,
-  }).catch(() => {});
+  // Basvaror och den globala poolen ska ha KANONISKA namn, inte receptets
+  // ordalydelse. Receptet självt behåller "kokt, svalt basmatiris" — det är en
+  // tillagningsanvisning och hör hemma där — men som vara heter den "basmatiris".
+  //
+  // Utan det här steget blev varje receptimport en hög nya varor: "ägg vispade",
+  // "Kikkoman rostad sesamolja", "morötter i tärningar". Överföringen till
+  // inköpslistan (menus.ts) normaliserade redan, så samma recept gav två olika
+  // svar beroende på vilken väg man tog.
+  void (async () => {
+    const kanoniska = await normalizeIngredientNames(recipe.ingredients.map(i => i.name));
+    const varor = recipe.ingredients.map((ing, i) => ({
+      ...ing,
+      name: kanoniska[i] ?? ing.name,
+    }));
 
-  // Mata den GLOBALA ingrediens-poolen oavsett hur receptet kom till —
-  // manuellt, AI-inklistrat, foto eller URL. Bara FAKTISKT sparade recept ska
-  // räknas (from-url:s förhandsgranskning lär sig medvetet inget förrän hit).
-  learnIngredientAliases(recipe.ingredients, recipe.householdId).catch(() => {});
+    await prisma.stapleItem.createMany({
+      data: varor.map(ing => ({
+        householdId: body.data.householdId,
+        name: ing.name,
+        category: ing.category,
+        unit: ing.unit ?? undefined,
+        defaultQuantity: ing.quantity ?? undefined,
+      })),
+      skipDuplicates: true,
+    }).catch(() => {});
+
+    // Mata den GLOBALA ingrediens-poolen oavsett hur receptet kom till —
+    // manuellt, AI-inklistrat, foto eller URL. Bara FAKTISKT sparade recept ska
+    // räknas (from-url:s förhandsgranskning lär sig medvetet inget förrän hit).
+    await learnIngredientAliases(varor, recipe.householdId).catch(() => {});
+  })();
 
   res.status(201).json(recipe);
 
@@ -276,7 +291,14 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
     });
   });
   if (clearingImage && recipe.imagePublicId) void deleteRecipeImage(recipe.imagePublicId);
-  if (ingredients !== undefined) learnIngredientAliases(updated.ingredients, updated.householdId).catch(() => {});
+  if (ingredients !== undefined) {
+    // Samma kanonisering som vid skapande — se kommentaren där.
+    void (async () => {
+      const kanoniska = await normalizeIngredientNames(updated.ingredients.map(i => i.name));
+      const varor = updated.ingredients.map((ing, i) => ({ ...ing, name: kanoniska[i] ?? ing.name }));
+      await learnIngredientAliases(varor, updated.householdId).catch(() => {});
+    })();
+  }
   res.json(updated);
 }));
 

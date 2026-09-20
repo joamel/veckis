@@ -109,3 +109,50 @@ export async function requireAdmin(
     next(err);
   }
 }
+
+/**
+ * Global ägarspärr för /api/admin/*.
+ *
+ * Skiljer sig från requireAdmin ovan, som är HUSHÅLLS-scopad: den svarar på
+ * "är du admin i det här hushållet". Admin-endpointerna rör global data —
+ * ingredienspoolen, klientfel, kategori-rapporter — och där finns inget
+ * hushåll att vara admin i. Fram till 2026-09-20 skyddades de bara av
+ * requireAuth, alltså av att man var inloggad över huvud taget.
+ *
+ * Ägarna anges som Clerk-användar-id i ADMIN_CLERK_USER_IDS, kommaseparerat.
+ *
+ * Saknas variabeln nekas ALLA. Det är avsiktligt: ett bommat miljövariabel-
+ * namn ska stänga dörren, inte öppna den för hela internet. Loggraden säger
+ * vad som behöver sättas.
+ */
+/** Konfigurerade appadmins. Tom lista = ingen är admin (fail closed). */
+export function appAdmins(): string[] {
+  return (process.env.ADMIN_CLERK_USER_IDS ?? '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+/** True om användaren är appadmin. Används både av spärren nedan och av
+ *  kontoraderingen, som vägrar radera bort den sista ägaren. */
+export function ärAppAdmin(clerkUserId: string): boolean {
+  return appAdmins().includes(clerkUserId);
+}
+
+export function requireAppAdmin(req: Request, res: Response, next: NextFunction): void {
+  const tillåtna = appAdmins();
+
+  if (tillåtna.length === 0) {
+    console.warn('ADMIN_CLERK_USER_IDS är inte satt — alla /api/admin-anrop nekas.');
+    res.status(403).json({ error: 'Admin är inte konfigurerat' });
+    return;
+  }
+
+  const { clerkUserId } = req as AuthenticatedRequest;
+  if (!tillåtna.includes(clerkUserId)) {
+    res.status(403).json({ error: 'Endast ägare' });
+    return;
+  }
+
+  next();
+}
