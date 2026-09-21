@@ -822,7 +822,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   }, []);
 
 
-  async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string, subCategory?: SubCategory | null, customCategory?: string | null, customSubCategory?: string | null, opts?: { displayCategory?: StoreCategory; keepKeyboard?: boolean }) {
+  async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string, subCategory?: SubCategory | null, customCategory?: string | null, customSubCategory?: string | null, opts?: { displayCategory?: StoreCategory }) {
     let itemName = (name ?? newItem).trim().toLowerCase();
     if (!listId || !itemName) return;
 
@@ -848,7 +848,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
     setList(prev => prev ? { ...prev, items: [...(prev.items ?? []), optimisticItem] } : prev);
     setNewItem('');
-    if (!opts?.keepKeyboard) Keyboard.dismiss();
+    Keyboard.dismiss();
     setAdding(true);
 
     try {
@@ -928,7 +928,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     if (!known) { setNewItem(''); openQtySheet(name.trim(), category); return; }
     addItem(key, undefined, undefined, undefined, undefined, undefined, undefined, {
       displayCategory: category ?? (known.category as StoreCategory),
-      keepKeyboard: true,
     });
   }
 
