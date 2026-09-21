@@ -606,7 +606,16 @@ export default function SettingsScreen() {
             <View style={styles.membersHeader}>
               <Text style={styles.membersTitle}>{str.sections.members}</Text>
             </View>
-            {loadingHousehold && <ActivityIndicator size="small" color={c.primary} style={{ marginVertical: 8 }} />}
+            {/* Bara när det INTE finns medlemmar att visa.
+                useFocusEffect laddar om hushållet varje gång man går till
+                fliken, men household ligger kvar under tiden — så raderna
+                renderades hela tiden medan spinnern sköt in sig ovanför dem.
+                Alla kort fick ~36 px extra marginal i en halv sekund och
+                hoppade upp när svaret kom. En omladdning i bakgrunden ska
+                inte flytta något som redan står på skärmen. */}
+            {loadingHousehold && householdMembers.length === 0 && (
+              <ActivityIndicator size="small" color={c.primary} style={{ marginVertical: 8 }} />
+            )}
             {householdMembers.map((member, idx) => (
               <View
                 key={member.id}
