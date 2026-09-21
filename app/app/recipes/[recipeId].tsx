@@ -2006,7 +2006,9 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
     : { position: 'absolute', left: 10, right: 10, top: 6, bottom: 6, fontSize: 17, fontWeight: '700', color: c.text },
   transferBtn: { padding: 8 },
   scroll: { padding: 20, gap: 16 },
-  heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, backgroundColor: c.surfaceSubtle },
+  // overflow: bilden inuti skalas större än ramen (det är överskottet man
+  // drar i) och måste klippas av de rundade hörnen, inte spilla ut.
+  heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, backgroundColor: c.surfaceSubtle, overflow: 'hidden' },
   heroPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   heroImageOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(241,239,236,0.6)' },
   imgBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: c.primaryTint },

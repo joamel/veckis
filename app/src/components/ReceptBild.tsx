@@ -125,7 +125,14 @@ export function ReceptBild({
     : StyleSheet.absoluteFillObject;
 
   return (
-    <View style={style} onLayout={mätRam} {...(justerbar ? panResponder.panHandlers : {})}>
+    // overflow: hidden är INTE valfritt här. Bilden skalas medvetet större än
+    // ramen — det är överskottet man drar i — så utan den spiller den ut över
+    // sidan. Förut klippte resizeMode="cover" bilden åt oss.
+    <View
+      style={[style, styles.ram]}
+      onLayout={mätRam}
+      {...(justerbar ? panResponder.panHandlers : {})}
+    >
       <Image
         source={{ uri }}
         style={bildstil}
@@ -138,3 +145,7 @@ export function ReceptBild({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  ram: { overflow: 'hidden' },
+});
