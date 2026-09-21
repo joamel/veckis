@@ -10,6 +10,11 @@ export interface Recipe {
   sourceUrl: string | null;
   imageUrl: string | null;
   imagePublicId: string | null;
+  /** Vilken del av bilden som visas när den beskärs till 16:9. 0–1 per axel,
+   *  null = mitten. Se schema.prisma för varför den lagras i stället för att
+   *  bilden beskärs. */
+  imageFocusX: number | null;
+  imageFocusY: number | null;
   servings: number;
   timesUsed: number;
   /** Gemener/trimmade etiketter ("vegetariskt", "snabbt", "favorit" …) */

@@ -47,6 +47,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
+import { ReceptBild, type Fokus } from '../../src/components/ReceptBild';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import type { RecipeIngredient, WeekDay } from '@veckis/shared';
 import { convertToMetric, isConvertibleUnit, formateraKöksmått } from '@veckis/shared';
@@ -70,7 +71,7 @@ function makeDraftRecipe(householdId: string): RecipeWithIngredients {
   const now = new Date().toISOString();
   return {
     id: '', householdId, title: '', description: null, instructions: null,
-    sourceUrl: null, imageUrl: null, imagePublicId: null, servings: 4,
+    sourceUrl: null, imageUrl: null, imagePublicId: null, imageFocusX: null, imageFocusY: null, servings: 4,
     timesUsed: 0, tags: [], createdBy: '', createdAt: now, updatedAt: now,
     ingredients: [],
   };
@@ -148,6 +149,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [editDesc, setEditDesc] = useState('');
   const [editInstr, setEditInstr] = useState('');
   const [editImage, setEditImage] = useState('');
+  // Bildens utsnitt. Sparas direkt när man släpper draget, precis som en ny
+  // bild sparas direkt — bilden hör inte till formulärets spara-knapp.
+  const [editFokus, setEditFokus] = useState<Fokus>({ x: null, y: null });
   const [editTags, setEditTags] = useState<string[]>([]);
   // Alla taggar som redan används i hushållets recept — visas som återanvändbara
   // förslags-chips i edit-läget så man slipper skriva om en custom-tagg.
@@ -440,6 +444,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         setEditDesc('');
         setEditInstr('');
         setEditImage('');
+        setEditFokus({ x: null, y: null });
         setEditTags([]);
         setEditServings(4);
         setEditIngredients([{ name: '', quantity: '', unit: '', originalName: null }]);
@@ -473,6 +478,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         setEditDesc(r.description ?? '');
         setEditInstr(r.instructions ?? '');
         setEditImage(r.imageUrl ?? '');
+        setEditFokus({ x: r.imageFocusX, y: r.imageFocusY });
         setEditIngredients([{ name: '', quantity: '', unit: '', originalName: null }]);
         setEditMode(true);
         if (!onClose) router.setParams({ edit: undefined });
@@ -713,6 +719,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       setEditDesc(draft.description);
       setEditInstr(draft.instructions);
       setEditImage(draft.imageUrl);
+      setEditFokus({ x: recipe?.imageFocusX ?? null, y: recipe?.imageFocusY ?? null });
       setEditTags(draft.tags);
       setEditServings(draft.servings ?? recipe.servings);
       setEditIngredients(draft.ingredients.map(i => ({ ...i, originalName: i.originalName ?? null })));
@@ -728,6 +735,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     setEditDesc(recipe.description ?? '');
     setEditInstr(recipe.instructions ?? '');
     setEditImage(recipe.imageUrl ?? '');
+    setEditFokus({ x: recipe.imageFocusX, y: recipe.imageFocusY });
     setEditTags(recipe.tags ?? []);
     setCustomTag('');
     // Hämta hushållets övriga taggar så de kan återanvändas med ett tap.
@@ -918,6 +926,24 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
   // Pick a photo (camera or library), resize+compress locally to keep upload
   // small, then send to backend → Cloudinary → recipe.imageUrl is updated.
+  // Nytt utsnitt valt genom att dra i bilden.
+  //
+  // Skrivs optimistiskt: draget ska kännas direkt, och värdet är redan synligt
+  // på skärmen. Misslyckas sparningen läggs det tillbaka till vad receptet
+  // hade, så det man ser stämmer med det som faktiskt är sparat.
+  async function sparaBildfokus(fokus: Fokus) {
+    if (!recipe || isNew) return;
+    const förra = { x: recipe.imageFocusX, y: recipe.imageFocusY };
+    setEditFokus(fokus);
+    try {
+      const uppdaterad = await client.updateRecipe(recipe.id, { imageFocusX: fokus.x, imageFocusY: fokus.y });
+      setRecipe(uppdaterad);
+    } catch (e) {
+      setEditFokus(förra);
+      showError(e, str.errors.couldNotSave);
+    }
+  }
+
   async function pickAndUploadImage(source: 'library' | 'camera') {
     // Uppladdningen adresserar receptet via id, så den kräver ett sparat recept.
     if (!recipe || isNew) return;
@@ -929,12 +955,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         showError(new Error('permission_denied'), source === 'camera' ? str.permissions.camera : str.permissions.photos);
         return;
       }
-      // allowsEditing + aspect ger systemets egen beskärningsvy, i SAMMA
-      // format som bilden sedan visas i (heroImage är 16:9 med cover).
-      // Utan den laddades bilden upp orörd och beskars centrerat vid
-      // visning — stod maten en bit ned i bild klipptes den bort, utan att
-      // man kunde göra något åt det.
-      const val = { mediaTypes: 'images' as const, quality: 0.9, allowsEditing: true, aspect: [16, 9] as [number, number] };
+      // Ingen beskärning här: hela bilden laddas upp, och vilket utsnitt som
+      // visas justeras efteråt genom att dra i bilden (imageFocusX/Y). Då
+      // bevaras originalet, justeringen går att ändra om, och samma sätt
+      // fungerar för URL-importerade bilder som vi inte kan beskära.
+      const val = { mediaTypes: 'images' as const, quality: 0.9 };
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync(val)
         : await ImagePicker.launchImageLibraryAsync(val);
@@ -948,6 +973,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       const updated = await client.uploadRecipeImage(recipe.id, compressed.uri);
       setRecipe(updated);
       setEditImage(updated.imageUrl ?? '');
+      setEditFokus({ x: updated.imageFocusX, y: updated.imageFocusY });
     } catch (e) {
       showError(e, str.errors.couldNotUpload);
     } finally {
@@ -1146,7 +1172,17 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             )}
             <Text style={s.editLabel}>{str.detail.imageLabel}</Text>
             {editImage.trim() ? (
-              <Image source={{ uri: editImage.trim() }} style={s.heroImage} resizeMode="cover" />
+              <>
+                <ReceptBild
+                  uri={editImage.trim()}
+                  fokusX={editFokus.x}
+                  fokusY={editFokus.y}
+                  justerbar={!isNew}
+                  onJusterad={sparaBildfokus}
+                  style={s.heroImage}
+                />
+                {!isNew ? <Text style={s.imgAfterSaveHint}>{str.detail.imageDragHint}</Text> : null}
+              </>
             ) : (
               <View style={[s.heroImage, s.heroPlaceholder]}>
                 <Ionicons name="image-outline" size={32} color={c.textFaint} />
@@ -1188,10 +1224,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           </View>
         ) : recipe.imageUrl ? (
           <View style={s.heroImage}>
-            <Image
-              source={heroSource}
+            <ReceptBild
+              uri={heroSource?.uri ?? ''}
+              fokusX={recipe.imageFocusX}
+              fokusY={recipe.imageFocusY}
               style={StyleSheet.absoluteFill}
-              resizeMode="cover"
               // På web sköter webbläsaren bildladdningen. onLoadStart re-fyrar där vid
               // varje re-render → setHeroLoading(true) → re-render → loop → spinner-
               // overlayen BLINKAR (flimret). Kör därför JS-loading-state bara på native;

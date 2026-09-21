@@ -163,6 +163,13 @@ model Recipe {
   source      String   @default("manual")
   imageUrl    String?
   imagePublicId String?  // Cloudinary public_id for the uploaded image, so we can delete it on change/recipe-delete
+  // Vilken del av bilden som ska synas när den beskärs till 16:9 vid visning.
+  // 0 = vänster/överkant, 1 = höger/nederkant, null = mitten (som förut).
+  // Sparas i stället för att beskära filen: originalet blir kvar, justeringen
+  // går att ändra hur många gånger som helst, och den fungerar även för
+  // URL-importerade bilder som ligger hos tredje part och inte kan beskäras.
+  imageFocusX Float?
+  imageFocusY Float?
   servings    Int      @default(4)
   timesUsed   Int      @default(0)
   // Fritt taggbara etiketter ("vegetariskt", "snabbt", "favorit" …) —

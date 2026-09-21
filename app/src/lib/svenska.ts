@@ -688,6 +688,8 @@ export const recipes = {
     gallery:        'Galleri',
     camera:         'Kamera',
     imageAfterSave: 'Du kan lägga till en bild när receptet är sparat.',
+    imageDragHint:  'Dra i bilden för att välja vilken del som syns.',
+    imageSaved:     'Bildutsnittet sparat',
     nameLabel:      'Receptnamn',
     addRow:         'Lägg till rad',
     cook:           'Laga',
