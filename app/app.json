@@ -2,7 +2,7 @@
   "expo": {
     "name": "Handlis",
     "slug": "veckis",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -34,7 +34,7 @@
     },
     "android": {
       "package": "com.handlis.app",
-      "versionCode": 11,
+      "versionCode": 12,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

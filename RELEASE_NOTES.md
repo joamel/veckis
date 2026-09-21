@@ -1,85 +1,93 @@
-# Handlis 2.0.0 — release notes
+# Handlis 2.1.0 — release notes
 
-Samlar ihop flera veckors arbete: ny visuell identitet (logga, ikon, design
-rakt igenom appen), receptimport som faktiskt fungerar tillförlitligt, och
-en lång rad buggfixar som kommit direkt ur användarfeedback.
+Släppet efter 2.0.0 handlar mindre om utseende och mer om att appen ska bete
+sig förutsägbart. Tyngdpunkten ligger på ingrediensdatan — varor som bytte
+kategori av sig själva, engelska namn och mått som följde med från importerade
+recept — och på en lång rad fel som kommit rakt ur testarnas feedback.
 
 ## Play Store — kort "Vad är nytt" (klistra in i Play Console)
 
-> **Handlis har fått ett helt nytt utseende!** Ny logga,
-> ny färgpalett och omdesignade skärmar rakt igenom. Receptimport från
-> webbsidor är kraftigt förbättrad — funkar nu på fler sajter och tolkar
-> amerikanska mått korrekt. Dra och släpp för att ordna om ingredienser.
-> Plus en lång rad mindre fixar från er feedback: text som klippts av,
-> knappar som var svåra att träffa, och krångel i receptredigeringen.
+> **Varor stannar där du lagt dem.** Kategorierna är nu kurerade, så
+> ingredienser slutar hoppa till "Övrigt" av sig själva. Engelska recept
+> översätts vid import, och mått visas i svenska köksmått (1¾ dl i stället
+> för 1,75). Receptbilden går att dra till rätt utsnitt. Dessutom mörkt läge
+> i hela den nya designen, landskapsläge, och fixar för tangentbord som
+> täckte fält, notiser på fel plats och listor som hoppade.
 
 *(Under 500 tecken, klar att klistra in. Justera fritt.)*
 
 ---
 
-## 1. Ny visuell identitet
+## 1. Ingredienser och kategorier
 
-- **Ny logga:** korg + inköpslista, i appens nya färgpalett "skog & lime"
-  (mörkgrönt + limegrönt i stället för det gamla indigo/violett).
-- Ny app-ikon, splash-skärm och PWA-ikoner genererade från samma koncept —
-  det här är första gången den nya loggan syns som riktig app-ikon på Play
-  (tidigare bygge hade en äldre ikon, namnet Handlis var redan på plats).
+Det här var den största källan till irritation i 2.0.0: varor som avokado,
+bacon och bröd kunde plötsligt ligga under "Övrigt", och namn som "400g ost"
+eller halva recepttexter hamnade i den gemensamma ingredienslistan.
 
-## 2. Ny design i hela appen ("skog & lime")
+- **Kategorierna är kurerade i stället för inlärda.** Appen slutade dra
+  slutsatser av vad enskilda hushåll gör. En vara byter inte kategori för
+  att någon annan flyttat sin.
+- **Skräp kommer inte in i den gemensamma listan.** Ett varunamn får inte
+  börja med en siffra, innehålla mängder eller enheter, eller vara ett val
+  mellan alternativ.
+- **"Nötfärs alt. sojafärs" blir två varor**, inte en sträng. De är inte
+  samma vara och ska inte läras in som det.
+- **Engelska recept översätts vid import.** Originalnamnet sparas, och
+  ↔-knappen i receptet växlar namn och enhet tillsammans.
+- **Enheter blir svenska.** En basvara som skapats ur ett engelskt recept
+  kunde ärva "teaspoon" och behålla den för all framtid.
+- Namn visas i rätt form — "2 äpplen" i stället för "2 äpple", "2 flaskor"
+  i stället för "2 flaska".
 
-Omdesign av samtliga flikar och skärmar, inte bara en kosmetisk palettbyte:
+## 2. Mått i köksform
 
-- Inköpslistan, veckomenyn, receptlistan och receptvyn, hushållet, butiker
-  och kontosidan har alla fått nya sidhuvuden, kort och knappar i den nya
-  paletten.
-- Receptvyn: ingredienser visas nu som en riktig inköpslapp (mängd i egen
-  kolumn), numrerade tillagningssteg, breda primärknappar.
-- Konsekvent mörkgrönt/limegrönt tema för dialoger, ark och bekräftelser
-  i stället för blandade gamla och nya stilar.
-- Butikens kategori-editor: samma färgspråk, och en riktig "Egen"-badge för
-  egna kategorier i stället för en emoji som inte hörde hemma i designen.
+- **Bråk i stället för decimaler:** 1¾ dl, ⅔ dl, 2½ msk. "4,7 dl" är inget
+  man mäter upp.
+- Volymmått räknas om till svenska, men **vikt förblir vikt** — 200 grams
+  blir 200 g, aldrig omräknat till volym.
+- Omräkningen av cups rättad: 2 cups och 1 pint är samma volym och ger nu
+  samma svar.
 
-## 3. Recept — import, redigering och foto
+## 3. Recept
 
-- **URL-import kraftigt förbättrad:** sajter utan strukturerad receptdata
-  (schema.org) gav tidigare bara "hittade inget recept" trots att sidan
-  hade tydliga ingredienser/instruktioner. Fångas nu upp av en AI-baserad
-  reservtolkning.
-- **Amerikanska/engelska mått tolkas nu korrekt** ("1/2 cup", "1 3/4 cup",
-  "2 teaspoons" m.fl.) — tre samverkande parsningsbuggar rättade. Enheten
-  sparas som källan angav den; en tydlig växel visar receptet omräknat till
-  svenska mått (dl/g/msk/kg) för den som vill, och inköpslistan får alltid
-  metriska enheter vid överföring.
-- **Fota ett recept:** OCR-tolkning av kokboksfoton, stöd för flera sidor
-  och flera recept på samma uppslag, med kryssrutor för att välja vilka som
-  ska sparas.
-- **Dra och släpp** för att ordna om ingredienser vid redigering.
-- Sista ingrediens-raden lägger nu automatiskt till en ny rad i stället för
-  att kräva ett manuellt tryck på "Lägg till rad".
-- Global inlärning av nya ingredienser (t.ex. "sojafärs", "tofu") från alla
-  sätt att lägga till recept — inte bara URL-import som tidigare.
+- **Receptbilden går att justera.** Dra i bilden i redigeringsläget för att
+  välja vilken del som syns. Hela bilden sparas, så utsnittet går att ändra
+  om, och det fungerar även för bilder som följt med från en importerad
+  webbsida.
+- **Laga-läget:** ingredienslistan krymper allt eftersom du bockar av, så
+  det som är kvar är det du har kvar att göra.
+- Mängder tappade sina kvartar — 1,75 visades som 2.
 
-## 4. Buggar fixade direkt från er feedback
+## 4. Utseende och skärmlägen
 
-- Text som klipptes av eller visade fel del av ett ord (receptnamn,
-  ingrediensnamn, mängdfältets placeholder) — flera separata textrendering-
-  buggar i React Native, rättade en efter en.
-- Taggfilter-krysset i receptlistan krävde sidoscroll för att nås med många
-  taggar — nu alltid synligt.
-- Ett drag-handtag för ingredienser kunde av misstag kapa ett vanligt
-  scroll-svep — kräver nu ett kort medvetet håll innan draget startar.
-- Diverse krascher och layoutbuggar i PWA:n (bl.a. inköpslistan).
-- Prestanda: inköpslistan virtualiserar nu (FlashList) i stället för att
-  rendera alla rader samtidigt — märkbart mjukare scroll på långa listor.
+- **Mörkt läge för den nya designen** ("djup skog").
+- **Landskapsläge** fanns men gick inte att nå.
+- Aviseringar (toasts) har rätt färg för temat och lägger sig inte längre
+  ovanpå sökfältet på mobiler med lägre skärm.
 
-## 5. Under huven (inte synligt för användare, men värt att notera för granskningen)
+## 5. Buggar ur testarnas feedback
 
-- Krypterad, verifierad databas-backup.
-- Driftdokumentation och automatiska underhållspåminnelser.
-- Städat bort gamla Render/Neon-beroenden från driftsättningen.
-- Engelska felmeddelanden i receptimport-flödet bytta mot svenska.
+- Ark och dialoger som hoppade upp för långt över tangentbordet, eller stod
+  kvar lyfta när man växlat ut och in ur appen.
+- Medlemslistan i Hushållet hoppade till varje gång fliken öppnades, för att
+  en laddningssnurra sköt ner korten en halv sekund.
+- Kryssrutornas träffyta i inköpslistan.
+- Bulk-överföring av ingredienser stängde inte ordentligt på
+  inventeringssteget.
+- Inloggning: kodverifiering som misslyckades tyst, och ett andra steg som
+  kunde ta slut mitt i.
+
+## 6. Under huven
+
+- **Testerna körs i CI.** De fanns, men ingen körde dem automatiskt — det
+  upptäcktes under arbetet med det här släppet.
+- Verktyg för att städa ingrediensdatan i drift, med en granskningsfil att
+  gå igenom manuellt i stället för automatiska massändringar.
+- Adminbehörigheter låsta till en explicit lista, som felar stängt.
+- Webb-PWA:ns driftsättning ägs av CI i stället för av en hook som tyst
+  slutade fungera.
 
 ---
 
 *Sammanställt från commit-historiken sedan senaste Play-släppet
-(versionCode 10, v1.2.1) fram till versionCode 11 (v2.0.0).*
+(versionCode 11, v2.0.0) fram till versionCode 12 (v2.1.0).*
