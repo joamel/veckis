@@ -23,6 +23,7 @@ import { emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import {
   ActivityIndicator,
   Animated,
+  AppState,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -504,20 +505,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       });
     }, 350);
   }, [windowHeight]);
-  const toastOpacity = useRef(new Animated.Value(0)).current;
-  const [toastMessage, setToastMessage] = useState('');
   const dupeButtonScale = useRef(new Animated.Value(1)).current;
   const hasPulsedDupes = useRef(false);
   const pendingOpenNextDupe = useRef(false);
-
-  function showToast(msg: string) {
-    setToastMessage(msg);
-    Animated.sequence([
-      Animated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
-      Animated.delay(2500),
-      Animated.timing(toastOpacity, { toValue: 0, duration: 350, useNativeDriver: true }),
-    ]).start();
-  }
 
   useShoppingSocket(listId, getToken, (msg) => {
     if (msg.type === 'items_auto_merged') {
@@ -814,9 +804,20 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const hideSub = Keyboard.addListener('keyboardDidHide', () => {
       setKeyboardVisible(false);
     });
+    // keyboardDidHide avfyras INTE tillförlitligt när appen bakgrundas med
+    // tangentbordet uppe. keyboardVisible låg då kvar som true, och eftersom
+    // reanimated-höjden samtidigt fryser på sitt sista värde stod "lägg till"-
+    // baren kvar lyft när man kom tillbaka. Samma rotorsak som i useSheetLift.
+    const appSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') return;
+      setKeyboardVisible(false);
+      setKeyboardHeight(0);
+      keyboardHeightRef.current = 0;
+    });
     return () => {
       showSub.remove();
       hideSub.remove();
+      appSub.remove();
     };
   }, []);
 
@@ -890,7 +891,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             const exists = prev.find(p => p.id === s.id);
             return exists ? prev.map(p => p.id === s.id ? s : p) : [...prev, s].sort((a, b) => a.name.localeCompare(b.name));
           });
-          showToast(str.toasts.added(capitalize(itemName)));
+          showGlobalToast(str.toasts.added(capitalize(itemName)), 'success');
         }).catch(() => {});
       }
       setList(prev => {
@@ -2422,11 +2423,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </Pressable>
       </DraggableBottomSheet>
 
-      <Animated.View style={[s.toast, { opacity: toastOpacity }]} pointerEvents="none">
-        <Ionicons name="checkmark-circle" size={20} color="#fff" />
-        <Text style={s.toastText}>{toastMessage}</Text>
-      </Animated.View>
-
       {/* Merge duplicates sheet */}
       <DraggableBottomSheet
         visible={!!mergeSheet}
@@ -3093,9 +3089,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   qtyInput: { width: 70, textAlign: 'center', fontSize: 16, fontWeight: '600', color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingVertical: 10, backgroundColor: c.inputBg },
   qtyUnitInput: { flex: 1, minWidth: 0, fontSize: 16, color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: c.inputBg },
   qtyConfirm: { backgroundColor: ny.lime, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
-  qtyConfirmText: { color: ny.skog, fontSize: 16, fontWeight: '600' },
-  toast: { position: 'absolute', bottom: 76, alignSelf: 'center', backgroundColor: c.successLight, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
-  toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  qtyConfirmText: { color: ny.skog, fontSize: 16, fontWeight: '600' },
   mergeList: { maxHeight: 200, flexGrow: 0 },
   unitChipScroll: { marginVertical: 4 },
   unitChipRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },

@@ -131,21 +131,6 @@ export default function SettingsScreen() {
   const [loadingHousehold, setLoadingHousehold] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Toast
-  const toastOpacity = useRef(new Animated.Value(0)).current;
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastVariant, setToastVariant] = useState<'success' | 'neutral'>('success');
-
-  function showToast(msg: string, variant: 'success' | 'neutral' = 'success') {
-    setToastMessage(msg);
-    setToastVariant(variant);
-    Animated.sequence([
-      Animated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
-      Animated.delay(2500),
-      Animated.timing(toastOpacity, { toValue: 0, duration: 350, useNativeDriver: true }),
-    ]).start();
-  }
-
   const loadHousehold = useCallback(async () => {
     if (!householdId) return;
     setLoadingHousehold(true);
@@ -261,7 +246,7 @@ export default function SettingsScreen() {
       await refresh();
       setHousehold(h => h ? { ...h, name: updated.name } : null);
       setShowEditHouseholdModal(false);
-      showToast(str.toasts.householdNameUpdated);
+      showGlobalToast(str.toasts.householdNameUpdated, 'success');
     } catch (e) {
       showError(e, str.toasts.errorUpdateHouseholdName);
     } finally {
@@ -289,7 +274,7 @@ export default function SettingsScreen() {
         members: h.members.map(m => m.id === editingMemberId ? { ...m, displayName: editingDisplayName } : m)
       } : null);
       setShowEditMemberModal(false);
-      showToast(str.toasts.memberNameUpdated);
+      showGlobalToast(str.toasts.memberNameUpdated, 'success');
     } catch (e) {
       showError(e, str.toasts.errorUpdateMemberName);
     } finally {
@@ -314,7 +299,7 @@ export default function SettingsScreen() {
             try {
               const updated = await client.updateMember(householdId, memberId, { role: promote ? 'admin' : 'member' });
               setHousehold(h => h ? { ...h, members: h.members.map(m => m.id === memberId ? { ...m, role: updated.role } : m) } : null);
-              showToast(promote ? str.toasts.memberPromoted(memberName) : str.toasts.memberDemoted(memberName));
+              showGlobalToast(promote ? str.toasts.memberPromoted(memberName) : str.toasts.memberDemoted(memberName), 'success');
             } catch (e) {
               showError(e, str.toasts.errorChangeRole);
             }
@@ -339,7 +324,7 @@ export default function SettingsScreen() {
             try {
               await client.removeMember(householdId, memberId);
               setHousehold(h => h ? { ...h, members: h.members.filter(m => m.id !== memberId) } : null);
-              showToast(str.toasts.memberRemoved(memberName));
+              showGlobalToast(str.toasts.memberRemoved(memberName), 'success');
             } catch (e) {
               showError(e, str.toasts.errorRemoveMember);
             }
@@ -360,7 +345,7 @@ export default function SettingsScreen() {
       await refresh();
       setShowDeleteHouseholdModal(false);
       setDeleteConfirmText('');
-      showToast(str.toasts.householdDeleted);
+      showGlobalToast(str.toasts.householdDeleted, 'success');
     } catch (e) {
       showError(e, str.toasts.errorDeleteHousehold);
     } finally {
@@ -378,7 +363,7 @@ export default function SettingsScreen() {
       await setActiveHouseholdId(created.id);
       setShowCreateHouseholdModal(false);
       setNewHouseholdName('');
-      showToast(str.toasts.householdCreated(newHouseholdName));
+      showGlobalToast(str.toasts.householdCreated(newHouseholdName), 'success');
     } catch (e) {
       showError(e, str.toasts.errorCreate);
     } finally {
@@ -395,7 +380,7 @@ export default function SettingsScreen() {
       await refresh();
       setShowJoinHouseholdModal(false);
       setJoinCode('');
-      showToast(str.toasts.householdJoined);
+      showGlobalToast(str.toasts.householdJoined, 'success');
     } catch (err: any) {
       if (err?.message?.toLowerCase().includes('already')) {
         confirm({ title: str.toasts.alreadyMember.title, message: str.toasts.alreadyMember.message, buttons: [{ label: common.actions.ok }] });
@@ -905,10 +890,6 @@ export default function SettingsScreen() {
       </DraggableBottomSheet>
 
       <NotificationsModal visible={showNotifModal} onClose={() => setShowNotifModal(false)} />
-
-      <Animated.View style={[styles.toast, toastVariant === 'neutral' && styles.toastNeutral, { opacity: toastOpacity }]} pointerEvents="none">
-        <Text style={styles.toastText}>{toastMessage}</Text>
-      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -1096,24 +1077,6 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   betaText: { flex: 1, gap: 2 },
   betaTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   betaHint: { fontSize: 12, lineHeight: 17, color: c.textMuted },
-  toast: {
-    position: 'absolute',
-    bottom: 32,
-    left: 24,
-    right: 24,
-    backgroundColor: c.success,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 6,
-  },
-  toastText: { fontSize: 14, fontWeight: '600', color: '#fff' },
-  toastNeutral: { backgroundColor: c.textSecondary },
   menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, gap: 12, borderTopWidth: 1, borderTopColor: c.borderLight },
   menuRowLabel: { fontSize: 15, fontWeight: '600', color: c.text },
   menuRowSub: { fontSize: 12, color: c.textMuted, marginTop: 2 },

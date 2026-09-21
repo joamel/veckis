@@ -6,6 +6,7 @@ import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   Animated,
+  AppState,
   Dimensions,
   FlatList,
   Image,
@@ -310,7 +311,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', e => { keyboardH.current = e.endCoordinates.height; setTangentbordH(e.endCoordinates.height); });
     const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardH.current = 0; setTangentbordH(0); });
-    return () => { show.remove(); hide.remove(); };
+    // keyboardDidHide avfyras inte tillförlitligt när appen bakgrundas med
+    // tangentbordet uppe → lyftet låg kvar och modalen stod lyft vid återkomst.
+    const app = AppState.addEventListener('change', (state) => {
+      if (state === 'active') return;
+      keyboardH.current = 0;
+      setTangentbordH(0);
+    });
+    return () => { show.remove(); hide.remove(); app.remove(); };
   }, []);
 
   // When the unit field is focused, the unit-chip row appears below it. Only

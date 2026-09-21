@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  AppState,
   Keyboard,
   Platform,
   Pressable,
@@ -389,7 +390,14 @@ export default function RecipesScreen() {
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', (e) => { kbHeightRef.current = e.endCoordinates?.height ?? 0; revealFocused(); });
     const hide = Keyboard.addListener('keyboardDidHide', () => { kbHeightRef.current = 0; setSheetLift(0); });
-    return () => { show.remove(); hide.remove(); };
+    // keyboardDidHide avfyras inte tillförlitligt när appen bakgrundas med
+    // tangentbordet uppe → lyftet låg kvar och modalen stod lyft vid återkomst.
+    const app = AppState.addEventListener('change', (state) => {
+      if (state === 'active') return;
+      kbHeightRef.current = 0;
+      setSheetLift(0);
+    });
+    return () => { show.remove(); hide.remove(); app.remove(); };
   }, [revealFocused]);
   // autoFocus på det remountade fältet är opålitligt på Android (särskilt
   // multiline paste-fältet visar inte tangentbordet), så fältet fokuseras

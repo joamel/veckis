@@ -532,18 +532,6 @@ export default function MenuScreen() {
     );
   }
 
-  const toastOpacity = useRef(new RNAnimated.Value(0)).current;
-  const [toastMessage, setToastMessage] = useState('');
-
-  function showToast(msg: string) {
-    setToastMessage(msg);
-    RNAnimated.sequence([
-      RNAnimated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
-      RNAnimated.delay(2500),
-      RNAnimated.timing(toastOpacity, { toValue: 0, duration: 350, useNativeDriver: true }),
-    ]).start();
-  }
-
   // Drag state — y = absolute screen Y; touchOffsetY = finger position within card
   type DragState = { item: WeekMenuItemWithRecipe; y: number; touchOffsetY: number };
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -1114,7 +1102,7 @@ export default function MenuScreen() {
         setMenuItems(replaceOrAppend);
         setAllMenus(replaceOrAppend);
       });
-      showToast(str.toasts.recipeAdded);
+      showGlobalToast(str.toasts.recipeAdded, 'success');
     } catch (e) {
       stateVersionRef.current += 1;
       setMenuItems(prev => prev.filter(m => m.id !== tempId));
@@ -1364,7 +1352,7 @@ export default function MenuScreen() {
       inventoryBuiltForRef.current = null;
       setBulkTransferStep('recipe');
       load();
-      showToast(str.toasts.transferred(actuallyTransfer.length));
+      showGlobalToast(str.toasts.transferred(actuallyTransfer.length), 'success');
     } catch (e) {
       setBulkTransferringListId(null);
       showError(e, str.toasts.errorTransfer);
@@ -1396,7 +1384,7 @@ export default function MenuScreen() {
       setTransferSheet(null);
       setTransferringListId(null);
       load();
-      showToast(str.toasts.ingredientsTransferred(recipe.title));
+      showGlobalToast(str.toasts.ingredientsTransferred(recipe.title), 'success');
     } catch (e) {
       setTransferringListId(null);
       showError(e, str.toasts.errorTransferIngredients);
@@ -2376,11 +2364,6 @@ export default function MenuScreen() {
         }}
         onClose={() => setShowWeekPicker(false)}
       />
-
-      <RNAnimated.View style={[s.toast, { opacity: toastOpacity }]} pointerEvents="none">
-        <Ionicons name="checkmark-circle" size={20} color="#fff" />
-        <Text style={s.toastText}>{toastMessage}</Text>
-      </RNAnimated.View>
       </SafeAreaView>
     </View>
   );
@@ -3032,6 +3015,4 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   ghostCard: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 12, padding: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100 },
   ghostCardIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   ghostCardText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
-  toast: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: c.successLight, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
-  toastText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

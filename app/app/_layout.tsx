@@ -15,6 +15,7 @@ import * as SecureStore from '../src/lib/secureStorage';
 import { createElement, forwardRef, useEffect, useState, type ComponentType } from 'react';
 import { Platform, View, useWindowDimensions } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import * as Updates from 'expo-updates';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -179,6 +180,40 @@ export default function RootLayout() {
   });
 
   useEffect(() => { installGlobalErrorHandler(); }, []);
+
+  /**
+   * Hämta och tillämpa OTA-uppdateringar vid start.
+   *
+   * Standardbeteendet hämtar uppdateringen i BAKGRUNDEN och visar den först
+   * vid NÄSTA start. Användaren måste alltså stänga appen helt två gånger för
+   * att se en ny version, utan att något berättar det — vilket såg ut som att
+   * uppdateringen inte gått ut (2026-09-21).
+   *
+   * Nu laddas den om direkt när den hämtats. Starten är det minst störande
+   * tillfället: användaren har inte hunnit göra något, och omladdningen ser ut
+   * som att appen startar.
+   *
+   * Bara i riktiga byggen — i utveckling äger Metro koden.
+   */
+  useEffect(() => {
+    if (__DEV__ || (Platform.OS as string) === 'web') return;
+    let avbruten = false;
+
+    (async () => {
+      try {
+        const { isAvailable } = await Updates.checkForUpdateAsync();
+        if (!isAvailable || avbruten) return;
+        await Updates.fetchUpdateAsync();
+        if (avbruten) return;
+        await Updates.reloadAsync();
+      } catch {
+        // Ingen nätverk, ingen uppdatering, eller en trasig hämtning — appen
+        // ska starta ändå. Nästa start försöker igen.
+      }
+    })();
+
+    return () => { avbruten = true; };
+  }, []);
 
   // Lås telefoner till portrait; tablets får rotera fritt.
   //
