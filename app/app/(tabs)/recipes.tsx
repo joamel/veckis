@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
+import { skapaLyftberäknare } from '../../src/lib/lyftberakning';
 import {
   ActivityIndicator,
   FlatList,
@@ -373,6 +374,13 @@ export default function RecipesScreen() {
   const revealTargetRef = useRef<Measurable | null>(null);
   const kbHeightRef = useRef(0);
   const [sheetLift, setSheetLift] = useState(0);
+  // Samma beräknare som useSheetLift (se lyftberakning.ts): revealFocused
+  // anropas både från onFocus och keyboardDidShow, och en sen mätning hann
+  // läsa en gammal y ihop med ett redan uppdaterat lyft → dubbelt lyft.
+  // Knappen får bara lyftas halva skärmen här, inte 0,6 som i arken.
+  const liftRef = useRef(0);
+  useEffect(() => { liftRef.current = sheetLift; }, [sheetLift]);
+  const lyftRef = useRef(skapaLyftberäknare(0.5));
   // Mät knappen för aktuellt läge och lyft lagom. Körs både vid keyboardDidShow
   // och vid onFocus (så lyftet räknas om när man byter fält medan tangentbordet
   // redan är uppe, t.ex. manuellt → klistra in).
@@ -380,21 +388,22 @@ export default function RecipesScreen() {
     if (Platform.OS as any === 'web' || kbHeightRef.current === 0) return;
     const ref = revealTargetRef.current;
     if (!ref) return;
-    const kbH = Math.min(kbHeightRef.current, windowHeight * 0.5);
     setTimeout(() => ref.measureInWindow((_x, y, _w, h) => {
-      // y innehåller redan nuvarande lyft (prev) → naturlig botten = y + prev + h.
-      // Räkna mål-lyftet absolut (idempotent), klampat.
-      setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20) - (windowHeight - kbH), windowHeight * 0.5)));
+      setSheetLift(lyftRef.current.beräkna(
+        { y, h, renderatLyft: liftRef.current },
+        { windowHeight, kbHöjd: kbHeightRef.current },
+      ));
     }), 60);
   }, [windowHeight]);
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', (e) => { kbHeightRef.current = e.endCoordinates?.height ?? 0; revealFocused(); });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { kbHeightRef.current = 0; setSheetLift(0); });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { kbHeightRef.current = 0; lyftRef.current.nollställ(); setSheetLift(0); });
     // keyboardDidHide avfyras inte tillförlitligt när appen bakgrundas med
     // tangentbordet uppe → lyftet låg kvar och modalen stod lyft vid återkomst.
     const app = AppState.addEventListener('change', (state) => {
       if (state === 'active') return;
       kbHeightRef.current = 0;
+      lyftRef.current.nollställ();
       setSheetLift(0);
     });
     return () => { show.remove(); hide.remove(); app.remove(); };
@@ -760,7 +769,7 @@ export default function RecipesScreen() {
               multiline
               scrollEnabled
               importantForAutofill="no"
-              onFocus={() => { revealTargetRef.current = pasteBtnRef.current; revealFocused(); }}
+              onFocus={() => { revealTargetRef.current = pasteBtnRef.current; lyftRef.current.nollställ(); revealFocused(); }}
             />
             <Pressable
               ref={pasteBtnRef}
@@ -783,7 +792,7 @@ export default function RecipesScreen() {
               keyboardType="url"
               importantForAutofill="no"
               textContentType="none"
-              onFocus={() => { revealTargetRef.current = urlBtnRef.current; revealFocused(); }}
+              onFocus={() => { revealTargetRef.current = urlBtnRef.current; lyftRef.current.nollställ(); revealFocused(); }}
               returnKeyType="done"
               onSubmitEditing={handleScrape}
             />

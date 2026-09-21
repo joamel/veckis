@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Keyboard, Platform, useWindowDimensions } from 'react-native';
 import type { TextInput } from 'react-native';
+import { skapaLyftberäknare } from '../lib/lyftberakning';
 
 /**
  * Scroll-into-view-lyft för bottom-sheet-modaler med tangentbord.
@@ -24,6 +25,14 @@ export function useSheetLift() {
   // ligger under mängd/enhet-inputen och annars hamnar bakom tangentbordet.
   const revealBelowRef = useRef(0);
   const [sheetLift, setSheetLift] = useState(0);
+  // Spegel av det RENDERADE lyftet. setSheetLift(prev => …) duger inte för
+  // uträkningen nedan: prev är Reacts senaste värde, medan measureInWindow
+  // kan ha läst en y som ännu inte flyttats av det värdet.
+  const liftRef = useRef(0);
+  useEffect(() => { liftRef.current = sheetLift; }, [sheetLift]);
+  // Låser fältets naturliga (olyfta) botten per fokus, så att de fyra
+  // mätningarna nedan inte kan addera lyftet flera gånger. Se lyftberakning.ts.
+  const beräknareRef = useRef(skapaLyftberäknare());
 
   const revealFocused = useCallback(() => {
     if (Platform.OS as any === 'web' || kbHeightRef.current === 0) return;
@@ -36,15 +45,15 @@ export function useSheetLift() {
       // Tangentbordet kan ha stängts medan mätningen väntade (race mot
       // keyboardDidHide som nollställer lyftet) → mät inte då.
       if (kbHeightRef.current === 0) return;
-      const kbH = Math.min(kbHeightRef.current, windowHeight * 0.5);
       ref.measureInWindow((_x, y, _w, h) => {
         // measureInWindow är async → dubbelkolla att tangentbordet är kvar, och
         // hoppa över uppenbart felaktiga (0,0)-mätningar (fält ännu ej utlagt →
         // annars räknas det som "synligt" och lyfts inte, t.ex. enhet-fältet).
         if (kbHeightRef.current === 0 || (y === 0 && h === 0)) return;
-        // measureInWindow ger positionen MED nuvarande lyft → naturlig botten =
-        // y + prev + h. Räkna mål-lyftet absolut (idempotent), klampat.
-        setSheetLift(prev => Math.max(0, Math.min((y + prev + h + 20 + revealBelowRef.current) - (windowHeight - kbH), windowHeight * 0.6)));
+        setSheetLift(beräknareRef.current.beräkna(
+          { y, h, renderatLyft: liftRef.current },
+          { windowHeight, kbHöjd: kbHeightRef.current, revealBelow: revealBelowRef.current },
+        ));
       });
     };
     // Mät två gånger: 260ms låter Modal-slide + tangentbord animera klart; 520ms
@@ -56,7 +65,7 @@ export function useSheetLift() {
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', (e) => { kbHeightRef.current = e.endCoordinates?.height ?? 0; revealFocused(); });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { kbHeightRef.current = 0; setSheetLift(0); });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { kbHeightRef.current = 0; beräknareRef.current.nollställ(); setSheetLift(0); });
     return () => { show.remove(); hide.remove(); };
   }, [revealFocused]);
 
@@ -71,6 +80,7 @@ export function useSheetLift() {
       if (state === 'active') return;
       kbHeightRef.current = 0;
       focusedInputRef.current = null;
+      beräknareRef.current.nollställ();
       setSheetLift(0);
     });
     return () => sub.remove();
@@ -81,6 +91,7 @@ export function useSheetLift() {
     (ref: React.RefObject<TextInput | null>, revealBelow = 0) => () => {
       focusedInputRef.current = ref.current;
       revealBelowRef.current = revealBelow;
+      beräknareRef.current.nollställ();
       revealFocused();
     },
     [revealFocused],
