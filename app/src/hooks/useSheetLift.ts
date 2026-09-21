@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Keyboard, Platform, useWindowDimensions } from 'react-native';
 import type { TextInput } from 'react-native';
 import { skapaLyftberäknare } from '../lib/lyftberakning';
+import { sparaLyftspår } from '../lib/lyftdiagnostik';
 
 /**
  * Scroll-into-view-lyft för bottom-sheet-modaler med tangentbord.
@@ -50,10 +51,14 @@ export function useSheetLift() {
         // hoppa över uppenbart felaktiga (0,0)-mätningar (fält ännu ej utlagt →
         // annars räknas det som "synligt" och lyfts inte, t.ex. enhet-fältet).
         if (kbHeightRef.current === 0 || (y === 0 && h === 0)) return;
-        setSheetLift(beräknareRef.current.beräkna(
-          { y, h, renderatLyft: liftRef.current },
-          { windowHeight, kbHöjd: kbHeightRef.current, revealBelow: revealBelowRef.current },
-        ));
+        const renderatLyft = liftRef.current;
+        const kbHöjd = kbHeightRef.current;
+        const lyft = beräknareRef.current.beräkna(
+          { y, h, renderatLyft },
+          { windowHeight, kbHöjd, revealBelow: revealBelowRef.current },
+        );
+        sparaLyftspår({ kbHöjd, windowHeight, y, h, renderatLyft, lyft, källa: 'fält' });
+        setSheetLift(lyft);
       });
     };
     // Mät två gånger: 260ms låter Modal-slide + tangentbord animera klart; 520ms

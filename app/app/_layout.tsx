@@ -13,7 +13,7 @@ import { tokenCache } from '@clerk/expo/token-cache';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../src/lib/secureStorage';
 import { createElement, forwardRef, useEffect, useState, type ComponentType } from 'react';
-import { Platform, View, useWindowDimensions } from 'react-native';
+import { AppState, Keyboard, Platform, View, useWindowDimensions } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Updates from 'expo-updates';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -180,6 +180,22 @@ export default function RootLayout() {
   });
 
   useEffect(() => { installGlobalErrorHandler(); }, []);
+
+  // Släpp tangentbordet när appen lämnas.
+  //
+  // Bakgrundas appen med ett fält i fokus återställer Android både fokus och
+  // tangentbord vid återkomst, men keyboardDidShow/Hide kommer inte i samma
+  // ordning som vid ett vanligt fokus. Ark kunde då komma tillbaka lyfta fast
+  // tangentbordet var borta, eller platta fast det var uppe. Utan fokuserat
+  // fält finns inget halvt tillstånd att återställa — och texten man skrivit
+  // står kvar, till skillnad från om vi stängt arket.
+  useEffect(() => {
+    if ((Platform.OS as any) === 'web') return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') Keyboard.dismiss();
+    });
+    return () => sub.remove();
+  }, []);
 
   /**
    * Hämta och tillämpa OTA-uppdateringar vid start.

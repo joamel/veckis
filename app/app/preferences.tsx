@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Updates from 'expo-updates';
 import Constants from 'expo-constants';
+import { formateraLyftspår, senasteLyftspår } from '../src/lib/lyftdiagnostik';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -29,6 +30,9 @@ export default function PreferencesScreen() {
   const router = useRouter();
   const { showToast, showError } = useToast();
   const [showNotifModal, setShowNotifModal] = useState(false);
+  // Läses vid render: raden uppdateras nästa gång skärmen öppnas, vilket
+  // räcker — man tittar på den EFTER att ha provat en modal.
+  const lyftrad = formateraLyftspår(senasteLyftspår());
   const [hapticEnabled, setHapticEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [landingTab, setLandingTabState] = useState<LandingTabKey>(DEFAULT_LANDING_TAB);
@@ -199,6 +203,10 @@ export default function PreferencesScreen() {
           v{Constants.expoConfig?.version ?? '?'} · {Platform.OS} · kanal: {Updates.channel ?? '(inbyggd, ingen OTA)'}
           {Updates.isEmbeddedLaunch ? ' · inbyggd bundle' : ` · update ${Updates.updateId?.slice(0, 8) ?? '?'}`}
         </Text>
+        {/* Senaste tangentbordslyftet. Samma skäl som raden ovan: lyftet går
+            bara att felsöka på en riktig telefon, och siffrorna som avgör det
+            syns annars ingenstans. Visas först när något faktiskt mätts. */}
+        {lyftrad ? <Text style={s.versionFooter}>{lyftrad}</Text> : null}
       </ScrollView>
 
       <NotificationsModal visible={showNotifModal} onClose={() => setShowNotifModal(false)} />
