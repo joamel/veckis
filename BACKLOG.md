@@ -51,6 +51,8 @@
 - [x] när man överför en meny till inköpslistan borde man först klicka i inköpslista och sedan bekräfta på en översänd-knapp så att man inte av misstag trycker på fel inköpslista och inte kan ångra — löst: list-steget markerar vald lista (highlight + bock); överföring sker först vid "Överför"-knappen
 
 ### Recept
+- [x] **Receptbilden gick inte att justera** — `allowsEditing` var inte satt på kamera/galleri, så bilden laddades upp orörd och beskars sedan centrerat av `resizeMode="cover"` i 16:9. Stod maten en bit ned i bild klipptes den bort. Väljaren öppnar nu systemets beskärningsvy med `aspect: [16, 9]` — samma format som bilden visas i. Gäller bilder man väljer själv; redan importerade (URL-scrapade) bilder har ingen lokal fil att beskära och kräver en egen vy.
+
 - [ ] **Fota ett recept för att lägga till det** (bild → recept). Bygg på befintliga AI-paste-pipen ("✨ Klistra in") men med bild-input via Claude vision (OCR + strukturering till titel/ingredienser/instruktioner). Nytt läge i segment-kontrollen (Manuellt · ✨ Klistra in · 📷 Fota · Från URL). Kräver kamera-/bibliotek-permission + native EAS-build. Knyter an till "AI-agent som identifierar basvaror/måttenhet/kategori vid import" (Agent-sektionen).
 - [ ] Ändra layout för lägga till recept om vi gör det på ytterligare ett nytt sätt. Kanske som en lista under varandra istället för 4 flikar eller vad det blir.
 - [x] "Laga nu"-läget ser ut att vara i dark mode — löst: konverterat till appens ljusa/varma tema (de mörka färgerna sparas som bas för dark mode, se Inställningar)

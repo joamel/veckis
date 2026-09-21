@@ -929,9 +929,15 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         showError(new Error('permission_denied'), source === 'camera' ? str.permissions.camera : str.permissions.photos);
         return;
       }
+      // allowsEditing + aspect ger systemets egen beskärningsvy, i SAMMA
+      // format som bilden sedan visas i (heroImage är 16:9 med cover).
+      // Utan den laddades bilden upp orörd och beskars centrerat vid
+      // visning — stod maten en bit ned i bild klipptes den bort, utan att
+      // man kunde göra något åt det.
+      const val = { mediaTypes: 'images' as const, quality: 0.9, allowsEditing: true, aspect: [16, 9] as [number, number] };
       const result = source === 'camera'
-        ? await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.9 })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.9 });
+        ? await ImagePicker.launchCameraAsync(val)
+        : await ImagePicker.launchImageLibraryAsync(val);
       if (result.canceled || !result.assets[0]) return;
       setUploadingImage(true);
       const compressed = await ImageManipulator.manipulateAsync(
