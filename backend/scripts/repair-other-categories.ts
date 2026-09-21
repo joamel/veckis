@@ -30,6 +30,7 @@ import { skrivGranskningsfil, läsGranskningsfil, lägeskontroll, type Gransknin
 import { PrismaClient, StoreCategory } from '@prisma/client';
 import { parentForSub, SUB_TAXONOMY, type SubCategory } from '@veckis/shared';
 import { categorizeIngredient, kureratUndantag } from '../src/lib/categorizeIngredient';
+import { duglingGlobalt } from '../src/lib/normalizeIngredients';
 
 const prisma = new PrismaClient({ log: ['error'] });
 
@@ -89,7 +90,13 @@ async function main() {
     where: kurerad ? undefined : { category: 'other' },
     select: { raw: true, canonical: true, category: true },
   });
+  // Hoppa över namn som ändå aldrig får föreslås — mängdprefix ("dl glutenfri
+  // mjölmix"), alternativ-strängar, siffror först. Att sätta rätt kategori på
+  // dem är bortkastat: de syns inte i sökningen, och clean:aliases eller
+  // clean:names skriver troligen om dem ändå. De dränkte dessutom listan med
+  // rader man inte kan göra något åt.
   const aliasFix = alias
+    .filter(a => duglingGlobalt(a.canonical))
     .map(a => ({ raw: a.raw, namn: a.canonical, från: a.category, till: bättreKategori(a.canonical) }))
     .filter((a): a is { raw: string; namn: string; från: StoreCategory; till: StoreCategory } =>
       a.till !== null && a.till !== a.från);
@@ -98,11 +105,24 @@ async function main() {
   // -- 2. StapleItem ---------------------------------------------------------
   const staples = await prisma.stapleItem.findMany({
     where: { category: 'other' },
-    select: { id: true, name: true },
+    select: { id: true, name: true, householdId: true },
   });
-  const stapleFix = staples
-    .map(s => ({ id: s.id, namn: s.name, till: bättreKategori(s.name) }))
-    .filter((s): s is { id: string; namn: string; till: StoreCategory } => s.till !== null);
+  // EN rad per namn. Basvaror lagras per hushåll, men kategorin ska vara
+  // densamma för alla — och hushålls-id:t säger ingenting för den som
+  // granskar. Raderna som berörs står ändå på 'other', alltså utan eget val.
+  const stapleNamn = new Map<string, { namn: string; till: StoreCategory; antal: number }>();
+  for (const s of staples) {
+    if (!duglingGlobalt(s.name)) continue;
+    const till = bättreKategori(s.name);
+    if (till === null) continue;
+    const fanns = stapleNamn.get(s.name);
+    stapleNamn.set(s.name, { namn: s.name, till, antal: (fanns?.antal ?? 0) + 1 });
+  }
+  const stapleFix = [...stapleNamn.values()].map(s => ({
+    id: s.namn,
+    namn: s.antal > 1 ? `${s.namn} (${s.antal} hushåll)` : s.namn,
+    till: s.till,
+  }));
   rapportera('2. StapleItem (hushållens basvaror)', stapleFix);
 
   // -- 3. ShoppingItem -------------------------------------------------------
@@ -145,7 +165,9 @@ async function main() {
   for (const f of attSkriva) {
     const category = f.till as StoreCategory;
     if (f.tabell === 'alias') { await prisma.ingredientAlias.update({ where: { raw: f.nyckel }, data: { category } }); antalAlias++; }
-    else if (f.tabell === 'staple') { await prisma.stapleItem.update({ where: { id: f.nyckel }, data: { category } }); antalStaple++; }
+    // Nyckeln är NAMNET för basvaror — ändringen gäller varje hushåll som har
+    // varan, vilket är hela poängen med att granska en rad i stället för fem.
+    else if (f.tabell === 'staple') { antalStaple += (await prisma.stapleItem.updateMany({ where: { name: f.nyckel }, data: { category } })).count; }
     else if (f.tabell === 'item') { await prisma.shoppingItem.update({ where: { id: f.nyckel }, data: { category } }); antalItem++; }
   }
   console.log(`\nKLART: ${antalAlias} alias, ${antalStaple} basvaror, ${antalItem} varor rättade.`);

@@ -23,6 +23,19 @@ describe('delaAlternativ', () => {
     expect(delaAlternativ('vego-, bland- eller hushållsfärs')).toEqual(['vegofärs', 'blandfärs', 'hushållsfärs']);
   });
 
+  it('delar "och" när båda sidor är kända varor', () => {
+    // Två varor, inte en — och till skillnad från "eller" behöver man båda.
+    expect(delaAlternativ('salt och svartpeppar')).toEqual(['salt', 'svartpeppar']);
+    expect(delaAlternativ('salt och vitpeppar')).toEqual(['salt', 'vitpeppar']);
+  });
+
+  it('delar INTE produktnamn som innehåller och', () => {
+    // "kött- och grillkrydda" är EN krydda; bindestrecket avslöjar det.
+    expect(delaAlternativ('knorr kött- och grillkrydda')).toEqual(['knorr kött- och grillkrydda']);
+    // Okänd högersida → vi vet för lite, lämna ifred.
+    expect(delaAlternativ('salt och wnmbox')).toEqual(['salt och wnmbox']);
+  });
+
   it('lämnar vanliga namn orörda', () => {
     expect(delaAlternativ('rökt skinka')).toEqual(['rökt skinka']);
     expect(delaAlternativ('mjölk')).toEqual(['mjölk']);

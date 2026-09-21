@@ -103,7 +103,13 @@ async function main() {
     if (perRecept.size > 10) console.log(`\n  ... och ${perRecept.size - 10} recept till.`);
   }
 
-  if (förslag.length === 0) return;
+  // Säg det rakt ut i stället för att bara returnera. Bad man om en fil och
+  // fick varken fil eller förklaring såg det ut som att skriptet var trasigt.
+  if (förslag.length === 0) {
+    console.log('\nInget att göra — inga rader ser ut som skräp.');
+    if (SKRIV_FIL) console.log(`Ingen fil skrevs till ${SKRIV_FIL}, eftersom det inte finns något att granska.`);
+    return;
+  }
 
   if (SKRIV_FIL) {
     skrivGranskningsfil(SKRIV_FIL, förslag);

@@ -21,9 +21,9 @@ const PLURALER: Record<string, string> = {
   morot: 'morötter', potatis: 'potatisar', lök: 'lökar', rödlök: 'rödlökar',
   vitlök: 'vitlökar', purjolök: 'purjolökar', salladslök: 'salladslökar',
   äpple: 'äpplen', päron: 'päron', persika: 'persikor', plommon: 'plommon',
-  avokado: 'avokado', mango: 'mango', kiwi: 'kiwifrukter', melon: 'meloner',
+  avokado: 'avokado', mango: 'mango', kiwi: 'kiwi', melon: 'meloner',
   zucchini: 'zucchini', aubergine: 'auberginer', champinjon: 'champinjoner',
-  broccoli: 'broccoli', blomkål: 'blomkålshuvuden', majskolv: 'majskolvar',
+  broccoli: 'broccoli', blomkål: 'blomkål', majskolv: 'majskolvar',
   // Kött, fisk, mejeri
   ägg: 'ägg', kycklingfilé: 'kycklingfiléer', laxfilé: 'laxfiléer',
   korv: 'korvar', biff: 'biffar', köttbulle: 'köttbullar', räka: 'räkor',

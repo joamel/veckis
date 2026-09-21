@@ -38,3 +38,10 @@ experiments/**/*-rutor.html
 # Granskningsfiler från städskripten (backend/scripts) — lokala arbetsfiler,
 # genereras ur databasen och hör inte hemma i repot.
 granskning*.txt
+
+# Skriptens minne av dina "nej" — lokalt per maskin.
+backend/scripts/.nej-lista.txt
+granskning*.txt.föregående
+
+# Granskningsfiler från städskripten — genereras ur databasen, hör inte i repot.
+backend/*.txt

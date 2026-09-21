@@ -11,7 +11,7 @@ import { wsBroadcast } from '../lib/wsHub';
 import { planIncomingMatch, planAutoMerge } from '../lib/importDedupe';
 import { loadConfirmedEquivalencesByName } from '../lib/smartMerge';
 import { notifyActiveShopper } from '../lib/sendPush';
-import { convertToMetric } from '@veckis/shared';
+import { convertToMetric , inferSubCategory } from '@veckis/shared';
 
 export const menusRouter = Router();
 
@@ -408,6 +408,12 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
             quantity: ing.quantity ?? 1,
             unit: ing.unit,
             category: ing.resolvedCategory as never,
+            // Underkategorin sattes inte alls vid överföring, så en vara från
+            // ett recept låg utan sub tills backend startades om och
+            // backfill-jobbet hann ikapp. Fram till dess grupperades den bara
+            // under sin parent, medan en manuellt tillagd vara med samma namn
+            // fick sin sub direkt.
+            subCategory: inferSubCategory(ing.name),
             addedBy: clerkUserId,
             recipeId: ing.recipeId,
             menuItemId: ing.menuItemId ?? null,

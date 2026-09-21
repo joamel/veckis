@@ -24,26 +24,26 @@ Regler:
 - Mjölktyper → mjölk (standardmjölk → mjölk, lättmjölk → mjölk), men behåll äkta alternativ (kokosmjölk, havremjölk)
 - ALTERNATIV lämnas ALLTID orörda: "nötfärs alt. vegofärs", "körsbärstomater eller romanticatomater", "falukorv eller kycklingstekkorv". Välj ALDRIG ett av alternativen och slå ALDRIG ihop dem till ett tredje namn. Valet tillhör den som handlar — en vegetarian som får "nötfärs" har blivit fråntagen sitt alternativ. Ta bort tillagningsord som vanligt, men behåll alternativen och kopplingsordet.
 - VIKTIGAST: slå aldrig ihop två saker man köper var för sig. salladslök, purjolök, rödlök och gul lök är FYRA olika varor och ska behållas som de är — samma sak för basmatiris, jasminris och risgrynsgröt, och för sesamolja, olivolja och rapsolja. Hellre för specifikt än fel vara i kassen.
-- Returnera ENBART ett JSON-array med kanoniska namn i exakt samma ordning som indata, inga förklaringar.
+- Returnera ENBART ett JSON-array med ETT OBJEKT per indata-namn: {"in":"<namnet exakt som det kom in>","ut":"<kanoniska namnet>"}. Fältet "in" måste vara en teckenexakt kopia av indata. Hoppa aldrig över ett namn och slå aldrig ihop två.
 
 Exempel:
 Input: ["vitlöksklyftor","riven parmesanost","färsk basilika","standardmjölk","körsbärstomater","kycklingfilé"]
-Output: ["vitlök","parmesanost","basilika","mjölk","tomat","kyckling"]
+Output: [{"in":"vitlöksklyftor","ut":"vitlök"},{"in":"riven parmesanost","ut":"parmesanost"},{"in":"färsk basilika","ut":"basilika"},{"in":"standardmjölk","ut":"mjölk"},{"in":"körsbärstomater","ut":"tomat"},{"in":"kycklingfilé","ut":"kyckling"}]
 
 Input: ["ägg vispade","kokt, svalt basmatiris","Kikkoman naturligt bryggd sojasås","salladslök finhackad","morötter i tärningar"]
-Output: ["ägg","basmatiris","sojasås","salladslök","morot"]
+Output: [{"in":"ägg vispade","ut":"ägg"},{"in":"kokt, svalt basmatiris","ut":"basmatiris"},{"in":"Kikkoman naturligt bryggd sojasås","ut":"sojasås"},{"in":"salladslök finhackad","ut":"salladslök"},{"in":"morötter i tärningar","ut":"morot"}]
 
 Input: ["krossade tomater","soltorkade tomater, klippta i bitar","lingon rårörda","rimmat sidfläsk, skivat","tomater i klyftor"]
-Output: ["krossade tomater","soltorkade tomater","rårörda lingon","rimmat sidfläsk","tomat"]
+Output: [{"in":"krossade tomater","ut":"krossade tomater"},{"in":"soltorkade tomater, klippta i bitar","ut":"soltorkade tomater"},{"in":"lingon rårörda","ut":"rårörda lingon"},{"in":"rimmat sidfläsk, skivat","ut":"rimmat sidfläsk"},{"in":"tomater i klyftor","ut":"tomat"}]
 
 Input: ["torkad dragon","färsk dragon, hackad","frysta hallon","hallon färska","fryst spenat"]
-Output: ["torkad dragon","dragon","frysta hallon","hallon","fryst spenat"]
+Output: [{"in":"torkad dragon","ut":"torkad dragon"},{"in":"färsk dragon, hackad","ut":"dragon"},{"in":"frysta hallon","ut":"frysta hallon"},{"in":"hallon färska","ut":"hallon"},{"in":"fryst spenat","ut":"fryst spenat"}]
 
 Input: ["mjuka skal","glutenfria makaroner","tomater","krossade tomater, finhackade","gula lökar"]
-Output: ["mjuka skal","glutenfria makaroner","tomat","krossade tomater","gula lökar"]
+Output: [{"in":"mjuka skal","ut":"mjuka skal"},{"in":"glutenfria makaroner","ut":"glutenfria makaroner"},{"in":"tomater","ut":"tomat"},{"in":"krossade tomater, finhackade","ut":"krossade tomater"},{"in":"gula lökar","ut":"gula lökar"}]
 
 Input: ["körsbärstomater eller romanticatomater","falukorv eller kycklingstekkorv","nötfärs alt. vegofärs, stekt","finhackad gul lök"]
-Output: ["körsbärstomater eller romanticatomater","falukorv eller kycklingstekkorv","nötfärs alt. vegofärs","gul lök"]`;
+Output: [{"in":"körsbärstomater eller romanticatomater","ut":"körsbärstomater eller romanticatomater"},{"in":"falukorv eller kycklingstekkorv","ut":"falukorv eller kycklingstekkorv"},{"in":"nötfärs alt. vegofärs, stekt","ut":"nötfärs alt. vegofärs"},{"in":"finhackad gul lök","ut":"gul lök"}]`;
 
 /**
  * Kanonisera namn UTAN att gå via alias-cachen.
@@ -55,6 +55,28 @@ Output: ["körsbärstomater eller romanticatomater","falukorv eller kycklingstek
  */
 export function kanoniseraUtanCache(names: string[]): Promise<string[]> {
   return aiNormalizeNames(names);
+}
+
+/**
+ * Parar ihop modellens svar med indata på det EKADE namnet, aldrig på position.
+ *
+ * Positionsparning var en tyst datakorruption: hoppade modellen över ett namn
+ * i en batch förskjöts hela resten, och städskriptet föreslog "färsk spenat →
+ * creme fraiche". En längdkontroll fångar inte det, eftersom antalet kan
+ * stämma ändå — modellen kan ha slagit ihop två och lagt till en.
+ *
+ * Ett namn utan träff behåller sin strippade form. Hellre oförändrat än
+ * förväxlat med någon annans.
+ */
+export function paraIhopSvar(strippedNames: string[], svar: unknown[]): string[] {
+  const karta = new Map<string, string>();
+  for (const p of svar) {
+    const rad = p as { in?: unknown; ut?: unknown };
+    if (typeof rad?.in !== 'string' || typeof rad?.ut !== 'string') continue;
+    const ut = rad.ut.toLowerCase().trim();
+    if (ut.length > 0) karta.set(rad.in.trim(), ut);
+  }
+  return strippedNames.map(n => karta.get(n.trim()) ?? n);
 }
 
 async function aiNormalizeNames(strippedNames: string[]): Promise<string[]> {
@@ -75,9 +97,17 @@ async function aiNormalizeNames(strippedNames: string[]): Promise<string[]> {
     // returnerade indata. Normaliseringen såg alltså ut att fungera medan den
     // inte gjorde någonting alls, och varje "Kikkoman rostad sesamolja" blev
     // en egen vara i poolen.
-    const parsed = tolkaJsonArray(textUr(msg)) as string[];
-    if (parsed.length !== strippedNames.length) return strippedNames;
-    return parsed.map((n, i) => (typeof n === 'string' && n.length > 0 ? n.toLowerCase().trim() : strippedNames[i]));
+    // Modellen ekar tillbaka varje indata-namn i "in", och svaret paras ihop
+    // på DET — aldrig på position.
+    //
+    // Positionsparning var en tyst datakorruption: hoppade modellen över ett
+    // namn i en batch på fyrtio förskjöts hela resten, och städskriptet
+    // föreslog "färsk spenat -> creme fraiche". Längdkontrollen som fanns
+    // fångade det inte, eftersom antalet kunde stämma ändå.
+    //
+    // Ett namn utan träff behåller sin strippade form. Hellre oförändrat än
+    // förväxlat med någon annans.
+    return paraIhopSvar(strippedNames, tolkaJsonArray(textUr(msg)));
   } catch {
     return strippedNames;
   }
@@ -172,6 +202,10 @@ export function duglingGlobalt(canonical: string): boolean {
   // inköpslistan behåller hela texten så valet finns kvar för den som handlar.
   // Skyddar också mot rader som redan hunnit in i databasen.
   if (/\s(?:eller|alt\.?|alternativt)\s/i.test(c)) return false;
+  // "salt och svartpeppar" är två varor, inte en — och delaAlternativ lär in
+  // dem var för sig. Den sammansatta strängen ska därför inte föreslås.
+  // Bara när BÅDA sidor är kända varor: "kött- och grillkrydda" är en produkt.
+  if (delaAlternativ(c).length > 1) return false;
   return !ärMängdOrd(c) && !startsWithUnit(c);
 }
 

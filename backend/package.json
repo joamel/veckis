@@ -22,7 +22,9 @@
     "repair:categories": "tsx scripts/repair-other-categories.ts",
     "clean:names": "tsx scripts/clean-recipe-names.ts",
     "category-gaps": "tsx scripts/category-gaps.ts",
-    "clean:junk": "tsx scripts/clean-junk-names.ts"
+    "clean:junk": "tsx scripts/clean-junk-names.ts",
+    "clean:dupes": "tsx scripts/clean-duplicates.ts",
+    "clean:all": "tsx scripts/clean-all-names.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.2",

@@ -23,6 +23,11 @@ const ENGELSKA_MARKÖRER = new Set([
   'onions', 'garlic', 'tomatoes', 'tomato', 'potatoes', 'potato', 'rice',
   'beans', 'juice', 'sauce', 'stock', 'broth', 'vinegar', 'baking', 'soda',
   'vanilla', 'cinnamon', 'parsley', 'cilantro', 'basil', 'thyme',
+  // Specialkost och beredningsformer — "gluten free pasta" innehöll inget av
+  // orden ovan och skickades därför aldrig till översättning, trots att den
+  // är uppenbart engelsk.
+  'free', 'gluten', 'lactose', 'dairy', 'whole', 'wheat', 'bread', 'brown',
+  'white', 'powder', 'dried', 'frozen', 'canned', 'raw', 'smoked', 'grated',
 ]);
 
 /** True om NÅGOT av namnen ser engelskt ut. Billig gate före AI-anropet. */
@@ -42,7 +47,10 @@ Regler:
 
 Exempel:
 Input: ["boneless chicken thighs","all-purpose flour","vetemjöl","fresh cilantro","heavy cream"]
-Output: ["benfria kycklinglår","vetemjöl","vetemjöl","färsk koriander","vispgrädde"]`;
+Output: ["benfria kycklinglår","vetemjöl","vetemjöl","färsk koriander","vispgrädde"]
+
+Input: ["gluten free pasta","lactose free milk","baking soda","salt","juice"]
+Output: ["glutenfri pasta","laktosfri mjölk","bikarbonat","salt","juice"]`;
 
 /**
  * Översätter engelska ingrediensnamn till svenska. Returnerar ett värde per

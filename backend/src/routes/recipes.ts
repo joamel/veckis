@@ -232,7 +232,11 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
     await prisma.stapleItem.createMany({
       data: varor.map(ing => ({
         householdId: body.data.householdId,
-        name: ing.name,
+        // Gemener. Receptets ingrediens kan vara skriven med versal ("Avokado"),
+        // och utan det här blev den en EGEN basvara vid sidan av "avokado" —
+        // två rader för samma vara, båda i sökförslagen. Alla andra vägar in
+        // gemeniserar redan; den här var kvar.
+        name: ing.name.toLowerCase(),
         category: ing.category,
         unit: ing.unit ?? undefined,
         defaultQuantity: ing.quantity ?? undefined,

@@ -231,6 +231,14 @@ const UNDANTAG: { frasar: string[]; category: StoreCategory }[] = [
     frasar: ['jäst'],
   },
   {
+    // Glutenfritt står i specialkosthyllan, inte hos den vanliga varan:
+    // glutenfri pasta ligger inte bland pastan. Måste prövas FÖRE
+    // råvaruregeln, som annars ser "pasta" och säger skafferi.
+    // Engelska former med, eftersom oöversatta importnamn förekommer.
+    category: 'special_diet',
+    frasar: ['glutenfri', 'glutenfritt', 'glutenfria', 'gluten free', 'gluten-free'],
+  },
+  {
     // Sylt och rårörda bär är skafferi/kyl, inte bär. Måste stå FÖRE
     // bär-regeln nedan, som annars drar med sig allt som börjar på "lingon".
     category: 'canned_dry',

@@ -12,6 +12,8 @@
  * skälet 2026-09-20.)
  */
 
+import { categorizeIngredient } from './categorizeIngredient';
+
 const KOPPLINGAR = /\s+(?:eller|alt\.?|alternativt)\s+/i;
 
 /**
@@ -33,7 +35,28 @@ function efterled(sista: string): string | null {
   return [...EFTERLED].sort((a, b) => b.length - a.length).find(e => ord.endsWith(e) && ord.length > e.length) ?? null;
 }
 
+/**
+ * "salt och svartpeppar" är två varor, inte en. Till skillnad från "eller"
+ * betyder "och" att man behöver båda.
+ *
+ * Men "och" är farligare att dela på än "eller", för många produkter heter så:
+ * "Knorr kött- och grillkrydda" är EN krydda. Därför två villkor: inget led
+ * får sluta på bindestreck (det är en hopdragen sammansättning), och BÅDA
+ * sidor måste kännas igen som riktiga varor av den kurerade klassaren. Är det
+ * minsta tveksamt lämnas namnet som det är.
+ */
+function delaOch(namn: string): string[] | null {
+  const delar = namn.split(/\s+och\s+/i).map(d => d.trim()).filter(Boolean);
+  if (delar.length !== 2) return null;
+  if (delar.some(d => d.endsWith('-'))) return null;
+  if (delar.some(d => categorizeIngredient(d) === 'other')) return null;
+  return delar;
+}
+
 export function delaAlternativ(namn: string): string[] {
+  const ochDelar = delaOch(namn);
+  if (ochDelar) return ochDelar;
+
   // Komma fungerar som uppräkning precis som kopplingsorden: "vego-, bland-
   // eller hushållsfärs". Enklast att göra dem till mellanslag direkt.
   const delar = namn.replace(/,/g, ' ').split(KOPPLINGAR).map(d => d.trim()).filter(Boolean);

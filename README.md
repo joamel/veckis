@@ -49,9 +49,67 @@ npm run dev:app       # Expo Metro
 ## Tester
 
 ```bash
-npm test --workspace=backend          # vitest, 20 tester (mergeLogic + unitOrder)
-npm test --workspace=backend -- --watch
+npm test --workspace=backend          # vitest, 230 tester
+npm test --workspace=app              # vitest, 124 tester
 ```
+
+## Underhållsskript (`backend/scripts/`)
+
+Städar ingrediensdatan. Körs för hand, aldrig automatiskt, och **alla är
+torrkörning som standard** — inget skrivs förrän du ber om det.
+
+```bash
+npm run clean:all           # Alla varunamn. Du döper om, tar bort eller låter vara. Inga gissningar.
+npm run clean:junk          # Rader som inte är varunamn: receptstycken, HTML-entiteter, meningar.
+npm run clean:aliases       # Mängdprefix ("kg potatis" → "potatis") + backfill av hushållsräkningen.
+npm run clean:names         # Kortar långa namn. Enda skriptet där AI föreslår.
+npm run clean:dupes         # Varianter av samma vara: stavfel, versaler, singular/plural.
+npm run repair:categories   # Rättar fel kategori.
+npm run category-gaps       # Rapport: namn ingen kategoriregel känner igen. Läser bara.
+```
+
+Flaggor värda att känna till:
+
+```bash
+npm run clean:all -- --översätt        # fyller i svensk översättning för engelska namn
+npm run clean:all -- --radera-dolda    # tar bort rader som ändå aldrig föreslås
+npm run repair:categories -- --kurerad # jämför HELA poolen mot reglerna — läs som rapport, applicera inte rakt av
+```
+
+### Arbetsgång
+
+```bash
+npm run clean:all                                        # 1. se läget
+npm run clean:all -- --fil alla.txt                      # 2. skriv till fil
+notepad alla.txt                                         # 3. granska
+npm run clean:all -- --från-fil alla.txt --apply         # 4. tillämpa dina val
+```
+
+I filen börjar varje rad med `ja`. Ändra till `nej` för att låta varan vara,
+eller skriv över BLIR-kolumnen med det värde du vill ha — ditt värde gäller,
+inte skriptets förslag. I `clean:all` betyder **borttagen rad att varan
+raderas**; i de andra skripten betyder `nej` bara att förslaget hoppas över.
+Dina `nej` sparas i `.nej-lista.txt` och föreslås inte igen.
+
+Recept och inköpslistor rörs aldrig — bara ordförrådet och hushållens basvaror.
+`[eget val]` i filen markerar rader där ett hushåll själv satt kategori.
+
+### Mot produktion
+
+Skripten läser `DATABASE_URL`. **Railways interna adress
+(`postgres.railway.internal`) går inte att nå från din dator** — använd
+`DATABASE_PUBLIC_URL` (`...proxy.rlwy.net:PORT`) från Railway → Postgres →
+Variables. Skripten skriver ut vilken databas de pratar med på första raden och
+avbryter med en förklaring om de får den interna.
+
+Ta alltid `npm run backup` först. Ordningen spelar roll, eftersom varje steg
+ändrar underlaget för nästa:
+
+```
+clean:junk → clean:aliases → clean:all → clean:names → clean:dupes → repair:categories
+```
+
+Kategorisera sist, när bara riktiga varunamn återstår.
 
 ## Deploy
 

@@ -11,7 +11,8 @@
  * och kan innehålla nästan vad som helst, inklusive avdelaren — läses den sist
  * kan resten av raden tas rakt av utan att tolkningen går sönder.
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, copyFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 export type Granskningsrad = {
   tabell: string;
@@ -55,7 +56,29 @@ function avkodaNyckel(v: string): string {
   return ut;
 }
 
-export function skrivGranskningsfil(sökväg: string, rader: Granskningsrad[]): void {
+export function skrivGranskningsfil(sökväg: string, rader: Granskningsrad[], egnaInstruktioner?: string[]): void {
+  // Skriv ALDRIG över en fil du redan redigerat. Kördes generera-steget en
+  // gång till efter granskningen nollställdes alla "nej" till "ja" utan ett
+  // ord, och nästa apply gjorde tvärtemot vad du bestämt.
+  // Skriv över utan att fråga. En spärr fanns här ett tag, men den var mest i
+  // vägen: antingen har man redan tillämpat filen, eller så vill man ha en
+  // färsk lista. Dessutom minns skripten numera vad man sagt nej till
+  // (.nej-lista.txt), så de valen överlever en omgenerering.
+  //
+  // Den gamla filen sparas ändå undan. Har man hunnit redigera utan att
+  // tillämpa är de valen inte sparade någonstans annars, och en kopia kostar
+  // ingenting.
+  if (existsSync(sökväg)) {
+    const kopia = `${sökväg}.föregående`;
+    copyFileSync(sökväg, kopia);
+    console.log(`Skriver över ${resolve(sökväg)} (förra versionen sparad som ${kopia})`);
+  }
+
+  // Hoppa över det du redan sagt nej till en gång.
+  const { kvar, hoppade } = utanTidigareNej(rader);
+  if (hoppade > 0) console.log(`\n${hoppade} rader hoppades över — du har sagt nej till dem tidigare.`);
+  rader = kvar;
+
   const innehåll = [
     '# GRANSKNINGSFIL',
     '#',
@@ -63,8 +86,21 @@ export function skrivGranskningsfil(sökväg: string, rader: Granskningsrad[]): 
     '#   ja  = gör det som står i BLIR-kolumnen',
     '#   nej = låt varan vara som den är',
     '#',
-    '# Ändra ja till nej på de rader du inte vill ha. Stryk ingenting, och',
-    '# ändra inget annat på raden. Spara sedan filen och kör om kommandot med',
+    ...(egnaInstruktioner ?? [
+      '# Ändra ja till nej på de rader du inte vill ha.',
+      '#',
+      '# Du kan också SKRIVA ÖVER kolumnen BLIR med det värde du vill ha — det',
+      '# är ditt värde som tillämpas, inte skriptets förslag. Håller du inte med',
+      '# om "canned_dry" skriver du dit "special_diet" och låter raden stå på ja.',
+      '#',
+      '# Stryk ingenting och ändra inget annat på raden (namnet och nyckeln sist',
+      '# används för att hitta rätt rad).',
+    ]),
+    '#',
+    '# Kolumnerna avdelas med mellanslag-rörtecken-mellanslag ( | ). Bredden',
+    '# spelar ingen roll — skriv kort eller långt, bara avdelarna står kvar.',
+    '#',
+    '# Spara sedan filen och kör om med',
     '#   --från-fil <den här filen> --apply',
     '#',
     '# svar | tabell  | blir                      | namn                           | nyckel',
@@ -75,16 +111,20 @@ export function skrivGranskningsfil(sökväg: string, rader: Granskningsrad[]): 
   ];
   writeFileSync(sökväg, innehåll.join('\r\n') + '\r\n', 'utf8');
 
-  console.log(`\nSkrev ${rader.length} förslag till ${sökväg}`);
+  // Absolut sökväg: en relativ sökväg skrivs dit skriptet KÖRS ifrån, vilket
+  // inte alltid är där man letar efter filen.
+  console.log(`\nSkrev ${rader.length} förslag till ${resolve(sökväg)}`);
   console.log('\nSÅ HÄR GÖR DU:');
-  console.log(`  1. Öppna filen i Anteckningar:  notepad ${sökväg}`);
+  console.log(`  1. Öppna filen i Anteckningar:  notepad ${resolve(sökväg)}`);
   console.log('  2. Varje rad börjar med "ja". Ändra till "nej" på de rader du INTE vill ha.');
-  console.log('  3. Stryk ingenting, ändra inget annat på raden.');
-  console.log('  4. Spara, och kör om samma kommando med:  --från-fil <sökväg> --apply');
+  console.log('  3. Håller du inte med om kategorin i BLIR-kolumnen: skriv dit rätt kategori i stället.');
+  console.log('  4. Stryk ingenting, ändra inget annat på raden.');
+  console.log('  5. Spara, och kör om samma kommando med:  --från-fil <sökväg> --apply');
 }
 
 export function läsGranskningsfil(sökväg: string): Granskningsrad[] {
   const valda: Granskningsrad[] = [];
+  const avvisade: Granskningsrad[] = [];
   let hoppade = 0;
 
   for (const rad of readFileSync(sökväg, 'utf8').split(/\r?\n/)) {
@@ -97,12 +137,17 @@ export function läsGranskningsfil(sökväg: string): Granskningsrad[] {
     const nyckel = avkodaNyckel(delar.slice(4).join(AVDELARE));
 
     const jaNej = svar.trim().toLowerCase();
-    if (jaNej !== 'ja') { hoppade++; continue; }
+    if (jaNej !== 'ja') {
+      hoppade++;
+      avvisade.push({ tabell: tabell.trim(), nyckel, namn: namn.trim(), till: till.trim() });
+      continue;
+    }
 
     valda.push({ tabell: tabell.trim(), nyckel, namn: namn.trim(), till: till.trim() });
   }
 
   console.log(`Läste ${sökväg}: ${valda.length} rader att tillämpa, ${hoppade} överhoppade.`);
+  kommIhågNej(avvisade);
   return valda;
 }
 
@@ -136,4 +181,59 @@ export function lägeskontroll(opts: { skrivFil: string | null; läsFil: string 
   else if (läsFil) console.log(`LÄGE: tillämpar dina val ur ${läsFil}. Databasen ÄNDRAS.\n`);
   else if (apply) console.log('LÄGE: tillämpar ALLT skriptet föreslår, utan granskning. Databasen ÄNDRAS.\n');
   else console.log('LÄGE: rapport. Inget ändras. Lägg till --fil <sökväg> för att granska, eller --apply för att köra allt.\n');
+}
+
+/**
+ * Minnet av dina "nej".
+ *
+ * Utan det kom varje avvisad rad tillbaka i nästa körning, med "ja" ifyllt
+ * igen — och en lista på hundratals rader blir då omöjlig att beta av: man
+ * måste göra om samma bedömningar varje gång. Nu skrivs de bort man sagt nej
+ * till undan, och nästa körning hoppar över dem.
+ *
+ * Filen ligger bredvid skripten och är per maskin, eftersom det är samma
+ * person som kör dem. Vill du börja om: radera den.
+ */
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const NEJ_FIL = join(dirname(fileURLToPath(import.meta.url)), '.nej-lista.txt');
+
+/** Nyckel som identifierar en rad över tid: tabell + nyckeln i den tabellen. */
+function nejNyckel(r: Granskningsrad): string {
+  return `${r.tabell}\t${r.nyckel}`;
+}
+
+export function läsNejlista(): Set<string> {
+  if (!existsSync(NEJ_FIL)) return new Set();
+  return new Set(
+    readFileSync(NEJ_FIL, 'utf8')
+      .split(/\r?\n/)
+      .map(r => r.trim())
+      .filter(r => r && !r.startsWith('#'))
+  );
+}
+
+/** Lägger till raderna som stod på "nej" i minnet. Idempotent. */
+export function kommIhågNej(rader: Granskningsrad[]): void {
+  if (rader.length === 0) return;
+  const redan = läsNejlista();
+  const nya = rader.map(nejNyckel).filter(n => !redan.has(n));
+  if (nya.length === 0) return;
+
+  const huvud = existsSync(NEJ_FIL)
+    ? ''
+    : '# Rader du sagt nej till. Skripten hoppar över dem.\n# Radera filen för att börja om.\n';
+  writeFileSync(NEJ_FIL, huvud + [...redan, ...nya].join('\n') + '\n', 'utf8');
+  console.log(`\n${nya.length} nej sparades — de föreslås inte igen.`);
+  console.log(`(Ångra: radera ${NEJ_FIL})`);
+}
+
+/** Filtrerar bort rader du tidigare sagt nej till. */
+export function utanTidigareNej(rader: Granskningsrad[]): { kvar: Granskningsrad[]; hoppade: number } {
+  const nej = läsNejlista();
+  if (nej.size === 0) return { kvar: rader, hoppade: 0 };
+  const kvar = rader.filter(r => !nej.has(nejNyckel(r)));
+  return { kvar, hoppade: rader.length - kvar.length };
 }

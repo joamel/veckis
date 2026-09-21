@@ -92,6 +92,13 @@ const PREP_WORDS = new Set([
   'klyftad', 'klyftade',
   // Grating
   'riven', 'rivna', 'finriven', 'finrivna', 'grovriven', 'grovrivna',
+  // Malning: "svartpeppar, nymalen" och "nymalen svartpeppar" ska bägge bli
+  // "svartpeppar". Ordföljden spelar ingen roll när ordet stryks oavsett var
+  // det står — den frågan behöver man alltså inte ha en åsikt om.
+  // Bara NY-formerna. "malen kanel" är en vara i kryddhyllan (se UNDANTAG i
+  // categorizeIngredient), så "kanel, malen" får inte heller strippas —
+  // annars betyder samma ord olika saker beroende på var det står.
+  'nymalen', 'nymald', 'nymalet', 'nymalda', 'nykvarnad', 'nykvarnat',
   // Pressing/crushing
   'pressad', 'pressade', 'krossad', 'krossade', 'mosad', 'mosade',
   // Peeled/cleaned
@@ -162,14 +169,98 @@ export function startsWithUnit(name: string): boolean {
 }
 
 // Introductory approximation words
-const APPROX_PREFIX = /^(ca\.?\s*|ungefär\s*|circa\s*|typ\s*)/i;
+// "ca 2 dl", "ungefär 1 msk". Ordet måste följas av mellanslag eller siffra —
+// utan det kravet matchade "ca" början av VARJE ord som börjar så, och
+// cayennepeppar blev "yennepeppar", cashewnötter "shewnötter", carbonara
+// "rbonara". Felet syntes först när skräpet i den globala poolen granskades
+// (2026-09-21); dessförinnan hade det tyst stympat namn sedan lång tid.
+const APPROX_PREFIX = /^(?:ca\.?|ungefär|circa|typ)(?=[\s\d])\s*/i;
 
+
+/**
+ * Tillagningsord som står FÖRE varan och beskriver vad man gör hemma:
+ * "finrivet ingefära", "riven ost", "varmt kaffe".
+ *
+ * Egen lista, inte PREP_WORDS, därför att den som strippas först är farligare.
+ * Flera ord i PREP_WORDS DEFINIERAR produkten när de står först: "krossade
+ * tomater" är en burk, "kokt skinka" är en charkvara, "rökt lax" är inte lax.
+ * Att stryka dem hade gett fel vara. Listan här innehåller bara ord som aldrig
+ * kan vara en del av ett produktnamn.
+ *
+ * Neutrumformerna (-t) måste stå med: recept skriver "finrivet citronskal",
+ * och PREP_WORDS har bara -en/-na-formerna.
+ */
+const LEDANDE_PREP = new Set([
+  'hackad', 'hackade', 'hackat', 'finhackad', 'finhackade', 'finhackat',
+  'grovhackad', 'grovhackade', 'grovhackat',
+  'riven', 'rivna', 'rivet', 'finriven', 'finrivna', 'finrivet',
+  'grovriven', 'grovrivna', 'grovrivet',
+  'nymalen', 'nymald', 'nymalet', 'nymalda', 'nykvarnad', 'nykvarnat',
+  'pressad', 'pressade', 'pressat',
+  'mosad', 'mosade', 'mosat',
+  'skalad', 'skalade', 'skalat',
+  'strimlad', 'strimlade', 'strimlat',
+  'skuren', 'skurna', 'skuret',
+  'klyftad', 'klyftade', 'klyftat',
+  'urkärnad', 'urkärnade', 'urkärnat',
+  'delad', 'delade', 'delat', 'halverad', 'halverade', 'halverat',
+  'varm', 'varmt', 'varma', 'kall', 'kallt', 'kalla', 'ljummen', 'ljummet',
+  'smält', 'smälta', 'smältt', 'rumstempererad', 'rumstempererat',
+]);
+
+/**
+ * Bestämningar som hör till PRODUKTEN och därför aldrig stryks — de står i en
+ * annan hylla än grundvaran. Samma ord som undantagen i categorizeIngredient.
+ */
+const PRODUKTBESTÄMNING = new Set([
+  'torkad', 'torkade', 'torkat',
+  'fryst', 'frysta', 'fryst',
+  'rökt', 'rökta', 'kallrökt', 'varmrökt',
+  'rimmad', 'rimmat', 'rimmade',
+  'inlagd', 'inlagda', 'inlagt',
+  'krossad', 'krossade', 'krossat',
+  'soltorkad', 'soltorkade',
+  'rårörd', 'rårörda',
+  'malen', 'mald', 'malet', 'malda',
+  'hel', 'hela', 'helt',
+  'kokt', 'kokta',
+  'passerad', 'passerade',
+  // "färsk" är tvetydigt: färsk pasta är en annan vara än pasta (kyldisk mot
+  // skafferi), medan färsk timjan är samma vara som timjan. Den frågan avgörs
+  // inte här — men ordföljden ska ändå vara EN, så "oregano, färsk" blir
+  // "färsk oregano" i stället för en tredje skrivning.
+  'färsk', 'färska', 'färskt',
+]);
+
+/**
+ * Flyttar en efterställd produktbestämning först: "kanel, malen" → "malen
+ * kanel", "skinka, kokt" → "kokt skinka".
+ *
+ * Syftet är EN skrivning per vara. Samma produkt skrevs på två sätt beroende
+ * på recept, och blev då två rader i ordförrådet som inte kände till varandra.
+ * Ordföljden "bestämning först" är den vanliga i svenskan och den som står på
+ * förpackningen.
+ *
+ * Böjningen följer med oförändrad, så kongruensen stämmer: källan skrev redan
+ * "krossade" till "tomater".
+ */
+function bestämningFörst(s: string): string {
+  const m = s.match(/^(.+?),\s*([a-zåäö]+)\s*$/i);
+  if (!m) return s;
+  const [, bas, bestämning] = m;
+  if (!PRODUKTBESTÄMNING.has(bestämning.toLowerCase())) return s;
+  return `${bestämning.toLowerCase()} ${bas.trim()}`;
+}
 
 export function stripIngredient(raw: string): string {
   let s = raw.trim();
 
   // Remove parenthetical content
   s = s.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+
+  // Ensamma parenteser blir kvar när källan är avhuggen ("… chiliflakes )").
+  // De är aldrig en del av ett varunamn.
+  s = s.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
 
   // OBS: alternativ ("nötfärs alt. vegofärs", "körsbärstomater eller
   // romanticatomater") klipps AVSIKTLIGT inte bort här.
@@ -183,6 +274,11 @@ export function stripIngredient(raw: string): string {
   // Remove approximation prefix
   s = s.replace(APPROX_PREFIX, '').trim();
 
+  // FÖRE komma-klippningen: en efterställd produktbestämning ska flyttas fram,
+  // inte klippas bort. "skinka, kokt" är kokt skinka — men "kokt" står också i
+  // tillagningslistan, så klippningen hade vunnit och gjort det till "skinka".
+  s = bestämningFörst(s);
+
   // If comma present, check if what follows is a prep description
   const commaIdx = s.indexOf(',');
   if (commaIdx > 0) {
@@ -192,6 +288,21 @@ export function stripIngredient(raw: string): string {
       s = s.slice(0, commaIdx).trim();
     }
   }
+
+  // Användningsanvisningar på slutet: "smör, till stekning", "persilja till
+  // servering", "ägg till pensling". De beskriver vad varan ska användas
+  // TILL i receptet, inte vilken vara det är — i butiken finns bara smör.
+  // Kräver att det som följer är ett enda ord, så "tillbehör: gröna ärtor"
+  // eller andra konstruktioner inte råkar kapas.
+  s = s.replace(/\s*,?\s*till\s+[a-zåäö]+\s*$/i, '').trim();
+
+  // Skala bort ledande tillagningsord ("finrivet ingefära" → "ingefära").
+  // Villkoret > 1 gör att namnet aldrig kan strippas till tomt.
+  const ledande = s.split(/\s+/);
+  while (ledande.length > 1 && LEDANDE_PREP.has(ledande[0].toLowerCase())) {
+    ledande.shift();
+  }
+  s = ledande.join(' ');
 
   // Strip trailing prep words
   const words = s.split(/\s+/);
