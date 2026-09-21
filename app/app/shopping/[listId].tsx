@@ -460,9 +460,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const recordEditSubChipLayout = useChipAutoScroll(editSubScrollRef, editCustomSubCategory ? `cs:${editCustomSubCategory}` : (editSubCategory ?? '__none__'));
   const stapleCatScrollRef = useRef<ScrollView>(null);
   const recordStapleCatChipLayout = useChipAutoScroll(stapleCatScrollRef, stapleCategory);
-  // Mängd-sheeten (öppnas av openQtySheet — det HÄR är flödet ett tryck på ett
-  // sökförslag faktiskt går via, till skillnad från redigera-vara/stapel-
-  // redigeraren ovan som redan hade (eller fick) auto-scroll.
+  // Mängd-sheeten (öppnas av openQtySheet — bara för varor som inte är kända;
+  // kända läggs till direkt av quickAdd), till skillnad från redigera-vara/
+  // stapel-redigeraren ovan som redan hade (eller fick) auto-scroll.
   const qtyCatScrollRef = useRef<ScrollView>(null);
   const qtySubScrollRef = useRef<ScrollView>(null);
   const recordQtyCatChipLayout = useChipAutoScroll(qtyCatScrollRef, qtyCustomCategory ? `c:${qtyCustomCategory}` : qtyCategory);
@@ -822,7 +822,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   }, []);
 
 
-  async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string, subCategory?: SubCategory | null, customCategory?: string | null, customSubCategory?: string | null) {
+  async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string, subCategory?: SubCategory | null, customCategory?: string | null, customSubCategory?: string | null, opts?: { displayCategory?: StoreCategory; keepKeyboard?: boolean }) {
     let itemName = (name ?? newItem).trim().toLowerCase();
     if (!listId || !itemName) return;
 
@@ -833,7 +833,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       name: itemName,
       quantity: quantity ?? 1,
       unit: unit ?? null,
-      category: category ?? 'other',
+      category: category ?? opts?.displayCategory ?? 'other',
       customCategory: customCategory ?? null,
       customSubCategory: customSubCategory ?? null,
       subCategory: subCategory ?? null,
@@ -848,7 +848,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
     setList(prev => prev ? { ...prev, items: [...(prev.items ?? []), optimisticItem] } : prev);
     setNewItem('');
-    Keyboard.dismiss();
+    if (!opts?.keepKeyboard) Keyboard.dismiss();
     setAdding(true);
 
     try {
@@ -884,7 +884,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           householdId,
           name: itemName,
           ...(category ? { category } : {}),
-          ...(quantity && quantity !== 1 ? { defaultQuantity: quantity } : {}),
           ...(unit ? { unit } : {}),
         }).then(s => {
           setStaples(prev => {
@@ -911,9 +910,31 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     }
   }
 
+  // En känd vara läggs till direkt: utan enhet, mängd 1. Ingen standardmängd —
+  // en ihågkommen mängd som dök upp ovanpå en receptmängd (4 dl + 5 dl grädde)
+  // gav en summa ingen bett om. Mängd sätts på raden efteråt, och krockar med
+  // en befintlig rad tas av dubblettarket. Bara en okänd vara öppnar arket,
+  // för där behövs kategorin.
+  //
+  // Kategorin skickas INTE med: den kommer ur basvaran eller förslaget, och
+  // skickad blir den ett "val" som får flytta listvaror (se basvaruval.ts).
+  // Backend slår upp samma sak själv; här används den bara för den optimistiska
+  // raden så den inte blinkar förbi under Övrigt.
+  function quickAdd(name: string, category?: StoreCategory) {
+    const key = name.trim().toLowerCase();
+    if (!key) return;
+    const known = staples.find(s2 => s2.name.toLowerCase() === key)
+      ?? ingredientSuggestions.find(s2 => s2.name.toLowerCase() === key);
+    if (!known) { setNewItem(''); openQtySheet(name.trim(), category); return; }
+    addItem(key, undefined, undefined, undefined, undefined, undefined, undefined, {
+      displayCategory: category ?? (known.category as StoreCategory),
+      keepKeyboard: true,
+    });
+  }
+
   function openQtySheet(name: string, category?: StoreCategory) {
     const staple = staples.find(s => s.name.toLowerCase() === name.toLowerCase());
-    setQtyValue(staple?.defaultQuantity ? String(staple.defaultQuantity).replace('.', ',') : '1');
+    setQtyValue('1');
     setQtyUnit(staple?.unit ?? '');
     setQtyCategory((category ?? staple?.category ?? 'other') as StoreCategory);
     setQtySubCategory(null);
@@ -1914,7 +1935,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               <TouchableOpacity
                 key={s2.id}
                 style={s.chip}
-                onPress={() => openQtySheet(s2.name, s2.category as StoreCategory)}
+                onPress={() => quickAdd(s2.name)}
                 onLongPress={() => openStapleEditor(s2)}
                 delayLongPress={350}
               >
@@ -1930,7 +1951,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 <TouchableOpacity
                   key={s2.id}
                   style={s.chip}
-                  onPress={() => openQtySheet(s2.name, s2.category as StoreCategory)}
+                  onPress={() => quickAdd(s2.name)}
                   onLongPress={() => openStapleEditor(s2)}
                   delayLongPress={350}
                 >
@@ -1952,13 +1973,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             value={newItem}
             onChangeText={setNewItem}
             returnKeyType="done"
-            onSubmitEditing={() => { const n = newItem.trim(); if (!n) return; setNewItem(''); openQtySheet(n); }}
+            onSubmitEditing={() => quickAdd(newItem)}
             blurOnSubmit={false}
             autoCapitalize="none"
           />
           <Pressable
             style={[s.addBtn, (!newItem.trim() || adding) && s.addBtnDisabled]}
-            onPress={() => { const n = newItem.trim(); if (!n) return; setNewItem(''); openQtySheet(n); }}
+            onPress={() => quickAdd(newItem)}
             disabled={adding || !newItem.trim()}
           >
             {adding
@@ -2007,7 +2028,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                     <Pressable
                       key={s2.name}
                       style={s.browserItem}
-                      onPress={() => { setShowBrowser(false); openQtySheet(s2.name, browserCategory ?? undefined); }}
+                      onPress={() => { setShowBrowser(false); quickAdd(s2.name, browserCategory ?? undefined); }}
                     >
                       <Text style={s.browserItemText}>{capitalize(s2.name)}</Text>
                       <Ionicons name="add-circle-outline" size={20} color={c.primary} />
@@ -3089,7 +3110,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   qtyInput: { width: 70, textAlign: 'center', fontSize: 16, fontWeight: '600', color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingVertical: 10, backgroundColor: c.inputBg },
   qtyUnitInput: { flex: 1, minWidth: 0, fontSize: 16, color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: c.inputBg },
   qtyConfirm: { backgroundColor: ny.lime, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
-  qtyConfirmText: { color: ny.skog, fontSize: 16, fontWeight: '600' },
+  qtyConfirmText: { color: ny.skog, fontSize: 16, fontWeight: '600' },
   mergeList: { maxHeight: 200, flexGrow: 0 },
   unitChipScroll: { marginVertical: 4 },
   unitChipRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
