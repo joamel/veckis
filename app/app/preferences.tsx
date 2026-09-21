@@ -200,7 +200,7 @@ export default function PreferencesScreen() {
             att kunna se vilken kanal/update-id den installerade appen faktiskt
             kör). Ren text, inget UI-beroende — trygg att lämna kvar. */}
         <Text style={s.versionFooter}>
-          v{Constants.expoConfig?.version ?? '?'} · {Platform.OS} · kanal: {Updates.channel ?? '(inbyggd, ingen OTA)'}
+          v{Constants.expoConfig?.version ?? '?'} · runtime {Updates.runtimeVersion ?? '?'} · {Platform.OS} · kanal: {Updates.channel ?? '(inbyggd, ingen OTA)'}
           {Updates.isEmbeddedLaunch ? ' · inbyggd bundle' : ` · update ${Updates.updateId?.slice(0, 8) ?? '?'}`}
         </Text>
         {/* Senaste tangentbordslyftet. Samma skäl som raden ovan: lyftet går

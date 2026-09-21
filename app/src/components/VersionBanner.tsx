@@ -49,15 +49,48 @@ function WebVersionBanner() {
   );
 }
 
-/** Ingen UI — byter tyst till den nedladdade OTA:n nästa gång appen kommer
- *  tillbaka i förgrunden (aldrig mitt i en pågående session). */
+// Så länge efter att appen kommit fram en nyss nedladdad OTA får laddas in
+// direkt. Senare än så kan användaren ha börjat skriva — då väntar den till
+// nästa gång appen kommer fram.
+const RELOAD_WINDOW_MS = 5000;
+
+/** Ingen UI. Kollar efter OTA vid start OCH varje gång appen kommer fram, och
+ *  byter in den tyst.
+ *
+ *  Förut lyssnade den bara på `isUpdateAvailable`, som sätts av kollen vid
+ *  kallstart — och ingenting annat. En app som bara växlades till och från
+ *  kollade aldrig igen, och även efter en kallstart var uppdateringen bara
+ *  "tillgänglig", inte nedladdad, så reloadAsync startade om till samma
+ *  bundle. Därav "starta om telefonen tre gånger". */
 function NativeAutoUpdate() {
-  const { isUpdateAvailable } = Updates.useUpdates();
-  const pendingRef = useRef(false);
-  useEffect(() => { pendingRef.current = isUpdateAvailable; }, [isUpdateAvailable]);
+  const downloadedRef = useRef(false);
+  const busyRef = useRef(false);
+
   useEffect(() => {
+    if (__DEV__ || !Updates.isEnabled) return;
+
+    async function checkAndFetch(activatedAt: number) {
+      if (busyRef.current) return;
+      busyRef.current = true;
+      try {
+        const check = await Updates.checkForUpdateAsync();
+        if (!check.isAvailable) return;
+        const fetched = await Updates.fetchUpdateAsync();
+        if (!fetched.isNew) return;
+        downloadedRef.current = true;
+        if (Date.now() - activatedAt < RELOAD_WINDOW_MS) await Updates.reloadAsync();
+      } catch {
+        // Offline eller EAS nere — nästa gång appen kommer fram försöker vi igen.
+      } finally {
+        busyRef.current = false;
+      }
+    }
+
+    void checkAndFetch(Date.now());
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active' && pendingRef.current) void Updates.reloadAsync();
+      if (state !== 'active') return;
+      if (downloadedRef.current) { void Updates.reloadAsync(); return; }
+      void checkAndFetch(Date.now());
     });
     return () => sub.remove();
   }, []);
