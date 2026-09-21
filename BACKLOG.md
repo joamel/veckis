@@ -24,6 +24,8 @@
 
 - [x] **Medlemskorten hoppade vid varje besök på hushållsfliken** — useFocusEffect laddar om hushållet varje gång fliken fokuseras, men `household` ligger kvar under tiden, så raderna renderades hela tiden medan laddnings-spinnern sköt in sig OVANFÖR dem. Alla kort fick ~36 px extra marginal i en halv sekund och hoppade upp när svaret kom. Spinnern visas nu bara när det inte finns några medlemmar att visa — en omladdning i bakgrunden ska inte flytta något som redan står på skärmen.
 
+- [x] **Kodskärmen var en återvändsgränd** — vägen till lösenordsinloggning visades bara INNAN koden skickats. Hade man tryckt "Skicka kod" satt man fast: kommer man inte åt inkorgen finns ingen väg vidare och ingen tillbaka. Det fällde Play-granskaren (kod skickad till kontots mail, som granskaren inte har) men gäller alla som skickat en kod av misstag. Länken visas nu i båda lägena.
+
 ### Inställningar
 - [x] Lägga till dark mode — HELA appen konverterad till `makeStyles(c)` + semantiska tokens via `useTheme()`. `theme.ts` (light+dark-paletter inkl. status-tokens: danger/warning-tint, pink "handlar nu"), `ThemeContext` (System/Ljust/Mörkt, OS-följning, SecureStore-persistens), Utseende-toggle i Hushållet. Alla flikar (Inköp/Meny/Recept/Kalender/Sysslor), butiker, modaler/banners, auth + delade komponenter, flikrad + Stack-bakgrund. Medvetet FIXA (temaoberoende): "Laga nu"-cook-modalen (ljus per önskemål), reminder-snake-dialen i Kalender, splash-skärmen, Google-knappen, toast-overlays, status bar-strippen. ErrorBoundary (class) läser OS-schemat direkt. Verifierat: `tsc` rent, 93 tester gröna.
 

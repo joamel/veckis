@@ -441,6 +441,18 @@ export default function SignInScreen() {
               </>
             )}
 
+            {/* Vägen till lösenordsinloggning fanns bara INNAN koden skickats.
+                Hade man väl tryckt "Skicka kod" satt man fast på kodskärmen:
+                kommer man inte åt inkorgen finns ingen väg vidare, och ingen
+                väg tillbaka heller. Det drabbade Play-granskaren, som aldrig
+                kunde läsa koden — men gäller alla som skickat en kod av
+                misstag. Länken visas därför i båda lägena. */}
+            {mode === 'email-code' && codeSent && (
+              <Pressable onPress={() => switchMode('password')} hitSlop={6}>
+                <Text style={styles.link}>{str.signIn.links.signInWithPassword}</Text>
+              </Pressable>
+            )}
+
             {mode === 'email-code' && !codeSent && (
               <>
                 <Pressable style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
