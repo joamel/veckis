@@ -2,19 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useConfirm } from '../context/ConfirmContext';
 import { useDiscardDraft } from '../hooks/useDiscardDraft';
 import {
-  Keyboard,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
-  TextInput,
   View,
-  useWindowDimensions,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { skapaLyftberäknare } from '../lib/lyftberakning';
-import { sparaLyftspår } from '../lib/lyftdiagnostik';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
@@ -90,60 +84,6 @@ export function DraggableBottomSheet({
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(0);
 
-  // Eget lyft, för ark som inte skickar in liftOffset.
-  //
-  // liftOffset kräver att anroparen kopplar tre saker rätt: propen här,
-  // onFocusInput på VARJE fält och revealBelow där något ligger under fältet.
-  // Den kopplingen saknades i de flesta ark — de hoppade aldrig upp alls, och
-  // fälten hamnade bakom tangentbordet. Arket vet själv vilket fält som har
-  // fokus, så det behöver inte få veta det utifrån.
-  const { height: windowHeight } = useWindowDimensions();
-  const [egetLyft, setEgetLyft] = useState(0);
-  const egetLyftRef = useRef(0);
-  useEffect(() => { egetLyftRef.current = egetLyft; }, [egetLyft]);
-  const beräknareRef = useRef(skapaLyftberäknare());
-  // Skickar anroparen in ett eget lyft styr det, annars mäter vi själva.
-  const styrsUtifrån = liftOffset !== 0;
-
-  useEffect(() => {
-    if (styrsUtifrån || (Platform.OS as any) === 'web') return;
-    if (!visible) { beräknareRef.current.nollställ(); setEgetLyft(0); return; }
-
-    const mät = (kbHöjd: number) => {
-      if (kbHöjd === 0) return;
-      const fält = TextInput.State.currentlyFocusedInput();
-      if (!fält) return;
-      fält.measureInWindow((_x, y, _w, h) => {
-        // (0,0) = fältet är ännu inte utlagt. Räknas det som synligt lyfts
-        // inget alls, vilket är precis felet vi är här för att rätta.
-        if (y === 0 && h === 0) return;
-        const renderatLyft = egetLyftRef.current;
-        const lyft = beräknareRef.current.beräkna(
-          { y, h, renderatLyft },
-          { windowHeight, kbHöjd },
-        );
-        sparaLyftspår({ kbHöjd, windowHeight, y, h, renderatLyft, lyft, källa: 'ark' });
-        setEgetLyft(lyft);
-      });
-    };
-
-    // Två mätningar: den första låter arkets slide-in och tangentbordet
-    // animera klart, den andra fångar fält som layoutas om sent.
-    const show = Keyboard.addListener('keyboardDidShow', (e) => {
-      const kbHöjd = e.endCoordinates?.height ?? 0;
-      beräknareRef.current.nollställ();
-      setTimeout(() => mät(kbHöjd), 260);
-      setTimeout(() => mät(kbHöjd), 520);
-    });
-    const hide = Keyboard.addListener('keyboardDidHide', () => {
-      beräknareRef.current.nollställ();
-      setEgetLyft(0);
-    });
-    return () => { show.remove(); hide.remove(); };
-  }, [visible, styrsUtifrån, windowHeight]);
-
-  const lyft = styrsUtifrån ? liftOffset : egetLyft;
-
   // Refs i stället för deps: useDiscardDraft returnerar en ny funktion varje
   // render, och drag-gesten nedan får inte byggas om vid varje render — det
   // har tidigare gjort draget instabilt mitt i en rörelse.
@@ -208,8 +148,8 @@ export function DraggableBottomSheet({
   );
 
   const sheetAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value - lyft }],
-  }), [lyft]);
+    transform: [{ translateY: translateY.value - liftOffset }],
+  }), [liftOffset]);
 
   const content = (
     <>
