@@ -5,6 +5,7 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
+import { basvaruskrivning } from '../lib/basvaruval';
 import { COMMON_INGREDIENTS } from '../lib/commonIngredients';
 import { duglingGlobalt } from '../lib/normalizeIngredients';
 import { wsListUpdate } from '../lib/wsHub';
@@ -44,7 +45,10 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   const body = z.object({
     householdId: z.string(),
     name: z.string().min(1).max(200),
-    category: categoryEnum.default('other'),
+    // INGEN default här. Skillnaden mellan "anroparen valde inget" och
+    // "anroparen valde Övrigt" måste överleva hit — med en default gick den
+    // förlorad, och varje tillägg av en vara såg ut som ett aktivt val.
+    category: categoryEnum.optional(),
     subCategory: z.string().max(60).nullable().optional(),
     unit: z.string().max(50).nullable().optional(),
     defaultQuantity: z.number().positive().nullable().optional(),
@@ -52,15 +56,29 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const normalizedName = body.data.name.toLowerCase();
-  const category = body.data.category === 'other'
-    ? categorizeIngredient(normalizedName)
-    : body.data.category;
-  const subCategory = body.data.subCategory ?? null;
+
+  // Valde anroparen en kategori, eller skickade den bara med varan?
+  //
+  // Appen anropar den här rutten vid VARJE tillägg av en vara, utan kategori
+  // när användaren inte valt någon. Förut blev det 'other' via zod-defaulten,
+  // tolkades som "kör klassaren", och resultatet skrevs in i update — så ett
+  // handgjort val skrevs över av en gissning nästa gång varan lades till.
+  // subCategory nollställdes samtidigt. Enheten klarade sig bara för att
+  // undefined lämnas ifred av Prisma, vilket är varför enheten satt kvar
+  // medan kategorin studsade tillbaka.
+  // Beslutet ligger i basvaruval.ts med tester — det har gått fel förr.
+  const skrivning = basvaruskrivning(body.data, categorizeIngredient(normalizedName));
+  const category = skrivning.skapa.category;
+  const subCategory = skrivning.skapa.subCategory;
 
   const staple = await prisma.stapleItem.upsert({
     where: { householdId_name: { householdId: body.data.householdId, name: normalizedName } },
     create: { ...body.data, name: normalizedName, category, subCategory } as Prisma.StapleItemUncheckedCreateInput,
-    update: { category, subCategory, unit: body.data.unit, defaultQuantity: body.data.defaultQuantity },
+    update: {
+      ...skrivning.uppdatera,
+      unit: body.data.unit,
+      defaultQuantity: body.data.defaultQuantity,
+    },
   });
 
   // Ändringen ska synas NU, inte först nästa gång varan läggs till. Varor med
@@ -71,7 +89,11 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   // ifred: det är ett uttryckligt val på just den varan och ska inte skrivas
   // över av ett val på basvaran. Avbockade varor rörs inte heller — de är
   // redan i kundvagnen och att flytta dem bara får högen att hoppa.
-  const berörda = await prisma.shoppingItem.findMany({
+  // Bara ett VAL får flytta varor som redan ligger i listorna. Anropet som
+  // följer med varje tillägg bär ingen kategori, och när den gissades fram
+  // flyttade den tillbaka precis de varor användaren nyss flyttat — samma
+  // gissning som skrev över basvaran ovan, fast synlig mitt i handlingen.
+  const berörda = skrivning.fårFlyttaVaror ? await prisma.shoppingItem.findMany({
     where: {
       name: normalizedName,
       isChecked: false,
@@ -81,7 +103,7 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
       NOT: { AND: [{ category }, { subCategory }] },
     },
     select: { id: true, listId: true },
-  });
+  }) : [];
 
   if (berörda.length > 0) {
     await prisma.shoppingItem.updateMany({

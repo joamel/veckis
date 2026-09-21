@@ -462,9 +462,19 @@ shoppingRouter.patch('/items/:itemId', requireAuth, asyncHandler(async (req, res
     // flyttade tillbaka varan. Ren lokal placering (egen kategori) speglas
     // inte, den hör till just den varan.
     if (!item.customCategory && !item.customSubCategory) {
-      prisma.stapleItem.updateMany({
-        where: { householdId: list.householdId, name: item.name },
-        data: { category: data.category as StoreCategory, subCategory: item.subCategory },
+      // upsert, inte updateMany: finns ingen basvara med namnet uppdaterade
+      // updateMany noll rader utan att säga något, och valet var borta vid
+      // nästa tillägg. Varan kunde ha kommit från ett recept eller ett
+      // sökförslag och aldrig ha blivit en basvara.
+      prisma.stapleItem.upsert({
+        where: { householdId_name: { householdId: list.householdId, name: item.name } },
+        create: {
+          householdId: list.householdId,
+          name: item.name,
+          category: data.category as StoreCategory,
+          subCategory: item.subCategory,
+        },
+        update: { category: data.category as StoreCategory, subCategory: item.subCategory },
       }).catch(() => {});
     }
   }
