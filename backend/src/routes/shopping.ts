@@ -16,7 +16,7 @@ import { learnIngredientAliases, getStoredCategory } from '../lib/normalizeIngre
 import { stripIngredient } from '../lib/stripIngredient';
 import { suggestMerge, resolveEquivalences, learnEquivalenceFromMerge, isPackagingUnit, loadConfirmedEquivalencesByName } from '../lib/smartMerge';
 import { wsBroadcast } from '../lib/wsHub';
-import { inferSubCategory, parentForSub, type SubCategory } from '@veckis/shared';
+import { inferSubCategory, parentForSub, type SubCategory , tillSvenskEnhet } from '@veckis/shared';
 import { sendPush, notifyActiveShopper } from '../lib/sendPush';
 import { planFullUnmerge, findRoot } from '../lib/mergeLogic';
 import { planAutoMerge } from '../lib/importDedupe';
@@ -336,12 +336,20 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
       ?? känd(await getStoredCategory(normalizedName))
       ?? categorizeIngredient(normalizedName);
 
-  // If an unchecked item with the same name+unit already exists, increment its quantity
+  // Sista spärren mot icke-svenska enheter i en inköpslista. Vägen hit kan
+  // vara ett sökförslag vars basvara ärvt "teaspoon" från ett engelskt recept,
+  // eller en klient som skickar något oväntat. Receptet behåller källans ord —
+  // listan ska gå att läsa i butiken.
+  const svensk = tillSvenskEnhet(body.data.quantity, body.data.unit);
+
+  // Dubblettsökningen använder den KONVERTERADE enheten. Annars matchade "tsk"
+  // inte en befintlig rad med "teaspoon", och samma vara blev två rader som
+  // dessutom såg identiska ut för användaren.
   const existing = await prisma.shoppingItem.findFirst({
     where: {
       listId: list.id,
       name: { equals: normalizedName, mode: 'insensitive' },
-      unit: body.data.unit ?? null,
+      unit: svensk.unit,
       isChecked: false,
       mergedIntoId: null,
     },
@@ -350,7 +358,9 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   if (existing) {
     const item = await prisma.shoppingItem.update({
       where: { id: existing.id },
-      data: { quantity: existing.quantity + (body.data.quantity ?? 1) },
+      // Den konverterade mängden, så "0,75 teaspoon" läggs till som 0,75 tsk
+      // och inte som 0,75 av något annat.
+      data: { quantity: existing.quantity + (svensk.quantity ?? 1) },
     });
     if (!isLocalPlacement) learnIngredientAliases([{ name: normalizedName, category }], list.householdId).catch(() => {});
     notifyActiveShopper(list, (req as AuthenticatedRequest).clerkUserId, item.name).catch(() => {});
@@ -360,7 +370,16 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   }
 
   const item = await prisma.shoppingItem.create({
-    data: { listId: list.id, ...body.data, name: normalizedName, category, subCategory, addedBy: (req as AuthenticatedRequest).clerkUserId },
+    data: {
+      listId: list.id,
+      ...body.data,
+      quantity: svensk.quantity ?? body.data.quantity,
+      unit: svensk.unit,
+      name: normalizedName,
+      category,
+      subCategory,
+      addedBy: (req as AuthenticatedRequest).clerkUserId,
+    },
   });
 
   if (!isLocalPlacement) learnIngredientAliases([{ name: normalizedName, category }], list.householdId).catch(() => {});

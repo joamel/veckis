@@ -7,3 +7,4 @@ export * from './lib/taxonomy';
 export * from './lib/inferSubCategory';
 export * from './lib/unitConversion';
 export * from './lib/pluralform';
+export * from './lib/koksmatt';

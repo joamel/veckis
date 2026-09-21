@@ -56,6 +56,20 @@ jobs:
         run: npx tsc --noEmit
         working-directory: backend
 
+      # CI körde ALDRIG testerna — varken backendens eller appens. Jobbet
+      # installerade, byggde, migrerade och typkollade, och rapporterade
+      # "success" utan att ett enda test hade körts. Postgres-tjänsten ovan
+      # fanns redan, så integrationstesterna har allt de behöver.
+      - name: Tests (backend)
+        run: npm test
+        working-directory: backend
+
+      # shared saknade dessutom test-skript helt, så dess tester (enhets-
+      # konvertering, plural, köksmått) kunde inte köras ens manuellt via npm.
+      - name: Tests (shared)
+        run: npm test
+        working-directory: shared
+
   app:
     name: App TypeScript
     runs-on: ubuntu-latest
@@ -77,6 +91,10 @@ jobs:
 
       - name: TypeScript check
         run: npx tsc --noEmit
+        working-directory: app
+
+      - name: Tests (app)
+        run: npm test
         working-directory: app
 
   deploy-web:

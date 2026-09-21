@@ -29,7 +29,13 @@ const PLURALER: Record<string, string> = {
   korv: 'korvar', biff: 'biffar', köttbulle: 'köttbullar', räka: 'räkor',
   // Skafferi och bageri
   bulle: 'bullar', limpa: 'limpor', baguette: 'baguetter', tortilla: 'tortillas',
+  // Förpackningsenheter — de står i enhetsfältet och böjs med antalet:
+  // "2 flaskor", "3 påsar". Måttenheter (dl, g, kg, msk, tsk) står MED FLIT
+  // inte här: de böjs inte på svenska, och "2 dl" ska förbli "2 dl".
   burk: 'burkar', påse: 'påsar', paket: 'paket', flaska: 'flaskor',
+  kruka: 'krukor', knippe: 'knippen', förpackning: 'förpackningar',
+  kartong: 'kartonger', ask: 'askar', tub: 'tuber', klyfta: 'klyftor',
+  skiva: 'skivor', näve: 'nävar', kolv: 'kolvar', pase: 'påsar',
   nöt: 'nötter', mandel: 'mandlar', dadel: 'dadlar', fikon: 'fikon',
 };
 

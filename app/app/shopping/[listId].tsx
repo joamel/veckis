@@ -189,7 +189,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   }, [router, onClose]);
   const client = useApiClient();
   const { triggerCheck: triggerCheckHaptic, triggerDelete: triggerDeleteHaptic } = useCheckHaptic();
-  const { showToast: showGlobalToast, showError } = useToast();
+  const { showToast: showGlobalToast, showError, setBottomObstruction } = useToast();
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
@@ -198,6 +198,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const dupeBadgeRef = useRef<View>(null);
   // Lägg-till-barens höjd — dubblettknappen svävar precis ovanför den.
   const [addBarH, setAddBarH] = useState(0);
+  // Tala om för toasten hur högt lägg-till-raden är, så den lägger sig ovanför
+  // den i stället för ovanpå. Höjden varierar mellan telefoner; konstanten
+  // toasten hade förut stämde bara på en.
+  useEffect(() => {
+    setBottomObstruction(addBarH);
+    return () => setBottomObstruction(0);
+  }, [addBarH, setBottomObstruction]);
   const shopperTip = useOnceFlag('seen-shopper-tip');
   const shopperTipShownRef = useRef(false);
   const { householdId } = useHousehold();
@@ -2897,8 +2904,11 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
                 <Text style={[s.itemName, (item.isChecked || pending) && s.itemNameChecked]}>
                   {capitalize(visningsnamn(item.name, !item.unit || item.unit === 'st' ? item.quantity : 1))}
                 </Text>
+                {/* Enheten böjs också: "2 flaskor", inte "2 flaska". Måttenheter
+                    (dl, g, msk) saknas i tabellen och lämnas därmed orörda,
+                    vilket är rätt — de böjs inte på svenska. */}
                 {(item.quantity !== 1 || item.unit) && (
-                  <Text style={[s.itemQty, (item.isChecked || pending) && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${item.unit}` : ''}</Text>
+                  <Text style={[s.itemQty, (item.isChecked || pending) && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${visningsnamn(item.unit, item.quantity)}` : ''}</Text>
                 )}
               </View>
             </Pressable>

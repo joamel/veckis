@@ -48,7 +48,7 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import type { RecipeIngredient, WeekDay } from '@veckis/shared';
-import { convertToMetric, isConvertibleUnit } from '@veckis/shared';
+import { convertToMetric, isConvertibleUnit, formateraKöksmått } from '@veckis/shared';
 import { useWebLeaveGuard } from '../../src/hooks/useWebLeaveGuard';
 import { sparaUtkast, hamtaUtkast, slangUtkast } from '../../src/lib/recipeDrafts';
 
@@ -1910,7 +1910,10 @@ function formatQty(ing: { quantity: number | null; unit: string | null }, scaleR
   }
   const parts: string[] = [];
   if (quantity != null) {
-    parts.push(String(quantity % 1 === 0 ? quantity : quantity.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')));
+    // Bråk i stället för decimaler för mått man mäter upp: "4,7 dl" finns inte
+    // i en måttsats, "4⅔ dl" gör det — och skillnaden är tre milliliter.
+    // Vikt lämnas som decimaltal; det är vad vågen visar.
+    parts.push(formateraKöksmått(quantity, unit));
   }
   if (unit) parts.push(unit);
   return parts.join(' ');

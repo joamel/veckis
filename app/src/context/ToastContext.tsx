@@ -2,6 +2,7 @@ import { createContext, useContext, useRef, useState, useCallback, ReactNode } f
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getApiErrorMessage } from '../api/client';
+import { useNy } from './ThemeContext';
 
 export type ToastVariant = 'success' | 'neutral' | 'error';
 
@@ -18,6 +19,15 @@ interface ToastContextValue {
    * the catch block after rolling back an optimistic update.
    */
   showError: (err: unknown, fallback: string) => void;
+  /**
+   * Hur många pixlar längst ned som är upptagna av skärmens egen UI, typiskt
+   * en lägg-till-rad. Toasten lägger sig ovanför den.
+   *
+   * Höjden var tidigare en konstant på 60 px, satt efter en telefon. På
+   * modeller där raden är högre lade sig toasten ovanpå sökfältet. Skärmen
+   * mäter redan sin rad — nu kan den säga till.
+   */
+  setBottomObstruction: (px: number) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -46,21 +56,39 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     ]).start(() => setAction(null));
   }, [opacity]);
 
+  const [obstruction, setObstruction] = useState(0);
+  const setBottomObstruction = useCallback((px: number) => {
+    setObstruction(prev => (Math.abs(prev - px) > 1 ? px : prev));
+  }, []);
+
   const showError = useCallback((err: unknown, fallback: string) => {
     showToast(getApiErrorMessage(err, fallback), 'error');
   }, [showToast]);
 
+  const ny = useNy();
   const insets = useSafeAreaInsets();
-  const bottomOffset = 60 + insets.bottom + 12;
+  // 60 som golv för skärmar som inte mäter något; annars skärmens egen höjd.
+  const bottomOffset = Math.max(60, obstruction) + insets.bottom + 12;
 
   return (
-    <ToastContext.Provider value={{ showToast, showError }}>
+    <ToastContext.Provider value={{ showToast, showError, setBottomObstruction }}>
       {children}
       <Animated.View
-        style={[s.toast, variant === 'neutral' && s.toastNeutral, variant === 'error' && s.toastError, { opacity, bottom: bottomOffset }]}
+        style={[
+          s.toast,
+          // Färgerna kommer ur temat i stället för att vara hårdkodade. Den
+          // gamla gröna (#10b981) var kvar från paletten före "skog & lime"
+          // och stack ut mot resten av appen. Mörkgrön yta med ljus text är
+          // samma språk som header och kort; lime sparas åt knappar man
+          // trycker på, så en bekräftelse inte skriker lika högt som en
+          // uppmaning.
+          { backgroundColor: ny.skogMellan },
+          variant === 'error' && { backgroundColor: ny.fara },
+          { opacity, bottom: bottomOffset },
+        ]}
         pointerEvents={action ? 'auto' : 'none'}
       >
-        <Text style={[s.toastText, action ? { flex: 1 } : null]}>{message}</Text>
+        <Text style={[s.toastText, { color: variant === 'error' ? '#fff' : ny.lime }, action ? { flex: 1 } : null]}>{message}</Text>
         {action && (
           <Pressable
             onPress={() => {

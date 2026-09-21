@@ -45,3 +45,4 @@ granskning*.txt.föregående
 
 # Granskningsfiler från städskripten — genereras ur databasen, hör inte i repot.
 backend/*.txt
+backend/*.txt.föregående

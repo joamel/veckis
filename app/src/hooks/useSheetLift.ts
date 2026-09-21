@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Keyboard, Platform, useWindowDimensions } from 'react-native';
+import { AppState, Keyboard, Platform, useWindowDimensions } from 'react-native';
 import type { TextInput } from 'react-native';
 
 /**
@@ -59,6 +59,22 @@ export function useSheetLift() {
     const hide = Keyboard.addListener('keyboardDidHide', () => { kbHeightRef.current = 0; setSheetLift(0); });
     return () => { show.remove(); hide.remove(); };
   }, [revealFocused]);
+
+  // Nollställ när appen lämnas.
+  //
+  // Lyftet nollställdes bara av keyboardDidHide, och den avfyras inte
+  // tillförlitligt när appen bakgrundas med tangentbordet uppe. Värdet låg då
+  // kvar, och när man kom tillbaka stod modalen lyft fast tangentbordet var
+  // borta. Nästa fokus mäter om från noll, så ingenting går förlorat.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') return;
+      kbHeightRef.current = 0;
+      focusedInputRef.current = null;
+      setSheetLift(0);
+    });
+    return () => sub.remove();
+  }, []);
 
   // revealBelow: extra px att hålla synliga under fältet (t.ex. enhets-chipsen).
   const onFocusInput = useCallback(

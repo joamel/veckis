@@ -32,6 +32,22 @@ describe('visningsnamn', () => {
     expect(visningsnamn('quornbitar', 3)).toBe('quornbitar');
   });
 
+  it('böjer förpackningsenheter', () => {
+    // Enheten står i ett eget fält men är också ett substantiv: "2 flaskor".
+    expect(visningsnamn('flaska', 2)).toBe('flaskor');
+    expect(visningsnamn('burk', 3)).toBe('burkar');
+    expect(visningsnamn('påse', 4)).toBe('påsar');
+    expect(visningsnamn('paket', 2)).toBe('paket');
+  });
+
+  it('rör inte måttenheter', () => {
+    // De böjs inte på svenska — "2 dl", inte "2 dlar".
+    expect(visningsnamn('dl', 2)).toBe('dl');
+    expect(visningsnamn('g', 500)).toBe('g');
+    expect(visningsnamn('msk', 3)).toBe('msk');
+    expect(visningsnamn('st', 5)).toBe('st');
+  });
+
   it('behåller inledande versal', () => {
     expect(visningsnamn('Gurka', 2)).toBe('Gurkor');
   });

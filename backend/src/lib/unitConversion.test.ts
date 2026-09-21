@@ -18,7 +18,11 @@ describe('isConvertibleUnit', () => {
 describe('convertToMetric', () => {
   it('skalar volym (cup → dl)', () => {
     expect(convertToMetric(0.5, 'cup')).toEqual({ quantity: 1.2, unit: 'dl' });
-    expect(convertToMetric(1.75, 'cup')).toEqual({ quantity: 4.2, unit: 'dl' });
+    // 4,1 och inte 4,2: faktorn är numera den exakta 2,366 i stället för den
+    // avrundade 2,4, så felet växer inte längre med mängden. 2 cups och 1 pint
+    // ger nu samma svar, vilket de ska — det är samma volym.
+    expect(convertToMetric(1.75, 'cup')).toEqual({ quantity: 4.1, unit: 'dl' });
+    expect(convertToMetric(2, 'cups')).toEqual(convertToMetric(1, 'pint'));
   });
 
   it('skalar vikt (oz/lb → g), och byter till kg vid runda tal', () => {

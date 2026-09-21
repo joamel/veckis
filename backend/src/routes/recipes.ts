@@ -9,6 +9,7 @@ import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases, normalizeIngredientNames } from '../lib/normalizeIngredients';
 import { översättIngrediensnamn } from '../lib/translateIngredients';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
+import { tillSvenskEnhet } from '@veckis/shared';
 import { delaAlternativ } from '../lib/alternativ';
 import { stripIngredient } from '../lib/stripIngredient';
 import { parseIngredientString } from '../lib/parseIngredientString';
@@ -238,8 +239,14 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
         // gemeniserar redan; den här var kvar.
         name: ing.name.toLowerCase(),
         category: ing.category,
-        unit: ing.unit ?? undefined,
-        defaultQuantity: ing.quantity ?? undefined,
+        // Svensk enhet. Ett engelskt recept gav basvaran "teaspoon", och sedan
+        // fick VARJE framtida tillägg av den varan den enheten — oavsett
+        // recept. Receptet behåller källans ord; basvaran ska gå att läsa i en
+        // svensk butik.
+        ...(() => {
+          const e = tillSvenskEnhet(ing.quantity, ing.unit);
+          return { unit: e.unit ?? undefined, defaultQuantity: e.quantity ?? undefined };
+        })(),
       })),
       skipDuplicates: true,
     }).catch(() => {});

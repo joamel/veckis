@@ -10,8 +10,12 @@
  * inte labbprecisa — det är vad receptkonvertering i praktiken alltid är.
  */
 export const UNIT_CONVERSIONS: Record<string, { factor: number; unit: string }> = {
-  cup: { factor: 2.4, unit: 'dl' },
-  cups: { factor: 2.4, unit: 'dl' },
+  // 1 amerikansk cup = 236,6 ml = 2,366 dl. Faktorn var avrundad till 2,4,
+  // vilket gav växande fel med mängden: 2 cups blev 4,8 dl medan 1 pint —
+  // exakt samma volym — blev 4,7 via sin egen, exakta faktor. Avrundningen
+  // sker nu på svaret i stället för i faktorn.
+  cup: { factor: 2.366, unit: 'dl' },
+  cups: { factor: 2.366, unit: 'dl' },
   tbsp: { factor: 1, unit: 'msk' },
   tablespoon: { factor: 1, unit: 'msk' },
   tablespoons: { factor: 1, unit: 'msk' },
@@ -43,6 +47,25 @@ export const UNIT_CONVERSIONS: Record<string, { factor: number; unit: string }> 
   packages: { factor: 1, unit: 'paket' },
   slice: { factor: 1, unit: 'skiva' },
   slices: { factor: 1, unit: 'skivor' },
+
+  // Metriska enheter skrivna på engelska. Faktor 1 — det är samma mängd i
+  // samma dimension, bara ett annat ord. "200 grams" ska bli "200 g", aldrig
+  // räknas om till volym.
+  //
+  // De svenska formerna "gram", "liter" och "deciliter" står MED FLIT inte
+  // här: de är redan svenska, och att skriva om dem vore att ändra vad
+  // användaren skrev utan att något blev tydligare.
+  grams: { factor: 1, unit: 'g' },
+  kilograms: { factor: 1, unit: 'kg' },
+  kilogram: { factor: 1, unit: 'kg' },
+  milliliter: { factor: 1, unit: 'ml' },
+  milliliters: { factor: 1, unit: 'ml' },
+  millilitre: { factor: 1, unit: 'ml' },
+  millilitres: { factor: 1, unit: 'ml' },
+  litre: { factor: 1, unit: 'l' },
+  litres: { factor: 1, unit: 'l' },
+  centiliter: { factor: 1, unit: 'cl' },
+  centiliters: { factor: 1, unit: 'cl' },
 };
 
 /** True om enheten är icke-metrisk/icke-svensk och kan erbjudas konvertering. */
@@ -74,4 +97,29 @@ export function convertToMetric(quantity: number | null, unit: string | null): {
   // uträkning skedde, så mängden ska förbli exakt, inte avrundas.
   if (conversion.factor === 1) return { quantity, unit: conversion.unit };
   return normalizeMetric(quantity * conversion.factor, conversion.unit);
+}
+
+/**
+ * Mängd och enhet i svensk form. Returnerar indata oförändrat när enheten
+ * redan är svensk eller okänd.
+ *
+ * Finns för att en icke-svensk enhet ALDRIG ska lagras på en vara eller en
+ * basvara. Receptet får behålla källans "teaspoon" — det är källans text — men
+ * det som hamnar i en inköpslista ska gå att läsa i en svensk butik.
+ * Buggen: en basvara skapad från ett engelskt recept ärvde "teaspoon", och
+ * varje framtida tillägg av den varan fick samma enhet, oavsett recept.
+ */
+export function tillSvenskEnhet(
+  quantity: number | null | undefined,
+  unit: string | null | undefined,
+): { quantity: number | null; unit: string | null } {
+  const q = quantity ?? null;
+  const u = unit ?? null;
+  if (!u) return { quantity: q, unit: null };
+
+  // Utan mängd: konvertera 1 av enheten bara för att få fram enhetsnamnet.
+  const konverterad = convertToMetric(q ?? 1, u);
+  if (!konverterad) return { quantity: q, unit: u };
+
+  return { quantity: q === null ? null : konverterad.quantity, unit: konverterad.unit };
 }
