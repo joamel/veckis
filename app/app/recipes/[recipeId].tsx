@@ -26,6 +26,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Notifications from 'expo-notifications';
 import { hittaMinuter, formateraNedräkning, formateraTidsetikett } from '../../src/lib/cookTimer';
+import { TidsSnurra, type Ankare } from '../../src/components/TidsSnurra';
 import { kvarvarandePåSteg } from '../../src/lib/cookIngredients';
 
 import { kavBehavior } from '../../src/lib/platform';
@@ -163,6 +164,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [editServings, setEditServings] = useState(4);
   // Tillagningstiden som fältets text, i minuter. Tom = okänd.
   const [editCookMinutes, setEditCookMinutes] = useState('');
+  // Hjulväljaren för tiden öppnas ovanpå knappen; ankaret är knappens läge.
+  const tidKnappRef = useRef<View>(null);
+  const [tidAnkare, setTidAnkare] = useState<Ankare | null>(null);
   const [customTag, setCustomTag] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -1293,32 +1297,45 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               <Ionicons name="remove" size={14} color={c.primary} />
             </Pressable>
             <Ionicons name="people-outline" size={14} color={c.textMuted} />
-            <Text style={s.metaText}>{editMode ? editServings : displayServings} port.</Text>
+            {(() => {
+              const text = `${editMode ? editServings : displayServings} port.`;
+              // Explicit bredd: Android klipper annars allt efter första
+              // mellanslaget ("4 port." → "4").
+              return <Text style={[s.metaText, { width: metaBredd(text) }]} numberOfLines={1}>{text}</Text>;
+            })()}
             <Pressable onPress={() => editMode ? adjustEditServings(1) : adjustServings(1)} style={s.servingBtn} hitSlop={8}>
               <Ionicons name="add" size={14} color={c.primary} />
             </Pressable>
           </View>
 
-          {editMode ? (
-            <View style={[s.metaChip, s.tidChip]}>
-              <Ionicons name="time-outline" size={14} color={c.textMuted} />
-              <TextInput
-                style={s.tidInput}
-                value={editCookMinutes}
-                onChangeText={v => setEditCookMinutes(v.replace(/[^0-9]/g, '').slice(0, 4))}
-                keyboardType="number-pad"
-                placeholder={str.detail.cookTimePlaceholder}
-                placeholderTextColor={c.textFaint}
+          {/* Tiden: chip med värdet. I redigeringen öppnar ett tryck en liten
+              hjulväljare ovanpå chippet (TidsSnurra). */}
+          {editMode ? (() => {
+            const min = tolkaMinuter(editCookMinutes);
+            const text = min ? formateraTidsetikett(min) : str.detail.cookTimePlaceholder;
+            return (
+              <Pressable
+                ref={tidKnappRef}
+                collapsable={false}
+                style={[s.metaChip, s.tidChip]}
+                onPress={() => tidKnappRef.current?.measureInWindow((x, y, w, h) => setTidAnkare({ x, y, w, h }))}
+                accessibilityRole="button"
                 accessibilityLabel={str.detail.cookTimeA11y}
-              />
-              <Text style={s.metaText}>{str.detail.cookTimeUnit}</Text>
-            </View>
-          ) : recipe.cookMinutes ? (
-            <View style={[s.metaChip, s.tidChip]} accessibilityLabel={str.detail.cookTimeRead(formateraTidsetikett(recipe.cookMinutes))}>
-              <Ionicons name="time-outline" size={14} color={c.textMuted} />
-              <Text style={s.metaText}>{formateraTidsetikett(recipe.cookMinutes)}</Text>
-            </View>
-          ) : null}
+              >
+                <Ionicons name="time-outline" size={14} color={c.textMuted} />
+                <Text style={[s.metaText, { width: metaBredd(text) }]} numberOfLines={1}>{text}</Text>
+                <Ionicons name="chevron-expand" size={13} color={c.textFaint} />
+              </Pressable>
+            );
+          })() : recipe.cookMinutes ? (() => {
+            const text = formateraTidsetikett(recipe.cookMinutes);
+            return (
+              <View style={[s.metaChip, s.tidChip]} accessibilityLabel={str.detail.cookTimeRead(text)}>
+                <Ionicons name="time-outline" size={14} color={c.textMuted} />
+                <Text style={[s.metaText, { width: metaBredd(text) }]} numberOfLines={1}>{text}</Text>
+              </View>
+            );
+          })() : null}
 
           {recipe.sourceUrl && (
             <Pressable
@@ -2013,8 +2030,29 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         );
       })() : null}
 
+      {editMode && tidAnkare && (
+        <TidsSnurra
+          ankare={tidAnkare}
+          value={tolkaMinuter(editCookMinutes)}
+          onChange={m => setEditCookMinutes(m ? String(m) : '')}
+          onClose={() => setTidAnkare(null)}
+          placeholder={str.detail.cookTimeNone}
+          farger={{
+            yta: nyDesign ? ny.ljus : c.surface,
+            text: nyDesign ? ny.text : c.text,
+            dampad: c.textMuted,
+            band: nyDesign ? ny.bricka : c.primaryTint,
+          }}
+        />
+      )}
     </SafeAreaView>
   );
+}
+
+/** Bredd för korta metatexter (13 px). Android mäter dem för smalt och klipper
+ *  efter första mellanslaget — se android-text-clipping. */
+function metaBredd(text: string): number {
+  return Math.ceil(text.length * 7.5) + 6;
 }
 
 /** Fältets text → minuter att spara. Tomt eller 0 = okänd (null), aldrig 0 min. */
@@ -2134,9 +2172,6 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   servingBtn: { padding: 2 },
   metaText: { fontSize: 13, color: nyD ? ny.textDampad : c.textMuted },
   tidChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  // Smalt minutfält i tidschipet; fast bredd så fyra siffror ryms utan att
-  // Android klipper sista (se android-text-clipping).
-  tidInput: { width: 44, fontSize: 13, paddingVertical: 0, color: nyD ? ny.text : c.text, textAlign: 'right' },
   description: { fontSize: 14, color: nyD ? ny.text : c.textSecondary, lineHeight: 22 },
   section: { gap: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

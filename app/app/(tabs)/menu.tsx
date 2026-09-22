@@ -573,27 +573,25 @@ export default function MenuScreen() {
   // flight" without being fooled by an emptied-out week.
   const loadedWeekRef = useRef<{ wy: number; wn: number } | null>(null);
   const scrollOffsetY = useRef(0);
-  // Veckoraden fälls ihop när man scrollar nedåt, som receptlistans sökfält:
-  // vid en tröskel med en kort övergång, inte i takt med scrollen — att ändra
-  // höjden varje scrollhändelse tvingar om layouten av hela veckan och laggar.
+  // Veckoraden fälls ihop när man scrollar nedåt och följer med scrollen,
+  // så den glider tillbaka i samma takt på vägen upp. Första versionen
+  // fälldes vid en tröskel och poppade in nära toppen — ett hack precis där
+  // man stannade. Höjdändringen per scrollhändelse går bra här: veckans
+  // innehåll byter inte bredd, så det flödar inte om (till skillnad från
+  // receptlistans murverk, där samma sak laggade).
   const veckaSynlig = useSharedValue(1);
-  const veckaMal = useRef(1);
-  const [veckaH, setVeckaH] = useState(0);
+  // Uppskattad höjd tills raden mätts, så sidhuvudet inte blinkar till utan rad.
+  const [veckaH, setVeckaH] = useState(62);
+  const veckaHRef = useRef(62);
+  veckaHRef.current = veckaH;
   const följVeckaScroll = useCallback((y: number) => {
-    if (y > 40 && veckaMal.current === 1) {
-      veckaMal.current = 0;
-      veckaSynlig.value = withTiming(0, { duration: 180 });
-    } else if (y < 12 && veckaMal.current === 0) {
-      veckaMal.current = 1;
-      veckaSynlig.value = withTiming(1, { duration: 180 });
-    }
+    veckaSynlig.value = 1 - Math.min(1, Math.max(0, y / veckaHRef.current));
   }, [veckaSynlig]);
   const veckaAnimStyle = useAnimatedStyle(() => (
     veckaH ? { height: veckaH * veckaSynlig.value, opacity: veckaSynlig.value } : {}
   ));
   // Ny vecka börjar om högst upp — då ska veckoraden synas igen.
   useEffect(() => {
-    veckaMal.current = 1;
     veckaSynlig.value = withTiming(1, { duration: 180 });
   }, [weekOffset, veckaSynlig]);
   const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1814,7 +1812,7 @@ export default function MenuScreen() {
           contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet, nyDesign && s.nyInnehallInner]}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
           onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; följVeckaScroll(scrollOffsetY.current); }}
-          scrollEventThrottle={32}
+          scrollEventThrottle={16}
           onTouchStart={onWebTouchStart}
           onTouchEnd={onWebTouchEnd}
         >
@@ -1862,7 +1860,7 @@ export default function MenuScreen() {
               contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet, nyDesign && s.nyInnehallInner]}
               refreshControl={isCenter ? <RefreshControl refreshing={false} onRefresh={load} /> : undefined}
               onScroll={isCenter ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; följVeckaScroll(scrollOffsetY.current); }) : undefined}
-              scrollEventThrottle={32}
+              scrollEventThrottle={16}
             >
               {renderWeekContent(weekItemsForOffset(o), getWeekMonday(o), isCenter, o < 0)}
             </ScrollView>
@@ -2854,10 +2852,12 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   // Ny design (beta)
   nyContainer: { backgroundColor: ny.skog },
   nyInnehall: { backgroundColor: ny.bakgrund },
-  nyVeckaNav: { paddingTop: 14 },
-  // flex-end: raden glider uppåt ur bild när höjden krymper, i stället för
-  // att klippas nedifrån.
-  nyVeckaFall: { overflow: 'hidden', justifyContent: 'flex-end' },
+  // Raden ligger ABSOLUT i ytan, förankrad i nederkanten. I flödet krympte
+  // den med ytan under animationen, onLayout mätte den krympta höjden och den
+  // blev ny fullhöjd — raden kom aldrig tillbaka hel. Absolut påverkas dess
+  // höjd aldrig av ytan; ytan får sin höjd enbart från mätningen.
+  nyVeckaNav: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 14 },
+  nyVeckaFall: { overflow: 'hidden' },
   nyInnehallInner: { paddingHorizontal: 12 },
   nyDagar: { gap: 10 },
   // Dagens ruta i samma distinkta ton som receptens platshållare: mot `kort`

@@ -717,7 +717,7 @@ export const recipes = {
     originalRecipe: '↗ Originalrecept',
     cookStep:       (current: number, total: number) => `Steg ${current} av ${total}`,
     cookTimePlaceholder: '–',
-    cookTimeUnit:        'min',
+    cookTimeNone:        'Ingen tid',
     cookTimeA11y:        'Tillagningstid i minuter',
     cookTimeRead:        (tid: string) => `Tillagningstid ${tid}`,
     cookIngredA11y: (namn: string, avbockad: boolean) => `${namn}${avbockad ? ', avbockad' : ''}`,
