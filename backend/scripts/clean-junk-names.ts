@@ -17,6 +17,7 @@
 import { PrismaClient } from '@prisma/client';
 import { visaMåldatabas } from './visaDb';
 import { skrivGranskningsfil, läsGranskningsfil, lägeskontroll, type Granskningsrad } from './granskningsfil';
+import { stadaIngrediensrad } from '../src/lib/ingrediensrad';
 
 const prisma = new PrismaClient({ log: ['error'] });
 
@@ -79,7 +80,22 @@ async function main() {
   const receptRader = await prisma.recipeIngredient.findMany({
     select: { name: true, recipe: { select: { title: true } } },
   });
-  const receptSkräp = receptRader.filter(i => skäl(i.name) !== null);
+  // Receptrader bedöms HÅRDARE än pool-namn. Ett namn på sju ord är nästan
+  // alltid skräp i ordförrådet, men i ett recept är det ofta helt riktigt:
+  // "banan, i bitar (ca 150 g skalad vikt)" och "valfri sylt eller färska bär,
+  // till servering" ska stå kvar ordagrant — receptet är källans text. Rapporten
+  // listade dem ändå, och drunknade därmed i rader ingen ska göra något åt.
+  //
+  // Kvar blir det som är MEKANISKT trasigt: HTML-skräp, orimlig längd, och de
+  // två importfel ingrediensrad.ts städar (enhet först i namnet, avsnittsrubrik
+  // ihopklistrad med varan) — de sistnämnda bara i recept som importerats före
+  // den städningen fanns.
+  const receptSkräp = receptRader.filter(i => {
+    const varför = skäl(i.name);
+    if (!varför) return false;
+    if (varför === 'HTML-entitet i namnet' || varför === `längre än ${MAX_TECKEN} tecken`) return true;
+    return stadaIngrediensrad({ name: i.name, unit: null }).name !== i.name.trim();
+  });
 
   console.log(`${alias.length} aliasrader och ${staples.length} basvaror genomsökta.`);
   console.log(`${förslag.length} rader ser inte ut som varunamn.\n`);

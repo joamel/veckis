@@ -13,6 +13,7 @@ import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { tillSvenskEnhet } from '@veckis/shared';
 import { delaAlternativ } from '../lib/alternativ';
 import { stripIngredient } from '../lib/stripIngredient';
+import { stadaIngrediensrad } from '../lib/ingrediensrad';
 import { parseIngredientString } from '../lib/parseIngredientString';
 import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
 import { recipeAbuseLimiter, parseTextLimiter } from '../lib/rateLimits';
@@ -71,10 +72,14 @@ const ingredientSchema = z.object({
  * framtida tillägg. Receptet är källan till alla tre, så det är här det ska
  * stoppas.
  */
-function medKategori<T extends { name: string; category: StoreCategory }>(ingredients: T[]): T[] {
-  return ingredients.map(i =>
-    i.category === 'other' ? { ...i, category: categorizeIngredient(i.name) } : i
-  );
+function medKategori<T extends { name: string; category: StoreCategory; unit?: string | null }>(ingredients: T[]): T[] {
+  // Städningen FÖRE klassningen: kategorin ska gissas på varan, inte på
+  // "tillbehör: gröna ärtor" eller "g nötfärs ...". Se ingrediensrad.ts för
+  // vad som städas — bara två mekaniska importfel, aldrig ordalydelsen.
+  return ingredients.map(rå => {
+    const i = stadaIngrediensrad(rå);
+    return i.category === 'other' ? { ...i, category: categorizeIngredient(i.name) } : i;
+  });
 }
 
 const tagsSchema = z.array(z.string().min(1).max(30)).max(10);
