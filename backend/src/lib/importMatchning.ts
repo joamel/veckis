@@ -39,14 +39,22 @@ export function kanoniseringDuger(original: string, kanoniskt: string): boolean 
 // ord i en matchning är matchningen fel — "lingon frysta" blev "lingon",
 // "soja glutenfri" blev "soja" och "grillad kyckling" blev "kyckling".
 //
+// Ursprungsord hör hit av samma skäl: turkisk yoghurt, grekisk yoghurt och
+// vanlig yoghurt är tre varor, och kinesisk soja är inte japansk soja.
+//
 // "malen", "riven" och "hackad" står medvetet INTE här: malen kanel är kanel.
-const SKYDDADE_ORD = /\b(?:glutenfri\w*|laktosfri\w*|sockerfri\w*|alkoholfri\w*|alkohol|fryst\w*|frysta|djupfryst\w*|torkad\w*|rökt\w*|grillad\w*|panerad\w*|rostad\w*|inlagd\w*)\b/giu;
+const SKYDDADE_ORD = /\b(?:glutenfri\w*|laktosfri\w*|sockerfri\w*|alkoholfri\w*|alkohol|fryst\w*|frysta|djupfryst\w*|torkad\w*|rökt\w*|grillad\w*|panerad\w*|rostad\w*|inlagd\w*|turkisk\w*|grekisk\w*|kinesisk\w*|japansk\w*|italiensk\w*|fransk\w*|spansk\w*|indisk\w*|thailändsk\w*|thai|mexikansk\w*|amerikansk\w*|svensk\w*|dansk\w*|norsk\w*|finsk\w*)\b/giu;
+
+// "utan kolsyra", "med D-vitamin": en specifikation som avgör vilken produkt
+// man ska ta. Försvinner den blir "vatten utan kolsyra" till "vatten".
+const SPECIFIKATION = /\b(?:utan|med)\b/iu;
 
 /** Behåller kandidaten alla skyddade ord som fanns i originalet? */
 export function bevararSkyddadeOrd(original: string, kandidat: string): boolean {
+  const k = kandidat.toLowerCase();
+  if (SPECIFIKATION.test(original) && !SPECIFIKATION.test(k)) return false;
   const iOriginal = original.toLowerCase().match(SKYDDADE_ORD) ?? [];
   if (iOriginal.length === 0) return true;
-  const k = kandidat.toLowerCase();
   return iOriginal.every(ord => k.includes(ord.slice(0, 5)));
 }
 

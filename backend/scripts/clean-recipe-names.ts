@@ -27,6 +27,7 @@ import { visaMåldatabas } from './visaDb';
 import { skrivGranskningsfil, läsGranskningsfil, lägeskontroll, type Granskningsrad } from './granskningsfil';
 import { PrismaClient } from '@prisma/client';
 import { kanoniseraUtanCache } from '../src/lib/normalizeIngredients';
+import { bevararSkyddadeOrd } from '../src/lib/importMatchning';
 import { stripIngredient } from '../src/lib/stripIngredient';
 
 const prisma = new PrismaClient({ log: ['error'] });
@@ -95,6 +96,10 @@ async function kanoniseraAlla(namn: string[]): Promise<Map<string, string>> {
       const kanonisk = (ut[j] ?? n).toLowerCase().trim();
       if (!kanonisk || kanonisk === n) return;
       if (!liknarOriginalet(n, kanonisk)) { avvisade.push({ från: n, till: kanonisk }); return; }
+      // Samma skydd som importens matchning: ett ord som avgör VILKEN vara det
+      // är får inte försvinna. Utan det föreslog skriptet "grillad kyckling"
+      // → "kyckling" och "turkisk yoghurt" → "yoghurt".
+      if (!bevararSkyddadeOrd(n, kanonisk)) { avvisade.push({ från: n, till: kanonisk }); return; }
       karta.set(n, kanonisk);
     });
     console.log(`   ... ${Math.min(i + BATCH, namn.length)}/${namn.length} namn`);

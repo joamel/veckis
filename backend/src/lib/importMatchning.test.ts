@@ -51,6 +51,19 @@ describe('bevararSkyddadeOrd', () => {
     expect(bevararSkyddadeOrd('Köttbullar glutenfria', 'glutenfria köttbullar')).toBe(true);
   });
 
+  it('skyddar ursprungsord — turkisk yoghurt är en egen vara', () => {
+    expect(bevararSkyddadeOrd('Turkisk yoghurt', 'yoghurt')).toBe(false);
+    expect(bevararSkyddadeOrd('Grekisk yoghurt', 'yoghurt')).toBe(false);
+    expect(bevararSkyddadeOrd('Kinesisk soja', 'sojasås')).toBe(false);
+    expect(bevararSkyddadeOrd('Turk yoghurt', 'turkisk yoghurt')).toBe(true);
+  });
+
+  it('skyddar specifikationer med utan/med', () => {
+    expect(bevararSkyddadeOrd('Vatten utan kolsyra', 'vatten')).toBe(false);
+    expect(bevararSkyddadeOrd('Magdroppar med D-vitamin', 'magdroppar')).toBe(false);
+    expect(bevararSkyddadeOrd('Vatten utan kolsyra på flaska', 'vatten utan kolsyra')).toBe(true);
+  });
+
   it('rör inte varor utan skyddade ord', () => {
     expect(bevararSkyddadeOrd('Svartpeppar malen', 'svartpeppar')).toBe(true);
     expect(bevararSkyddadeOrd('Kanel, malen', 'kanel')).toBe(true);

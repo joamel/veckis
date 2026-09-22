@@ -56,6 +56,13 @@ jobs:
         run: npx tsc --noEmit
         working-directory: backend
 
+      # Städskripten ligger utanför tsconfig ("include": ["src"]) och
+      # typkollades därför inte alls. En odeklarerad variabel upptäcktes först
+      # när ett skript kraschade mitt i en skarp körning mot produktionsdatan.
+      - name: TypeScript check (scripts)
+        run: npm run typecheck:scripts
+        working-directory: backend
+
       # CI körde ALDRIG testerna — varken backendens eller appens. Jobbet
       # installerade, byggde, migrerade och typkollade, och rapporterade
       # "success" utan att ett enda test hade körts. Postgres-tjänsten ovan

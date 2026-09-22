@@ -58,14 +58,19 @@ npm test --workspace=app              # vitest, 124 tester
 Städar ingrediensdatan. Körs för hand, aldrig automatiskt, och **alla är
 torrkörning som standard** — inget skrivs förrän du ber om det.
 
+Varje skript ställer EN fråga. Det är skillnaden mellan dem:
+
 ```bash
-npm run clean:all           # Alla varunamn. Du döper om, tar bort eller låter vara. Inga gissningar.
-npm run clean:junk          # Rader som inte är varunamn: receptstycken, HTML-entiteter, meningar.
-npm run clean:aliases       # Mängdprefix ("kg potatis" → "potatis") + backfill av hushållsräkningen.
+npm run clean:prefix        # Mängd först i namnet: "1/2 dl strösocker" → "strösocker". Slår ihop med varan om den finns.
+npm run clean:junk          # Rader som inte är varunamn alls: receptstycken, HTML-entiteter, meningar.
+npm run clean:dupes         # Varianter av SAMMA vara: stavfel, versaler, singular/plural.
 npm run clean:names         # Kortar långa namn. Enda skriptet där AI föreslår.
-npm run clean:dupes         # Varianter av samma vara: stavfel, versaler, singular/plural.
-npm run repair:categories   # Rättar fel kategori.
+npm run clean:aliases       # Duger raden globalt? Rensar + backfill av hushållsräkningen.
+npm run clean:all           # Alla varunamn. Du döper om, tar bort eller låter vara. Inga gissningar.
+npm run repair:categories   # Rättar varor som fastnat i Övrigt utan att någon valt det.
 npm run category-gaps       # Rapport: namn ingen kategoriregel känner igen. Läser bara.
+npm run clean:recipes       # Översätter engelska ingrediensnamn i redan sparade recept.
+npm run fix:units           # Icke-svenska enheter i listor och basvaror ("teaspoon" → "tsk").
 ```
 
 Flaggor värda att känna till:
@@ -106,10 +111,29 @@ Ta alltid `npm run backup` först. Ordningen spelar roll, eftersom varje steg
 ändrar underlaget för nästa:
 
 ```
-clean:junk → clean:aliases → clean:all → clean:names → clean:dupes → repair:categories
+clean:prefix → clean:junk → clean:dupes → clean:names → clean:aliases → clean:all → repair:categories
 ```
 
-Kategorisera sist, när bara riktiga varunamn återstår.
+Tanken bakom ordningen:
+
+1. **clean:prefix** först — mekaniskt och utan gissningar. "kg potatis" ska
+   vara "potatis" innan något annat skript får syn på raden.
+2. **clean:junk** tar bort det som inte är varor alls, så resten av passen
+   slipper fundera på receptstycken.
+3. **clean:dupes** slår ihop varianter medan de fortfarande är många — efter
+   att namnen kortats ser två varianter ofta redan likadana ut.
+4. **clean:names** kortar långa namn. Här föreslår AI, så kör det när det
+   mesta uppenbara redan är borta.
+5. **clean:aliases** städar poolen och fyller i hushållsräkningen.
+6. **clean:all** är den manuella genomgången av det som återstår.
+7. **repair:categories** sist, när bara riktiga varunamn finns kvar.
+
+`category-gaps` är en rapport vars åtgärd är en kodändring i
+`categorizeIngredient.ts`, inte i databasen. `clean:recipes` och `fix:units`
+är egna spår (receptens namn respektive enheter) och kan köras när som helst.
+
+Ett avbrutet pass går att köra om med samma granskningsfil: skripten klagar
+inte på rader som redan är åtgärdade.
 
 ## Deploy
 
