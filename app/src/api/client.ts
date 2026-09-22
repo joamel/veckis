@@ -256,6 +256,12 @@ export function useApiClient() {
     getHousehold: (householdId: string) =>
       request<HouseholdWithMembers>(`/api/households/${householdId}`),
 
+    setPinnedRecipeTags: (householdId: string, tags: string[]) =>
+      request<Household>(`/api/households/${householdId}/pinned-tags`, {
+        method: 'PUT',
+        body: JSON.stringify({ tags }),
+      }),
+
     updateHousehold: (householdId: string, name: string) =>
       request<Household>(`/api/households/${householdId}`, {
         method: 'PATCH',
@@ -396,10 +402,10 @@ export function useApiClient() {
     getRecipe: (recipeId: string) =>
       request<RecipeWithIngredients>(`/api/recipes/${recipeId}`),
 
-    createRecipe: (data: { householdId: string; title: string; description?: string | null; instructions?: string | null; sourceUrl?: string | null; source?: 'manual' | 'ai_paste' | 'url_import'; imageUrl?: string | null; servings?: number; ingredients?: Array<{ name: string; quantity?: number | null; unit?: string | null; category?: StoreCategory; originalName?: string | null }>; tags?: string[] }) =>
+    createRecipe: (data: { householdId: string; title: string; description?: string | null; instructions?: string | null; sourceUrl?: string | null; source?: 'manual' | 'ai_paste' | 'url_import'; imageUrl?: string | null; servings?: number; cookMinutes?: number | null; ingredients?: Array<{ name: string; quantity?: number | null; unit?: string | null; category?: StoreCategory; originalName?: string | null }>; tags?: string[] }) =>
       request<RecipeWithIngredients>('/api/recipes', { method: 'POST', body: JSON.stringify(data) }),
 
-    updateRecipe: (recipeId: string, data: { title?: string; description?: string | null; instructions?: string | null; imageUrl?: string | null; imageFocusX?: number | null; imageFocusY?: number | null; servings?: number; ingredients?: Array<{ name: string; quantity?: number | null; unit?: string | null; category?: StoreCategory; originalName?: string | null }>; tags?: string[] }) =>
+    updateRecipe: (recipeId: string, data: { title?: string; description?: string | null; instructions?: string | null; imageUrl?: string | null; imageFocusX?: number | null; imageFocusY?: number | null; servings?: number; cookMinutes?: number | null; ingredients?: Array<{ name: string; quantity?: number | null; unit?: string | null; category?: StoreCategory; originalName?: string | null }>; tags?: string[] }) =>
       request<RecipeWithIngredients>(`/api/recipes/${recipeId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteRecipe: (recipeId: string) =>
@@ -423,12 +429,12 @@ export function useApiClient() {
       return res.json() as Promise<RecipeWithIngredients>;
     },
     scrapeRecipe: (url: string) =>
-      request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> }>('/api/recipes/from-url', { method: 'POST', body: JSON.stringify({ url }) }),
+      request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> }>('/api/recipes/from-url', { method: 'POST', body: JSON.stringify({ url }) }),
 
     parseRecipeText: (text: string) =>
-      request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> }>('/api/recipes/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
+      request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> }>('/api/recipes/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
 
-    parseRecipeFromPhoto: async (photoUris: string[]): Promise<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> } & { recipes?: { title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> }[] }> => {
+    parseRecipeFromPhoto: async (photoUris: string[]): Promise<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> } & { recipes?: { title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> }[] }> => {
       // Skala ner och komprimera INNAN uppladdning. En okomprimerad mobilbild är
       // ~4 MB, och som base64 ~5,3 MB över mobilnät — det är den överföringen som
       // dominerar väntetiden. Modellen skalar ändå ner allt över 1568 px längsta
@@ -463,7 +469,7 @@ export function useApiClient() {
         const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
         throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
       }
-      return res.json() as Promise<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> } & { recipes?: { title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> }[] }>;
+      return res.json() as Promise<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> } & { recipes?: { title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> }[] }>;
     },
 
     // Menus

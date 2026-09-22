@@ -39,6 +39,7 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
 import { recipes as str, common, gettingStarted } from '../../src/lib/svenska';
+import { formateraTidsetikett } from '../../src/lib/cookTimer';
 import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { dayItemsSummary } from '../../src/lib/menuDaySummary';
@@ -327,13 +328,33 @@ export default function RecipesScreen() {
     });
   }
 
-  // Tagg-filter: alla taggar som förekommer i hushållets recept, vanligast först.
+  // Tagg-filter: fästa taggar först (i fästordning), sedan resten efter antal
+  // recept. Fästa taggar som inget recept längre har visas inte, men ligger
+  // kvar sparade så de kommer tillbaka om taggen används igen.
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
+  const [pinnedTags, setPinnedTags] = useState<string[]>([]);
   const allTags = useMemo(() => {
     const counts = new Map<string, number>();
     for (const r of recipes) for (const t of r.tags ?? []) counts.set(t, (counts.get(t) ?? 0) + 1);
-    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'sv')).map(([t]) => t);
-  }, [recipes]);
+    const fästa = pinnedTags.filter(t => counts.has(t));
+    const övriga = [...counts.entries()]
+      .filter(([t]) => !pinnedTags.includes(t))
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'sv'))
+      .map(([t]) => t);
+    return [...fästa, ...övriga];
+  }, [recipes, pinnedTags]);
+  // Långtryck fäster/lossar. Optimistiskt; vid fel tillbaka till det sparade.
+  const togglePinnedTag = useCallback((tag: string) => {
+    if (!householdId) return;
+    const föregående = pinnedTags;
+    const fäst = !föregående.includes(tag);
+    const nästa = fäst ? [...föregående, tag] : föregående.filter(t => t !== tag);
+    setPinnedTags(nästa);
+    showToast(fäst ? str.tags.pinned(tag) : str.tags.unpinned(tag));
+    client.setPinnedRecipeTags(householdId, nästa)
+      .then(h => setPinnedTags(h.pinnedRecipeTags ?? nästa))
+      .catch(e => { setPinnedTags(föregående); showError(e, str.tags.pinFailed); });
+  }, [householdId, pinnedTags, client, showToast, showError]);
   const toggleTagFilter = (tag: string) => setActiveTags(prev => {
     const next = new Set(prev);
     if (next.has(tag)) next.delete(tag); else next.add(tag);
@@ -446,12 +467,14 @@ export default function RecipesScreen() {
     if (!householdId) return;
     try {
       const { weekYear, weekNumber } = getISOWeek(new Date());
-      const [recs, menu] = await Promise.all([
+      const [recs, menu, household] = await Promise.all([
         client.getRecipes(householdId),
         client.getWeekMenu(householdId, weekYear, weekNumber).catch(() => [] as WeekMenuItemWithRecipe[]),
+        client.getHousehold(householdId).catch(() => null),
       ]);
       setRecipes(recs);
       setWeekMenu(menu);
+      if (household) setPinnedTags(household.pinnedRecipeTags ?? []);
     } catch {
       confirm({ title: str.errors.generic, message: str.errors.couldNotLoad, buttons: [{ label: common.actions.ok }] });
     } finally {
@@ -498,6 +521,7 @@ export default function RecipesScreen() {
         source: 'url_import',
         imageUrl: scraped.imageUrl,
         servings: scraped.servings,
+        cookMinutes: scraped.cookMinutes ?? null,
         ingredients: scraped.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit, originalName: i.originalName ?? null })),
       });
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
@@ -542,6 +566,7 @@ export default function RecipesScreen() {
         instructions: parsed.instructions,
         source: 'ai_paste',
         servings: parsed.servings,
+        cookMinutes: parsed.cookMinutes ?? null,
         ingredients: parsed.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
       });
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
@@ -629,6 +654,7 @@ export default function RecipesScreen() {
       instructions: r.instructions,
       source: 'ai_paste',
       servings: r.servings,
+      cookMinutes: r.cookMinutes ?? null,
       ingredients: r.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
     });
     setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
@@ -920,6 +946,7 @@ export default function RecipesScreen() {
     titel: recipe.title,
     sokord: [recipe.title, ...(recipe.tags ?? [])].join(' '),
     meta: str.card.meta(recipe.servings, recipe.ingredients.length),
+    tid: recipe.cookMinutes ? formateraTidsetikett(recipe.cookMinutes) : null,
     bildUrl: recipe.imageUrl ?? null,
     lage: kortLage,
     onPress: () => tryckRecept(recipe),
@@ -941,7 +968,15 @@ export default function RecipesScreen() {
         {allTags.map(t => {
           const aktiv = activeTags.has(t);
           return (
-            <Pressable key={t} style={[s.nyTagg, aktiv && s.nyTaggAktiv]} onPress={() => toggleTagFilter(t)}>
+            <Pressable
+              key={t}
+              style={[s.nyTagg, aktiv && s.nyTaggAktiv]}
+              onPress={() => toggleTagFilter(t)}
+              onLongPress={() => togglePinnedTag(t)}
+              delayLongPress={350}
+              accessibilityLabel={str.tags.filterA11y(t, pinnedTags.includes(t))}
+            >
+              {pinnedTags.includes(t) && <Ionicons name="pin" size={12} color={aktiv ? ny.lime : ny.chipText} />}
               <Text style={[s.nyTaggText, aktiv && s.nyTaggTextAktiv]}>{t}</Text>
             </Pressable>
           );
@@ -1076,7 +1111,15 @@ export default function RecipesScreen() {
                 {allTags.map(t => {
                   const active = activeTags.has(t);
                   return (
-                    <Pressable key={t} style={[s.tagFilterChip, active && s.tagFilterChipActive]} onPress={() => toggleTagFilter(t)}>
+                    <Pressable
+                      key={t}
+                      style={[s.tagFilterChip, active && s.tagFilterChipActive]}
+                      onPress={() => toggleTagFilter(t)}
+                      onLongPress={() => togglePinnedTag(t)}
+                      delayLongPress={350}
+                      accessibilityLabel={str.tags.filterA11y(t, pinnedTags.includes(t))}
+                    >
+                      {pinnedTags.includes(t) && <Ionicons name="pin" size={11} color={active ? '#fff' : c.primary} />}
                       <Text style={[s.tagFilterChipText, active && s.tagFilterChipTextActive]}>{t}</Text>
                     </Pressable>
                   );
@@ -1113,7 +1156,7 @@ export default function RecipesScreen() {
               </View>
               <View style={s.cardContent}>
                 <Text style={s.cardTitle}>{item.title}</Text>
-                <Text style={s.cardMeta}>{str.card.meta(item.servings, item.ingredients.length)}</Text>
+                <Text style={s.cardMeta}>{str.card.meta(item.servings, item.ingredients.length, item.cookMinutes ? formateraTidsetikett(item.cookMinutes) : null)}</Text>
               </View>
               {selectionMode ? (
                 <Ionicons name="add-circle" size={22} color={c.primary} />
@@ -1275,7 +1318,7 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   tagFilterBar: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   tagFilterScroll: { flexShrink: 1 },
   tagFilterRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 6 },
-  tagFilterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.primaryTint, flexShrink: 0 },
+  tagFilterChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.primaryTint, flexShrink: 0 },
   tagFilterChipActive: { backgroundColor: c.primaryBtn },
   tagFilterChipText: { fontSize: 12, fontWeight: '600', color: c.primary },
   tagFilterChipTextActive: { color: '#fff' },
@@ -1306,7 +1349,7 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   nyTaggScroll: { flexShrink: 1 },
   nyTaggClear: { marginLeft: 6, paddingBottom: 4 },
   nyTaggar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 4, paddingRight: 6 },
-  nyTagg: { paddingHorizontal: 13, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: ny.kontur },
+  nyTagg: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 13, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: ny.kontur },
   nyTaggAktiv: { backgroundColor: ny.skog, borderColor: ny.skog },
   nyTaggText: { fontSize: 13, fontWeight: '600', color: ny.chipText },
   nyTaggTextAktiv: { color: ny.lime },

@@ -134,6 +134,22 @@ householdRouter.patch('/:householdId', requireAuth, requireAdmin, asyncHandler(a
   res.json(household);
 }));
 
+// PUT /api/households/:householdId/pinned-tags
+// Egen rutt och inte PATCH ovan: den kräver admin, och att fästa en tagg i
+// receptlistan ska vem som helst i hushållet kunna göra.
+householdRouter.put('/:householdId/pinned-tags', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
+  const body = z.object({ tags: z.array(z.string().trim().min(1).max(40)).max(20) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+  // Gemener som receptens taggar, dubbletter bort, första förekomsten vinner.
+  const tags = [...new Set(body.data.tags.map(t => t.toLowerCase()))];
+  const household = await prisma.household.update({
+    where: { id: req.params.householdId },
+    data: { pinnedRecipeTags: tags },
+  });
+  broadcastHousehold(household.id, 'household_updated', household);
+  res.json(household);
+}));
+
 // DELETE /api/households/:householdId
 householdRouter.delete('/:householdId', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const householdId = req.params.householdId;

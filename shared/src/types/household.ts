@@ -2,6 +2,8 @@ export interface Household {
   id: string;
   name: string;
   emoji: string | null;
+  /** Receptlistans fästa taggar, i fästordning. */
+  pinnedRecipeTags: string[];
   createdAt: string;
 }
 

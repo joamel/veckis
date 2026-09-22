@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { tidUrJsonLd, städaMinuter } from '../lib/tillagningstid';
 import { z } from 'zod';
 import { StoreCategory, Prisma } from '@prisma/client';
 import { prisma } from '../db';
@@ -135,6 +136,8 @@ const createRecipeSchema = z.object({
   source: z.enum(['manual', 'ai_paste', 'url_import']).default('manual'),
   imageUrl: z.string().url().nullable().optional(),
   servings: z.number().int().positive().default(4),
+  // Minuter; null = okänd. Tak ett dygn, samma gräns som tolkningen.
+  cookMinutes: z.number().int().positive().max(1440).nullable().optional(),
   ingredients: z.array(ingredientSchema).default([]),
   tags: tagsSchema.optional(),
 });
@@ -148,6 +151,7 @@ const updateRecipeSchema = z.object({
   imageFocusX: z.number().min(0).max(1).nullable().optional(),
   imageFocusY: z.number().min(0).max(1).nullable().optional(),
   servings: z.number().int().positive().optional(),
+  cookMinutes: z.number().int().positive().max(1440).nullable().optional(),
   ingredients: z.array(ingredientSchema).optional(),
   tags: tagsSchema.optional(),
 });
@@ -419,6 +423,7 @@ JSON-schema — ETT objekt per separat recept på bilderna:
       "description": "skriv en kort EGEN aptitlig beskrivning av rätten (1–2 meningar) utifrån ingredienser och tillagning — kopiera INTE något ur receptet, formulera helt eget; null bara om du inte kan avgöra vad rätten är",
       "instructions": "tillagningssteg numrerade på separata rader: \\"1. Gör X\\n2. Gör Y\\", null om inga steg finns",
       "servings": 4,
+      "cookMinutes": 45,
       "ingredients": [{ "name": "ingrediensnamn", "quantity": 2.5, "unit": "dl" }]
     }
   ]
@@ -429,6 +434,7 @@ Regler:
 - unit ska vara EN av: dl, l, liter, ml, cl, msk, tsk, krm, g, kg, st, knippe, näve, nypa, klyfta — eller null
 - Extrahera ALLA ingredienser och steg du ser, ignorera navigation, annonser och annat sidinnehåll
 - Ingrediensnamn på svenska (översätt om texten är på engelska)
+- cookMinutes: receptets TOTALA tid i hela minuter (förberedelse + tillagning) om receptet anger en tid, t.ex. "ca 45 min" → 45, "1 timme" → 60. Anger receptet ingen tid: null. Gissa ALDRIG utifrån stegen.
 - instructions: om steg finns, ett steg per rad, "1. Förbered X\n2. Stek Y\n3. Servera" — varje steg på egen rad med \n emellan, annars null`;
 
 /**
@@ -447,7 +453,7 @@ async function parseRecipeTextWithAI(text: string): Promise<ScrapedRecipe> {
   });
   await bokförAiKostnad('claude-haiku-4-5-20251001', msg.usage);
   const raw = textUr(msg);
-  type RåttRecept = { title: string | null; description: string | null; instructions: string | null; servings?: number; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
+  type RåttRecept = { title: string | null; description: string | null; instructions: string | null; servings?: number; cookMinutes?: unknown; ingredients: Array<{ name: string; quantity: number | null; unit: string | null }> };
   const tolkat = tolkaJsonSvar(raw) as { recipes?: RåttRecept[] } & Partial<RåttRecept>;
   // Systemprompten ber modellen packa in svaret i { recipes: [...] } (samma
   // schema som fotoflödet), så det formatet måste läsas i första hand. Faller
@@ -460,6 +466,7 @@ async function parseRecipeTextWithAI(text: string): Promise<ScrapedRecipe> {
     instructions: typeof parsed.instructions === 'string' ? parsed.instructions : null,
     imageUrl: null,
     servings: typeof parsed.servings === 'number' && parsed.servings > 0 ? parsed.servings : 4,
+    cookMinutes: städaMinuter(parsed.cookMinutes),
     ingredients: Array.isArray(parsed.ingredients)
       ? parsed.ingredients
           .filter((i): i is { name: string; quantity: number | null; unit: string | null } => typeof i?.name === 'string' && i.name.trim().length > 0)
@@ -524,7 +531,7 @@ export function delaUppDataUrl(rå: string): Bild {
 
 type ReceptRå = {
   title?: unknown; description?: unknown; instructions?: unknown;
-  servings?: unknown; ingredients?: unknown;
+  servings?: unknown; cookMinutes?: unknown; ingredients?: unknown;
 };
 
 /**
@@ -538,6 +545,7 @@ function städaRecept(r: ReceptRå): ScrapedRecipe {
     instructions: typeof r.instructions === 'string' ? r.instructions : null,
     imageUrl: null,
     servings: typeof r.servings === 'number' && r.servings > 0 ? r.servings : 4,
+    cookMinutes: städaMinuter(r.cookMinutes),
     ingredients: Array.isArray(r.ingredients)
       ? r.ingredients
           .filter((i): i is { name: string; quantity: number | null; unit: string | null } => typeof (i as { name?: unknown })?.name === 'string' && (i as { name: string }).name.trim().length > 0)
@@ -594,6 +602,7 @@ JSON-schema:
   "description": "skriv en kort EGEN aptitlig beskrivning av rätten (1–2 meningar) utifrån ingredienser och tillagning — kopiera INTE något ur receptet, formulera helt eget; null bara om du inte kan avgöra vad rätten är",
   "instructions": "tillagningssteg numrerade på separata rader: \"1. Gör X\\n2. Gör Y\\n3. Gör Z\", null om inga steg finns",
   "servings": 4,
+  "cookMinutes": 45,
   "ingredients": [{ "name": "ingrediensnamn", "quantity": 2.5, "unit": "dl" }]
 }
 
@@ -602,6 +611,7 @@ Regler:
 - unit ska vara EN av: dl, l, liter, ml, cl, msk, tsk, krm, g, kg, st, knippe, näve, nypa, klyfta — eller null
 - Extrahera ALLA ingredienser och steg du ser
 - Ingrediensnamn på svenska (översätt om fotot visar engelska)
+- cookMinutes: receptets TOTALA tid i hela minuter (förberedelse + tillagning) om receptet anger en tid, t.ex. "ca 45 min" → 45, "1 timme" → 60. Anger receptet ingen tid: null. Gissa ALDRIG utifrån stegen.
 - Står det FLERA separata recept på bilderna blir det ett objekt per recept. Ett recept som
   sträcker sig över flera sidor är däremot ETT objekt — sidnumreringen ovan säger vilka som
   hör ihop. Slå aldrig ihop två olika rätter, och dela aldrig upp en rätt.
@@ -688,6 +698,7 @@ interface ScrapedRecipe {
   imageUrl: string | null;
   instructions: string | null;
   servings: number;
+  cookMinutes: number | null;
   ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }>;
 }
 
@@ -833,7 +844,10 @@ function parseJsonLdRecipe(r: any, sourceUrl: string): ScrapedRecipe {
 
   const instructions = parseInstructions(r.recipeInstructions);
 
+  // Tiden fanns i nästan varje importerad sida men slängdes — se tillagningstid.ts.
+  const cookMinutes = tidUrJsonLd(r);
+
   void sourceUrl;
-  return { title, description, imageUrl, instructions, servings, ingredients };
+  return { title, description, imageUrl, instructions, servings, cookMinutes, ingredients };
 }
 

@@ -11,6 +11,9 @@ model Household {
   id        String   @id @default(cuid())
   name      String
   emoji     String?  @default("🏠")
+  // Receptlistans fästa taggar, i den ordning de fästes. Ligger först i
+  // taggraden, före resten som sorteras på antal recept. Delas av hushållet.
+  pinnedRecipeTags String[] @default([])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -170,6 +173,10 @@ model Recipe {
   // URL-importerade bilder som ligger hos tredje part och inte kan beskäras.
   imageFocusX Float?
   imageFocusY Float?
+  // Total tillagningstid i minuter, som receptet självt anger den (JSON-LD
+  // totalTime/cookTime+prepTime, AI-tolkning eller handskriven). null = okänd;
+  // gissas aldrig fram.
+  cookMinutes Int?
   servings    Int      @default(4)
   timesUsed   Int      @default(0)
   // Fritt taggbara etiketter ("vegetariskt", "snabbt", "favorit" …) —

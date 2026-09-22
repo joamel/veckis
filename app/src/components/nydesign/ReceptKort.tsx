@@ -14,6 +14,8 @@ interface Props {
   /** Titel + taggar — styr platshållarens ikon när receptet saknar bild. */
   sokord: string;
   meta: string;
+  /** Tillagningstid, färdigformaterad ("45 min"). null = okänd, ingen bricka. */
+  tid: string | null;
   bildUrl: string | null;
   lage: ReceptKortLage;
   onPress: () => void;
@@ -42,7 +44,15 @@ export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
         {p.bildUrl ? (
           <Image source={{ uri: p.bildUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : (
-          <Ionicons name={ph!.ikon} size={76} color={mork ? ny.ytIkonMork : ny.ytIkon} style={st.ikonStor} />
+          <Ionicons name={ph!.ikon} size={76} color={mork ? ny.ytIkonMork : ny.ytIkon} style={[st.ikonStor, p.tid && st.ikonUnderTid]} />
+        )}
+        {/* Tiden i övre vänstra hörnet, mitt emot planera-knappen: den är
+            beslutsunderlag och ska synas innan man läst titeln. */}
+        {p.tid && (
+          <View style={st.tidBricka}>
+            <Ionicons name="time-outline" size={13} color={ny.lime} />
+            <Text style={[st.tidBrickaText, { width: tidBredd(p.tid, 7) }]} numberOfLines={1}>{p.tid}</Text>
+          </View>
         )}
         <Hornknapp {...p} ton={ph?.ton} />
         <View style={p.bildUrl ? st.band : st.textUtanBild}>
@@ -75,6 +85,12 @@ export function ReceptKompaktRad(p: Props) {
           <Text style={st.radTitel} numberOfLines={2}>{p.titel}</Text>
           <Text style={st.radMeta} numberOfLines={1}>{p.meta}</Text>
         </View>
+        {p.tid && (
+          <View style={st.radTid}>
+            <Ionicons name="time-outline" size={15} color={ny.padYta} />
+            <Text style={[st.radTidText, { width: tidBredd(p.tid, 7.5) }]} numberOfLines={1}>{p.tid}</Text>
+          </View>
+        )}
         {p.lage === 'normal' && (
           <Pressable style={st.radKnapp} onPress={p.onPlanera} hitSlop={6} accessibilityRole="button" accessibilityLabel={p.planeraLabel}>
             <Ionicons name="calendar-outline" size={18} color={ny.chipText} />
@@ -109,6 +125,12 @@ function Hornknapp(p: Props & { ton?: PlatshallarTon }) {
   );
 }
 
+/** Explicit bredd på tidstexten — Android mäter korta texter för smalt och
+ *  klipper sista glyfen ("45 min" → "45 mi"). */
+function tidBredd(tid: string, perTecken: number): number {
+  return Math.ceil(tid.length * perTecken) + 4;
+}
+
 function TaBortKnapp(p: Props) {
   const ny = useNy();
   const st = useMemo(() => gorSt(ny), [ny]);
@@ -124,6 +146,13 @@ const gorSt = (ny: NyPalett) => StyleSheet.create({
   ytaMork: { backgroundColor: ny.skogMellan },
   ytaLjus: { backgroundColor: ny.platsLjus },
   ikonStor: { position: 'absolute', top: 12, left: 12 },
+  // Platshållarikonen flyttas ned när tidsbrickan tar övre vänstra hörnet.
+  ikonUnderTid: { top: 46 },
+  tidBricka: {
+    position: 'absolute', top: 11, left: 11, flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 9, height: 26, borderRadius: 13, backgroundColor: ny.bandOverlay,
+  },
+  tidBrickaText: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
   hornknapp: {
     position: 'absolute', top: 9, right: 9, width: 36, height: 36, borderRadius: 18,
     backgroundColor: ny.lime, alignItems: 'center', justifyContent: 'center',
@@ -151,6 +180,8 @@ const gorSt = (ny: NyPalett) => StyleSheet.create({
   radText: { flex: 1, gap: 2 },
   radTitel: { fontFamily: nyFont.fet, fontSize: 16, lineHeight: 20, letterSpacing: -0.3, color: ny.text },
   radMeta: { fontSize: 12, color: ny.textDampad },
+  radTid: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
+  radTidText: { fontSize: 13, fontWeight: '700', color: ny.padYta },
   radKnapp: {
     width: 40, height: 40, borderRadius: 20, backgroundColor: ny.bricka,
     alignItems: 'center', justifyContent: 'center',

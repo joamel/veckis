@@ -555,6 +555,10 @@ export const recipes = {
     addPlaceholder: 'Egen tagg…',
     // Förslags-chips i redigeringsläget (utöver hushållets redan använda taggar)
     suggested: ['favorit', 'vegetariskt', 'snabbt', 'barnvänligt', 'vardag', 'helg', 'billigt'] as readonly string[],
+    pinned:       (tag: string) => `”${tag}” fäst först`,
+    unpinned:     (tag: string) => `”${tag}” inte längre fäst`,
+    pinFailed:    'Kunde inte spara fästa taggar',
+    filterA11y:   (tag: string, pinned: boolean) => `${tag}${pinned ? ', fäst' : ''}. Håll inne för att ${pinned ? 'lossa' : 'fästa först'}`,
   },
 
   sort: {
@@ -565,8 +569,10 @@ export const recipes = {
   },
 
   card: {
-    meta: (servings: number, ingredients: number) =>
-      `${servings} port · ${ingredients} ingredienser`,
+    // Tiden först: raden kapas i slutet på smala kort, och tiden är det man
+    // väljer rätt efter.
+    meta: (servings: number, ingredients: number, tid?: string | null) =>
+      `${tid ? `${tid} · ` : ""}${servings} port · ${ingredients} ingredienser`,
   },
 
   // Ny design (beta)
@@ -709,10 +715,16 @@ export const recipes = {
     noIngredients:  'Inga ingredienser än - tryck för att lägga till',
     originalRecipe: '↗ Originalrecept',
     cookStep:       (current: number, total: number) => `Steg ${current} av ${total}`,
+    cookTimePlaceholder: '–',
+    cookTimeUnit:        'min',
+    cookTimeA11y:        'Tillagningstid i minuter',
+    cookTimeRead:        (tid: string) => `Tillagningstid ${tid}`,
     cookIngredA11y: (namn: string, avbockad: boolean) => `${namn}${avbockad ? ', avbockad' : ''}`,
     cookTimerStart: (tid: string) => `Starta timer ${tid}`,
     cookTimerStopp: 'Stoppa timer',
     cookTimerKlar:  'Klart!',
+    cookTimerAnnatSteg: (steg: number, tid: string) => `Steg ${steg} · ${tid}`,
+    cookTimerAnnatStegA11y: (steg: number) => `Timer på steg ${steg}, gå till steget`,
     cookTimerNotisTitel: 'Timern är klar',
     cookTimerNotisText:  (rätt: string) => `${rätt} – dags att titta till maten.`,
     cookPrev:       'Föregående',

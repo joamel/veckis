@@ -11,6 +11,8 @@ export interface RecipeFields {
   instructions: string;
   imageUrl: string;
   servings: number | null;
+  // Fältets text (minuter). Valfritt av samma skäl som originalName nedan.
+  cookMinutes?: string;
   tags: string[];
   // originalName kan saknas i utkast sparade före fältet fanns — därför
   // valfritt här, och normaliserat till null när utkastet läses in.

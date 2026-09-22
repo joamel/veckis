@@ -15,6 +15,8 @@ export interface Recipe {
    *  bilden beskärs. */
   imageFocusX: number | null;
   imageFocusY: number | null;
+  /** Total tillagningstid i minuter som receptet anger. null = okänd. */
+  cookMinutes: number | null;
   servings: number;
   timesUsed: number;
   /** Gemener/trimmade etiketter ("vegetariskt", "snabbt", "favorit" …) */

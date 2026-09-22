@@ -51,6 +51,7 @@ import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay, MealType } from '@veckis/shared';
 import { DEFAULT_CATEGORY_ORDER, MEAL_TYPE_ORDER } from '@veckis/shared';
 import { menu as str, common, recipes as recipesStr } from '../../src/lib/svenska';
+import { formateraTidsetikett } from '../../src/lib/cookTimer';
 
 // _stableKey håller React-nyckeln konstant genom optimistiska tillägg: när
 // temp-ID:t (satt vid lokal infogning) byts mot serverns riktiga ID ser React
@@ -1951,7 +1952,7 @@ export default function MenuScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={s.recipeCardTitle}>{item.title}</Text>
-                        <Text style={s.recipeCardMeta}>{recipesStr.card.meta(item.servings, item.ingredients.length)}</Text>
+                        <Text style={s.recipeCardMeta}>{recipesStr.card.meta(item.servings, item.ingredients.length, item.cookMinutes ? formateraTidsetikett(item.cookMinutes) : null)}</Text>
                       </View>
                       <Ionicons name="chevron-forward" size={18} color={c.border} />
                     </Pressable>
@@ -2522,8 +2523,25 @@ function MenuCard({
               </View>
             )}
             <View style={s.cardContent}>
-              {item.mealType && (
-                <Text style={[s.cardMealTag, { fontSize: fs(10) }, nyDesign && s.nyMaltid]}>{common.mealTypes[item.mealType].toUpperCase()}</Text>
+              {/* Måltid och tillagningstid på samma rad ovanför titeln — tiden
+                  är beslutsunderlag ("hinner vi det i kväll?") och ska synas
+                  utan att kortet fälls ut. */}
+              {(item.mealType || item.recipe.cookMinutes) && (
+                <View style={s.cardMealRad}>
+                  {item.mealType && (
+                    <Text style={[s.cardMealTag, { fontSize: fs(10) }, nyDesign && s.nyMaltid]}>{common.mealTypes[item.mealType].toUpperCase()}</Text>
+                  )}
+                  {item.recipe.cookMinutes ? (() => {
+                    const tid = formateraTidsetikett(item.recipe.cookMinutes).toUpperCase();
+                    return (
+                      <View style={s.cardTid}>
+                        <Ionicons name="time-outline" size={fs(11)} color={nyDesign ? ny.padYta : c.primary} />
+                        {/* Explicit bredd: Android klipper annars sista glyfen. */}
+                        <Text style={[s.cardMealTag, { fontSize: fs(10), width: Math.ceil(tid.length * fs(7)) + 4 }, nyDesign && s.nyTid]} numberOfLines={1}>{tid}</Text>
+                      </View>
+                    );
+                  })() : null}
+                </View>
               )}
               {/* Ingen chevron i nya designen: att kortet gar att falla ut
                   forstar man anda, och den satt i vagen bredvid rubriken. */}
@@ -2810,6 +2828,7 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   // Android väljer ett reservtypsnitt.
   nyKortTitel: { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 15, letterSpacing: -0.3, color: ny.text },
   nyMaltid: { color: ny.chipText },
+  nyTid: { color: ny.padYta },
   nyTumnagel: { width: 44, height: 44, borderRadius: 11 },
   nyTumnagelTom: { alignItems: 'center', justifyContent: 'center' },
   nyTumMork: { backgroundColor: ny.skogMellan },
@@ -2917,6 +2936,8 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   cardContent: { flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: '600', color: c.text, flexShrink: 1 },
   cardMealTag: { fontSize: 10, fontWeight: '700', color: c.primary, letterSpacing: 0.5, marginBottom: 1 },
+  cardMealRad: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cardTid: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   mealPicker: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 8 },
   mealPickerLabel: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
   mealPickerChips: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' },
