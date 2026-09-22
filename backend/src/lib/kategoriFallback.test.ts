@@ -25,6 +25,17 @@ describe('känndKategori — other är inte ett svar', () => {
     expect(duglingGlobalt('mellermjölk')).toBe(true);
   });
 
+  it('duglingGlobalt släpper inte fram snedstrecksnamn', () => {
+    // Snedstreck betyder "eller" i en inköpslista — leden lärs in var för sig.
+    expect(duglingGlobalt('lax/torsk/alaska pollock')).toBe(false);
+    expect(duglingGlobalt('pommes/potatis')).toBe(false);
+    // Även när bara ett led gick att tolka.
+    expect(duglingGlobalt('grönsakstärning/-fond')).toBe(false);
+    // Bråktal är ingen uppräkning. (Namn som BÖRJAR med siffra stoppas redan
+    // av regeln ovan, så provet får ha siffran senare.)
+    expect(duglingGlobalt('gurka 1/2')).toBe(true);
+  });
+
   it('ger other när ingen vet', () => {
     expect(känndKategori('other', 'blorp')).toBe('other');
   });

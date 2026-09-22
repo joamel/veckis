@@ -57,9 +57,17 @@ export function delaAlternativ(namn: string): string[] {
   const ochDelar = delaOch(namn);
   if (ochDelar) return ochDelar;
 
+  // Snedstreck betyder "eller" i en inköpslista: "lax/torsk", "penne/fusilli",
+  // "pommes/potatis". Utan det här lärdes hela strängen in som EN vara i den
+  // globala poolen — "lax/torsk/alaska pollock" dök alltså upp som ett
+  // sökförslag, medan alternativen aldrig lärdes in var för sig.
+  //
+  // Bara mellan bokstäver: "1/2" är ett bråktal, inte två varor.
+  const medEller = namn.replace(/(?<=\p{L})\s*\/\s*(?=[\p{L}-])/gu, ' eller ');
+
   // Komma fungerar som uppräkning precis som kopplingsorden: "vego-, bland-
   // eller hushållsfärs". Enklast att göra dem till mellanslag direkt.
-  const delar = namn.replace(/,/g, ' ').split(KOPPLINGAR).map(d => d.trim()).filter(Boolean);
+  const delar = medEller.replace(/,/g, ' ').split(KOPPLINGAR).map(d => d.trim()).filter(Boolean);
   if (delar.length < 2) return [namn.trim()].filter(Boolean);
 
   // Ett led kan i sin tur innehålla flera hopdragna alternativ: "vego- bland-"
@@ -80,6 +88,10 @@ export function delaAlternativ(namn: string): string[] {
 
   const ut: string[] = [];
   for (const gren of grenar) {
+    // Bindestreck FÖRST ("grönsakstärning/-fond") betyder att förledet
+    // återanvänds, men vilket led det är går inte att räkna ut — "grönsaks"
+    // eller "grönsakstärnings"? Hellre hoppa över än lära in "-fond".
+    if (gren.startsWith('-')) continue;
     if (!gren.endsWith('-')) { ut.push(gren); continue; }
     // "vego-" utan känt efterled går inte att rekonstruera — hellre hoppa över
     // den än att lära in ett halvt ord som vara.

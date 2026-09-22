@@ -119,6 +119,19 @@ export interface ClientErrorEntry {
   receivedAt: string;
 }
 
+/** En vara ur en importerad lista, innan den lagts till. */
+export type ImportVara = {
+  name: string;
+  quantity: number | null;
+  unit: string | null;
+  /** Namnet som stod i listan, när matchningen bytte ut det. */
+  original?: string | null;
+  /** Varför namnet byttes: hushållets egen basvara, eller kanonisering. */
+  källa?: 'basvara' | 'kanonisering' | null;
+  /** Antal rader varan stod på i källan (>1 visas i granskningen). */
+  antalRader?: number;
+};
+
 export type MembershipWithHousehold = HouseholdMember & { household: Household };
 export type ShoppingItemWithRecipe = ShoppingItem & { recipe: { id: string; title: string } | null };
 export type ShoppingListWithItems = ShoppingList & { items: ShoppingItemWithRecipe[]; store: Store | null };
@@ -470,6 +483,54 @@ export function useApiClient() {
         throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
       }
       return res.json() as Promise<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> } & { recipes?: { title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null }> }[] }>;
+    },
+
+    // Import till inköpslistan: text eller foto → varor att granska, sedan
+    // alla valda i ett anrop.
+    parseShoppingText: (text: string, householdId: string) =>
+      request<{ items: ImportVara[]; kapad: boolean }>('/api/shopping/parse-text', { method: 'POST', body: JSON.stringify({ text, householdId }) }),
+
+    // Rå fetch som receptfotot: ett automatiskt omförsök skulle dra från
+    // fotokvoten en gång till.
+    parseShoppingPhoto: async (uri: string, householdId: string): Promise<{ items: ImportVara[]; kapad: boolean }> => {
+      const compressed = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: await resizeFor(uri, 1568) }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+      );
+      if (!compressed.base64) throw new Error(common.errors.couldNotLoad('bilden'));
+      const token = await getToken();
+      const res = await fetch(`${BASE_URL}/api/shopping/parse-photo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ imageBase64: compressed.base64, householdId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
+      }
+      return res.json() as Promise<{ items: ImportVara[]; kapad: boolean }>;
+    },
+
+    // Skickas i omgångar: servern lägger till en vara i taget (sammanslagning
+    // kräver det), så en enda lång lista hade blivit ett anrop som ligger och
+    // tuggar i en halv minut. Omgångarna ger också något att visa räknaren på.
+    addShoppingItemsBulk: async (listId: string, items: ImportVara[], onProgress?: (klara: number) => void) => {
+      const OMGANG = 50;
+      for (let i = 0; i < items.length; i += OMGANG) {
+        const del = items.slice(i, i + OMGANG);
+        await request<{ items: ShoppingItem[] }>(`/api/shopping/lists/${listId}/items/bulk`, {
+          method: 'POST',
+          body: JSON.stringify({
+            items: del.map(v => ({
+              name: v.name,
+              ...(v.quantity ? { quantity: v.quantity } : {}),
+              ...(v.unit ? { unit: v.unit } : {}),
+            })),
+          }),
+        });
+        onProgress?.(Math.min(i + OMGANG, items.length));
+      }
     },
 
     // Menus

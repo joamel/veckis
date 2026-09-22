@@ -79,12 +79,33 @@ export function paraIhopSvar(strippedNames: string[], svar: unknown[]): string[]
   return strippedNames.map(n => karta.get(n.trim()) ?? n);
 }
 
+// Namn per AI-anrop. Ett recept ryms i ett anrop, men en importerad lista kan
+// ha hundratals namn — och då kapades svaret av max_tokens, tolkningen kastade
+// och catchen gav tillbaka namnen ORÖRDA. Kanoniseringen såg alltså ut att
+// köra medan den inte gjorde något alls. Omgångarna körs några i taget:
+// helt sekventiellt tog en skafferilista nästan en minut.
+const NAMN_PER_ANROP = 20;
+const SAMTIDIGA_ANROP = 4;
+
 async function aiNormalizeNames(strippedNames: string[]): Promise<string[]> {
   if (!anthropic || strippedNames.length === 0) return strippedNames;
+  if (strippedNames.length > NAMN_PER_ANROP) {
+    const omgångar: string[][] = [];
+    for (let i = 0; i < strippedNames.length; i += NAMN_PER_ANROP) {
+      omgångar.push(strippedNames.slice(i, i + NAMN_PER_ANROP));
+    }
+    const svar: string[][] = [];
+    for (let i = 0; i < omgångar.length; i += SAMTIDIGA_ANROP) {
+      const del = await Promise.all(omgångar.slice(i, i + SAMTIDIGA_ANROP).map(o => aiNormalizeNames(o)));
+      svar.push(...del);
+    }
+    return svar.flat();
+  }
   try {
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 512,
+      // ~25 tokens per namn i svaret, med marginal för långa namn.
+      max_tokens: 1024,
       messages: [{
         role: 'user',
         content: `Input: ${JSON.stringify(strippedNames)}\nOutput:`,
@@ -202,6 +223,11 @@ export function duglingGlobalt(canonical: string): boolean {
   // inköpslistan behåller hela texten så valet finns kvar för den som handlar.
   // Skyddar också mot rader som redan hunnit in i databasen.
   if (/\s(?:eller|alt\.?|alternativt)\s/i.test(c)) return false;
+  // Snedstreck betyder "eller" i en lista ("lax/torsk", "pommes/potatis").
+  // delaAlternativ delar dem och lär in leden var för sig, men fångar inte
+  // det fall där bara ETT led gick att tolka ("grönsakstärning/-fond") — och
+  // den sammansatta strängen är ingen vara oavsett.
+  if (/\p{L}\s*\/\s*[\p{L}-]/u.test(c)) return false;
   // "salt och svartpeppar" är två varor, inte en — och delaAlternativ lär in
   // dem var för sig. Den sammansatta strängen ska därför inte föreslås.
   // Bara när BÅDA sidor är kända varor: "kött- och grillkrydda" är en produkt.

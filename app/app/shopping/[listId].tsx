@@ -59,7 +59,8 @@ import { pickStore } from '../../src/lib/storePicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/expo';
-import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe } from '../../src/api/client';
+import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe, type ImportVara } from '../../src/api/client';
+import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
@@ -395,6 +396,19 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [savingStaple, setSavingStaple] = useState(false);
 
   const [showActionsMenu, setShowActionsMenu] = useState(false);
+  // Import av en annan lista: foto (ofta handskriven lapp) eller inklistrad
+  // text → granska → lägg till de valda i den här listan.
+  const [importSteg, setImportSteg] = useState<null | 'val' | 'text' | 'laddar' | 'granska'>(null);
+  const [importText, setImportText] = useState('');
+  const [importVaror, setImportVaror] = useState<ImportVara[]>([]);
+  const [importValda, setImportValda] = useState<Set<number>>(new Set());
+  const [importerar, setImporterar] = useState(false);
+  const [importKapad, setImportKapad] = useState(false);
+  const [importKlara, setImportKlara] = useState(0);
+  // Rader där användaren valt att behålla listans eget namn i stället för
+  // det matchade.
+  const [importBehallOriginal, setImportBehallOriginal] = useState<Set<number>>(new Set());
+  const importTextRef = useRef<TextInput>(null);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState('');
 
@@ -748,6 +762,81 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Most-added staples (getStaples returns them usageCount-desc) — shown as
   // quick-add chips when the add field is empty so återkommande inköp går snabbt.
   const topStaples = useMemo(() => staples.filter(s => s.usageCount > 0).slice(0, 8), [staples]);
+
+  function visaImportGranskning(items: ImportVara[], kapad = false) {
+    if (items.length === 0) {
+      showGlobalToast(str.importera.ingaVaror, 'neutral');
+      setImportSteg('val');
+      return;
+    }
+    setImportVaror(items);
+    setImportValda(new Set(items.map((_, i) => i)));
+    setImportBehallOriginal(new Set());
+    setImportKapad(kapad);
+    setImportSteg('granska');
+  }
+
+  // Arket stängs medan kameran/biblioteket är öppet och kommer tillbaka först
+  // när en bild faktiskt valts — backar man ur kameran ligger man kvar i
+  // listan, som receptfotots flöde.
+  async function importeraFoto(källa: 'camera' | 'library') {
+    setImportSteg(null);
+    let uri: string | null = null;
+    try {
+      const res = källa === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+      if (res.canceled || res.assets.length === 0) return;
+      uri = res.assets[0].uri;
+    } catch (err) {
+      showError(err, str.importera.fotoMisslyckades);
+      return;
+    }
+    setImportSteg('laddar');
+    try {
+      const { items, kapad } = await client.parseShoppingPhoto(uri, householdId ?? '');
+      visaImportGranskning(items, kapad);
+    } catch (err) {
+      setImportSteg('val');
+      showError(err, str.importera.fotoMisslyckades);
+    }
+  }
+
+  async function importeraText() {
+    const text = importText.trim();
+    if (!text) return;
+    Keyboard.dismiss();
+    setImportSteg('laddar');
+    try {
+      const { items, kapad } = await client.parseShoppingText(text, householdId ?? '');
+      visaImportGranskning(items, kapad);
+    } catch (err) {
+      setImportSteg('text');
+      showError(err, str.importera.textMisslyckades);
+    }
+  }
+
+  async function läggTillImport() {
+    if (!listId) return;
+    const valda = importVaror
+      .map((v, i) => (importBehallOriginal.has(i) && v.original ? { ...v, name: v.original } : v))
+      .filter((_, i) => importValda.has(i));
+    if (valda.length === 0) return;
+    setImporterar(true);
+    setImportKlara(0);
+    try {
+      await client.addShoppingItemsBulk(listId, valda, setImportKlara);
+      setImportSteg(null);
+      setImportText('');
+      setImportVaror([]);
+      showGlobalToast(str.importera.tillagda(valda.length), 'success');
+      load();
+    } catch (err) {
+      showError(err, str.importera.laggTillMisslyckades);
+    } finally {
+      setImporterar(false);
+    }
+  }
 
   const load = useCallback(async () => {
     if (!listId || !householdId) return;
@@ -2654,6 +2743,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); setImportSteg('val'); }}
+          >
+            <Ionicons name="document-text-outline" size={20} color={c.primary} />
+            <Text style={s.actionsMenuText}>{str.actionsMenu.importItems}</Text>
+          </Pressable>
+          <Pressable
+            style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); goToBulkTransfer(); }}
           >
             <Ionicons name="restaurant-outline" size={20} color={c.primary} />
@@ -2728,6 +2824,137 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             >
               {renaming ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{common.actions.save}</Text>}
             </Pressable>
+      </DraggableBottomSheet>
+
+      {/* Importera varor: välj källa → (text) → läser av → granska. */}
+      <DraggableBottomSheet
+        visible={importSteg !== null}
+        onRequestClose={() => { if (!importerar) setImportSteg(null); }}
+        liftOffset={sheetLift}
+        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85 }]}
+        bodyStyle={s.sheetBody}
+        title={importSteg === 'granska' ? str.importera.granskaTitel(importVaror.length) : str.importera.titel}
+        subtitle={importSteg === 'granska' ? str.importera.granskaUnder : importSteg === 'val' ? str.importera.valUnder : undefined}
+      >
+        {importSteg === 'val' && (
+          <View style={s.importVal}>
+            {([
+              ['camera-outline', str.importera.kamera, str.importera.kameraHint, () => importeraFoto('camera')],
+              ['images-outline', str.importera.bild, str.importera.bildHint, () => importeraFoto('library')],
+              ['clipboard-outline', str.importera.text, str.importera.textHint, () => setImportSteg('text')],
+            ] as const).map(([ikon, titel, hint, onPress]) => (
+              <Pressable key={titel} style={s.importKnapp} onPress={onPress} accessibilityRole="button">
+                <Ionicons name={ikon} size={22} color={c.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.importKnappText}>{titel}</Text>
+                  <Text style={s.importKnappHint}>{hint}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
+              </Pressable>
+            ))}
+          </View>
+        )}
+        {importSteg === 'text' && (
+          <>
+            <TextInput
+              ref={importTextRef}
+              style={[s.editInput, s.importTextFalt]}
+              value={importText}
+              onChangeText={setImportText}
+              placeholder={str.importera.textPlaceholder}
+              placeholderTextColor={c.textFaint}
+              multiline
+              autoFocus
+              onFocus={onFocusInput(importTextRef)}
+            />
+            <Pressable
+              style={[s.qtyConfirm, !importText.trim() && s.saveBtnDisabled]}
+              onPress={importeraText}
+              disabled={!importText.trim()}
+            >
+              <Text style={s.qtyConfirmText}>{str.importera.tolka}</Text>
+            </Pressable>
+          </>
+        )}
+        {importSteg === 'laddar' && (
+          <View style={s.importLaddar}>
+            <ActivityIndicator color={c.primary} />
+            <Text style={s.importKnappHint}>{str.importera.laser}</Text>
+          </View>
+        )}
+        {importSteg === 'granska' && (
+          <>
+            {importKapad && (
+              <Text style={[s.importKnappHint, s.importKapad]}>{str.importera.kapad(importVaror.length)}</Text>
+            )}
+            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
+              {importVaror.map((v, i) => {
+                const vald = importValda.has(i);
+                const behallOriginal = importBehallOriginal.has(i);
+                return (
+                  <Pressable
+                    key={i}
+                    style={s.mergeItem}
+                    onPress={() => setImportValda(prev => {
+                      const n = new Set(prev);
+                      if (n.has(i)) n.delete(i); else n.add(i);
+                      return n;
+                    })}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: vald }}
+                  >
+                    <Ionicons name={vald ? 'checkbox' : 'square-outline'} size={22} color={vald ? c.primary : c.textFaint} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.mergeItemName, !vald && s.importAvvald]} numberOfLines={1}>
+                        {capitalize(behallOriginal && v.original ? v.original : v.name)}
+                      </Text>
+                      {(v.original || (v.antalRader ?? 1) > 1) && (
+                        <Text style={[s.importUnder, !vald && s.importAvvald]} numberOfLines={1}>
+                          {[
+                            v.original
+                              ? (behallOriginal
+                                  ? str.importera.matchadTill(v.name)
+                                  : str.importera.frånNamn(v.original))
+                              : null,
+                            (v.antalRader ?? 1) > 1 ? str.importera.antalRader(v.antalRader!) : null,
+                          ].filter(Boolean).join(' · ')}
+                        </Text>
+                      )}
+                    </View>
+                    {v.quantity ? (
+                      <Text style={[s.mergeItemQty, !vald && s.importAvvald]}>
+                        {String(v.quantity).replace('.', ',')}{v.unit ? ` ${v.unit}` : ''}
+                      </Text>
+                    ) : null}
+                    {v.original ? (
+                      <Pressable
+                        onPress={() => setImportBehallOriginal(prev => {
+                          const n = new Set(prev);
+                          if (n.has(i)) n.delete(i); else n.add(i);
+                          return n;
+                        })}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={behallOriginal ? str.importera.användMatchad : str.importera.behållOriginal}
+                      >
+                        <Ionicons name="swap-horizontal" size={18} color={behallOriginal ? c.primary : c.textFaint} />
+                      </Pressable>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <Pressable
+              style={[s.qtyConfirm, (importValda.size === 0 || importerar) && s.saveBtnDisabled]}
+              onPress={läggTillImport}
+              disabled={importValda.size === 0 || importerar}
+            >
+              {importerar
+                ? <Text style={s.qtyConfirmText}>{str.importera.laggerTill(importKlara, importValda.size)}</Text>
+                : <Text style={s.qtyConfirmText}>{str.importera.laggTill(importValda.size)}</Text>}
+            </Pressable>
+          </>
+        )}
       </DraggableBottomSheet>
 
       {/* Manual duplicate picker */}
@@ -3108,6 +3335,15 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // Litet antalsfält (inte flex) så enhet får plats på samma rad som i native-appen.
   qtyInput: { width: 70, textAlign: 'center', fontSize: 16, fontWeight: '600', color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingVertical: 10, backgroundColor: c.inputBg },
   qtyUnitInput: { flex: 1, minWidth: 0, fontSize: 16, color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: c.inputBg },
+  importVal: { gap: 8 },
+  importKnapp: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 14, borderRadius: 14, backgroundColor: c.surfaceSubtle },
+  importKnappText: { fontSize: 16, fontWeight: '600', color: c.text },
+  importKnappHint: { fontSize: 13, color: c.textMuted },
+  importTextFalt: { minHeight: 160, maxHeight: 260, textAlignVertical: 'top', marginBottom: 12 },
+  importLaddar: { alignItems: 'center', gap: 10, paddingVertical: 32 },
+  importAvvald: { opacity: 0.4, textDecorationLine: 'line-through' },
+  importUnder: { fontSize: 12, color: c.textMuted },
+  importKapad: { paddingBottom: 8 },
   qtyConfirm: { backgroundColor: ny.lime, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   qtyConfirmText: { color: ny.skog, fontSize: 16, fontWeight: '600' },
   mergeList: { maxHeight: 200, flexGrow: 0 },

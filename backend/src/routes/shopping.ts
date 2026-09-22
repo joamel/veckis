@@ -20,6 +20,19 @@ import { inferSubCategory, parentForSub, type SubCategory , tillSvenskEnhet } fr
 import { sendPush, notifyActiveShopper } from '../lib/sendPush';
 import { planFullUnmerge, findRoot } from '../lib/mergeLogic';
 import { planAutoMerge } from '../lib/importDedupe';
+import Anthropic from '@anthropic-ai/sdk';
+import { tolkaInköpslista } from '../lib/inkopstext';
+import { matchaImportnamn, type MatchadVara } from '../lib/importMatchning';
+import { normalizeIngredientNames } from '../lib/normalizeIngredients';
+import { tolkaJsonSvar, InteJsonError, textUr } from '../lib/aiJson';
+import { bokförAiKostnad } from '../lib/aiCost';
+import { taFotokvot, MAX_FOTON_PER_MANAD } from '../lib/photoQuota';
+import { parseTextLimiter } from '../lib/rateLimits';
+import { delaUppDataUrl } from './recipes';
+
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null;
 
 export const shoppingRouter = Router();
 
@@ -279,15 +292,25 @@ shoppingRouter.patch('/lists/:listId', requireAuth, asyncHandler(async (req, res
   res.json(updated);
 }));
 
-// POST /api/shopping/lists/:listId/items
-shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req, res) => {
-  const list = await getListAndVerifyMember(req.params.listId, (req as AuthenticatedRequest).clerkUserId, res);
-  if (!list) return;
+type ListaFörTillägg = NonNullable<Awaited<ReturnType<typeof prisma.shoppingList.findUnique>>>;
 
-  const body = addItemSchema.safeParse(req.body);
-  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+/**
+ * Lägger en vara i en lista — kategori ur basvara/klassare, svensk enhet,
+ * sammanslagning med en obockad rad med samma namn och enhet, broadcast.
+ * Delas av enstaka tillägg och importen, så en importerad vara hamnar
+ * exakt där samma vara hade hamnat om man skrivit in den.
+ *
+ * notifiera: "jag handlar"-pushen per vara. Importen skickar i stället EN
+ * sammanfattande notis, annars blev det en push per rad.
+ */
+async function läggTillVara(
+  list: ListaFörTillägg,
+  data: z.infer<typeof addItemSchema>,
+  clerkUserId: string,
+  notifiera = true,
+): Promise<{ item: Prisma.ShoppingItemGetPayload<object>; sammanslagen: boolean }> {
 
-  const normalizedName = stripIngredient(body.data.name);
+  const normalizedName = stripIngredient(data.name);
   const staplePref = await prisma.stapleItem.findUnique({
     where: { householdId_name: { householdId: list.householdId, name: normalizedName } },
     select: { category: true, subCategory: true },
@@ -301,11 +324,11 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   }
   // SubCategory är källan till sanning i 2-nivå-taxonomin. Auto-infer från
   // namnet om kallaren inte angav. Category härleds från sub:ens defaultParent
-  // — kallaren kan override:a via body.data.category om de redan vet.
+  // — kallaren kan override:a via data.category om de redan vet.
   // Hushålls-lokal placering (egen parent/underkategori) → hoppa över auto-
   // inferens av standard-sub OCH den globala inlärningen; det är rena lokala
   // etiketter som inte ska påverka cross-household-datan.
-  const isLocalPlacement = !!(body.data.customCategory || body.data.customSubCategory);
+  const isLocalPlacement = !!(data.customCategory || data.customSubCategory);
   // Hushållets egen basvara går före auto-inferensen. inferSubCategory är en
   // gissning på namnet, och en gissning ska aldrig slå ett val någon gjort för
   // hand — det var precis vad som hände: satte man kategori i basvaru-editorn
@@ -313,11 +336,11 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   // ("aubergine", "bröd"), medan namn utan ("avokado", "bacon") respekterades.
   // Utifrån såg det ut som att ändringen slog igenom ibland och ibland inte.
   const inferredSub = isLocalPlacement
-    ? (body.data.subCategory ?? null)
-    : (body.data.subCategory ?? staplePref?.subCategory ?? inferSubCategory(normalizedName));
+    ? (data.subCategory ?? null)
+    : (data.subCategory ?? staplePref?.subCategory ?? inferSubCategory(normalizedName));
   const subCategory = inferredSub ?? null;
-  const category = body.data.category !== 'other'
-    ? body.data.category
+  const category = data.category !== 'other'
+    ? data.category
     // Basvaran FÖRE underkategorin, av samma skäl som ovan: har hushållet sagt
     // "bacon hör till chark" ska en inferens om namnet inte flytta tillbaka den.
     // Ordningen: hushållets eget val, sedan underkategorin, sedan det globala
@@ -340,7 +363,7 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
   // vara ett sökförslag vars basvara ärvt "teaspoon" från ett engelskt recept,
   // eller en klient som skickar något oväntat. Receptet behåller källans ord —
   // listan ska gå att läsa i butiken.
-  const svensk = tillSvenskEnhet(body.data.quantity, body.data.unit);
+  const svensk = tillSvenskEnhet(data.quantity, data.unit);
 
   // Dubblettsökningen använder den KONVERTERADE enheten. Annars matchade "tsk"
   // inte en befintlig rad med "teaspoon", och samma vara blev två rader som
@@ -363,29 +386,161 @@ shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req
       data: { quantity: existing.quantity + (svensk.quantity ?? 1) },
     });
     if (!isLocalPlacement) learnIngredientAliases([{ name: normalizedName, category }], list.householdId).catch(() => {});
-    notifyActiveShopper(list, (req as AuthenticatedRequest).clerkUserId, item.name).catch(() => {});
+    if (notifiera) notifyActiveShopper(list, clerkUserId, item.name).catch(() => {});
     bcast(list, { type: 'item_updated', data: item });
-    res.status(200).json(item);
-    return;
+    return { item, sammanslagen: true };
   }
 
   const item = await prisma.shoppingItem.create({
     data: {
       listId: list.id,
-      ...body.data,
-      quantity: svensk.quantity ?? body.data.quantity,
+      ...data,
+      quantity: svensk.quantity ?? data.quantity,
       unit: svensk.unit,
       name: normalizedName,
       category,
       subCategory,
-      addedBy: (req as AuthenticatedRequest).clerkUserId,
+      addedBy: clerkUserId,
     },
   });
 
   if (!isLocalPlacement) learnIngredientAliases([{ name: normalizedName, category }], list.householdId).catch(() => {});
-  notifyActiveShopper(list, (req as AuthenticatedRequest).clerkUserId, item.name).catch(() => {});
+  if (notifiera) notifyActiveShopper(list, clerkUserId, item.name).catch(() => {});
   bcast(list, { type: 'item_added', data: item });
-  res.status(201).json(item);
+  return { item, sammanslagen: false };
+}
+
+// POST /api/shopping/lists/:listId/items
+shoppingRouter.post('/lists/:listId/items', requireAuth, asyncHandler(async (req, res) => {
+  const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+  const list = await getListAndVerifyMember(req.params.listId, clerkUserId, res);
+  if (!list) return;
+
+  const body = addItemSchema.safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const { item, sammanslagen } = await läggTillVara(list, body.data, clerkUserId);
+  res.status(sammanslagen ? 200 : 201).json(item);
+}));
+
+/**
+ * Tolkade rader → namn hushållet känner igen. Se importMatchning.ts: egna
+ * basvaror först (stavfel), AI-kanonisering sedan (varumärken, omskrivningar).
+ * Utan det blev varje importerad lista en hög nya varor vid sidan av dem
+ * hushållet redan hade: "Mozarella", "Arla standardmjölk", "kanel, malen".
+ */
+async function matchaMotHushallet(householdId: string, varor: { name: string; quantity: number | null; unit: string | null }[]): Promise<MatchadVara[]> {
+  const basvaror = await prisma.stapleItem.findMany({
+    where: { householdId },
+    select: { name: true },
+  });
+  return matchaImportnamn(varor, basvaror.map(b => b.name), normalizeIngredientNames);
+}
+
+// POST /api/shopping/parse-text
+// Inklistrad lista → varor att granska. Radtolkningen är regelbaserad
+// (inkopstext.ts); AI används bara för att känna igen namn.
+shoppingRouter.post('/parse-text', requireAuth, asyncHandler(async (req, res) => {
+  const body = z.object({ text: z.string().min(1).max(100000), householdId: z.string() }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: 'Ingen text' }); return; }
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId: body.data.householdId, clerkUserId: (req as AuthenticatedRequest).clerkUserId } },
+  });
+  if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
+  const { varor, kapad } = tolkaInköpslista(body.data.text);
+  res.json({ items: await matchaMotHushallet(body.data.householdId, varor), kapad });
+}));
+
+const INGA_VAROR_I_BILD = 'Hittade inga varor i bilden. Prova en skarpare bild där hela listan syns.';
+const FOTOKVOT_SLUT = `Du har tolkat ${MAX_FOTON_PER_MANAD} foton den här månaden, vilket är taket. Klistra in listan som text så länge, eller vänta till nästa månad.`;
+
+// POST /api/shopping/parse-photo
+// Foto av en lista (ofta handskriven) → varor att granska. Samma modell och
+// samma månadskvot som receptfotona — handstil är det svåra, och det är den
+// modellen som klarar receptlappar.
+shoppingRouter.post('/parse-photo', parseTextLimiter, requireAuth, asyncHandler(async (req, res) => {
+  const body = z.object({ imageBase64: z.string().min(1), householdId: z.string() }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: 'Ingen bild' }); return; }
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId: body.data.householdId, clerkUserId: (req as AuthenticatedRequest).clerkUserId } },
+  });
+  if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
+  if (!anthropic) { res.status(503).json({ error: 'AI-tolkning inte tillgänglig' }); return; }
+
+  const kvot = await taFotokvot((req as AuthenticatedRequest).clerkUserId);
+  if (!kvot.tillåtet) { res.status(429).json({ error: FOTOKVOT_SLUT }); return; }
+
+  const bild = delaUppDataUrl(body.data.imageBase64);
+  let tolkat: { rader?: unknown };
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-sonnet-5',
+      max_tokens: 4096,
+      // Modellen SKRIVER AV raderna och markerar bara överstrykning och
+      // rubriker — tolkningen av mängd och enhet gör samma kod som för
+      // inklistrad text. Första versionen bad modellen ge färdiga varor och
+      // hoppa över det den inte kunde läsa; den tappade då läsbara rader
+      // ("bröd", "smör") helt, fast den skrev av dem rätt när den bara fick
+      // skriva av.
+      system: `Du skriver av inköpslistor från foton — oftast handskrivna lappar, ibland skärmbilder eller tryckta listor, på svenska.
+Returnera ENBART giltig JSON utan förklaringar eller markdown-kodblock:
+{ "rader": [{ "text": "mjölk 2 l", "overstruken": false, "rubrik": false }] }
+
+Regler:
+- Skriv av VARJE rad på listan, i ordning, exakt som den står — med mängder och enheter.
+- Hoppa aldrig över en rad. Är den svårläst: skriv din bästa läsning.
+- overstruken: true om raden är överstruken eller avbockad, annars false.
+- rubrik: true för sådant som inte är en vara — rubriker ("Handla", "Mejeri:"), datum, butiksnamn. Annars false.
+- Ser du ingen lista: { "rader": [] }.`,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: bild.mediaType, data: bild.base64 } },
+          { type: 'text', text: 'Skriv av inköpslistan på bilden.' },
+        ],
+      }],
+    });
+    await bokförAiKostnad('claude-sonnet-5', msg.usage);
+    tolkat = tolkaJsonSvar(textUr(msg)) as typeof tolkat;
+  } catch (err) {
+    if (err instanceof InteJsonError) { res.status(422).json({ error: INGA_VAROR_I_BILD }); return; }
+    const errMsg = err instanceof Error ? err.message : 'AI-anropet misslyckades';
+    console.error('Shopping photo parsing error:', errMsg);
+    res.status(422).json({ error: errMsg });
+    return;
+  }
+
+  // Allt från modellen är osäkert tills det validerats — fel typ ger ett tomt
+  // värde, inte ett kraschat svar. Kvar blir raderna som är varor; de tolkas
+  // som en inklistrad lista.
+  const text = (Array.isArray(tolkat.rader) ? tolkat.rader : [])
+    .map(r => r as { text?: unknown; overstruken?: unknown; rubrik?: unknown })
+    .filter(r => typeof r?.text === 'string' && r.overstruken !== true && r.rubrik !== true)
+    .map(r => (r.text as string).trim())
+    .join('\n');
+  const { varor, kapad } = tolkaInköpslista(text);
+  if (varor.length === 0) { res.status(422).json({ error: INGA_VAROR_I_BILD }); return; }
+  res.json({ items: await matchaMotHushallet(body.data.householdId, varor), kapad });
+}));
+
+// POST /api/shopping/lists/:listId/items/bulk
+// Importen: flera varor på en gång, i ordning (inte parallellt — två rader
+// med samma namn ska slås ihop, och parallellt hade de tävlat om samma rad).
+shoppingRouter.post('/lists/:listId/items/bulk', requireAuth, asyncHandler(async (req, res) => {
+  const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
+  const list = await getListAndVerifyMember(req.params.listId, clerkUserId, res);
+  if (!list) return;
+
+  const body = z.object({ items: z.array(addItemSchema).min(1).max(100) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const items = [];
+  for (const vara of body.data.items) {
+    const { item } = await läggTillVara(list, vara, clerkUserId, false);
+    items.push(item);
+  }
+  notifyActiveShopper(list, clerkUserId, `${items.length} varor`).catch(() => {});
+  res.status(201).json({ items });
 }));
 
 // DELETE /api/shopping/lists/:listId/items  (clear all items, keep the list)

@@ -8,6 +8,23 @@ describe('delaAlternativ', () => {
     expect(delaAlternativ('körsbärstomater eller romanticatomater')).toEqual(['körsbärstomater', 'romanticatomater']);
   });
 
+  it('delar på snedstreck — "lax/torsk" är två varor', () => {
+    expect(delaAlternativ('lax/torsk')).toEqual(['lax', 'torsk']);
+    expect(delaAlternativ('lax/torsk/alaska pollock')).toEqual(['lax', 'torsk', 'alaska pollock']);
+    expect(delaAlternativ('penne/fusilli')).toEqual(['penne', 'fusilli']);
+    expect(delaAlternativ('pommes / potatis')).toEqual(['pommes', 'potatis']);
+  });
+
+  it('rör inte snedstreck mellan siffror', () => {
+    // "1/2 gurka" är ett bråktal, inte två varor.
+    expect(delaAlternativ('1/2 gurka')).toEqual(['1/2 gurka']);
+  });
+
+  it('hoppar över led med bindestreck först', () => {
+    // "grönsakstärning/-fond": förledet går inte att räkna ut.
+    expect(delaAlternativ('grönsakstärning/-fond')).toEqual(['grönsakstärning']);
+  });
+
   it('fyller i efterledet vid hopdragna uppräkningar', () => {
     // Bindestrecket står för efterledet i det sista alternativet.
     expect(delaAlternativ('vego- bland- eller hushållsfärs')).toEqual(['vegofärs', 'blandfärs', 'hushållsfärs']);
