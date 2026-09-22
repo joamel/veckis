@@ -27,7 +27,7 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
   const s = useMemo(() => makeStyles(c, ny), [c, ny]);
 
   return (
-    <View style={[s.container, arNy && s.nyContainer, { paddingHorizontal: sp(arNy ? 4 : 12), paddingVertical: sp(arNy ? 3 : 10) }]}>
+    <View style={[s.container, arNy && s.nyContainer, { paddingHorizontal: sp(arNy ? 4 : 12), paddingVertical: sp(arNy ? 7 : 10) }]}>
       {/* Rendered first so arrows appear on top of it in touch handling */}
       <Pressable style={s.labelBtn} onPress={onPickDate ?? onToday}>
         <Text style={[s.label, { fontSize: fs(14) }, isCurrentWeek && s.labelCurrent, isPastWeek && s.labelPast, arNy && s.nyLabel, arNy && isPastWeek && s.nyLabelPast]}>{weekLabel}</Text>

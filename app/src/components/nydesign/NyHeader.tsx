@@ -18,7 +18,12 @@ export function NyHeader({ title, subtitle, onBack, backLabel, right, children, 
 }) {
   const ny = useNy();
   const st = useMemo(() => gorSt(ny), [ny]);
+  // Ytan bakom bandet har sidans bakgrundsfärg. Utan den låg bandet direkt på
+  // skärmens gröna yta (statusfältets färg) i de flesta vyer, och de rundade
+  // hörnen smälte in — bara receptlistan, som hade en egen ljus yta runt,
+  // visade dem.
   return (
+    <View style={st.bakom}>
     <View style={st.band}>
       {/* Med bakåtpil linjerar raden i MITTEN. Med underkant hamnade pilen
           (42 px) aldrig i höjd med rubriken (38 px), och fanns en underrubrik
@@ -35,6 +40,7 @@ export function NyHeader({ title, subtitle, onBack, backLabel, right, children, 
         {right}
       </View>
       {children}
+    </View>
     </View>
   );
 }
@@ -78,6 +84,7 @@ export function NyTextKnapp({ icon, label, onPress }: {
 const gorSt = (ny: NyPalett) => StyleSheet.create({
   textKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 42, paddingHorizontal: 14, borderRadius: 14, backgroundColor: ny.glas },
   textKnappText: { fontSize: 14, fontWeight: '600', color: ny.rubrikLjus },
+  bakom: { backgroundColor: ny.bakgrund },
   band: {
     backgroundColor: ny.skog,
     borderBottomLeftRadius: 24,

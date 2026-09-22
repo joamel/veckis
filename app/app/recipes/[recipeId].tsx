@@ -115,7 +115,7 @@ function IngredientDragHandle({ idx, onDragStart, onDragMove, onDragEnd }: {
   );
 }
 
-export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, cook, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; onClose?: () => void }) {
+export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, cook, servings: servingsParam, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; servings?: string; onClose?: () => void }) {
   const edit = editParam;
   // Sentinel-id från /recipes/new. Riktiga id:n är cuid, så ingen krock.
   const isNew = recipeId === 'new';
@@ -476,7 +476,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     try {
       const r = await client.getRecipe(recipeId);
       setRecipe(r);
-      setScaledServings(null);
+      // servings= kommer från veckomenyn: rätten kan vara skalad där, och då
+      // ska receptet och laga-läget visa samma mängder som menyn — inte
+      // originalreceptets.
+      const menyPortioner = servingsParam ? parseInt(servingsParam, 10) : NaN;
+      setScaledServings(Number.isFinite(menyPortioner) && menyPortioner > 0 && menyPortioner !== r.servings ? menyPortioner : null);
       if (transfer === '1') openTransfer(r);
       // Öppnas först när receptet finns: laga-läget renderar stegen, och utan
       // data hade det visat ett tomt skal en kort stund.
@@ -1908,7 +1912,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                           hitSlop={4}
                           accessibilityRole="checkbox"
                           accessibilityState={{ checked: avbockad }}
-                          accessibilityLabel={str.detail.cookIngredA11y(formatIngredient(ing, 1), avbockad)}
+                          accessibilityLabel={str.detail.cookIngredA11y(formatIngredient(ing, scaleRatio), avbockad)}
                         >
                           <Ionicons
                             name={avbockad ? 'checkmark-circle' : 'ellipse-outline'}
@@ -1916,7 +1920,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                             color={avbockad ? c.primary : c.borderLight}
                           />
                           <Text style={[s.cookIngredItem, avbockad && s.cookIngredItemAvbockad]}>
-                            {formatIngredient(ing, 1)}
+                            {formatIngredient(ing, scaleRatio)}
                           </Text>
                         </Pressable>
                       );
@@ -2285,6 +2289,6 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
 });
 
 export default function RecipeDetailScreen() {
-  const { recipeId, transfer, edit, forMenuDay, forMenuWeek, from, cook } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string }>();
-  return <RecipeDetail recipeId={recipeId} transfer={transfer} edit={edit} forMenuDay={forMenuDay} forMenuWeek={forMenuWeek} from={from} cook={cook} />;
+  const { recipeId, transfer, edit, forMenuDay, forMenuWeek, from, cook, servings } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; servings?: string }>();
+  return <RecipeDetail recipeId={recipeId} transfer={transfer} edit={edit} forMenuDay={forMenuDay} forMenuWeek={forMenuWeek} from={from} cook={cook} servings={servings} />;
 }

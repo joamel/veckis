@@ -76,8 +76,8 @@ function makeReqId(): string {
 }
 
 export default function RecipesScreen() {
-  const { colors: c, ny } = useTheme();
-  const s = useMemo(() => makeStyles(c, ny), [c, ny]);
+  const { colors: c, ny, scheme } = useTheme();
+  const s = useMemo(() => makeStyles(c, ny, scheme === 'dark'), [c, ny, scheme]);
   const router = useRouter();
   const params = useLocalSearchParams<{ create?: string; forMenuDay?: string; replaceMenuItemId?: string; replaceTitle?: string; forMenuWeek?: string; chooseDay?: string }>();
   const createTriggeredRef = useRef(false);
@@ -976,7 +976,7 @@ export default function RecipesScreen() {
               delayLongPress={350}
               accessibilityLabel={str.tags.filterA11y(t, pinnedTags.includes(t))}
             >
-              {pinnedTags.includes(t) && <Ionicons name="pin" size={12} color={aktiv ? ny.lime : ny.chipText} />}
+              {pinnedTags.includes(t) && <Ionicons name="pin" size={12} color={aktiv ? (scheme === 'dark' ? ny.skog : ny.lime) : ny.chipText} />}
               <Text style={[s.nyTaggText, aktiv && s.nyTaggTextAktiv]}>{t}</Text>
             </Pressable>
           );
@@ -1309,7 +1309,7 @@ export default function RecipesScreen() {
   );
 }
 
-const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
+const makeStyles = (c: Palette, ny: NyPalett, mork = false) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   subHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle, gap: 12 },
@@ -1350,9 +1350,13 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   nyTaggClear: { marginLeft: 6, paddingBottom: 4 },
   nyTaggar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 4, paddingRight: 6 },
   nyTagg: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 13, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: ny.kontur },
-  nyTaggAktiv: { backgroundColor: ny.skog, borderColor: ny.skog },
+  // Mörkt tema: skog-grönt ligger nästan på bakgrunden, så en vald tagg
+  // syntes knappt. Där blir den lime med mörk text i stället.
+  nyTaggAktiv: mork
+    ? { backgroundColor: ny.lime, borderColor: ny.lime }
+    : { backgroundColor: ny.skog, borderColor: ny.skog },
   nyTaggText: { fontSize: 13, fontWeight: '600', color: ny.chipText },
-  nyTaggTextAktiv: { color: ny.lime },
+  nyTaggTextAktiv: { color: mork ? ny.skog : ny.lime },
   nyFab: { backgroundColor: ny.lime, shadowColor: ny.skog, shadowOpacity: 0.3 },
   // Bakgrund, rundning och padding kommer från DraggableBottomSheet.
   sheetBody: { gap: 14 },

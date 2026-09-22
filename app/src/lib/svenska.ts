@@ -403,7 +403,7 @@ export const menu = {
   },
 
   toasts: {
-    scalingAffectsNothing:    'Receptet är redan i en inköpslista - skalningen påverkar inte listan automatiskt',
+    scalingLocked:            'Rätten ligger redan i inköpslistan – ta bort den där för att ändra portionerna',
     recipeAdded:              'Recept tillagd till menyn',
     transferred:              (n: number) => `${n} ${n === 1 ? 'rätt' : 'rätter'} ${n === 1 ? 'överförd' : 'överförda'} till inköpslistan`,
     removedSingle:            'Recept borttagen från menyn',
@@ -455,6 +455,7 @@ export const menu = {
     moveToDay:        'Flytta till dag',
     servings:         (n: number, orig: number) => `${n} port (orig. ${orig})`,
     servingsOnly:     (n: number) => `${n} port`,
+    servingsLockedA11y: (n: number) => `${n} portioner, låst eftersom rätten redan ligger i inköpslistan`,
     ingredientsCount: (n: number) => `${n} ingredienser`,
     inShoppingList:   'I inköpslistan',
     addAnother:       'Lägg till rätt',

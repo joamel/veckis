@@ -23,7 +23,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
@@ -279,7 +279,6 @@ export default function MenuScreen() {
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
-  const scaleWarnedRef = useRef<Set<string>>(new Set());
   const { householdId, householdName } = useHousehold();
   const { nyDesign } = useDesign();
   const { getToken } = useAuth();
@@ -369,13 +368,23 @@ export default function MenuScreen() {
   // Scale a placement's portions: instant optimistic overlay + debounced persist
   // (null = back to recipe default). PATCH broadcasts menu_updated so other
   // devices reload with the new servings.
+  // Gammal vecka: skalningen är bara lokal. Den följer med till Laga men
+  // sparas inte — historiken ändras inte, och därför behövs inte heller
+  // låset för överförda rätter.
+  function scaleServingsLokalt(item: WeekMenuItemWithRecipe, n: number) {
+    setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
+  }
+
   function scaleServings(item: WeekMenuItemWithRecipe, n: number) {
+    // Låst när rätten redan förts över: listan har mängderna för de gamla
+    // portionerna, och en skalning här ändrade bara vad laga-läget visade —
+    // menyn och listan sa då olika saker. Ta bort ur listan för att skala.
+    if (item.transferred || recipeListMap[item.id]?.length) {
+      showGlobalToast(str.toasts.scalingLocked, 'neutral');
+      return;
+    }
     setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
     pendingServingsRef.current.add(item.id);
-    if (recipeListMap[item.id]?.length && !scaleWarnedRef.current.has(item.id)) {
-      scaleWarnedRef.current.add(item.id);
-      showGlobalToast(str.toasts.scalingAffectsNothing, 'neutral');
-    }
     const toSave = n === item.recipe.servings ? null : n;
     if (servingsSaveTimers.current[item.id]) clearTimeout(servingsSaveTimers.current[item.id]);
     servingsSaveTimers.current[item.id] = setTimeout(() => {
@@ -564,6 +573,29 @@ export default function MenuScreen() {
   // flight" without being fooled by an emptied-out week.
   const loadedWeekRef = useRef<{ wy: number; wn: number } | null>(null);
   const scrollOffsetY = useRef(0);
+  // Veckoraden fälls ihop när man scrollar nedåt, som receptlistans sökfält:
+  // vid en tröskel med en kort övergång, inte i takt med scrollen — att ändra
+  // höjden varje scrollhändelse tvingar om layouten av hela veckan och laggar.
+  const veckaSynlig = useSharedValue(1);
+  const veckaMal = useRef(1);
+  const [veckaH, setVeckaH] = useState(0);
+  const följVeckaScroll = useCallback((y: number) => {
+    if (y > 40 && veckaMal.current === 1) {
+      veckaMal.current = 0;
+      veckaSynlig.value = withTiming(0, { duration: 180 });
+    } else if (y < 12 && veckaMal.current === 0) {
+      veckaMal.current = 1;
+      veckaSynlig.value = withTiming(1, { duration: 180 });
+    }
+  }, [veckaSynlig]);
+  const veckaAnimStyle = useAnimatedStyle(() => (
+    veckaH ? { height: veckaH * veckaSynlig.value, opacity: veckaSynlig.value } : {}
+  ));
+  // Ny vecka börjar om högst upp — då ska veckoraden synas igen.
+  useEffect(() => {
+    veckaMal.current = 1;
+    veckaSynlig.value = withTiming(1, { duration: 180 });
+  }, [weekOffset, veckaSynlig]);
   const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopAutoScroll = useCallback(() => {
     if (autoScrollIntervalRef.current) {
@@ -1489,7 +1521,7 @@ export default function MenuScreen() {
         isPastWeek={isPastWeek}
         onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
         onCookRecipe={() => {
-          router.push(`/recipes/${item.recipeId}?cook=1` as never);
+          router.push(`/recipes/${item.recipeId}?cook=1&servings=${scaledServingsOf(item)}` as never);
         }}
         onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
         onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
@@ -1498,7 +1530,7 @@ export default function MenuScreen() {
         onDragEnd={isCenter ? onDragEnd : noop}
         isDragging={isCenter && dragState?.item.id === item.id}
         scaledServings={scaledServingsOf(item)}
-        onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
+        onScaleServings={isCenter ? (n => (isPastWeek ? scaleServingsLokalt(item, n) : scaleServings(item, n))) : noop}
         onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
       />
     );
@@ -1595,7 +1627,7 @@ export default function MenuScreen() {
                           isPastWeek={isPastWeek}
                           onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
                           onCookRecipe={() => {
-                          router.push(`/recipes/${item.recipeId}?cook=1` as never);
+                          router.push(`/recipes/${item.recipeId}?cook=1&servings=${scaledServingsOf(item)}` as never);
                         }}
                           onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
                           onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
@@ -1604,7 +1636,7 @@ export default function MenuScreen() {
                           onDragEnd={isCenter ? onDragEnd : noop}
                           isDragging={isCenter && dragState?.item.id === item.id}
                           scaledServings={scaledServingsOf(item)}
-                          onScaleServings={isCenter && !isPastWeek ? (n => scaleServings(item, n)) : noop}
+                          onScaleServings={isCenter ? (n => (isPastWeek ? scaleServingsLokalt(item, n) : scaleServings(item, n))) : noop}
                           onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
                         />
                       ))
@@ -1744,7 +1776,17 @@ export default function MenuScreen() {
           subtitle={householdName}
           right={<NyIkonKnapp icon="bookmarks-outline" onPress={() => setShowTemplates(true)} label={str.a11y.templates} />}
         >
-          <View style={s.nyVeckaNav}>{veckoNav}</View>
+          <Animated.View style={[s.nyVeckaFall, veckaAnimStyle]}>
+            <View
+              style={s.nyVeckaNav}
+              onLayout={e => {
+                const h = e.nativeEvent.layout.height;
+                if (h > 0) setVeckaH(prev => (Math.abs(prev - h) > 1 ? h : prev));
+              }}
+            >
+              {veckoNav}
+            </View>
+          </Animated.View>
         </NyHeader>
       ) : (<>
       <ScreenHeader
@@ -1771,7 +1813,7 @@ export default function MenuScreen() {
           style={[s.content, nyDesign && s.nyInnehall]}
           contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet, nyDesign && s.nyInnehallInner]}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
-          onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
+          onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; följVeckaScroll(scrollOffsetY.current); }}
           scrollEventThrottle={32}
           onTouchStart={onWebTouchStart}
           onTouchEnd={onWebTouchEnd}
@@ -1819,7 +1861,7 @@ export default function MenuScreen() {
               style={{ width: weekPageW }}
               contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet, nyDesign && s.nyInnehallInner]}
               refreshControl={isCenter ? <RefreshControl refreshing={false} onRefresh={load} /> : undefined}
-              onScroll={isCenter ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }) : undefined}
+              onScroll={isCenter ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; följVeckaScroll(scrollOffsetY.current); }) : undefined}
               scrollEventThrottle={32}
             >
               {renderWeekContent(weekItemsForOffset(o), getWeekMonday(o), isCenter, o < 0)}
@@ -2462,7 +2504,8 @@ function MenuCard({
   const { fs, sp } = useTablet();
   const { nyDesign } = useDesign();
   const bildUrl = item.recipe.imageUrl ?? null;
-  const visaHero = nyDesign && !!hero && !!bildUrl;
+  // Dagens första rätt visar bilden stort hela tiden; övriga när de fälls ut.
+  const visaHero = nyDesign && !!bildUrl && (!!hero || isExpanded);
   // Samma platshållare som receptlistan, så ett recept ser likadant ut i båda.
   const ph = nyDesign && !bildUrl
     ? platshallare(item.recipe.id, [item.recipe.title, ...(item.recipe.tags ?? [])].join(' '))
@@ -2493,6 +2536,18 @@ function MenuCard({
           {visaHero && (
             <Pressable style={s.nyHero} onPress={handlePress} accessibilityRole="button" accessibilityLabel={item.recipe.title}>
               <Image source={{ uri: bildUrl! }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              {/* Tiden på bilden, som på receptkorten — bara hopfälld. Utfällt
+                  står den bredvid "I inköpslistan". */}
+              {!isExpanded && item.recipe.cookMinutes ? (() => {
+                const tid = formateraTidsetikett(item.recipe.cookMinutes);
+                return (
+                  <View style={s.nyHeroTid}>
+                    <Ionicons name="time-outline" size={13} color={ny.lime} />
+                    {/* Explicit bredd: Android klipper annars sista glyfen. */}
+                    <Text style={[s.nyHeroTidText, { width: Math.ceil(tid.length * 7) + 4 }]} numberOfLines={1}>{tid}</Text>
+                  </View>
+                );
+              })() : null}
             </Pressable>
           )}
           {/* Egen rad för den hopfällda delen: cardInner staplar vertikalt (den
@@ -2523,25 +2578,8 @@ function MenuCard({
               </View>
             )}
             <View style={s.cardContent}>
-              {/* Måltid och tillagningstid på samma rad ovanför titeln — tiden
-                  är beslutsunderlag ("hinner vi det i kväll?") och ska synas
-                  utan att kortet fälls ut. */}
-              {(item.mealType || item.recipe.cookMinutes) && (
-                <View style={s.cardMealRad}>
-                  {item.mealType && (
-                    <Text style={[s.cardMealTag, { fontSize: fs(10) }, nyDesign && s.nyMaltid]}>{common.mealTypes[item.mealType].toUpperCase()}</Text>
-                  )}
-                  {item.recipe.cookMinutes ? (() => {
-                    const tid = formateraTidsetikett(item.recipe.cookMinutes).toUpperCase();
-                    return (
-                      <View style={s.cardTid}>
-                        <Ionicons name="time-outline" size={fs(11)} color={nyDesign ? ny.padYta : c.primary} />
-                        {/* Explicit bredd: Android klipper annars sista glyfen. */}
-                        <Text style={[s.cardMealTag, { fontSize: fs(10), width: Math.ceil(tid.length * fs(7)) + 4 }, nyDesign && s.nyTid]} numberOfLines={1}>{tid}</Text>
-                      </View>
-                    );
-                  })() : null}
-                </View>
+              {item.mealType && (
+                <Text style={[s.cardMealTag, { fontSize: fs(10) }, nyDesign && s.nyMaltid]}>{common.mealTypes[item.mealType].toUpperCase()}</Text>
               )}
               {/* Ingen chevron i nya designen: att kortet gar att falla ut
                   forstar man anda, och den satt i vagen bredvid rubriken. */}
@@ -2587,43 +2625,66 @@ function MenuCard({
               grå chips och textknappar. */}
           {isExpanded && nyDesign && (
             <View style={s.nyUtfallt}>
-              {/* "I inköpslistan" som vanlig text — som bricka såg den tryckbar ut. */}
-              <View style={s.nyUtfalltRad}>
-                {isTransferred ? (
-                  <View style={s.nyMarke}>
-                    <Ionicons name="cart" size={13} color={ny.textDampad} />
-                    {/* Explicit bredd — utan den klipptes texten till "I". */}
-                    <Text style={[s.nyMarkeText, { width: str.card.inShoppingList.length * 8 + 8 }]} numberOfLines={1}>{str.card.inShoppingList}</Text>
-                  </View>
-                ) : <View />}
-                <View style={s.nyPortioner}>
-                  <Pressable onPress={() => onScaleServings(Math.max(1, scaledServings - 1))} style={s.nyPortionKnapp} hitSlop={6}>
-                    <Ionicons name="remove" size={14} color={ny.padYta} />
-                  </Pressable>
-                  <Text style={s.nyPortionVarde}>{str.card.servingsOnly(scaledServings)}</Text>
-                  <Pressable onPress={() => onScaleServings(scaledServings + 1)} style={s.nyPortionKnapp} hitSlop={6}>
-                    <Ionicons name="add" size={14} color={ny.padYta} />
-                  </Pressable>
-                </View>
+              {/* Måltiden överst — samma plats som etiketten i hopfällt läge.
+                  En gammal vecka är historik: allt syns som vanligt, men inget
+                  går att ändra (dämpat och avstängt). */}
+              <View style={s.nyUtfalltSektion}>
+                <Text style={s.nyEtikett}>{common.mealTypes.label}</Text>
+                {/* Sidscroll i stället för radbrytning — raden håller samma höjd
+                    oavsett hur många måltider som finns. */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.nyChipScroll}>
+                  {MEAL_TYPE_ORDER.map(mt => {
+                    const active = item.mealType === mt;
+                    return (
+                      <Pressable key={mt} style={[s.nyChip, active && s.nyChipAktiv, isPastWeek && !active && s.nyLast]} onPress={() => onSetMeal(mt)} disabled={isPastWeek}>
+                        <Text style={[s.nyChipText, active && s.nyChipTextAktiv]}>{common.mealTypes[mt]}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
               </View>
 
-              {!isPastWeek && (
-                <View style={s.nyUtfalltSektion}>
-                  <Text style={s.nyEtikett}>{common.mealTypes.label}</Text>
-                  {/* Sidscroll i stället för radbrytning — raden håller samma höjd
-                      oavsett hur många måltider som finns. */}
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.nyChipScroll}>
-                    {MEAL_TYPE_ORDER.map(mt => {
-                      const active = item.mealType === mt;
-                      return (
-                        <Pressable key={mt} style={[s.nyChip, active && s.nyChipAktiv]} onPress={() => onSetMeal(mt)}>
-                          <Text style={[s.nyChipText, active && s.nyChipTextAktiv]}>{common.mealTypes[mt]}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
+              {/* Tid och "I inköpslistan" som vanlig text till vänster — som
+                  brickor såg de tryckbara ut. Portionerna till höger. */}
+              <View style={s.nyUtfalltRad}>
+                <View style={s.nyMarken}>
+                  {item.recipe.cookMinutes ? (() => {
+                    const tid = formateraTidsetikett(item.recipe.cookMinutes);
+                    return (
+                      <View style={s.nyMarke}>
+                        <Ionicons name="time-outline" size={14} color={ny.padYta} />
+                        {/* Explicit bredd: Android klipper annars sista glyfen. */}
+                        <Text style={[s.nyMarkeText, s.nyTid, { width: tid.length * 8 + 6 }]} numberOfLines={1}>{tid}</Text>
+                      </View>
+                    );
+                  })() : null}
+                  {isTransferred && (
+                    <View style={s.nyMarke}>
+                      <Ionicons name="cart" size={13} color={ny.textDampad} />
+                      {/* Explicit bredd — utan den klipptes texten till "I". */}
+                      <Text style={[s.nyMarkeText, { width: str.card.inShoppingList.length * 8 + 8 }]} numberOfLines={1}>{str.card.inShoppingList}</Text>
+                    </View>
+                  )}
                 </View>
-              )}
+                {/* Överförd rätt: portionerna är låsta — listan har redan
+                    mängderna för dem. Låset visas i stället för −/+. */}
+                {isTransferred && !isPastWeek ? (
+                  <View style={s.nyPortioner} accessibilityLabel={str.card.servingsLockedA11y(scaledServings)}>
+                    <Ionicons name="lock-closed" size={12} color={ny.textDampad} style={s.nyPortionLas} />
+                    <Text style={s.nyPortionVarde}>{str.card.servingsOnly(scaledServings)}</Text>
+                  </View>
+                ) : (
+                  <View style={s.nyPortioner}>
+                    <Pressable onPress={() => onScaleServings(Math.max(1, scaledServings - 1))} style={s.nyPortionKnapp} hitSlop={6}>
+                      <Ionicons name="remove" size={14} color={ny.padYta} />
+                    </Pressable>
+                    <Text style={s.nyPortionVarde}>{str.card.servingsOnly(scaledServings)}</Text>
+                    <Pressable onPress={() => onScaleServings(scaledServings + 1)} style={s.nyPortionKnapp} hitSlop={6}>
+                      <Ionicons name="add" size={14} color={ny.padYta} />
+                    </Pressable>
+                  </View>
+                )}
+              </View>
 
 
               {/* Laga med text till vänster; byt ut och ta bort som ikonknappar
@@ -2634,16 +2695,12 @@ function MenuCard({
                   <Text style={s.nyKnappText}>{str.card.cook}</Text>
                 </Pressable>
                 <View style={s.nyKnappFyll} />
-                {!isPastWeek && (
-                  <Pressable style={s.nyIkonKnapp} onPress={onReplace} accessibilityRole="button" accessibilityLabel={str.card.replace}>
-                    <Ionicons name="swap-horizontal-outline" size={18} color={ny.padYta} />
-                  </Pressable>
-                )}
-                {!isPastWeek && (
-                  <Pressable style={s.nyIkonKnapp} onPress={onRemove} accessibilityRole="button" accessibilityLabel={str.card.remove}>
-                    <Ionicons name="trash-outline" size={18} color={ny.padYta} />
-                  </Pressable>
-                )}
+                <Pressable style={[s.nyIkonKnapp, isPastWeek && s.nyLast]} onPress={onReplace} disabled={isPastWeek} accessibilityRole="button" accessibilityLabel={str.card.replace} accessibilityState={{ disabled: !!isPastWeek }}>
+                  <Ionicons name="swap-horizontal-outline" size={18} color={ny.padYta} />
+                </Pressable>
+                <Pressable style={[s.nyIkonKnapp, isPastWeek && s.nyLast]} onPress={onRemove} disabled={isPastWeek} accessibilityRole="button" accessibilityLabel={str.card.remove} accessibilityState={{ disabled: !!isPastWeek }}>
+                  <Ionicons name="trash-outline" size={18} color={ny.padYta} />
+                </Pressable>
               </View>
             </View>
           )}
@@ -2798,6 +2855,9 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   nyContainer: { backgroundColor: ny.skog },
   nyInnehall: { backgroundColor: ny.bakgrund },
   nyVeckaNav: { paddingTop: 14 },
+  // flex-end: raden glider uppåt ur bild när höjden krymper, i stället för
+  // att klippas nedifrån.
+  nyVeckaFall: { overflow: 'hidden', justifyContent: 'flex-end' },
   nyInnehallInner: { paddingHorizontal: 12 },
   nyDagar: { gap: 10 },
   // Dagens ruta i samma distinkta ton som receptens platshållare: mot `kort`
@@ -2828,7 +2888,11 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   // Android väljer ett reservtypsnitt.
   nyKortTitel: { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 15, letterSpacing: -0.3, color: ny.text },
   nyMaltid: { color: ny.chipText },
-  nyTid: { color: ny.padYta },
+  nyTid: { color: ny.padYta, fontWeight: '700' },
+  nyMarken: { flexDirection: 'row', alignItems: 'center', gap: 14, flexShrink: 1 },
+  nyPortionLas: { marginHorizontal: 4 },
+  // Gammal vecka: kontrollen syns men går inte att använda.
+  nyLast: { opacity: 0.35 },
   nyTumnagel: { width: 44, height: 44, borderRadius: 11 },
   nyTumnagelTom: { alignItems: 'center', justifyContent: 'center' },
   nyTumMork: { backgroundColor: ny.skogMellan },
@@ -2837,6 +2901,11 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   // smälte ihop med bakgrunden i stället för att läsa som en egen bricka.
   nyTumLjus: { backgroundColor: ny.bricka },
   nyHero: { height: 120 },
+  nyHeroTid: {
+    position: 'absolute', top: 10, left: 10, flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 9, height: 26, borderRadius: 13, backgroundColor: ny.bandOverlay,
+  },
+  nyHeroTidText: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
   // Luft mot draghandtaget, så Laga inte hamnar tätt intill strecken.
   nyLagaSnabb: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 32, paddingHorizontal: 11, borderRadius: 16, marginRight: 8, backgroundColor: ny.lime },
   nyLagaSnabbText: { fontSize: 13, fontWeight: '700', color: ny.skog },
@@ -2936,8 +3005,6 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   cardContent: { flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: '600', color: c.text, flexShrink: 1 },
   cardMealTag: { fontSize: 10, fontWeight: '700', color: c.primary, letterSpacing: 0.5, marginBottom: 1 },
-  cardMealRad: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  cardTid: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   mealPicker: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 8 },
   mealPickerLabel: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
   mealPickerChips: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' },
