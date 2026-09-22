@@ -65,7 +65,8 @@ npm run clean:prefix        # Mängd först i namnet: "1/2 dl strösocker" → "
 npm run clean:junk          # Rader som inte är varunamn alls: receptstycken, HTML-entiteter, meningar.
 npm run clean:dupes         # Varianter av SAMMA vara: stavfel, versaler, singular/plural.
 npm run clean:names         # Kortar långa namn. Enda skriptet där AI föreslår.
-npm run clean:aliases       # Duger raden globalt? Rensar + backfill av hushållsräkningen.
+npm run clean:aliases       # Duger raden globalt? Lagar, delar alternativ i sina led, rensar + backfill.
+                            #   (Backfillen granskas inte — den skapar bara hushållsrader ur befintlig data.)
 npm run clean:all           # Alla varunamn. Du döper om, tar bort eller låter vara. Inga gissningar.
 npm run repair:categories   # Rättar varor som fastnat i Övrigt utan att någon valt det.
 npm run category-gaps       # Rapport: namn ingen kategoriregel känner igen. Läser bara.

@@ -128,7 +128,15 @@ async function main() {
   }
 
   if (SKRIV_FIL) {
-    skrivGranskningsfil(SKRIV_FIL, förslag);
+    skrivGranskningsfil(SKRIV_FIL, förslag, [
+      '# Ändra ja till nej på de rader du vill behålla.',
+      '#',
+      '# BLIR säger varför raden inte ser ut som ett varunamn. Alla rader här',
+      '# RADERAS — det finns inget namn att rädda. Vill du i stället rätta ett',
+      '# namn är clean:names eller clean:all rätt skript.',
+      '#',
+      '# Stryk ingenting och ändra inget annat på raden.',
+    ]);
     return;
   }
 

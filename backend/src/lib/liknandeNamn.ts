@@ -24,7 +24,7 @@ export function normaliseraForJamforelse(namn: string): string {
     .normalize('NFD')
     // å, ä och ö plattas till a, a och o. Avsiktligt: det är det som gör att
     // dansk och engelsk stavning ("kottbullar") hittar den svenska varan.
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9åäö\s]/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();

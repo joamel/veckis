@@ -110,7 +110,15 @@ async function main() {
   }
 
   if (SKRIV_FIL) {
-    skrivGranskningsfil(SKRIV_FIL, förslag);
+    skrivGranskningsfil(SKRIV_FIL, förslag, [
+      '# Ändra ja till nej på de rader du vill lämna som de är.',
+      '#',
+      '# BLIR säger vad som händer: namnet byter till varan utan mängd, slås',
+      '# ihop med varan som redan finns, eller raderas när bara en mängd',
+      '# återstår. Skriv dit ett eget namn om du hellre vill det.',
+      '#',
+      '# Stryk ingenting och ändra inget annat på raden.',
+    ]);
     return;
   }
 

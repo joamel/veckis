@@ -199,7 +199,14 @@ async function main() {
 
 
   if (SKRIV_FIL) {
-    skrivGranskningsfil(SKRIV_FIL, alla);
+    skrivGranskningsfil(SKRIV_FIL, alla, [
+      '# Ändra ja till nej på de rader du vill lämna som de är.',
+      '#',
+      '# BLIR = det kortade namnet. Skriv dit ett eget namn om du hellre vill',
+      '# det — ditt värde gäller före skriptets förslag.',
+      '#',
+      '# Stryk ingenting och ändra inget annat på raden.',
+    ]);
     return;
   }
 

@@ -79,7 +79,14 @@ async function main() {
   }
 
   if (SKRIV_FIL) {
-    skrivGranskningsfil(SKRIV_FIL, förslag);
+    skrivGranskningsfil(SKRIV_FIL, förslag, [
+      '# Ändra ja till nej på de rader du inte vill översätta.',
+      '#',
+      '# BLIR = den svenska översättningen. Skriv dit ett annat ord om du',
+      '# tycker att översättningen blev fel; originalet sparas ändå.',
+      '#',
+      '# Stryk ingenting och ändra inget annat på raden.',
+    ]);
     return;
   }
 

@@ -135,7 +135,15 @@ async function main() {
   }
 
   if (SKRIV_FIL) {
-    skrivGranskningsfil(SKRIV_FIL, förslag);
+    skrivGranskningsfil(SKRIV_FIL, förslag, [
+      '# Ändra ja till nej på de rader du inte vill slå ihop.',
+      '#',
+      '# BLIR = namnet alla varianter slås ihop till. Skriv dit ett annat namn',
+      '# om du tycker att en annan stavning är den rätta.',
+      '#',
+      '# Stryk ingenting och ändra inget annat på raden (namnet och nyckeln sist',
+      '# används för att hitta rätt rad).',
+    ]);
     return;
   }
 
