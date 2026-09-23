@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { nyFont, type NyPalett } from '../../lib/nyDesign';
-import { useNy } from '../../context/ThemeContext';
+import { useNy, useTheme } from '../../context/ThemeContext';
 import { platshallare, type PlatshallarTon } from '../../lib/receptPlatshallare';
+import { recipes as str } from '../../lib/svenska';
 
 /** Hur kortet beter sig — speglar receptlistans lägen. */
 export type ReceptKortLage = 'normal' | 'redigera' | 'valj' | 'planera';
@@ -13,7 +14,13 @@ interface Props {
   titel: string;
   /** Titel + taggar — styr platshållarens ikon när receptet saknar bild. */
   sokord: string;
+  /** Färdig metatext för bildkortet, där bandet har plats för ord. */
   meta: string;
+  /** Kompakta raden visar siffrorna med ikon i stället — bestick för
+   *  portioner, matikon för ingredienser. Tre korta grupper tar mindre
+   *  plats än "4 port · 12 ingredienser" och läses lika snabbt. */
+  portioner: number;
+  ingredienser: number;
   /** Tillagningstid, färdigformaterad ("45 min"). null = okänd, ingen bricka. */
   tid: string | null;
   bildUrl: string | null;
@@ -67,8 +74,11 @@ export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
 
 /** Kompakt rad: liten bild, titel, meta och planera-knapp. */
 export function ReceptKompaktRad(p: Props) {
-  const ny = useNy();
+  const { ny, scheme } = useTheme();
   const st = useMemo(() => gorSt(ny), [ny]);
+  // Meta och tid i temats gröna: mörkgrönt mot den ljusa raden, lime mot den
+  // mörka. Dämpad grå försvann nästan i mörkt läge.
+  const metaFarg = scheme === 'dark' ? ny.lime : ny.skog;
   const ph = p.bildUrl ? null : platshallare(p.id, p.sokord);
   const mork = ph?.ton === 'mork';
   return (
@@ -81,16 +91,27 @@ export function ReceptKompaktRad(p: Props) {
             <Ionicons name={ph!.ikon} size={28} color={mork ? ny.lime : ny.padYta} />
           </View>
         )}
+        {/* Tiden står på METARADEN, inte till höger om titeln: där åt den av
+            bredden och kortade rubriken i onödan. */}
         <View style={st.radText}>
           <Text style={st.radTitel} numberOfLines={2}>{p.titel}</Text>
-          <Text style={st.radMeta} numberOfLines={1}>{p.meta}</Text>
-        </View>
-        {p.tid && (
-          <View style={st.radTid}>
-            <Ionicons name="time-outline" size={15} color={ny.padYta} />
-            <Text style={[st.radTidText, { width: tidBredd(p.tid, 7.5) }]} numberOfLines={1}>{p.tid}</Text>
+          <View style={st.radMetaRad}>
+            {p.tid && (
+              <MetaTal
+                ikon={<Ionicons name="time-outline" size={13} color={metaFarg} />}
+                text={p.tid} farg={metaFarg} beskrivning={str.card.a11yTid(p.tid)}
+              />
+            )}
+            <MetaTal
+              ikon={<Ionicons name="restaurant-outline" size={13} color={metaFarg} />}
+              text={String(p.portioner)} farg={metaFarg} beskrivning={str.card.a11yPortioner(p.portioner)}
+            />
+            <MetaTal
+              ikon={<MaterialCommunityIcons name="fruit-grapes-outline" size={14} color={metaFarg} />}
+              text={String(p.ingredienser)} farg={metaFarg} beskrivning={str.card.a11yIngredienser(p.ingredienser)}
+            />
           </View>
-        )}
+        </View>
         {p.lage === 'normal' && (
           <Pressable style={st.radKnapp} onPress={p.onPlanera} hitSlop={6} accessibilityRole="button" accessibilityLabel={p.planeraLabel}>
             <Ionicons name="calendar-outline" size={18} color={ny.chipText} />
@@ -100,6 +121,26 @@ export function ReceptKompaktRad(p: Props) {
         {p.lage === 'planera' && <Ionicons name="calendar-outline" size={20} color={ny.padYta} />}
       </Pressable>
       {p.lage === 'redigera' && <TaBortKnapp {...p} />}
+    </View>
+  );
+}
+
+/** Ikon + siffra, tätt ihop. Explicit bredd på texten: Android mäter korta
+ *  texter för smalt och klipper sista tecknet (se android-text-clipping). */
+function MetaTal({ ikon, text, farg, beskrivning }: {
+  /** Färdig ikon, inte ett namn: ingrediensikonen kommer ur ett annat paket
+   *  än de andra två (Ionicons har ingen grönsak i kontur). */
+  ikon: React.ReactNode;
+  text: string;
+  farg: string;
+  beskrivning: string;
+}) {
+  const ny = useNy();
+  const st = useMemo(() => gorSt(ny), [ny]);
+  return (
+    <View style={st.metaTal} accessible accessibilityLabel={beskrivning}>
+      {ikon}
+      <Text style={[st.radMeta, { color: farg, width: tidBredd(text, 7) }]} numberOfLines={1}>{text}</Text>
     </View>
   );
 }
@@ -179,9 +220,10 @@ const gorSt = (ny: NyPalett) => StyleSheet.create({
   ytaLjusRad: { backgroundColor: ny.platsLjus },
   radText: { flex: 1, gap: 2 },
   radTitel: { fontFamily: nyFont.fet, fontSize: 16, lineHeight: 20, letterSpacing: -0.3, color: ny.text },
-  radMeta: { fontSize: 12, color: ny.textDampad },
-  radTid: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
-  radTidText: { fontSize: 13, fontWeight: '700', color: ny.padYta },
+  radMetaRad: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  metaTal: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  radMeta: { fontSize: 12, color: ny.textDampad, flexShrink: 1 },
+  radTidText: { fontWeight: '700', flexShrink: 0 },
   radKnapp: {
     width: 40, height: 40, borderRadius: 20, backgroundColor: ny.bricka,
     alignItems: 'center', justifyContent: 'center',

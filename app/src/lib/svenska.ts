@@ -602,6 +602,11 @@ export const recipes = {
   card: {
     // Tiden först: raden kapas i slutet på smala kort, och tiden är det man
     // väljer rätt efter.
+    // Ikonerna på den kompakta raden säger inget för en skärmläsare — varje
+    // grupp får därför sin egen etikett.
+    a11yTid:          (tid: string) => `Tillagningstid ${tid}`,
+    a11yPortioner:    (n: number) => `${n} portioner`,
+    a11yIngredienser: (n: number) => n === 1 ? '1 ingrediens' : `${n} ingredienser`,
     meta: (servings: number, ingredients: number, tid?: string | null) =>
       `${tid ? `${tid} · ` : ""}${servings} port · ${ingredients} ingredienser`,
   },

@@ -946,6 +946,8 @@ export default function RecipesScreen() {
     titel: recipe.title,
     sokord: [recipe.title, ...(recipe.tags ?? [])].join(' '),
     meta: str.card.meta(recipe.servings, recipe.ingredients.length),
+    portioner: recipe.servings,
+    ingredienser: recipe.ingredients.length,
     tid: recipe.cookMinutes ? formateraTidsetikett(recipe.cookMinutes) : null,
     bildUrl: recipe.imageUrl ?? null,
     lage: kortLage,
