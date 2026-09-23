@@ -1,13 +1,16 @@
 /**
- * Konverterar icke-svenska enheter på varor och basvaror.
+ * Konverterar icke-svenska enheter, OCH samlar svenska synonymer till en form.
  *
- * Engelska recept gav "teaspoon", "cup" och "oz" åt basvaror och därmed åt
- * varje vara som lades till från dem. Koden gör det inte längre — det här
- * rättar raderna som redan skrevs.
+ * Två fel med samma följd. Engelska recept gav "teaspoon", "cup" och "oz" åt
+ * basvaror och därmed åt varje vara som lades till från dem. Och samma enhet
+ * skrevs på flera sätt — "förpackning", "förp" och "frp" blev tre enheter, så
+ * dubblettarket (som matchar namn OCH enhet) hittade aldrig ihop dem. Koden
+ * gör inget av det längre; det här rättar raderna som redan skrevs.
  *
  * Ingen granskningsfil, med flit: konverteringen är deterministisk och har
- * inget att välja mellan. "0,75 teaspoon" ÄR 0,75 tsk. De andra skripten
- * granskas rad för rad för att de gissar; det här gör de inte.
+ * inget att välja mellan. "0,75 teaspoon" ÄR 0,75 tsk, och "2 förpackningar"
+ * ÄR 2 förp. De andra skripten granskas rad för rad för att de gissar; det
+ * här gör de inte.
  *
  * Recept rörs inte. Där är källans enhet en del av texten, och ↔-knappen i
  * receptvyn växlar mellan den och den svenska formen.
