@@ -28,6 +28,7 @@ import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { useDesign } from '../../src/context/DesignContext';
+import { useBottomGap } from '../../src/hooks/useBottomGap';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 
@@ -36,6 +37,8 @@ type SortMode = 'name' | 'created';
 export default function StoresScreen() {
   const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
+  // Kant-i-kant: FAB och spara-rad måste själva lyfta sig över systemraden.
+  const bottomGap = useBottomGap();
   const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const router = useRouter();
   const { pick, current } = useLocalSearchParams<{ pick?: string; current?: string }>();
@@ -221,7 +224,7 @@ export default function StoresScreen() {
       </View>
       )}
 
-      <ScrollView style={s.innehall} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: nyDesign ? 16 : 12, paddingBottom: 120 }}>
+      <ScrollView style={s.innehall} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: nyDesign ? 16 : 12, paddingBottom: 120 + bottomGap }}>
         {filteredSorted.length === 0 ? (
           searchQuery ? (
             <Text style={s.empty}>{str.emptyState.noResults(searchQuery)}</Text>
@@ -284,14 +287,14 @@ export default function StoresScreen() {
       </ScrollView>
 
       {!pickMode && (
-        <Pressable ref={storeFabRef} style={s.fab} onPress={() => setShowCreate(true)} accessibilityLabel={str.createModal.add}>
+        <Pressable ref={storeFabRef} style={[s.fab, { bottom: bottomGap }]} onPress={() => setShowCreate(true)} accessibilityLabel={str.createModal.add}>
           <Ionicons name="add" size={30} color={nyDesign ? ny.skog : '#fff'} />
         </Pressable>
       )}
 
       {/* Pick-läge: markera butik i listan, byt först vid Spara. */}
       {pickMode && (
-        <View style={s.saveBar}>
+        <View style={[s.saveBar, { paddingBottom: bottomGap + 8 }]}>
           <Pressable onPress={() => setChosenId(null)} hitSlop={8} style={s.noStoreBtn}>
             <Ionicons
               name={chosenId === null ? 'radio-button-on' : 'radio-button-off'}

@@ -17,6 +17,7 @@ import { account as str } from '../src/lib/svenska';
 import { DraggableBottomSheet } from '../src/components/DraggableBottomSheet';
 import { useSheetLift } from '../src/hooks/useSheetLift';
 import { useDesign } from '../src/context/DesignContext';
+import { useBottomGap } from '../src/hooks/useBottomGap';
 import { nyFont, type NyPalett } from '../src/lib/nyDesign';
 import { NyHeader } from '../src/components/nydesign/NyHeader';
 
@@ -30,6 +31,8 @@ const CLERK_PORTAL_BASE = (process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '').
 export default function AccountScreen() {
   const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
+  // Kant-i-kant: sista raden får inte hamna under systemraden.
+  const bottomGap = useBottomGap();
   const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const router = useRouter();
   const { signOut } = useAuth();
@@ -180,7 +183,7 @@ export default function AccountScreen() {
       </View>
       )}
 
-      <ScrollView style={s.innehall} contentContainerStyle={s.scroll}>
+      <ScrollView style={s.innehall} contentContainerStyle={[s.scroll, { paddingBottom: bottomGap + 24 }]}>
         <View style={s.avatarCard}>
           <View style={s.avatar}>
             <Text style={s.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>

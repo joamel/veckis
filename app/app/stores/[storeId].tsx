@@ -25,6 +25,7 @@ import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet'
 import { useWebLeaveGuard } from '../../src/hooks/useWebLeaveGuard';
 import { storeDrafts } from '../../src/lib/drafts';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
+import { useBottomGap } from '../../src/hooks/useBottomGap';
 import { sortedRestFor } from '../../src/lib/subOrder';
 import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
@@ -67,6 +68,10 @@ export default function StoreDetailScreen() {
   const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
   const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
+  // Spara-raden svävar över innehållet och SafeAreaView täcker inte
+  // underkanten (bakgrunden ska gå kant-i-kant), så knappen måste själv
+  // lyfta sig över systemets navigeringsrad.
+  const bottomGap = useBottomGap();
   const { storeId } = useLocalSearchParams<{ storeId: string }>();
   const router = useRouter();
   const client = useApiClient();
@@ -626,7 +631,7 @@ export default function StoreDetailScreen() {
       </View>
       )}
 
-      <ScrollView style={s.innehall} contentContainerStyle={s.scroll} scrollEnabled={!catDragState}>
+      <ScrollView style={s.innehall} contentContainerStyle={[s.scroll, { paddingBottom: bottomGap + (dirty ? 80 : 16) }]} scrollEnabled={!catDragState}>
         {visarUtkast && (
           <View style={s.draftBanner}>
             <Ionicons name="time-outline" size={16} color={nyDesign ? ny.padYta : c.primary} />
@@ -766,7 +771,7 @@ export default function StoreDetailScreen() {
       })()}
 
       {dirty && (
-        <View style={s.saveBar}>
+        <View style={[s.saveBar, { bottom: bottomGap }]}>
           <Pressable
             style={[s.primaryBtn, (saving || visibleEnum.length === 0) && { opacity: 0.4 }]}
             onPress={save}

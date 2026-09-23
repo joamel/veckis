@@ -20,12 +20,15 @@ import { HAPTIC_CHECKOUT_KEY, SOUND_CHECKOUT_KEY } from '../src/hooks/useCheckHa
 import { LANDING_TABS, DEFAULT_LANDING_TAB, getLandingTab, setLandingTab, type LandingTabKey } from '../src/lib/landingTab';
 import { preferences as str } from '../src/lib/svenska';
 import { useDesign } from '../src/context/DesignContext';
+import { useBottomGap } from '../src/hooks/useBottomGap';
 import { nyFont, type NyPalett } from '../src/lib/nyDesign';
 import { NyHeader } from '../src/components/nydesign/NyHeader';
 
 export default function PreferencesScreen() {
   const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
+  // Kant-i-kant: sista raden får inte hamna under systemraden.
+  const bottomGap = useBottomGap();
   const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const router = useRouter();
   const { showToast, showError } = useToast();
@@ -79,7 +82,7 @@ export default function PreferencesScreen() {
       </View>
       )}
 
-      <ScrollView style={s.innehall} contentContainerStyle={s.scroll}>
+      <ScrollView style={s.innehall} contentContainerStyle={[s.scroll, { paddingBottom: bottomGap + 24 }]}>
         <Text style={s.sectionLabel}>{str.sections.notifications}</Text>
         <View style={s.group}>
           <Pressable style={s.row} onPress={() => setShowNotifModal(true)}>
