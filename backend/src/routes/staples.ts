@@ -8,6 +8,7 @@ import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { basvaruskrivning } from '../lib/basvaruval';
 import { COMMON_INGREDIENTS } from '../lib/commonIngredients';
 import { duglingGlobalt } from '../lib/normalizeIngredients';
+import { delaAlternativ } from '../lib/alternativ';
 import { wsListUpdate } from '../lib/wsHub';
 
 export const staplesRouter = Router();
@@ -71,15 +72,28 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   const category = skrivning.skapa.category;
   const subCategory = skrivning.skapa.subCategory;
 
-  const staple = await prisma.stapleItem.upsert({
-    where: { householdId_name: { householdId: body.data.householdId, name: normalizedName } },
-    create: { ...body.data, name: normalizedName, category, subCategory } as Prisma.StapleItemUncheckedCreateInput,
-    update: {
-      ...skrivning.uppdatera,
-      unit: body.data.unit,
-      defaultQuantity: body.data.defaultQuantity,
-    },
-  });
+  // "gurka och tomat" är TVÅ basvaror, inte en. Utan det här blev hela
+  // strängen en egen basvara i hushållet och dök upp bland sökförslagen —
+  // den globala poolen delade redan leden (learnIngredientAliases), så de två
+  // sidorna sa olika saker. Samma regel gäller alternativ: "nötfärs alt.
+  // vegofärs" lärs som två varor man kan söka på var för sig. Varans namn i
+  // LISTAN rörs aldrig — där står texten kvar, valet tillhör den som handlar.
+  const delar = delaAlternativ(normalizedName);
+  const namnAttSkriva = delar.length > 1 ? delar : [normalizedName];
+
+  const skrivna = [];
+  for (const namn of namnAttSkriva) {
+    skrivna.push(await prisma.stapleItem.upsert({
+      where: { householdId_name: { householdId: body.data.householdId, name: namn } },
+      create: { ...body.data, name: namn, category, subCategory } as Prisma.StapleItemUncheckedCreateInput,
+      update: {
+        ...skrivning.uppdatera,
+        unit: body.data.unit,
+        defaultQuantity: body.data.defaultQuantity,
+      },
+    }));
+  }
+  const staple = skrivna[0];
 
   // Ändringen ska synas NU, inte först nästa gång varan läggs till. Varor med
   // samma namn i hushållets öppna listor flyttas med, och varje lista får en

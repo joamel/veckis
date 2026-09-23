@@ -45,7 +45,7 @@ function efterled(sista: string): string | null {
  * sidor måste kännas igen som riktiga varor av den kurerade klassaren. Är det
  * minsta tveksamt lämnas namnet som det är.
  */
-function delaOch(namn: string): string[] | null {
+export function delaOch(namn: string): string[] | null {
   const delar = namn.split(/\s+och\s+/i).map(d => d.trim()).filter(Boolean);
   if (delar.length !== 2) return null;
   if (delar.some(d => d.endsWith('-'))) return null;

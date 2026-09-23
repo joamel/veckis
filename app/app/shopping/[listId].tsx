@@ -3110,7 +3110,11 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
           scroll som börjar på en rad blockeras i PWA:n. */}
       <GestureDetector gesture={composedGesture} touchAction="pan-y">
         <RNAnimated.View style={rowAnimStyle}>
-          {/* TVÅ SYSKON-ytor i stället för en checkbox nästlad i radens egen
+          {/* Kryssrutan ligger till HÖGER: de flesta håller mobilen i höger
+              hand, och tummen når högerkanten utan att flytta greppet. Varans
+              namn börjar därmed vid radens vänsterkant, där man läser.
+
+              TVÅ SYSKON-ytor i stället för en checkbox nästlad i radens egen
               Pressable. Nästlade Pressables visade sig INTE vara pålitliga —
               varken en större hitSlop eller Gesture.Native() räckte: en touch
               som geometriskt låg inuti checkboxens egen box men utanför den
@@ -3121,19 +3125,6 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
               vanlig View (inte Pressable): den håller bara ihop bakgrund och
               form, allt tryck sker i zonerna under den. */}
           <View style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}>
-            <Pressable
-              onPress={pending ? undefined : () => onToggle(row)}
-              style={s.checkboxZone}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: item.isChecked }}
-              accessibilityLabel={item.isChecked ? str.a11y.uncheckItem(item.name) : str.a11y.checkItem(item.name)}
-            >
-              {nyDesign ? (
-                <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={ny.padYta} />
-              ) : (
-                <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? c.success : c.primary} />
-              )}
-            </Pressable>
             <Pressable
               onPress={pending ? undefined : doEdit}
               style={s.contentZone}
@@ -3154,6 +3145,19 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
                   <Text style={[s.itemQty, (item.isChecked || pending) && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${visningsnamn(item.unit, item.quantity)}` : ''}</Text>
                 )}
               </View>
+            </Pressable>
+            <Pressable
+              onPress={pending ? undefined : () => onToggle(row)}
+              style={s.checkboxZone}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: item.isChecked }}
+              accessibilityLabel={item.isChecked ? str.a11y.uncheckItem(item.name) : str.a11y.checkItem(item.name)}
+            >
+              {nyDesign ? (
+                <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={ny.padYta} />
+              ) : (
+                <Ionicons name={item.isChecked ? 'checkbox' : 'square-outline'} size={24} color={item.isChecked ? c.success : c.primary} />
+              )}
             </Pressable>
           </View>
         </RNAnimated.View>
@@ -3251,7 +3255,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // flex: 1 äter allt utrymme checkboxZone inte tar. Vertikal padding här
   // ersätter den gamla radens paddingVertical; paddingRight matchar radens
   // gamla högerpadding.
-  contentZone: { flex: 1, justifyContent: 'center', paddingVertical: 14, paddingRight: 14 },
+  contentZone: { flex: 1, justifyContent: 'center', paddingVertical: 14, paddingLeft: 14 },
   itemChecked: { opacity: 0.55 },
   itemPending: { opacity: 0.4, backgroundColor: c.dangerTint },
   itemRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },

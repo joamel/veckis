@@ -21,7 +21,7 @@ import { sendPush, notifyActiveShopper } from '../lib/sendPush';
 import { planFullUnmerge, findRoot } from '../lib/mergeLogic';
 import { planAutoMerge } from '../lib/importDedupe';
 import Anthropic from '@anthropic-ai/sdk';
-import { tolkaInköpslista } from '../lib/inkopstext';
+import { tolkaInköpslista, tolkaEnRad } from '../lib/inkopstext';
 import { matchaImportnamn, type MatchadVara } from '../lib/importMatchning';
 import { normalizeIngredientNames } from '../lib/normalizeIngredients';
 import { tolkaJsonSvar, InteJsonError, textUr } from '../lib/aiJson';
@@ -309,6 +309,15 @@ async function läggTillVara(
   clerkUserId: string,
   notifiera = true,
 ): Promise<{ item: Prisma.ShoppingItemGetPayload<object>; sammanslagen: boolean }> {
+
+  // "1 dl havregryn" och "havregryn 1 dl" skrivet rakt i fältet: mängden ska
+  // hamna i sitt fält, inte i namnet. Bara när anroparen INTE angett mängd
+  // eller enhet — annars är det ett aktivt val (mängdarket, importen), och
+  // en tolkning av namnet skulle skriva över det.
+  const tolkad = data.quantity === 1 && !data.unit ? tolkaEnRad(data.name) : null;
+  if (tolkad?.quantity) {
+    data = { ...data, name: tolkad.name, quantity: tolkad.quantity, unit: tolkad.unit ?? undefined };
+  }
 
   const normalizedName = stripIngredient(data.name);
   const staplePref = await prisma.stapleItem.findUnique({

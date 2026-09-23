@@ -1,4 +1,5 @@
 import { parseIngredientString } from './parseIngredientString';
+import { delaOch } from './alternativ';
 
 export type TolkadVara = {
   name: string;
@@ -82,30 +83,58 @@ export function tolkaInköpslista(text: string): { varor: TolkadVara[]; kapad: b
       continue;
     }
 
-    // Samma vara flera gånger:
-    //  - MED mängd summeras den ("2 l mjölk" två gånger blir 4 l — ofta två
-    //    recept som båda behöver sin liter).
-    //  - UTAN mängd blir det en rad, med antalet rader sparat. Att summera
-    //    till "2 ägg" vore en påhittad siffra: står ägg i två recept är två
-    //    ägg nästan säkert fel. Granskningen säger "står 2 gånger" i stället,
-    //    så valet blir användarens.
-    const v = tolkaRad(rad);
+    // "gurka och tomat" är två varor: "och" betyder att man behöver båda.
+    // "eller" och snedstreck delas däremot ALDRIG i listan — valet mellan lax
+    // och torsk tillhör den som står i butiken, så raden behåller hela texten.
+    // delaOch är försiktig: båda sidor måste kännas igen som riktiga varor, så
+    // "kött- och grillkrydda" hålls ihop (se alternativ.ts).
+    for (const del of delaOch(rad) ?? [rad]) {
+      const lagd = läggTill(tolkaRad(del));
+      senaste = lagd.vara;
+      if (lagd.fullt) { kapad = true; break; }
+    }
+    if (kapad) break;
+  }
+
+  /**
+   * Samma vara flera gånger:
+   *  - MED mängd summeras den ("2 l mjölk" två gånger blir 4 l — ofta två
+   *    recept som båda behöver sin liter).
+   *  - UTAN mängd blir det en rad, med antalet rader sparat. Att summera till
+   *    "2 ägg" vore en påhittad siffra: står ägg i två recept är två ägg
+   *    nästan säkert fel. Granskningen säger "står 2 gånger" i stället, så
+   *    valet blir användarens.
+   *
+   * Returnerar raden som varan hamnade i (samma som förut om den fanns) och
+   * om taket är nått.
+   */
+  function läggTill(v: TolkadVara): { vara: TolkadVara; fullt: boolean } {
     const nyckel = `${v.name.toLowerCase()}|${v.unit ?? ''}`;
     const fanns = sedda.get(nyckel);
-    if (!fanns) {
-      const ny = { ...v, antalRader: 1 };
-      sedda.set(nyckel, ny);
-      varor.push(ny);
-      senaste = ny;
-      if (varor.length >= MAX_VAROR) { kapad = true; break; }
-      continue;
+    if (fanns) {
+      fanns.antalRader = (fanns.antalRader ?? 1) + 1;
+      if (v.quantity !== null) fanns.quantity = (fanns.quantity ?? 1) + v.quantity;
+      return { vara: fanns, fullt: false };
     }
-    fanns.antalRader = (fanns.antalRader ?? 1) + 1;
-    if (v.quantity !== null) fanns.quantity = (fanns.quantity ?? 1) + v.quantity;
-    senaste = fanns;
+    const ny = { ...v, antalRader: 1 };
+    sedda.set(nyckel, ny);
+    varor.push(ny);
+    return { vara: ny, fullt: varor.length >= MAX_VAROR };
   }
 
   return { varor, kapad };
+}
+
+/**
+ * En enda rad → namn, mängd och enhet. Samma regler som importen, för det
+ * manuella fältet: skriver man "1 dl havregryn" eller "havregryn 1 dl" ska
+ * mängden hamna i sitt fält i stället för att bli en del av varunamnet.
+ */
+export function tolkaEnRad(text: string): TolkadVara {
+  let rad = text.trim();
+  for (let i = 0; i < 3; i++) rad = rad.replace(PREFIX_RE, '');
+  rad = rad.replace(/[.,;:!]+$/u, '').trim();
+  return tolkaRad(rad);
 }
 
 function tolkaRad(rad: string): TolkadVara {

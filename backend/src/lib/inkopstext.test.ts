@@ -1,8 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { tolkaInköpstext, tolkaInköpslista, MAX_VAROR } from './inkopstext';
+import { tolkaInköpstext, tolkaInköpslista, tolkaEnRad, MAX_VAROR } from './inkopstext';
 
 const namn = (text: string) => tolkaInköpstext(text).map(v => v.name);
 const utanAntal = (text: string) => tolkaInköpstext(text).map(({ antalRader: _a, ...v }) => v);
+
+describe('tolkaEnRad — det manuella fältet', () => {
+  it('läser mängd före och efter namnet', () => {
+    expect(tolkaEnRad('1 dl havregryn')).toMatchObject({ name: 'havregryn', quantity: 1, unit: 'dl' });
+    expect(tolkaEnRad('havregryn 1 dl')).toMatchObject({ name: 'havregryn', quantity: 1, unit: 'dl' });
+    expect(tolkaEnRad('500 g nötfärs')).toMatchObject({ name: 'nötfärs', quantity: 500, unit: 'g' });
+    expect(tolkaEnRad('mjölk x2')).toMatchObject({ name: 'mjölk', quantity: 2, unit: null });
+  });
+
+  it('lämnar ett vanligt namn i fred', () => {
+    expect(tolkaEnRad('havregryn')).toMatchObject({ name: 'havregryn', quantity: null, unit: null });
+    expect(tolkaEnRad('coca cola zero')).toMatchObject({ name: 'coca cola zero', quantity: null });
+  });
+
+  it('delar inte raden — fältet lägger till EN vara', () => {
+    expect(tolkaEnRad('gurka och tomat').name).toBe('gurka och tomat');
+  });
+});
 
 describe('tolkaInköpstext', () => {
   it('en vara per rad', () => {
@@ -72,6 +90,22 @@ describe('tolkaInköpstext', () => {
     expect(namn('Soja, glutenfri')).toEqual(['Soja glutenfri']);
     expect(namn('Köttbullar, glutenfria')).toEqual(['Köttbullar glutenfria']);
     expect(namn('Mjölk, bröd')).toEqual(['Mjölk', 'bröd']);
+  });
+
+  it('delar på "och" — man behöver båda varorna', () => {
+    expect(namn('gurka och tomat')).toEqual(['gurka', 'tomat']);
+    expect(namn('salt och svartpeppar')).toEqual(['salt', 'svartpeppar']);
+  });
+
+  it('delar ALDRIG på "eller" eller snedstreck — valet är butikens', () => {
+    expect(namn('lax/torsk/alaska pollock')).toEqual(['lax/torsk/alaska pollock']);
+    expect(namn('nötfärs alt. vegofärs')).toEqual(['nötfärs alt. vegofärs']);
+    expect(namn('penne/fusilli')).toEqual(['penne/fusilli']);
+  });
+
+  it('håller ihop produkter som bara ser ut som två varor', () => {
+    expect(namn('kött- och grillkrydda')).toEqual(['kött- och grillkrydda']);
+    expect(namn('potatis- och purjolökssoppa')).toEqual(['potatis- och purjolökssoppa']);
   });
 
   it('slår ihop samma vara utan mängd till en rad, men räknar raderna', () => {
