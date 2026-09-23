@@ -9,6 +9,7 @@ import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../mi
 import { asyncHandler } from '../lib/asyncHandler';
 import { learnIngredientAliases, normalizeIngredientNames } from '../lib/normalizeIngredients';
 import { översättIngrediensnamn } from '../lib/translateIngredients';
+import { översättInstruktioner } from '../lib/translateInstructions';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { tillSvenskEnhet } from '@veckis/shared';
 import { delaAlternativ } from '../lib/alternativ';
@@ -202,6 +203,22 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
 
   const { ingredients: råaIngredienser, tags, ...recipeData } = body.data;
   const ingredients = medKategori(råaIngredienser);
+
+  // Tillagningsstegen översätts HÄR, inte i varje importväg: url, inklistrad
+  // text och foto går alla genom den här rutten. Ingrediensnamnen har
+  // översatts sedan tidigare, men stegen lämnades — ett importerat recept fick
+  // svenska ingredienser och engelsk tillagning med "400°F" mitt i.
+  //
+  // Handskrivna recept rörs inte: skriver någon sitt eget recept ska texten
+  // stå som den skrevs.
+  let originalInstructions: string | null = null;
+  if (recipeData.instructions && recipeData.source !== 'manual') {
+    const översatt = await översättInstruktioner(recipeData.instructions);
+    if (översatt) {
+      originalInstructions = recipeData.instructions;
+      recipeData.instructions = översatt;
+    }
+  }
   // url_import-bilder ska re-hostas till vår egen Cloudinary (upphovsrätt +
   // tillförlitlighet) — men INTE synkront: det gjorde createRecipe segt (ladda
   // ner + ladda upp) och kunde störa det direkt efterföljande getRecipe. Vi
@@ -214,6 +231,7 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   const recipe = await prisma.recipe.create({
     data: {
       ...recipeData,
+      originalInstructions,
       ...(tags !== undefined ? { tags: normalizeTags(tags) } : {}),
       createdBy: (req as AuthenticatedRequest).clerkUserId,
       ingredients: { create: ingredients as Prisma.RecipeIngredientCreateWithoutRecipeInput[] },
@@ -308,6 +326,13 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
   const data: Prisma.RecipeUpdateInput = clearingImage
     ? { ...recipeData, imagePublicId: null, imageFocusX: null, imageFocusY: null }
     : recipeData;
+
+  // Skrivs stegen om för hand är källans text inte längre en översättning AV
+  // det som står i receptet — då ska ↔ inte erbjuda den. Samma regel som för
+  // ingrediensernas originalName, som appen nollställer när namnet ändras.
+  if (typeof recipeData.instructions === 'string' && recipeData.instructions !== recipe.instructions) {
+    data.originalInstructions = null;
+  }
 
   const updated = await prisma.$transaction(async (tx) => {
     if (ingredients !== undefined) {

@@ -158,6 +158,10 @@ model Recipe {
   title       String
   description String?
   instructions String?
+  // Stegen som KÄLLAN skrev dem, satt bara när importen översatte texten.
+  // Samma mönster som RecipeIngredient.originalName: ↔-knappen växlar mellan
+  // instructions och den här.
+  originalInstructions String?
   sourceUrl   String?
   // Hur receptet skapades: 'manual' (eget), 'ai_paste' (AI ur inklistrad text,
   // ingen bild), 'url_import' (skrapat från URL — kan innehålla tredje parts

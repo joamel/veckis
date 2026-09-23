@@ -75,7 +75,7 @@ const MENU_DAYS: { key: WeekDay; label: string }[] =
 function makeDraftRecipe(householdId: string): RecipeWithIngredients {
   const now = new Date().toISOString();
   return {
-    id: '', householdId, title: '', description: null, instructions: null,
+    id: '', householdId, title: '', description: null, instructions: null, originalInstructions: null,
     sourceUrl: null, imageUrl: null, imagePublicId: null, imageFocusX: null, imageFocusY: null, cookMinutes: null, servings: 4,
     timesUsed: 0, tags: [], createdBy: '', createdAt: now, updatedAt: now,
     ingredients: [],
@@ -516,7 +516,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const displayServings = scaledServings ?? recipe?.servings ?? 1;
   const scaleRatio = recipe ? displayServings / recipe.servings : 1;
   // Lässtegen i receptvyn; samma uppdelning som Laga nu-läget.
-  const readSteps = recipe?.instructions ? parseSteps(recipe.instructions) : [];
+  // ↔ växlar HELA receptet mellan svenska och källan: ingrediensnamn, enheter
+  // och — sedan importen översätter dem — tillagningsstegen.
+  const visadeInstruktioner = (visaOriginal && recipe?.originalInstructions) || recipe?.instructions || null;
+  const readSteps = visadeInstruktioner ? parseSteps(visadeInstruktioner) : [];
 
   function adjustServings(delta: number) {
     if (!recipe) return;
@@ -777,12 +780,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     setEditServings(recipe.servings);
     setEditCookMinutes(recipe.cookMinutes != null ? String(recipe.cookMinutes) : '');
     setScaledServings(null); // nollställ transient läs-skalning inför edit
-    setEditIngredients(recipe.ingredients.map(i => ({
-      name: i.name,
-      quantity: i.quantity != null ? String(i.quantity).replace('.', ',') : '',
-      unit: i.unit ?? '',
-      originalName: i.originalName ?? null,
-    })));
+    setEditIngredients(recipe.ingredients.map(tillFormulärrad));
     setEditMode(true);
   }
 
@@ -905,7 +903,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           name: r.name.trim(),
           quantity: r.quantity ? parseFloat(r.quantity.replace(',', '.')) || null : null,
           unit: r.unit.trim() || null,
-          originalName: r.originalName ?? null,
+          // Skrivs namnet om för hand är källans rad inte längre en
+          // översättning AV den här varan — då ska ↔ inte erbjuda den.
+          // Rättar man bara stavningen (samma namn) följer originalet med.
+          originalName: recipe.ingredients.some(i => i.name === r.name.trim()) ? (r.originalName ?? null) : null,
         }));
       // Nytt recept skapas FÖRST här — fram till nu har det bara funnits i state.
       if (isNew) {
@@ -1424,7 +1425,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 </View>
               ) : null}
             </View>
-            {!editMode && recipe.ingredients.some(i => isConvertibleUnit(i.unit) || i.originalName) && (
+            {!editMode && (recipe.originalInstructions || recipe.ingredients.some(i => isConvertibleUnit(i.unit) || i.originalName)) && (
               <Pressable
                 style={s.ingConvertBtn}
                 hitSlop={8}
@@ -1660,7 +1661,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               multiline
             />
           </View>
-        ) : recipe.instructions ? (
+        ) : visadeInstruktioner ? (
           <View style={s.section}>
             <View style={s.sectionHeader}>
               <View style={s.sektionRubrikRad}>
@@ -1687,7 +1688,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 ))}
               </View>
             ) : (
-              <Text style={s.instructionsText}>{recipe.instructions}</Text>
+              <Text style={s.instructionsText}>{visadeInstruktioner}</Text>
             )}
             <Pressable style={s.wideBtnSkog} onPress={() => { setCookStep(0); setCookMode(true); }} accessibilityLabel={str.detail.cookA11y}>
               <Ionicons name="restaurant-outline" size={20} color={ny.lime} />
@@ -2112,6 +2113,26 @@ function deduplicateIngredients(ingredients: RecipeIngredient[], scaleRatio: num
   }));
 }
 
+
+/**
+ * En ingrediens som den ska stå i REDIGERINGSFORMULÄRET.
+ *
+ * Läsvyn räknar om amerikanska enheter till svenska, men formuläret visade
+ * källans råa värden — så ett importerat recept fick "cup" i enhetsfältet
+ * bredvid ett översatt namn ("cup" + "vetemjöl"). Nu visas samma enhet som i
+ * läsvyn, och det är den som sparas när man trycker Spara: den som redigerar
+ * ser och skriver svenska mått.
+ */
+function tillFormulärrad(i: { name: string; quantity: number | null; unit: string | null; originalName?: string | null }) {
+  const converted = i.quantity != null && i.unit ? convertToMetric(i.quantity, i.unit) : null;
+  const quantity = converted?.quantity ?? i.quantity;
+  return {
+    name: i.name,
+    quantity: quantity != null ? String(quantity).replace('.', ',') : '',
+    unit: (converted?.unit ?? i.unit) ?? '',
+    originalName: i.originalName ?? null,
+  };
+}
 
 /** Bara mängd + enhet ("300 g"), för receptvyns mängdkolumn. Tom sträng om
  *  ingrediensen saknar mängd ("salt"). visaOriginal=false (default) räknar om

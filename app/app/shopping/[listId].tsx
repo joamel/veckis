@@ -68,7 +68,7 @@ import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem , visningsnamn } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem , visningsnamn, parseItemLine } from '@veckis/shared';
 import { isIOSLike, isWeb } from '../../src/lib/platform';
 import { shoppingList as str, common } from '../../src/lib/svenska';
 import { enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError } from '../../src/lib/shoppingOfflineQueue';
@@ -1009,21 +1009,34 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // skickad blir den ett "val" som får flytta listvaror (se basvaruval.ts).
   // Backend slår upp samma sak själv; här används den bara för den optimistiska
   // raden så den inte blinkar förbi under Övrigt.
-  function quickAdd(name: string, category?: StoreCategory) {
-    const key = name.trim().toLowerCase();
+  function quickAdd(rå: string, category?: StoreCategory) {
+    // Mängden lyfts ur texten FÖRE uppslaget: "1 dl havregryn" är havregryn,
+    // och den varan känner hushållet igen. Utan det här slog uppslaget på hela
+    // strängen, arket öppnades med "1 dl havregryn" som varunamn, och den
+    // strängen lärdes dessutom in som basvara. Servern rättade varan efteråt
+    // — men först efter att appen visat och sparat fel.
+    const tolkad = parseItemLine(rå);
+    const namn = tolkad.name.trim();
+    const key = namn.toLowerCase();
     if (!key) return;
     const known = staples.find(s2 => s2.name.toLowerCase() === key)
       ?? ingredientSuggestions.find(s2 => s2.name.toLowerCase() === key);
-    if (!known) { setNewItem(''); openQtySheet(name.trim(), category); return; }
-    addItem(key, undefined, undefined, undefined, undefined, undefined, undefined, {
+    if (!known) {
+      setNewItem('');
+      openQtySheet(namn, category, tolkad.quantity, tolkad.unit);
+      return;
+    }
+    addItem(key, undefined, tolkad.quantity ?? undefined, tolkad.unit ?? undefined, undefined, undefined, undefined, {
       displayCategory: category ?? (known.category as StoreCategory),
     });
   }
 
-  function openQtySheet(name: string, category?: StoreCategory) {
+  function openQtySheet(name: string, category?: StoreCategory, quantity?: number | null, unit?: string | null) {
     const staple = staples.find(s => s.name.toLowerCase() === name.toLowerCase());
-    setQtyValue('1');
-    setQtyUnit(staple?.unit ?? '');
+    // Skrev man mängden i fältet ("1 dl havregryn") ska arket öppnas med den,
+    // inte med 1 och basvarans enhet.
+    setQtyValue(quantity ? String(quantity).replace('.', ',') : '1');
+    setQtyUnit(unit ?? staple?.unit ?? '');
     setQtyCategory((category ?? staple?.category ?? 'other') as StoreCategory);
     setQtySubCategory(null);
     setQtyCustomCategory(null);

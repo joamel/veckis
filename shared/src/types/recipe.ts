@@ -7,6 +7,8 @@ export interface Recipe {
   title: string;
   description: string | null;
   instructions: string | null;
+  /** Stegen som källan skrev dem, satt bara när importen översatte. */
+  originalInstructions: string | null;
   sourceUrl: string | null;
   imageUrl: string | null;
   imagePublicId: string | null;

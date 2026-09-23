@@ -1,4 +1,4 @@
-import { parseIngredientString } from './parseIngredientString';
+import { parseItemLine } from '@veckis/shared';
 import { delaOch } from './alternativ';
 
 export type TolkadVara = {
@@ -30,17 +30,6 @@ const RUBRIK_RE = /(?::|[✭★☆✩✪⭐])\s*$/u;
 // Beskrivningar som hamnar EFTER ett komma hör till varan före, inte till en
 // egen vara: "soja, glutenfri" är en vara, inte soja plus glutenfri.
 const BESKRIVNING_RE = /^(?:(?:gluten|lakt(?:os)?|socker|salt)fri(?:a|tt)?|eko(?:logisk[at]?|logiska)?|färsk[at]?|frysta?|torkad[e]?|malen|malet|riven|rivna|hackad[e]?|skivad[e]?|naturell|osaltad|saltad|smaksatt)$/u;
-
-// Enheter som kan stå EFTER namnet: "mjölk 2 l", "ägg 12 st". Samma som
-// parseIngredientString känner igen, begränsat till de som förekommer i en
-// inköpslista.
-const EFTER_ENHETER = 'dl|ml|l|liter|cl|gr|gram|g|kg|hg|st|burk|burkar|förp|pkt|paket|påse|påsar|flaska|flaskor';
-// "gr" och "gram" skrivs ofta för hand; listan ska visa g.
-const ENHET_ALIAS: Record<string, string> = { gr: 'g', gram: 'g', liter: 'l' };
-// "mjölk 2 l", "mjölk 2", "mjölk x2", "mjölk 2x", "mjölk (2)".
-const EFTER_RE = new RegExp(`^(.+?)\\s+\\(?(?:x\\s*)?(\\d+(?:[.,]\\d+)?)\\s*(?:x|(${EFTER_ENHETER}))?\\)?$`, 'iu');
-// "2x mjölk", "2 x mjölk".
-const FÖRE_X_RE = /^(\d+)\s*x\s+(.+)$/iu;
 
 /**
  * En inklistrad lista → varor. Varje rad är en vara; en rad med kommatecken
@@ -89,7 +78,7 @@ export function tolkaInköpslista(text: string): { varor: TolkadVara[]; kapad: b
     // delaOch är försiktig: båda sidor måste kännas igen som riktiga varor, så
     // "kött- och grillkrydda" hålls ihop (se alternativ.ts).
     for (const del of delaOch(rad) ?? [rad]) {
-      const lagd = läggTill(tolkaRad(del));
+      const lagd = läggTill(parseItemLine(del));
       senaste = lagd.vara;
       if (lagd.fullt) { kapad = true; break; }
     }
@@ -126,33 +115,10 @@ export function tolkaInköpslista(text: string): { varor: TolkadVara[]; kapad: b
 }
 
 /**
- * En enda rad → namn, mängd och enhet. Samma regler som importen, för det
- * manuella fältet: skriver man "1 dl havregryn" eller "havregryn 1 dl" ska
- * mängden hamna i sitt fält i stället för att bli en del av varunamnet.
+ * En enda rad → namn, mängd och enhet, för det manuella fältet. Tunn genväg
+ * till den delade tolkningen; appen anropar samma funktion direkt.
  */
 export function tolkaEnRad(text: string): TolkadVara {
-  let rad = text.trim();
-  for (let i = 0; i < 3; i++) rad = rad.replace(PREFIX_RE, '');
-  rad = rad.replace(/[.,;:!]+$/u, '').trim();
-  return tolkaRad(rad);
+  return parseItemLine(text);
 }
 
-function tolkaRad(rad: string): TolkadVara {
-  const föreX = rad.match(FÖRE_X_RE);
-  if (föreX) return { name: föreX[2].trim(), quantity: Number(föreX[1]), unit: null };
-
-  const före = parseIngredientString(rad);
-  if (före.quantity !== null && före.name) return före;
-
-  const efter = rad.match(EFTER_RE);
-  if (efter && /\p{L}/u.test(efter[1])) {
-    const quantity = parseFloat(efter[2].replace(',', '.'));
-    const enhet = efter[3]?.toLowerCase();
-    return {
-      name: efter[1].trim(),
-      quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : null,
-      unit: enhet ? (ENHET_ALIAS[enhet] ?? enhet) : null,
-    };
-  }
-  return { name: rad, quantity: null, unit: null };
-}
