@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { nyFont, type NyPalett } from '../../lib/nyDesign';
-import { useNy, useTheme } from '../../context/ThemeContext';
+import { useNy } from '../../context/ThemeContext';
 import { platshallare, type PlatshallarTon } from '../../lib/receptPlatshallare';
 import { recipes as str } from '../../lib/svenska';
 
@@ -76,11 +76,12 @@ export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
 
 /** Kompakt rad: liten bild, titel, meta och planera-knapp. */
 export function ReceptKompaktRad(p: Props) {
-  const { ny, scheme } = useTheme();
+  const ny = useNy();
   const st = useMemo(() => gorSt(ny), [ny]);
-  // Meta och tid i temats gröna: mörkgrönt mot den ljusa raden, lime mot den
-  // mörka. Dämpad grå försvann nästan i mörkt läge.
-  const metaFarg = scheme === 'dark' ? ny.lime : ny.skog;
+  // Samma gröna som rubrikerna inne i receptet (ny.padYta): mörkgrön mot den
+  // ljusa raden, mjukt limegrön mot den mörka. Dämpad grå försvann nästan i
+  // mörkt läge, och ren lime blev skrikig bredvid rubrikerna.
+  const metaFarg = ny.padYta;
   const ph = p.bildUrl ? null : platshallare(p.id, p.sokord);
   const mork = ph?.ton === 'mork';
   return (

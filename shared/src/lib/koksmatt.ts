@@ -13,23 +13,27 @@
 /**
  * Bråkdelar man kan mäta upp, med tecknet som visas.
  *
- * Tredjedelarna skrivs med snedstreck, inte som ⅓ och ⅔. Appens typsnitt
+ * ALLA bråk skrivs med snedstreck, inget som ¼ eller ⅔. Appens typsnitt
  * (Outfit) har glyfer för ¼, ½ och ¾ men INTE för tredjedelarna — de föll
- * därför tillbaka på systemets typsnitt, och "¾" och "⅔" såg ut att komma
- * ur två olika typsnitt i samma kolumn. Kontrollerat i fontens cmap.
+ * tillbaka på systemets typsnitt, och "¾" och "⅔" såg ut att komma ur två
+ * olika typsnitt i samma kolumn (kontrollerat i fontens cmap).
+ *
+ * Första försöket skrev bara tredjedelarna med snedstreck. Då blev skillnaden
+ * STÖRRE: "1¼ dl" bredvid "2 1/3 dl" i samma kolumn är två olika sätt att
+ * skriva ett bråk. Hellre en form som är sig lik hela vägen ned.
  */
 const BRÅK: { värde: number; tecken: string }[] = [
   { värde: 0, tecken: '' },
-  { värde: 1 / 4, tecken: '¼' },
+  { värde: 1 / 4, tecken: '1/4' },
   { värde: 1 / 3, tecken: '1/3' },
-  { värde: 1 / 2, tecken: '½' },
+  { värde: 1 / 2, tecken: '1/2' },
   { värde: 2 / 3, tecken: '2/3' },
-  { värde: 3 / 4, tecken: '¾' },
+  { värde: 3 / 4, tecken: '3/4' },
   { värde: 1, tecken: '' },
 ];
 
-/** Bråk skrivna med snedstreck behöver ett mellanrum mot heltalet:
- *  "42/3" går inte att läsa, "4 2/3" gör det. */
+/** Bråket behöver ett mellanrum mot heltalet: "42/3" går inte att läsa,
+ *  "4 2/3" gör det. */
 const BEHÖVER_MELLANRUM = (tecken: string) => tecken.includes('/');
 
 /** Enheter som mäts med måttsats och därför mår bra av bråk. Vikt gör det

@@ -126,12 +126,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const savingNavRef = useRef(false);
   // Mäts av ConfirmDialog så "+"-popupen hamnar rätt ovanför knappen.
   const fabRef = useRef<View>(null);
-  const { colors: c, ny, scheme } = useTheme();
+  const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
-  const s = useMemo(() => makeStyles(c, nyDesign, ny, scheme === 'dark'), [c, nyDesign, ny, scheme]);
-  // Metatextens gröna: mörkgrön mot ljus bakgrund, lime mot mörk — samma val
-  // som receptkorten gör, så en siffra ser likadan ut i listan och i receptet.
-  const metaFarg = nyDesign ? (scheme === 'dark' ? ny.lime : ny.skog) : c.textMuted;
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
+  // Samma gröna som sektionsrubrikerna (ny.padYta), så siffror och rubrik
+  // hör ihop — och samma som receptkortens metarad.
+  const metaFarg = nyDesign ? ny.padYta : c.textMuted;
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -2170,7 +2170,7 @@ function formatIngredient(ing: { quantity: number | null; unit: string | null; n
 }
 
 // nyD: den nya designen (beta) skriver over de stilar som skiljer.
-const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett, mork = false) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   container: { flex: 1, backgroundColor: nyD ? ny.bakgrund : c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   // Morkgront band som ovriga vyers NyHeader. Hogre an 48 for att rubriken ska
@@ -2216,7 +2216,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett, mork = false) => Sty
   tagAddBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: nyD ? ny.skog : c.primary, alignItems: 'center', justifyContent: 'center' },
   servingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, paddingLeft: 6, paddingRight: 4, paddingVertical: 6, borderRadius: 20 },
   servingBtn: { padding: 2 },
-  metaText: { fontSize: 13, color: nyD ? (mork ? ny.lime : ny.skog) : c.textMuted },
+  metaText: { fontSize: 13, color: nyD ? ny.padYta : c.textMuted },
   tidChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   description: { fontSize: 14, color: nyD ? ny.text : c.textSecondary, lineHeight: 22 },
   section: { gap: 10 },
@@ -2226,7 +2226,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett, mork = false) => Sty
     : { fontSize: 17, fontWeight: '700', color: c.text },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   editBtnText: { fontSize: 14, color: nyD ? ny.padYta : c.primary, fontWeight: '500' },
-  sectionCount: { fontFamily: nyFont.halvfet, color: nyD ? (mork ? ny.lime : ny.skog) : c.textMuted },
+  sectionCount: { fontFamily: nyFont.halvfet, color: nyD ? ny.padYta : c.textMuted },
   sektionRubrikRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sektionAntal: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   // Ingredienserna som en inköpslapp på ett ljusgrönt kort.
@@ -2235,7 +2235,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett, mork = false) => Sty
   ingRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ny.kontur },
   // Fast bredd: kolumnen linjerar, och Android klipper inte sista glyfen.
   ingQty: { width: 76, fontFamily: nyFont.halvfet, fontSize: 15, color: ny.padYta },
-  ingName: { flex: 1, fontSize: 15, lineHeight: 21, color: ny.text },
+  ingName: { flex: 1, fontFamily: nyFont.halvfet, fontSize: 15, lineHeight: 21, color: ny.text },
   ingConvertBtn: { padding: 4 },
   wideBtnLime: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 26, backgroundColor: ny.lime, marginTop: 4 },
   wideBtnLimeText: { fontFamily: nyFont.halvfet, fontSize: 16, color: ny.skog },
