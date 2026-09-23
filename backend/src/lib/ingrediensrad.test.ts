@@ -24,6 +24,14 @@ describe('stadaIngrediensrad', () => {
     expect(rad('sås: 2 dl grädde')).toMatchObject({ name: '2 dl grädde' });
   });
 
+  it('ger enheten en kanonisk form', () => {
+    // "förpackning" och "förp" ska inte bli två enheter i databasen.
+    expect(rad('tomatpuré', 'förpackning')).toMatchObject({ unit: 'förp' });
+    expect(rad('mjöl', 'gram')).toMatchObject({ unit: 'g' });
+    // Källans engelska enhet rörs inte — den behövs för ↔-knappen.
+    expect(rad('flour', 'cup')).toMatchObject({ unit: 'cup' });
+  });
+
   it('lämnar korrekta receptrader precis som de står', () => {
     const orörda = [
       'banan, i bitar (ca 150 g skalad vikt)',

@@ -16,7 +16,7 @@ import { learnIngredientAliases, getStoredCategory } from '../lib/normalizeIngre
 import { stripIngredient } from '../lib/stripIngredient';
 import { suggestMerge, resolveEquivalences, learnEquivalenceFromMerge, isPackagingUnit, loadConfirmedEquivalencesByName } from '../lib/smartMerge';
 import { wsBroadcast } from '../lib/wsHub';
-import { inferSubCategory, parentForSub, type SubCategory , tillSvenskEnhet } from '@veckis/shared';
+import { inferSubCategory, parentForSub, type SubCategory , tillSvenskEnhet, normalizeUnit } from '@veckis/shared';
 import { sendPush, notifyActiveShopper } from '../lib/sendPush';
 import { planFullUnmerge, findRoot } from '../lib/mergeLogic';
 import { planAutoMerge } from '../lib/importDedupe';
@@ -605,6 +605,9 @@ shoppingRouter.patch('/items/:itemId', requireAuth, asyncHandler(async (req, res
 
   const data = { ...body.data };
   if (data.name) data.name = data.name.toLowerCase();
+  // "förpackning" och "förp" är samma enhet; två stavningar blir annars två
+  // rader som dubblettarket inte hittar ihop (det matchar namn OCH enhet).
+  if (data.unit !== undefined) data.unit = normalizeUnit(data.unit);
   const item = await prisma.shoppingItem.update({ where: { id: existing.id }, data });
 
   if (data.category && data.category !== existing.category) {
@@ -745,7 +748,7 @@ shoppingRouter.post('/items/merge', requireAuth, asyncHandler(async (req, res) =
         listId,
         name: body.data.name,
         quantity: body.data.quantity,
-        unit: body.data.unit ?? null,
+        unit: normalizeUnit(body.data.unit),
         category: body.data.category,
         addedBy: clerkUserId,
       },

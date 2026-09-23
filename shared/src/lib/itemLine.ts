@@ -7,6 +7,8 @@
  * strängen som varunamn, och basvaran lärdes in som "1 dl havregryn" — servern
  * rättade varan efteråt, men ordförrådet hade redan fått skräp.
  */
+import { normalizeUnit } from './unitSynonyms';
+
 // Måttenheter som känns igen mellan mängd och namn ("2 dl mjöl", "1 cup sugar").
 // Håll i synk med UNITS i stripIngredient.ts. Amerikanska/brittiska enheter
 // sparas RÅTT (ej konverterade) — se @veckis/shared unitConversion.ts för
@@ -89,8 +91,6 @@ export function parseIngredientString(raw: string): { name: string; quantity: nu
 
 // Enheter som kan stå EFTER namnet: "mjölk 2 l", "ägg 12 st".
 const TRAILING_UNITS = 'dl|ml|l|liter|cl|gr|gram|g|kg|hg|st|burk|burkar|förp|pkt|paket|påse|påsar|flaska|flaskor';
-/** "gr" och "gram" skrivs ofta för hand; listan ska visa g. */
-const UNIT_ALIAS: Record<string, string> = { gr: 'g', gram: 'g', liter: 'l' };
 // "mjölk 2 l", "mjölk 2", "mjölk x2", "mjölk 2x", "mjölk (2)".
 const TRAILING_RE = new RegExp(`^(.+?)\\s+\\(?(?:x\\s*)?(\\d+(?:[.,]\\d+)?)\\s*(?:x|(${TRAILING_UNITS}))?\\)?$`, 'iu');
 // "2x mjölk", "2 x mjölk".
@@ -116,7 +116,7 @@ export function parseItemLine(text: string): ParsedItemLine {
   if (leadingX) return { name: leadingX[2].trim(), quantity: Number(leadingX[1]), unit: null };
 
   const leading = parseIngredientString(line);
-  if (leading.quantity !== null && leading.name) return leading;
+  if (leading.quantity !== null && leading.name) return { ...leading, unit: normalizeUnit(leading.unit) };
 
   const trailing = line.match(TRAILING_RE);
   if (trailing && /\p{L}/u.test(trailing[1])) {
@@ -125,7 +125,7 @@ export function parseItemLine(text: string): ParsedItemLine {
     return {
       name: trailing[1].trim(),
       quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : null,
-      unit: unit ? (UNIT_ALIAS[unit] ?? unit) : null,
+      unit: normalizeUnit(unit),
     };
   }
   return { name: line, quantity: null, unit: null };

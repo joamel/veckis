@@ -34,11 +34,15 @@ describe('massa och volym hålls isär', () => {
     expect(tillSvenskEnhet(3, 'lbs').unit).toBe('kg');
   });
 
-  it('rör inte svenska enhetsord', () => {
-    // "gram" och "liter" är redan svenska — att skriva om dem till g och l
-    // vore att ändra vad användaren skrev utan att något blev tydligare.
-    expect(tillSvenskEnhet(200, 'gram')).toEqual({ quantity: 200, unit: 'gram' });
-    expect(tillSvenskEnhet(1, 'liter')).toEqual({ quantity: 1, unit: 'liter' });
-    expect(tillSvenskEnhet(2, 'deciliter')).toEqual({ quantity: 2, unit: 'deciliter' });
+  it('kortar svenska enhetsord till sin kanoniska form', () => {
+    // Tidigare lämnades "gram" och "liter" orörda, med motiveringen att de
+    // redan var svenska. Men då blev samma enhet två i databasen: "200 gram"
+    // och "200 g" är samma sak men slogs inte ihop, och ordförrådet fick två
+    // varianter. Mängden räknas INTE om — bara stavningen väljs (se
+    // unitSynonyms.ts).
+    expect(tillSvenskEnhet(200, 'gram')).toEqual({ quantity: 200, unit: 'g' });
+    expect(tillSvenskEnhet(1, 'liter')).toEqual({ quantity: 1, unit: 'l' });
+    expect(tillSvenskEnhet(2, 'deciliter')).toEqual({ quantity: 2, unit: 'dl' });
+    expect(tillSvenskEnhet(3, 'förpackningar')).toEqual({ quantity: 3, unit: 'förp' });
   });
 });

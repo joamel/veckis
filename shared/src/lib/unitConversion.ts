@@ -109,6 +109,8 @@ export function convertToMetric(quantity: number | null, unit: string | null): {
  * Buggen: en basvara skapad från ett engelskt recept ärvde "teaspoon", och
  * varje framtida tillägg av den varan fick samma enhet, oavsett recept.
  */
+import { normalizeUnit } from './unitSynonyms';
+
 export function tillSvenskEnhet(
   quantity: number | null | undefined,
   unit: string | null | undefined,
@@ -119,7 +121,9 @@ export function tillSvenskEnhet(
 
   // Utan mängd: konvertera 1 av enheten bara för att få fram enhetsnamnet.
   const konverterad = convertToMetric(q ?? 1, u);
-  if (!konverterad) return { quantity: q, unit: u };
+  // Ingen omräkning behövdes — men stavningen kan ändå vara en variant
+  // ("förpackning", "gram"), och två stavningar av samma enhet blir två rader.
+  if (!konverterad) return { quantity: q, unit: normalizeUnit(u) };
 
   return { quantity: q === null ? null : konverterad.quantity, unit: konverterad.unit };
 }

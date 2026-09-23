@@ -9,6 +9,7 @@ import { basvaruskrivning } from '../lib/basvaruval';
 import { COMMON_INGREDIENTS } from '../lib/commonIngredients';
 import { duglingGlobalt } from '../lib/normalizeIngredients';
 import { delaAlternativ } from '../lib/alternativ';
+import { normalizeUnit } from '@veckis/shared';
 import { wsListUpdate } from '../lib/wsHub';
 
 export const staplesRouter = Router();
@@ -57,6 +58,9 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const normalizedName = body.data.name.toLowerCase();
+  // Enheten lagras i EN skriven form, annars lär hushållet sig "förpackning"
+  // för en vara och "förp" för nästa.
+  if (body.data.unit !== undefined) body.data.unit = normalizeUnit(body.data.unit);
 
   // Valde anroparen en kategori, eller skickade den bara med varan?
   //

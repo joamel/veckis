@@ -1,4 +1,5 @@
 import { startsWithUnit } from './stripIngredient';
+import { normalizeUnit } from '@veckis/shared';
 
 /**
  * Städar en receptingrediens från två MEKANISKA importfel. Ordalydelsen i
@@ -39,5 +40,6 @@ export function stadaIngrediensrad<T extends { name: string; unit?: string | nul
     }
   }
 
-  return { ...rad, name, unit };
+  // Samma enhet ska heta samma sak oavsett hur källan skrev den.
+  return { ...rad, name, unit: normalizeUnit(unit) };
 }
