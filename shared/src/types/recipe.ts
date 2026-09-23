@@ -41,11 +41,17 @@ export interface RecipeIngredient {
   originalName?: string | null;
 }
 
-/** Måltidstyp så flera rätter kan samsas på samma dag (frukost + middag …). */
-export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'dessert';
+/** Måltidstyper så flera rätter kan samsas på samma dag (frukost + middag …).
+ *  Ordning för sortering/visning inom en dag: dygnet igenom, med förrätten
+ *  före middagen och efterrätten efter. `fika` har inget engelskt namn.
+ *  Listan är också facit för vilka värden som finns — typen läses ur den, och
+ *  backendens zod-enum tar den rakt av, så en ny måltid läggs till på ett
+ *  enda ställe. */
+export const MEAL_TYPE_ORDER = [
+  'breakfast', 'snack', 'lunch', 'fika', 'starter', 'dinner', 'dessert',
+] as const;
 
-/** Ordning för sortering/visning inom en dag. */
-export const MEAL_TYPE_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'dessert'];
+export type MealType = typeof MEAL_TYPE_ORDER[number];
 
 export interface WeekMenuItem {
   id: string;

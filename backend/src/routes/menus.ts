@@ -11,7 +11,7 @@ import { wsBroadcast } from '../lib/wsHub';
 import { planIncomingMatch, planAutoMerge } from '../lib/importDedupe';
 import { loadConfirmedEquivalencesByName } from '../lib/smartMerge';
 import { notifyActiveShopper } from '../lib/sendPush';
-import { convertToMetric , inferSubCategory } from '@veckis/shared';
+import { convertToMetric , inferSubCategory, MEAL_TYPE_ORDER } from '@veckis/shared';
 
 export const menusRouter = Router();
 
@@ -27,7 +27,7 @@ async function bumpTimesUsed(items: { recipeId: string }[]): Promise<void> {
 }
 
 const weekDayEnum = z.nativeEnum(WeekDay);
-const mealTypeEnum = z.enum(['breakfast', 'lunch', 'dinner', 'dessert']);
+const mealTypeEnum = z.enum(MEAL_TYPE_ORDER);
 
 const createMenuItemSchema = z.object({
   householdId: z.string(),

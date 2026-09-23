@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, type ReactNode } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
@@ -21,6 +21,7 @@ import {
   TextInput,
   View,
   useWindowDimensions,
+  type TextStyle,
 } from 'react-native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -1302,11 +1303,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             </Pressable>
             <Ionicons name="restaurant-outline" size={14} color={metaFarg} />
             {(() => {
-              const text = `${editMode ? editServings : displayServings} port.`;
+              const text = str.detail.servingsShort(editMode ? editServings : displayServings);
               // Explicit bredd: Android klipper annars allt efter första
-              // mellanslaget ("4 port." → "4"). Snävare mått än metaBredd:
+              // mellanslaget ("4 port" → "4"). Snävare mått än metaBredd:
               // siffra + kort förkortning är smalare än genomsnittstecknet,
-              // och den extra luften sköt ut "Originalrecept" på en egen rad.
+              // och den extra luften sköt ut "Original" på en egen rad.
               return <Text style={[s.metaText, { width: portionsBredd(text) }]} numberOfLines={1}>{text}</Text>;
             })()}
             <Pressable onPress={() => editMode ? adjustEditServings(1) : adjustServings(1)} style={s.servingBtn} hitSlop={8}>
@@ -1345,14 +1346,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
           {recipe.sourceUrl && (
             <Pressable
-              style={[s.metaChip, s.tidChip]}
+              style={s.kallaChip}
               onPress={() => WebBrowser.openBrowserAsync(recipe.sourceUrl!)}
               accessibilityRole="link"
               accessibilityLabel={str.detail.originalRecipeA11y}
             >
-              <Text style={[s.metaText, { color: c.primary, width: metaBredd(str.detail.originalRecipe) }]} numberOfLines={1}>{str.detail.originalRecipe}</Text>
+              <Text style={[s.metaText, { width: metaBredd(str.detail.originalRecipe) }]} numberOfLines={1}>{str.detail.originalRecipe}</Text>
               {/* Ruta med pil ut: säger att länken lämnar appen. */}
-              <Ionicons name="open-outline" size={13} color={c.primary} />
+              <Ionicons name="open-outline" size={13} color={metaFarg} />
             </Pressable>
           )}
         </View>
@@ -1636,7 +1637,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               <View style={s.ingCard}>
                 {recipe.ingredients.map((ing, i) => (
                   <View key={ing.id} style={[s.ingRow, i > 0 && s.ingRowBorder]}>
-                    <Text style={s.ingQty}>{formatQty(ing, scaleRatio, visaOriginal)}</Text>
+                    <Text style={s.ingQty}>{medLitetBrak(formatQty(ing, scaleRatio, visaOriginal), s.ingBrak)}</Text>
                     <Text style={s.ingName}>{visaOriginal && ing.originalName ? ing.originalName : ing.name}</Text>
                   </View>
                 ))}
@@ -2075,7 +2076,7 @@ function metaBredd(text: string): number {
   return Math.ceil(text.length * 7.5) + 6;
 }
 
-/** Portionstexten ("4 port.", "12 port.") är siffror och en kort förkortning
+/** Portionstexten ("4 port", "12 port") är siffror och en kort förkortning
  *  — smalare tecken än snittet, så den får ett eget, snävare mått. */
 function portionsBredd(text: string): number {
   return Math.ceil(text.length * 6.6) + 4;
@@ -2135,6 +2136,16 @@ function tillFormulärrad(i: { name: string; quantity: number | null; unit: stri
     unit: (converted?.unit ?? i.unit) ?? '',
     originalName: i.originalName ?? null,
   };
+}
+
+/** Bråkdelen i "1 1/4 dl" skrivs mindre än heltalet framför, som i ett
+ *  typsnitt med riktiga bråktecken. Typsnittet saknar ⅓ och ⅔, så bråken
+ *  skrivs med snedstreck — och då blev "1 1/4" svårt att skilja från "11/4".
+ *  Storleken gör skillnaden i stället för tecknet. */
+function medLitetBrak(text: string, brakStil: TextStyle): ReactNode {
+  const m = text.match(/^(\d+\s)?(\d\/\d)(.*)$/);
+  if (!m) return text;
+  return <>{m[1]}<Text style={brakStil}>{m[2]}</Text>{m[3]}</>;
 }
 
 /** Bara mängd + enhet ("300 g"), för receptvyns mängdkolumn. Tom sträng om
@@ -2205,8 +2216,8 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   imgAfterSaveHint: { fontSize: 13, color: c.textFaint, textAlign: 'center', paddingVertical: 8 },
   imgRemoveBtn: { width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: c.dangerTint },
   editImagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: c.surfaceSubtle, marginTop: 8 },
-  metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  metaChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, flexShrink: 0 },
+  metaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  metaChip: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 20, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, flexShrink: 0 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   tagChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.kort : c.primaryTint, flexShrink: 0 },
   tagChipActive: { backgroundColor: nyD ? ny.skog : c.primary },
@@ -2214,10 +2225,17 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   tagChipTextActive: { color: nyD ? ny.lime : '#fff' },
   tagAddRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   tagAddBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: nyD ? ny.skog : c.primary, alignItems: 'center', justifyContent: 'center' },
-  servingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, paddingLeft: 6, paddingRight: 4, paddingVertical: 6, borderRadius: 20 },
+  servingChip: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, paddingLeft: 4, paddingRight: 2, paddingVertical: 6, borderRadius: 20 },
   servingBtn: { padding: 2 },
   metaText: { fontSize: 13, color: nyD ? ny.padYta : c.textMuted },
   tidChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // Länken till källan. Tätare än de andra chipsen: ordet plus ikonen måste
+  // rymmas bredvid portioner och tid, annars bryter raden.
+  kallaChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0,
+    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: nyD ? ny.kort : c.surfaceSubtle,
+  },
   description: { fontSize: 14, color: nyD ? ny.text : c.textSecondary, lineHeight: 22 },
   section: { gap: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -2235,6 +2253,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   ingRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ny.kontur },
   // Fast bredd: kolumnen linjerar, och Android klipper inte sista glyfen.
   ingQty: { width: 76, fontFamily: nyFont.halvfet, fontSize: 15, color: ny.padYta },
+  ingBrak: { fontSize: 11 },
   ingName: { flex: 1, fontFamily: nyFont.halvfet, fontSize: 15, lineHeight: 21, color: ny.text },
   ingConvertBtn: { padding: 4 },
   wideBtnLime: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 26, backgroundColor: ny.lime, marginTop: 4 },

@@ -49,7 +49,10 @@ export const common = {
     label:     'Måltid',
     entity:    'måltidstyp',
     breakfast: 'Frukost',
+    snack:     'Mellanmål',
     lunch:     'Lunch',
+    fika:      'Fika',
+    starter:   'Förrätt',
     dinner:    'Middag',
     dessert:   'Efterrätt',
   },
@@ -748,8 +751,11 @@ export const recipes = {
     removeImage:    'Ta bort bild',
     imageLoadError: 'Kunde inte ladda bilden',
     noIngredients:  'Inga ingredienser än - tryck för att lägga till',
-    originalRecipe: 'Originalrecept',
+    originalRecipe: 'Original',
     originalRecipeA11y: 'Öppna originalreceptet i webbläsaren',
+    /** Utan punkt: förkortningen är tydlig ändå och punkten tog plats på en
+     *  metarad där chipsen knappt får plats bredvid varandra. */
+    servingsShort: (antal: number) => `${antal} port`,
     cookStep:       (current: number, total: number) => `Steg ${current} av ${total}`,
     cookTimePlaceholder: '–',
     cookTimeNone:        'Ingen tid',

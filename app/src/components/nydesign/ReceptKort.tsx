@@ -117,7 +117,7 @@ export function ReceptKompaktRad(p: Props) {
         </View>
         {p.lage === 'normal' && (
           <Pressable style={st.radKnapp} onPress={p.onPlanera} hitSlop={6} accessibilityRole="button" accessibilityLabel={p.planeraLabel}>
-            <Ionicons name="calendar-outline" size={18} color={metaFarg} />
+            <Ionicons name="calendar-outline" size={18} color={ny.lime} />
           </Pressable>
         )}
         {p.lage === 'valj' && <Ionicons name="add-circle" size={26} color={ny.padYta} />}
@@ -227,8 +227,11 @@ const gorSt = (ny: NyPalett) => StyleSheet.create({
   metaTal: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   radMeta: { fontSize: 12, color: ny.textDampad, flexShrink: 1 },
   radTidText: { fontWeight: '700', flexShrink: 0 },
+  // Mörkgrön knapp med limegrön ikon, samma par som de stora korten och
+  // "Laga"-knappen. Den ljusa brickan såg ut som en yta, inte som något man
+  // trycker på, och ikonen i metafärg smälte ihop med siffrorna bredvid.
   radKnapp: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: ny.bricka,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: ny.skog,
     alignItems: 'center', justifyContent: 'center',
   },
   taBort: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: ny.ljus, borderRadius: 12 },
