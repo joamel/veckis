@@ -6,6 +6,7 @@ import type { Palette } from '../lib/theme';
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import { Animated, BackHandler, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { components as str } from '../lib/svenska';
 
 interface Rect { x: number; y: number; width: number; height: number }
@@ -52,6 +53,9 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
   const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   // Färgen på ikoner som ritas inline (fingret, glödlampan, mock-raden).
   const ikonFarg = nyDesign ? ny.padYta : c.accent;
+  // Tipset är en overlay över hela skärmen, alltså kant-i-kant: kortets
+  // knapp får inte hamna under systemets navigeringsrad.
+  const insets = useSafeAreaInsets();
   const [measuredRect, setMeasuredRect] = useState<Rect | null>(null);
   const pulse = useRef(new Animated.Value(0)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
@@ -141,7 +145,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
 
   if (!visible) return null;
 
-  const callout = computeCalloutTop(rect, screen.height, swipeDemo);
+  const callout = computeCalloutTop(rect, screen.height, insets.bottom, swipeDemo);
 
   // Swipe finger sweeps ±35% of the target dimension, centered on the rect.
   const swipeAmpX = rect && swipeDemo === 'horizontal' ? rect.width * 0.35 : 0;
@@ -211,7 +215,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
       )}
       {/* Tap outside the card dismisses (covers full screen, behind the card). */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
-      <View style={[s.card, callout.top != null ? { top: callout.top } : { bottom: callout.bottom }, { left: 20, right: 20, maxHeight: screen.height * 0.7 }]}>
+      <View style={[s.card, callout.top != null ? { top: callout.top } : { bottom: callout.bottom }, { left: 20, right: 20, maxHeight: (screen.height - insets.bottom) * 0.7 }]}>
         {/* Toprad: position-pill */}
         {total && total > 1 ? (
           <View style={s.topRow}>
@@ -362,8 +366,12 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
 // Position the callout below the target if there's room, otherwise above,
 // otherwise centred on the screen. swipeDemo='drag' utan target pushas ned
 // så det finns plats för mock-meny-raderna ovanför tip-kortet.
-function computeCalloutTop(rect: Rect | null, screenH: number, swipeDemo?: 'horizontal' | 'vertical' | 'drag'): { top?: number; bottom?: number } {
+function computeCalloutTop(rect: Rect | null, screenH: number, bottomInset: number, swipeDemo?: 'horizontal' | 'vertical' | 'drag'): { top?: number; bottom?: number } {
   const cardEstHeight = 200;
+  // Navigeringsraden är inte skärmyta vi får använda — räkna som om skärmen
+  // slutade ovanför den, annars kan kortets knapp hamna under de tre
+  // knapparna hos den som kör knappnavigering.
+  screenH -= bottomInset;
   if (!rect) {
     if (swipeDemo === 'drag') {
       // Drag-demoen sitter på ~34% (över dagens rätter), mock-rad + drag-spann
