@@ -1300,8 +1300,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             {(() => {
               const text = `${editMode ? editServings : displayServings} port.`;
               // Explicit bredd: Android klipper annars allt efter första
-              // mellanslaget ("4 port." → "4").
-              return <Text style={[s.metaText, { width: metaBredd(text) }]} numberOfLines={1}>{text}</Text>;
+              // mellanslaget ("4 port." → "4"). Snävare mått än metaBredd:
+              // siffra + kort förkortning är smalare än genomsnittstecknet,
+              // och den extra luften sköt ut "Originalrecept" på en egen rad.
+              return <Text style={[s.metaText, { width: portionsBredd(text) }]} numberOfLines={1}>{text}</Text>;
             })()}
             <Pressable onPress={() => editMode ? adjustEditServings(1) : adjustServings(1)} style={s.servingBtn} hitSlop={8}>
               <Ionicons name="add" size={14} color={c.primary} />
@@ -1339,10 +1341,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
           {recipe.sourceUrl && (
             <Pressable
-              style={s.metaChip}
+              style={[s.metaChip, s.tidChip]}
               onPress={() => WebBrowser.openBrowserAsync(recipe.sourceUrl!)}
+              accessibilityRole="link"
+              accessibilityLabel={str.detail.originalRecipeA11y}
             >
-              <Text style={[s.metaText, { color: c.primary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{str.detail.originalRecipe}</Text>
+              <Text style={[s.metaText, { color: c.primary, width: metaBredd(str.detail.originalRecipe) }]} numberOfLines={1}>{str.detail.originalRecipe}</Text>
+              {/* Ruta med pil ut: säger att länken lämnar appen. */}
+              <Ionicons name="open-outline" size={13} color={c.primary} />
             </Pressable>
           )}
         </View>
@@ -2065,6 +2071,12 @@ function metaBredd(text: string): number {
   return Math.ceil(text.length * 7.5) + 6;
 }
 
+/** Portionstexten ("4 port.", "12 port.") är siffror och en kort förkortning
+ *  — smalare tecken än snittet, så den får ett eget, snävare mått. */
+function portionsBredd(text: string): number {
+  return Math.ceil(text.length * 6.6) + 4;
+}
+
 /** Fältets text → minuter att spara. Tomt eller 0 = okänd (null), aldrig 0 min. */
 function tolkaMinuter(text: string): number | null {
   const n = parseInt(text, 10);
@@ -2170,7 +2182,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   imgRemoveBtn: { width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: c.dangerTint },
   editImagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: c.surfaceSubtle, marginTop: 8 },
   metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  metaChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, flexShrink: 0 },
+  metaChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, flexShrink: 0 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   tagChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.kort : c.primaryTint, flexShrink: 0 },
   tagChipActive: { backgroundColor: nyD ? ny.skog : c.primary },
@@ -2178,7 +2190,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   tagChipTextActive: { color: nyD ? ny.lime : '#fff' },
   tagAddRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   tagAddBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: nyD ? ny.skog : c.primary, alignItems: 'center', justifyContent: 'center' },
-  servingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
+  servingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, paddingLeft: 6, paddingRight: 4, paddingVertical: 6, borderRadius: 20 },
   servingBtn: { padding: 2 },
   metaText: { fontSize: 13, color: nyD ? ny.textDampad : c.textMuted },
   tidChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
