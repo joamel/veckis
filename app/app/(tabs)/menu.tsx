@@ -561,6 +561,21 @@ export default function MenuScreen() {
   // Auto-scroll during drag near screen edges
   const menuScrollRef = useRef<ScrollView | null>(null);
   const weekListRef = useRef<FlatList<number>>(null);
+  // Måltidsraden i det utfällda kortet scrollar i sidled, och den ligger inuti
+  // veckopagern som också gör det. Utan det här vann pagern alltid: ett svep
+  // på chipsen bytte vecka i stället för att visa nästa måltid. Veckosvepet
+  // stängs av medan fingret ligger på raden och slås på igen när det släpper.
+  const [chipsRoras, setChipsRoras] = useState(false);
+  // Webben byter vecka på råa touch-koordinater längre ned, och den läsningen
+  // sker i en callback — därav en ref vid sidan av. Nollställningen skjuts en
+  // tick fram: touch-händelser bubblar barn → förälder, så raden hinner annars
+  // säga "släppt" innan veckosvepet hunnit läsa flaggan.
+  const chipsRorasRef = useRef(false);
+  const onChipTouch = useCallback((roras: boolean) => {
+    if (roras) chipsRorasRef.current = true;
+    else setTimeout(() => { chipsRorasRef.current = false; }, 0);
+    setChipsRoras(roras);
+  }, []);
   // Virtualised week pager: a long list of week offsets so swiping never has to
   // recenter (which is what caused the flash). The arrows just scrollToIndex.
   const WEEK_SPAN = 104; // ±2 years of weeks
@@ -802,6 +817,7 @@ export default function MenuScreen() {
   const onWebTouchEnd = useCallback((e: GestureResponderEvent) => {
     const start = webTouchStart.current;
     webTouchStart.current = null;
+    if (chipsRorasRef.current) return; // svepet tillhör måltidsraden
     const t = e.nativeEvent.changedTouches?.[0];
     if (!start || !t) return;
     const dx = t.pageX - start.x;
@@ -1530,6 +1546,7 @@ export default function MenuScreen() {
         scaledServings={scaledServingsOf(item)}
         onScaleServings={isCenter ? (n => (isPastWeek ? scaleServingsLokalt(item, n) : scaleServings(item, n))) : noop}
         onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
+        onChipTouch={onChipTouch}
       />
     );
     return (
@@ -1636,6 +1653,7 @@ export default function MenuScreen() {
                           scaledServings={scaledServingsOf(item)}
                           onScaleServings={isCenter ? (n => (isPastWeek ? scaleServingsLokalt(item, n) : scaleServings(item, n))) : noop}
                           onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
+                          onChipTouch={onChipTouch}
                         />
                       ))
                     )}
@@ -1831,7 +1849,7 @@ export default function MenuScreen() {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         style={[s.content, nyDesign && s.nyInnehall]}
-        scrollEnabled={!dragState}
+        scrollEnabled={!dragState && !chipsRoras}
         initialScrollIndex={weekOffset + WEEK_SPAN}
         getItemLayout={(_, index) => ({ length: weekPageW, offset: weekPageW * index, index })}
         windowSize={3}
@@ -2465,6 +2483,7 @@ function MenuCard({
   scaledServings,
   onScaleServings,
   onSetMeal,
+  onChipTouch,
   dayLabel,
   collapsedForDrag,
   hero,
@@ -2486,6 +2505,9 @@ function MenuCard({
   scaledServings: number;
   onScaleServings: (n: number) => void;
   onSetMeal: (meal: MealType | null) => void;
+  /** Kallas när fingret tar i respektive släpper måltidsraden, så veckopagern
+   *  kan sluta konkurrera om samma svep. */
+  onChipTouch: (roras: boolean) => void;
   collapsedForDrag?: boolean;
   /** Ny design: dagens första rätt visar receptbilden som banderoll. */
   hero?: boolean;
@@ -2630,7 +2652,14 @@ function MenuCard({
                 <Text style={s.nyEtikett}>{common.mealTypes.label}</Text>
                 {/* Sidscroll i stället för radbrytning — raden håller samma höjd
                     oavsett hur många måltider som finns. */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.nyChipScroll}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.nyChipScroll}
+                  onTouchStart={() => onChipTouch(true)}
+                  onTouchEnd={() => onChipTouch(false)}
+                  onTouchCancel={() => onChipTouch(false)}
+                >
                   {MEAL_TYPE_ORDER.map(mt => {
                     const active = item.mealType === mt;
                     return (
