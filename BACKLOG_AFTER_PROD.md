@@ -148,7 +148,7 @@ Avklarat markeras `[x]` här och arkiveras vid tillfälle.
 - [x] Ändra layout för "lägg till recept" (t.ex. lista under varandra i stället för 4 flikar) — löst 2026-09-08: flikraden är ersatt av en popup-meny förankrad ovanför "+"-FAB:en (`menuAnchor: 'bottom-right'`), och sheeten öppnas direkt i valt läge med rubriken som namnger läget. **Manuellt** är inte längre ett läge i sheeten alls utan en egen skärm (`/recipes/new`): samma vy som receptredigering, men receptet skapas FÖRST vid Spara — draften lever bara i state, så ett avbrutet försök lämnar inga skräprecept. Backar man ur får man den befintliga "släng utkastet?"-frågan (`beforeRemove` + `useDiscardDraft`); en `savingNavRef`-vakt hindrar att frågan ställs två gånger när vi navigerar bort efter ett lyckat sparande. Bildknapparna är dolda för osparade recept eftersom uppladdningen adresserar receptet via id.
 
 ## Inställningar
-- [ ] Kunna stänga inbjudningssektionen igen om man väl öppnat den
+- [x] **Kunna stänga inbjudningssektionen igen om man väl öppnat den** (2026-09-23) — koden fälls in med en chevron i stället för att ligga kvar tills man lämnar skärmen. Den fälls IN, inte bort: koden finns kvar i state, så man slipper generera en ny. Chevronen pekar åt det håll den tar en. "Ny kod" fäller alltid ut igen.
 
 ## Ny design (beta)
 Skisser: "Handlis omdesign" (claude.ai-artefakt). Stil: skog & lime — mörkgrönt sidhuvud och flikrad, lime för det man trycker på, gröntonade kort i stället för vita, rubriker i Outfit. Byggs vy för vy bakom inställningen **Ny design (beta)** (Hushållet → Ny design), så den kan gå ut som OTA och testas utan att den gamla designen rörs. Paletten ligger separat i `src/lib/nyDesign.ts` — den gamla `Palette` är orörd tills designen är vald.

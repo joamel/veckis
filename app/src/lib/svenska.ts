@@ -915,6 +915,9 @@ export const settings = {
     generate:      'Skapa inbjudningskod',
     regenerate:    'Ny kod',
     shareLink:     'Dela länk',
+    /** Bara skärmläsartext — knappen visar en chevron. */
+    hideCode:      'Dölj koden',
+    showCode:      'Visa koden',
   },
 
 

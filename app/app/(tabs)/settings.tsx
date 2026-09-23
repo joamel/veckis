@@ -60,6 +60,10 @@ export default function SettingsScreen() {
   const joinCodeRef = useRef<TextInput>(null);
   const [invite, setInvite] = useState<InviteCode | null>(null);
   const [loadingInvite, setLoadingInvite] = useState(false);
+  // Koden går att fälla in igen. Den är stor och läsbar på håll, och man vill
+  // inte ha den uppe på skärmen längre än man behöver — men den ska inte
+  // behöva genereras om, så den fälls in, inte bort.
+  const [showInviteCode, setShowInviteCode] = useState(true);
   const [showAdminLogs, setShowAdminLogs] = useState(false);
 
   // Admin edit mode
@@ -212,6 +216,7 @@ export default function SettingsScreen() {
     try {
       const code = await client.createInvite(householdId);
       setInvite(code);
+      setShowInviteCode(true);
     } catch (e) {
       showError(e, str.toasts.errorInvite);
     } finally {
@@ -681,19 +686,39 @@ export default function SettingsScreen() {
             </Text>
             {invite ? (
               <>
-                <View style={styles.codeRow}>
-                  <Text style={styles.codeText}>{invite.code}</Text>
-                  <Pressable style={styles.copyBtn} onPress={copyCode}>
-                    <Ionicons name="copy-outline" size={18} color={c.primary} />
-                  </Pressable>
-                </View>
-                <Pressable style={styles.shareLinkBtn} onPress={shareInvite}>
-                  <Ionicons name="share-outline" size={18} color={nyDesign ? ny.skog : '#fff'} />
-                  <Text style={styles.shareLinkBtnText}>{str.invite.shareLink}</Text>
+                {/* Fäll in/ut. Bara chevronen — den pekar åt det håll den tar
+                    en (upp när koden syns, ned när den är dold) och behöver
+                    ingen etikett bredvid sig. Texten finns för skärmläsare. */}
+                <Pressable
+                  style={styles.inviteToggle}
+                  onPress={() => setShowInviteCode(v => !v)}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={showInviteCode ? str.invite.hideCode : str.invite.showCode}
+                >
+                  <Ionicons
+                    name={showInviteCode ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color={c.textMuted}
+                  />
                 </Pressable>
+                {showInviteCode && (
+                  <>
+                    <View style={styles.codeRow}>
+                      <Text style={styles.codeText}>{invite.code}</Text>
+                      <Pressable style={styles.copyBtn} onPress={copyCode}>
+                        <Ionicons name="copy-outline" size={18} color={c.primary} />
+                      </Pressable>
+                    </View>
+                    <Pressable style={styles.shareLinkBtn} onPress={shareInvite}>
+                      <Ionicons name="share-outline" size={18} color={nyDesign ? ny.skog : '#fff'} />
+                      <Text style={styles.shareLinkBtnText}>{str.invite.shareLink}</Text>
+                    </Pressable>
+                  </>
+                )}
               </>
             ) : null}
-            {expiresStr && <Text style={styles.expiresText}>{str.invite.expires(expiresStr)}</Text>}
+            {expiresStr && showInviteCode && <Text style={styles.expiresText}>{str.invite.expires(expiresStr)}</Text>}
             <Pressable
               style={[styles.inviteBtn, loadingInvite && styles.inviteBtnDisabled]}
               onPress={generateInvite}
@@ -1031,6 +1056,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
     ...(nyD ? kortNy(ny) : {}),
   },
   inviteDesc: { fontSize: 14, color: c.textMuted, lineHeight: 20 },
+  inviteToggle: { alignItems: 'center', justifyContent: 'center' },
   headerIconBtn: { justifyContent: 'center', alignItems: 'center', backgroundColor: c.primaryTint, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
   headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryBtn, alignItems: 'center', justifyContent: 'center' },
   headerAvatarText: { fontSize: 15, fontWeight: '700', color: '#fff' },
