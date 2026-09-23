@@ -163,10 +163,6 @@ export const shopping = {
       title:   'Sortera efter din butik',
       message: 'Skapa egna butiker och dra kategorierna i den ordning varorna dyker upp i din affär - plocklistan följer då din rutt genom butiken.',
     },
-    create: {
-      title:   'Skapa inköpslista',
-      message: 'En lista kan kopplas till en butik så att varorna sorteras efter butikens kategorier. Du kan lägga till varor manuellt eller överföra hela veckomenyn till listan från Meny-fliken.',
-    },
   },
 };
 
@@ -353,22 +349,6 @@ export const shoppingList = {
     merge: {
       title:   'Dubbletter hittade',
       message: 'Samma vara tillagd flera gånger? Handlis upptäcker dubbletter - tryck på märket för att slå ihop dem till en rad med rätt mängd.',
-    },
-    shopper: {
-      title:   'Säg till att du handlar',
-      message: 'När du är i butiken: öppna ⋮-menyn och välj "Jag handlar nu". Andra i hushållet ser då att du handlar och kan skicka med varor live medan du är där.',
-    },
-    categoryUnit: {
-      title:   'Enhet och kategori',
-      message: 'Här ändrar du standardenhet (st, dl, g …) och kategori så varan automatiskt hamnar rätt i butikens ordning nästa gång du lägger till den.',
-    },
-    moreActions: {
-      title:   'Mer du kan göra med listan',
-      message: 'Tryck på prickarna för fler val: byt namn, byt butik, klarmarka alla, rensa listan eller importera veckomeny.',
-    },
-    suggestion: {
-      title:   'Redigera basvara',
-      message: 'Förslagen kommer från dina basvaror och tidigare ingredienser. Håll inne på ett förslag för att redigera enhet, kategori eller spara det som en ny basvara.',
     },
   },
 };
@@ -1266,17 +1246,17 @@ export const components = {
       {
         icon:  'book-outline' as const,
         title: '1. Samla dina recept',
-        body:  'Spara egna favoriter, klistra in en text eller importera från en länk. Allt finns samlat under Recept.',
+        body:  'Skriv in ett eget, klistra in en text, hämta från en länk eller fotografera en receptsida. Handlis läser ut ingredienser, mängder och tid - och översätter utländska recept åt dig.',
       },
       {
         icon:  'restaurant-outline' as const,
         title: '2. Planera veckan',
-        body:  'Planera veckas matsedel under Meny. Ni ser direkt vad ni ska äta - frukost, lunch eller middag.',
+        body:  'Dra in rätterna på veckans dagar under Meny. Sätt måltid och antal portioner, så räknas ingredienserna om efter hur många ni är.',
       },
       {
         icon:  'cart-outline' as const,
         title: '3. Handla tillsammans',
-        body:  'Inventera vad som finns hemma och överför sedan ingredienserna från veckomenyn till Inköp med ett tryck.',
+        body:  'Bocka av vad som redan finns hemma och för över resten till Inköp med ett tryck. Listan sorteras efter din butiks ordning, och alla i hushållet ser den uppdateras medan någon handlar.',
       },
     ],
     back:        'Tillbaka',

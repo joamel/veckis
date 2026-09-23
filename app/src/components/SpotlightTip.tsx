@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { useDesign } from '../context/DesignContext';
+import { nyFont, type NyPalett } from '../lib/nyDesign';
 import type { Palette } from '../lib/theme';
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import { Animated, BackHandler, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -11,7 +13,7 @@ interface Rect { x: number; y: number; width: number; height: number }
 export interface SpotlightOptions {
   title: string;
   message?: string;
-  /** Emoji visad i lila badge ovanför titeln. Default 💡. */
+  /** Emoji visad i en rund badge ovanför titeln. Default 💡. */
   emoji?: string;
   /** When given, the dim creates a "hole" around the target and a pulsing ring
    *  highlights it. Without a target, the tip appears centered on a full dim. */
@@ -45,8 +47,11 @@ interface Props extends SpotlightOptions {
 const PAD = 10; // padding around the target inside the highlight ring
 
 export function SpotlightTip({ visible, targetRef, targetRect, title, message, emoji = '💡', actionLabel = str.spotlightTip.defaultActionLabel, swipeDemo, position, total, hasNext, onToggleSkipAll, skipAllActive, onDismiss }: Props) {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, ny } = useTheme();
+  const { nyDesign } = useDesign();
+  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
+  // Färgen på ikoner som ritas inline (fingret, glödlampan, mock-raden).
+  const ikonFarg = nyDesign ? ny.padYta : c.accent;
   const [measuredRect, setMeasuredRect] = useState<Rect | null>(null);
   const pulse = useRef(new Animated.Value(0)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
@@ -231,12 +236,12 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
 
         {onToggleSkipAll ? (
           <Pressable style={s.skipRow} onPress={onToggleSkipAll}>
-            <Ionicons name="bulb-outline" size={16} color={c.accent} />
+            <Ionicons name="bulb-outline" size={16} color={ikonFarg} />
             <Text style={s.skipText}>{str.spotlightTip.toggleOnboarding}</Text>
             <Ionicons
               name={skipAllActive ? 'toggle-outline' : 'toggle'}
               size={24}
-              color={skipAllActive ? c.textFaint : c.accent}
+              color={skipAllActive ? c.textFaint : ikonFarg}
             />
           </Pressable>
         ) : null}
@@ -267,7 +272,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
           <Ionicons
             name="hand-left-outline"
             size={40}
-            color="#fff"
+            color={nyDesign ? ny.skog : '#fff'}
             style={[s.fingerIcon, swipeDemo === 'horizontal' ? { transform: [{ rotate: '-15deg' }] } : null]}
           />
         </Animated.View>
@@ -290,7 +295,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
             }}
           >
             <View style={s.mockMealRow}>
-              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color={c.accent400} /></View>
+              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color={ikonFarg} /></View>
               <View style={s.mockMealLines}>
                 <View style={[s.mockMealLine, { width: '60%' }]} />
                 <View style={[s.mockMealLine, { width: '35%', marginTop: 4, height: 6 }]} />
@@ -318,7 +323,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
             }}
           >
             <View style={s.mockMealRow}>
-              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color={c.accent} /></View>
+              <View style={s.mockMealIcon}><Ionicons name="restaurant-outline" size={18} color={ikonFarg} /></View>
               <View style={s.mockMealLines}>
                 <View style={[s.mockMealLine, { width: '60%' }]} />
                 <View style={[s.mockMealLine, { width: '35%', marginTop: 4, height: 6 }]} />
@@ -346,7 +351,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
             }}
           >
             <View style={s.fingerHalo} />
-            <Ionicons name="hand-left-outline" size={40} color="#fff" style={s.fingerIcon} />
+            <Ionicons name="hand-left-outline" size={40} color={nyDesign ? ny.skog : '#fff'} style={s.fingerIcon} />
           </Animated.View>
         </>
       ) : null}
@@ -375,7 +380,10 @@ function computeCalloutTop(rect: Rect | null, screenH: number, swipeDemo?: 'hori
   return { top: 40 };
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
+// nyD: den nya designen (skog & lime) skriver över de stilar som skiljer —
+// samma mönster som WelcomeModal. Tipsen var sist kvar i den gamla terrakotta-
+// paletten och såg ut som en annan app när de dök upp.
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   // Absolut fyllnad över hela app-fönstret. Hög elevation/zIndex så tipset
   // ligger ovanför flikar/innehåll. box-none på roten släpper igenom touch
   // där inget barn fångar (barnen — dim/pressable — hanterar dismiss).
@@ -385,15 +393,15 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     position: 'absolute',
     borderRadius: 18,
     borderWidth: 3,
-    borderColor: c.accent400,
+    borderColor: nyD ? ny.lime : c.accent400,
     backgroundColor: 'transparent',
   },
   card: {
     position: 'absolute',
-    backgroundColor: c.surface,
-    borderRadius: 16,
+    backgroundColor: nyD ? ny.kort : c.surface,
+    borderRadius: nyD ? 24 : 16,
     borderLeftWidth: 3,
-    borderLeftColor: c.accent300,
+    borderLeftColor: nyD ? ny.lime : c.accent300,
     padding: 18,
     shadowColor: '#000',
     shadowOpacity: 0.25,
@@ -404,7 +412,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   emojiBadge: {
     alignSelf: 'center',
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: c.accentTint,
+    backgroundColor: nyD ? ny.skog : c.accentTint,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 10,
   },
@@ -416,7 +424,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: c.accent,
+    backgroundColor: nyD ? ny.lime : c.accent,
     opacity: 0.95,
     shadowColor: '#000',
     shadowOpacity: 0.35,
@@ -432,27 +440,29 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   mockMealRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: c.surface,
-    borderRadius: 12,
+    backgroundColor: nyD ? ny.kort : c.surface,
+    borderRadius: nyD ? 16 : 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
     gap: 12,
     borderWidth: 1,
-    borderColor: c.borderLight,
+    borderColor: nyD ? ny.kontur : c.borderLight,
   },
   mockMealIcon: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: c.primaryTint,
+    width: 32, height: 32, borderRadius: 16, backgroundColor: nyD ? ny.bricka : c.primaryTint,
     alignItems: 'center', justifyContent: 'center',
   },
   mockMealLines: { flex: 1 },
-  mockMealLine: { height: 10, borderRadius: 5, backgroundColor: c.borderLight },
-  title: { fontSize: 17, fontWeight: '700', color: c.text, marginBottom: 6, textAlign: 'center' },
-  message: { fontSize: 14, color: c.textSecondary, marginBottom: 14, textAlign: 'center', lineHeight: 20 },
-  btn: { backgroundColor: c.primaryBtn, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  mockMealLine: { height: 10, borderRadius: 5, backgroundColor: nyD ? ny.kontur : c.borderLight },
+  title: nyD
+    ? { fontSize: 18, fontFamily: nyFont.fet, color: ny.padYta, marginBottom: 6, textAlign: 'center' }
+    : { fontSize: 17, fontWeight: '700', color: c.text, marginBottom: 6, textAlign: 'center' },
+  message: { fontSize: 14, color: nyD ? ny.textDampad : c.textSecondary, marginBottom: 14, textAlign: 'center', lineHeight: 20 },
+  btn: { backgroundColor: nyD ? ny.lime : c.primaryBtn, borderRadius: nyD ? 14 : 10, paddingVertical: 12, alignItems: 'center' },
+  btnText: { color: nyD ? ny.skog : '#fff', fontSize: 15, fontWeight: '700' },
   topRow: { marginBottom: 10 },
-  positionPill: { alignSelf: 'flex-start', backgroundColor: c.accent100, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  positionText: { fontSize: 12, fontWeight: '700', color: c.accent700 },
-  skipRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: c.surfaceSubtle },
-  skipText: { flex: 1, fontSize: 14, fontWeight: '500', color: c.text },
+  positionPill: { alignSelf: 'flex-start', backgroundColor: nyD ? ny.bricka : c.accent100, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  positionText: { fontSize: 12, fontWeight: '700', color: nyD ? ny.padYta : c.accent700 },
+  skipRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: nyD ? ny.kontur : c.surfaceSubtle },
+  skipText: { flex: 1, fontSize: 14, fontWeight: '500', color: nyD ? ny.text : c.text },
 });

@@ -207,8 +207,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setBottomObstruction(addBarH);
     return () => setBottomObstruction(0);
   }, [addBarH, setBottomObstruction]);
-  const shopperTip = useOnceFlag('seen-shopper-tip');
-  const shopperTipShownRef = useRef(false);
   const { householdId } = useHousehold();
   const { pendingMenuItemRemovals } = usePendingRemoval();
   const { getToken } = useAuth();
@@ -720,20 +718,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     if (shown) { mergeTipShownRef.current = true; mergeTip.markSeen(); }
   }, [tipsReady, duplicateGroups.length, mergeTip.seen, mergeTip.markSeen, showTip]);
 
-  // "Jag handlar"-tip: passivt (knappen ligger gömd i ⋮-menyn) — förklarar
-  // realtidsfunktionen när listan har varor. Sekvenseras efter dubblett-tipset
-  // (vänta tills det är sett, eller om inga dubbletter finns) så inte två fyrar.
-  useEffect(() => {
-    if (!tipsReady) return;
-    if (shopperTip.seen !== false || shopperTipShownRef.current) return;
-    if (!list || list.items.length === 0) return;
-    if (duplicateGroups.length > 0 && mergeTip.seen !== true) return;
-    const shown = showTip({
-      title: str.tips.shopper.title,
-      message: str.tips.shopper.message,
-    });
-    if (shown) { shopperTipShownRef.current = true; shopperTip.markSeen(); }
-  }, [tipsReady, list, duplicateGroups.length, mergeTip.seen, shopperTip.seen, shopperTip.markSeen, showTip]);
+  // "Jag handlar"-tipset är borttaget. Det var ett ankarlöst tip mitt på
+  // skärmen som bad användaren leta i ⋮-menyn — en instruktion i ord för en
+  // funktion man hittar när man behöver den, inte något som är värt att
+  // avbryta för. Dubblett-tipset är kvar: den pulsande badgen är gåtfull.
 
   useEffect(() => {
     if (pendingOpenNextDupe.current && !mergeSheet && duplicateGroups.length > 0) {
