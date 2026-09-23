@@ -1543,6 +1543,9 @@ export default function MenuScreen() {
             const dayLabel = { abbr: day.short.toLowerCase(), date: date.getDate() };
             const filled = items.length > 0;
             const isToday = date.toDateString() === new Date().toDateString();
+            // Vilken rätt som får bildbanderollen: middagen om dagen har en,
+            // annars den första. Se renderingen längre ned.
+            const heroId = (items.find(m => m.mealType === 'dinner') ?? items[0])?.id;
             // Ny design: dagens rubrik — namn, datum och ev. "Idag"-märke.
             // Kort månad ("16 sep") och EXPLICIT bredd ur teckenantalet: utan
             // den försvann månaden helt på Android. flexShrink: 0 räckte inte,
@@ -1684,8 +1687,12 @@ export default function MenuScreen() {
                         {dragging && (
                           <View pointerEvents="none" style={[s.dropOutline, s.dropOutlineContent, isHovered && s.dropOutlineHovered]} />
                         )}
-                        {/* Dagens första rätt får bildbanderoll — kvällens mat syns direkt. */}
-                        {items.map((item, idx) => renderKort(item, isToday && idx === 0, isToday))}
+                        {/* Bildbanderollen går till dagens MIDDAG, inte till
+                            den rätt som råkar ligga först. Är dagen planerad
+                            med frukost och mellanmål är det ändå middagen man
+                            vill se när man öppnar appen. Finns ingen middag
+                            faller den tillbaka på första rätten. */}
+                        {items.map(item => renderKort(item, isToday && item.id === heroId, isToday))}
                       </View>
                     )}
                   </View>
