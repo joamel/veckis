@@ -126,9 +126,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const savingNavRef = useRef(false);
   // Mäts av ConfirmDialog så "+"-popupen hamnar rätt ovanför knappen.
   const fabRef = useRef<View>(null);
-  const { colors: c, ny } = useTheme();
+  const { colors: c, ny, scheme } = useTheme();
   const { nyDesign } = useDesign();
-  const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
+  const s = useMemo(() => makeStyles(c, nyDesign, ny, scheme === 'dark'), [c, nyDesign, ny, scheme]);
+  // Metatextens gröna: mörkgrön mot ljus bakgrund, lime mot mörk — samma val
+  // som receptkorten gör, så en siffra ser likadan ut i listan och i receptet.
+  const metaFarg = nyDesign ? (scheme === 'dark' ? ny.lime : ny.skog) : c.textMuted;
   const router = useRouter();
   const client = useApiClient();
   const { householdId } = useHousehold();
@@ -1297,7 +1300,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             <Pressable onPress={() => editMode ? adjustEditServings(-1) : adjustServings(-1)} style={s.servingBtn} hitSlop={8}>
               <Ionicons name="remove" size={14} color={c.primary} />
             </Pressable>
-            <Ionicons name="restaurant-outline" size={14} color={c.textMuted} />
+            <Ionicons name="restaurant-outline" size={14} color={metaFarg} />
             {(() => {
               const text = `${editMode ? editServings : displayServings} port.`;
               // Explicit bredd: Android klipper annars allt efter första
@@ -1325,7 +1328,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 accessibilityRole="button"
                 accessibilityLabel={str.detail.cookTimeA11y}
               >
-                <Ionicons name="time-outline" size={14} color={c.textMuted} />
+                <Ionicons name="time-outline" size={14} color={metaFarg} />
                 <Text style={[s.metaText, { width: metaBredd(text) }]} numberOfLines={1}>{text}</Text>
                 <Ionicons name="chevron-expand" size={13} color={c.textFaint} />
               </Pressable>
@@ -1334,7 +1337,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             const text = formateraTidsetikett(recipe.cookMinutes);
             return (
               <View style={[s.metaChip, s.tidChip]} accessibilityLabel={str.detail.cookTimeRead(text)}>
-                <Ionicons name="time-outline" size={14} color={c.textMuted} />
+                <Ionicons name="time-outline" size={14} color={metaFarg} />
                 <Text style={[s.metaText, { width: metaBredd(text) }]} numberOfLines={1}>{text}</Text>
               </View>
             );
@@ -1420,7 +1423,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               <Text style={s.sectionTitle}>{str.detail.ingredientsLabel}</Text>
               {!editMode && recipe.ingredients.length > 0 ? (
                 <View style={s.sektionAntal}>
-                  <MaterialCommunityIcons name="fruit-grapes-outline" size={15} color={nyDesign ? ny.textDampad : c.textMuted} />
+                  <MaterialCommunityIcons name="fruit-grapes-outline" size={15} color={metaFarg} />
                   <Text style={s.sectionCount}>{recipe.ingredients.length}</Text>
                 </View>
               ) : null}
@@ -1668,7 +1671,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                 <Text style={s.sectionTitle}>{str.detail.instructionsLabel}</Text>
                 {readSteps.length > 1 ? (
                   <View style={s.sektionAntal}>
-                    <Ionicons name="list-outline" size={15} color={nyDesign ? ny.textDampad : c.textMuted} />
+                    <Ionicons name="list-outline" size={15} color={metaFarg} />
                     <Text style={s.sectionCount}>{readSteps.length}</Text>
                   </View>
                 ) : null}
@@ -2167,7 +2170,7 @@ function formatIngredient(ing: { quantity: number | null; unit: string | null; n
 }
 
 // nyD: den nya designen (beta) skriver over de stilar som skiljer.
-const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
+const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett, mork = false) => StyleSheet.create({
   container: { flex: 1, backgroundColor: nyD ? ny.bakgrund : c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   // Morkgront band som ovriga vyers NyHeader. Hogre an 48 for att rubriken ska
@@ -2213,7 +2216,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   tagAddBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: nyD ? ny.skog : c.primary, alignItems: 'center', justifyContent: 'center' },
   servingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, paddingLeft: 6, paddingRight: 4, paddingVertical: 6, borderRadius: 20 },
   servingBtn: { padding: 2 },
-  metaText: { fontSize: 13, color: nyD ? ny.textDampad : c.textMuted },
+  metaText: { fontSize: 13, color: nyD ? (mork ? ny.lime : ny.skog) : c.textMuted },
   tidChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   description: { fontSize: 14, color: nyD ? ny.text : c.textSecondary, lineHeight: 22 },
   section: { gap: 10 },
@@ -2223,7 +2226,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
     : { fontSize: 17, fontWeight: '700', color: c.text },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   editBtnText: { fontSize: 14, color: nyD ? ny.padYta : c.primary, fontWeight: '500' },
-  sectionCount: { fontFamily: nyFont.halvfet, color: nyD ? ny.textDampad : c.textMuted },
+  sectionCount: { fontFamily: nyFont.halvfet, color: nyD ? (mork ? ny.lime : ny.skog) : c.textMuted },
   sektionRubrikRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sektionAntal: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   // Ingredienserna som en inköpslapp på ett ljusgrönt kort.

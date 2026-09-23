@@ -95,7 +95,9 @@ export default function RecipesScreen() {
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  // Radera-läget är borttaget: det nåddes bara med långtryck på ett kort, och
+  // ett recept ska inte kunna raderas av ett tryck som råkar bli kvar. Radera
+  // ligger i receptets egen meny (recipes/[recipeId]).
   const [searchQuery, setSearchQuery] = useState('');
   // Sök+tagg-headern fälls ihop FÖLJSAMT med scrollen (samma mönster som inköps-
   // listans rubrik): en absolut header vars translateY följer scrollY på UI-tråden
@@ -299,13 +301,9 @@ export default function RecipesScreen() {
   // Tryckbeteendet på ett receptkort, delat av gammal och ny design — en
   // definition, så lägena (redigera/välj/planera) inte glider isär mellan dem.
   function tryckRecept(recipe: RecipeWithIngredients) {
-    if (editMode) return;
     if (chooseMode) { openPlanFor(recipe); return; }
     if (selectionMode) { selectRecipeForMenu(recipe); return; }
     router.push(`/recipes/${recipe.id}` as never);
-  }
-  function langtryckRecept() {
-    if (!selectionMode && !chooseMode) setEditMode(true);
   }
   function planeraFranLista(recipe: RecipeWithIngredients) {
     const { weekYear, weekNumber } = getISOWeek(new Date());
@@ -482,7 +480,7 @@ export default function RecipesScreen() {
     }
   }, [householdId]);
 
-  useFocusEffect(useCallback(() => { load(); return () => setEditMode(false); }, [load]));
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   // Kom igång-kortet: tänd spotlight på "+"-FAB:en om den bad om det (opt-in).
   // Väntar tills listan renderats (spinnern släppt) så targetRef är mätbar.
@@ -940,7 +938,7 @@ export default function RecipesScreen() {
   );
 
   // Ny design (beta)
-  const kortLage: ReceptKortLage = editMode ? 'redigera' : chooseMode ? 'planera' : selectionMode ? 'valj' : 'normal';
+  const kortLage: ReceptKortLage = chooseMode ? 'planera' : selectionMode ? 'valj' : 'normal';
   const kortProps = (recipe: RecipeWithIngredients) => ({
     id: recipe.id,
     titel: recipe.title,
@@ -952,7 +950,6 @@ export default function RecipesScreen() {
     bildUrl: recipe.imageUrl ?? null,
     lage: kortLage,
     onPress: () => tryckRecept(recipe),
-    onLongPress: langtryckRecept,
     onPlanera: () => planeraFranLista(recipe),
     onTaBort: () => bekraftaTaBort(recipe),
     planeraLabel: str.createModal.addToMenu,
@@ -1151,7 +1148,6 @@ export default function RecipesScreen() {
             <Pressable
               style={s.card}
               onPress={() => tryckRecept(item)}
-              onLongPress={langtryckRecept}
             >
               <View style={s.cardIcon}>
                 <Ionicons name="restaurant-outline" size={20} color={c.primary} />
@@ -1165,36 +1161,22 @@ export default function RecipesScreen() {
               ) : chooseMode ? (
                 // Hela kortet öppnar planerar-popupen — kalender-ikonen signalerar det.
                 <Ionicons name="calendar-outline" size={20} color={c.primary} />
-              ) : !editMode && (
+              ) : (
                 <Pressable style={s.addMenuBtn} onPress={() => planeraFranLista(item)} hitSlop={8} accessibilityLabel={str.createModal.addToMenu}>
                   <Ionicons name="calendar-outline" size={20} color={c.primary} />
                 </Pressable>
               )}
-              {!editMode && !selectionMode && !chooseMode && <Ionicons name="chevron-forward" size={18} color={c.border} />}
+              {!selectionMode && !chooseMode && <Ionicons name="chevron-forward" size={18} color={c.border} />}
             </Pressable>
-            {editMode && (
-              <Pressable
-                style={s.cardDeleteBtn}
-                onPress={() => bekraftaTaBort(item)}
-              >
-                <Ionicons name="remove-circle" size={22} color={c.danger} />
-              </Pressable>
-            )}
           </View>
         )}
       />
       </View>
       </>)}
 
-      {editMode ? (
-        <Pressable style={s.editDoneBtn} onPress={() => setEditMode(false)}>
-          <Text style={s.editDoneBtnText}>{common.actions.done}</Text>
-        </Pressable>
-      ) : (
-        <Pressable ref={fabRef} style={[s.fab, nyDesign && s.nyFab]} onPress={handleShowCreateMenu}>
-          <Ionicons name="add" size={30} color={nyDesign ? ny.skog : '#fff'} />
-        </Pressable>
-      )}
+      <Pressable ref={fabRef} style={[s.fab, nyDesign && s.nyFab]} onPress={handleShowCreateMenu}>
+        <Ionicons name="add" size={30} color={nyDesign ? ny.skog : '#fff'} />
+      </Pressable>
 
       {/* Egen keyboard-lift (sheetLift, mätt via revealFocused) i stället för
           keyboardAvoiding-proppen — samma "mät fokuserat fält, skrolla lagom"-

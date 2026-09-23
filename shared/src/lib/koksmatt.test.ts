@@ -3,10 +3,12 @@ import { formateraKöksmått } from './koksmatt';
 
 describe('formateraKöksmått', () => {
   it('ger bråk som går att mäta upp', () => {
-    // 4,7 dl finns inte i en måttsats; 4⅔ gör det, och skillnaden är 3 ml.
-    expect(formateraKöksmått(4.7, 'dl')).toBe('4⅔');
-    // 2,4 ligger närmare ⅓ (2,33) än ½ (2,5) — 7 ml mot 10 ml fel.
-    expect(formateraKöksmått(2.4, 'dl')).toBe('2⅓');
+    // 4,7 dl finns inte i en måttsats; 4 2/3 gör det, och skillnaden är 3 ml.
+    // Tredjedelar skrivs med snedstreck — appens typsnitt saknar ⅓ och ⅔, så
+    // de renderades i ett annat typsnitt än ¼, ½ och ¾ i samma kolumn.
+    expect(formateraKöksmått(4.7, 'dl')).toBe('4 2/3');
+    // 2,4 ligger närmare en tredjedel (2,33) än en halv (2,5) — 7 ml mot 10.
+    expect(formateraKöksmått(2.4, 'dl')).toBe('2 1/3');
     expect(formateraKöksmått(1.2, 'dl')).toBe('1¼');
     expect(formateraKöksmått(0.75, 'tsk')).toBe('¾');
     expect(formateraKöksmått(0.5, 'msk')).toBe('½');

@@ -26,7 +26,9 @@ interface Props {
   bildUrl: string | null;
   lage: ReceptKortLage;
   onPress: () => void;
-  onLongPress: () => void;
+  /** Kvar för redigeraläget; LISTAN skickar inget långtryck längre — ett recept
+   *  ska inte gå att radera av misstag med ett tryck som hålls kvar. */
+  onLongPress?: () => void;
   onPlanera: () => void;
   onTaBort: () => void;
   planeraLabel: string;
@@ -114,7 +116,7 @@ export function ReceptKompaktRad(p: Props) {
         </View>
         {p.lage === 'normal' && (
           <Pressable style={st.radKnapp} onPress={p.onPlanera} hitSlop={6} accessibilityRole="button" accessibilityLabel={p.planeraLabel}>
-            <Ionicons name="calendar-outline" size={18} color={ny.chipText} />
+            <Ionicons name="calendar-outline" size={18} color={metaFarg} />
           </Pressable>
         )}
         {p.lage === 'valj' && <Ionicons name="add-circle" size={26} color={ny.padYta} />}

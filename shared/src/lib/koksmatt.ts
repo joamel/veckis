@@ -10,16 +10,27 @@
  * bygger på ett avrundat tal.
  */
 
-/** Bråkdelar man kan mäta upp, med tecknet som visas. */
+/**
+ * Bråkdelar man kan mäta upp, med tecknet som visas.
+ *
+ * Tredjedelarna skrivs med snedstreck, inte som ⅓ och ⅔. Appens typsnitt
+ * (Outfit) har glyfer för ¼, ½ och ¾ men INTE för tredjedelarna — de föll
+ * därför tillbaka på systemets typsnitt, och "¾" och "⅔" såg ut att komma
+ * ur två olika typsnitt i samma kolumn. Kontrollerat i fontens cmap.
+ */
 const BRÅK: { värde: number; tecken: string }[] = [
   { värde: 0, tecken: '' },
   { värde: 1 / 4, tecken: '¼' },
-  { värde: 1 / 3, tecken: '⅓' },
+  { värde: 1 / 3, tecken: '1/3' },
   { värde: 1 / 2, tecken: '½' },
-  { värde: 2 / 3, tecken: '⅔' },
+  { värde: 2 / 3, tecken: '2/3' },
   { värde: 3 / 4, tecken: '¾' },
   { värde: 1, tecken: '' },
 ];
+
+/** Bråk skrivna med snedstreck behöver ett mellanrum mot heltalet:
+ *  "42/3" går inte att läsa, "4 2/3" gör det. */
+const BEHÖVER_MELLANRUM = (tecken: string) => tecken.includes('/');
 
 /** Enheter som mäts med måttsats och därför mår bra av bråk. Vikt gör det
  *  inte — "250 g" är precis vad vågen visar, och "¼ kg" hjälper ingen. */
@@ -50,5 +61,6 @@ export function formateraKöksmått(quantity: number, unit: string | null): stri
   if (bäst.värde === 1) return String(heltal + 1);
   if (bäst.värde === 0) return String(heltal === 0 ? visaVanligt() : heltal);
 
-  return heltal === 0 ? bäst.tecken : `${heltal}${bäst.tecken}`;
+  if (heltal === 0) return bäst.tecken;
+  return `${heltal}${BEHÖVER_MELLANRUM(bäst.tecken) ? ' ' : ''}${bäst.tecken}`;
 }
