@@ -39,7 +39,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems, type WeekMenuItemWithRecipe } from '../../src/api/client';
@@ -1296,7 +1296,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             <Pressable onPress={() => editMode ? adjustEditServings(-1) : adjustServings(-1)} style={s.servingBtn} hitSlop={8}>
               <Ionicons name="remove" size={14} color={c.primary} />
             </Pressable>
-            <Ionicons name="people-outline" size={14} color={c.textMuted} />
+            <Ionicons name="restaurant-outline" size={14} color={c.textMuted} />
             {(() => {
               const text = `${editMode ? editServings : displayServings} port.`;
               // Explicit bredd: Android klipper annars allt efter första
@@ -1407,12 +1407,17 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         {/* Ingredients */}
         <View style={s.section}>
           <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>
-              {str.detail.ingredientsLabel}
+            {/* Ikonerna är desamma som på receptkorten: samma symbol ska
+                betyda samma sak i listan och inne i receptet. */}
+            <View style={s.sektionRubrikRad}>
+              <Text style={s.sectionTitle}>{str.detail.ingredientsLabel}</Text>
               {!editMode && recipe.ingredients.length > 0 ? (
-                <Text style={s.sectionCount}>{str.detail.sectionCount(recipe.ingredients.length)}</Text>
+                <View style={s.sektionAntal}>
+                  <MaterialCommunityIcons name="fruit-grapes-outline" size={15} color={nyDesign ? ny.textDampad : c.textMuted} />
+                  <Text style={s.sectionCount}>{recipe.ingredients.length}</Text>
+                </View>
               ) : null}
-            </Text>
+            </View>
             {!editMode && recipe.ingredients.some(i => isConvertibleUnit(i.unit) || i.originalName) && (
               <Pressable
                 style={s.ingConvertBtn}
@@ -1652,10 +1657,15 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         ) : recipe.instructions ? (
           <View style={s.section}>
             <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>
-                {str.detail.instructionsLabel}
-                {readSteps.length > 1 ? <Text style={s.sectionCount}>{str.detail.sectionCount(readSteps.length)}</Text> : null}
-              </Text>
+              <View style={s.sektionRubrikRad}>
+                <Text style={s.sectionTitle}>{str.detail.instructionsLabel}</Text>
+                {readSteps.length > 1 ? (
+                  <View style={s.sektionAntal}>
+                    <Ionicons name="list-outline" size={15} color={nyDesign ? ny.textDampad : c.textMuted} />
+                    <Text style={s.sectionCount}>{readSteps.length}</Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
             {/* Samma uppdelning som Laga nu-läget. Ett enda textblock utan
                 radbrytningar visas som det är — en ensam 1:a vore missvisande. */}
@@ -2180,7 +2190,9 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
     : { fontSize: 17, fontWeight: '700', color: c.text },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   editBtnText: { fontSize: 14, color: nyD ? ny.padYta : c.primary, fontWeight: '500' },
-  sectionCount: { fontFamily: nyFont.halvfet, color: ny.textDampad },
+  sectionCount: { fontFamily: nyFont.halvfet, color: nyD ? ny.textDampad : c.textMuted },
+  sektionRubrikRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sektionAntal: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   // Ingredienserna som en inköpslapp på ett ljusgrönt kort.
   ingCard: { backgroundColor: ny.kort, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 4 },
   ingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 11 },

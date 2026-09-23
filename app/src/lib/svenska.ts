@@ -724,7 +724,6 @@ export const recipes = {
     ingredientsLabel: 'Ingredienser',
     instructionsLabel:'Gör så här',
     // Rubrikens antal: "Ingredienser · 9".
-    sectionCount:   (n: number) => ` · ${n}`,
     descriptionLabel: 'Beskrivning',
     imageLabel:     'Bild',
     gallery:        'Galleri',
