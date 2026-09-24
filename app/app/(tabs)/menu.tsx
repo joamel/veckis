@@ -1276,7 +1276,11 @@ export default function MenuScreen() {
     // — inte kasta bort ifyllda "har hemma"-bockar och hoppa tillbaka till
     // receptvalet. Bara en genuint ny överföring (inget pågående val) nollställer.
     if (selectedRecipesForTransfer.size === 0) {
-      const freshIds = new Set(notTransferred.map(m => m.id));
+      // Förkryssat = det som ALDRIG förts över. Rensar man listan mitt i
+      // veckan försvinner kopplingen, och utan det här skulle måndagens redan
+      // handlade rätt kryssas i igen och hamna i listan en andra gång.
+      // Den som verkligen vill föra över den igen kryssar i den för hand.
+      const freshIds = new Set(notTransferred.filter(m => !m.transferred).map(m => m.id));
       setSelectedRecipesForTransfer(freshIds);
       resetInventoryFor(freshIds);
       setBulkTransferStep('recipe');
@@ -2159,7 +2163,9 @@ export default function MenuScreen() {
                   }
                   return weeks.map(([key, items]) => {
                     const [wy, wn] = key.split('-').map(Number);
-                    const freshIds = items.filter(i => !transferredIds.has(i.id)).map(i => i.id);
+                    // Samma regel som ovan: en vecka bockar bara i det som
+                    // aldrig förts över, och räknas som färdig när inget är kvar.
+                    const freshIds = items.filter(i => !transferredIds.has(i.id) && !i.transferred).map(i => i.id);
                     const allTransferred = freshIds.length === 0;
                     const weekSelected = bulkTransferWeeks.has(key);
                     return (
@@ -2237,6 +2243,10 @@ export default function MenuScreen() {
                           {item.day !== null && (
                             <Text style={s.bulkRecipeDay}>
                               {DAYS.find(d => d.key === item.day)?.label}
+                              {/* Förts över förut men inte längre kopplad till
+                                  någon lista — troligen handlad och rensad.
+                                  Den står okryssad; texten säger varför. */}
+                              {item.transferred ? ` · ${str.bulk.alreadyTransferredRow}` : ''}
                             </Text>
                           )}
                         </View>

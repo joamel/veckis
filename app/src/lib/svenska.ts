@@ -485,6 +485,9 @@ export const menu = {
 
   bulk: {
     chooseWeekMenu:          'Välj veckomenyer',
+    /** Rätten har förts över förut men ligger inte i någon lista just nu —
+     *  troligen handlad och rensad. Står okryssad, men går att välja. */
+    alreadyTransferredRow:   'redan överförd',
     chooseWeekMenuSub:       'Välj en eller flera veckor. Samma ingrediens slås ihop över veckorna.',
     transferThisWeek:        'Överför veckomeny',
     transferMultipleWeeks:   'Överför flera veckor',
