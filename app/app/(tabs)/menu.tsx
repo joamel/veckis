@@ -379,7 +379,7 @@ export default function MenuScreen() {
     // Låst när rätten redan förts över: listan har mängderna för de gamla
     // portionerna, och en skalning här ändrade bara vad laga-läget visade —
     // menyn och listan sa då olika saker. Ta bort ur listan för att skala.
-    if (item.transferred || recipeListMap[item.id]?.length) {
+    if (recipeListMap[item.id]?.length) {
       showGlobalToast(str.toasts.scalingLocked, 'neutral');
       return;
     }
@@ -881,20 +881,6 @@ export default function MenuScreen() {
         router.navigate(`/shopping/${originListId}` as never);
       }
     }
-  }
-
-  // Hardware/gesture back steps through the wizard instead of closing it —
-  // UTOM på ingrediens-steget (inventeringen), där ett drag nedåt kändes fel:
-  // man hoppade till "välj rätter" i stället för att stänga, trots att
-  // stängning via tryck utanför redan gjorde exakt det (onOverlayPress).
-  // Stänger nu riktigt där också; öppnas guiden igen återupptas samma steg
-  // om inget val ändrats sedan (se transferWeekMenu/openWeekPicker).
-  function handleBulkBack() {
-    if (bulkTransferStep === 'list') { setBulkTransferStep('ingredients'); return; }
-    if (bulkTransferStep === 'ingredients') { handleCancelBulkTransfer(); return; }
-    // Kom man in via vecko-steget ska bakåt leda dit, inte stänga hela guiden.
-    if (bulkTransferStep === 'recipe' && bulkTransferWeeks.size > 0) { setBulkTransferStep('week'); return; }
-    handleCancelBulkTransfer();
   }
 
   async function openWeekPicker() {
@@ -1514,7 +1500,7 @@ export default function MenuScreen() {
         hero={hero}
         idag={idag}
         collapsedForDrag={isCenter && !!dragState}
-        isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
+        isTransferred={!!recipeListMap[item.id]?.length}
         isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
         isPastWeek={isPastWeek}
         onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
@@ -1623,7 +1609,7 @@ export default function MenuScreen() {
                           key={item._stableKey ?? item.id}
                           item={item}
                           collapsedForDrag={dragging}
-                          isTransferred={item.transferred || !!recipeListMap[item.id]?.length}
+                          isTransferred={!!recipeListMap[item.id]?.length}
                           isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
                           isPastWeek={isPastWeek}
                           onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
@@ -2112,7 +2098,13 @@ export default function MenuScreen() {
       {/* Bulk transfer modal — choose recipes and list */}
       <DraggableBottomSheet
         visible={showBulkTransferModal}
-        onRequestClose={() => handleBulkBack()}
+        // Drag nedåt och bakåtknappen STÄNGER guiden, precis som i appens
+        // övriga ark. Förut steg de bakåt i guiden i stället, vilket kändes
+        // som att arket hoppade tillbaka till föregående ruta när man försökte
+        // stänga det. Stegen backas med de synliga Tillbaka-knapparna, och
+        // öppnar man guiden igen återupptas samma steg med valen kvar (se
+        // transferWeekMenu/openWeekPicker).
+        onRequestClose={() => handleCancelBulkTransfer()}
         onOverlayPress={() => handleCancelBulkTransfer()}
         sheetStyle={s.sheet}
         title={bulkTransferStep === 'week'

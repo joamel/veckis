@@ -477,7 +477,10 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
     }
   }
 
-  // Persist transferred state on WeekMenuItems so the badge survives list-clear.
+  // Spår att rätten har förts över. Fältet är HISTORIK, inte facit: appen
+  // läser "I inköpslistan" ur listornas levande kopplingar (linkedMenuItemIds),
+  // eftersom flaggan blev kvar när listan rensades — kortet sa "I inköpslistan"
+  // medan överföringsguiden erbjöd rätten igen.
   const transferredMenuItemIds = [...new Set(
     body.data.ingredients.map(i => i.menuItemId).filter((id): id is string => !!id)
   )];
