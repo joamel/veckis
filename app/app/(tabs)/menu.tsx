@@ -3080,7 +3080,7 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   bulkWeekHeader: { fontSize: 12, fontWeight: '700', color: ny.chipText, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 4 },
   bulkRecipeDay: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   dayGrid: { gap: 10 },
-  dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: ny.kort, borderRadius: 16 },
+  dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: ny.platsLjus, borderRadius: 16 },
   dayGridLabel: { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 16, letterSpacing: -0.3, color: ny.padYta },
   pickerList: { maxHeight: 480 },
   recipeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: ny.kort, borderRadius: 16, padding: 14 },

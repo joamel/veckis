@@ -1373,7 +1373,9 @@ const makeStyles = (c: Palette, ny: NyPalett, mork = false) => StyleSheet.create
   selectBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primaryTint, paddingHorizontal: 16, paddingVertical: 10 },
   selectBannerText: { fontSize: 14, fontWeight: '600', color: c.primary },
   dayGrid: { gap: 8, marginTop: 4 },
-  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: ny.kort, borderRadius: 16 },
+  // Ljusgrön yta (platsLjus), inte kortgrå: dagarna är arkets huvudsak och
+  // ska läsa som en egen lista, inte som bakgrund.
+  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: ny.platsLjus, borderRadius: 16 },
   dayGridItemTaken: { backgroundColor: c.background },
   // Veckodagen i appens rubriktypsnitt och mörkgröna, som rubrikerna i övrigt.
   // Raden låg kvar i systemtypsnittet och grått, vilket såg ut som en annan app.
