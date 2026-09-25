@@ -150,7 +150,7 @@ export default function ShoppingScreen() {
         ? { ...l, activeShopperMemberId: msg.data.memberId, activeShopperSince: msg.data.since }
         : l));
     }
-  });
+  }, () => { load(); });
 
   async function createList() {
     if (!householdId || !newListName.trim()) return;

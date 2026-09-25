@@ -811,7 +811,7 @@ export default function MenuScreen() {
     if (suppressMenuReloadRef.current > 0) { suppressMenuReloadRef.current -= 1; return; }
     if (menuReloadTimer.current) clearTimeout(menuReloadTimer.current);
     menuReloadTimer.current = setTimeout(() => { load(); }, 350);
-  });
+  }, () => { load(); });
   // Move the pager to a given week. Swipe handles itself (it's already there);
   // the arrows / "Idag" / week-picker scroll the list so they behave exactly
   // like a swipe instead of an instant jump.

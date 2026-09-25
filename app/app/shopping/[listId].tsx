@@ -598,7 +598,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           return prev;
       }
     });
-  });
+  }, () => { load(); });
 
   async function toggleIAmShopping() {
     if (!list || !myMember || togglingShopper) return;
