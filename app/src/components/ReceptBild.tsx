@@ -3,6 +3,7 @@ import { Image, PanResponder, StyleSheet, View, type StyleProp, type ViewStyle }
 import {
   fokusEfterDrag,
   räknaUtsnitt,
+  ärJusterad,
   MITTEN,
   type Bildmått,
   type Ram,
@@ -119,8 +120,12 @@ export function ReceptBild({
     setRam(prev => (prev?.bredd === width && prev?.höjd === height ? prev : { bredd: width, höjd: height }));
   }, []);
 
-  // Innan måtten är kända (och när de inte gick att läsa) är det vanlig cover.
-  const bildstil = utsnitt
+  // Den uträknade rutan används bara när den behövs: när man drar i bilden,
+  // eller när ett utsnitt faktiskt har valts. Annars vanlig cover, exakt som
+  // före utsnitten — de flesta bilder har inget val, och cover kan inte lämna
+  // tomma kanter.
+  const användUtsnitt = !!utsnitt && (justerbar || dragFokus !== null || ärJusterad(fokusX, fokusY));
+  const bildstil = användUtsnitt && utsnitt
     ? { position: 'absolute' as const, left: utsnitt.x, top: utsnitt.y, width: utsnitt.bredd, height: utsnitt.höjd }
     : StyleSheet.absoluteFillObject;
 
@@ -136,7 +141,13 @@ export function ReceptBild({
       <Image
         source={{ uri }}
         style={bildstil}
-        resizeMode={utsnitt ? 'stretch' : 'cover'}
+        // Alltid cover, även i den uträknade rutan. Rutan har samma proportioner
+        // som bilden enligt Image.getSize, och då är cover och stretch samma
+        // sak. Men stämmer måtten inte med bilden som faktiskt visas ritades
+        // den mindre än rutan, med tomma kanter på båda sidor (veckomenyn,
+        // 2026-09-25). Rutan täcker alltid ramen, så med cover gör bilden det
+        // också — i värsta fall beskuren en aning annorlunda än tänkt.
+        resizeMode="cover"
         onError={onError}
         onLoadStart={onLoadStart}
         onLoadEnd={onLoadEnd}
