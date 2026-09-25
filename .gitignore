@@ -39,8 +39,10 @@ experiments/**/*-rutor.html
 # genereras ur databasen och hör inte hemma i repot.
 granskning*.txt
 
-# Skriptens minne av dina "nej" — lokalt per maskin.
+# Skriptens minne av dina "nej", och av vilka namn clean:all senast gick
+# igenom (per databas) — lokalt per maskin.
 backend/scripts/.nej-lista.txt
+backend/scripts/.clean-all-senast-*.txt
 granskning*.txt.föregående
 
 # Granskningsfiler från städskripten — genereras ur databasen, hör inte i repot.

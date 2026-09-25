@@ -132,7 +132,11 @@ async function main() {
     // "penne/fusilli", "nötfärs alt. vegofärs": strängen är ingen vara, men
     // LEDEN är det. Att bara radera raden kastar bort att någon faktiskt sett
     // dem — de lärs in var för sig i stället, och bara strängen tas bort.
-    const delar = delaAlternativ(a.canonical).filter(d => duglingGlobalt(d));
+    // Leden strippas som när appen lär in dem (learnIngredientAliases). Utan
+    // det blev "hackad lök eller schalottenlök" till ledet "hackad lök", som
+    // clean:names sedan föreslog att korta — ett förslag som bara fanns för att
+    // det här skriptet skapat det.
+    const delar = [...new Set(delaAlternativ(a.canonical).map(d => stripIngredient(d)))].filter(d => duglingGlobalt(d));
     if (delar.length >= 2) uppdelade.push({ raw: a.raw, från: a.canonical, delar });
     else skräp.push(a);
   }

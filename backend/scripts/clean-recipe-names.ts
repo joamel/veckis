@@ -89,9 +89,21 @@ async function kanoniseraAlla(namn: string[]): Promise<Map<string, string>> {
   const karta = new Map<string, string>();
   const avvisade: Array<{ från: string; till: string }> = [];
 
+  const ejBedömda: string[] = [];
+
   for (let i = 0; i < namn.length; i += BATCH) {
     const del = namn.slice(i, i + BATCH);
-    const ut = await kanoniseraUtanCache(del);
+    let ut: string[];
+    try {
+      ut = await kanoniseraUtanCache(del);
+    } catch (e) {
+      // Förut gav ett fallerat anrop tillbaka namnen orörda, vilket såg ut som
+      // "inga förslag". Namnen fick förslag först nästa körning — som om nya
+      // fel dykt upp. Nu räknas de och rapporteras.
+      ejBedömda.push(...del);
+      console.log(`   ! ${del.length} namn kunde inte bedömas: ${e instanceof Error ? e.message : e}`);
+      continue;
+    }
     del.forEach((n, j) => {
       const kanonisk = (ut[j] ?? n).toLowerCase().trim();
       if (!kanonisk || kanonisk === n) return;
@@ -103,6 +115,11 @@ async function kanoniseraAlla(namn: string[]): Promise<Map<string, string>> {
       karta.set(n, kanonisk);
     });
     console.log(`   ... ${Math.min(i + BATCH, namn.length)}/${namn.length} namn`);
+  }
+
+  if (ejBedömda.length > 0) {
+    console.log(`\nOBS: ${ejBedömda.length} av ${namn.length} namn kunde inte bedömas av modellen och saknar förslag.`);
+    console.log('Kör om skriptet för att få med dem — det är inte nya fel, bara namn som föll bort den här gången.');
   }
 
   if (avvisade.length > 0) {

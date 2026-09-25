@@ -56,7 +56,16 @@ function avkodaNyckel(v: string): string {
   return ut;
 }
 
-export function skrivGranskningsfil(sökväg: string, rader: Granskningsrad[], egnaInstruktioner?: string[]): void {
+/**
+ * nejlista: false stänger av minnet av dina "nej" för ett skript. Det behövs
+ * där filen ÄR hela listan och en saknad rad betyder "radera" — som i
+ * clean:all. Där raderade minnet tyst varor: ett nej till "riven ost → ost" i
+ * clean:names gjorde att "riven ost" saknades i clean:all:s fil, och att
+ * tillämpa den filen tog bort varan man just sagt att man ville behålla.
+ */
+export type NejOpt = { nejlista?: boolean };
+
+export function skrivGranskningsfil(sökväg: string, rader: Granskningsrad[], egnaInstruktioner?: string[], opt: NejOpt = {}): void {
   // Skriv ALDRIG över en fil du redan redigerat. Kördes generera-steget en
   // gång till efter granskningen nollställdes alla "nej" till "ja" utan ett
   // ord, och nästa apply gjorde tvärtemot vad du bestämt.
@@ -75,9 +84,11 @@ export function skrivGranskningsfil(sökväg: string, rader: Granskningsrad[], e
   }
 
   // Hoppa över det du redan sagt nej till en gång.
-  const { kvar, hoppade } = utanTidigareNej(rader);
-  if (hoppade > 0) console.log(`\n${hoppade} rader hoppades över — du har sagt nej till dem tidigare.`);
-  rader = kvar;
+  if (opt.nejlista !== false) {
+    const { kvar, hoppade } = utanTidigareNej(rader);
+    if (hoppade > 0) console.log(`\n${hoppade} rader hoppades över — du har sagt nej till dem tidigare.`);
+    rader = kvar;
+  }
 
   const innehåll = [
     '# GRANSKNINGSFIL',
@@ -122,7 +133,7 @@ export function skrivGranskningsfil(sökväg: string, rader: Granskningsrad[], e
   console.log('  5. Spara, och kör om samma kommando med:  --från-fil <sökväg> --apply');
 }
 
-export function läsGranskningsfil(sökväg: string): Granskningsrad[] {
+export function läsGranskningsfil(sökväg: string, opt: NejOpt = {}): Granskningsrad[] {
   const valda: Granskningsrad[] = [];
   const avvisade: Granskningsrad[] = [];
   let hoppade = 0;
@@ -147,7 +158,7 @@ export function läsGranskningsfil(sökväg: string): Granskningsrad[] {
   }
 
   console.log(`Läste ${sökväg}: ${valda.length} rader att tillämpa, ${hoppade} överhoppade.`);
-  kommIhågNej(avvisade);
+  if (opt.nejlista !== false) kommIhågNej(avvisade);
   return valda;
 }
 

@@ -54,7 +54,11 @@ Output: [{"in":"körsbärstomater eller romanticatomater","ut":"körsbärstomate
  * poängen, både för latens och för kostnad.
  */
 export function kanoniseraUtanCache(names: string[]): Promise<string[]> {
-  return aiNormalizeNames(names);
+  // Strikt: ett misslyckat anrop KASTAR i stället för att ge tillbaka namnen
+  // orörda. För städskriptet ser "modellen tyckte att namnet var bra" och
+  // "anropet föll" annars likadana ut — och det föll namnen fick förslag
+  // först vid en senare körning, som om nya fel dykt upp.
+  return aiNormalizeNames(names, true);
 }
 
 /**
@@ -87,8 +91,12 @@ export function paraIhopSvar(strippedNames: string[], svar: unknown[]): string[]
 const NAMN_PER_ANROP = 20;
 const SAMTIDIGA_ANROP = 4;
 
-async function aiNormalizeNames(strippedNames: string[]): Promise<string[]> {
-  if (!anthropic || strippedNames.length === 0) return strippedNames;
+async function aiNormalizeNames(strippedNames: string[], strikt = false): Promise<string[]> {
+  if (strippedNames.length === 0) return strippedNames;
+  if (!anthropic) {
+    if (strikt) throw new Error('ANTHROPIC_API_KEY saknas — ingen modell att fråga.');
+    return strippedNames;
+  }
   if (strippedNames.length > NAMN_PER_ANROP) {
     const omgångar: string[][] = [];
     for (let i = 0; i < strippedNames.length; i += NAMN_PER_ANROP) {
@@ -96,7 +104,7 @@ async function aiNormalizeNames(strippedNames: string[]): Promise<string[]> {
     }
     const svar: string[][] = [];
     for (let i = 0; i < omgångar.length; i += SAMTIDIGA_ANROP) {
-      const del = await Promise.all(omgångar.slice(i, i + SAMTIDIGA_ANROP).map(o => aiNormalizeNames(o)));
+      const del = await Promise.all(omgångar.slice(i, i + SAMTIDIGA_ANROP).map(o => aiNormalizeNames(o, strikt)));
       svar.push(...del);
     }
     return svar.flat();
@@ -106,6 +114,10 @@ async function aiNormalizeNames(strippedNames: string[]): Promise<string[]> {
       model: 'claude-haiku-4-5-20251001',
       // ~25 tokens per namn i svaret, med marginal för långa namn.
       max_tokens: 1024,
+      // En kanonisering ska ge samma svar för samma namn. Med standard-
+      // temperaturen svarade modellen olika från gång till gång, och
+      // städskriptet kom med nya förslag på samma namn vid varje körning.
+      temperature: 0,
       messages: [{
         role: 'user',
         content: `Input: ${JSON.stringify(strippedNames)}\nOutput:`,
@@ -129,7 +141,8 @@ async function aiNormalizeNames(strippedNames: string[]): Promise<string[]> {
     // Ett namn utan träff behåller sin strippade form. Hellre oförändrat än
     // förväxlat med någon annans.
     return paraIhopSvar(strippedNames, tolkaJsonArray(textUr(msg)));
-  } catch {
+  } catch (e) {
+    if (strikt) throw e;
     return strippedNames;
   }
 }

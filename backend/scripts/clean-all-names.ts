@@ -12,10 +12,20 @@
  *   - skriv ett nytt namn      → varan döps om, överallt
  *   - skriv RADERA             → namnet tas bort ur poolen och basvarorna
  *
- * Sätter du "nej" på en rad minns skripten det och visar den inte igen — så
- * listan krymper allt eftersom du betar av den.
+ * Varor som tillkommit sedan förra genomgången hamnar ÖVERST, märkta [ny], så
+ * du slipper leta igenom hela listan igen. "Genomgången" är när du senast
+ * TILLÄMPADE en fil — att bara skriva en fil räknas inte, eftersom du då inte
+ * nödvändigtvis har läst den. Har du inget att ändra: tillämpa filen ändå, så
+ * räknas raderna som genomgångna.
+ *
+ * Nej-listan som de andra skripten delar används INTE här. Den här filen är
+ * hela listan, och en rad som saknas betyder "radera" — med nej-listan saknades
+ * varor man sagt nej till i ett annat skript, och tillämpningen raderade dem.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
 import { visaMåldatabas } from './visaDb';
 import { skrivGranskningsfil, läsGranskningsfil, lägeskontroll, type Granskningsrad } from './granskningsfil';
@@ -36,6 +46,35 @@ const SKRIV_FIL = flaggvärde('--fil');
 const LÄS_FIL = flaggvärde('--från-fil');
 
 const RADERA = 'RADERA';
+
+/**
+ * Minnet av vilka namn som fanns när du senast gick igenom listan. En fil per
+ * databas: lokalt och prod har olika varor, och en genomgång av den ena säger
+ * ingenting om den andra. Adressen hashas, så inget lösenord hamnar på disk.
+ */
+function senastFil(): string {
+  let nyckel = 'env';
+  try {
+    const u = new URL(process.env.DATABASE_URL ?? '');
+    nyckel = `${u.hostname}:${u.port || '5432'}${u.pathname}`;
+  } catch { /* DATABASE_URL saknas — Prisma läser .env */ }
+  const hash = createHash('sha1').update(nyckel).digest('hex').slice(0, 10);
+  return join(dirname(fileURLToPath(import.meta.url)), `.clean-all-senast-${hash}.txt`);
+}
+
+/** null = ingen genomgång än, och då är inget "nytt". */
+function läsSenastGenomgångna(): Set<string> | null {
+  const fil = senastFil();
+  if (!existsSync(fil)) return null;
+  return new Set(readFileSync(fil, 'utf8').split('\n').filter(Boolean));
+}
+
+async function sparaGenomgångna(): Promise<void> {
+  const namn = new Set<string>();
+  for (const a of await prisma.ingredientAlias.findMany({ select: { canonical: true } })) namn.add(a.canonical.trim());
+  for (const s of await prisma.stapleItem.findMany({ select: { name: true } })) namn.add(s.name.trim());
+  writeFileSync(senastFil(), [...namn].filter(Boolean).join('\n') + '\n', 'utf8');
+}
 
 async function main() {
   visaMåldatabas();
@@ -81,8 +120,13 @@ async function main() {
     console.log(`${översättningar.size} fick en svensk form.\n`);
   }
 
+  // Nytt sedan förra genomgången först, sedan resten — var för sig i
+  // bokstavsordning.
+  const genomgångna = läsSenastGenomgångna();
+  const ärNy = (namn: string) => genomgångna !== null && !genomgångna.has(namn);
+
   const rader: Granskningsrad[] = [...förekomster]
-    .sort((a, b) => a[0].localeCompare(b[0], 'sv'))
+    .sort((a, b) => Number(ärNy(b[0])) - Number(ärNy(a[0])) || a[0].localeCompare(b[0], 'sv'))
     .map(([namn, f]) => ({
       // Markera vad som FAKTISKT syns i sökningen. Rader som ändå filtreras
       // bort (alternativ-strängar, mängdprefix) är ofarliga där de ligger, och
@@ -90,6 +134,7 @@ async function main() {
       tabell: duglingGlobalt(namn) ? 'namn' : 'dold',
       nyckel: namn,
       namn: [
+        ärNy(namn) ? '[ny]' : '',
         namn,
         f.hushåll > 0 ? `(${f.hushåll} hushåll)` : '',
         egetVal.has(namn) ? '[eget val]' : '',
@@ -101,7 +146,13 @@ async function main() {
     }));
 
   const dolda = rader.filter(r => r.tabell === 'dold');
-  console.log(`${rader.length} unika varunamn, varav ${dolda.length} redan dolda i sökningen.\n`);
+  console.log(`${rader.length} unika varunamn, varav ${dolda.length} redan dolda i sökningen.`);
+  if (genomgångna === null) {
+    console.log('Ingen tidigare genomgång mot den här databasen — efter nästa tillämpning märks nya varor [ny] och hamnar överst.\n');
+  } else {
+    const antalNya = rader.filter(r => ärNy(r.nyckel)).length;
+    console.log(`${antalNya} nya sedan förra genomgången — de ligger överst, märkta [ny].\n`);
+  }
 
   // Genväg för de dolda: de syns inte för någon, och alternativen bakom dem
   // lärs numera in var för sig — raderna är döda men tar plats i granskningen.
@@ -145,7 +196,10 @@ async function main() {
     '# [eget val] betyder att något hushåll själv satt kategori eller hylla för',
     '# varan. Raderas raden försvinner det valet. Recept och inköpslistor rörs',
     '# aldrig — bara ordförrådet och basvarorna.',
-  ]);
+    '#',
+    '# [ny] = tillkommen sedan du senast tillämpade en fil. De ligger överst.',
+    '# Tillämpa filen även om du inte ändrat något, så räknas de som genomgångna.',
+  ], { nejlista: false });
   console.log(`\n  Nytt namn i BLIR = döp om. Ta bort raden = radera varan. Orörd rad = behåll.`);
 }
 
@@ -170,7 +224,7 @@ async function taBort(namn: string): Promise<void> {
 }
 
 async function tillämpa() {
-  const valda = läsGranskningsfil(LÄS_FIL as string);
+  const valda = läsGranskningsfil(LÄS_FIL as string, { nejlista: false });
   const kvarIFilen = namnIFilen(LÄS_FIL as string);
 
   // Rader du tagit bort ur filen = varor som ska bort. Men en avhuggen eller
@@ -226,6 +280,9 @@ async function tillämpa() {
     omdöpta++;
   }
 
+  // Allt som finns kvar nu har du sett — nästa lista märker bara det som
+  // tillkommer efter det här.
+  await sparaGenomgångna();
   console.log(`\nKLART: ${omdöpta} namn omdöpta, ${raderade} raderade, ${orörda} lämnade som de var.`);
 }
 
