@@ -114,11 +114,13 @@ const gorSt = (ny: NyPalett, mork: boolean) => StyleSheet.create({
   veckoTextVald: { color: mork ? ny.skog : ny.lime },
   veckoDatum: { fontSize: 11, color: ny.textDampad, marginTop: 2 },
   dagar: { gap: 8, marginTop: 4 },
-  // Samma gröna yta som receptens kompakta rader — arket ska kännas som en
-  // lista av kort, inte som ett formulär.
+  // Arket självt ligger på ny.kort, så dagarna kan inte också göra det — då
+  // försvann korten in i bakgrunden. De tar ett steg BORT från arket i stället:
+  // nästan vitt i ljust läge, mörkgrönt i mörkt.
   dag: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-    paddingVertical: 14, paddingHorizontal: 16, backgroundColor: ny.kort, borderRadius: 16,
+    paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16,
+    backgroundColor: mork ? ny.skog : ny.ljus,
   },
   dagNamn: { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 16, letterSpacing: -0.3, color: ny.padYta },
   dagHint: { fontFamily: nyFont.halvfet, fontSize: 13, color: ny.textDampad, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
