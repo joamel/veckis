@@ -36,20 +36,20 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { ClearableInput } from '../../src/components/ClearableInput';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
-import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
+import { getISOWeek } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
 import { recipes as str, common, gettingStarted } from '../../src/lib/svenska';
 import { formateraTidsetikett } from '../../src/lib/cookTimer';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
-import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
 import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import { VyVaxel } from '../../src/components/nydesign/VyVaxel';
 import { ReceptBildkort, ReceptKompaktRad, type ReceptKortLage } from '../../src/components/nydesign/ReceptKort';
+import { VeckoDagValjare } from '../../src/components/nydesign/VeckoDagValjare';
 import { Murverk, murverkHojd } from '../../src/components/nydesign/Murverk';
 
 // Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
@@ -209,20 +209,11 @@ export default function RecipesScreen() {
   function addRecipeToMenu(recipe: RecipeWithIngredients, day: WeekDay | null) {
     setAddToMenuFor(null);
     if (!householdId) return;
-    // Flera rätter per dag är avsiktligt (måltidstyp sätts på menykortet) — en
-    // mjuk varning om dagen redan har en rätt, men "lägg till ändå".
-    if (day && addToMenuWeekItems.some(m => m.day === day)) {
-      const label = MENU_DAYS.find(d => d.key === day)?.label;
-      confirm({
-        title: str.menu.dayOccupied.title,
-        message: str.menu.dayOccupied.message(label ?? ''),
-        buttons: [
-          { label: str.menu.dayOccupied.confirm, onPress: () => addRecipeToMenuStep2(recipe, day) },
-          { label: common.actions.cancel, style: 'cancel' },
-        ],
-      });
-      return;
-    }
+    // Ingen varning för att dagen redan har en rätt. Flera rätter samma dag är
+    // det normala sedan måltidstyperna kom — frukost, lunch och middag ligger
+    // per definition på samma dag — så rutan frågade om något som nästan alltid
+    // var meningen. Den som lägger fel drar rätten till en annan dag eller tar
+    // bort den; båda går att ångra.
     addRecipeToMenuStep2(recipe, day);
   }
 
@@ -1267,49 +1258,12 @@ export default function RecipesScreen() {
 
       <DraggableBottomSheet visible={!!addToMenuFor} onRequestClose={() => setAddToMenuFor(null)} bodyStyle={s.sheetBody} title={str.menu.addToMenu} subtitle={addToMenuFor?.title}>
 
-          {/* Week chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: -4 }}>
-            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
-              {(() => {
-                const todayWeek = getISOWeek(new Date());
-                const thisMonday = getISOWeekMonday(todayWeek.weekYear, todayWeek.weekNumber);
-                return Array.from({ length: 5 }, (_, i) => {
-                  const mon = addWeeks(thisMonday, i);
-                  const { weekYear, weekNumber } = getISOWeek(mon);
-                  const weekKey = `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
-                  const active = addToMenuWeekStr === weekKey;
-                  const label = i === 0 ? str.menu.weekNow(weekNumber) : str.menu.weekLabel(weekNumber);
-                  const sub = `${mon.getDate()}/${mon.getMonth() + 1}`;
-                  return (
-                    <Pressable key={weekKey} style={[s.weekChip, active && s.weekChipActive]} onPress={() => setAddToMenuWeekStr(weekKey)}>
-                      <Text style={[s.weekChipText, active && s.weekChipTextActive]}>{label}</Text>
-                      <Text style={[s.weekChipSub, active && s.weekChipSubActive]}>{sub}</Text>
-                    </Pressable>
-                  );
-                });
-              })()}
-            </View>
-          </ScrollView>
-
-          <View style={s.dayGrid}>
-            {MENU_DAYS.map(d => {
-              // Ingen grå-markering — visa middagen (annars första rätten) + "+N
-              // rätter" om fler, så det får plats på en rad.
-              const dayItems = addToMenuWeekItems.filter(m => m.day === d.key);
-              return (
-                <Pressable
-                  key={d.key}
-                  style={s.dayGridItem}
-                  onPress={() => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, d.key); }}
-                >
-                  <Text style={s.dayGridLabel}>{d.label}</Text>
-                  {dayItems.length > 0 && (
-                    <Text style={s.dayGridTakenHint} numberOfLines={1}>{dayItemsSummary(dayItems)}</Text>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
+          <VeckoDagValjare
+            veckoStr={addToMenuWeekStr}
+            onValjVecka={setAddToMenuWeekStr}
+            veckansRatter={addToMenuWeekItems}
+            onValjDag={d => { if (addToMenuFor) addRecipeToMenu(addToMenuFor, d); }}
+          />
       </DraggableBottomSheet>
 
     </SafeAreaView>
@@ -1372,16 +1326,10 @@ const makeStyles = (c: Palette, ny: NyPalett, mork = false) => StyleSheet.create
   addMenuBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   selectBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primaryTint, paddingHorizontal: 16, paddingVertical: 10 },
   selectBannerText: { fontSize: 14, fontWeight: '600', color: c.primary },
-  dayGrid: { gap: 8, marginTop: 4 },
   // Ljusgrön yta (platsLjus), inte kortgrå: dagarna är arkets huvudsak och
   // ska läsa som en egen lista, inte som bakgrund.
-  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: ny.platsLjus, borderRadius: 16 },
-  dayGridItemTaken: { backgroundColor: c.background },
   // Veckodagen i appens rubriktypsnitt och mörkgröna, som rubrikerna i övrigt.
   // Raden låg kvar i systemtypsnittet och grått, vilket såg ut som en annan app.
-  dayGridLabel: { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 16, letterSpacing: -0.3, color: ny.padYta },
-  dayGridLabelTaken: { color: c.textFaint },
-  dayGridTakenHint: { fontFamily: nyFont.halvfet, fontSize: 13, color: ny.textDampad, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
   modeBody: { minHeight: 246, gap: 14 },
   modeBodyBtn: { marginTop: 2 },
   input: { color: ny.text, borderWidth: 1, borderColor: ny.kontur, borderRadius: 14, padding: 14, fontSize: 16, backgroundColor: ny.bakgrund },
@@ -1399,12 +1347,6 @@ const makeStyles = (c: Palette, ny: NyPalett, mork = false) => StyleSheet.create
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   // Veckobrickorna: mörkgrön yta med lime text när den är vald, samma par som
   // appens övriga val. Den ljusa ramen såg ut som ett inaktivt formulärfält.
-  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: ny.kort, alignItems: 'center' },
-  weekChipActive: { backgroundColor: ny.skog },
-  weekChipText: { fontFamily: nyFont.halvfet, fontSize: 14, color: ny.padYta },
-  weekChipTextActive: { color: ny.lime },
-  weekChipSub: { fontSize: 11, color: ny.textDampad, marginTop: 2 },
-  weekChipSubActive: { color: ny.lime },
   // resizeMode contain, inte cover: en beskuren förhandsvisning fick det att se
   // ut som att bara den synliga delen av fotot skulle läsas. Hellre brevlåde-
   // kanter än tvivel om att hela receptet kommer med.

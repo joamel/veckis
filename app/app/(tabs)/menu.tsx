@@ -1054,20 +1054,11 @@ export default function MenuScreen() {
 
     const day = dayOverride !== undefined ? dayOverride : pickingForDay;
 
-    if (day !== null && menuItems.some(i => i.day === day && !pendingMenuItemRemovals.has(i.id))) {
-      const dayLabel = DAYS.find(d => d.key === day)?.label ?? day;
-      const confirmed = await new Promise<boolean>(resolve =>
-        confirm({
-          title: str.dialogs.dayOccupied.title,
-          message: str.dialogs.dayOccupied.message(dayLabel),
-          buttons: [
-            { label: str.dialogs.dayOccupied.confirm, onPress: () => resolve(true) },
-            { label: common.actions.cancel, style: 'cancel', onPress: () => resolve(false) },
-          ],
-        })
-      );
-      if (!confirmed) { closePicker(); return; }
-    }
+    // Ingen varning för att dagen redan har en rätt. Flera rätter samma dag är
+    // det normala sedan måltidstyperna kom — frukost, lunch och middag ligger
+    // per definition på samma dag — så rutan frågade om något som nästan alltid
+    // var meningen. Den som lägger fel drar rätten till en annan dag eller tar
+    // bort den; båda går att ångra.
 
     if (menuItems.some(i => i.recipeId === recipe.id && !pendingMenuItemRemovals.has(i.id))) {
       const confirmed = await new Promise<boolean>(resolve =>

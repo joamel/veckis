@@ -365,11 +365,6 @@ export const menu = {
   },
 
   dialogs: {
-    dayOccupied: {
-      title:   'Dag redan planerad',
-      message: (day: string) => `${day} har redan en rätt planerad. Lägga till ändå?`,
-      confirm: 'Lägg till',
-    },
     recipeOccupied: {
       title:   'Rätt redan planerad',
       message: (title: string) => `${title} är redan planerad denna vecka. Lägga till ändå?`,
@@ -817,11 +812,6 @@ export const recipes = {
     addedWithDay: (title: string, day: string, week: string) => `${title} tillagd på ${day} (${week})`,
     addedNoDay:   (title: string, week: string) => `${title} tillagd i menyn (${week})`,
     errorAdd:     'Kunde inte lägga till i menyn',
-    dayOccupied: {
-      title:   'Dag redan planerad',
-      message: (label: string) => `${label} har redan en rätt denna vecka. Lägg till ändå?`,
-      confirm: 'Lägg till',
-    },
     recipeOccupied: {
       title:   'Rätt redan planerad',
       message: (title: string) => `${title} är redan planerad denna vecka. Lägg till ändå?`,

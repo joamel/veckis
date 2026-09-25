@@ -32,8 +32,7 @@ import { kvarvarandePåSteg } from '../../src/lib/cookIngredients';
 
 import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
-import { dayItemsSummary } from '../../src/lib/menuDaySummary';
-import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
+import { getISOWeek } from '../../src/lib/week';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
@@ -50,6 +49,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { ReceptBild, type Fokus } from '../../src/components/ReceptBild';
+import { VeckoDagValjare } from '../../src/components/nydesign/VeckoDagValjare';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import type { RecipeIngredient, WeekDay } from '@veckis/shared';
 import { convertToMetric, isConvertibleUnit, formateraKöksmått } from '@veckis/shared';
@@ -550,20 +550,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   function planRecipeToMenu(day: WeekDay | null) {
     if (!recipe) return;
     setShowPlanModal(false); // stäng sheeten innan ev. confirm-dialog (undvik staplade modaler)
-    // Flera rätter per dag är avsiktligt (måltidstyp sätts på menykortet) — mjuk
-    // varning om dagen redan har en rätt, men "lägg till ändå".
-    if (day && planWeekItems.some(m => m.day === day)) {
-      const label = MENU_DAYS.find(d => d.key === day)?.label;
-      confirm({
-        title: str.menu.dayOccupied.title,
-        message: str.menu.dayOccupied.message(label ?? ''),
-        buttons: [
-          { label: str.menu.dayOccupied.confirm, onPress: () => planRecipeToMenuStep2(day) },
-          { label: common.actions.cancel, style: 'cancel' },
-        ],
-      });
-      return;
-    }
+    // Ingen varning för att dagen redan har en rätt. Flera rätter samma dag är
+    // det normala sedan måltidstyperna kom — frukost, lunch och middag ligger
+    // per definition på samma dag — så rutan frågade om något som nästan alltid
+    // var meningen. Den som lägger fel drar rätten till en annan dag eller tar
+    // bort den; båda går att ångra.
     planRecipeToMenuStep2(day);
   }
 
@@ -1810,48 +1801,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           veckochips + dag-grid som lägger till direkt (toast), ingen extra knapp. */}
       <DraggableBottomSheet visible={showPlanModal} onRequestClose={() => setShowPlanModal(false)} sheetStyle={s.sheet} title={str.menu.addToMenu} subtitle={recipe?.title}>
 
-          {/* Week chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: -4 }}>
-            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
-              {(() => {
-                const todayWeek = getISOWeek(new Date());
-                const thisMonday = getISOWeekMonday(todayWeek.weekYear, todayWeek.weekNumber);
-                return Array.from({ length: 5 }, (_, i) => {
-                  const mon = addWeeks(thisMonday, i);
-                  const { weekYear, weekNumber } = getISOWeek(mon);
-                  const weekKey = `${weekYear}-${String(weekNumber).padStart(2, '0')}`;
-                  const active = planWeekStr === weekKey;
-                  const label = i === 0 ? str.menu.weekNow(weekNumber) : str.menu.weekLabel(weekNumber);
-                  const sub = `${mon.getDate()}/${mon.getMonth() + 1}`;
-                  return (
-                    <Pressable key={weekKey} style={[s.weekChip, active && s.weekChipActive]} onPress={() => setPlanWeekStr(weekKey)}>
-                      <Text style={[s.weekChipText, active && s.weekChipTextActive]}>{label}</Text>
-                      <Text style={[s.weekChipSub, active && s.weekChipSubActive]}>{sub}</Text>
-                    </Pressable>
-                  );
-                });
-              })()}
-            </View>
-          </ScrollView>
-
-          <View style={s.dayGrid}>
-            {MENU_DAYS.map(d => {
-              // Ingen grå-markering — middag (annars första) + "+N rätter" om fler.
-              const dayItems = planWeekItems.filter(m => m.day === d.key);
-              return (
-                <Pressable
-                  key={d.key}
-                  style={s.dayGridItem}
-                  onPress={() => planRecipeToMenu(d.key)}
-                >
-                  <Text style={s.dayGridLabel}>{d.label}</Text>
-                  {dayItems.length > 0 && (
-                    <Text style={s.dayGridTakenHint} numberOfLines={1}>{dayItemsSummary(dayItems)}</Text>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
+          <VeckoDagValjare
+            veckoStr={planWeekStr}
+            onValjVecka={setPlanWeekStr}
+            veckansRatter={planWeekItems}
+            onValjDag={planRecipeToMenu}
+          />
       </DraggableBottomSheet>
 
       {/* "+"-FAB — väljare: lägg till receptet i veckomeny eller inköpslista.
@@ -2374,20 +2329,6 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   listPicker: {},
   listPickerItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: c.background, borderRadius: 10, marginBottom: 6 },
   listPickerItemText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
-  dayGrid: { gap: 8, marginTop: 4 },
-  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, borderRadius: nyD ? 16 : 12 },
-  dayGridItemTaken: { backgroundColor: nyD ? ny.bricka : c.background },
-  dayGridLabel: nyD
-    ? { fontFamily: nyFont.halvfet, fontWeight: 'normal', fontSize: 15, color: ny.text }
-    : { fontSize: 15, fontWeight: '600', color: c.text },
-  dayGridLabelTaken: { color: nyD ? ny.textDampad : c.textFaint },
-  dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: nyD ? ny.textDampad : c.textFaint, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
-  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, borderWidth: 1, borderColor: nyD ? ny.kontur : c.borderLight, alignItems: 'center' },
-  weekChipActive: { backgroundColor: nyD ? ny.skog : c.primaryTint, borderColor: nyD ? ny.skog : c.primary },
-  weekChipText: { fontSize: 13, fontWeight: '600', color: nyD ? ny.chipText : c.textSecondary },
-  weekChipTextActive: { color: nyD ? ny.lime : c.primary },
-  weekChipSub: { fontSize: 11, color: c.textFaint, marginTop: 2 },
-  weekChipSubActive: { color: c.primary400 },
 });
 
 export default function RecipeDetailScreen() {
