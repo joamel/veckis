@@ -65,7 +65,9 @@ export function NyIkonKnapp({ icon, onPress, label, color = nyLjus.ikonLjus, siz
 }
 
 /** Textknapp i sidhuvudet, för en tydlig huvudåtgärd (t.ex. Butiker). Samma
- *  genomskinliga vita yta som ikonknapparna, med ikon och etikett. */
+ *  genomskinliga vita yta som ikonknapparna, med ikon och etikett — och
+ *  samma dämpade ljusgröna som dem: vit text gjorde den till sidhuvudets
+ *  starkaste element, starkare än rubriken bredvid. */
 export function NyTextKnapp({ icon, label, onPress }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   label: string;
@@ -75,7 +77,7 @@ export function NyTextKnapp({ icon, label, onPress }: {
   const st = useMemo(() => gorSt(ny), [ny]);
   return (
     <Pressable onPress={onPress} hitSlop={4} style={st.textKnapp} accessibilityRole="button" accessibilityLabel={label}>
-      <Ionicons name={icon} size={16} color={ny.rubrikLjus} />
+      <Ionicons name={icon} size={16} color={ny.ikonLjus} />
       <Text style={st.textKnappText}>{label}</Text>
     </Pressable>
   );
@@ -83,7 +85,7 @@ export function NyTextKnapp({ icon, label, onPress }: {
 
 const gorSt = (ny: NyPalett) => StyleSheet.create({
   textKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 42, paddingHorizontal: 14, borderRadius: 14, backgroundColor: ny.glas },
-  textKnappText: { fontSize: 14, fontWeight: '600', color: ny.rubrikLjus },
+  textKnappText: { fontSize: 14, fontWeight: '600', color: ny.ikonLjus },
   bakom: { backgroundColor: ny.bakgrund },
   band: {
     backgroundColor: ny.skog,

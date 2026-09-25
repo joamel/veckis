@@ -38,6 +38,13 @@ export interface NyPalett {
   padYta: string;
   /** Mörk knappyta ovanpå en LJUS platshållare (receptkortens hörnknapp). */
   hornMorkYta: string;
+  /** Kompaktradens kalenderknapp: mörkgrön yta. */
+  kalenderYta: string;
+  /** Ikonen i kompaktradens kalenderknapp. Samma dämpade ljusgröna som
+   *  sidhuvudets ikonknappar (ikonLjus) i ljust läge — lime mot mörkgrönt
+   *  blev för intensivt i den täta listan, där knappen står på varje rad.
+   *  I mörkt läge är lime kvar: den bär "tryckbart" där. */
+  kalenderIkon: string;
   /** Vald/aktiv mörkgrön yta ovanpå ett kort (chips, ikonval). Var `skog` i
    *  ljust läge; i mörkt läge måste den LYFTA från kortet i stället för att
    *  sjunka in i det, annars syns det inte vad som är valt. */
@@ -81,6 +88,8 @@ export const nyLjus: NyPalett = {
   platsLjus: '#cddcb3',
   padYta: '#1d3b2e',
   hornMorkYta: '#1d3b2e',
+  kalenderYta: '#1d3b2e',
+  kalenderIkon: '#b9cfc0',
   valdYta: '#1d3b2e',
   bandOverlay: 'rgba(29,59,46,0.8)',
   ytIkon: 'rgba(29,59,46,0.16)',
@@ -121,6 +130,8 @@ export const nyMork: NyPalett = {
   platsLjus: '#33503c',
   padYta: '#b9d98a',
   hornMorkYta: '#0e1613',
+  kalenderYta: '#15231b',
+  kalenderIkon: '#cde66b',
   valdYta: '#46705a',
   bandOverlay: 'rgba(8,14,10,0.8)',
   ytIkon: 'rgba(205,230,107,0.22)',

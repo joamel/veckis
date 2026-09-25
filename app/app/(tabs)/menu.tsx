@@ -574,27 +574,61 @@ export default function MenuScreen() {
   // flight" without being fooled by an emptied-out week.
   const loadedWeekRef = useRef<{ wy: number; wn: number } | null>(null);
   const scrollOffsetY = useRef(0);
-  // Veckoraden fälls ihop när man scrollar nedåt och följer med scrollen,
-  // så den glider tillbaka i samma takt på vägen upp. Första versionen
-  // fälldes vid en tröskel och poppade in nära toppen — ett hack precis där
-  // man stannade. Höjdändringen per scrollhändelse går bra här: veckans
-  // innehåll byter inte bredd, så det flödar inte om (till skillnad från
-  // receptlistans murverk, där samma sak laggade).
+  // Veckoraden fälls ihop vid en TRÖSKEL med en kort animation, inte i takt
+  // med scrollen. Att följa scrollen bildruta för bildruta ändrade sidhuvudets
+  // höjd i varje bildruta, och eftersom raden sitter i sidhuvudet fick hela
+  // veckopagern — tre monterade veckosidor — ny höjd och ny layout varje gång.
+  // Det laggade oavsett antal rätter. Samma fel och samma lösning som
+  // receptlistans sökfält: nu ändras layouten bara under övergången (180 ms).
+  // Hysteres (fäll ihop först när raden scrollats förbi, fäll ut nära toppen)
+  // gör att den inte hoppar fram och tillbaka där man råkar stanna.
   const veckaSynlig = useSharedValue(1);
   // Uppskattad höjd tills raden mätts, så sidhuvudet inte blinkar till utan rad.
   const [veckaH, setVeckaH] = useState(62);
   const veckaHRef = useRef(62);
   veckaHRef.current = veckaH;
-  const följVeckaScroll = useCallback((y: number) => {
-    veckaSynlig.value = 1 - Math.min(1, Math.max(0, y / veckaHRef.current));
+  // Raden fälls bara ihop när veckan har mer innehåll än som ryms, med
+  // marginal. Ihopfälld växer scrollytan med radens höjd; med 1–2 rätter
+  // klampades scrollen då tillbaka mot noll, raden fälldes ut, ytan krympte —
+  // och så runt igen: ett flimmer. Villkoret mäts mot den UTFÄLLDA ytan så att
+  // svaret inte ändras av tillståndet det ska styra.
+  const fälldRef = useRef(false);
+  const animSlutRef = useRef(0);
+  const innehallHRef = useRef(0);
+  const ytaUtfalldRef = useRef(0);
+  const fallMarginal = 24;
+  const sättVeckaFälld = useCallback((fälld: boolean) => {
+    if (fälldRef.current === fälld) return;
+    fälldRef.current = fälld;
+    animSlutRef.current = Date.now() + 220;
+    veckaSynlig.value = withTiming(fälld ? 0 : 1, { duration: 180 });
   }, [veckaSynlig]);
+  const följVeckaScroll = useCallback((y: number) => {
+    const radH = veckaHRef.current;
+    const kanFalla = ytaUtfalldRef.current > 0
+      && innehallHRef.current - ytaUtfalldRef.current > radH + fallMarginal;
+    if (!kanFalla || y < 12) sättVeckaFälld(false);
+    else if (y > radH + 12) sättVeckaFälld(true);
+  }, [sättVeckaFälld]);
+  // Måtten som villkoret vilar på. Bara mittveckan mäts — det är den man ser.
+  // Under en övergång är ytan på väg mellan två höjder och säger ingenting.
+  const matYta = useCallback((h: number) => {
+    if (Date.now() < animSlutRef.current) return;
+    ytaUtfalldRef.current = fälldRef.current ? h - veckaHRef.current : h;
+  }, []);
+  const matInnehall = useCallback((h: number) => {
+    innehallHRef.current = h;
+    // Krympte veckan (en rätt togs bort) ska raden tillbaka direkt, inte vid
+    // nästa scrollhändelse — det kommer kanske ingen.
+    följVeckaScroll(scrollOffsetY.current);
+  }, [följVeckaScroll]);
   const veckaAnimStyle = useAnimatedStyle(() => (
     veckaH ? { height: veckaH * veckaSynlig.value, opacity: veckaSynlig.value } : {}
   ));
   // Ny vecka börjar om högst upp — då ska veckoraden synas igen.
   useEffect(() => {
-    veckaSynlig.value = withTiming(1, { duration: 180 });
-  }, [weekOffset, veckaSynlig]);
+    sättVeckaFälld(false);
+  }, [weekOffset, sättVeckaFälld]);
   const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopAutoScroll = useCallback(() => {
     if (autoScrollIntervalRef.current) {
@@ -1803,6 +1837,8 @@ export default function MenuScreen() {
           contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet, nyDesign && s.nyInnehallInner]}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
           onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; följVeckaScroll(scrollOffsetY.current); }}
+          onLayout={e => matYta(e.nativeEvent.layout.height)}
+          onContentSizeChange={(_w, h) => matInnehall(h)}
           scrollEventThrottle={16}
           onTouchStart={onWebTouchStart}
           onTouchEnd={onWebTouchEnd}
@@ -1851,6 +1887,8 @@ export default function MenuScreen() {
               contentContainerStyle={[s.contentInner, isTablet && s.contentInnerTablet, nyDesign && s.nyInnehallInner]}
               refreshControl={isCenter ? <RefreshControl refreshing={false} onRefresh={load} /> : undefined}
               onScroll={isCenter ? (e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; följVeckaScroll(scrollOffsetY.current); }) : undefined}
+              onLayout={isCenter ? (e => matYta(e.nativeEvent.layout.height)) : undefined}
+              onContentSizeChange={isCenter ? ((_w, h) => matInnehall(h)) : undefined}
               scrollEventThrottle={16}
             >
               {renderWeekContent(weekItemsForOffset(o), getWeekMonday(o), isCenter, o < 0)}
