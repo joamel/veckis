@@ -228,6 +228,10 @@ export function duglingGlobalt(canonical: string): boolean {
   // det fall där bara ETT led gick att tolka ("grönsakstärning/-fond") — och
   // den sammansatta strängen är ingen vara oavsett.
   if (/\p{L}\s*\/\s*[\p{L}-]/u.test(c)) return false;
+  // Plus mellan två ord betyder "och" ("vin+öl"). delaAlternativ delar det när
+  // båda leden känns igen, men den hopskrivna strängen är ingen vara ens när
+  // bara ett av dem gör det — samma absoluta regel som för snedstreck.
+  if (/\p{L}\s*\+\s*\p{L}/u.test(c)) return false;
   // "salt och svartpeppar" är två varor, inte en — och delaAlternativ lär in
   // dem var för sig. Den sammansatta strängen ska därför inte föreslås.
   // Bara när BÅDA sidor är kända varor: "kött- och grillkrydda" är en produkt.

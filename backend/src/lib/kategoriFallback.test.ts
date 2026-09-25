@@ -25,6 +25,16 @@ describe('känndKategori — other är inte ett svar', () => {
     expect(duglingGlobalt('mellermjölk')).toBe(true);
   });
 
+  it('duglingGlobalt släpper inte fram plusnamn', () => {
+    // "vin+öl" är två varor; leden lärs in var för sig.
+    expect(duglingGlobalt('vin+öl')).toBe(false);
+    expect(duglingGlobalt('vin + öl')).toBe(false);
+    // Även när bara ett led känns igen.
+    expect(duglingGlobalt('vin+xyzzy')).toBe(false);
+    // Plus utan andra led är en del av namnet.
+    expect(duglingGlobalt('kvarg+')).toBe(true);
+  });
+
   it('duglingGlobalt släpper inte fram snedstrecksnamn', () => {
     // Snedstreck betyder "eller" i en inköpslista — leden lärs in var för sig.
     expect(duglingGlobalt('lax/torsk/alaska pollock')).toBe(false);

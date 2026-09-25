@@ -15,6 +15,19 @@ describe('delaAlternativ', () => {
     expect(delaAlternativ('pommes / potatis')).toEqual(['pommes', 'potatis']);
   });
 
+  it('delar på plus — "vin+öl" är två varor man behöver båda', () => {
+    expect(delaAlternativ('vin+öl')).toEqual(['vin', 'öl']);
+    expect(delaAlternativ('vin + öl')).toEqual(['vin', 'öl']);
+    expect(delaAlternativ('salt+svartpeppar')).toEqual(['salt', 'svartpeppar']);
+  });
+
+  it('rör inte plus utan andra led, eller när ett led är okänt', () => {
+    // Plus sist i ett produktnamn är ingen uppräkning.
+    expect(delaAlternativ('kvarg+')).toEqual(['kvarg+']);
+    // Samma försiktighet som för "och": båda sidor måste vara kända varor.
+    expect(delaAlternativ('vin+xyzzy')).toEqual(['vin+xyzzy']);
+  });
+
   it('rör inte snedstreck mellan siffror', () => {
     // "1/2 gurka" är ett bråktal, inte två varor.
     expect(delaAlternativ('1/2 gurka')).toEqual(['1/2 gurka']);

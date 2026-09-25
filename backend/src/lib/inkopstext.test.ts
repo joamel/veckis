@@ -97,6 +97,13 @@ describe('tolkaInköpstext', () => {
     expect(namn('salt och svartpeppar')).toEqual(['salt', 'svartpeppar']);
   });
 
+  it('delar på plus som på "och" — "vin+öl" ger två rader', () => {
+    expect(namn('vin+öl')).toEqual(['vin', 'öl']);
+    expect(namn('vin + öl')).toEqual(['vin', 'öl']);
+    // Ett ledande plus är en punktmarkör, inte en uppräkning.
+    expect(namn('+ mjölk')).toEqual(['mjölk']);
+  });
+
   it('delar ALDRIG på "eller" eller snedstreck — valet är butikens', () => {
     expect(namn('lax/torsk/alaska pollock')).toEqual(['lax/torsk/alaska pollock']);
     expect(namn('nötfärs alt. vegofärs')).toEqual(['nötfärs alt. vegofärs']);

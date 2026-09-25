@@ -44,13 +44,23 @@ function efterled(sista: string): string | null {
  * får sluta på bindestreck (det är en hopdragen sammansättning), och BÅDA
  * sidor måste kännas igen som riktiga varor av den kurerade klassaren. Är det
  * minsta tveksamt lämnas namnet som det är.
+ *
+ * Plus mellan två ord betyder också "och" i en handskriven lista: "vin+öl",
+ * "salt + peppar". Utan det här lärdes hela strängen in som EN vara och kunde
+ * föreslås i sökningen, medan "vin och öl" delades. Bara mellan bokstäver —
+ * ett plus sist i ett produktnamn ("Kvarg+") har inget andra led.
  */
 export function delaOch(namn: string): string[] | null {
-  const delar = namn.split(/\s+och\s+/i).map(d => d.trim()).filter(Boolean);
+  const delar = plusSomOch(namn).split(/\s+och\s+/i).map(d => d.trim()).filter(Boolean);
   if (delar.length !== 2) return null;
   if (delar.some(d => d.endsWith('-'))) return null;
   if (delar.some(d => categorizeIngredient(d) === 'other')) return null;
   return delar;
+}
+
+/** "vin+öl" → "vin och öl". Plus mellan två bokstäver, med eller utan mellanslag. */
+export function plusSomOch(namn: string): string {
+  return namn.replace(/(?<=\p{L})\s*\+\s*(?=\p{L})/gu, ' och ');
 }
 
 export function delaAlternativ(namn: string): string[] {
