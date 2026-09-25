@@ -18,6 +18,7 @@ import { useApiClient, type ShoppingListWithItems } from '../../src/api/client';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
+import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useToast } from '../../src/context/ToastContext';
 import { pickStore } from '../../src/lib/storePicker';
 import { useConfirm } from '../../src/context/ConfirmContext';
@@ -78,6 +79,7 @@ export default function ShoppingScreen() {
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
 
+  const { pendingListRemovals } = usePendingRemoval();
   const load = useCallback(async () => {
     if (!householdId) return;
     try {
@@ -86,7 +88,9 @@ export default function ShoppingScreen() {
         client.getStores(householdId),
         client.getHousehold(householdId).catch(() => null),
       ]);
-      setLists(data);
+      // Listor med ett pågaende angra-fonster ar pa vag bort — de ska inte
+      // dyka upp igen bara for att oversikten laddar om under tiden.
+      setLists(data.filter(l => !pendingListRemovals.has(l.id)));
       setStores(storeList);
       if (household) setMembers(household.members);
     } catch {
@@ -94,7 +98,7 @@ export default function ShoppingScreen() {
     } finally {
       setLoading(false);
     }
-  }, [householdId]);
+  }, [householdId, pendingListRemovals]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
   // Refresh when a list changes elsewhere (e.g. deferred clear in the detail view).

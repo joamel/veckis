@@ -46,6 +46,7 @@ import { WeekNav } from '../../src/components/WeekNav';
 import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
+import { ReceptBild } from '../../src/components/ReceptBild';
 import { platshallare } from '../../src/lib/receptPlatshallare';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay, MealType } from '@veckis/shared';
@@ -1505,6 +1506,7 @@ export default function MenuScreen() {
         idag={idag}
         collapsedForDrag={isCenter && !!dragState}
         isTransferred={!!recipeListMap[item.id]?.length}
+        listNamn={(recipeListMap[item.id] ?? []).map(e => e.listName)}
         isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
         isPastWeek={isPastWeek}
         onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
@@ -1614,6 +1616,7 @@ export default function MenuScreen() {
                           item={item}
                           collapsedForDrag={dragging}
                           isTransferred={!!recipeListMap[item.id]?.length}
+                          listNamn={(recipeListMap[item.id] ?? []).map(e => e.listName)}
                           isPending={isCenter && pendingMenuItemRemovals.has(item.id)}
                           isPastWeek={isPastWeek}
                           onRemove={isCenter && !isPastWeek ? (() => removeFromMenu(item)) : noop}
@@ -2461,6 +2464,7 @@ function MenuCardDragHandle({ onDragStart, onDragMove, onDragEnd }: {
 function MenuCard({
   item,
   isTransferred,
+  listNamn,
   isPending,
   isPastWeek,
   onRemove,
@@ -2481,6 +2485,8 @@ function MenuCard({
 }: {
   item: WeekMenuItemWithRecipe;
   isTransferred: boolean;
+  /** Namnen på de listor rätten ligger i just nu. Tom = ingen. */
+  listNamn: string[];
   isPending?: boolean;
   isPastWeek?: boolean;
   dayLabel?: { abbr: string; date: number };
@@ -2511,6 +2517,14 @@ function MenuCard({
   const { fs, sp } = useTablet();
   const { nyDesign } = useDesign();
   const bildUrl = item.recipe.imageUrl ?? null;
+  // "I inköpslistan" räcker inte när hushållet har flera listor — då säger
+  // märket inte VILKEN man ska titta i. Med flera listor blir det antalet;
+  // namnen skulle inte få plats på raden.
+  const listMarke = listNamn.length === 1
+    ? str.card.inNamedList(listNamn[0])
+    : listNamn.length > 1
+      ? str.card.inSeveralLists(listNamn.length)
+      : str.card.inShoppingList;
   // Dagens första rätt visar bilden stort hela tiden; övriga när de fälls ut.
   const visaHero = nyDesign && !!bildUrl && (!!hero || isExpanded);
   // Samma platshållare som receptlistan, så ett recept ser likadant ut i båda.
@@ -2542,7 +2556,9 @@ function MenuCard({
               utfallningen onodigt svar pa dagens ratt. */}
           {visaHero && (
             <Pressable style={s.nyHero} onPress={handlePress} accessibilityRole="button" accessibilityLabel={item.recipe.title}>
-              <Image source={{ uri: bildUrl! }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              {/* ReceptBild, inte en rå Image: utsnittet man valt i receptet ligger i
+                  imageFocusX/Y, och utan den beskars bilden uppifrån här. */}
+              <ReceptBild uri={bildUrl!} fokusX={item.recipe.imageFocusX} fokusY={item.recipe.imageFocusY} style={StyleSheet.absoluteFill} />
               {/* Tiden på bilden, som på receptkorten — bara hopfälld. Utfällt
                   står den bredvid "I inköpslistan". */}
               {!isExpanded && item.recipe.cookMinutes ? (() => {
@@ -2673,7 +2689,10 @@ function MenuCard({
                     <View style={s.nyMarke}>
                       <Ionicons name="cart" size={13} color={ny.textDampad} />
                       {/* Explicit bredd — utan den klipptes texten till "I". */}
-                      <Text style={[s.nyMarkeText, { width: str.card.inShoppingList.length * 8 + 8 }]} numberOfLines={1}>{str.card.inShoppingList}</Text>
+                      <Text
+                        style={[s.nyMarkeText, { width: Math.min(150, listMarke.length * 8 + 8) }]}
+                        numberOfLines={1}
+                      >{listMarke}</Text>
                     </View>
                   )}
                 </View>
@@ -2728,7 +2747,7 @@ function MenuCard({
               {isTransferred && (
                 <View style={[s.transferredBadge, { marginBottom: sp(8) }]}>
                   <Ionicons name="cart" size={fs(14)} color={c.success} />
-                  <Text style={[s.transferredText, { fontSize: fs(11) }]}>{str.card.inShoppingList}</Text>
+                  <Text style={[s.transferredText, { fontSize: fs(11) }]}>{listMarke}</Text>
                 </View>
               )}
               {/* Portion scaler — cutlery icon grouped with the −/+ on the right */}
@@ -3061,12 +3080,12 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   bulkWeekHeader: { fontSize: 12, fontWeight: '700', color: ny.chipText, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 4 },
   bulkRecipeDay: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   dayGrid: { gap: 10 },
-  dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
-  dayGridLabel: { fontSize: 15, fontWeight: '600', color: c.text },
+  dayGridItem: { paddingVertical: 14, paddingHorizontal: 16, backgroundColor: ny.kort, borderRadius: 16 },
+  dayGridLabel: { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 16, letterSpacing: -0.3, color: ny.padYta },
   pickerList: { maxHeight: 480 },
-  recipeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: c.surfaceSubtle },
-  recipeCardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.background, alignItems: 'center', justifyContent: 'center' },
-  recipeCardTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  recipeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: ny.kort, borderRadius: 16, padding: 14 },
+  recipeCardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: ny.bricka, alignItems: 'center', justifyContent: 'center' },
+  recipeCardTitle: { fontFamily: nyFont.halvfet, fontSize: 15, color: ny.text },
   recipeCardMeta: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   pickerItem: { paddingVertical: 14, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: ny.kontur, flexDirection: 'row', alignItems: 'center' },
   pickerItemActive: { backgroundColor: ny.bricka, borderRadius: 10, borderBottomColor: 'transparent' },

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ReceptBild } from '../ReceptBild';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { nyFont, type NyPalett } from '../../lib/nyDesign';
 import { useNy } from '../../context/ThemeContext';
@@ -24,6 +25,10 @@ interface Props {
   /** Tillagningstid, färdigformaterad ("45 min"). null = okänd, ingen bricka. */
   tid: string | null;
   bildUrl: string | null;
+  /** Utsnittet som valts i receptet (0–1 per axel, null = mitten). Utan det
+   *  beskärs bilden uppifrån och motivet kan hamna utanför kortet. */
+  fokusX?: number | null;
+  fokusY?: number | null;
   lage: ReceptKortLage;
   onPress: () => void;
   /** Kvar för redigeraläget; LISTAN skickar inget långtryck längre — ett recept
@@ -51,7 +56,7 @@ export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
         onLongPress={p.onLongPress}
       >
         {p.bildUrl ? (
-          <Image source={{ uri: p.bildUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <ReceptBild uri={p.bildUrl} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} style={StyleSheet.absoluteFill} />
         ) : (
           <Ionicons name={ph!.ikon} size={76} color={mork ? ny.ytIkonMork : ny.ytIkon} style={[st.ikonStor, p.tid && st.ikonUnderTid]} />
         )}
@@ -88,7 +93,7 @@ export function ReceptKompaktRad(p: Props) {
     <View>
       <Pressable style={st.rad} onPress={p.onPress} onLongPress={p.onLongPress}>
         {p.bildUrl ? (
-          <Image source={{ uri: p.bildUrl }} style={st.tumnagel} resizeMode="cover" />
+          <ReceptBild uri={p.bildUrl} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} style={st.tumnagel} />
         ) : (
           <View style={[st.tumnagel, st.tumnagelTom, mork ? st.ytaMork : st.ytaLjusRad]}>
             <Ionicons name={ph!.ikon} size={28} color={mork ? ny.lime : ny.padYta} />

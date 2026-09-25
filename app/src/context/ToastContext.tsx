@@ -51,7 +51,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     opacity.stopAnimation();
     Animated.sequence([
       Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
-      Animated.delay(a ? 5000 : v === 'error' ? 3500 : 2500),
+      // En toast med "Ångra" måste hinna läsas OCH träffas. 5 s räckte inte
+      // när man precis råkat radera något och behöver förstå vad som hänt
+      // innan man kan agera.
+      Animated.delay(a ? 8000 : v === 'error' ? 3500 : 2500),
       Animated.timing(opacity, { toValue: 0, duration: 350, useNativeDriver: true }),
     ]).start(() => setAction(null));
   }, [opacity]);

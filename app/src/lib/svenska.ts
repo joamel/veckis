@@ -283,6 +283,8 @@ export const shoppingList = {
     errorDeleteItem:  'Kunde inte ta bort vara',
     errorClear:       'Kunde inte rensa listan',
     errorDeleteList:  'Kunde inte ta bort listan',
+    listDeleted:      (namn: string) => `"${namn}" togs bort`,
+    listRestored:     (namn: string) => `"${namn}" är kvar`,
     errorSaveStaple:  'Kunde inte spara basvaran',
     errorDeleteStaple:'Kunde inte ta bort basvaran',
     errorHideSuggestion: 'Kunde inte ta bort förslaget',
@@ -471,6 +473,10 @@ export const menu = {
     servingsLockedA11y: (n: number) => `${n} portioner, låst eftersom rätten redan ligger i inköpslistan`,
     ingredientsCount: (n: number) => `${n} ingredienser`,
     inShoppingList:   'I inköpslistan',
+    /** Med listans namn när rätten ligger i EN lista — "I inköpslistan" säger
+     *  inte vilken när hushållet har flera (Ica, Willys, helgen …). */
+    inNamedList:      (namn: string) => `I ${namn}`,
+    inSeveralLists:   (antal: number) => `I ${antal} listor`,
     addAnother:       'Lägg till rätt',
   },
 
@@ -572,6 +578,8 @@ export const recipes = {
     addPlaceholder: 'Egen tagg…',
     // Förslags-chips i redigeringsläget (utöver hushållets redan använda taggar)
     suggested: ['favorit', 'vegetariskt', 'snabbt', 'barnvänligt', 'vardag', 'helg', 'billigt'] as readonly string[],
+    pinTipTitle:  'Fäst dina vanligaste taggar',
+    pinTipBody:   'Håll inne på en tagg för att fästa den först i raden. Fästa taggar ligger kvar överst, så du slipper leta efter dem varje gång.',
     pinned:       (tag: string) => `”${tag}” fäst först`,
     unpinned:     (tag: string) => `”${tag}” inte längre fäst`,
     pinFailed:    'Kunde inte spara fästa taggar',

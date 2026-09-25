@@ -1,7 +1,8 @@
 /**
  * Onboarding-flaggor som "Återställ introduktion" nollställer. Koncept-guiden vid
  * login (seen-concept-walkthrough) + en handplockad uppsättning kontextuella tips
- * för de icke-uppenbara vallgravs-funktionerna (butikssortering, dubbletter).
+ * för de icke-uppenbara vallgravs-funktionerna (butikssortering, dubbletter,
+ * fästa taggar).
  * Medvetet KORT lista — de gamla 26 spridda tipsen är fimpade, och
  * "Jag handlar"-tipset togs bort: det var en instruktion i ord om var i
  * ⋮-menyn knappen låg, utan något att peka på.
@@ -11,6 +12,7 @@ export const TIP_FLAGS = [
   'seen-concept-walkthrough',
   'seen-stores-tip',
   'seen-merge-tip',
+  'seen-pin-tag-tip',
 ] as const;
 
 /** Special master flag — kvar för bakåtkompat (dormant SpotlightTip-infra). */

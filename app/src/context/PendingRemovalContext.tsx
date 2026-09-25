@@ -2,6 +2,11 @@ import { createContext, useContext, useRef, useState, useCallback, type ReactNod
 
 interface Ctx {
   pendingMenuItemRemovals: Set<string>;
+  /** Inköpslistor som raderas när ångra-fönstret gått ut. Översikten döljer
+   *  dem direkt, annars låg listan kvar och såg ut att ha överlevt. */
+  pendingListRemovals: Set<string>;
+  markListPending: (listId: string) => void;
+  clearListPending: (listId: string) => void;
   markPending: (menuItemId: string, onCancel?: () => void) => void;
   clearPending: (menuItemId: string) => void;
   /** Trigger cancel-callbacks for every still-pending removal and clear the set. */
@@ -20,7 +25,21 @@ const PendingRemovalContext = createContext<Ctx | null>(null);
  */
 export function PendingRemovalProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState<Set<string>>(new Set());
+  const [pendingLists, setPendingLists] = useState<Set<string>>(new Set());
   const cancellersRef = useRef<Map<string, () => void>>(new Map());
+
+  const markListPending = useCallback((id: string) => {
+    setPendingLists(prev => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
+
+  const clearListPending = useCallback((id: string) => {
+    setPendingLists(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
 
   const markPending = useCallback((id: string, onCancel?: () => void) => {
     if (onCancel) cancellersRef.current.set(id, onCancel);
@@ -54,6 +73,9 @@ export function PendingRemovalProvider({ children }: { children: ReactNode }) {
   return (
     <PendingRemovalContext.Provider value={{
       pendingMenuItemRemovals: pending,
+      pendingListRemovals: pendingLists,
+      markListPending,
+      clearListPending,
       markPending,
       clearPending,
       cancelAllPending,

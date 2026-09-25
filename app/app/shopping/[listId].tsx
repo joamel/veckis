@@ -85,6 +85,12 @@ const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
 // virtualiserar inte, så utan tak monteras hela högen på en gång.
 const CHECKED_RENDER_CAP = 50;
 
+/** Ångra-fönster för att ta bort en HEL lista. Längre än de 5 s som gäller
+ *  enstaka varor: en hel lista är det dyraste man kan råka radera, och man
+ *  behöver hinna förstå vad som hänt innan man kan ångra. Måste rymmas inom
+ *  toastens egen livslängd (ToastContext). */
+const ANGRA_LISTA_MS = 7000;
+
 // Rad räknas som synlig så snart någon del syns — sticky-rubriken ska byta
 // direkt när en ny kategori kommer in uppifrån.
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 0 };
@@ -208,7 +214,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     return () => setBottomObstruction(0);
   }, [addBarH, setBottomObstruction]);
   const { householdId } = useHousehold();
-  const { pendingMenuItemRemovals } = usePendingRemoval();
+  const { pendingMenuItemRemovals, markListPending, clearListPending } = usePendingRemoval();
   const { getToken } = useAuth();
 
   const [list, setList] = useState<ShoppingListWithItems | null>(null);
@@ -1531,14 +1537,35 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       title: str.deleteListDialog.title,
       message: `Ta bort "${list.name}"? Listan och alla varor försvinner.`,
       buttons: [
-        { label: str.deleteListDialog.confirm, style: 'destructive', onPress: async () => {
-          try {
-            await client.deleteShoppingList(listId);
-            emitShoppingChanged();
-            if (onClose) onClose(); else router.back();
-          } catch (e) {
-            showError(e, str.toasts.errorDeleteList);
-          }
+        { label: str.deleteListDialog.confirm, style: 'destructive', onPress: () => {
+          // Raderingen skjuts upp bakom ett ångra-fönster i stället för att
+          // ske direkt. En lista med en veckas handling är det dyraste man kan
+          // råka radera i appen, och en bekräftelseruta hindrar inte ett
+          // reflexmässigt "Ta bort". Översikten döljer listan under tiden
+          // (pendingListRemovals) så den ser borttagen ut.
+          const namn = list.name;
+          markListPending(listId);
+          emitShoppingChanged();
+          if (onClose) onClose(); else router.back();
+          const timer = setTimeout(async () => {
+            try {
+              await client.deleteShoppingList(listId);
+              emitShoppingChanged();
+            } catch (e) {
+              clearListPending(listId);
+              emitShoppingChanged();
+              showError(e, str.toasts.errorDeleteList);
+            }
+          }, ANGRA_LISTA_MS);
+          showGlobalToast(str.toasts.listDeleted(namn), 'neutral', {
+            label: common.actions.undo,
+            onPress: () => {
+              clearTimeout(timer);
+              clearListPending(listId);
+              emitShoppingChanged();
+              showGlobalToast(str.toasts.listRestored(namn), 'success');
+            },
+          });
         }},
         { label: common.actions.cancel, style: 'cancel' },
       ],

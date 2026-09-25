@@ -40,12 +40,13 @@ import { getISOWeek, addWeeks, getISOWeekMonday } from '../../src/lib/week';
 import type { WeekDay } from '@veckis/shared';
 import { recipes as str, common, gettingStarted } from '../../src/lib/svenska';
 import { formateraTidsetikett } from '../../src/lib/cookTimer';
-import { useSpotlightTip } from '../../src/context/SpotlightTipContext';
+import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { dayItemsSummary } from '../../src/lib/menuDaySummary';
 import { useTablet } from '../../src/hooks/useTablet';
 import { useDesign } from '../../src/context/DesignContext';
-import type { NyPalett } from '../../src/lib/nyDesign';
+import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import { VyVaxel } from '../../src/components/nydesign/VyVaxel';
 import { ReceptBildkort, ReceptKompaktRad, type ReceptKortLage } from '../../src/components/nydesign/ReceptKort';
@@ -83,6 +84,10 @@ export default function RecipesScreen() {
   const createTriggeredRef = useRef(false);
   const fabRef = useRef<View>(null);
   const showTip = useSpotlightTip();
+  const tipsReady = useTipsReady();
+  const pinTagTip = useOnceFlag('seen-pin-tag-tip');
+  const pinTagTipShownRef = useRef(false);
+  const taggRadRef = useRef<View>(null);
   const client = useApiClient();
   const { householdId, householdName } = useHousehold();
   const { nyDesign, receptVy, setReceptVy } = useDesign();
@@ -481,6 +486,22 @@ export default function RecipesScreen() {
   }, [householdId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Fästa taggar syns inte av sig själv — det är ett långtryck på en chip.
+  // Tipset fyrar bara när hushållet FAKTISKT har taggar att fästa; utan
+  // taggrad finns inget att peka på och rådet vore obegripligt. Väntar tills
+  // koncept-guiden är avklarad (tipsReady) och listan renderats.
+  useEffect(() => {
+    if (!tipsReady || loading) return;
+    if (allTags.length < 2) return; // en enda tagg är redan överst
+    if (pinTagTip.seen !== false || pinTagTipShownRef.current) return;
+    const shown = showTip({
+      title: str.tags.pinTipTitle,
+      message: str.tags.pinTipBody,
+      targetRef: taggRadRef,
+    });
+    if (shown) { pinTagTipShownRef.current = true; pinTagTip.markSeen(); }
+  }, [tipsReady, loading, allTags.length, pinTagTip.seen, pinTagTip.markSeen, showTip]);
 
   // Kom igång-kortet: tänd spotlight på "+"-FAB:en om den bad om det (opt-in).
   // Väntar tills listan renderats (spinnern släppt) så targetRef är mätbar.
@@ -948,6 +969,8 @@ export default function RecipesScreen() {
     ingredienser: recipe.ingredients.length,
     tid: recipe.cookMinutes ? formateraTidsetikett(recipe.cookMinutes) : null,
     bildUrl: recipe.imageUrl ?? null,
+    fokusX: recipe.imageFocusX,
+    fokusY: recipe.imageFocusY,
     lage: kortLage,
     onPress: () => tryckRecept(recipe),
     onPlanera: () => planeraFranLista(recipe),
@@ -956,7 +979,7 @@ export default function RecipesScreen() {
     taBortLabel: common.actions.delete,
   });
   const nyTaggrad = allTags.length > 0 ? (
-    <View style={s.nyTaggRad}>
+    <View style={s.nyTaggRad} ref={taggRadRef} collapsable={false}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -1350,11 +1373,13 @@ const makeStyles = (c: Palette, ny: NyPalett, mork = false) => StyleSheet.create
   selectBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primaryTint, paddingHorizontal: 16, paddingVertical: 10 },
   selectBannerText: { fontSize: 14, fontWeight: '600', color: c.primary },
   dayGrid: { gap: 8, marginTop: 4 },
-  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.surfaceSubtle, borderRadius: 12 },
+  dayGridItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: ny.kort, borderRadius: 16 },
   dayGridItemTaken: { backgroundColor: c.background },
-  dayGridLabel: { fontSize: 15, fontWeight: '600', color: c.text },
+  // Veckodagen i appens rubriktypsnitt och mörkgröna, som rubrikerna i övrigt.
+  // Raden låg kvar i systemtypsnittet och grått, vilket såg ut som en annan app.
+  dayGridLabel: { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 16, letterSpacing: -0.3, color: ny.padYta },
   dayGridLabelTaken: { color: c.textFaint },
-  dayGridTakenHint: { fontSize: 12, fontWeight: '600', color: c.textFaint, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
+  dayGridTakenHint: { fontFamily: nyFont.halvfet, fontSize: 13, color: ny.textDampad, flexShrink: 1, marginLeft: 8, textAlign: 'right' },
   modeBody: { minHeight: 246, gap: 14 },
   modeBodyBtn: { marginTop: 2 },
   input: { color: ny.text, borderWidth: 1, borderColor: ny.kontur, borderRadius: 14, padding: 14, fontSize: 16, backgroundColor: ny.bakgrund },
@@ -1370,12 +1395,14 @@ const makeStyles = (c: Palette, ny: NyPalett, mork = false) => StyleSheet.create
   cardDeleteBtn: { position: 'absolute', top: -9, right: -9, zIndex: 10, backgroundColor: c.surface, borderRadius: 11 },
   editDoneBtn: { position: 'absolute', bottom: 32, alignSelf: 'center', backgroundColor: c.text, borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 },
   editDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight, alignItems: 'center' },
-  weekChipActive: { backgroundColor: c.primaryTint, borderColor: c.primary },
-  weekChipText: { fontSize: 13, fontWeight: '600', color: c.textSecondary },
-  weekChipTextActive: { color: c.primary },
-  weekChipSub: { fontSize: 11, color: c.textFaint, marginTop: 2 },
-  weekChipSubActive: { color: c.primary400 },
+  // Veckobrickorna: mörkgrön yta med lime text när den är vald, samma par som
+  // appens övriga val. Den ljusa ramen såg ut som ett inaktivt formulärfält.
+  weekChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: ny.kort, alignItems: 'center' },
+  weekChipActive: { backgroundColor: ny.skog },
+  weekChipText: { fontFamily: nyFont.halvfet, fontSize: 14, color: ny.padYta },
+  weekChipTextActive: { color: ny.lime },
+  weekChipSub: { fontSize: 11, color: ny.textDampad, marginTop: 2 },
+  weekChipSubActive: { color: ny.lime },
   // resizeMode contain, inte cover: en beskuren förhandsvisning fick det att se
   // ut som att bara den synliga delen av fotot skulle läsas. Hellre brevlåde-
   // kanter än tvivel om att hela receptet kommer med.
