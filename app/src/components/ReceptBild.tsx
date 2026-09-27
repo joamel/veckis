@@ -106,6 +106,10 @@ export function ReceptBild({
   valRef.current = { ...val, zoom: zoomNu };
   const takRef = useRef(tak);
   takRef.current = tak;
+  const ramRef = useRef(ram);
+  ramRef.current = ram;
+  const bildRef = useRef(bild);
+  bildRef.current = bild;
   // Utgångsläget för det pågående draget. Sätts om varje gång antalet fingrar
   // ändras, annars hoppar bilden när man går från nyp till drag.
   const startRef = useRef<{ val: Bildval; dx: number; dy: number; avstånd: number | null }>({
@@ -143,9 +147,21 @@ export function ReceptBild({
           }
           const s = startRef.current;
           if (avstånd !== null && s.avstånd) {
-            // Nyp: zooma kring samma fokuspunkt. Taket följer bildens pixlar.
+            // Nyp och dra på samma gång: avståndet mellan fingrarna styr zoomen,
+            // och när fingrarna flyttas tillsammans följer bilden med —
+            // PanResponders dx/dy är mittpunkten mellan dem. Överskottet att
+            // dra i räknas för den NYA zoomen, annars flyttar sig bilden olika
+            // fort beroende på hur långt man nypt. Taket följer bildens pixlar.
             const ny = klampaZoom(s.val.zoom) * (avstånd / s.avstånd);
-            setDragVal({ x: s.val.x, y: s.val.y, zoom: Math.min(takRef.current ?? ny, klampaZoom(ny)) });
+            const zoomNy = Math.min(takRef.current ?? ny, klampaZoom(ny));
+            const r = ramRef.current;
+            const b = bildRef.current;
+            const uNy = r && b ? räknaUtsnitt(r, b, s.val.x, s.val.y, zoomNy) : null;
+            setDragVal({
+              x: uNy ? fokusEfterDrag(s.val.x, gest.dx - s.dx, uNy.överskottX) : s.val.x,
+              y: uNy ? fokusEfterDrag(s.val.y, gest.dy - s.dy, uNy.överskottY) : s.val.y,
+              zoom: zoomNy,
+            });
             return;
           }
           setDragVal({

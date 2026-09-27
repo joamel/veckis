@@ -38,7 +38,10 @@ export interface NyPalett {
   padYta: string;
   /** Mörk knappyta ovanpå en LJUS platshållare (receptkortens hörnknapp). */
   hornMorkYta: string;
-  /** Kompaktradens kalenderknapp: mörkgrön yta. */
+  /** Kompaktradens kalenderknapp. I ljust läge samma ton som sidhuvudets
+   *  ikonknappar — genomskinligt vitt (glas, 12 %) ovanpå skog blir #385247
+   *  — så knappen ser ut som en av dem. Solid, eftersom glas på det ljusa
+   *  kortet inte blir grönt alls. */
   kalenderYta: string;
   /** Ikonen i kompaktradens kalenderknapp. Samma dämpade ljusgröna som
    *  sidhuvudets ikonknappar (ikonLjus) i ljust läge — lime mot mörkgrönt
@@ -88,7 +91,7 @@ export const nyLjus: NyPalett = {
   platsLjus: '#cddcb3',
   padYta: '#1d3b2e',
   hornMorkYta: '#1d3b2e',
-  kalenderYta: '#1d3b2e',
+  kalenderYta: '#385247',
   kalenderIkon: '#b9cfc0',
   valdYta: '#1d3b2e',
   bandOverlay: 'rgba(29,59,46,0.8)',

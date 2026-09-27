@@ -101,17 +101,11 @@ export function ReceptKompaktRad(p: Props) {
             <Ionicons name={ph!.ikon} size={28} color={mork ? ny.lime : ny.padYta} />
           </View>
         )}
-        {/* Tiden står på METARADEN, inte till höger om titeln: där åt den av
+        {/* Tiden står SIST på metaraden, inte till höger om titeln: där åt den av
             bredden och kortade rubriken i onödan. */}
         <View style={st.radText}>
           <Text style={st.radTitel} numberOfLines={2}>{p.titel}</Text>
           <View style={st.radMetaRad}>
-            {p.tid && (
-              <MetaTal
-                ikon={<Ionicons name="time-outline" size={13} color={metaFarg} />}
-                text={p.tid} farg={metaFarg} beskrivning={str.card.a11yTid(p.tid)}
-              />
-            )}
             <MetaTal
               ikon={<Ionicons name="restaurant-outline" size={13} color={metaFarg} />}
               text={String(p.portioner)} farg={metaFarg} beskrivning={str.card.a11yPortioner(p.portioner)}
@@ -120,6 +114,12 @@ export function ReceptKompaktRad(p: Props) {
               ikon={<MaterialCommunityIcons name="fruit-grapes-outline" size={14} color={metaFarg} />}
               text={String(p.ingredienser)} farg={metaFarg} beskrivning={str.card.a11yIngredienser(p.ingredienser)}
             />
+            {p.tid && (
+              <MetaTal
+                ikon={<Ionicons name="time-outline" size={13} color={metaFarg} />}
+                text={p.tid} farg={metaFarg} beskrivning={str.card.a11yTid(p.tid)}
+              />
+            )}
           </View>
         </View>
         {p.lage === 'normal' && (
