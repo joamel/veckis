@@ -1,9 +1,7 @@
-# Handlis 2.1.0, bygge 14 — release notes
+# Handlis 2.1.0, bygge 15 — release notes
 
 Fyra intensiva dagar av fixar sedan förra bygget, nästan alla direkt ur
-testarnas feedback. Den som har haft appen öppen har redan fått det mesta
-som tysta uppdateringar — det här bygget samlar allt i en version, så att nya
-installationer får samma app från start.
+testarnas feedback. Den som har haft appen öppen har redan fått det mesta som tysta uppdateringar — det här bygget samlar allt i en version, så att nya installationer får samma app från start.
 
 Versionsnumret är fortfarande 2.1.0. Det är med flit: så länge det inte
 ändras når framtida snabbuppdateringar alla, även den som inte hunnit
@@ -11,14 +9,9 @@ uppdatera från Play.
 
 ## Play Store — kort "Vad är nytt" (klistra in i Play Console)
 
-> Importera varor från en inköpslapp: fota den, välj en bild eller klistra
-> in text. Recept visar tillagningstid, taggar går att fästa, och menyn har
-> tre nya måltider: mellanmål, fika och förrätt. Listan synkar igen efter
-> att telefonen legat låst. Skriv "1 dl havregryn" direkt i fältet, och
-> "gurka och tomat" blir två varor. Kryssrutan har flyttat till höger, där
-> tummen når. Plus ett fyrtiotal fixar ur er feedback.
+> Importera varor från en inköpslapp: fota den, välj en bild eller klistra in text. Recept visar tillagningstid, receptbilden går att zooma, taggar går att fästa, och menyn har tre nya måltider: mellanmål, fika och förrätt. Listan synkar igen efter att telefonen legat låst. Skriv "1 dl havregryn" direkt i fältet, och "gurka och tomat" blir två varor. Kryssrutan har flyttat till höger, där tummen når. Plus ett fyrtiotal fixar ur er feedback.
 
-*(414 tecken — Play tillåter 500. Den långa listan nedan ryms inte där; den
+*(442 tecken — Play tillåter 500. Den långa listan nedan ryms inte där; den
 får nå testarna på annat sätt.)*
 
 ---
@@ -79,29 +72,26 @@ Allt som ändrats sedan bygge 13. Stryk det som är överkurs — punkterna unde
 
 ### Recept
 
-- **Tillagningstid.** Läses från importerade recept och går att ställa in
-  själv i en hjulväljare. Syns på korten, i menyn och när du väljer rätt.
-- **Fäst taggar** med ett långtryck, så hamnar de först i raden. Ett tips
-  visar hur första gången.
+- **Tillagningstid.** Läses från importerade recept och går att ställa in själv i en hjulväljare. Syns på korten, i menyn och när du väljer rätt.
+- **Fäst taggar** med ett långtryck, så hamnar de först i raden. Ett tips visas första gången.
 - **Tillagningsstegen översätts** när du importerar ett recept på engelska,
   med grader och mått omräknade. ↔-knappen visar hela receptet på
   originalspråket.
-- **Timers i laga-läget tål att du bläddrar.** De hör till sitt steg, flera
-  kan gå samtidigt, och de nollställs inte när du läser nästa steg.
+- **Zooma receptbilden.** I redigeringsläget: nyp med två fingrar för att zooma och flytta bilden i samma rörelse. I webbversionen finns − och + under bilden. Återställ tar tillbaka originalet. Praktiskt när en bild från en webbsida har en vit kant eller motivet är för litet.
+- **Timers i laga-läget tål att du bläddrar.** De hör till sitt steg, flera timers kan vara igång samtidigt, och de nollställs inte när man byter steg.
 - Ingredienslistan i laga-läget tar den plats som finns i stället för en
   fast höjd.
-- Utsnittet du valt för receptbilden följer med till receptkorten och
-  veckomenyn.
+- Utsnittet och zoomen du valt för receptbilden följer med till receptkorten och veckomenyn.
+- Receptbilder fyller alltid sin ram — vissa fick tomma kanter på sidorna.
 - Redigeringen visar samma svenska mått som receptet, inte "cup" bredvid
   "vetemjöl".
 - Bråk skrivs likadant i hela mängdkolumnen ("1 1/4 dl"), med bråkdelen
   mindre så den inte läses som "11/4".
-- Kompakta receptkort: tid, portioner och antal ingredienser som små ikoner
-  under rubriken, så titeln får hela bredden. Samma ikoner inne i receptet.
+- Kompakta receptkort: portioner, antal ingredienser och tid som små ikoner under rubriken, så titeln får hela bredden. Samma ikoner inne i receptet.
 - Hela raden med portioner, tid och länken "Original" ryms på en rad.
 - Ett långtryck på ett receptkort raderar inte längre receptet. Radera
   finns i receptets egen meny.
-- Kalenderknappen på korten har en lugnare färg.
+- Kalenderknappen på korten har en lugnare färg, samma som knapparna i sidhuvudet.
 
 ### Utseende och övrigt
 
@@ -116,9 +106,9 @@ Allt som ändrats sedan bygge 13. Stryk det som är överkurs — punkterna unde
 ### Under huven
 
 - Verktyg för att städa ingrediensdatan: mängder som hamnat i varunamn,
-  två vanliga importfel och ihopskrivna varor. Alla med en granskningsfil
-  att gå igenom innan något ändras.
-- Städverktygen kontrolleras automatiskt vid varje ändring.
+  två vanliga importfel och ihopskrivna varor. Alla med en granskningsfil att gå igenom innan något ändras.
+- Städverktygen kontrolleras automatiskt vid varje ändring, visar nya varor först, och ett fel som kunde radera varor man ville behålla är rättat.
+- Importen ger samma varunamn varje gång, i stället för att variera mellan körningar.
 - Verktyg för att felsöka inloggningar.
 
 ---
@@ -153,5 +143,5 @@ Allt som ändrats sedan bygge 13. Stryk det som är överkurs — punkterna unde
 ---
 
 *Sammanställt från commit-historiken sedan bygge 13 (v2.1.0) fram till
-bygge 14 (v2.1.0). Tidigare släpps fullständiga noter finns i git-historiken
+bygge 15 (v2.1.0). Tidigare släpps fullständiga noter finns i git-historiken
 för den här filen.*

@@ -161,7 +161,7 @@ export const shopping = {
   tips: {
     stores: {
       title:   'Sortera efter din butik',
-      message: 'Skapa egna butiker och dra kategorierna i den ordning varorna dyker upp i din affär - plocklistan följer då din rutt genom butiken.',
+      message: 'Skapa egna butiker och dra kategorierna i den ordning varorna dyker upp i din affär - inköpslistan sorteras då efter din rutt genom butiken.',
     },
   },
 };
@@ -506,7 +506,7 @@ export const menu = {
     chooseDishesSub:         'Välj de rätter du vill överföra till inköpslistan.',
     next:                    'Nästa',
     whatDoYouHave:           'Vad har du hemma?',
-    haveHint:                'Ange hur mycket som finns hemma. Resten läggs till inköpslistan.',
+    haveHint:                'Ange vad som finns hemma. Resten av ingredienserna läggs in på inköpslistan.',
     transfer:                'Överför',
     back:                    'Tillbaka',
     chooseShoppingList:      'Välj inköpslista',
@@ -574,7 +574,7 @@ export const recipes = {
     // Förslags-chips i redigeringsläget (utöver hushållets redan använda taggar)
     suggested: ['favorit', 'vegetariskt', 'snabbt', 'barnvänligt', 'vardag', 'helg', 'billigt'] as readonly string[],
     pinTipTitle:  'Fäst dina vanligaste taggar',
-    pinTipBody:   'Håll inne på en tagg för att fästa den först i raden. Fästa taggar ligger kvar överst, så du slipper leta efter dem varje gång.',
+    pinTipBody:   'Håll inne på en tagg för att fästa den i listan. Fästa taggar ligger först, så att du enkelt ska hitta dina favoritrecept.',
     pinned:       (tag: string) => `”${tag}” fäst först`,
     unpinned:     (tag: string) => `”${tag}” inte längre fäst`,
     pinFailed:    'Kunde inte spara fästa taggar',
