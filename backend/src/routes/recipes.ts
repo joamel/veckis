@@ -156,6 +156,9 @@ const updateRecipeSchema = z.object({
   // Vilken del av bilden som ska synas vid 16:9-beskärning. null = mitten.
   imageFocusX: z.number().min(0).max(1).nullable().optional(),
   imageFocusY: z.number().min(0).max(1).nullable().optional(),
+  // Inzoomning, 1 = ingen. Taket är generöst; appen sätter ett lägre efter
+  // bildens upplösning.
+  imageZoom: z.number().min(1).max(5).nullable().optional(),
   servings: z.number().int().positive().optional(),
   cookMinutes: z.number().int().positive().max(1440).nullable().optional(),
   ingredients: z.array(ingredientSchema).optional(),
@@ -324,7 +327,7 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
   // If the user clears the image (imageUrl: null), also clear the Cloudinary asset.
   const clearingImage = 'imageUrl' in recipeData && recipeData.imageUrl === null && recipe.imagePublicId;
   const data: Prisma.RecipeUpdateInput = clearingImage
-    ? { ...recipeData, imagePublicId: null, imageFocusX: null, imageFocusY: null }
+    ? { ...recipeData, imagePublicId: null, imageFocusX: null, imageFocusY: null, imageZoom: null }
     : recipeData;
 
   // Skrivs stegen om för hand är källans text inte längre en översättning AV
@@ -375,7 +378,7 @@ recipesRouter.post('/:recipeId/image', recipeAbuseLimiter, requireAuth, upload.s
       where: { id: recipe.id },
       // Ny bild → gammal justering hör till den förra bilden och skulle
       // annars ärvas rakt av, med ett godtyckligt utsnitt som följd.
-      data: { imageUrl: url, imagePublicId: publicId, imageFocusX: null, imageFocusY: null },
+      data: { imageUrl: url, imagePublicId: publicId, imageFocusX: null, imageFocusY: null, imageZoom: null },
       include: { ingredients: { orderBy: { id: 'asc' } } },
     });
     // Clean up the previous Cloudinary asset (best-effort, fire-and-forget).

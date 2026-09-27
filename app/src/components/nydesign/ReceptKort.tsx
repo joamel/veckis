@@ -29,6 +29,8 @@ interface Props {
    *  beskärs bilden uppifrån och motivet kan hamna utanför kortet. */
   fokusX?: number | null;
   fokusY?: number | null;
+  /** Inzoomning som valts i receptet. null = ingen. */
+  zoom?: number | null;
   lage: ReceptKortLage;
   onPress: () => void;
   /** Kvar för redigeraläget; LISTAN skickar inget långtryck längre — ett recept
@@ -56,7 +58,7 @@ export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
         onLongPress={p.onLongPress}
       >
         {p.bildUrl ? (
-          <ReceptBild uri={p.bildUrl} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} style={StyleSheet.absoluteFill} />
+          <ReceptBild uri={p.bildUrl} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} zoom={p.zoom ?? null} style={StyleSheet.absoluteFill} />
         ) : (
           <Ionicons name={ph!.ikon} size={76} color={mork ? ny.ytIkonMork : ny.ytIkon} style={[st.ikonStor, p.tid && st.ikonUnderTid]} />
         )}
@@ -93,7 +95,7 @@ export function ReceptKompaktRad(p: Props) {
     <View>
       <Pressable style={st.rad} onPress={p.onPress} onLongPress={p.onLongPress}>
         {p.bildUrl ? (
-          <ReceptBild uri={p.bildUrl} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} style={st.tumnagel} />
+          <ReceptBild uri={p.bildUrl} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} zoom={p.zoom ?? null} style={st.tumnagel} />
         ) : (
           <View style={[st.tumnagel, st.tumnagelTom, mork ? st.ytaMork : st.ytaLjusRad]}>
             <Ionicons name={ph!.ikon} size={28} color={mork ? ny.lime : ny.padYta} />

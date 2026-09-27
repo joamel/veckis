@@ -17,6 +17,8 @@ export interface Recipe {
    *  bilden beskärs. */
   imageFocusX: number | null;
   imageFocusY: number | null;
+  /** Inzoomning utöver cover-skalan. null = 1 = ingen zoom. */
+  imageZoom: number | null;
   /** Total tillagningstid i minuter som receptet anger. null = okänd. */
   cookMinutes: number | null;
   servings: number;

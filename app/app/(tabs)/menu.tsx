@@ -2587,7 +2587,7 @@ function MenuCard({
             <Pressable style={s.nyHero} onPress={handlePress} accessibilityRole="button" accessibilityLabel={item.recipe.title}>
               {/* ReceptBild, inte en rå Image: utsnittet man valt i receptet ligger i
                   imageFocusX/Y, och utan den beskars bilden uppifrån här. */}
-              <ReceptBild uri={bildUrl!} fokusX={item.recipe.imageFocusX} fokusY={item.recipe.imageFocusY} style={StyleSheet.absoluteFill} />
+              <ReceptBild uri={bildUrl!} fokusX={item.recipe.imageFocusX} fokusY={item.recipe.imageFocusY} zoom={item.recipe.imageZoom} style={StyleSheet.absoluteFill} />
               {/* Tiden på bilden, som på receptkorten — bara hopfälld. Utfällt
                   står den bredvid "I inköpslistan". */}
               {!isExpanded && item.recipe.cookMinutes ? (() => {

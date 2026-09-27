@@ -48,7 +48,8 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
-import { ReceptBild, type Fokus } from '../../src/components/ReceptBild';
+import { ReceptBild, type Bildval } from '../../src/components/ReceptBild';
+import { MAX_ZOOM } from '../../src/lib/bildutsnitt';
 import { VeckoDagValjare } from '../../src/components/nydesign/VeckoDagValjare';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import type { RecipeIngredient, WeekDay } from '@veckis/shared';
@@ -77,7 +78,7 @@ function makeDraftRecipe(householdId: string): RecipeWithIngredients {
   const now = new Date().toISOString();
   return {
     id: '', householdId, title: '', description: null, instructions: null, originalInstructions: null,
-    sourceUrl: null, imageUrl: null, imagePublicId: null, imageFocusX: null, imageFocusY: null, cookMinutes: null, servings: 4,
+    sourceUrl: null, imageUrl: null, imagePublicId: null, imageFocusX: null, imageFocusY: null, imageZoom: null, cookMinutes: null, servings: 4,
     timesUsed: 0, tags: [], createdBy: '', createdAt: now, updatedAt: now,
     ingredients: [],
   };
@@ -160,7 +161,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [editImage, setEditImage] = useState('');
   // Bildens utsnitt. Sparas direkt när man släpper draget, precis som en ny
   // bild sparas direkt — bilden hör inte till formulärets spara-knapp.
-  const [editFokus, setEditFokus] = useState<Fokus>({ x: null, y: null });
+  const [editFokus, setEditFokus] = useState<Bildval>({ x: null, y: null, zoom: null });
+  // Hur långt just den här bilden går att zooma — rapporteras av ReceptBild
+  // när bildens mått är kända. Styr +-knappen.
+  const [zoomTak, setZoomTak] = useState(MAX_ZOOM);
   const [editTags, setEditTags] = useState<string[]>([]);
   // Alla taggar som redan används i hushållets recept — visas som återanvändbara
   // förslags-chips i edit-läget så man slipper skriva om en custom-tagg.
@@ -463,7 +467,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         setEditDesc('');
         setEditInstr('');
         setEditImage('');
-        setEditFokus({ x: null, y: null });
+        setEditFokus({ x: null, y: null, zoom: null });
         setEditTags([]);
         setEditServings(4);
         setEditCookMinutes('');
@@ -502,7 +506,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         setEditDesc(r.description ?? '');
         setEditInstr(r.instructions ?? '');
         setEditImage(r.imageUrl ?? '');
-        setEditFokus({ x: r.imageFocusX, y: r.imageFocusY });
+        setEditFokus({ x: r.imageFocusX, y: r.imageFocusY, zoom: r.imageZoom });
         setEditIngredients([{ name: '', quantity: '', unit: '', originalName: null }]);
         setEditMode(true);
         if (!onClose) router.setParams({ edit: undefined });
@@ -744,7 +748,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       setEditDesc(draft.description);
       setEditInstr(draft.instructions);
       setEditImage(draft.imageUrl);
-      setEditFokus({ x: recipe?.imageFocusX ?? null, y: recipe?.imageFocusY ?? null });
+      setEditFokus({ x: recipe?.imageFocusX ?? null, y: recipe?.imageFocusY ?? null, zoom: recipe?.imageZoom ?? null });
       setEditTags(draft.tags);
       setEditServings(draft.servings ?? recipe.servings);
       setEditCookMinutes(draft.cookMinutes ?? (recipe.cookMinutes != null ? String(recipe.cookMinutes) : ''));
@@ -761,7 +765,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     setEditDesc(recipe.description ?? '');
     setEditInstr(recipe.instructions ?? '');
     setEditImage(recipe.imageUrl ?? '');
-    setEditFokus({ x: recipe.imageFocusX, y: recipe.imageFocusY });
+    setEditFokus({ x: recipe.imageFocusX, y: recipe.imageFocusY, zoom: recipe.imageZoom });
     setEditTags(recipe.tags ?? []);
     setCustomTag('');
     // Hämta hushållets övriga taggar så de kan återanvändas med ett tap.
@@ -960,12 +964,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   // Skrivs optimistiskt: draget ska kännas direkt, och värdet är redan synligt
   // på skärmen. Misslyckas sparningen läggs det tillbaka till vad receptet
   // hade, så det man ser stämmer med det som faktiskt är sparat.
-  async function sparaBildfokus(fokus: Fokus) {
+  async function sparaBildfokus(fokus: Bildval) {
     if (!recipe || isNew) return;
-    const förra = { x: recipe.imageFocusX, y: recipe.imageFocusY };
+    const förra = { x: recipe.imageFocusX, y: recipe.imageFocusY, zoom: recipe.imageZoom };
     setEditFokus(fokus);
     try {
-      const uppdaterad = await client.updateRecipe(recipe.id, { imageFocusX: fokus.x, imageFocusY: fokus.y });
+      const uppdaterad = await client.updateRecipe(recipe.id, { imageFocusX: fokus.x, imageFocusY: fokus.y, imageZoom: fokus.zoom });
       setRecipe(uppdaterad);
     } catch (e) {
       setEditFokus(förra);
@@ -1002,7 +1006,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
       const updated = await client.uploadRecipeImage(recipe.id, compressed.uri);
       setRecipe(updated);
       setEditImage(updated.imageUrl ?? '');
-      setEditFokus({ x: updated.imageFocusX, y: updated.imageFocusY });
+      setEditFokus({ x: updated.imageFocusX, y: updated.imageFocusY, zoom: updated.imageZoom });
     } catch (e) {
       showError(e, str.errors.couldNotUpload);
     } finally {
@@ -1206,10 +1210,40 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                   uri={editImage.trim()}
                   fokusX={editFokus.x}
                   fokusY={editFokus.y}
+                  zoom={editFokus.zoom}
                   justerbar={!isNew}
                   onJusterad={sparaBildfokus}
+                  onZoomTak={setZoomTak}
                   style={s.heroImage}
                 />
+                {!isNew ? (() => {
+                  // Knapparna finns både för webben, som inte kan nypa, och för
+                  // den som inte vet att det går. Steg om 10 %: en inbakad kant
+                  // brukar försvinna på ett eller två tryck.
+                  const z = editFokus.zoom ?? 1;
+                  const steg = (d: number) => {
+                    const ny = Math.round(Math.min(zoomTak, Math.max(1, z + d)) * 100) / 100;
+                    if (ny === z) return;
+                    sparaBildfokus({ ...editFokus, zoom: ny > 1 ? ny : null });
+                  };
+                  const justerad = z > 1 || (editFokus.x ?? 0.5) !== 0.5 || (editFokus.y ?? 0.5) !== 0.5;
+                  return (
+                    <View style={s.zoomRad}>
+                      <Pressable style={[s.zoomKnapp, z <= 1 && s.imgBtnDisabled]} onPress={() => steg(-0.1)} disabled={z <= 1} accessibilityLabel={str.detail.zoomOut}>
+                        <Ionicons name="remove" size={18} color={c.primary} />
+                      </Pressable>
+                      <Text style={s.zoomText}>{str.detail.zoomLabel(Math.round(z * 100))}</Text>
+                      <Pressable style={[s.zoomKnapp, z >= zoomTak && s.imgBtnDisabled]} onPress={() => steg(0.1)} disabled={z >= zoomTak} accessibilityLabel={str.detail.zoomIn}>
+                        <Ionicons name="add" size={18} color={c.primary} />
+                      </Pressable>
+                      {justerad ? (
+                        <Pressable onPress={() => sparaBildfokus({ x: null, y: null, zoom: null })} hitSlop={8}>
+                          <Text style={s.zoomAterstall}>{str.detail.zoomReset}</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  );
+                })() : null}
                 {!isNew ? <Text style={s.imgAfterSaveHint}>{str.detail.imageDragHint}</Text> : null}
               </>
             ) : (
@@ -1257,6 +1291,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               uri={heroSource?.uri ?? ''}
               fokusX={recipe.imageFocusX}
               fokusY={recipe.imageFocusY}
+              zoom={recipe.imageZoom}
               style={StyleSheet.absoluteFill}
               // På web sköter webbläsaren bildladdningen. onLoadStart re-fyrar där vid
               // varje re-render → setHeroLoading(true) → re-render → loop → spinner-
@@ -2168,6 +2203,11 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   imgBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: c.primaryTint },
   imgBtnText: { color: c.primary, fontWeight: '600', fontSize: 14 },
   imgBtnDisabled: { opacity: 0.5 },
+  zoomRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 8 },
+  zoomKnapp: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryTint },
+  // Explicit minsta bredd: Android klipper annars "100 %" till "100".
+  zoomText: { minWidth: 64, textAlign: 'center', fontSize: 14, fontWeight: '600', color: c.text },
+  zoomAterstall: { fontSize: 14, fontWeight: '600', color: c.primary },
   imgAfterSaveHint: { fontSize: 13, color: c.textFaint, textAlign: 'center', paddingVertical: 8 },
   imgRemoveBtn: { width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: c.dangerTint },
   editImagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: c.surfaceSubtle, marginTop: 8 },

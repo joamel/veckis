@@ -962,6 +962,7 @@ export default function RecipesScreen() {
     bildUrl: recipe.imageUrl ?? null,
     fokusX: recipe.imageFocusX,
     fokusY: recipe.imageFocusY,
+    zoom: recipe.imageZoom,
     lage: kortLage,
     onPress: () => tryckRecept(recipe),
     onPlanera: () => planeraFranLista(recipe),

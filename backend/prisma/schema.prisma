@@ -177,6 +177,10 @@ model Recipe {
   // URL-importerade bilder som ligger hos tredje part och inte kan beskäras.
   imageFocusX Float?
   imageFocusY Float?
+  // Inzoomning utöver den skala som precis täcker ramen. null = 1 = ingen
+  // zoom (som förut). Låter en inbakad vit kant eller ett för brett motiv
+  // zoomas bort — att bara flytta bilden räcker inte till det.
+  imageZoom   Float?
   // Total tillagningstid i minuter, som receptet självt anger den (JSON-LD
   // totalTime/cookTime+prepTime, AI-tolkning eller handskriven). null = okänd;
   // gissas aldrig fram.

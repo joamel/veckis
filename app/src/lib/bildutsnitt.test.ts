@@ -1,8 +1,55 @@
 import { describe, expect, it } from 'vitest';
-import { fokusEfterDrag, räknaUtsnitt, ärJusterad, MITTEN } from './bildutsnitt';
+import { fokusEfterDrag, klampaZoom, maxZoom, räknaUtsnitt, ärJusterad, MAX_ZOOM, MITTEN } from './bildutsnitt';
 
 // Ramen som receptbilden visas i: 16:9, 320 px bred.
 const ram = { bredd: 320, höjd: 180 };
+
+describe('zoom', () => {
+  it('förstorar bilden och ger överskott på BÅDA axlarna', () => {
+    // 16:9 passar exakt utan zoom; dubbel zoom ger 640x360 i en 320x180-ram.
+    const u = räknaUtsnitt(ram, { bredd: 1600, höjd: 900 }, null, null, 2)!;
+    expect(u.bredd).toBeCloseTo(640);
+    expect(u.höjd).toBeCloseTo(360);
+    expect(u.överskottX).toBeCloseTo(320);
+    expect(u.överskottY).toBeCloseTo(180);
+  });
+
+  it('zoomar kring mitten när ingen fokus valts', () => {
+    const u = räknaUtsnitt(ram, { bredd: 1600, höjd: 900 }, null, null, 2)!;
+    expect(u.x).toBeCloseTo(-160);
+    expect(u.y).toBeCloseTo(-90);
+  });
+
+  it('en inbakad kant på 3 % per sida försvinner vid 6 % zoom', () => {
+    // Det verkliga fallet: bilden täckte 94 % av bredden.
+    const u = räknaUtsnitt(ram, { bredd: 1600, höjd: 900 }, null, null, 1.064)!;
+    const kant = 1600 * 0.03 * (u.bredd / 1600);
+    expect(-u.x).toBeGreaterThanOrEqual(kant - 0.01);
+  });
+
+  it('går aldrig under cover — ramen blir aldrig tom', () => {
+    const u = räknaUtsnitt(ram, { bredd: 1600, höjd: 900 }, null, null, 0.5)!;
+    expect(u.bredd).toBeCloseTo(320);
+    expect(klampaZoom(null)).toBe(1);
+    expect(klampaZoom(Number.NaN)).toBe(1);
+  });
+
+  it('räknas som en justering värd att spara', () => {
+    expect(ärJusterad(null, null, 1.5)).toBe(true);
+    expect(ärJusterad(null, null, 1)).toBe(false);
+    expect(ärJusterad(null, null, null)).toBe(false);
+  });
+
+  it('taket följer bildens upplösning', () => {
+    // 320 dp bred ram på en 3x-skärm = 960 skärmpixlar. En bild på 960 px
+    // bredd täcker precis och får bara förstoras 1,5 gång.
+    expect(maxZoom(ram, { bredd: 960, höjd: 540 }, 3)).toBeCloseTo(1.5);
+    // En kamerabild har gott om pixlar men stannar vid MAX_ZOOM.
+    expect(maxZoom(ram, { bredd: 8000, höjd: 4500 }, 3)).toBe(MAX_ZOOM);
+    // En pytteliten bild får ingen zoom alls — men aldrig under 1.
+    expect(maxZoom(ram, { bredd: 200, höjd: 112 }, 3)).toBe(1);
+  });
+});
 
 describe('räknaUtsnitt', () => {
   it('fyller ramen exakt när bilden redan är 16:9', () => {
