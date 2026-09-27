@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fokusEfterDrag, klampaZoom, maxZoom, räknaUtsnitt, ärJusterad, MAX_ZOOM, MITTEN } from './bildutsnitt';
+import { fokusEfterDrag, klampaZoom, maxZoom, räknaUtsnitt, ärJusterad, MAX_ZOOM, MIN_ZOOM_TAK, MITTEN } from './bildutsnitt';
 
 // Ramen som receptbilden visas i: 16:9, 320 px bred.
 const ram = { bredd: 320, höjd: 180 };
@@ -40,14 +40,20 @@ describe('zoom', () => {
     expect(ärJusterad(null, null, null)).toBe(false);
   });
 
-  it('taket följer bildens upplösning', () => {
-    // 320 dp bred ram på en 3x-skärm = 960 skärmpixlar. En bild på 960 px
-    // bredd täcker precis och får bara förstoras 1,5 gång.
-    expect(maxZoom(ram, { bredd: 960, höjd: 540 }, 3)).toBeCloseTo(1.5);
-    // En kamerabild har gott om pixlar men stannar vid MAX_ZOOM.
-    expect(maxZoom(ram, { bredd: 8000, höjd: 4500 }, 3)).toBe(MAX_ZOOM);
-    // En pytteliten bild får ingen zoom alls — men aldrig under 1.
-    expect(maxZoom(ram, { bredd: 200, höjd: 112 }, 3)).toBe(1);
+  it('ALLA bilder går att zooma, även lågupplösta', () => {
+    // Det verkliga felet: en bloggbild på 600 px är redan uppförstorad för att
+    // fylla ramen på en 3x-skärm, och fick taket 1 — ingen zoom alls, fast det
+    // var just den som behövde zoomas förbi en inbakad kant.
+    expect(maxZoom(ram, { bredd: 600, höjd: 400 }, 3)).toBe(MIN_ZOOM_TAK);
+    expect(maxZoom(ram, { bredd: 200, höjd: 112 }, 3)).toBe(MIN_ZOOM_TAK);
+  });
+
+  it('skarpa bilder får zooma längre, upp till MAX_ZOOM', () => {
+    // 320 dp på en 1x-skärm; en bild på 1600 px får förstoras 1,5 gång per
+    // bildpixel → 1,5 / 0,2 = 7,5, stoppat vid MAX_ZOOM.
+    expect(maxZoom(ram, { bredd: 1600, höjd: 900 }, 1)).toBe(MAX_ZOOM);
+    // Mellanläge: taket efter upplösning ligger mellan golvet och MAX_ZOOM.
+    expect(maxZoom(ram, { bredd: 1920, höjd: 1080 }, 3)).toBeCloseTo(3);
   });
 });
 

@@ -85,18 +85,24 @@ export function klampaZoom(zoom: number | null | undefined): number {
 }
 
 /**
- * Hur långt det går att zooma innan bilden blir gröt. Taket sätts efter
- * bildens egna pixlar: en bildpixel får inte dras ut över mer än
- * MAX_UPPFÖRSTORING skärmpixlar. En lågupplöst URL-importerad bild får alltså
- * lite zoom, en kamerabild mycket. Aldrig under 1 och aldrig över MAX_ZOOM.
+ * Hur långt det går att zooma. Minst MIN_ZOOM_TAK för ALLA bilder, och högre
+ * för skarpa bilder med pixlar att ta av, upp till MAX_ZOOM.
+ *
+ * Första versionen satte taket helt efter upplösningen (en bildpixel fick bli
+ * högst 1,5 skärmpixlar). Det slog tillbaka: en lågupplöst bloggbild är redan
+ * förstorad mer än så bara för att fylla ramen på en telefon, så taket blev
+ * 1 — ingen zoom alls, på just de bilder som behövde den för att bli av med
+ * en inbakad kant (matpajen, 2026-09-27). Blir en bild suddig ser man det och
+ * backar; det är bättre än att appen bestämmer att man inte får zooma.
  */
 export const MAX_ZOOM = 4;
+export const MIN_ZOOM_TAK = 2;
 const MAX_UPPFÖRSTORING = 1.5;
 export function maxZoom(ram: Ram, bild: Bildmått, pixeltäthet: number): number {
-  if (ram.bredd <= 0 || ram.höjd <= 0 || bild.bredd <= 0 || bild.höjd <= 0) return 1;
+  if (ram.bredd <= 0 || ram.höjd <= 0 || bild.bredd <= 0 || bild.höjd <= 0) return MIN_ZOOM_TAK;
   const cover = Math.max(ram.bredd / bild.bredd, ram.höjd / bild.höjd);
-  const tak = MAX_UPPFÖRSTORING / (cover * Math.max(1, pixeltäthet));
-  return Math.min(MAX_ZOOM, Math.max(1, tak));
+  const efterUpplösning = MAX_UPPFÖRSTORING / (cover * Math.max(1, pixeltäthet));
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM_TAK, efterUpplösning));
 }
 
 function klampa(v: number): number {
