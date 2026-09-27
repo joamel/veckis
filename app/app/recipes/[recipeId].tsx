@@ -1217,9 +1217,13 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                   style={s.heroImage}
                 />
                 {!isNew ? (() => {
-                  // Knapparna finns både för webben, som inte kan nypa, och för
-                  // den som inte vet att det går. Steg om 10 %: en inbakad kant
-                  // brukar försvinna på ett eller två tryck.
+                  // −/+ bara på webben: webbläsaren tar själv nypningen (sidzoom),
+                  // så där går det inte att nypa i bilden. I appen nyper man, och
+                  // procenten skulle dessutom stå still under nypningen — den
+                  // visar det sparade värdet, som ändras först när man släpper.
+                  // Steg om 10 %: en inbakad kant brukar försvinna på ett eller
+                  // två tryck. Återställ finns på båda.
+                  const påWebben = Platform.OS as any === 'web';
                   const z = editFokus.zoom ?? 1;
                   const steg = (d: number) => {
                     const ny = Math.round(Math.min(zoomTak, Math.max(1, z + d)) * 100) / 100;
@@ -1227,15 +1231,18 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                     sparaBildfokus({ ...editFokus, zoom: ny > 1 ? ny : null });
                   };
                   const justerad = z > 1 || (editFokus.x ?? 0.5) !== 0.5 || (editFokus.y ?? 0.5) !== 0.5;
+                  if (!påWebben && !justerad) return null;
                   return (
                     <View style={s.zoomRad}>
-                      <Pressable style={[s.zoomKnapp, z <= 1 && s.imgBtnDisabled]} onPress={() => steg(-0.1)} disabled={z <= 1} accessibilityLabel={str.detail.zoomOut}>
-                        <Ionicons name="remove" size={18} color={c.primary} />
-                      </Pressable>
-                      <Text style={s.zoomText}>{str.detail.zoomLabel(Math.round(z * 100))}</Text>
-                      <Pressable style={[s.zoomKnapp, z >= zoomTak && s.imgBtnDisabled]} onPress={() => steg(0.1)} disabled={z >= zoomTak} accessibilityLabel={str.detail.zoomIn}>
-                        <Ionicons name="add" size={18} color={c.primary} />
-                      </Pressable>
+                      {påWebben ? (<>
+                        <Pressable style={[s.zoomKnapp, z <= 1 && s.imgBtnDisabled]} onPress={() => steg(-0.1)} disabled={z <= 1} accessibilityLabel={str.detail.zoomOut}>
+                          <Ionicons name="remove" size={18} color={c.primary} />
+                        </Pressable>
+                        <Text style={s.zoomText}>{str.detail.zoomLabel(Math.round(z * 100))}</Text>
+                        <Pressable style={[s.zoomKnapp, z >= zoomTak && s.imgBtnDisabled]} onPress={() => steg(0.1)} disabled={z >= zoomTak} accessibilityLabel={str.detail.zoomIn}>
+                          <Ionicons name="add" size={18} color={c.primary} />
+                        </Pressable>
+                      </>) : null}
                       {justerad ? (
                         <Pressable onPress={() => sparaBildfokus({ x: null, y: null, zoom: null })} hitSlop={8}>
                           <Text style={s.zoomAterstall}>{str.detail.zoomReset}</Text>
@@ -1244,7 +1251,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                     </View>
                   );
                 })() : null}
-                {!isNew ? <Text style={s.imgAfterSaveHint}>{str.detail.imageDragHint}</Text> : null}
+                {!isNew ? <Text style={s.imgAfterSaveHint}>{Platform.OS as any === 'web' ? str.detail.imageDragHintWeb : str.detail.imageDragHint}</Text> : null}
               </>
             ) : (
               <View style={[s.heroImage, s.heroPlaceholder]}>

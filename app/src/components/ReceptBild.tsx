@@ -158,6 +158,11 @@ export function ReceptBild({
           const v = valRef.current;
           const z = klampaZoom(v.zoom);
           onJusteradRef.current?.({ x: v.x ?? MITTEN, y: v.y ?? MITTEN, zoom: z > 1 ? z : null });
+          // Släpp utkastet: från och med nu gäller propsen igen. Låg det kvar
+          // vann det över allt som kom utifrån efteråt — Återställ och −/+
+          // gjorde ingenting så fort man dragit eller nypt en gång. Anroparen
+          // sätter sitt värde i samma omgång, så bilden hoppar inte.
+          setDragVal(null);
         },
         onPanResponderTerminate: () => setDragVal(null),
       }),

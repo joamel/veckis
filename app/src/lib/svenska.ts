@@ -719,6 +719,7 @@ export const recipes = {
     camera:         'Kamera',
     imageAfterSave: 'Du kan lägga till en bild när receptet är sparat.',
     imageDragHint:  'Dra i bilden för att välja vilken del som syns, och nyp för att zooma.',
+    imageDragHintWeb: 'Dra i bilden för att välja vilken del som syns, och zooma med − och +.',
     zoomIn:         'Zooma in',
     zoomOut:        'Zooma ut',
     zoomLabel:      (procent: number) => `Zoom ${procent} %`,
