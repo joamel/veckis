@@ -25,6 +25,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
+import { isReviewAccount, requestReviewTicket } from '../../src/lib/reviewAccount';
 
 const LOGO = require('../../assets/icon.png');
 const GOOGLE_G = require('../../assets/google-g.png');
@@ -122,6 +123,21 @@ export default function SignInScreen() {
           supportedFirstFactors: (result as any).supportedFirstFactors ?? null,
           supportedSecondFactors: (result as any).supportedSecondFactors ?? null,
         });
+
+        // Play-granskarens konto: koden skulle gå till en inkorg granskaren
+        // inte har. Hämta en engångsbiljett från backenden i stället (se
+        // lib/reviewAccount.ts). Nekar backenden — vägen är avstängd — faller
+        // det igenom till vanliga kodsteget nedan.
+        if (result.status === 'needs_second_factor' && isReviewAccount(email)) {
+          const ticket = await requestReviewTicket(email, password);
+          if (ticket) {
+            const viaBiljett = await signIn.create({ strategy: 'ticket', ticket });
+            if (viaBiljett.status === 'complete') {
+              await setActive({ session: viaBiljett.createdSessionId });
+              return;
+            }
+          }
+        }
 
         // Andra steget med e-postkod går att slutföra — be Clerk skicka koden
         // och visa samma kodfält som det lösenordsfria flödet använder.

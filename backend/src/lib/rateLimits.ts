@@ -54,6 +54,12 @@ export const parseTextLimiter: RateLimitRequestHandler | typeof passthrough = is
   ? build(15, 'För många AI-tolkningar — vänta en stund.')
   : passthrough;
 
+/** POST /api/auth/review-ticket — 10/timme/IP. Vägen kontrollerar ett
+ *  lösenord, så den ska inte gå att använda för att prova sig fram. */
+export const reviewTicketLimiter: RateLimitRequestHandler | typeof passthrough = isProd
+  ? build(10, 'För många inloggningsförsök — vänta en stund.')
+  : passthrough;
+
 /** POST /api/push/register — 60/timme/IP. En enhet registrerar sin token
  *  sällan; 60 rymmer reconnect-loopar men stoppar token-spam. */
 export const pushRegisterLimiter: RateLimitRequestHandler | typeof passthrough = isProd
