@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ReceptBild } from '../ReceptBild';
+import { cloudinaryOptimized, CARD_IMAGE_WIDTH, THUMB_IMAGE_WIDTH } from '../../lib/cloudinaryUrl';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { nyFont, type NyPalett } from '../../lib/nyDesign';
 import { useNy } from '../../context/ThemeContext';
@@ -15,8 +16,6 @@ interface Props {
   titel: string;
   /** Titel + taggar — styr platshållarens ikon när receptet saknar bild. */
   sokord: string;
-  /** Färdig metatext för bildkortet, där bandet har plats för ord. */
-  meta: string;
   /** Kompakta raden visar siffrorna med ikon i stället — bestick för
    *  portioner, matikon för ingredienser. Tre korta grupper tar mindre
    *  plats än "4 port · 12 ingredienser" och läses lika snabbt. */
@@ -32,6 +31,8 @@ interface Props {
   /** Inzoomning som valts i receptet. null = ingen. */
   zoom?: number | null;
   lage: ReceptKortLage;
+  /** Har taggen "favorit" — visas som ett hjärta på bilden. */
+  favorit?: boolean;
   onPress: () => void;
   /** Kvar för redigeraläget; LISTAN skickar inget långtryck längre — ett recept
    *  ska inte gå att radera av misstag med ett tryck som hålls kvar. */
@@ -58,7 +59,7 @@ export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
         onLongPress={p.onLongPress}
       >
         {p.bildUrl ? (
-          <ReceptBild uri={p.bildUrl} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} zoom={p.zoom ?? null} style={StyleSheet.absoluteFill} />
+          <ReceptBild uri={cloudinaryOptimized(p.bildUrl, CARD_IMAGE_WIDTH)} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} zoom={p.zoom ?? null} style={StyleSheet.absoluteFill} />
         ) : (
           <Ionicons name={ph!.ikon} size={76} color={mork ? ny.ytIkonMork : ny.ytIkon} style={[st.ikonStor, p.tid && st.ikonUnderTid]} />
         )}
@@ -73,7 +74,9 @@ export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
         <Hornknapp {...p} ton={ph?.ton} />
         <View style={p.bildUrl ? st.band : st.textUtanBild}>
           <Text style={[st.titel, ph && !mork && st.titelMorkText]} numberOfLines={3}>{p.titel}</Text>
-          <Text style={[st.meta, ph && !mork && st.metaMorkText]} numberOfLines={1}>{p.meta}</Text>
+          {/* Samma ikonrad som de kompakta raderna. Tiden står redan i brickan
+              uppe till vänster, så den upprepas inte här. */}
+          <MetaRad {...p} tid={null} farg={ph && !mork ? ny.textDampad : 'rgba(255,255,255,0.85)'} />
         </View>
       </Pressable>
       {p.lage === 'redigera' && <TaBortKnapp {...p} />}
@@ -95,7 +98,7 @@ export function ReceptKompaktRad(p: Props) {
     <View>
       <Pressable style={st.rad} onPress={p.onPress} onLongPress={p.onLongPress}>
         {p.bildUrl ? (
-          <ReceptBild uri={p.bildUrl} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} zoom={p.zoom ?? null} style={st.tumnagel} />
+          <ReceptBild uri={cloudinaryOptimized(p.bildUrl, THUMB_IMAGE_WIDTH)} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} zoom={p.zoom ?? null} style={st.tumnagel} />
         ) : (
           <View style={[st.tumnagel, st.tumnagelTom, mork ? st.ytaMork : st.ytaLjusRad]}>
             <Ionicons name={ph!.ikon} size={28} color={mork ? ny.lime : ny.padYta} />
@@ -105,22 +108,7 @@ export function ReceptKompaktRad(p: Props) {
             bredden och kortade rubriken i onödan. */}
         <View style={st.radText}>
           <Text style={st.radTitel} numberOfLines={2}>{p.titel}</Text>
-          <View style={st.radMetaRad}>
-            <MetaTal
-              ikon={<Ionicons name="restaurant-outline" size={13} color={metaFarg} />}
-              text={String(p.portioner)} farg={metaFarg} beskrivning={str.card.a11yPortioner(p.portioner)}
-            />
-            <MetaTal
-              ikon={<MaterialCommunityIcons name="fruit-grapes-outline" size={14} color={metaFarg} />}
-              text={String(p.ingredienser)} farg={metaFarg} beskrivning={str.card.a11yIngredienser(p.ingredienser)}
-            />
-            {p.tid && (
-              <MetaTal
-                ikon={<Ionicons name="time-outline" size={13} color={metaFarg} />}
-                text={p.tid} farg={metaFarg} beskrivning={str.card.a11yTid(p.tid)}
-              />
-            )}
-          </View>
+          <MetaRad {...p} farg={metaFarg} />
         </View>
         {p.lage === 'normal' && (
           <Pressable style={st.radKnapp} onPress={p.onPlanera} hitSlop={6} accessibilityRole="button" accessibilityLabel={p.planeraLabel}>
@@ -131,6 +119,38 @@ export function ReceptKompaktRad(p: Props) {
         {p.lage === 'planera' && <Ionicons name="calendar-outline" size={20} color={ny.padYta} />}
       </Pressable>
       {p.lage === 'redigera' && <TaBortKnapp {...p} />}
+    </View>
+  );
+}
+
+/** Portioner, ingredienser, tid och — för favoriter — ett hjärta, som ikoner.
+ *  Hjärtat är samma som taggen Favoriter bär i filterraden. */
+function MetaRad({ portioner, ingredienser, tid, favorit, farg }: {
+  portioner: number;
+  ingredienser: number;
+  tid: string | null;
+  favorit?: boolean;
+  farg: string;
+}) {
+  const ny = useNy();
+  const st = useMemo(() => gorSt(ny), [ny]);
+  return (
+    <View style={st.radMetaRad}>
+      <MetaTal
+        ikon={<Ionicons name="restaurant-outline" size={13} color={farg} />}
+        text={String(portioner)} farg={farg} beskrivning={str.card.a11yPortioner(portioner)}
+      />
+      <MetaTal
+        ikon={<MaterialCommunityIcons name="fruit-grapes-outline" size={14} color={farg} />}
+        text={String(ingredienser)} farg={farg} beskrivning={str.card.a11yIngredienser(ingredienser)}
+      />
+      {tid && (
+        <MetaTal
+          ikon={<Ionicons name="time-outline" size={13} color={farg} />}
+          text={tid} farg={farg} beskrivning={str.card.a11yTid(tid)}
+        />
+      )}
+      {favorit && <Ionicons name="heart" size={13} color={farg} accessibilityLabel={str.tags.favoriteBadge} />}
     </View>
   );
 }
@@ -218,8 +238,6 @@ const gorSt = (ny: NyPalett) => StyleSheet.create({
   textUtanBild: { position: 'absolute', left: 12, right: 12, bottom: 11, gap: 2 },
   titel: { fontFamily: nyFont.fet, fontSize: 16, lineHeight: 19, letterSpacing: -0.3, color: '#ffffff' },
   titelMorkText: { color: ny.text },
-  meta: { fontSize: 11, color: 'rgba(255,255,255,0.85)' },
-  metaMorkText: { color: ny.textDampad },
 
   rad: {
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8, borderRadius: 18,

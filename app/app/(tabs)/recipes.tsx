@@ -51,6 +51,7 @@ import { VyVaxel } from '../../src/components/nydesign/VyVaxel';
 import { ReceptBildkort, ReceptKompaktRad, type ReceptKortLage } from '../../src/components/nydesign/ReceptKort';
 import { VeckoDagValjare } from '../../src/components/nydesign/VeckoDagValjare';
 import { Murverk, murverkHojd } from '../../src/components/nydesign/Murverk';
+import { TagLabel } from '../../src/components/TagLabel';
 
 // Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
 // dagnamn är hårdkodat i komponenten — då räcker det att översätta svenska.ts.
@@ -955,7 +956,6 @@ export default function RecipesScreen() {
     id: recipe.id,
     titel: recipe.title,
     sokord: [recipe.title, ...(recipe.tags ?? [])].join(' '),
-    meta: str.card.meta(recipe.servings, recipe.ingredients.length),
     portioner: recipe.servings,
     ingredienser: recipe.ingredients.length,
     tid: recipe.cookMinutes ? formateraTidsetikett(recipe.cookMinutes) : null,
@@ -964,6 +964,7 @@ export default function RecipesScreen() {
     fokusY: recipe.imageFocusY,
     zoom: recipe.imageZoom,
     lage: kortLage,
+    favorit: (recipe.tags ?? []).includes(str.tags.favorite),
     onPress: () => tryckRecept(recipe),
     onPlanera: () => planeraFranLista(recipe),
     onTaBort: () => bekraftaTaBort(recipe),
@@ -991,7 +992,7 @@ export default function RecipesScreen() {
               accessibilityLabel={str.tags.filterA11y(t, pinnedTags.includes(t))}
             >
               {pinnedTags.includes(t) && <Ionicons name="pin" size={12} color={aktiv ? (scheme === 'dark' ? ny.skog : ny.lime) : ny.chipText} />}
-              <Text style={[s.nyTaggText, aktiv && s.nyTaggTextAktiv]}>{t}</Text>
+              <TagLabel tag={t} style={[s.nyTaggText, aktiv && s.nyTaggTextAktiv]} iconColor={aktiv ? (scheme === 'dark' ? ny.skog : ny.lime) : ny.chipText} />
             </Pressable>
           );
         })}

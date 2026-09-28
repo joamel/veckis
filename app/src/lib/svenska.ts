@@ -571,9 +571,11 @@ export const recipes = {
   tags: {
     label:          'Taggar',
     editHint:       'Tryck för att välja, eller skriv en egen',
-    addPlaceholder: 'Egen tagg…',
-    // Förslags-chips i redigeringsläget (utöver hushållets redan använda taggar)
-    suggested: ['favorit', 'vegetariskt', 'snabbt', 'barnvänligt', 'vardag', 'helg', 'billigt'] as readonly string[],
+    addPlaceholder: 'Ny tagg…',
+    // Den enda taggen som alltid finns att välja. Receptkorten visar ett hjärta för den.
+    favorite:        'favorit',
+    favoriteBadge:   'Favorit',
+    favoriteLabel:   'Favoriter',
     pinTipTitle:  'Fäst dina vanligaste taggar',
     pinTipBody:   'Håll inne på en tagg för att fästa den i listan. Fästa taggar ligger först, så att du enkelt ska hitta dina favoritrecept.',
     pinned:       (tag: string) => `”${tag}” fäst först`,

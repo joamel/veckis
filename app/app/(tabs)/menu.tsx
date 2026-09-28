@@ -47,6 +47,7 @@ import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import { ReceptBild } from '../../src/components/ReceptBild';
+import { cloudinaryOptimized, CARD_IMAGE_WIDTH } from '../../src/lib/cloudinaryUrl';
 import { platshallare } from '../../src/lib/receptPlatshallare';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay, MealType } from '@veckis/shared';
@@ -2587,7 +2588,7 @@ function MenuCard({
             <Pressable style={s.nyHero} onPress={handlePress} accessibilityRole="button" accessibilityLabel={item.recipe.title}>
               {/* ReceptBild, inte en rå Image: utsnittet man valt i receptet ligger i
                   imageFocusX/Y, och utan den beskars bilden uppifrån här. */}
-              <ReceptBild uri={bildUrl!} fokusX={item.recipe.imageFocusX} fokusY={item.recipe.imageFocusY} zoom={item.recipe.imageZoom} style={StyleSheet.absoluteFill} />
+              <ReceptBild uri={cloudinaryOptimized(bildUrl!, CARD_IMAGE_WIDTH)} fokusX={item.recipe.imageFocusX} fokusY={item.recipe.imageFocusY} zoom={item.recipe.imageZoom} style={StyleSheet.absoluteFill} />
               {/* Tiden på bilden, som på receptkorten — bara hopfälld. Utfällt
                   står den bredvid "I inköpslistan". */}
               {!isExpanded && item.recipe.cookMinutes ? (() => {

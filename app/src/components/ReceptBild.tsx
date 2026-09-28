@@ -70,10 +70,16 @@ export function ReceptBild({
   // Valet under pågående gest. Utanför gesten speglar det propsen.
   const [dragVal, setDragVal] = useState<Bildval | null>(null);
 
+  // Måtten behövs bara för ett valt utsnitt eller för att justera. Utan dem
+  // blir det vanlig cover, och då slipper varje kort i murverket hämta sin
+  // bild en extra gång bara för att mäta den (Image.getSize laddar bilden).
+  const needsSize = justerbar || ärJusterad(fokusX, fokusY, zoom);
+
   // Ny bild → gamla måtten gäller inte, och ett pågående drag hör till den förra.
   useEffect(() => {
     setBild(null);
     setDragVal(null);
+    if (!needsSize) return;
     let avbruten = false;
     Image.getSize(
       uri,
@@ -83,11 +89,13 @@ export function ReceptBild({
       () => { if (!avbruten) setBild(null); },
     );
     return () => { avbruten = true; };
-  }, [uri]);
+  }, [uri, needsSize]);
 
   // Zoomtaket beror på bildens upplösning. Okänt tak = inget tak än; zoomen
-  // klampas så fort måtten finns.
-  const tak = ram && bild ? maxZoom(ram, bild, PixelRatio.get()) : null;
+  // klampas så fort måtten finns. Bara vid justering: korten får en förminskad
+  // bild (cloudinaryOptimized), och taket räknat på den skulle visa ett kort
+  // mindre inzoomat än receptet.
+  const tak = justerbar && ram && bild ? maxZoom(ram, bild, PixelRatio.get()) : null;
   const onZoomTakRef = useRef(onZoomTak);
   onZoomTakRef.current = onZoomTak;
   useEffect(() => { if (tak !== null) onZoomTakRef.current?.(tak); }, [tak]);

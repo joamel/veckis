@@ -32,6 +32,8 @@ import { kvarvarandePåSteg } from '../../src/lib/cookIngredients';
 
 import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
+import { cloudinaryOptimized } from '../../src/lib/cloudinaryUrl';
+import { TagLabel } from '../../src/components/TagLabel';
 import { getISOWeek } from '../../src/lib/week';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -1396,7 +1398,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           <View style={s.tagRow}>
             {recipe.tags.map(t => (
               <View key={t} style={s.tagChip}>
-                <Text style={s.tagChipText}>{t}</Text>
+                <TagLabel tag={t} style={s.tagChipText} iconColor={nyDesign ? ny.chipText : c.primary} />
               </View>
             ))}
           </View>
@@ -1405,11 +1407,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           <View>
             <Text style={s.editLabel}>{str.tags.label}</Text>
             <View style={s.tagRow}>
-              {[...new Set([...str.tags.suggested, ...knownTags, ...editTags])].map(t => {
+              {/* Bara taggar som något recept i hushållet använder, plus det här
+                  receptets egna. En tagg som inget recept har längre försvinner
+                  av sig själv. Enda fasta förslaget är favorit (samma som hjärtat). */}
+              {[...new Set([str.tags.favorite, ...knownTags, ...editTags])].map(t => {
                 const active = editTags.includes(t);
                 return (
                   <Pressable key={t} style={[s.tagChip, active && s.tagChipActive]} onPress={() => toggleEditTag(t)}>
-                    <Text style={[s.tagChipText, active && s.tagChipTextActive]}>{t}</Text>
+                    <TagLabel tag={t} style={[s.tagChipText, active && s.tagChipTextActive]} iconColor={active ? (nyDesign ? ny.lime : '#fff') : (nyDesign ? ny.chipText : c.primary)} />
                   </Pressable>
                 );
               })}
@@ -2091,12 +2096,6 @@ function parseSteps(instructions: string): string[] {
   return lines.map(l => l.replace(/^\d+[.)]\s*/, ''));
 }
 
-function cloudinaryOptimized(url: string, width = 800): string {
-  const idx = url.indexOf('/upload/');
-  if (idx === -1) return url;
-  return url.slice(0, idx + 8) + `w_${width},q_auto,f_auto/` + url.slice(idx + 8);
-}
-
 function deduplicateIngredients(ingredients: RecipeIngredient[], scaleRatio: number) {
   const map = new Map<string, RecipeIngredient & { quantity: number | null }>();
   for (const ing of ingredients) {
@@ -2221,7 +2220,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   metaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   metaChip: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 20, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, flexShrink: 0 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  tagChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.kort : c.primaryTint, flexShrink: 0 },
+  tagChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.kort : c.primaryTint, flexShrink: 0 },
   tagChipActive: { backgroundColor: nyD ? ny.skog : c.primary },
   tagChipText: { fontSize: 12, fontWeight: '600', color: nyD ? ny.chipText : c.primary },
   tagChipTextActive: { color: nyD ? ny.lime : '#fff' },
