@@ -71,7 +71,10 @@ import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem , visningsnamn, parseItemLine } from '@veckis/shared';
 import { isIOSLike, isWeb } from '../../src/lib/platform';
 import { shoppingList as str, common } from '../../src/lib/svenska';
-import { enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError } from '../../src/lib/shoppingOfflineQueue';
+import {
+  enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError, hydratePendingToggles,
+  applyPendingToggles, replayPendingToggles, saveListSnapshot, readListSnapshot,
+} from '../../src/lib/shoppingOfflineQueue';
 import { useDirtySince } from '../../src/hooks/useDirtySince';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
@@ -218,6 +221,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const { getToken } = useAuth();
 
   const [list, setList] = useState<ShoppingListWithItems | null>(null);
+  // Läses i load() för att veta om en lista redan visas — då ska en misslyckad
+  // omladdning utan nät inte ersätta den med den sparade eller ge en felruta.
+  const listRef = useRef(list);
+  listRef.current = list;
   const [loading, setLoading] = useState(true);
   const [newItem, setNewItem] = useState('');
   const [adding, setAdding] = useState(false);
@@ -834,6 +841,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   const load = useCallback(async () => {
     if (!listId || !householdId) return;
+    // Bockar som köats när nätet saknades — även före en omstart av appen.
+    await hydratePendingToggles();
     try {
       const [data, stapleList, suggestions, household] = await Promise.all([
         client.getShoppingList(listId),
@@ -842,35 +851,40 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         client.getHousehold(householdId).catch(() => null),
       ]);
 
-      // Applicera väntande offline-mutationer ovanpå server-datan så att
-      // optimistiska bockar inte skrivs över vid nästa focus/reload.
-      const pending = getPendingToggles(listId);
-      if (pending.size > 0) {
-        data.items = data.items.map(i => {
-          const q = pending.get(i.id);
-          return q !== undefined ? { ...i, isChecked: q } : i;
-        });
-      }
-      setList(data);
+      // Serverns version sparas som den är, så listan går att öppna utan nät.
+      // Väntande bockar läggs ovanpå vid visning, aldrig i det sparade.
+      void saveListSnapshot(listId, data);
+      setList({ ...data, items: applyPendingToggles(data.items, getPendingToggles(listId)) });
       setStaples(stapleList);
       setIngredientSuggestions(suggestions);
       if (household) setMembers(household.members);
 
-      // Nu är vi online — spela upp kön
-      if (pending.size > 0) {
-        for (const [itemId, checked] of pending) {
-          client.checkShoppingItem(itemId, checked)
-            .then(updated => {
-              clearPendingToggle(listId, itemId);
-              setList(prev => prev ? {
-                ...prev,
-                items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: i.recipe } : i),
-              } : prev);
-            })
-            .catch(() => {}); // fortfarande offline — lämna kvar i kön
+      // Nu är vi online — skicka det som köats.
+      if (getPendingToggles(listId).size > 0) {
+        void replayPendingToggles(
+          listId,
+          (itemId, checked) => client.checkShoppingItem(itemId, checked),
+          (_itemId, updated) => {
+            setList(prev => prev ? {
+              ...prev,
+              items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: i.recipe } : i),
+            } : prev);
+          },
+        );
+      }
+    } catch (err) {
+      // Utan nät: visa senast sparade versionen, med väntande bockar ovanpå.
+      // Ingen felruta — den kom förut tillbaka vid varje nytt försök, och en
+      // lista som redan visas är fortfarande rätt att handla efter.
+      if (isNetworkError(err)) {
+        if (listRef.current) return;
+        const sparad = await readListSnapshot<NonNullable<typeof list>>(listId);
+        if (sparad) {
+          setList({ ...sparad, items: applyPendingToggles(sparad.items, getPendingToggles(listId)) });
+          showGlobalToast(str.toasts.offlineSnapshot, 'neutral');
+          return;
         }
       }
-    } catch {
       confirm({ title: common.errorTitle, message: str.toasts.errorLoad, buttons: [{ label: common.actions.ok }] });
     } finally {
       setLoading(false);

@@ -145,7 +145,16 @@ export function useApiClient() {
   getTokenRef.current = getToken;
 
   async function performRequest<T>(path: string, options: RequestInit = {}, attempt = 0): Promise<T> {
-    const token = await getTokenRef.current();
+    // Inloggningstoken gäller bara en kort stund och förnyas via nätet. Utan
+    // täckning kan förnyelsen kasta — och det är ett nätverksfel, inte en
+    // utloggning. Som vanligt fel rullades en bock i butiken tillbaka med en
+    // felruta i stället för att köas till när nätet kom tillbaka.
+    let token: string | null;
+    try {
+      token = await getTokenRef.current();
+    } catch {
+      throw new ApiError('Network request failed', null, true);
+    }
     if (!token) {
       // DIAG: bekräftar om "kunde inte ladda X"-vågen orsakas av att getToken()
       // inte ger en session-JWT alls (skulle förklara varför inget når Railway).

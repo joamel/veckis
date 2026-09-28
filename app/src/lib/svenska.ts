@@ -290,6 +290,7 @@ export const shoppingList = {
     errorHideSuggestion: 'Kunde inte ta bort förslaget',
     errorChangeStore: 'Kunde inte byta butik',
     errorLoad:        'Kunde inte ladda listan',
+    offlineSnapshot:  'Ingen täckning – visar listan som den såg ut senast. Dina bockar skickas när nätet är tillbaka.',
     errorDelete:      'Kunde inte ta bort',
   },
 
