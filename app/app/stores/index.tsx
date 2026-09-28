@@ -15,11 +15,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { resolveStorePick, hasPendingStorePick } from '../../src/lib/storePicker';
 import { Ionicons } from '@expo/vector-icons';
-import { useApiClient } from '../../src/api/client';
+import { useApiClient, ApiError } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
+import { StoreBankPicker } from '../../src/components/StoreBankPicker';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { type Store, type StoreCategory } from '@veckis/shared';
 import { stores as str, common, gettingStarted } from '../../src/lib/svenska';
@@ -86,6 +87,9 @@ export default function StoresScreen() {
   const newStoreRef = useRef<TextInput>(null);
   const [newStoreName, setNewStoreName] = useState('');
   const [creating, setCreating] = useState(false);
+  // Ny butik väljs ur butiksbanken. "Skapa egen" växlar till fritextfältet
+  // som förut, för butiker som saknas i listan.
+  const [egenButik, setEgenButik] = useState(false);
 
   const load = useCallback(async () => {
     if (!householdId) return;
@@ -129,18 +133,45 @@ export default function StoresScreen() {
     return sorted;
   }, [stores, searchQuery, sortMode]);
 
+  // Bankbutiker som redan finns i hushållet — en butik ur listan får bara
+  // finnas en gång, så ett nytt val av samma öppnar den befintliga.
+  const befintligaBank = useMemo(() => {
+    const m: Record<string, { id: string; name: string }> = {};
+    for (const st of stores) if (st.sharedStoreId) m[st.sharedStoreId] = { id: st.id, name: st.name };
+    return m;
+  }, [stores]);
+
+  function öppnaBefintlig(b: { id: string; name: string }) {
+    setShowCreate(false);
+    showToast(str.bank.alreadyAdded(b.name), 'neutral');
+    if (pickMode) {
+      resolveStorePick(b.id);
+      router.back();
+    } else {
+      router.push(`/stores/${b.id}` as never);
+    }
+  }
+
+  function väljUrBanken(b: { id: string; name: string }) {
+    const finns = befintligaBank[b.id];
+    if (finns) { öppnaBefintlig(finns); return; }
+    createStore(b);
+  }
+
   const creatingRef = useRef(false);
-  async function createStore() {
+  async function createStore(fromBank?: { id: string; name: string }) {
     // Synkron spärr — React-statet `creating` kan hinna släpa ett par renders
     // efter första trycket, så ett snabbt andra tryck (t.ex. både Enter på
     // tangentbordet och knappen) kunde smita igenom och skapa en dubblett.
-    if (!householdId || !newStoreName.trim() || creatingRef.current) return;
+    const namn = fromBank?.name ?? newStoreName.trim();
+    if (!householdId || !namn || creatingRef.current) return;
     creatingRef.current = true;
     setCreating(true);
     try {
-      const store = await client.createStore({ householdId, name: newStoreName.trim() });
+      const store = await client.createStore({ householdId, name: namn, sharedStoreId: fromBank?.id ?? null });
       setStores(prev => [...prev, store]);
       setNewStoreName('');
+      setEgenButik(false);
       setShowCreate(false);
       showToast(str.toasts.created(store.name), 'success');
       if (pickMode) {
@@ -154,6 +185,14 @@ export default function StoresScreen() {
         router.push(`/stores/${store.id}` as never);
       }
     } catch (e) {
+      // 409: någon annan i hushållet hann lägga till samma butik ur listan.
+      // Hämta listan och öppna den butiken i stället för att visa ett fel.
+      if (e instanceof ApiError && e.status === 409 && fromBank && householdId) {
+        const färska = await client.getStores(householdId).catch(() => null);
+        if (färska) setStores(färska);
+        const finns = färska?.find(st => st.sharedStoreId === fromBank.id);
+        if (finns) { öppnaBefintlig({ id: finns.id, name: finns.name }); return; }
+      }
       showError(e, str.toasts.errorCreate);
     } finally {
       creatingRef.current = false;
@@ -312,10 +351,19 @@ export default function StoresScreen() {
       {/* Skapa-modal */}
       <DraggableBottomSheet
         visible={showCreate}
-        onRequestClose={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); })}
+        onRequestClose={() => tryCloseCreate(newStoreName.trim() !== '', () => { setShowCreate(false); setNewStoreName(''); setEgenButik(false); })}
         liftOffset={sheetLift}
         title={str.createModal.title}
       >
+        {!egenButik ? (
+          <StoreBankPicker
+            onPick={b => väljUrBanken({ id: b.id, name: b.name })}
+            onCreateOwn={namn => { setNewStoreName(namn); setEgenButik(true); }}
+            busy={creating}
+            onFocusInput={onFocusInput}
+            existing={befintligaBank}
+          />
+        ) : (<>
         <TextInput
           ref={newStoreRef}
           onFocus={onFocusInput(newStoreRef)}
@@ -326,15 +374,16 @@ export default function StoresScreen() {
           onChangeText={setNewStoreName}
           autoFocus
           returnKeyType="done"
-          onSubmitEditing={createStore}
+          onSubmitEditing={() => createStore()}
         />
         <Pressable
           style={[s.primaryBtn, (!newStoreName.trim() || creating) && { opacity: 0.4 }]}
-          onPress={createStore}
+          onPress={() => createStore()}
           disabled={creating || !newStoreName.trim()}
         >
           {creating ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{str.createModal.create}</Text>}
         </Pressable>
+        </>)}
       </DraggableBottomSheet>
 
     </SafeAreaView>

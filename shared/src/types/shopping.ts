@@ -56,10 +56,28 @@ export interface ShoppingItem {
   menuItemId: string | null;
 }
 
+/** En butik i butiksbanken (OpenStreetMap). */
+export interface BankStore {
+  id: string;
+  name: string;
+  chain: string | null;
+  street: string | null;
+  postcode?: string | null;
+  /** Orten som visas — i storstäderna stadsdel + stad ("Liljeholmen, Stockholm"). */
+  city: string | null;
+  /** Postorten, för postadressen. */
+  postalCity?: string | null;
+  /** Avstånd från sökningens position, när en position fanns. */
+  distanceKm?: number | null;
+}
+
 export interface Store {
   id: string;
   householdId: string;
   name: string;
+  /** Koppling till butiksbanken; null = en egen butik. */
+  sharedStoreId?: string | null;
+  sharedStore?: BankStore | null;
   categoryOrder: StoreCategory[];
   /** Subs (taxonomi-id:n) som visas som egna sektioner istället för att
    *  samlas under sin parent. */

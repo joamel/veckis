@@ -15,13 +15,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
-import { useApiClient } from '../../src/api/client';
+import { useApiClient, ApiError } from '../../src/api/client';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, ALL_SUB_CATEGORIES, type StoreCategory, type SubCategory, type Store } from '@veckis/shared';
 import { stores as str, common } from '../../src/lib/svenska';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
+import { StoreBankPicker } from '../../src/components/StoreBankPicker';
 import { useWebLeaveGuard } from '../../src/hooks/useWebLeaveGuard';
 import { storeDrafts } from '../../src/lib/drafts';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
@@ -30,6 +31,7 @@ import { sortedRestFor } from '../../src/lib/subOrder';
 import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
+import { storeMeta } from '../../src/lib/storeMeta';
 
 // EGEN komponent — gesten byggs via useMemo, keyad på stabila props, så samma
 // gestobjekt lever kvar genom hela draget i stället för att byggas om vid
@@ -118,6 +120,9 @@ export default function StoreDetailScreen() {
   const [visarUtkast, setVisarUtkast] = useState(false);
 
   const [showRename, setShowRename] = useState(false);
+  // Koppling till butiksbanken.
+  const [showLink, setShowLink] = useState(false);
+  const [linking, setLinking] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [renaming, setRenaming] = useState(false);
 
@@ -467,6 +472,36 @@ export default function StoreDetailScreen() {
     }
   }
 
+  /** Kopplar butiken till en butik i butiksbanken, eller kopplar bort den.
+   *  Ordningen i butiken rörs inte — den är hushållets egen. */
+  async function linkStore(bank: { id: string; name: string } | null) {
+    if (!store) return;
+    setLinking(true);
+    try {
+      const updated = await client.updateStore(store.id, { sharedStoreId: bank?.id ?? null });
+      setStore(prev => prev ? { ...prev, sharedStoreId: updated.sharedStoreId, sharedStore: updated.sharedStore } : updated);
+      setShowLink(false);
+      showToast(bank ? str.bank.linked(bank.name) : str.bank.unlinked, 'success');
+    } catch (e) {
+      // 409: bankbutiken är redan kopplad till en annan av hushållets
+      // butiker. Säg vilken, så man vet var den finns.
+      if (e instanceof ApiError && e.status === 409 && bank) {
+        const alla = await client.getStores(store.householdId).catch(() => []);
+        const annan = alla.find(st => st.sharedStoreId === bank.id && st.id !== store.id);
+        setShowLink(false);
+        confirm({
+          title: str.bank.linkSheetTitle,
+          message: str.bank.alreadyLinkedTo(annan?.name ?? bank.name),
+          buttons: [{ label: common.actions.ok }],
+        });
+      } else {
+        showError(e, str.bank.errorLink);
+      }
+    } finally {
+      setLinking(false);
+    }
+  }
+
   async function renameStore() {
     if (!store || !renameValue.trim()) return;
     setRenaming(true);
@@ -648,6 +683,37 @@ export default function StoreDetailScreen() {
             </Pressable>
           </View>
         )}
+        {/* Koppling till butiksbanken — så handlingar i samma butik kan
+            räknas ihop på sikt. Ordningen nedan är fortsatt hushållets egen. */}
+        <View style={s.bankKort}>
+          <Text style={s.sectionLabel}>{str.bank.linkedTitle}</Text>
+          {store.sharedStore ? (
+            <View style={s.bankRad}>
+              <Ionicons name="storefront" size={18} color={ny.padYta} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.bankNamn} numberOfLines={1}>{store.sharedStore.name}</Text>
+                {!!storeMeta(store.sharedStore).locality && (
+                  <Text style={s.bankMeta} numberOfLines={1}>{storeMeta(store.sharedStore).locality}</Text>
+                )}
+                {!!storeMeta(store.sharedStore).address && (
+                  <Text style={s.bankMeta} numberOfLines={1}>{storeMeta(store.sharedStore).address}</Text>
+                )}
+              </View>
+              <Pressable onPress={() => setShowLink(true)} hitSlop={8} disabled={linking}>
+                <Text style={s.bankLänk}>{str.bank.change}</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <Text style={s.sectionSub}>{str.bank.unlinkedHint}</Text>
+              <Pressable style={s.bankKnapp} onPress={() => setShowLink(true)} disabled={linking} accessibilityRole="button">
+                <Ionicons name="search" size={16} color={ny.skog} />
+                <Text style={s.bankKnappText}>{str.bank.link}</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+
         <Text style={s.sectionSub}>{str.detail.hint}</Text>
 
         <Text style={s.sectionLabel}>{str.detail.sections.visible}</Text>
@@ -808,6 +874,16 @@ export default function StoreDetailScreen() {
       </DraggableBottomSheet>
 
       {/* Byt namn-modal */}
+      <DraggableBottomSheet visible={showLink} onRequestClose={() => setShowLink(false)} liftOffset={sheetLift} title={str.bank.linkSheetTitle}>
+        <StoreBankPicker
+          initialQuery={store.name}
+          onPick={b => linkStore({ id: b.id, name: b.name })}
+          busy={linking}
+          onFocusInput={onFocusInput}
+          onUnlink={store.sharedStoreId ? () => linkStore(null) : undefined}
+        />
+      </DraggableBottomSheet>
+
       <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} isDirty={renameValue.trim() !== store.name.trim()} liftOffset={sheetLift} title={str.renameModal.title}>
             <TextInput
               ref={renameRef}
@@ -833,6 +909,13 @@ export default function StoreDetailScreen() {
 
 // nyD: den nya designen (beta) skriver över de stilar som skiljer.
 const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
+  bankKort: { backgroundColor: ny.kort, borderRadius: 16, padding: 14, marginBottom: 18, gap: 8 },
+  bankRad: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bankNamn: { fontFamily: nyFont.halvfet, fontSize: 15, color: ny.text },
+  bankMeta: { fontSize: 13, color: ny.textDampad, marginTop: 1 },
+  bankLänk: { fontSize: 14, fontWeight: '600', color: ny.padYta },
+  bankKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 42, borderRadius: 14, backgroundColor: ny.lime },
+  bankKnappText: { fontSize: 15, fontWeight: '700', color: ny.skog },
   container: { flex: 1, backgroundColor: nyD ? ny.skog : c.background },
   innehall: nyD ? { backgroundColor: ny.bakgrund } : {},
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },

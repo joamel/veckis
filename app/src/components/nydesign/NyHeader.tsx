@@ -34,7 +34,16 @@ export function NyHeader({ title, subtitle, onBack, backLabel, right, children, 
           <NyIkonKnapp icon="arrow-back" onPress={onBack} label={backLabel} color={ny.rubrikLjus} />
         )}
         <View style={[st.titelyta, st.titelytaRad]}>
-          <Text style={[st.titel, kompakt && st.titelKompakt]} numberOfLines={kompakt ? 2 : 1}>{title}</Text>
+          {/* Kompakt: EN rad som krymper för att rymmas. Två rader åt för
+              mycket av skärmen med namn ur butiksbanken ("Stora Coop Orminge"),
+              och hela namnet står ändå i kortet under. Räcker inte 55 % kortas
+              det med "…"; på webben finns ingen krympning, bara "…". */}
+          <Text
+            style={[st.titel, kompakt && st.titelKompakt]}
+            numberOfLines={1}
+            adjustsFontSizeToFit={kompakt}
+            minimumFontScale={0.55}
+          >{title}</Text>
           {!!subtitle && <Text style={st.underrubrik} numberOfLines={1}>{subtitle}</Text>}
         </View>
         {right}

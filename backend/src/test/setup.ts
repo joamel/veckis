@@ -43,7 +43,9 @@ beforeEach(async () => {
     TRUNCATE TABLE
       "ShoppingItem",
       "ShoppingList",
+      "ShoppingCheckEvent",
       "Store",
+      "SharedStore",
       "WeekMenuItem",
       "MenuTemplateItem",
       "MenuTemplate",

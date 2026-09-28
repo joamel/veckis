@@ -4,8 +4,22 @@ import { StoreCategory } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
+import { positionForPostcode, searchSharedStores, type SharedStoreRow } from '../lib/sharedStores';
 
 export const storesRouter = Router();
+
+// Butiksbanken i minnet: ~3 400 rader, läses om en gång i timmen. Sökningen
+// görs i JS med den rena funktionen i lib/sharedStores.ts — enklare och
+// snabbare än att uttrycka ordsökning i valfri ordning plus avstånd i SQL.
+let bankCache: { rows: Array<SharedStoreRow & { id: string }>; at: number } | null = null;
+async function butiksbank(): Promise<Array<SharedStoreRow & { id: string }>> {
+  if (bankCache && Date.now() - bankCache.at < 60 * 60 * 1000) return bankCache.rows;
+  const rows = await prisma.sharedStore.findMany({
+    select: { id: true, osmId: true, name: true, chain: true, street: true, postcode: true, city: true, postalCity: true, lat: true, lon: true },
+  });
+  bankCache = { rows, at: Date.now() };
+  return rows;
+}
 
 const categoryEnum = z.nativeEnum(StoreCategory);
 const categoryOrderSchema = z.array(categoryEnum);
@@ -26,6 +40,7 @@ const categoryMergeSchema = z.record(categoryEnum, z.string().min(1).max(60)).op
 const createStoreSchema = z.object({
   householdId: z.string(),
   name: z.string().min(1).max(100),
+  sharedStoreId: z.string().max(40).nullable().optional(),
   categoryOrder: categoryOrderSchema.optional(),
   customCategories: customCategoriesSchema.optional(),
   expandedSubs: expandedSubsSchema.optional(),
@@ -44,7 +59,42 @@ const updateStoreSchema = z.object({
   customSubs: customSubsSchema,
   parentOrder: parentOrderSchema,
   categoryMerge: categoryMergeSchema,
+  // Koppling till butiksbanken; null = egen butik.
+  sharedStoreId: z.string().max(40).nullable().optional(),
 });
+
+const searchSchema = z.object({
+  q: z.string().max(100).optional(),
+  postcode: z.string().max(10).optional(),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lon: z.coerce.number().min(-180).max(180).optional(),
+});
+
+/**
+ * Finns bankbutiken redan i hushållet? Databasen spärrar dubbletter också
+ * (unikt index), men då blir felet obegripligt — här får appen veta vilken
+ * butik det gäller, så den kan öppna den i stället.
+ */
+async function redanKopplad(householdId: string, sharedStoreId: string, utomStoreId?: string) {
+  return prisma.store.findFirst({
+    where: { householdId, sharedStoreId, ...(utomStoreId ? { id: { not: utomStoreId } } : {}) },
+    select: { id: true, name: true },
+  });
+}
+
+// GET /api/stores/bank?q=&postcode=&lat=&lon= — sök i butiksbanken.
+// Position (från webbläsaren) går före postnummer. Svaret anger källan, som
+// ODbL kräver att appen visar.
+storesRouter.get('/bank', requireAuth, asyncHandler(async (req, res) => {
+  const p = searchSchema.safeParse(req.query);
+  if (!p.success) { res.status(400).json({ error: p.error.flatten() }); return; }
+  const rows = await butiksbank();
+  const near = p.data.lat != null && p.data.lon != null
+    ? { lat: p.data.lat, lon: p.data.lon }
+    : p.data.postcode ? positionForPostcode(p.data.postcode, rows) : null;
+  const hits = searchSharedStores(rows, { q: p.data.q, near, limit: 20 });
+  res.json({ stores: hits, attribution: '© OpenStreetMap-bidragsgivare' });
+}));
 
 // GET /api/stores?householdId=
 storesRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
@@ -59,6 +109,7 @@ storesRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
   const stores = await prisma.store.findMany({
     where: { householdId },
     orderBy: { createdAt: 'asc' },
+    include: { sharedStore: { select: { id: true, name: true, chain: true, street: true, postcode: true, city: true, postalCity: true } } },
   });
   res.json(stores);
 }));
@@ -68,12 +119,19 @@ storesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (
   const body = createStoreSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
+  if (body.data.sharedStoreId) {
+    const finns = await redanKopplad(body.data.householdId, body.data.sharedStoreId);
+    if (finns) { res.status(409).json({ error: 'already_linked', store: finns }); return; }
+  }
+
   const store = await prisma.store.create({
     data: {
       householdId: body.data.householdId,
       name: body.data.name,
       categoryOrder: body.data.categoryOrder ?? (Object.values(StoreCategory) as StoreCategory[]),
+      sharedStoreId: body.data.sharedStoreId ?? null,
     },
+    include: { sharedStore: { select: { id: true, name: true, chain: true, street: true, postcode: true, city: true, postalCity: true } } },
   });
   res.status(201).json(store);
 }));
@@ -91,7 +149,17 @@ storesRouter.patch('/:storeId', requireAuth, asyncHandler(async (req, res) => {
   const body = updateStoreSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const updated = await prisma.store.update({ where: { id: store.id }, data: body.data });
+  if (body.data.sharedStoreId) {
+    const finns = await prisma.sharedStore.findUnique({ where: { id: body.data.sharedStoreId }, select: { id: true } });
+    if (!finns) { res.status(400).json({ error: 'Okänd butik i butiksbanken' }); return; }
+    const annan = await redanKopplad(store.householdId, body.data.sharedStoreId, store.id);
+    if (annan) { res.status(409).json({ error: 'already_linked', store: annan }); return; }
+  }
+  const updated = await prisma.store.update({
+    where: { id: store.id },
+    data: body.data,
+    include: { sharedStore: { select: { id: true, name: true, chain: true, street: true, postcode: true, city: true, postalCity: true } } },
+  });
   res.json(updated);
 }));
 

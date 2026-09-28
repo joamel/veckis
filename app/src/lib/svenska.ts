@@ -1055,6 +1055,37 @@ export const stores = {
     add:         'Lägg till butik',
   },
 
+  // Butiksbanken: välj din butik ur listan i stället för att skriva namnet.
+  bank: {
+    searchPlaceholder: 'Sök butik, t.ex. Coop Orminge',
+    useLocation:       'Butiker nära mig',
+    locating:          'Hämtar position…',
+    postcodePlaceholder: 'Postnummer',
+    locationDenied:    'Platstjänst avstängd — ange postnummer i stället.',
+    openSettings:      'Slå på platstjänst i inställningarna',
+    alreadyTag:        'Redan tillagd',
+    alreadyAdded:      (namn: string) => `${namn} finns redan bland era butiker`,
+    alreadyLinkedTo:   (namn: string) => `Den butiken är redan kopplad till "${namn}". En butik ur listan kan bara finnas en gång.`,
+    unlinkInPicker:    'Ingen av dessa — ta bort kopplingen. Butiken blir en egen butik igen, och ordningen är kvar.',
+    locationUnavailable: 'Kunde inte hämta position — ange postnummer i stället.',
+    noResults:         'Hittade ingen butik. Du kan skapa en egen nedan.',
+    createOwn:         (namn: string) => `Skapa egen butik "${namn}"`,
+    createOwnEmpty:    'Skapa en egen butik i stället',
+    distance:          (km: number) => km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1).replace('.', ',')} km`,
+    attribution:       'Butiksdata © OpenStreetMap-bidragsgivare',
+    errorSearch:       'Kunde inte söka bland butikerna',
+    // Butiksvyn: kopplingen till butiksbanken.
+    linkedTitle:       'BUTIK I BUTIKSLISTAN',
+    linkedHint:        'Kopplad butik: ordningen kan på sikt förbättras av alla som handlar här.',
+    unlinkedHint:      'Välj vilken butik det här är, så kan ordningen på sikt förbättras av alla som handlar där.',
+    link:              'Välj butik ur listan',
+    change:            'Byt',
+    linkSheetTitle:    'Vilken butik är det här?',
+    linked:            (namn: string) => `Kopplad till ${namn}`,
+    unlinked:          'Kopplingen borttagen',
+    errorLink:         'Kunde inte spara kopplingen',
+  },
+
   detail: {
     sections: {
       visible: 'SYNLIGA KATEGORIER',

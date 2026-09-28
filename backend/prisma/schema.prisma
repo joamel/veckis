@@ -89,11 +89,45 @@ model Store {
   // Enkel v1 (2026-09-07): bara standard-kategorier som källa (samma
   // begränsning som "dölj" redan har), ingen kedjning.
   categoryMerge     Json          @default("{}")
+  // Kopplingen till en butik i butiksbanken. null = en egen butik, som förut.
+  // SetNull: försvinner butiken ur banken blir den en egen butik igen, med
+  // hushållets ordning orörd.
+  sharedStoreId     String?
   createdAt         DateTime      @default(now())
 
   household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  sharedStore   SharedStore?   @relation(fields: [sharedStoreId], references: [id], onDelete: SetNull)
   shoppingLists ShoppingList[]
   checkEvents   ShoppingCheckEvent[]
+
+  @@index([sharedStoreId])
+  // En butik ur banken finns högst EN gång per hushåll — annars fick samma
+  // fysiska butik två olika ordningar, och inlärningen visste inte vilken som
+  // gällde. Egna butiker (sharedStoreId null) påverkas inte: i Postgres är
+  // NULL aldrig lika med NULL i ett unikt index.
+  @@unique([householdId, sharedStoreId])
+}
+
+// Butiksbanken: svenska matbutiker från OpenStreetMap (© OSM-bidragsgivare,
+// ODbL — källan ska anges där listan visas). Läses in med
+// scripts/import-osm-stores.ts. Se lib/sharedStores.ts.
+model SharedStore {
+  id        String   @id @default(cuid())
+  // "node/123" eller "way/456" — stabilt id i OSM, nyckeln vid omläsning.
+  osmId     String   @unique
+  name      String
+  chain     String?
+  street    String?
+  postcode  String?
+  city      String?
+  // Postorten ur OSM (addr:city). city ovan är orten som VISAS — i
+  // storstäderna stadsdelen ("Liljeholmen, Stockholm") — och kan skilja sig.
+  postalCity String?
+  lat       Float
+  lon       Float
+  updatedAt DateTime @updatedAt
+
+  stores Store[]
 }
 
 // En bockad vara i en lista med butik — råmaterial för att lära sig i vilken

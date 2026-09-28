@@ -39,7 +39,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#cddcb3"
-      }
+      },
+      "blockedPermissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
+      ]
     },
     "androidStatusBar": {
       "backgroundColor": "#292524",
@@ -66,7 +70,15 @@
           "cameraPermission": "Handlis behöver kameran för att ta en receptbild."
         }
       ],
-      "@clerk/expo-google-signin"
+      "@clerk/expo-google-signin",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Handlis använder din ungefärliga position för att visa de matbutiker som ligger närmast dig.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

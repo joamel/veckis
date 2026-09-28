@@ -14,6 +14,7 @@ import type {
   WeekMenuItem,
   MealType,
   StapleItem,
+  BankStore,
 } from '@veckis/shared';
 import { trackBackendRequest } from '../lib/backendWakeup';
 import { reportClientError } from '../lib/errorReport';
@@ -411,10 +412,19 @@ export function useApiClient() {
     getStores: (householdId: string) =>
       request<Store[]>(`/api/stores?householdId=${householdId}`),
 
-    createStore: (data: { householdId: string; name: string; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; customSubs?: Record<string, string[]>; parentOrder?: string[]; categoryMerge?: Record<string, string> }) =>
+    // Butiksbanken. Position går före postnummer; attribution ska visas.
+    searchStoreBank: (p: { q?: string; postcode?: string; lat?: number; lon?: number }) => {
+      const qs = new URLSearchParams();
+      if (p.q) qs.set('q', p.q);
+      if (p.postcode) qs.set('postcode', p.postcode);
+      if (p.lat != null && p.lon != null) { qs.set('lat', String(p.lat)); qs.set('lon', String(p.lon)); }
+      return request<{ stores: BankStore[]; attribution: string }>(`/api/stores/bank?${qs.toString()}`);
+    },
+
+    createStore: (data: { householdId: string; name: string; sharedStoreId?: string | null; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; customSubs?: Record<string, string[]>; parentOrder?: string[]; categoryMerge?: Record<string, string> }) =>
       request<Store>('/api/stores', { method: 'POST', body: JSON.stringify(data) }),
 
-    updateStore: (storeId: string, data: { name?: string; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; customSubs?: Record<string, string[]>; parentOrder?: string[]; categoryMerge?: Record<string, string> }) =>
+    updateStore: (storeId: string, data: { name?: string; sharedStoreId?: string | null; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; customSubs?: Record<string, string[]>; parentOrder?: string[]; categoryMerge?: Record<string, string> }) =>
       request<Store>(`/api/stores/${storeId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteStore: (storeId: string) =>
