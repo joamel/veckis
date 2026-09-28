@@ -23,6 +23,8 @@
 // en främmande inloggning i historiken.
 
 const FAPI = 'https://clerk.handlis.app';
+// Vår backend, för biljettvägen. Samma som appen i prod.
+const API = process.env.API_URL ?? 'https://veckis-production.up.railway.app';
 const epost = process.env.REVIEW_EPOST;
 const losenord = process.env.REVIEW_LOSENORD;
 const secret = process.env.CLERK_SECRET_KEY;
@@ -112,6 +114,37 @@ try {
   const andra = r?.supported_second_factors ?? [];
   console.log(`Andra steg som Clerk erbjuder: ${andra.length ? andra.map(f => f.strategy).join(', ') : 'inga'}`);
 
+  // Biljettvägen: det appen gör när Clerk kräver ett andra steg för
+  // review-kontot (app/src/lib/reviewAccount.ts). Clerk själv svarar alltid
+  // needs_second_factor ovan — det är just det biljetten går runt. Här testas
+  // hela vägen: vår backend utfärdar en biljett, och Clerk loggar in med den.
+  let sessionFrånBiljett = null;
+  if (status === 'needs_second_factor') {
+    console.log('\nProvar biljettvägen via backenden (som appen gör) …');
+    const b = await fetch(`${API}/api/auth/review-ticket`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: epost, password: losenord }),
+    });
+    if (!b.ok) {
+      console.log(`Backenden nekade (${b.status}). Är REVIEW_ACCOUNT_EMAIL satt på Railway till exakt`);
+      console.log(`${epost}, och har backenden startat om sedan dess?`);
+    } else {
+      const { ticket } = await b.json();
+      const t = await fapi('/client/sign_ins', { strategy: 'ticket', ticket });
+      const rt = t.json?.response ?? t.json;
+      if (t.json?.errors?.length) {
+        console.log(`Clerk nekade biljetten: ${t.json.errors.map(f => f.long_message ?? f.message).join('; ')}`);
+      } else {
+        console.log(`Status med biljett:  ${rt?.status}`);
+        console.log(rt?.status === 'complete'
+          ? 'Slutsats: granskaren kommer in med e-post och lösenord i appen.'
+          : 'Slutsats: biljetten räckte inte — Clerk kräver fortfarande något.');
+        sessionFrånBiljett = rt?.created_session_id ?? null;
+      }
+    }
+  }
+
   if (status === 'complete') {
     console.log('\nSlutsats: lösenordet ensamt räcker. Inget mejl behöver öppnas,');
     console.log('ingen kod behöver läsas. Granskaren kommer in om hen hittar');
@@ -119,7 +152,7 @@ try {
   }
 
   // Städa bort sessionen testet skapade.
-  const sessionId = r?.created_session_id;
+  const sessionId = r?.created_session_id ?? sessionFrånBiljett;
   if (sessionId && secret) {
     const res = await fetch(`https://api.clerk.com/v1/sessions/${sessionId}/revoke`, {
       method: 'POST',
