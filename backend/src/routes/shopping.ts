@@ -29,6 +29,7 @@ import { bokförAiKostnad } from '../lib/aiCost';
 import { taFotokvot, MAX_FOTON_PER_MANAD } from '../lib/photoQuota';
 import { parseTextLimiter } from '../lib/rateLimits';
 import { delaUppDataUrl } from './recipes';
+import { recordCheckEvent } from '../lib/checkEvents';
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -658,7 +659,13 @@ shoppingRouter.patch('/items/:itemId/check', requireAuth, asyncHandler(async (re
   const list = await getListAndVerifyMember(existing.listId, (req as AuthenticatedRequest).clerkUserId, res);
   if (!list) return;
 
-  const body = z.object({ checked: z.boolean() }).safeParse(req.body);
+  const body = z.object({
+    checked: z.boolean(),
+    // När bocken gjordes enligt telefonen — offlinekön skickar bockar samlat.
+    at: z.string().max(40).optional(),
+    // "Markera alla i kategorin": ingen väg genom butiken.
+    bulk: z.boolean().optional(),
+  }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
   const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
@@ -668,7 +675,16 @@ shoppingRouter.patch('/items/:itemId/check', requireAuth, asyncHandler(async (re
   });
   bcast(list, { type: 'item_updated', data: item });
   res.json(item);
+
+  // Bockhändelse för att lära sig butikens ordning. Efter svaret och utan att
+  // kunna fälla bocken: det är ett sidospår, och en lista utan butik har
+  // ingen ordning att lära.
+  if (body.data.checked && list.storeId) {
+    recordCheckEvent(list.storeId, clerkUserId, existing, body.data.at, body.data.bulk === true)
+      .catch(err => console.warn('[CHECK-EVENT] kunde inte spara:', err instanceof Error ? err.message : err));
+  }
 }));
+
 
 // POST /api/shopping/merge-suggestion — smart förslag för dubblettdialogen.
 // Kombinerar förpacknings-ekvivalenser (UnitEquivalence: seed/AI/user-lärda)

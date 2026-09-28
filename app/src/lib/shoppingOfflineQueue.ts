@@ -20,8 +20,12 @@ import { getOfflineStorage } from './offlineStore';
 const QUEUE_KEY = 'pending-toggles';
 const listKey = (listId: string) => `list-${listId}`;
 
-/** listId → (itemId → bockad) */
-const queue = new Map<string, Map<string, boolean>>();
+/** En köad bock: värdet och när den gjordes (för att lära butikens ordning —
+ *  tiden då nätet kom tillbaka säger ingenting om vägen genom butiken). */
+type Pending = { checked: boolean; at: string; bulk?: boolean };
+
+/** listId → (itemId → köad bock) */
+const queue = new Map<string, Map<string, Pending>>();
 let hydrated: Promise<void> | null = null;
 
 /**
@@ -35,11 +39,15 @@ export function hydratePendingToggles(): Promise<void> {
       const raw = await getOfflineStorage().read(QUEUE_KEY);
       if (!raw) return;
       try {
-        const obj = JSON.parse(raw) as Record<string, Record<string, boolean>>;
+        const obj = JSON.parse(raw) as Record<string, Record<string, Pending | boolean>>;
         for (const [listId, items] of Object.entries(obj)) {
-          const m = queue.get(listId) ?? new Map<string, boolean>();
-          for (const [itemId, checked] of Object.entries(items)) {
-            if (!m.has(itemId)) m.set(itemId, checked === true);
+          const m = queue.get(listId) ?? new Map<string, Pending>();
+          for (const [itemId, v] of Object.entries(items)) {
+            if (m.has(itemId)) continue;
+            // Äldre format sparade bara true/false, utan tidpunkt.
+            m.set(itemId, typeof v === 'boolean'
+              ? { checked: v, at: new Date().toISOString() }
+              : { checked: v.checked === true, at: String(v.at), ...(v.bulk ? { bulk: true } : {}) });
           }
           if (m.size > 0) queue.set(listId, m);
         }
@@ -50,7 +58,7 @@ export function hydratePendingToggles(): Promise<void> {
 }
 
 function persist(): void {
-  const obj: Record<string, Record<string, boolean>> = {};
+  const obj: Record<string, Record<string, Pending>> = {};
   for (const [listId, items] of queue) {
     if (items.size > 0) obj[listId] = Object.fromEntries(items);
   }
@@ -58,14 +66,19 @@ function persist(): void {
   void (Object.keys(obj).length > 0 ? storage.write(QUEUE_KEY, JSON.stringify(obj)) : storage.remove(QUEUE_KEY));
 }
 
-export function enqueueToggle(listId: string, itemId: string, checked: boolean): void {
+export function enqueueToggle(
+  listId: string, itemId: string, checked: boolean,
+  at: string = new Date().toISOString(), bulk = false,
+): void {
   if (!queue.has(listId)) queue.set(listId, new Map());
-  queue.get(listId)!.set(itemId, checked);
+  queue.get(listId)!.set(itemId, { checked, at, ...(bulk ? { bulk: true } : {}) });
   persist();
 }
 
+/** Köade bockar som itemId → bockad. */
 export function getPendingToggles(listId: string): ReadonlyMap<string, boolean> {
-  return queue.get(listId) ?? new Map();
+  const m = queue.get(listId);
+  return new Map(m ? [...m].map(([id, p]) => [id, p.checked]) : []);
 }
 
 export function clearPendingToggle(listId: string, itemId: string): void {
@@ -121,13 +134,13 @@ export type ReplayResult = { sent: string[]; kept: string[]; dropped: string[] }
  */
 export async function replayPendingToggles<R>(
   listId: string,
-  send: (itemId: string, checked: boolean) => Promise<R>,
+  send: (itemId: string, checked: boolean, opts: { at: string; bulk?: boolean }) => Promise<R>,
   onSent?: (itemId: string, result: R) => void,
 ): Promise<ReplayResult> {
   const result: ReplayResult = { sent: [], kept: [], dropped: [] };
-  for (const [itemId, checked] of [...getPendingToggles(listId)]) {
+  for (const [itemId, { checked, at, bulk }] of [...(queue.get(listId) ?? new Map<string, Pending>())]) {
     try {
-      const svar = await send(itemId, checked);
+      const svar = await send(itemId, checked, bulk ? { at, bulk } : { at });
       // Bockades varan om medan anropet var på väg är det nya värdet kvar.
       if (getPendingToggles(listId).get(itemId) === checked) clearPendingToggle(listId, itemId);
       result.sent.push(itemId);

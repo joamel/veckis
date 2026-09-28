@@ -395,10 +395,13 @@ export function useApiClient() {
         body: JSON.stringify(data),
       }),
 
-    checkShoppingItem: (itemId: string, checked: boolean) =>
+    // at: när bocken gjordes (offlinekön skickar samlat senare). bulk:
+    // "markera alla i kategorin" — ingen väg genom butiken. Båda används för
+    // att lära sig butikens ordning.
+    checkShoppingItem: (itemId: string, checked: boolean, opts: { at?: string; bulk?: boolean } = {}) =>
       request<ShoppingItem>(`/api/shopping/items/${itemId}/check`, {
         method: 'PATCH',
-        body: JSON.stringify({ checked }),
+        body: JSON.stringify({ checked, ...opts }),
       }),
 
     deleteShoppingItem: (itemId: string) =>

@@ -93,6 +93,29 @@ model Store {
 
   household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
   shoppingLists ShoppingList[]
+  checkEvents   ShoppingCheckEvent[]
+}
+
+// En bockad vara i en lista med butik — råmaterial för att lära sig i vilken
+// ordning butiken handlas. Se lib/checkEvents.ts för varför fälten ser ut som
+// de gör. Inget varunamn och inget användar-id sparas: bara var i butiken
+// (kategori och underkategori), en pseudonym nyckel och när.
+model ShoppingCheckEvent {
+  id                String   @id @default(cuid())
+  storeId           String
+  shopperKey        String
+  category          String
+  subCategory       String?
+  customCategory    String?
+  customSubCategory String?
+  checkedAt         DateTime
+  // "Markera alla i kategorin" — inte en väg genom butiken.
+  bulk              Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, checkedAt])
 }
 
 model ShoppingList {

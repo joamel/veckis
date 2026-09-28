@@ -863,7 +863,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       if (getPendingToggles(listId).size > 0) {
         void replayPendingToggles(
           listId,
-          (itemId, checked) => client.checkShoppingItem(itemId, checked),
+          (itemId, checked, opts) => client.checkShoppingItem(itemId, checked, opts),
           (_itemId, updated) => {
             setList(prev => prev ? {
               ...prev,
@@ -1172,7 +1172,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setTimeout(async () => {
       if (cancelled) return;
       try {
-        await Promise.all(ids.map(id => client.checkShoppingItem(id, true)));
+        await Promise.all(ids.map(id => client.checkShoppingItem(id, true, { bulk: true })));
         emitShoppingChanged();
       } catch (e) {
         setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: false } : i) } : prev);
@@ -1187,14 +1187,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setList(prev =>
       prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, isChecked: newChecked } : i) } : prev
     );
+    // När fingret tryckte, inte när anropet lyckades — köas bocken skickas
+    // samma tidpunkt senare.
+    const at = new Date().toISOString();
     try {
-      const updated = await client.checkShoppingItem(item.id, newChecked);
+      const updated = await client.checkShoppingItem(item.id, newChecked, { at });
       clearPendingToggle(listId!, item.id);
       setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: item.recipe } : i) } : prev);
     } catch (e) {
       if (isNetworkError(e)) {
         // Offline — behåll optimistisk bockning och köa för replay vid reconnect
-        enqueueToggle(listId!, item.id, newChecked);
+        enqueueToggle(listId!, item.id, newChecked, at);
       } else {
         // Serverfel — rulla tillbaka och visa fel
         setList(prev =>
@@ -1212,14 +1215,16 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setList(prev =>
       prev ? { ...prev, items: prev.items.map(i => unchecked.some(u => u.id === i.id) ? { ...i, isChecked: true } : i) } : prev
     );
+    // Massbock: märks så den inte räknas som en väg genom butiken.
+    const at = new Date().toISOString();
     await Promise.all(unchecked.map(async item => {
       try {
-        const updated = await client.checkShoppingItem(item.id, true);
+        const updated = await client.checkShoppingItem(item.id, true, { at, bulk: true });
         clearPendingToggle(listId!, item.id);
         setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: item.recipe } : i) } : prev);
       } catch (e) {
         if (isNetworkError(e)) {
-          enqueueToggle(listId!, item.id, true);
+          enqueueToggle(listId!, item.id, true, at, true);
         } else {
           setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? item : i) } : prev);
         }
@@ -1482,8 +1487,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const ids = members.map(m => m.id);
     triggerCheckHaptic();
     setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: true } : i) } : prev);
+    // Ett tryck på en rad som samlar flera varor — en riktig bock i butiken,
+    // inte en massbock.
+    const at = new Date().toISOString();
     try {
-      await Promise.all(ids.map(id => client.checkShoppingItem(id, true)));
+      await Promise.all(ids.map(id => client.checkShoppingItem(id, true, { at })));
     } catch (e) {
       setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: false } : i) } : prev);
       showError(e, str.toasts.errorCheck);

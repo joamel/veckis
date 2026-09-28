@@ -149,6 +149,34 @@ describe('när nätet kommer tillbaka', () => {
   });
 });
 
+describe('tidpunkten följer med', () => {
+  it('skickar tiden då bocken gjordes, inte då nätet kom tillbaka', async () => {
+    enqueueToggle('lista', 'mjölk', true, '2026-09-28T10:00:00.000Z');
+    const skickat: unknown[] = [];
+    await replayPendingToggles('lista', async (id, c, opts) => { skickat.push([id, c, opts]); return id; });
+    expect(skickat).toEqual([['mjölk', true, { at: '2026-09-28T10:00:00.000Z' }]]);
+  });
+
+  it('tidpunkt och massbock överlever en omstart', async () => {
+    enqueueToggle('lista', 'mjölk', true, '2026-09-28T10:00:00.000Z', true);
+    await vänta();
+    resetOfflineQueueForTests();
+    await hydratePendingToggles();
+    const skickat: unknown[] = [];
+    await replayPendingToggles('lista', async (id, c, opts) => { skickat.push(opts); return id; });
+    expect(skickat).toEqual([{ at: '2026-09-28T10:00:00.000Z', bulk: true }]);
+  });
+
+  it('läser den gamla kön på disken, som bara sparade true/false', async () => {
+    disk.data.set('pending-toggles', JSON.stringify({ lista: { mjölk: true } }));
+    await hydratePendingToggles();
+    expect(getPendingToggles('lista').get('mjölk')).toBe(true);
+    const skickat: Array<{ at: string }> = [];
+    await replayPendingToggles('lista', async (_id, _c, opts) => { skickat.push(opts); return 1; });
+    expect(Number.isNaN(new Date(skickat[0].at).getTime())).toBe(false);
+  });
+});
+
 describe('listan går att öppna utan nät', () => {
   it('sparar och läser tillbaka senaste versionen', async () => {
     const lista = { id: 'lista', items: [{ id: 'mjölk', isChecked: false }] };
