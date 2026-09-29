@@ -68,7 +68,7 @@ import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem , visningsnamn, parseItemLine } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem , visningsnamn, parseItemLine, formateraKöksmått } from '@veckis/shared';
 import { isIOSLike, isWeb } from '../../src/lib/platform';
 import { shoppingList as str, common } from '../../src/lib/svenska';
 import {
@@ -2629,7 +2629,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                     />
                     <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(g.rep.name)}</Text>
                     {(g.quantity !== 1 || g.rep.unit) && (
-                      <Text style={s.mergeItemQty}>{String(g.quantity).replace('.', ',')}{g.rep.unit ? ` ${g.rep.unit.toLowerCase()}` : ''}</Text>
+                      <Text style={s.mergeItemQty}>{formateraKöksmått(g.quantity, g.rep.unit)}{g.rep.unit ? ` ${g.rep.unit.toLowerCase()}` : ''}</Text>
                     )}
                   </Pressable>
                 );
@@ -2973,7 +2973,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                     </View>
                     {v.quantity ? (
                       <Text style={[s.mergeItemQty, !vald && s.importAvvald]}>
-                        {String(v.quantity).replace('.', ',')}{v.unit ? ` ${v.unit}` : ''}
+                        {formateraKöksmått(v.quantity, v.unit)}{v.unit ? ` ${v.unit}` : ''}
                       </Text>
                     ) : null}
                     {v.original ? (
@@ -3195,7 +3195,7 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
                     (dl, g, msk) saknas i tabellen och lämnas därmed orörda,
                     vilket är rätt — de böjs inte på svenska. */}
                 {(item.quantity !== 1 || item.unit) && (
-                  <Text style={[s.itemQty, (item.isChecked || pending) && s.itemNameChecked]}>{String(item.quantity).replace('.', ',')}{item.unit ? ` ${visningsnamn(item.unit, item.quantity)}` : ''}</Text>
+                  <Text style={[s.itemQty, (item.isChecked || pending) && s.itemNameChecked]}>{formateraKöksmått(item.quantity, item.unit)}{item.unit ? ` ${visningsnamn(item.unit, item.quantity)}` : ''}</Text>
                 )}
               </View>
             </Pressable>

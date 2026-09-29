@@ -6,6 +6,7 @@ export * from './types/staple';
 export * from './lib/taxonomy';
 export * from './lib/inferSubCategory';
 export * from './lib/unitConversion';
+export * from './lib/unitOrder';
 export * from './lib/pluralform';
 export * from './lib/koksmatt';
 export * from './lib/itemLine';

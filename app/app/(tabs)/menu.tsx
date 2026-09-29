@@ -50,13 +50,14 @@ import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
 import { isPantryBasic, PANTRY_BASICS_KEY } from '../../src/lib/pantryBasics';
 import { inventoryCategory } from '../../src/lib/inventoryCategory';
+import { mergeConvertibleUnits } from '../../src/lib/inventoryUnits';
 import * as SecureStore from '../../src/lib/secureStorage';
 import { ReceptBild } from '../../src/components/ReceptBild';
 import { cloudinaryOptimized, CARD_IMAGE_WIDTH } from '../../src/lib/cloudinaryUrl';
 import { platshallare } from '../../src/lib/receptPlatshallare';
 import { DatePickerModal } from '../../src/components/DatePickerModal';
 import type { WeekDay, MealType } from '@veckis/shared';
-import { DEFAULT_CATEGORY_ORDER, MEAL_TYPE_ORDER } from '@veckis/shared';
+import { DEFAULT_CATEGORY_ORDER, MEAL_TYPE_ORDER, formateraKöksmått } from '@veckis/shared';
 import { menu as str, common, recipes as recipesStr } from '../../src/lib/svenska';
 import { formateraTidsetikett } from '../../src/lib/cookTimer';
 
@@ -131,7 +132,6 @@ function unitStep(unit: string | null, total: number): number {
   return 1;
 }
 
-const fmtQty = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',');
 
 // Dra-bar för "Vad har du hemma": 0 → totalbehovet. Tap på spåret sätter värdet
 // direkt; horisontellt drag justerar. Vertikala rörelser släpps till scrollen.
@@ -231,12 +231,13 @@ function InvMeasuredRow({ agg, haveAmt, onCommit }: {
   const total = agg.totalQty ?? 0;
   const shown = liveVal ?? haveAmt;
   const covered = shown >= total && total > 0;
-  const valueLabel = `${fmtQty(shown)}${unitLabel}`;
+  // Bråk som i receptvyn ("3 1/3 dl"), inte decimaler — det är så måttsatsen ser ut.
+  const valueLabel = `${formateraKöksmått(shown, agg.unit)}${unitLabel}`;
   return (
     <View style={s.invRowCol}>
       <View style={s.invRowTop}>
         <Text style={[s.invName, { flex: 1 }, covered && s.invNameDone]} numberOfLines={1}>
-          {fmtQty(total)}{unitLabel} {agg.name}
+          {formateraKöksmått(total, agg.unit)}{unitLabel} {agg.name}
         </Text>
         {/* Explicit minWidth — Android mäter vissa strängar ("kg", "dl") för
             smalt och klipper annars sista glyfen. */}
@@ -532,8 +533,9 @@ export default function MenuScreen() {
       const i = DEFAULT_CATEGORY_ORDER.indexOf(c as never);
       return i < 0 ? DEFAULT_CATEGORY_ORDER.length : i;
     };
-    return [...map.values()]
-      .map(a => (a.measured && (a.totalQty ?? 0) > 0 ? a : { ...a, measured: false, totalQty: null }))
+    // "2 msk grädde" + "3 dl grädde" blir en rad — samma regel som listan.
+    return mergeConvertibleUnits([...map.values()]
+      .map(a => (a.measured && (a.totalQty ?? 0) > 0 ? a : { ...a, measured: false, totalQty: null })))
       .sort((a, b) => (catIdx(a.category) - catIdx(b.category)) || a.name.localeCompare(b.name, 'sv'));
   }, [selectedRecipesForTransfer, bulkPool, menuItemServings, transferredMenuItemIds, resolvedNames]);
 

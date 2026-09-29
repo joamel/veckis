@@ -30,6 +30,14 @@ describe('combineQuantities', () => {
     ])).toEqual({ quantity: 2, unit: 'dl' });
   });
 
+  it('mellan en halv och en hel blir det dl respektive g — inte "0,5"', () => {
+    // Förut fångade >= 500 allt upp till 999: 8 dl blev 0,5 l och 3 dl + 3 dl
+    // blev 0,5 l i inköpslistans sammanslagning.
+    expect(combineQuantities([{ quantity: 8, unit: 'dl' }])).toEqual({ quantity: 8, unit: 'dl' });
+    expect(combineQuantities([{ quantity: 3, unit: 'dl' }, { quantity: 3, unit: 'dl' }])).toEqual({ quantity: 6, unit: 'dl' });
+    expect(combineQuantities([{ quantity: 750, unit: 'g' }])).toEqual({ quantity: 750, unit: 'g' });
+  });
+
   it('promotes to l for >= 1 l and uses 0.5 l for exactly half', () => {
     expect(combineQuantities([{ quantity: 5, unit: 'dl' }])).toEqual({ quantity: 0.5, unit: 'l' });
     expect(combineQuantities([
