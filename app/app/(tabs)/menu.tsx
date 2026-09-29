@@ -49,6 +49,7 @@ import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
 import { isPantryBasic, PANTRY_BASICS_KEY } from '../../src/lib/pantryBasics';
+import { inventoryCategory } from '../../src/lib/inventoryCategory';
 import * as SecureStore from '../../src/lib/secureStorage';
 import { ReceptBild } from '../../src/components/ReceptBild';
 import { cloudinaryOptimized, CARD_IMAGE_WIDTH } from '../../src/lib/cloudinaryUrl';
@@ -310,7 +311,12 @@ export default function MenuScreen() {
   // Markerad lista i list-steget — överföring sker först vid "Överför"-knappen
   // så man inte råkar trycka på fel lista (kan inte ångras).
   const [bulkSelectedListId, setBulkSelectedListId] = useState<string | null>(null);
-  const [ingredientCategories, setIngredientCategories] = useState<Record<string, string>>({}); // name -> category for inventory sorting
+  // Receptnamn (gemener) → kanoniskt namn + kategori, från servern (se
+  // lib/inventoryNames.ts i backend). Hushållets kategori-val i listan och
+  // poolens namnpar ("konc. kycklingfond" → "kycklingfond") slår då igenom i
+  // inventeringen. Namn som inte hunnit slås upp gissas lokalt.
+  const [resolvedNames, setResolvedNames] = useState<Record<string, { canonical: string; category: string }>>({});
+  const resolvingRef = useRef(new Set<string>());
   // Per-menu-item: which lists have items from it (keyed by menuItemId for per-instance tracking)
   type ListEntry = { listId: string; listName: string; itemCount: number };
   const [recipeListMap, setRecipeListMap] = useState<Record<string, ListEntry[]>>({});
@@ -476,6 +482,24 @@ export default function MenuScreen() {
   // (with provenance), so a shared ingredient isn't inventoried multiple times.
   // Restricted to the active week and excludes already-transferred recipes so it
   // matches exactly what step 1 offered + the user picked.
+  useEffect(() => {
+    if (!showBulkTransferModal || !householdId) return;
+    const names = [...new Set(bulkPool.flatMap(m => m.recipe.ingredients.map(i => i.name.toLowerCase().trim())))]
+      .filter(n => n && !(n in resolvedNames) && !resolvingRef.current.has(n))
+      .slice(0, 500);
+    if (names.length === 0) return;
+    names.forEach(n => resolvingRef.current.add(n));
+    client.resolveInventoryNames(householdId, names)
+      .then(rows => setResolvedNames(prev => {
+        const next = { ...prev };
+        for (const r of rows) next[r.name] = { canonical: r.canonical, category: r.category };
+        return next;
+      }))
+      // Utan svar gissas kategorin ur namnet (inventoryCategory) — sorteringen blir ändå rimlig.
+      .catch(() => {})
+      .finally(() => names.forEach(n => resolvingRef.current.delete(n)));
+  }, [showBulkTransferModal, householdId, client, bulkPool, resolvedNames]);
+
   const aggregatedInventory = useMemo<AggIngredient[]>(() => {
     const selected = bulkPool.filter(m => selectedRecipesForTransfer.has(m.id) && !transferredMenuItemIds.has(m.id));
     const map = new Map<string, AggIngredient>();
@@ -483,14 +507,17 @@ export default function MenuScreen() {
       const ratio = getScaleRatio(item);
       for (const ing of item.recipe.ingredients) {
         const unit = ing.unit ?? null;
-        const key = `${ing.name.toLowerCase().trim()}|${(unit ?? '').toLowerCase().trim()}`;
+        const resolved = resolvedNames[ing.name.toLowerCase().trim()];
+        // Varianter av samma vara blir en rad under listans namn.
+        const name = resolved?.canonical || ing.name;
+        const key = `${name.toLowerCase().trim()}|${(unit ?? '').toLowerCase().trim()}`;
         const qty = scaleQty(ing.quantity ?? null, ratio);
         let agg = map.get(key);
         if (!agg) {
-          // Prefer the learned/common category by name (where it lands in the
-          // store); recipe ingredients themselves are usually 'other'.
-          const cat = ingredientCategories[ing.name.toLowerCase().trim()] ?? ing.category;
-          agg = { key, name: ing.name, unit, category: cat, totalQty: 0, measured: true, recipeTitles: [], sources: [] };
+          // Var varan hamnar i butiken — inlärt per namn, annars gissat ur
+          // namnet. Receptets egen kategori är oftast 'other' (se inventoryCategory).
+          const cat = resolved?.category ?? inventoryCategory(ing.name, {}, ing.category);
+          agg = { key, name, unit, category: cat, totalQty: 0, measured: true, recipeTitles: [], sources: [] };
           map.set(key, agg);
         }
         agg.sources.push({ menuItemId: item.id, recipeId: item.recipeId, qty });
@@ -508,7 +535,7 @@ export default function MenuScreen() {
     return [...map.values()]
       .map(a => (a.measured && (a.totalQty ?? 0) > 0 ? a : { ...a, measured: false, totalQty: null }))
       .sort((a, b) => (catIdx(a.category) - catIdx(b.category)) || a.name.localeCompare(b.name, 'sv'));
-  }, [selectedRecipesForTransfer, bulkPool, menuItemServings, transferredMenuItemIds, ingredientCategories]);
+  }, [selectedRecipesForTransfer, bulkPool, menuItemServings, transferredMenuItemIds, resolvedNames]);
 
   // Inventory: en flat lista där varje rad har en dra-bar + ✓-knapp. Cap höjden
   // så Överför-/Tillbaka-knapparna inte klipps på korta skärmar.
@@ -696,11 +723,10 @@ export default function MenuScreen() {
     const seq = ++loadSeqRef.current;
     const versionAtStart = stateVersionRef.current;
     try {
-      const [menu, recs, activeLists, suggestions, all] = await Promise.all([
+      const [menu, recs, activeLists, all] = await Promise.all([
         client.getWeekMenu(householdId, weekYear, weekNumber),
         client.getRecipes(householdId),
         client.getShoppingLists(householdId),
-        client.getIngredientSuggestions(householdId).catch(() => [] as { name: string; category: string }[]),
         client.getAllMenus(householdId).catch(() => [] as WeekMenuItemWithRecipe[]),
       ]);
       if (seq !== loadSeqRef.current) return; // en nyare load() har redan startat — kasta detta inaktuella svaret
@@ -730,11 +756,6 @@ export default function MenuScreen() {
       setRecipes(recs);
       setShoppingLists(activeLists);
       setAllMenus(allFiltered);
-      // name -> category map (learned aliases + common ingredients), so the
-      // inventory can group by where the item lands in the store.
-      const catMap: Record<string, string> = {};
-      for (const sgg of suggestions) catMap[sgg.name.toLowerCase().trim()] = sgg.category;
-      setIngredientCategories(catMap);
       const listMap: Record<string, ListEntry[]> = {};
       // Build over ALL weeks' menu items (not just the current week) so the
       // "I inköpslistan"-tag is already correct on neighbouring week pages the

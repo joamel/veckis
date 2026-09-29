@@ -9,6 +9,8 @@ import { basvaruskrivning } from '../lib/basvaruval';
 import { COMMON_INGREDIENTS } from '../lib/commonIngredients';
 import { duglingGlobalt } from '../lib/normalizeIngredients';
 import { delaAlternativ } from '../lib/alternativ';
+import { stripIngredient } from '../lib/stripIngredient';
+import { resolveInventoryNames } from '../lib/inventoryNames';
 import { normalizeUnit } from '@veckis/shared';
 import { wsListUpdate } from '../lib/wsHub';
 
@@ -191,6 +193,31 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
     ...cleanAliases.map(a => ({ name: a.canonical, category: a.category as string })),
     ...common.map(c => ({ name: c.name, category: c.category as string })),
   ]);
+}));
+
+// POST /api/staples/resolve — kanoniskt namn och kategori för inventeringens
+// rader, med hushållets egna val först. Se lib/inventoryNames.ts.
+staplesRouter.post('/resolve', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
+  const body = z.object({
+    householdId: z.string(),
+    names: z.array(z.string().min(1).max(200)).max(500),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  const stripped = [...new Set(body.data.names.map(n => stripIngredient(n)))];
+  const aliasRows = await prisma.ingredientAlias.findMany({
+    where: { raw: { in: stripped } },
+    select: { raw: true, canonical: true, category: true },
+  });
+  const aliases = new Map(aliasRows.map(a => [a.raw, { canonical: a.canonical, category: a.category }]));
+  const lookup = [...new Set([...stripped, ...aliasRows.map(a => a.canonical)])];
+  const staples = await prisma.stapleItem.findMany({
+    where: { householdId: body.data.householdId, name: { in: lookup } },
+    select: { name: true, category: true },
+  });
+  const own = new Map(staples.map(s => [s.name, s.category]));
+
+  res.json(resolveInventoryNames(body.data.names, aliases, own));
 }));
 
 // POST /api/staples/hide-suggestion — dölj ett sök-/ingrediensförslag för hushållet

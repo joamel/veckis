@@ -599,6 +599,10 @@ export function useApiClient() {
     deleteStaple: (stapleId: string) =>
       request<void>(`/api/staples/${stapleId}`, { method: 'DELETE' }),
 
+    // Kanoniskt namn + kategori för inventeringens rader (hushållets val först).
+    resolveInventoryNames: (householdId: string, names: string[]) =>
+      request<{ name: string; canonical: string; category: string }[]>('/api/staples/resolve', { method: 'POST', body: JSON.stringify({ householdId, names }) }),
+
     getIngredientSuggestions: (householdId: string) =>
       request<{ name: string; category: string }[]>(`/api/staples/suggestions?householdId=${householdId}`),
 
