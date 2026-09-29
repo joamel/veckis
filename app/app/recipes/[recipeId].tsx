@@ -8,7 +8,6 @@ import {
   Animated,
   AppState,
   Dimensions,
-  FlatList,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -34,6 +33,7 @@ import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { cloudinaryOptimized } from '../../src/lib/cloudinaryUrl';
 import { TagLabel } from '../../src/components/TagLabel';
+import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
 import { getISOWeek } from '../../src/lib/week';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -415,8 +415,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const [transferring, setTransferring] = useState(false);
   const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [deduplicatedIngredients, setDeduplicatedIngredients] = useState<ReturnType<typeof deduplicateIngredients>>([]);
-  const [newListName, setNewListName] = useState('');
-  const [creatingList, setCreatingList] = useState(false);
+  const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
   // Plan in menu modal — samma dag-grid + direkt-tillägg som receptbibliotekets
   // kalenderikon-dialog (delad look). planWeekStr styr vald vecka; grid-tapp
@@ -1024,8 +1023,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     const deduped = deduplicateIngredients(rec.ingredients, scaleRatio);
     setDeduplicatedIngredients(deduped);
     setCheckedIds(new Set(deduped.map(i => i.id)));
+    setSelectedListId(null);
     try {
-      setLists(await client.getShoppingLists(householdId));
+      const fetched = await client.getShoppingLists(householdId);
+      setLists(fetched);
+      // En enda lista: redan vald, så det räcker att trycka Överför.
+      if (fetched.length === 1) setSelectedListId(fetched[0].id);
     } catch {
       confirm({ title: str.errors.generic, message: str.transfer.noLists, buttons: [{ label: common.actions.ok }] });
     } finally {
@@ -1072,22 +1075,17 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     }
   }
 
-  // Ingen aktiv lista? Skapa en direkt i överförings-modalen och överför till den
-  // (samma bekvämlighet som veckomeny-överföringen), i stället för att skicka
-  // användaren till Inköp-fliken.
-  async function createListAndTransfer() {
-    if (!householdId || !newListName.trim()) return;
-    const selected = deduplicatedIngredients.filter(i => checkedIds.has(i.id));
-    if (selected.length === 0) { confirm({ title: str.errors.selectIngredients, buttons: [{ label: common.actions.ok }] }); return; }
-    setCreatingList(true);
+  // Ny lista direkt i överföringsarket: skapas och väljs, överföringen sker
+  // på Överför som för alla andra listor.
+  async function createListForPicker(name: string) {
+    if (!householdId) return null;
     try {
-      const list = await client.createShoppingList({ householdId, name: newListName.trim() });
-      setNewListName('');
-      await doTransfer(list.id);
+      const list = await client.createShoppingList({ householdId, name });
+      setLists(prev => [...prev, list]);
+      return list;
     } catch (e) {
       showError(e, str.errors.couldNotTransfer);
-    } finally {
-      setCreatingList(false);
+      return null;
     }
   }
 
@@ -1798,48 +1796,15 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           <Text style={s.listPickLabel}>{str.transfer.selectList}</Text>
           {loadingLists ? (
             <ActivityIndicator color={c.primary} style={{ marginVertical: 12 }} />
-          ) : lists.length === 0 ? (
-            <View>
-              <Text style={s.noListsText}>{str.transfer.noLists}</Text>
-              <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                <TextInput
-                  style={[s.editInput, { flex: 1 }]}
-                  placeholder={str.transfer.newListPlaceholder}
-                  placeholderTextColor={c.textFaint}
-                  value={newListName}
-                  onChangeText={setNewListName}
-                  returnKeyType="done"
-                  onSubmitEditing={createListAndTransfer}
-                />
-                <Pressable
-                  style={[s.saveBtn, { flex: 0, paddingHorizontal: 18 }, (!newListName.trim() || creatingList || checkedIds.size === 0) && { opacity: 0.4 }]}
-                  onPress={createListAndTransfer}
-                  disabled={!newListName.trim() || creatingList || checkedIds.size === 0}
-                >
-                  {creatingList ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>{str.transfer.createList}</Text>}
-                </Pressable>
-              </View>
-            </View>
           ) : (
-            <FlatList
-              data={lists}
-              keyExtractor={l => l.id}
-              style={s.listPicker}
-              scrollEnabled={false}
-              renderItem={({ item }) => {
-                const noneSelected = checkedIds.size === 0;
-                return (
-                  <Pressable
-                    style={[s.listPickerItem, noneSelected && { opacity: 0.4 }]}
-                    onPress={() => doTransfer(item.id)}
-                    disabled={transferring || noneSelected}
-                  >
-                    <Ionicons name="cart-outline" size={18} color={c.primary} />
-                    <Text style={s.listPickerItemText}>{item.name}</Text>
-                    {transferringListId === item.id && <ActivityIndicator size="small" color={c.primary} />}
-                  </Pressable>
-                );
-              }}
+            <ShoppingListPicker
+              lists={lists.map(l => ({ id: l.id, name: l.name, itemCount: l.items.length }))}
+              selectedId={selectedListId}
+              onSelect={setSelectedListId}
+              onCreate={createListForPicker}
+              onConfirm={doTransfer}
+              confirming={transferring}
+              confirmDisabled={checkedIds.size === 0}
             />
           )}
       </DraggableBottomSheet>
@@ -2371,10 +2336,6 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   selectAllRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginVertical: 8 },
   selectAllText: { fontSize: 13, color: c.primary, fontWeight: '500' },
   listPickLabel: { fontSize: 13, fontWeight: '600', color: c.textSecondary, marginTop: 4, marginBottom: 6 },
-  noListsText: { fontSize: 14, color: c.textFaint, textAlign: 'center', paddingVertical: 12 },
-  listPicker: {},
-  listPickerItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: c.background, borderRadius: 10, marginBottom: 6 },
-  listPickerItemText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
 });
 
 export default function RecipeDetailScreen() {

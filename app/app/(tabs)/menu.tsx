@@ -46,6 +46,7 @@ import { WeekNav } from '../../src/components/WeekNav';
 import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
+import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
 import { ReceptBild } from '../../src/components/ReceptBild';
 import { cloudinaryOptimized, CARD_IMAGE_WIDTH } from '../../src/lib/cloudinaryUrl';
 import { platshallare } from '../../src/lib/receptPlatshallare';
@@ -291,7 +292,6 @@ export default function MenuScreen() {
   // Mät-och-lyft i stället för KeyboardAvoidingView: den krympte arket och
   // lämnade ett tomrum när tangentbordet stängdes.
   const { sheetLift, onFocusInput } = useSheetLift();
-  const newListRef = useRef<TextInput>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [showWeekPicker, setShowWeekPicker] = useState(false);
   const weekMonday = useMemo(() => getWeekMonday(weekOffset), [weekOffset]);
@@ -303,14 +303,10 @@ export default function MenuScreen() {
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [shoppingLists, setShoppingLists] = useState<ShoppingListWithItems[]>([]);
   const [loading, setLoading] = useState(true);
-  const [transferSheet, setTransferSheet] = useState<WeekMenuItemWithRecipe | null>(null);
-  const [transferringListId, setTransferringListId] = useState<string | null>(null);
   const [bulkTransferringListId, setBulkTransferringListId] = useState<string | null>(null);
   // Markerad lista i list-steget — överföring sker först vid "Överför"-knappen
   // så man inte råkar trycka på fel lista (kan inte ångras).
   const [bulkSelectedListId, setBulkSelectedListId] = useState<string | null>(null);
-  const [newListName, setNewListName] = useState('');
-  const [creatingList, setCreatingList] = useState(false);
   const [ingredientCategories, setIngredientCategories] = useState<Record<string, string>>({}); // name -> category for inventory sorting
   // Per-menu-item: which lists have items from it (keyed by menuItemId for per-instance tracking)
   type ListEntry = { listId: string; listName: string; itemCount: number };
@@ -1255,17 +1251,16 @@ export default function MenuScreen() {
     }
   }
 
-  async function createListAndContinue() {
-    if (!householdId || !newListName.trim()) return;
-    setCreatingList(true);
+  // Pickern skapar listan och väljer den; överföringen sker på Överför.
+  async function createListForPicker(name: string) {
+    if (!householdId) return null;
     try {
-      const list = await client.createShoppingList({ householdId, name: newListName.trim() });
+      const list = await client.createShoppingList({ householdId, name });
       setShoppingLists(prev => [...prev, list]);
-      setNewListName('');
+      return list;
     } catch (e) {
       showError(e, str.toasts.errorCreateList);
-    } finally {
-      setCreatingList(false);
+      return null;
     }
   }
 
@@ -1404,38 +1399,6 @@ export default function MenuScreen() {
     } catch (e) {
       setBulkTransferringListId(null);
       showError(e, str.toasts.errorTransfer);
-    }
-  }
-
-  async function doTransfer(listId: string) {
-    if (!transferSheet || transferringListId) return;
-    const menuItemId = transferSheet.id;
-    const recipe = transferSheet.recipe;
-    const scaleRatio = getScaleRatio(transferSheet);
-    setTransferringListId(listId);
-    try {
-      await client.transferToShopping(listId, recipe.ingredients.map(ing => ({
-        name: ing.name,
-        quantity: scaleQty(ing.quantity ?? null, scaleRatio),
-        unit: ing.unit ?? null,
-        category: ing.category ?? undefined,
-        recipeId: recipe.id,
-        menuItemId,
-      })));
-      const targetList = shoppingLists.find(l => l.id === listId);
-      if (targetList) {
-        setRecipeListMap(prev => ({
-          ...prev,
-          [menuItemId]: [{ listId, listName: targetList.name, itemCount: recipe.ingredients.length }],
-        }));
-      }
-      setTransferSheet(null);
-      setTransferringListId(null);
-      load();
-      showGlobalToast(str.toasts.ingredientsTransferred(recipe.title), 'success');
-    } catch (e) {
-      setTransferringListId(null);
-      showError(e, str.toasts.errorTransferIngredients);
     }
   }
 
@@ -2085,52 +2048,6 @@ export default function MenuScreen() {
             </Pressable>
           </View>
       </DraggableBottomSheet>
-      {/* Transfer to shopping list modal */}
-      <DraggableBottomSheet isDirty={newListName.trim() !== ''} visible={!!transferSheet} onRequestClose={() => { setTransferSheet(null); setNewListName(''); }} liftOffset={sheetLift} sheetStyle={s.sheet} title={str.bulk.chooseShoppingList}>
-          {shoppingLists.length === 0 ? (
-            <>
-              <Text style={s.pickerEmptyText}>{str.bulk.noActiveList}</Text>
-              <View style={s.createListRow}>
-                <TextInput
-                  ref={newListRef}
-                  onFocus={onFocusInput(newListRef)}
-                  style={[s.input, { flex: 1, marginTop: 0 }]}
-                  placeholder={str.bulk.newListNamePlaceholder}
-                  placeholderTextColor={c.textFaint}
-                  value={newListName}
-                  onChangeText={setNewListName}
-                  returnKeyType="done"
-                  onSubmitEditing={createListAndContinue}
-                  autoFocus
-                />
-                <Pressable
-                  style={[s.createListBtn, (!newListName.trim() || creatingList) && s.buttonDisabled]}
-                  onPress={createListAndContinue}
-                  disabled={creatingList || !newListName.trim()}
-                >
-                  {creatingList
-                    ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={s.createListBtnText}>{str.bulk.create}</Text>}
-                </Pressable>
-              </View>
-            </>
-          ) : (
-            shoppingLists.map(l => (
-              <Pressable
-                key={l.id}
-                style={[s.pickerItem, !!transferringListId && s.pickerItemDisabled]}
-                onPress={() => doTransfer(l.id)}
-                disabled={!!transferringListId}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={s.pickerItemTitle}>{l.name}</Text>
-                  <Text style={s.pickerItemMeta}>{str.bulk.itemsCount(l.items.length)}</Text>
-                </View>
-                {transferringListId === l.id && <ActivityIndicator size="small" color={c.primary} />}
-              </Pressable>
-            ))
-          )}
-      </DraggableBottomSheet>
 
       {/* Bulk transfer modal — choose recipes and list */}
       <DraggableBottomSheet
@@ -2363,64 +2280,14 @@ export default function MenuScreen() {
             </>
           ) : (
             <>
-              {shoppingLists.length === 0 ? (
-                <>
-                  <Text style={s.pickerEmptyText}>{str.bulk.noActiveList}</Text>
-                  <View style={s.createListRow}>
-                    <TextInput
-                      style={[s.input, { flex: 1, marginTop: 0 }]}
-                      placeholder={str.bulk.newListNamePlaceholder}
-                      placeholderTextColor={c.textFaint}
-                      value={newListName}
-                      onChangeText={setNewListName}
-                      returnKeyType="done"
-                      onSubmitEditing={createListAndContinue}
-                    />
-                    <Pressable
-                      style={[s.createListBtn, (!newListName.trim() || creatingList) && s.buttonDisabled]}
-                      onPress={createListAndContinue}
-                      disabled={creatingList || !newListName.trim()}
-                    >
-                      {creatingList
-                        ? <ActivityIndicator color="#fff" size="small" />
-                        : <Text style={s.createListBtnText}>{str.bulk.create}</Text>}
-                    </Pressable>
-                  </View>
-                </>
-              ) : (
-                <ScrollView style={s.bulkRecipeList}>
-                  {shoppingLists.map(l => {
-                    const selected = bulkSelectedListId === l.id;
-                    return (
-                      <Pressable
-                        key={l.id}
-                        style={[s.pickerItem, selected && s.pickerItemActive, !!bulkTransferringListId && s.pickerItemDisabled]}
-                        onPress={() => setBulkSelectedListId(l.id)}
-                        disabled={!!bulkTransferringListId}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.pickerItemTitle}>{l.name}</Text>
-                          <Text style={s.pickerItemMeta}>{str.bulk.itemsCount(l.items.length)}</Text>
-                        </View>
-                        {bulkTransferringListId === l.id
-                          ? <ActivityIndicator size="small" color={c.primary} />
-                          : selected && <Ionicons name="checkmark-circle" size={22} color={c.primary} />}
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              )}
-              {shoppingLists.length > 0 && (
-                <Pressable
-                  style={[s.button, (!bulkSelectedListId || !!bulkTransferringListId) && s.buttonDisabled]}
-                  onPress={() => bulkSelectedListId && executeBulkTransfer(bulkSelectedListId)}
-                  disabled={!bulkSelectedListId || !!bulkTransferringListId}
-                >
-                  {bulkTransferringListId
-                    ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={s.buttonText}>{str.bulk.transfer}</Text>}
-                </Pressable>
-              )}
+              <ShoppingListPicker
+                lists={shoppingLists.map(l => ({ id: l.id, name: l.name, itemCount: l.items.length }))}
+                selectedId={bulkSelectedListId}
+                onSelect={setBulkSelectedListId}
+                onCreate={createListForPicker}
+                onConfirm={executeBulkTransfer}
+                confirming={!!bulkTransferringListId}
+              />
               <Pressable
                 style={[s.button, { backgroundColor: ny.ljus }]}
                 onPress={() => setBulkTransferStep('ingredients')}
@@ -3117,18 +2984,10 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   recipeCardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: ny.bricka, alignItems: 'center', justifyContent: 'center' },
   recipeCardTitle: { fontFamily: nyFont.halvfet, fontSize: 15, color: ny.text },
   recipeCardMeta: { fontSize: 12, color: c.textMuted, marginTop: 2 },
-  pickerItem: { paddingVertical: 14, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: ny.kontur, flexDirection: 'row', alignItems: 'center' },
-  pickerItemActive: { backgroundColor: ny.bricka, borderRadius: 10, borderBottomColor: 'transparent' },
-  pickerItemDisabled: { opacity: 0.5 },
-  pickerItemTitle: { fontSize: 16, fontWeight: '600', color: ny.text },
-  pickerItemMeta: { fontSize: 13, color: ny.textDampad, marginTop: 2 },
   pickerEmpty: { alignItems: 'center', paddingVertical: 24, gap: 12 },
   pickerEmptyText: { fontSize: 14, color: ny.textDampad, textAlign: 'center' },
   pickerEmptyBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: ny.lime, borderRadius: 14 },
   pickerEmptyBtnText: { fontSize: 14, color: ny.skog, fontWeight: '600' },
-  createListRow: { flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 8 },
-  createListBtn: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: ny.lime, borderRadius: 14 },
-  createListBtnText: { fontSize: 14, color: ny.skog, fontWeight: '600' },
   cleanupList: { gap: 8 },
   cleanupItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: c.background, borderWidth: 1, borderColor: c.borderLight },
   cleanupItemActive: { backgroundColor: c.primaryTint, borderColor: c.primary },

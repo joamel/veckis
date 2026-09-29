@@ -512,10 +512,7 @@ export const menu = {
     back:                    'Tillbaka',
     chooseShoppingList:      'Välj inköpslista',
     dishesToTransfer:        (n: number) => `${n} rätt(er) att överföra`,
-    noActiveList:            'Ingen aktiv inköpslista - skapa en direkt här',
-    newListNamePlaceholder:  'Namnge ny lista',
     create:                  'Skapa',
-    itemsCount:              (n: number) => `${n} varor`,
   },
 
   weekPicker: {
@@ -778,8 +775,6 @@ export const recipes = {
     clearAll:    'Rensa',
     selectList:  'Välj lista:',
     noLists:     'Du har ingen aktiv lista än — skapa en:',
-    newListPlaceholder: 'Namnge ny lista',
-    createList:  'Skapa',
     tip:         '"Lägg i lista"-knappen bredvid Ingredienser låter dig välja vad du vill ha och skicka det direkt till en inköpslista.',
     done:        'Klart!',
     success:     (n: number) => `${n} ingredienser tillagda i listan`,
@@ -1143,6 +1138,14 @@ export const stores = {
 // ─── Komponenter ──────────────────────────────────────────────────────────────
 
 export const components = {
+  shoppingListPicker: {
+    itemsCount:     (n: number) => `${n} varor`,
+    newList:        'Ny inköpslista',
+    namePlaceholder:'Namnge ny lista',
+    create:         'Skapa',
+    noLists:        'Du har ingen inköpslista än — skapa en:',
+    transfer:       'Överför',
+  },
   multiMemberPicker: {
     label:          (n: number) => `Tilldela person${n !== 1 ? 'er' : ''}`,
     none:           'Ingen',
