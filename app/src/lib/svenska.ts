@@ -437,6 +437,8 @@ export const menu = {
     have:              'Finns',
     buy:               (amount: string, unit: string) => `köp ${amount}${unit}`,
     amountPlaceholder: 'Har',
+    basicsAtHome:      'Salt, peppar och vatten finns hemma',
+    basicsHidden:      (n: number) => `${n} ${n === 1 ? 'rad' : 'rader'} dolda`,
   },
 
   emptyState: {

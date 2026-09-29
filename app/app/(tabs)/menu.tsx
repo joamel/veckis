@@ -14,6 +14,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  Switch,
   TextInput,
   useWindowDimensions,
   View,
@@ -47,6 +48,8 @@ import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
+import { isPantryBasic, PANTRY_BASICS_KEY } from '../../src/lib/pantryBasics';
+import * as SecureStore from '../../src/lib/secureStorage';
 import { ReceptBild } from '../../src/components/ReceptBild';
 import { cloudinaryOptimized, CARD_IMAGE_WIDTH } from '../../src/lib/cloudinaryUrl';
 import { platshallare } from '../../src/lib/receptPlatshallare';
@@ -331,6 +334,16 @@ export default function MenuScreen() {
   // bara "Har"-toggle.
   const [haveAtHome, setHaveAtHome] = useState<Record<string, number>>({}); // aggKey -> mängd hemma
   const [hadUnmeasured, setHadUnmeasured] = useState<Set<string>>(new Set()); // omätta ingredienser markerade "har hemma"
+  // "Salt, peppar och vatten finns hemma" — ett reglage överst i inventeringen
+  // som döljer de raderna och håller dem utanför listan. Minns valet per enhet.
+  const [basicsAtHome, setBasicsAtHome] = useState(false);
+  useEffect(() => {
+    SecureStore.getItemAsync(PANTRY_BASICS_KEY).then(v => setBasicsAtHome(v === '1')).catch(() => {});
+  }, []);
+  const toggleBasicsAtHome = (on: boolean) => {
+    setBasicsAtHome(on);
+    SecureStore.setItemAsync(PANTRY_BASICS_KEY, on ? '1' : '0').catch(() => { /* best-effort */ });
+  };
   // Vilka recept-id:n haveAtHome/hadUnmeasured just nu är ifyllda för — så en
   // ofrivillig bakåt-navigering (recept-steg → ingrediens-steg igen) INTE
   // nollställer det man redan hunnit fylla i, så länge receptvalet är oförändrat.
@@ -1337,6 +1350,7 @@ export default function MenuScreen() {
       const actuallyIds = new Set(actuallyTransfer.map(i => i.id));
       const allIngredients: { name: string; quantity: number | null; unit: string | null; category?: string; recipeId: string; menuItemId: string }[] = [];
       for (const agg of aggregatedInventory) {
+        if (basicsAtHome && isPantryBasic(agg.name)) continue;
         const srcs = agg.sources.filter(s => actuallyIds.has(s.menuItemId));
         if (srcs.length === 0) continue;
 
@@ -2253,7 +2267,26 @@ export default function MenuScreen() {
                 style={{ maxHeight: invMaxListH, marginBottom: 12 }}
                 keyboardShouldPersistTaps="handled"
               >
-                {aggregatedInventory.map(agg => renderInventoryRow(agg))}
+                {(() => {
+                  const basics = aggregatedInventory.filter(a => isPantryBasic(a.name));
+                  return basics.length > 0 && (
+                    <View style={s.basicsRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.basicsText}>{str.inventory.basicsAtHome}</Text>
+                        {basicsAtHome && <Text style={s.basicsHint}>{str.inventory.basicsHidden(basics.length)}</Text>}
+                      </View>
+                      <Switch
+                        value={basicsAtHome}
+                        onValueChange={toggleBasicsAtHome}
+                        trackColor={{ false: ny.kontur, true: ny.lime }}
+                        thumbColor={basicsAtHome ? ny.skog : ny.ljus}
+                      />
+                    </View>
+                  );
+                })()}
+                {aggregatedInventory
+                  .filter(agg => !(basicsAtHome && isPantryBasic(agg.name)))
+                  .map(agg => renderInventoryRow(agg))}
               </ScrollView>
               <Pressable
                 style={s.button}
@@ -2985,6 +3018,9 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   recipeCardTitle: { fontFamily: nyFont.halvfet, fontSize: 15, color: ny.text },
   recipeCardMeta: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   pickerEmpty: { alignItems: 'center', paddingVertical: 24, gap: 12 },
+  basicsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 6, borderBottomWidth: 1, borderBottomColor: ny.kontur },
+  basicsText: { fontSize: 15, fontWeight: '600', color: ny.text },
+  basicsHint: { fontSize: 12, color: ny.textDampad, marginTop: 2 },
   pickerEmptyText: { fontSize: 14, color: ny.textDampad, textAlign: 'center' },
   pickerEmptyBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: ny.lime, borderRadius: 14 },
   pickerEmptyBtnText: { fontSize: 14, color: ny.skog, fontWeight: '600' },
