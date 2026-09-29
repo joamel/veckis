@@ -25,6 +25,12 @@ export const staplesRouter = Router();
 // det längre.
 const MIN_HOUSEHOLDS_FOR_GLOBAL_SUGGESTION = 2;
 
+// Tak för hur många globala namn som skickas. Hela listan följer med varje
+// gång en inköpslista öppnas och sökindexet byggs om i appen, så den ska inte
+// växa fritt — men taket räknas EFTER tröskeln, så bara namn som redan klarat
+// den konkurrerar om platserna (annars trängde ensamma namn ut riktiga).
+const MAX_GLOBAL_SUGGESTIONS = 2000;
+
 const categoryEnum = z.nativeEnum(StoreCategory);
 
 // GET /api/staples?householdId=
@@ -151,31 +157,26 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
   });
   if (!member) { res.status(403).json({ error: 'Not a member' }); return; }
 
-  const [aliases, hidden] = await Promise.all([
+  // Tröskeln i själva frågan: annars hämtas de 500 mest sedda namnen först och
+  // filtreras efteråt, så namn längre ner i listan når aldrig andra hushåll.
+  const eligibleRaws = MIN_HOUSEHOLDS_FOR_GLOBAL_SUGGESTION > 1
+    ? (await prisma.ingredientAliasHousehold.groupBy({
+        by: ['raw'],
+        having: { householdId: { _count: { gte: MIN_HOUSEHOLDS_FOR_GLOBAL_SUGGESTION } } },
+      })).map(r => r.raw)
+    : null;
+
+  const [cleanAliasRows, hidden] = await Promise.all([
     prisma.ingredientAlias.findMany({
+      where: eligibleRaws ? { raw: { in: eligibleRaws } } : undefined,
       distinct: ['canonical'],
       select: { raw: true, canonical: true, category: true },
       orderBy: { seenCount: 'desc' },
-      take: 500,
+      take: MAX_GLOBAL_SUGGESTIONS,
     }),
     prisma.hiddenSuggestion.findMany({ where: { householdId }, select: { name: true } }),
   ]);
-
-  // Global tröskel: kräv att minst N distinkta hushåll sett namnet innan det
-  // syns för ANDRA hushåll (se konstanten ovan). No-op medan tröskeln är 1 —
-  // frågan körs bara när den faktiskt filtrerar bort något.
-  const eligibleAliases = MIN_HOUSEHOLDS_FOR_GLOBAL_SUGGESTION > 1
-    ? await (async () => {
-        const counts = await prisma.ingredientAliasHousehold.groupBy({
-          by: ['raw'],
-          where: { raw: { in: aliases.map(a => a.raw) } },
-          _count: { householdId: true },
-        });
-        const countByRaw = new Map(counts.map(c => [c.raw, c._count.householdId]));
-        return aliases.filter(a => (countByRaw.get(a.raw) ?? 0) >= MIN_HOUSEHOLDS_FOR_GLOBAL_SUGGESTION);
-      })()
-    : aliases;
-
+  const eligibleAliases = cleanAliasRows;
   // Per-hushåll dolda förslag (långtryck → "ta bort förslag") filtreras bort ur
   // bägge källorna. Global IngredientAlias rörs inte — bara det här hushållet
   // slutar se namnet.

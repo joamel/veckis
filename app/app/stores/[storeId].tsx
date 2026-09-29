@@ -858,7 +858,7 @@ export default function StoreDetailScreen() {
                             hitSlop={6}
                           >
                             <Ionicons name={clusterOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={c.textMuted} />
-                            <Text style={s.catName} numberOfLines={2}>{`${plainLabel(cluster.parentKey)} ${cluster.index}`}</Text>
+                            <Text style={s.catName}>{`${plainLabel(cluster.parentKey)} ${cluster.index}`}</Text>
                             <Text style={s.expandedBadge}>{cluster.members.length}</Text>
                           </Pressable>
                           <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -881,7 +881,7 @@ export default function StoreDetailScreen() {
                       >
                         <View style={s.catRow}>
                           <View style={{ flex: 1, paddingLeft: cluster ? 40 : 24 }}>
-                            <Text style={[s.subName, s.subNameActive]} numberOfLines={2}>{subLabel}</Text>
+                            <Text style={[s.subName, s.subNameActive]}>{subLabel}</Text>
                             {!cluster && <Text style={s.placedFrom} numberOfLines={1}>{str.detail.placedFrom(fromParent)}</Text>}
                           </View>
                           <View style={{ flexDirection: 'row', gap: 6 }}>

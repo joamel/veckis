@@ -222,6 +222,12 @@ function matchar(namn: string, ord: string[], kw: string): boolean {
  */
 const UNDANTAG: { frasar: string[]; category: StoreCategory }[] = [
   {
+    // "kaffefilter" börjar på "kaffe" och blev dryck; i butiken ligger det
+    // bland kaffet i torrvaruhyllan.
+    category: 'canned_dry',
+    frasar: ['kaffefilter', 'kaffefiltret', 'kaffefilt'],
+  },
+  {
     category: 'canned_dry',
     frasar: ['krossade tomater', 'passerade tomater', 'soltorkade tomater', 'tomatpuré', 'tomatpure', 'körsbärstomater på burk'],
   },

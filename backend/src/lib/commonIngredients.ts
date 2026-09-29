@@ -366,6 +366,21 @@ const COMMON_INGREDIENTS_RAW: { name: string; category: StoreCategory }[] = [
   { name: 'WC-rengöring', category: 'cleaning' },
   { name: 'Plastfolie', category: 'cleaning' },
   { name: 'Papperspåsar', category: 'cleaning' },
+  { name: 'Kaffefilter', category: 'canned_dry' },
+  { name: 'Fryspåsar', category: 'cleaning' },
+  { name: 'Diskborste', category: 'cleaning' },
+  { name: 'Disktrasa', category: 'cleaning' },
+  { name: 'Servetter', category: 'cleaning' },
+  { name: 'Muffinsformar', category: 'cleaning' },
+  { name: 'Avkalkningsmedel', category: 'cleaning' },
+  { name: 'Fönsterputs', category: 'cleaning' },
+  { name: 'Batterier', category: 'other' },
+  { name: 'Glödlampor', category: 'other' },
+  { name: 'Tändstickor', category: 'other' },
+  { name: 'Ljus', category: 'other' },
+  { name: 'Kattmat', category: 'other' },
+  { name: 'Hundmat', category: 'other' },
+  { name: 'Kattsand', category: 'other' },
 
   // Hygien & personvård
   { name: 'Schampo', category: 'personal_care' },
@@ -390,6 +405,9 @@ const COMMON_INGREDIENTS_RAW: { name: string; category: StoreCategory }[] = [
   { name: 'Ibuprofen', category: 'personal_care' },
   { name: 'Vitaminer', category: 'personal_care' },
   { name: 'Plåster', category: 'personal_care' },
+  { name: 'Toalettpapper', category: 'cleaning' },
+  { name: 'Våtservetter', category: 'personal_care' },
+  { name: 'Näsdukar', category: 'personal_care' },
 ];
 
 export const COMMON_INGREDIENTS: { name: string; category: StoreCategory }[] =

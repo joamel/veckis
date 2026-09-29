@@ -9,6 +9,11 @@ describe('inferSubCategory', () => {
     expect(inferSubCategory('toalettpapper')).toBe('toalett_hushållspapper');
   });
 
+  it('lägger kaffefilter under Kaffe & te (torrvaror)', () => {
+    expect(inferSubCategory('kaffefilter')).toBe('kaffe_te');
+    expect(parentForSub('kaffe_te')).toBe('canned_dry');
+  });
+
   it('matchar färdiga såser till rätt sub (kylda)', () => {
     expect(inferSubCategory('Bearnaisesås')).toBe('färdiga_såser_kylda');
     expect(inferSubCategory('hollandaise')).toBe('färdiga_såser_kylda');

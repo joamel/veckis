@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { categorizeIngredient, kureratUndantag } from './categorizeIngredient';
 
+describe('categorizeIngredient — kaffefilter', () => {
+  it('är en torrvara bredvid kaffet, inte en dryck', () => {
+    expect(categorizeIngredient('kaffefilter')).toBe('canned_dry');
+    expect(categorizeIngredient('kaffe')).toBe('beverages');
+    expect(categorizeIngredient('kaffekapslar')).toBe('beverages');
+  });
+});
+
 describe('categorizeIngredient — delsträngsfällan', () => {
   it('matchar inte ett nyckelord mitt inne i ett ord', () => {
     // De här gav dryck före 2026-09-19: "sidfläsk" innehåller "läsk",
