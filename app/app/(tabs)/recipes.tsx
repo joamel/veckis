@@ -52,6 +52,7 @@ import { ReceptBildkort, ReceptKompaktRad, type ReceptKortLage } from '../../src
 import { VeckoDagValjare } from '../../src/components/nydesign/VeckoDagValjare';
 import { Murverk, murverkHojd } from '../../src/components/nydesign/Murverk';
 import { TagLabel } from '../../src/components/TagLabel';
+import { cleanPastedUrl, extractUrl } from '../../src/lib/extractUrl';
 
 // Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
 // dagnamn är hårdkodat i komponenten — då räcker det att översätta svenska.ts.
@@ -504,8 +505,10 @@ export default function RecipesScreen() {
   }, [loading, showTip]));
 
   async function handleScrape() {
-    if (!url.trim()) return;
-    const normalizedUrl = url.trim().replace(/\/$/, '');
+    // Samma rensning som fältet gör, ifall texten kom in på annat sätt.
+    const link = extractUrl(url);
+    if (!link) return;
+    const normalizedUrl = link.replace(/\/$/, '');
     const existing = recipes.find(r => r.sourceUrl?.replace(/\/$/, '') === normalizedUrl);
     if (existing) {
       confirm({
@@ -520,7 +523,7 @@ export default function RecipesScreen() {
     }
     setScraping(true);
     try {
-      const scraped = await client.scrapeRecipe(url.trim());
+      const scraped = await client.scrapeRecipe(link);
       if (!householdId) return;
       setCreating(true);
       const recipe = await client.createRecipe({
@@ -528,7 +531,7 @@ export default function RecipesScreen() {
         title: scraped.title,
         description: scraped.description,
         instructions: scraped.instructions,
-        sourceUrl: url.trim(),
+        sourceUrl: link,
         source: 'url_import',
         imageUrl: scraped.imageUrl,
         servings: scraped.servings,
@@ -824,7 +827,9 @@ export default function RecipesScreen() {
               style={s.input}
               placeholder={str.createModal.urlPlaceholder}
               value={url}
-              onChangeText={setUrl}
+              // Delat från ICA:s app: receptnamnet står före länken. Rensas direkt,
+              // så fältet visar vad som faktiskt importeras.
+              onChangeText={v => setUrl(cleanPastedUrl(v))}
               autoCapitalize="none"
               keyboardType="url"
               importantForAutofill="no"
