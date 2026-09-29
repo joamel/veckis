@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
-import { View, TextInput, Pressable, type TextInputProps, type ViewStyle, type StyleProp } from 'react-native';
+import { View, TextInput, type TextInputProps, type ViewStyle, type StyleProp } from 'react-native';
+import { Pressable } from './Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { common } from '../lib/svenska';

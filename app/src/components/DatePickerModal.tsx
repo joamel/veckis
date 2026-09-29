@@ -3,7 +3,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useDesign } from '../context/DesignContext';
 import { nyFont, type NyPalett } from '../lib/nyDesign';
 import type { Palette } from '../lib/theme';
-import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
+import { View, Text, StyleSheet, Modal } from 'react-native';
+import { Pressable } from './Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { components as str, common } from '../lib/svenska';
 

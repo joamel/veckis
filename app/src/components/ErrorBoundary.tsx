@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from 'react';
-import { Appearance, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Appearance, Platform, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { paletteFor, type Palette } from '../lib/theme';
 import { reportClientError } from '../lib/errorReport';
 import { components as str } from '../lib/svenska';

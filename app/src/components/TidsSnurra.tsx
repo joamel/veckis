@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { Pressable } from './Pressable';
 import { formateraTidsetikett } from '../lib/cookTimer';
 
 const STEG = 5;

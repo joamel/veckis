@@ -4,7 +4,6 @@ import {
   Animated,
   Clipboard,
   Modal,
-  Pressable,
   RefreshControl,
   ScrollView,
   Share,
@@ -14,6 +13,7 @@ import {
   Switch,
   View,
 } from 'react-native';
+import { Pressable } from '../../src/components/Pressable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth, useUser } from '@clerk/expo';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';

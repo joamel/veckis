@@ -12,7 +12,8 @@ import type { NyPalett } from '../lib/nyDesign';
 //   dels renderades UTANFÖR säkert område (ingen top-inset) så knappen
 //   kunde hamna delvis under skärmskåran/statusfältet på vissa enheter.
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Platform, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Updates from 'expo-updates';

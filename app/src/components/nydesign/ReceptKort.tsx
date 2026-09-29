@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../Pressable';
 import { ReceptBild } from '../ReceptBild';
 import { cloudinaryOptimized, CARD_IMAGE_WIDTH, THUMB_IMAGE_WIDTH } from '../../lib/cloudinaryUrl';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';

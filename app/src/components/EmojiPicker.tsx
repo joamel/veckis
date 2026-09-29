@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../lib/theme';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable } from './Pressable';
 
 // Mat och storhandling först — appen handlar om inköpslistor, och de gamla
 // förslagen inleddes med städ och badrum (🧹🧽🧺🧼🛁🚿) medan 🛒 låg sjua.

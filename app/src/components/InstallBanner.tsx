@@ -15,7 +15,8 @@ import type { Palette } from '../lib/theme';
 // Dismissable; en dismiss-flag i localStorage tystar i 7 dagar så användaren
 // inte tjafsas med varje sign-in.
 import { useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { common, components as cmpStr } from '../lib/svenska';
 import { detectInstallTarget, isAlreadyInstalled, type InstallTarget } from '../lib/installDetect';

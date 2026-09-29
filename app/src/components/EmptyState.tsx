@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { useTablet } from '../hooks/useTablet';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../lib/theme';

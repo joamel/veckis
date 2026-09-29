@@ -9,7 +9,6 @@ import {
   Image,
   type GestureResponderEvent,
   Platform,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { Pressable } from '../../src/components/Pressable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';

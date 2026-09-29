@@ -7,12 +7,12 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Pressable } from '../../src/components/Pressable';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { ThemeModeToggle } from '../../src/components/ThemeModeToggle';
 import { auth as str } from '../../src/lib/svenska';

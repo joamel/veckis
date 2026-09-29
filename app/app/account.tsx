@@ -4,7 +4,8 @@ import type { Palette } from '../src/lib/theme';
 // Kontosida — namn, byt namn, ta bort konto, logga ut. Egen route med
 // tillbaka-pil. Avatar-tap på Profil-flikens header öppnar denna vy.
 import { useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable } from '../src/components/Pressable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';

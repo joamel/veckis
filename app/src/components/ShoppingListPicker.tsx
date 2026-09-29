@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type RefObject } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { useNy } from '../context/ThemeContext';
 import type { NyPalett } from '../lib/nyDesign';

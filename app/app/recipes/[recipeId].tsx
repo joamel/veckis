@@ -13,7 +13,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,6 +21,7 @@ import {
   useWindowDimensions,
   type TextStyle,
 } from 'react-native';
+import { Pressable } from '../../src/components/Pressable';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Notifications from 'expo-notifications';

@@ -10,12 +10,12 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Pressable } from '../../src/components/Pressable';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { InstallBanner } from '../../src/components/InstallBanner';
 import { ThemeModeToggle } from '../../src/components/ThemeModeToggle';

@@ -4,7 +4,8 @@ import type { Palette } from '../src/lib/theme';
 // 404 — Expo Routers convention för okända paths. Visar vänlig
 // "hittades inte"-vy med vägar tillbaka istället för en blank spinner
 // eller automatisk redirect till schedule som hände innan.
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../src/components/Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';

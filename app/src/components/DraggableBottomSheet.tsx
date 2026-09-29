@@ -3,12 +3,12 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useDiscardDraft } from '../hooks/useDiscardDraft';
 import {
   Modal,
-  Pressable,
   StyleSheet,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { Pressable } from './Pressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {

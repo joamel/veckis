@@ -17,7 +17,8 @@ import { nyFont, nyLjus as ny } from '../src/lib/nyDesign';
 // ut som Handlis. c/theme.ts används bara kvar för varnings-tonerna
 // (warningTint/warningText), som inte är kärn-brand.
 import { useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../src/components/Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { detectInstallTarget, isAlreadyInstalled, type InstallTarget } from '../src/lib/installDetect';

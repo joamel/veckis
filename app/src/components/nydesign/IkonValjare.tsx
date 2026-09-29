@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable } from '../Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import type { NyPalett } from '../../lib/nyDesign';
 import { useNy } from '../../context/ThemeContext';

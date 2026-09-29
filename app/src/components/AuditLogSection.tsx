@@ -7,7 +7,8 @@ import type { Palette } from '../lib/theme';
 // Lazy-laddat: hämtar inte förrän användaren expanderar sektionen, så
 // vi inte spammar audit-endpointen vid varje profil-besök.
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { common, components as cmpStr } from '../lib/svenska';
 import { useApiClient, type AuditLogEntry } from '../api/client';

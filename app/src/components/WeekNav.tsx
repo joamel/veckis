@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Pressable } from './Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { useTablet } from '../hooks/useTablet';
 import { components as str } from '../lib/svenska';

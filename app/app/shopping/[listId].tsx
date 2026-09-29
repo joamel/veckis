@@ -29,7 +29,6 @@ import {
   Modal,
   FlatList,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -38,6 +37,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Pressable } from '../../src/components/Pressable';
 import RNAnimated, {
   useSharedValue,
   useAnimatedKeyboard,
@@ -3175,7 +3175,10 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
               vanlig View (inte Pressable): den håller bara ihop bakgrund och
               form, allt tryck sker i zonerna under den. */}
           <View style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}>
+            {/* noFeedback: raden ligger i svepgesten — en nedtoning vid fingrets
+                första kontakt blinkade i början av varje svep. */}
             <Pressable
+              noFeedback
               onPress={pending ? undefined : doEdit}
               style={s.contentZone}
               accessibilityRole="button"
@@ -3197,6 +3200,7 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
               </View>
             </Pressable>
             <Pressable
+              noFeedback
               onPress={pending ? undefined : () => onToggle(row)}
               style={s.checkboxZone}
               accessibilityRole="checkbox"

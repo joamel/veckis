@@ -9,7 +9,6 @@ import {
   AppState,
   Keyboard,
   Platform,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -18,6 +17,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { Pressable } from '../../src/components/Pressable';
 import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, useAnimatedReaction, withTiming, interpolate, Extrapolation } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';

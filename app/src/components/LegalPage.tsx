@@ -6,7 +6,8 @@ import type { Palette } from '../lib/theme';
 // med rubriker + stycken. Routen ska kunna nås utan inloggning så det är
 // medvetet enkelt — inget API, ingen state.
 import { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';

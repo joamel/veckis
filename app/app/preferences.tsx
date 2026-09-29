@@ -5,7 +5,8 @@ import type { Palette } from '../src/lib/theme';
 // man sällan ändrar (notiser, 2FA, juridik, support) och som inte hör hemma
 // på Profil-fliken där fokus är hushållet + dess medlemmar.
 import { useState, useEffect } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../src/components/Pressable';
 import * as Updates from 'expo-updates';
 import Constants from 'expo-constants';
 import { formateraLyftspår, senasteLyftspår } from '../src/lib/lyftdiagnostik';

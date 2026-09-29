@@ -1,5 +1,6 @@
 import { createContext, useContext, useRef, useState, useCallback, ReactNode } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getApiErrorMessage } from '../api/client';
 import { useNy } from './ThemeContext';

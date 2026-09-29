@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../Pressable';
 import type { MealType, WeekDay } from '@veckis/shared';
 import { useNy, useTheme } from '../../context/ThemeContext';
 import { nyFont, type NyPalett } from '../../lib/nyDesign';
