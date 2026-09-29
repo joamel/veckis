@@ -424,6 +424,10 @@ export function useApiClient() {
     createStore: (data: { householdId: string; name: string; sharedStoreId?: string | null; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; customSubs?: Record<string, string[]>; parentOrder?: string[]; categoryMerge?: Record<string, string> }) =>
       request<Store>('/api/stores', { method: 'POST', body: JSON.stringify(data) }),
 
+    // Föreslagen sektionsordning ur hushållets bockar i butiken (steg 4).
+    getStoreOrderSuggestion: (storeId: string) =>
+      request<{ trips: number; order: string[]; changed: boolean; known: number }>(`/api/stores/${storeId}/order-suggestion`),
+
     updateStore: (storeId: string, data: { name?: string; sharedStoreId?: string | null; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; customSubs?: Record<string, string[]>; parentOrder?: string[]; categoryMerge?: Record<string, string> }) =>
       request<Store>(`/api/stores/${storeId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 

@@ -32,6 +32,11 @@ import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import { storeMeta } from '../../src/lib/storeMeta';
+import { isPlacedSubKey, placedClusters } from '../../src/lib/categoryGroups';
+
+/** Nyckeln en utbruten underkategori (expandedSubs-post) får i parentOrder när
+ *  den placeras fritt. Egna har redan formen "cs:<parent>:<etikett>". */
+const placedKeyFor = (entry: string) => (entry.startsWith('cs:') ? entry : `s:${entry}`);
 
 // EGEN komponent — gesten byggs via useMemo, keyad på stabila props, så samma
 // gestobjekt lever kvar genom hela draget i stället för att byggas om vid
@@ -96,7 +101,7 @@ export default function StoreDetailScreen() {
   // en hel drag-gest utan att bli inaktuell.
   const parentOrderRef = useRef<string[]>([]);
   parentOrderRef.current = parentOrder;
-  const visibleEnum = useMemo(() => parentOrder.filter(k => !k.startsWith('c:')) as StoreCategory[], [parentOrder]);
+  const visibleEnum = useMemo(() => parentOrder.filter(k => !k.startsWith('c:') && !isPlacedSubKey(k)) as StoreCategory[], [parentOrder]);
   const customCategories = useMemo(() => parentOrder.filter(k => k.startsWith('c:')).map(k => k.slice(2)), [parentOrder]);
   // Subs som hushållet brutit ut som egna sektioner under sin parent.
   const [expandedSubs, setExpandedSubs] = useState<string[]>([]);
@@ -122,6 +127,10 @@ export default function StoreDetailScreen() {
   const [showRename, setShowRename] = useState(false);
   // Koppling till butiksbanken.
   const [showLink, setShowLink] = useState(false);
+  // Steg 4: förslag på ordning ur hushållets bockar. Hämtas med butiken och
+  // gäller den SPARADE ordningen — därför visas det bara utan osparade ändringar.
+  const [suggestion, setSuggestion] = useState<{ trips: number; order: string[]; changed: boolean } | null>(null);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [linking, setLinking] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [renaming, setRenaming] = useState(false);
@@ -131,6 +140,7 @@ export default function StoreDetailScreen() {
   // visning i just den här butiken — varans egen category ändras aldrig.
   const [categoryMerge, setCategoryMerge] = useState<Record<string, string>>({});
   const [mergingKey, setMergingKey] = useState<StoreCategory | null>(null);
+  const [pickingMergeSource, setPickingMergeSource] = useState(false);
 
   const mergedEntries = useMemo(
     () => (Object.entries(categoryMerge) as [StoreCategory, string][]),
@@ -138,7 +148,7 @@ export default function StoreDetailScreen() {
   );
   // Kandidater att slå ihop MED (alla nuvarande synliga kategorier utom
   // källan själv) — kan vara standard ELLER egen.
-  const mergeTargetsFor = useCallback((source: StoreCategory) => parentOrder.filter(k => k !== source), [parentOrder]);
+  const mergeTargetsFor = useCallback((source: StoreCategory) => parentOrder.filter(k => k !== source && !isPlacedSubKey(k)), [parentOrder]);
 
   const load = useCallback(async () => {
     if (!householdId || !storeId) return;
@@ -161,8 +171,10 @@ export default function StoreDetailScreen() {
         for (const cat of DEFAULT_CATEGORY_ORDER) {
           if (!finalPO.includes(cat) && !(cat in mergeMap)) finalPO.push(cat);
         }
-        setParentOrder(finalPO);
-        setExpandedSubs([...((found as { expandedSubs?: string[] }).expandedSubs ?? [])]);
+        // Placeringar för underkategorier som inte längre är utbrutna slängs.
+        const savedExpanded = (found as { expandedSubs?: string[] }).expandedSubs ?? [];
+        setParentOrder(finalPO.filter(k => !isPlacedSubKey(k) || savedExpanded.some(e => placedKeyFor(e) === k)));
+        setExpandedSubs([...savedExpanded]);
         setSubOrder([...((found as { subOrder?: string[] }).subOrder ?? [])]);
         setCustomSubs({ ...((found as { customSubs?: Record<string, string[]> }).customSubs ?? {}) });
         setCategoryMerge(mergeMap);
@@ -192,6 +204,48 @@ export default function StoreDetailScreen() {
   }, [householdId, storeId]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!storeId) return;
+    client.getStoreOrderSuggestion(storeId).then(setSuggestion).catch(() => setSuggestion(null));
+  }, [storeId, client]);
+  const clusters = useMemo(() => placedClusters(parentOrder, categoryMerge), [parentOrder, categoryMerge]);
+  const clustersRef = useRef(clusters);
+  clustersRef.current = clusters;
+  const [openClusters, setOpenClusters] = useState<Set<string>>(new Set());
+  function toggleClusterOpen(first: string) {
+    setOpenClusters(prev => {
+      const next = new Set(prev);
+      if (next.has(first)) next.delete(first); else next.add(first);
+      return next;
+    });
+  }
+  // Vilka rader som just nu ritas (och därmed får träffas vid drag) — hopfällda
+  // klustermedlemmar ligger kvar med gamla mått annars.
+  const activeRowKeysRef = useRef(new Set<string>());
+  {
+    const active = new Set<string>();
+    for (const k of parentOrder) {
+      const cl = clusters.get(k);
+      if (!cl) { active.add(k); continue; }
+      if (cl.members[0] === k) active.add('h:' + k);
+      if (openClusters.has(cl.members[0])) active.add(k);
+    }
+    activeRowKeysRef.current = active;
+  }
+
+  function applySuggestion() {
+    if (!suggestion) return;
+    // Förslagets INBÖRDES ordning läggs på vyns lista: den kan ha städats vid
+    // laddningen (inaktuella placeringar, saknade standardkategorier), så
+    // förslaget skriver inte över den rakt av. Nycklar förslaget inte känner
+    // till står kvar på sin plats.
+    const pos = new Map(suggestion.order.map((k, i) => [k, i]));
+    const known = parentOrder.filter(k => pos.has(k)).sort((x, y) => pos.get(x)! - pos.get(y)!);
+    let n = 0;
+    setParentOrder(parentOrder.map(k => (pos.has(k) ? known[n++] : k)));
+    setSuggestionDismissed(true);
+    setDirty(true);
+  }
 
   // Dra-och-släpp-omordning av kategorier. Mäter varje rads skärm-absoluta
   // Y/höjd (samma teknik som menyns dag-sektioner). VIKTIG SKILLNAD mot en
@@ -218,8 +272,9 @@ export default function StoreDetailScreen() {
   }, []);
   const indexAtY = useCallback((absoluteY: number): number | null => {
     for (const [key, layout] of Object.entries(catRowLayouts.current)) {
+      if (!activeRowKeysRef.current.has(key)) continue;
       if (absoluteY >= layout.y && absoluteY <= layout.y + layout.height) {
-        const idx = parentOrderRef.current.indexOf(key);
+        const idx = parentOrderRef.current.indexOf(key.startsWith('h:') ? key.slice(2) : key);
         return idx >= 0 ? idx : null;
       }
     }
@@ -239,6 +294,20 @@ export default function StoreDetailScreen() {
         const target = indexAtY(prev.y);
         if (target !== null && target !== prev.startIndex) {
           setParentOrder(order => {
+            if (prev.key.startsWith('h:')) {
+              // Ett helt kluster flyttas som ett block.
+              const cl = clustersRef.current.get(prev.key.slice(2));
+              if (!cl) return order;
+              const start = order.indexOf(cl.members[0]);
+              if (target >= start && target < start + cl.members.length) return order;
+              const down = target > start;
+              const tcl = clustersRef.current.get(order[target]);
+              const anchor = tcl ? (down ? tcl.members[tcl.members.length - 1] : tcl.members[0]) : order[target];
+              const rest = order.filter(k => !cl.members.includes(k));
+              const at = rest.indexOf(anchor);
+              rest.splice(down ? at + 1 : at, 0, ...cl.members);
+              return rest;
+            }
             const next = [...order];
             const [moved] = next.splice(prev.startIndex, 1);
             next.splice(target, 0, moved);
@@ -273,9 +342,29 @@ export default function StoreDetailScreen() {
   }
 
   function toggleSubExpanded(sub: string) {
+    const wasOn = expandedSubs.includes(sub);
     setExpandedSubs(prev =>
       prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub],
     );
+    // En underkategori som slås av lämnar också sin fria plats.
+    if (wasOn) setParentOrder(prev => prev.filter(k => k !== placedKeyFor(sub)));
+    setDirty(true);
+  }
+  // Blandad ordning: lyft ut en utbruten underkategori till huvudlistan, direkt
+  // efter sin kategori — sedan dras den dit den hör hemma i butiken.
+  function placeSubFreely(entry: string, parentKey: string) {
+    const key = placedKeyFor(entry);
+    setParentOrder(prev => {
+      if (prev.includes(key)) return prev;
+      const at = prev.indexOf(parentKey);
+      const next = [...prev];
+      next.splice(at < 0 ? next.length : at + 1, 0, key);
+      return next;
+    });
+    setDirty(true);
+  }
+  function unplaceSub(key: string) {
+    setParentOrder(prev => prev.filter(k => k !== key));
     setDirty(true);
   }
   // Följer categoryMerge till slutmålet — samma logik som categoryGroups.ts.
@@ -307,11 +396,17 @@ export default function StoreDetailScreen() {
   function plainLabel(key: string): string {
     return key.startsWith('c:') ? key.slice(2) : (CATEGORY_LABELS[key as StoreCategory] ?? key);
   }
-  // Namn + "(egen)" EFTER texten för egna kategorier, för rader/etiketter i
-  // ren textkontext (slå ihop-modalen, ihopslagnings-pilen, drag-spöket) —
-  // se ownBadge-komponenten för den riktiga radens visuella badge.
+  // Namn för rader/etiketter i ren textkontext (slå ihop-modalen,
+  // ihopslagnings-pilen, drag-spöket, förslaget).
   function labelWithTag(key: string): string {
-    return key.startsWith('c:') ? `${plainLabel(key)} (egen)` : plainLabel(key);
+    if (key.startsWith('h:')) {
+      const cl = clusters.get(key.slice(2));
+      return cl ? `${plainLabel(cl.parentKey)} ${cl.index}` : key;
+    }
+    // Fritt placerad underkategori (drag-spöket): dess eget namn.
+    if (key.startsWith('cs:')) return key.slice(key.lastIndexOf(':') + 1);
+    if (key.startsWith('s:')) return SUB_TAXONOMY[key.slice(2) as SubCategory]?.label ?? key;
+    return plainLabel(key);
   }
   // Flytta en sub-post (standard ELLER egen) upp/ner bland sina syskon (samma
   // parent) i expandedSubs — så egna och standard-subs kan interfolieras fritt.
@@ -394,7 +489,7 @@ export default function StoreDetailScreen() {
       .filter(([, target]) => target === targetKey)
       .map(([source]) => source);
     setParentOrder(prev => {
-      const withoutTarget = prev.filter(k => k !== targetKey);
+      const withoutTarget = prev.filter(k => k !== targetKey && !k.startsWith(`cs:${targetKey}:`));
       const toRestore = restoredSources.filter(source => !withoutTarget.includes(source));
       return [...withoutTarget, ...toRestore];
     });
@@ -431,6 +526,7 @@ export default function StoreDetailScreen() {
     });
     setExpandedSubs(prev => prev.filter(e => e !== `cs:${parentKey}:${label}`));
     setSubOrder(prev => prev.filter(e => e !== `cs:${parentKey}:${label}`));
+    setParentOrder(prev => prev.filter(k => k !== `cs:${parentKey}:${label}`));
     setDirty(true);
   }
 
@@ -557,65 +653,56 @@ export default function StoreDetailScreen() {
   // egna subs i EN ordnad lista (från expandedSubs) — sorterbara sinsemellan.
   // Under: ej utbrutna standard-subs (kryssa för att bryta ut) + "lägg till egen".
   const renderSubs = (parentKey: string, standardSubs: SubCategory[]) => {
-    const entries = expandedSubs.filter(e => entryParentKey(e) === parentKey);
+    // Fritt placerade visas i huvudlistan, inte här.
+    const entries = expandedSubs.filter(e => entryParentKey(e) === parentKey && !parentOrder.includes(placedKeyFor(e)));
     const rest = hiddenEntriesFor(parentKey, standardSubs);
     return (
       <>
         {standardSubs.length > 0 && <Text style={s.subListHint}>{str.detail.subHint(plainLabel(parentKey))}</Text>}
-        {entries.map((entry, i) => {
+        {/* Alla rader har samma kolumner — [lyft ut][upp][ned][bock] — med en
+            tom plats där en knapp saknas, så knapparna står rakt under varandra.
+            Egna underkategorier känns igen på det lilla krysset efter namnet. */}
+        {[...entries.map(e => ({ entry: e, shown: true })), ...rest.map(e => ({ entry: e, shown: false }))].map(({ entry, shown }) => {
           const isCustomEntry = entry.startsWith('cs:');
           const label = isCustomEntry ? entry.slice(entry.lastIndexOf(':') + 1) : SUB_TAXONOMY[entry as SubCategory].label;
+          const group = shown ? entries : rest;
+          const i = group.indexOf(entry);
+          const move = (dir: -1 | 1) => (shown ? moveSubEntry(entry, parentKey, dir) : moveHiddenEntry(entry, parentKey, standardSubs, dir));
           return (
             <View key={entry} style={s.subRow}>
-              <Text style={[s.subName, s.subNameActive]}>{isCustomEntry ? `${label} (egen)` : label}</Text>
+              {/* Namnet tar hela bredden fram till knapparna: en ruta som krymper
+                  efter innehållet mäts för smalt på Android och klipper texten.
+                  Krysset ligger inne i texten så det hamnar direkt efter namnet. */}
+              <Pressable style={{ flex: 1 }} onPress={() => toggleSubExpanded(entry)}>
+                <Text style={[s.subName, shown && s.subNameActive]}>
+                  {label}
+                  {isCustomEntry && (
+                    <>
+                      {'  '}
+                      <Ionicons name="close-circle" size={17} color={nyDesign ? ny.fara : c.danger} onPress={() => removeCustomSub(parentKey, label)} accessibilityLabel={common.actions.delete} />
+                    </>
+                  )}
+                </Text>
+              </Pressable>
               <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveSubEntry(entry, parentKey, -1)}>
-                  <Ionicons name="chevron-up" size={16} color={nyDesign ? ny.padYta : c.primary} />
-                </Pressable>
-                <Pressable style={[s.catBtn, i === entries.length - 1 && { opacity: 0.3 }]} disabled={i === entries.length - 1} onPress={() => moveSubEntry(entry, parentKey, 1)}>
-                  <Ionicons name="chevron-down" size={16} color={nyDesign ? ny.padYta : c.primary} />
-                </Pressable>
-                {isCustomEntry ? (
-                  <Pressable style={s.catBtnDanger} onPress={() => removeCustomSub(parentKey, label)}>
-                    <Ionicons name="close" size={16} color={nyDesign ? ny.fara : c.danger} />
+                {shown ? (
+                  <Pressable style={s.catBtn} onPress={() => placeSubFreely(entry, parentKey)} accessibilityLabel={str.detail.placeFreely}>
+                    <Ionicons name="open-outline" size={16} color={nyDesign ? ny.padYta : c.primary} />
                   </Pressable>
                 ) : (
-                  <Pressable style={[s.subToggle, s.subToggleActive]} onPress={() => toggleSubExpanded(entry)}>
-                    <Ionicons name="checkmark" size={14} color="#fff" />
-                  </Pressable>
+                  <View style={s.catBtnSpacer} />
                 )}
+                <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => move(-1)}>
+                  <Ionicons name="chevron-up" size={16} color={nyDesign ? ny.padYta : c.primary} />
+                </Pressable>
+                <Pressable style={[s.catBtn, i === group.length - 1 && { opacity: 0.3 }]} disabled={i === group.length - 1} onPress={() => move(1)}>
+                  <Ionicons name="chevron-down" size={16} color={nyDesign ? ny.padYta : c.primary} />
+                </Pressable>
+                <Pressable style={[s.subToggle, shown && s.subToggleActive]} onPress={() => toggleSubExpanded(entry)}>
+                  {shown && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </Pressable>
               </View>
             </View>
-          );
-        })}
-        {rest.map((entry, i) => {
-          const isCustomEntry = entry.startsWith('cs:');
-          const label = isCustomEntry ? entry.slice(entry.lastIndexOf(':') + 1) : SUB_TAXONOMY[entry as SubCategory].label;
-          return (
-          <View key={entry} style={s.subRow}>
-            <Pressable style={{ flex: 1 }} onPress={() => toggleSubExpanded(entry)}>
-              <Text style={s.subName}>{isCustomEntry ? `${label} (egen)` : label}</Text>
-            </Pressable>
-            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-              {/* Krysset längst till vänster (fast platshållare för standard-
-                  rader) så pilarna alltid hamnar på samma plats oavsett om
-                  raden är egen eller standard. */}
-              {isCustomEntry ? (
-                <Pressable style={s.catBtnDanger} onPress={() => removeCustomSub(parentKey, label)}>
-                  <Ionicons name="close" size={16} color={nyDesign ? ny.fara : c.danger} />
-                </Pressable>
-              ) : (
-                <View style={s.catBtnSpacer} />
-              )}
-              <Pressable style={[s.catBtn, i === 0 && { opacity: 0.3 }]} disabled={i === 0} onPress={() => moveHiddenEntry(entry, parentKey, standardSubs, -1)}>
-                <Ionicons name="chevron-up" size={16} color={nyDesign ? ny.padYta : c.primary} />
-              </Pressable>
-              <Pressable style={[s.catBtn, i === rest.length - 1 && { opacity: 0.3 }]} disabled={i === rest.length - 1} onPress={() => moveHiddenEntry(entry, parentKey, standardSubs, 1)}>
-                <Ionicons name="chevron-down" size={16} color={nyDesign ? ny.padYta : c.primary} />
-              </Pressable>
-              <Pressable style={s.subToggle} onPress={() => toggleSubExpanded(entry)} />
-            </View>
-          </View>
           );
         })}
         {addingSubFor === parentKey ? (
@@ -714,8 +801,26 @@ export default function StoreDetailScreen() {
           )}
         </View>
 
-        <Text style={s.sectionSub}>{str.detail.hint}</Text>
 
+        {suggestion && !suggestionDismissed && !dirty && (
+          suggestion.changed ? (
+            <View style={s.suggestCard}>
+              <Text style={s.suggestTitle}>{str.detail.suggestTitle(suggestion.trips)}</Text>
+              <Text style={s.sectionSub}>{str.detail.suggestBody}</Text>
+              <Text style={s.suggestOrder}>{suggestion.order.map(k => labelWithTag(k)).join(' → ')}</Text>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Pressable style={s.suggestUse} onPress={applySuggestion}>
+                  <Text style={s.suggestUseText}>{str.detail.suggestUse}</Text>
+                </Pressable>
+                <Pressable style={s.suggestDismiss} onPress={() => setSuggestionDismissed(true)}>
+                  <Text style={s.suggestDismissText}>{str.detail.suggestDismiss}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : suggestion.trips < 3 ? (
+            <Text style={s.sectionSub}>{str.detail.suggestProgress(suggestion.trips)}</Text>
+          ) : null
+        )}
         <Text style={s.sectionLabel}>{str.detail.sections.visible}</Text>
         <Text style={s.sectionSub}>{str.detail.mixedHint}</Text>
         <View style={s.catList}>
@@ -723,12 +828,89 @@ export default function StoreDetailScreen() {
             <Text style={s.emptyHint}>{str.detail.allHidden}</Text>
           ) : (
             parentOrder.map((key, idx) => {
+              // Blandad ordning: en fritt placerad underkategori är en egen, dragbar rad.
+              // Flera från samma kategori bredvid varandra blir EN rad som ser ut som
+              // en huvudkategori: går att fälla ut/ihop och flyttas som ett block.
+              if (isPlacedSubKey(key)) {
+                const cluster = clusters.get(key);
+                const isHeader = !!cluster && cluster.members[0] === key;
+                const clusterOpen = !!cluster && openClusters.has(cluster.members[0]);
+                const headerKey = `h:${key}`;
+                const isCustomSub = key.startsWith('cs:');
+                const subLabel = isCustomSub ? key.slice(key.lastIndexOf(':') + 1) : (SUB_TAXONOMY[key.slice(2) as SubCategory]?.label ?? key);
+                const fromParent = plainLabel(entryParentKey(isCustomSub ? key : key.slice(2)));
+                const beingDragged = catDragState?.key === key;
+                const dropTarget = !!catDragState && !beingDragged && catHoverIndex === idx;
+                const headerDragged = catDragState?.key === headerKey;
+                const headerDropTarget = !!catDragState && !headerDragged && !clusterOpen && catHoverIndex === idx;
+                return (
+                  <View key={key}>
+                    {cluster && isHeader && (
+                      <View
+                        ref={ref => measureCatRow(headerKey, ref)}
+                        onLayout={() => measureCatRow(headerKey, null)}
+                        style={[headerDragged && s.catRowDragging, headerDropTarget && s.catRowDropTarget]}
+                      >
+                        <View style={s.catRow}>
+                          <Pressable
+                            onPress={() => toggleClusterOpen(key)}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
+                            hitSlop={6}
+                          >
+                            <Ionicons name={clusterOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={c.textMuted} />
+                            <Text style={s.catName} numberOfLines={2}>{`${plainLabel(cluster.parentKey)} ${cluster.index}`}</Text>
+                            <Text style={s.expandedBadge}>{cluster.members.length}</Text>
+                          </Pressable>
+                          <View style={{ flexDirection: 'row', gap: 6 }}>
+                            <CategoryDragHandle
+                              parentKey={headerKey}
+                              idx={idx}
+                              onDragStart={onCatDragStart}
+                              onDragMove={onCatDragMove}
+                              onDragEnd={onCatDragEnd}
+                            />
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                    {(!cluster || clusterOpen) && (
+                      <View
+                        ref={ref => measureCatRow(key, ref)}
+                        onLayout={() => measureCatRow(key, null)}
+                        style={[beingDragged && s.catRowDragging, dropTarget && s.catRowDropTarget]}
+                      >
+                        <View style={s.catRow}>
+                          <View style={{ flex: 1, paddingLeft: cluster ? 40 : 24 }}>
+                            <Text style={[s.subName, s.subNameActive]} numberOfLines={2}>{subLabel}</Text>
+                            {!cluster && <Text style={s.placedFrom} numberOfLines={1}>{str.detail.placedFrom(fromParent)}</Text>}
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: 6 }}>
+                            <Pressable style={s.catBtn} onPress={() => unplaceSub(key)} accessibilityLabel={str.detail.placeBack(fromParent)}>
+                              <Ionicons name="return-down-back-outline" size={16} color={nyDesign ? ny.padYta : c.primary} />
+                            </Pressable>
+                            <CategoryDragHandle
+                              parentKey={key}
+                              idx={idx}
+                              onDragStart={onCatDragStart}
+                              onDragMove={onCatDragMove}
+                              onDragEnd={onCatDragEnd}
+                            />
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              }
               const isCustom = key.startsWith('c:');
               const cat = isCustom ? key.slice(2) : (key as StoreCategory);
               const subs = subsForResolvedParent(key);
               const isOpen = isCustom ? openCustomParents.has(cat) : openParents.has(key as StoreCategory);
-              const customShownHere = (customSubs[key] ?? []).filter(label => expandedSubs.includes(`cs:${key}:${label}`)).length;
-              const expandedHere = subs.filter(s2 => expandedSubs.includes(s2)).length + customShownHere;
+              // Mörk bricka = egna sektioner som ligger kvar under kategorin; ljus
+              // bricka = sådana som lyfts ut och ligger någon annanstans i butiken.
+              const subsHere = [...subs, ...(customSubs[key] ?? []).map(label => `cs:${key}:${label}`)].filter(e => expandedSubs.includes(e));
+              const placedOut = subsHere.filter(e => parentOrder.includes(placedKeyFor(e))).length;
+              const expandedHere = subsHere.length - placedOut;
               const isBeingDragged = catDragState?.key === key;
               // Drop-linje: markerar bara VILKEN rad man skulle landa på —
               // rör inte listans faktiska ordning förrän man faktiskt släpper.
@@ -748,21 +930,18 @@ export default function StoreDetailScreen() {
                     >
                       <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={c.textMuted} />
                       <Text style={s.catName}>{plainLabel(key)}</Text>
-                      {isCustom && (
-                        <View style={s.ownBadge}>
-                          <Text style={s.ownBadgeText}>{str.detail.ownTag}</Text>
+                      {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
+                      {placedOut > 0 && (
+                        <View style={s.placedOutBadge} accessibilityLabel={str.detail.placedOutLabel(placedOut)}>
+                          <Ionicons name="open-outline" size={12} color={nyDesign ? ny.padYta : c.primary} />
+                          <Text style={s.placedOutBadgeText}>{placedOut}</Text>
                         </View>
                       )}
-                      {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
                     </Pressable>
                     <View style={{ flexDirection: 'row', gap: 6 }}>
-                      {isCustom ? (
-                        <Pressable style={s.catBtnDanger} onPress={() => removeCustomCategory(cat)}>
+                      {isCustom && (
+                        <Pressable style={s.catBtnDanger} onPress={() => removeCustomCategory(cat)} accessibilityLabel={common.actions.delete}>
                           <Ionicons name="trash-outline" size={16} color={nyDesign ? ny.fara : c.danger} />
-                        </Pressable>
-                      ) : (
-                        <Pressable style={s.catBtn} onPress={() => setMergingKey(key as StoreCategory)} accessibilityLabel={str.detail.mergeAction}>
-                          <Ionicons name="git-merge-outline" size={16} color={nyDesign ? ny.padYta : c.primary} />
                         </Pressable>
                       )}
                       <CategoryDragHandle
@@ -798,6 +977,10 @@ export default function StoreDetailScreen() {
               <Ionicons name="add" size={20} color={nyDesign ? ny.padYta : c.primary} />
             </Pressable>
           </View>
+          <Pressable style={s.mergeRow} onPress={() => setPickingMergeSource(true)}>
+            <Ionicons name="git-merge-outline" size={16} color={nyDesign ? ny.padYta : c.primary} />
+            <Text style={s.addSubText}>{str.detail.mergeAction}</Text>
+          </Pressable>
         </View>
 
         {mergedEntries.length > 0 && (
@@ -849,11 +1032,21 @@ export default function StoreDetailScreen() {
       )}
 
       {/* Slå ihop kategori-modal */}
-      <DraggableBottomSheet visible={mergingKey !== null} onRequestClose={() => setMergingKey(null)} sheetStyle={s.mergeSheet}
-        title={mergingKey ? str.detail.mergeModal.title(CATEGORY_LABELS[mergingKey] ?? mergingKey) : ''}
+      <DraggableBottomSheet visible={mergingKey !== null || pickingMergeSource} onRequestClose={() => { setMergingKey(null); setPickingMergeSource(false); }} sheetStyle={s.mergeSheet}
+        title={mergingKey ? str.detail.mergeModal.title(CATEGORY_LABELS[mergingKey] ?? mergingKey) : str.detail.mergeModal.pickTitle}
         subtitle={str.detail.mergeModal.subtitle}
       >
           <ScrollView style={{ flexGrow: 0 }}>
+            {!mergingKey && pickingMergeSource && (parentOrder.filter(k => !k.startsWith('c:') && !isPlacedSubKey(k)) as StoreCategory[]).map(source => (
+              <Pressable
+                key={source}
+                style={s.mergeTargetRow}
+                onPress={() => { setPickingMergeSource(false); setMergingKey(source); }}
+              >
+                <Text style={s.catName}>{plainLabel(source)}</Text>
+                <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
+              </Pressable>
+            ))}
             {mergingKey && mergeTargetsFor(mergingKey).map(target => {
               const label = labelWithTag(target);
               return (
@@ -929,6 +1122,13 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
     ? { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 0.6, color: ny.padYta, marginBottom: 6 }
     : { fontSize: 12, fontWeight: '700', color: c.textMuted, letterSpacing: 0.5, marginBottom: 6 },
   sectionSub: { fontSize: 13, color: c.textMuted, marginBottom: 14, lineHeight: 18 },
+  suggestCard: { backgroundColor: nyD ? ny.kort : c.surface, borderRadius: 16, padding: 14, marginBottom: 16, gap: 4 },
+  suggestTitle: { fontSize: 16, fontWeight: '700', color: nyD ? ny.text : c.text },
+  suggestOrder: { fontSize: 13, color: nyD ? ny.padYta : c.primary, lineHeight: 19, marginBottom: 10 },
+  suggestUse: { backgroundColor: nyD ? ny.lime : c.primary, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 10 },
+  suggestUseText: { color: nyD ? ny.skog : '#fff', fontWeight: '700', fontSize: 15 },
+  suggestDismiss: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  suggestDismissText: { color: nyD ? ny.textDampad : c.textMuted, fontWeight: '600', fontSize: 15 },
   catList: nyD
     ? { backgroundColor: ny.kort, borderRadius: 18, overflow: 'hidden' }
     : { backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.surfaceSubtle, overflow: 'hidden' },
@@ -951,13 +1151,15 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   ghostCat: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: nyD ? ny.ljus : c.surface, borderRadius: nyD ? 14 : 12, paddingVertical: 12, paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 10, zIndex: 100, ...(nyD ? { borderWidth: 1.5, borderColor: ny.padYta } : {}) },
   ghostCatText: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1 },
   expandedBadge: { fontSize: 11, fontWeight: '700', color: nyD ? ny.lime : c.accent, backgroundColor: nyD ? ny.valdYta : c.accent100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
-  ownBadge: { backgroundColor: nyD ? ny.valdYta : c.textFaint, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999 },
-  ownBadgeText: { fontSize: 10, fontWeight: '700', color: nyD ? ny.lime : '#fff' },
   subList: { paddingLeft: 24, paddingRight: 14, paddingVertical: 8, backgroundColor: nyD ? ny.ljus : c.background, borderBottomWidth: 1, borderBottomColor: nyD ? ny.bricka : c.surfaceSubtle },
   subListHint: { fontSize: 12, color: c.textFaint, marginBottom: 8, lineHeight: 17 },
   subRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 12 },
-  subName: { fontSize: 14, color: c.textSecondary, flex: 1, flexShrink: 1 },
+  subName: { fontSize: 14, color: c.textSecondary, flexShrink: 1 },
+  placedOutBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: nyD ? ny.bricka : c.primaryTint, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999 },
+  placedOutBadgeText: { fontSize: 11, fontWeight: '700', color: nyD ? ny.padYta : c.primary },
+  mergeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 14 },
   subNameActive: { color: nyD ? ny.padYta : c.accent, fontWeight: '600' },
+  placedFrom: { fontSize: 12, color: nyD ? ny.textDampad : c.textMuted, marginTop: 1 },
   subToggle: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: nyD ? ny.kontur : c.border, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
   subToggleActive: { borderColor: nyD ? ny.valdYta : c.accent, backgroundColor: nyD ? ny.valdYta : c.accent },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },

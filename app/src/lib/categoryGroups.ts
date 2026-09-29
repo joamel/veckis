@@ -34,7 +34,67 @@ export interface CategoryGroup<T extends CategoryGroupItem> {
   parentKey?: string;
   /** Label att visa i UI:t. */
   label?: string;
+  /** Flera fritt placerade underkategorier från samma kategori som ligger
+   *  bredvid varandra i butiksordningen, sammanslagna till en sektion —
+   *  visas som "Skafferi (2)". index = 2, 3 … per kategori (kategorin själv
+   *  är 1). members = underkategoriernas nycklar i parentOrder. */
+  cluster?: { parentKey: string; index: number; members: string[] };
   items: T[];
+}
+
+/**
+ * Nyckeln en utbruten underkategori har i parentOrder när den placerats
+ * fritt bland kategorierna ("blandad ordning"): "s:<sub>" för standard,
+ * "cs:<parentKey>:<etikett>" för egna — samma kodning som i expandedSubs.
+ * En underkategori som INTE står i parentOrder ligger direkt efter sin
+ * kategori, som förut.
+ */
+export const placedSubKey = (sub: string) => `s:${sub}`;
+export const placedCustomSubKey = (parentKey: string, label: string) => `cs:${parentKey}:${label}`;
+/** Är nyckeln i parentOrder en fritt placerad underkategori (inte en kategori)? */
+export function isPlacedSubKey(key: string): boolean {
+  return key.startsWith('s:') || key.startsWith('cs:');
+}
+
+/** Kategorin en fritt placerad underkategori kommer ifrån (merge-upplöst). */
+export function placedParentKey(key: string, categoryMerge: Record<string, string> = {}): string | null {
+  if (key.startsWith('cs:')) return key.slice(3, key.lastIndexOf(':'));
+  if (key.startsWith('s:')) {
+    const info = SUB_TAXONOMY[key.slice(2) as SubCategory];
+    return info ? resolveMerge(info.defaultParent, categoryMerge) : null;
+  }
+  return null;
+}
+
+/**
+ * Kluster av fritt placerade underkategorier: två eller fler från SAMMA
+ * kategori direkt efter varandra i parentOrder. Avgörs av butiksordningen,
+ * inte av vad listan råkar innehålla — annars skulle rubriken byta namn
+ * beroende på vilka varor som står på listan just i dag.
+ * Returnerar nyckel → kluster för varje medlem.
+ */
+export function placedClusters(
+  parentOrder: string[],
+  categoryMerge: Record<string, string> = {},
+): Map<string, { parentKey: string; index: number; members: string[] }> {
+  const out = new Map<string, { parentKey: string; index: number; members: string[] }>();
+  const next = new Map<string, number>();
+  let i = 0;
+  while (i < parentOrder.length) {
+    const parent = isPlacedSubKey(parentOrder[i]) ? placedParentKey(parentOrder[i], categoryMerge) : null;
+    let j = i + 1;
+    if (parent) {
+      while (j < parentOrder.length && isPlacedSubKey(parentOrder[j]) && placedParentKey(parentOrder[j], categoryMerge) === parent) j++;
+    }
+    if (parent && j - i >= 2) {
+      const index = next.get(parent) ?? 2;
+      next.set(parent, index + 1);
+      const cluster = { parentKey: parent, index, members: parentOrder.slice(i, j) };
+      for (const k of cluster.members) out.set(k, cluster);
+    }
+    i = j;
+  }
+  return out;
 }
 
 /** Följer categoryMerge till slutmålet. Cykel-skydd är bara ett säkerhetsnät
@@ -165,6 +225,10 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   // att de kan interfolieras fritt med standard-subarna. (customSubs används som
   // register när expandedSubs saknar cs:-posten, t.ex. äldre data.)
   void customSubs;
+  // Underkategorier som placerats fritt ritas där de står i parentOrder, inte
+  // under sin kategori.
+  const placed = new Set(parentOrder.filter(isPlacedSubKey));
+  const placedGroups = new Map<string, CategoryGroup<T>>();
   const subGroupsForParent = (parentKey: string): CategoryGroup<T>[] => {
     const acc: { order: number; g: CategoryGroup<T> }[] = [];
     // INGEN "!parentKey.startsWith('c:')"-spärr här längre — en standard-subs
@@ -173,15 +237,20 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
     for (const [sub, its] of subMap) {
       const info = SUB_TAXONOMY[sub as SubCategory];
       if (info && resolveMerge(info.defaultParent, categoryMerge) === parentKey) {
+        const g: CategoryGroup<T> = { category: sub, isCustom: false, isSub: true, label: info.label, items: sortItems(its) };
+        if (placed.has(placedSubKey(sub))) { placedGroups.set(placedSubKey(sub), g); continue; }
         const idx = expandedSubs.indexOf(sub);
-        acc.push({ order: idx === -1 ? Infinity : idx, g: { category: sub, isCustom: false, isSub: true, label: info.label, items: sortItems(its) } });
+        acc.push({ order: idx === -1 ? Infinity : idx, g });
       }
     }
     const inner = customSubMap.get(parentKey);
     if (inner) {
       for (const [label, its] of inner) {
-        const idx = expandedSubs.indexOf(`cs:${parentKey}:${label}`);
-        acc.push({ order: idx === -1 ? Infinity : idx, g: { category: label, isCustom: true, isSub: true, parentKey, label, items: sortItems(its) } });
+        const g: CategoryGroup<T> = { category: label, isCustom: true, isSub: true, parentKey, label, items: sortItems(its) };
+        const key = placedCustomSubKey(parentKey, label);
+        if (placed.has(key)) { placedGroups.set(key, g); continue; }
+        const idx = expandedSubs.indexOf(key);
+        acc.push({ order: idx === -1 ? Infinity : idx, g });
       }
     }
     acc.sort((a, b) => a.order - b.order);
@@ -214,10 +283,43 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   for (const cat of orderedEnum) pushKey(String(cat));
   for (const cat of orderedCustom) pushKey(`c:${cat}`);
 
+  // Kategorierna först, så att deras fritt placerade underkategorier hunnit
+  // samlas in; sedan läggs allt ut i parentOrders ordning.
+  const perKey = new Map<string, CategoryGroup<T>[]>();
+  for (const key of master) {
+    if (isPlacedSubKey(key)) continue;
+    perKey.set(key, key.startsWith('c:') ? customParentGroups(key.slice(2)) : standardParentGroups(key as StoreCategory));
+  }
+  // Underkategorier vars kategori saknas i master (ingen vara direkt i den)
+  // har inte samlats in ovan — kör deras kategori för att hitta dem.
+  for (const key of placed) {
+    if (placedGroups.has(key) || !key.startsWith('s:')) continue;
+    const info = SUB_TAXONOMY[key.slice(2) as SubCategory];
+    if (info) subGroupsForParent(resolveMerge(info.defaultParent, categoryMerge));
+  }
+  for (const [parentKey] of customSubMap) {
+    if ([...placed].some(k => k.startsWith(`cs:${parentKey}:`))) subGroupsForParent(parentKey);
+  }
+
+  const clusters = placedClusters(parentOrder, categoryMerge);
+  const emittedClusters = new Set<string>();
   const result: CategoryGroup<T>[] = [];
   for (const key of master) {
-    if (key.startsWith('c:')) result.push(...customParentGroups(key.slice(2)));
-    else result.push(...standardParentGroups(key as StoreCategory));
+    if (isPlacedSubKey(key)) {
+      const cluster = clusters.get(key);
+      if (cluster) {
+        const id = cluster.members.join('+');
+        if (emittedClusters.has(id)) continue;
+        emittedClusters.add(id);
+        const items = cluster.members.flatMap(m => placedGroups.get(m)?.items ?? []);
+        if (items.length) result.push({ category: `${cluster.parentKey}#${cluster.index}`, isCustom: false, cluster, items: sortItems(items) });
+        continue;
+      }
+      const g = placedGroups.get(key);
+      if (g) result.push(g);
+    } else {
+      result.push(...(perKey.get(key) ?? []));
+    }
   }
   return result;
 }

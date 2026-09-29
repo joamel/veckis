@@ -5,6 +5,7 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { positionForPostcode, searchSharedStores, type SharedStoreRow } from '../lib/sharedStores';
+import { sectionKeyFor, suggestStoreOrder } from '../lib/storeOrderSuggestion';
 
 export const storesRouter = Router();
 
@@ -30,7 +31,9 @@ const expandedSubsSchema = z.array(z.string().min(1).max(40)).max(100);
 const subOrderSchema = z.array(z.string().min(1).max(120)).max(100).optional();
 // Egna underkategorier: parentKey (StoreCategory eller "c:<egen kategori>") → etiketter.
 const customSubsSchema = z.record(z.string().min(1).max(60), z.array(z.string().min(1).max(40)).max(60)).optional();
-const parentOrderSchema = z.array(z.string().min(1).max(60)).max(60).optional();
+// Kan även innehålla fritt placerade underkategorier ("s:<sub>",
+// "cs:<parentKey>:<etikett>" — blandad ordning), därför samma gränser som subOrder.
+const parentOrderSchema = z.array(z.string().min(1).max(120)).max(100).optional();
 // Kategori-ihopslagning: { sourceCategory: targetKey }. Källan måste vara en
 // riktig StoreCategory (bara standard-kategorier kan slås ihop bort, samma
 // begränsning som "dölj"); målet kan vara valfri parentOrder-nyckel (standard
@@ -134,6 +137,34 @@ storesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (
     include: { sharedStore: { select: { id: true, name: true, chain: true, street: true, postcode: true, city: true, postalCity: true } } },
   });
   res.status(201).json(store);
+}));
+
+// GET /api/stores/:storeId/order-suggestion — föreslagen sektionsordning ur
+// hushållets egna bockar i butiken (steg 4, se lib/storeOrderSuggestion.ts).
+// Bara den här butikens händelser: att räkna ihop flera hushåll i samma
+// gemensamma butik kräver att datadelningen deklarerats i Play Console först.
+storesRouter.get('/:storeId/order-suggestion', requireAuth, asyncHandler(async (req, res) => {
+  const store = await prisma.store.findUnique({ where: { id: req.params.storeId } });
+  if (!store) { res.status(404).json({ error: 'Store not found' }); return; }
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId: store.householdId, clerkUserId: (req as AuthenticatedRequest).clerkUserId } },
+  });
+  if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
+
+  const parentOrder = store.parentOrder.length
+    ? store.parentOrder
+    : [...store.categoryOrder, ...((store.customCategories as string[] | null) ?? []).map(c => `c:${c}`)];
+  const categoryMerge = (store.categoryMerge ?? {}) as Record<string, string>;
+  const events = await prisma.shoppingCheckEvent.findMany({
+    where: { storeId: store.id },
+    select: { shopperKey: true, checkedAt: true, bulk: true, category: true, subCategory: true, customCategory: true, customSubCategory: true },
+  });
+  const suggestion = suggestStoreOrder(
+    events.map(e => ({ shopperKey: e.shopperKey, checkedAt: e.checkedAt, bulk: e.bulk, section: sectionKeyFor(e, { parentOrder, categoryMerge }) })),
+    parentOrder,
+    new Date(),
+  );
+  res.json(suggestion);
 }));
 
 // PATCH /api/stores/:storeId

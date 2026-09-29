@@ -1739,6 +1739,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   }, [list, categoryOrder]);
   const { unchecked, checked, allItems, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge, categoryGroups } = derived;
   const groupLabel = (group: CategoryGroup<ShoppingItemWithRecipe>) => {
+    // Flera utbrutna från samma kategori bredvid varandra: "Konserver & torrvaror 2".
+    if (group.cluster) {
+      const pk = group.cluster.parentKey;
+      const name = pk.startsWith('c:') ? pk.slice(2) : CATEGORY_LABELS[pk as StoreCategory];
+      const emoji = pk.startsWith('c:') ? '🏷️' : (CATEGORY_EMOJIS[pk as StoreCategory] ?? '🏷️');
+      return `${emoji} ${name} ${group.cluster.index}`;
+    }
     if (group.isSub && group.isCustom) {
       const pk = group.parentKey ?? '';
       const emoji = pk.startsWith('c:') ? '🏷️' : (CATEGORY_EMOJIS[pk as StoreCategory] ?? '🏷️');
@@ -1749,7 +1756,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     return `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
   };
   const groupKey = (group: CategoryGroup<ShoppingItemWithRecipe>) =>
-    group.isSub && group.isCustom ? `cs:${group.parentKey}:${group.category}`
+    group.cluster ? `m:${group.cluster.members.join('+')}`
+      : group.isSub && group.isCustom ? `cs:${group.parentKey}:${group.category}`
       : group.isCustom ? `c:${group.category}`
       : group.isSub ? `s:${group.category}`
       : group.category as string;
