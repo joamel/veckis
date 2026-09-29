@@ -155,13 +155,19 @@ import('./jobs/backfillSubCategory').then(m => {
 // WebSocket server for real-time shopping list updates
 const wss = new WebSocketServer({ noServer: true });
 
-// Server-side heartbeat — terminate stale connections every 30s
+// Server-side heartbeat — terminate stale connections every 30s.
+// Protokollets ping syns inte för React Native-klienten, så den får också ett
+// vanligt meddelande. Uteblir det ansluter klienten om: annars kunde en
+// anslutning dö när telefonen bytte nät med appen öppen, utan att klienten
+// märkte det, och andras ändringar slutade komma fram.
+const HEARTBEAT_MESSAGE = JSON.stringify({ type: 'heartbeat' });
 const heartbeatInterval = setInterval(() => {
   wss.clients.forEach(ws => {
     const annotated = ws as WebSocket & { isAlive?: boolean };
     if (annotated.isAlive === false) { ws.terminate(); return; }
     annotated.isAlive = false;
     ws.ping();
+    if (ws.readyState === WebSocket.OPEN) ws.send(HEARTBEAT_MESSAGE);
   });
 }, 30_000);
 

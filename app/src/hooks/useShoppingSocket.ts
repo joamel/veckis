@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
+import { HEARTBEAT_CHECK_MS, isHeartbeat, isSilent } from '../lib/socketHeartbeat';
 import type { ShoppingItemWithRecipe } from '../api/client';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
@@ -38,6 +39,8 @@ export function useShoppingSocket(
   const wsRef = useRef<WebSocket | null>(null);
   const unmountedRef = useRef(false);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // När något senast hördes från servern — se hjärtslaget nedan.
+  const lastHeardRef = useRef(0);
 
   useEffect(() => {
     if (!listId) return;
@@ -68,6 +71,7 @@ export function useShoppingSocket(
 
       const ws = new WebSocket(toWsUrl(listId!, token));
       wsRef.current = ws;
+      lastHeardRef.current = Date.now();
 
       ws.onopen = () => {
         // Backoffen börjar om efter en lyckad anslutning. Förut växte den över
@@ -78,8 +82,10 @@ export function useShoppingSocket(
       };
 
       ws.onmessage = (e) => {
+        lastHeardRef.current = Date.now();
         try {
           const msg = JSON.parse(e.data as string) as ShoppingWsMessage;
+          if (isHeartbeat(msg)) return;
           onMessageRef.current(msg);
         } catch { /* ignore malformed */ }
       };
@@ -119,8 +125,23 @@ export function useShoppingSocket(
       }
     });
 
+    // Hjärtslag i förgrunden. AppState-lyssnaren ovan täcker bakgrunden, men
+    // inte en anslutning som dör medan appen är ÖPPEN och telefonen byter nät:
+    // readyState står kvar på OPEN utan onclose. Servern skickar ett slag var
+    // 30:e sekund; har inget hörts på 75 s ansluter vi om, och anroparen
+    // hämtar om det som missats (onReconnect).
+    const heartbeatTimer = setInterval(() => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (!isSilent(lastHeardRef.current, Date.now())) return;
+      clearReconnect();
+      attemptRef.current = 0;
+      connect();
+    }, HEARTBEAT_CHECK_MS);
+
     return () => {
       unmountedRef.current = true;
+      clearInterval(heartbeatTimer);
       clearReconnect();
       wsRef.current?.close();
       appStateSub.remove();
