@@ -51,7 +51,8 @@ import { VyVaxel } from '../../src/components/nydesign/VyVaxel';
 import { ReceptBildkort, ReceptKompaktRad, type ReceptKortLage } from '../../src/components/nydesign/ReceptKort';
 import { VeckoDagValjare } from '../../src/components/nydesign/VeckoDagValjare';
 import { Murverk, murverkHojd } from '../../src/components/nydesign/Murverk';
-import { TagLabel } from '../../src/components/TagLabel';
+import { TagLabel, isFavoriteTag } from '../../src/components/TagLabel';
+import { orderTags } from '../../src/lib/tagOrder';
 import { cleanPastedUrl, extractUrl } from '../../src/lib/extractUrl';
 
 // Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
@@ -324,24 +325,19 @@ export default function RecipesScreen() {
     });
   }
 
-  // Tagg-filter: fästa taggar först (i fästordning), sedan resten efter antal
-  // recept. Fästa taggar som inget recept längre har visas inte, men ligger
-  // kvar sparade så de kommer tillbaka om taggen används igen.
+  // Tagg-filter: Favoriter först, sedan fästa taggar och resten, båda efter
+  // antal recept (se orderTags).
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
   const [pinnedTags, setPinnedTags] = useState<string[]>([]);
-  const allTags = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const r of recipes) for (const t of r.tags ?? []) counts.set(t, (counts.get(t) ?? 0) + 1);
-    const fästa = pinnedTags.filter(t => counts.has(t));
-    const övriga = [...counts.entries()]
-      .filter(([t]) => !pinnedTags.includes(t))
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'sv'))
-      .map(([t]) => t);
-    return [...fästa, ...övriga];
-  }, [recipes, pinnedTags]);
+  const allTags = useMemo(
+    () => orderTags(recipes.map(r => r.tags), pinnedTags, str.tags.favorite),
+    [recipes, pinnedTags],
+  );
   // Långtryck fäster/lossar. Optimistiskt; vid fel tillbaka till det sparade.
   const togglePinnedTag = useCallback((tag: string) => {
     if (!householdId) return;
+    // Favoriter ligger alltid först och går inte att lossa.
+    if (isFavoriteTag(tag)) { showToast(str.tags.favoriteAlwaysFirst); return; }
     const föregående = pinnedTags;
     const fäst = !föregående.includes(tag);
     const nästa = fäst ? [...föregående, tag] : föregående.filter(t => t !== tag);
