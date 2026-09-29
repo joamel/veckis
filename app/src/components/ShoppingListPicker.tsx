@@ -25,8 +25,9 @@ export function ShoppingListPicker({
   confirming = false,
   confirmDisabled = false,
   onFocusInput,
+  compact = false,
 }: {
-  lists: Array<{ id: string; name: string; itemCount: number }>;
+  lists: Array<{ id: string; name: string }>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   /** Skapar listan och ger tillbaka den; den väljs sedan automatiskt. */
@@ -37,6 +38,9 @@ export function ShoppingListPicker({
   confirmDisabled?: boolean;
   /** Från useSheetLift, så namnfältet lyfts över tangentbordet i arket. */
   onFocusInput?: (ref: RefObject<TextInput | null>) => () => void;
+  /** Tätare rader — för receptets ark, där ingredienslistan ovanför ska få
+   *  det mesta av höjden. */
+  compact?: boolean;
 }) {
   const ny = useNy();
   const s = useMemo(() => makeStyles(ny), [ny]);
@@ -69,16 +73,15 @@ export function ShoppingListPicker({
         return (
           <Pressable
             key={l.id}
-            style={[s.item, selected && s.itemActive, confirming && s.disabled]}
+            style={[s.item, compact && s.itemCompact, selected && s.itemActive, confirming && s.disabled]}
             onPress={() => onSelect(l.id)}
             disabled={confirming}
             accessibilityRole="radio"
             accessibilityState={{ selected }}
           >
-            <View style={{ flex: 1 }}>
-              <Text style={s.itemTitle}>{l.name}</Text>
-              <Text style={s.itemMeta}>{str.itemsCount(l.itemCount)}</Text>
-            </View>
+            {/* Bara namnet: hur många varor listan redan har säger inget om
+                vart man vill föra över. */}
+            <Text style={[s.itemTitle, { flex: 1 }]} numberOfLines={1}>{l.name}</Text>
             {selected && <Ionicons name="checkmark-circle" size={22} color={ny.padYta} />}
           </Pressable>
         );
@@ -111,14 +114,14 @@ export function ShoppingListPicker({
           </View>
         </View>
       ) : (
-        <Pressable style={s.newRow} onPress={() => setCreatingOpen(true)} disabled={confirming} accessibilityRole="button">
+        <Pressable style={[s.newRow, compact && s.newRowCompact]} onPress={() => setCreatingOpen(true)} disabled={confirming} accessibilityRole="button">
           <Ionicons name="add-circle-outline" size={20} color={ny.padYta} />
           <Text style={s.newRowText}>{str.newList}</Text>
         </Pressable>
       )}
 
       <Pressable
-        style={[s.confirm, (!selectedId || confirming || confirmDisabled) && s.disabled]}
+        style={[s.confirm, compact && s.confirmCompact, (!selectedId || confirming || confirmDisabled) && s.disabled]}
         onPress={() => selectedId && onConfirm(selectedId)}
         disabled={!selectedId || confirming || confirmDisabled}
         accessibilityRole="button"
@@ -134,8 +137,10 @@ const makeStyles = (ny: NyPalett) => StyleSheet.create({
   root: { gap: 0 },
   item: { paddingVertical: 14, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: ny.kontur, flexDirection: 'row', alignItems: 'center' },
   itemActive: { backgroundColor: ny.bricka, borderRadius: 10, borderBottomColor: 'transparent' },
+  itemCompact: { paddingVertical: 10 },
+  newRowCompact: { paddingVertical: 10 },
+  confirmCompact: { marginTop: 8, paddingVertical: 12 },
   itemTitle: { fontSize: 16, fontWeight: '600', color: ny.text },
-  itemMeta: { fontSize: 13, color: ny.textDampad, marginTop: 2 },
   disabled: { opacity: 0.4 },
   newRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 12 },
   newRowText: { fontSize: 16, fontWeight: '600', color: ny.padYta },

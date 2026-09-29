@@ -1141,7 +1141,6 @@ export const stores = {
 
 export const components = {
   shoppingListPicker: {
-    itemsCount:     (n: number) => `${n} varor`,
     newList:        'Ny inköpslista',
     namePlaceholder:'Namnge ny lista',
     create:         'Skapa',

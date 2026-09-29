@@ -2314,7 +2314,7 @@ export default function MenuScreen() {
           ) : (
             <>
               <ShoppingListPicker
-                lists={shoppingLists.map(l => ({ id: l.id, name: l.name, itemCount: l.items.length }))}
+                lists={shoppingLists}
                 selectedId={bulkSelectedListId}
                 onSelect={setBulkSelectedListId}
                 onCreate={createListForPicker}

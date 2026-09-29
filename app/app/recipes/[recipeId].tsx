@@ -1798,13 +1798,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             <ActivityIndicator color={c.primary} style={{ marginVertical: 12 }} />
           ) : (
             <ShoppingListPicker
-              lists={lists.map(l => ({ id: l.id, name: l.name, itemCount: l.items.length }))}
+              lists={lists}
               selectedId={selectedListId}
               onSelect={setSelectedListId}
               onCreate={createListForPicker}
               onConfirm={doTransfer}
               confirming={transferring}
               confirmDisabled={checkedIds.size === 0}
+              compact
             />
           )}
       </DraggableBottomSheet>
