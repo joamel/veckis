@@ -1,4 +1,5 @@
 import { StoreCategory } from '@prisma/client';
+import { inferSubCategory, parentForSub } from '@veckis/shared';
 
 const RULES: { keywords: string[]; category: StoreCategory }[] = [
   {
@@ -50,12 +51,12 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
   {
     category: 'dairy_eggs',
     keywords: [
-      'mjölk', 'helmjölk', 'mellanmjölk', 'lättmjölk', 'laktosfri mjölk',
+      'mjölk', 'helmjölk', 'mellanmjölk', 'lättmjölk', 'laktosfri mjölk', 'keso', 'cottage cheese',
       'grädde', 'vispgrädde', 'crème fraiche', 'gräddfil', 'fil', 'filmjölk',
       'yoghurt', 'greek yoghurt', 'kvarg', 'kesella',
       'smör', 'margarin',
       'ägg', 'äggvita', 'äggula',
-      'kondenserad mjölk', 'kokosmjölk',
+      'kondenserad mjölk',
     ],
   },
   {
@@ -307,7 +308,52 @@ export function kureratUndantag(name: string): StoreCategory | null {
   return null;
 }
 
+/**
+ * Den kurerade kategorin för ett varunamn. EN kedja för alla vägar in —
+ * tillägg i listan, basvaror, veckomenyn, recept, inventering och sökförslag:
+ *
+ *   1. "torkad …" och de kurerade undantagen (skrivna för hand)
+ *   2. underkategorins kategori (inferSubCategory)
+ *   3. ett lagrat svar, om anroparen har ett (det globala aliaset)
+ *   4. nyckelordsreglerna
+ *
+ * Förut gick basvaror och veckomenyn direkt på nyckelorden medan listan gick
+ * via underkategorin, och de sa olika: "kakao" börjar på "kaka" i brödregeln
+ * men har underkategorin Mjöl & bakingredienser (torrvaror), "kaffe" var dryck
+ * men Kaffe & te står i torrvaruhyllan. Basvarans gissning lästes sedan som
+ * hushållets val och vann — kakao hamnade under Bröd i fem hushåll.
+ */
 export function categorizeIngredient(name: string): StoreCategory {
+  return classify(name, { useSubCategory: true });
+}
+
+/** Som categorizeIngredient, men med ett lagrat svar (globala aliaset) före nyckelorden. */
+export function categorizeWithStored(name: string, stored: StoreCategory | string | null | undefined): StoreCategory {
+  return classify(name, { useSubCategory: true, stored: stored && stored !== 'other' ? (stored as StoreCategory) : null });
+}
+
+/**
+ * Nyckelordsklassaren UTAN underkategoristeget — så som basvaror klassades
+ * före 2026-09-30. Används bara för att känna igen en sparad gissning från den
+ * tiden (backfillStapleChoice), aldrig för att klassa något nytt.
+ */
+export function legacyKeywordCategory(name: string): StoreCategory {
+  return classify(name, { useSubCategory: false });
+}
+
+/**
+ * Kategorier som klassaren före 2026-09-19 kunde ha gett namnet — den gjorde
+ * ren delsträngssökning ("sidfläsk" innehåller "läsk" → dryck). Reglerna har
+ * fått fler ord sedan dess, så den exakta ordningen går inte att återskapa;
+ * därför alla kategorier med något nyckelord inne i namnet. Används bara för
+ * att känna igen basvaror som sparade den tidens gissning.
+ */
+export function legacySubstringCategories(name: string): Set<StoreCategory> {
+  const lower = name.toLowerCase();
+  return new Set(RULES.filter(rule => rule.keywords.some(kw => lower.includes(kw))).map(rule => rule.category));
+}
+
+function classify(name: string, opts: { useSubCategory: boolean; stored?: StoreCategory | null }): StoreCategory {
   const lower = name.toLowerCase().trim();
   // Dela på skiljetecken, inte på "allt som inte är en svensk bokstav". Den
   // förra varianten listade tillåtna tecken, och då blev varje accent en
@@ -328,6 +374,16 @@ export function categorizeIngredient(name: string): StoreCategory {
       return u.category;
     }
   }
+  // Underkategorin före nyckelorden: dess mönster är hela ord och längsta
+  // träff vinner, medan nyckelorden matchar på ordbörjan ("kaka" → kakao).
+  // En underkategori under Övrigt (husdjur, hushållsvaror …) säger inget om
+  // hyllan och får falla igenom.
+  if (opts.useSubCategory) {
+    const sub = inferSubCategory(lower);
+    const parent = sub ? parentForSub(sub) : null;
+    if (parent && parent !== 'other') return parent as StoreCategory;
+  }
+  if (opts.stored) return opts.stored;
   for (const rule of RULES) {
     if (rule.keywords.some(kw => matchar(lower, ord, kw))) {
       return rule.category;

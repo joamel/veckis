@@ -335,6 +335,12 @@ model StapleItem {
   // inferSubCategory gissa vid tillägg. Sträng av samma skäl som
   // ShoppingItem.subCategory: frikopplad från enum-deploys.
   subCategory     String?
+  // Valde hushållet kategorin (true), eller är den klassarens gissning från
+  // när basvaran skapades (false)? Bara ett val får gå före den kurerade
+  // kedjan — en gissning som lästes som ett val lade kakao under Bröd i fem
+  // hushåll. null = basvaran skapades före 2026-09-30; backfillStapleChoice
+  // avgör vid start om den sparade kategorin ser ut som en gammal gissning.
+  categoryChosen  Boolean?
   unit            String?
   defaultQuantity Float?
   usageCount      Int           @default(0) // times added to a list — drives "dina vanligaste"

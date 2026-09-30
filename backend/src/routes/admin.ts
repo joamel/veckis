@@ -107,7 +107,7 @@ adminRouter.get('/category-gaps', asyncHandler(async (req, res) => {
 adminRouter.get('/category-votes', asyncHandler(async (req, res) => {
   const min = Math.max(1, Number(req.query.min) || 1);
   const staples = await prisma.stapleItem.findMany({
-    select: { householdId: true, name: true, category: true, subCategory: true },
+    select: { householdId: true, name: true, category: true, categoryChosen: true, subCategory: true },
   });
   const rows = categoryVotes(staples, min);
   res.json({ basvaror: staples.length, oense: rows.length, rader: rows.slice(0, 200) });

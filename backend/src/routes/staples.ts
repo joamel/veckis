@@ -4,7 +4,8 @@ import { StoreCategory, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
-import { categorizeIngredient } from '../lib/categorizeIngredient';
+import { categorizeIngredient, categorizeWithStored } from '../lib/categorizeIngredient';
+import { effectiveStapleCategory } from '../lib/stapleChoice';
 import { basvaruskrivning } from '../lib/basvaruval';
 import { COMMON_INGREDIENTS } from '../lib/commonIngredients';
 import { duglingGlobalt } from '../lib/normalizeIngredients';
@@ -47,7 +48,10 @@ staplesRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
     where: { householdId },
     orderBy: [{ usageCount: 'desc' }, { name: 'asc' }],
   });
-  res.json(staples);
+  // En gissad kategori visas som den kurerade — appen grupperar sökrutan och
+  // kategoriväljaren efter den här, och en gammal gissning ("kakao" → Bröd)
+  // lade annars varan i fel kategori där också.
+  res.json(staples.map(s => ({ ...s, category: effectiveStapleCategory(s) })));
 }));
 
 // POST /api/staples — upsert by name
@@ -97,7 +101,7 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   for (const namn of namnAttSkriva) {
     skrivna.push(await prisma.stapleItem.upsert({
       where: { householdId_name: { householdId: body.data.householdId, name: namn } },
-      create: { ...body.data, name: namn, category, subCategory } as Prisma.StapleItemUncheckedCreateInput,
+      create: { ...body.data, name: namn, category, subCategory, categoryChosen: skrivning.skapa.categoryChosen } as Prisma.StapleItemUncheckedCreateInput,
       update: {
         ...skrivning.uppdatera,
         unit: body.data.unit,
@@ -190,7 +194,9 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
   const common = COMMON_INGREDIENTS.filter(c => !aliasNames.has(c.name.toLowerCase()) && !hiddenNames.has(c.name.toLowerCase()));
 
   res.json([
-    ...cleanAliases.map(a => ({ name: a.canonical, category: a.category as string })),
+    // Aliasets kategori föddes med klassarens gissning på sin tid; den
+    // kurerade kedjan (underkategorin före aliaset) avgör vad som visas.
+    ...cleanAliases.map(a => ({ name: a.canonical, category: categorizeWithStored(a.canonical, a.category) as string })),
     ...common.map(c => ({ name: c.name, category: c.category as string })),
   ]);
 }));
@@ -213,9 +219,10 @@ staplesRouter.post('/resolve', requireAuth, requireHouseholdMember, asyncHandler
   const lookup = [...new Set([...stripped, ...aliasRows.map(a => a.canonical)])];
   const staples = await prisma.stapleItem.findMany({
     where: { householdId: body.data.householdId, name: { in: lookup } },
-    select: { name: true, category: true },
+    select: { name: true, category: true, categoryChosen: true },
   });
-  const own = new Map(staples.map(s => [s.name, s.category]));
+  // Bara hushållets VAL — en gissad kategori får den kurerade kedjan avgöra.
+  const own = new Map(staples.filter(s => s.categoryChosen !== false).map(s => [s.name, s.category]));
 
   res.json(resolveInventoryNames(body.data.names, aliases, own));
 }));

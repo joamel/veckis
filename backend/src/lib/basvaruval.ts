@@ -28,9 +28,9 @@ export type Basvaruskrivning = {
   valdeSub: boolean;
   /** Fälten för en NY basvara — här är klassarens gissning rätt svar, för det
    *  finns inget tidigare val att förstöra. */
-  skapa: { category: StoreCategory; subCategory: string | null };
+  skapa: { category: StoreCategory; subCategory: string | null; categoryChosen: boolean };
   /** Fälten för en BEFINTLIG basvara — bara det som faktiskt valts. */
-  uppdatera: { category?: StoreCategory; subCategory?: string | null };
+  uppdatera: { category?: StoreCategory; categoryChosen?: true; subCategory?: string | null };
   /** Om varor som redan ligger i öppna listor får flyttas. Bara ett val får
    *  göra det; en gissning som flyttar varor ser ut som att listan lever
    *  sitt eget liv mitt i handlingen. */
@@ -47,9 +47,12 @@ export function basvaruskrivning(angivet: Angivet, klassadKategori: StoreCategor
     skapa: {
       category: valdeKategori ? angivet.category! : klassadKategori,
       subCategory: angivet.subCategory ?? null,
+      // Gissningen sparas (så basvaran har en kategori att visa), men märks
+      // som gissning — den får aldrig gå före den kurerade kedjan.
+      categoryChosen: valdeKategori,
     },
     uppdatera: {
-      ...(valdeKategori ? { category: angivet.category! } : {}),
+      ...(valdeKategori ? { category: angivet.category!, categoryChosen: true as const } : {}),
       ...(valdeSub ? { subCategory: angivet.subCategory ?? null } : {}),
     },
     fårFlyttaVaror: valdeKategori || valdeSub,

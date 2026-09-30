@@ -5,7 +5,8 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { normalizeIngredientNames, getStoredCategory } from '../lib/normalizeIngredients';
-import { categorizeIngredient } from '../lib/categorizeIngredient';
+import { categorizeWithStored } from '../lib/categorizeIngredient';
+import { withDriedPrefix } from '../lib/driedHerb';
 import { stripIngredient } from '../lib/stripIngredient';
 import { wsBroadcast } from '../lib/wsHub';
 import { planIncomingMatch, planAutoMerge } from '../lib/importDedupe';
@@ -318,7 +319,8 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   const rawNames = body.data.ingredients.map(i => i.name);
   const normalizedNames = await normalizeIngredientNames(rawNames);
   const ingredients = body.data.ingredients.map((ing, i) => {
-    const name = normalizedNames[i] ?? ing.name;
+    // "1 tsk timjan" är torkad timjan (kryddhyllan), inte en kruka i frukt & grönt.
+    const name = withDriedPrefix(normalizedNames[i] ?? ing.name, ing.unit, ing.name);
     // Importerade recept kan ha kvar en rå amerikansk enhet ("cup", "oz") som
     // sparas orörd på RECEPTET (se parseIngredientString.ts) — men den ska
     // ALDRIG hamna i inköpslistan, som bara känner till svenska/metriska
@@ -391,8 +393,12 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
   const toCreateWithCategory = await Promise.all(
     toCreate.map(async ing => ({
       ...ing,
+      // Samma kedja som ett tillägg i listan: undantag → underkategori →
+      // globala aliaset → nyckelord. Aliaset gick förut FÖRST, och ett alias
+      // som fötts med nyckelordsgissningen ("kakao" → bröd) vann över
+      // underkategorin.
       resolvedCategory: ing.category === 'other'
-        ? (await getStoredCategory(ing.name) ?? categorizeIngredient(ing.name))
+        ? categorizeWithStored(ing.name, await getStoredCategory(ing.name))
         : ing.category,
     }))
   );

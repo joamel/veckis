@@ -1,6 +1,6 @@
 import type { StoreCategory } from '@prisma/client';
-import { inferSubCategory, parentForSub, type SubCategory } from '@veckis/shared';
-import { categorizeIngredient, kureratUndantag } from './categorizeIngredient';
+import { inferSubCategory, type SubCategory } from '@veckis/shared';
+import { categorizeIngredient } from './categorizeIngredient';
 
 /**
  * Rapport: var är hushållen oense med den kurerade klassaren?
@@ -12,14 +12,12 @@ import { categorizeIngredient, kureratUndantag } from './categorizeIngredient';
  * inferSubCategory.ts. Den skriver aldrig något: rättelsen sprids bara via ett
  * medvetet beslut i koden, aldrig automatiskt.
  *
- * Källan är hushållens basvaror. En basvaras kategori sätts av klassaren när
- * den skapas och skrivs sedan bara över av ett val (se basvaruval.ts), och en
- * underkategori på en basvara är alltid ett val. En avvikande kategori kan
- * därför också vara en gammal gissning från innan klassaren rättades — det är
- * lika värt att se, men läs raden med det i åtanke.
+ * Källan är hushållens basvaror. Bara kategorier märkta som val räknas
+ * (categoryChosen, se stapleChoice.ts) — en sparad gissning är ingen röst.
+ * En underkategori på en basvara är alltid ett val.
  */
 
-export type StapleChoice = { householdId: string; name: string; category: StoreCategory | string; subCategory: string | null };
+export type StapleChoice = { householdId: string; name: string; category: StoreCategory | string; categoryChosen?: boolean | null; subCategory: string | null };
 
 export type CuratedAnswer = { category: StoreCategory; subCategory: SubCategory | null };
 
@@ -36,14 +34,9 @@ export type CategoryVoteRow = {
   subCategories: { subCategory: string; households: number }[];
 };
 
-/** Samma kedja som ett tillägg i inköpslistan går igenom, utan hushållets eget val. */
+/** Den kurerade kedjan (categorizeIngredient), utan hushållets eget val. */
 export function curatedAnswer(name: string): CuratedAnswer {
-  const subCategory = inferSubCategory(name);
-  const fromSub = subCategory ? parentForSub(subCategory) : null;
-  const category = kureratUndantag(name)
-    ?? (fromSub && fromSub !== 'other' ? (fromSub as StoreCategory) : null)
-    ?? categorizeIngredient(name);
-  return { category, subCategory };
+  return { category: categorizeIngredient(name), subCategory: inferSubCategory(name) };
 }
 
 const tally = (values: string[]) =>
@@ -69,7 +62,7 @@ export function categoryVotes(staples: StapleChoice[], minDisagreeing = 1): Cate
     // 'other' är inget val (samma regel som basvaruval.ts) — det är en rest av
     // det gamla felet där "vet inte" sparades som svar.
     const disagreeing = choices.filter(c =>
-      (c.category !== 'other' && c.category !== curated.category)
+      (c.categoryChosen !== false && c.category !== 'other' && c.category !== curated.category)
       || (c.subCategory != null && c.subCategory !== curated.subCategory),
     ).length;
     if (disagreeing < minDisagreeing) continue;
@@ -78,7 +71,8 @@ export function categoryVotes(staples: StapleChoice[], minDisagreeing = 1): Cate
       curated,
       households: choices.length,
       disagreeing,
-      categories: tally(choices.map(c => String(c.category))).map(t => ({ category: t.value, households: t.households })),
+      // Bara valda kategorier — en sparad gissning är ingen röst.
+      categories: tally(choices.filter(c => c.categoryChosen !== false).map(c => String(c.category))).map(t => ({ category: t.value, households: t.households })),
       subCategories: tally(choices.flatMap(c => (c.subCategory ? [c.subCategory] : []))).map(t => ({ subCategory: t.value, households: t.households })),
     });
   }

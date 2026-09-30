@@ -152,6 +152,14 @@ import('./jobs/backfillSubCategory').then(m => {
     .catch(e => console.error('[subCategory backfill] fel:', e));
 });
 
+// Avgör om äldre basvarors kategori är ett val eller en gammal gissning
+// (idempotent, rör bara rader som inte avgjorts, körs i bakgrunden).
+import('./jobs/backfillStapleChoice').then(m => {
+  m.backfillStapleChoice()
+    .then(r => { if (r.chosen + r.guesses > 0) console.log(`[basvaruval backfill] ${r.chosen} val, ${r.guesses} gissningar (${r.reclassified} omklassade, ${r.itemsMoved} varor flyttade i öppna listor)`); })
+    .catch(e => console.error('[basvaruval backfill] fel:', e));
+});
+
 // WebSocket server for real-time shopping list updates
 const wss = new WebSocketServer({ noServer: true });
 

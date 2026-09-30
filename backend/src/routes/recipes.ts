@@ -272,6 +272,8 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
         // gemeniserar redan; den här var kvar.
         name: ing.name.toLowerCase(),
         category: ing.category,
+        // Receptets kategori är klassarens gissning, inget val av hushållet.
+        categoryChosen: false,
         // Svensk enhet. Ett engelskt recept gav basvaran "teaspoon", och sedan
         // fick VARJE framtida tillägg av den varan den enheten — oavsett
         // recept. Receptet behåller källans ord; basvaran ska gå att läsa i en

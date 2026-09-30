@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { categorizeIngredient, kureratUndantag } from './categorizeIngredient';
+import { categorizeIngredient, categorizeWithStored, kureratUndantag, legacyKeywordCategory } from './categorizeIngredient';
 
 describe('categorizeIngredient — kaffefilter', () => {
   it('är en torrvara bredvid kaffet, inte en dryck', () => {
     expect(categorizeIngredient('kaffefilter')).toBe('canned_dry');
-    expect(categorizeIngredient('kaffe')).toBe('beverages');
-    expect(categorizeIngredient('kaffekapslar')).toBe('beverages');
+    // Kaffe & te står i torrvaruhyllan (taxonomin), inte bland läsk och juice.
+    expect(categorizeIngredient('kaffe')).toBe('canned_dry');
+    expect(categorizeIngredient('kaffekapslar')).toBe('canned_dry');
   });
 });
 
@@ -65,7 +66,7 @@ describe('categorizeIngredient — delsträngsfällan', () => {
     // Skördade 2026-09-20 ur rapporten: namnen fanns i poolen med rätt lagrad
     // kategori, men ingen REGEL kände igen dem — så en ny användare hade fått
     // dem i Övrigt.
-    expect(categorizeIngredient('toalettpapper')).toBe('personal_care');
+    expect(categorizeIngredient('toalettpapper')).toBe('cleaning');
     expect(categorizeIngredient('rimmat sidfläsk')).toBe('meat_fish');
     expect(categorizeIngredient('garam masala')).toBe('canned_dry');
     expect(categorizeIngredient('grönsaksfond')).toBe('canned_dry');
@@ -127,5 +128,60 @@ describe('categorizeIngredient — delsträngsfällan', () => {
 
   it('svarar other när ingen regel träffar', () => {
     expect(categorizeIngredient('blorp')).toBe('other');
+  });
+});
+
+describe('categorizeIngredient — underkategorin före nyckelorden (prod 2026-09-30)', () => {
+  it('ger samma svar som listans kedja i stället för nyckelordens gissning', () => {
+    // "kakao" börjar på "kaka" i brödregeln.
+    expect(categorizeIngredient('kakao')).toBe('canned_dry');
+    expect(categorizeIngredient('falukorv')).toBe('deli_charcuterie');
+    expect(categorizeIngredient('oregano')).toBe('canned_dry');
+    // "havre" och "soja" i torrvaruregeln.
+    expect(categorizeIngredient('havredryck')).toBe('dairy_eggs');
+    expect(categorizeIngredient('sojafärs')).toBe('special_diet');
+    expect(categorizeIngredient('kex')).toBe('bread_bakery');
+  });
+
+  it('nya regler från skörden', () => {
+    expect(categorizeIngredient('keso')).toBe('dairy_eggs');
+    expect(categorizeIngredient('baksmör')).toBe('dairy_eggs');
+    expect(categorizeIngredient('drickyoghurt')).toBe('dairy_eggs');
+    expect(categorizeIngredient('pesto')).toBe('canned_dry');
+    expect(categorizeIngredient('hamburgerdressing')).toBe('canned_dry');
+    expect(categorizeIngredient('toapapper')).toBe('cleaning');
+  });
+
+  it('nyckelordsgissningen finns kvar för att känna igen gamla basvaror', () => {
+    expect(legacyKeywordCategory('kakao')).toBe('bread_bakery');
+    expect(legacyKeywordCategory('kaffe')).toBe('beverages');
+  });
+
+  it('ett lagrat svar går före nyckelorden men efter underkategorin', () => {
+    expect(categorizeWithStored('kakao', 'bread_bakery')).toBe('canned_dry');
+    expect(categorizeWithStored('glögg', 'beverages')).toBe('beverages');
+    expect(categorizeWithStored('glögg', 'other')).toBe(categorizeIngredient('glögg'));
+  });
+});
+
+describe('granskningen av alla varunamn 2026-09-30', () => {
+  it('rättar fel kategori', () => {
+    expect(categorizeIngredient('kvarg')).toBe('dairy_eggs');
+    expect(categorizeIngredient('kokosmjölk')).toBe('canned_dry');
+    expect(categorizeIngredient('kycklingbuljongtärning')).toBe('canned_dry');
+    expect(categorizeIngredient('chiliflakes')).toBe('canned_dry');
+    expect(categorizeIngredient('malen koriander')).toBe('canned_dry');
+    expect(categorizeIngredient('koriander')).toBe('fruit_veg');
+    // "rom" i ett recept är nästan alltid fiskrom — ingen gissning på sprit.
+    expect(categorizeIngredient('rom')).not.toBe('beverages');
+    expect(categorizeIngredient('löjrom')).toBe('meat_fish');
+  });
+
+  it('fyller luckor', () => {
+    expect(categorizeIngredient('satsuma')).toBe('fruit_veg');
+    expect(categorizeIngredient('gurkmeja')).toBe('canned_dry');
+    expect(categorizeIngredient('ströbröd')).toBe('canned_dry');
+    expect(categorizeIngredient('matyoghurt')).toBe('dairy_eggs');
+    expect(categorizeIngredient('kalkonkorv')).toBe('deli_charcuterie');
   });
 });

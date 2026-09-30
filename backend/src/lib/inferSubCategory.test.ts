@@ -95,3 +95,21 @@ describe('specialkost på engelska', () => {
     expect(inferSubCategory('lactose free milk')).toBe('laktosfritt');
   });
 });
+
+describe('inferSubCategory — torkat', () => {
+  it('torkade örter står bland kryddorna, inte bland de färska', () => {
+    expect(inferSubCategory('torkad timjan')).toBe('kryddor_buljong');
+    expect(inferSubCategory('timjan')).toBe('örter_sallad');
+    expect(inferSubCategory('torkad oregano')).toBe('kryddor_buljong');
+    // Torkad frukt är varken färsk frukt eller krydda — ingen gissning.
+    expect(inferSubCategory('torkade aprikoser')).toBeNull();
+  });
+});
+
+describe('inferSubCategory — ärtor', () => {
+  it('ärtor är frysta grönsaker, som klassarens undantag säger', () => {
+    expect(inferSubCategory('ärtor')).toBe('frysta_grönsaker');
+    expect(parentForSub('frysta_grönsaker')).toBe('frozen');
+    expect(inferSubCategory('sockerärtor')).not.toBe('frysta_grönsaker');
+  });
+});

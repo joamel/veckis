@@ -17,43 +17,43 @@ import type { SubCategory } from './taxonomy';
 // patterns.
 const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   // Frukt & grönt
-  { sub: 'frukt', patterns: ['äpple', 'äpplen', 'banan', 'apelsin', 'citron', 'lime', 'päron', 'kiwi', 'mango', 'avocado', 'meloner', 'melon', 'persika', 'plommon', 'druvor', 'ananas', 'granatäpple'] },
+  { sub: 'frukt', patterns: ['äpple', 'äpplen', 'banan', 'apelsin', 'citron', 'lime', 'päron', 'kiwi', 'mango', 'avocado', 'meloner', 'melon', 'persika', 'plommon', 'druvor', 'ananas', 'granatäpple', 'mandarin', 'satsuma', 'clementin', 'nektarin', 'blodapelsin', 'vindruvor', 'vindruva'] },
   { sub: 'bär', patterns: ['jordgubbar', 'jordgubb', 'hallon', 'blåbär', 'björnbär', 'lingon', 'tranbär', 'krusbär', 'havtorn', 'fläderbär'] },
-  { sub: 'grönsaker', patterns: ['broccoli', 'blomkål', 'paprika', 'tomat', 'gurka', 'zucchini', 'aubergine', 'majs', 'sparris', 'kålrot', 'vitkål', 'rödkål', 'spenat', 'ärtor', 'sockerärt', 'haricot', 'bönor (färska)'] },
-  { sub: 'rotsaker', patterns: ['potatis', 'morötter', 'morot', 'palsternacka', 'rödbeta', 'rotselleri', 'kålrabbi', 'sötpotatis', 'jordärtskocka'] },
-  { sub: 'lök_vitlök', patterns: ['gul lök', 'rödlök', 'salladslök', 'purjolök', 'schalottenlök', 'vitlök', 'lök'] },
-  { sub: 'örter_sallad', patterns: ['basilika', 'persilja', 'koriander', 'mynta', 'rosmarin', 'timjan', 'dill', 'gräslök', 'salvia', 'ruccola', 'sallad', 'isbergssallad', 'spenat (frisk)', 'mangold'] },
+  { sub: 'grönsaker', patterns: ['broccoli', 'blomkål', 'paprika', 'tomat', 'gurka', 'zucchini', 'aubergine', 'majs', 'sparris', 'kålrot', 'vitkål', 'rödkål', 'spenat', 'sockerärt', 'haricot', 'bönor (färska)', 'tomater', 'körsbärstomater', 'romanticatomater', 'cocktailtomater', 'babyspenat'] },
+  { sub: 'rotsaker', patterns: ['potatis', 'morötter', 'morot', 'palsternacka', 'rödbeta', 'rotselleri', 'kålrabbi', 'sötpotatis', 'jordärtskocka', 'småpotatis', 'fast potatis', 'mjölig potatis'] },
+  { sub: 'lök_vitlök', patterns: ['gul lök', 'rödlök', 'salladslök', 'purjolök', 'schalottenlök', 'vitlök', 'lök', 'vitlöksklyfta', 'vitlöksklyftor'] },
+  { sub: 'örter_sallad', patterns: ['basilika', 'persilja', 'koriander', 'mynta', 'rosmarin', 'timjan', 'dill', 'gräslök', 'salvia', 'ruccola', 'sallad', 'isbergssallad', 'spenat (frisk)', 'mangold', 'rucola', 'salladsmix'] },
   // Kött & fisk
   { sub: 'nöt', patterns: ['oxfilé', 'biff', 'entrecôte', 'ryggbiff', 'rostbiff', 'ox', 'nötkött'] },
   { sub: 'fläsk', patterns: ['fläskfilé', 'fläskytterfilé', 'fläskkotlett', 'kassler', 'bacon (rökt)', 'sidfläsk', 'fläsk'] },
-  { sub: 'kyckling_fågel', patterns: ['kycklingfilé', 'kycklinglår', 'kycklingvingar', 'kycklingklubbor', 'kyckling', 'kalkon', 'anka'] },
-  { sub: 'färs', patterns: ['nötfärs', 'fläskfärs', 'blandfärs', 'kycklingfärs', 'kalkonfärs', 'färs'] },
-  { sub: 'fisk', patterns: ['lax', 'torsk', 'kolja', 'sej', 'sill', 'makrill', 'tonfisk (färsk)', 'rödspätta', 'gädda', 'abborre'] },
+  { sub: 'kyckling_fågel', patterns: ['kycklingfilé', 'kycklinglår', 'kycklingvingar', 'kycklingklubbor', 'kyckling', 'kalkon', 'anka', 'kycklingfiléer'] },
+  { sub: 'färs', patterns: ['nötfärs', 'fläskfärs', 'blandfärs', 'kycklingfärs', 'kalkonfärs', 'färs', 'köttfärs'] },
+  { sub: 'fisk', patterns: ['lax', 'torsk', 'kolja', 'sej', 'sill', 'makrill', 'tonfisk (färsk)', 'rödspätta', 'gädda', 'abborre', 'löjrom', 'stenbitsrom', 'forellrom', 'kaviar'] },
   { sub: 'skaldjur', patterns: ['räkor', 'kräftor', 'krabba', 'hummer', 'musslor', 'ostron', 'kammusslor', 'bläckfisk'] },
   { sub: 'färdiga_såser_kylda', patterns: ['bearnaisesås', 'béarnaisesås', 'hollandaisesås', 'bearnaise', 'hollandaise', 'pepparsås', 'gräddsås', 'sky', 'köttsky'] },
   // Chark & deli
   { sub: 'skinka_pålägg', patterns: ['parmaskinka', 'serranoskinka', 'prosciutto', 'rökt skinka', 'kalkonpålägg', 'rökt kalkon', 'kycklingpålägg', 'blodpudding', 'leverpastej', 'skinka', 'pålägg'] },
-  { sub: 'korv_charcuteri', patterns: ['salami', 'pepperoni', 'chorizo', 'medisterkorv', 'falukorv', 'wienerkorv', 'grillkorv', 'bratwurst', 'isterband', 'prinskorv', 'kabanoss', 'mortadella', 'merguez', 'blodkorv', 'kycklingkorv', 'korv'] },
-  { sub: 'delikatessost', patterns: ['brie', 'camembert', 'parmesan', 'manchego', 'pecorino', 'gorgonzola', 'roquefort', 'chèvre', 'burrata', 'ricotta (deli)', 'taleggio', 'gouda', 'gruyère', 'gruyere', 'comté', 'comte', 'färskost', 'kvarg', 'krämost'] },
+  { sub: 'korv_charcuteri', patterns: ['salami', 'pepperoni', 'chorizo', 'medisterkorv', 'falukorv', 'wienerkorv', 'grillkorv', 'bratwurst', 'isterband', 'prinskorv', 'kabanoss', 'mortadella', 'merguez', 'blodkorv', 'kycklingkorv', 'korv', 'kalkonkorv'] },
+  { sub: 'delikatessost', patterns: ['brie', 'camembert', 'parmesan', 'manchego', 'pecorino', 'gorgonzola', 'roquefort', 'chèvre', 'burrata', 'ricotta (deli)', 'taleggio', 'gouda', 'gruyère', 'gruyere', 'comté', 'comte', 'färskost', 'krämost'] },
   { sub: 'pâté_terrin', patterns: ['paté', 'pâté', 'terrin', 'rillette', 'mousse (chark)'] },
-  { sub: 'oliver_antipasto', patterns: ['gröna oliver', 'svarta oliver', 'oliver', 'antipasto', 'soltorkade tomater', 'kapris', 'cornichoner', 'inlagda paprika', 'pepparoni (inlagda)'] },
+  { sub: 'oliver_antipasto', patterns: ['gröna oliver', 'svarta oliver', 'oliver', 'antipasto', 'soltorkade tomater', 'kapris', 'cornichoner', 'inlagda paprika', 'pepparoni (inlagda)', 'kronärtskockshjärtan'] },
   { sub: 'färdigmat_kyld', patterns: ['färdig sallad', 'pastasallad', 'kyld färdigrätt', 'färdig soppa', 'sushi'] },
   // Mejeri & ägg
   { sub: 'laktosfritt', patterns: ['laktosfri', 'laktosfritt', 'lactose free', 'lactose-free'] }, // KÖRS FÖRST — överstyr mjölk/ost om "laktosfri" finns i namnet
-  { sub: 'mejerisubstitut', patterns: ['havremjölk', 'havredryck', 'sojamjölk', 'sojadryck', 'mandelmjölk', 'kokosmjölk', 'havregrädde', 'sojagrädde', 'växtbaserad'] },
+  { sub: 'mejerisubstitut', patterns: ['havremjölk', 'havredryck', 'sojamjölk', 'sojadryck', 'mandelmjölk', 'havregrädde', 'sojagrädde', 'växtbaserad', 'kokosdryck'] },
   { sub: 'mjölk', patterns: ['standardmjölk', 'mellanmjölk', 'lättmjölk', 'minimjölk', 'mjölk'] },
-  { sub: 'yoghurt_fil', patterns: ['yoghurt', 'fil', 'filmjölk', 'kefir', 'naturell yoghurt', 'grekisk yoghurt', 'turkisk yoghurt'] },
-  { sub: 'smör_margarin', patterns: ['smör', 'margarin', 'bregott', 'lätt & lagom'] },
+  { sub: 'yoghurt_fil', patterns: ['yoghurt', 'fil', 'filmjölk', 'kefir', 'naturell yoghurt', 'grekisk yoghurt', 'turkisk yoghurt', 'drickyoghurt', 'matyoghurt', 'kvarg', 'vaniljkvarg'] },
+  { sub: 'smör_margarin', patterns: ['smör', 'baksmör', 'margarin', 'bregott', 'lätt & lagom'] },
   { sub: 'ost', patterns: ['hushållsost', 'präst', 'grevé', 'svecia', 'herrgård', 'cheddar (vanlig)', 'ost'] },
   { sub: 'matlagningsost', patterns: ['riven ost', 'gratängost', 'pizzaost', 'riven mozzarella', 'mozzarella (färsk)', 'mozzarella', 'feta', 'fetaost', 'salladsost', 'halloumi', 'grillost', 'matlagningsost'] },
   { sub: 'grädde', patterns: ['vispgrädde', 'matlagningsgrädde', 'crème fraîche', 'creme fraiche', 'gräddfil', 'grädde'] },
-  { sub: 'ägg', patterns: ['ägg'] },
+  { sub: 'ägg', patterns: ['ägg', 'äggulor', 'äggula', 'äggvitor', 'äggvita'] },
   // Bröd & bageri
-  { sub: 'bröd', patterns: ['limpa', 'rågbröd', 'levain', 'baguette', 'tunnbröd', 'pitabröd', 'hamburgerbröd', 'korvbröd', 'bröd'] },
+  { sub: 'bröd', patterns: ['limpa', 'rågbröd', 'levain', 'baguette', 'tunnbröd', 'pitabröd', 'hamburgerbröd', 'korvbröd', 'bröd', 'naanbröd', 'naan'] },
   { sub: 'knäckebröd_skorpor', patterns: ['knäckebröd', 'skorpor', 'krisprolls'] },
-  { sub: 'bakverk_kex', patterns: ['kakor', 'kex', 'bullar', 'wienerbröd', 'kanelbullar', 'småkakor'] },
+  { sub: 'bakverk_kex', patterns: ['kakor', 'kex', 'bullar', 'wienerbröd', 'kanelbullar', 'småkakor', 'bulle'] },
   // Frysvaror
-  { sub: 'frysta_grönsaker', patterns: ['frysta grönsaker', 'fryst broccoli', 'fryst spenat', 'wokgrönsaker (frysta)', 'frysta ärtor', 'majs (fryst)'] },
+  { sub: 'frysta_grönsaker', patterns: ['frysta grönsaker', 'fryst broccoli', 'fryst spenat', 'wokgrönsaker (frysta)', 'frysta ärtor', 'majs (fryst)', 'ärtor', 'gröna ärtor'] },
   { sub: 'frysta_bär_frukt', patterns: ['frysta bär', 'frysta hallon', 'frysta blåbär', 'frysta jordgubbar'] },
   { sub: 'glass', patterns: ['glass', 'gelato', 'sorbet'] },
   { sub: 'fryst_kött_fågel', patterns: ['fryst kött', 'fryst kyckling', 'fryst köttfärs', 'fryst kalkon'] },
@@ -67,14 +67,14 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'ris_gryn', patterns: ['jasminris', 'basmatiris', 'arborioris', 'fullkornsris', 'havregryn', 'korngryn', 'bovete', 'quinoa', 'couscous', 'bulgur', 'ris'] },
   { sub: 'flingor_müsli', patterns: ['frukostflingor', 'cornflakes', 'müsli', 'granola', 'havrefras', 'flingor', 'crunchy müsli'] },
   { sub: 'honung', patterns: ['honung', 'flytande honung'] },
-  { sub: 'sylt_marmelad', patterns: ['sylt', 'marmelad', 'jordgubbssylt', 'hallonsylt', 'lingonsylt', 'hjortronsylt', 'apelsinmarmelad'] },
+  { sub: 'sylt_marmelad', patterns: ['sylt', 'marmelad', 'jordgubbssylt', 'hallonsylt', 'lingonsylt', 'hjortronsylt', 'apelsinmarmelad', 'äppelmos'] },
   { sub: 'sött_pålägg', patterns: ['nutella', 'chokladpålägg', 'jordnötssmör', 'kakaokräm', 'nötkräm'] },
-  { sub: 'konserver', patterns: ['krossade tomater', 'tomatkonserv', 'tonfisk i', 'majs (konserv)', 'kokosmjölk (konserv)', 'kokosgrädde (konserv)', 'kondenserad mjölk'] },
+  { sub: 'konserver', patterns: ['krossade tomater', 'tomatkonserv', 'tonfisk i', 'majs (konserv)', 'kokosmjölk (konserv)', 'kokosgrädde (konserv)', 'kondenserad mjölk', 'kokosmjölk', 'kokosgrädde', 'tomatsoppa'] },
   { sub: 'baljväxter', patterns: ['kikärtor', 'svarta bönor', 'kidneybönor', 'vita bönor', 'linser', 'gula ärtor'] },
-  { sub: 'mjöl_bakingredienser', patterns: ['vetemjöl', 'rågmjöl', 'mannagryn', 'jäst', 'bakpulver', 'bikarbonat', 'florsocker', 'strösocker', 'farinsocker', 'sirap', 'kakao', 'vaniljsocker', 'sockerkaka mix'] },
+  { sub: 'mjöl_bakingredienser', patterns: ['vetemjöl', 'rågmjöl', 'mannagryn', 'jäst', 'bakpulver', 'bikarbonat', 'florsocker', 'strösocker', 'farinsocker', 'sirap', 'kakao', 'vaniljsocker', 'sockerkaka mix', 'socker', 'pärlsocker', 'ströbröd', 'våffelmix', 'pannkaksmix'] },
   { sub: 'olja_vinäger', patterns: ['olivolja', 'rapsolja', 'kokosolja', 'solrosolja', 'sesamolja', 'balsamico', 'äppelcidervinäger', 'rödvinsvinäger', 'vinäger', 'olja'] },
-  { sub: 'kryddor_buljong', patterns: ['salt', 'peppar', 'svartpeppar', 'paprikapulver', 'curry', 'kanel', 'kardemumma', 'oregano', 'paprika (krydda)', 'buljongtärningar', 'kycklingbuljong', 'grönsaksbuljong', 'köttbuljong'] },
-  { sub: 'sås_dressing', patterns: ['ketchup', 'senap', 'majonnäs', 'sweet chili', 'sojasås', 'fisksås', 'ostronsås', 'sambal oelek', 'dressing', 'caesardressing', 'rhode island'] },
+  { sub: 'kryddor_buljong', patterns: ['salt', 'peppar', 'svartpeppar', 'paprikapulver', 'curry', 'kanel', 'kardemumma', 'oregano', 'paprika (krydda)', 'buljongtärningar', 'kycklingbuljong', 'grönsaksbuljong', 'köttbuljong', 'chiliflakes', 'chiliflingor', 'chilipulver', 'gurkmeja', 'spiskummin', 'kummin', 'muskot', 'kryddpeppar', 'lagerblad', 'garam masala', 'cayennepeppar', 'malen koriander', 'mald koriander', 'malen ingefära', 'mald ingefära', 'buljongtärning', 'kycklingbuljongtärning', 'grönsaksbuljongtärning', 'köttbuljongtärning', 'hönsbuljong'] },
+  { sub: 'sås_dressing', patterns: ['ketchup', 'senap', 'majonnäs', 'sweet chili', 'sojasås', 'fisksås', 'ostronsås', 'sambal oelek', 'dressing', 'caesardressing', 'hamburgerdressing', 'rhode island', 'pesto', 'aioli', 'dijonsenap', 'soja', 'japansk soja', 'kinesisk soja'] },
   { sub: 'nötter_frön_torra', patterns: ['mandlar', 'cashewnötter', 'jordnötter', 'hasselnötter', 'valnötter', 'pinjenötter', 'pumpafrön', 'solrosfrön', 'sesamfrön', 'chiafrön', 'linfrön'] },
   // Snacks & godis
   { sub: 'godis', patterns: ['godis', 'gelégodis', 'salta lakritsar', 'sura' /* karameller */, 'kola'] },
@@ -90,7 +90,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'kaffe_te', patterns: ['kaffe', 'snabbkaffe', 'espressopulver', 'kaffekapslar', 'bryggkaffe', 'kaffefilter', 'te', 'tepåsar', 'grönt te', 'svart te', 'rooibos', 'kamomill'] },
   { sub: 'taco_texmex', patterns: ['tortillabröd', 'tortillas', 'tortilla', 'tacoskal', 'tacosås', 'tacokrydda', 'tacokryddmix', 'taco', 'tacos', 'salsa', 'salsasås', 'fajitakrydda', 'burritokrydda', 'enchiladasås', 'refried beans', 'guacamolemix'] },
   { sub: 'alkoholfritt_öl_cider', patterns: ['alkoholfri öl', 'alkoholfri cider', 'alkoholfritt'] },
-  { sub: 'alkoholhaltigt', patterns: ['öl', 'vin', 'rödvin', 'vitt vin', 'rosévin', 'cider', 'sprit', 'whisky', 'vodka', 'rom', 'gin'] },
+  { sub: 'alkoholhaltigt', patterns: ['öl', 'vin', 'rödvin', 'vitt vin', 'rosévin', 'cider', 'sprit', 'whisky', 'vodka', 'gin'] },
   // Specialkost
   // Engelska former också: importerade recept kan innehålla oöversatta namn
   // ("gluten free pasta"), och de ska hamna i specialkost som alla andra.
@@ -102,7 +102,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'tvättmedel', patterns: ['tvättmedel', 'sköljmedel', 'fläckborttagning', 'klorin'] },
   { sub: 'ytrengöring', patterns: ['ytrengöring', 'allrent', 'badrumsrengöring', 'fönsterputs', 'ugnsrengöring'] },
   { sub: 'städredskap', patterns: ['svampar', 'disktrasa', 'sopborste', 'mopp', 'soppåsar', 'sopsäckar'] },
-  { sub: 'toalett_hushållspapper', patterns: ['toalettpapper', 'hushållspapper', 'pappershanddukar', 'servetter', 'pappersservetter'] },
+  { sub: 'toalett_hushållspapper', patterns: ['toalettpapper', 'toapapper', 'hushållspapper', 'pappershanddukar', 'servetter', 'pappersservetter'] },
   // Hygien & personvård
   { sub: 'tandvård', patterns: ['tandkräm', 'tandborste', 'tandtråd', 'munvatten'] },
   { sub: 'hårvård', patterns: ['schampo', 'balsam', 'hårinpackning', 'hårspray', 'styling'] },
@@ -146,9 +146,19 @@ function matchesWord(haystack: string, needle: string): boolean {
   }
 }
 
+// Torkade örter står i kryddhyllan, inte bland de färska i frukt & grönt —
+// "torkad timjan" är en annan vara än timjan. Samma regel som klassarens
+// "torkad"-undantag (categorizeIngredient.ts), annars säger underkategori och
+// kategori emot varandra.
+const DRIED = /^torka(d|de|t)\s/;
+
 export function inferSubCategory(name: string): SubCategory | null {
   const haystack = name.toLowerCase().trim();
   if (!haystack) return null;
+  if (DRIED.test(haystack)) {
+    const rest = inferSubCategory(haystack.replace(DRIED, ''));
+    return rest === 'örter_sallad' || rest === 'kryddor_buljong' ? 'kryddor_buljong' : null;
+  }
 
   let best: { sub: SubCategory; len: number } | null = null;
   for (const { sub, patterns } of PATTERNS) {

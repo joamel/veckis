@@ -33,7 +33,7 @@ async function main() {
   const min = minArg();
 
   const staples = await prisma.stapleItem.findMany({
-    select: { householdId: true, name: true, category: true, subCategory: true },
+    select: { householdId: true, name: true, category: true, categoryChosen: true, subCategory: true },
   });
   const rows = categoryVotes(staples, min);
 
@@ -54,8 +54,7 @@ async function main() {
   if (rows.length > 150) console.log(`\n... och ${rows.length - 150} till.`);
 
   console.log('\nFlest oense först. Åtgärden är en regel i koden, inte en ändring i databasen.');
-  console.log('En avvikande kategori utan vald underkategori kan vara en gammal gissning från');
-  console.log('innan klassaren rättades — ett ensamt hushåll är ingen signal, flera oberoende är det.');
+  console.log('Bara kategorier som hushållen valt räknas — sparade gissningar är ingen röst.');
 }
 
 main()

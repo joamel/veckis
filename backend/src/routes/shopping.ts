@@ -321,7 +321,7 @@ async function läggTillVara(
   const normalizedName = stripIngredient(data.name);
   const staplePref = await prisma.stapleItem.findUnique({
     where: { householdId_name: { householdId: list.householdId, name: normalizedName } },
-    select: { category: true, subCategory: true },
+    select: { category: true, categoryChosen: true, subCategory: true },
   });
   // Track usage so the most-added staples surface as "dina vanligaste".
   if (staplePref) {
@@ -357,7 +357,12 @@ async function läggTillVara(
     // 'other' räknas INTE som ett svar någonstans i kedjan — annars vann ett
     // tomt "vet inte" över ett korrekt svar längre ned, och varan hamnade under
     // Övrigt trots att klassaren kände igen namnet.
-    : känd(staplePref?.category)
+    //
+    // Bara ett VAL på basvaran räknas. En basvara som skapades med klassarens
+    // gissning (categoryChosen false) lät gissningen vinna över underkategorin
+    // — kakao hamnade under Bröd. null = äldre basvara som backfillStapleChoice
+    // inte hunnit avgöra; den behandlas som förut tills dess.
+    : (staplePref?.categoryChosen === false ? null : känd(staplePref?.category))
       // Kurerade undantag före underkategorin: underkategorin är gissad ur
       // namnet, undantaget är skrivet för hand av någon som sett varan hamna
       // fel ("lingon köps frysta" väger tyngre än "lingon är ett bär").
@@ -638,9 +643,10 @@ shoppingRouter.patch('/items/:itemId', requireAuth, asyncHandler(async (req, res
           householdId: list.householdId,
           name: item.name,
           category: data.category as StoreCategory,
+          categoryChosen: true,
           subCategory: item.subCategory,
         },
-        update: { category: data.category as StoreCategory, subCategory: item.subCategory },
+        update: { category: data.category as StoreCategory, categoryChosen: true, subCategory: item.subCategory },
       }).catch(() => {});
     }
   }

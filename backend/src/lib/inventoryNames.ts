@@ -1,6 +1,6 @@
 import type { StoreCategory } from '@prisma/client';
 import { stripIngredient } from './stripIngredient';
-import { categorizeIngredient } from './categorizeIngredient';
+import { categorizeWithStored } from './categorizeIngredient';
 
 export type ResolvedName = { name: string; canonical: string; category: StoreCategory };
 
@@ -16,8 +16,8 @@ export type ResolvedName = { name: string; canonical: string; category: StoreCat
  *            kycklingfond" → "kycklingfond"), annars det strippade namnet
  *  kategori: 1. hushållets eget val (StapleItem — skrivs när man ändrar
  *               kategori på en vara i listan), på kanoniskt eller strippat namn
- *            2. den kurerade poolen (IngredientAlias.category)
- *            3. nyckelordsklassaren
+ *            2. samma kurerade kedja som listan: undantag → underkategori →
+ *               poolen (IngredientAlias.category) → nyckelorden
  *            "other" räknas inte som ett val i 1 och 2: det är vad allt fick
  *            innan någon brydde sig.
  */
@@ -33,8 +33,7 @@ export function resolveInventoryNames(
     const own = householdCategories.get(canonical) ?? householdCategories.get(stripped);
     const category =
       (own && own !== 'other' ? own : null)
-      ?? (alias && alias.category !== 'other' ? alias.category : null)
-      ?? categorizeIngredient(canonical);
+      ?? categorizeWithStored(canonical, alias?.category);
     return { name, canonical, category };
   });
 }
