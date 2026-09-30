@@ -71,6 +71,12 @@ function CategoryDragHandle({ parentKey, idx, onDragStart, onDragMove, onDragEnd
   );
 }
 
+// Vad som ligger bredvid namnet, i dp: underkategorirad = listans vänster-/högerpadding (24+14)
+// + mellanrum 12 + tre knappar 32 + bock 22 + 3 luckor à 6 + ram/marginal 6.
+const SUB_NAME_TAKEN = 24 + 14 + 12 + 3 * 32 + 22 + 3 * 6 + 6;
+// Utlyft rad: radens sidopadding 2×14 + mellanrum 8 + lyft-tillbaka 32 + lucka 6 + draghandtag 32 + ram/marginal 6
+const PLACED_NAME_TAKEN = 2 * 14 + 8 + 32 + 6 + 32 + 6;
+
 export default function StoreDetailScreen() {
   const { colors: c, ny } = useTheme();
   const { nyDesign } = useDesign();
@@ -141,6 +147,13 @@ export default function StoreDetailScreen() {
   const [categoryMerge, setCategoryMerge] = useState<Record<string, string>>({});
   const [mergingKey, setMergingKey] = useState<StoreCategory | null>(null);
   const [pickingMergeSource, setPickingMergeSource] = useState(false);
+  // Listans bredd. Namnkolumnerna får en UTRÄKNAD bredd (listbredd minus det
+  // som knapparna tar) i stället för flex: på Android mäter en flex-ruta texten
+  // mot en annan bredd än den sedan får, så en rad som ligger på kanten
+  // ("Mjöl & bakingredienser") bryts men behåller höjden från en rad — och
+  // andra raden syns inte. Med fast bredd är mätning och layout samma.
+  const [catListWidth, setCatListWidth] = useState(0);
+  const nameColumn = (taken: number) => (catListWidth > 0 ? { width: Math.max(80, catListWidth - taken) } : { flex: 1 });
 
   const mergedEntries = useMemo(
     () => (Object.entries(categoryMerge) as [StoreCategory, string][]),
@@ -280,6 +293,9 @@ export default function StoreDetailScreen() {
     }
     return null;
   }, []);
+  // Raden landar PÅ målradens plats: dras den nedåt hamnar den efter målraden,
+  // uppåt före. Strecket ritas därför under respektive över målraden.
+  const dropLineStyle = catDragState && catHoverIndex !== null && catHoverIndex > catDragState.startIndex ? s.catRowDropAfter : s.catRowDropTarget;
   const onCatDragStart = useCallback((key: string, idx: number, absoluteY: number) => {
     setCatDragState({ key, startIndex: idx, y: absoluteY });
     setCatHoverIndex(idx);
@@ -673,7 +689,8 @@ export default function StoreDetailScreen() {
               {/* Namnet tar hela bredden fram till knapparna: en ruta som krymper
                   efter innehållet mäts för smalt på Android och klipper texten.
                   Krysset ligger inne i texten så det hamnar direkt efter namnet. */}
-              <Pressable style={{ flex: 1 }} onPress={() => toggleSubExpanded(entry)}>
+              <View style={{ flex: 1 }}>
+              <Pressable style={nameColumn(SUB_NAME_TAKEN)} onPress={() => toggleSubExpanded(entry)}>
                 <Text style={[s.subName, shown && s.subNameActive]}>
                   {label}
                   {isCustomEntry && (
@@ -684,6 +701,7 @@ export default function StoreDetailScreen() {
                   )}
                 </Text>
               </Pressable>
+              </View>
               <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                 {shown ? (
                   <Pressable style={s.catBtn} onPress={() => placeSubFreely(entry, parentKey)} accessibilityLabel={str.detail.placeFreely}>
@@ -823,7 +841,7 @@ export default function StoreDetailScreen() {
         )}
         <Text style={s.sectionLabel}>{str.detail.sections.visible}</Text>
         <Text style={s.sectionSub}>{str.detail.mixedHint}</Text>
-        <View style={s.catList}>
+        <View style={s.catList} onLayout={e => setCatListWidth(e.nativeEvent.layout.width)}>
           {parentOrder.length === 0 ? (
             <Text style={s.emptyHint}>{str.detail.allHidden}</Text>
           ) : (
@@ -849,7 +867,7 @@ export default function StoreDetailScreen() {
                       <View
                         ref={ref => measureCatRow(headerKey, ref)}
                         onLayout={() => measureCatRow(headerKey, null)}
-                        style={[headerDragged && s.catRowDragging, headerDropTarget && s.catRowDropTarget]}
+                        style={[headerDragged && s.catRowDragging, headerDropTarget && dropLineStyle]}
                       >
                         <View style={s.catRow}>
                           <Pressable
@@ -877,12 +895,14 @@ export default function StoreDetailScreen() {
                       <View
                         ref={ref => measureCatRow(key, ref)}
                         onLayout={() => measureCatRow(key, null)}
-                        style={[beingDragged && s.catRowDragging, dropTarget && s.catRowDropTarget]}
+                        style={[beingDragged && s.catRowDragging, dropTarget && dropLineStyle]}
                       >
                         <View style={s.catRow}>
-                          <View style={{ flex: 1, paddingLeft: cluster ? 40 : 24 }}>
+                          <View style={{ flex: 1 }}>
+                          <View style={[nameColumn(PLACED_NAME_TAKEN), { paddingLeft: cluster ? 40 : 24 }]}>
                             <Text style={[s.subName, s.subNameActive]}>{subLabel}</Text>
                             {!cluster && <Text style={s.placedFrom} numberOfLines={1}>{str.detail.placedFrom(fromParent)}</Text>}
+                          </View>
                           </View>
                           <View style={{ flexDirection: 'row', gap: 6 }}>
                             <Pressable style={s.catBtn} onPress={() => unplaceSub(key)} accessibilityLabel={str.detail.placeBack(fromParent)}>
@@ -920,7 +940,7 @@ export default function StoreDetailScreen() {
                   key={key}
                   ref={ref => measureCatRow(key, ref)}
                   onLayout={() => measureCatRow(key, null)}
-                  style={[isBeingDragged && s.catRowDragging, isDropTarget && s.catRowDropTarget]}
+                  style={[isBeingDragged && s.catRowDragging, isDropTarget && dropLineStyle]}
                 >
                   <View style={s.catRow}>
                     <Pressable
@@ -1135,6 +1155,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: nyD ? ny.bricka : c.surfaceSubtle, gap: 8 },
   catRowMuted: { backgroundColor: c.background },
   catRowDragging: { opacity: 0.4 },
+  catRowDropAfter: { borderBottomWidth: 2, borderBottomColor: nyD ? ny.padYta : c.primary },
   catRowDropTarget: { borderTopWidth: 2, borderTopColor: nyD ? ny.padYta : c.primary },
   mergeTargetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   catName: { fontSize: 15, color: c.text, flex: 1, flexShrink: 1 },
