@@ -137,6 +137,22 @@ export type MembershipWithHousehold = HouseholdMember & { household: Household }
 export type ShoppingItemWithRecipe = ShoppingItem & { recipe: { id: string; title: string } | null };
 export type ShoppingListWithItems = ShoppingList & { items: ShoppingItemWithRecipe[]; store: Store | null };
 
+// Utan tak väntar RN:s fetch på en död anslutning (t.ex. efter dagar i
+// bakgrunden) för evigt: anropet varken lyckas eller kastar, så retry-logiken
+// nedan körs aldrig och skärmen snurrar för alltid.
+const REQUEST_TIMEOUT_MS = 15000;
+const TOKEN_TIMEOUT_MS = 12000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(
+      v => { clearTimeout(timer); resolve(v); },
+      e => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
 export function useApiClient() {
   const { getToken } = useAuth();
   // useAuth().getToken är inte garanterat referens-stabil mellan renders —
@@ -152,7 +168,7 @@ export function useApiClient() {
     // felruta i stället för att köas till när nätet kom tillbaka.
     let token: string | null;
     try {
-      token = await getTokenRef.current();
+      token = await withTimeout(getTokenRef.current(), TOKEN_TIMEOUT_MS);
     } catch {
       throw new ApiError('Network request failed', null, true);
     }
@@ -175,11 +191,14 @@ export function useApiClient() {
     const backoff = () => new Promise(r => setTimeout(r, [1500, 4000, 9000][attempt] ?? 9000));
     let res: Response;
     const startedAt = Date.now();
+    const abortController = new AbortController();
+    const abortTimer = setTimeout(() => abortController.abort(), REQUEST_TIMEOUT_MS);
     try {
       // trackBackendRequest visar "Vaknar…"-indikatorn om fetch:en dröjer >3s
       // (kallstart) och släcker den när backend svarar. Utan detta retry:ade
       // klienten tyst utan feedback → appen såg trasig ut under uppvaknandet.
       res = await trackBackendRequest(fetch(url, {
+        signal: abortController.signal,
         ...options,
         headers: {
           'Content-Type': 'application/json',
@@ -188,6 +207,7 @@ export function useApiClient() {
         },
       }));
     } catch (err) {
+      clearTimeout(abortTimer);
       // fetch rejects (rather than resolving with !ok) when the request never
       // reached the server: no connectivity, DNS failure, server down, etc.
       const elapsedMs = Date.now() - startedAt;
@@ -210,6 +230,7 @@ export function useApiClient() {
       }
       throw new ApiError('Network request failed', null, true);
     }
+    clearTimeout(abortTimer);
 
     if (!res.ok) {
       // 5xx = servern uppe men beroende (oftast DB:n) vaknar → retry:a idempotenta.

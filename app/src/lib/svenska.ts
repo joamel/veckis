@@ -56,6 +56,14 @@ export const common = {
     dinner:    'Middag',
     dessert:   'Efterrätt',
   },
+  startup: {
+    slow:           'Det tar längre tid än vanligt …',
+    failed:         'Handlis når inte servern just nu. Vi försöker igen automatiskt.',
+    sessionExpired: 'Servern godkände inte din inloggning. En omstart av appen brukar lösa det.',
+    retry:          'Försök igen',
+    restart:        'Starta om appen',
+    signInAgain:    'Logga in på nytt',
+  },
   errors: {
     generic:         'Något gick fel. Försök igen.',
     couldNotLoad:    (what: string) => `Kunde inte ladda ${what}`,
