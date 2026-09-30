@@ -14,6 +14,15 @@ describe('inferSubCategory', () => {
     expect(parentForSub('kaffe_te')).toBe('canned_dry');
   });
 
+  it('samlar taco-varorna under Taco & Tex-Mex (torrvaror)', () => {
+    expect(inferSubCategory('tortillabröd')).toBe('taco_texmex');
+    expect(inferSubCategory('mjuka tortillas')).toBe('taco_texmex');
+    expect(inferSubCategory('tacokrydda')).toBe('taco_texmex');
+    expect(inferSubCategory('salsa')).toBe('taco_texmex');
+    expect(inferSubCategory('tortillachips')).toBe('chips_salt');
+    expect(parentForSub('taco_texmex')).toBe('canned_dry');
+  });
+
   it('matchar färdiga såser till rätt sub (kylda)', () => {
     expect(inferSubCategory('Bearnaisesås')).toBe('färdiga_såser_kylda');
     expect(inferSubCategory('hollandaise')).toBe('färdiga_såser_kylda');
@@ -31,7 +40,11 @@ describe('inferSubCategory', () => {
     expect(inferSubCategory('Brie')).toBe('delikatessost');
     expect(inferSubCategory('Parmesan')).toBe('delikatessost');
     expect(inferSubCategory('Hushållsost')).toBe('ost');
-    expect(inferSubCategory('Riven ost')).toBe('ost');
+    expect(inferSubCategory('Riven ost')).toBe('matlagningsost');
+    expect(inferSubCategory('Halloumi')).toBe('matlagningsost');
+    expect(inferSubCategory('Fetaost')).toBe('matlagningsost');
+    expect(inferSubCategory('Mozzarella')).toBe('matlagningsost');
+    expect(parentForSub('matlagningsost')).toBe('cheese');
   });
 
   it('laktosfritt prioriteras över bas-mejeri', () => {

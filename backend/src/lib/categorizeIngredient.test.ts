@@ -9,6 +9,16 @@ describe('categorizeIngredient — kaffefilter', () => {
   });
 });
 
+describe('categorizeIngredient — taco', () => {
+  it('är torrvaror, inte bröd, men tortillachips är snacks', () => {
+    expect(categorizeIngredient('tortillabröd')).toBe('canned_dry');
+    expect(categorizeIngredient('mjuka tortillas')).toBe('canned_dry');
+    expect(categorizeIngredient('tacokrydda')).toBe('canned_dry');
+    expect(categorizeIngredient('salsa')).toBe('canned_dry');
+    expect(categorizeIngredient('tortillachips')).toBe('snacks_sweets');
+  });
+});
+
 describe('categorizeIngredient — delsträngsfällan', () => {
   it('matchar inte ett nyckelord mitt inne i ett ord', () => {
     // De här gav dryck före 2026-09-19: "sidfläsk" innehåller "läsk",

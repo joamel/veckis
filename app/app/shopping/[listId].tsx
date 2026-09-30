@@ -8,6 +8,7 @@ import { useCheckHaptic } from '../../src/hooks/useCheckHaptic';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
+import { browserCategories, browserSubs, browserSections } from '../../src/lib/browserOrder';
 import { buildShoppingListRows, type ShoppingListRow } from '../../src/lib/shoppingListRows';
 import { FlashList } from '@shopify/flash-list';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
@@ -266,6 +267,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Category browser modal
   const [showBrowser, setShowBrowser] = useState(false);
   const [browserCategory, setBrowserCategory] = useState<StoreCategory | null>(null);
+  // Vald underkategori i väljaren: null = alla, 'none' = varor utan underkategori.
+  const [browserSub, setBrowserSub] = useState<SubCategory | 'none' | null>(null);
+  const closeBrowserCategory = () => { setBrowserCategory(null); setBrowserSub(null); };
 
   // Item edit modal
   const [editingItem, setEditingItem] = useState<ShoppingItemWithRecipe | null>(null);
@@ -1738,6 +1742,16 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     };
   }, [list, categoryOrder]);
   const { unchecked, checked, allItems, customCategories, expandedSubs, customSubs, parentOrder, categoryMerge, categoryGroups } = derived;
+  const uncheckedNames = useMemo(() => new Set(unchecked.map(i => i.name.toLowerCase())), [unchecked]);
+  // Kategoriväljarens varor, i sektioner per underkategori i butikens ordning.
+  const browserSectionList = useMemo(() => {
+    if (browserCategory === null) return [];
+    const subOrder: string[] = (list?.store?.subOrder as string[] | undefined) ?? [];
+    return browserSections(
+      searchList.filter(s2 => s2.category === browserCategory),
+      browserSubs(browserCategory, expandedSubs, subOrder),
+    );
+  }, [browserCategory, searchList, expandedSubs, list?.store?.subOrder]);
   const groupLabel = (group: CategoryGroup<ShoppingItemWithRecipe>) => {
     // Flera utbrutna från samma kategori bredvid varandra: "Konserver & torrvaror 2".
     if (group.cluster) {
@@ -2140,14 +2154,19 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           använder pickStore()-helpern och navigerar dit i ?pick=1-läge. */}
 
       {/* Category browser modal */}
+      {/* Bakåt (knapp, svep, dra i handtaget) går från en kategori tillbaka
+          till rutnätet; bara tryck utanför — eller bakåt från rutnätet —
+          stänger. Arket står kvar öppet efter ett tillägg, så man kan plocka
+          flera varor i rad. */}
       <DraggableBottomSheet
         visible={showBrowser}
-        onRequestClose={() => setShowBrowser(false)}
-        sheetStyle={[s.sheet, s.browserSheet]}
+        onRequestClose={() => (browserCategory !== null ? closeBrowserCategory() : setShowBrowser(false))}
+        onOverlayPress={() => setShowBrowser(false)}
+        sheetStyle={[s.sheet, s.browserSheet, { height: windowHeight * 0.75 }]}
         bodyStyle={s.browserBody}
         title={browserCategory === null ? str.browserTitle : `${CATEGORY_EMOJIS[browserCategory]} ${CATEGORY_LABELS[browserCategory]}`}
         headerLeft={browserCategory !== null ? (
-          <Pressable onPress={() => setBrowserCategory(null)} hitSlop={10} accessibilityRole="button" accessibilityLabel={common.actions.back}>
+          <Pressable onPress={closeBrowserCategory} hitSlop={10} accessibilityRole="button" accessibilityLabel={common.actions.back}>
             <Ionicons name="chevron-back" size={22} color={SHEET_HEADER_ICON} />
           </Pressable>
         ) : undefined}
@@ -2155,8 +2174,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           {browserCategory === null ? (
             <>
               <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={[s.categoryGrid, { paddingBottom: 24 }]}>
-                {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => (
-                  <Pressable key={cat} style={s.categoryTile} onPress={() => setBrowserCategory(cat)}>
+                {browserCategories(categoryOrder).map(cat => (
+                  <Pressable key={cat} style={s.categoryTile} onPress={() => { setBrowserSub(null); setBrowserCategory(cat); }}>
                     <Text style={s.categoryTileEmoji}>{CATEGORY_EMOJIS[cat]}</Text>
                     <Text style={s.categoryTileLabel}>{CATEGORY_LABELS[cat]}</Text>
                   </Pressable>
@@ -2165,22 +2184,50 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </>
           ) : (
             <>
+              {browserSectionList.length > 1 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.browserChipRow} contentContainerStyle={s.browserChipRowContent}>
+                  {[null, ...browserSectionList.map(sec => sec.sub ?? 'none' as const)].map(key => {
+                    const active = browserSub === key;
+                    const label = key === null ? str.browserAllSubs : key === 'none' ? str.browserNoSub : SUB_TAXONOMY[key].label;
+                    return (
+                      <Pressable
+                        key={key ?? 'all'}
+                        style={[s.browserChip, active && s.browserChipActive]}
+                        onPress={() => setBrowserSub(key)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                      >
+                        {/* Uträknad bredd: Android mäter texten för smalt och klipper annars "Kaffe & te" till "Kaffe". */}
+                        <Text style={[s.browserChipText, active && s.browserChipTextActive, { width: label.length * 8 + 8 }]}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              ) : null}
               <ScrollView style={s.browserList}>
-                {searchList
-                  .filter(s2 => s2.category === browserCategory)
-                  // Mest använda överst, alfabetiskt som andrahandssortering.
-                  .sort((a, b) => ((b.usageCount ?? 0) - (a.usageCount ?? 0)) || a.name.localeCompare(b.name, 'sv'))
-                  .map(s2 => (
-                    <Pressable
-                      key={s2.name}
-                      style={s.browserItem}
-                      onPress={() => { setShowBrowser(false); quickAdd(s2.name, browserCategory ?? undefined); }}
-                    >
-                      <Text style={s.browserItemText}>{capitalize(s2.name)}</Text>
-                      <Ionicons name="add-circle-outline" size={20} color={c.primary} />
-                    </Pressable>
-                  ))
-                }
+                {browserSectionList
+                  .filter(sec => browserSub === null || (sec.sub ?? 'none') === browserSub)
+                  .map(sec => (
+                    <View key={sec.sub ?? 'none'}>
+                      {browserSectionList.length > 1 ? (
+                        <Text style={s.browserSectionTitle}>{sec.sub ? SUB_TAXONOMY[sec.sub].label : str.browserNoSub}</Text>
+                      ) : null}
+                      {sec.items.map(s2 => {
+                        const inList = uncheckedNames.has(s2.name.toLowerCase());
+                        return (
+                          <Pressable
+                            key={s2.name}
+                            style={s.browserItem}
+                            onPress={() => quickAdd(s2.name, browserCategory ?? undefined)}
+                            accessibilityLabel={inList ? str.browserInList(capitalize(s2.name)) : capitalize(s2.name)}
+                          >
+                            <Text style={s.browserItemText}>{capitalize(s2.name)}</Text>
+                            <Ionicons name={inList ? 'checkmark-circle' : 'add-circle-outline'} size={20} color={c.primary} />
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ))}
               </ScrollView>
             </>
           )}
@@ -3387,15 +3434,24 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // Ny design: ingen skugga — de gröntonade korten skiljer sig mot bakgrunden ändå.
   swipeRowWrapShadow: nyD ? {} : { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   swipeDeleteBg: { backgroundColor: c.danger, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
+  // Fast höjd (sätts vid användningen): arket hoppar inte mellan rutnät,
+  // kategorier och underkategorifilter — får varorna inte plats scrollar listan.
   browserSheet: { maxHeight: '90%' },
-  browserBody: { paddingTop: 4 },
+  browserBody: { paddingTop: 4, flex: 1 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   categoryTile: { width: '47%', backgroundColor: c.background, borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: c.borderLight },
   categoryTileEmoji: { fontSize: 28 },
   categoryTileLabel: { fontSize: 13, fontWeight: '600', color: c.textSecondary, textAlign: 'center' },
-  browserList: { marginTop: 12, maxHeight: 400 },
+  browserList: { marginTop: 12, flex: 1 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   browserItemText: { flex: 1, fontSize: 16, color: c.text },
+  browserChipRow: { flexGrow: 0, marginTop: 12 },
+  browserChipRowContent: { gap: 8, paddingRight: 8 },
+  browserChip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: nyD ? ny.bricka : c.primaryTint, borderRadius: nyD ? 16 : 20 },
+  browserChipActive: { backgroundColor: c.primary },
+  browserChipText: { fontSize: 13, color: nyD ? ny.chipText : c.primary, fontWeight: '600', textAlign: 'center' },
+  browserChipTextActive: { color: '#fff' },
+  browserSectionTitle: { fontSize: 12, fontWeight: '700', color: c.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 2 },
   qtyStepper: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
   qtyBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   // Litet antalsfält (inte flex) så enhet får plats på samma rad som i native-appen.

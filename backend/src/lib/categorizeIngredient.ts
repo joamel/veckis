@@ -63,7 +63,7 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
     keywords: [
       'bröd', 'limpa', 'franska', 'baguette', 'ciabatta', 'focaccia', 'surdegsbröd',
       'knäckebröd', 'rågbröd', 'grovbröd', 'vitt bröd', 'toast',
-      'bulle', 'kanelbulle', 'croissant', 'bagel', 'pitabröd', 'tortilla', 'tunnbröd',
+      'bulle', 'kanelbulle', 'croissant', 'bagel', 'pitabröd', 'tunnbröd',
       'kaka', 'muffin', 'scones', 'paj', 'tårta',
     ],
   },
@@ -113,7 +113,7 @@ const RULES: { keywords: string[]; category: StoreCategory }[] = [
   {
     category: 'snacks_sweets',
     keywords: [
-      'chips', 'popcorn', 'nachos', 'pretzel',
+      'chips', 'tortillachips', 'nachochips', 'popcorn', 'nachos', 'pretzel',
       'godis', 'lösgodis', 'choklad', 'kex', 'kola', 'lakrits',
       'nötter', 'mandel', 'cashew', 'jordnötter', 'pistager', 'valnötter', 'pekan',
       'bars', 'proteinbar', 'müslibar',
@@ -226,6 +226,17 @@ const UNDANTAG: { frasar: string[]; category: StoreCategory }[] = [
     // bland kaffet i torrvaruhyllan.
     category: 'canned_dry',
     frasar: ['kaffefilter', 'kaffefiltret', 'kaffefilt'],
+  },
+  {
+    // Taco & Tex-Mex står ihop i torrvarugången. "tortilla" låg i brödregeln
+    // och drog tortillabröd till bageriet, fast det står bredvid tacoskalen.
+    // Exakta ord, så tortillachips förblir snacks.
+    category: 'canned_dry',
+    frasar: [
+      'tortilla', 'tortillas', 'tortillabröd', 'tacoskal', 'tacosås', 'tacokrydda', 'tacokryddmix',
+      'taco', 'tacos', 'salsa', 'salsasås', 'fajitakrydda', 'burritokrydda', 'enchiladasås',
+      'refried beans', 'guacamolemix',
+    ],
   },
   {
     category: 'canned_dry',

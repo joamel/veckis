@@ -32,6 +32,7 @@ export type SubCategory =
   | 'skinka_pålägg'
   | 'korv_charcuteri'
   | 'delikatessost'
+  | 'matlagningsost'
   | 'pâté_terrin'
   | 'oliver_antipasto'
   | 'färdigmat_kyld'
@@ -73,6 +74,7 @@ export type SubCategory =
   | 'flingor_müsli'
   | 'honung'
   | 'kaffe_te'
+  | 'taco_texmex'
   // Snacks & godis
   | 'godis'
   | 'choklad'
@@ -149,6 +151,8 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   // Ost (egen parent)
   ost: { defaultParent: 'cheese', alsoUnder: [], label: 'Ost' },
   delikatessost: { defaultParent: 'cheese', alsoUnder: [], label: 'Delikatessost' },
+  // Riven ost, halloumi, feta, mozzarella — egen hylla i ostdisken, skild från pålägg och deli
+  matlagningsost: { defaultParent: 'cheese', alsoUnder: [], label: 'Matlagningsost' },
   // Mejeri & ägg
   mjölk: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Mjölk' },
   yoghurt_fil: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Yoghurt & fil' },
@@ -176,6 +180,10 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   // Konserver & torrvaror
   pasta_nudlar: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Pasta & nudlar' },
   ris_gryn: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Ris & gryn' },
+  // Taco & Tex-Mex — egen hylla bredvid pasta och ris ("världens mat"), där
+  // tortillabröd, skal, kryddmix och salsa står ihop. Står tidigt eftersom
+  // nyckelordningen här är standardordningen i butiksvyn.
+  taco_texmex: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Taco & Tex-Mex' },
   konserver: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Konserver' },
   baljväxter: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Baljväxter' },
   mjöl_bakingredienser: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Mjöl & bakingredienser' },

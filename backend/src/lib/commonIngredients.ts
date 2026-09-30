@@ -171,7 +171,7 @@ const COMMON_INGREDIENTS_RAW: { name: string; category: StoreCategory }[] = [
   { name: 'Surdegsbröd', category: 'bread_bakery' },
   { name: 'Rågbröd', category: 'bread_bakery' },
   { name: 'Knäckebröd', category: 'bread_bakery' },
-  { name: 'Tortilla', category: 'bread_bakery' },
+  { name: 'Tortilla', category: 'canned_dry' },
   { name: 'Pitabröd', category: 'bread_bakery' },
   { name: 'Baguette', category: 'bread_bakery' },
   { name: 'Ciabatta', category: 'bread_bakery' },
@@ -292,6 +292,10 @@ const COMMON_INGREDIENTS_RAW: { name: string; category: StoreCategory }[] = [
   { name: 'Pumpakärnor', category: 'canned_dry' },
   { name: 'Chiafrön', category: 'canned_dry' },
   { name: 'Linfrön', category: 'canned_dry' },
+  { name: 'Tacoskal', category: 'canned_dry' },
+  { name: 'Tacokrydda', category: 'canned_dry' },
+  { name: 'Tacosås', category: 'canned_dry' },
+  { name: 'Salsa', category: 'canned_dry' },
 
   // Snacks & godis
   { name: 'Chips', category: 'snacks_sweets' },

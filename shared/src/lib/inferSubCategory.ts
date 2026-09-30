@@ -34,7 +34,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   // Chark & deli
   { sub: 'skinka_pålägg', patterns: ['parmaskinka', 'serranoskinka', 'prosciutto', 'rökt skinka', 'kalkonpålägg', 'rökt kalkon', 'kycklingpålägg', 'blodpudding', 'leverpastej', 'skinka', 'pålägg'] },
   { sub: 'korv_charcuteri', patterns: ['salami', 'pepperoni', 'chorizo', 'medisterkorv', 'falukorv', 'wienerkorv', 'grillkorv', 'bratwurst', 'isterband', 'prinskorv', 'kabanoss', 'mortadella', 'merguez', 'blodkorv', 'kycklingkorv', 'korv'] },
-  { sub: 'delikatessost', patterns: ['brie', 'camembert', 'feta', 'mozzarella (färsk)', 'mozzarella', 'parmesan', 'manchego', 'pecorino', 'gorgonzola', 'roquefort', 'chèvre', 'halloumi', 'burrata', 'ricotta (deli)', 'taleggio', 'gouda', 'gruyère', 'gruyere', 'comté', 'comte', 'färskost', 'kvarg', 'krämost'] },
+  { sub: 'delikatessost', patterns: ['brie', 'camembert', 'parmesan', 'manchego', 'pecorino', 'gorgonzola', 'roquefort', 'chèvre', 'burrata', 'ricotta (deli)', 'taleggio', 'gouda', 'gruyère', 'gruyere', 'comté', 'comte', 'färskost', 'kvarg', 'krämost'] },
   { sub: 'pâté_terrin', patterns: ['paté', 'pâté', 'terrin', 'rillette', 'mousse (chark)'] },
   { sub: 'oliver_antipasto', patterns: ['gröna oliver', 'svarta oliver', 'oliver', 'antipasto', 'soltorkade tomater', 'kapris', 'cornichoner', 'inlagda paprika', 'pepparoni (inlagda)'] },
   { sub: 'färdigmat_kyld', patterns: ['färdig sallad', 'pastasallad', 'kyld färdigrätt', 'färdig soppa', 'sushi'] },
@@ -44,11 +44,12 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'mjölk', patterns: ['standardmjölk', 'mellanmjölk', 'lättmjölk', 'minimjölk', 'mjölk'] },
   { sub: 'yoghurt_fil', patterns: ['yoghurt', 'fil', 'filmjölk', 'kefir', 'naturell yoghurt', 'grekisk yoghurt', 'turkisk yoghurt'] },
   { sub: 'smör_margarin', patterns: ['smör', 'margarin', 'bregott', 'lätt & lagom'] },
-  { sub: 'ost', patterns: ['hushållsost', 'präst', 'grevé', 'svecia', 'herrgård', 'cheddar (vanlig)', 'riven ost', 'ost'] },
+  { sub: 'ost', patterns: ['hushållsost', 'präst', 'grevé', 'svecia', 'herrgård', 'cheddar (vanlig)', 'ost'] },
+  { sub: 'matlagningsost', patterns: ['riven ost', 'gratängost', 'pizzaost', 'riven mozzarella', 'mozzarella (färsk)', 'mozzarella', 'feta', 'fetaost', 'salladsost', 'halloumi', 'grillost', 'matlagningsost'] },
   { sub: 'grädde', patterns: ['vispgrädde', 'matlagningsgrädde', 'crème fraîche', 'creme fraiche', 'gräddfil', 'grädde'] },
   { sub: 'ägg', patterns: ['ägg'] },
   // Bröd & bageri
-  { sub: 'bröd', patterns: ['limpa', 'rågbröd', 'levain', 'baguette', 'tunnbröd', 'pitabröd', 'tortillabröd', 'hamburgerbröd', 'korvbröd', 'bröd'] },
+  { sub: 'bröd', patterns: ['limpa', 'rågbröd', 'levain', 'baguette', 'tunnbröd', 'pitabröd', 'hamburgerbröd', 'korvbröd', 'bröd'] },
   { sub: 'knäckebröd_skorpor', patterns: ['knäckebröd', 'skorpor', 'krisprolls'] },
   { sub: 'bakverk_kex', patterns: ['kakor', 'kex', 'bullar', 'wienerbröd', 'kanelbullar', 'småkakor'] },
   // Frysvaror
@@ -87,6 +88,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'sport_energidryck', patterns: ['energidryck', 'red bull', 'nocco', 'celsius', 'sportdryck', 'gatorade', 'powerade'] },
   { sub: 'saft_koncentrat', patterns: ['saft', 'blandsaft', 'koncentrat', 'squash'] },
   { sub: 'kaffe_te', patterns: ['kaffe', 'snabbkaffe', 'espressopulver', 'kaffekapslar', 'bryggkaffe', 'kaffefilter', 'te', 'tepåsar', 'grönt te', 'svart te', 'rooibos', 'kamomill'] },
+  { sub: 'taco_texmex', patterns: ['tortillabröd', 'tortillas', 'tortilla', 'tacoskal', 'tacosås', 'tacokrydda', 'tacokryddmix', 'taco', 'tacos', 'salsa', 'salsasås', 'fajitakrydda', 'burritokrydda', 'enchiladasås', 'refried beans', 'guacamolemix'] },
   { sub: 'alkoholfritt_öl_cider', patterns: ['alkoholfri öl', 'alkoholfri cider', 'alkoholfritt'] },
   { sub: 'alkoholhaltigt', patterns: ['öl', 'vin', 'rödvin', 'vitt vin', 'rosévin', 'cider', 'sprit', 'whisky', 'vodka', 'rom', 'gin'] },
   // Specialkost
