@@ -22,6 +22,7 @@
     "repair:categories": "tsx scripts/repair-other-categories.ts",
     "clean:names": "tsx scripts/clean-recipe-names.ts",
     "category-gaps": "tsx scripts/category-gaps.ts",
+    "category-votes": "tsx scripts/category-votes.ts",
     "curate:candidates": "tsx scripts/curate-candidates.ts",
     "clean:junk": "tsx scripts/clean-junk-names.ts",
     "clean:prefix": "tsx scripts/clean-mangdprefix.ts",

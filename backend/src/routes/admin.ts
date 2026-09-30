@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
+import { categoryVotes } from '../lib/categoryVotes';
 import { requireAuth, requireAppAdmin } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { stripIngredient } from '../lib/stripIngredient';
@@ -96,6 +97,20 @@ adminRouter.get('/category-gaps', asyncHandler(async (req, res) => {
     utanRegel: luckor.length,
     luckor: luckor.slice(0, 200),
   });
+}));
+
+// GET /api/admin/category-votes?min=2
+//
+// Syskon till category-gaps: namn där hushåll VALT en annan kategori eller
+// underkategori än den kurerade klassaren. Flera oberoende hushåll med samma
+// rättelse är skäl för en regel i koden. Läser bara — se lib/categoryVotes.ts.
+adminRouter.get('/category-votes', asyncHandler(async (req, res) => {
+  const min = Math.max(1, Number(req.query.min) || 1);
+  const staples = await prisma.stapleItem.findMany({
+    select: { householdId: true, name: true, category: true, subCategory: true },
+  });
+  const rows = categoryVotes(staples, min);
+  res.json({ basvaror: staples.length, oense: rows.length, rader: rows.slice(0, 200) });
 }));
 
 async function scrapeIngredients(url: string): Promise<string[]> {
