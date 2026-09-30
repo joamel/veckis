@@ -35,8 +35,11 @@ import { storeMeta } from '../../src/lib/storeMeta';
 import { isPlacedSubKey, placedClusters } from '../../src/lib/categoryGroups';
 
 /** Nyckeln en utbruten underkategori (expandedSubs-post) får i parentOrder när
- *  den placeras fritt. Egna har redan formen "cs:<parent>:<etikett>". */
-const placedKeyFor = (entry: string) => (entry.startsWith('cs:') ? entry : `s:${entry}`);
+ *  den placeras fritt. */
+const placedKeyFor = (entry: string) => `s:${entry}`;
+/** Egna underkategorier ("cs:…") togs bort 2026-09-30 — underkategorier är
+ *  alltid standard. Filtrerar bort rester ur utkast som sparades innan dess. */
+const withoutCustomSubs = (keys: string[]) => keys.filter(k => !k.startsWith('cs:'));
 
 // EGEN komponent — gesten byggs via useMemo, keyad på stabila props, så samma
 // gestobjekt lever kvar genom hela draget i stället för att byggas om vid
@@ -113,14 +116,10 @@ export default function StoreDetailScreen() {
   const [expandedSubs, setExpandedSubs] = useState<string[]>([]);
   // Ordning för icke-utbrutna standard-subs — kan sorteras UTAN att visas.
   const [subOrder, setSubOrder] = useState<string[]>([]);
-  // Hushålls-lokala egna underkategorier: parentKey → etiketter (ordnade).
-  const [customSubs, setCustomSubs] = useState<Record<string, string[]>>({});
   // UI-state: vilka parents användaren har "fällt ut" lokalt för att se sub-listan.
   const [openParents, setOpenParents] = useState<Set<StoreCategory>>(new Set());
   const [openCustomParents, setOpenCustomParents] = useState<Set<string>>(new Set());
   const [newCatName, setNewCatName] = useState('');
-  const [addingSubFor, setAddingSubFor] = useState<string | null>(null);
-  const [newSubName, setNewSubName] = useState('');
   const [saving, setSaving] = useState(false);
   // Synkron spärr utöver `saving`-state — React hinner inte alltid rendera
   // disabled={saving} innan ett snabbt andra tryck smiter igenom (samma
@@ -185,11 +184,10 @@ export default function StoreDetailScreen() {
           if (!finalPO.includes(cat) && !(cat in mergeMap)) finalPO.push(cat);
         }
         // Placeringar för underkategorier som inte längre är utbrutna slängs.
-        const savedExpanded = (found as { expandedSubs?: string[] }).expandedSubs ?? [];
-        setParentOrder(finalPO.filter(k => !isPlacedSubKey(k) || savedExpanded.some(e => placedKeyFor(e) === k)));
-        setExpandedSubs([...savedExpanded]);
-        setSubOrder([...((found as { subOrder?: string[] }).subOrder ?? [])]);
-        setCustomSubs({ ...((found as { customSubs?: Record<string, string[]> }).customSubs ?? {}) });
+        const savedExpanded = withoutCustomSubs((found as { expandedSubs?: string[] }).expandedSubs ?? []);
+        setParentOrder(withoutCustomSubs(finalPO).filter(k => !isPlacedSubKey(k) || savedExpanded.some(e => placedKeyFor(e) === k)));
+        setExpandedSubs(savedExpanded);
+        setSubOrder(withoutCustomSubs((found as { subOrder?: string[] }).subOrder ?? []));
         setCategoryMerge(mergeMap);
         setDirty(false);
 
@@ -198,10 +196,9 @@ export default function StoreDetailScreen() {
         // säger att det hände och erbjuder att slänga.
         const utkast = storeDrafts.hamta(found.id);
         if (utkast) {
-          setParentOrder([...utkast.parentOrder]);
-          setExpandedSubs([...utkast.expandedSubs]);
-          setSubOrder([...utkast.subOrder]);
-          setCustomSubs({ ...utkast.customSubs });
+          setParentOrder(withoutCustomSubs(utkast.parentOrder));
+          setExpandedSubs(withoutCustomSubs(utkast.expandedSubs));
+          setSubOrder(withoutCustomSubs(utkast.subOrder));
           setCategoryMerge({ ...utkast.categoryMerge });
           setDirty(true);
           setVisarUtkast(true);
@@ -395,11 +392,8 @@ export default function StoreDetailScreen() {
     }
     return cur;
   }
-  // Parent-nyckel för en expandedSubs-post. Egna subs kodas "cs:<parentKey>:<label>"
-  // (parentKey kan själv innehålla ":" för egna parents, "c:Barn") → parenten är
-  // allt mellan "cs:" och SISTA kolonet. Standard-subs: sub:ens (merge-upplösta) defaultParent.
+  // Parent-nyckel för en expandedSubs-post: sub:ens (merge-upplösta) defaultParent.
   function entryParentKey(entry: string): string {
-    if (entry.startsWith('cs:')) return entry.slice(3, entry.lastIndexOf(':'));
     const info = SUB_TAXONOMY[entry as SubCategory];
     return info ? resolveMerge(info.defaultParent) : '';
   }
@@ -420,12 +414,10 @@ export default function StoreDetailScreen() {
       return cl ? `${plainLabel(cl.parentKey)} ${cl.index}` : key;
     }
     // Fritt placerad underkategori (drag-spöket): dess eget namn.
-    if (key.startsWith('cs:')) return key.slice(key.lastIndexOf(':') + 1);
     if (key.startsWith('s:')) return SUB_TAXONOMY[key.slice(2) as SubCategory]?.label ?? key;
     return plainLabel(key);
   }
-  // Flytta en sub-post (standard ELLER egen) upp/ner bland sina syskon (samma
-  // parent) i expandedSubs — så egna och standard-subs kan interfolieras fritt.
+  // Flytta en sub-post upp/ner bland sina syskon (samma parent) i expandedSubs.
   function moveSubEntry(entry: string, parentKey: string, dir: -1 | 1) {
     setExpandedSubs(prev => {
       const siblingIdxs = prev.map((s, i) => ({ s, i })).filter(({ s }) => entryParentKey(s) === parentKey).map(({ i }) => i);
@@ -439,22 +431,15 @@ export default function StoreDetailScreen() {
     });
     setDirty(true);
   }
-  // EJ utbrutna poster för en parent — BÅDE standard-subs och egna (samma
-  // "cs:parentKey:label"-kodning som expandedSubs). Egna subs börjar dolda
-  // (se commitCustomSub) och ska gå att sortera bland de dolda standard-
-  // subsen direkt, utan att först visas.
-  function hiddenEntriesRaw(parentKey: string, standardSubs: SubCategory[]): string[] {
-    const standardHidden = standardSubs.filter(sub => !expandedSubs.includes(sub));
-    const customHidden = (customSubs[parentKey] ?? [])
-      .map(label => `cs:${parentKey}:${label}`)
-      .filter(entry => !expandedSubs.includes(entry));
-    return [...standardHidden, ...customHidden];
+  // EJ utbrutna underkategorier för en parent — sorterbara utan att först visas.
+  function hiddenEntriesRaw(_parentKey: string, standardSubs: SubCategory[]): string[] {
+    return standardSubs.filter(sub => !expandedSubs.includes(sub));
   }
   // Ordnad lista av dolda poster för en parent (se subOrder.ts).
   function hiddenEntriesFor(parentKey: string, standardSubs: SubCategory[]): string[] {
     return sortedRestFor(hiddenEntriesRaw(parentKey, standardSubs), subOrder);
   }
-  // Flytta en dold post (standard ELLER egen) upp/ner bland sina dolda
+  // Flytta en dold post upp/ner bland sina dolda
   // syskon — sorterbart utan att först behöva bocka i/visa den. Skriver in
   // den nya, fullständiga ordningen för DENNA parents dolda poster i
   // subOrder (ersätter ev. tidigare poster för samma parent).
@@ -488,7 +473,7 @@ export default function StoreDetailScreen() {
     });
   }
 
-  // --- Egna kategorier / underkategorier (hushålls-lokala) ---
+  // --- Egna kategorier (hushålls-lokala) ---
   function addCustomCategory() {
     const n = newCatName.trim();
     if (!n || customCategories.includes(n)) { setNewCatName(''); return; }
@@ -505,7 +490,7 @@ export default function StoreDetailScreen() {
       .filter(([, target]) => target === targetKey)
       .map(([source]) => source);
     setParentOrder(prev => {
-      const withoutTarget = prev.filter(k => k !== targetKey && !k.startsWith(`cs:${targetKey}:`));
+      const withoutTarget = prev.filter(k => k !== targetKey);
       const toRestore = restoredSources.filter(source => !withoutTarget.includes(source));
       return [...withoutTarget, ...toRestore];
     });
@@ -514,35 +499,6 @@ export default function StoreDetailScreen() {
       for (const source of restoredSources) delete next[source];
       return next;
     });
-    setCustomSubs(prev => { const next = { ...prev }; delete next[targetKey]; return next; });
-    setDirty(true);
-  }
-  function commitCustomSub(parentKey: string) {
-    const l = newSubName.trim().replace(/:/g, ''); // kolon krockar med cs:-kodningen
-    setAddingSubFor(null);
-    setNewSubName('');
-    if (!l) return;
-    setCustomSubs(prev => {
-      const cur = prev[parentKey] ?? [];
-      if (cur.includes(l)) return prev;
-      return { ...prev, [parentKey]: [...cur, l] };
-    });
-    // Börjar DOLD (inte automatiskt visad) — hamnar i samma sorterbara,
-    // dolda lista som ej utbrutna standard-subs (se hiddenEntriesFor), så
-    // den går att placera in bland dem direkt utan att först visas och
-    // sorteras om varje gång fler subs slås på senare.
-    setDirty(true);
-  }
-  function removeCustomSub(parentKey: string, label: string) {
-    setCustomSubs(prev => {
-      const cur = (prev[parentKey] ?? []).filter(x => x !== label);
-      const next = { ...prev };
-      if (cur.length) next[parentKey] = cur; else delete next[parentKey];
-      return next;
-    });
-    setExpandedSubs(prev => prev.filter(e => e !== `cs:${parentKey}:${label}`));
-    setSubOrder(prev => prev.filter(e => e !== `cs:${parentKey}:${label}`));
-    setParentOrder(prev => prev.filter(k => k !== `cs:${parentKey}:${label}`));
     setDirty(true);
   }
 
@@ -551,8 +507,8 @@ export default function StoreDetailScreen() {
   // skärmen blockeras — samma mönster som receptredigeringen, se drafts.ts.
   useEffect(() => {
     if (!store || !dirty) return;
-    storeDrafts.spara(store.id, { parentOrder, expandedSubs, subOrder, customSubs, categoryMerge });
-  }, [store, dirty, parentOrder, expandedSubs, subOrder, customSubs, categoryMerge]);
+    storeDrafts.spara(store.id, { parentOrder, expandedSubs, subOrder, categoryMerge });
+  }, [store, dirty, parentOrder, expandedSubs, subOrder, categoryMerge]);
 
   // Bara omladdning/stängd flik på web, där ett minnesutkast går förlorat.
   useWebLeaveGuard(dirty);
@@ -568,7 +524,6 @@ export default function StoreDetailScreen() {
         customCategories,
         expandedSubs,
         subOrder,
-        customSubs,
         categoryMerge,
       });
       setStore(updated);
@@ -665,9 +620,8 @@ export default function StoreDetailScreen() {
     );
   }
 
-  // Enhetlig underkategori-lista för en parentKey: utbrutna standard-subs OCH
-  // egna subs i EN ordnad lista (från expandedSubs) — sorterbara sinsemellan.
-  // Under: ej utbrutna standard-subs (kryssa för att bryta ut) + "lägg till egen".
+  // Underkategori-lista för en parentKey: utbrutna (i expandedSubs-ordning)
+  // överst, under dem ej utbrutna (kryssa för att bryta ut).
   const renderSubs = (parentKey: string, standardSubs: SubCategory[]) => {
     // Fritt placerade visas i huvudlistan, inte här.
     const entries = expandedSubs.filter(e => entryParentKey(e) === parentKey && !parentOrder.includes(placedKeyFor(e)));
@@ -676,30 +630,19 @@ export default function StoreDetailScreen() {
       <>
         {standardSubs.length > 0 && <Text style={s.subListHint}>{str.detail.subHint(plainLabel(parentKey))}</Text>}
         {/* Alla rader har samma kolumner — [lyft ut][upp][ned][bock] — med en
-            tom plats där en knapp saknas, så knapparna står rakt under varandra.
-            Egna underkategorier känns igen på det lilla krysset efter namnet. */}
+            tom plats där en knapp saknas, så knapparna står rakt under varandra. */}
         {[...entries.map(e => ({ entry: e, shown: true })), ...rest.map(e => ({ entry: e, shown: false }))].map(({ entry, shown }) => {
-          const isCustomEntry = entry.startsWith('cs:');
-          const label = isCustomEntry ? entry.slice(entry.lastIndexOf(':') + 1) : SUB_TAXONOMY[entry as SubCategory].label;
+          const label = SUB_TAXONOMY[entry as SubCategory].label;
           const group = shown ? entries : rest;
           const i = group.indexOf(entry);
           const move = (dir: -1 | 1) => (shown ? moveSubEntry(entry, parentKey, dir) : moveHiddenEntry(entry, parentKey, standardSubs, dir));
           return (
             <View key={entry} style={s.subRow}>
               {/* Namnet tar hela bredden fram till knapparna: en ruta som krymper
-                  efter innehållet mäts för smalt på Android och klipper texten.
-                  Krysset ligger inne i texten så det hamnar direkt efter namnet. */}
+                  efter innehållet mäts för smalt på Android och klipper texten. */}
               <View style={{ flex: 1 }}>
               <Pressable style={nameColumn(SUB_NAME_TAKEN)} onPress={() => toggleSubExpanded(entry)}>
-                <Text style={[s.subName, shown && s.subNameActive]}>
-                  {label}
-                  {isCustomEntry && (
-                    <>
-                      {'  '}
-                      <Ionicons name="close-circle" size={17} color={nyDesign ? ny.fara : c.danger} onPress={() => removeCustomSub(parentKey, label)} accessibilityLabel={common.actions.delete} />
-                    </>
-                  )}
-                </Text>
+                <Text style={[s.subName, shown && s.subNameActive]}>{label}</Text>
               </Pressable>
               </View>
               <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
@@ -723,26 +666,6 @@ export default function StoreDetailScreen() {
             </View>
           );
         })}
-        {addingSubFor === parentKey ? (
-          <View style={s.subRow}>
-            <TextInput
-              style={s.addSubInput}
-              value={newSubName}
-              onChangeText={setNewSubName}
-              placeholder={str.detail.customSubPlaceholder}
-              placeholderTextColor={c.textFaint}
-              autoFocus
-              onSubmitEditing={() => commitCustomSub(parentKey)}
-              onBlur={() => commitCustomSub(parentKey)}
-              returnKeyType="done"
-            />
-          </View>
-        ) : (
-          <Pressable style={s.addSubRow} onPress={() => { setAddingSubFor(parentKey); setNewSubName(''); }}>
-            <Ionicons name="add" size={16} color={nyDesign ? ny.padYta : c.primary} />
-            <Text style={s.addSubText}>{str.detail.customSubAdd}</Text>
-          </Pressable>
-        )}
       </>
     );
   };
@@ -854,9 +777,8 @@ export default function StoreDetailScreen() {
                 const isHeader = !!cluster && cluster.members[0] === key;
                 const clusterOpen = !!cluster && openClusters.has(cluster.members[0]);
                 const headerKey = `h:${key}`;
-                const isCustomSub = key.startsWith('cs:');
-                const subLabel = isCustomSub ? key.slice(key.lastIndexOf(':') + 1) : (SUB_TAXONOMY[key.slice(2) as SubCategory]?.label ?? key);
-                const fromParent = plainLabel(entryParentKey(isCustomSub ? key : key.slice(2)));
+                const subLabel = SUB_TAXONOMY[key.slice(2) as SubCategory]?.label ?? key;
+                const fromParent = plainLabel(entryParentKey(key.slice(2)));
                 const beingDragged = catDragState?.key === key;
                 const dropTarget = !!catDragState && !beingDragged && catHoverIndex === idx;
                 const headerDragged = catDragState?.key === headerKey;
@@ -928,7 +850,7 @@ export default function StoreDetailScreen() {
               const isOpen = isCustom ? openCustomParents.has(cat) : openParents.has(key as StoreCategory);
               // Mörk bricka = egna sektioner som ligger kvar under kategorin; ljus
               // bricka = sådana som lyfts ut och ligger någon annanstans i butiken.
-              const subsHere = [...subs, ...(customSubs[key] ?? []).map(label => `cs:${key}:${label}`)].filter(e => expandedSubs.includes(e));
+              const subsHere = subs.filter(e => expandedSubs.includes(e));
               const placedOut = subsHere.filter(e => parentOrder.includes(placedKeyFor(e))).length;
               const expandedHere = subsHere.length - placedOut;
               const isBeingDragged = catDragState?.key === key;
@@ -1186,7 +1108,6 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   addInput: { flex: 1, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: c.text, backgroundColor: c.inputBg },
   addSubInput: { flex: 1, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: c.text, backgroundColor: c.inputBg },
-  addSubRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   addSubText: { fontSize: 14, color: nyD ? ny.padYta : c.primary, fontWeight: '600' },
   addBtn: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryBtn },
   saveBar: { position: 'absolute', left: 16, right: 16, bottom: 20 },

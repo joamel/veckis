@@ -63,15 +63,14 @@ describe('suggestStoreOrder', () => {
 });
 
 describe('sectionKeyFor', () => {
-  const store = { parentOrder: ['dairy_eggs', 's:pasta_nudlar', 'canned_dry', 'c:Barn', 'cs:canned_dry:Bebis'], categoryMerge: { snacks_sweets: 'canned_dry' } };
-  const e = (x: Partial<{ category: string; subCategory: string | null; customCategory: string | null; customSubCategory: string | null }>) =>
-    ({ category: 'other', subCategory: null, customCategory: null, customSubCategory: null, ...x });
+  const store = { parentOrder: ['dairy_eggs', 's:pasta_nudlar', 'canned_dry', 'c:Barn'], categoryMerge: { snacks_sweets: 'canned_dry' } };
+  const e = (x: Partial<{ category: string; subCategory: string | null; customCategory: string | null }>) =>
+    ({ category: 'other', subCategory: null, customCategory: null, ...x });
 
   it('följer butikens fria placering, egna kategorier och ihopslagning', () => {
     expect(sectionKeyFor(e({ category: 'canned_dry', subCategory: 'pasta_nudlar' }), store)).toBe('s:pasta_nudlar');
     expect(sectionKeyFor(e({ category: 'canned_dry', subCategory: 'konserver' }), store)).toBe('canned_dry');
     expect(sectionKeyFor(e({ category: 'other', customCategory: 'Barn' }), store)).toBe('c:Barn');
-    expect(sectionKeyFor(e({ category: 'canned_dry', customSubCategory: 'Bebis' }), store)).toBe('cs:canned_dry:Bebis');
     expect(sectionKeyFor(e({ category: 'snacks_sweets' }), store)).toBe('canned_dry');
   });
 });

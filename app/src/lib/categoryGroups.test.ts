@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { StoreCategory } from '@veckis/shared';
-import { buildCategoryGroups, placedClusters, placedCustomSubKey, placedSubKey, type CategoryGroupItem } from './categoryGroups';
+import { buildCategoryGroups, placedClusters, placedSubKey, type CategoryGroupItem } from './categoryGroups';
 
 function item(name: string, category: string, extra: Partial<CategoryGroupItem> = {}): CategoryGroupItem {
   return { name, category, isChecked: false, subCategory: null, customCategory: null, ...extra };
@@ -75,7 +75,7 @@ describe('buildCategoryGroups', () => {
 
   it('categoryMerge: varor grupperas under målkategorin, källan syns inte alls', () => {
     const items = [item('Blöjor', 'baby_kids'), item('Mjölk', 'dairy_eggs')];
-    const groups = buildCategoryGroups(items, ['dairy_eggs', 'baby_kids'] as StoreCategory[], [], [], {}, [], { baby_kids: 'other' });
+    const groups = buildCategoryGroups(items, ['dairy_eggs', 'baby_kids'] as StoreCategory[], [], [], [], { baby_kids: 'other' });
     const cats = groups.map(g => g.category);
     expect(cats).not.toContain('baby_kids');
     expect(cats).toContain('other');
@@ -86,7 +86,7 @@ describe('buildCategoryGroups', () => {
   it('categoryMerge: en utbruten sub ÄRVS av målet som egen sektion, inte plattas ut', () => {
     // 'blöjor' är en riktig taxonomi-sub med defaultParent baby_kids.
     const items = [item('Pampers', 'baby_kids', { subCategory: 'blöjor' })];
-    const groups = buildCategoryGroups(items, ['baby_kids', 'other'] as StoreCategory[], [], ['blöjor'], {}, [], { baby_kids: 'other' });
+    const groups = buildCategoryGroups(items, ['baby_kids', 'other'] as StoreCategory[], [], ['blöjor'], [], { baby_kids: 'other' });
     expect(groups).toHaveLength(1);
     expect(groups[0]).toMatchObject({ category: 'blöjor', isCustom: false, isSub: true });
     expect(groups[0].items.map(i => i.name)).toEqual(['Pampers']);
@@ -95,7 +95,7 @@ describe('buildCategoryGroups', () => {
   it('categoryMerge: en EJ utbruten sub hamnar ändå i målets direkta hink', () => {
     const items = [item('Pampers', 'baby_kids', { subCategory: 'blöjor' })];
     // 'blöjor' INTE i expandedSubs → ingen egen sektion, ska falla igenom till "other".
-    const groups = buildCategoryGroups(items, ['baby_kids', 'other'] as StoreCategory[], [], [], {}, [], { baby_kids: 'other' });
+    const groups = buildCategoryGroups(items, ['baby_kids', 'other'] as StoreCategory[], [], [], [], { baby_kids: 'other' });
     expect(groups).toHaveLength(1);
     expect(groups[0]).toMatchObject({ category: 'other' });
     expect(groups[0].isSub).toBeFalsy();
@@ -104,25 +104,18 @@ describe('buildCategoryGroups', () => {
 
   it('categoryMerge: kan slås ihop med en egen (custom) kategori', () => {
     const items = [item('Blöjor', 'baby_kids')];
-    const groups = buildCategoryGroups(items, ['baby_kids'] as StoreCategory[], ['Min hylla'], [], {}, [], { baby_kids: 'c:Min hylla' });
+    const groups = buildCategoryGroups(items, ['baby_kids'] as StoreCategory[], ['Min hylla'], [], [], { baby_kids: 'c:Min hylla' });
     expect(groups).toHaveLength(1);
     expect(groups[0]).toMatchObject({ category: 'Min hylla', isCustom: true });
   });
 
   it('categoryMerge: en utbruten sub ärvs ÄVEN när målet är en egen kategori', () => {
     const items = [item('Pampers', 'baby_kids', { subCategory: 'blöjor' })];
-    const groups = buildCategoryGroups(items, ['baby_kids'] as StoreCategory[], ['Övrigt inkl baby'], ['blöjor'], {}, [], { baby_kids: 'c:Övrigt inkl baby' });
+    const groups = buildCategoryGroups(items, ['baby_kids'] as StoreCategory[], ['Övrigt inkl baby'], ['blöjor'], [], { baby_kids: 'c:Övrigt inkl baby' });
     expect(groups).toHaveLength(1);
     expect(groups[0]).toMatchObject({ category: 'blöjor', isCustom: false, isSub: true });
   });
 
-  it('categoryMerge: en egen (custom) sub ärvs av målet', () => {
-    const items = [item('Specialblöja', 'baby_kids', { customSubCategory: 'Ekologiska' })];
-    const groups = buildCategoryGroups(items, ['baby_kids', 'other'] as StoreCategory[], [], [], {}, [], { baby_kids: 'other' });
-    expect(groups).toHaveLength(1);
-    expect(groups[0]).toMatchObject({ category: 'Ekologiska', isCustom: true, isSub: true, parentKey: 'other' });
-    expect(groups[0].items.map(i => i.name)).toEqual(['Specialblöja']);
-  });
   describe('blandad ordning (underkategorier placerade fritt)', () => {
     const order = ['dairy_eggs', 'canned_dry', 'meat_fish'] as StoreCategory[];
     const items = [
@@ -133,34 +126,27 @@ describe('buildCategoryGroups', () => {
     ];
 
     it('utan placering ligger en utbruten underkategori direkt efter sin kategori, som förut', () => {
-      const groups = buildCategoryGroups(items, order, [], ['pasta_nudlar'], {}, ['dairy_eggs', 'canned_dry', 'meat_fish']);
+      const groups = buildCategoryGroups(items, order, [], ['pasta_nudlar'], ['dairy_eggs', 'canned_dry', 'meat_fish']);
       expect(groups.map(g => g.category)).toEqual(['dairy_eggs', 'canned_dry', 'pasta_nudlar', 'meat_fish']);
     });
 
     it('en placerad underkategori ritas där den står — före mejeri, långt från skafferiet', () => {
       const po = [placedSubKey('pasta_nudlar'), 'dairy_eggs', 'canned_dry', 'meat_fish'];
-      const groups = buildCategoryGroups(items, order, [], ['pasta_nudlar'], {}, po);
+      const groups = buildCategoryGroups(items, order, [], ['pasta_nudlar'], po);
       expect(groups.map(g => g.category)).toEqual(['pasta_nudlar', 'dairy_eggs', 'canned_dry', 'meat_fish']);
       expect(groups[0].items.map(i => i.name)).toEqual(['Spagetti']);
     });
 
     it('en placering för en underkategori som inte längre är utbruten ignoreras — varorna ligger i kategorin', () => {
       const po = ['dairy_eggs', placedSubKey('pasta_nudlar'), 'canned_dry', 'meat_fish'];
-      const groups = buildCategoryGroups(items, order, [], [], {}, po);
+      const groups = buildCategoryGroups(items, order, [], [], po);
       expect(groups.map(g => g.category)).toEqual(['dairy_eggs', 'canned_dry', 'meat_fish']);
       expect(groups[1].items.map(i => i.name)).toContain('Spagetti');
     });
 
-    it('fungerar för egna underkategorier också', () => {
-      const own = [...items, item('Barngröt', 'canned_dry', { customSubCategory: 'Barn' })];
-      const key = placedCustomSubKey('canned_dry', 'Barn');
-      const groups = buildCategoryGroups(own, order, [], [key], { canned_dry: ['Barn'] }, ['meat_fish', key, 'dairy_eggs', 'canned_dry']);
-      expect(groups.map(g => g.category)).toEqual(['meat_fish', 'Barn', 'dairy_eggs', 'canned_dry']);
-    });
-
     it('en kategori vars enda innehåll placerats bort får ingen tom sektion', () => {
       const bara = [item('Spagetti', 'canned_dry', { subCategory: 'pasta_nudlar' }), item('Mjölk', 'dairy_eggs')];
-      const groups = buildCategoryGroups(bara, order, [], ['pasta_nudlar'], {}, ['dairy_eggs', 'canned_dry', placedSubKey('pasta_nudlar')]);
+      const groups = buildCategoryGroups(bara, order, [], ['pasta_nudlar'], ['dairy_eggs', 'canned_dry', placedSubKey('pasta_nudlar')]);
       expect(groups.map(g => g.category)).toEqual(['dairy_eggs', 'pasta_nudlar']);
     });
   });
@@ -176,7 +162,7 @@ describe('buildCategoryGroups', () => {
 
     it('slås ihop till en sektion "(2)" med båda underkategoriernas varor', () => {
       const po = ['canned_dry', 'dairy_eggs', placedSubKey('sylt_marmelad'), placedSubKey('honung'), 'meat_fish'];
-      const groups = buildCategoryGroups(items, order, [], expanded, {}, po);
+      const groups = buildCategoryGroups(items, order, [], expanded, po);
       expect(groups.map(g => g.category)).toEqual(['canned_dry', 'dairy_eggs', 'canned_dry#2']);
       const cluster = groups[2];
       expect(cluster.cluster).toMatchObject({ parentKey: 'canned_dry', index: 2 });
@@ -185,7 +171,7 @@ describe('buildCategoryGroups', () => {
 
     it('en ensam utbruten behåller sitt eget namn, och avbrutna följder blir inga kluster', () => {
       const po = ['canned_dry', placedSubKey('sylt_marmelad'), 'dairy_eggs', placedSubKey('honung')];
-      const groups = buildCategoryGroups(items, order, [], expanded, {}, po);
+      const groups = buildCategoryGroups(items, order, [], expanded, po);
       expect(groups.map(g => g.category)).toEqual(['canned_dry', 'sylt_marmelad', 'dairy_eggs', 'honung']);
       expect(groups.some(g => g.cluster)).toBe(false);
     });
@@ -193,7 +179,7 @@ describe('buildCategoryGroups', () => {
     it('klustret avgörs av butiksordningen, inte av vad listan innehåller i dag', () => {
       const bara = items.filter(i => i.name !== 'Honung');
       const po = ['canned_dry', placedSubKey('sylt_marmelad'), placedSubKey('honung')];
-      const groups = buildCategoryGroups(bara, order, [], expanded, {}, po);
+      const groups = buildCategoryGroups(bara, order, [], expanded, po);
       expect(groups.find(g => g.cluster)?.category).toBe('canned_dry#2');
     });
 

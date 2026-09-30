@@ -92,7 +92,6 @@ const addItemSchema = z.object({
   category: categoryEnum.default('other'),
   subCategory: z.string().nullable().optional(),
   customCategory: z.string().max(40).nullable().optional(),
-  customSubCategory: z.string().max(40).nullable().optional(),
   note: z.string().optional(),
 });
 
@@ -103,7 +102,6 @@ const updateItemSchema = z.object({
   category: categoryEnum.optional(),
   subCategory: z.string().nullable().optional(),
   customCategory: z.string().max(40).nullable().optional(),
-  customSubCategory: z.string().max(40).nullable().optional(),
   note: z.string().nullable().optional(),
 });
 
@@ -335,10 +333,10 @@ async function läggTillVara(
   // SubCategory är källan till sanning i 2-nivå-taxonomin. Auto-infer från
   // namnet om kallaren inte angav. Category härleds från sub:ens defaultParent
   // — kallaren kan override:a via data.category om de redan vet.
-  // Hushålls-lokal placering (egen parent/underkategori) → hoppa över auto-
+  // Hushålls-lokal placering (egen kategori) → hoppa över auto-
   // inferens av standard-sub OCH den globala inlärningen; det är rena lokala
   // etiketter som inte ska påverka cross-household-datan.
-  const isLocalPlacement = !!(data.customCategory || data.customSubCategory);
+  const isLocalPlacement = !!data.customCategory;
   // Hushållets egen basvara går före auto-inferensen. inferSubCategory är en
   // gissning på namnet, och en gissning ska aldrig slå ett val någon gjort för
   // hand — det var precis vad som hände: satte man kategori i basvaru-editorn
@@ -629,7 +627,7 @@ shoppingRouter.patch('/items/:itemId', requireAuth, asyncHandler(async (req, res
     // aliaset, men inte basvaran — som sedan vann vid nästa tillägg och
     // flyttade tillbaka varan. Ren lokal placering (egen kategori) speglas
     // inte, den hör till just den varan.
-    if (!item.customCategory && !item.customSubCategory) {
+    if (!item.customCategory) {
       // upsert, inte updateMany: finns ingen basvara med namnet uppdaterade
       // updateMany noll rader utan att säga något, och valet var borta vid
       // nästa tillägg. Varan kunde ha kommit från ett recept eller ett

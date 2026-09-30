@@ -1116,8 +1116,6 @@ export const stores = {
     mergedHint:  'Kategorier som slagits ihop med en annan i den här butiken. Varorna behåller sin kategori — de grupperas bara under en annan rubrik här.',
     subHint:     (parent: string) => `Bocka i det som ska bli en egen sektion i listan. Resten hamnar under ${parent}.`,
     saveButton:  'Spara ändringar',
-    customSubPlaceholder: 'Namn på underkategori',
-    customSubAdd:         'Egen underkategori',
     customCatPlaceholder: '＋ Ny egen kategori',
     mergeAction: 'Slå ihop kategorier',
     mergeModal: {

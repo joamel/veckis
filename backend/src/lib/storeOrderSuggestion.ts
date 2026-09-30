@@ -103,7 +103,7 @@ export function suggestStoreOrder(events: CheckEventLike[], currentOrder: string
  * butikens egna val: fritt placerad underkategori, egen kategori, ihopslagning.
  */
 export function sectionKeyFor(
-  e: { category: string; subCategory: string | null; customCategory: string | null; customSubCategory: string | null },
+  e: { category: string; subCategory: string | null; customCategory: string | null },
   store: { parentOrder: string[]; categoryMerge: Record<string, string> },
 ): string {
   const resolve = (key: string) => {
@@ -113,10 +113,6 @@ export function sectionKeyFor(
     return cur;
   };
   const parent = e.customCategory ? `c:${e.customCategory}` : resolve(e.category);
-  if (e.customSubCategory) {
-    const key = `cs:${parent}:${e.customSubCategory}`;
-    if (store.parentOrder.includes(key)) return key;
-  }
   if (e.subCategory && store.parentOrder.includes(`s:${e.subCategory}`)) return `s:${e.subCategory}`;
   return parent;
 }

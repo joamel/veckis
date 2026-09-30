@@ -45,7 +45,6 @@ export interface StoreDraft {
   parentOrder: string[];
   expandedSubs: string[];
   subOrder: string[];
-  customSubs: Record<string, string[]>;
   categoryMerge: Record<string, string>;
 }
 

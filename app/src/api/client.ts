@@ -392,7 +392,7 @@ export function useApiClient() {
     deleteShoppingList: (listId: string) =>
       request<void>(`/api/shopping/lists/${listId}`, { method: 'DELETE' }),
 
-    addShoppingItem: (listId: string, data: { name: string; quantity?: number; unit?: string; category?: StoreCategory; subCategory?: string | null; customCategory?: string | null; customSubCategory?: string | null; note?: string }) =>
+    addShoppingItem: (listId: string, data: { name: string; quantity?: number; unit?: string; category?: StoreCategory; subCategory?: string | null; customCategory?: string | null; note?: string }) =>
       request<ShoppingItem>(`/api/shopping/lists/${listId}/items`, {
         method: 'POST',
         body: JSON.stringify(data),
@@ -411,7 +411,7 @@ export function useApiClient() {
         { method: 'POST', body: JSON.stringify(data) },
       ),
 
-    updateShoppingItem: (itemId: string, data: Partial<Pick<ShoppingItem, 'name' | 'quantity' | 'unit' | 'category' | 'customCategory' | 'customSubCategory' | 'subCategory' | 'note'>>) =>
+    updateShoppingItem: (itemId: string, data: Partial<Pick<ShoppingItem, 'name' | 'quantity' | 'unit' | 'category' | 'customCategory' | 'subCategory' | 'note'>>) =>
       request<ShoppingItem>(`/api/shopping/items/${itemId}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -442,14 +442,14 @@ export function useApiClient() {
       return request<{ stores: BankStore[]; attribution: string }>(`/api/stores/bank?${qs.toString()}`);
     },
 
-    createStore: (data: { householdId: string; name: string; sharedStoreId?: string | null; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; customSubs?: Record<string, string[]>; parentOrder?: string[]; categoryMerge?: Record<string, string> }) =>
+    createStore: (data: { householdId: string; name: string; sharedStoreId?: string | null; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; parentOrder?: string[]; categoryMerge?: Record<string, string> }) =>
       request<Store>('/api/stores', { method: 'POST', body: JSON.stringify(data) }),
 
     // Föreslagen sektionsordning ur hushållets bockar i butiken (steg 4).
     getStoreOrderSuggestion: (storeId: string) =>
       request<{ trips: number; order: string[]; changed: boolean; known: number }>(`/api/stores/${storeId}/order-suggestion`),
 
-    updateStore: (storeId: string, data: { name?: string; sharedStoreId?: string | null; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; customSubs?: Record<string, string[]>; parentOrder?: string[]; categoryMerge?: Record<string, string> }) =>
+    updateStore: (storeId: string, data: { name?: string; sharedStoreId?: string | null; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; parentOrder?: string[]; categoryMerge?: Record<string, string> }) =>
       request<Store>(`/api/stores/${storeId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteStore: (storeId: string) =>

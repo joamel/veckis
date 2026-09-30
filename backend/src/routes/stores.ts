@@ -25,15 +25,15 @@ async function butiksbank(): Promise<Array<SharedStoreRow & { id: string }>> {
 const categoryEnum = z.nativeEnum(StoreCategory);
 const categoryOrderSchema = z.array(categoryEnum);
 const customCategoriesSchema = z.array(z.string().min(1).max(40)).max(40);
-const expandedSubsSchema = z.array(z.string().min(1).max(40)).max(100);
-// Längre max än expandedSubs — innehåller samma "cs:<parentKey>:<label>"-
-// kodning för egna, dolda subs (parentKey kan självt vara upp till 60 tecken).
-const subOrderSchema = z.array(z.string().min(1).max(120)).max(100).optional();
-// Egna underkategorier: parentKey (StoreCategory eller "c:<egen kategori>") → etiketter.
-const customSubsSchema = z.record(z.string().min(1).max(60), z.array(z.string().min(1).max(40)).max(60)).optional();
-// Kan även innehålla fritt placerade underkategorier ("s:<sub>",
-// "cs:<parentKey>:<etikett>" — blandad ordning), därför samma gränser som subOrder.
-const parentOrderSchema = z.array(z.string().min(1).max(120)).max(100).optional();
+// Egna underkategorier ("cs:<parentKey>:<etikett>") togs bort 2026-09-30 —
+// underkategorier är alltid standard. En äldre klient kan fortfarande skicka
+// sådana nycklar (och customSubs, som z.object tyst skalar bort); de filtreras
+// här så de aldrig sparas igen.
+const withoutCustomSubs = (keys: string[]) => keys.filter(k => !k.startsWith('cs:'));
+const expandedSubsSchema = z.array(z.string().min(1).max(120)).max(100).transform(withoutCustomSubs);
+const subOrderSchema = z.array(z.string().min(1).max(120)).max(100).transform(withoutCustomSubs).optional();
+// Kan även innehålla fritt placerade underkategorier ("s:<sub>" — blandad ordning).
+const parentOrderSchema = z.array(z.string().min(1).max(120)).max(100).transform(withoutCustomSubs).optional();
 // Kategori-ihopslagning: { sourceCategory: targetKey }. Källan måste vara en
 // riktig StoreCategory (bara standard-kategorier kan slås ihop bort, samma
 // begränsning som "dölj"); målet kan vara valfri parentOrder-nyckel (standard
@@ -48,7 +48,6 @@ const createStoreSchema = z.object({
   customCategories: customCategoriesSchema.optional(),
   expandedSubs: expandedSubsSchema.optional(),
   subOrder: subOrderSchema,
-  customSubs: customSubsSchema,
   parentOrder: parentOrderSchema,
   categoryMerge: categoryMergeSchema,
 });
@@ -59,7 +58,6 @@ const updateStoreSchema = z.object({
   customCategories: customCategoriesSchema.optional(),
   expandedSubs: expandedSubsSchema.optional(),
   subOrder: subOrderSchema,
-  customSubs: customSubsSchema,
   parentOrder: parentOrderSchema,
   categoryMerge: categoryMergeSchema,
   // Koppling till butiksbanken; null = egen butik.
@@ -157,7 +155,7 @@ storesRouter.get('/:storeId/order-suggestion', requireAuth, asyncHandler(async (
   const categoryMerge = (store.categoryMerge ?? {}) as Record<string, string>;
   const events = await prisma.shoppingCheckEvent.findMany({
     where: { storeId: store.id },
-    select: { shopperKey: true, checkedAt: true, bulk: true, category: true, subCategory: true, customCategory: true, customSubCategory: true },
+    select: { shopperKey: true, checkedAt: true, bulk: true, category: true, subCategory: true, customCategory: true },
   });
   const suggestion = suggestStoreOrder(
     events.map(e => ({ shopperKey: e.shopperKey, checkedAt: e.checkedAt, bulk: e.bulk, section: sectionKeyFor(e, { parentOrder, categoryMerge }) })),

@@ -72,7 +72,8 @@ model Store {
   // alltid redan utbrutna). Filtreras per parent via SUB_TAXONOMY vid render;
   // saknade poster faller tillbaka på taxonomins standardordning.
   subOrder          String[]      @default([])
-  // Hushålls-lokala egna underkategorier: { parentKey: [subLabel, ...] } där
+  // UTFASAD 2026-09-30: egna underkategorier borttagna, alltid {}. Kolumnen tas
+  // bort senare. Var: hushålls-lokala egna underkategorier { parentKey: [subLabel, ...] } där
   // parentKey är en StoreCategory ELLER "c:<egen kategori>". Ordningen styr
   // plocklistan. Rent lokalt — matar aldrig den globala kategori-inlärningen.
   customSubs        Json          @default("{}")
@@ -189,7 +190,7 @@ model ShoppingItem {
   // shared/lib/taxonomy.ts håller listan över giltiga värden.
   subCategory  String?
   customCategory String?  // Hushålls-lokal egen PARENT-kategori (fri sträng, matar ej global inlärning)
-  customSubCategory String? // Hushålls-lokal egen UNDERkategori-etikett; parent = category/customCategory
+  customSubCategory String? // UTFASAD 2026-09-30 (egna underkategorier borttagna) — alltid null, kolumnen tas bort senare
   isChecked    Boolean       @default(false)
   checkedBy    String?
   addedBy      String

@@ -17,21 +17,17 @@ export interface CategoryGroupItem {
   category: string;
   subCategory?: string | null;
   customCategory?: string | null;
-  customSubCategory?: string | null;
   isChecked: boolean;
   name: string;
 }
 
 export interface CategoryGroup<T extends CategoryGroupItem> {
-  /** Antingen en StoreCategory (parent), en custom-string, en SubCategory som
-   *  hushållet expanderat, ELLER en egen underkategori-etikett. */
+  /** Antingen en StoreCategory (parent), en custom-string eller en SubCategory
+   *  som hushållet expanderat. */
   category: StoreCategory | string;
   isCustom: boolean;
-  /** Sant när gruppen är en sub (standard eller egen) som brutits ut. */
+  /** Sant när gruppen är en underkategori som brutits ut. */
   isSub?: boolean;
-  /** parentKey (StoreCategory eller "c:<egen kategori>") för egna subs — används
-   *  för unik nyckel och parent-emoji i UI:t. */
-  parentKey?: string;
   /** Label att visa i UI:t. */
   label?: string;
   /** Flera fritt placerade underkategorier från samma kategori som ligger
@@ -44,21 +40,17 @@ export interface CategoryGroup<T extends CategoryGroupItem> {
 
 /**
  * Nyckeln en utbruten underkategori har i parentOrder när den placerats
- * fritt bland kategorierna ("blandad ordning"): "s:<sub>" för standard,
- * "cs:<parentKey>:<etikett>" för egna — samma kodning som i expandedSubs.
- * En underkategori som INTE står i parentOrder ligger direkt efter sin
+ * fritt bland kategorierna ("blandad ordning"): "s:<sub>". En underkategori som INTE står i parentOrder ligger direkt efter sin
  * kategori, som förut.
  */
 export const placedSubKey = (sub: string) => `s:${sub}`;
-export const placedCustomSubKey = (parentKey: string, label: string) => `cs:${parentKey}:${label}`;
 /** Är nyckeln i parentOrder en fritt placerad underkategori (inte en kategori)? */
 export function isPlacedSubKey(key: string): boolean {
-  return key.startsWith('s:') || key.startsWith('cs:');
+  return key.startsWith('s:');
 }
 
 /** Kategorin en fritt placerad underkategori kommer ifrån (merge-upplöst). */
 export function placedParentKey(key: string, categoryMerge: Record<string, string> = {}): string | null {
-  if (key.startsWith('cs:')) return key.slice(3, key.lastIndexOf(':'));
   if (key.startsWith('s:')) {
     const info = SUB_TAXONOMY[key.slice(2) as SubCategory];
     return info ? resolveMerge(info.defaultParent, categoryMerge) : null;
@@ -112,16 +104,15 @@ function resolveMerge(key: string, categoryMerge: Record<string, string>): strin
 /**
  * Grupperar inköpsvaror i sektioner enligt butikens kategori-ordning.
  *
- * Buckets: egna parents (customCategory), standard-parents (enum), utbrutna
- * standard-subs (expandedSubs) samt hushålls-lokala egna subs (customSubCategory
- * under valfri parent). Subs renderas direkt efter sin parent i butiksordningen.
+ * Buckets: egna parents (customCategory), standard-parents (enum) och utbrutna
+ * underkategorier (expandedSubs). Subs renderas direkt efter sin parent i
+ * butiksordningen.
  */
 export function buildCategoryGroups<T extends CategoryGroupItem>(
   items: T[],
   order: StoreCategory[],
   customCategories: string[] = [],
   expandedSubs: string[] = [],
-  customSubs: Record<string, string[]> = {},
   parentOrder: string[] = [],
   categoryMerge: Record<string, string> = {},
 ): CategoryGroup<T>[] {
@@ -129,14 +120,6 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   const enumMap = new Map<StoreCategory, T[]>();
   const customMap = new Map<string, T[]>();
   const subMap = new Map<string, T[]>();
-  // Egna subs: parentKey → (subLabel → items)
-  const customSubMap = new Map<string, Map<string, T[]>>();
-  const pushCustomSub = (parentKey: string, label: string, item: T) => {
-    if (!customSubMap.has(parentKey)) customSubMap.set(parentKey, new Map());
-    const inner = customSubMap.get(parentKey)!;
-    if (!inner.has(label)) inner.set(label, []);
-    inner.get(label)!.push(item);
-  };
 
   for (const item of items) {
     const hasCustomParent = !!item.customCategory;
@@ -148,10 +131,6 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
     // målet i stället för att plattas ut, se subGroupsForParent nedan.
     const effectiveKey = hasCustomParent ? `c:${item.customCategory}` : resolveMerge(String(item.category), categoryMerge);
 
-    if (item.customSubCategory) {
-      pushCustomSub(effectiveKey, item.customSubCategory, item);
-      continue;
-    }
     if (hasCustomParent) {
       const custKey = item.customCategory!;
       if (!customMap.has(custKey)) customMap.set(custKey, []);
@@ -176,7 +155,7 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   }
 
   // Parents (standard ELLER egna, via ihopslagning) som behöver en slot:
-  // direkta items, utbrutna subs, ELLER egna subs. Subs slåss upp mot sin
+  // direkta items ELLER utbrutna subs. Subs slåss upp mot sin
   // MERGE-UPPLÖSTA parent — en standard-subs defaultParent (från taxonomin)
   // kan alltså peka på en egen ("c:Namn") mål-kategori om dess ursprungliga
   // parent slagits ihop dit.
@@ -184,9 +163,6 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   for (const sub of subMap.keys()) {
     const info = SUB_TAXONOMY[sub as SubCategory];
     if (info) subParentKeys.add(resolveMerge(info.defaultParent, categoryMerge));
-  }
-  for (const parentKey of customSubMap.keys()) {
-    subParentKeys.add(parentKey);
   }
   const orderedEnum: StoreCategory[] = [];
   for (const cat of order) {
@@ -199,7 +175,7 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
     if (!key.startsWith('c:') && !orderedEnum.includes(key as StoreCategory)) orderedEnum.push(key as StoreCategory);
   }
 
-  // Egna parents: de med direkta items ELLER (egna eller ihopslagna) subs.
+  // Egna parents: de med direkta items ELLER ihopslagna subs.
   const orderedCustom = [...customCategories];
   for (const cat of customMap.keys()) {
     if (!orderedCustom.includes(cat)) orderedCustom.push(cat);
@@ -220,11 +196,7 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
     return a.name.localeCompare(b.name, 'sv');
   });
 
-  // Ordnad lista av sub-sektioner (standard + egna) under en parentKey, enligt
-  // expandedSubs. Egna subs kodas som "cs:<parentKey>:<label>" i expandedSubs så
-  // att de kan interfolieras fritt med standard-subarna. (customSubs används som
-  // register när expandedSubs saknar cs:-posten, t.ex. äldre data.)
-  void customSubs;
+  // Ordnad lista av sub-sektioner under en parentKey, enligt expandedSubs.
   // Underkategorier som placerats fritt ritas där de står i parentOrder, inte
   // under sin kategori.
   const placed = new Set(parentOrder.filter(isPlacedSubKey));
@@ -243,16 +215,6 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
         acc.push({ order: idx === -1 ? Infinity : idx, g });
       }
     }
-    const inner = customSubMap.get(parentKey);
-    if (inner) {
-      for (const [label, its] of inner) {
-        const g: CategoryGroup<T> = { category: label, isCustom: true, isSub: true, parentKey, label, items: sortItems(its) };
-        const key = placedCustomSubKey(parentKey, label);
-        if (placed.has(key)) { placedGroups.set(key, g); continue; }
-        const idx = expandedSubs.indexOf(key);
-        acc.push({ order: idx === -1 ? Infinity : idx, g });
-      }
-    }
     acc.sort((a, b) => a.order - b.order);
     return acc.map(x => x.g);
   };
@@ -265,7 +227,7 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
     out.push(...subGroupsForParent(String(parent)));
     return out;
   };
-  // Grupper för EN egen parent (direkta items + egna subs).
+  // Grupper för EN egen parent (direkta items + ihopslagna kategoriers subs).
   const customParentGroups = (cat: string): CategoryGroup<T>[] => {
     const out: CategoryGroup<T>[] = [];
     const direct = customMap.get(cat);
@@ -293,12 +255,9 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   // Underkategorier vars kategori saknas i master (ingen vara direkt i den)
   // har inte samlats in ovan — kör deras kategori för att hitta dem.
   for (const key of placed) {
-    if (placedGroups.has(key) || !key.startsWith('s:')) continue;
+    if (placedGroups.has(key)) continue;
     const info = SUB_TAXONOMY[key.slice(2) as SubCategory];
     if (info) subGroupsForParent(resolveMerge(info.defaultParent, categoryMerge));
-  }
-  for (const [parentKey] of customSubMap) {
-    if ([...placed].some(k => k.startsWith(`cs:${parentKey}:`))) subGroupsForParent(parentKey);
   }
 
   const clusters = placedClusters(parentOrder, categoryMerge);
