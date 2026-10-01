@@ -161,6 +161,8 @@ import('./jobs/backfillSubCategory').then(m => {
 import('./lib/curatedOverridesDb').then(m => {
   m.reloadCuratedOverrides()
     .then(n => { if (n > 0) console.log(`[klassning] ${n} handskrivna klassningar inlästa`); })
+    .then(() => m.syncAliasesWithCurated())
+    .then(n => { if (n > 0) console.log(`[klassning] ${n} rader i poolen fick klassningens kategori`); })
     .catch(e => console.error('[klassning] kunde inte läsa in:', e));
 });
 

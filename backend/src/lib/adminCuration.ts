@@ -125,6 +125,10 @@ export async function applyCuration(input: CurationInput, actor: { clerkUserId: 
     // Gissade basvaror får den nya kategorin, så den lagrade och den visade
     // säger samma sak. Hushållens egna val rörs inte.
     prisma.stapleItem.updateMany({ where: { name, categoryChosen: { not: true } }, data: { category: input.category, categoryChosen: false } }),
+    // Poolens sparade kategori likaså. Klassaren frågar den inte före din
+    // klassning, men städjobbet "Varor som fastnat i Övrigt" läser den — och
+    // listade annars namn du redan klassat som om de låg kvar i Övrigt.
+    prisma.ingredientAlias.updateMany({ where: { canonical: name, category: { not: input.category } }, data: { category: input.category } }),
     ...(items.length ? [prisma.shoppingItem.updateMany({
       where: { id: { in: items.map(i => i.id) } },
       data: { category: input.category, subCategory: input.subCategory },
