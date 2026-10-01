@@ -182,6 +182,11 @@ export async function removeCuration(rawName: string, actor: { clerkUserId: stri
  * inte finns i den kurerade listan — kandidater till COMMON_INGREDIENTS, så de
  * syns för alla trots tröskeln på två hushåll. Samma som curate:candidates.
  */
+/** Namn adminen klassat — de är behandlade och ska inte stå kvar i listorna. */
+async function adminCuratedNames(): Promise<Set<string>> {
+  return new Set((await prisma.curatedCategory.findMany({ select: { name: true } })).map(c => c.name));
+}
+
 export async function curateCandidates(minSeen = 3) {
   const counts = await prisma.ingredientAliasHousehold.groupBy({ by: ['raw'], _count: { householdId: true } });
   const households = new Map(counts.map(c => [c.raw, c._count.householdId]));
@@ -190,7 +195,10 @@ export async function curateCandidates(minSeen = 3) {
     orderBy: { seenCount: 'desc' },
     select: { raw: true, canonical: true, category: true, seenCount: true },
   });
-  const curated = new Set(COMMON_INGREDIENTS.map(c => c.name));
+  // Varken den kurerade listan eller det adminen redan klassat är kandidater
+  // — ett klassat namn föreslås redan för alla, så det är behandlat.
+  const handled = await adminCuratedNames();
+  const curated = new Set([...COMMON_INGREDIENTS.map(c => c.name), ...handled]);
   const seen = new Set<string>();
   return alias
     .filter(a => {
@@ -215,6 +223,8 @@ export async function curateCandidates(minSeen = 3) {
  */
 export async function namesWithoutSubCategory() {
   const alias = await prisma.ingredientAlias.findMany({ select: { canonical: true, category: true, seenCount: true } });
+  // Har adminen klassat namnet är det ett ställningstagande, även utan underkategori.
+  const handled = await adminCuratedNames();
   const byName = new Map<string, { seen: number; stored: string | null }>();
   for (const a of alias) {
     const name = a.canonical.toLowerCase().trim();
@@ -223,7 +233,7 @@ export async function namesWithoutSubCategory() {
     byName.set(name, { seen: (prev?.seen ?? 0) + a.seenCount, stored: prev?.stored && prev.stored !== 'other' ? prev.stored : a.category });
   }
   return [...byName]
-    .filter(([name]) => curatedSubCategory(name) === null)
+    .filter(([name]) => !handled.has(name) && curatedSubCategory(name) === null)
     .map(([name, v]) => ({ name, seenCount: v.seen, category: categorizeWithStored(name, v.stored) }))
     .sort((a, b) => b.seenCount - a.seenCount);
 }

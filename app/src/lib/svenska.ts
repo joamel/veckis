@@ -1789,8 +1789,8 @@ export const admin = {
   },
   tabHint: {
     votes:      'Varor där hushåll valt en annan kategori än klassaren. Flera hushåll som oberoende valt samma sak är en signal om att klassaren har fel.',
-    gaps:       'Namn utan underkategori, mest sedda först. Underkategorin avgör var varan hamnar (huvudkategorin följer av den), så det är de här som behöver klassas.',
-    candidates: 'Varor som bara ett hushåll använt, men ofta — de föreslås inte för andra ännu. Klassa en, så blir den ett sökförslag för alla.',
+    gaps:       'Namn utan underkategori, mest sedda först. Underkategorin avgör var varan hamnar (huvudkategorin följer av den), så det är de här som behöver klassas. Ett namn du klassat försvinner härifrån, även utan underkategori.',
+    candidates: 'Varor som bara ett hushåll använt, men ofta — de föreslås inte för andra ännu. Klassa en, så blir den ett sökförslag för alla och försvinner härifrån.',
     curated:    'Dina handskrivna klassningar. De går före alla regler i koden, och namnen föreslås i sökningen för alla.',
     names:      'Alla varunamn i den gemensamma poolen och hushållens basvaror, mest sedda först. Tryck på ett namn för att byta namn eller radera, eller välj Markera för att radera eller slå ihop flera — till exempel felstavningar till rätt stavning.',
     cleanup:    'Det städskripten föreslår: rader som inte är varor, mängder som fastnat i namnet och stavningsvarianter av samma vara. Alternativ ("linguine eller spaghetti") delas av städjobbet Trasiga namn i poolen.',
