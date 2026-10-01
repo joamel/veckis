@@ -31,6 +31,8 @@ export type JobRow = {
   label: string;
   from: string;
   to: string;
+  /** Varunamnet raden gäller, när den kan klassas på adminsidan. */
+  name?: string;
 };
 
 export type JobPlan = { rows: JobRow[]; note?: string };
@@ -134,18 +136,18 @@ const categories: CleanupJob = {
     for (const a of alias) {
       if (!duglingGlobalt(a.canonical)) continue;
       const to = betterCategory(a.canonical);
-      if (to) rows.push({ table: 'pool', key: `alias:${a.raw}`, label: a.canonical, from: 'other', to });
+      if (to) rows.push({ table: 'pool', key: `alias:${a.raw}`, label: a.canonical, from: 'other', to, name: a.canonical });
     }
     // EN rad per basvarunamn — ändringen gäller varje hushåll som har varan i Övrigt.
     const stapleCounts = new Map<string, number>();
     for (const s of staples) if (duglingGlobalt(s.name)) stapleCounts.set(s.name, (stapleCounts.get(s.name) ?? 0) + 1);
     for (const [name, count] of stapleCounts) {
       const to = betterCategory(name);
-      if (to) rows.push({ table: 'basvara', key: `staple:${name}`, label: count > 1 ? `${name} (${count} hushåll)` : name, from: 'other', to });
+      if (to) rows.push({ table: 'basvara', key: `staple:${name}`, label: count > 1 ? `${name} (${count} hushåll)` : name, from: 'other', to, name });
     }
     for (const i of items) {
       const to = betterCategory(i.name, i.subCategory);
-      if (to) rows.push({ table: 'vara', key: `item:${i.id}`, label: i.name, from: 'other', to });
+      if (to) rows.push({ table: 'vara', key: `item:${i.id}`, label: i.name, from: 'other', to, name: i.name });
     }
     return { rows };
   },
@@ -190,13 +192,20 @@ function repairAlias(canonical: string): string {
 const aliases: CleanupJob = {
   id: 'aliases',
   title: 'Trasiga namn i poolen',
-  description: 'Namn i den gemensamma poolen som inte duger som förslag ("kg potatis", "penne/fusilli"): lagas, delas i sina led eller raderas. Kör också ikapp vilka hushåll som sett varje namn.',
+  description: 'Namn i den gemensamma poolen som inte duger som förslag ("kg potatis", "penne/fusilli"): lagas, delas i sina led eller raderas. Hittar också kortningar som tappat ett avgörande ord ("krossade tomater" → "tomat") och återställer dem. Kör ikapp vilka hushåll som sett varje namn.',
   usesAi: false,
   async plan() {
     const alias = await prisma.ingredientAlias.findMany({ select: { raw: true, canonical: true } });
-    const rows = alias
+    const rows: JobRow[] = alias
       .filter(a => !duglingGlobalt(a.canonical))
       .map(a => ({ table: 'pool', key: a.raw, label: a.canonical, from: a.canonical, to: repairAlias(a.canonical) }));
+    // Modellen kortade förr utan spärr: "krossade tomater" → "tomat". Då pekar
+    // varje burk på den färska tomaten. Tillbaka till det strippade namnet.
+    for (const a of alias) {
+      if (duglingGlobalt(a.canonical) && !bevararSkyddadeOrd(a.raw, a.canonical)) {
+        rows.push({ table: 'pool', key: `skydd:${a.raw}`, label: a.raw, from: a.canonical, to: stripIngredient(a.raw) });
+      }
+    }
     return { rows };
   },
   async apply(rows, actor) {
@@ -217,7 +226,17 @@ const aliases: CleanupJob = {
     if (backfill.length) await prisma.ingredientAliasHousehold.createMany({ data: backfill, skipDuplicates: true });
 
     let fixed = 0, split = 0, deleted = 0;
-    for (const { key } of rows) {
+    for (const { key: rowKey } of rows) {
+      if (rowKey.startsWith('skydd:')) {
+        const raw = rowKey.slice('skydd:'.length);
+        const a = await prisma.ingredientAlias.findUnique({ where: { raw }, select: { canonical: true } });
+        if (a && !bevararSkyddadeOrd(raw, a.canonical)) {
+          await prisma.ingredientAlias.update({ where: { raw }, data: { canonical: stripIngredient(raw) } });
+          fixed++;
+        }
+        continue;
+      }
+      const key = rowKey;
       const a = await prisma.ingredientAlias.findUnique({ where: { raw: key }, select: { canonical: true } });
       if (!a || duglingGlobalt(a.canonical)) continue;
       const to = repairAlias(a.canonical);

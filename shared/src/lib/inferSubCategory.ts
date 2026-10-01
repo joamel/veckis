@@ -69,7 +69,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'honung', patterns: ['honung', 'flytande honung'] },
   { sub: 'sylt_marmelad', patterns: ['sylt', 'marmelad', 'jordgubbssylt', 'hallonsylt', 'lingonsylt', 'hjortronsylt', 'apelsinmarmelad', 'äppelmos'] },
   { sub: 'sött_pålägg', patterns: ['nutella', 'chokladpålägg', 'jordnötssmör', 'kakaokräm', 'nötkräm'] },
-  { sub: 'konserver', patterns: ['krossade tomater', 'tomatkonserv', 'tonfisk i', 'majs (konserv)', 'kokosmjölk (konserv)', 'kokosgrädde (konserv)', 'kondenserad mjölk', 'kokosmjölk', 'kokosgrädde', 'tomatsoppa'] },
+  { sub: 'konserver', patterns: ['krossade tomater', 'tomatkonserv', 'tonfisk i', 'majs (konserv)', 'kokosmjölk (konserv)', 'kokosgrädde (konserv)', 'kondenserad mjölk', 'kokosmjölk', 'kokosgrädde', 'tomatsoppa', 'passerade tomater', 'tomatkross', 'tomater på burk', 'hela tomater', 'hela tomater på burk', 'körsbärstomater på burk', 'tomatpuré', 'tomatpure', 'passata'] },
   { sub: 'baljväxter', patterns: ['kikärtor', 'svarta bönor', 'kidneybönor', 'vita bönor', 'linser', 'gula ärtor'] },
   { sub: 'mjöl_bakingredienser', patterns: ['vetemjöl', 'rågmjöl', 'mannagryn', 'jäst', 'bakpulver', 'bikarbonat', 'florsocker', 'strösocker', 'farinsocker', 'sirap', 'kakao', 'vaniljsocker', 'sockerkaka mix', 'socker', 'pärlsocker', 'ströbröd', 'våffelmix', 'pannkaksmix'] },
   { sub: 'olja_vinäger', patterns: ['olivolja', 'rapsolja', 'kokosolja', 'solrosolja', 'sesamolja', 'balsamico', 'äppelcidervinäger', 'rödvinsvinäger', 'vinäger', 'olja'] },

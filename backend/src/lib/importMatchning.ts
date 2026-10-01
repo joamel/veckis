@@ -43,7 +43,9 @@ export function kanoniseringDuger(original: string, kanoniskt: string): boolean 
 // vanlig yoghurt är tre varor, och kinesisk soja är inte japansk soja.
 //
 // "malen", "riven" och "hackad" står medvetet INTE här: malen kanel är kanel.
-const SKYDDADE_ORD = /\b(?:glutenfri\w*|laktosfri\w*|sockerfri\w*|alkoholfri\w*|alkohol|fryst\w*|frysta|djupfryst\w*|torkad\w*|rökt\w*|grillad\w*|panerad\w*|rostad\w*|inlagd\w*|turkisk\w*|grekisk\w*|kinesisk\w*|japansk\w*|italiensk\w*|fransk\w*|spansk\w*|indisk\w*|thailändsk\w*|thai|mexikansk\w*|amerikansk\w*|svensk\w*|dansk\w*|norsk\w*|finsk\w*)\b/giu;
+// "krossade tomater", "passerade tomater" och "tomater på burk" är konserver,
+// inte tomater — försvinner ordet hamnar burken bland de färska.
+const SKYDDADE_ORD = /\b(?:krossad\w*|passerad\w*|burk\w*|konserv\w*|glutenfri\w*|laktosfri\w*|sockerfri\w*|alkoholfri\w*|alkohol|fryst\w*|frysta|djupfryst\w*|torkad\w*|rökt\w*|grillad\w*|panerad\w*|rostad\w*|inlagd\w*|turkisk\w*|grekisk\w*|kinesisk\w*|japansk\w*|italiensk\w*|fransk\w*|spansk\w*|indisk\w*|thailändsk\w*|thai|mexikansk\w*|amerikansk\w*|svensk\w*|dansk\w*|norsk\w*|finsk\w*)\b/giu;
 
 // "utan kolsyra", "med D-vitamin": en specifikation som avgör vilken produkt
 // man ska ta. Försvinner den blir "vatten utan kolsyra" till "vatten".

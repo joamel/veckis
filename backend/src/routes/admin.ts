@@ -4,7 +4,7 @@ import { prisma } from '../db';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { categoryVotes } from '../lib/categoryVotes';
 import { StoreCategory } from '@prisma/client';
-import { applyCuration, classifyReport, curateCandidates, curationImpact, newHouseholds, removeCuration, validateCuration } from '../lib/adminCuration';
+import { applyCuration, classifyReport, curateCandidates, curationImpact, namesWithoutSubCategory, newHouseholds, removeCuration, validateCuration } from '../lib/adminCuration';
 import { wsListUpdate } from '../lib/wsHub';
 import { allNames, deleteIngredient, junkReason, nameImpact, renameIngredient, suggestNameCleanup } from '../lib/nameCleanup';
 import { CLEANUP_JOBS, findJob } from '../lib/cleanupJobs';
@@ -128,6 +128,12 @@ adminRouter.get('/candidates', asyncHandler(async (req, res) => {
   res.json({ kandidater: rows.length, rader: rows.slice(0, 200) });
 }));
 
+// GET /api/admin/no-subcategory — namn utan underkategori, och vart de hamnar idag.
+adminRouter.get('/no-subcategory', asyncHandler(async (_req, res) => {
+  const rows = await namesWithoutSubCategory();
+  res.json({ antal: rows.length, rader: rows.slice(0, 300) });
+}));
+
 // GET /api/admin/new-households?since=2026-09-17 — default två veckor bakåt.
 adminRouter.get('/new-households', asyncHandler(async (req, res) => {
   const since = typeof req.query.since === 'string' ? new Date(req.query.since) : new Date(Date.now() - 14 * 86_400_000);
@@ -220,6 +226,31 @@ adminRouter.post('/names/rename', asyncHandler(async (req, res) => {
   const fel = junkReason(body.data.to);
   if (fel) { res.status(400).json({ error: `Det nya namnet duger inte: ${fel}` }); return; }
   res.json(await renameIngredient(body.data.from, body.data.to, { clerkUserId: (req as AuthenticatedRequest).clerkUserId }));
+}));
+
+// POST /api/admin/names/batch { action, names, to? } — flera namn i en omgång:
+// radera alla, eller slå ihop alla till ett namn (felstavningar, varianter).
+adminRouter.post('/names/batch', asyncHandler(async (req, res) => {
+  const body = z.object({
+    action: z.enum(['delete', 'merge']),
+    names: z.array(z.string().min(1).max(500)).min(1).max(200),
+    to: z.string().min(1).max(60).optional(),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+  const actor = { clerkUserId: (req as AuthenticatedRequest).clerkUserId };
+  if (body.data.action === 'merge') {
+    const to = body.data.to?.trim();
+    if (!to) { res.status(400).json({ error: 'Namn att slå ihop till saknas' }); return; }
+    const fel = junkReason(to);
+    if (fel) { res.status(400).json({ error: `Det nya namnet duger inte: ${fel}` }); return; }
+    let staples = 0;
+    for (const name of body.data.names) staples += (await renameIngredient(name, to, actor)).staples;
+    res.json({ names: body.data.names.length, staples });
+    return;
+  }
+  let staples = 0;
+  for (const name of body.data.names) staples += (await deleteIngredient(name, actor)).staples;
+  res.json({ names: body.data.names.length, staples });
 }));
 
 // POST /api/admin/names/delete { name } — ta bort ur poolen och basvarorna. Permanent.

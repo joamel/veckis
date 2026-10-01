@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '../db';
 import { stripIngredient, ärMängdOrd, startsWithUnit } from './stripIngredient';
+import { bevararSkyddadeOrd } from './importMatchning';
 import { categorizeIngredient } from './categorizeIngredient';
 import { delaAlternativ } from './alternativ';
 import type { StoreCategory } from '@prisma/client';
@@ -168,6 +169,14 @@ export async function normalizeIngredientNames(names: string[]): Promise<string[
     const aiResults = await aiNormalizeNames(uncached);
 
     // Step 5: persist new cache entries (only when AI changed something)
+    //
+    // Modellens kortning måste behålla de ord som avgör VILKEN vara det är.
+    // Utan spärren kunde "krossade tomater" bli "tomat", sparas i cachen och
+    // därefter göra varje burk krossade tomater till en färsk tomat — med
+    // receptets kategori (torrvaror) på köpet.
+    uncached.forEach((raw, i) => {
+      if (!bevararSkyddadeOrd(raw, aiResults[i] ?? raw)) aiResults[i] = raw;
+    });
     const newEntries = uncached
       .map((raw, i) => ({ raw, canonical: aiResults[i] }))
       .filter(e => e.raw !== e.canonical && e.canonical.length > 0);

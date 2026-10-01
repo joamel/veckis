@@ -1,7 +1,7 @@
 import type { StoreCategory } from '@prisma/client';
 import { parentForSub, type SubCategory } from '@veckis/shared';
 import { prisma } from '../db';
-import { categorizeIngredient, curatedSubCategory, explainCategory } from './categorizeIngredient';
+import { categorizeIngredient, categorizeWithStored, curatedSubCategory, explainCategory } from './categorizeIngredient';
 import { curatedKey } from './curatedOverrides';
 import { reloadCuratedOverrides } from './curatedOverridesDb';
 import { duglingGlobalt } from './normalizeIngredients';
@@ -196,6 +196,27 @@ export async function curateCandidates(minSeen = 3) {
       const klassad = categorizeIngredient(a.canonical);
       return { name: a.canonical, seenCount: a.seenCount, category: klassad !== 'other' ? klassad : a.category };
     });
+}
+
+/**
+ * Varunamn utan underkategori, mest sedda först. Underkategorin är det som
+ * avgör placeringen (huvudkategorin följer av den), så det är de här som
+ * behöver en regel eller en klassning. Visar vart de faktiskt hamnar idag:
+ * under en kategori ur det sparade aliaset, eller i Övrigt.
+ */
+export async function namesWithoutSubCategory() {
+  const alias = await prisma.ingredientAlias.findMany({ select: { canonical: true, category: true, seenCount: true } });
+  const byName = new Map<string, { seen: number; stored: string | null }>();
+  for (const a of alias) {
+    const name = a.canonical.toLowerCase().trim();
+    if (!duglingGlobalt(name)) continue;
+    const prev = byName.get(name);
+    byName.set(name, { seen: (prev?.seen ?? 0) + a.seenCount, stored: prev?.stored && prev.stored !== 'other' ? prev.stored : a.category });
+  }
+  return [...byName]
+    .filter(([name]) => curatedSubCategory(name) === null)
+    .map(([name, v]) => ({ name, seenCount: v.seen, category: categorizeWithStored(name, v.stored) }))
+    .sort((a, b) => b.seenCount - a.seenCount);
 }
 
 /** Hushåll skapade sedan ett datum, och hur mycket de hunnit göra. Samma som new-households. */

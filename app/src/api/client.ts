@@ -139,7 +139,7 @@ export type AdminNameSuggestion =
   | { name: string; weight: number; action: 'delete'; reason: string }
   | { name: string; weight: number; action: 'rename'; to: string; reason: string };
 export interface AdminJob { id: string; title: string; description: string; usesAi: boolean }
-export interface AdminJobRow { table: string; key: string; label: string; from: string; to: string }
+export interface AdminJobRow { table: string; key: string; label: string; from: string; to: string; name?: string }
 export interface AdminNameImpact { name: string; aliasRows: number; staples: number; households: number }
 export interface ClientErrorEntry {
   id: number;
@@ -734,6 +734,10 @@ export function useApiClient() {
       request<{ total: number; rows: AdminJobRow[]; note: string | null }>(`/api/admin/jobs/${encodeURIComponent(id)}/plan`, { method: 'POST' }),
     adminJobApply: (id: string, rows: { key: string; to: string }[]) =>
       request<{ summary: string }>(`/api/admin/jobs/${encodeURIComponent(id)}/apply`, { method: 'POST', body: JSON.stringify({ rows }) }),
+    adminNoSubCategory: () =>
+      request<{ antal: number; rader: { name: string; seenCount: number; category: string }[] }>('/api/admin/no-subcategory'),
+    adminNamesBatch: (data: { action: 'delete' | 'merge'; names: string[]; to?: string }) =>
+      request<{ names: number; staples: number }>('/api/admin/names/batch', { method: 'POST', body: JSON.stringify(data) }),
     adminRemoveCuration: (name: string) =>
       request<void>(`/api/admin/curated?name=${encodeURIComponent(name)}`, { method: 'DELETE' }),
   }), []);

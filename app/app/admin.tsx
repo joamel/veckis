@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CATEGORY_LABELS, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory } from '@veckis/shared';
 import { useTheme } from '../src/context/ThemeContext';
 import { useToast } from '../src/context/ToastContext';
+import { useConfirm } from '../src/context/ConfirmContext';
 import { useApiClient, type AdminClassifyReport, type AdminCurationImpact, type AdminJob, type AdminJobRow, type AdminNameImpact, type AdminVoteRow } from '../src/api/client';
 import { Pressable } from '../src/components/Pressable';
 import { DraggableBottomSheet } from '../src/components/DraggableBottomSheet';
@@ -48,6 +49,13 @@ export default function AdminScreen() {
   const [nameTarget, setNameTarget] = useState<{ name: string; suggestedName?: string } | null>(null);
   const [nameQuery, setNameQuery] = useState('');
   const [job, setJob] = useState<AdminJob | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedNames, setSelectedNames] = useState<Set<string>>(new Set());
+  const [mergeOpen, setMergeOpen] = useState(false);
+  // Stabil lista, så arket inte nollställer namnet det föreslår vid varje omritning.
+  const mergeNames = useMemo(() => (mergeOpen ? [...selectedNames] : null), [mergeOpen, selectedNames]);
+  const confirm = useConfirm();
+  const { showToast } = useToast();
 
   useEffect(() => {
     client.getIsAppAdmin().then(r => setIsAdmin(r.isAdmin)).catch(() => setIsAdmin(false));
@@ -70,8 +78,11 @@ export default function AdminScreen() {
           ].filter(Boolean).join(' · '),
         })));
       } else if (t === 'gaps') {
-        const r = await client.adminCategoryGaps();
-        setRows(r.luckor.map((l, i) => ({ key: `${l.namn}-${i}`, name: l.namn, title: l.namn, meta: `${str.rows.seen(l.seenCount)} · ${catLabel(l.lagradKategori)}` })));
+        const r = await client.adminNoSubCategory();
+        setRows(r.rader.map((l, i) => ({
+          key: `${l.name}-${i}`, name: l.name, title: l.name,
+          meta: `${str.rows.seen(l.seenCount)} · ${l.category === 'other' ? str.rows.landsInOther : str.rows.landsIn(catLabel(l.category))}`,
+        })));
       } else if (t === 'candidates') {
         const r = await client.adminCandidates();
         setRows(r.rader.map(k => ({ key: k.name, name: k.name, title: k.name, meta: `${str.rows.seen(k.seenCount)} · ${catLabel(k.category)}` })));
@@ -108,10 +119,40 @@ export default function AdminScreen() {
   }, [client, showError]);
 
   useEffect(() => { if (isAdmin) load(tab); }, [isAdmin, tab, load]);
+  useEffect(() => { setSelectMode(false); setSelectedNames(new Set()); }, [tab]);
+
+  const toggleName = (name: string) => setSelectedNames(prev => {
+    const next = new Set(prev);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    return next;
+  });
+
+  function deleteSelected() {
+    const names = [...selectedNames];
+    confirm({
+      title: str.batch.deleteTitle(names.length),
+      message: str.batch.deleteBody,
+      buttons: [
+        { label: common.actions.cancel, style: 'cancel' },
+        {
+          label: str.batch.delete(names.length), style: 'destructive',
+          onPress: async () => {
+            try {
+              await client.adminNamesBatch({ action: 'delete', names });
+              showToast(str.batch.done_delete(names.length), 'success');
+              setSelectedNames(new Set());
+              load('names', nameQuery.trim());
+            } catch (e) { showError(e, str.batch.delete(names.length)); }
+          },
+        },
+      ],
+    });
+  }
   // Stabila, så arket inte hämtar om (och nollställer valen) vid varje omritning.
   const closeSheet = useCallback(() => setClassifyName(null), []);
   const closeNameSheet = useCallback(() => setNameTarget(null), []);
   const closeJobSheet = useCallback(() => setJob(null), []);
+  const classifyFromJob = useCallback((name: string) => { setJob(null); setClassifyName(name); }, []);
   const reloadTab = useCallback(() => load(tab, tab === 'names' ? nameQuery.trim() : ''), [load, tab, nameQuery]);
   const openClassify = useCallback((name: string) => { setNameTarget(null); setClassifyName(name); }, []);
 
@@ -168,6 +209,19 @@ export default function AdminScreen() {
             onSubmitEditing={() => load('names', nameQuery.trim())}
           />
         )}
+        {tab === 'names' && (
+          <View style={s.selectRow}>
+            <Pressable onPress={() => { setSelectMode(m => !m); setSelectedNames(new Set()); }}>
+              <Text style={s.linkText}>{selectMode ? str.batch.done : str.batch.select}</Text>
+            </Pressable>
+            {selectMode && selectedNames.size > 0 && (
+              <>
+                <Pressable onPress={() => setMergeOpen(true)}><Text style={s.linkText}>{str.batch.merge(selectedNames.size)}</Text></Pressable>
+                <Pressable onPress={deleteSelected}><Text style={s.dangerText}>{str.batch.delete(selectedNames.size)}</Text></Pressable>
+              </>
+            )}
+          </View>
+        )}
         {summary && <Text style={s.summary}>{summary}</Text>}
 
         {rows === null ? (
@@ -180,18 +234,23 @@ export default function AdminScreen() {
               <Pressable
                 key={r.key}
                 style={[s.row, i > 0 && s.rowBorder]}
-                onPress={r.job
+                onPress={selectMode && r.name
+                  ? () => toggleName(r.name!)
+                  : r.job
                   ? () => setJob(r.job!)
                   : r.name
                     ? () => (NAME_TABS.includes(tab) ? setNameTarget({ name: r.name!, suggestedName: r.suggestedName }) : setClassifyName(r.name!))
                     : undefined}
                 disabled={!r.name && !r.job}
               >
+                {selectMode && r.name && (
+                  <Ionicons name={selectedNames.has(r.name) ? 'checkbox' : 'square-outline'} size={20} color={selectedNames.has(r.name) ? ny.skog : ny.kontur} />
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={s.rowTitle}>{r.title}</Text>
                   <Text style={s.meta}>{r.meta}</Text>
                 </View>
-                {(r.name || r.job) && <Ionicons name="chevron-forward" size={16} color={ny.kontur} />}
+                {!selectMode && (r.name || r.job) && <Ionicons name="chevron-forward" size={16} color={ny.kontur} />}
               </Pressable>
             ))}
           </View>
@@ -203,7 +262,12 @@ export default function AdminScreen() {
         onClose={closeSheet}
         onChanged={reloadTab}
       />
-      <JobSheet job={job} onClose={closeJobSheet} />
+      <JobSheet job={job} onClose={closeJobSheet} onClassify={classifyFromJob} />
+      <MergeSheet
+        names={mergeNames}
+        onClose={() => setMergeOpen(false)}
+        onDone={() => { setMergeOpen(false); setSelectedNames(new Set()); load('names', nameQuery.trim()); }}
+      />
       <NameSheet
         target={nameTarget}
         onClose={closeNameSheet}
@@ -318,6 +382,8 @@ function ClassifySheet({ name, onClose, onChanged }: { name: string | null; onCl
             <Switch value={moveItems} onValueChange={setMoveItems} trackColor={{ true: ny.skog }} />
           </View>
 
+          <Text style={[s.meta, { marginTop: 8 }]}>{str.sheet.suggestionNote}</Text>
+
           {impact && (
             <Text style={s.impact}>
               {answer(impact.before.category, impact.before.subCategory)} → {answer(impact.after.category, impact.after.subCategory)}.{' '}
@@ -350,11 +416,55 @@ function ClassifySheet({ name, onClose, onChanged }: { name: string | null; onCl
   );
 }
 
+/** Slå ihop flera markerade namn till ett — felstavningar till rätt stavning. */
+function MergeSheet({ names, onClose, onDone }: { names: string[] | null; onClose: () => void; onDone: () => void }) {
+  const { ny } = useTheme();
+  const s = useMemo(() => makeStyles(ny), [ny]);
+  const client = useApiClient();
+  const { showToast, showError } = useToast();
+  const [to, setTo] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // Förvalt: det första markerade namnet — skriv över med rätt stavning.
+  useEffect(() => { if (names?.length) setTo(names[0]); }, [names]);
+
+  async function merge() {
+    if (!names || !to.trim()) return;
+    setBusy(true);
+    try {
+      await client.adminNamesBatch({ action: 'merge', names: names.filter(n => n !== to.trim().toLowerCase()), to: to.trim() });
+      showToast(str.batch.done_merge(names.length, to.trim().toLowerCase()), 'success');
+      onDone();
+    } catch (e) { showError(e, str.batch.mergeButton); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <DraggableBottomSheet visible={!!names} onRequestClose={onClose} title={names ? str.batch.mergeTitle(names.length) : ''}>
+      {names && (
+        <View>
+          <Text style={s.meta}>{names.join(', ')}</Text>
+          <TextInput style={[s.input, { marginTop: 12 }]} value={to} onChangeText={setTo} autoCapitalize="none" returnKeyType="done" onSubmitEditing={merge} />
+          <Text style={[s.meta, { marginTop: 8 }]}>{str.batch.mergeHint}</Text>
+          <View style={s.actions}>
+            <Pressable style={[s.primaryBtn, (busy || !to.trim()) && { opacity: 0.5 }]} onPress={merge} disabled={busy || !to.trim()}>
+              {busy ? <ActivityIndicator color={ny.skog} /> : <Text style={s.primaryBtnText}>{str.batch.mergeButton}</Text>}
+            </Pressable>
+            <Pressable style={s.linkBtn} onPress={onClose} disabled={busy}>
+              <Text style={s.linkText}>{common.actions.cancel}</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+    </DraggableBottomSheet>
+  );
+}
+
 /**
  * Ett städjobb: förhandsvisa förslagen, bocka ur det som inte ska med, kör.
  * Backenden kontrollerar varje vald rad igen innan den skrivs.
  */
-function JobSheet({ job, onClose }: { job: AdminJob | null; onClose: () => void }) {
+function JobSheet({ job, onClose, onClassify }: { job: AdminJob | null; onClose: () => void; onClassify: (name: string) => void }) {
   const { ny } = useTheme();
   const s = useMemo(() => makeStyles(ny), [ny]);
   const client = useApiClient();
@@ -414,6 +524,7 @@ function JobSheet({ job, onClose }: { job: AdminJob | null; onClose: () => void 
           ) : (
             <>
               <Text style={[s.summary, { marginTop: 16 }]}>{str.jobSheet.total(plan.rows.length, plan.total)}{plan.note ? ` ${plan.note}` : ''}</Text>
+              {plan.rows.some(r => r.name) && <Text style={[s.meta, { marginBottom: 8 }]}>{str.jobSheet.classifyHint}</Text>}
               <View style={s.selectRow}>
                 <Pressable onPress={() => setSelected(new Set(plan.rows.map(r => r.key)))}><Text style={s.linkText}>{str.jobSheet.selectAll}</Text></Pressable>
                 <Pressable onPress={() => setSelected(new Set())}><Text style={s.linkText}>{str.jobSheet.selectNone}</Text></Pressable>
@@ -433,8 +544,13 @@ function JobSheet({ job, onClose }: { job: AdminJob | null; onClose: () => void 
                       <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? ny.skog : ny.kontur} />
                       <View style={{ flex: 1 }}>
                         <Text style={s.rowTitle}>{r.label}</Text>
-                        <Text style={s.meta}>{r.table} · {r.from} → {r.to}</Text>
+                        <Text style={s.meta}>{r.table} · {catLabel(r.from)} → {catLabel(r.to)}</Text>
                       </View>
+                      {r.name && (
+                        <Pressable onPress={() => onClassify(r.name!)} hitSlop={8} accessibilityRole="button">
+                          <Text style={s.linkText}>{str.jobSheet.classify}</Text>
+                        </Pressable>
+                      )}
                     </Pressable>
                   );
                 })}

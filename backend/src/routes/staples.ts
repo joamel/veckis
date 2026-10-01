@@ -191,12 +191,18 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
   const cleanAliases = eligibleAliases.filter(a => duglingGlobalt(a.canonical) && !hiddenNames.has(a.canonical.toLowerCase()));
   const aliasNames = new Set(cleanAliases.map(a => a.canonical.toLowerCase()));
   const common = COMMON_INGREDIENTS.filter(c => !aliasNames.has(c.name.toLowerCase()) && !hiddenNames.has(c.name.toLowerCase()));
+  // Namn som klassats på adminsidan är granskade — de föreslås för alla, som
+  // den kurerade listan, även om bara ett hushåll använt dem.
+  const commonNames = new Set(common.map(c => c.name.toLowerCase()));
+  const curated = (await prisma.curatedCategory.findMany({ select: { name: true, category: true, subCategory: true } }))
+    .filter(k => !aliasNames.has(k.name) && !commonNames.has(k.name) && !hiddenNames.has(k.name));
 
   res.json([
     // Aliasets kategori föddes med klassarens gissning på sin tid; den
     // kurerade kedjan (underkategorin före aliaset) avgör vad som visas.
     ...cleanAliases.map(a => ({ name: a.canonical, category: categorizeWithStored(a.canonical, a.category) as string, subCategory: curatedSubCategory(a.canonical) })),
     ...common.map(c => ({ name: c.name, category: c.category as string, subCategory: curatedSubCategory(c.name) })),
+    ...curated.map(k => ({ name: k.name, category: k.category as string, subCategory: curatedSubCategory(k.name) })),
   ]);
 }));
 
