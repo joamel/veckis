@@ -1782,6 +1782,8 @@ export const admin = {
     gaps:       'Saknar regel',
     candidates: 'Kandidater',
     curated:    'Klassningar',
+    names:      'Namn',
+    cleanup:    'Städförslag',
     households: 'Nya hushåll',
   },
   tabHint: {
@@ -1789,6 +1791,8 @@ export const admin = {
     gaps:       'Namn som ingen regel känner igen — de hamnar under Övrigt för den som inte själv valt.',
     candidates: 'Varor som bara ett hushåll använt, men ofta. De föreslås inte för andra ännu.',
     curated:    'Dina handskrivna klassningar. De går före alla regler i koden.',
+    names:      'Alla varunamn i den gemensamma poolen och hushållens basvaror, mest sedda först. Rätta stavfel, slå ihop eller radera.',
+    cleanup:    'Det städskripten föreslår: rader som inte är varor, mängder som fastnat i namnet och stavningsvarianter av samma vara.',
     households: 'Hushåll skapade de senaste två veckorna, och hur mycket de hunnit göra.',
   },
   rows: {
@@ -1798,6 +1802,11 @@ export const admin = {
     household: (datum: string, medlemmar: number, recept: number, listor: number, varor: number, meny: number) =>
       `${datum} · ${medlemmar} medl. · ${recept} recept · ${listor} listor · ${varor} varor · ${meny} menyrätter`,
     householdsSummary: (alla: number, aktiva: number) => `${alla} nya hushåll, varav ${aktiva} har skapat något.`,
+    weight:    (n: number) => `sedd ${n} gånger`,
+    junk:      (skäl: string) => `ser inte ut som en vara: ${skäl}`,
+    suggestDelete: (skäl: string) => `radera — ${skäl}`,
+    suggestRename: (till: string, skäl: string) => `→ ${till} (${skäl})`,
+    namesTotal: (visade: number, alla: number) => `Visar ${visade} av ${alla} namn.`,
   },
   sources: {
     admin:         'din klassning',
@@ -1808,6 +1817,21 @@ export const admin = {
     nyckelord:     'ett nyckelord',
     ingen:         'ingen regel — hamnar under Övrigt',
   } as Record<string, string>,
+  nameFilter: 'Filtrera namn…',
+  nameSheet: {
+    usage:        (alias: number, basvaror: number, hushåll: number) => `Finns i ${alias} rader i den gemensamma poolen och som basvara i ${hushåll} hushåll (${basvaror} rader).`,
+    newName:      'Nytt namn',
+    previewRename: 'Förhandsvisa namnbyte',
+    previewDelete: 'Förhandsvisa radering',
+    targetExists: (namn: string, hushåll: number) => `"${namn}" finns redan (i ${hushåll} hushåll) — namnen slås ihop. Den gamla stavningen fortsätter att tolkas som "${namn}".`,
+    targetNew:    (namn: string) => `Varan heter "${namn}" överallt efteråt. Den gamla stavningen fortsätter att tolkas rätt.`,
+    deleteWarning: 'Namnet tas bort ur den gemensamma poolen och ur alla hushålls basvaror. Det går inte att ångra. Varor i inköpslistor och recept rörs inte.',
+    rename:       'Byt namn',
+    delete:       'Radera permanent',
+    classify:     'Klassa namnet',
+    renamed:      (från: string, till: string) => `"${från}" heter nu "${till}"`,
+    deleted:      (namn: string) => `"${namn}" raderat`,
+  },
   sheet: {
     now:          'Klassas nu som',
     because:      (källa: string) => `enligt ${källa}`,

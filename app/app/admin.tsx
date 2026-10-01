@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CATEGORY_LABELS, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory } from '@veckis/shared';
 import { useTheme } from '../src/context/ThemeContext';
 import { useToast } from '../src/context/ToastContext';
-import { useApiClient, type AdminClassifyReport, type AdminCurationImpact, type AdminVoteRow } from '../src/api/client';
+import { useApiClient, type AdminClassifyReport, type AdminCurationImpact, type AdminNameImpact, type AdminVoteRow } from '../src/api/client';
 import { Pressable } from '../src/components/Pressable';
 import { DraggableBottomSheet } from '../src/components/DraggableBottomSheet';
 import { NyHeader } from '../src/components/nydesign/NyHeader';
@@ -19,11 +19,13 @@ import { useBottomGap } from '../src/hooks/useBottomGap';
 import { nyFont, type NyPalett } from '../src/lib/nyDesign';
 import { admin as str, common } from '../src/lib/svenska';
 
-type Tab = 'votes' | 'gaps' | 'candidates' | 'curated' | 'households';
-const TABS: Tab[] = ['votes', 'gaps', 'candidates', 'curated', 'households'];
+type Tab = 'votes' | 'gaps' | 'candidates' | 'curated' | 'names' | 'cleanup' | 'households';
+const TABS: Tab[] = ['votes', 'gaps', 'candidates', 'curated', 'names', 'cleanup', 'households'];
+/** Flikar där en rad öppnar namnarket (byt namn/radera) i stället för klassningen. */
+const NAME_TABS: Tab[] = ['names', 'cleanup'];
 
-/** En rad i en lista: ett namn att klassa, eller (nya hushåll) bara information. */
-type Row = { key: string; title: string; meta: string; name?: string };
+/** En rad i en lista: ett namn att klassa eller städa, eller (nya hushåll) bara information. */
+type Row = { key: string; title: string; meta: string; name?: string; suggestedName?: string };
 
 const catLabel = (key: string) => CATEGORY_LABELS[key as StoreCategory] ?? key;
 const subLabel = (key: string | null) => (key ? SUB_TAXONOMY[key as SubCategory]?.label ?? key : null);
@@ -43,12 +45,14 @@ export default function AdminScreen() {
   const [summary, setSummary] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [classifyName, setClassifyName] = useState<string | null>(null);
+  const [nameTarget, setNameTarget] = useState<{ name: string; suggestedName?: string } | null>(null);
+  const [nameQuery, setNameQuery] = useState('');
 
   useEffect(() => {
     client.getIsAppAdmin().then(r => setIsAdmin(r.isAdmin)).catch(() => setIsAdmin(false));
   }, [client]);
 
-  const load = useCallback(async (t: Tab) => {
+  const load = useCallback(async (t: Tab, q = '') => {
     setRows(null);
     setSummary(null);
     try {
@@ -70,6 +74,20 @@ export default function AdminScreen() {
       } else if (t === 'candidates') {
         const r = await client.adminCandidates();
         setRows(r.rader.map(k => ({ key: k.name, name: k.name, title: k.name, meta: `${str.rows.seen(k.seenCount)} · ${catLabel(k.category)}` })));
+      } else if (t === 'names') {
+        const r = await client.adminNames(q);
+        setRows(r.rader.map((n, i) => ({
+          key: `${n.name}-${i}`, name: n.name, title: n.name,
+          meta: [str.rows.weight(n.weight), n.junk ? str.rows.junk(n.junk) : null].filter(Boolean).join(' · '),
+        })));
+        setSummary(str.rows.namesTotal(Math.min(r.rader.length, r.totalt), r.totalt));
+      } else if (t === 'cleanup') {
+        const r = await client.adminNameSuggestions();
+        setRows(r.rader.map((n, i) => ({
+          key: `${n.name}-${i}`, name: n.name, title: n.name,
+          suggestedName: n.action === 'rename' ? n.to : undefined,
+          meta: `${str.rows.weight(n.weight)} · ${n.action === 'rename' ? str.rows.suggestRename(n.to, n.reason) : str.rows.suggestDelete(n.reason)}`,
+        })));
       } else if (t === 'curated') {
         const r = await client.adminCurated();
         setRows(r.map(k => ({ key: k.name, name: k.name, title: k.name, meta: answer(k.category, k.subCategory) })));
@@ -88,7 +106,9 @@ export default function AdminScreen() {
   useEffect(() => { if (isAdmin) load(tab); }, [isAdmin, tab, load]);
   // Stabila, så arket inte hämtar om (och nollställer valen) vid varje omritning.
   const closeSheet = useCallback(() => setClassifyName(null), []);
-  const reloadTab = useCallback(() => load(tab), [load, tab]);
+  const closeNameSheet = useCallback(() => setNameTarget(null), []);
+  const reloadTab = useCallback(() => load(tab, tab === 'names' ? nameQuery.trim() : ''), [load, tab, nameQuery]);
+  const openClassify = useCallback((name: string) => { setNameTarget(null); setClassifyName(name); }, []);
 
   const header = <NyHeader title={str.title} onBack={() => router.back()} backLabel={str.backA11y} />;
 
@@ -131,6 +151,18 @@ export default function AdminScreen() {
           ))}
         </ScrollView>
         <Text style={s.hint}>{str.tabHint[tab]}</Text>
+        {tab === 'names' && (
+          <TextInput
+            style={[s.input, { marginBottom: 12 }]}
+            value={nameQuery}
+            onChangeText={setNameQuery}
+            placeholder={str.nameFilter}
+            placeholderTextColor={ny.textDampad}
+            autoCapitalize="none"
+            returnKeyType="search"
+            onSubmitEditing={() => load('names', nameQuery.trim())}
+          />
+        )}
         {summary && <Text style={s.summary}>{summary}</Text>}
 
         {rows === null ? (
@@ -143,7 +175,9 @@ export default function AdminScreen() {
               <Pressable
                 key={r.key}
                 style={[s.row, i > 0 && s.rowBorder]}
-                onPress={r.name ? () => setClassifyName(r.name!) : undefined}
+                onPress={r.name
+                  ? () => (NAME_TABS.includes(tab) ? setNameTarget({ name: r.name!, suggestedName: r.suggestedName }) : setClassifyName(r.name!))
+                  : undefined}
                 disabled={!r.name}
               >
                 <View style={{ flex: 1 }}>
@@ -161,6 +195,12 @@ export default function AdminScreen() {
         name={classifyName}
         onClose={closeSheet}
         onChanged={reloadTab}
+      />
+      <NameSheet
+        target={nameTarget}
+        onClose={closeNameSheet}
+        onChanged={reloadTab}
+        onClassify={openClassify}
       />
     </SafeAreaView>
   );
@@ -302,6 +342,125 @@ function ClassifySheet({ name, onClose, onChanged }: { name: string | null; onCl
   );
 }
 
+/**
+ * Byt namn på eller radera ett varunamn i den gemensamma poolen och
+ * hushållens basvaror. Alltid förhandsvisning först — radering är permanent.
+ */
+function NameSheet({ target, onClose, onChanged, onClassify }: {
+  target: { name: string; suggestedName?: string } | null;
+  onClose: () => void;
+  onChanged: () => void;
+  onClassify: (name: string) => void;
+}) {
+  const { ny } = useTheme();
+  const s = useMemo(() => makeStyles(ny), [ny]);
+  const client = useApiClient();
+  const { showToast, showError } = useToast();
+
+  const [usage, setUsage] = useState<AdminNameImpact | null>(null);
+  const [newName, setNewName] = useState('');
+  const [preview, setPreview] = useState<{ kind: 'rename'; to: AdminNameImpact } | { kind: 'delete' } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setUsage(null);
+    setPreview(null);
+    if (!target) return;
+    setNewName(target.suggestedName ?? target.name);
+    client.adminNameImpact(target.name)
+      .then(r => setUsage(r.from))
+      .catch(e => { showError(e, str.empty); onClose(); });
+  }, [target, client, showError, onClose]);
+
+  // Ett nytt namn gör förhandsvisningen inaktuell.
+  useEffect(() => { setPreview(null); }, [newName]);
+
+  const to = newName.trim().toLowerCase();
+  const canRename = !!target && !!to && to !== target.name;
+
+  async function previewRename() {
+    if (!target || !canRename) return;
+    setBusy(true);
+    try {
+      const r = await client.adminNameImpact(target.name, to);
+      if (r.to) setPreview({ kind: 'rename', to: r.to });
+    } catch (e) { showError(e, str.nameSheet.previewRename); }
+    finally { setBusy(false); }
+  }
+
+  async function run(action: () => Promise<unknown>, message: string, fallback: string) {
+    setBusy(true);
+    try { await action(); showToast(message, 'success'); onChanged(); onClose(); }
+    catch (e) { showError(e, fallback); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <DraggableBottomSheet visible={!!target} onRequestClose={onClose} title={target?.name ?? ''} sheetStyle={{ maxHeight: '90%' }}>
+      {!usage || !target ? (
+        <ActivityIndicator color={ny.skog} style={{ marginVertical: 24 }} />
+      ) : (
+        <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled">
+          <Text style={s.meta}>{str.nameSheet.usage(usage.aliasRows, usage.staples, usage.households)}</Text>
+
+          <Text style={[s.label, { marginTop: 16 }]}>{str.nameSheet.newName}</Text>
+          <TextInput
+            style={s.input}
+            value={newName}
+            onChangeText={setNewName}
+            autoCapitalize="none"
+            returnKeyType="done"
+            onSubmitEditing={previewRename}
+          />
+
+          {preview && (
+            <Text style={s.impact}>
+              {preview.kind === 'rename'
+                ? (preview.to.aliasRows + preview.to.staples > 0 ? str.nameSheet.targetExists(to, preview.to.households) : str.nameSheet.targetNew(to))
+                : str.nameSheet.deleteWarning}
+            </Text>
+          )}
+
+          <View style={s.actions}>
+            {preview?.kind === 'rename' ? (
+              <Pressable
+                style={[s.primaryBtn, busy && { opacity: 0.5 }]}
+                disabled={busy}
+                onPress={() => run(() => client.adminRenameIngredient(target.name, to), str.nameSheet.renamed(target.name, to), str.nameSheet.rename)}
+              >
+                <Text style={s.primaryBtnText}>{str.nameSheet.rename}</Text>
+              </Pressable>
+            ) : preview?.kind === 'delete' ? (
+              <Pressable
+                style={[s.dangerBtn, busy && { opacity: 0.5 }]}
+                disabled={busy}
+                onPress={() => run(() => client.adminDeleteIngredient(target.name), str.nameSheet.deleted(target.name), str.nameSheet.delete)}
+              >
+                <Text style={s.dangerBtnText}>{str.nameSheet.delete}</Text>
+              </Pressable>
+            ) : (
+              <>
+                <Pressable style={[s.secondaryBtn, (!canRename || busy) && { opacity: 0.5 }]} onPress={previewRename} disabled={!canRename || busy}>
+                  <Text style={s.secondaryBtnText}>{str.nameSheet.previewRename}</Text>
+                </Pressable>
+                <Pressable style={s.linkBtn} onPress={() => setPreview({ kind: 'delete' })} disabled={busy}>
+                  <Text style={s.dangerText}>{str.nameSheet.previewDelete}</Text>
+                </Pressable>
+              </>
+            )}
+            <Pressable style={s.linkBtn} onPress={() => onClassify(target.name)} disabled={busy}>
+              <Text style={s.linkText}>{str.nameSheet.classify}</Text>
+            </Pressable>
+            <Pressable style={s.linkBtn} onPress={onClose} disabled={busy}>
+              <Text style={s.linkText}>{common.actions.cancel}</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      )}
+    </DraggableBottomSheet>
+  );
+}
+
 // Byggd för webben på datorn i första hand: innehållet hålls i en lagom bred
 // kolumn så långa listor går att läsa på en stor skärm.
 const makeStyles = (ny: NyPalett) => StyleSheet.create({
@@ -341,4 +500,6 @@ const makeStyles = (ny: NyPalett) => StyleSheet.create({
   linkBtn: { padding: 10, alignItems: 'center' },
   linkText: { color: ny.padYta, fontSize: 15, fontFamily: nyFont.halvfet },
   dangerText: { color: ny.fara, fontSize: 15, fontFamily: nyFont.halvfet },
+  dangerBtn: { backgroundColor: ny.fara, borderRadius: 14, padding: 16, alignItems: 'center' },
+  dangerBtnText: { color: ny.kort, fontSize: 16, fontFamily: nyFont.fet },
 });

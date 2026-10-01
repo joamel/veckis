@@ -135,6 +135,10 @@ export interface AdminCurationImpact {
   chosenDiffering: number;
   itemsToMove: number;
 }
+export type AdminNameSuggestion =
+  | { name: string; weight: number; action: 'delete'; reason: string }
+  | { name: string; weight: number; action: 'rename'; to: string; reason: string };
+export interface AdminNameImpact { name: string; aliasRows: number; staples: number; households: number }
 export interface ClientErrorEntry {
   id: number;
   name: string;
@@ -712,6 +716,16 @@ export function useApiClient() {
       request<AdminCurationImpact>('/api/admin/curated/preview', { method: 'POST', body: JSON.stringify(data) }),
     adminCurate: (data: { name: string; category: StoreCategory; subCategory: string | null; moveItems: boolean }) =>
       request<{ name: string; itemsMoved: number }>('/api/admin/curated', { method: 'PUT', body: JSON.stringify(data) }),
+    adminNames: (q = '') =>
+      request<{ totalt: number; rader: { name: string; weight: number; junk: string | null }[] }>(`/api/admin/names${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    adminNameSuggestions: () =>
+      request<{ förslag: number; rader: AdminNameSuggestion[] }>('/api/admin/name-suggestions'),
+    adminNameImpact: (name: string, to?: string) =>
+      request<{ from: AdminNameImpact; to: AdminNameImpact | null }>(`/api/admin/names/impact?name=${encodeURIComponent(name)}${to ? `&to=${encodeURIComponent(to)}` : ''}`),
+    adminRenameIngredient: (from: string, to: string) =>
+      request<{ aliasRows: number; staples: number; merged: number }>('/api/admin/names/rename', { method: 'POST', body: JSON.stringify({ from, to }) }),
+    adminDeleteIngredient: (name: string) =>
+      request<{ aliasRows: number; staples: number }>('/api/admin/names/delete', { method: 'POST', body: JSON.stringify({ name }) }),
     adminRemoveCuration: (name: string) =>
       request<void>(`/api/admin/curated?name=${encodeURIComponent(name)}`, { method: 'DELETE' }),
   }), []);

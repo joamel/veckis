@@ -18,11 +18,8 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { visaMåldatabas } from './visaDb';
+import { variantGroups as gruppera, type WeightedName } from '../src/lib/nameCleanup';
 import { skrivGranskningsfil, läsGranskningsfil, lägeskontroll, type Granskningsrad } from './granskningsfil';
-import { ärSammaVara } from '../src/lib/likhet';
-import { duglingGlobalt } from '../src/lib/normalizeIngredients';
-import { categorizeIngredient } from '../src/lib/categorizeIngredient';
-import { COMMON_INGREDIENTS } from '../src/lib/commonIngredients';
 
 const prisma = new PrismaClient({ log: ['error'] });
 
@@ -36,7 +33,8 @@ function flaggvärde(namn: string): string | null {
 const SKRIV_FIL = flaggvärde('--fil');
 const LÄS_FIL = flaggvärde('--från-fil');
 
-type Vara = { namn: string; vikt: number };
+// Grupperingen delas med adminsidan, så de två aldrig säger olika saker.
+type Vara = WeightedName;
 
 /** Alla varunamn som finns, med hur ofta de setts. Alias och basvaror slås
  *  ihop till EN lista, eftersom ett namn ska stavas likadant överallt. */
@@ -55,58 +53,6 @@ async function allaVaror(): Promise<Vara[]> {
   }
 
   return [...vikter].map(([namn, vikt]) => ({ namn, vikt }));
-}
-
-/**
- * Rangordnar vilken variant som ska bli målnamnet. Lägst tal vinner.
- *
- * Bara att ta den mest sedda räckte inte: "g fast potatis" och "fast potatis"
- * hade setts lika ofta, och den med måttenheten kvar vann på en slump. Och
- * mellan "kycklingfilé" och "kycklingfiléer" vill man ha singularen.
- */
-/** Namn ur den kurerade varulistan — det starkaste beviset på att stavningen
- *  är den rätta. Utan det vann "havregry" över "havregryn", eftersom båda
- *  matchar samma nyckelord och stavfelet råkar vara kortare. */
-const KURERADE_NAMN = new Set(COMMON_INGREDIENTS.map(i => i.name));
-
-function rangordning(v: Vara): [number, number, number, number, number] {
-  const n = v.namn.toLowerCase().trim();
-  return [
-    duglingGlobalt(v.namn) ? 0 : 1,                       // aldrig ett namn som inte duger
-    v.namn === n ? 0 : 1,                                 // gemener är konventionen ("Choklad" → "choklad")
-    KURERADE_NAMN.has(n) ? 0 : 1,                         // står den i varulistan är stavningen rätt
-    categorizeIngredient(v.namn) === 'other' ? 1 : 0,     // känt namn före okänt
-    -v.vikt,                                              // därefter det mest sedda
-  ];
-}
-
-function bättreMål(a: Vara, b: Vara): number {
-  const ra = rangordning(a);
-  const rb = rangordning(b);
-  for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return ra[i] - rb[i];
-  return a.namn.length - b.namn.length; // sist: det kortare namnet
-}
-
-/** Grupperar varor som är samma vara. O(n²) — listan är några hundra rader,
- *  och ett enkelt svar som går att läsa slår ett snabbt som inte gör det. */
-function gruppera(varor: Vara[]): Vara[][] {
-  const kvar = [...varor].sort(bättreMål);
-  const grupper: Vara[][] = [];
-
-  while (kvar.length > 0) {
-    const bas = kvar.shift() as Vara;
-    const grupp = [bas];
-    for (let i = kvar.length - 1; i >= 0; i--) {
-      if (ärSammaVara(bas.namn, kvar[i].namn)) grupp.push(...kvar.splice(i, 1));
-    }
-    if (grupp.length > 1) {
-      // Basen kan ha hamnat först på grund av vikten, men en senare variant
-      // kan vara ett bättre mål — sortera om gruppen med samma regler.
-      grupp.sort(bättreMål);
-      grupper.push(grupp);
-    }
-  }
-  return grupper;
 }
 
 async function main() {

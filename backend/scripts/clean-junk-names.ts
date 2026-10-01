@@ -16,6 +16,8 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { visaMåldatabas } from './visaDb';
+// Regeln delas med adminsidan, så de två aldrig säger olika saker.
+import { junkReason as skäl } from '../src/lib/nameCleanup';
 import { skrivGranskningsfil, läsGranskningsfil, lägeskontroll, type Granskningsrad } from './granskningsfil';
 import { stadaIngrediensrad } from '../src/lib/ingrediensrad';
 
@@ -30,26 +32,6 @@ function flaggvärde(namn: string): string | null {
 }
 const SKRIV_FIL = flaggvärde('--fil');
 const LÄS_FIL = flaggvärde('--från-fil');
-
-/** Ett varunamn på fler än så här många ord är ingen vara. Fem räcker för
- *  "rimmat sidfläsk i tunna skivor"; ett receptstycke har trettio. */
-const MAX_ORD = 6;
-/** Och längre än så här är det en mening, oavsett ordräkning. */
-const MAX_TECKEN = 60;
-
-function skäl(namn: string): string | null {
-  const n = namn.trim();
-  if (n.length === 0) return 'tomt namn';
-  // HTML-entiteter betyder att texten aldrig avkodades vid skrapningen.
-  if (/&[a-z]+;|&#\d+;|&amp/i.test(n)) return 'HTML-entitet i namnet';
-  if (n.length > MAX_TECKEN) return `längre än ${MAX_TECKEN} tecken`;
-  if (n.split(/\s+/).length > MAX_ORD) return `fler än ${MAX_ORD} ord`;
-  // Kolon mitt i är nästan alltid en rubrik ur ett recept: "sås: 2 dl grädde".
-  if (/:/.test(n)) return 'kolon — ser ut som en receptrubrik';
-  // Flera mängdangivelser i samma sträng = en ingredienslista, inte en vara.
-  if ((n.match(/\d+\s*(g|kg|dl|ml|l|msk|tsk|krm|st)\b/gi) ?? []).length >= 2) return 'flera mängder i samma namn';
-  return null;
-}
 
 async function main() {
   visaMåldatabas();
@@ -93,7 +75,7 @@ async function main() {
   const receptSkräp = receptRader.filter(i => {
     const varför = skäl(i.name);
     if (!varför) return false;
-    if (varför === 'HTML-entitet i namnet' || varför === `längre än ${MAX_TECKEN} tecken`) return true;
+    if (varför === 'HTML-entitet i namnet' || varför.startsWith('längre än ')) return true;
     return stadaIngrediensrad({ name: i.name, unit: null }).name !== i.name.trim();
   });
 
