@@ -533,3 +533,17 @@ model PhotoQuota {
 
   @@id([clerkUserId, month])
 }
+
+// Handskrivna klassningar från adminsidan: varunamn → kategori (+ underkategori).
+// Ligger FÖRST i klassaren, före undantagen i koden. Kurerat, inte inlärt —
+// bara appadmin skriver hit, och varje ändring loggas i AuditLog. Läses in i
+// minnet vid start och efter varje ändring (lib/curatedOverrides.ts), eftersom
+// klassaren är synkron.
+model CuratedCategory {
+  name        String        @id // gemener, som varunamnen i listorna
+  category    StoreCategory
+  subCategory String?
+  updatedBy   String
+  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime      @default(now())
+}

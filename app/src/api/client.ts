@@ -108,6 +108,33 @@ export interface AuditLogEntry {
   metadata: Record<string, unknown> | null;
   createdAt: string;
 }
+export interface AdminVoteRow {
+  name: string;
+  curated: { category: string; subCategory: string | null };
+  households: number;
+  disagreeing: number;
+  categories: { category: string; households: number }[];
+  subCategories: { subCategory: string; households: number }[];
+}
+export interface AdminClassifyReport {
+  name: string;
+  category: string;
+  subCategory: string | null;
+  source: 'admin' | 'torkad' | 'undantag' | 'underkategori' | 'lagrat' | 'nyckelord' | 'ingen';
+  override: { category: string; subCategory: string | null; updatedAt: string } | null;
+  households: number;
+  choices: { category: string; households: number }[];
+  openItems: number;
+}
+export interface AdminCurationImpact {
+  name: string;
+  before: { category: string; subCategory: string | null };
+  after: { category: string; subCategory: string | null };
+  guessedStaples: number;
+  chosenStaples: number;
+  chosenDiffering: number;
+  itemsToMove: number;
+}
 export interface ClientErrorEntry {
   id: number;
   name: string;
@@ -632,7 +659,7 @@ export function useApiClient() {
       request<{ name: string; canonical: string; category: string }[]>('/api/staples/resolve', { method: 'POST', body: JSON.stringify({ householdId, names }) }),
 
     getIngredientSuggestions: (householdId: string) =>
-      request<{ name: string; category: string }[]>(`/api/staples/suggestions?householdId=${householdId}`),
+      request<{ name: string; category: string; subCategory?: string | null }[]>(`/api/staples/suggestions?householdId=${householdId}`),
 
     // Dölj ett sök-/ingrediensförslag för hushållet (långtryck → "ta bort förslag").
     hideSuggestion: (householdId: string, name: string) =>
@@ -663,5 +690,29 @@ export function useApiClient() {
 
     getClientErrors: () =>
       request<ClientErrorEntry[]>('/api/client-errors'),
+
+    // --- Adminsidan (bara appadmin; backenden spärrar resten) ---
+    getIsAppAdmin: () =>
+      request<{ isAdmin: boolean }>('/api/account/admin'),
+    adminCategoryVotes: (min = 1) =>
+      request<{ basvaror: number; oense: number; rader: AdminVoteRow[] }>(`/api/admin/category-votes?min=${min}`),
+    adminCategoryGaps: () =>
+      request<{ totalt: number; utanRegel: number; luckor: { namn: string; seenCount: number; lagradKategori: string }[] }>('/api/admin/category-gaps'),
+    adminCandidates: () =>
+      request<{ kandidater: number; rader: { name: string; seenCount: number; category: string }[] }>('/api/admin/candidates'),
+    adminNewHouseholds: (since?: string) =>
+      request<{ since: string; rader: { createdAt: string; members: number; recipes: number; lists: number; items: number; menuItems: number }[] }>(
+        `/api/admin/new-households${since ? `?since=${encodeURIComponent(since)}` : ''}`,
+      ),
+    adminClassify: (name: string) =>
+      request<AdminClassifyReport>(`/api/admin/classify?name=${encodeURIComponent(name)}`),
+    adminCurated: () =>
+      request<{ name: string; category: string; subCategory: string | null; updatedAt: string }[]>('/api/admin/curated'),
+    adminCurationPreview: (data: { name: string; category: StoreCategory; subCategory: string | null }) =>
+      request<AdminCurationImpact>('/api/admin/curated/preview', { method: 'POST', body: JSON.stringify(data) }),
+    adminCurate: (data: { name: string; category: StoreCategory; subCategory: string | null; moveItems: boolean }) =>
+      request<{ name: string; itemsMoved: number }>('/api/admin/curated', { method: 'PUT', body: JSON.stringify(data) }),
+    adminRemoveCuration: (name: string) =>
+      request<void>(`/api/admin/curated?name=${encodeURIComponent(name)}`, { method: 'DELETE' }),
   }), []);
 }

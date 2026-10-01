@@ -1,6 +1,6 @@
 import type { StoreCategory } from '@prisma/client';
-import { inferSubCategory, type SubCategory } from '@veckis/shared';
-import { categorizeIngredient } from './categorizeIngredient';
+import type { SubCategory } from '@veckis/shared';
+import { categorizeIngredient, curatedSubCategory } from './categorizeIngredient';
 
 /**
  * Rapport: var är hushållen oense med den kurerade klassaren?
@@ -36,7 +36,7 @@ export type CategoryVoteRow = {
 
 /** Den kurerade kedjan (categorizeIngredient), utan hushållets eget val. */
 export function curatedAnswer(name: string): CuratedAnswer {
-  return { category: categorizeIngredient(name), subCategory: inferSubCategory(name) };
+  return { category: categorizeIngredient(name), subCategory: curatedSubCategory(name) };
 }
 
 const tally = (values: string[]) =>

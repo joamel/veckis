@@ -156,6 +156,14 @@ import('./jobs/backfillSubCategory').then(m => {
     .catch(e => console.error('[subCategory backfill] fel:', e));
 });
 
+// Adminsidans handskrivna klassningar in i klassarens minne. Före första
+// anropet helst — men klassaren klarar sig utan (då gäller bara koden).
+import('./lib/curatedOverridesDb').then(m => {
+  m.reloadCuratedOverrides()
+    .then(n => { if (n > 0) console.log(`[klassning] ${n} handskrivna klassningar inlästa`); })
+    .catch(e => console.error('[klassning] kunde inte läsa in:', e));
+});
+
 // Avgör om äldre basvarors kategori är ett val eller en gammal gissning
 // (idempotent, rör bara rader som inte avgjorts, körs i bakgrunden).
 import('./jobs/backfillStapleChoice').then(m => {

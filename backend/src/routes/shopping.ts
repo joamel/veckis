@@ -4,7 +4,7 @@ import { StoreCategory, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
-import { categorizeIngredient, kureratUndantag } from '../lib/categorizeIngredient';
+import { categorizeIngredient, curatedSubCategory, kureratUndantag } from '../lib/categorizeIngredient';
 
 /** Ett lagrat 'other' betyder "ingen vet", inte "kategorin är Övrigt" — den
  *  skillnaden avgör om ett sämre svar får slå ut ett bättre längre ned i
@@ -16,7 +16,7 @@ import { learnIngredientAliases, getStoredCategory } from '../lib/normalizeIngre
 import { stripIngredient } from '../lib/stripIngredient';
 import { suggestMerge, resolveEquivalences, learnEquivalenceFromMerge, isPackagingUnit, loadConfirmedEquivalencesByName } from '../lib/smartMerge';
 import { wsBroadcast } from '../lib/wsHub';
-import { inferSubCategory, parentForSub, type SubCategory , tillSvenskEnhet, normalizeUnit } from '@veckis/shared';
+import { parentForSub, type SubCategory , tillSvenskEnhet, normalizeUnit } from '@veckis/shared';
 import { sendPush, notifyActiveShopper } from '../lib/sendPush';
 import { planFullUnmerge, findRoot } from '../lib/mergeLogic';
 import { planAutoMerge } from '../lib/importDedupe';
@@ -339,7 +339,7 @@ async function läggTillVara(
   // ignorerades den tyst för varje namn som råkade ha en underkategori
   // ("aubergine", "bröd"), medan namn utan ("avokado", "bacon") respekterades.
   // Utifrån såg det ut som att ändringen slog igenom ibland och ibland inte.
-  const inferredSub = data.subCategory ?? staplePref?.subCategory ?? inferSubCategory(normalizedName);
+  const inferredSub = data.subCategory ?? staplePref?.subCategory ?? curatedSubCategory(normalizedName);
   const subCategory = inferredSub ?? null;
   const category = data.category !== 'other'
     ? data.category

@@ -230,7 +230,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [newItem, setNewItem] = useState('');
   const [adding, setAdding] = useState(false);
   const [staples, setStaples] = useState<StapleItem[]>([]);
-  const [ingredientSuggestions, setIngredientSuggestions] = useState<{ name: string; category: string }[]>([]);
+  const [ingredientSuggestions, setIngredientSuggestions] = useState<{ name: string; category: string; subCategory?: string | null }[]>([]);
   // Hushållsmedlemmar för "Jag handlar"-presence-indikatorn (vem är aktiv?).
   const { userId: clerkUserId } = useAuth();
   const [members, setMembers] = useState<Array<{ id: string; displayName: string; clerkUserId: string | null }>>([]);
@@ -757,7 +757,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const stapleNames = new Set(searchableStaples.map(s => s.name.toLowerCase()));
     const extra = ingredientSuggestions
       .filter(s => !stapleNames.has(s.name.toLowerCase()))
-      .map(s => ({ name: s.name, id: `suggestion:${s.name}`, category: s.category } as unknown as StapleItem));
+      .map(s => ({ name: s.name, id: `suggestion:${s.name}`, category: s.category, subCategory: s.subCategory ?? null } as unknown as StapleItem));
     return [...searchableStaples, ...extra];
   }, [staples, ingredientSuggestions]);
 

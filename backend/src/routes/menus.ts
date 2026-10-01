@@ -5,14 +5,14 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { normalizeIngredientNames, getStoredCategory } from '../lib/normalizeIngredients';
-import { categorizeWithStored } from '../lib/categorizeIngredient';
+import { categorizeWithStored, curatedSubCategory } from '../lib/categorizeIngredient';
 import { withDriedPrefix } from '../lib/driedHerb';
 import { stripIngredient } from '../lib/stripIngredient';
 import { wsBroadcast } from '../lib/wsHub';
 import { planIncomingMatch, planAutoMerge } from '../lib/importDedupe';
 import { loadConfirmedEquivalencesByName } from '../lib/smartMerge';
 import { notifyActiveShopper } from '../lib/sendPush';
-import { convertToMetric , inferSubCategory, MEAL_TYPE_ORDER } from '@veckis/shared';
+import { convertToMetric , MEAL_TYPE_ORDER } from '@veckis/shared';
 
 export const menusRouter = Router();
 
@@ -419,7 +419,7 @@ menusRouter.post('/to-shopping', requireAuth, asyncHandler(async (req, res) => {
             // backfill-jobbet hann ikapp. Fram till dess grupperades den bara
             // under sin parent, medan en manuellt tillagd vara med samma namn
             // fick sin sub direkt.
-            subCategory: inferSubCategory(ing.name),
+            subCategory: curatedSubCategory(ing.name),
             addedBy: clerkUserId,
             recipeId: ing.recipeId,
             menuItemId: ing.menuItemId ?? null,

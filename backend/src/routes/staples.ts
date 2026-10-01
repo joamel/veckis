@@ -4,7 +4,7 @@ import { StoreCategory, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
-import { categorizeIngredient, categorizeWithStored } from '../lib/categorizeIngredient';
+import { categorizeIngredient, categorizeWithStored, curatedSubCategory } from '../lib/categorizeIngredient';
 import { effectiveStapleCategory } from '../lib/stapleChoice';
 import { basvaruskrivning } from '../lib/basvaruval';
 import { COMMON_INGREDIENTS } from '../lib/commonIngredients';
@@ -51,7 +51,9 @@ staplesRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
   // En gissad kategori visas som den kurerade — appen grupperar sökrutan och
   // kategoriväljaren efter den här, och en gammal gissning ("kakao" → Bröd)
   // lade annars varan i fel kategori där också.
-  res.json(staples.map(s => ({ ...s, category: effectiveStapleCategory(s) })));
+  // Underkategorin likaså: hushållets val, annars den kurerade (adminsidans
+  // klassning först) — så kategoriväljaren i appen följer samma regler.
+  res.json(staples.map(s => ({ ...s, category: effectiveStapleCategory(s), subCategory: s.subCategory ?? curatedSubCategory(s.name) })));
 }));
 
 // POST /api/staples — upsert by name
@@ -193,8 +195,8 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
   res.json([
     // Aliasets kategori föddes med klassarens gissning på sin tid; den
     // kurerade kedjan (underkategorin före aliaset) avgör vad som visas.
-    ...cleanAliases.map(a => ({ name: a.canonical, category: categorizeWithStored(a.canonical, a.category) as string })),
-    ...common.map(c => ({ name: c.name, category: c.category as string })),
+    ...cleanAliases.map(a => ({ name: a.canonical, category: categorizeWithStored(a.canonical, a.category) as string, subCategory: curatedSubCategory(a.canonical) })),
+    ...common.map(c => ({ name: c.name, category: c.category as string, subCategory: curatedSubCategory(c.name) })),
   ]);
 }));
 

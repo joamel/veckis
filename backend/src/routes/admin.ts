@@ -3,6 +3,10 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import { categorizeIngredient } from '../lib/categorizeIngredient';
 import { categoryVotes } from '../lib/categoryVotes';
+import { StoreCategory } from '@prisma/client';
+import { applyCuration, classifyReport, curateCandidates, curationImpact, newHouseholds, removeCuration, validateCuration } from '../lib/adminCuration';
+import { wsListUpdate } from '../lib/wsHub';
+import type { AuthenticatedRequest } from '../middleware/auth';
 import { requireAuth, requireAppAdmin } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { stripIngredient } from '../lib/stripIngredient';
@@ -111,6 +115,75 @@ adminRouter.get('/category-votes', asyncHandler(async (req, res) => {
   });
   const rows = categoryVotes(staples, min);
   res.json({ basvaror: staples.length, oense: rows.length, rader: rows.slice(0, 200) });
+}));
+
+// --- Adminsidan: klassning (steg 2) och överblick (steg 1) ---
+
+// GET /api/admin/candidates — riktiga varor som ett enda hushåll använt ofta.
+adminRouter.get('/candidates', asyncHandler(async (req, res) => {
+  const min = Math.max(1, Number(req.query.min) || 3);
+  const rows = await curateCandidates(min);
+  res.json({ kandidater: rows.length, rader: rows.slice(0, 200) });
+}));
+
+// GET /api/admin/new-households?since=2026-09-17 — default två veckor bakåt.
+adminRouter.get('/new-households', asyncHandler(async (req, res) => {
+  const since = typeof req.query.since === 'string' ? new Date(req.query.since) : new Date(Date.now() - 14 * 86_400_000);
+  if (Number.isNaN(since.getTime())) { res.status(400).json({ error: 'Ogiltigt datum' }); return; }
+  res.json({ since: since.toISOString(), rader: await newHouseholds(since) });
+}));
+
+// GET /api/admin/classify?name= — hur ett namn klassas idag och av vilken regel.
+adminRouter.get('/classify', asyncHandler(async (req, res) => {
+  const name = typeof req.query.name === 'string' ? req.query.name : '';
+  if (!name.trim()) { res.status(400).json({ error: 'Namn saknas' }); return; }
+  res.json(await classifyReport(name));
+}));
+
+// GET /api/admin/curated — alla handskrivna klassningar.
+adminRouter.get('/curated', asyncHandler(async (_req, res) => {
+  const rows = await prisma.curatedCategory.findMany({ orderBy: { updatedAt: 'desc' } });
+  res.json(rows);
+}));
+
+const curationSchema = z.object({
+  name: z.string().min(1).max(200),
+  category: z.nativeEnum(StoreCategory),
+  subCategory: z.string().max(60).nullable(),
+});
+
+// POST /api/admin/curated/preview — vad en klassning skulle ändra, utan att ändra något.
+adminRouter.post('/curated/preview', asyncHandler(async (req, res) => {
+  const body = curationSchema.safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+  const fel = validateCuration(body.data);
+  if (fel) { res.status(400).json({ error: fel }); return; }
+  res.json(await curationImpact(body.data));
+}));
+
+// PUT /api/admin/curated — skriv klassningen; moveItems flyttar obockade varor i öppna listor.
+adminRouter.put('/curated', asyncHandler(async (req, res) => {
+  const body = curationSchema.extend({ moveItems: z.boolean().default(false) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+  const fel = validateCuration(body.data);
+  if (fel) { res.status(400).json({ error: fel }); return; }
+  const { clerkUserId } = req as AuthenticatedRequest;
+  const result = await applyCuration(body.data, { clerkUserId }, body.data.moveItems);
+  // Den som står i butiken ska se varan byta sektion direkt.
+  if (result.itemIds.length) {
+    const moved = await prisma.shoppingItem.findMany({ where: { id: { in: result.itemIds } }, include: { list: { select: { householdId: true } } } });
+    for (const { list, ...item } of moved) wsListUpdate(item.listId, list.householdId, { type: 'item_updated', data: item });
+  }
+  res.json({ name: result.name, itemsMoved: result.itemsMoved });
+}));
+
+// DELETE /api/admin/curated?name= — tillbaka till klassarens egna regler.
+adminRouter.delete('/curated', asyncHandler(async (req, res) => {
+  const name = typeof req.query.name === 'string' ? req.query.name : '';
+  const { clerkUserId } = req as AuthenticatedRequest;
+  const removed = await removeCuration(name, { clerkUserId });
+  if (!removed) { res.status(404).json({ error: 'Ingen klassning för namnet' }); return; }
+  res.status(204).send();
 }));
 
 async function scrapeIngredients(url: string): Promise<string[]> {

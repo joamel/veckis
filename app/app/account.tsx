@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTheme } from '../src/context/ThemeContext';
 import type { Palette } from '../src/lib/theme';
 // Kontosida — namn, byt namn, ta bort konto, logga ut. Egen route med
@@ -14,7 +14,7 @@ import { useApiClient, ApiError } from '../src/api/client';
 import { useHousehold } from '../src/context/HouseholdContext';
 import { useToast } from '../src/context/ToastContext';
 import { useConfirm } from '../src/context/ConfirmContext';
-import { account as str } from '../src/lib/svenska';
+import { account as str, admin as adminStr } from '../src/lib/svenska';
 import { DraggableBottomSheet } from '../src/components/DraggableBottomSheet';
 import { useSheetLift } from '../src/hooks/useSheetLift';
 import { useDesign } from '../src/context/DesignContext';
@@ -43,6 +43,11 @@ export default function AccountScreen() {
   const household = useHousehold();
   const { showToast, showError } = useToast();
   const confirm = useConfirm();
+  // Adminsidan syns bara för appens ägare — backenden avgör.
+  const [isAppAdmin, setIsAppAdmin] = useState(false);
+  useEffect(() => {
+    client.getIsAppAdmin().then(r => setIsAppAdmin(r.isAdmin)).catch(() => {});
+  }, [client]);
 
   // Hitta MIN medlemskap i nuvarande hushåll så vi kan ändra mitt egen namn
   const myMember = household.allMemberships.find(m => m.householdId === householdId);
@@ -207,6 +212,20 @@ export default function AccountScreen() {
             <Ionicons name="chevron-forward" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
           </Pressable>
         </View>
+
+        {isAppAdmin && (
+          <View style={[s.group, { marginBottom: 12 }]}>
+            <Pressable style={s.row} onPress={() => router.push('/admin' as never)}>
+              {nyDesign ? (
+                <View style={[s.nyRund, s.nyRundMork]}><Ionicons name="construct-outline" size={18} color={ny.lime} /></View>
+              ) : (
+                <Ionicons name="construct-outline" size={18} color={c.primary} />
+              )}
+              <Text style={s.rowText}>{adminStr.entryRow}</Text>
+              <Ionicons name="chevron-forward" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
+            </Pressable>
+          </View>
+        )}
 
         <Text style={s.sectionLabel}>{str.sections.security}</Text>
         <View style={s.group}>

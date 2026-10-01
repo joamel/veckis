@@ -1,5 +1,6 @@
 import { StoreCategory } from '@prisma/client';
-import { inferSubCategory, parentForSub } from '@veckis/shared';
+import { inferSubCategory, parentForSub, type SubCategory } from '@veckis/shared';
+import { getCuratedOverride } from './curatedOverrides';
 
 const RULES: { keywords: string[]; category: StoreCategory }[] = [
   {
@@ -297,6 +298,9 @@ const UNDANTAG: { frasar: string[]; category: StoreCategory }[] = [
  * sina egna källor i stället för att få ett svagt svar.
  */
 export function kureratUndantag(name: string): StoreCategory | null {
+  // Adminsidans klassningar är handskrivna undantag de också, och går först.
+  const override = getCuratedOverride(name);
+  if (override) return override.category;
   const lower = name.toLowerCase().trim();
   const ord = lower.split(/[\s,.;:()[\]/\|+–—-]+/).filter(Boolean);
 
@@ -353,8 +357,39 @@ export function legacySubstringCategories(name: string): Set<StoreCategory> {
   return new Set(RULES.filter(rule => rule.keywords.some(kw => lower.includes(kw))).map(rule => rule.category));
 }
 
+/** Vilken regel som gav kategorin — visas på adminsidan. */
+export type CategorySource = 'admin' | 'torkad' | 'undantag' | 'underkategori' | 'lagrat' | 'nyckelord' | 'ingen';
+
+/** Kategorin och vilken regel som gav den, i samma kedja som categorizeIngredient. */
+export function explainCategory(name: string): { category: StoreCategory; source: CategorySource } {
+  return classifyWithSource(name, { useSubCategory: true });
+}
+
+/**
+ * Underkategorin för ett namn: adminsidans klassning först, annars gissningen
+ * ur namnet. Har adminen bara satt kategori används gissningen bara om den hör
+ * till den kategorin — annars hade underkategori och kategori sagt emot varandra.
+ */
+export function curatedSubCategory(name: string): SubCategory | null {
+  const override = getCuratedOverride(name);
+  const guess = inferSubCategory(name);
+  if (!override) return guess;
+  if (override.subCategory) return override.subCategory as SubCategory;
+  return guess && parentForSub(guess) === override.category ? guess : null;
+}
+
 function classify(name: string, opts: { useSubCategory: boolean; stored?: StoreCategory | null }): StoreCategory {
+  return classifyWithSource(name, opts).category;
+}
+
+function classifyWithSource(name: string, opts: { useSubCategory: boolean; stored?: StoreCategory | null }): { category: StoreCategory; source: CategorySource } {
   const lower = name.toLowerCase().trim();
+  // Adminsidans handskrivna klassningar går före allt — men inte i
+  // legacyKeywordCategory, som ska återskapa hur det var förr.
+  if (opts.useSubCategory) {
+    const override = getCuratedOverride(lower);
+    if (override) return { category: override.category, source: 'admin' };
+  }
   // Dela på skiljetecken, inte på "allt som inte är en svensk bokstav". Den
   // förra varianten listade tillåtna tecken, och då blev varje accent en
   // ordgräns: "crème fraîche" styckades i cr/me/fra/che och matchade förstås
@@ -366,12 +401,12 @@ function classify(name: string, opts: { useSubCategory: boolean; stored?: StoreC
   // "torkad timjan" blev färskvara. Det är själva ordet "torkad" som avgör
   // hyllan, oavsett vad som kommer efter.
   if (ord[0] === 'torkad' || ord[0] === 'torkade' || ord[0] === 'torkat') {
-    return 'canned_dry';
+    return { category: 'canned_dry', source: 'torkad' };
   }
 
   for (const u of UNDANTAG) {
     if (u.frasar.some(f => (f.includes(' ') ? lower.includes(f) : ord.includes(f)))) {
-      return u.category;
+      return { category: u.category, source: 'undantag' };
     }
   }
   // Underkategorin före nyckelorden: dess mönster är hela ord och längsta
@@ -381,13 +416,13 @@ function classify(name: string, opts: { useSubCategory: boolean; stored?: StoreC
   if (opts.useSubCategory) {
     const sub = inferSubCategory(lower);
     const parent = sub ? parentForSub(sub) : null;
-    if (parent && parent !== 'other') return parent as StoreCategory;
+    if (parent && parent !== 'other') return { category: parent as StoreCategory, source: 'underkategori' };
   }
-  if (opts.stored) return opts.stored;
+  if (opts.stored) return { category: opts.stored, source: 'lagrat' };
   for (const rule of RULES) {
     if (rule.keywords.some(kw => matchar(lower, ord, kw))) {
-      return rule.category;
+      return { category: rule.category, source: 'nyckelord' };
     }
   }
-  return 'other';
+  return { category: 'other', source: 'ingen' };
 }

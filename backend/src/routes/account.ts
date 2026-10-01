@@ -14,6 +14,11 @@ export const accountRouter = Router();
 // fyrar efteråt blir en no-op (medlemskapen är redan borta) → ingen race.
 // Skulle Clerk-raderingen fela efter städningen kan användaren göra om — då
 // finns inga medlemskap kvar att städa och raderingen körs igen.
+// GET /api/account/admin — är den inloggade appadmin? Styr om adminsidan syns.
+accountRouter.get('/admin', requireAuth, (req, res) => {
+  res.json({ isAdmin: ärAppAdmin((req as AuthenticatedRequest).clerkUserId) });
+});
+
 accountRouter.delete('/', requireAuth, asyncHandler(async (req, res) => {
   const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
 

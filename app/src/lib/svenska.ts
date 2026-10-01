@@ -1766,3 +1766,68 @@ export const landing = {
     rights:      (year: number) => `© ${year} Handlis`,
   },
 };
+
+// Adminsidan — bara för appens ägare (requireAppAdmin i backenden).
+export const admin = {
+  title:     'Adminsida',
+  backA11y:  'Tillbaka',
+  entryRow:  'Adminsida',
+  loading:   'Laddar…',
+  notAdmin:  'Den här sidan är bara för appens ägare.',
+  empty:     'Inget här just nu.',
+  retry:     'Försök igen',
+  searchPlaceholder: 'Klassa ett varunamn…',
+  tabs: {
+    votes:      'Oense',
+    gaps:       'Saknar regel',
+    candidates: 'Kandidater',
+    curated:    'Klassningar',
+    households: 'Nya hushåll',
+  },
+  tabHint: {
+    votes:      'Varor där hushåll valt en annan kategori än klassaren. Flera hushåll som oberoende valt samma sak är en signal om att klassaren har fel.',
+    gaps:       'Namn som ingen regel känner igen — de hamnar under Övrigt för den som inte själv valt.',
+    candidates: 'Varor som bara ett hushåll använt, men ofta. De föreslås inte för andra ännu.',
+    curated:    'Dina handskrivna klassningar. De går före alla regler i koden.',
+    households: 'Hushåll skapade de senaste två veckorna, och hur mycket de hunnit göra.',
+  },
+  rows: {
+    disagree:  (oense: number, alla: number) => `${oense} av ${alla} hushåll oense`,
+    seen:      (n: number) => `sedd ${n} gånger`,
+    choices:   (lista: string) => `valt: ${lista}`,
+    household: (datum: string, medlemmar: number, recept: number, listor: number, varor: number, meny: number) =>
+      `${datum} · ${medlemmar} medl. · ${recept} recept · ${listor} listor · ${varor} varor · ${meny} menyrätter`,
+    householdsSummary: (alla: number, aktiva: number) => `${alla} nya hushåll, varav ${aktiva} har skapat något.`,
+  },
+  sources: {
+    admin:         'din klassning',
+    torkad:        '"torkad" i namnet',
+    undantag:      'ett undantag i koden',
+    underkategori: 'underkategorin',
+    lagrat:        'det sparade aliaset',
+    nyckelord:     'ett nyckelord',
+    ingen:         'ingen regel — hamnar under Övrigt',
+  } as Record<string, string>,
+  sheet: {
+    now:          'Klassas nu som',
+    because:      (källa: string) => `enligt ${källa}`,
+    households:   (n: number) => `${n} hushåll har varan som basvara.`,
+    choices:      (lista: string) => `Hushållens egna val: ${lista}.`,
+    openItems:    (n: number) => `${n} ligger obockade i öppna listor.`,
+    category:     'Kategori',
+    subCategory:  'Underkategori',
+    none:         'Ingen',
+    moveItems:    'Flytta varor som redan ligger i öppna listor',
+    preview:      'Förhandsvisa',
+    save:         'Spara klassningen',
+    remove:       'Ta bort min klassning',
+    impact: (gissade: number, valda: number, valdaOlika: number, flyttas: number, flytta: boolean) =>
+      [
+        `${gissade} basvaror med gissad kategori får den nya.`,
+        valda > 0 ? `${valda} hushåll har valt själva${valdaOlika > 0 ? `, ${valdaOlika} av dem något annat` : ''} — deras val gäller fortfarande.` : null,
+        flytta ? `${flyttas} varor i öppna listor flyttas.` : `${flyttas} varor i öppna listor ligger kvar tills de läggs till igen.`,
+      ].filter(Boolean).join(' '),
+    saved:   (namn: string, flyttade: number) => `"${namn}" klassad${flyttade > 0 ? ` — ${flyttade} varor flyttade` : ''}`,
+    removed: (namn: string) => `Klassningen för "${namn}" borttagen`,
+  },
+};
