@@ -32,11 +32,13 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'skaldjur', patterns: ['räkor', 'kräftor', 'krabba', 'hummer', 'musslor', 'ostron', 'kammusslor', 'bläckfisk'] },
   { sub: 'färdiga_såser_kylda', patterns: ['bearnaisesås', 'béarnaisesås', 'hollandaisesås', 'bearnaise', 'hollandaise', 'pepparsås', 'gräddsås', 'sky', 'köttsky'] },
   // Chark & deli
-  { sub: 'skinka_pålägg', patterns: ['parmaskinka', 'serranoskinka', 'prosciutto', 'rökt skinka', 'kalkonpålägg', 'rökt kalkon', 'kycklingpålägg', 'blodpudding', 'leverpastej', 'skinka', 'pålägg'] },
-  { sub: 'korv_charcuteri', patterns: ['salami', 'pepperoni', 'chorizo', 'medisterkorv', 'falukorv', 'wienerkorv', 'grillkorv', 'bratwurst', 'isterband', 'prinskorv', 'kabanoss', 'mortadella', 'merguez', 'blodkorv', 'kycklingkorv', 'korv', 'kalkonkorv', 'bacon', 'pancetta', 'baconskivor', 'bacontärningar'] },
+  { sub: 'skinka_pålägg', patterns: ['rökt skinka', 'kalkonpålägg', 'rökt kalkon', 'kycklingpålägg', 'blodpudding', 'skinka', 'pålägg'] },
+  { sub: 'korv_charcuteri', patterns: ['medisterkorv', 'falukorv', 'wienerkorv', 'grillkorv', 'bratwurst', 'isterband', 'prinskorv', 'kabanoss', 'mortadella', 'merguez', 'blodkorv', 'kycklingkorv', 'korv', 'kalkonkorv', 'bacon', 'baconskivor', 'bacontärningar'] },
+  { sub: 'lufttorkat_salami', patterns: ['salami', 'pepperoni', 'chorizo', 'pancetta', 'prosciutto', 'parmaskinka', 'serranoskinka', 'serrano', 'lufttorkad skinka', 'bresaola', 'coppa', 'fuet', 'lomo', 'salsiccia'] },
   { sub: 'delikatessost', patterns: ['brie', 'camembert', 'parmesan', 'manchego', 'pecorino', 'gorgonzola', 'roquefort', 'chèvre', 'burrata', 'ricotta (deli)', 'taleggio', 'gouda', 'gruyère', 'gruyere', 'comté', 'comte', 'färskost', 'krämost'] },
-  { sub: 'pâté_terrin', patterns: ['paté', 'pâté', 'terrin', 'rillette', 'mousse (chark)'] },
-  { sub: 'oliver_antipasto', patterns: ['gröna oliver', 'svarta oliver', 'oliver', 'antipasto', 'soltorkade tomater', 'kapris', 'cornichoner', 'inlagda paprika', 'pepparoni (inlagda)', 'kronärtskockshjärtan'] },
+  { sub: 'pâté_terrin', patterns: ['paté', 'pâté', 'terrin', 'rillette', 'mousse (chark)', 'leverpastej', 'ankleverpastej', 'pastej', 'leverpastej (skivad)'] },
+  { sub: 'oliver_antipasto', patterns: ['gröna oliver', 'svarta oliver', 'oliver', 'soltorkade tomater', 'kapris', 'cornichoner', 'inlagda paprika', 'pepparoni (inlagda)', 'kronärtskockshjärtan', 'inlagd paprika', 'inlagd gurka', 'smörgåsgurka', 'saltgurka', 'kalamataoliver', 'kalamata', 'urkärnade oliver', 'svarta oliver urkärnade', 'oliver utan kärnor', 'olivkapris'] },
+  { sub: 'antipasto_delikatesser', patterns: ['antipasto', 'marinerade oliver', 'färska oliver', 'fyllda oliver', 'oliver från disken', 'vitlöksklyftor i olja', 'marinerad vitlök', 'grillade grönsaker i olja', 'fyllda pepparfrukter', 'tapenade'] },
   { sub: 'färdigmat_kyld', patterns: ['färdig sallad', 'pastasallad', 'kyld färdigrätt', 'färdig soppa', 'sushi'] },
   // Mejeri & ägg
   { sub: 'laktosfritt', patterns: ['laktosfri', 'laktosfritt', 'lactose free', 'lactose-free'] }, // KÖRS FÖRST — överstyr mjölk/ost om "laktosfri" finns i namnet

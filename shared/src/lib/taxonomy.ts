@@ -31,10 +31,12 @@ export type SubCategory =
   // Chark & deli
   | 'skinka_pålägg'
   | 'korv_charcuteri'
+  | 'lufttorkat_salami'
   | 'delikatessost'
   | 'matlagningsost'
   | 'pâté_terrin'
   | 'oliver_antipasto'
+  | 'antipasto_delikatesser'
   | 'färdigmat_kyld'
   // Mejeri & ägg
   | 'mjölk'
@@ -148,10 +150,14 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   skaldjur: { defaultParent: 'meat_fish', alsoUnder: [], label: 'Skaldjur' },
   färdiga_såser_kylda: { defaultParent: 'meat_fish', alsoUnder: ['canned_dry'], label: 'Färdiga såser (kylda)' },
   // Chark & deli (egen parent)
-  skinka_pålägg: { defaultParent: 'deli_charcuterie', alsoUnder: ['meat_fish'], label: 'Skinka & pålägg' },
-  korv_charcuteri: { defaultParent: 'deli_charcuterie', alsoUnder: ['meat_fish'], label: 'Korv (charcuteri)' },
-  pâté_terrin: { defaultParent: 'deli_charcuterie', alsoUnder: ['meat_fish'], label: 'Pâté & terrin' },
-  oliver_antipasto: { defaultParent: 'deli_charcuterie', alsoUnder: ['canned_dry'], label: 'Oliver & antipasto' },
+  skinka_pålägg: { defaultParent: 'deli_charcuterie', alsoUnder: ['meat_fish'], label: 'Pålägg' },
+  korv_charcuteri: { defaultParent: 'deli_charcuterie', alsoUnder: ['meat_fish'], label: 'Korv & bacon' },
+  // Prosciutto, salami, chorizo — står ofta vid delikatesserna, inte bland det skivade pålägget.
+  lufttorkat_salami: { defaultParent: 'deli_charcuterie', alsoUnder: ['meat_fish'], label: 'Lufttorkat & salami' },
+  // Nyckeln är kvar från "Pâté & terrin" — i butiken heter det pastej.
+  pâté_terrin: { defaultParent: 'deli_charcuterie', alsoUnder: ['meat_fish'], label: 'Leverpastej & pastejer' },
+  // Marinerade och färska oliver, vitlök i olja — från disken. Oliver på burk ligger i torrvaror.
+  antipasto_delikatesser: { defaultParent: 'deli_charcuterie', alsoUnder: [], label: 'Antipasto & delikatesser' },
   färdigmat_kyld: { defaultParent: 'deli_charcuterie', alsoUnder: ['meat_fish'], label: 'Färdigmat (kyld)' },
   // Ost (egen parent)
   ost: { defaultParent: 'cheese', alsoUnder: [], label: 'Ost' },
@@ -198,6 +204,9 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   konserver: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Konserver' },
   // Pulversoppor och potatismos — står ihop med pasta och ketchup i många butiker.
   soppor_mos: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Soppor & mos' },
+  // Oliver, kapris, cornichons på burk står i torrvaruhyllan i de flesta butiker
+  // (låg tidigare under Chark & deli). Kan placeras där för butiker som har dem vid charken.
+  oliver_antipasto: { defaultParent: 'canned_dry', alsoUnder: ['deli_charcuterie'], label: 'Oliver & inlagt' },
   baljväxter: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Baljväxter' },
   mjöl_bakingredienser: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Mjöl, socker & bakmix' },
   olja_vinäger: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Olja & vinäger' },

@@ -30,7 +30,7 @@ describe('inferSubCategory', () => {
 
   it('skiljer chark från kött', () => {
     expect(inferSubCategory('Falukorv')).toBe('korv_charcuteri');
-    expect(inferSubCategory('Salami')).toBe('korv_charcuteri');
+    expect(inferSubCategory('Salami')).toBe('lufttorkat_salami');
     expect(inferSubCategory('Skinka')).toBe('skinka_pålägg');
     expect(inferSubCategory('Nötfärs')).toBe('färs');
     expect(inferSubCategory('Kycklingfilé')).toBe('kyckling_fågel');
@@ -130,5 +130,23 @@ describe('inferSubCategory — Coops gångar (2026-10-01)', () => {
     expect(inferSubCategory('russin')).toBe('nötter_frön_torra');
     expect(inferSubCategory('pastasås')).toBe('sås_dressing');
     expect(inferSubCategory('batterier')).toBe('batteri_elektronik');
+  });
+});
+
+describe('inferSubCategory — chark och oliver (2026-10-01)', () => {
+  it('lufttorkat, korv & bacon, pastej', () => {
+    expect(inferSubCategory('parmaskinka')).toBe('lufttorkat_salami');
+    expect(inferSubCategory('chorizo')).toBe('lufttorkat_salami');
+    expect(inferSubCategory('bacon')).toBe('korv_charcuteri');
+    expect(inferSubCategory('falukorv')).toBe('korv_charcuteri');
+    expect(inferSubCategory('leverpastej')).toBe('pâté_terrin');
+    expect(inferSubCategory('skinka')).toBe('skinka_pålägg');
+  });
+
+  it('oliver på burk i torrvaror, marinerade vid disken', () => {
+    expect(inferSubCategory('oliver')).toBe('oliver_antipasto');
+    expect(parentForSub('oliver_antipasto')).toBe('canned_dry');
+    expect(inferSubCategory('marinerade oliver')).toBe('antipasto_delikatesser');
+    expect(parentForSub('antipasto_delikatesser')).toBe('deli_charcuterie');
   });
 });
