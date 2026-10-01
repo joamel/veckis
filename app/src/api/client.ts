@@ -140,7 +140,7 @@ export type AdminNameSuggestion =
   | { name: string; weight: number; action: 'delete'; reason: string }
   | { name: string; weight: number; action: 'rename'; to: string; reason: string };
 export interface AdminJob { id: string; title: string; description: string; usesAi: boolean }
-export interface AdminJobRow { table: string; key: string; label: string; from: string; to: string; name?: string }
+export interface AdminJobRow { table: string; key: string; label: string; from: string; to: string; name?: string; note?: string }
 export interface AdminNameImpact { name: string; aliasRows: number; staples: number; households: number }
 export interface ClientErrorEntry {
   id: number;
@@ -720,9 +720,9 @@ export function useApiClient() {
     adminCurate: (data: { name: string; category: StoreCategory; subCategory: string | null; moveItems: boolean; resetChoices?: boolean }) =>
       request<{ name: string; itemsMoved: number }>('/api/admin/curated', { method: 'PUT', body: JSON.stringify(data) }),
     adminNames: (q = '') =>
-      request<{ totalt: number; rader: { name: string; weight: number; junk: string | null }[] }>(`/api/admin/names${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+      request<{ totalt: number; rader: { name: string; weight: number; junk: string | null; hidden: boolean }[] }>(`/api/admin/names${q ? `?q=${encodeURIComponent(q)}` : ''}`),
     adminNameSuggestions: () =>
-      request<{ förslag: number; rader: AdminNameSuggestion[] }>('/api/admin/name-suggestions'),
+      request<{ förslag: number; ignorerade: number; rader: AdminNameSuggestion[] }>('/api/admin/name-suggestions'),
     adminNameImpact: (name: string, to?: string) =>
       request<{ from: AdminNameImpact; to: AdminNameImpact | null }>(`/api/admin/names/impact?name=${encodeURIComponent(name)}${to ? `&to=${encodeURIComponent(to)}` : ''}`),
     adminRenameIngredient: (from: string, to: string) =>
@@ -732,12 +732,16 @@ export function useApiClient() {
     adminJobs: () =>
       request<AdminJob[]>('/api/admin/jobs'),
     adminJobPlan: (id: string) =>
-      request<{ total: number; rows: AdminJobRow[]; note: string | null }>(`/api/admin/jobs/${encodeURIComponent(id)}/plan`, { method: 'POST' }),
-    adminJobApply: (id: string, rows: { key: string; to: string }[]) =>
-      request<{ summary: string }>(`/api/admin/jobs/${encodeURIComponent(id)}/apply`, { method: 'POST', body: JSON.stringify({ rows }) }),
+      request<{ total: number; ignored: number; rows: AdminJobRow[]; note: string | null }>(`/api/admin/jobs/${encodeURIComponent(id)}/plan`, { method: 'POST' }),
+    adminJobApply: (id: string, rows: { key: string; to: string }[], ignore: string[] = []) =>
+      request<{ summary: string }>(`/api/admin/jobs/${encodeURIComponent(id)}/apply`, { method: 'POST', body: JSON.stringify({ rows, ignore }) }),
+    adminIgnore: (scope: string, keys: string[]) =>
+      request<{ ignored: number }>('/api/admin/ignore', { method: 'POST', body: JSON.stringify({ scope, keys }) }),
+    adminRestoreIgnored: (scope: string) =>
+      request<{ restored: number }>(`/api/admin/ignore?scope=${encodeURIComponent(scope)}`, { method: 'DELETE' }),
     adminNoSubCategory: () =>
       request<{ antal: number; rader: { name: string; seenCount: number; category: string }[] }>('/api/admin/no-subcategory'),
-    adminNamesBatch: (data: { action: 'delete' | 'merge'; names: string[]; to?: string }) =>
+    adminNamesBatch: (data: { action: 'delete' | 'merge' | 'hide' | 'unhide'; names: string[]; to?: string }) =>
       request<{ names: number; staples: number }>('/api/admin/names/batch', { method: 'POST', body: JSON.stringify(data) }),
     adminRemoveCuration: (name: string) =>
       request<void>(`/api/admin/curated?name=${encodeURIComponent(name)}`, { method: 'DELETE' }),

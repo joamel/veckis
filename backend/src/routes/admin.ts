@@ -6,7 +6,7 @@ import { categoryVotes } from '../lib/categoryVotes';
 import { StoreCategory } from '@prisma/client';
 import { applyCuration, classifyReport, curateCandidates, curationImpact, namesWithoutSubCategory, newHouseholds, removeCuration, validateCuration } from '../lib/adminCuration';
 import { wsListUpdate } from '../lib/wsHub';
-import { allNames, deleteIngredient, junkReason, nameImpact, renameIngredient, suggestNameCleanup } from '../lib/nameCleanup';
+import { allNames, deleteIngredient, hideIngredients, junkReason, nameImpact, renameIngredient, suggestNameCleanup, unhideIngredients } from '../lib/nameCleanup';
 import { CLEANUP_JOBS, findJob } from '../lib/cleanupJobs';
 import type { AuthenticatedRequest } from '../middleware/auth';
 import { requireAuth, requireAppAdmin } from '../middleware/auth';
@@ -203,13 +203,37 @@ adminRouter.get('/names', asyncHandler(async (req, res) => {
   const names = (await allNames())
     .filter(n => !q || n.namn.toLowerCase().includes(q))
     .sort((a, b) => b.vikt - a.vikt);
-  res.json({ totalt: names.length, rader: names.slice(0, 300).map(n => ({ name: n.namn, weight: n.vikt, junk: junkReason(n.namn) })) });
+  const hidden = new Set((await prisma.hiddenGlobalName.findMany({ select: { name: true } })).map(h => h.name));
+  res.json({ totalt: names.length, rader: names.slice(0, 300).map(n => ({ name: n.namn, weight: n.vikt, junk: junkReason(n.namn), hidden: hidden.has(n.namn.toLowerCase()) })) });
 }));
 
 // GET /api/admin/name-suggestions — skräp, mängder i namnet och varianter.
 adminRouter.get('/name-suggestions', asyncHandler(async (_req, res) => {
-  const rows = suggestNameCleanup(await allNames());
-  res.json({ förslag: rows.length, rader: rows.slice(0, 300) });
+  const ignored = await ignoredKeys('names');
+  const all = suggestNameCleanup(await allNames());
+  const rows = all.filter(r => !ignored.has(r.name));
+  res.json({ förslag: rows.length, ignorerade: all.length - rows.length, rader: rows.slice(0, 300) });
+}));
+
+// --- Ignorerade förslag: bockade ur → föreslås inte igen ---
+async function ignoredKeys(scope: string): Promise<Set<string>> {
+  return new Set((await prisma.ignoredSuggestion.findMany({ where: { scope }, select: { key: true } })).map(i => i.key));
+}
+
+// POST /api/admin/ignore { scope, keys } — föreslå inte de här igen.
+adminRouter.post('/ignore', asyncHandler(async (req, res) => {
+  const body = z.object({ scope: z.string().min(1).max(40), keys: z.array(z.string().min(1).max(600)).min(1).max(500) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+  await prisma.ignoredSuggestion.createMany({ data: body.data.keys.map(key => ({ scope: body.data.scope, key })), skipDuplicates: true });
+  res.json({ ignored: body.data.keys.length });
+}));
+
+// DELETE /api/admin/ignore?scope= — visa de ignorerade förslagen igen.
+adminRouter.delete('/ignore', asyncHandler(async (req, res) => {
+  const scope = typeof req.query.scope === 'string' ? req.query.scope : '';
+  if (!scope) { res.status(400).json({ error: 'scope saknas' }); return; }
+  const n = (await prisma.ignoredSuggestion.deleteMany({ where: { scope } })).count;
+  res.json({ restored: n });
 }));
 
 // GET /api/admin/names/impact?name=&to= — vad ett namnbyte eller en radering rör.
@@ -233,12 +257,14 @@ adminRouter.post('/names/rename', asyncHandler(async (req, res) => {
 // radera alla, eller slå ihop alla till ett namn (felstavningar, varianter).
 adminRouter.post('/names/batch', asyncHandler(async (req, res) => {
   const body = z.object({
-    action: z.enum(['delete', 'merge']),
+    action: z.enum(['delete', 'merge', 'hide', 'unhide']),
     names: z.array(z.string().min(1).max(500)).min(1).max(200),
     to: z.string().min(1).max(60).optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
   const actor = { clerkUserId: (req as AuthenticatedRequest).clerkUserId };
+  if (body.data.action === 'hide') { res.json({ names: await hideIngredients(body.data.names, actor), staples: 0 }); return; }
+  if (body.data.action === 'unhide') { res.json({ names: await unhideIngredients(body.data.names, actor), staples: 0 }); return; }
   if (body.data.action === 'merge') {
     const to = body.data.to?.trim();
     if (!to) { res.status(400).json({ error: 'Namn att slå ihop till saknas' }); return; }
@@ -273,7 +299,9 @@ adminRouter.post('/jobs/:id/plan', asyncHandler(async (req, res) => {
   const job = findJob(req.params.id);
   if (!job) { res.status(404).json({ error: 'Okänt jobb' }); return; }
   const plan = await job.plan();
-  res.json({ total: plan.rows.length, rows: plan.rows.slice(0, 500), note: plan.note ?? null });
+  const ignored = await ignoredKeys(job.id);
+  const rows = plan.rows.filter(r => !ignored.has(r.key));
+  res.json({ total: rows.length, ignored: plan.rows.length - rows.length, rows: rows.slice(0, 500), note: plan.note ?? null });
 }));
 
 // POST /api/admin/jobs/:id/apply { rows: [{ key, to }] } — skriver de valda raderna.
@@ -281,9 +309,16 @@ adminRouter.post('/jobs/:id/plan', asyncHandler(async (req, res) => {
 adminRouter.post('/jobs/:id/apply', asyncHandler(async (req, res) => {
   const job = findJob(req.params.id);
   if (!job) { res.status(404).json({ error: 'Okänt jobb' }); return; }
-  const body = z.object({ rows: z.array(z.object({ key: z.string().min(1).max(600), to: z.string().max(600) })).min(1).max(500) }).safeParse(req.body);
+  const body = z.object({
+    rows: z.array(z.object({ key: z.string().min(1).max(600), to: z.string().max(600) })).max(500),
+    // Urbockade rader adminen inte vill se igen.
+    ignore: z.array(z.string().min(1).max(600)).max(500).default([]),
+  }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
-  const summary = await job.apply(body.data.rows, { clerkUserId: (req as AuthenticatedRequest).clerkUserId });
+  if (body.data.ignore.length) await prisma.ignoredSuggestion.createMany({ data: body.data.ignore.map(key => ({ scope: job.id, key })), skipDuplicates: true });
+  const summary = body.data.rows.length ? await job.apply(body.data.rows, { clerkUserId: (req as AuthenticatedRequest).clerkUserId }) : '';
+  const ignoredNote = body.data.ignore.length ? `${body.data.ignore.length} föreslås inte igen.` : '';
+  res.json({ summary: [summary, ignoredNote].filter(Boolean).join(' ') });
   res.json({ summary });
 }));
 

@@ -547,3 +547,22 @@ model CuratedCategory {
   updatedAt   DateTime      @updatedAt
   createdAt   DateTime      @default(now())
 }
+
+// Varunamn som adminsidan dolt för andra hushåll ("Dölj för andra"). Namnet
+// föreslås aldrig globalt — inte heller om det lärs in igen — men hushåll som
+// har det som basvara behåller det. Radera överallt är något annat: skräp.
+model HiddenGlobalName {
+  name      String   @id // gemener
+  hiddenBy  String
+  createdAt DateTime @default(now())
+}
+
+// Förslag adminen bockat ur i ett städjobb eller i Städförslag — föreslås inte
+// igen. scope = jobbets id eller "names"; key = radens nyckel.
+model IgnoredSuggestion {
+  scope     String
+  key       String
+  createdAt DateTime @default(now())
+
+  @@id([scope, key])
+}

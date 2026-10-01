@@ -33,6 +33,8 @@ export type JobRow = {
   to: string;
   /** Varunamnet raden gäller, när den kan klassas på adminsidan. */
   name?: string;
+  /** En förklaring till raden, för en människa. */
+  note?: string;
 };
 
 export type JobPlan = { rows: JobRow[]; note?: string };
@@ -203,7 +205,11 @@ const aliases: CleanupJob = {
     // varje burk på den färska tomaten. Tillbaka till det strippade namnet.
     for (const a of alias) {
       if (duglingGlobalt(a.canonical) && !bevararSkyddadeOrd(a.raw, a.canonical)) {
-        rows.push({ table: 'pool', key: `skydd:${a.raw}`, label: a.raw, from: a.canonical, to: stripIngredient(a.raw) });
+        const lost = a.raw.split(/\s+/).filter(w => !a.canonical.toLowerCase().includes(w.toLowerCase().slice(0, 5)));
+        rows.push({
+          table: 'pool', key: `skydd:${a.raw}`, label: a.raw, from: a.canonical, to: stripIngredient(a.raw),
+          note: `Tolkas idag som "${a.canonical}" — tappade "${lost.join(' ')}", som avgör vilken vara det är.`,
+        });
       }
     }
     return { rows };

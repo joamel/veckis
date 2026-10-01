@@ -168,7 +168,7 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
       })).map(r => r.raw)
     : null;
 
-  const [cleanAliasRows, hidden] = await Promise.all([
+  const [cleanAliasRows, hidden, hiddenGlobal] = await Promise.all([
     prisma.ingredientAlias.findMany({
       where: eligibleRaws ? { raw: { in: eligibleRaws } } : undefined,
       distinct: ['canonical'],
@@ -177,12 +177,15 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
       take: MAX_GLOBAL_SUGGESTIONS,
     }),
     prisma.hiddenSuggestion.findMany({ where: { householdId }, select: { name: true } }),
+    // Namn adminsidan dolt för andra hushåll. Hushållets EGNA basvaror kommer
+    // från GET /api/staples och påverkas inte.
+    prisma.hiddenGlobalName.findMany({ select: { name: true } }),
   ]);
   const eligibleAliases = cleanAliasRows;
   // Per-hushåll dolda förslag (långtryck → "ta bort förslag") filtreras bort ur
   // bägge källorna. Global IngredientAlias rörs inte — bara det här hushållet
   // slutar se namnet.
-  const hiddenNames = new Set(hidden.map(h => h.name.toLowerCase()));
+  const hiddenNames = new Set([...hidden, ...hiddenGlobal].map(h => h.name.toLowerCase()));
 
   // Filtrera bort trasiga legacy-alias där en mängd fastnat först i namnet
   // ("kg potatis", "400g ost") — de ska aldrig dyka upp som förslag. Nya alias

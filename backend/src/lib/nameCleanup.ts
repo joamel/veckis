@@ -181,7 +181,28 @@ export async function renameIngredient(rawFrom: string, rawTo: string, actor: Ac
   return { aliasRows, staples, merged };
 }
 
-/** Tar bort ett namn ur poolen och hushållens basvaror. Permanent — därför förhandsvisning först. */
+/**
+ * Döljer namn för andra hushåll: de föreslås aldrig globalt, inte heller om de
+ * lärs in igen. Hushåll som har namnet som basvara behåller det — basvarorna är
+ * hushållets egna. För riktiga varor man inte vill sprida; skräp raderas i stället.
+ */
+export async function hideIngredients(rawNames: string[], actor: Actor) {
+  const names = [...new Set(rawNames.map(n => n.toLowerCase().trim()).filter(Boolean))];
+  for (const name of names) {
+    await prisma.hiddenGlobalName.upsert({ where: { name }, create: { name, hiddenBy: actor.clerkUserId }, update: {} });
+    await audit(actor, 'admin.hide_ingredient', name, { name });
+  }
+  return names.length;
+}
+
+export async function unhideIngredients(rawNames: string[], actor: Actor) {
+  const names = [...new Set(rawNames.map(n => n.toLowerCase().trim()).filter(Boolean))];
+  const n = (await prisma.hiddenGlobalName.deleteMany({ where: { name: { in: names } } })).count;
+  for (const name of names) await audit(actor, 'admin.unhide_ingredient', name, { name });
+  return n;
+}
+
+/** Tar bort ett namn ur poolen OCH alla hushålls basvaror — för skräp som inte är en vara. Permanent. */
 export async function deleteIngredient(rawName: string, actor: Actor) {
   const name = rawName.trim();
   const raws = (await prisma.ingredientAlias.findMany({ where: { canonical: name }, select: { raw: true } })).map(a => a.raw);

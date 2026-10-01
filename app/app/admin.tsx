@@ -26,7 +26,7 @@ const TABS: Tab[] = ['votes', 'gaps', 'candidates', 'curated', 'names', 'cleanup
 const NAME_TABS: Tab[] = ['names', 'cleanup'];
 
 /** En rad i en lista: ett namn att klassa eller städa, eller (nya hushåll) bara information. */
-type Row = { key: string; title: string; meta: string; name?: string; suggestedName?: string; job?: AdminJob };
+type Row = { key: string; title: string; meta: string; name?: string; suggestedName?: string; job?: AdminJob; hidden?: boolean };
 
 const catLabel = (key: string) => CATEGORY_LABELS[key as StoreCategory] ?? key;
 const subLabel = (key: string | null) => (key ? SUB_TAXONOMY[key as SubCategory]?.label ?? key : null);
@@ -46,7 +46,8 @@ export default function AdminScreen() {
   const [summary, setSummary] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [classifyName, setClassifyName] = useState<string | null>(null);
-  const [nameTarget, setNameTarget] = useState<{ name: string; suggestedName?: string } | null>(null);
+  const [nameTarget, setNameTarget] = useState<NameTarget | null>(null);
+  const [ignoredNames, setIgnoredNames] = useState(0);
   const [nameQuery, setNameQuery] = useState('');
   // Oense: namn du redan klassat döljs som standard — där återstår bara hushållens egna val.
   const [showCurated, setShowCurated] = useState(false);
@@ -95,12 +96,13 @@ export default function AdminScreen() {
       } else if (t === 'names') {
         const r = await client.adminNames(q);
         setRows(r.rader.map((n, i) => ({
-          key: `${n.name}-${i}`, name: n.name, title: n.name,
-          meta: [str.rows.weight(n.weight), n.junk ? str.rows.junk(n.junk) : null].filter(Boolean).join(' · '),
+          key: `${n.name}-${i}`, name: n.name, title: n.name, hidden: n.hidden,
+          meta: [str.rows.weight(n.weight), n.hidden ? str.rows.hiddenTag : null, n.junk ? str.rows.junk(n.junk) : null].filter(Boolean).join(' · '),
         })));
         setSummary(str.rows.namesTotal(Math.min(r.rader.length, r.totalt), r.totalt));
       } else if (t === 'cleanup') {
         const r = await client.adminNameSuggestions();
+        setIgnoredNames(r.ignorerade);
         setRows(r.rader.map((n, i) => ({
           key: `${n.name}-${i}`, name: n.name, title: n.name,
           suggestedName: n.action === 'rename' ? n.to : undefined,
@@ -132,6 +134,16 @@ export default function AdminScreen() {
     if (next.has(name)) next.delete(name); else next.add(name);
     return next;
   });
+
+  async function batchHide(action: 'hide' | 'unhide') {
+    const names = [...selectedNames];
+    try {
+      await client.adminNamesBatch({ action, names });
+      showToast(action === 'hide' ? str.batch.done_hide(names.length) : str.batch.done_unhide(names.length), 'success');
+      setSelectedNames(new Set());
+      load('names', nameQuery.trim());
+    } catch (e) { showError(e, str.batch.hide(names.length)); }
+  }
 
   function deleteSelected() {
     const names = [...selectedNames];
@@ -223,6 +235,8 @@ export default function AdminScreen() {
             {selectMode && selectedNames.size > 0 && (
               <>
                 <Pressable onPress={() => setMergeOpen(true)}><Text style={s.linkText}>{str.batch.merge(selectedNames.size)}</Text></Pressable>
+                <Pressable onPress={() => batchHide('hide')}><Text style={s.linkText}>{str.batch.hide(selectedNames.size)}</Text></Pressable>
+                <Pressable onPress={() => batchHide('unhide')}><Text style={s.linkText}>{str.batch.unhide(selectedNames.size)}</Text></Pressable>
                 <Pressable onPress={deleteSelected}><Text style={s.dangerText}>{str.batch.delete(selectedNames.size)}</Text></Pressable>
               </>
             )}
@@ -233,6 +247,14 @@ export default function AdminScreen() {
             {!showCurated && <Text style={s.meta}>{str.rows.curatedHidden}</Text>}
             <Pressable onPress={() => setShowCurated(v => !v)} style={{ marginTop: 6 }}>
               <Text style={s.linkText}>{showCurated ? str.rows.hideCurated : str.rows.showCurated(curatedCount)}</Text>
+            </Pressable>
+          </View>
+        )}
+        {tab === 'cleanup' && ignoredNames > 0 && (
+          <View style={{ marginBottom: 12 }}>
+            <Text style={s.meta}>{str.rows.ignoredSummary(ignoredNames)}</Text>
+            <Pressable onPress={async () => { await client.adminRestoreIgnored('names').catch(e => showError(e, str.rows.restoreIgnored)); load('cleanup'); }} style={{ marginTop: 6 }}>
+              <Text style={s.linkText}>{str.rows.restoreIgnored}</Text>
             </Pressable>
           </View>
         )}
@@ -253,7 +275,7 @@ export default function AdminScreen() {
                   : r.job
                   ? () => setJob(r.job!)
                   : r.name
-                    ? () => (NAME_TABS.includes(tab) ? setNameTarget({ name: r.name!, suggestedName: r.suggestedName }) : setClassifyName(r.name!))
+                    ? () => (NAME_TABS.includes(tab) ? setNameTarget({ name: r.name!, suggestedName: r.suggestedName, hidden: r.hidden, fromCleanup: tab === 'cleanup' }) : setClassifyName(r.name!))
                     : undefined}
                 disabled={!r.name && !r.job}
               >
@@ -497,11 +519,14 @@ function JobSheet({ job, onClose, onClassify }: { job: AdminJob | null; onClose:
   const client = useApiClient();
   const { showToast, showError } = useToast();
 
-  const [plan, setPlan] = useState<{ total: number; rows: AdminJobRow[]; note: string | null } | null>(null);
+  const [plan, setPlan] = useState<{ total: number; ignored: number; rows: AdminJobRow[]; note: string | null } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Egna värden för modellens förslag (AI-jobben), per radnyckel.
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [ignoreUnchecked, setIgnoreUnchecked] = useState(true);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { setPlan(null); setSelected(new Set()); }, [job]);
+  useEffect(() => { setPlan(null); setSelected(new Set()); setEdits({}); setIgnoreUnchecked(true); }, [job]);
 
   async function preview() {
     if (!job) return;
@@ -516,11 +541,12 @@ function JobSheet({ job, onClose, onClassify }: { job: AdminJob | null; onClose:
 
   async function run() {
     if (!job || !plan) return;
-    const rows = plan.rows.filter(r => selected.has(r.key)).map(r => ({ key: r.key, to: r.to }));
-    if (!rows.length) return;
+    const rows = plan.rows.filter(r => selected.has(r.key)).map(r => ({ key: r.key, to: edits[r.key] ?? r.to }));
+    const ignore = ignoreUnchecked ? plan.rows.filter(r => !selected.has(r.key)).map(r => r.key) : [];
+    if (!rows.length && !ignore.length) return;
     setBusy(true);
     try {
-      const r = await client.adminJobApply(job.id, rows);
+      const r = await client.adminJobApply(job.id, rows, ignore);
       showToast(r.summary, 'success');
       onClose();
     } catch (e) { showError(e, str.jobSheet.run(rows.length)); }
@@ -548,10 +574,20 @@ function JobSheet({ job, onClose, onClassify }: { job: AdminJob | null; onClose:
             </View>
           ) : plan.rows.length === 0 ? (
             <Text style={[s.summary, { marginTop: 16 }]}>{str.jobSheet.nothing}{plan.note ? ` ${plan.note}` : ''}</Text>
-          ) : (
+          ) : null}
+          {plan && plan.ignored > 0 && (
+            <View style={{ marginTop: 8 }}>
+              <Text style={s.meta}>{str.jobSheet.ignoredCount(plan.ignored)}</Text>
+              <Pressable onPress={async () => { await client.adminRestoreIgnored(job.id).catch(e => showError(e, str.rows.restoreIgnored)); preview(); }} style={{ marginTop: 6 }}>
+                <Text style={s.linkText}>{str.rows.restoreIgnored}</Text>
+              </Pressable>
+            </View>
+          )}
+          {!plan || plan.rows.length === 0 ? null : (
             <>
               <Text style={[s.summary, { marginTop: 16 }]}>{str.jobSheet.total(plan.rows.length, plan.total)}{plan.note ? ` ${plan.note}` : ''}</Text>
               {plan.rows.some(r => r.name) && <Text style={[s.meta, { marginBottom: 8 }]}>{str.jobSheet.classifyHint}</Text>}
+              {job.usesAi && <Text style={[s.meta, { marginBottom: 8 }]}>{str.jobSheet.editHint}</Text>}
               <View style={s.selectRow}>
                 <Pressable onPress={() => setSelected(new Set(plan.rows.map(r => r.key)))}><Text style={s.linkText}>{str.jobSheet.selectAll}</Text></Pressable>
                 <Pressable onPress={() => setSelected(new Set())}><Text style={s.linkText}>{str.jobSheet.selectNone}</Text></Pressable>
@@ -571,7 +607,20 @@ function JobSheet({ job, onClose, onClassify }: { job: AdminJob | null; onClose:
                       <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? ny.skog : ny.kontur} />
                       <View style={{ flex: 1 }}>
                         <Text style={s.rowTitle}>{r.label}</Text>
-                        <Text style={s.meta}>{r.table} · {catLabel(r.from)} → {catLabel(r.to)}</Text>
+                        {job.usesAi ? (
+                          <>
+                            <Text style={s.meta}>{r.table} · {r.from} →</Text>
+                            <TextInput
+                              style={[s.input, { paddingVertical: 6, marginTop: 4, fontSize: 14 }]}
+                              value={edits[r.key] ?? r.to}
+                              onChangeText={v => setEdits(prev => ({ ...prev, [r.key]: v }))}
+                              autoCapitalize="none"
+                            />
+                          </>
+                        ) : (
+                          <Text style={s.meta}>{r.table} · {catLabel(r.from)} → {catLabel(r.to)}</Text>
+                        )}
+                        {r.note && <Text style={s.meta}>{r.note}</Text>}
                       </View>
                       {r.name && (
                         <Pressable onPress={() => onClassify(r.name!)} hitSlop={8} accessibilityRole="button">
@@ -582,8 +631,12 @@ function JobSheet({ job, onClose, onClassify }: { job: AdminJob | null; onClose:
                   );
                 })}
               </View>
+              <View style={s.switchRow}>
+                <Text style={[s.rowTitle, { flex: 1 }]}>{str.jobSheet.ignoreUnchecked}</Text>
+                <Switch value={ignoreUnchecked} onValueChange={setIgnoreUnchecked} trackColor={{ true: ny.skog }} />
+              </View>
               <View style={s.actions}>
-                <Pressable style={[s.primaryBtn, (busy || selected.size === 0) && { opacity: 0.5 }]} onPress={run} disabled={busy || selected.size === 0}>
+                <Pressable style={[s.primaryBtn, (busy || (selected.size === 0 && !ignoreUnchecked)) && { opacity: 0.5 }]} onPress={run} disabled={busy || (selected.size === 0 && !ignoreUnchecked)}>
                   {busy ? <ActivityIndicator color={ny.skog} /> : <Text style={s.primaryBtnText}>{str.jobSheet.run(selected.size)}</Text>}
                 </Pressable>
               </View>
@@ -602,8 +655,10 @@ function JobSheet({ job, onClose, onClassify }: { job: AdminJob | null; onClose:
  * Byt namn på eller radera ett varunamn i den gemensamma poolen och
  * hushållens basvaror. Alltid förhandsvisning först — radering är permanent.
  */
+type NameTarget = { name: string; suggestedName?: string; hidden?: boolean; fromCleanup?: boolean };
+
 function NameSheet({ target, onClose, onChanged, onClassify }: {
-  target: { name: string; suggestedName?: string } | null;
+  target: NameTarget | null;
   onClose: () => void;
   onChanged: () => void;
   onClassify: (name: string) => void;
@@ -699,6 +754,24 @@ function NameSheet({ target, onClose, onChanged, onClassify }: {
                 <Pressable style={[s.secondaryBtn, (!canRename || busy) && { opacity: 0.5 }]} onPress={previewRename} disabled={!canRename || busy}>
                   <Text style={s.secondaryBtnText}>{str.nameSheet.previewRename}</Text>
                 </Pressable>
+                <Pressable
+                  style={s.linkBtn}
+                  disabled={busy}
+                  onPress={() => run(
+                    () => client.adminNamesBatch({ action: target.hidden ? 'unhide' : 'hide', names: [target.name] }),
+                    target.hidden ? str.nameSheet.unhidden(target.name) : str.nameSheet.hidden(target.name),
+                    str.nameSheet.hide,
+                  )}
+                >
+                  <Text style={s.linkText}>{target.hidden ? str.nameSheet.unhide : str.nameSheet.hide}</Text>
+                </Pressable>
+                {!target.hidden && <Text style={[s.meta, { textAlign: 'center' }]}>{str.nameSheet.hideHint}</Text>}
+                {target.fromCleanup && (
+                  <Pressable style={s.linkBtn} disabled={busy}
+                    onPress={() => run(() => client.adminIgnore('names', [target.name]), str.nameSheet.ignored(target.name), str.nameSheet.ignore)}>
+                    <Text style={s.linkText}>{str.nameSheet.ignore}</Text>
+                  </Pressable>
+                )}
                 <Pressable style={s.linkBtn} onPress={() => setPreview({ kind: 'delete' })} disabled={busy}>
                   <Text style={s.dangerText}>{str.nameSheet.previewDelete}</Text>
                 </Pressable>
