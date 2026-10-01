@@ -56,6 +56,7 @@ export type SubCategory =
   | 'sött_pålägg'
   // Frysvaror
   | 'frysta_grönsaker'
+  | 'fryst_potatis'
   | 'frysta_bär_frukt'
   | 'glass'
   | 'fryst_kött_fågel'
@@ -182,6 +183,8 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   sött_pålägg: { defaultParent: 'canned_dry', alsoUnder: ['bread_bakery', 'snacks_sweets'], label: 'Choklad- & nötpålägg' },
   // Frysvaror
   frysta_grönsaker: { defaultParent: 'frozen', alsoUnder: [], label: 'Grönsaker' },
+  // Pommes frites, klyftpotatis, rösti, potatisgratäng — frysdiskens potatisvaror.
+  fryst_potatis: { defaultParent: 'frozen', alsoUnder: [], label: 'Potatis' },
   frysta_bär_frukt: { defaultParent: 'frozen', alsoUnder: [], label: 'Bär & frukt' },
   glass: { defaultParent: 'frozen', alsoUnder: [], label: 'Glass' },
   fryst_kött_fågel: { defaultParent: 'frozen', alsoUnder: [], label: 'Kött & fågel' },

@@ -150,3 +150,14 @@ describe('inferSubCategory — chark och oliver (2026-10-01)', () => {
     expect(parentForSub('antipasto_delikatesser')).toBe('deli_charcuterie');
   });
 });
+
+describe('inferSubCategory — frysta potatisvaror (2026-10-01)', () => {
+  it('pommes, klyftpotatis, rösti och gratäng under Frys: Potatis — färsk potatis kvar bland rotsakerna', () => {
+    for (const n of ['pommes frites', 'klyftpotatis', 'rösti', 'potatisbullar']) expect(inferSubCategory(n)).toBe('fryst_potatis');
+    // Gratängen ligger bland färdigrätterna.
+    expect(inferSubCategory('potatisgratäng')).toBe('frysta_färdigrätter');
+    expect(parentForSub('fryst_potatis')).toBe('frozen');
+    expect(inferSubCategory('potatis')).toBe('rotsaker');
+    expect(inferSubCategory('fast potatis')).toBe('rotsaker');
+  });
+});
