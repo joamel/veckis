@@ -8,7 +8,7 @@ import { useCheckHaptic } from '../../src/hooks/useCheckHaptic';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
-import { browserCategories, browserSubs, browserSections } from '../../src/lib/browserOrder';
+import { browserTiles, browserSubs, browserSections, headingSubs } from '../../src/lib/browserOrder';
 import { buildShoppingListRows, type ShoppingListRow } from '../../src/lib/shoppingListRows';
 import { FlashList } from '@shopify/flash-list';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
@@ -69,7 +69,7 @@ import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
-import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory, type StapleItem , visningsnamn, parseItemLine, formateraKöksmått } from '@veckis/shared';
+import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, inferSubCategory, type StoreCategory, type SubCategory, type StapleItem , visningsnamn, parseItemLine, formateraKöksmått } from '@veckis/shared';
 import { isIOSLike, isWeb } from '../../src/lib/platform';
 import { shoppingList as str, common } from '../../src/lib/svenska';
 import {
@@ -243,7 +243,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [qtySheet, setQtySheet] = useState<{ name: string; category?: StoreCategory } | null>(null);
   const [qtyCategory, setQtyCategory] = useState<StoreCategory>('other');
   const [qtySubCategory, setQtySubCategory] = useState<SubCategory | null>(null);
-  const [qtyCustomCategory, setQtyCustomCategory] = useState<string | null>(null);
   const [qtyValue, setQtyValue] = useState('1');
   const [qtyUnit, setQtyUnit] = useState('');
   const [mergeSheet, setMergeSheet] = useState<{ name: string; category: StoreCategory; items: ShoppingItemWithRecipe[] } | null>(null);
@@ -265,7 +264,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   // Category browser modal
   const [showBrowser, setShowBrowser] = useState(false);
-  const [browserCategory, setBrowserCategory] = useState<StoreCategory | null>(null);
+  // En standardkategori eller en egen rubrik ("c:Frukost").
+  const [browserCategory, setBrowserCategory] = useState<string | null>(null);
   // Vald underkategori i väljaren: null = alla, 'none' = varor utan underkategori.
   const [browserSub, setBrowserSub] = useState<SubCategory | 'none' | null>(null);
   const closeBrowserCategory = () => { setBrowserCategory(null); setBrowserSub(null); };
@@ -277,7 +277,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [editQty, setEditQty] = useState('');
   const [editUnit, setEditUnit] = useState('');
   const [editCategory, setEditCategory] = useState<StoreCategory>('other');
-  const [editCustomCategory, setEditCustomCategory] = useState<string | null>(null);
   const [editSubCategory, setEditSubCategory] = useState<SubCategory | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -429,9 +428,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // arket öppnades, eftersom fälten fylls i med formatering (komma i mängden,
   // versal i namnet) och en jämförelse mot källvaran annars sa "ändrat"
   // direkt. DraggableBottomSheet frågar då innan arket stängs.
-  const editDirty = useDirtySince(editingItem, [editName, editQty, editUnit, editCategory, editCustomCategory, editSubCategory]);
+  const editDirty = useDirtySince(editingItem, [editName, editQty, editUnit, editCategory, editSubCategory]);
   const stapleDirty = useDirtySince(editingStaple, [stapleName, stapleUnit, stapleCategory]);
-  const qtyDirty = useDirtySince(qtySheet, [qtyValue, qtyUnit, qtyCategory, qtySubCategory, qtyCustomCategory]);
+  const qtyDirty = useDirtySince(qtySheet, [qtyValue, qtyUnit, qtyCategory, qtySubCategory]);
   const renameDirty = useDirtySince(showRenameModal, [renameValue]);
   const [renameEmoji, setRenameEmoji] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
@@ -483,7 +482,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Auto-sidoscroll till vald kategori/underkategori (se useChipAutoScroll ovan).
   const editCatScrollRef = useRef<ScrollView>(null);
   const editSubScrollRef = useRef<ScrollView>(null);
-  const recordEditCatChipLayout = useChipAutoScroll(editCatScrollRef, editCustomCategory ? `c:${editCustomCategory}` : editCategory);
+  const recordEditCatChipLayout = useChipAutoScroll(editCatScrollRef, editCategory);
   const recordEditSubChipLayout = useChipAutoScroll(editSubScrollRef, editSubCategory ?? '__none__');
   const stapleCatScrollRef = useRef<ScrollView>(null);
   const recordStapleCatChipLayout = useChipAutoScroll(stapleCatScrollRef, stapleCategory);
@@ -492,7 +491,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // stapel-redigeraren ovan som redan hade (eller fick) auto-scroll.
   const qtyCatScrollRef = useRef<ScrollView>(null);
   const qtySubScrollRef = useRef<ScrollView>(null);
-  const recordQtyCatChipLayout = useChipAutoScroll(qtyCatScrollRef, qtyCustomCategory ? `c:${qtyCustomCategory}` : qtyCategory);
+  const recordQtyCatChipLayout = useChipAutoScroll(qtyCatScrollRef, qtyCategory);
   const recordQtySubChipLayout = useChipAutoScroll(qtySubScrollRef, qtySubCategory ?? '__none__');
   // Enhetsraderna och sammanslagningens kategorirad saknade auto-scroll: den
   // valda chippen kunde ligga utanför synligt område, särskilt när värdet satts
@@ -666,6 +665,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   }, []);
 
   const categoryOrder: StoreCategory[] = (list?.store?.categoryOrder as StoreCategory[]) ?? DEFAULT_CATEGORY_ORDER;
+  // Butikens egna namn på kategorier och rubriker ("Skafferi" på ICA). Bara
+  // rubriken — varans kategori är densamma i alla butiker.
+  const categoryLabels: Record<string, string> = (list?.store?.categoryLabels as Record<string, string> | undefined) ?? {};
+  const catLabel = (key: string) => categoryLabels[key] ?? (key.startsWith('c:') ? key.slice(2) : (CATEGORY_LABELS[key as StoreCategory] ?? key));
+  const catEmoji = (key: string) => (key.startsWith('c:') ? '🏷️' : (CATEGORY_EMOJIS[key as StoreCategory] ?? '🏷️'));
 
   const [dismissedDupeKeys, setDismissedDupeKeys] = useState<Set<string>>(
     () => dismissedDupesStore.get(listId ?? '') ?? new Set(),
@@ -921,7 +925,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   }, []);
 
 
-  async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string, subCategory?: SubCategory | null, customCategory?: string | null, opts?: { displayCategory?: StoreCategory }) {
+  async function addItem(name?: string, category?: StoreCategory, quantity?: number, unit?: string, subCategory?: SubCategory | null, opts?: { displayCategory?: StoreCategory }) {
     let itemName = (name ?? newItem).trim().toLowerCase();
     if (!listId || !itemName) return;
 
@@ -933,7 +937,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       quantity: quantity ?? 1,
       unit: unit ?? null,
       category: category ?? opts?.displayCategory ?? 'other',
-      customCategory: customCategory ?? null,
       subCategory: subCategory ?? null,
       isChecked: false,
       checkedBy: null,
@@ -954,7 +957,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         name: itemName,
         ...(category ? { category } : {}),
         ...(subCategory ? { subCategory } : {}),
-        ...(customCategory ? { customCategory } : {}),
         ...(quantity && quantity !== 1 ? { quantity } : {}),
         ...(unit ? { unit } : {}),
       });
@@ -1034,7 +1036,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       openQtySheet(namn, category, tolkad.quantity, tolkad.unit);
       return;
     }
-    addItem(key, undefined, tolkad.quantity ?? undefined, tolkad.unit ?? undefined, undefined, undefined, {
+    addItem(key, undefined, tolkad.quantity ?? undefined, tolkad.unit ?? undefined, undefined, {
       displayCategory: category ?? (known.category as StoreCategory),
     });
   }
@@ -1047,7 +1049,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setQtyUnit(unit ?? staple?.unit ?? '');
     setQtyCategory((category ?? staple?.category ?? 'other') as StoreCategory);
     setQtySubCategory(null);
-    setQtyCustomCategory(null);
     setQtySheet({ name, category });
     Keyboard.dismiss();
   }
@@ -1056,7 +1057,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     if (!qtySheet) return;
     const qty = parseFloat(qtyValue.replace(',', '.'));
     const unit = qtyUnit.trim() || undefined;
-    await addItem(qtySheet.name, qtyCategory, isNaN(qty) ? 1 : qty, unit, qtySubCategory, qtyCustomCategory);
+    await addItem(qtySheet.name, qtyCategory, isNaN(qty) ? 1 : qty, unit, qtySubCategory);
     setQtySheet(null);
   }
 
@@ -1250,7 +1251,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setEditQty(item.quantity !== 1 || item.unit ? String(item.quantity).replace('.', ',') : '');
     setEditUnit(item.unit ?? '');
     setEditCategory(item.category as StoreCategory);
-    setEditCustomCategory((item as { customCategory?: string | null }).customCategory ?? null);
     setEditSubCategory(((item as { subCategory?: string | null }).subCategory as SubCategory | null) ?? null);
   }
 
@@ -1300,16 +1300,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       const hide = new Set(sourceIds);
       const optimistic: ShoppingItemWithRecipe = {
         ...snapshot, name, quantity: qty, unit, category: editCategory,
-        customCategory: editCustomCategory, subCategory: editSubCategory,
+        subCategory: editSubCategory,
       } as ShoppingItemWithRecipe;
       setList(prev => prev ? { ...prev, items: [...prev.items.filter(i => !hide.has(i.id)), optimistic] } : prev);
       setEditingItem(null);
       setEditingMembers(null);
       try {
         let container = await client.mergeShoppingItems({ sourceIds, name, quantity: qty, unit, category: editCategory });
-        if (editCustomCategory || editSubCategory) {
+        if (editSubCategory) {
           container = await client.updateShoppingItem(container.id, {
-            customCategory: editCustomCategory,
             subCategory: editSubCategory,
           });
         }
@@ -1332,7 +1331,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
     // Optimistic: update list + close modal before awaiting backend
     const optimisticItems = (list?.items ?? []).map(i =>
-      i.id === editingItem.id ? { ...i, name, quantity: qty, unit, category: editCategory, customCategory: editCustomCategory, subCategory: editSubCategory } : i
+      i.id === editingItem.id ? { ...i, name, quantity: qty, unit, category: editCategory, subCategory: editSubCategory } : i
     );
     setList(prev => prev ? { ...prev, items: optimisticItems } : prev);
     setEditingItem(null);
@@ -1342,7 +1341,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         quantity: qty,
         unit,
         category: editCategory,
-        customCategory: editCustomCategory,
         subCategory: editSubCategory,
       });
       const savedRecipe = snapshot.recipe;
@@ -1632,7 +1630,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       setList(prev => prev && ({
         ...prev,
         items: prev.items.map(it =>
-          it.name === newName && !it.isChecked && !it.customCategory
+          it.name === newName && !it.isChecked
             ? { ...it, category: stapleCategory, subCategory: stapleSubCategory }
             : it
         ),
@@ -1737,23 +1735,30 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Kategoriväljarens varor, i sektioner per underkategori i butikens ordning.
   const browserSectionList = useMemo(() => {
     if (browserCategory === null) return [];
+    // En ihopslagen kategoris varor visas under målet, precis som i listan.
+    const inTile = (category: string) => category === browserCategory || categoryMerge[category] === browserCategory;
+    if (browserCategory.startsWith('c:')) {
+      const subs = headingSubs(browserCategory, parentOrder);
+      return browserSections(
+        searchList.filter(s2 => inTile(String(s2.category)) || subs.includes((s2.subCategory ?? inferSubCategory(s2.name)) as SubCategory)),
+        subs,
+      );
+    }
     const subOrder: string[] = (list?.store?.subOrder as string[] | undefined) ?? [];
     return browserSections(
-      searchList.filter(s2 => s2.category === browserCategory),
-      browserSubs(browserCategory, expandedSubs, subOrder),
+      searchList.filter(s2 => inTile(String(s2.category))),
+      browserSubs(browserCategory as StoreCategory, expandedSubs, subOrder),
     );
-  }, [browserCategory, searchList, expandedSubs, list?.store?.subOrder]);
+  }, [browserCategory, searchList, expandedSubs, parentOrder, categoryMerge, list?.store?.subOrder]);
   const groupLabel = (group: CategoryGroup<ShoppingItemWithRecipe>) => {
     // Flera utbrutna från samma kategori bredvid varandra: "Konserver & torrvaror 2".
     if (group.cluster) {
       const pk = group.cluster.parentKey;
-      const name = pk.startsWith('c:') ? pk.slice(2) : CATEGORY_LABELS[pk as StoreCategory];
-      const emoji = pk.startsWith('c:') ? '🏷️' : (CATEGORY_EMOJIS[pk as StoreCategory] ?? '🏷️');
-      return `${emoji} ${name} ${group.cluster.index}`;
+      return `${catEmoji(pk)} ${catLabel(pk)} ${group.cluster.index}`;
     }
-    if (group.isCustom) return `🏷️ ${group.category}`;
+    if (group.isCustom) return `🏷️ ${catLabel(`c:${group.category}`)}`;
     if (group.isSub) return `${CATEGORY_EMOJIS[SUB_TAXONOMY[group.category as SubCategory].defaultParent]} ${group.label ?? String(group.category)}`;
-    return `${CATEGORY_EMOJIS[group.category as StoreCategory]} ${CATEGORY_LABELS[group.category as StoreCategory]}`;
+    return `${catEmoji(String(group.category))} ${catLabel(String(group.category))}`;
   };
   const groupKey = (group: CategoryGroup<ShoppingItemWithRecipe>) =>
     group.cluster ? `m:${group.cluster.members.join('+')}`
@@ -2149,7 +2154,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         onOverlayPress={() => setShowBrowser(false)}
         sheetStyle={[s.sheet, s.browserSheet, { height: windowHeight * 0.75 }]}
         bodyStyle={s.browserBody}
-        title={browserCategory === null ? str.browserTitle : `${CATEGORY_EMOJIS[browserCategory]} ${CATEGORY_LABELS[browserCategory]}`}
+        title={browserCategory === null ? str.browserTitle : `${catEmoji(browserCategory)} ${catLabel(browserCategory)}`}
         headerLeft={browserCategory !== null ? (
           <Pressable onPress={closeBrowserCategory} hitSlop={10} accessibilityRole="button" accessibilityLabel={common.actions.back}>
             <Ionicons name="chevron-back" size={22} color={SHEET_HEADER_ICON} />
@@ -2159,10 +2164,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           {browserCategory === null ? (
             <>
               <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={[s.categoryGrid, { paddingBottom: 24 }]}>
-                {browserCategories(categoryOrder).map(cat => (
+                {browserTiles(parentOrder, categoryOrder, categoryMerge).map(cat => (
                   <Pressable key={cat} style={s.categoryTile} onPress={() => { setBrowserSub(null); setBrowserCategory(cat); }}>
-                    <Text style={s.categoryTileEmoji}>{CATEGORY_EMOJIS[cat]}</Text>
-                    <Text style={s.categoryTileLabel}>{CATEGORY_LABELS[cat]}</Text>
+                    <Text style={s.categoryTileEmoji}>{catEmoji(cat)}</Text>
+                    <Text style={s.categoryTileLabel}>{catLabel(cat)}</Text>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -2203,7 +2208,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                           <Pressable
                             key={s2.name}
                             style={s.browserItem}
-                            onPress={() => quickAdd(s2.name, browserCategory ?? undefined)}
+                            onPress={() => quickAdd(s2.name, browserCategory?.startsWith('c:') ? undefined : (browserCategory as StoreCategory | null) ?? undefined)}
                             accessibilityLabel={inList ? str.browserInList(capitalize(s2.name)) : capitalize(s2.name)}
                           >
                             <Text style={s.browserItemText}>{capitalize(s2.name)}</Text>
@@ -2295,31 +2300,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           <ScrollView ref={editCatScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
             <View style={s.catChipRow}>
               {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => {
-                const active = !editCustomCategory && editCategory === cat;
+                const active = editCategory === cat;
                 return (
                   <Pressable
                     key={cat}
                     style={[s.catChip, active && s.catChipActive]}
                     onLayout={e => recordEditCatChipLayout(cat, e.nativeEvent.layout.x)}
-                    onPress={() => { setEditCategory(cat); setEditCustomCategory(null); setEditSubCategory(null); }}
+                    onPress={() => { setEditCategory(cat); setEditSubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
-                      {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+                      {CATEGORY_EMOJIS[cat]} {catLabel(cat)}
                     </Text>
-                  </Pressable>
-                );
-              })}
-              {/* Hushållets egna parent-kategorier (lokala). */}
-              {customCategories.map(cat => {
-                const active = editCustomCategory === cat;
-                return (
-                  <Pressable
-                    key={`c:${cat}`}
-                    style={[s.catChip, active && s.catChipActive]}
-                    onLayout={e => recordEditCatChipLayout(`c:${cat}`, e.nativeEvent.layout.x)}
-                    onPress={() => { setEditCustomCategory(cat); setEditSubCategory(null); }}
-                  >
-                    <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>🏷️ {cat}</Text>
                   </Pressable>
                 );
               })}
@@ -2347,7 +2338,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 </Text>
               </Pressable>
               {/* Standard-subs (bara för standard-parents) */}
-              {!editCustomCategory && subsForParent(editCategory).map(sub => {
+              {subsForParent(editCategory).map(sub => {
                 const active = editSubCategory === sub;
                 return (
                   <Pressable
@@ -2434,7 +2425,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   onPress={() => { setStapleCategory(cat); setStapleSubCategory(null); }}
                 >
                   <Text style={[s.catChipText, stapleCategory === cat && s.catChipTextActive]} numberOfLines={1}>
-                    {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+                    {CATEGORY_EMOJIS[cat]} {catLabel(cat)}
                   </Text>
                 </Pressable>
               ))}
@@ -2549,31 +2540,23 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             <ScrollView ref={qtyCatScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
               <View style={s.catChipRow}>
                 {(Object.keys(CATEGORY_LABELS) as StoreCategory[]).map(cat => {
-                  const active = !qtyCustomCategory && qtyCategory === cat;
+                  const active = qtyCategory === cat;
                   return (
                   <Pressable
                     key={cat}
                     style={[s.catChip, active && s.catChipActive]}
                     onLayout={e => recordQtyCatChipLayout(cat, e.nativeEvent.layout.x)}
-                    onPress={() => { setQtyCategory(cat); setQtyCustomCategory(null); setQtySubCategory(null); }}
+                    onPress={() => { setQtyCategory(cat); setQtySubCategory(null); }}
                   >
                     <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>
-                      {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+                      {CATEGORY_EMOJIS[cat]} {catLabel(cat)}
                     </Text>
                   </Pressable>
                   );
                 })}
-                {customCategories.map(cat => {
-                  const active = qtyCustomCategory === cat;
-                  return (
-                    <Pressable key={`c:${cat}`} style={[s.catChip, active && s.catChipActive]} onLayout={e => recordQtyCatChipLayout(`c:${cat}`, e.nativeEvent.layout.x)} onPress={() => { setQtyCustomCategory(cat); setQtySubCategory(null); }}>
-                      <Text style={[s.catChipText, active && s.catChipTextActive]} numberOfLines={1}>🏷️ {cat}</Text>
-                    </Pressable>
-                  );
-                })}
               </View>
             </ScrollView>
-            {!qtyCustomCategory && subsForParent(qtyCategory).length > 0 && (
+            {subsForParent(qtyCategory).length > 0 && (
               <>
                 <Text style={s.editLabel}>{common.fields.subCategoryOptional}</Text>
                 <ScrollView ref={qtySubScrollRef} horizontal showsHorizontalScrollIndicator={false} style={s.catChipScroll}>
@@ -2724,7 +2707,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                       onPress={() => setMergeCategory(cat)}
                     >
                       <Text style={[s.catChipText, mergeCategory === cat && s.catChipTextActive]} numberOfLines={1}>
-                        {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+                        {CATEGORY_EMOJIS[cat]} {catLabel(cat)}
                       </Text>
                     </Pressable>
                   ))}

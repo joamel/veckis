@@ -32,7 +32,7 @@ import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import { storeMeta } from '../../src/lib/storeMeta';
-import { isPlacedSubKey, placedClusters } from '../../src/lib/categoryGroups';
+import { isPlacedSubKey, placedClusters, placedHeadings } from '../../src/lib/categoryGroups';
 
 /** Nyckeln en utbruten underkategori (expandedSubs-post) får i parentOrder när
  *  den placeras fritt. */
@@ -134,7 +134,7 @@ export default function StoreDetailScreen() {
   const [showLink, setShowLink] = useState(false);
   // Steg 4: förslag på ordning ur hushållets bockar. Hämtas med butiken och
   // gäller den SPARADE ordningen — därför visas det bara utan osparade ändringar.
-  const [suggestion, setSuggestion] = useState<{ trips: number; order: string[]; changed: boolean } | null>(null);
+  const [suggestion, setSuggestion] = useState<{ trips: number; order: string[]; changed: boolean; otherHouseholds?: number } | null>(null);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [linking, setLinking] = useState(false);
   const [renameValue, setRenameValue] = useState('');
@@ -144,6 +144,11 @@ export default function StoreDetailScreen() {
   // riktig StoreCategory) tas bort ur parentOrder och slås ihop med målet vid
   // visning i just den här butiken — varans egen category ändras aldrig.
   const [categoryMerge, setCategoryMerge] = useState<Record<string, string>>({});
+  // Butikens egna namn på kategorier och rubriker ("Skafferi" på ICA). Bara
+  // rubriken — varans kategori är densamma i alla butiker.
+  const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>({});
+  // null = namnbytesarket gäller butiken; annars kategorin/rubriken med den nyckeln.
+  const [renameTarget, setRenameTarget] = useState<string | null>(null);
   const [mergingKey, setMergingKey] = useState<StoreCategory | null>(null);
   const [pickingMergeSource, setPickingMergeSource] = useState(false);
   // Listans bredd. Namnkolumnerna får en UTRÄKNAD bredd (listbredd minus det
@@ -189,6 +194,7 @@ export default function StoreDetailScreen() {
         setExpandedSubs(savedExpanded);
         setSubOrder(withoutCustomSubs((found as { subOrder?: string[] }).subOrder ?? []));
         setCategoryMerge(mergeMap);
+        setCategoryLabels({ ...((found as { categoryLabels?: Record<string, string> }).categoryLabels ?? {}) });
         setDirty(false);
 
         // Osparad ordning från förra besöket? Lägg den ovanpå det nyss hämtade.
@@ -200,6 +206,7 @@ export default function StoreDetailScreen() {
           setExpandedSubs(withoutCustomSubs(utkast.expandedSubs));
           setSubOrder(withoutCustomSubs(utkast.subOrder));
           setCategoryMerge({ ...utkast.categoryMerge });
+          setCategoryLabels({ ...(utkast.categoryLabels ?? {}) });
           setDirty(true);
           setVisarUtkast(true);
         } else {
@@ -219,6 +226,7 @@ export default function StoreDetailScreen() {
     client.getStoreOrderSuggestion(storeId).then(setSuggestion).catch(() => setSuggestion(null));
   }, [storeId, client]);
   const clusters = useMemo(() => placedClusters(parentOrder, categoryMerge), [parentOrder, categoryMerge]);
+  const headings = useMemo(() => placedHeadings(parentOrder), [parentOrder]);
   const clustersRef = useRef(clusters);
   clustersRef.current = clusters;
   const [openClusters, setOpenClusters] = useState<Set<string>>(new Set());
@@ -402,9 +410,31 @@ export default function StoreDetailScreen() {
   function subsForResolvedParent(parentKey: string): SubCategory[] {
     return ALL_SUB_CATEGORIES.filter(s => resolveMerge(SUB_TAXONOMY[s].defaultParent) === parentKey);
   }
-  // Rent namn utan "c:"-prefix eller emoji — för brödtext (t.ex. subHint).
-  function plainLabel(key: string): string {
+  // Namnet utan butikens eget namn — det som gäller när inget eget är satt.
+  function defaultLabel(key: string): string {
     return key.startsWith('c:') ? key.slice(2) : (CATEGORY_LABELS[key as StoreCategory] ?? key);
+  }
+  // Rent namn utan "c:"-prefix eller emoji, med butikens eget namn om det finns.
+  function plainLabel(key: string): string {
+    return categoryLabels[key] ?? defaultLabel(key);
+  }
+  function openCategoryRename(key: string) {
+    setRenameTarget(key);
+    setRenameValue(plainLabel(key));
+    setShowRename(true);
+  }
+  // Tomt eller standardnamnet = inget eget namn.
+  function applyCategoryRename() {
+    if (!renameTarget) return;
+    const v = renameValue.trim();
+    const key = renameTarget;
+    setCategoryLabels(prev => {
+      const next = { ...prev };
+      if (!v || v === defaultLabel(key)) delete next[key]; else next[key] = v;
+      return next;
+    });
+    setDirty(true);
+    setShowRename(false);
   }
   // Namn för rader/etiketter i ren textkontext (slå ihop-modalen,
   // ihopslagnings-pilen, drag-spöket, förslaget).
@@ -507,8 +537,8 @@ export default function StoreDetailScreen() {
   // skärmen blockeras — samma mönster som receptredigeringen, se drafts.ts.
   useEffect(() => {
     if (!store || !dirty) return;
-    storeDrafts.spara(store.id, { parentOrder, expandedSubs, subOrder, categoryMerge });
-  }, [store, dirty, parentOrder, expandedSubs, subOrder, categoryMerge]);
+    storeDrafts.spara(store.id, { parentOrder, expandedSubs, subOrder, categoryMerge, categoryLabels });
+  }, [store, dirty, parentOrder, expandedSubs, subOrder, categoryMerge, categoryLabels]);
 
   // Bara omladdning/stängd flik på web, där ett minnesutkast går förlorat.
   useWebLeaveGuard(dirty);
@@ -525,6 +555,7 @@ export default function StoreDetailScreen() {
         expandedSubs,
         subOrder,
         categoryMerge,
+        categoryLabels,
       });
       setStore(updated);
       setDirty(false);
@@ -671,7 +702,7 @@ export default function StoreDetailScreen() {
   };
 
   // Delas av gammalt och nytt sidhuvud.
-  const oppnaButiksmeny = () => confirm({ variant: 'menu', buttons: [{ label: str.actions.rename, icon: 'pencil-outline', onPress: () => { setRenameValue(store.name); setShowRename(true); } }, { label: str.actions.delete, icon: 'trash-outline', style: 'destructive', onPress: deleteStore }, { label: common.actions.cancel, style: 'cancel' }] });
+  const oppnaButiksmeny = () => confirm({ variant: 'menu', buttons: [{ label: str.actions.rename, icon: 'pencil-outline', onPress: () => { setRenameTarget(null); setRenameValue(store.name); setShowRename(true); } }, { label: str.actions.delete, icon: 'trash-outline', style: 'destructive', onPress: deleteStore }, { label: common.actions.cancel, style: 'cancel' }] });
 
   return (
     <SafeAreaView style={s.container} edges={nyDesign ? ['top', 'left', 'right'] : undefined}>
@@ -746,7 +777,7 @@ export default function StoreDetailScreen() {
         {suggestion && !suggestionDismissed && !dirty && (
           suggestion.changed ? (
             <View style={s.suggestCard}>
-              <Text style={s.suggestTitle}>{str.detail.suggestTitle(suggestion.trips)}</Text>
+              <Text style={s.suggestTitle}>{str.detail.suggestTitle(suggestion.trips, suggestion.otherHouseholds ?? 0)}</Text>
               <Text style={s.sectionSub}>{str.detail.suggestBody}</Text>
               <Text style={s.suggestOrder}>{suggestion.order.map(k => labelWithTag(k)).join(' → ')}</Text>
               <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -823,7 +854,11 @@ export default function StoreDetailScreen() {
                           <View style={{ flex: 1 }}>
                           <View style={[nameColumn(PLACED_NAME_TAKEN), { paddingLeft: cluster ? 40 : 24 }]}>
                             <Text style={[s.subName, s.subNameActive]}>{subLabel}</Text>
-                            {!cluster && <Text style={s.placedFrom} numberOfLines={1}>{str.detail.placedFrom(fromParent)}</Text>}
+                            {!cluster && (
+                              <Text style={s.placedFrom} numberOfLines={1}>
+                                {headings.get(key) ? str.detail.inHeading(plainLabel(headings.get(key)!)) : str.detail.placedFrom(fromParent)}
+                              </Text>
+                            )}
                           </View>
                           </View>
                           <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -897,6 +932,13 @@ export default function StoreDetailScreen() {
                   </View>
                   {isOpen && (
                     <View style={s.subList}>
+                      <Pressable style={s.renameCatRow} onPress={() => openCategoryRename(key)} accessibilityRole="button">
+                        <Ionicons name="pencil-outline" size={15} color={nyDesign ? ny.padYta : c.primary} />
+                        <Text style={s.renameCatText}>
+                          {categoryLabels[key] ? str.detail.renamedFrom(defaultLabel(key)) : str.detail.renameCategory}
+                        </Text>
+                      </Pressable>
+                      {isCustom && <Text style={s.subListHint}>{str.detail.headingHint}</Text>}
                       {renderSubs(key, subs)}
                     </View>
                   )}
@@ -1019,7 +1061,14 @@ export default function StoreDetailScreen() {
         />
       </DraggableBottomSheet>
 
-      <DraggableBottomSheet visible={showRename} onRequestClose={() => setShowRename(false)} isDirty={renameValue.trim() !== store.name.trim()} liftOffset={sheetLift} title={str.renameModal.title}>
+      <DraggableBottomSheet
+        visible={showRename}
+        onRequestClose={() => setShowRename(false)}
+        isDirty={renameValue.trim() !== (renameTarget ? plainLabel(renameTarget) : store.name).trim()}
+        liftOffset={sheetLift}
+        title={renameTarget ? str.detail.renameCategoryTitle : str.renameModal.title}
+        subtitle={renameTarget ? str.detail.renameCategoryHint(defaultLabel(renameTarget)) : undefined}
+      >
             <TextInput
               ref={renameRef}
               onFocus={onFocusInput(renameRef)}
@@ -1028,12 +1077,12 @@ export default function StoreDetailScreen() {
               onChangeText={setRenameValue}
               autoFocus
               returnKeyType="done"
-              onSubmitEditing={renameStore}
+              onSubmitEditing={renameTarget ? applyCategoryRename : renameStore}
             />
             <Pressable
-              style={[s.primaryBtn, (!renameValue.trim() || renaming) && { opacity: 0.4 }]}
-              onPress={renameStore}
-              disabled={renaming || !renameValue.trim()}
+              style={[s.primaryBtn, ((!renameTarget && !renameValue.trim()) || renaming) && { opacity: 0.4 }]}
+              onPress={renameTarget ? applyCategoryRename : renameStore}
+              disabled={renaming || (!renameTarget && !renameValue.trim())}
             >
               {renaming ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{common.actions.save}</Text>}
             </Pressable>
@@ -1102,6 +1151,8 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   placedOutBadgeText: { fontSize: 11, fontWeight: '700', color: nyD ? ny.padYta : c.primary },
   mergeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 14 },
   subNameActive: { color: nyD ? ny.padYta : c.accent, fontWeight: '600' },
+  renameCatRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
+  renameCatText: { fontSize: 13, color: nyD ? ny.padYta : c.primary, fontWeight: '600' },
   placedFrom: { fontSize: 12, color: nyD ? ny.textDampad : c.textMuted, marginTop: 1 },
   subToggle: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: nyD ? ny.kontur : c.border, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
   subToggleActive: { borderColor: nyD ? ny.valdYta : c.accent, backgroundColor: nyD ? ny.valdYta : c.accent },

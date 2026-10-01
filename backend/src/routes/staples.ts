@@ -115,9 +115,7 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   // samma namn i hushållets öppna listor flyttas med, och varje lista får en
   // WS-broadcast så den som står i affären ser raden byta sektion direkt.
   //
-  // Varor med egen lokal placering (customCategory) lämnas
-  // ifred: det är ett uttryckligt val på just den varan och ska inte skrivas
-  // över av ett val på basvaran. Avbockade varor rörs inte heller — de är
+  // Avbockade varor rörs inte — de är
   // redan i kundvagnen och att flytta dem bara får högen att hoppa.
   // Bara ett VAL får flytta varor som redan ligger i listorna. Anropet som
   // följer med varje tillägg bär ingen kategori, och när den gissades fram
@@ -127,7 +125,6 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
     where: {
       name: normalizedName,
       isChecked: false,
-      customCategory: null,
       list: { householdId: body.data.householdId, completedAt: null },
       NOT: { AND: [{ category }, { subCategory }] },
     },

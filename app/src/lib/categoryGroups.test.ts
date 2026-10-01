@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { StoreCategory } from '@veckis/shared';
-import { buildCategoryGroups, placedClusters, placedSubKey, type CategoryGroupItem } from './categoryGroups';
+import { buildCategoryGroups, placedClusters, placedHeadings, placedSubKey, type CategoryGroupItem } from './categoryGroups';
 
 function item(name: string, category: string, extra: Partial<CategoryGroupItem> = {}): CategoryGroupItem {
-  return { name, category, isChecked: false, subCategory: null, customCategory: null, ...extra };
+  return { name, category, isChecked: false, subCategory: null, ...extra };
 }
 
 describe('buildCategoryGroups', () => {
@@ -35,10 +35,37 @@ describe('buildCategoryGroups', () => {
     expect(group.items.map(i => i.name)).toEqual(['Äpple', 'Blåbär', 'Zucchini', 'Okänt']);
   });
 
-  it('lägger custom-kategorier sist', () => {
-    const items = [item('Special', 'other', { customCategory: 'Min hylla' }), item('Mjölk', 'dairy_eggs')];
-    const groups = buildCategoryGroups(items, ['dairy_eggs', 'other'] as StoreCategory[], ['Min hylla']);
-    expect(groups.at(-1)).toMatchObject({ category: 'Min hylla', isCustom: true });
+  describe('egna rubriker (butikens layout, aldrig data på varan)', () => {
+    const order = ['dairy_eggs', 'canned_dry'] as StoreCategory[];
+    const items = [
+      item('Mjölk', 'dairy_eggs'),
+      item('Müsli', 'canned_dry', { subCategory: 'flingor_müsli' }),
+      item('Sylt', 'canned_dry', { subCategory: 'sylt_marmelad' }),
+      item('Pasta', 'canned_dry', { subCategory: 'pasta_nudlar' }),
+    ];
+    const expanded = ['flingor_müsli', 'sylt_marmelad'];
+
+    it('utlyfta underkategorier direkt under en egen rubrik samlas i rubrikens sektion', () => {
+      const po = ['c:Frukost', placedSubKey('flingor_müsli'), placedSubKey('sylt_marmelad'), 'dairy_eggs', 'canned_dry'];
+      const groups = buildCategoryGroups(items, order, ['Frukost'], expanded, po);
+      expect(groups.map(g => g.category)).toEqual(['Frukost', 'dairy_eggs', 'canned_dry']);
+      expect(groups[0]).toMatchObject({ isCustom: true });
+      expect(groups[0].items.map(i => i.name).sort()).toEqual(['Müsli', 'Sylt']);
+      expect(groups[2].items.map(i => i.name)).toEqual(['Pasta']);
+    });
+
+    it('bara underkategorier DIREKT under rubriken hör till den — och de blir inget kluster', () => {
+      const po = ['c:Frukost', placedSubKey('flingor_müsli'), 'dairy_eggs', placedSubKey('sylt_marmelad'), 'canned_dry'];
+      expect([...placedHeadings(po)]).toEqual([[placedSubKey('flingor_müsli'), 'c:Frukost']]);
+      const groups = buildCategoryGroups(items, order, ['Frukost'], expanded, po);
+      expect(groups.map(g => g.category)).toEqual(['Frukost', 'dairy_eggs', 'sylt_marmelad', 'canned_dry']);
+      expect(placedClusters(['c:Frukost', placedSubKey('flingor_müsli'), placedSubKey('honung')]).size).toBe(0);
+    });
+
+    it('en tom rubrik blir ingen sektion', () => {
+      const groups = buildCategoryGroups([item('Mjölk', 'dairy_eggs')], order, ['Frukost'], [], ['c:Frukost', 'dairy_eggs']);
+      expect(groups.map(g => g.category)).toEqual(['dairy_eggs']);
+    });
   });
 
   it('renderar en expanderad sub direkt efter sin parent', () => {

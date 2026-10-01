@@ -16,7 +16,6 @@ function subRank(subCategory: string | null | undefined): number {
 export interface CategoryGroupItem {
   category: string;
   subCategory?: string | null;
-  customCategory?: string | null;
   isChecked: boolean;
   name: string;
 }
@@ -59,6 +58,24 @@ export function placedParentKey(key: string, categoryMerge: Record<string, strin
 }
 
 /**
+ * Egna rubriker i butiken: utlyfta underkategorier som ligger DIREKT efter en
+ * egen kategori ("c:Frukost") i parentOrder hör till den rubriken — i listan
+ * samlas deras varor under rubriken i stället för att bli egna sektioner.
+ * Varorna behåller sin standardkategori; rubriken är bara butikens layout.
+ * Returnerar underkategorins nyckel → rubrikens nyckel.
+ */
+export function placedHeadings(parentOrder: string[]): Map<string, string> {
+  const out = new Map<string, string>();
+  let heading: string | null = null;
+  for (const key of parentOrder) {
+    if (key.startsWith('c:')) heading = key;
+    else if (isPlacedSubKey(key) && heading) out.set(key, heading);
+    else heading = null;
+  }
+  return out;
+}
+
+/**
  * Kluster av fritt placerade underkategorier: två eller fler från SAMMA
  * kategori direkt efter varandra i parentOrder. Avgörs av butiksordningen,
  * inte av vad listan råkar innehålla — annars skulle rubriken byta namn
@@ -71,12 +88,15 @@ export function placedClusters(
 ): Map<string, { parentKey: string; index: number; members: string[] }> {
   const out = new Map<string, { parentKey: string; index: number; members: string[] }>();
   const next = new Map<string, number>();
+  // Underkategorier under en egen rubrik hör till rubriken, inte till ett kluster.
+  const headings = placedHeadings(parentOrder);
+  const free = (key: string) => isPlacedSubKey(key) && !headings.has(key);
   let i = 0;
   while (i < parentOrder.length) {
-    const parent = isPlacedSubKey(parentOrder[i]) ? placedParentKey(parentOrder[i], categoryMerge) : null;
+    const parent = free(parentOrder[i]) ? placedParentKey(parentOrder[i], categoryMerge) : null;
     let j = i + 1;
     if (parent) {
-      while (j < parentOrder.length && isPlacedSubKey(parentOrder[j]) && placedParentKey(parentOrder[j], categoryMerge) === parent) j++;
+      while (j < parentOrder.length && free(parentOrder[j]) && placedParentKey(parentOrder[j], categoryMerge) === parent) j++;
     }
     if (parent && j - i >= 2) {
       const index = next.get(parent) ?? 2;
@@ -104,9 +124,11 @@ function resolveMerge(key: string, categoryMerge: Record<string, string>): strin
 /**
  * Grupperar inköpsvaror i sektioner enligt butikens kategori-ordning.
  *
- * Buckets: egna parents (customCategory), standard-parents (enum) och utbrutna
- * underkategorier (expandedSubs). Subs renderas direkt efter sin parent i
- * butiksordningen.
+ * Buckets: standard-parents (enum), utbrutna underkategorier (expandedSubs)
+ * och egna rubriker ("c:" i parentOrder) — som får sina varor från kategorier
+ * som slagits ihop med dem och från utlyfta underkategorier direkt under dem
+ * (placedHeadings). En vara bär aldrig en egen kategori; den hör alltid till
+ * en standardkategori, och rubriken är bara butikens layout.
  */
 export function buildCategoryGroups<T extends CategoryGroupItem>(
   items: T[],
@@ -122,21 +144,12 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   const subMap = new Map<string, T[]>();
 
   for (const item of items) {
-    const hasCustomParent = !!item.customCategory;
-    // Ihopslagen kategori: bara standard-kategorier kan vara källa (aldrig
-    // customCategory), och resolveMerge är no-op om item.category inte är
-    // en ihopslagen källa. "effectiveKey" är var varan HAMNAR (direkt-hinken
+    // Ihopslagen kategori: resolveMerge är no-op om item.category inte är en
+    // ihopslagen källa. "effectiveKey" är var varan HAMNAR (direkt-hinken
     // ELLER, om den har en utbruten sub, den parentKey subben letar upp sin
     // sektion under) — en ihopslagen kategoris utbrutna subs ärvs alltså av
     // målet i stället för att plattas ut, se subGroupsForParent nedan.
-    const effectiveKey = hasCustomParent ? `c:${item.customCategory}` : resolveMerge(String(item.category), categoryMerge);
-
-    if (hasCustomParent) {
-      const custKey = item.customCategory!;
-      if (!customMap.has(custKey)) customMap.set(custKey, []);
-      customMap.get(custKey)!.push(item);
-      continue;
-    }
+    const effectiveKey = resolveMerge(String(item.category), categoryMerge);
     const sub = item.subCategory ?? null;
     if (sub && expandedSet.has(sub)) {
       if (!subMap.has(sub)) subMap.set(sub, []);
@@ -261,10 +274,13 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   }
 
   const clusters = placedClusters(parentOrder, categoryMerge);
+  const headings = placedHeadings(parentOrder);
   const emittedClusters = new Set<string>();
   const result: CategoryGroup<T>[] = [];
   for (const key of master) {
     if (isPlacedSubKey(key)) {
+      // Hör till en egen rubrik — dess varor läggs ut under rubriken nedan.
+      if (headings.has(key)) continue;
       const cluster = clusters.get(key);
       if (cluster) {
         const id = cluster.members.join('+');
@@ -276,6 +292,15 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
       }
       const g = placedGroups.get(key);
       if (g) result.push(g);
+    } else if (key.startsWith('c:')) {
+      const groups = [...(perKey.get(key) ?? [])];
+      const memberItems = [...headings].filter(([, h]) => h === key).flatMap(([m]) => placedGroups.get(m)?.items ?? []);
+      if (memberItems.length) {
+        const direct = groups.find(g => g.isCustom && !g.isSub);
+        if (direct) direct.items = sortItems([...direct.items, ...memberItems]);
+        else groups.unshift({ category: key.slice(2), isCustom: true, items: sortItems(memberItems) });
+      }
+      result.push(...groups);
     } else {
       result.push(...(perKey.get(key) ?? []));
     }

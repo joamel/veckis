@@ -5,12 +5,38 @@ import {
   type StoreCategory, type SubCategory,
 } from '@veckis/shared';
 import { sortedRestFor } from './subOrder';
+import { placedHeadings } from './categoryGroups';
 
 /** Huvudkategorierna i butikens ordning; de som butiken inte nämner sist, i standardordning. */
 export function browserCategories(categoryOrder: string[]): StoreCategory[] {
   const all = Object.keys(CATEGORY_LABELS) as StoreCategory[];
   const ranked = categoryOrder.filter((c): c is StoreCategory => all.includes(c as StoreCategory));
   return [...new Set([...ranked, ...all])];
+}
+
+/**
+ * Rutorna i väljaren i butikens ordning: standardkategorier och butikens egna
+ * rubriker ("c:Frukost") som har något i sig — utlyfta underkategorier direkt
+ * under rubriken, eller en kategori som slagits ihop med den. En kategori som
+ * slagits ihop med en annan visas inte för sig, precis som i listan.
+ */
+export function browserTiles(parentOrder: string[], categoryOrder: string[], categoryMerge: Record<string, string> = {}): string[] {
+  const all = Object.keys(CATEGORY_LABELS) as StoreCategory[];
+  const headings = placedHeadings(parentOrder);
+  const hasContent = (key: string) => [...headings.values()].includes(key) || Object.values(categoryMerge).includes(key);
+  const tiles: string[] = [];
+  for (const key of parentOrder) {
+    if (key.startsWith('c:') ? hasContent(key) : all.includes(key as StoreCategory) && !categoryMerge[key]) tiles.push(key);
+  }
+  for (const cat of browserCategories(categoryOrder)) {
+    if (!tiles.includes(cat) && !categoryMerge[cat]) tiles.push(cat);
+  }
+  return tiles;
+}
+
+/** Underkategorierna som hör till en egen rubrik, i butikens ordning. */
+export function headingSubs(heading: string, parentOrder: string[]): SubCategory[] {
+  return [...placedHeadings(parentOrder)].filter(([, h]) => h === heading).map(([k]) => k.slice(2) as SubCategory);
 }
 
 /**

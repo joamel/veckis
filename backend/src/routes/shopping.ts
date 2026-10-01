@@ -91,7 +91,6 @@ const addItemSchema = z.object({
   unit: z.string().optional(),
   category: categoryEnum.default('other'),
   subCategory: z.string().nullable().optional(),
-  customCategory: z.string().max(40).nullable().optional(),
   note: z.string().optional(),
 });
 
@@ -101,7 +100,6 @@ const updateItemSchema = z.object({
   unit: z.string().nullable().optional(),
   category: categoryEnum.optional(),
   subCategory: z.string().nullable().optional(),
-  customCategory: z.string().max(40).nullable().optional(),
   note: z.string().nullable().optional(),
 });
 
@@ -333,19 +331,15 @@ async function läggTillVara(
   // SubCategory är källan till sanning i 2-nivå-taxonomin. Auto-infer från
   // namnet om kallaren inte angav. Category härleds från sub:ens defaultParent
   // — kallaren kan override:a via data.category om de redan vet.
-  // Hushålls-lokal placering (egen kategori) → hoppa över auto-
-  // inferens av standard-sub OCH den globala inlärningen; det är rena lokala
-  // etiketter som inte ska påverka cross-household-datan.
-  const isLocalPlacement = !!data.customCategory;
+  // Egna kategorier på varan finns inte längre (2026-09-30): en vara hör
+  // alltid till en standardkategori, och egna rubriker är butikens layout.
   // Hushållets egen basvara går före auto-inferensen. inferSubCategory är en
   // gissning på namnet, och en gissning ska aldrig slå ett val någon gjort för
   // hand — det var precis vad som hände: satte man kategori i basvaru-editorn
   // ignorerades den tyst för varje namn som råkade ha en underkategori
   // ("aubergine", "bröd"), medan namn utan ("avokado", "bacon") respekterades.
   // Utifrån såg det ut som att ändringen slog igenom ibland och ibland inte.
-  const inferredSub = isLocalPlacement
-    ? (data.subCategory ?? null)
-    : (data.subCategory ?? staplePref?.subCategory ?? inferSubCategory(normalizedName));
+  const inferredSub = data.subCategory ?? staplePref?.subCategory ?? inferSubCategory(normalizedName);
   const subCategory = inferredSub ?? null;
   const category = data.category !== 'other'
     ? data.category
@@ -398,7 +392,7 @@ async function läggTillVara(
       // och inte som 0,75 av något annat.
       data: { quantity: existing.quantity + (svensk.quantity ?? 1) },
     });
-    if (!isLocalPlacement) learnIngredientAliases([{ name: normalizedName, category }], list.householdId).catch(() => {});
+    learnIngredientAliases([{ name: normalizedName, category }], list.householdId).catch(() => {});
     if (notifiera) notifyActiveShopper(list, clerkUserId, item.name).catch(() => {});
     bcast(list, { type: 'item_updated', data: item });
     return { item, sammanslagen: true };
@@ -417,7 +411,7 @@ async function läggTillVara(
     },
   });
 
-  if (!isLocalPlacement) learnIngredientAliases([{ name: normalizedName, category }], list.householdId).catch(() => {});
+  learnIngredientAliases([{ name: normalizedName, category }], list.householdId).catch(() => {});
   if (notifiera) notifyActiveShopper(list, clerkUserId, item.name).catch(() => {});
   bcast(list, { type: 'item_added', data: item });
   return { item, sammanslagen: false };
@@ -630,9 +624,8 @@ shoppingRouter.patch('/items/:itemId', requireAuth, asyncHandler(async (req, res
     // Spegla valet i hushållets basvara. Utan det sa de två vägarna emot
     // varandra: redigerade man varan i listan skrevs varan och det globala
     // aliaset, men inte basvaran — som sedan vann vid nästa tillägg och
-    // flyttade tillbaka varan. Ren lokal placering (egen kategori) speglas
-    // inte, den hör till just den varan.
-    if (!item.customCategory) {
+    // flyttade tillbaka varan.
+    {
       // upsert, inte updateMany: finns ingen basvara med namnet uppdaterade
       // updateMany noll rader utan att säga något, och valet var borta vid
       // nästa tillägg. Varan kunde ha kommit från ett recept eller ett

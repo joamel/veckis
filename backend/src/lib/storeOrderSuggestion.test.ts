@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sectionKeyFor, splitTrips, suggestStoreOrder, type CheckEventLike } from './storeOrderSuggestion';
+import { sectionKeyFor, splitTrips, suggestStoreOrder, type CheckEventLike, eventsForSuggestion } from './storeOrderSuggestion';
 
 const now = new Date('2026-09-29T12:00:00Z');
 const min = 60_000;
@@ -72,5 +72,27 @@ describe('sectionKeyFor', () => {
     expect(sectionKeyFor(e({ category: 'canned_dry', subCategory: 'konserver' }), store)).toBe('canned_dry');
     expect(sectionKeyFor(e({ category: 'other', customCategory: 'Barn' }), store)).toBe('c:Barn');
     expect(sectionKeyFor(e({ category: 'snacks_sweets' }), store)).toBe('canned_dry');
+  });
+});
+
+describe('eventsForSuggestion', () => {
+  const ev = (storeId: string, customCategory: string | null = null) =>
+    ({ storeId, shopperKey: `k-${storeId}`, checkedAt: new Date(), bulk: false, category: 'dairy_eggs', subCategory: null, customCategory });
+
+  it('tar med andra hushåll i samma butik när minst två bidrar', () => {
+    const r = eventsForSuggestion([ev('mine')], [ev('a'), ev('b')]);
+    expect(r.otherHouseholds).toBe(2);
+    expect(r.events).toHaveLength(3);
+  });
+
+  it('ett enda annat hushåll räknas inte — dess väg ska inte gå att läsa ut', () => {
+    const r = eventsForSuggestion([ev('mine')], [ev('a'), ev('a')]);
+    expect(r.otherHouseholds).toBe(0);
+    expect(r.events).toHaveLength(1);
+  });
+
+  it('andra hushålls egna kategorier räknas aldrig', () => {
+    const r = eventsForSuggestion([], [ev('a', 'Barn'), ev('b', 'Hund'), ev('c')]);
+    expect(r.otherHouseholds).toBe(0);
   });
 });

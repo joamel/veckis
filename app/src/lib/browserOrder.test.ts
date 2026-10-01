@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { browserCategories, browserSubs, browserSections } from './browserOrder';
+import { browserCategories, browserSubs, browserSections, browserTiles, headingSubs } from './browserOrder';
 
 describe('browserCategories', () => {
   it('följer butikens ordning och lägger resten sist', () => {
@@ -40,5 +40,21 @@ describe('browserSections', () => {
   it('hushållets valda underkategori vinner över gissningen', () => {
     const sections = browserSections([{ name: 'salsa', subCategory: 'sås_dressing' }], ['taco_texmex', 'sås_dressing']);
     expect(sections[0].sub).toBe('sås_dressing');
+  });
+});
+
+describe('browserTiles', () => {
+  it('följer butikens ordning med egna rubriker som har innehåll', () => {
+    const po = ['dairy_eggs', 'c:Frukost', 's:flingor_müsli', 'c:Tom', 'canned_dry'];
+    const tiles = browserTiles(po, ['dairy_eggs', 'canned_dry']);
+    expect(tiles.slice(0, 3)).toEqual(['dairy_eggs', 'c:Frukost', 'canned_dry']);
+    expect(tiles).not.toContain('c:Tom');
+    expect(headingSubs('c:Frukost', po)).toEqual(['flingor_müsli']);
+  });
+
+  it('en ihopslagen kategori visas inte för sig, men gör målrubriken synlig', () => {
+    const tiles = browserTiles(['c:Barn', 'baby_kids', 'dairy_eggs'], [], { baby_kids: 'c:Barn' });
+    expect(tiles).toContain('c:Barn');
+    expect(tiles).not.toContain('baby_kids');
   });
 });

@@ -1107,7 +1107,15 @@ export const stores = {
     placeFreely: 'Placera fritt bland kategorierna',
     placeBack:   (parent: string) => `Lägg tillbaka under ${parent}`,
     placedFrom:  (parent: string) => `från ${parent}`,
-    suggestTitle:    (trips: number) => `Förslag från era ${trips} handlingar`,
+    inHeading:   (heading: string) => `i ${heading}`,
+    renameCategory:      'Byt namn i den här butiken',
+    renamedFrom:         (standard: string) => `Eget namn i den här butiken (${standard}) – ändra`,
+    renameCategoryTitle: 'Namn i den här butiken',
+    renameCategoryHint:  (standard: string) => `Som på skylten i butiken. Lämna tomt för "${standard}". Varorna behåller sin kategori.`,
+    headingHint: 'En egen rubrik i butiken. Lyft ut underkategorier och dra dem direkt under rubriken — deras varor hamnar då här i listan. Varorna behåller sin kategori.',
+    suggestTitle:    (trips: number, otherHouseholds: number) => otherHouseholds > 0
+      ? `Förslag från ${trips} handlingar – era och ${otherHouseholds} andra hushålls i samma butik`
+      : `Förslag från era ${trips} handlingar`,
     suggestBody:     'Så här brukar ni gå genom butiken. Det du ändrat själv skrivs över om du använder förslaget — spara för att behålla det.',
     suggestUse:      'Använd',
     suggestDismiss:  'Inte nu',
@@ -1116,7 +1124,7 @@ export const stores = {
     mergedHint:  'Kategorier som slagits ihop med en annan i den här butiken. Varorna behåller sin kategori — de grupperas bara under en annan rubrik här.',
     subHint:     (parent: string) => `Bocka i det som ska bli en egen sektion i listan. Resten hamnar under ${parent}.`,
     saveButton:  'Spara ändringar',
-    customCatPlaceholder: '＋ Ny egen kategori',
+    customCatPlaceholder: '＋ Ny egen rubrik',
     mergeAction: 'Slå ihop kategorier',
     mergeModal: {
       pickTitle: 'Vilken kategori ska slås ihop?',

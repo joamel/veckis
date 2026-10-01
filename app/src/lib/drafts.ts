@@ -46,6 +46,8 @@ export interface StoreDraft {
   expandedSubs: string[];
   subOrder: string[];
   categoryMerge: Record<string, string>;
+  /** Saknas i utkast sparade före 2026-09-30. */
+  categoryLabels?: Record<string, string>;
 }
 
 export const storeDrafts = createDraftStore<StoreDraft>();

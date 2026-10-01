@@ -5,7 +5,7 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { positionForPostcode, searchSharedStores, type SharedStoreRow } from '../lib/sharedStores';
-import { sectionKeyFor, suggestStoreOrder } from '../lib/storeOrderSuggestion';
+import { eventsForSuggestion, sectionKeyFor, suggestStoreOrder } from '../lib/storeOrderSuggestion';
 
 export const storesRouter = Router();
 
@@ -39,6 +39,9 @@ const parentOrderSchema = z.array(z.string().min(1).max(120)).max(100).transform
 // begränsning som "dölj"); målet kan vara valfri parentOrder-nyckel (standard
 // ELLER "c:<egen kategori>").
 const categoryMergeSchema = z.record(categoryEnum, z.string().min(1).max(60)).optional();
+// Butikens egna namn på kategorier och rubriker: { StoreCategory | "c:<rubrik>": namn }.
+// Bara rubriken — varans kategori är densamma i alla butiker.
+const categoryLabelsSchema = z.record(z.string().min(1).max(60), z.string().min(1).max(40)).refine(r => Object.keys(r).length <= 60).optional();
 
 const createStoreSchema = z.object({
   householdId: z.string(),
@@ -60,6 +63,7 @@ const updateStoreSchema = z.object({
   subOrder: subOrderSchema,
   parentOrder: parentOrderSchema,
   categoryMerge: categoryMergeSchema,
+  categoryLabels: categoryLabelsSchema,
   // Koppling till butiksbanken; null = egen butik.
   sharedStoreId: z.string().max(40).nullable().optional(),
 });
@@ -138,9 +142,9 @@ storesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (
 }));
 
 // GET /api/stores/:storeId/order-suggestion — föreslagen sektionsordning ur
-// hushållets egna bockar i butiken (steg 4, se lib/storeOrderSuggestion.ts).
-// Bara den här butikens händelser: att räkna ihop flera hushåll i samma
-// gemensamma butik kräver att datadelningen deklarerats i Play Console först.
+// bockarna i butiken (steg 4, se lib/storeOrderSuggestion.ts): hushållets
+// egna, och — för en butik ur butiksbanken — andra hushålls i samma butik
+// (bara standardkategorier, och bara när minst två andra hushåll bidrar).
 storesRouter.get('/:storeId/order-suggestion', requireAuth, asyncHandler(async (req, res) => {
   const store = await prisma.store.findUnique({ where: { id: req.params.storeId } });
   if (!store) { res.status(404).json({ error: 'Store not found' }); return; }
@@ -153,16 +157,20 @@ storesRouter.get('/:storeId/order-suggestion', requireAuth, asyncHandler(async (
     ? store.parentOrder
     : [...store.categoryOrder, ...((store.customCategories as string[] | null) ?? []).map(c => `c:${c}`)];
   const categoryMerge = (store.categoryMerge ?? {}) as Record<string, string>;
-  const events = await prisma.shoppingCheckEvent.findMany({
-    where: { storeId: store.id },
-    select: { shopperKey: true, checkedAt: true, bulk: true, category: true, subCategory: true, customCategory: true },
-  });
-  const suggestion = suggestStoreOrder(
-    events.map(e => ({ shopperKey: e.shopperKey, checkedAt: e.checkedAt, bulk: e.bulk, section: sectionKeyFor(e, { parentOrder, categoryMerge }) })),
-    parentOrder,
-    new Date(),
-  );
-  res.json(suggestion);
+  const select = { storeId: true, shopperKey: true, checkedAt: true, bulk: true, category: true, subCategory: true, customCategory: true } as const;
+  const own = await prisma.shoppingCheckEvent.findMany({ where: { storeId: store.id }, select });
+  const otherStores = store.sharedStoreId
+    ? await prisma.store.findMany({ where: { sharedStoreId: store.sharedStoreId, id: { not: store.id } }, select: { id: true } })
+    : [];
+  const others = otherStores.length
+    ? await prisma.shoppingCheckEvent.findMany({ where: { storeId: { in: otherStores.map(s => s.id) }, customCategory: null }, select })
+    : [];
+  const { events, otherHouseholds } = eventsForSuggestion(own, others);
+  const toSection = (e: typeof own[number]) => ({ shopperKey: e.shopperKey, checkedAt: e.checkedAt, bulk: e.bulk, section: sectionKeyFor(e, { parentOrder, categoryMerge }) });
+  const suggestion = suggestStoreOrder(events.map(toSection), parentOrder, new Date());
+  // Hushållets egna handlingar, så appen kan säga hur mycket som är era.
+  const ownTrips = suggestStoreOrder(own.map(toSection), parentOrder, new Date()).trips;
+  res.json({ ...suggestion, ownTrips, otherHouseholds });
 }));
 
 // PATCH /api/stores/:storeId

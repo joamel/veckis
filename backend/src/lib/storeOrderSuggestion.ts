@@ -22,6 +22,9 @@ export type CheckEventLike = {
 };
 
 export const TRIP_GAP_MS = 45 * 60 * 1000;
+/** Andra hushålls bockar räknas bara när minst så många bidrar — ett enda
+ *  annat hushålls väg genom butiken ska aldrig gå att läsa ut ur förslaget. */
+export const MIN_OTHER_HOUSEHOLDS = 2;
 export const MIN_TRIPS = 3;
 export const MIN_SECTION_TRIPS = 2;
 const HALF_LIFE_DAYS = 30;
@@ -96,6 +99,30 @@ export function suggestStoreOrder(events: CheckEventLike[], currentOrder: string
   let next = 0;
   const order = currentOrder.map(k => (avg.has(k) ? sortedKnown[next++] : k));
   return { trips: trips.length, order, changed: order.some((k, i) => k !== currentOrder[i]), known: knownInOrder.length };
+}
+
+export type RawCheckEvent = {
+  storeId: string;
+  shopperKey: string;
+  checkedAt: Date;
+  bulk: boolean;
+  category: string;
+  subCategory: string | null;
+  customCategory: string | null;
+};
+
+/**
+ * Bockarna ett förslag bygger på: det egna hushållets, plus andra hushålls i
+ * SAMMA butik ur butiksbanken. Från andra hushåll räknas bara standardkategorier
+ * och -underkategorier — en egen kategori är deras, och säger inget om den här
+ * butikens hyllor. Andra hushåll tas med först när minst MIN_OTHER_HOUSEHOLDS
+ * bidrar. shopperKey är pseudonym per butik, så handlingarna hålls isär.
+ */
+export function eventsForSuggestion(own: RawCheckEvent[], others: RawCheckEvent[]): { events: RawCheckEvent[]; otherHouseholds: number } {
+  const standard = others.filter(e => !e.customCategory);
+  const otherHouseholds = new Set(standard.map(e => e.storeId)).size;
+  if (otherHouseholds < MIN_OTHER_HOUSEHOLDS) return { events: own, otherHouseholds: 0 };
+  return { events: [...own, ...standard], otherHouseholds };
 }
 
 /**

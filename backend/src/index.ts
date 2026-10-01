@@ -58,6 +58,10 @@ if (!corsAllowlist.includes('*')) {
 // signaturverifieringen kräver den oparsade body:n.
 app.use('/api/webhooks/clerk', express.raw({ type: 'application/json' }), clerkWebhookRouter);
 app.use(express.json({ limit: '20mb' }));
+// Positionen i butikssökningen (?lat=&lon=) används bara för stunden och ska
+// inte sparas i loggarna — det är så den deklareras i Play Consoles
+// datasäkerhet (ungefärlig plats, tillfällig behandling).
+morgan.token('url', req => ((req as { originalUrl?: string }).originalUrl ?? req.url ?? '').replace(/([?&](?:lat|lon)=)[^&]*/g, '$1-'));
 app.use(morgan(isDev ? 'dev' : 'combined'));
 // Klienten skickar Idempotency-Key på muterande anrop och kan nu retry:a dem
 // säkert vid nätverksfel — om servern redan behandlat samma nyckel spelas

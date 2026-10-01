@@ -42,9 +42,6 @@ export interface ShoppingItem {
    *  härleds vid skapande från sub:ens defaultParent men kan override:as per
    *  item. Värdet är en `SubCategory` från `shared/lib/taxonomy.ts`. */
   subCategory: string | null;
-  /** Hushålls-lokal egen PARENT-kategori (fri sträng). Matar aldrig den globala
-   *  kategori-inlärningen — rent lokal placering. */
-  customCategory: string | null;
   isChecked: boolean;
   checkedBy: string | null;
   addedBy: string;
@@ -87,6 +84,10 @@ export interface Store {
   /** Ordning för STANDARD-subs som INTE är utbrutna (ej i expandedSubs) — så
    *  sorteringen kan förberedas innan en sub visas som egen sektion. */
   subOrder: string[];
+  /** Butikens egna namn på kategorier och rubriker: { nyckel: namn } där
+   *  nyckeln är en StoreCategory eller "c:<rubrik>". Bara rubriken — varans
+   *  kategori är densamma i alla butiker. */
+  categoryLabels: Record<string, string>;
   /** Kategori-ihopslagning: { sourceCategory: targetKey }. sourceCategory
    *  (alltid en riktig StoreCategory) slås ihop med targetKey (StoreCategory
    *  ELLER "c:<egen kategori>") vid visning — varans egen category ändras
