@@ -115,7 +115,8 @@ adminRouter.get('/category-votes', asyncHandler(async (req, res) => {
   const staples = await prisma.stapleItem.findMany({
     select: { householdId: true, name: true, category: true, categoryChosen: true, subCategory: true },
   });
-  const rows = categoryVotes(staples, min);
+  const curated = new Set((await prisma.curatedCategory.findMany({ select: { name: true } })).map(c => c.name));
+  const rows = categoryVotes(staples, min, curated);
   res.json({ basvaror: staples.length, oense: rows.length, rader: rows.slice(0, 200) });
 }));
 
@@ -171,12 +172,12 @@ adminRouter.post('/curated/preview', asyncHandler(async (req, res) => {
 
 // PUT /api/admin/curated — skriv klassningen; moveItems flyttar obockade varor i öppna listor.
 adminRouter.put('/curated', asyncHandler(async (req, res) => {
-  const body = curationSchema.extend({ moveItems: z.boolean().default(false) }).safeParse(req.body);
+  const body = curationSchema.extend({ moveItems: z.boolean().default(false), resetChoices: z.boolean().default(false) }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
   const fel = validateCuration(body.data);
   if (fel) { res.status(400).json({ error: fel }); return; }
   const { clerkUserId } = req as AuthenticatedRequest;
-  const result = await applyCuration(body.data, { clerkUserId }, body.data.moveItems);
+  const result = await applyCuration(body.data, { clerkUserId }, body.data.moveItems, body.data.resetChoices);
   // Den som står i butiken ska se varan byta sektion direkt.
   if (result.itemIds.length) {
     const moved = await prisma.shoppingItem.findMany({ where: { id: { in: result.itemIds } }, include: { list: { select: { householdId: true } } } });

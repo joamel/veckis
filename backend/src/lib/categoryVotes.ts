@@ -32,6 +32,8 @@ export type CategoryVoteRow = {
   categories: { category: string; households: number }[];
   /** Hushållens valda underkategorier (bara de som valt någon), flest först. */
   subCategories: { subCategory: string; households: number }[];
+  /** Adminen har redan klassat namnet — det som återstår är hushållens egna val. */
+  curatedByAdmin: boolean;
 };
 
 /** Den kurerade kedjan (categorizeIngredient), utan hushållets eget val. */
@@ -44,7 +46,7 @@ const tally = (values: string[]) =>
     .map(([value, households]) => ({ value, households }))
     .sort((a, b) => b.households - a.households || a.value.localeCompare(b.value, 'sv'));
 
-export function categoryVotes(staples: StapleChoice[], minDisagreeing = 1): CategoryVoteRow[] {
+export function categoryVotes(staples: StapleChoice[], minDisagreeing = 1, adminCurated: Set<string> = new Set()): CategoryVoteRow[] {
   const byName = new Map<string, Map<string, StapleChoice>>();
   for (const s of staples) {
     const name = s.name.toLowerCase().trim();
@@ -73,8 +75,9 @@ export function categoryVotes(staples: StapleChoice[], minDisagreeing = 1): Cate
       disagreeing,
       // Bara valda kategorier — en sparad gissning är ingen röst.
       categories: tally(choices.filter(c => c.categoryChosen !== false).map(c => String(c.category))).map(t => ({ category: t.value, households: t.households })),
+      curatedByAdmin: adminCurated.has(name),
       subCategories: tally(choices.flatMap(c => (c.subCategory ? [c.subCategory] : []))).map(t => ({ subCategory: t.value, households: t.households })),
     });
   }
-  return rows.sort((a, b) => b.disagreeing - a.disagreeing || b.households - a.households || a.name.localeCompare(b.name, 'sv'));
+  return rows.sort((a, b) => Number(a.curatedByAdmin) - Number(b.curatedByAdmin) || b.disagreeing - a.disagreeing || b.households - a.households || a.name.localeCompare(b.name, 'sv'));
 }

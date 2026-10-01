@@ -1799,6 +1799,7 @@ export const admin = {
   },
   rows: {
     disagree:  (oense: number, alla: number) => `${oense} av ${alla} hushåll oense`,
+    curatedTag: 'klassad av dig — hushållens egna val återstår',
     seen:      (n: number) => `sedd ${n} gånger`,
     choices:   (lista: string) => `valt: ${lista}`,
     household: (datum: string, medlemmar: number, recept: number, listor: number, varor: number, meny: number) =>
@@ -1871,6 +1872,8 @@ export const admin = {
     subCategory:  'Underkategori',
     none:         'Ingen',
     moveItems:    'Flytta varor som redan ligger i öppna listor',
+    resetChoices: 'Gäller även hushåll som valt annat själva',
+    resetChoicesHint: (n: number) => `${n} hushåll har valt en annan kategori. Slå på om deras val egentligen var ett fel — annars gäller deras val för dem.`,
     suggestionNote: 'Ett klassat namn föreslås också i sökningen och kategoriväljaren för alla hushåll.',
     preview:      'Förhandsvisa',
     save:         'Spara klassningen',

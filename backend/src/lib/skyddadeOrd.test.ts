@@ -19,3 +19,16 @@ describe('konserver får inte kortas till den färska varan', () => {
     expect(categorizeIngredient('tomat')).toBe('fruit_veg');
   });
 });
+
+describe('burk som enhet tas bort innan skyddet gäller', () => {
+  it('pluralformer och en mängd efter kommat', async () => {
+    const { stripIngredient } = await import('./stripIngredient');
+    // Samma namn som utan mängd (rensningen böjer dessutom till singular).
+    expect(stripIngredient('2 burkar kikärtor')).toBe(stripIngredient('kikärtor'));
+    expect(stripIngredient('kikärtor, 1 burk')).toBe(stripIngredient('kikärtor'));
+    expect(stripIngredient('1 burk krossade tomater')).toBe('krossade tomater');
+    // Men burk som del av varan står kvar.
+    expect(stripIngredient('burkmajs')).toBe('burkmajs');
+    expect(stripIngredient('majs på burk')).toBe('majs på burk');
+  });
+});

@@ -73,6 +73,7 @@ export default function AdminScreen() {
           title: v.name,
           meta: [
             str.rows.disagree(v.disagreeing, v.households),
+            v.curatedByAdmin ? str.rows.curatedTag : null,
             answer(v.curated.category, v.curated.subCategory),
             v.categories.length ? str.rows.choices(v.categories.map(c => `${catLabel(c.category)} ×${c.households}`).join(', ')) : null,
           ].filter(Boolean).join(' · '),
@@ -288,6 +289,7 @@ function ClassifySheet({ name, onClose, onChanged }: { name: string | null; onCl
   const [category, setCategory] = useState<StoreCategory>('other');
   const [subCategory, setSubCategory] = useState<string | null>(null);
   const [moveItems, setMoveItems] = useState(true);
+  const [resetChoices, setResetChoices] = useState(false);
   const [impact, setImpact] = useState<AdminCurationImpact | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -301,7 +303,8 @@ function ClassifySheet({ name, onClose, onChanged }: { name: string | null; onCl
   }, [name, client, showError, onClose]);
 
   // Ett nytt val gör förhandsvisningen inaktuell.
-  useEffect(() => { setImpact(null); }, [category, subCategory, moveItems]);
+  useEffect(() => { setImpact(null); }, [category, subCategory, moveItems, resetChoices]);
+  useEffect(() => { setResetChoices(false); }, [name]);
 
   async function preview() {
     if (!report) return;
@@ -315,7 +318,7 @@ function ClassifySheet({ name, onClose, onChanged }: { name: string | null; onCl
     if (!report) return;
     setBusy(true);
     try {
-      const r = await client.adminCurate({ name: report.name, category, subCategory, moveItems });
+      const r = await client.adminCurate({ name: report.name, category, subCategory, moveItems, resetChoices });
       showToast(str.sheet.saved(r.name, r.itemsMoved), 'success');
       onChanged();
       onClose();
@@ -336,6 +339,8 @@ function ClassifySheet({ name, onClose, onChanged }: { name: string | null; onCl
   }
 
   const subs = subsForParent(category);
+  // Hushåll som valt en annan kategori än den som väljs här.
+  const differingChoices = report ? report.choices.filter(ch => ch.category !== category).reduce((sum, ch) => sum + ch.households, 0) : 0;
 
   return (
     <DraggableBottomSheet visible={!!name} onRequestClose={onClose} title={name ?? ''} sheetStyle={{ maxHeight: '90%' }}>
@@ -381,6 +386,15 @@ function ClassifySheet({ name, onClose, onChanged }: { name: string | null; onCl
             <Text style={[s.rowTitle, { flex: 1 }]}>{str.sheet.moveItems}</Text>
             <Switch value={moveItems} onValueChange={setMoveItems} trackColor={{ true: ny.skog }} />
           </View>
+          {differingChoices > 0 && (
+            <>
+              <View style={s.switchRow}>
+                <Text style={[s.rowTitle, { flex: 1 }]}>{str.sheet.resetChoices}</Text>
+                <Switch value={resetChoices} onValueChange={setResetChoices} trackColor={{ true: ny.skog }} />
+              </View>
+              <Text style={s.meta}>{str.sheet.resetChoicesHint(differingChoices)}</Text>
+            </>
+          )}
 
           <Text style={[s.meta, { marginTop: 8 }]}>{str.sheet.suggestionNote}</Text>
 

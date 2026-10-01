@@ -115,6 +115,7 @@ export interface AdminVoteRow {
   disagreeing: number;
   categories: { category: string; households: number }[];
   subCategories: { subCategory: string; households: number }[];
+  curatedByAdmin: boolean;
 }
 export interface AdminClassifyReport {
   name: string;
@@ -716,7 +717,7 @@ export function useApiClient() {
       request<{ name: string; category: string; subCategory: string | null; updatedAt: string }[]>('/api/admin/curated'),
     adminCurationPreview: (data: { name: string; category: StoreCategory; subCategory: string | null }) =>
       request<AdminCurationImpact>('/api/admin/curated/preview', { method: 'POST', body: JSON.stringify(data) }),
-    adminCurate: (data: { name: string; category: StoreCategory; subCategory: string | null; moveItems: boolean }) =>
+    adminCurate: (data: { name: string; category: StoreCategory; subCategory: string | null; moveItems: boolean; resetChoices?: boolean }) =>
       request<{ name: string; itemsMoved: number }>('/api/admin/curated', { method: 'PUT', body: JSON.stringify(data) }),
     adminNames: (q = '') =>
       request<{ totalt: number; rader: { name: string; weight: number; junk: string | null }[] }>(`/api/admin/names${q ? `?q=${encodeURIComponent(q)}` : ''}`),

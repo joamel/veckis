@@ -89,8 +89,8 @@ export async function curationImpact(input: CurationInput) {
  * Varor som flyttas: obockade, i öppna listor, med namnet, i ett hushåll som
  * INTE själv valt kategori för varan, och som inte redan ligger rätt.
  */
-async function movableItems(name: string, input: CurationInput) {
-  const chosen = await prisma.stapleItem.findMany({ where: { name, categoryChosen: true }, select: { householdId: true } });
+async function movableItems(name: string, input: CurationInput, includeChosen = false) {
+  const chosen = includeChosen ? [] : await prisma.stapleItem.findMany({ where: { name, categoryChosen: true }, select: { householdId: true } });
   const chosenHouseholds = chosen.map(c => c.householdId);
   return prisma.shoppingItem.findMany({
     where: {
@@ -104,10 +104,18 @@ async function movableItems(name: string, input: CurationInput) {
   });
 }
 
-export async function applyCuration(input: CurationInput, actor: { clerkUserId: string; name?: string | null }, moveItems: boolean) {
+/**
+ * resetChoices: klassningen gäller även hushåll som valt annat själva — deras
+ * val blir en gissning igen. För när "valet" egentligen var ett fel, som
+ * tomat under Torrvaror efter att "krossade tomater" kortats till "tomat".
+ */
+export async function applyCuration(input: CurationInput, actor: { clerkUserId: string; name?: string | null }, moveItems: boolean, resetChoices = false) {
   const name = curatedKey(input.name);
   const before = await prisma.curatedCategory.findUnique({ where: { name } });
-  const items = moveItems ? await movableItems(name, input) : [];
+  const items = moveItems ? await movableItems(name, input, resetChoices) : [];
+  const resetStaples = resetChoices
+    ? (await prisma.stapleItem.updateMany({ where: { name, categoryChosen: true }, data: { category: input.category, categoryChosen: false, subCategory: input.subCategory } })).count
+    : 0;
   await prisma.$transaction([
     prisma.curatedCategory.upsert({
       where: { name },
@@ -134,6 +142,7 @@ export async function applyCuration(input: CurationInput, actor: { clerkUserId: 
           before: before ? { category: before.category, subCategory: before.subCategory } : null,
           after: { category: input.category, subCategory: input.subCategory },
           itemsMoved: items.length,
+          resetChoices: resetStaples,
         },
       },
     }),

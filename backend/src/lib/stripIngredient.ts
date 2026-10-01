@@ -125,8 +125,8 @@ const PREP_WORDS = new Set([
 // ("kg potatis" → "potatis"). Håll i synk med parserns unit-lista i recipes.ts.
 const UNITS = new Set([
   'dl', 'ml', 'l', 'liter', 'cl', 'msk', 'tsk', 'krm', 'g', 'kg', 'hg', 'st', 'port',
-  'burk', 'förp', 'förpackning', 'förpackningar', 'pkt', 'paket', 'påse', 'ask',
-  'kartong', 'näve', 'skiva', 'skivor',
+  'burk', 'burkar', 'förp', 'förpackning', 'förpackningar', 'pkt', 'paket', 'påse', 'påsar', 'ask', 'askar',
+  'kartong', 'kartonger', 'flaska', 'flaskor', 'tub', 'tuber', 'näve', 'nävar', 'skiva', 'skivor',
   'cup', 'cups', 'tsp', 'tbsp', 'teaspoon', 'teaspoons', 'tablespoon', 'tablespoons',
   'oz', 'ounce', 'ounces', 'lb', 'lbs', 'pound', 'pounds',
   'pint', 'pints', 'quart', 'quarts', 'gallon', 'gallons',
@@ -284,7 +284,11 @@ export function stripIngredient(raw: string): string {
   if (commaIdx > 0) {
     const afterComma = s.slice(commaIdx + 1).trim().toLowerCase();
     const firstWord = afterComma.split(/\s+/)[0];
-    if (!firstWord || PREP_WORDS.has(firstWord)) {
+    // "kikärtor, 1 burk": en ren mängd efter kommat hör inte till namnet. Den
+    // måste bort här — "burk" är ett skyddat ord (burkmajs är inte majs), och
+    // en mängd som blev kvar gick då inte att korta bort senare.
+    const baraMängd = afterComma.split(/\s+/).every(w => ärMängdOrd(w));
+    if (!firstWord || PREP_WORDS.has(firstWord) || baraMängd) {
       s = s.slice(0, commaIdx).trim();
     }
   }
