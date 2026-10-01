@@ -1800,6 +1800,10 @@ export const admin = {
   rows: {
     disagree:  (oense: number, alla: number) => `${oense} av ${alla} hushåll oense`,
     curatedTag: 'klassad av dig — hushållens egna val återstår',
+    choicesSub: (lista: string) => `valt underkategori: ${lista}`,
+    showCurated: (n: number) => `Visa ${n} som du redan klassat`,
+    hideCurated: 'Dölj de du redan klassat',
+    curatedHidden: 'Namn du redan klassat visas inte: där återstår bara hushållens egna val. Öppna ett och slå på "Gäller även hushåll som valt annat själva" om deras val var ett fel.',
     seen:      (n: number) => `sedd ${n} gånger`,
     choices:   (lista: string) => `valt: ${lista}`,
     household: (datum: string, medlemmar: number, recept: number, listor: number, varor: number, meny: number) =>

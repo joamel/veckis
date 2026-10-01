@@ -48,6 +48,9 @@ export default function AdminScreen() {
   const [classifyName, setClassifyName] = useState<string | null>(null);
   const [nameTarget, setNameTarget] = useState<{ name: string; suggestedName?: string } | null>(null);
   const [nameQuery, setNameQuery] = useState('');
+  // Oense: namn du redan klassat döljs som standard — där återstår bara hushållens egna val.
+  const [showCurated, setShowCurated] = useState(false);
+  const [curatedCount, setCuratedCount] = useState(0);
   const [job, setJob] = useState<AdminJob | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedNames, setSelectedNames] = useState<Set<string>>(new Set());
@@ -67,7 +70,8 @@ export default function AdminScreen() {
     try {
       if (t === 'votes') {
         const r = await client.adminCategoryVotes(1);
-        setRows(r.rader.map((v: AdminVoteRow) => ({
+        setCuratedCount(r.rader.filter(v => v.curatedByAdmin).length);
+        setRows(r.rader.filter(v => showCurated || !v.curatedByAdmin).map((v: AdminVoteRow) => ({
           key: v.name,
           name: v.name,
           title: v.name,
@@ -76,6 +80,7 @@ export default function AdminScreen() {
             v.curatedByAdmin ? str.rows.curatedTag : null,
             answer(v.curated.category, v.curated.subCategory),
             v.categories.length ? str.rows.choices(v.categories.map(c => `${catLabel(c.category)} ×${c.households}`).join(', ')) : null,
+            v.subCategories.length ? str.rows.choicesSub(v.subCategories.map(c => `${subLabel(c.subCategory)} ×${c.households}`).join(', ')) : null,
           ].filter(Boolean).join(' · '),
         })));
       } else if (t === 'gaps') {
@@ -117,7 +122,7 @@ export default function AdminScreen() {
       setRows([]);
       showError(e, str.empty);
     }
-  }, [client, showError]);
+  }, [client, showError, showCurated]);
 
   useEffect(() => { if (isAdmin) load(tab); }, [isAdmin, tab, load]);
   useEffect(() => { setSelectMode(false); setSelectedNames(new Set()); }, [tab]);
@@ -221,6 +226,14 @@ export default function AdminScreen() {
                 <Pressable onPress={deleteSelected}><Text style={s.dangerText}>{str.batch.delete(selectedNames.size)}</Text></Pressable>
               </>
             )}
+          </View>
+        )}
+        {tab === 'votes' && curatedCount > 0 && (
+          <View style={{ marginBottom: 12 }}>
+            {!showCurated && <Text style={s.meta}>{str.rows.curatedHidden}</Text>}
+            <Pressable onPress={() => setShowCurated(v => !v)} style={{ marginTop: 6 }}>
+              <Text style={s.linkText}>{showCurated ? str.rows.hideCurated : str.rows.showCurated(curatedCount)}</Text>
+            </Pressable>
           </View>
         )}
         {summary && <Text style={s.summary}>{summary}</Text>}
