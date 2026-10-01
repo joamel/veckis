@@ -1,21 +1,15 @@
 /**
  * Visar OM det skapats nya hushåll sedan ett datum, och hur mycket de hunnit
- * använda appen — i antal, aldrig i innehåll.
+ * göra. Samma lista finns på adminsidan (Nya hushåll); logiken ligger i
+ * src/lib/adminCuration.ts.
  *
- * Finns för att se om Play-granskarna provade appen på riktigt. Visar inga
- * personuppgifter: inga namn, e-postadresser, hushållsnamn eller
- * recepttitlar, bara datum och antal. Läser bara — ändrar ingenting.
+ *   npm run ... -- 2026-09-17   (utan datum: två veckor bakåt)
  *
- * Användning (PowerShell, från backend/):
- *   $env:DATABASE_URL = "postgresql://..."     # Railways DATABASE_PUBLIC_URL
- *   npx tsx scripts/new-households.ts 2026-09-17
- *
- * Utan datum visas de senaste 14 dagarna.
+ * Läser bara. Kör mot prod genom att peka DATABASE_URL dit.
  */
-import { PrismaClient } from '@prisma/client';
 import { visaMåldatabas } from './visaDb';
-
-const prisma = new PrismaClient({ log: ['error'] });
+import { prisma } from '../src/db';
+import { newHouseholds } from '../src/lib/adminCuration';
 
 const argDate = process.argv[2];
 const since = argDate ? new Date(argDate) : new Date(Date.now() - 14 * 24 * 3600 * 1000);
@@ -24,42 +18,18 @@ if (Number.isNaN(since.getTime())) {
   process.exit(1);
 }
 
-function date(d: Date): string {
-  return d.toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm' });
-}
+const date = (iso: string) => new Date(iso).toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm' });
 
 async function main() {
   visaMåldatabas();
-  console.log(`Hushåll skapade sedan ${date(since)}\n`);
-
-  const households = await prisma.household.findMany({
-    where: { createdAt: { gte: since } },
-    orderBy: { createdAt: 'asc' },
-    select: {
-      id: true,
-      createdAt: true,
-      _count: { select: { members: true, recipes: true, shoppingLists: true, weekMenuItems: true } },
-    },
+  console.log(`Hushåll skapade sedan ${date(since.toISOString())}\n`);
+  const rows = await newHouseholds(since);
+  if (rows.length === 0) { console.log('Inga nya hushåll.'); return; }
+  rows.forEach((h, i) => {
+    console.log(`Hushåll ${i + 1}: skapat ${date(h.createdAt)} — ${h.members} medlem(mar), ${h.recipes} recept, ${h.lists} listor, ${h.items} varor, ${h.menuItems} menyrätter`);
   });
-
-  if (households.length === 0) {
-    console.log('Inga nya hushåll.');
-    return;
-  }
-
-  let i = 0;
-  for (const h of households) {
-    i++;
-    const items = await prisma.shoppingItem.count({ where: { list: { householdId: h.id } } });
-    const c = h._count;
-    console.log(
-      `Hushåll ${i}: skapat ${date(h.createdAt)} — ` +
-      `${c.members} medlem(mar), ${c.recipes} recept, ${c.shoppingLists} listor, ${items} varor, ${c.weekMenuItems} menyrätter`,
-    );
-  }
-
-  const used = households.filter(h => h._count.recipes + h._count.shoppingLists + h._count.weekMenuItems > 0).length;
-  console.log(`\n${households.length} nya hushåll, varav ${used} har skapat något.`);
+  const used = rows.filter(h => h.recipes + h.lists + h.menuItems > 0).length;
+  console.log(`\n${rows.length} nya hushåll, varav ${used} har skapat något.`);
 }
 
 main()

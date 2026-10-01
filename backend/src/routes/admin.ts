@@ -7,6 +7,7 @@ import { StoreCategory } from '@prisma/client';
 import { applyCuration, classifyReport, curateCandidates, curationImpact, newHouseholds, removeCuration, validateCuration } from '../lib/adminCuration';
 import { wsListUpdate } from '../lib/wsHub';
 import { allNames, deleteIngredient, junkReason, nameImpact, renameIngredient, suggestNameCleanup } from '../lib/nameCleanup';
+import { CLEANUP_JOBS, findJob } from '../lib/cleanupJobs';
 import type { AuthenticatedRequest } from '../middleware/auth';
 import { requireAuth, requireAppAdmin } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
@@ -226,6 +227,32 @@ adminRouter.post('/names/delete', asyncHandler(async (req, res) => {
   const body = z.object({ name: z.string().min(1).max(500) }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
   res.json(await deleteIngredient(body.data.name, { clerkUserId: (req as AuthenticatedRequest).clerkUserId }));
+}));
+
+// --- Adminsidan steg 4: städjobb (samma som städskripten) ---
+
+// GET /api/admin/jobs — jobben som kan köras.
+adminRouter.get('/jobs', (_req, res) => {
+  res.json(CLEANUP_JOBS.map(({ id, title, description, usesAi }) => ({ id, title, description, usesAi })));
+});
+
+// POST /api/admin/jobs/:id/plan — förslagen, utan att ändra något.
+adminRouter.post('/jobs/:id/plan', asyncHandler(async (req, res) => {
+  const job = findJob(req.params.id);
+  if (!job) { res.status(404).json({ error: 'Okänt jobb' }); return; }
+  const plan = await job.plan();
+  res.json({ total: plan.rows.length, rows: plan.rows.slice(0, 500), note: plan.note ?? null });
+}));
+
+// POST /api/admin/jobs/:id/apply { rows: [{ key, to }] } — skriver de valda raderna.
+// Jobbet kontrollerar varje rad själv; det klienten skickar är bara ett urval.
+adminRouter.post('/jobs/:id/apply', asyncHandler(async (req, res) => {
+  const job = findJob(req.params.id);
+  if (!job) { res.status(404).json({ error: 'Okänt jobb' }); return; }
+  const body = z.object({ rows: z.array(z.object({ key: z.string().min(1).max(600), to: z.string().max(600) })).min(1).max(500) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+  const summary = await job.apply(body.data.rows, { clerkUserId: (req as AuthenticatedRequest).clerkUserId });
+  res.json({ summary });
 }));
 
 async function scrapeIngredients(url: string): Promise<string[]> {

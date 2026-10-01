@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CATEGORY_LABELS, SUB_TAXONOMY, subsForParent, type StoreCategory, type SubCategory } from '@veckis/shared';
 import { useTheme } from '../src/context/ThemeContext';
 import { useToast } from '../src/context/ToastContext';
-import { useApiClient, type AdminClassifyReport, type AdminCurationImpact, type AdminNameImpact, type AdminVoteRow } from '../src/api/client';
+import { useApiClient, type AdminClassifyReport, type AdminCurationImpact, type AdminJob, type AdminJobRow, type AdminNameImpact, type AdminVoteRow } from '../src/api/client';
 import { Pressable } from '../src/components/Pressable';
 import { DraggableBottomSheet } from '../src/components/DraggableBottomSheet';
 import { NyHeader } from '../src/components/nydesign/NyHeader';
@@ -19,13 +19,13 @@ import { useBottomGap } from '../src/hooks/useBottomGap';
 import { nyFont, type NyPalett } from '../src/lib/nyDesign';
 import { admin as str, common } from '../src/lib/svenska';
 
-type Tab = 'votes' | 'gaps' | 'candidates' | 'curated' | 'names' | 'cleanup' | 'households';
-const TABS: Tab[] = ['votes', 'gaps', 'candidates', 'curated', 'names', 'cleanup', 'households'];
+type Tab = 'votes' | 'gaps' | 'candidates' | 'curated' | 'names' | 'cleanup' | 'jobs' | 'households';
+const TABS: Tab[] = ['votes', 'gaps', 'candidates', 'curated', 'names', 'cleanup', 'jobs', 'households'];
 /** Flikar där en rad öppnar namnarket (byt namn/radera) i stället för klassningen. */
 const NAME_TABS: Tab[] = ['names', 'cleanup'];
 
 /** En rad i en lista: ett namn att klassa eller städa, eller (nya hushåll) bara information. */
-type Row = { key: string; title: string; meta: string; name?: string; suggestedName?: string };
+type Row = { key: string; title: string; meta: string; name?: string; suggestedName?: string; job?: AdminJob };
 
 const catLabel = (key: string) => CATEGORY_LABELS[key as StoreCategory] ?? key;
 const subLabel = (key: string | null) => (key ? SUB_TAXONOMY[key as SubCategory]?.label ?? key : null);
@@ -47,6 +47,7 @@ export default function AdminScreen() {
   const [classifyName, setClassifyName] = useState<string | null>(null);
   const [nameTarget, setNameTarget] = useState<{ name: string; suggestedName?: string } | null>(null);
   const [nameQuery, setNameQuery] = useState('');
+  const [job, setJob] = useState<AdminJob | null>(null);
 
   useEffect(() => {
     client.getIsAppAdmin().then(r => setIsAdmin(r.isAdmin)).catch(() => setIsAdmin(false));
@@ -88,6 +89,9 @@ export default function AdminScreen() {
           suggestedName: n.action === 'rename' ? n.to : undefined,
           meta: `${str.rows.weight(n.weight)} · ${n.action === 'rename' ? str.rows.suggestRename(n.to, n.reason) : str.rows.suggestDelete(n.reason)}`,
         })));
+      } else if (t === 'jobs') {
+        const r = await client.adminJobs();
+        setRows(r.map(j => ({ key: j.id, title: j.title, meta: j.description, job: j })));
       } else if (t === 'curated') {
         const r = await client.adminCurated();
         setRows(r.map(k => ({ key: k.name, name: k.name, title: k.name, meta: answer(k.category, k.subCategory) })));
@@ -107,6 +111,7 @@ export default function AdminScreen() {
   // Stabila, så arket inte hämtar om (och nollställer valen) vid varje omritning.
   const closeSheet = useCallback(() => setClassifyName(null), []);
   const closeNameSheet = useCallback(() => setNameTarget(null), []);
+  const closeJobSheet = useCallback(() => setJob(null), []);
   const reloadTab = useCallback(() => load(tab, tab === 'names' ? nameQuery.trim() : ''), [load, tab, nameQuery]);
   const openClassify = useCallback((name: string) => { setNameTarget(null); setClassifyName(name); }, []);
 
@@ -175,16 +180,18 @@ export default function AdminScreen() {
               <Pressable
                 key={r.key}
                 style={[s.row, i > 0 && s.rowBorder]}
-                onPress={r.name
-                  ? () => (NAME_TABS.includes(tab) ? setNameTarget({ name: r.name!, suggestedName: r.suggestedName }) : setClassifyName(r.name!))
-                  : undefined}
-                disabled={!r.name}
+                onPress={r.job
+                  ? () => setJob(r.job!)
+                  : r.name
+                    ? () => (NAME_TABS.includes(tab) ? setNameTarget({ name: r.name!, suggestedName: r.suggestedName }) : setClassifyName(r.name!))
+                    : undefined}
+                disabled={!r.name && !r.job}
               >
                 <View style={{ flex: 1 }}>
                   <Text style={s.rowTitle}>{r.title}</Text>
                   <Text style={s.meta}>{r.meta}</Text>
                 </View>
-                {r.name && <Ionicons name="chevron-forward" size={16} color={ny.kontur} />}
+                {(r.name || r.job) && <Ionicons name="chevron-forward" size={16} color={ny.kontur} />}
               </Pressable>
             ))}
           </View>
@@ -196,6 +203,7 @@ export default function AdminScreen() {
         onClose={closeSheet}
         onChanged={reloadTab}
       />
+      <JobSheet job={job} onClose={closeJobSheet} />
       <NameSheet
         target={nameTarget}
         onClose={closeNameSheet}
@@ -336,6 +344,111 @@ function ClassifySheet({ name, onClose, onChanged }: { name: string | null; onCl
               <Text style={s.linkText}>{common.actions.cancel}</Text>
             </Pressable>
           </View>
+        </ScrollView>
+      )}
+    </DraggableBottomSheet>
+  );
+}
+
+/**
+ * Ett städjobb: förhandsvisa förslagen, bocka ur det som inte ska med, kör.
+ * Backenden kontrollerar varje vald rad igen innan den skrivs.
+ */
+function JobSheet({ job, onClose }: { job: AdminJob | null; onClose: () => void }) {
+  const { ny } = useTheme();
+  const s = useMemo(() => makeStyles(ny), [ny]);
+  const client = useApiClient();
+  const { showToast, showError } = useToast();
+
+  const [plan, setPlan] = useState<{ total: number; rows: AdminJobRow[]; note: string | null } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { setPlan(null); setSelected(new Set()); }, [job]);
+
+  async function preview() {
+    if (!job) return;
+    setBusy(true);
+    try {
+      const p = await client.adminJobPlan(job.id);
+      setPlan(p);
+      setSelected(new Set(p.rows.map(r => r.key)));
+    } catch (e) { showError(e, str.jobSheet.preview); }
+    finally { setBusy(false); }
+  }
+
+  async function run() {
+    if (!job || !plan) return;
+    const rows = plan.rows.filter(r => selected.has(r.key)).map(r => ({ key: r.key, to: r.to }));
+    if (!rows.length) return;
+    setBusy(true);
+    try {
+      const r = await client.adminJobApply(job.id, rows);
+      showToast(r.summary, 'success');
+      onClose();
+    } catch (e) { showError(e, str.jobSheet.run(rows.length)); }
+    finally { setBusy(false); }
+  }
+
+  const toggle = (key: string) => setSelected(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  return (
+    <DraggableBottomSheet visible={!!job} onRequestClose={onClose} title={job?.title ?? ''} sheetStyle={{ maxHeight: '90%' }}>
+      {job && (
+        <ScrollView style={{ flexShrink: 1 }}>
+          <Text style={s.meta}>{job.description}</Text>
+          {job.usesAi && <Text style={[s.meta, { marginTop: 6 }]}>{str.jobSheet.aiNote}</Text>}
+
+          {!plan ? (
+            <View style={s.actions}>
+              <Pressable style={[s.secondaryBtn, busy && { opacity: 0.5 }]} onPress={preview} disabled={busy}>
+                {busy ? <ActivityIndicator color={ny.lime} /> : <Text style={s.secondaryBtnText}>{str.jobSheet.preview}</Text>}
+              </Pressable>
+            </View>
+          ) : plan.rows.length === 0 ? (
+            <Text style={[s.summary, { marginTop: 16 }]}>{str.jobSheet.nothing}{plan.note ? ` ${plan.note}` : ''}</Text>
+          ) : (
+            <>
+              <Text style={[s.summary, { marginTop: 16 }]}>{str.jobSheet.total(plan.rows.length, plan.total)}{plan.note ? ` ${plan.note}` : ''}</Text>
+              <View style={s.selectRow}>
+                <Pressable onPress={() => setSelected(new Set(plan.rows.map(r => r.key)))}><Text style={s.linkText}>{str.jobSheet.selectAll}</Text></Pressable>
+                <Pressable onPress={() => setSelected(new Set())}><Text style={s.linkText}>{str.jobSheet.selectNone}</Text></Pressable>
+              </View>
+              <View style={s.group}>
+                {plan.rows.map((r, i) => {
+                  const on = selected.has(r.key);
+                  return (
+                    <Pressable
+                      key={r.key}
+                      style={[s.row, i > 0 && s.rowBorder]}
+                      onPress={() => toggle(r.key)}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: on }}
+                      accessibilityLabel={str.jobSheet.rowA11y(r.label, on)}
+                    >
+                      <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? ny.skog : ny.kontur} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.rowTitle}>{r.label}</Text>
+                        <Text style={s.meta}>{r.table} · {r.from} → {r.to}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={s.actions}>
+                <Pressable style={[s.primaryBtn, (busy || selected.size === 0) && { opacity: 0.5 }]} onPress={run} disabled={busy || selected.size === 0}>
+                  {busy ? <ActivityIndicator color={ny.skog} /> : <Text style={s.primaryBtnText}>{str.jobSheet.run(selected.size)}</Text>}
+                </Pressable>
+              </View>
+            </>
+          )}
+          <Pressable style={s.linkBtn} onPress={onClose} disabled={busy}>
+            <Text style={s.linkText}>{common.actions.cancel}</Text>
+          </Pressable>
         </ScrollView>
       )}
     </DraggableBottomSheet>
@@ -500,6 +613,7 @@ const makeStyles = (ny: NyPalett) => StyleSheet.create({
   linkBtn: { padding: 10, alignItems: 'center' },
   linkText: { color: ny.padYta, fontSize: 15, fontFamily: nyFont.halvfet },
   dangerText: { color: ny.fara, fontSize: 15, fontFamily: nyFont.halvfet },
+  selectRow: { flexDirection: 'row', gap: 16, marginBottom: 8 },
   dangerBtn: { backgroundColor: ny.fara, borderRadius: 14, padding: 16, alignItems: 'center' },
   dangerBtnText: { color: ny.kort, fontSize: 16, fontFamily: nyFont.fet },
 });

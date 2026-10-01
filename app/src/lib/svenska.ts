@@ -1784,6 +1784,7 @@ export const admin = {
     curated:    'Klassningar',
     names:      'Namn',
     cleanup:    'Städförslag',
+    jobs:       'Städjobb',
     households: 'Nya hushåll',
   },
   tabHint: {
@@ -1793,6 +1794,7 @@ export const admin = {
     curated:    'Dina handskrivna klassningar. De går före alla regler i koden.',
     names:      'Alla varunamn i den gemensamma poolen och hushållens basvaror, mest sedda först. Rätta stavfel, slå ihop eller radera.',
     cleanup:    'Det städskripten föreslår: rader som inte är varor, mängder som fastnat i namnet och stavningsvarianter av samma vara.',
+    jobs:       'Städskripten som knappar. Förhandsvisa, bocka ur det du inte vill ha och kör. Ingenting ändras förrän du trycker Kör.',
     households: 'Hushåll skapade de senaste två veckorna, och hur mycket de hunnit göra.',
   },
   rows: {
@@ -1818,6 +1820,16 @@ export const admin = {
     ingen:         'ingen regel — hamnar under Övrigt',
   } as Record<string, string>,
   nameFilter: 'Filtrera namn…',
+  jobSheet: {
+    aiNote:      'Förhandsvisningen frågar en språkmodell. Den tar en stund och kostar en slant.',
+    preview:     'Förhandsvisa',
+    nothing:     'Inget att göra — allt ser redan bra ut.',
+    total:       (visade: number, alla: number) => (visade < alla ? `Visar ${visade} av ${alla} förslag.` : `${alla} förslag.`),
+    selectAll:   'Välj alla',
+    selectNone:  'Välj inga',
+    run:         (n: number) => `Kör ${n} valda`,
+    rowA11y:     (namn: string, vald: boolean) => `${namn}, ${vald ? 'vald' : 'inte vald'}`,
+  },
   nameSheet: {
     usage:        (alias: number, basvaror: number, hushåll: number) => `Finns i ${alias} rader i den gemensamma poolen och som basvara i ${hushåll} hushåll (${basvaror} rader).`,
     newName:      'Nytt namn',
