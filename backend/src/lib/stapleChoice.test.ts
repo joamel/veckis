@@ -18,7 +18,7 @@ describe('looksLikeGuess', () => {
   });
 
   it('en kategori som varken klassaren eller aliaset sa är ett val', () => {
-    expect(looksLikeGuess('bacon', 'deli_charcuterie', 'meat_fish')).toBe(false);
+    expect(looksLikeGuess('mjölk', 'frozen', 'dairy_eggs')).toBe(false);
     expect(looksLikeGuess('keso', 'dairy_eggs', null)).toBe(true); // lika med den nya klassaren
     expect(looksLikeGuess('blorp', 'frozen', null)).toBe(false);
   });

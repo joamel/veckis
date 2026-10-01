@@ -7,7 +7,8 @@ describe('känndKategori — other är inte ett svar', () => {
     // varför de hamnade under Övrigt globalt: aliaset föddes som 'other' ur
     // ett importerat recept och vann sedan över klassaren vid varje tillägg.
     expect(känndKategori('other', 'avokado')).toBe('fruit_veg');
-    expect(känndKategori('other', 'bacon')).toBe('meat_fish');
+    // Bacon står i chark-disken (underkategorin Korv & charcuteri).
+    expect(känndKategori('other', 'bacon')).toBe('deli_charcuterie');
     expect(känndKategori(undefined, 'bröd')).toBe('bread_bakery');
   });
 

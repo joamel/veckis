@@ -201,7 +201,13 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
     // Aliasets kategori föddes med klassarens gissning på sin tid; den
     // kurerade kedjan (underkategorin före aliaset) avgör vad som visas.
     ...cleanAliases.map(a => ({ name: a.canonical, category: categorizeWithStored(a.canonical, a.category) as string, subCategory: curatedSubCategory(a.canonical) })),
-    ...common.map(c => ({ name: c.name, category: c.category as string, subCategory: curatedSubCategory(c.name) })),
+    // Klassarens kategori, med listans som reserv: listan skrevs för hand en
+    // gång och har inte följt med när reglerna rättats (kaffe, ärtor), och då
+    // visades varan på ett ställe i kategoriväljaren men hamnade på ett annat.
+    ...common.map(c => {
+      const classified = categorizeIngredient(c.name);
+      return { name: c.name, category: (classified !== 'other' ? classified : c.category) as string, subCategory: curatedSubCategory(c.name) };
+    }),
     ...curated.map(k => ({ name: k.name, category: k.category as string, subCategory: curatedSubCategory(k.name) })),
   ]);
 }));

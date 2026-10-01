@@ -39,6 +39,7 @@ export type SubCategory =
   // Mejeri & ägg
   | 'mjölk'
   | 'yoghurt_fil'
+  | 'drickyoghurt_mellanmål'
   | 'smör_margarin'
   | 'ost'
   | 'grädde'
@@ -56,6 +57,7 @@ export type SubCategory =
   | 'frysta_bär_frukt'
   | 'glass'
   | 'fryst_kött_fågel'
+  | 'fryst_köttbullar_chark'
   | 'fryst_fisk'
   | 'frysta_färdigrätter'
   | 'fryst_bröd_deg'
@@ -65,6 +67,7 @@ export type SubCategory =
   | 'pasta_nudlar'
   | 'ris_gryn'
   | 'konserver'
+  | 'soppor_mos'
   | 'baljväxter'
   | 'mjöl_bakingredienser'
   | 'olja_vinäger'
@@ -75,6 +78,7 @@ export type SubCategory =
   | 'honung'
   | 'kaffe_te'
   | 'taco_texmex'
+  | 'världens_mat'
   // Snacks & godis
   | 'godis'
   | 'choklad'
@@ -98,6 +102,7 @@ export type SubCategory =
   | 'tvättmedel'
   | 'ytrengöring'
   | 'städredskap'
+  | 'folie_matförvaring'
   | 'toalett_hushållspapper'
   // Hygien & personvård
   | 'tandvård'
@@ -139,7 +144,7 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   fläsk: { defaultParent: 'meat_fish', alsoUnder: [], label: 'Fläsk' },
   kyckling_fågel: { defaultParent: 'meat_fish', alsoUnder: [], label: 'Kyckling & fågel' },
   färs: { defaultParent: 'meat_fish', alsoUnder: [], label: 'Färs' },
-  fisk: { defaultParent: 'meat_fish', alsoUnder: [], label: 'Fisk' },
+  fisk: { defaultParent: 'meat_fish', alsoUnder: [], label: 'Fisk & skaldjur' },
   skaldjur: { defaultParent: 'meat_fish', alsoUnder: [], label: 'Skaldjur' },
   färdiga_såser_kylda: { defaultParent: 'meat_fish', alsoUnder: ['canned_dry'], label: 'Färdiga såser (kylda)' },
   // Chark & deli (egen parent)
@@ -155,12 +160,14 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   matlagningsost: { defaultParent: 'cheese', alsoUnder: [], label: 'Matlagningsost' },
   // Mejeri & ägg
   mjölk: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Mjölk' },
-  yoghurt_fil: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Yoghurt & fil' },
+  yoghurt_fil: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Yoghurt, fil & kvarg' },
+  // Drickyoghurt, puddingar och andra mellanmål — egen hylla i mejeridisken.
+  drickyoghurt_mellanmål: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Drickyoghurt & mellanmål' },
   smör_margarin: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Smör & margarin' },
-  grädde: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Grädde' },
+  grädde: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Grädde & crème fraiche' },
   ägg: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Ägg' },
   laktosfritt: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Laktosfritt' },
-  mejerisubstitut: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Mejerisubstitut (havre, soja)' },
+  mejerisubstitut: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Mejerisubstitut' },
   // Bröd & bageri
   bröd: { defaultParent: 'bread_bakery', alsoUnder: [], label: 'Bröd' },
   knäckebröd_skorpor: { defaultParent: 'bread_bakery', alsoUnder: [], label: 'Knäckebröd & skorpor' },
@@ -172,8 +179,10 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   frysta_bär_frukt: { defaultParent: 'frozen', alsoUnder: [], label: 'Bär & frukt' },
   glass: { defaultParent: 'frozen', alsoUnder: [], label: 'Glass' },
   fryst_kött_fågel: { defaultParent: 'frozen', alsoUnder: [], label: 'Kött & fågel' },
+  // Köttbullar, nuggets, pannbiffar — färdigt kött i frysdisken.
+  fryst_köttbullar_chark: { defaultParent: 'frozen', alsoUnder: [], label: 'Köttbullar & charkprodukter' },
   fryst_fisk: { defaultParent: 'frozen', alsoUnder: [], label: 'Fisk' },
-  frysta_färdigrätter: { defaultParent: 'frozen', alsoUnder: [], label: 'Färdigrätter' },
+  frysta_färdigrätter: { defaultParent: 'frozen', alsoUnder: [], label: 'Färdigrätter & enportionsrätter' },
   fryst_bröd_deg: { defaultParent: 'frozen', alsoUnder: [], label: 'Bröd & deg' },
   fryst_vegetariskt: { defaultParent: 'frozen', alsoUnder: ['special_diet'], label: 'Vegetariskt' },
   fryst_glutenfritt: { defaultParent: 'frozen', alsoUnder: ['special_diet'], label: 'Glutenfritt' },
@@ -184,17 +193,21 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   // tortillabröd, skal, kryddmix och salsa står ihop. Står tidigt eftersom
   // nyckelordningen här är standardordningen i butiksvyn.
   taco_texmex: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Taco & Tex-Mex' },
+  // Asiatiskt, indiskt och annat ur "världens mat"-hyllan: currypasta, kokosmjölk, fisksås.
+  världens_mat: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Världens mat' },
   konserver: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Konserver' },
+  // Pulversoppor och potatismos — står ihop med pasta och ketchup i många butiker.
+  soppor_mos: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Soppor & mos' },
   baljväxter: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Baljväxter' },
-  mjöl_bakingredienser: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Mjöl & bakingredienser' },
+  mjöl_bakingredienser: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Mjöl, socker & bakmix' },
   olja_vinäger: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Olja & vinäger' },
   kryddor_buljong: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Kryddor & buljong' },
-  sås_dressing: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Sås & dressing (skafferi)' },
-  nötter_frön_torra: { defaultParent: 'canned_dry', alsoUnder: ['snacks_sweets'], label: 'Nötter & frön (torra)' },
+  sås_dressing: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Såser, dressing & pastasås' },
+  nötter_frön_torra: { defaultParent: 'canned_dry', alsoUnder: ['snacks_sweets'], label: 'Nötter, frön & torkad frukt' },
   flingor_müsli: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Frukostflingor & müsli' },
   honung: { defaultParent: 'canned_dry', alsoUnder: ['bread_bakery'], label: 'Honung' },
   // Kaffe & te — i svenska butiker i torrvaru-/skafferigången, inte kyldiskarna
-  kaffe_te: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Kaffe & te' },
+  kaffe_te: { defaultParent: 'canned_dry', alsoUnder: [], label: 'Kaffe, te & chokladdryck' },
   // Snacks & godis
   godis: { defaultParent: 'snacks_sweets', alsoUnder: [], label: 'Godis' },
   choklad: { defaultParent: 'snacks_sweets', alsoUnder: [], label: 'Choklad' },
@@ -202,10 +215,11 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   naturgodis: { defaultParent: 'snacks_sweets', alsoUnder: ['canned_dry'], label: 'Naturgodis & hälsosnacks' },
   // Drycker
   läsk: { defaultParent: 'beverages', alsoUnder: [], label: 'Läsk' },
-  juice: { defaultParent: 'beverages', alsoUnder: [], label: 'Juice' },
+  // Kyld juice står i mejeridisken i svenska butiker; kan placeras bland dryckerna.
+  juice: { defaultParent: 'dairy_eggs', alsoUnder: ['beverages'], label: 'Juice' },
   vatten: { defaultParent: 'beverages', alsoUnder: [], label: 'Vatten' },
   sport_energidryck: { defaultParent: 'beverages', alsoUnder: [], label: 'Sport- & energidryck' },
-  saft_koncentrat: { defaultParent: 'beverages', alsoUnder: [], label: 'Saft & koncentrat' },
+  saft_koncentrat: { defaultParent: 'beverages', alsoUnder: ['canned_dry'], label: 'Saft & koncentrat' },
   alkoholfritt_öl_cider: { defaultParent: 'beverages', alsoUnder: [], label: 'Alkoholfritt öl & cider' },
   alkoholhaltigt: { defaultParent: 'beverages', alsoUnder: [], label: 'Alkoholhaltigt' },
   // Specialkost (egen parent)
@@ -218,6 +232,8 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   tvättmedel: { defaultParent: 'cleaning', alsoUnder: [], label: 'Tvättmedel' },
   ytrengöring: { defaultParent: 'cleaning', alsoUnder: [], label: 'Ytrengöring' },
   städredskap: { defaultParent: 'cleaning', alsoUnder: [], label: 'Städredskap' },
+  // Folie, bakplåtspapper, fryspåsar och matlådor — ibland i städgången, ibland vid torrvarorna.
+  folie_matförvaring: { defaultParent: 'cleaning', alsoUnder: ['canned_dry'], label: 'Folie, påsar & matförvaring' },
   toalett_hushållspapper: { defaultParent: 'cleaning', alsoUnder: [], label: 'Toalett- & hushållspapper' },
   // Hygien & personvård
   tandvård: { defaultParent: 'personal_care', alsoUnder: [], label: 'Tandvård' },
@@ -227,14 +243,14 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   mediciner: { defaultParent: 'personal_care', alsoUnder: [], label: 'Mediciner & sjukvård' },
   smink_kosmetika: { defaultParent: 'personal_care', alsoUnder: [], label: 'Smink & kosmetika' },
   // Baby & barn (egen parent)
-  baby_barn: { defaultParent: 'baby_kids', alsoUnder: [], label: 'Baby & barn (övrigt)' },
+  baby_barn: { defaultParent: 'baby_kids', alsoUnder: [], label: 'Babytillbehör' },
   barnmat: { defaultParent: 'baby_kids', alsoUnder: [], label: 'Barnmat & välling' },
   blöjor: { defaultParent: 'baby_kids', alsoUnder: ['personal_care'], label: 'Blöjor & våtservetter' },
   // Övrigt
   husdjur: { defaultParent: 'other', alsoUnder: [], label: 'Husdjur' },
   blommor_växter: { defaultParent: 'other', alsoUnder: [], label: 'Blommor & växter' },
   hushållsvaror: { defaultParent: 'other', alsoUnder: [], label: 'Hushållsvaror' },
-  batteri_elektronik: { defaultParent: 'other', alsoUnder: [], label: 'Batteri & elektronik' },
+  batteri_elektronik: { defaultParent: 'other', alsoUnder: [], label: 'Batterier, lampor & elektronik' },
 };
 
 /** Alla sub-värden — för enum-iteration. */

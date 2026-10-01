@@ -101,8 +101,8 @@ describe('inferSubCategory — torkat', () => {
     expect(inferSubCategory('torkad timjan')).toBe('kryddor_buljong');
     expect(inferSubCategory('timjan')).toBe('örter_sallad');
     expect(inferSubCategory('torkad oregano')).toBe('kryddor_buljong');
-    // Torkad frukt är varken färsk frukt eller krydda — ingen gissning.
-    expect(inferSubCategory('torkade aprikoser')).toBeNull();
+    // Torkad frukt står med nötterna och fröna, inte bland den färska frukten.
+    expect(inferSubCategory('torkade aprikoser')).toBe('nötter_frön_torra');
   });
 });
 
@@ -111,5 +111,24 @@ describe('inferSubCategory — ärtor', () => {
     expect(inferSubCategory('ärtor')).toBe('frysta_grönsaker');
     expect(parentForSub('frysta_grönsaker')).toBe('frozen');
     expect(inferSubCategory('sockerärtor')).not.toBe('frysta_grönsaker');
+  });
+});
+
+describe('inferSubCategory — Coops gångar (2026-10-01)', () => {
+  it('nya underkategorier', () => {
+    expect(inferSubCategory('drickyoghurt')).toBe('drickyoghurt_mellanmål');
+    expect(inferSubCategory('köttbullar')).toBe('fryst_köttbullar_chark');
+    expect(inferSubCategory('currypasta')).toBe('världens_mat');
+    expect(inferSubCategory('kokosmjölk')).toBe('världens_mat');
+    expect(inferSubCategory('potatismos')).toBe('soppor_mos');
+    expect(inferSubCategory('bakplåtspapper')).toBe('folie_matförvaring');
+  });
+
+  it('bredare befintliga', () => {
+    expect(inferSubCategory('vegoburgare')).toBe('fryst_vegetariskt');
+    expect(inferSubCategory('fiskpinnar')).toBe('fryst_fisk');
+    expect(inferSubCategory('russin')).toBe('nötter_frön_torra');
+    expect(inferSubCategory('pastasås')).toBe('sås_dressing');
+    expect(inferSubCategory('batterier')).toBe('batteri_elektronik');
   });
 });
