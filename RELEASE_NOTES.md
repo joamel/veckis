@@ -9,9 +9,9 @@ uppdatera från Play.
 
 ## Play Store — kort "Vad är nytt" (klistra in i Play Console)
 
-> Importera varor från en inköpslapp: fota den, välj en bild eller klistra in text. Recept visar tillagningstid, receptbilden går att zooma, taggar går att fästa, och menyn har tre nya måltider: mellanmål, fika och förrätt. Listan synkar igen efter att telefonen legat låst. Skriv "1 dl havregryn" direkt i fältet, och "gurka och tomat" blir två varor. Kryssrutan har flyttat till höger, där tummen når. Plus ett fyrtiotal fixar ur er feedback.
+> **Importera varor från en extern källa eller fota en handskriven inköpslista** Fota, välj en bild eller klistra in text. Inköpslistan synkar igen efter att telefonen legat låst. Skriv "1 dl havregryn" direkt i fältet, så hamnar mängden rätt. Kryssrutan har flyttat till höger -> "enhandsvänligt". Recept visar tillagningstid, receptbilden går att zooma, taggar går att fästa och menyn har tre nya måltider: mellanmål, fika och förrätt. Plus ett fyrtiotal småfixar efter er feedback.
 
-*(442 tecken — Play tillåter 500. Den långa listan nedan ryms inte där; den
+*(444 tecken — Play tillåter 500. Den långa listan nedan ryms inte där; den
 får nå testarna på annat sätt.)*
 
 ---
@@ -35,8 +35,7 @@ Allt som ändrats sedan bygge 13. Stryk det som är överkurs — punkterna unde
 - **Skriv mängden direkt i fältet.** "1 dl havregryn" eller "havregryn
   1 dl" blir varan havregryn med mängden 1 dl, i stället för en vara som
   heter hela meningen.
-- **"gurka och tomat" blir två varor** — likaså "vin+öl". Hör de ihop, som
-  "kött- och grillkrydda", får de vara kvar som en vara.
+- **En importerad lista med "gurka och tomat" ger två rader** — likaså "vin+öl". Hör de ihop, som "kött- och grillkrydda", blir det en rad. Skriver du samma sak i fältet står raden kvar som du skrev den, men appen lär sig gurka och tomat som två varor, så de föreslås var för sig nästa gång.
 - **Kända varor läggs till direkt**, utan mängdrutan. Rutan kommer bara upp
   för varor appen inte känner igen.
 - **En hel lista går att ångra** en stund efter att du tagit bort den.
