@@ -476,15 +476,41 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // följer baren med redan medan tangentbordet öppnas (KeyboardState.OPENING,
   // läst på UI-tråden). Det frusna fallet är fortfarande spärrat: där står
   // tillståndet stilla på OPEN och keyboardVisible har gått till false.
+  //
+  // Lyftet är en FÖRFLYTTNING (translateY), inte paddingBottom. Baren ligger i
+  // samma flöde som listan, så en växande paddingBottom krympte listan en bit
+  // varje bildruta medan tangentbordet åkte upp — FlashList räknade om sin
+  // layout i varje bildruta och baren hackade. En förflyttning rör ingen layout
+  // och körs helt på UI-tråden. Barens egen bottenpadding (säkerhetszonen) är
+  // nu konstant, så lyftet räknas från den: inmatningen hamnar 20 px ovanför
+  // tangentbordet, som förut.
+  const addBarBasePad = Math.max(12, insets.bottom);
   const addBarLift = useAnimatedStyle(() => {
     // isWeb() (importerad, icke-worklet-funktion) kraschade UI-tråden med "Object
     // is not a function" — Reanimated kan bara serialisera värden/worklets in i
     // useAnimatedStyle, inte anrop till vanliga JS-funktioner från andra moduler.
     // Platform.OS är ett vanligt värde och fångas säkert direkt i worklet-scopet.
-    if ((Platform.OS as any) === 'web') return { paddingBottom: 0 };
+    if ((Platform.OS as any) === 'web') return { transform: [{ translateY: 0 }] };
     const opening = animKeyboard.state.value === KeyboardState.OPENING;
-    return { paddingBottom: keyboardVisible || opening ? animKeyboard.height.value : 0 };
+    const kb = keyboardVisible || opening ? animKeyboard.height.value : 0;
+    const lift = kb > 0 ? Math.max(0, kb + 20 - addBarBasePad) : 0;
+    return { transform: [{ translateY: -lift }] };
   });
+  // Listan får tangentbordets höjd som extra marginal i botten — EN gång, när
+  // tangentbordet stått still uppe, så de sista raderna går att scrolla fram
+  // bakom baren. Inte per bildruta: det var just det som fick listan att hacka.
+  const [listKeyboardPad, setListKeyboardPad] = useState(0);
+  useAnimatedReaction(
+    () => {
+      const st = animKeyboard.state.value;
+      if (st === KeyboardState.OPEN) return animKeyboard.height.value;
+      if (st === KeyboardState.CLOSED) return 0;
+      return -1; // under animationen: rör inget
+    },
+    (h, prev) => {
+      if (h >= 0 && h !== prev) runOnJS(setListKeyboardPad)(h);
+    },
+  );
   const inputRef = useRef<TextInput>(null);
   const editNameRef = useRef<TextInput>(null);
   const editQtyRef = useRef<TextInput>(null);
@@ -1908,8 +1934,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       s.list,
       allItems.length === 0 && s.listEmpty,
       { paddingTop: HEADER_TOP + NAVBAR_HEIGHT + TITLE_AREA_HEIGHT + 8 },
+      keyboardVisible && listKeyboardPad > 0 ? { paddingBottom: 8 + listKeyboardPad } : null,
     ]),
-    [s, allItems.length],
+    [s, allItems.length, keyboardVisible, listKeyboardPad],
   );
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
@@ -2121,7 +2148,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             </View>
           </View>
         ) : null}
-        <View style={[s.addBar, { paddingBottom: keyboardVisible && !isWeb() ? 20 : Math.max(12, insets.bottom) }]}>
+        <View style={[s.addBar, { paddingBottom: isWeb() && keyboardVisible ? 20 : addBarBasePad }]}>
           <Pressable style={s.browseBtn} onPress={() => { setBrowserCategory(null); setShowBrowser(true); }}>
             <Ionicons name="grid-outline" size={22} color={c.primary} />
           </Pressable>
