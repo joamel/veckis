@@ -3,6 +3,7 @@ import { useTheme } from '../../src/context/ThemeContext';
 import type { Palette } from '../../src/lib/theme';
 import { useSignIn, useSignUp } from '@clerk/expo/legacy'; // v2-kompatibelt API (create/setActive) på v4-kärnan
 import { useSignInWithGoogle } from '@clerk/expo/google';
+import { useSignInWithApple } from '@clerk/expo/apple';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +19,8 @@ import {
 import { Pressable } from '../../src/components/Pressable';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { InstallBanner } from '../../src/components/InstallBanner';
+import { AppleSignInButton } from '../../src/components/AppleSignInButton';
+import { isGoogleSignInAvailable } from '../../src/lib/socialSignIn';
 import { ThemeModeToggle } from '../../src/components/ThemeModeToggle';
 import { auth as str } from '../../src/lib/svenska';
 import { reportClientError } from '../../src/lib/errorReport';
@@ -29,6 +32,7 @@ import { isReviewAccount, requestReviewTicket } from '../../src/lib/reviewAccoun
 
 const LOGO = require('../../assets/icon.png');
 const GOOGLE_G = require('../../assets/google-g.png');
+const SHOW_GOOGLE = isGoogleSignInAvailable(Platform.OS, process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID);
 
 // Krävs för att OAuth-webbläsarsessionen ska slutföras och lämna tillbaka
 // resultatet till appen. Utan detta hänger Google-login på "spinner" efter att
@@ -41,6 +45,7 @@ export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
+  const { startAppleAuthenticationFlow } = useSignInWithApple();
   const confirm = useConfirm();
   const insets = useSafeAreaInsets();
 
@@ -329,6 +334,26 @@ export default function SignInScreen() {
     }
   }
 
+  // Bara iOS (knappen renderas inte annars). Avbrott hanterar Clerk själv —
+  // då kommer ingen session tillbaka och inget fel kastas.
+  async function handleAppleSignIn() {
+    try {
+      setLoading(true);
+      const { createdSessionId, setActive: setClerkSession } = await startAppleAuthenticationFlow();
+      if (createdSessionId && setClerkSession) {
+        await setClerkSession({ session: createdSessionId });
+      }
+    } catch (err: any) {
+      reportClientError('Apple native flow error', {
+        code: err?.code ?? null, message: err?.message ?? null, name: err?.name ?? null,
+        clerkErrors: err?.errors ?? null,
+      });
+      Alert.alert(str.errors.title, err?.message ?? str.errors.appleFailed);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -471,10 +496,14 @@ export default function SignInScreen() {
 
             {mode === 'email-code' && !codeSent && (
               <>
-                <Pressable style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
-                  <Image source={GOOGLE_G} style={styles.googleLogo} resizeMode="contain" />
-                  <Text style={styles.googleButtonText}>{str.signIn.buttons.continueWithGoogle}</Text>
-                </Pressable>
+                <AppleSignInButton style={styles.appleButton} onPress={handleAppleSignIn} />
+
+                {SHOW_GOOGLE && (
+                  <Pressable style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
+                    <Image source={GOOGLE_G} style={styles.googleLogo} resizeMode="contain" />
+                    <Text style={styles.googleButtonText}>{str.signIn.buttons.continueWithGoogle}</Text>
+                  </Pressable>
+                )}
 
                 <Pressable onPress={() => switchMode('password')} hitSlop={6}>
                   <Text style={styles.link}>{str.signIn.links.signInWithPassword}</Text>
@@ -540,6 +569,8 @@ const makeStyles = (_c: Palette, ny: NyPalett) => StyleSheet.create({
   // + Google-loggan — inte en helröd knapp.
   googleButton: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dadce0', flexDirection: 'row', justifyContent: 'center', gap: 10 },
   googleLogo: { width: 18, height: 18 },
+  // Samma höjd som övriga knappar (padding 16 + 16px text ≈ 52).
+  appleButton: { height: 52, marginBottom: 12 },
   googleButtonText: { color: '#3c4043', fontSize: 16, fontWeight: '600' },
   buttonText: { color: ny.skog, fontSize: 16, fontFamily: nyFont.halvfet },
   link: { textAlign: 'center', color: ny.padYta, fontWeight: '600', marginTop: 8 },

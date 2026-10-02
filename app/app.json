@@ -22,10 +22,12 @@
       "backgroundColor": "#cddcb3"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.handlis.app",
       "buildNumber": "1",
+      "usesAppleSignIn": true,
       "infoPlist": {
+        "CFBundleDevelopmentRegion": "sv",
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
           "remote-notification"
@@ -61,6 +63,7 @@
       "expo-web-browser",
       "expo-notifications",
       "@clerk/expo",
+      "expo-apple-authentication",
       "./plugins/withDisableAutofill",
       "./plugins/withSingleTask",
       [

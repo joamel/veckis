@@ -1431,6 +1431,7 @@ export const auth = {
     sendCodeFailed:  'Kunde inte skicka kod',
     verifyFailed:    'Verifiering misslyckades',
     googleFailed:    'Google-inloggning misslyckades',
+    appleFailed:     'Apple-inloggning misslyckades',
     signUpFailed:    'Registrering misslyckades',
     emailMissing: {
       title:   'E-post saknas',
