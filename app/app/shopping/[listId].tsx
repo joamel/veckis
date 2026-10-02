@@ -42,6 +42,7 @@ import { Pressable } from '../../src/components/Pressable';
 import RNAnimated, {
   useSharedValue,
   useAnimatedKeyboard,
+  KeyboardState,
   useAnimatedScrollHandler,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -468,13 +469,22 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // sista värde → baren fastnar lyft när modalen stängs. JS-lyssnaren
   // keyboardDidHide fyrar pålitligt ändå, så när tangentbordet är borta tvingar
   // vi lyftet till 0 oavsett den frusna höjden.
-  const addBarLift = useAnimatedStyle(() => ({
+  //
+  // Spärren på keyboardVisible räckte inte ensam: keyboardDidShow kommer först
+  // när tangentbordet glidit upp FÄRDIGT, så under hela animationen stod baren
+  // kvar bakom det och hoppade sedan upp i ett ryck — det kändes som lagg. Nu
+  // följer baren med redan medan tangentbordet öppnas (KeyboardState.OPENING,
+  // läst på UI-tråden). Det frusna fallet är fortfarande spärrat: där står
+  // tillståndet stilla på OPEN och keyboardVisible har gått till false.
+  const addBarLift = useAnimatedStyle(() => {
     // isWeb() (importerad, icke-worklet-funktion) kraschade UI-tråden med "Object
     // is not a function" — Reanimated kan bara serialisera värden/worklets in i
     // useAnimatedStyle, inte anrop till vanliga JS-funktioner från andra moduler.
     // Platform.OS är ett vanligt värde och fångas säkert direkt i worklet-scopet.
-    paddingBottom: (Platform.OS as any) === 'web' || !keyboardVisible ? 0 : animKeyboard.height.value,
-  }));
+    if ((Platform.OS as any) === 'web') return { paddingBottom: 0 };
+    const opening = animKeyboard.state.value === KeyboardState.OPENING;
+    return { paddingBottom: keyboardVisible || opening ? animKeyboard.height.value : 0 };
+  });
   const inputRef = useRef<TextInput>(null);
   const editNameRef = useRef<TextInput>(null);
   const editQtyRef = useRef<TextInput>(null);
