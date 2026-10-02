@@ -52,7 +52,7 @@ import { ReceptBildkort, ReceptKompaktRad, type ReceptKortLage } from '../../src
 import { VeckoDagValjare } from '../../src/components/nydesign/VeckoDagValjare';
 import { Murverk, murverkHojd } from '../../src/components/nydesign/Murverk';
 import { TagLabel, isFavoriteTag } from '../../src/components/TagLabel';
-import { orderTags } from '../../src/lib/tagOrder';
+import { orderTags, tagChips } from '../../src/lib/tagOrder';
 import { cleanPastedUrl, extractUrl } from '../../src/lib/extractUrl';
 
 // Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
@@ -353,13 +353,24 @@ export default function RecipesScreen() {
     return next;
   });
 
-  const filteredRecipes = useMemo(() => {
+  // Sökningen först, taggarna sedan — taggraden räknar på det sökningen gav.
+  const searchedRecipes = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    let base = q
+    return q
       ? recipes.filter(r =>
           r.title.toLowerCase().includes(q) ||
           r.ingredients.some(i => i.name.toLowerCase().includes(q)))
       : recipes;
+  }, [recipes, searchQuery]);
+  // Taggraden: varje vald tagg smalnar av, och taggar som skulle ge noll
+  // träffar döljs — man hamnar aldrig på en tom lista (se tagChips).
+  const chips = useMemo(
+    () => tagChips(searchedRecipes.map(r => r.tags), activeTags, pinnedTags, str.tags.favorite),
+    [searchedRecipes, activeTags, pinnedTags],
+  );
+
+  const filteredRecipes = useMemo(() => {
+    let base = searchedRecipes;
     // AND-filter: receptet måste ha ALLA valda taggar (smalnar av urvalet).
     if (activeTags.size > 0) {
       base = base.filter(r => [...activeTags].every(t => (r.tags ?? []).includes(t)));
@@ -369,7 +380,7 @@ export default function RecipesScreen() {
       if (sortMode === 'recent') return (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
       return a.title.localeCompare(b.title);
     });
-  }, [recipes, searchQuery, sortMode, activeTags]);
+  }, [searchedRecipes, sortMode, activeTags]);
 
   // New recipe form
   // Manuellt saknas med flit: det läget är numera en egen skärm (/recipes/new)
@@ -981,8 +992,9 @@ export default function RecipesScreen() {
         style={s.nyTaggScroll}
         contentContainerStyle={s.nyTaggar}
       >
-        {allTags.map(t => {
-          const aktiv = activeTags.has(t);
+        {chips.map(({ tag: t, count, active: aktiv }) => {
+          // Antalet visas när man filtrerar: vad listan blir om man trycker.
+          const visaAntal = activeTags.size > 0 && !aktiv;
           return (
             <Pressable
               key={t}
@@ -990,10 +1002,12 @@ export default function RecipesScreen() {
               onPress={() => toggleTagFilter(t)}
               onLongPress={() => togglePinnedTag(t)}
               delayLongPress={350}
-              accessibilityLabel={str.tags.filterA11y(t, pinnedTags.includes(t))}
+              accessibilityLabel={str.tags.filterA11y(t, pinnedTags.includes(t), visaAntal ? count : undefined)}
             >
               {pinnedTags.includes(t) && <Ionicons name="pin" size={12} color={aktiv ? (scheme === 'dark' ? ny.skog : ny.lime) : ny.chipText} />}
               <TagLabel tag={t} style={[s.nyTaggText, aktiv && s.nyTaggTextAktiv]} iconColor={aktiv ? (scheme === 'dark' ? ny.skog : ny.lime) : ny.chipText} />
+              {/* Uträknad bredd: Android mäter korta tal för smalt och klipper "12" till "1". */}
+              {visaAntal && <Text style={[s.nyTaggAntal, { width: String(count).length * 8 + 4 }]}>{count}</Text>}
             </Pressable>
           );
         })}
@@ -1114,7 +1128,7 @@ export default function RecipesScreen() {
               </Pressable>
             )}
           </View>
-          {/* Tagg-filter — visas först när hushållet har taggat recept. AND-filter. */}
+          {/* Tagg-filter — visas först när hushållet har taggat recept. Smalnar av; taggar som ger noll träffar döljs. */}
           {allTags.length > 0 && (
             <View style={s.tagFilterBar}>
               <ScrollView
@@ -1124,8 +1138,8 @@ export default function RecipesScreen() {
                 style={s.tagFilterScroll}
                 contentContainerStyle={s.tagFilterRow}
               >
-                {allTags.map(t => {
-                  const active = activeTags.has(t);
+                {chips.map(({ tag: t, count, active }) => {
+                  const visaAntal = activeTags.size > 0 && !active;
                   return (
                     <Pressable
                       key={t}
@@ -1133,10 +1147,11 @@ export default function RecipesScreen() {
                       onPress={() => toggleTagFilter(t)}
                       onLongPress={() => togglePinnedTag(t)}
                       delayLongPress={350}
-                      accessibilityLabel={str.tags.filterA11y(t, pinnedTags.includes(t))}
+                      accessibilityLabel={str.tags.filterA11y(t, pinnedTags.includes(t), visaAntal ? count : undefined)}
                     >
                       {pinnedTags.includes(t) && <Ionicons name="pin" size={11} color={active ? '#fff' : c.primary} />}
                       <Text style={[s.tagFilterChipText, active && s.tagFilterChipTextActive]}>{t}</Text>
+                      {visaAntal && <Text style={[s.tagFilterChipCount, { width: String(count).length * 7 + 4 }]}>{count}</Text>}
                     </Pressable>
                   );
                 })}
@@ -1286,6 +1301,7 @@ const makeStyles = (c: Palette, ny: NyPalett, mork = false) => StyleSheet.create
   tagFilterChipActive: { backgroundColor: c.primaryBtn },
   tagFilterChipText: { fontSize: 12, fontWeight: '600', color: c.primary },
   tagFilterChipTextActive: { color: '#fff' },
+  tagFilterChipCount: { fontSize: 11, fontWeight: '500', color: c.textMuted, textAlign: 'center' },
   // Rund och symmetrisk, men smalare än originalets 28 px: rutans bredd äter
   // direkt av taggarnas utrymme eftersom scrollen bredvid har flexShrink.
   tagFilterClear: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginLeft: 2 },
@@ -1321,6 +1337,7 @@ const makeStyles = (c: Palette, ny: NyPalett, mork = false) => StyleSheet.create
     : { backgroundColor: ny.skog, borderColor: ny.skog },
   nyTaggText: { fontSize: 13, fontWeight: '600', color: ny.chipText },
   nyTaggTextAktiv: { color: mork ? ny.skog : ny.lime },
+  nyTaggAntal: { fontSize: 12, fontWeight: '500', color: ny.textDampad, textAlign: 'center' },
   nyFab: { backgroundColor: ny.lime, shadowColor: ny.skog, shadowOpacity: 0.3 },
   // Bakgrund, rundning och padding kommer från DraggableBottomSheet.
   sheetBody: { gap: 14 },

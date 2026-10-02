@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { orderTags } from './tagOrder';
+import { orderTags, tagChips } from './tagOrder';
 
 const recipes = [
   ['vardag', 'kyckling'],
@@ -25,5 +25,34 @@ describe('orderTags', () => {
 
   it('bokstavsordning vid lika många recept', () => {
     expect(orderTags([['b'], ['a'], ['c']], [], 'favorit')).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('tagChips', () => {
+  const recipes = [
+    ['Vegetariskt', 'Snabbt'],
+    ['Vegetariskt', 'Snabbt', 'Middag'],
+    ['Vegetariskt', 'Middag'],
+    ['Kyckling', 'Snabbt'],
+    ['Kyckling', 'Middag'],
+  ];
+
+  it('utan val: alla taggar, med antal recept', () => {
+    const chips = tagChips(recipes, new Set(), [], 'Favorit');
+    expect(chips.map(c => c.tag).sort()).toEqual(['Kyckling', 'Middag', 'Snabbt', 'Vegetariskt']);
+    expect(chips.find(c => c.tag === 'Snabbt')?.count).toBe(3);
+  });
+
+  it('en vald tagg döljer taggar som skulle ge noll och räknar på det som matchar', () => {
+    const chips = tagChips(recipes, new Set(['Vegetariskt']), [], 'Favorit');
+    expect(chips[0]).toEqual({ tag: 'Vegetariskt', count: 3, active: true });
+    expect(chips.map(c => c.tag)).not.toContain('Kyckling');
+    expect(chips.find(c => c.tag === 'Snabbt')?.count).toBe(2);
+    expect(chips.find(c => c.tag === 'Middag')?.count).toBe(2);
+  });
+
+  it('valda taggar ligger kvar även när inget matchar', () => {
+    const chips = tagChips([['A']], new Set(['B']), [], 'Favorit');
+    expect(chips).toEqual([{ tag: 'B', count: 0, active: true }]);
   });
 });

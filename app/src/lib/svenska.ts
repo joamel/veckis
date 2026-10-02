@@ -592,7 +592,7 @@ export const recipes = {
     pinned:       (tag: string) => `”${tag}” fäst först`,
     unpinned:     (tag: string) => `”${tag}” inte längre fäst`,
     pinFailed:    'Kunde inte spara fästa taggar',
-    filterA11y:   (tag: string, pinned: boolean) => `${tag}${pinned ? ', fäst' : ''}. Håll inne för att ${pinned ? 'lossa' : 'fästa först'}`,
+    filterA11y:   (tag: string, pinned: boolean, count?: number) => `${tag}${count != null ? `, ${count} recept` : ''}${pinned ? ', fäst' : ''}. Håll inne för att ${pinned ? 'lossa' : 'fästa först'}`,
   },
 
   sort: {
