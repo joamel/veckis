@@ -1667,9 +1667,14 @@ export default function MenuScreen() {
                   // och korten i full bredd under, så flera rätter samma dag
                   // syns som en grupp. En datumbricka till vänster gav en lång,
                   // smal tom yta så fort ett kort fälldes ut. En tom dag är en
-                  // streckad ruta som markeras när man drar ett kort över den.
+                  // ljusare ruta som markeras när man drar ett kort över den.
                   // Den yttre dag-vyn, som mäts som droppmål, är densamma.
-                  <View style={[s.nyDag, !filled && s.nyDagTomRuta, !filled && isHovered && s.nyDagTomRutaHover]}>
+                  <View style={[s.nyDag, !filled && s.nyDagTomRuta]}>
+                    {/* Samma droppram som runt en planerad dags kort, så det
+                        ser likadant ut att flytta en rätt till en tom dag. */}
+                    {dragging && !filled && (
+                      <View pointerEvents="none" style={[s.dropOutline, s.nyDagDropOutline, isHovered && s.dropOutlineHovered]} />
+                    )}
                     {filled || isPastWeek || !isCenter ? (
                       <View style={s.nyDagHuvud}>
                         {dagRubrik}
@@ -2849,9 +2854,12 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   // syntes knappt var en dag började, och med flera rätter samma dag gick det
   // inte att se att de hörde ihop.
   nyDag: { padding: 8, paddingTop: 6, gap: 6, borderRadius: 18, backgroundColor: ny.platsLjus },
-  // Borderns 1,5 px dras av från utfyllnaden, så en tom dag är lika bred som en fylld.
-  nyDagTomRuta: { backgroundColor: 'transparent', borderWidth: 1.5, borderStyle: 'dashed', borderColor: ny.kontur, padding: 6.5, paddingTop: 4.5 },
-  nyDagTomRutaHover: { borderStyle: 'solid', borderColor: ny.skog, backgroundColor: ny.platsLjus },
+  // Tom dag: ljusare yta utan ram. Streckade ramar på varje tom dag gjorde
+  // veckan plottrig — tomrummet tog mer uppmärksamhet än de planerade dagarna.
+  // ny.kort finns i båda paletterna: i mörkt läge ett tydligt steg ljusare än
+  // bakgrunden, men mörkare än den planerade dagens platsLjus — samma trappa.
+  nyDagTomRuta: { backgroundColor: ny.kort },
+  nyDagDropOutline: { borderRadius: 18 },
   nyDagHuvud: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30, paddingHorizontal: 4 },
   // flexShrink: 0 hindrar texterna från att krympa mot flex-utfyllnaden, men
   // räckte inte ensamt — datumet och "I inköpslistan" får explicit bredd i JSX.
