@@ -18,9 +18,11 @@ export const menusRouter = Router();
 
 // Bump each recipe's lifetime usage counter by how many times it appears in the
 // batch (for "most used" sorting). Fire-and-forget.
-async function bumpTimesUsed(items: { recipeId: string }[]): Promise<void> {
+async function bumpTimesUsed(items: { recipeId: string | null }[]): Promise<void> {
   const tally = new Map<string, number>();
-  for (const it of items) tally.set(it.recipeId, (tally.get(it.recipeId) ?? 0) + 1);
+  for (const it of items) {
+    if (it.recipeId) tally.set(it.recipeId, (tally.get(it.recipeId) ?? 0) + 1);
+  }
   await Promise.all(
     [...tally].map(([recipeId, n]) =>
       prisma.recipe.update({ where: { id: recipeId }, data: { timesUsed: { increment: n } } }).catch(() => {})),
@@ -30,16 +32,18 @@ async function bumpTimesUsed(items: { recipeId: string }[]): Promise<void> {
 const weekDayEnum = z.nativeEnum(WeekDay);
 const mealTypeEnum = z.enum(MEAL_TYPE_ORDER);
 
+// Antingen ett recept eller en snabbrätt (bara ett namn) — aldrig båda.
 const createMenuItemSchema = z.object({
   householdId: z.string(),
-  recipeId: z.string(),
+  recipeId: z.string().optional(),
+  title: z.string().trim().min(1).max(100).optional(),
   day: weekDayEnum.nullable().default(null),
   mealType: mealTypeEnum.nullable().optional(),
   weekYear: z.number().int(),
   weekNumber: z.number().int().min(1).max(53),
   note: z.string().max(500).nullable().optional(),
   servings: z.number().int().positive().nullable().optional(),
-});
+}).refine(d => !!d.recipeId !== !!d.title, { message: 'Ange antingen recipeId eller title' });
 
 // GET /api/menus?householdId=&weekYear=&weekNumber=
 menusRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
@@ -63,6 +67,34 @@ menusRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
   res.json(items);
 }));
 
+// GET /api/menus/quick-titles?householdId= — hushållets snabbrätter från de
+// senaste veckorna, senast använd först. Förslag i namnfältet, så att
+// "köttbullar" går fort igen medan en engångsrätt tonar bort av sig själv.
+const QUICK_TITLE_DAYS = 8 * 7;
+menusRouter.get('/quick-titles', requireAuth, asyncHandler(async (req, res) => {
+  const householdId = String(req.query.householdId ?? '');
+  if (!householdId) { res.status(400).json({ error: 'Missing householdId' }); return; }
+  if (!await verifyMember(householdId, (req as AuthenticatedRequest).clerkUserId)) {
+    res.status(403).json({ error: 'Not a member of this household' }); return;
+  }
+  const since = new Date(Date.now() - QUICK_TITLE_DAYS * 24 * 60 * 60 * 1000);
+  const rows = await prisma.weekMenuItem.findMany({
+    where: { householdId, recipeId: null, title: { not: null }, createdAt: { gte: since } },
+    select: { title: true },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  });
+  const seen = new Set<string>();
+  const titles: string[] = [];
+  for (const r of rows) {
+    const key = r.title!.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    titles.push(r.title!.trim());
+  }
+  res.json(titles.slice(0, 30));
+}));
+
 // POST /api/menus
 // Notify the household that a week's menu changed so other devices refresh the
 // affected week live (L35 follow-up: menu had no realtime at all).
@@ -74,9 +106,11 @@ menusRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (r
   const body = createMenuItemSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const recipe = await prisma.recipe.findUnique({ where: { id: body.data.recipeId } });
-  if (!recipe || recipe.householdId !== body.data.householdId) {
-    res.status(404).json({ error: 'Recipe not found' }); return;
+  if (body.data.recipeId) {
+    const recipe = await prisma.recipe.findUnique({ where: { id: body.data.recipeId } });
+    if (!recipe || recipe.householdId !== body.data.householdId) {
+      res.status(404).json({ error: 'Recipe not found' }); return;
+    }
   }
 
   const item = await prisma.weekMenuItem.create({
@@ -84,7 +118,9 @@ menusRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (r
     include: { recipe: { include: { ingredients: true } } },
   });
   // Lifetime usage counter for "most used" sorting (never decremented).
-  prisma.recipe.update({ where: { id: item.recipeId }, data: { timesUsed: { increment: 1 } } }).catch(() => {});
+  if (item.recipeId) {
+    prisma.recipe.update({ where: { id: item.recipeId }, data: { timesUsed: { increment: 1 } } }).catch(() => {});
+  }
   bcastMenu(item.householdId, item.weekYear, item.weekNumber);
   res.status(201).json(item);
 }));
@@ -104,12 +140,22 @@ menusRouter.patch('/:itemId', requireAuth, asyncHandler(async (req, res) => {
     mealType: mealTypeEnum.nullable().optional(),
     note: z.string().max(500).nullable().optional(),
     servings: z.number().int().positive().nullable().optional(),
+    // "Skapa recept" på en snabbrätt: raden kopplas till det nya receptet och
+    // tappar sitt namn — från och med nu är det receptets titel som gäller.
+    recipeId: z.string().optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
+  if (body.data.recipeId) {
+    const recipe = await prisma.recipe.findUnique({ where: { id: body.data.recipeId } });
+    if (!recipe || recipe.householdId !== item.householdId) {
+      res.status(404).json({ error: 'Recipe not found' }); return;
+    }
+  }
+
   const updated = await prisma.weekMenuItem.update({
     where: { id: item.id },
-    data: body.data,
+    data: body.data.recipeId ? { ...body.data, title: null } : body.data,
     include: { recipe: { include: { ingredients: true } } },
   });
   bcastMenu(updated.householdId, updated.weekYear, updated.weekNumber);
@@ -175,6 +221,7 @@ menusRouter.post('/copy', requireAuth, asyncHandler(async (req, res) => {
     data: source.map(s => ({
       householdId: body.data.householdId,
       recipeId: s.recipeId,
+      title: s.title,
       day: s.day,
       mealType: s.mealType,
       weekYear: body.data.toWeekYear,
@@ -232,7 +279,12 @@ menusRouter.post('/templates', requireAuth, requireHouseholdMember, asyncHandler
       householdId: body.data.householdId,
       name: body.data.name,
       createdBy: (req as AuthenticatedRequest).clerkUserId,
-      items: { create: source.map(s => ({ recipeId: s.recipeId, day: s.day })) },
+      // Mallar består av recept; snabbrätter följer inte med.
+      items: {
+        create: source
+          .filter((s): s is typeof s & { recipeId: string } => s.recipeId !== null)
+          .map(s => ({ recipeId: s.recipeId, day: s.day })),
+      },
     },
     include: { items: { include: { recipe: { select: { id: true, title: true } } } } },
   });

@@ -58,7 +58,9 @@ export type MealType = typeof MEAL_TYPE_ORDER[number];
 export interface WeekMenuItem {
   id: string;
   householdId: string;
-  recipeId: string;
+  /** null = snabbrätt: bara ett namn i `title`, inget recept och inga varor. */
+  recipeId: string | null;
+  title: string | null;
   day: WeekDay | null;
   mealType: MealType | null;
   weekYear: number;

@@ -77,7 +77,13 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
 }
 
 export type RecipeWithIngredients = Recipe & { ingredients: RecipeIngredient[] };
-export type WeekMenuItemWithRecipe = WeekMenuItem & { recipe: RecipeWithIngredients };
+export type WeekMenuItemWithRecipe = WeekMenuItem & { recipe: RecipeWithIngredients | null };
+/** En menyrad med recept, alltså inte en snabbrätt. */
+export type RecipeMenuItem = WeekMenuItemWithRecipe & { recipeId: string; recipe: RecipeWithIngredients };
+export const hasRecipe = <T extends WeekMenuItemWithRecipe>(m: T): m is T & RecipeMenuItem =>
+  m.recipe !== null && m.recipeId !== null;
+/** Rättens namn: receptets titel, eller snabbrättens eget namn. */
+export const dishTitle = (m: WeekMenuItemWithRecipe): string => m.recipe?.title ?? m.title ?? '';
 
 export interface NotificationPreferences {
   listCleared: boolean;
@@ -627,7 +633,14 @@ export function useApiClient() {
     addToWeekMenu: (data: { householdId: string; recipeId: string; day?: WeekDay | null; mealType?: MealType | null; weekYear: number; weekNumber: number; note?: string | null }) =>
       request<WeekMenuItemWithRecipe>('/api/menus', { method: 'POST', body: JSON.stringify(data) }),
 
-    updateWeekMenuItem: (itemId: string, data: { day?: WeekDay | null; mealType?: MealType | null; note?: string | null; servings?: number | null }) =>
+    // Snabbrätt: bara ett namn, inget recept.
+    addQuickDish: (data: { householdId: string; title: string; day: WeekDay | null; weekYear: number; weekNumber: number }) =>
+      request<WeekMenuItemWithRecipe>('/api/menus', { method: 'POST', body: JSON.stringify(data) }),
+
+    getQuickDishTitles: (householdId: string) =>
+      request<string[]>(`/api/menus/quick-titles?householdId=${householdId}`),
+
+    updateWeekMenuItem: (itemId: string, data: { day?: WeekDay | null; mealType?: MealType | null; note?: string | null; servings?: number | null; recipeId?: string }) =>
       request<WeekMenuItemWithRecipe>(`/api/menus/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteWeekMenuItem: (itemId: string) =>

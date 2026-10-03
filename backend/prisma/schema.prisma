@@ -287,7 +287,10 @@ model RecipeIngredient {
 model WeekMenuItem {
   id          String   @id @default(cuid())
   householdId String
-  recipeId    String
+  // null = snabbrätt: bara ett namn (title), inget recept och inga varor.
+  // "Skapa recept" kopplar raden till ett nytt recept och nollar title.
+  recipeId    String?
+  title       String?
   day         WeekDay?
   mealType    String?  // 'breakfast' | 'lunch' | 'dinner' | 'dessert' | null — låter flera rätter samsas per dag
   weekYear    Int
@@ -299,7 +302,7 @@ model WeekMenuItem {
   createdAt   DateTime @default(now())
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  recipe    Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipe    Recipe?   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@index([householdId, weekYear, weekNumber])
 }

@@ -25,7 +25,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { useApiClient, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
+import { useApiClient, hasRecipe, dishTitle, type WeekMenuItemWithRecipe, type RecipeWithIngredients, type ShoppingListWithItems } from '../../src/api/client';
 import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useHousehold } from '../../src/context/HouseholdContext';
@@ -42,6 +42,7 @@ import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet'
 import { SHEET_HEADER_ICON } from '../../src/components/SheetHeader';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { MenuTemplatesModal } from '../../src/components/MenuTemplatesModal';
+import { QuickDishSheet } from '../../src/components/QuickDishSheet';
 import { onShoppingChanged, emitShoppingChanged } from '../../src/lib/shoppingEvents';
 import { WeekNav } from '../../src/components/WeekNav';
 import { useDesign } from '../../src/context/DesignContext';
@@ -333,6 +334,7 @@ export default function MenuScreen() {
   // Bulk transfer modal: select which recipes to transfer
   const [showBulkTransferModal, setShowBulkTransferModal] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showQuickDish, setShowQuickDish] = useState(false);
   const [selectedRecipesForTransfer, setSelectedRecipesForTransfer] = useState<Set<string>>(new Set());
   const [bulkTransferStep, setBulkTransferStep] = useState<'week' | 'recipe' | 'ingredients' | 'list'>('recipe');
   // Inventory step (aggregated across selected recipes). En enda interaktion
@@ -374,11 +376,11 @@ export default function MenuScreen() {
   const pendingServingsRef = useRef<Set<string>>(new Set());
 
   function scaledServingsOf(item: WeekMenuItemWithRecipe): number {
-    return menuItemServings[item.id] ?? item.servings ?? item.recipe.servings;
+    return menuItemServings[item.id] ?? item.servings ?? item.recipe?.servings ?? 0;
   }
 
   function getScaleRatio(item: WeekMenuItemWithRecipe): number {
-    const base = item.recipe.servings;
+    const base = item.recipe?.servings ?? 0;
     const scaled = scaledServingsOf(item);
     return base > 0 ? scaled / base : 1;
   }
@@ -403,7 +405,7 @@ export default function MenuScreen() {
     }
     setMenuItemServings(prev => ({ ...prev, [item.id]: n }));
     pendingServingsRef.current.add(item.id);
-    const toSave = n === item.recipe.servings ? null : n;
+    const toSave = n === item.recipe?.servings ? null : n;
     if (servingsSaveTimers.current[item.id]) clearTimeout(servingsSaveTimers.current[item.id]);
     servingsSaveTimers.current[item.id] = setTimeout(() => {
       client.updateWeekMenuItem(item.id, { servings: toSave })
@@ -471,11 +473,12 @@ export default function MenuScreen() {
   // triplicerad (aggregeringen, receptsteget och executeBulkTransfer) med små
   // skillnader sinsemellan — en delad memo håller dem i synk, och gör att en
   // AVMARKERAD vecka inte kan smita med via kvarglömda id:n i selectionen.
+  // Snabbrätter har inga varor och är aldrig med i överföringen.
   const bulkPool = useMemo(
     () => (bulkTransferWeeks.size > 0
       // Rätter utan dag syns inte längre i menyn — de ska inte följa med osynligt.
       ? allMenus.filter(m => m.day !== null && bulkTransferWeeks.has(`${m.weekYear}-${m.weekNumber}`))
-      : menuItems),
+      : menuItems).filter(hasRecipe),
     [bulkTransferWeeks, allMenus, menuItems],
   );
 
@@ -1005,7 +1008,7 @@ export default function MenuScreen() {
 
   // Replace flow now uses the full recipe view (select mode), like "+".
   function startReplaceRecipe(item: WeekMenuItemWithRecipe) {
-    router.push(`/recipes/pick?replaceMenuItemId=${item.id}&replaceTitle=${encodeURIComponent(item.recipe.title)}&forMenuWeek=${weekYear}-${weekNumber}` as never);
+    router.push(`/recipes/pick?replaceMenuItemId=${item.id}&replaceTitle=${encodeURIComponent(dishTitle(item))}&forMenuWeek=${weekYear}-${weekNumber}` as never);
   }
 
   // Swap a menu item for another recipe on the same day/week (returned from the
@@ -1191,7 +1194,7 @@ export default function MenuScreen() {
     const ok = await new Promise<boolean>(resolve => {
       confirm({
         title: str.dialogs.removeFromMenu.title,
-        message: item.recipe.title,
+        message: dishTitle(item),
         buttons: [
           { label: str.dialogs.removeFromMenu.remove, style: 'destructive', onPress: () => resolve(true) },
           { label: common.actions.cancel, style: 'cancel', onPress: () => resolve(false) },
@@ -1261,7 +1264,7 @@ export default function MenuScreen() {
       }
 
       // Legacy: subtract quantities by name+unit match (items without menuItemId)
-      for (const ing of menuItem.recipe.ingredients) {
+      for (const ing of menuItem.recipe?.ingredients ?? []) {
         const name = ing.name.toLowerCase().trim();
         const unit = (ing.unit ?? '').toLowerCase().trim();
         const item = list.items.find(
@@ -1461,6 +1464,59 @@ export default function MenuScreen() {
     }
   }
 
+  // Snabbrätt: en menyrad med bara ett namn. Optimistisk som addRecipeToDay;
+  // hamnar den i en annan vecka än den som visas finns den bara i allMenus.
+  async function addQuickDish(title: string, wy: number, wn: number, day: WeekDay) {
+    if (!householdId) return;
+    const tempId = `optimistic-quick-${Date.now()}`;
+    const optimistic: MenuRow = {
+      id: tempId, householdId, recipeId: null, title, day, mealType: null,
+      weekYear: wy, weekNumber: wn, note: null, servings: null, transferred: false,
+      createdBy: '', createdAt: new Date().toISOString(), recipe: null, _stableKey: tempId,
+    };
+    const visibleWeek = wy === weekYear && wn === weekNumber;
+    stateVersionRef.current += 1;
+    if (visibleWeek) setMenuItems(prev => [...prev, optimistic]);
+    setAllMenus(prev => [...prev, optimistic]);
+    try {
+      suppressMenuReloadRef.current += 1;
+      const item = await client.addQuickDish({ householdId, title, day, weekYear: wy, weekNumber: wn });
+      const replaceOrAppend = (prev: MenuRow[]) => {
+        if (prev.some(m => m.id === tempId)) return prev.map(m => m.id === tempId ? { ...item, _stableKey: tempId } : m);
+        if (prev.some(m => m.id === item.id)) return prev;
+        return [...prev, item];
+      };
+      await commitSerially(() => {
+        stateVersionRef.current += 1;
+        if (visibleWeek) setMenuItems(replaceOrAppend);
+        setAllMenus(replaceOrAppend);
+      });
+      showGlobalToast(str.toasts.quickDishAdded, 'success');
+    } catch (e) {
+      stateVersionRef.current += 1;
+      setMenuItems(prev => prev.filter(m => m.id !== tempId));
+      setAllMenus(prev => prev.filter(m => m.id !== tempId));
+      showError(e, str.toasts.errorAddRecipe);
+    }
+  }
+
+  // "Skapa recept" på en snabbrätt: receptet skapas med namnet, raden kopplas
+  // till det och receptredigeringen öppnas så att man kan fylla i varor och steg.
+  async function createRecipeFromQuickDish(item: WeekMenuItemWithRecipe) {
+    if (!householdId || !item.title) return;
+    try {
+      const recipe = await client.createRecipe({ householdId, title: item.title, source: 'manual' });
+      suppressMenuReloadRef.current += 1;
+      const updated = await client.updateWeekMenuItem(item.id, { recipeId: recipe.id });
+      stateVersionRef.current += 1;
+      setMenuItems(prev => prev.map(i => i.id === updated.id ? { ...updated, _stableKey: i._stableKey } : i));
+      setAllMenus(prev => prev.map(i => i.id === updated.id ? updated : i));
+      router.push(`/recipes/${recipe.id}?edit=1` as never);
+    } catch (e) {
+      showError(e, str.toasts.errorCreateRecipe);
+    }
+  }
+
   // Sätt/ändra/rensa måltidstyp direkt på ett menykort (frivillig etikett).
   // Toggla samma typ = rensa (null). Optimistiskt, som moveToDay.
   async function setMenuItemMeal(item: WeekMenuItemWithRecipe, meal: MealType | null) {
@@ -1539,6 +1595,7 @@ export default function MenuScreen() {
         onCookRecipe={() => {
           router.push(`/recipes/${item.recipeId}?cook=1&servings=${scaledServingsOf(item)}` as never);
         }}
+        onCreateRecipe={isCenter && !isPastWeek ? (() => createRecipeFromQuickDish(item)) : noop}
         onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
         onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
         onDragStart={isCenter && !isPastWeek ? ((x, y, ty) => onDragStart(item, x, y, ty)) : noop}
@@ -1649,6 +1706,7 @@ export default function MenuScreen() {
                           onCookRecipe={() => {
                           router.push(`/recipes/${item.recipeId}?cook=1&servings=${scaledServingsOf(item)}` as never);
                         }}
+                          onCreateRecipe={isCenter && !isPastWeek ? (() => createRecipeFromQuickDish(item)) : noop}
                           onMoveToDay={isCenter && !isPastWeek ? (d => moveToDay(item, d)) : noop}
                           onReplace={isCenter && !isPastWeek ? (() => startReplaceRecipe(item)) : noop}
                           onDragStart={isCenter && !isPastWeek ? ((x, y, ty) => onDragStart(item, x, y, ty)) : noop}
@@ -1774,6 +1832,15 @@ export default function MenuScreen() {
             actionLabel={isPastWeek ? undefined : str.emptyState.noDishesPlanned.action}
             onAction={isPastWeek ? undefined : openPlanner}
           />
+        )}
+
+        {/* Snabbrätt längst ned i veckan — ett sidoflöde, så vanliga rätter
+            (dagens "+", receptväljaren) får inget extra steg. */}
+        {isCenter && !isPastWeek && (
+          <Pressable style={[s.quickDishBtn, nyDesign && s.nyQuickDishBtn]} onPress={() => setShowQuickDish(true)} accessibilityRole="button">
+            <Ionicons name="create-outline" size={fs(16)} color={nyDesign ? ny.chipText : c.textMuted} />
+            <Text style={[s.quickDishBtnText, { fontSize: fs(14) }, nyDesign && s.nyQuickDishBtnText]}>{str.quickDish.open}</Text>
+          </Pressable>
         )}
       </>
     );
@@ -1928,11 +1995,20 @@ export default function MenuScreen() {
           <View style={[s.ghostCardIcon, nyDesign && s.nyGhostIkon]}>
             <Ionicons name="restaurant-outline" size={18} color={nyDesign ? ny.lime : c.primary} />
           </View>
-          <Text style={s.ghostCardText} numberOfLines={1}>{dragState.item.recipe.title}</Text>
+          <Text style={s.ghostCardText} numberOfLines={1}>{dishTitle(dragState.item)}</Text>
         </View>
       )}
 
       {/* Two-step recipe picker modal */}
+      <QuickDishSheet
+        visible={showQuickDish}
+        onClose={() => setShowQuickDish(false)}
+        householdId={householdId}
+        initialWeek={`${weekYear}-${String(weekNumber).padStart(2, '0')}`}
+        allMenus={allMenus}
+        onAdd={addQuickDish}
+      />
+
       <MenuTemplatesModal
         visible={showTemplates}
         onClose={() => setShowTemplates(false)}
@@ -1951,7 +2027,7 @@ export default function MenuScreen() {
         title={pickerStep === 'day'
           ? str.picker.chooseDay
           : replaceTarget
-            ? str.picker.replaceTitle(replaceTarget.recipe.title)
+            ? str.picker.replaceTitle(dishTitle(replaceTarget))
             : pickingForDay
               ? DAYS.find(d => d.key === pickingForDay)?.label
               : str.picker.noDay}
@@ -2012,7 +2088,7 @@ export default function MenuScreen() {
                       if (replaceTarget) {
                         confirm({
                           title: str.dialogs.replaceRecipe.title,
-                          message: str.dialogs.replaceRecipe.message(replaceTarget.recipe.title, item.title),
+                          message: str.dialogs.replaceRecipe.message(dishTitle(replaceTarget), item.title),
                           buttons: [
                             { label: str.dialogs.replaceRecipe.confirm, style: 'destructive', onPress: () => addRecipeToDay(item) },
                             { label: common.actions.cancel, style: 'cancel' },
@@ -2427,6 +2503,7 @@ function MenuCard({
   isPastWeek,
   onRemove,
   onCookRecipe,
+  onCreateRecipe,
   onReplace,
   onMoveToDay,
   onDragStart,
@@ -2450,6 +2527,8 @@ function MenuCard({
   dayLabel?: { abbr: string; date: number };
   onRemove: () => void;
   onCookRecipe: () => void;
+  /** Snabbrätt: öppna receptredigeringen med namnet ifyllt. */
+  onCreateRecipe: () => void;
   onMoveToDay: (day: WeekDay | null) => void;
   onReplace: () => void;
   onDragStart: (x: number, y: number, touchOffsetY: number) => void;
@@ -2474,7 +2553,12 @@ function MenuCard({
   useEffect(() => { if (collapsedForDrag) setExpanded(false); }, [collapsedForDrag]);
   const { fs, sp } = useTablet();
   const { nyDesign } = useDesign();
-  const bildUrl = item.recipe.imageUrl ?? null;
+  const recipe = item.recipe;
+  // Snabbrätt: bara ett namn. Ingen bild, inga portioner och inget laga-läge —
+  // i stället "Skapa recept" där Laga annars sitter.
+  const isQuick = !recipe;
+  const title = dishTitle(item);
+  const bildUrl = recipe?.imageUrl ?? null;
   // "I inköpslistan" räcker inte när hushållet har flera listor — då säger
   // märket inte VILKEN man ska titta i. Med flera listor blir det antalet;
   // namnen skulle inte få plats på raden.
@@ -2487,7 +2571,7 @@ function MenuCard({
   const visaHero = nyDesign && !!bildUrl && (!!hero || isExpanded);
   // Samma platshållare som receptlistan, så ett recept ser likadant ut i båda.
   const ph = nyDesign && !bildUrl
-    ? platshallare(item.recipe.id, [item.recipe.title, ...(item.recipe.tags ?? [])].join(' '))
+    ? platshallare(recipe?.id ?? item.id, [title, ...(recipe?.tags ?? [])].join(' '))
     : null;
 
   function handlePress() {
@@ -2512,15 +2596,15 @@ function MenuCard({
           {/* Bilden faller ocksa ut kortet. Den ar kortets storsta yta, alltsa
               det lattaste att traffa — att bara rubrikraden fungerade gjorde
               utfallningen onodigt svar pa dagens ratt. */}
-          {visaHero && (
-            <Pressable style={s.nyHero} onPress={handlePress} accessibilityRole="button" accessibilityLabel={item.recipe.title}>
+          {visaHero && recipe && (
+            <Pressable style={s.nyHero} onPress={handlePress} accessibilityRole="button" accessibilityLabel={title}>
               {/* ReceptBild, inte en rå Image: utsnittet man valt i receptet ligger i
                   imageFocusX/Y, och utan den beskars bilden uppifrån här. */}
-              <ReceptBild uri={cloudinaryOptimized(bildUrl!, CARD_IMAGE_WIDTH)} fokusX={item.recipe.imageFocusX} fokusY={item.recipe.imageFocusY} zoom={item.recipe.imageZoom} style={StyleSheet.absoluteFill} />
+              <ReceptBild uri={cloudinaryOptimized(bildUrl!, CARD_IMAGE_WIDTH)} fokusX={recipe.imageFocusX} fokusY={recipe.imageFocusY} zoom={recipe.imageZoom} style={StyleSheet.absoluteFill} />
               {/* Tiden på bilden, som på receptkorten — bara hopfälld. Utfällt
                   står den bredvid "I inköpslistan". */}
-              {!isExpanded && item.recipe.cookMinutes ? (() => {
-                const tid = formateraTidsetikett(item.recipe.cookMinutes);
+              {!isExpanded && recipe.cookMinutes ? (() => {
+                const tid = formateraTidsetikett(recipe.cookMinutes);
                 return (
                   <View style={s.nyHeroTid}>
                     <Ionicons name="time-outline" size={13} color={ny.lime} />
@@ -2564,7 +2648,7 @@ function MenuCard({
               )}
               {/* Ingen chevron i nya designen: att kortet gar att falla ut
                   forstar man anda, och den satt i vagen bredvid rubriken. */}
-              <Text style={[s.cardTitle, { fontSize: fs(16) }, nyDesign && s.nyKortTitel, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{item.recipe.title}</Text>
+              <Text style={[s.cardTitle, { fontSize: fs(16) }, nyDesign && s.nyKortTitel, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{title}</Text>
             </View>
             {/* Kundvagnen före chevronen, och chevronen närmast draghandtaget:
                 de två sitter ihop som kortets högerkant. Båda ligger utanför
@@ -2574,7 +2658,7 @@ function MenuCard({
             {/* Dagens rätter: Laga direkt i det hopfällda kortet — det är vad
                 man oftast vill göra med kvällens mat. Utfällt ligger den bland
                 de andra knapparna, på samma plats som för övriga dagar. */}
-            {nyDesign && idag && !isExpanded && (
+            {nyDesign && idag && !isExpanded && !isQuick && (
               <Pressable style={s.nyLagaSnabb} onPress={onCookRecipe} hitSlop={6} accessibilityRole="button" accessibilityLabel={str.card.cook}>
                 <Ionicons name="flame-outline" size={15} color={ny.skog} />
                 <Text style={s.nyLagaSnabbText}>{str.card.cook}</Text>
@@ -2633,8 +2717,8 @@ function MenuCard({
                   brickor såg de tryckbara ut. Portionerna till höger. */}
               <View style={s.nyUtfalltRad}>
                 <View style={s.nyMarken}>
-                  {item.recipe.cookMinutes ? (() => {
-                    const tid = formateraTidsetikett(item.recipe.cookMinutes);
+                  {recipe?.cookMinutes ? (() => {
+                    const tid = formateraTidsetikett(recipe.cookMinutes);
                     return (
                       <View style={s.nyMarke}>
                         <Ionicons name="time-outline" size={14} color={ny.padYta} />
@@ -2656,7 +2740,7 @@ function MenuCard({
                 </View>
                 {/* Överförd rätt: portionerna är låsta — listan har redan
                     mängderna för dem. Låset visas i stället för −/+. */}
-                {isTransferred && !isPastWeek ? (
+                {isQuick ? null : isTransferred && !isPastWeek ? (
                   <View style={s.nyPortioner} accessibilityLabel={str.card.servingsLockedA11y(scaledServings)}>
                     <Ionicons name="lock-closed" size={12} color={ny.textDampad} style={s.nyPortionLas} />
                     <Text style={s.nyPortionVarde}>{str.card.servingsOnly(scaledServings)}</Text>
@@ -2678,10 +2762,19 @@ function MenuCard({
               {/* Laga med text till vänster; byt ut och ta bort som ikonknappar
                   till höger — tre textknappar blev plottrigt. */}
               <View style={s.nyKnappRad}>
-                <Pressable style={[s.nyKnapp, s.nyKnappLime]} onPress={onCookRecipe}>
-                  <Ionicons name="flame-outline" size={15} color={ny.skog} />
-                  <Text style={s.nyKnappText}>{str.card.cook}</Text>
-                </Pressable>
+                {isQuick ? (
+                  !isPastWeek && (
+                    <Pressable style={[s.nyKnapp, s.nyKnappLime]} onPress={onCreateRecipe}>
+                      <Ionicons name="document-text-outline" size={15} color={ny.skog} />
+                      <Text style={s.nyKnappText}>{str.card.createRecipe}</Text>
+                    </Pressable>
+                  )
+                ) : (
+                  <Pressable style={[s.nyKnapp, s.nyKnappLime]} onPress={onCookRecipe}>
+                    <Ionicons name="flame-outline" size={15} color={ny.skog} />
+                    <Text style={s.nyKnappText}>{str.card.cook}</Text>
+                  </Pressable>
+                )}
                 <View style={s.nyKnappFyll} />
                 <Pressable style={[s.nyIkonKnapp, isPastWeek && s.nyLast]} onPress={onReplace} disabled={isPastWeek} accessibilityRole="button" accessibilityLabel={str.card.replace} accessibilityState={{ disabled: !!isPastWeek }}>
                   <Ionicons name="swap-horizontal-outline" size={18} color={ny.padYta} />
@@ -2696,12 +2789,14 @@ function MenuCard({
           {isExpanded && !nyDesign && (
             <View style={s.cardExpanded}>
               {/* Meta — moved here to keep the collapsed row to a single line */}
-              <Text style={[s.cardMeta, { fontSize: fs(12), marginBottom: sp(4) }]}>
-                {scaledServings !== item.recipe.servings
-                  ? str.card.servings(scaledServings, item.recipe.servings)
-                  : str.card.servingsOnly(item.recipe.servings)}
-                {' · '}{str.card.ingredientsCount(item.recipe.ingredients.length)}
-              </Text>
+              {recipe && (
+                <Text style={[s.cardMeta, { fontSize: fs(12), marginBottom: sp(4) }]}>
+                  {scaledServings !== recipe.servings
+                    ? str.card.servings(scaledServings, recipe.servings)
+                    : str.card.servingsOnly(recipe.servings)}
+                  {' · '}{str.card.ingredientsCount(recipe.ingredients.length)}
+                </Text>
+              )}
               {isTransferred && (
                 <View style={[s.transferredBadge, { marginBottom: sp(8) }]}>
                   <Ionicons name="cart" size={fs(14)} color={c.success} />
@@ -2709,6 +2804,7 @@ function MenuCard({
                 </View>
               )}
               {/* Portion scaler — cutlery icon grouped with the −/+ on the right */}
+              {recipe && (
               <View style={s.servingScaler}>
                 <Ionicons name="restaurant-outline" size={fs(16)} color={c.textMuted} />
                 <View style={s.servingScalerControls}>
@@ -2729,6 +2825,7 @@ function MenuCard({
                   </Pressable>
                 </View>
               </View>
+              )}
 
               {/* Måltidstyp — frivillig etikett. Tryck igen för att rensa. */}
               {!isPastWeek && (
@@ -2752,10 +2849,19 @@ function MenuCard({
                     oftast att laga rätten, inte att läsa om den. Receptet nås
                     ändå — laga-läget öppnas ovanpå receptsidan, så ett bakåt
                     lämnar en där. */}
-                <Pressable style={s.cardAction} onPress={onCookRecipe}>
-                  <Ionicons name="flame-outline" size={15} color={c.textMuted} />
-                  <Text style={s.cardActionText}>{str.card.cook}</Text>
-                </Pressable>
+                {isQuick ? (
+                  !isPastWeek && (
+                    <Pressable style={s.cardAction} onPress={onCreateRecipe}>
+                      <Ionicons name="document-text-outline" size={15} color={c.textMuted} />
+                      <Text style={s.cardActionText}>{str.card.createRecipe}</Text>
+                    </Pressable>
+                  )
+                ) : (
+                  <Pressable style={s.cardAction} onPress={onCookRecipe}>
+                    <Ionicons name="flame-outline" size={15} color={c.textMuted} />
+                    <Text style={s.cardActionText}>{str.card.cook}</Text>
+                  </Pressable>
+                )}
                 {!isPastWeek && (
                   <Pressable style={s.cardAction} onPress={onReplace}>
                     <Ionicons name="swap-horizontal-outline" size={15} color={c.textMuted} />
@@ -2940,6 +3046,10 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   daysCol: { gap: 14 },
   weekAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: c.primary200, borderStyle: 'dashed', backgroundColor: c.surface },
   weekAddBtnText: { fontSize: 14, fontWeight: '600', color: c.primary },
+  quickDishBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 12 },
+  nyQuickDishBtn: { marginTop: 10 },
+  quickDishBtnText: { fontWeight: '600', color: c.textMuted },
+  nyQuickDishBtnText: { fontFamily: nyFont.halvfet, fontWeight: 'normal', color: ny.chipText },
   daySlotWide: { flex: 1, minWidth: 0, minHeight: 80 },
   daySlotEmptyWide: { borderStyle: 'dashed', borderColor: c.border, backgroundColor: 'transparent' },
   dayColHeader: { alignItems: 'center', paddingTop: 4, paddingBottom: 2 },

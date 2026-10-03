@@ -442,6 +442,8 @@ export const menu = {
     errorTransferIngredients: 'Kunde inte lägga till ingredienserna',
     errorMove:                'Kunde inte flytta rätten',
     errorSaveServings:        'Kunde inte spara portioner',
+    quickDishAdded:           'Rätten är tillagd i menyn',
+    errorCreateRecipe:        'Kunde inte skapa receptet',
   },
 
   inventory: {
@@ -487,6 +489,18 @@ export const menu = {
     inNamedList:      (namn: string) => `I ${namn}`,
     inSeveralLists:   (antal: number) => `I ${antal} listor`,
     addAnother:       'Lägg till rätt',
+    /** Snabbrätt: gör ett riktigt recept av namnet. */
+    createRecipe:     'Skapa recept',
+  },
+
+  // Snabbrätt — en rätt i menyn utan recept, bara ett namn.
+  quickDish: {
+    open:        'Lägg till utan recept',
+    title:       'Rätt utan recept',
+    subtitle:    'Bara ett namn i menyn. Inga varor följer med till inköpslistan.',
+    placeholder: 'T.ex. köttbullar och makaroner',
+    recent:      'Senaste',
+    chooseDay:   'Välj dag',
   },
 
   // Ny design (beta)

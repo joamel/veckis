@@ -18,7 +18,9 @@ const ANTAL_VECKOR = 5;
 export interface PlanerbarRatt {
   day: WeekDay | null;
   mealType: MealType | null;
-  recipe: { title: string };
+  /** null = snabbrätt, som bara har ett eget namn. */
+  recipe: { title: string } | null;
+  title?: string | null;
 }
 
 /**

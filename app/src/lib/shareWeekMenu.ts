@@ -1,5 +1,5 @@
 import { Share } from 'react-native';
-import type { WeekMenuItemWithRecipe, MenuTemplate } from '../api/client';
+import { dishTitle, type WeekMenuItemWithRecipe, type MenuTemplate } from '../api/client';
 
 const DAY_LABELS: Record<string, string> = {
   mon: 'Måndag',
@@ -22,7 +22,7 @@ export async function shareWeekMenu(weekLabel: string, items: WeekMenuItemWithRe
     const bi = b.day ? DAY_ORDER.indexOf(b.day) : 7;
     return ai - bi;
   });
-  const lines = sorted.map(i => `${dayLabel(i.day)}: ${i.recipe.title}`);
+  const lines = sorted.map(i => `${dayLabel(i.day)}: ${dishTitle(i)}`);
   await Share.share({ message: `${weekLabel}:\n\n${lines.join('\n')}` });
 }
 
