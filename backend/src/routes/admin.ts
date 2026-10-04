@@ -319,7 +319,6 @@ adminRouter.post('/jobs/:id/apply', asyncHandler(async (req, res) => {
   const summary = body.data.rows.length ? await job.apply(body.data.rows, { clerkUserId: (req as AuthenticatedRequest).clerkUserId }) : '';
   const ignoredNote = body.data.ignore.length ? `${body.data.ignore.length} föreslås inte igen.` : '';
   res.json({ summary: [summary, ignoredNote].filter(Boolean).join(' ') });
-  res.json({ summary });
 }));
 
 async function scrapeIngredients(url: string): Promise<string[]> {
