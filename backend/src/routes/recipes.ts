@@ -573,18 +573,28 @@ type ReceptRå = {
  * Normaliserar ett rått receptobjekt från modellen. Allt är osäkert tills det
  * validerats — fel typ på ett fält ska ge ett tomt värde, inte krascha svaret.
  */
+// Svaret ska gå att spara rakt av: det går tillbaka till POST /api/recipes,
+// vars schema kräver heltalsportioner, positiva mängder och längdtak. Förut
+// släpptes t.ex. "servings": 2.5 eller "quantity": 0 igenom här, sparningen
+// gav 400 — och fotade man ett uppslag med flera recept hann de första sparas
+// innan felrutan kom.
 function städaRecept(r: ReceptRå): ScrapedRecipe {
+  const kapa = (s: string, max: number) => s.slice(0, max);
   return {
-    title: typeof r.title === 'string' && r.title.trim() ? r.title.trim() : 'Okänt recept',
-    description: typeof r.description === 'string' ? r.description : null,
-    instructions: typeof r.instructions === 'string' ? r.instructions : null,
+    title: typeof r.title === 'string' && r.title.trim() ? kapa(r.title.trim(), 200) : 'Okänt recept',
+    description: typeof r.description === 'string' ? kapa(r.description, 2000) : null,
+    instructions: typeof r.instructions === 'string' ? kapa(r.instructions, 8000) : null,
     imageUrl: null,
-    servings: typeof r.servings === 'number' && r.servings > 0 ? r.servings : 4,
+    servings: typeof r.servings === 'number' && r.servings >= 1 ? Math.round(r.servings) : 4,
     cookMinutes: städaMinuter(r.cookMinutes),
     ingredients: Array.isArray(r.ingredients)
       ? r.ingredients
           .filter((i): i is { name: string; quantity: number | null; unit: string | null } => typeof (i as { name?: unknown })?.name === 'string' && (i as { name: string }).name.trim().length > 0)
-          .map(i => ({ name: i.name.trim(), quantity: typeof i.quantity === 'number' ? i.quantity : null, unit: typeof i.unit === 'string' && i.unit ? i.unit : null }))
+          .map(i => ({
+            name: kapa(i.name.trim(), 200),
+            quantity: typeof i.quantity === 'number' && Number.isFinite(i.quantity) && i.quantity > 0 ? i.quantity : null,
+            unit: typeof i.unit === 'string' && i.unit ? kapa(i.unit, 50) : null,
+          }))
       : [],
   };
 }

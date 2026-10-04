@@ -281,6 +281,20 @@ export default function RecipesScreen() {
   // Carry the viewed week back so the dish lands there, not in the current week.
   const weekSuffix = params.forMenuWeek ? `&forMenuWeek=${params.forMenuWeek}` : '';
 
+  // Ett nyskapat recepts sida, med menyvalet (dag/vecka) vidareskickat. Förut
+  // klistrades "&forMenuDay=…" direkt efter id:t när det inte fanns något
+  // "?edit=1" före — skapade man ett recept från menyns "+" blev adressen
+  // /recipes/<id>&forMenuWeek=…, receptsidan hittade inget recept och visade
+  // ett fel, fast receptet redan var sparat.
+  function newRecipeHref(id: string, edit: boolean) {
+    const query = [
+      edit ? 'edit=1' : null,
+      params.forMenuDay !== undefined ? `forMenuDay=${params.forMenuDay}` : null,
+      params.forMenuWeek ? `forMenuWeek=${params.forMenuWeek}` : null,
+    ].filter(Boolean).join('&');
+    return `/recipes/${id}${query ? `?${query}` : ''}`;
+  }
+
   function selectRecipeForMenu(recipe: RecipeWithIngredients) {
     if (replaceMode) {
       confirm({
@@ -595,9 +609,7 @@ export default function RecipesScreen() {
       setTitle('');
       setPasteText('');
       setMode('url');
-      const forMenuDay = params.forMenuDay;
-      const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
-      router.push(`/recipes/${recipe.id}${parsed.ingredients.length === 0 ? '?edit=1' : ''}${suffix}` as never);
+      router.push(newRecipeHref(recipe.id, parsed.ingredients.length === 0) as never);
     } catch (err) {
       confirm({ title: str.errors.generic, message: err instanceof Error ? err.message : str.errors.couldNotParse, buttons: [{ label: common.actions.ok }] });
     } finally {
@@ -705,15 +717,28 @@ export default function RecipesScreen() {
     setCreating(true);
     try {
       const skapade = [];
-      for (const rec of funna) skapade.push(await skapaTolkat(rec, null));
+      for (const rec of funna) {
+        try {
+          skapade.push(await skapaTolkat(rec, null));
+        } catch (err) {
+          // De som redan sparats ligger kvar i listan. En ren felruta fick det
+          // att se ut som att inget sparats — tills recepten dök upp ändå.
+          if (skapade.length === 0) throw err;
+          stangSkapaSheet();
+          confirm({
+            title: str.errors.generic,
+            message: str.createModal.photo.multiPartial(skapade.length, funna.length, err instanceof Error ? err.message : str.errors.generic),
+            buttons: [{ label: common.actions.ok }],
+          });
+          return;
+        }
+      }
       stangSkapaSheet();
       showToast(skapade.length === 1
         ? str.createModal.photo.multiCreatedOne(skapade[0].title)
         : str.createModal.photo.multiCreatedMany(skapade.length), 'success');
       if (skapade.length === 1) {
-        const forMenuDay = params.forMenuDay;
-        const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
-        router.push(`/recipes/${skapade[0].id}${suffix}` as never);
+        router.push(newRecipeHref(skapade[0].id, false) as never);
       }
     } catch (err) {
       showError(err, str.errors.generic);
@@ -747,9 +772,7 @@ export default function RecipesScreen() {
       setCreating(true);
       const recipe = await skapaTolkat(funna[0], title);
       stangSkapaSheet();
-      const forMenuDay = params.forMenuDay;
-      const suffix = (forMenuDay !== undefined ? `&forMenuDay=${forMenuDay}` : '') + weekSuffix;
-      router.push(`/recipes/${recipe.id}${funna[0].ingredients.length === 0 ? '?edit=1' : ''}${suffix}` as never);
+      router.push(newRecipeHref(recipe.id, funna[0].ingredients.length === 0) as never);
     } catch (err) {
       confirm({ title: str.errors.generic, message: err instanceof Error ? err.message : str.errors.couldNotParse, buttons: [{ label: common.actions.ok }] });
     } finally {

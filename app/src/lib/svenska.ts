@@ -690,6 +690,7 @@ export const recipes = {
       multiSave:        (n: number) => n === 1 ? 'Spara 1 recept' : `Spara ${n} recept`,
       multiCreatedOne:  (titel: string) => `${titel} skapades`,
       multiCreatedMany: (n: number) => `${n} recept skapades`,
+      multiPartial:     (sparade: number, alla: number, fel: string) => `${sparade} av ${alla} recept sparades. Övriga gick inte att spara: ${fel}`,
     },
     pasteHint:        'Klistra in recept eller länktext — AI:n plockar ut titel, ingredienser och steg.',
     pastePlaceholder: 'Klistra in recept eller receptsida här…',

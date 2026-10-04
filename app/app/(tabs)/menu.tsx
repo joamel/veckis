@@ -469,6 +469,32 @@ export default function MenuScreen() {
     return s;
   }, [shoppingLists, params.originListId]);
 
+  // EN regel för "kvar att föra över", delad av FAB:en, veckosteget och
+  // "Överför veckomeny". Tidigare räknade de olika: snabbrätter och rätter utan
+  // dag räknades som nya (fast de aldrig följer med), så en redan överförd
+  // vecka gick att välja igen och landade på ett tomt/omkryssat receptsteg.
+  const isPendingTransfer = useCallback(
+    (m: WeekMenuItemWithRecipe) => hasRecipe(m) && m.day !== null && !m.transferred && !transferredMenuItemIds.has(m.id),
+    [transferredMenuItemIds],
+  );
+  // Veckor som inte tagit slut (söndag >= idag) — bara de går att föra över.
+  const isActiveWeek = useCallback((wy: number, wn: number) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sunday = new Date(getISOWeekMonday(wy, wn));
+    sunday.setDate(sunday.getDate() + 6);
+    return sunday >= today;
+  }, []);
+  const anyActiveWeekPending = useMemo(
+    () => allMenus.some(m => isActiveWeek(m.weekYear, m.weekNumber) && isPendingTransfer(m)),
+    [allMenus, isActiveWeek, isPendingTransfer],
+  );
+  // Vilket flöde ett pågående (avbrutet) val hör till: 'multi' eller en
+  // enskild vecka. Utan den återupptogs ett flerveckoval även när man sedan
+  // tryckte "Överför veckomeny" i en annan vecka — man satt fast i de gamla
+  // veckorna tills en överföring gick igenom.
+  const bulkScopeRef = useRef<string | null>(null);
+
   // Vilka menyrader som är i spel för bulk-överföringen. Låg tidigare
   // triplicerad (aggregeringen, receptsteget och executeBulkTransfer) med små
   // skillnader sinsemellan — en delad memo håller dem i synk, och gör att en
@@ -961,16 +987,23 @@ export default function MenuScreen() {
       // Samma filtrering som load() — annars kan en pending-borttagen rad
       // (5s Ångra-fönster) dyka upp igen via den här separata hämtningen.
       setAllMenus(all.filter(i => !pendingMenuItemRemovals.has(i.id)));
-      // Nollställ urvalet vid ingången — MEN bara om det inte redan finns ett
-      // pågående val att återuppta (stängde man guiden mitt i, t.ex. på
-      // inventeringssteget, ska den återöppnas där man var). Tidigare
-      // ERSATTE ett veckoklick hela urvalet, så gammalt skräp maskerades; nu
-      // adderas/tas rätter bort per vecka och kvarglömda id:n skulle följa
-      // med in i överföringen — det är därför just den nollställningen är
-      // ovillkorlig i själva veckoväljar-flödet, inte vid själva öppningen.
-      if (bulkTransferWeeks.size === 0 && selectedRecipesForTransfer.size === 0) {
+      // Ett avbrutet flerveckoval återupptas bara där det kostar något att
+      // börja om (inventeringen/listvalet). Annars börjar man om på ett tomt
+      // veckosteg — förut hoppade guiden rakt in i receptsteget för de gamla
+      // veckorna och man satt fast i dem tills en överföring gick igenom.
+      // Ett pågående val från "Överför veckomeny" hör till ett annat flöde
+      // och kastas alltid.
+      const resume = bulkScopeRef.current === 'multi'
+        && selectedRecipesForTransfer.size > 0
+        && (bulkTransferStep === 'ingredients' || bulkTransferStep === 'list');
+      if (!resume) {
+        setBulkTransferWeeks(new Set());
+        setSelectedRecipesForTransfer(new Set());
+        resetInventory();
+        inventoryBuiltForRef.current = null;
         setBulkTransferStep('week');
       }
+      bulkScopeRef.current = 'multi';
       setShowBulkTransferModal(true);
     } catch (e) {
       showError(e, str.toasts.errorFetchWeeks);
@@ -1308,6 +1341,13 @@ export default function MenuScreen() {
   // rakt in i rätt-steget) eller flera veckor (via veckovalet). Utan den fanns
   // flerveckorsvägen bara från en inköpslista, vilket ingen hittade.
   function handleShowTransferMenu() {
+    // Inget kvar i den visade veckan (t.ex. en tom vecka) — gå direkt till
+    // veckovalet. Förut syntes knappen inte alls där, så rätter i andra
+    // veckor gick inte att föra över därifrån.
+    if (!menuItems.some(isPendingTransfer)) {
+      openWeekPicker();
+      return;
+    }
     confirm({
       variant: 'menu',
       menuAnchor: 'bottom-right',
@@ -1326,8 +1366,12 @@ export default function MenuScreen() {
     }
 
     // Rätter utan dag syns inte längre i menyn — de ska inte följa med osynligt.
-    const notTransferred = menuItems.filter(m => m.day !== null && !transferredMenuItemIds.has(m.id));
-    if (notTransferred.length === 0) {
+    // Förkryssat = det som ALDRIG förts över (se isPendingTransfer). Rensar man
+    // listan mitt i veckan försvinner kopplingen, men transferred-flaggan
+    // ligger kvar — annars skulle måndagens redan handlade rätt kryssas i igen.
+    // Den som verkligen vill föra över den igen kryssar i den för hand.
+    const freshIds = new Set(menuItems.filter(isPendingTransfer).map(m => m.id));
+    if (freshIds.size === 0) {
       confirm({ title: str.dialogs.alreadyTransferred.title, message: str.dialogs.alreadyTransferred.message, buttons: [{ label: 'OK' }] });
       return;
     }
@@ -1335,17 +1379,16 @@ export default function MenuScreen() {
     // Stängde man guiden mitt i (inventeringssteget) i stället för att
     // fullfölja den, ska ett nytt tryck på "Överför" återuppta där man var
     // — inte kasta bort ifyllda "har hemma"-bockar och hoppa tillbaka till
-    // receptvalet. Bara en genuint ny överföring (inget pågående val) nollställer.
-    if (selectedRecipesForTransfer.size === 0) {
-      // Förkryssat = det som ALDRIG förts över. Rensar man listan mitt i
-      // veckan försvinner kopplingen, och utan det här skulle måndagens redan
-      // handlade rätt kryssas i igen och hamna i listan en andra gång.
-      // Den som verkligen vill föra över den igen kryssar i den för hand.
-      const freshIds = new Set(notTransferred.filter(m => !m.transferred).map(m => m.id));
+    // receptvalet. Men bara om valet gällde JUST den här veckan; ett
+    // flerveckoval eller en annan vecka nollställs.
+    const scope = `week:${weekYear}-${weekNumber}`;
+    if (selectedRecipesForTransfer.size === 0 || bulkScopeRef.current !== scope) {
+      setBulkTransferWeeks(new Set());
       setSelectedRecipesForTransfer(freshIds);
       resetInventoryFor(freshIds);
       setBulkTransferStep('recipe');
     }
+    bulkScopeRef.current = scope;
     setShowBulkTransferModal(true);
   }
 
@@ -1972,9 +2015,10 @@ export default function MenuScreen() {
       )}
 
 
-      {/* Overför-FAB (kundkorg) — visas bara för nuvarande/framtida veckor
-          när minst en rätt inte är överförd än. */}
-      {!dragState && weekOffset >= 0 && menuItems.some(m => !recipeListMap[m.id]?.length) && (
+      {/* Overför-FAB (kundkorg) — visas för nuvarande/framtida veckor så länge
+          NÅGON aktiv vecka har en rätt kvar att föra över, även om den visade
+          veckan är tom (då går knappen direkt till veckovalet). */}
+      {!dragState && weekOffset >= 0 && (menuItems.some(isPendingTransfer) || anyActiveWeekPending) && (
         <Pressable ref={transferFabRef} style={[s.fab, { width: sp(56), height: sp(56), borderRadius: sp(28) }, nyDesign && s.nyFab]} onPress={handleShowTransferMenu} accessibilityLabel={str.a11y.transferFab}>
           <Ionicons name="cart-outline" size={fs(26)} color={nyDesign ? ny.skog : '#fff'} />
         </Pressable>
@@ -2208,23 +2252,18 @@ export default function MenuScreen() {
                   // att välja en vecka vars rätter redan var överförda, och
                   // landa på ett tomt receptsteg. Den läser dessutom
                   // linkedMenuItemIds, som även fångar dolda merge-containers.
-                  const transferredIds = transferredMenuItemIds;
+                  // Bara rätter som alls kan följa med räknas (recept + dag) —
+                  // snabbrätter och odaterade rätter gjorde annars en färdig
+                  // vecka valbar med "1 ny".
                   const byWeek = new Map<string, WeekMenuItemWithRecipe[]>();
                   for (const m of allMenus) {
+                    if (!hasRecipe(m) || m.day === null) continue;
+                    if (!isActiveWeek(m.weekYear, m.weekNumber)) continue;
                     const key = `${m.weekYear}-${m.weekNumber}`;
                     if (!byWeek.has(key)) byWeek.set(key, []);
                     byWeek.get(key)!.push(m);
                   }
-                  // Filter out weeks that have already ended (Sunday < today)
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  const entries = [...byWeek.entries()].filter(([key]) => {
-                    const [wy, wn] = key.split('-').map(Number);
-                    const monday = getISOWeekMonday(wy, wn);
-                    const sunday = new Date(monday);
-                    sunday.setDate(monday.getDate() + 6);
-                    return sunday >= today;
-                  });
+                  const entries = [...byWeek.entries()];
                   const weeks = entries.sort(([a], [b]) => a.localeCompare(b));
                   if (weeks.length === 0) {
                     return <Text style={s.pickerEmptyText}>{str.bulk.noActiveWeek}</Text>;
@@ -2233,7 +2272,7 @@ export default function MenuScreen() {
                     const [wy, wn] = key.split('-').map(Number);
                     // Samma regel som ovan: en vecka bockar bara i det som
                     // aldrig förts över, och räknas som färdig när inget är kvar.
-                    const freshIds = items.filter(i => !transferredIds.has(i.id) && !i.transferred).map(i => i.id);
+                    const freshIds = items.filter(isPendingTransfer).map(i => i.id);
                     const allTransferred = freshIds.length === 0;
                     const weekSelected = bulkTransferWeeks.has(key);
                     return (
