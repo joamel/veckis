@@ -338,6 +338,10 @@ export const shoppingList = {
     title:   'Du handlar nu',
     message: 'Vill du avsluta handla-läget?',
     confirm: 'Avsluta',
+    startTitle:   'Handlar du nu?',
+    startMessage: 'Andra i hushållet ser att du är i butiken och kan lägga till sista minuten-saker. Du får en notis när de gör det.',
+    pocket:       'Skärmen släcks också i fickan för att undvika klick av misstag.',
+    startConfirm: 'Jag handlar',
   },
 
   placeholders: {
@@ -365,6 +369,15 @@ export const shoppingList = {
     merge: {
       title:   'Dubbletter hittade',
       message: 'Samma vara tillagd flera gånger? Handlis upptäcker dubbletter - tryck på märket för att slå ihop dem till en rad med rätt mängd.',
+    },
+    listStore: {
+      title:   'Sortera efter din butik',
+      message: 'Välj vilken butik du handlar i, så sorteras listan i den ordning varorna står i butiken.',
+    },
+    shopper: {
+      title:   'Handlar du nu?',
+      message: 'Tryck på Jag handlar-knappen så ser andra medlemmar i hushållet att du är i butiken och kan lägga till sista minuten-saker. Du får en notis när de gör det.',
+      pocket:  'Skärmen släcks också i fickan för att undvika klick av misstag.',
     },
   },
 };
@@ -1582,6 +1595,7 @@ export const preferences = {
 
   sections: {
     notifications: 'NOTISER',
+    shopping:      'INKÖPSLISTAN',
     app:           'APP',
     security:      'SÄKERHET',
     about:         'OM VECKIS',
@@ -1601,7 +1615,7 @@ export const preferences = {
   },
 
   checkboxSide: {
-    label: 'Bockrutor i inköpslistan',
+    label: 'Bockrutor',
     right: 'Höger',
     left:  'Vänster',
   },

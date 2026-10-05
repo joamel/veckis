@@ -258,9 +258,9 @@ export default function ShoppingScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <Text style={[styles.cardTitle, { fontSize: fs(16) }]}>{item.name}</Text>
                     {shopper && (
-                      <View style={styles.shopperPill}>
-                        <Ionicons name="walk" size={11} color={c.accent} />
-                        <Text style={styles.shopperPillText}>{iAmShopper ? str.listCard.youShop : str.listCard.otherShops(shopper.displayName)}</Text>
+                      <View style={[styles.shopperPill, iAmShopper && styles.shopperPillMine]}>
+                        <Ionicons name="walk" size={11} color={nyDesign ? (iAmShopper ? ny.skog : ny.lime) : c.accent} />
+                        <Text style={[styles.shopperPillText, iAmShopper && styles.shopperPillTextMine]}>{iAmShopper ? str.listCard.youShop : str.listCard.otherShops(shopper.displayName)}</Text>
                       </View>
                     )}
                   </View>
@@ -404,8 +404,14 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
     ? { fontFamily: nyFont.fet, letterSpacing: -0.3, color: ny.text }
     : { fontSize: 16, fontWeight: '600', color: c.text },
   cardMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
-  shopperPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.accent100, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  shopperPillText: { fontSize: 11, color: c.accentDark, fontWeight: '600' },
+  // Samma lägen som "Jag handlar"-knappen i listans sidhuvud: du = fylld lime,
+  // någon annan = mörkgrön med lime gubbe.
+  shopperPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: nyD ? ny.valdYta : c.accent100, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  shopperPillMine: nyD ? { backgroundColor: ny.lime } : {},
+  shopperPillText: nyD
+    ? { fontSize: 11, fontFamily: nyFont.halvfet, color: ny.rubrikLjus }
+    : { fontSize: 11, color: c.accentDark, fontWeight: '600' },
+  shopperPillTextMine: nyD ? { color: ny.skog } : {},
   fab: {
     position: 'absolute',
     right: 20,

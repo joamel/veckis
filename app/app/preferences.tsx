@@ -116,9 +116,33 @@ export default function PreferencesScreen() {
           </Pressable>
         </View>
 
-        <Text style={s.sectionLabel}>{str.sections.app}</Text>
+        {/* Allt som styr hur inköpslistan beter sig i butiken samlat, i
+            stället för utspritt under App. */}
+        <Text style={s.sectionLabel}>{str.sections.shopping}</Text>
         <View style={s.group}>
-          <Pressable style={s.row} onPress={async () => {
+          {/* Höger- eller vänsterhänt: vilken sida inköpslistans bockrutor
+              sitter på. Samma val finns i listans ⋮-meny. */}
+          <View style={[s.row, { flexWrap: 'wrap' }]}>
+            <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="hand-left-outline" size={18} color={ny.padYta} /></View>
+            <Text style={s.rowText}>{str.checkboxSide.label}</Text>
+            <View style={s.landingChips}>
+              {(['right', 'left'] as const).map(side => {
+                const active = checkboxSide === side;
+                return (
+                  <Pressable
+                    key={side}
+                    style={[s.landingChip, active && s.landingChipActive]}
+                    onPress={() => setCheckboxSide(side)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Text style={[s.landingChipText, active && s.landingChipTextActive]}>{str.checkboxSide[side]}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+          <Pressable style={[s.row, s.rowBorder]} onPress={async () => {
             const next = !soundEnabled;
             setSoundEnabled(next);
             await SecureStore.setItemAsync(SOUND_CHECKOUT_KEY, next ? '1' : '0').catch(() => {});
@@ -170,17 +194,12 @@ export default function PreferencesScreen() {
               />
             </Pressable>
           )}
-          <Pressable style={[s.row, s.rowBorder]} onPress={handleResetTips}>
-            {nyDesign ? (
-              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="bulb-outline" size={18} color={ny.padYta} /></View>
-            ) : (
-              <Ionicons name="bulb-outline" size={18} color={c.accent} />
-            )}
-            <Text style={s.rowText}>{str.rows.onboardingTips}</Text>
-            <Ionicons name="refresh-outline" size={18} color={nyDesign ? ny.kontur : c.textFaint} />
-          </Pressable>
+        </View>
+
+        <Text style={s.sectionLabel}>{str.sections.app}</Text>
+        <View style={s.group}>
           {/* Favorit-landningssida: vilken flik appen öppnar på */}
-          <View style={[s.row, s.rowBorder, { flexWrap: 'wrap' }]}>
+          <View style={[s.row, { flexWrap: 'wrap' }]}>
             {nyDesign ? (
               <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="home-outline" size={18} color={ny.padYta} /></View>
             ) : (
@@ -203,28 +222,15 @@ export default function PreferencesScreen() {
               })}
             </View>
           </View>
-          {/* Höger- eller vänsterhänt: vilken sida inköpslistans bockrutor
-              sitter på. Samma val finns i listans ⋮-meny. */}
-          <View style={[s.row, s.rowBorder, { flexWrap: 'wrap' }]}>
-            <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="hand-left-outline" size={18} color={ny.padYta} /></View>
-            <Text style={s.rowText}>{str.checkboxSide.label}</Text>
-            <View style={s.landingChips}>
-              {(['right', 'left'] as const).map(side => {
-                const active = checkboxSide === side;
-                return (
-                  <Pressable
-                    key={side}
-                    style={[s.landingChip, active && s.landingChipActive]}
-                    onPress={() => setCheckboxSide(side)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: active }}
-                  >
-                    <Text style={[s.landingChipText, active && s.landingChipTextActive]}>{str.checkboxSide[side]}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
+          <Pressable style={[s.row, s.rowBorder]} onPress={handleResetTips}>
+            {nyDesign ? (
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="bulb-outline" size={18} color={ny.padYta} /></View>
+            ) : (
+              <Ionicons name="bulb-outline" size={18} color={c.accent} />
+            )}
+            <Text style={s.rowText}>{str.rows.onboardingTips}</Text>
+            <Ionicons name="refresh-outline" size={18} color={nyDesign ? ny.kontur : c.textFaint} />
+          </Pressable>
         </View>
 
         <Text style={s.sectionLabel}>{str.sections.about}</Text>

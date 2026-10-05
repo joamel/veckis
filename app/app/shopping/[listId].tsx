@@ -68,6 +68,7 @@ import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useProximityScreen } from '../../src/hooks/useProximityScreen';
+import { isProximityScreenAvailable } from '../../modules/proximity-screen';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
@@ -210,6 +211,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const mergeTip = useOnceFlag('seen-merge-tip');
   const mergeTipShownRef = useRef(false);
   const dupeBadgeRef = useRef<View>(null);
+  // "Jag handlar"-tipset: fyrar vid FÖRSTA avbockningen utan att läget är på —
+  // då står man med största sannolikhet i butiken, och knappen pekas ut.
+  const shopperTip = useOnceFlag('seen-shopper-tip');
+  const shopperTipShownRef = useRef(false);
+  const shopperBtnRef = useRef<View>(null);
+  const listStoreTip = useOnceFlag('seen-list-store-tip');
+  const listStoreTipShownRef = useRef(false);
+  const storeBtnRef = useRef<View>(null);
+  // Fick-meningen bara där det stämmer (native med sensor), inte i PWA:n.
+  const [hasProximity, setHasProximity] = useState(false);
+  useEffect(() => { isProximityScreenAvailable().then(setHasProximity); }, []);
   // Lägg-till-barens höjd — dubblettknappen svävar precis ovanför den.
   const [addBarH, setAddBarH] = useState(0);
   // Tala om för toasten hur högt lägg-till-raden är, så den lägger sig ovanför
@@ -1220,9 +1232,34 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     }, 5000);
   }
 
+  // Butikstipset i listan: en lista utan butik sorteras bara efter standard-
+  // ordningen. Pekar på butiksknappen i sidhuvudet när man öppnar en sådan
+  // lista med varor i — utan varor finns inget som sorteras.
+  useEffect(() => {
+    if (!tipsReady || !list || list.store || list.items.length === 0) return;
+    if (listStoreTip.seen !== false || listStoreTipShownRef.current) return;
+    const shown = showTip({
+      title: str.tips.listStore.title,
+      message: str.tips.listStore.message,
+      targetRef: storeBtnRef,
+    });
+    if (shown) { listStoreTipShownRef.current = true; listStoreTip.markSeen(); }
+  }, [tipsReady, list, listStoreTip.seen, listStoreTip.markSeen, showTip]);
+
+  function maybeShowShopperTip() {
+    if (!tipsReady || shopperTip.seen !== false || shopperTipShownRef.current) return;
+    if (!list || !myMember || list.activeShopperMemberId) return;
+    const shown = showTip({
+      title: str.tips.shopper.title,
+      message: hasProximity ? `${str.tips.shopper.message} ${str.tips.shopper.pocket}` : str.tips.shopper.message,
+      targetRef: shopperBtnRef,
+    });
+    if (shown) { shopperTipShownRef.current = true; shopperTip.markSeen(); }
+  }
+
   async function toggleItem(item: ShoppingItemWithRecipe) {
     const newChecked = !item.isChecked;
-    if (newChecked) triggerCheckHaptic();
+    if (newChecked) { triggerCheckHaptic(); maybeShowShopperTip(); }
     setList(prev =>
       prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, isChecked: newChecked } : i) } : prev
     );
@@ -1519,6 +1556,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   async function checkGroup(members: ShoppingItemWithRecipe[]) {
     const ids = members.map(m => m.id);
     triggerCheckHaptic();
+    maybeShowShopperTip();
     setList(prev => prev ? { ...prev, items: prev.items.map(i => ids.includes(i.id) ? { ...i, isChecked: true } : i) } : prev);
     // Ett tryck på en rad som samlar flera varor — en riktig bock i butiken,
     // inte en massbock.
@@ -2027,19 +2065,39 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         <Pressable onPress={goBack} style={s.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.a11y.back}>
           <Ionicons name="arrow-back" size={22} color={nyDesign ? ny.rubrikLjus : c.text} />
         </Pressable>
-        <Pressable onPress={openStorePicker} hitSlop={8} style={s.navStoreBtn} accessibilityRole="button" accessibilityLabel={list.store ? str.a11y.store(list.store.name) : str.a11y.chooseStore}>
+        <Pressable ref={storeBtnRef} collapsable={false} onPress={openStorePicker} hitSlop={8} style={s.navStoreBtn} accessibilityRole="button" accessibilityLabel={list.store ? str.a11y.store(list.store.name) : str.a11y.chooseStore}>
           <Ionicons name="storefront" size={18} color={nyDesign ? ny.rubrikLjus : c.primary} />
           <RNAnimated.View style={[s.navStoreNameWrap, storeNameAnimStyle]}>
             <Text style={s.navStoreName} numberOfLines={1}>{list.store?.name ?? str.a11y.chooseStore}</Text>
           </RNAnimated.View>
         </Pressable>
         <View style={{ flex: 1 }} />
-        {list.activeShopperMemberId && activeShopper && (
+        {/* "Jag handlar" bor i sidhuvudet, inte i ⋮-menyn: det är listans
+            viktigaste läge i butiken. Av = en ikon som de andra i sidhuvudet;
+            på = fylld lime (designens "aktivt"); någon annan handlar = lime
+            ikon på glas, tryck visar vem. */}
+        {myMember && (
           <Pressable
+            ref={shopperBtnRef}
+            collapsable={false}
             style={s.shopperWrap}
             hitSlop={8}
+            disabled={togglingShopper}
             onPress={() => {
-              if (iAmShopping) {
+              if (!list.activeShopperMemberId || !activeShopper) {
+                // Förklaringen bara första gången (har man fått tipset vid
+                // avbockningen vet man redan) — sedan startar knappen direkt.
+                if (shopperTip.seen !== false) { toggleIAmShopping(); return; }
+                shopperTip.markSeen();
+                confirm({
+                  title: str.shopDialog.startTitle,
+                  message: hasProximity ? `${str.shopDialog.startMessage} ${str.shopDialog.pocket}` : str.shopDialog.startMessage,
+                  buttons: [
+                    { label: str.shopDialog.startConfirm, onPress: () => { toggleIAmShopping(); } },
+                    { label: common.actions.cancel, style: 'cancel' },
+                  ],
+                });
+              } else if (iAmShopping) {
                 confirm({
                   title: str.shopDialog.title,
                   message: str.shopDialog.message,
@@ -2053,19 +2111,24 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               }
             }}
             accessibilityRole="button"
-            accessibilityLabel={iAmShopping ? str.a11y.iAmShopping : str.a11y.otherShopping(activeShopper.displayName)}
+            accessibilityLabel={!activeShopper ? str.shopperToggle.start : iAmShopping ? str.a11y.iAmShopping : str.a11y.otherShopping(activeShopper.displayName)}
+            accessibilityState={{ selected: iAmShopping }}
           >
             {/* Ny design: bara ikonen — texten tog butiksnamnets plats. Vem som
                 handlar syns fortfarande vid tryck (toast) och i skärmläsaren. */}
-            {!nyDesign && (
+            {!nyDesign && activeShopper && (
               <RNAnimated.View style={[s.shopperTextWrap, shopperTextAnimStyle]}>
                 <Text style={s.shopperText} numberOfLines={1}>
                   {iAmShopping ? str.shopper.you : str.shopper.other(activeShopper.displayName)}
                 </Text>
               </RNAnimated.View>
             )}
-            <RNAnimated.View style={[s.shopperIconBtn, shopperIconAnimStyle]}>
-              <Ionicons name="walk" size={20} color={nyDesign ? ny.lime : c.pink} />
+            <RNAnimated.View style={[s.shopperIconBtn, iAmShopping && s.shopperIconBtnActive, shopperIconAnimStyle]}>
+              <Ionicons
+                name={activeShopper ? 'walk' : 'walk-outline'}
+                size={20}
+                color={iAmShopping ? (nyDesign ? ny.skog : '#fff') : activeShopper ? (nyDesign ? ny.lime : c.pink) : (nyDesign ? ny.rubrikLjus : c.text)}
+              />
             </RNAnimated.View>
           </Pressable>
         )}
@@ -2810,20 +2873,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         <View style={[s.actionsMenu, { top: insets.top + 4 }]}>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); toggleIAmShopping(); }}
-            disabled={togglingShopper || (!iAmShopping && !!list.activeShopperMemberId)}
-          >
-            <Ionicons name={iAmShopping ? 'pause-circle-outline' : 'walk-outline'} size={20} color={c.primary} />
-            <Text style={s.actionsMenuText}>
-              {iAmShopping
-                ? str.shopperToggle.stop
-                : list.activeShopperMemberId
-                  ? `${activeShopper?.displayName ?? str.fallbackActor} handlar nu`
-                  : str.shopperToggle.start}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={s.actionsMenuItem}
             onPress={() => { setShowActionsMenu(false); setRenameValue(list.name); setRenameEmoji(list.emoji ?? null); setShowRenameModal(true); }}
           >
             <Ionicons name="create-outline" size={20} color={c.primary} />
@@ -3318,6 +3367,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   shopperTextWrap: { overflow: 'hidden', justifyContent: 'center' },
   shopperText: { fontSize: 13, color: c.pink, fontWeight: '600' },
   shopperIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: nyD ? ny.glas : c.pinkTint, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+  shopperIconBtnActive: { backgroundColor: nyD ? ny.lime : c.pink },
   progressFill: { height: 3, backgroundColor: nyD ? ny.lime : c.success },
   // Inget gap här: FlashList lägger inte ut raderna i en flex-container, så gap
   // i contentContainerStyle tappades vid bytet i 1.2.1 och korten satt ihop.
