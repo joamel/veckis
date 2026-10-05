@@ -4,7 +4,9 @@ import { useDesign } from '../context/DesignContext';
 import { nyFont, type NyPalett } from '../lib/nyDesign';
 import type { Palette } from '../lib/theme';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import { reportClientError } from '../lib/errorReport';
 import { Pressable } from './Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type NotificationPreferences } from '../api/client';
@@ -28,9 +30,18 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
   const [testing, setTesting] = useState(false);
   const [activating, setActivating] = useState(false);
   const [deviceStatus, setDeviceStatus] = useState<string | null>(null);
+  // Telefonen visar inte behörighetsdialogen igen efter ett nej — då kan bara
+  // telefonens inställningar slå på notiser, och knappen tar en dit i stället.
+  const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
-    if (visible) client.getNotificationPreferences().then(setPrefs).catch(() => {});
+    if (!visible) return;
+    client.getNotificationPreferences().then(setPrefs).catch(() => {});
+    if (Platform.OS as any !== 'web') {
+      Notifications.getPermissionsAsync()
+        .then(p => setBlocked(!p.granted && !p.canAskAgain))
+        .catch(() => {});
+    }
   }, [visible]);
 
   async function toggle(key: keyof NotificationPreferences, value: boolean) {
@@ -46,14 +57,28 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
   }
 
   async function activateOnDevice() {
+    if (blocked) {
+      setDeviceStatus(str.notificationsModal.deviceStatus.openedSettings);
+      Linking.openSettings().catch(() => {});
+      return;
+    }
     setActivating(true);
     setDeviceStatus(null);
     const res = await registerForPush(client);
     setActivating(false);
-    if (res.status === 'ok') setDeviceStatus(str.notificationsModal.deviceStatus.ok);
-    else if (res.status === 'denied') setDeviceStatus(str.notificationsModal.deviceStatus.denied);
-    else if (res.status === 'unsupported') setDeviceStatus(str.notificationsModal.deviceStatus.unsupported);
-    else setDeviceStatus(str.notificationsModal.deviceStatus.error(res.error));
+    if (res.status === 'ok') {
+      setDeviceStatus(str.notificationsModal.deviceStatus.ok);
+    } else if (res.status === 'denied') {
+      setBlocked(!res.canAskAgain);
+      setDeviceStatus(str.notificationsModal.deviceStatus.denied);
+    } else if (res.status === 'unsupported') {
+      setDeviceStatus(str.notificationsModal.deviceStatus.unsupported);
+    } else {
+      // Det råa felet (t.ex. Firebase-konfig) säger användaren ingenting —
+      // det går till felrapporten, och användaren får något att göra.
+      reportClientError(new Error(res.error), { kind: 'push-register' });
+      setDeviceStatus(__DEV__ ? str.notificationsModal.deviceStatus.errorDev(res.error) : str.notificationsModal.deviceStatus.error);
+    }
   }
 
   async function sendTest() {
@@ -113,7 +138,7 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
           <Pressable style={s.btn} onPress={activateOnDevice} disabled={activating}>
             {activating
               ? <ActivityIndicator color={c.primary} size="small" />
-              : <><Ionicons name="phone-portrait-outline" size={18} color={nyDesign ? ny.padYta : c.primary} /><Text style={s.btnText}>{str.notificationsModal.activate}</Text></>}
+              : <><Ionicons name="phone-portrait-outline" size={18} color={nyDesign ? ny.padYta : c.primary} /><Text style={s.btnText}>{blocked ? str.notificationsModal.openSettings : str.notificationsModal.activate}</Text></>}
           </Pressable>
           {__DEV__ && (
             <Pressable style={[s.btn, s.btnTest]} onPress={sendTest} disabled={testing}>

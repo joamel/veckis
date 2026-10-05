@@ -1300,13 +1300,16 @@ export const components = {
     },
     deviceSection:  'DEN HÄR ENHETEN',
     activate:       'Aktivera på den här enheten',
+    openSettings:   'Öppna inställningar för notiser',
     sendTest:       'Skicka testnotis',
     errorSave:      'Kunde inte spara notisinställningen',
     deviceStatus: {
       ok:          'Den här enheten är registrerad för notiser.',
-      denied:      'Notiser är avstängda i telefonens inställningar - slå på dem för Handlis där.',
+      denied:      'Notiser är avstängda för Handlis. Slå på dem i telefonens inställningar.',
+      openedSettings: 'Slå på notiser för Handlis i inställningarna och kom sedan tillbaka hit.',
       unsupported: 'Push kräver en fysisk enhet (funkar inte i emulator).',
-      error:       (err: string) => `Kunde inte registrera: ${err}`,
+      error:       'Notiser kunde inte aktiveras i den här versionen av appen. Uppdatera appen och försök igen.',
+      errorDev:    (err: string) => `Kunde inte registrera: ${err}`,
     },
     test: {
       noDevice:    'Ingen enhet registrerad - tryck "Aktivera på den här enheten" först',

@@ -5,7 +5,9 @@ import Constants from 'expo-constants';
 
 export type PushRegisterStatus =
   | { status: 'ok'; token: string }
-  | { status: 'denied' }       // user declined the OS permission
+  // user declined the OS permission; canAskAgain = false means the OS won't
+  // show the dialog again — only the phone's settings can turn it on
+  | { status: 'denied'; canAskAgain: boolean }
   | { status: 'unsupported' }  // simulator / no device
   | { status: 'error'; error: string };
 
@@ -32,11 +34,13 @@ export async function registerForPush(client: TokenRegistrar): Promise<PushRegis
 
     const existing = await Notifications.getPermissionsAsync();
     let granted = existing.granted;
-    if (!granted && existing.canAskAgain) {
+    let canAskAgain = existing.canAskAgain;
+    if (!granted && canAskAgain) {
       const req = await Notifications.requestPermissionsAsync();
       granted = req.granted;
+      canAskAgain = req.canAskAgain;
     }
-    if (!granted) return { status: 'denied' };
+    if (!granted) return { status: 'denied', canAskAgain };
 
     const projectId =
       Constants.expoConfig?.extra?.eas?.projectId ??
