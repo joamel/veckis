@@ -119,8 +119,9 @@ export default function ShoppingScreen() {
     if (!isSplitView) setSelectedListId(null);
   }, [isSplitView, lists.length]);
 
-  // Butiker-tip (vallgraven): förklarar att man kan skapa egna butiker och
-  // sortera kategorierna efter sin affärsrutt. useFocusEffect så det bara fyrar
+  // Butiker-tip (vallgraven): säger vad en butik ger — listan sorterad i
+  // butikens ordning. HUR man ordnar (dra själv / förslag efter tre handlingar)
+  // tar ordnings-tipset inne i butiken. useFocusEffect så det bara fyrar
   // när inköp-fliken är aktiv; väntar tills spinnern är borta (annars är
   // storesBtnRef.current null) och tills koncept-guiden är avklarad.
   useFocusEffect(useCallback(() => {

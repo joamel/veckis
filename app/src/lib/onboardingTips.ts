@@ -11,6 +11,7 @@
 export const TIP_FLAGS = [
   'seen-concept-walkthrough',
   'seen-stores-tip',
+  'seen-store-order-tip',
   'seen-merge-tip',
   'seen-pin-tag-tip',
 ] as const;

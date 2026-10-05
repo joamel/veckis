@@ -24,6 +24,8 @@ import { stores as str, common } from '../../src/lib/svenska';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { StoreBankPicker } from '../../src/components/StoreBankPicker';
 import { useWebLeaveGuard } from '../../src/hooks/useWebLeaveGuard';
+import { useOnceFlag } from '../../src/hooks/useOnceFlag';
+import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { storeDrafts } from '../../src/lib/drafts';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { useBottomGap } from '../../src/hooks/useBottomGap';
@@ -98,6 +100,11 @@ export default function StoreDetailScreen() {
   // lämnade ett tomrum när tangentbordet stängdes.
   const { sheetLift, onFocusInput } = useSheetLift();
   const renameRef = useRef<TextInput>(null);
+  const showTip = useSpotlightTip();
+  const tipsReady = useTipsReady();
+  const orderTip = useOnceFlag('seen-store-order-tip');
+  const orderTipShownRef = useRef(false);
+  const orderHeaderRef = useRef<View>(null);
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
   // Synliga enum-kategorier (i ordning) + dolda räknas ut från diffen mellan
@@ -225,6 +232,20 @@ export default function StoreDetailScreen() {
     if (!storeId) return;
     client.getStoreOrderSuggestion(storeId).then(setSuggestion).catch(() => setSuggestion(null));
   }, [storeId, client]);
+
+  // Ordnings-tipset: Inköp-tipset säger VAD butiken ger (listan i butikens
+  // ordning), det här säger HUR — dra själv eller låt förslaget efter tre
+  // handlingar göra jobbet. Fyrar första gången man öppnar en butik.
+  useEffect(() => {
+    if (!tipsReady || loading || !store) return;
+    if (orderTip.seen !== false || orderTipShownRef.current) return;
+    const shown = showTip({
+      title: str.orderTip.title,
+      message: str.orderTip.message,
+      targetRef: orderHeaderRef,
+    });
+    if (shown) { orderTipShownRef.current = true; orderTip.markSeen(); }
+  }, [tipsReady, loading, store, orderTip.seen, orderTip.markSeen, showTip]);
   const clusters = useMemo(() => placedClusters(parentOrder, categoryMerge), [parentOrder, categoryMerge]);
   const headings = useMemo(() => placedHeadings(parentOrder), [parentOrder]);
   const clustersRef = useRef(clusters);
@@ -793,8 +814,10 @@ export default function StoreDetailScreen() {
             <Text style={s.sectionSub}>{str.detail.suggestProgress(suggestion.trips)}</Text>
           ) : null
         )}
-        <Text style={s.sectionLabel}>{str.detail.sections.visible}</Text>
-        <Text style={s.sectionSub}>{str.detail.mixedHint}</Text>
+        <View ref={orderHeaderRef} collapsable={false}>
+          <Text style={s.sectionLabel}>{str.detail.sections.visible}</Text>
+          <Text style={s.sectionSub}>{str.detail.mixedHint}</Text>
+        </View>
         <View style={s.catList} onLayout={e => setCatListWidth(e.nativeEvent.layout.width)}>
           {parentOrder.length === 0 ? (
             <Text style={s.emptyHint}>{str.detail.allHidden}</Text>

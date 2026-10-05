@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
-import type { Palette } from '../lib/theme';
+import { nyFont, type NyPalett } from '../lib/nyDesign';
 import { useHousehold } from '../context/HouseholdContext';
 import { useApiClient } from '../api/client';
 import { useOnceFlag } from '../hooks/useOnceFlag';
@@ -22,8 +22,8 @@ interface Status { hasRecipes: boolean; hasStore: boolean; hasMenu: boolean; has
  * döljs när allt är klart eller när man stänger den. Renderas i (tabs)/_layout.
  */
 export function GettingStartedOverlay() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { ny } = useTheme();
+  const s = useMemo(() => makeStyles(ny), [ny]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { householdId } = useHousehold();
@@ -84,10 +84,10 @@ export function GettingStartedOverlay() {
         <Text style={s.title}>{str.title} {str.progress(doneCount, 4)}</Text>
         <View style={{ flex: 1 }} />
         <Pressable onPress={() => setExpanded(false)} hitSlop={10} accessibilityLabel={str.collapse}>
-          <Ionicons name="chevron-down" size={20} color={c.textFaint} />
+          <Ionicons name="chevron-down" size={20} color={ny.textDampad} />
         </Pressable>
         <Pressable onPress={markSeen} hitSlop={10} accessibilityLabel={str.close} style={{ marginLeft: 10 }}>
-          <Ionicons name="close" size={20} color={c.textFaint} />
+          <Ionicons name="close" size={20} color={ny.textDampad} />
         </Pressable>
       </View>
       <Text style={s.subtitle}>{str.subtitle}</Text>
@@ -100,22 +100,24 @@ export function GettingStartedOverlay() {
           accessibilityRole="button"
           accessibilityState={{ disabled: step.done }}
         >
-          <Ionicons name={step.done ? 'checkmark-circle' : step.icon} size={20} color={step.done ? c.success : c.primary} />
+          <Ionicons name={step.done ? 'checkmark-circle' : step.icon} size={20} color={step.done ? ny.textDampad : ny.padYta} />
           <Text style={[s.itemLabel, step.done && s.itemLabelDone]}>{step.label}</Text>
           {step.done
             ? <Text style={s.doneTag}>{str.done}</Text>
-            : <Ionicons name="chevron-forward" size={16} color={c.textFaint} />}
+            : <Ionicons name="chevron-forward" size={16} color={ny.textDampad} />}
         </Pressable>
       ))}
     </View>
   );
 }
 
-const makeStyles = (c: Palette) => StyleSheet.create({
+// Skog & lime som resten av onboardingen (WelcomeModal, SpotlightTip): lime är
+// designens "tryck här", så den flytande pillen bär den med skog-text.
+const makeStyles = (ny: NyPalett) => StyleSheet.create({
   pill: {
     position: 'absolute',
     left: 12,
-    backgroundColor: c.primaryBtn,
+    backgroundColor: ny.lime,
     borderRadius: 22,
     paddingVertical: 9,
     paddingHorizontal: 14,
@@ -125,17 +127,17 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 6,
   },
-  pillText: { color: '#fff', fontWeight: '700', fontSize: 13.5 },
+  pillText: { color: ny.skog, fontFamily: nyFont.fet, fontSize: 13.5 },
   card: {
     position: 'absolute',
     left: 12,
     right: 12,
-    backgroundColor: c.surface,
-    borderRadius: 16,
+    backgroundColor: ny.kort,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: c.border,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderColor: ny.kontur,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     shadowColor: '#000',
     shadowOpacity: 0.28,
     shadowRadius: 16,
@@ -143,17 +145,17 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     elevation: 10,
   },
   header: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 15, fontWeight: '700', color: c.text },
-  subtitle: { fontSize: 12.5, color: c.textMuted, marginTop: 2, marginBottom: 4 },
+  title: { fontSize: 16, fontFamily: nyFont.fet, color: ny.padYta },
+  subtitle: { fontSize: 12.5, color: ny.textDampad, marginTop: 2, marginBottom: 4 },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 9,
     gap: 10,
     borderTopWidth: 1,
-    borderTopColor: c.borderLight,
+    borderTopColor: ny.kontur,
   },
-  itemLabel: { flex: 1, fontSize: 14, color: c.text },
-  itemLabelDone: { color: c.textFaint, textDecorationLine: 'line-through' },
-  doneTag: { fontSize: 12, color: c.success, fontWeight: '600' },
+  itemLabel: { flex: 1, fontSize: 14, color: ny.text },
+  itemLabelDone: { color: ny.textDampad, textDecorationLine: 'line-through' },
+  doneTag: { fontSize: 12, color: ny.padYta, fontFamily: nyFont.halvfet },
 });

@@ -168,8 +168,8 @@ export const shopping = {
 
   tips: {
     stores: {
-      title:   'Sortera efter din butik',
-      message: 'Skapa egna butiker och dra kategorierna i den ordning varorna dyker upp i din affär - inköpslistan sorteras då efter din rutt genom butiken.',
+      title:   'Inköpslistan i butikens ordning',
+      message: 'Koppla inköpslistan till en butik så sorteras varorna i den ordning du hittar dem i affären - du slipper leta och gå fram och tillbaka i butiken. Lägg till din butik här.',
     },
   },
 };
@@ -602,7 +602,7 @@ export const recipes = {
     favoriteLabel:   'Favoriter',
     favoriteAlwaysFirst: 'Favoriter ligger alltid först',
     pinTipTitle:  'Fäst dina vanligaste taggar',
-    pinTipBody:   'Håll inne på en tagg för att fästa den i listan. Fästa taggar ligger först, direkt efter Favoriter, så att du enkelt hittar dem.',
+    pinTipBody:   'Håll inne på en tagg för att fästa den först i taggraden, direkt efter Favoriter. Håll inne igen för att lossa den.',
     pinned:       (tag: string) => `”${tag}” fäst först`,
     unpinned:     (tag: string) => `”${tag}” inte längre fäst`,
     pinFailed:    'Kunde inte spara fästa taggar',
@@ -1147,6 +1147,11 @@ export const stores = {
       subtitle:  'Varorna behåller sin kategori — de grupperas bara under den valda rubriken i den här butiken.',
       noTargets: 'Inga andra synliga kategorier att slå ihop med.',
     },
+  },
+
+  orderTip: {
+    title:   'Din väg genom butiken',
+    message: 'Dra kategorierna i den ordning du föredrar, så sorteras inköpslistan likadant. Eller handla som vanligt: efter tre handlingar föreslår appen en ordning utifrån hur du bockat av varorna.',
   },
 
   renameModal: {
