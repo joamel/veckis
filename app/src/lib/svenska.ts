@@ -193,6 +193,8 @@ export const shoppingList = {
     checkAll:     'Klarmarka alla',
     importMenu:   'Importera veckomeny',
     importItems:  'Importera varor',
+    checkboxesLeft:  'Bockrutor till vänster',
+    checkboxesRight: 'Bockrutor till höger',
   },
 
   importera: {
@@ -1590,10 +1592,18 @@ export const preferences = {
     sound:          'Ljud vid avcheckning',
     haptics:        'Vibration vid avcheckning',
     onboardingTips: 'Visa introduktionen igen',
+    proximity:      'Släck skärmen i fickan',
+    proximityHint:  'När du handlar släcks skärmen när mobilen ligger i fickan, så inget bockas av av misstag. Den tänds när du tar upp den.',
     twoFactor:      'Tvåfaktorsautentisering',
     contactSupport: 'Kontakta support',
     privacyPolicy:  'Integritetspolicy',
     terms:          'Användarvillkor',
+  },
+
+  checkboxSide: {
+    label: 'Bockrutor i inköpslistan',
+    right: 'Höger',
+    left:  'Vänster',
   },
 
   landing: {

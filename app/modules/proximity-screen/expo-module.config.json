@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["ProximityScreenModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.proximityscreen.ProximityScreenModule"]
+  }
+}

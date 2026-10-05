@@ -67,6 +67,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
+import { useProximityScreen } from '../../src/hooks/useProximityScreen';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
@@ -192,7 +193,7 @@ function useChipAutoScroll(scrollRef: { current: ScrollView | null }, activeKey:
 
 export function ShoppingListDetail({ listId, onClose }: { listId: string; onClose?: () => void }) {
   const { colors: c, ny } = useTheme();
-  const { nyDesign } = useDesign();
+  const { nyDesign, checkboxSide, setCheckboxSide } = useDesign();
   const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const router = useRouter();
   const goBack = useCallback(() => {
@@ -238,6 +239,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const myMember = members.find(m => m.clerkUserId === clerkUserId) ?? null;
   const activeShopper = list?.activeShopperMemberId ? members.find(m => m.id === list.activeShopperMemberId) ?? null : null;
   const iAmShopping = !!myMember && list?.activeShopperMemberId === myMember.id;
+  // Medan jag handlar: skärmen släcks i fickan (närhetssensorn).
+  useProximityScreen(iAmShopping);
   const [togglingShopper, setTogglingShopper] = useState(false);
 
   // Quick-add quantity sheet (chip tap)
@@ -1852,16 +1855,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     switch (row.kind) {
       case 'catHeader': {
         const group = row.group;
-        return (
-          <Pressable
-            style={[s.categoryHeader, group.isSub && s.categorySubHeader]}
-            onPress={() => toggleCategoryCollapsed(groupKey(group) as StoreCategory | 'checked')}
-            hitSlop={4}
-          >
-            <Text style={[s.categoryLabel, group.isSub && s.categorySubLabel]} numberOfLines={2}>
-              {row.label}{row.collapsed ? ` (${group.items.length})` : ''}
-            </Text>
-            {group.items.some(i => !i.isChecked) && (
+        // Bocka-av-ikonen följer bockrutornas sida, så tummen hittar den där
+        // den redan bockar.
+        const checkAll = group.items.some(i => !i.isChecked) && (
               <Pressable
                 onPress={e => {
                   e.stopPropagation();
@@ -1878,10 +1874,21 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 hitSlop={8}
                 accessibilityLabel={str.a11y.checkAllDone}
               >
-                <Ionicons name="checkmark-circle-outline" size={20} color={c.success} />
+                <Ionicons name="checkmark-circle-outline" size={20} color={nyDesign ? ny.padYta : c.success} />
               </Pressable>
-            )}
-            <Ionicons name={row.collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={c.textFaint} />
+        );
+        return (
+          <Pressable
+            style={[s.categoryHeader, group.isSub && s.categorySubHeader]}
+            onPress={() => toggleCategoryCollapsed(groupKey(group) as StoreCategory | 'checked')}
+            hitSlop={4}
+          >
+            {checkboxSide === 'left' && checkAll}
+            <Text style={[s.categoryLabel, group.isSub && s.categorySubLabel]} numberOfLines={2}>
+              {row.label}{row.collapsed ? ` (${group.items.length})` : ''}
+            </Text>
+            {checkboxSide !== 'left' && checkAll}
+            <Ionicons name={row.collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={nyDesign ? ny.textDampad : c.textFaint} />
           </Pressable>
         );
       }
@@ -1920,7 +1927,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           />
         );
     }
-  }, [confirm, markAllInCategory, toggleCategoryCollapsed, isPending, toggleItem, uncheckGroup, checkGroup, openEditItem, deleteItemWithUndo, deleteGroupWithUndo, s, c]);
+  }, [confirm, markAllInCategory, toggleCategoryCollapsed, isPending, toggleItem, uncheckGroup, checkGroup, openEditItem, deleteItemWithUndo, deleteGroupWithUndo, s, c, ny, nyDesign, checkboxSide]);
 
   // Early returns FÖRST här, efter alla hooks — inte uppe bland de härledda
   // värdena, där de gjorde listRows-memon villkorad och kraschade skärmen.
@@ -2863,6 +2870,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             <Ionicons name="checkbox-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>{str.actionsMenu.checkAll}</Text>
           </Pressable>
+          {/* Genväg till samma val som i Inställningar → App: det är där man
+              står med listan i handen som man märker att sidan är fel. */}
+          <Pressable
+            style={s.actionsMenuItem}
+            onPress={() => { setShowActionsMenu(false); setCheckboxSide(checkboxSide === 'left' ? 'right' : 'left'); }}
+          >
+            <Ionicons name="swap-horizontal-outline" size={20} color={c.primary} />
+            <Text style={s.actionsMenuText}>{checkboxSide === 'left' ? str.actionsMenu.checkboxesRight : str.actionsMenu.checkboxesLeft}</Text>
+          </Pressable>
           <View style={s.actionsMenuDivider} />
           <Pressable
             style={s.actionsMenuItem}
@@ -3123,8 +3139,12 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
   // skärmens stylesheet (~150 entries), och med useMemo(…, [c]) gjorde varje
   // monterad rad det en gång var. Vid långsam scroll monteras rader i jämn
   // ström, så det blev ett stylesheet per rad — den dyraste posten i scrollen.
-  const { nyDesign } = useDesign();
+  const { nyDesign, checkboxSide } = useDesign();
   const s = getItemRowStyles(c, nyDesign, ny);
+  // Vänsterhänt: bockrutan till vänster, och svepet för att ta bort åt HÖGER
+  // — annars börjar svepet precis där tummen bockar av. dir = svepets håll.
+  const checkboxLeft = checkboxSide === 'left';
+  const dir = checkboxLeft ? 1 : -1;
   const { width: windowWidth } = useWindowDimensions();
   const translateX = useSharedValue(0);
   const THRESHOLD = windowWidth * 0.35;
@@ -3145,7 +3165,8 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
   // Memoiserad: Gesture.Pan() byggde annars om hela gest-objektet med sina
   // worklets vid varje render, inte bara vid mount.
   //
-  // Bara vänster-svep (ta bort) finns kvar. Höger-svep till redigering blev
+  // Bara ett svep (ta bort) finns kvar — åt vänster, eller åt höger när
+  // bockrutan sitter till vänster. Höger-svep till redigering blev
   // överflödigt när ett vanligt tryck på raden öppnar redigering — två gester
   // som gjorde samma sak, och den andra syntes bara om man svepte fel håll.
   const panGesture = useMemo(() => Gesture.Pan()
@@ -3153,16 +3174,16 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
     .activeOffsetX([-10, 10])
     .failOffsetY([-15, 15])
     .onUpdate((e) => {
-      translateX.value = Math.min(0, e.translationX);
+      translateX.value = dir > 0 ? Math.max(0, e.translationX) : Math.min(0, e.translationX);
     })
     .onEnd((e) => {
-      if (-translateX.value > THRESHOLD || e.velocityX < -800) {
-        translateX.value = withSpring(-windowWidth);
+      if (dir * translateX.value > THRESHOLD || dir * e.velocityX > 800) {
+        translateX.value = withSpring(dir * windowWidth);
         runOnJS(doDelete)();
       } else {
         translateX.value = withSpring(0);
       }
-    }), [pending, canDelete, THRESHOLD, windowWidth, translateX, doDelete]);
+    }), [pending, canDelete, THRESHOLD, windowWidth, translateX, doDelete, dir]);
 
   // Den FAKTISKA orsaken till att checkboxen var svår att träffa: RNGH tar
   // över pekhanteringen för hela ytan panGesture är kopplad till, och en
@@ -3184,12 +3205,12 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
   }));
 
   const bgStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(-translateX.value, [0, THRESHOLD * 0.5], [0, 1], Extrapolation.CLAMP),
+    opacity: interpolate(Math.abs(translateX.value), [0, THRESHOLD * 0.5], [0, 1], Extrapolation.CLAMP),
   }));
 
   return (
     <View style={[s.swipeRowWrap, !item.isChecked && s.swipeRowWrapShadow]}>
-      <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeDeleteBg, bgStyle]}>
+      <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeDeleteBg, checkboxLeft && s.swipeDeleteBgLeft, bgStyle]}>
         <Ionicons name="trash-outline" size={22} color="#fff" />
       </RNAnimated.View>
       {/* touchAction="pan-y" (web-only, ignoreras på native): webbläsaren
@@ -3212,13 +3233,13 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
               av dem den landar i äger den, alltid. Item-View:n är nu en
               vanlig View (inte Pressable): den håller bara ihop bakgrund och
               form, allt tryck sker i zonerna under den. */}
-          <View style={[s.item, item.isChecked && s.itemChecked, pending && s.itemPending]}>
+          <View style={[s.item, checkboxLeft && s.itemCheckboxLeft, item.isChecked && s.itemChecked, pending && s.itemPending]}>
             {/* noFeedback: raden ligger i svepgesten — en nedtoning vid fingrets
                 första kontakt blinkade i början av varje svep. */}
             <Pressable
               noFeedback
               onPress={pending ? undefined : doEdit}
-              style={s.contentZone}
+              style={[s.contentZone, checkboxLeft && s.contentZoneCheckboxLeft]}
               accessibilityRole="button"
               accessibilityLabel={str.a11y.editItem(item.name)}
             >
@@ -3348,6 +3369,11 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // ersätter den gamla radens paddingVertical; paddingRight matchar radens
   // gamla högerpadding.
   contentZone: { flex: 1, justifyContent: 'center', paddingVertical: 14, paddingLeft: 14 },
+  // Vänsterhänt: zonerna byter plats (row-reverse, så JSX-ordningen och
+  // därmed skärmläsarens läsordning är densamma) och texten får sin luft
+  // på högersidan i stället.
+  itemCheckboxLeft: { flexDirection: 'row-reverse' },
+  contentZoneCheckboxLeft: { paddingLeft: 0, paddingRight: 14 },
   itemChecked: { opacity: 0.55 },
   itemPending: { opacity: 0.4, backgroundColor: c.dangerTint },
   itemRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
@@ -3417,6 +3443,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // Ny design: ingen skugga — de gröntonade korten skiljer sig mot bakgrunden ändå.
   swipeRowWrapShadow: nyD ? {} : { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   swipeDeleteBg: { backgroundColor: c.danger, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
+  swipeDeleteBgLeft: { alignItems: 'flex-start', paddingRight: 0, paddingLeft: 20 },
   // Fast höjd (sätts vid användningen): arket hoppar inte mellan rutnät,
   // kategorier och underkategorifilter — får varorna inte plats scrollar listan.
   browserSheet: { maxHeight: '90%' },

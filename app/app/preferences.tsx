@@ -9,6 +9,7 @@ import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from '../src/components/Pressable';
 import * as Updates from 'expo-updates';
 import Constants from 'expo-constants';
+import { requireOptionalNativeModule } from 'expo';
 import { formateraLyftspår, senasteLyftspår } from '../src/lib/lyftdiagnostik';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,8 @@ import { TIP_FLAGS } from '../src/lib/onboardingTips';
 import * as SecureStore from '../src/lib/secureStorage';
 import { useToast } from '../src/context/ToastContext';
 import { HAPTIC_CHECKOUT_KEY, SOUND_CHECKOUT_KEY } from '../src/hooks/useCheckHaptic';
+import { PROXIMITY_SCREEN_KEY } from '../src/hooks/useProximityScreen';
+import { isProximityScreenAvailable, proximityScreenStatus } from '../modules/proximity-screen';
 import { LANDING_TABS, DEFAULT_LANDING_TAB, getLandingTab, setLandingTab, type LandingTabKey } from '../src/lib/landingTab';
 import { preferences as str } from '../src/lib/svenska';
 import { useDesign } from '../src/context/DesignContext';
@@ -25,9 +28,16 @@ import { useBottomGap } from '../src/hooks/useBottomGap';
 import { nyFont, type NyPalett } from '../src/lib/nyDesign';
 import { NyHeader } from '../src/components/nydesign/NyHeader';
 
+// Installerat native-byggets versionCode (Android) / build (iOS). Läses
+// valfritt: en vanlig import av expo-application kraschar ett bygge som
+// saknar modulen, och raden är bara diagnos.
+function nativeBuildVersion(): string | null {
+  return requireOptionalNativeModule<{ nativeBuildVersion?: string }>('ExpoApplication')?.nativeBuildVersion ?? null;
+}
+
 export default function PreferencesScreen() {
   const { colors: c, ny } = useTheme();
-  const { nyDesign } = useDesign();
+  const { nyDesign, checkboxSide, setCheckboxSide } = useDesign();
   // Kant-i-kant: sista raden får inte hamna under systemraden.
   const bottomGap = useBottomGap();
   const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
@@ -40,6 +50,9 @@ export default function PreferencesScreen() {
   const [hapticEnabled, setHapticEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [landingTab, setLandingTabState] = useState<LandingTabKey>(DEFAULT_LANDING_TAB);
+  // null = raden döljs: webben, byggen utan modulen och enheter utan sensor.
+  const [proximityEnabled, setProximityEnabled] = useState<boolean | null>(null);
+  const [proximityDiag, setProximityDiag] = useState<string | null>(null);
 
   useEffect(() => {
     SecureStore.getItemAsync(HAPTIC_CHECKOUT_KEY).then(v => {
@@ -49,6 +62,12 @@ export default function PreferencesScreen() {
       setSoundEnabled(v !== '0');
     }).catch(() => {});
     getLandingTab().then(setLandingTabState);
+    proximityScreenStatus().then(setProximityDiag);
+    isProximityScreenAvailable().then(async available => {
+      if (!available) return;
+      const v = await SecureStore.getItemAsync(PROXIMITY_SCREEN_KEY).catch(() => null);
+      setProximityEnabled(v !== '0');
+    });
   }, []);
 
   async function handleResetTips() {
@@ -133,6 +152,24 @@ export default function PreferencesScreen() {
               color={nyDesign ? (hapticEnabled ? ny.padYta : ny.kontur) : (hapticEnabled ? c.accent : c.textFaint)}
             />
           </Pressable>
+          {proximityEnabled !== null && (
+            <Pressable style={[s.row, s.rowBorder]} onPress={async () => {
+              const next = !proximityEnabled;
+              setProximityEnabled(next);
+              await SecureStore.setItemAsync(PROXIMITY_SCREEN_KEY, next ? '1' : '0').catch(() => {});
+            }}>
+              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="moon-outline" size={18} color={ny.padYta} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.rowText}>{str.rows.proximity}</Text>
+                <Text style={s.rowHint}>{str.rows.proximityHint}</Text>
+              </View>
+              <Ionicons
+                name={proximityEnabled ? 'toggle' : 'toggle-outline'}
+                size={22}
+                color={proximityEnabled ? ny.padYta : ny.kontur}
+              />
+            </Pressable>
+          )}
           <Pressable style={[s.row, s.rowBorder]} onPress={handleResetTips}>
             {nyDesign ? (
               <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="bulb-outline" size={18} color={ny.padYta} /></View>
@@ -161,6 +198,28 @@ export default function PreferencesScreen() {
                   >
                     <Ionicons name={t.icon as never} size={13} color={nyDesign ? (active ? ny.lime : ny.chipText) : (active ? '#fff' : c.textMuted)} />
                     <Text style={[s.landingChipText, active && s.landingChipTextActive]}>{str.landing.tabs[t.labelKey]}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+          {/* Höger- eller vänsterhänt: vilken sida inköpslistans bockrutor
+              sitter på. Samma val finns i listans ⋮-meny. */}
+          <View style={[s.row, s.rowBorder, { flexWrap: 'wrap' }]}>
+            <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="hand-left-outline" size={18} color={ny.padYta} /></View>
+            <Text style={s.rowText}>{str.checkboxSide.label}</Text>
+            <View style={s.landingChips}>
+              {(['right', 'left'] as const).map(side => {
+                const active = checkboxSide === side;
+                return (
+                  <Pressable
+                    key={side}
+                    style={[s.landingChip, active && s.landingChipActive]}
+                    onPress={() => setCheckboxSide(side)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Text style={[s.landingChipText, active && s.landingChipTextActive]}>{str.checkboxSide[side]}</Text>
                   </Pressable>
                 );
               })}
@@ -211,6 +270,9 @@ export default function PreferencesScreen() {
             bara att felsöka på en riktig telefon, och siffrorna som avgör det
             syns annars ingenstans. Visas först när något faktiskt mätts. */}
         {lyftrad ? <Text style={s.versionFooter}>{lyftrad}</Text> : null}
+        {/* Fick-sensorn: "saknas" = native-bygget är äldre än modulen (v17),
+            "stöds ej" = telefonen saknar sensor-wakelocken. */}
+        {Platform.OS !== 'web' && proximityDiag ? <Text style={s.versionFooter}>bygge {nativeBuildVersion() ?? '?'} · närhetssensor: {proximityDiag}</Text> : null}
       </ScrollView>
 
       <NotificationsModal visible={showNotifModal} onClose={() => setShowNotifModal(false)} />
@@ -238,6 +300,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   rowText: nyD
     ? { flex: 1, fontFamily: nyFont.fet, fontSize: 16, letterSpacing: -0.2, color: ny.text }
     : { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
+  rowHint: { fontSize: 12.5, color: nyD ? ny.textDampad : c.textMuted, marginTop: 2 },
   versionFooter: { fontSize: 11, color: nyD ? ny.textDampad : c.textFaint, textAlign: 'center', marginTop: 16 },
   landingChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, width: '100%', marginTop: 4, paddingLeft: nyD ? 50 : 30 },
   landingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.bricka : c.surfaceSubtle },
