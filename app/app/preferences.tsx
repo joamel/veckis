@@ -127,7 +127,7 @@ export default function PreferencesScreen() {
             <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="hand-left-outline" size={18} color={ny.padYta} /></View>
             <Text style={s.rowText}>{str.checkboxSide.label}</Text>
             <View style={s.inlineChips}>
-              {(['right', 'left'] as const).map(side => {
+              {(['left', 'right'] as const).map(side => {
                 const active = checkboxSide === side;
                 return (
                   <Pressable
