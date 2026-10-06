@@ -15,10 +15,9 @@ type Props = {
   /** Ett steg fick fokus (eller växte). Får knappen "Lägg till steg" så att
    *  skärmen kan skrolla den ovanför tangentbordet. */
   onStepFocus?: (addButton: View | null) => void;
-  /** Ett nytt steg skapas. Knappen flyttas ned `extra` px när det renderats —
-   *  skärmen kan skrolla dit direkt, i en enda rörelse, i stället för att
-   *  vänta på fokus (då hann iOS skrolla själv först och det hoppade). */
-  onStepAdded?: (addButton: View | null, extra: number) => void;
+  /** Ett nytt steg har renderats. Skärmen skrollar fram knappen; det nya
+   *  steget får fokus först efter REVEAL_MS, när skrollningen är klar. */
+  onStepAdded?: (addButton: View | null) => void;
   /** Inget steg har fokus längre. */
   onStepBlur?: () => void;
 };
@@ -32,10 +31,9 @@ export function StepsEditor({ value, onChange, onStepFocus, onStepAdded, onStepB
   const s = useMemo(() => makeStyles(c, ny), [c, ny]);
   const [steps, setSteps] = useState(() => splitSteps(value));
   const refs = useRef<(TextInput | null)[]>([]);
-  const pendingFocus = useRef<number | null>(null);
   const addBtnRef = useRef<View>(null);
-  // Vilket steg som har fokus. Blur väntar en stund: när Enter flyttar fokus
-  // till nästa steg ska skärmen inte hinna tro att inget steg är fokuserat.
+  // Vilket steg som har fokus. Blur väntar en stund: när fokus flyttas till
+  // nästa steg ska skärmen inte hinna tro att inget steg är fokuserat.
   const focusedIdx = useRef<number | null>(null);
 
   function stepFocused(idx: number) {
@@ -58,53 +56,56 @@ export function StepsEditor({ value, onChange, onStepFocus, onStepAdded, onStepB
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  // Fokus flyttas efter att det nya fältet hunnit renderas.
-  useEffect(() => {
-    if (pendingFocus.current == null) return;
-    refs.current[pendingFocus.current]?.focus();
-    pendingFocus.current = null;
-  });
-
-  function commit(next: string[], focusIdx?: number) {
+  function commit(next: string[]) {
     setSteps(next);
-    if (focusIdx != null) pendingFocus.current = focusIdx;
     onChange(joinSteps(next));
   }
 
-  // Samma tryck på "nästa" kan komma två vägar: som submit OCH som en
-  // radbrytning i texten (Samsungs tangentbord gör båda). Förr blev det två
-  // nya steg per tryck, och skärmen lyfte bara för ett. Den väg som kommer
-  // först skapar steget; den andra inom kort ignoreras.
-  const lastAddAt = useRef(0);
-  const justAdded = () => Date.now() - lastAddAt.current < 400;
+  // Nytt steg: rendera det, skrolla fram det med den VERKLIGA höjden, och
+  // flytta fokus först när skrollningen är klar. Fick det nya fältet fokus
+  // medan skrollningen pågick låg det bakom tangentbordet en stund — då
+  // panorerade Android hela fönstret (softwareKeyboardLayoutMode "pan") och
+  // sedan tillbaka: vyn blinkade till från toppen och avståndet ändrades vid
+  // varje steg. Fokus stannar i det gamla steget under tiden, så tangentbordet
+  // ligger kvar.
+  function revealThenFocus(target: number) {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      onStepAdded?.(addBtnRef.current);
+      setTimeout(() => refs.current[target]?.focus(), REVEAL_MS);
+    }));
+  }
 
   function changeText(idx: number, text: string) {
     const { steps: next, focusIdx } = applyStepText(steps, idx, text);
     if (focusIdx === idx) { commit(next); return; }
-    // En ensam radbrytning sist, direkt efter att submit skapat steget:
-    // samma tryck — ta bara bort radbrytningen.
-    if (justAdded() && /^[^\n]*\r?\n$/.test(text)) {
+    // Radbrytning i ett tomt steg (Enter på webben, vissa tangentbord):
+    // inget nytt steg — samma spärr som "nästa".
+    if (next.slice(idx, focusIdx + 1).every(x => x.trim() === '')) {
       const kept = [...steps];
-      kept[idx] = text.replace(/\r?\n$/, '');
+      kept[idx] = '';
       commit(kept);
       return;
     }
-    lastAddAt.current = Date.now();
-    onStepAdded?.(addBtnRef.current, NEW_STEP_HEIGHT * (next.length - steps.length));
-    commit(next, focusIdx);
+    commit(next);
+    revealThenFocus(focusIdx);
   }
 
-  function addAfter(idx: number, fromKeyboard = false) {
-    if (fromKeyboard && justAdded()) return;
-    lastAddAt.current = Date.now();
-    onStepAdded?.(addBtnRef.current, NEW_STEP_HEIGHT);
-    const next = [...steps.slice(0, idx + 1), '', ...steps.slice(idx + 1)];
-    commit(next, idx + 1);
+  function addAfter(idx: number) {
+    // Spärr: ett tomt steg ger inget nytt — fokus stannar (eller hamnar) i det.
+    if (steps[idx].trim() === '') {
+      refs.current[idx]?.focus();
+      return;
+    }
+    commit([...steps.slice(0, idx + 1), '', ...steps.slice(idx + 1)]);
+    revealThenFocus(idx + 1);
   }
 
   function removeEmpty(idx: number, e: NativeSyntheticEvent<TextInputKeyPressEventData>) {
     if (e.nativeEvent.key !== 'Backspace' || steps[idx] !== '' || steps.length === 1) return;
-    commit(steps.filter((_, i) => i !== idx), Math.max(0, idx - 1));
+    commit(steps.filter((_, i) => i !== idx));
+    // Föregående steg ligger ovanför och syns redan — inget att skrolla.
+    const prev = Math.max(0, idx - 1);
+    requestAnimationFrame(() => refs.current[prev]?.focus());
   }
 
   return (
@@ -133,7 +134,7 @@ export function StepsEditor({ value, onChange, onStepFocus, onStepAdded, onStepB
             submitBehavior="submit"
             blurOnSubmit
             returnKeyType="next"
-            onSubmitEditing={() => addAfter(idx, true)}
+            onSubmitEditing={() => addAfter(idx)}
           />
         </View>
       ))}
@@ -147,10 +148,10 @@ export function StepsEditor({ value, onChange, onStepFocus, onStepAdded, onStepB
   );
 }
 
-// Ett tomt steg: fältets minHeight + avståndet mellan raderna.
 const STEP_MIN_HEIGHT = 48;
 const STEP_GAP = 10;
-const NEW_STEP_HEIGHT = STEP_MIN_HEIGHT + STEP_GAP;
+// Ungefär en animerad scrollTo — fokus väntar tills den är klar.
+const REVEAL_MS = 320;
 
 const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   list: { gap: STEP_GAP },

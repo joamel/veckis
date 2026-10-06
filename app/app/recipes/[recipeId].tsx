@@ -423,10 +423,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   // det som står precis ovanför det — mät mot radens överkant, inte mot
   // tangentbordets (då hamnade knappen bakom raden).
   const editBarRef = useRef<View>(null);
-  // extra: hur mycket knappen kommer att flyttas ned (ett nytt steg som inte
-  // renderats än). Då skrollas det direkt — tangentbordet är redan uppe — och
-  // fokus-anropet efteråt hittar inget mer att skrolla. delay behövs bara
-  // första gången, medan tangentbordet och raden fortfarande glider upp.
+  // delay behövs bara vid första fokus, medan tangentbordet och raden glider
+  // upp. Ett nytt steg är redan renderat när det här anropas och mäts direkt;
+  // det får fokus först när skrollningen är klar (se StepsEditor), så
+  // fokus-anropet efteråt hittar inget mer att skrolla. extra: plats för
+  // något som inte renderats än.
   const revealStepButton = useCallback((addButton: View | null, extra = 0, delay = 300) => {
     setStepFocused(true);
     if (!addButton) return;
@@ -1753,7 +1754,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               value={editInstr}
               onChange={setEditInstr}
               onStepFocus={revealStepButton}
-              onStepAdded={(addButton, extra) => revealStepButton(addButton, extra, 0)}
+              onStepAdded={addButton => revealStepButton(addButton, 0, 0)}
               onStepBlur={() => setStepFocused(false)}
             />
           </View>
