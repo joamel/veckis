@@ -6,6 +6,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Ett normalt bygge tar ~20-30 min. Hänger något (R8 utan minne stod
+    # tyst i 27 min 2026-10-06) ska jobbet dö, inte stå i GitHubs 6 timmar.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -68,7 +71,10 @@ jobs:
           chmod +x gradlew
           ./gradlew bundleRelease -x lint -x lintVitalAnalyzeRelease
         env:
-          _JAVA_OPTIONS: '-Xmx2g'
+          # R8 (kodkrympningen, på sedan v19) behöver mycket minne — med 2 GB
+          # stod minifyReleaseWithR8 och skräpsamlade i en halvtimme. Den publika
+          # runnern har 16 GB; gäller varje JVM (Gradle- och Kotlin-demonen).
+          _JAVA_OPTIONS: '-Xmx6g -XX:MaxMetaspaceSize=1g'
           EXPO_NO_DOTENV: 1
           EXPO_PUBLIC_API_URL: https://veckis-production.up.railway.app
           EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_live_Y2xlcmsuaGFuZGxpcy5hcHAk
