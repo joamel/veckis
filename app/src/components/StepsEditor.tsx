@@ -71,12 +71,32 @@ export function StepsEditor({ value, onChange, onStepFocus, onStepAdded, onStepB
     onChange(joinSteps(next));
   }
 
+  // Samma tryck på "nästa" kan komma två vägar: som submit OCH som en
+  // radbrytning i texten (Samsungs tangentbord gör båda). Förr blev det två
+  // nya steg per tryck, och skärmen lyfte bara för ett. Den väg som kommer
+  // först skapar steget; den andra inom kort ignoreras.
+  const lastAddAt = useRef(0);
+  const justAdded = () => Date.now() - lastAddAt.current < 400;
+
   function changeText(idx: number, text: string) {
     const { steps: next, focusIdx } = applyStepText(steps, idx, text);
-    commit(next, focusIdx !== idx ? focusIdx : undefined);
+    if (focusIdx === idx) { commit(next); return; }
+    // En ensam radbrytning sist, direkt efter att submit skapat steget:
+    // samma tryck — ta bara bort radbrytningen.
+    if (justAdded() && /^[^\n]*\r?\n$/.test(text)) {
+      const kept = [...steps];
+      kept[idx] = text.replace(/\r?\n$/, '');
+      commit(kept);
+      return;
+    }
+    lastAddAt.current = Date.now();
+    onStepAdded?.(addBtnRef.current, NEW_STEP_HEIGHT * (next.length - steps.length));
+    commit(next, focusIdx);
   }
 
-  function addAfter(idx: number) {
+  function addAfter(idx: number, fromKeyboard = false) {
+    if (fromKeyboard && justAdded()) return;
+    lastAddAt.current = Date.now();
     onStepAdded?.(addBtnRef.current, NEW_STEP_HEIGHT);
     const next = [...steps.slice(0, idx + 1), '', ...steps.slice(idx + 1)];
     commit(next, idx + 1);
@@ -113,7 +133,7 @@ export function StepsEditor({ value, onChange, onStepFocus, onStepAdded, onStepB
             submitBehavior="submit"
             blurOnSubmit
             returnKeyType="next"
-            onSubmitEditing={() => addAfter(idx)}
+            onSubmitEditing={() => addAfter(idx, true)}
           />
         </View>
       ))}
