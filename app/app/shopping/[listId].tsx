@@ -9,7 +9,7 @@ import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { normalizeQtyInput } from '../../src/lib/qty';
 import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
 import { browserTiles, browserSubs, browserSections, headingSubs } from '../../src/lib/browserOrder';
-import { browserStepperFor } from '../../src/lib/browserStepper';
+import { browserEntryFor } from '../../src/lib/browserEntry';
 import { buildShoppingListRows, type ShoppingListRow } from '../../src/lib/shoppingListRows';
 import { FlashList } from '@shopify/flash-list';
 import { ConflictBanner } from '../../src/components/ConflictBanner';
@@ -1518,20 +1518,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     }, 5000);
   }
 
-  // Kategoribläddrarens − / +: ändrar antalet på raden som redan finns i
-  // stället för att lägga till en ny rad per tryck.
-  async function setItemQuantity(item: ShoppingItemWithRecipe, quantity: number) {
-    setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, quantity } : i) } : prev);
-    try {
-      await client.updateShoppingItem(item.id, { quantity });
-    } catch (e) {
-      setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, quantity: item.quantity } : i) } : prev);
-      showError(e, str.toasts.errorSave);
-    }
-  }
-
-  // En vara i g, dl o.d. stegas inte med 1 — den redigeras i arket. Bläddraren
-  // stängs först: två ark ovanpå varandra är opålitligt på iOS.
+  // Redigera en vara som redan finns, från bläddraren. Bläddraren stängs
+  // först: två ark ovanpå varandra är opålitligt på iOS.
   function editFromBrowser(item: ShoppingItemWithRecipe) {
     setShowBrowser(false);
     setBrowserCategory(null);
@@ -2333,47 +2321,34 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                       ) : null}
                       {sec.items.map(s2 => {
                         const namn = capitalize(s2.name);
-                        const st = browserStepperFor(list?.items ?? [], s2.name);
-                        const onList = st.target !== null;
-                        const add = () => {
-                          if (st.target === null) {
-                            quickAdd(s2.name, browserCategory?.startsWith('c:') ? undefined : (browserCategory as StoreCategory | null) ?? undefined);
-                          } else if (st.mode === 'count') {
-                            setItemQuantity(st.target, st.count + 1);
-                          } else {
-                            editFromBrowser(st.target);
-                          }
-                        };
-                        const remove = () => {
-                          if (st.target === null) return;
-                          if (st.mode === 'measure') editFromBrowser(st.target);
-                          else if (st.count > 1) setItemQuantity(st.target, st.count - 1);
-                          else deleteItemWithUndo(st.target);
-                        };
-                        // Mängd i g, dl o.d. visas som den är ("400 g"); explicit
-                        // bredd eftersom Android annars klipper sista glyfen.
-                        const mitten = st.mode === 'count'
-                          ? String(st.count)
-                          : `${st.quantity != null ? String(st.quantity).replace('.', ',') + ' ' : ''}${st.unit}`;
+                        const entry = browserEntryFor(list?.items ?? [], s2.name);
+                        // Finns varan redan: tryck öppnar redigeringen (mängd och
+                        // enhet). Annars läggs den till, och arket står kvar så man
+                        // kan plocka flera i rad.
+                        const onPress = entry
+                          ? () => editFromBrowser(entry.target)
+                          : () => quickAdd(s2.name, browserCategory?.startsWith('c:') ? undefined : (browserCategory as StoreCategory | null) ?? undefined);
                         return (
-                          <View key={s2.name} style={s.browserItem}>
+                          <Pressable
+                            key={s2.name}
+                            style={s.browserItem}
+                            onPress={onPress}
+                            accessibilityRole="button"
+                            accessibilityLabel={entry ? str.browserOnList(namn, entry.label) : str.browserAdd(namn)}
+                          >
                             <Text style={s.browserItemText}>{namn}</Text>
-                            {/* − antal + på VARJE rad, även vid 0, så raderna linjerar. */}
-                            <View style={s.browserStepper}>
-                              <Pressable onPress={remove} disabled={!onList} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.browserLess(namn)}>
-                                <Ionicons name="remove-circle-outline" size={26} color={onList ? c.primary : c.textFaint} />
-                              </Pressable>
-                              <Text
-                                style={[s.browserStepperCount, !onList && s.browserStepperCountZero, st.mode === 'measure' && { width: mitten.length * 8 + 8 }]}
-                                accessibilityLabel={onList ? str.browserOnList(namn, mitten) : undefined}
-                              >
-                                {mitten}
-                              </Text>
-                              <Pressable onPress={add} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.browserMore(namn)}>
-                                <Ionicons name="add-circle-outline" size={26} color={c.primary} />
-                              </Pressable>
-                            </View>
-                          </View>
+                            {entry ? (
+                              <View style={s.browserOnList}>
+                                {/* Explicit bredd: Android klipper annars sista glyfen ("kg" → "k"). */}
+                                {entry.label ? (
+                                  <Text style={[s.browserAmount, { width: entry.label.length * 8 + 8 }]}>{entry.label}</Text>
+                                ) : null}
+                                <Ionicons name="create-outline" size={22} color={c.primary} />
+                              </View>
+                            ) : (
+                              <Ionicons name="add-circle-outline" size={24} color={c.primary} />
+                            )}
+                          </Pressable>
                         );
                       })}
                     </View>
@@ -3558,9 +3533,8 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   browserList: { marginTop: 12, flex: 1 },
   browserItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.surfaceSubtle },
   browserItemText: { flex: 1, fontSize: 16, color: c.text },
-  browserStepper: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  browserStepperCount: { width: 32, textAlign: 'center', fontSize: 16, fontWeight: '600', color: c.text },
-  browserStepperCountZero: { color: c.textFaint, fontWeight: '400' },
+  browserOnList: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  browserAmount: { fontSize: 15, fontWeight: '600', color: c.primary, textAlign: 'right' },
   browserChipRow: { flexGrow: 0, marginTop: 12 },
   browserChipRowContent: { gap: 8, paddingRight: 8 },
   browserChip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: nyD ? ny.bricka : c.primaryTint, borderRadius: nyD ? 16 : 20 },

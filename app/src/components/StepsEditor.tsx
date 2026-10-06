@@ -12,18 +12,40 @@ type Props = {
   /** Stegen som en text, ett steg per rad — samma form som sparas. */
   value: string;
   onChange: (text: string) => void;
+  /** Ett steg fick fokus (eller växte). Får knappen "Lägg till steg" så att
+   *  skärmen kan skrolla den ovanför tangentbordet. */
+  onStepFocus?: (addButton: View | null) => void;
+  /** Inget steg har fokus längre. */
+  onStepBlur?: () => void;
 };
 
 // Varje steg i ett eget numrerat fält. Enter avslutar steget och öppnar nästa;
 // backsteg i ett tomt steg tar bort det och går tillbaka till föregående.
 // Förr var det ett enda textfält där varje radbrytning blev ett steg, vilket
 // testare inte förstod förrän de sett läsvyn.
-export function StepsEditor({ value, onChange }: Props) {
+export function StepsEditor({ value, onChange, onStepFocus, onStepBlur }: Props) {
   const { colors: c, ny } = useTheme();
   const s = useMemo(() => makeStyles(c, ny), [c, ny]);
   const [steps, setSteps] = useState(() => splitSteps(value));
   const refs = useRef<(TextInput | null)[]>([]);
   const pendingFocus = useRef<number | null>(null);
+  const addBtnRef = useRef<View>(null);
+  // Vilket steg som har fokus. Blur väntar en stund: när Enter flyttar fokus
+  // till nästa steg ska skärmen inte hinna tro att inget steg är fokuserat.
+  const focusedIdx = useRef<number | null>(null);
+
+  function stepFocused(idx: number) {
+    focusedIdx.current = idx;
+    onStepFocus?.(addBtnRef.current);
+  }
+
+  function stepBlurred(idx: number) {
+    setTimeout(() => {
+      if (focusedIdx.current !== idx) return;
+      focusedIdx.current = null;
+      onStepBlur?.();
+    }, 150);
+  }
 
   // Texten kan bytas utifrån (utkast som återställs, import som fyller i) —
   // då gäller den. Egna ändringar ger samma text och rör inte fälten.
@@ -73,6 +95,10 @@ export function StepsEditor({ value, onChange }: Props) {
             value={step}
             onChangeText={text => changeText(idx, text)}
             onKeyPress={e => removeEmpty(idx, e)}
+            onFocus={() => stepFocused(idx)}
+            onBlur={() => stepBlurred(idx)}
+            // Ett långt steg som radbryts flyttar ned knappen — håll den synlig.
+            onContentSizeChange={() => { if (focusedIdx.current === idx) onStepFocus?.(addBtnRef.current); }}
             placeholder={idx === 0 ? str.detail.stepFirstPlaceholder : str.detail.stepPlaceholder}
             placeholderTextColor={c.textFaint}
             accessibilityLabel={str.detail.stepA11y(idx + 1)}
@@ -86,10 +112,12 @@ export function StepsEditor({ value, onChange }: Props) {
           />
         </View>
       ))}
-      <Pressable style={s.addBtn} onPress={() => addAfter(steps.length - 1)}>
-        <Ionicons name="add" size={16} color={c.primary} />
-        <Text style={s.addBtnText}>{str.detail.addStep}</Text>
-      </Pressable>
+      <View ref={addBtnRef} collapsable={false}>
+        <Pressable style={s.addBtn} onPress={() => addAfter(steps.length - 1)}>
+          <Ionicons name="add" size={16} color={c.primary} />
+          <Text style={s.addBtnText}>{str.detail.addStep}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

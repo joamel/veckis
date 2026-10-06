@@ -405,6 +405,24 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     return () => clearTimeout(t);
   }, [activeNameIdx, editIngredients.length]);
 
+  // Stegen ligger sist i formuläret. När ett steg har fokus ska "Lägg till
+  // steg" synas ovanför tangentbordet — samma mät-och-skrolla som raderna
+  // ovan, plus bottenutrymme (stepFocused) så att det finns något att skrolla.
+  const [stepFocused, setStepFocused] = useState(false);
+  const revealStepButton = useCallback((addButton: View | null) => {
+    setStepFocused(true);
+    if (!addButton) return;
+    setTimeout(() => {
+      addButton.measureInWindow((_x, y, _w, h) => {
+        const kbTop = Dimensions.get('window').height - (keyboardH.current || 340);
+        const hidden = (y + h + 16) - kbTop;
+        if (hidden > 0) {
+          mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + hidden, animated: true });
+        }
+      });
+    }, 250);
+  }, []);
+
   function getRowRef(idx: number): RowRef {
     if (!rowRefs.current[idx]) rowRefs.current[idx] = { qty: null, unit: null, name: null };
     return rowRefs.current[idx];
@@ -1191,7 +1209,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           //
           // Bara medan ett fält är fokuserat, annars vore det en tom lucka
           // under formuläret.
-          editMode && tangentbordH > 0 && (activeNameIdx !== null || activeUnitIdx !== null) && { paddingBottom: tangentbordH + 80 },
+          editMode && tangentbordH > 0 && (activeNameIdx !== null || activeUnitIdx !== null || stepFocused) && { paddingBottom: tangentbordH + 80 },
         ]}
         keyboardShouldPersistTaps="always"
         scrollEventThrottle={16}
@@ -1711,7 +1729,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>{str.detail.instructionsLabel}</Text>
             </View>
-            <StepsEditor value={editInstr} onChange={setEditInstr} />
+            <StepsEditor
+              value={editInstr}
+              onChange={setEditInstr}
+              onStepFocus={revealStepButton}
+              onStepBlur={() => setStepFocused(false)}
+            />
           </View>
         ) : visadeInstruktioner ? (
           <View style={s.section}>
