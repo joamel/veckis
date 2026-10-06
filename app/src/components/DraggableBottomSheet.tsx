@@ -26,8 +26,13 @@ import { SheetHandle, SheetHeader } from './SheetHeader';
 // UTANFÖR appens GestureHandlerRootView, så gesten registreras aldrig om vi
 // inte bäddar in en egen härinne (samma fälla som redan dokumenterats i
 // menu.tsx:s bulk-överförings-sheet).
-const DISMISS_DISTANCE = 120;
-const DISMISS_VELOCITY = 800;
+//
+// Greppytan är HELA det mörka huvudet (handtag + rubrikrad), inte bara
+// handtaget — testare missade den lilla remsan och fick försöka flera gånger.
+// Svep inne i kroppen rör fortfarande bara innehållet. Trösklarna sänktes av
+// samma skäl (var 120 px / 800 px/s): en kort men bestämd svep ska räcka.
+const DISMISS_DISTANCE = 80;
+const DISMISS_VELOCITY = 500;
 
 export function DraggableBottomSheet({
   visible,
@@ -132,6 +137,10 @@ export function DraggableBottomSheet({
   const pan = useMemo(
     () =>
       Gesture.Pan()
+        // Aktiveras först vid en tydlig rörelse nedåt, så att tryck på
+        // knapparna i rubrikraden (tillbaka, stäng) går igenom som vanligt.
+        .activeOffsetY(8)
+        .failOffsetX([-24, 24])
         .onUpdate(e => {
           translateY.value = Math.max(0, e.translationY);
         })
@@ -157,19 +166,17 @@ export function DraggableBottomSheet({
       {/* Alla ark har samma anatomi: mörkgrönt huvud (handtag + rubrik) och
           ljusgrön kropp. Samma huvud används av ConfirmDialog. */}
       <Animated.View style={[styles.sheet, { backgroundColor: ny.kort }, sheetStyle, sheetAnimStyle]}>
-        <SheetHeader
-          title={title}
-          subtitle={subtitle}
-          left={headerLeft}
-          right={headerRight}
-          handle={
-            <GestureDetector gesture={pan}>
-              <View>
-                <SheetHandle />
-              </View>
-            </GestureDetector>
-          }
-        />
+        <GestureDetector gesture={pan}>
+          <View collapsable={false}>
+            <SheetHeader
+              title={title}
+              subtitle={subtitle}
+              left={headerLeft}
+              right={headerRight}
+              handle={<SheetHandle />}
+            />
+          </View>
+        </GestureDetector>
         <View style={[styles.body, { paddingBottom: insets.bottom + 24 }, bodyStyle]}>
           {children}
         </View>

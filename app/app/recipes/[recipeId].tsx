@@ -22,6 +22,9 @@ import {
   type TextStyle,
 } from 'react-native';
 import { Pressable } from '../../src/components/Pressable';
+import { StepsEditor } from '../../src/components/StepsEditor';
+import { sameSteps } from '../../src/lib/recipeSteps';
+import { knownUnitFor } from '../../src/lib/knownUnit';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Notifications from 'expo-notifications';
@@ -824,7 +827,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     if (!recipe) return false;
     if (editTitle !== recipe.title) return true;
     if (editDesc !== (recipe.description ?? '')) return true;
-    if (editInstr !== (recipe.instructions ?? '')) return true;
+    // Numrering och tomma rader städas när stegen redigeras — det är ingen ändring.
+    if (!sameSteps(editInstr, recipe.instructions ?? '')) return true;
     if (editImage !== (recipe.imageUrl ?? '')) return true;
     if (editServings !== recipe.servings) return true;
     if (editCookMinutes !== (recipe.cookMinutes != null ? String(recipe.cookMinutes) : '')) return true;
@@ -874,6 +878,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
 
   function updateEditRow(idx: number, field: 'name' | 'quantity' | 'unit', val: string) {
     setEditIngredients(prev => prev.map((r, i) => i === idx ? { ...r, [field]: val } : r));
+  }
+
+  // Varans vanliga enhet fylls i när namnet är klart — vid tryck på förslaget
+  // och när man skriver klart själv och går vidare. Bara om enheten är tom.
+  function fillKnownUnit(idx: number, name: string) {
+    const u = knownUnitFor(unitByName, name);
+    if (!u) return;
+    setEditIngredients(prev => prev.map((r, i) => (i === idx && !r.unit.trim() ? { ...r, unit: u } : r)));
   }
 
   function removeEditRow(idx: number) {
@@ -1144,6 +1156,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               onChangeText={setEditTitle}
               placeholder={str.detail.nameLabel}
               placeholderTextColor={nyDesign ? ny.underrubrik : c.textFaint}
+              // Ett nytt recept börjar med namnet — testare skrev det annars
+              // i Beskrivning innan de såg att rubriken var ett fält.
+              autoFocus={isNew}
               onFocus={() => setTitleFocused(true)}
               onBlur={() => setTitleFocused(false)}
             />
@@ -1521,8 +1536,14 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                         returnKeyType="next"
                         blurOnSubmit={false}
                         onFocus={() => setActiveNameIdx(idx)}
-                        onBlur={() => setTimeout(() => setActiveNameIdx(a => a === idx ? null : a), 120)}
-                        onSubmitEditing={() => getRowRef(idx).qty?.focus()}
+                        onBlur={() => {
+                          fillKnownUnit(idx, row.name);
+                          setTimeout(() => setActiveNameIdx(a => a === idx ? null : a), 120);
+                        }}
+                        onSubmitEditing={() => {
+                          fillKnownUnit(idx, row.name);
+                          getRowRef(idx).qty?.focus();
+                        }}
                       />
                       {activeNameIdx !== idx && row.name.length > 0 && (
                         <Text pointerEvents="none" numberOfLines={1} style={s.editInputNameOverlay}>{row.name}</Text>
@@ -1641,9 +1662,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
                               style={s.unitChip}
                               onPress={() => {
                                 updateEditRow(idx, 'name', h.name.toLowerCase());
-                                // Auto-fill the usual unit for this ingredient if the field is empty.
-                                const u = unitByName[h.name.toLowerCase()];
-                                if (u && !row.unit.trim()) updateEditRow(idx, 'unit', u);
+                                fillKnownUnit(idx, h.name);
                                 setActiveNameIdx(null);
                                 setTimeout(() => getRowRef(idx).qty?.focus(), 50);
                               }}
@@ -1692,14 +1711,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>{str.detail.instructionsLabel}</Text>
             </View>
-            <TextInput
-              style={[s.renameInput, s.editMultilineTall]}
-              value={editInstr}
-              onChangeText={setEditInstr}
-              placeholder={str.detail.instrPlaceholder}
-              placeholderTextColor={c.textFaint}
-              multiline
-            />
+            <StepsEditor value={editInstr} onChange={setEditInstr} />
           </View>
         ) : visadeInstruktioner ? (
           <View style={s.section}>
@@ -2165,7 +2177,10 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   headerTitleInput: nyD
     ? { color: ny.rubrikLjus, borderWidth: 0, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: ny.glas }
     : { color: c.text, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: c.inputBg },
-  headerTitleField: { padding: 0, borderWidth: 0, backgroundColor: 'transparent' },
+  // flex: 0 tar bort headerTitles flex: 1. I fältets kolumn sträckte det fältet
+  // på HÖJDEN: på iOS blev rutan lika hög som hela bandet, med texten upptill
+  // och inte i linje med tillbakapilen.
+  headerTitleField: { flex: 0, padding: 0, borderWidth: 0, backgroundColor: 'transparent' },
   headerTitleOverlay: nyD
     ? { position: 'absolute', left: 12, right: 12, top: 8, bottom: 8, fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 18, letterSpacing: -0.3, color: ny.rubrikLjus }
     : { position: 'absolute', left: 10, right: 10, top: 6, bottom: 6, fontSize: 17, fontWeight: '700', color: c.text },
