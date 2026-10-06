@@ -5,6 +5,7 @@ import {
   Modal,
   StyleSheet,
   View,
+  useWindowDimensions,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -17,9 +18,12 @@ import Animated, {
   withSpring,
   withTiming,
   runOnJS,
+  interpolate,
+  Extrapolation,
 } from 'react-native-reanimated';
 import { useNy } from '../context/ThemeContext';
 import { SheetHandle, SheetHeader } from './SheetHeader';
+import { shouldDismissSheet } from '../lib/sheetDismiss';
 
 // Dra nedåt (i handtaget) för att stänga en bottom-sheet, i stället för att
 // bara kunna trycka utanför. RN:s <Modal> renderas i ett eget nativt fönster
@@ -29,10 +33,8 @@ import { SheetHandle, SheetHeader } from './SheetHeader';
 //
 // Greppytan är HELA det mörka huvudet (handtag + rubrikrad), inte bara
 // handtaget — testare missade den lilla remsan och fick försöka flera gånger.
-// Svep inne i kroppen rör fortfarande bara innehållet. Trösklarna sänktes av
-// samma skäl (var 120 px / 800 px/s): en kort men bestämd svep ska räcka.
-const DISMISS_DISTANCE = 80;
-const DISMISS_VELOCITY = 500;
+// Svep inne i kroppen rör fortfarande bara innehållet. När släppet stänger
+// avgörs i shouldDismissSheet (lib/sheetDismiss.ts) — förlåtande åt båda håll.
 
 export function DraggableBottomSheet({
   visible,
@@ -47,6 +49,7 @@ export function DraggableBottomSheet({
   headerLeft,
   headerRight,
   isDirty = false,
+  onDragClose,
 }: {
   visible: boolean;
   /** Hårdvaru-back, dra-i-handtaget och (om `onOverlayPress` inte satts) tryck
@@ -57,6 +60,11 @@ export function DraggableBottomSheet({
    *  utanför avbryter hela flödet direkt). Annars faller den tillbaka på
    *  `onRequestClose`. */
   onOverlayPress?: () => void;
+  /** Sätt om ett drag nedåt ska stänga HELA arket när `onRequestClose` bara
+   *  stegar tillbaka (t.ex. kategoribläddraren: back går från underkategori
+   *  till kategorier, men den som sveper ned vill bort). Annars används
+   *  `onRequestClose`. */
+  onDragClose?: () => void;
   children: ReactNode;
   /** Px som skjuter sheeten uppåt, ihoplagt med ett pågående drag.
    *
@@ -87,6 +95,7 @@ export function DraggableBottomSheet({
   isDirty?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const translateY = useSharedValue(0);
 
   // Refs i stället för deps: useDiscardDraft returnerar en ny funktion varje
@@ -95,12 +104,13 @@ export function DraggableBottomSheet({
   const ny = useNy();
   const confirm = useConfirm();
   const tryClose = useDiscardDraft(confirm);
-  const guardRef = useRef({ isDirty, onRequestClose, tryClose });
-  guardRef.current = { isDirty, onRequestClose, tryClose };
-  const guardedClose = useCallback(() => {
+  const guardRef = useRef({ isDirty, onRequestClose, onDragClose, tryClose });
+  guardRef.current = { isDirty, onRequestClose, onDragClose, tryClose };
+  const guardedClose = useCallback((fromDrag = false) => {
     const g = guardRef.current;
-    if (g.isDirty) g.tryClose(true, g.onRequestClose);
-    else g.onRequestClose();
+    const close = (fromDrag && g.onDragClose) || g.onRequestClose;
+    if (g.isDirty) g.tryClose(true, close);
+    else close();
   }, []);
 
   // Nollställ dragläget varje gång sheeten öppnas på nytt (annars kan den
@@ -122,7 +132,7 @@ export function DraggableBottomSheet({
   // Samma mekanism täcker isDirty: väljer användaren "Fortsätt redigera" i
   // frågan förblir visible true, och arket fjädrar tillbaka medan dialogen syns.
   const closeFromDrag = useCallback(() => {
-    guardedClose();
+    guardedClose(true);
     setDragCloseTick(t => t + 1);
   }, [guardedClose]);
   useEffect(() => {
@@ -145,24 +155,33 @@ export function DraggableBottomSheet({
           translateY.value = Math.max(0, e.translationY);
         })
         .onEnd(e => {
-          if (translateY.value > DISMISS_DISTANCE || e.velocityY > DISMISS_VELOCITY) {
-            translateY.value = withTiming(600, { duration: 180 }, finished => {
+          if (shouldDismissSheet(translateY.value, e.velocityY)) {
+            // Hela vägen ut (inte en fast sträcka — ett högt ark syntes förr
+            // kvar och åkte sedan ut en gång till med modalens egen animation).
+            translateY.value = withTiming(windowHeight, { duration: 200 }, finished => {
               if (finished) runOnJS(closeFromDrag)();
             });
           } else {
             translateY.value = withSpring(0, { damping: 18, stiffness: 200 });
           }
         }),
-    [closeFromDrag, translateY],
+    [closeFromDrag, translateY, windowHeight],
   );
 
   const sheetAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value - liftOffset }],
   }), [liftOffset]);
 
+  // Skuggan tonar i takt med draget. Annars låg den kvar när arket dragits ut
+  // och gled sedan ned för sig med modalens slide — det såg ut som att arket
+  // stängdes två gånger.
+  const dimAnimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateY.value, [0, windowHeight * 0.6], [1, 0], Extrapolation.CLAMP),
+  }), [windowHeight]);
+
   const content = (
     <>
-      <Pressable style={styles.overlayTap} onPress={onOverlayPress ?? guardedClose} />
+      <Pressable style={styles.overlayTap} onPress={onOverlayPress ?? (() => guardedClose())} />
       {/* Alla ark har samma anatomi: mörkgrönt huvud (handtag + rubrik) och
           ljusgrön kropp. Samma huvud används av ConfirmDialog. */}
       <Animated.View style={[styles.sheet, { backgroundColor: ny.kort }, sheetStyle, sheetAnimStyle]}>
@@ -185,9 +204,9 @@ export function DraggableBottomSheet({
   );
 
   return (
-    <Modal visible={visible} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={guardedClose}>
+    <Modal visible={visible} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => guardedClose()}>
       <GestureHandlerRootView style={styles.fill}>
-        <View pointerEvents="none" style={styles.overlayDim} />
+        <Animated.View pointerEvents="none" style={[styles.overlayDim, dimAnimStyle]} />
         {content}
       </GestureHandlerRootView>
     </Modal>

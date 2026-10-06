@@ -2271,13 +2271,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           använder pickStore()-helpern och navigerar dit i ?pick=1-läge. */}
 
       {/* Category browser modal */}
-      {/* Bakåt (knapp, svep, dra i handtaget) går från en kategori tillbaka
-          till rutnätet; bara tryck utanför — eller bakåt från rutnätet —
-          stänger. Arket står kvar öppet efter ett tillägg, så man kan plocka
-          flera varor i rad. */}
+      {/* Bakåt (knapp, svep från kanten) går från en kategori tillbaka till
+          rutnätet. Att dra ned arket och trycka utanför stänger HELA arket —
+          förr ledde draget tillbaka till rutnätet, som då poppade upp igen.
+          Arket står kvar öppet efter ett tillägg, så man kan plocka flera
+          varor i rad. */}
       <DraggableBottomSheet
         visible={showBrowser}
         onRequestClose={() => (browserCategory !== null ? closeBrowserCategory() : setShowBrowser(false))}
+        onDragClose={() => setShowBrowser(false)}
         onOverlayPress={() => setShowBrowser(false)}
         sheetStyle={[s.sheet, s.browserSheet, { height: windowHeight * 0.75 }]}
         bodyStyle={s.browserBody}
