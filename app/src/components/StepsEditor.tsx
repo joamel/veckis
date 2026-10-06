@@ -15,6 +15,10 @@ type Props = {
   /** Ett steg fick fokus (eller växte). Får knappen "Lägg till steg" så att
    *  skärmen kan skrolla den ovanför tangentbordet. */
   onStepFocus?: (addButton: View | null) => void;
+  /** Ett nytt steg skapas. Knappen flyttas ned `extra` px när det renderats —
+   *  skärmen kan skrolla dit direkt, i en enda rörelse, i stället för att
+   *  vänta på fokus (då hann iOS skrolla själv först och det hoppade). */
+  onStepAdded?: (addButton: View | null, extra: number) => void;
   /** Inget steg har fokus längre. */
   onStepBlur?: () => void;
 };
@@ -23,7 +27,7 @@ type Props = {
 // backsteg i ett tomt steg tar bort det och går tillbaka till föregående.
 // Förr var det ett enda textfält där varje radbrytning blev ett steg, vilket
 // testare inte förstod förrän de sett läsvyn.
-export function StepsEditor({ value, onChange, onStepFocus, onStepBlur }: Props) {
+export function StepsEditor({ value, onChange, onStepFocus, onStepAdded, onStepBlur }: Props) {
   const { colors: c, ny } = useTheme();
   const s = useMemo(() => makeStyles(c, ny), [c, ny]);
   const [steps, setSteps] = useState(() => splitSteps(value));
@@ -73,6 +77,7 @@ export function StepsEditor({ value, onChange, onStepFocus, onStepBlur }: Props)
   }
 
   function addAfter(idx: number) {
+    onStepAdded?.(addBtnRef.current, NEW_STEP_HEIGHT);
     const next = [...steps.slice(0, idx + 1), '', ...steps.slice(idx + 1)];
     commit(next, idx + 1);
   }
@@ -122,14 +127,19 @@ export function StepsEditor({ value, onChange, onStepFocus, onStepBlur }: Props)
   );
 }
 
+// Ett tomt steg: fältets minHeight + avståndet mellan raderna.
+const STEP_MIN_HEIGHT = 48;
+const STEP_GAP = 10;
+const NEW_STEP_HEIGHT = STEP_MIN_HEIGHT + STEP_GAP;
+
 const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
-  list: { gap: 10 },
+  list: { gap: STEP_GAP },
   // Samma nummerbricka som läsvyns steg, så redigeringen ser ut som resultatet.
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   num: { width: 28, height: 28, borderRadius: 14, backgroundColor: ny.skog, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   numText: { width: 24, textAlign: 'center', fontFamily: nyFont.halvfet, fontSize: 13, color: ny.lime },
   input: {
-    flex: 1, minHeight: 48, borderWidth: 1, borderColor: c.border, borderRadius: 10,
+    flex: 1, minHeight: STEP_MIN_HEIGHT, borderWidth: 1, borderColor: c.border, borderRadius: 10,
     paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontSize: 16,
     backgroundColor: c.inputBg, color: c.text, textAlignVertical: 'top',
   },

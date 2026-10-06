@@ -122,10 +122,11 @@ export default function PreferencesScreen() {
         <View style={s.group}>
           {/* Höger- eller vänsterhänt: vilken sida inköpslistans bockrutor
               sitter på. Samma val finns i listans ⋮-meny. */}
-          <View style={[s.row, { flexWrap: 'wrap' }]}>
+          {/* Valen på samma rad som rubriken — två korta ord ryms. */}
+          <View style={s.row}>
             <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="hand-left-outline" size={18} color={ny.padYta} /></View>
             <Text style={s.rowText}>{str.checkboxSide.label}</Text>
-            <View style={s.landingChips}>
+            <View style={s.inlineChips}>
               {(['right', 'left'] as const).map(side => {
                 const active = checkboxSide === side;
                 return (
@@ -136,7 +137,8 @@ export default function PreferencesScreen() {
                     accessibilityRole="radio"
                     accessibilityState={{ selected: active }}
                   >
-                    <Text style={[s.landingChipText, active && s.landingChipTextActive]}>{str.checkboxSide[side]}</Text>
+                    {/* Explicit bredd: Android klipper annars sista glyfen. */}
+                    <Text style={[s.landingChipText, active && s.landingChipTextActive, { width: str.checkboxSide[side].length * 8 + 8, textAlign: 'center' }]}>{str.checkboxSide[side]}</Text>
                   </Pressable>
                 );
               })}
@@ -308,6 +310,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
     : { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
   rowHint: { fontSize: 12.5, color: nyD ? ny.textDampad : c.textMuted, marginTop: 2 },
   versionFooter: { fontSize: 11, color: nyD ? ny.textDampad : c.textFaint, textAlign: 'center', marginTop: 16 },
+  inlineChips: { flexDirection: 'row', gap: 6, flexShrink: 0 },
   landingChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, width: '100%', marginTop: 4, paddingLeft: nyD ? 50 : 30 },
   landingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.bricka : c.surfaceSubtle },
   landingChipActive: { backgroundColor: nyD ? ny.valdYta : c.primary },

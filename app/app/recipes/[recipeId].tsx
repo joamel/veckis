@@ -423,13 +423,17 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   // det som står precis ovanför det — mät mot radens överkant, inte mot
   // tangentbordets (då hamnade knappen bakom raden).
   const editBarRef = useRef<View>(null);
-  const revealStepButton = useCallback((addButton: View | null) => {
+  // extra: hur mycket knappen kommer att flyttas ned (ett nytt steg som inte
+  // renderats än). Då skrollas det direkt — tangentbordet är redan uppe — och
+  // fokus-anropet efteråt hittar inget mer att skrolla. delay behövs bara
+  // första gången, medan tangentbordet och raden fortfarande glider upp.
+  const revealStepButton = useCallback((addButton: View | null, extra = 0, delay = 300) => {
     setStepFocused(true);
     if (!addButton) return;
     setTimeout(() => {
       addButton.measureInWindow((_x, y, _w, h) => {
         const scrollTo = (visibleBottom: number) => {
-          const hidden = (y + h + 16) - visibleBottom;
+          const hidden = (y + h + extra + 16) - visibleBottom;
           if (hidden > 0) {
             mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + hidden, animated: true });
           }
@@ -438,7 +442,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         if (!editBarRef.current) { scrollTo(kbTop); return; }
         editBarRef.current.measureInWindow((_bx, barY) => scrollTo(Math.min(barY, kbTop)));
       });
-    }, 300);
+    }, delay);
   }, []);
 
   function getRowRef(idx: number): RowRef {
@@ -1749,6 +1753,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               value={editInstr}
               onChange={setEditInstr}
               onStepFocus={revealStepButton}
+              onStepAdded={(addButton, extra) => revealStepButton(addButton, extra, 0)}
               onStepBlur={() => setStepFocused(false)}
             />
           </View>
