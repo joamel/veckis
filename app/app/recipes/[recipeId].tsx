@@ -408,19 +408,37 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   // Stegen ligger sist i formuläret. När ett steg har fokus ska "Lägg till
   // steg" synas ovanför tangentbordet — samma mät-och-skrolla som raderna
   // ovan, plus bottenutrymme (stepFocused) så att det finns något att skrolla.
+  // Ett nytt recept börjar med namnet — testare skrev det annars i Beskrivning
+  // innan de såg att rubriken var ett fält. Inte autoFocus: den slår till
+  // medan skärmen glider in, och då kom tangentbordet inte upp.
+  const titleInputRef = useRef<TextInput>(null);
+  useEffect(() => {
+    if (!isNew || !editMode) return;
+    const t = setTimeout(() => titleInputRef.current?.focus(), 450);
+    return () => clearTimeout(t);
+  }, [isNew, editMode]);
+
   const [stepFocused, setStepFocused] = useState(false);
+  // Den fasta Avbryt/Spara-raden ligger ovanför tangentbordet och täcker
+  // det som står precis ovanför det — mät mot radens överkant, inte mot
+  // tangentbordets (då hamnade knappen bakom raden).
+  const editBarRef = useRef<View>(null);
   const revealStepButton = useCallback((addButton: View | null) => {
     setStepFocused(true);
     if (!addButton) return;
     setTimeout(() => {
       addButton.measureInWindow((_x, y, _w, h) => {
+        const scrollTo = (visibleBottom: number) => {
+          const hidden = (y + h + 16) - visibleBottom;
+          if (hidden > 0) {
+            mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + hidden, animated: true });
+          }
+        };
         const kbTop = Dimensions.get('window').height - (keyboardH.current || 340);
-        const hidden = (y + h + 16) - kbTop;
-        if (hidden > 0) {
-          mainScrollRef.current?.scrollTo({ y: scrollOffsetY.current + hidden, animated: true });
-        }
+        if (!editBarRef.current) { scrollTo(kbTop); return; }
+        editBarRef.current.measureInWindow((_bx, barY) => scrollTo(Math.min(barY, kbTop)));
       });
-    }, 250);
+    }, 300);
   }, []);
 
   function getRowRef(idx: number): RowRef {
@@ -1174,9 +1192,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               onChangeText={setEditTitle}
               placeholder={str.detail.nameLabel}
               placeholderTextColor={nyDesign ? ny.underrubrik : c.textFaint}
-              // Ett nytt recept börjar med namnet — testare skrev det annars
-              // i Beskrivning innan de såg att rubriken var ett fält.
-              autoFocus={isNew}
+              ref={titleInputRef}
               onFocus={() => setTitleFocused(true)}
               onBlur={() => setTitleFocused(false)}
             />
@@ -1778,7 +1794,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
           att hitta spara/avbryt, till skillnad från när knapparna låg sist
           i scroll-innehållet. */}
       {editMode && (
-        <View style={s.editActionsBar}>
+        <View ref={editBarRef} collapsable={false} style={s.editActionsBar}>
           <Pressable style={s.cancelBtn} onPress={() => tryCloseEdit(isEditDirty(), () => {
             setEditMode(false);
             if (isNew) { savingNavRef.current = true; if (onClose) onClose(); else router.back(); }

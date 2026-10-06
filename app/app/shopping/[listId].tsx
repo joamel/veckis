@@ -2093,9 +2093,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             disabled={togglingShopper}
             onPress={() => {
               if (!list.activeShopperMemberId || !activeShopper) {
-                // Förklaringen bara första gången (har man fått tipset vid
-                // avbockningen vet man redan) — sedan startar knappen direkt.
-                if (shopperTip.seen !== false) { toggleIAmShopping(); return; }
+                // Start frågar ALLTID, precis som avslut (beslut 2026-10-06 —
+                // förr bara första gången). Ett läge som syns för hela
+                // hushållet och skickar notiser ska inte gå att slå på av
+                // misstag. Tipset om gubben behövs inte när man väl tryckt.
                 shopperTip.markSeen();
                 confirm({
                   title: str.shopDialog.startTitle,
