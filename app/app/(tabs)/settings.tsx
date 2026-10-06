@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { Pressable } from '../../src/components/Pressable';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth, useUser } from '@clerk/expo';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -502,6 +502,9 @@ export default function SettingsScreen() {
 
       {/* Admin-loggar — aktivitetslogg + klientfel som fullskärmsvy */}
       <Modal visible={showAdminLogs} animationType="slide" onRequestClose={() => setShowAdminLogs(false)}>
+        {/* Egen provider: en Modal är en egen rotvy, och på iOS gav
+            SafeAreaView där inget avstånd — rubriken hamnade under klockan. */}
+        <SafeAreaProvider>
         <SafeAreaView style={styles.adminLogsContainer}>
           {/* Samma mörkgröna band som övriga vyer. Den handbyggda headern
               missades när vyerna gjordes om — den låg i en modal, inte i en
@@ -522,6 +525,7 @@ export default function SettingsScreen() {
             {__DEV__ && <ClientErrorsSection />}
           </ScrollView>
         </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
 
       <ScrollView

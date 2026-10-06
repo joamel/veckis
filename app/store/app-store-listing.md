@@ -15,7 +15,7 @@ fylls i — annars ligger svenska texter under "English (U.S.)".
 - **Age Rating**: svara nej på allt → 4+
 
 ## Promotional Text (max 170)
-Planera veckans mat, handla i din butiks ordning och dela listan med hela hushållet i realtid.
+Planera – Inventera – Handla. AI läser in recept från foto, länk eller text. Bocka av det som finns hemma, resten blir en inköpslista i din butiks ordning.
 
 ## Description (max 4000)
 Handlis samlar hela veckans matplanering på ett ställe – för hela hushållet.
@@ -23,10 +23,10 @@ Handlis samlar hela veckans matplanering på ett ställe – för hela hushålle
 Tre enkla steg som hänger ihop:
 
 📖 Samla dina recept
-Spara egna favoriter, klistra in en text, importera från en länk eller fota av en kokbok. Allt finns samlat och sökbart, och favoriterna markerar du med ett hjärta.
+Spara egna favoriterrecept - importera från en länk eller klistra in en text, fota ett handskrivet recept eller en gammal kär kokbok. Allt finns samlat och sökbart, och favoriterna taggar du upp för att enkelt hitta igen.
 
 🍽️ Planera veckan
-Lägg recepten på veckans dagar. Ni ser direkt vad ni ska äta – frukost, lunch eller middag – och kan enkelt flytta rätter mellan dagar.
+Lägg in recept i veckomenyn. Ni ser direkt vad ni ska äta – frukost, lunch eller middag – och kan enkelt flytta rätter mellan dagar.
 
 🛒 Handla tillsammans
 Överför ingredienserna från veckomenyn till inköpslistan med ett tryck. Bocka av i realtid medan någon annan fyller på – ingen köper dubbelt, inget glöms.
@@ -94,4 +94,4 @@ Tracking: **Nej** (ingen reklam, inga analysverktyg från tredje part).
 | User Content → Other User Content (recept, listor, veckomeny) | App Functionality | Ja | Nej |
 | Identifiers → User ID | App Functionality | Ja | Nej |
 | Location → Coarse Location ("Nära mig", lagras inte) | App Functionality | Nej | Nej |
-| Diagnostics → Other Diagnostic Data (felrapporter till egen backend) | App Functionality | Ja | Nej |
+| Diagnostics → Other Diagnostic Data (felrapporter via egen backend till Sentry — personuppgiftsbiträde, inte tracking) | App Functionality | Ja | Nej |

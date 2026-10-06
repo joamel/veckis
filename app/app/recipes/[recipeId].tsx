@@ -35,7 +35,7 @@ import { cloudinaryOptimized } from '../../src/lib/cloudinaryUrl';
 import { TagLabel } from '../../src/components/TagLabel';
 import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
 import { getISOWeek } from '../../src/lib/week';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -1851,6 +1851,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         const andraTimrar = [...timrar.keys()].filter(i => i !== cookStep).sort((a, b) => a - b);
         return (
           <Modal visible={cookMode} transparent={false} animationType="slide" onRequestClose={() => setCookMode(false)}>
+            {/* Egen provider: en Modal är en egen rotvy, och på iOS gav
+                SafeAreaView där inget avstånd — rubriken hamnade under klockan. */}
+            <SafeAreaProvider>
             <View style={{ flex: 1, backgroundColor: '#1c1917' }}>
             <SafeAreaView style={s.cookContainer}>
               <View style={s.cookHeader}>
@@ -2015,6 +2018,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               </View>
             </SafeAreaView>
             </View>
+            </SafeAreaProvider>
           </Modal>
         );
       })() : null}
