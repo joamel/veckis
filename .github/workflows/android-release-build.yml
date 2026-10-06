@@ -47,7 +47,11 @@ jobs:
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > app/android/app/release.keystore
 
       - name: Configure Gradle signing
+        # Radbrytning först: expo-build-properties skriver sista raden utan
+        # avslutande radbrytning, och då klistrades RELEASE_STORE_FILE ihop med
+        # den ("...ShrinkResourcesInReleaseBuilds=trueRELEASE_STORE_FILE=...").
         run: |
+          echo >> app/android/gradle.properties
           cat >> app/android/gradle.properties << EOF
           RELEASE_STORE_FILE=release.keystore
           RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
