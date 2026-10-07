@@ -31,6 +31,7 @@ import { shareInviteLink } from '../../src/lib/inviteLink';
 import type { InviteCode } from '@veckis/shared';
 import type { HouseholdWithMembers } from '../../src/api/client';
 import { settings as str, common } from '../../src/lib/svenska';
+import { CodeInput, CODE_LENGTH } from '../../src/components/CodeInput';
 import { useTheme, type ThemeMode } from '../../src/context/ThemeContext';
 import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
@@ -907,27 +908,18 @@ export default function SettingsScreen() {
       {/* Join Household Modal */}
       <DraggableBottomSheet visible={showJoinHouseholdModal} onRequestClose={() => { setShowJoinHouseholdModal(false); setJoinCode(''); }} isDirty={joinCode.trim() !== ''} liftOffset={sheetLift} title={str.modals.joinHousehold} subtitle={str.messages.joinHint}>
           <ScrollView contentContainerStyle={styles.sheetScroll}>
-            <TextInput
+            <CodeInput
               ref={joinCodeRef}
               onFocus={onFocusInput(joinCodeRef)}
-              style={[styles.input, styles.codeInput]}
-              placeholder={str.placeholders.inviteCode}
               value={joinCode}
-              // Koderna är versaler (hex); Android skriver annars bara första
-              // bokstaven stor och koden matchar inte.
-              onChangeText={t => setJoinCode(t.toUpperCase())}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              importantForAutofill="no"
-              placeholderTextColor={c.textFaint}
-              maxLength={8}
-              returnKeyType="done"
+              onChangeText={setJoinCode}
               onSubmitEditing={handleJoinHousehold}
+              accessibilityLabel={str.placeholders.inviteCode}
             />
             <Pressable
-              style={[styles.button, loadingJoinHousehold && styles.buttonDisabled]}
+              style={[styles.button, (loadingJoinHousehold || joinCode.length !== CODE_LENGTH) && styles.buttonDisabled]}
               onPress={handleJoinHousehold}
-              disabled={loadingJoinHousehold}
+              disabled={loadingJoinHousehold || joinCode.length !== CODE_LENGTH}
             >
               {loadingJoinHousehold
                 ? <ActivityIndicator color="#fff" size="small" />
@@ -1142,14 +1134,6 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
     fontSize: 16,
     backgroundColor: c.inputBg,
     color: c.text,
-  },
-  codeInput: {
-    alignSelf: 'center',
-    width: 220,
-    textAlign: 'center',
-    fontSize: 22,
-    fontWeight: '700',
-    letterSpacing: 6,
   },
   deleteInput: { color: c.text, borderColor: c.danger, backgroundColor: c.inputBg },
   button: {

@@ -18,6 +18,7 @@ import { useHousehold } from '../../src/context/HouseholdContext';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useUser } from '@clerk/expo';
 import { householdSetup as str } from '../../src/lib/svenska';
+import { CodeInput } from '../../src/components/CodeInput';
 
 export default function HouseholdSetupScreen() {
   const { colors: c } = useTheme();
@@ -144,17 +145,12 @@ export default function HouseholdSetupScreen() {
         </View>
       ) : (
         <View style={styles.form}>
-          <TextInput
-            style={[styles.input, styles.codeInput]}
-            placeholder={str.join.codePlaceholder}
-            placeholderTextColor={c.textFaint}
+          <CodeInput
             value={code}
-            onChangeText={t => setCode(t.toUpperCase())}
-            autoCapitalize="characters"
-            maxLength={8}
+            onChangeText={setCode}
             autoFocus
-            returnKeyType="done"
             onSubmitEditing={handleJoin}
+            accessibilityLabel={str.join.codeLabel}
           />
           <Text style={styles.hint}>{str.join.hint}</Text>
           <Pressable
@@ -202,12 +198,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     padding: 14,
     fontSize: 16,
     backgroundColor: c.background,
-  },
-  codeInput: { color: c.text,
-    textAlign: 'center',
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: 8,
   },
   hint: { fontSize: 13, color: c.textFaint, textAlign: 'center' },
   button: {

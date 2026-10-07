@@ -1669,8 +1669,10 @@ export const householdSetup = {
   },
 
   join: {
-    codePlaceholder: 'XXXXXXXX',
-    hint:            'Ange den 8-siffriga inbjudningskoden',
+    /** Skärmläsartext för kodrutorna. */
+    codeLabel:       'Inbjudningskod',
+    // Koden har bokstäver också, så "8-siffriga" stämde inte.
+    hint:            'Skriv eller klistra in inbjudningskoden (8 tecken)',
     button:          'Gå med',
   },
 

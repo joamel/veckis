@@ -10,3 +10,12 @@ const WEB_BASE_URL = 'https://handlis.app';
 export function buildInviteUrl(code: string): string {
   return `${WEB_BASE_URL}/household/setup?code=${encodeURIComponent(code)}`;
 }
+
+export const INVITE_CODE_LENGTH = 8;
+
+/** Gör om inskriven/inklistrad text till en kod: länkens ?code=, annars bara bokstäver/siffror, versaler. */
+export function normalizeInviteCode(raw: string): string {
+  const fromLink = raw.match(/[?&]code=([A-Za-z0-9]+)/);
+  const chars = (fromLink ? fromLink[1] : raw).replace(/[^A-Za-z0-9]/g, '');
+  return chars.toUpperCase().slice(0, INVITE_CODE_LENGTH);
+}

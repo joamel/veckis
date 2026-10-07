@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildInviteUrl } from './inviteUrl';
+import { buildInviteUrl, normalizeInviteCode } from './inviteUrl';
 
 describe('buildInviteUrl', () => {
   it('bygger URL med kod-parametern', () => {
@@ -15,5 +15,23 @@ describe('buildInviteUrl', () => {
 
   it('hanterar tom kod utan att krascha', () => {
     expect(buildInviteUrl('')).toBe('https://handlis.app/household/setup?code=');
+  });
+});
+
+describe('normalizeInviteCode', () => {
+  it('gör om till versaler', () => {
+    expect(normalizeInviteCode('ab12cd34')).toBe('AB12CD34');
+  });
+
+  it('tar koden ur en inklistrad inbjudningslänk', () => {
+    expect(normalizeInviteCode(buildInviteUrl('ab12cd34'))).toBe('AB12CD34');
+  });
+
+  it('tar bort mellanslag och bindestreck', () => {
+    expect(normalizeInviteCode('AB12 CD-34')).toBe('AB12CD34');
+  });
+
+  it('kapar vid åtta tecken', () => {
+    expect(normalizeInviteCode('AB12CD34EF')).toBe('AB12CD34');
   });
 });
