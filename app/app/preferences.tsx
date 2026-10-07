@@ -23,6 +23,7 @@ import { PROXIMITY_SCREEN_KEY } from '../src/hooks/useProximityScreen';
 import { isProximityScreenAvailable, proximityScreenStatus } from '../modules/proximity-screen';
 import { LANDING_TABS, DEFAULT_LANDING_TAB, getLandingTab, setLandingTab, type LandingTabKey } from '../src/lib/landingTab';
 import { preferences as str } from '../src/lib/svenska';
+import { useApiClient } from '../src/api/client';
 import { useDesign } from '../src/context/DesignContext';
 import { useBottomGap } from '../src/hooks/useBottomGap';
 import { nyFont, type NyPalett } from '../src/lib/nyDesign';
@@ -53,6 +54,12 @@ export default function PreferencesScreen() {
   // null = raden döljs: webben, byggen utan modulen och enheter utan sensor.
   const [proximityEnabled, setProximityEnabled] = useState<boolean | null>(null);
   const [proximityDiag, setProximityDiag] = useState<string | null>(null);
+  // Diagnosraderna i sidfoten är bara för appens ägare; övriga ser versionen.
+  const client = useApiClient();
+  const [isAppAdmin, setIsAppAdmin] = useState(false);
+  useEffect(() => {
+    client.getIsAppAdmin().then(r => setIsAppAdmin(r.isAdmin)).catch(() => {});
+  }, [client]);
 
   useEffect(() => {
     SecureStore.getItemAsync(HAPTIC_CHECKOUT_KEY).then(v => {
@@ -269,18 +276,25 @@ export default function PreferencesScreen() {
         {/* Diagnostik för att felsöka OTA-uppdateringar (2026-09-07: flera
             runda av "fixen syns inte" som visade sig svåra att felsöka utan
             att kunna se vilken kanal/update-id den installerade appen faktiskt
-            kör). Ren text, inget UI-beroende — trygg att lämna kvar. */}
-        <Text style={s.versionFooter}>
-          v{Constants.expoConfig?.version ?? '?'} · runtime {Updates.runtimeVersion ?? '?'} · {Platform.OS} · kanal: {Updates.channel ?? '(inbyggd, ingen OTA)'}
-          {Updates.isEmbeddedLaunch ? ' · inbyggd bundle' : ` · update ${Updates.updateId?.slice(0, 8) ?? '?'}`}
-        </Text>
-        {/* Senaste tangentbordslyftet. Samma skäl som raden ovan: lyftet går
-            bara att felsöka på en riktig telefon, och siffrorna som avgör det
-            syns annars ingenstans. Visas först när något faktiskt mätts. */}
-        {lyftrad ? <Text style={s.versionFooter}>{lyftrad}</Text> : null}
-        {/* Fick-sensorn: "saknas" = native-bygget är äldre än modulen (v17),
-            "stöds ej" = telefonen saknar sensor-wakelocken. */}
-        {Platform.OS !== 'web' && proximityDiag ? <Text style={s.versionFooter}>bygge {nativeBuildVersion() ?? '?'} · närhetssensor: {proximityDiag}</Text> : null}
+            kör). Ren text, inget UI-beroende — trygg att lämna kvar.
+            Användare ser bara versionen + byggnumret (bra vid supportärenden);
+            diagnosraderna visas för appens ägare. */}
+        <Text style={s.versionFooter}>{str.version(Constants.expoConfig?.version ?? '?', Platform.OS === 'web' ? null : nativeBuildVersion())}</Text>
+        {isAppAdmin ? (
+          <>
+            <Text style={s.versionFooter}>
+              runtime {Updates.runtimeVersion ?? '?'} · {Platform.OS} · kanal: {Updates.channel ?? '(inbyggd, ingen OTA)'}
+              {Updates.isEmbeddedLaunch ? ' · inbyggd bundle' : ` · update ${Updates.updateId?.slice(0, 8) ?? '?'}`}
+            </Text>
+            {/* Senaste tangentbordslyftet. Samma skäl som raden ovan: lyftet går
+                bara att felsöka på en riktig telefon, och siffrorna som avgör det
+                syns annars ingenstans. Visas först när något faktiskt mätts. */}
+            {lyftrad ? <Text style={s.versionFooter}>{lyftrad}</Text> : null}
+            {/* Fick-sensorn: "saknas" = native-bygget är äldre än modulen (v17),
+                "stöds ej" = telefonen saknar sensor-wakelocken. */}
+            {Platform.OS !== 'web' && proximityDiag ? <Text style={s.versionFooter}>närhetssensor: {proximityDiag}</Text> : null}
+          </>
+        ) : null}
       </ScrollView>
 
       <NotificationsModal visible={showNotifModal} onClose={() => setShowNotifModal(false)} />

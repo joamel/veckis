@@ -1598,13 +1598,15 @@ export const account = {
 export const preferences = {
   title:    'Inställningar',
   backA11y: 'Tillbaka',
+  /** Sidfoten: "Version 2.1.0 (20)" — byggnumret saknas på webben. */
+  version:  (version: string, build: string | null) => `Version ${version}${build ? ` (${build})` : ''}`,
 
   sections: {
     notifications: 'NOTISER',
     shopping:      'INKÖPSLISTAN',
     app:           'APP',
     security:      'SÄKERHET',
-    about:         'OM VECKIS',
+    about:         'OM HANDLIS',
   },
 
   rows: {
