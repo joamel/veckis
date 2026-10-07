@@ -4,7 +4,7 @@ import type { Palette } from '../src/lib/theme';
 // Kontosida — namn, byt namn, ta bort konto, logga ut. Egen route med
 // tillbaka-pil. Avatar-tap på Profil-flikens header öppnar denna vy.
 import { useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Pressable } from '../src/components/Pressable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,13 +21,6 @@ import { useDesign } from '../src/context/DesignContext';
 import { useBottomGap } from '../src/hooks/useBottomGap';
 import { nyFont, type NyPalett } from '../src/lib/nyDesign';
 import { NyHeader } from '../src/components/nydesign/NyHeader';
-
-// Clerks konto-portal (2FA m.m.) ligger på olika domäner per instans: prod
-// (pk_live) på accounts.handlis.app, dev på .accounts.dev. Env-styrt så länken
-// inte pekar på fel instans.
-const CLERK_PORTAL_BASE = (process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '').startsWith('pk_live')
-  ? 'https://accounts.handlis.app'
-  : 'https://new-oarfish-48.accounts.dev';
 
 export default function AccountScreen() {
   const { colors: c, ny } = useTheme();
@@ -106,20 +99,6 @@ export default function AccountScreen() {
       showError(e, str.toasts.errorPassword);
     } finally {
       setSavingPw(false);
-    }
-  }
-
-  async function openPortal(path: string) {
-    const url = `${CLERK_PORTAL_BASE}${path}`;
-    try {
-      if (Platform.OS as any === 'web') {
-        window.open(url, '_blank', 'noopener');
-      } else {
-        const WebBrowser = await import('expo-web-browser');
-        await WebBrowser.openBrowserAsync(url);
-      }
-    } catch (e) {
-      showError(e, str.toasts.errorPortal);
     }
   }
 
@@ -238,17 +217,8 @@ export default function AccountScreen() {
             <Text style={s.rowText}>{hasPassword ? str.rows.changePassword : str.rows.addPassword}</Text>
             <Ionicons name="chevron-forward" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
           </Pressable>
-          <Pressable style={[s.row, s.rowBorder]} onPress={() => openPortal('/user/security')}>
-            {nyDesign ? (
-              <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="shield-checkmark-outline" size={18} color={ny.padYta} /></View>
-            ) : (
-              <Ionicons name="shield-checkmark-outline" size={18} color={c.primary} />
-            )}
-            <Text style={s.rowText}>{str.rows.twoFactor}</Text>
-            <Ionicons name="open-outline" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
-          </Pressable>
           {/* Radera konto hör hemma bland de andra säkerhetskänsliga
-              åtgärderna (samma sektion som 2FA), inte som en egen "session"-
+              åtgärderna (samma sektion som lösenordet), inte som en egen "session"-
               rad — men röd/danger-färgad så den ändå syns som allvarlig. */}
           <Pressable style={[s.row, s.rowBorder]} onPress={handleDeleteAccount} disabled={deleting}>
             {nyDesign ? (

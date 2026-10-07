@@ -936,6 +936,7 @@ export default function RecipesScreen() {
               importantForAutofill="no"
               textContentType="none"
               returnKeyType="done"
+              onFocus={() => { revealTargetRef.current = photoBtnRef.current; lyftRef.current.nollställ(); revealFocused(); }}
             />
             <Pressable
               ref={photoBtnRef}

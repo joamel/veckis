@@ -1539,7 +1539,6 @@ export const account = {
     rename:        'Byt namn',
     addPassword:   'Lägg till lösenord',
     changePassword:'Ändra lösenord',
-    twoFactor:     'Tvåfaktorsautentisering',
     signOut:       'Logga ut',
     delete:        'Ta bort kontot',
   },
@@ -1591,7 +1590,6 @@ export const account = {
     passwordAdded:   'Lösenord tillagt',
     passwordUpdated: 'Lösenord uppdaterat',
     errorPassword:   'Kunde inte spara lösenordet',
-    errorPortal:     'Kunde inte öppna säkerhetsinställningarna',
   },
 };
 
@@ -1616,7 +1614,6 @@ export const preferences = {
     onboardingTips: 'Visa introduktionen igen',
     proximity:      'Släck skärmen i fickan',
     proximityHint:  'När du handlar släcks skärmen när mobilen ligger i fickan, så inget bockas av av misstag. Den tänds när du tar upp den.',
-    twoFactor:      'Tvåfaktorsautentisering',
     contactSupport: 'Kontakta support',
     privacyPolicy:  'Integritetspolicy',
     terms:          'Användarvillkor',

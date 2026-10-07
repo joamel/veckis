@@ -16,8 +16,19 @@ function broadcastHousehold(householdId: string, type: string, data: unknown) {
 
 export const householdRouter = Router();
 
+// Namnet finns bara per medlemskap. Skickar klienten inget (äldre appar) tas
+// namnet från användarens senaste hushåll i stället för "Member".
+async function previousDisplayName(clerkUserId: string): Promise<string | null> {
+  const latest = await prisma.householdMember.findFirst({
+    where: { clerkUserId },
+    orderBy: { joinedAt: 'desc' },
+    select: { displayName: true },
+  });
+  return latest?.displayName ?? null;
+}
+
 const createSchema = z.object({ name: z.string().min(1).max(100), displayName: z.string().min(1).max(100).optional() });
-const joinSchema = z.object({ code: z.string().length(8), displayName: z.string().min(1).max(100).optional() });
+const joinSchema = z.object({ code: z.string().length(8).transform(s => s.toUpperCase()), displayName: z.string().min(1).max(100).optional() });
 
 // POST /api/households
 householdRouter.post('/', createHouseholdLimiter, requireAuth, asyncHandler(async (req, res) => {
@@ -30,7 +41,7 @@ householdRouter.post('/', createHouseholdLimiter, requireAuth, asyncHandler(asyn
       members: {
         create: {
           clerkUserId: (req as AuthenticatedRequest).clerkUserId,
-          displayName: body.data.displayName ?? 'Admin',
+          displayName: body.data.displayName ?? await previousDisplayName((req as AuthenticatedRequest).clerkUserId) ?? 'Admin',
           role: 'admin',
         },
       },
@@ -69,7 +80,7 @@ householdRouter.post('/join', joinHouseholdLimiter, requireAuth, asyncHandler(as
       data: {
         householdId: invite.householdId,
         clerkUserId,
-        displayName: body.data.displayName ?? 'Member',
+        displayName: body.data.displayName ?? await previousDisplayName(clerkUserId) ?? 'Member',
         role: 'member',
       },
     }),

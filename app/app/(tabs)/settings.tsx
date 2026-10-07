@@ -166,6 +166,9 @@ export default function SettingsScreen() {
   const [showNotifModal, setShowNotifModal] = useState(false);
 
   const displayName = user?.fullName ?? user?.emailAddresses[0]?.emailAddress ?? str.fallbackUser;
+  // Namnet man valt i hushållet (Konto → Byt namn) följer med till nya hushåll.
+  const myDisplayName = allMemberships.find(m => m.householdId === householdId)?.displayName
+    ?? user?.firstName ?? displayName;
   const clerkUserId = user?.id;
   const isAdmin = memberRole === 'admin';
   const householdMembers = household?.members ?? [];
@@ -363,7 +366,7 @@ export default function SettingsScreen() {
     if (!newHouseholdName.trim()) return;
     setLoadingCreateHousehold(true);
     try {
-      const created = await client.createHousehold(newHouseholdName, displayName);
+      const created = await client.createHousehold(newHouseholdName, myDisplayName);
       await refresh();
       await setActiveHouseholdId(created.id);
       setShowCreateHouseholdModal(false);
@@ -381,7 +384,8 @@ export default function SettingsScreen() {
     if (!joinCode.trim()) return;
     setLoadingJoinHousehold(true);
     try {
-      await client.joinHousehold(joinCode);
+      // Samma namn som i nuvarande hushåll — annars blev man "Member" i det nya.
+      await client.joinHousehold(joinCode.trim().toUpperCase(), myDisplayName);
       await refresh();
       setShowJoinHouseholdModal(false);
       setJoinCode('');
@@ -906,10 +910,15 @@ export default function SettingsScreen() {
             <TextInput
               ref={joinCodeRef}
               onFocus={onFocusInput(joinCodeRef)}
-              style={styles.input}
+              style={[styles.input, styles.codeInput]}
               placeholder={str.placeholders.inviteCode}
               value={joinCode}
-              onChangeText={setJoinCode}
+              // Koderna är versaler (hex); Android skriver annars bara första
+              // bokstaven stor och koden matchar inte.
+              onChangeText={t => setJoinCode(t.toUpperCase())}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              importantForAutofill="no"
               placeholderTextColor={c.textFaint}
               maxLength={8}
               returnKeyType="done"
@@ -1133,6 +1142,14 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
     fontSize: 16,
     backgroundColor: c.inputBg,
     color: c.text,
+  },
+  codeInput: {
+    alignSelf: 'center',
+    width: 220,
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: 6,
   },
   deleteInput: { color: c.text, borderColor: c.danger, backgroundColor: c.inputBg },
   button: {
