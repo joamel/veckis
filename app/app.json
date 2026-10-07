@@ -35,7 +35,7 @@
     },
     "android": {
       "package": "com.handlis.app",
-      "versionCode": 20,
+      "versionCode": 21,
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
@@ -66,7 +66,6 @@
       "expo-apple-authentication",
       "./plugins/withDisableAutofill",
       "./plugins/withSingleTask",
-      "./plugins/withR8Optimize",
       "./plugins/withUnlockScannerOrientation",
       [
         "expo-image-picker",
@@ -89,7 +88,8 @@
         {
           "android": {
             "enableMinifyInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keep class com.clerk.** { *; }\n-keep class androidx.credentials.** { *; }\n-keep class com.google.android.libraries.identity.googleid.** { *; }\n-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod,Exceptions\n-keep,allowobfuscation,allowshrinking interface retrofit2.Call\n-keep,allowobfuscation,allowshrinking class retrofit2.Response\n-keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation\n-keepclassmembers class * { @kotlinx.serialization.Serializable *; }\n-keep class **$$serializer { *; }\n-keepclassmembers @kotlinx.serialization.Serializable class ** { *** Companion; kotlinx.serialization.KSerializer serializer(...); }\n-dontwarn com.clerk.**"
           }
         }
       ]
