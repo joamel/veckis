@@ -108,6 +108,13 @@ export function StepsEditor({ value, onChange, onStepFocus, onStepAdded, onStepB
     requestAnimationFrame(() => refs.current[prev]?.focus());
   }
 
+  // Krysset: samma som ingrediensraderna. Det sista steget töms i stället för
+  // att försvinna — redigeringen har alltid minst ett fält att skriva i.
+  function remove(idx: number) {
+    if (steps.length === 1) { commit(['']); return; }
+    commit(steps.filter((_, i) => i !== idx));
+  }
+
   return (
     <View style={s.list}>
       {steps.map((step, idx) => (
@@ -136,6 +143,15 @@ export function StepsEditor({ value, onChange, onStepFocus, onStepAdded, onStepB
             returnKeyType="next"
             onSubmitEditing={() => addAfter(idx)}
           />
+          <Pressable
+            onPress={() => remove(idx)}
+            style={s.remove}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={str.detail.removeStepA11y(idx + 1)}
+          >
+            <Ionicons name="close-circle" size={20} color={c.border} />
+          </Pressable>
         </View>
       ))}
       <View ref={addBtnRef} collapsable={false}>
@@ -164,6 +180,8 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
     paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontSize: 16,
     backgroundColor: c.inputBg, color: c.text, textAlignVertical: 'top',
   },
+  // Centrerad mot ett enradigt fält (minHeight 48), som numret till vänster.
+  remove: { padding: 2, marginTop: 12 },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   addBtnText: { fontSize: 14, color: c.primary, fontWeight: '500' },
 });

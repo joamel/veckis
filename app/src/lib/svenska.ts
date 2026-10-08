@@ -779,6 +779,7 @@ export const recipes = {
     stepFirstPlaceholder: 'Ex. skär löken',
     stepPlaceholder:      'Nästa steg',
     stepA11y:             (n: number) => `Steg ${n}`,
+    removeStepA11y:       (n: number) => `Ta bort steg ${n}`,
     addStep:              'Lägg till steg',
     ingNamePlaceholder: 'Ingrediens',
     ingQtyPlaceholder:  '1',
