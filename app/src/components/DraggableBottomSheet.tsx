@@ -24,6 +24,7 @@ import Animated, {
 import { useNy } from '../context/ThemeContext';
 import { SheetHandle, SheetHeader } from './SheetHeader';
 import { shouldDismissSheet } from '../lib/sheetDismiss';
+import { excludeWindowFromAutofill } from '../../modules/autofill-guard';
 
 // Dra nedåt (i handtaget) för att stänga en bottom-sheet, i stället för att
 // bara kunna trycka utanför. RN:s <Modal> renderas i ett eget nativt fönster
@@ -105,6 +106,8 @@ export function DraggableBottomSheet({
   const confirm = useConfirm();
   const tryClose = useDiscardDraft(confirm);
   const guardRef = useRef({ isDirty, onRequestClose, onDragClose, tryClose });
+  // Valfri vy i arkets fönster — pekar ut fönstret för autofyll-spärren.
+  const windowAnchorRef = useRef<View>(null);
   guardRef.current = { isDirty, onRequestClose, onDragClose, tryClose };
   const guardedClose = useCallback((fromDrag = false) => {
     const g = guardRef.current;
@@ -186,7 +189,7 @@ export function DraggableBottomSheet({
           ljusgrön kropp. Samma huvud används av ConfirmDialog. */}
       <Animated.View style={[styles.sheet, { backgroundColor: ny.kort }, sheetStyle, sheetAnimStyle]}>
         <GestureDetector gesture={pan}>
-          <View collapsable={false}>
+          <View ref={windowAnchorRef} collapsable={false}>
             <SheetHeader
               title={title}
               subtitle={subtitle}
@@ -204,8 +207,24 @@ export function DraggableBottomSheet({
   );
 
   return (
-    <Modal visible={visible} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => guardedClose()}>
-      <GestureHandlerRootView style={styles.fill}>
+    <Modal
+      visible={visible}
+      transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      animationType="slide"
+      onRequestClose={() => guardedClose()}
+      // Modalen är ett eget fönster på Android, utanför huvudaktiviteten där
+      // withDisableAutofill stänger av autofyll — utan det här föreslog
+      // Samsung Pass inloggningsuppgifter i t.ex. receptlänkens fält.
+      onShow={() => excludeWindowFromAutofill(windowAnchorRef.current)}
+    >
+      {/* paddingTop: modalen täcker hela skärmen (statusBarTranslucent), så ett
+          ark med maxHeight i procent räknade mot skärmhöjden och kunde nå upp
+          under klockan / Dynamic Island på iOS — samma fel som aktivitetsloggen
+          hade. Nu räknas procenten på ytan under statusfältet. Dimningen är
+          absolut och täcker fortfarande hela skärmen. */}
+      <GestureHandlerRootView style={[styles.fill, { paddingTop: insets.top }]}>
         <Animated.View pointerEvents="none" style={[styles.overlayDim, dimAnimStyle]} />
         {content}
       </GestureHandlerRootView>

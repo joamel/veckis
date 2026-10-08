@@ -29,10 +29,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { isReviewAccount, requestReviewTicket } from '../../src/lib/reviewAccount';
+import Constants from 'expo-constants';
 
 const LOGO = require('../../assets/icon.png');
 const GOOGLE_G = require('../../assets/google-g.png');
-const SHOW_GOOGLE = isGoogleSignInAvailable(Platform.OS, process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID);
+// Samma källor och ordning som Clerk själv läser (useSignInWithGoogle):
+// app.json-extra först — den följer med OTA-uppdateringarna, vilket
+// process.env inte gör (update:production sätter inte Googles variabler).
+const SHOW_GOOGLE = isGoogleSignInAvailable(
+  Platform.OS,
+  (Constants.expoConfig?.extra?.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID as string | undefined)
+    ?? process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID,
+);
 
 // Krävs för att OAuth-webbläsarsessionen ska slutföras och lämna tillbaka
 // resultatet till appen. Utan detta hänger Google-login på "spinner" efter att

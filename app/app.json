@@ -35,7 +35,7 @@
     },
     "android": {
       "package": "com.handlis.app",
-      "versionCode": 21,
+      "versionCode": 22,
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
