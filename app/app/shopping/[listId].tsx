@@ -777,17 +777,27 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   // Dubblett-tip: den pulsande badgen är gåtfull utan förklaring — fyra ett tip
   // ankrat vid badgen så fort den dyker upp. Väntar tills koncept-guiden är klar.
+  // Väntar också ut dubblettarket: lägger man själv till en dubblett öppnas
+  // arket direkt, och tipset (som ritas under arkets Modal) hamnade bakom det
+  // och ringade in en knapp ingen såg. Tipset fyras först när arket är stängt
+  // och knappen faktiskt syns — samma villkor som renderar den, plus en kort
+  // paus så arkets stängningsanimation hinner klart. Slogs allt ihop i arket
+  // finns ingen knapp och tipset väntar till nästa gång den dyker upp.
+  const dupeButtonVisible = duplicateGroups.length > 0 && addBarH > 0 && !keyboardVisible;
   useEffect(() => {
     if (!tipsReady) return;
     if (mergeTip.seen !== false || mergeTipShownRef.current) return;
-    if (duplicateGroups.length === 0) return;
-    const shown = showTip({
-      title: str.tips.merge.title,
-      message: str.tips.merge.message,
-      targetRef: dupeBadgeRef,
-    });
-    if (shown) { mergeTipShownRef.current = true; mergeTip.markSeen(); }
-  }, [tipsReady, duplicateGroups.length, mergeTip.seen, mergeTip.markSeen, showTip]);
+    if (!dupeButtonVisible || mergeSheet) return;
+    const t = setTimeout(() => {
+      const shown = showTip({
+        title: str.tips.merge.title,
+        message: str.tips.merge.message,
+        targetRef: dupeBadgeRef,
+      });
+      if (shown) { mergeTipShownRef.current = true; mergeTip.markSeen(); }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [tipsReady, dupeButtonVisible, mergeSheet, mergeTip.seen, mergeTip.markSeen, showTip]);
 
   // "Jag handlar"-tipset är borttaget. Det var ett ankarlöst tip mitt på
   // skärmen som bad användaren leta i ⋮-menyn — en instruktion i ord för en
