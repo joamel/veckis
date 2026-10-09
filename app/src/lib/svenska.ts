@@ -1365,12 +1365,12 @@ export const components = {
       {
         icon:  'restaurant-outline' as const,
         title: '2. Planera veckan',
-        body:  'Dra in rätterna på veckans dagar under Meny. Sätt måltid och antal portioner, så räknas ingredienserna om efter hur många ni är.',
+        body:  'Lägg in recept i veckomenyn. Ni ser direkt vad ni ska äta – frukost, lunch eller middag – och kan enkelt flytta rätter mellan dagar.',
       },
       {
         icon:  'cart-outline' as const,
         title: '3. Handla tillsammans',
-        body:  'Bocka av vad som redan finns hemma och för över resten till Inköp med ett tryck. Listan sorteras efter din butiks ordning, och alla i hushållet ser den uppdateras medan någon handlar.',
+        body:  'Bocka av vad som redan finns hemma och för över resten till Inköpslistan med ett tryck. Listan sorteras efter din butiks ordning, och alla i hushållet ser den uppdateras medan någon handlar.',
       },
     ],
     back:        'Tillbaka',

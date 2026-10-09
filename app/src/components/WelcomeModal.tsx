@@ -56,8 +56,35 @@ export function WelcomeModal({ visible, onDone }: Props) {
               <Ionicons name={current.icon} size={32} color={nyDesign ? ny.lime : '#fff'} />
             </View>
           )}
-          <Text style={s.title}>{current.title}</Text>
-          <Text style={s.message}>{current.body}</Text>
+          {step === 0 ? (
+            <>
+              <Text style={s.title}>{current.title}</Text>
+              <Text style={s.message}>{current.body}</Text>
+            </>
+          ) : (
+            // Steg 1–3 ska ha samma höjd, annars hoppar kortet vid varje
+            // "Nästa". Alla tre texterna ligger ovanpå varandra i samma rad
+            // (varje ny dras tillbaka med -100 %), så raden blir lika hög som
+            // den längsta oavsett skärmbredd och textstorlek. Bara den aktuella
+            // syns och läses upp.
+            <View style={s.stepStack}>
+              {steps.slice(1).map((st, i) => {
+                const active = i + 1 === step;
+                return (
+                  <View
+                    key={i}
+                    style={[s.stepLayer, i > 0 && s.stepLayerOverlap, !active && s.stepLayerHidden]}
+                    pointerEvents="none"
+                    accessibilityElementsHidden={!active}
+                    importantForAccessibility={active ? 'auto' : 'no-hide-descendants'}
+                  >
+                    <Text style={s.title}>{st.title}</Text>
+                    <Text style={s.message}>{st.body}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
 
           <View
             style={s.dots}
@@ -119,6 +146,10 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   logo: { width: 76, height: 76, borderRadius: 18, alignSelf: 'center', marginBottom: 16, marginTop: 8 },
   title: { fontSize: 24, fontFamily: nyD ? nyFont.fet : 'Baloo2', color: nyD ? ny.padYta : c.primary, textAlign: 'center', marginBottom: 12 },
   message: { fontSize: 15, color: nyD ? ny.textDampad : c.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 20 },
+  stepStack: { flexDirection: 'row' },
+  stepLayer: { width: '100%' },
+  stepLayerOverlap: { marginLeft: '-100%' },
+  stepLayerHidden: { opacity: 0 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 20 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: nyD ? ny.kontur : c.border },
   dotActive: { backgroundColor: nyD ? ny.skog : c.primary, width: 20 },
