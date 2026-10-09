@@ -30,6 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { isReviewAccount, requestReviewTicket } from '../../src/lib/reviewAccount';
 import Constants from 'expo-constants';
+import { requireOptionalNativeModule } from 'expo';
 
 const LOGO = require('../../assets/icon.png');
 const GOOGLE_G = require('../../assets/google-g.png');
@@ -40,6 +41,9 @@ const SHOW_GOOGLE = isGoogleSignInAvailable(
   Platform.OS,
   (Constants.expoConfig?.extra?.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID as string | undefined)
     ?? process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID,
+  // Det installerade native-byggets nummer (inte OTA:ns) — valfri modul, så
+  // en vanlig import av expo-application inte kan krascha ett äldre bygge.
+  requireOptionalNativeModule<{ nativeBuildVersion?: string }>('ExpoApplication')?.nativeBuildVersion ?? null,
 );
 
 // Krävs för att OAuth-webbläsarsessionen ska slutföras och lämna tillbaka

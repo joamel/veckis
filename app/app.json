@@ -103,7 +103,9 @@
         "projectId": "37425b58-c8af-45be-aac8-c26bbdfaa3d1"
       },
       "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "630229510172-1nb18ugbraqrrqqcqgvvhblonslccr4f.apps.googleusercontent.com",
-      "EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID": "630229510172-o5si76i2ce137204dtnbrjqbjmbccleq.apps.googleusercontent.com"
+      "EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID": "630229510172-o5si76i2ce137204dtnbrjqbjmbccleq.apps.googleusercontent.com",
+      "EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID": "630229510172-ivhrhm4ji145hhspdljfagh89t2cdu8g.apps.googleusercontent.com",
+      "EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME": "com.googleusercontent.apps.630229510172-ivhrhm4ji145hhspdljfagh89t2cdu8g"
     },
     "owner": "joamel"
   }
