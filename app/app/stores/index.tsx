@@ -323,6 +323,17 @@ export default function StoresScreen() {
             );
           })
         )}
+        {/* I pick-läget (butiksvalet i en inköpslista) finns ingen FAB — den
+            hade krockat med spara-raden. Ny butik nås i stället härifrån, och
+            createStore väljer den nyskapade och backar till listan. */}
+        {pickMode && filteredSorted.length > 0 && (
+          <Pressable style={[s.card, s.addCard]} onPress={() => setShowCreate(true)} accessibilityRole="button">
+            <View style={[s.cardIcon, s.addCardIcon]}>
+              <Ionicons name="add" size={22} color={nyDesign ? ny.padYta : c.primary} />
+            </View>
+            <Text style={[s.cardTitle, s.addCardTitle]}>{str.createModal.add}</Text>
+          </Pressable>
+        )}
       </ScrollView>
 
       {!pickMode && (
@@ -415,6 +426,9 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
     ? { width: 44, height: 44, borderRadius: 13, backgroundColor: ny.bricka, alignItems: 'center', justifyContent: 'center' }
     : { width: 36, height: 36, borderRadius: 10, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
   cardIconCurrent: { backgroundColor: c.accent100 },
+  addCard: { backgroundColor: 'transparent', borderWidth: nyD ? 2 : 1, borderStyle: 'dashed', borderColor: nyD ? ny.kontur : c.border },
+  addCardIcon: { backgroundColor: 'transparent' },
+  addCardTitle: { color: nyD ? ny.padYta : c.primary },
   cardTitle: nyD
     ? { fontFamily: nyFont.fet, fontSize: 17, letterSpacing: -0.3, color: ny.text }
     : { fontSize: 16, fontWeight: '600', color: c.text },
