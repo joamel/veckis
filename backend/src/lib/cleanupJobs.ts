@@ -1,7 +1,7 @@
 import type { StoreCategory } from '@prisma/client';
 import { parentForSub, SUB_TAXONOMY, tillSvenskEnhet, type SubCategory } from '@veckis/shared';
 import { prisma } from '../db';
-import { categorizeIngredient, kureratUndantag } from './categorizeIngredient';
+import { categorizeIngredient, curatedSubCategory, kureratUndantag } from './categorizeIngredient';
 import { duglingGlobalt, kanoniseraUtanCache } from './normalizeIngredients';
 import { stripIngredient } from './stripIngredient';
 import { delaAlternativ } from './alternativ';
@@ -174,6 +174,71 @@ const categories: CleanupJob = {
     }
     const summary = `${n} rader fick rätt kategori.`;
     await audit(actor, 'categories', n, summary);
+    return summary;
+  },
+};
+
+// --- Underkategori enligt dagens regler --------------------------------------
+
+/** Underkategorin dagens regler ger ett namn, och kategorin den hör till. */
+function currentSub(name: string): { sub: SubCategory; category: StoreCategory } | null {
+  const sub = curatedSubCategory(stripIngredient(name));
+  if (!sub) return null;
+  // Ett kurerat undantag på kategorin vinner över underkategorins förälder —
+  // samma ordning som när en vara läggs i en lista.
+  const category = (kureratUndantag(stripIngredient(name)) ?? parentForSub(sub)) as StoreCategory;
+  return { sub, category };
+}
+
+const subLabel = (sub: string | null) => {
+  const info = sub ? SUB_TAXONOMY[sub as SubCategory] : null;
+  return info ? `${info.defaultParent} › ${info.label}` : '—';
+};
+
+const subcategories: CleanupJob = {
+  id: 'subcategories',
+  title: 'Underkategori enligt dagens regler',
+  description: 'Basvaror och obockade varor i listor vars underkategori skiljer sig från vad reglerna säger i dag — t.ex. glutenfri pizza som hamnat på torra hyllan i stället för i frysen. Basvaror som hushållet själv klassat rörs inte, och inte heller deras varor.',
+  usesAi: false,
+  async plan() {
+    const [staples, items] = await Promise.all([
+      prisma.stapleItem.findMany({ where: { NOT: { categoryChosen: true } }, select: { id: true, name: true, subCategory: true } }),
+      prisma.shoppingItem.findMany({
+        where: { isChecked: false, mergedIntoId: null },
+        select: { id: true, name: true, subCategory: true, list: { select: { householdId: true } } },
+      }),
+    ]);
+    // Hushållens egna val: varor med samma namn ska följa basvaran, inte reglerna.
+    const chosen = new Set((await prisma.stapleItem.findMany({ where: { categoryChosen: true }, select: { householdId: true, name: true } }))
+      .map(c => `${c.householdId}|${c.name}`));
+    const rows: JobRow[] = [];
+    for (const b of staples) {
+      const to = currentSub(b.name);
+      if (to && to.sub !== b.subCategory) rows.push({ table: 'basvara', key: `staple:${b.id}`, label: b.name, from: subLabel(b.subCategory), to: subLabel(to.sub), name: b.name });
+    }
+    for (const i of items) {
+      if (chosen.has(`${i.list.householdId}|${stripIngredient(i.name).toLowerCase()}`)) continue;
+      const to = currentSub(i.name);
+      if (to && to.sub !== i.subCategory) rows.push({ table: 'vara', key: `item:${i.id}`, label: i.name, from: subLabel(i.subCategory), to: subLabel(to.sub), name: i.name });
+    }
+    return { rows };
+  },
+  async apply(rows, actor) {
+    let n = 0;
+    for (const { key } of rows) {
+      const [kind, id] = key.split(':');
+      if (kind === 'staple') {
+        const b = await prisma.stapleItem.findUnique({ where: { id }, select: { name: true, subCategory: true, categoryChosen: true } });
+        const to = b && b.categoryChosen !== true ? currentSub(b.name) : null;
+        if (to && to.sub !== b!.subCategory) { await prisma.stapleItem.update({ where: { id }, data: { subCategory: to.sub, category: to.category } }); n++; }
+      } else if (kind === 'item') {
+        const it = await prisma.shoppingItem.findUnique({ where: { id }, select: { name: true, subCategory: true, isChecked: true } });
+        const to = it && !it.isChecked ? currentSub(it.name) : null;
+        if (to && to.sub !== it!.subCategory) { await prisma.shoppingItem.update({ where: { id }, data: { subCategory: to.sub, category: to.category } }); n++; }
+      }
+    }
+    const summary = `${n} rader fick dagens underkategori.`;
+    await audit(actor, 'subcategories', n, summary);
     return summary;
   },
 };
@@ -393,7 +458,7 @@ const recipeIngredients: CleanupJob = {
   },
 };
 
-export const CLEANUP_JOBS: CleanupJob[] = [categories, units, aliases, recipeNames, recipeIngredients];
+export const CLEANUP_JOBS: CleanupJob[] = [categories, subcategories, units, aliases, recipeNames, recipeIngredients];
 
 export function findJob(id: string): CleanupJob | undefined {
   return CLEANUP_JOBS.find(j => j.id === id);

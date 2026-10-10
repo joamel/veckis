@@ -109,6 +109,47 @@ export function placedClusters(
   return out;
 }
 
+/** Inlärd ordning INOM sektionerna, ur hushållets bockar i butiken: plats 0–1
+ *  per underkategori och per varunamn (gemener). Se learnInnerOrder i backend. */
+export interface InnerOrder {
+  subs: Record<string, number>;
+  items: Record<string, number>;
+}
+
+/**
+ * Låter de element som har en inlärd plats byta plats SINSEMELLAN, i sina
+ * egna luckor; resten står kvar där de stod. Samma princip som förslaget för
+ * sektionerna — en vara man aldrig bockat i butiken hoppar inte runt.
+ */
+export function permuteKnown<X>(xs: X[], score: (x: X) => number | undefined): X[] {
+  const known = xs.map((x, i) => ({ x, i, s: score(x) })).filter(k => k.s !== undefined);
+  if (known.length < 2) return xs;
+  const sorted = [...known].sort((a, b) => (a.s! - b.s!) || (a.i - b.i));
+  const out = [...xs];
+  known.forEach((k, n) => { out[k.i] = sorted[n].x; });
+  return out;
+}
+
+/**
+ * Lägger den inlärda ordningen ovanpå standardsorteringen inom en sektion:
+ * underkategoriernas block byter plats efter hur man går, och varorna inom
+ * varje block likaså. Bockade varor ligger kvar sist, orörda.
+ */
+export function applyInnerOrder<T extends CategoryGroupItem>(sorted: T[], inner?: InnerOrder | null): T[] {
+  if (!inner) return sorted;
+  const open = sorted.filter(i => !i.isChecked);
+  const done = sorted.filter(i => i.isChecked);
+  const runs: T[][] = [];
+  for (const item of open) {
+    const last = runs[runs.length - 1];
+    if (last && (last[0].subCategory ?? null) === (item.subCategory ?? null)) last.push(item);
+    else runs.push([item]);
+  }
+  const orderedRuns = permuteKnown(runs, r => (r[0].subCategory ? inner.subs[r[0].subCategory] : undefined));
+  const itemScore = (i: T) => inner.items[i.name.trim().toLowerCase()];
+  return [...orderedRuns.flatMap(r => permuteKnown(r, itemScore)), ...done];
+}
+
 /** Följer categoryMerge till slutmålet. Cykel-skydd är bara ett säkerhetsnät
  *  — UI:t tillåter aldrig kedjor (bara en nivå), men skyddar mot trasig data. */
 function resolveMerge(key: string, categoryMerge: Record<string, string>): string {
@@ -137,6 +178,7 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
   expandedSubs: string[] = [],
   parentOrder: string[] = [],
   categoryMerge: Record<string, string> = {},
+  inner?: InnerOrder | null,
 ): CategoryGroup<T>[] {
   const expandedSet = new Set(expandedSubs);
   const enumMap = new Map<StoreCategory, T[]>();
@@ -200,14 +242,14 @@ export function buildCategoryGroups<T extends CategoryGroupItem>(
     }
   }
 
-  const sortItems = (arr: T[]) => arr.sort((a, b) => {
+  const sortItems = (arr: T[]) => applyInnerOrder(arr.sort((a, b) => {
     if (a.isChecked !== b.isChecked) return a.isChecked ? 1 : -1;
     // Klustra per subkategori (kanonisk ordning) INOM kategorin; namn inom subben.
     const ra = subRank(a.subCategory);
     const rb = subRank(b.subCategory);
     if (ra !== rb) return ra - rb;
     return a.name.localeCompare(b.name, 'sv');
-  });
+  }), inner);
 
   // Ordnad lista av sub-sektioner under en parentKey, enligt expandedSubs.
   // Underkategorier som placerats fritt ritas där de står i parentOrder, inte

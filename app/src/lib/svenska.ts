@@ -1152,10 +1152,12 @@ export const stores = {
     suggestTitle:    (trips: number, otherHouseholds: number) => otherHouseholds > 0
       ? `Förslag från ${trips} handlingar – era och ${otherHouseholds} andra hushålls i samma butik`
       : `Förslag från era ${trips} handlingar`,
-    suggestBody:     'Så här brukar ni gå genom butiken. Det du ändrat själv skrivs över om du använder förslaget — spara för att behålla det.',
+    suggestBody:     'Så här brukar ni gå genom butiken. Det här skulle flyttas:',
+    suggestMove:      (section: string, after: string) => `${section} – efter ${after}`,
+    suggestMoveFirst: (section: string) => `${section} – först`,
     suggestUse:      'Använd',
     suggestDismiss:  'Inte nu',
-    suggestProgress: (trips: number) => `Efter tre handlingar i butiken föreslår appen en ordning efter hur ni går. ${trips} av 3 hittills.`,
+    suggestProgress: (trips: number, min: number) => `Efter ${min} handlingar i butiken kan appen föreslå en ordning efter hur ni går — men bara det som är säkert. ${trips} av ${min} hittills.`,
     allHidden:   'Inga kategorier valda — du måste ha minst en.',
     mergedHint:  'Kategorier som slagits ihop med en annan i den här butiken. Varorna behåller sin kategori — de grupperas bara under en annan rubrik här.',
     subHint:     (parent: string) => `Bocka i det som ska bli en egen sektion i listan. Resten hamnar under ${parent}.`,
@@ -1172,7 +1174,7 @@ export const stores = {
 
   orderTip: {
     title:   'Din väg genom butiken',
-    message: 'Dra kategorierna i den ordning du föredrar, så sorteras inköpslistan likadant. Eller handla som vanligt: efter tre handlingar föreslår appen en ordning utifrån hur du bockat av varorna.',
+    message: 'Dra kategorierna i den ordning du föredrar, så sorteras inköpslistan likadant. Eller handla som vanligt: efter några handlingar föreslår appen en ordning utifrån hur du bockat av varorna, och varorna inom varje kategori sorteras efter hur du går.',
   },
 
   renameModal: {

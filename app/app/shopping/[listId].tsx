@@ -7,7 +7,7 @@ import { capitalize } from '../../src/lib/text';
 import { useCheckHaptic } from '../../src/hooks/useCheckHaptic';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
 import { normalizeQtyInput } from '../../src/lib/qty';
-import { buildCategoryGroups, type CategoryGroup } from '../../src/lib/categoryGroups';
+import { buildCategoryGroups, type CategoryGroup, type InnerOrder } from '../../src/lib/categoryGroups';
 import { browserTiles, browserSubs, browserSections, headingSubs } from '../../src/lib/browserOrder';
 import { browserEntryFor } from '../../src/lib/browserEntry';
 import { buildShoppingListRows, type ShoppingListRow } from '../../src/lib/shoppingListRows';
@@ -1806,6 +1806,18 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // during the previous render". Returnerna ligger i stället precis före JSX:en.
   // Items tied to a meal that's pending removal stay visible but rendered
   // in a pending state (faded + strikethrough) until backend commits in 5s.
+  // Ordningen INOM sektionerna, inlärd ur hushållets bockar i butiken (gurkan
+  // före tomaten om man brukar ta den först). Hämtas per butik; utan butik
+  // eller utan nät gäller standardsorteringen.
+  const listStoreId = list?.storeId ?? null;
+  const [innerOrder, setInnerOrder] = useState<InnerOrder | null>(null);
+  useEffect(() => {
+    setInnerOrder(null);
+    if (!listStoreId) return;
+    let cancelled = false;
+    client.getStoreInnerOrder(listStoreId).then(o => { if (!cancelled) setInnerOrder(o); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [listStoreId, client]);
   const isPending = (item: ShoppingItemWithRecipe) => !!item.menuItemId && pendingMenuItemRemovals.has(item.menuItemId);
   // Allt härlett i EN memo. Låg tidigare som fristående const:ar, vilket gav
   // nya array-identiteter varje render — då bommade listRows-memon nedanför
@@ -1823,9 +1835,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       checked,
       allItems: [...unchecked, ...checked],
       customCategories, expandedSubs, parentOrder, categoryMerge,
-      categoryGroups: buildCategoryGroups(unchecked, categoryOrder, customCategories, expandedSubs, parentOrder, categoryMerge),
+      categoryGroups: buildCategoryGroups(unchecked, categoryOrder, customCategories, expandedSubs, parentOrder, categoryMerge, innerOrder),
     };
-  }, [list, categoryOrder]);
+  }, [list, categoryOrder, innerOrder]);
   const { unchecked, checked, allItems, customCategories, expandedSubs, parentOrder, categoryMerge, categoryGroups } = derived;
   // Kategoriväljarens varor, i sektioner per underkategori i butikens ordning.
   const browserSectionList = useMemo(() => {

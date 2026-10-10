@@ -5,7 +5,7 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { positionForPostcode, searchSharedStores, type SharedStoreRow } from '../lib/sharedStores';
-import { eventsForSuggestion, sectionKeyFor, suggestStoreOrder } from '../lib/storeOrderSuggestion';
+import { eventsForSuggestion, learnInnerOrder, MIN_TRIPS, sectionKeyFor, suggestStoreOrder } from '../lib/storeOrderSuggestion';
 
 export const storesRouter = Router();
 
@@ -170,7 +170,30 @@ storesRouter.get('/:storeId/order-suggestion', requireAuth, asyncHandler(async (
   const suggestion = suggestStoreOrder(events.map(toSection), parentOrder, new Date());
   // Hushållets egna handlingar, så appen kan säga hur mycket som är era.
   const ownTrips = suggestStoreOrder(own.map(toSection), parentOrder, new Date()).trips;
-  res.json({ ...suggestion, ownTrips, otherHouseholds });
+  res.json({ ...suggestion, ownTrips, otherHouseholds, minTrips: MIN_TRIPS });
+}));
+
+// GET /api/stores/:storeId/inner-order — ordningen INOM sektionerna (under-
+// kategorier och varor) ur hushållets EGNA bockar i butiken. Används direkt i
+// listan, utan förslag: ett fel här kostar några steg i samma gång. Andra
+// hushålls bockar tas aldrig med — varunamn säger mer om ett hushåll än
+// kategorier gör.
+storesRouter.get('/:storeId/inner-order', requireAuth, asyncHandler(async (req, res) => {
+  const store = await prisma.store.findUnique({ where: { id: req.params.storeId } });
+  if (!store) { res.status(404).json({ error: 'Store not found' }); return; }
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId: store.householdId, clerkUserId: (req as AuthenticatedRequest).clerkUserId } },
+  });
+  if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
+  const parentOrder = store.parentOrder.length
+    ? store.parentOrder
+    : [...store.categoryOrder, ...((store.customCategories as string[] | null) ?? []).map(c => `c:${c}`)];
+  const categoryMerge = (store.categoryMerge ?? {}) as Record<string, string>;
+  const own = await prisma.shoppingCheckEvent.findMany({
+    where: { storeId: store.id },
+    select: { shopperKey: true, checkedAt: true, bulk: true, category: true, subCategory: true, customCategory: true, itemName: true },
+  });
+  res.json(learnInnerOrder(own.map(e => ({ ...e, section: sectionKeyFor(e, { parentOrder, categoryMerge }) })), new Date()));
 }));
 
 // PATCH /api/stores/:storeId

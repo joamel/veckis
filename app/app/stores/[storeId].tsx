@@ -34,6 +34,7 @@ import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import { storeMeta } from '../../src/lib/storeMeta';
+import * as SecureStore from '../../src/lib/secureStorage';
 import { isPlacedSubKey, placedClusters, placedHeadings } from '../../src/lib/categoryGroups';
 
 /** Nyckeln en utbruten underkategori (expandedSubs-post) får i parentOrder när
@@ -141,7 +142,7 @@ export default function StoreDetailScreen() {
   const [showLink, setShowLink] = useState(false);
   // Steg 4: förslag på ordning ur hushållets bockar. Hämtas med butiken och
   // gäller den SPARADE ordningen — därför visas det bara utan osparade ändringar.
-  const [suggestion, setSuggestion] = useState<{ trips: number; order: string[]; changed: boolean; otherHouseholds?: number } | null>(null);
+  const [suggestion, setSuggestion] = useState<{ trips: number; order: string[]; changed: boolean; otherHouseholds?: number; moves?: { key: string; after: string | null }[]; minTrips?: number } | null>(null);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [linking, setLinking] = useState(false);
   const [renameValue, setRenameValue] = useState('');
@@ -230,8 +231,19 @@ export default function StoreDetailScreen() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (!storeId) return;
-    client.getStoreOrderSuggestion(storeId).then(setSuggestion).catch(() => setSuggestion(null));
+    // Ett förslag man sagt "Inte nu" till visas inte igen förrän bockarna
+    // säger något annat — då är det ett nytt förslag.
+    client.getStoreOrderSuggestion(storeId).then(async sug => {
+      const dismissed = await SecureStore.getItemAsync(dismissedKey(storeId)).catch(() => null);
+      if (dismissed && dismissed === JSON.stringify(sug.order)) setSuggestionDismissed(true);
+      setSuggestion(sug);
+    }).catch(() => setSuggestion(null));
   }, [storeId, client]);
+
+  function dismissSuggestion() {
+    setSuggestionDismissed(true);
+    if (storeId && suggestion) SecureStore.setItemAsync(dismissedKey(storeId), JSON.stringify(suggestion.order)).catch(() => {});
+  }
 
   // Ordnings-tipset: Inköp-tipset säger VAD butiken ger (listan i butikens
   // ordning), det här säger HUR — dra själv eller låt förslaget efter tre
@@ -800,18 +812,23 @@ export default function StoreDetailScreen() {
             <View style={s.suggestCard}>
               <Text style={s.suggestTitle}>{str.detail.suggestTitle(suggestion.trips, suggestion.otherHouseholds ?? 0)}</Text>
               <Text style={s.sectionSub}>{str.detail.suggestBody}</Text>
-              <Text style={s.suggestOrder}>{suggestion.order.map(k => labelWithTag(k)).join(' → ')}</Text>
+              {/* Bara det som flyttas — hela ordningen gick inte att bedöma. */}
+              {(suggestion.moves ?? []).map(m => (
+                <Text key={m.key} style={s.suggestOrder}>
+                  {m.after ? str.detail.suggestMove(labelWithTag(m.key), labelWithTag(m.after)) : str.detail.suggestMoveFirst(labelWithTag(m.key))}
+                </Text>
+              ))}
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <Pressable style={s.suggestUse} onPress={applySuggestion}>
                   <Text style={s.suggestUseText}>{str.detail.suggestUse}</Text>
                 </Pressable>
-                <Pressable style={s.suggestDismiss} onPress={() => setSuggestionDismissed(true)}>
+                <Pressable style={s.suggestDismiss} onPress={dismissSuggestion}>
                   <Text style={s.suggestDismissText}>{str.detail.suggestDismiss}</Text>
                 </Pressable>
               </View>
             </View>
-          ) : suggestion.trips < 3 ? (
-            <Text style={s.sectionSub}>{str.detail.suggestProgress(suggestion.trips)}</Text>
+          ) : suggestion.trips < (suggestion.minTrips ?? 4) ? (
+            <Text style={s.sectionSub}>{str.detail.suggestProgress(suggestion.trips, suggestion.minTrips ?? 4)}</Text>
           ) : null
         )}
         <View ref={orderHeaderRef} collapsable={false}>
@@ -1115,6 +1132,9 @@ export default function StoreDetailScreen() {
 }
 
 // nyD: den nya designen (beta) skriver över de stilar som skiljer.
+/** "Inte nu" per butik: förslagets ordning, så samma förslag inte visas igen. */
+const dismissedKey = (storeId: string) => `order-suggestion-dismissed-${storeId}`;
+
 const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
   bankKort: { backgroundColor: ny.kort, borderRadius: 16, padding: 14, marginBottom: 18, gap: 8 },
   bankRad: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -1138,7 +1158,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   sectionSub: { fontSize: 13, color: c.textMuted, marginBottom: 14, lineHeight: 18 },
   suggestCard: { backgroundColor: nyD ? ny.kort : c.surface, borderRadius: 16, padding: 14, marginBottom: 16, gap: 4 },
   suggestTitle: { fontSize: 16, fontWeight: '700', color: nyD ? ny.text : c.text },
-  suggestOrder: { fontSize: 13, color: nyD ? ny.padYta : c.primary, lineHeight: 19, marginBottom: 10 },
+  suggestOrder: { fontSize: 14, color: nyD ? ny.padYta : c.primary, lineHeight: 20, marginBottom: 6 },
   suggestUse: { backgroundColor: nyD ? ny.lime : c.primary, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 10 },
   suggestUseText: { color: nyD ? ny.skog : '#fff', fontWeight: '700', fontSize: 15 },
   suggestDismiss: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },

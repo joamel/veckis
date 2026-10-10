@@ -57,7 +57,7 @@ export const CHECK_EVENT_MAX_AGE_DAYS = 180;
 export async function recordCheckEvent(
   storeId: string,
   clerkUserId: string,
-  item: { category: string; subCategory: string | null; customCategory: string | null; customSubCategory: string | null },
+  item: { category: string; subCategory: string | null; customCategory: string | null; customSubCategory: string | null; name?: string | null },
   clientAt: string | undefined,
   bulk: boolean,
 ): Promise<void> {
@@ -72,6 +72,8 @@ export async function recordCheckEvent(
       subCategory: item.subCategory,
       customCategory: item.customCategory,
       customSubCategory: item.customSubCategory,
+      // Bara för ordningen inom en sektion i den här butiken (se schemat).
+      itemName: item.name ? item.name.trim().toLowerCase() : null,
       checkedAt: checkTime(clientAt, now),
       bulk,
     },

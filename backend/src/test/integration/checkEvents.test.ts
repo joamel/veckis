@@ -10,7 +10,7 @@ beforeAll(() => {
   process.env.PSEUDONYM_SECRET = 'test-hemlighet';
 });
 
-const mjölk = { category: 'dairy_eggs', subCategory: 'mjölk', customCategory: null, customSubCategory: null };
+const mjölk = { category: 'dairy_eggs', subCategory: 'mjölk', customCategory: null, customSubCategory: null, name: 'Mjölk ' };
 
 describe('recordCheckEvent', () => {
   it('sparar kategori, underkategori, telefonens tidpunkt och en pseudonym', async () => {
@@ -22,6 +22,8 @@ describe('recordCheckEvent', () => {
     const [e] = await prisma.shoppingCheckEvent.findMany({ where: { storeId: store.id } });
     expect(e.category).toBe('dairy_eggs');
     expect(e.subCategory).toBe('mjölk');
+    // Varunamnet i gemener, för ordningen inom sektionen.
+    expect(e.itemName).toBe('mjölk');
     expect(e.bulk).toBe(false);
     expect(Date.now() - e.checkedAt.getTime()).toBeGreaterThanOrEqual(59_000);
     expect(e.shopperKey).toBe(shopperKey('clerk_anna', store.id, 'test-hemlighet'));

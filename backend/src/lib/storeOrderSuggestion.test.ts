@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sectionKeyFor, splitTrips, suggestStoreOrder, type CheckEventLike, eventsForSuggestion } from './storeOrderSuggestion';
+import { learnInnerOrder, sectionKeyFor, splitTrips, suggestStoreOrder, type CheckEventLike, type InnerEventLike, eventsForSuggestion } from './storeOrderSuggestion';
 
 const now = new Date('2026-09-29T12:00:00Z');
 const min = 60_000;
@@ -26,42 +26,119 @@ describe('splitTrips', () => {
 });
 
 describe('suggestStoreOrder', () => {
-  it('föreslår inget förrän det finns tre handlingar', () => {
-    const events = [...trip('a', 3, ['meat_fish', 'fruit_veg']), ...trip('a', 2, ['meat_fish', 'fruit_veg'])];
-    expect(suggestStoreOrder(events, current, now)).toMatchObject({ trips: 2, changed: false, order: current });
+  it('föreslår inget förrän det finns fyra handlingar', () => {
+    const events = [1, 2, 3].flatMap(d => trip('a', d, ['meat_fish', 'fruit_veg']));
+    expect(suggestStoreOrder(events, current, now)).toMatchObject({ trips: 3, changed: false, order: current });
   });
 
   it('sorterar om efter hur man går, och låter sektioner utan data stå kvar på sin plats', () => {
     // Man går kött → frukt → mejeri, men listan säger frukt → mejeri → kött.
-    const events = [1, 2, 3].flatMap(d => trip('a', d, ['meat_fish', 'fruit_veg', 'dairy_eggs']));
+    const events = [1, 2, 3, 4].flatMap(d => trip('a', d, ['meat_fish', 'fruit_veg', 'dairy_eggs']));
     const s = suggestStoreOrder(events, current, now);
     expect(s.changed).toBe(true);
     // canned_dry har ingen data och står kvar sist.
     expect(s.order).toEqual(['meat_fish', 'fruit_veg', 'dairy_eggs', 'canned_dry']);
+    // Bara köttet flyttas — resten behåller sin inbördes ordning.
+    expect(s.moves).toEqual([{ key: 'meat_fish', after: null }]);
   });
 
   it('nyare handlingar väger tyngre', () => {
     const gamla = [60, 61, 62].flatMap(d => trip('a', d, ['dairy_eggs', 'fruit_veg']));
-    const nya = [1, 2].flatMap(d => trip('a', d, ['fruit_veg', 'dairy_eggs']));
+    const nya = [1, 2, 3, 4].flatMap(d => trip('a', d, ['fruit_veg', 'dairy_eggs']));
     const s = suggestStoreOrder([...gamla, ...nya], ['dairy_eggs', 'fruit_veg'], now);
     expect(s.order).toEqual(['fruit_veg', 'dairy_eggs']);
   });
 
-  it('en sektion som bara setts en gång flyttas inte', () => {
+  it('en splittrad bild flyttar ingenting', () => {
+    // 3 mot 2 är ingen bevisning — det krävs 80 % åt samma håll.
     const events = [
       ...[1, 2, 3].flatMap(d => trip('a', d, ['dairy_eggs', 'fruit_veg'])),
-      ...trip('a', 4, ['canned_dry', 'dairy_eggs']),
+      ...[4, 5].flatMap(d => trip('a', d, ['fruit_veg', 'dairy_eggs'])),
+    ];
+    expect(suggestStoreOrder(events, ['fruit_veg', 'dairy_eggs'], now).changed).toBe(false);
+  });
+
+  it('ett par som setts tillsammans för få gånger flyttas inte', () => {
+    const events = [
+      ...[1, 2, 3, 4].flatMap(d => trip('a', d, ['dairy_eggs', 'fruit_veg'])),
+      ...[5, 6].flatMap(d => trip('a', d, ['canned_dry', 'dairy_eggs'])),
     ];
     const s = suggestStoreOrder(events, current, now);
     expect(s.order.indexOf('canned_dry')).toBe(3);
   });
 
+  it('en sektion som står på två ställen flyttas aldrig', () => {
+    // Glutenfritt: ibland direkt efter frukten (torra hyllan), ibland efter
+    // mejeriet (frysen). Ordningen mellan frukt, mejeri och kött är stabil.
+    const order = ['fruit_veg', 'special_diet', 'dairy_eggs', 'meat_fish'];
+    const events = [
+      ...[1, 2, 3].flatMap(d => trip('a', d, ['fruit_veg', 'special_diet', 'dairy_eggs', 'meat_fish'])),
+      ...[4, 5, 6].flatMap(d => trip('a', d, ['fruit_veg', 'dairy_eggs', 'meat_fish', 'special_diet'])),
+    ];
+    const s = suggestStoreOrder(events, order, now);
+    expect(s.changed).toBe(false);
+    expect(s.order).toEqual(order);
+  });
+
+  it('bockar i efterhand (en skur över många sektioner) räknas inte', () => {
+    // Fyra handlingar där allt bockades vid kassan på några sekunder, i
+    // omvänd ordning — ska inte vända listan.
+    const kassan = (daysAgo: number) => {
+      const start = now.getTime() - daysAgo * 86_400_000;
+      return ['canned_dry', 'meat_fish', 'dairy_eggs', 'fruit_veg']
+        .map((section, i) => ({ shopperKey: 'a', checkedAt: new Date(start + i * 1000), bulk: false, section }));
+    };
+    const s = suggestStoreOrder([1, 2, 3, 4].flatMap(kassan), current, now);
+    expect(s).toMatchObject({ trips: 0, changed: false });
+  });
+
+  it('flera varor ur samma sektion i snabb följd är en vanlig promenad', () => {
+    const t = (daysAgo: number) => {
+      const start = now.getTime() - daysAgo * 86_400_000;
+      return [
+        { section: 'meat_fish', at: 0 }, { section: 'meat_fish', at: 2 }, { section: 'meat_fish', at: 4 },
+        { section: 'fruit_veg', at: 120 }, { section: 'dairy_eggs', at: 240 },
+      ].map(x => ({ shopperKey: 'a', checkedAt: new Date(start + x.at * 1000), bulk: false, section: x.section }));
+    };
+    const s = suggestStoreOrder([1, 2, 3, 4].flatMap(t), current, now);
+    expect(s.order.slice(0, 3)).toEqual(['meat_fish', 'fruit_veg', 'dairy_eggs']);
+  });
+
   it('ger changed: false när man redan går i listans ordning', () => {
-    const events = [1, 2, 3].flatMap(d => trip('a', d, current));
-    expect(suggestStoreOrder(events, current, now).changed).toBe(false);
+    const events = [1, 2, 3, 4].flatMap(d => trip('a', d, current));
+    expect(suggestStoreOrder(events, current, now)).toMatchObject({ changed: false, moves: [] });
   });
 });
 
+describe('learnInnerOrder', () => {
+  const inner = (daysAgo: number, rows: [string, string | null, string | null][]): InnerEventLike[] => {
+    const start = now.getTime() - daysAgo * 86_400_000;
+    return rows.map(([section, subCategory, itemName], i) =>
+      ({ shopperKey: 'a', checkedAt: new Date(start + i * 30_000), bulk: false, section, subCategory, itemName }));
+  };
+
+  it('en enda handling räcker för ordningen inom en sektion', () => {
+    const o = learnInnerOrder(inner(1, [
+      ['fruit_veg', 'grönsaker', 'gurka'],
+      ['fruit_veg', 'grönsaker', 'tomat'],
+      ['fruit_veg', 'frukt', 'äpplen'],
+    ]), now);
+    expect(o.items.gurka).toBeLessThan(o.items.tomat);
+    expect(o.subs.grönsaker).toBeLessThan(o.subs.frukt);
+  });
+
+  it('platser räknas inom sektionen, inte över hela handlingen', () => {
+    const o = learnInnerOrder(inner(1, [
+      ['fruit_veg', 'grönsaker', 'gurka'],
+      ['dairy_eggs', 'mjölk', 'mjölk'],
+      ['dairy_eggs', 'ägg', 'ägg'],
+    ]), now);
+    // Gurkan är ensam i sin sektion — ingen ordning att lära.
+    expect(o.items.gurka).toBeUndefined();
+    expect(o.items.mjölk).toBe(0);
+    expect(o.items.ägg).toBe(1);
+  });
+});
 describe('sectionKeyFor', () => {
   const store = { parentOrder: ['dairy_eggs', 's:pasta_nudlar', 'canned_dry', 'c:Barn'], categoryMerge: { snacks_sweets: 'canned_dry' } };
   const e = (x: Partial<{ category: string; subCategory: string | null; customCategory: string | null }>) =>

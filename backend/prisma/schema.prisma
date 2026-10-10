@@ -147,6 +147,9 @@ model ShoppingCheckEvent {
   subCategory       String?
   customCategory    String?
   customSubCategory String?
+  // Varunamnet (gemener) — bara för ordningen INOM en sektion i det egna
+  // hushållets butik. Räknas aldrig ihop med andra hushålls bockar.
+  itemName          String?
   checkedAt         DateTime
   // "Markera alla i kategorin" — inte en väg genom butiken.
   bulk              Boolean  @default(false)

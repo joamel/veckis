@@ -66,7 +66,10 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'frysta_färdigrätter', patterns: ['fryst pizza', 'fryst lasagne', 'fryst panpizza', 'färdigrätt (fryst)', 'wokrätt (fryst)', 'enportionsrätt', 'enportionsrätter', 'lunchlåda', 'färdigrätt', 'färdigrätter', 'piroger', 'pirog', 'potatisgratäng', 'gratäng'] },
   { sub: 'fryst_bröd_deg', patterns: ['fryst deg', 'fryst smördeg', 'pajdeg', 'piroger (frysta)'] },
   { sub: 'fryst_vegetariskt', patterns: ['frysta vegoburgare', 'vegobiff (fryst)', 'frysta vegobollar', 'fryst quorn', 'vegoburgare', 'vegobullar', 'vegonuggets', 'vegobiffar', 'quornfärs', 'quornbitar', 'quornfilé', 'vegetariska biffar', 'grönsaksbiffar'] },
-  { sub: 'fryst_glutenfritt', patterns: ['glutenfritt (fryst)', 'fryst glutenfri'] },
+  // Glutenfria varor som bara finns frysta: längsta mönstret vinner, så de slår
+  // 'glutenfri' (torra hyllan under Specialkost). Bröd står INTE här — det
+  // säljs både fryst och färskt; där får hushållets eget val avgöra.
+  { sub: 'fryst_glutenfritt', patterns: ['glutenfritt (fryst)', 'fryst glutenfri', 'glutenfri pizza', 'glutenfria pizzor', 'glutenfri lasagne', 'glutenfria fiskpinnar', 'glutenfria köttbullar', 'glutenfria nuggets', 'glutenfria kycklingnuggets', 'glutenfria pannkakor', 'glutenfria våfflor', 'glutenfria piroger', 'glutenfri pirog'] },
   // Konserver & torrvaror
   { sub: 'pasta_nudlar', patterns: ['spaghetti', 'penne', 'tagliatelle', 'fettuccine', 'macaroni', 'lasagneplattor', 'nudlar', 'glasnudlar', 'risnudlar', 'pasta'] },
   { sub: 'ris_gryn', patterns: ['jasminris', 'basmatiris', 'arborioris', 'fullkornsris', 'havregryn', 'korngryn', 'bovete', 'quinoa', 'couscous', 'bulgur', 'ris'] },

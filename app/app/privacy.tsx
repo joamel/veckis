@@ -6,7 +6,7 @@ export default function PrivacyScreen() {
   return (
     <LegalPage title="Integritetspolicy">
       <Text style={s.h1}>Integritetspolicy för Handlis</Text>
-      <Text style={s.meta}>Senast uppdaterad: 2026-09-30</Text>
+      <Text style={s.meta}>Senast uppdaterad: 2026-10-11</Text>
 
       <Text style={s.h2}>Vilka uppgifter samlar vi in?</Text>
       <Text style={s.p}>
@@ -18,7 +18,7 @@ export default function PrivacyScreen() {
       <Text style={s.list}>• Innehåll du lägger till: recept, inköpslistor, veckomeny</Text>
       <Text style={s.list}>• Hushållstillhörighet och roll (admin/medlem)</Text>
       <Text style={s.list}>• Aktivitetslogg för känsliga handlingar (vem ändrade vad i hushållet)</Text>
-      <Text style={s.list}>• Bockar i butiken: kategori, tidpunkt och en pseudonym nyckel (se Butiksordning nedan)</Text>
+      <Text style={s.list}>• Bockar i butiken: kategori, varans namn, tidpunkt och en pseudonym nyckel (se Butiksordning nedan)</Text>
       <Text style={s.list}>• Felrapporter när appen kraschar: felmeddelande, appversion och enhetstyp</Text>
       <Text style={s.list}>• Ungefärlig position, bara när du själv trycker "Nära mig" (se Position nedan)</Text>
 
@@ -46,11 +46,13 @@ export default function PrivacyScreen() {
       <Text style={s.h2}>Butiksordning</Text>
       <Text style={s.p}>
         När du bockar av en vara i en lista som är kopplad till en butik sparas
-        varans kategori och underkategori, tidpunkten och en pseudonym nyckel —
-        aldrig varans namn och aldrig vem du är. Det används för att föreslå en
-        ordning på kategorierna efter hur man faktiskt går genom butiken.
-        För butiker ur butiksbanken räknas bockar från alla hushåll i samma
-        butik ihop, men bara standardkategorierna och först när minst två andra
+        varans kategori och underkategori, varans namn, tidpunkten och en
+        pseudonym nyckel — aldrig vem du är. Kategorierna används för att
+        föreslå en ordning på kategorierna efter hur man faktiskt går genom
+        butiken. Varans namn används bara för att sortera varorna inom en
+        kategori i ert eget hushålls listor, och räknas aldrig ihop med andra
+        hushålls. För butiker ur butiksbanken räknas bockar från alla hushåll i
+        samma butik ihop, men bara standardkategorierna och först när minst två andra
         hushåll bidragit, så att inget enskilt hushålls väg genom butiken går
         att utläsa. Ingen kan se ett annat hushålls bockar. Bockarna rensas
         efter 180 dagar.

@@ -490,7 +490,12 @@ export function useApiClient() {
 
     // Föreslagen sektionsordning ur hushållets bockar i butiken (steg 4).
     getStoreOrderSuggestion: (storeId: string) =>
-      request<{ trips: number; order: string[]; changed: boolean; known: number; ownTrips: number; otherHouseholds: number }>(`/api/stores/${storeId}/order-suggestion`),
+      request<{ trips: number; order: string[]; changed: boolean; known: number; moves: { key: string; after: string | null }[]; ownTrips: number; otherHouseholds: number; minTrips: number }>(`/api/stores/${storeId}/order-suggestion`),
+
+    // Ordningen INOM sektionerna ur hushållets egna bockar: plats 0–1 per
+    // underkategori och varunamn. Används direkt i listan.
+    getStoreInnerOrder: (storeId: string) =>
+      request<{ subs: Record<string, number>; items: Record<string, number> }>(`/api/stores/${storeId}/inner-order`),
 
     updateStore: (storeId: string, data: { name?: string; sharedStoreId?: string | null; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; parentOrder?: string[]; categoryMerge?: Record<string, string>; categoryLabels?: Record<string, string> }) =>
       request<Store>(`/api/stores/${storeId}`, { method: 'PATCH', body: JSON.stringify(data) }),

@@ -2,6 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { inferSubCategory, parentForSub, SUB_TAXONOMY } from '@veckis/shared';
 
 describe('inferSubCategory', () => {
+  it('glutenfria frysvaror hamnar i frysen, inte på torra hyllan', () => {
+    expect(inferSubCategory('glutenfri pizza')).toBe('fryst_glutenfritt');
+    expect(inferSubCategory('glutenfria fiskpinnar')).toBe('fryst_glutenfritt');
+    expect(parentForSub('fryst_glutenfritt')).toBe('frozen');
+    // Bröd säljs både fryst och färskt — det avgör hushållet själv.
+    expect(inferSubCategory('glutenfritt bröd')).toBe('glutenfritt');
+    expect(inferSubCategory('glutenfri pasta')).toBe('glutenfritt');
+  });
+
   it('matchar enkla varunamn', () => {
     expect(inferSubCategory('mjölk')).toBe('mjölk');
     expect(inferSubCategory('ägg')).toBe('ägg');

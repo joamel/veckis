@@ -316,7 +316,13 @@ async function läggTillVara(
     data = { ...data, name: tolkad.name, quantity: tolkad.quantity, unit: tolkad.unit ?? undefined };
   }
 
-  const normalizedName = stripIngredient(data.name);
+  // Två namn: det RENSADE ("ananas") används för att slå upp och lära in
+  // varan, men raden i listan behåller texten som skrevs ("ananas till
+  // pizza"). stripIngredient är byggd för receptrader, där "smör till
+  // stekning" beskriver receptet — men den som skriver i listan har valt sina
+  // ord, och det som står efter varan är ofta just det som ska komma ihåg.
+  const listName = data.name.trim().replace(/\s+/g, ' ');
+  const normalizedName = stripIngredient(listName);
   const staplePref = await prisma.stapleItem.findUnique({
     where: { householdId_name: { householdId: list.householdId, name: normalizedName } },
     select: { category: true, categoryChosen: true, subCategory: true },
@@ -378,7 +384,7 @@ async function läggTillVara(
   const existing = await prisma.shoppingItem.findFirst({
     where: {
       listId: list.id,
-      name: { equals: normalizedName, mode: 'insensitive' },
+      name: { equals: listName, mode: 'insensitive' },
       unit: svensk.unit,
       isChecked: false,
       mergedIntoId: null,
@@ -404,7 +410,7 @@ async function läggTillVara(
       ...data,
       quantity: svensk.quantity ?? data.quantity,
       unit: svensk.unit,
-      name: normalizedName,
+      name: listName,
       category,
       subCategory,
       addedBy: clerkUserId,

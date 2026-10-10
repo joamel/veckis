@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { StoreCategory } from '@veckis/shared';
-import { buildCategoryGroups, placedClusters, placedHeadings, placedSubKey, type CategoryGroupItem } from './categoryGroups';
+import { applyInnerOrder, buildCategoryGroups, permuteKnown, placedClusters, placedHeadings, placedSubKey, type CategoryGroupItem } from './categoryGroups';
 
 function item(name: string, category: string, extra: Partial<CategoryGroupItem> = {}): CategoryGroupItem {
   return { name, category, isChecked: false, subCategory: null, ...extra };
@@ -221,5 +221,31 @@ describe('buildCategoryGroups', () => {
       expect(clusters.get(placedSubKey('kaffe_te'))?.index).toBe(3);
       expect(clusters.has('dairy_eggs')).toBe(false);
     });
+  });
+});
+
+describe('inlärd ordning inom en sektion', () => {
+  it('byter bara plats på det som har en inlärd plats', () => {
+    // b och d är kända: d före b. a och c står kvar i sina luckor.
+    expect(permuteKnown(['a', 'b', 'c', 'd'], x => ({ b: 0.9, d: 0.1 } as Record<string, number>)[x])).toEqual(['a', 'd', 'c', 'b']);
+  });
+
+  it('gurkan före tomaten, och grönsakerna före frukten, när man brukar gå så', () => {
+    const items = [
+      item('äpplen', 'fruit_veg', { subCategory: 'frukt' }),
+      item('gurka', 'fruit_veg', { subCategory: 'grönsaker' }),
+      item('tomat', 'fruit_veg', { subCategory: 'grönsaker' }),
+      item('paprika', 'fruit_veg', { subCategory: 'grönsaker' }),
+    ];
+    const groups = buildCategoryGroups(items, ['fruit_veg'] as StoreCategory[], [], [], [], {},
+      { subs: { grönsaker: 0, frukt: 1 }, items: { tomat: 0.2, gurka: 0.8 } });
+    // Paprikan är okänd och står kvar i sin lucka (mitten i bokstavsordningen
+    // gurka, paprika, tomat); gurka och tomat byter plats runt den.
+    expect(groups[0].items.map(i => i.name)).toEqual(['tomat', 'paprika', 'gurka', 'äpplen']);
+  });
+
+  it('bockade varor ligger kvar sist och orörda', () => {
+    const sorted = [item('gurka', 'fruit_veg'), item('tomat', 'fruit_veg'), item('lök', 'fruit_veg', { isChecked: true })];
+    expect(applyInnerOrder(sorted, { subs: {}, items: { tomat: 0, gurka: 1, lök: 0 } }).map(i => i.name)).toEqual(['tomat', 'gurka', 'lök']);
   });
 });

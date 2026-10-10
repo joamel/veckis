@@ -71,7 +71,9 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
-  const normalizedName = body.data.name.toLowerCase();
+  // Basvaran är VARAN, inte raden: "ananas till pizza" skrivet i listan ska
+  // lära in "ananas". Raden i listan behåller sin text (se läggTillVara).
+  const normalizedName = stripIngredient(body.data.name).toLowerCase();
   // Enheten lagras i EN skriven form, annars lär hushållet sig "förpackning"
   // för en vara och "förp" för nästa.
   if (body.data.unit !== undefined) body.data.unit = normalizeUnit(body.data.unit);
