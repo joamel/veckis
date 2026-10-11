@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { Platform } from 'react-native';
 import * as SecureStore from '../lib/secureStorage';
+import { reportClientError } from '../lib/errorReport';
 
 export const HAPTIC_CHECKOUT_KEY = 'haptic-checkout';
 export const SOUND_CHECKOUT_KEY = 'sound-checkout';
@@ -24,12 +25,16 @@ export function useCheckHaptic() {
     if (Platform.OS as any !== 'web') {
       // Samma beteende som med expo-av: tyst läge på iPhone tystar klicket,
       // och musik som redan spelas fortsätter (blandas, avbryts inte).
-      setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' }).catch(() => {});
+      setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' })
+        .catch(e => reportClientError(e, { where: 'checkSound.audioMode' }));
       try {
         const player = createAudioPlayer(require('../../assets/sounds/check.wav'));
         player.volume = 0.7;
         checkSoundRef.current = player;
-      } catch { /* inget ljud — bocken fungerar ändå */ }
+      } catch (e) {
+        // Inget ljud — bocken fungerar ändå, men felet syns i adminloggen.
+        reportClientError(e, { where: 'checkSound.create' });
+      }
     }
 
     return () => {
@@ -40,7 +45,16 @@ export function useCheckHaptic() {
 
   function play(player: AudioPlayer | null) {
     if (!soundEnabledRef.current || Platform.OS as any === 'web' || !player) return;
-    player.seekTo(0).then(() => player.play()).catch(() => {});
+    // Som i expo-audio:s dokumentation: spola tillbaka och spela direkt, utan
+    // att vänta på seekTo. Första versionen väntade och gav inget ljud på
+    // telefon (SDK 57) — troligen blev löftet aldrig klart innan ljudet
+    // laddats, så play() anropades inte. Ej bekräftat.
+    try {
+      if (player.currentTime > 0) void player.seekTo(0).catch(() => {});
+      player.play();
+    } catch (e) {
+      reportClientError(e, { where: 'checkSound.play', isLoaded: player.isLoaded });
+    }
   }
 
   const triggerCheck = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) => {
