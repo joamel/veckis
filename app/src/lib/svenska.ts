@@ -1149,15 +1149,22 @@ export const stores = {
     renameCategoryTitle: 'Namn i den här butiken',
     renameCategoryHint:  (standard: string) => `Som på skylten i butiken. Lämna tomt för "${standard}". Varorna behåller sin kategori.`,
     headingHint: 'En egen rubrik i butiken. Lyft ut underkategorier och dra dem direkt under rubriken — deras varor hamnar då här i listan. Varorna behåller sin kategori.',
-    suggestTitle:    (trips: number, otherHouseholds: number) => otherHouseholds > 0
-      ? `Förslag från ${trips} handlingar – era och ${otherHouseholds} andra hushålls i samma butik`
-      : `Förslag från era ${trips} handlingar`,
-    suggestBody:     'Så här brukar ni gå genom butiken. Det här skulle flyttas:',
-    suggestMove:      (section: string, after: string) => `${section} – efter ${after}`,
-    suggestMoveFirst: (section: string) => `${section} – först`,
-    suggestUse:      'Använd',
-    suggestDismiss:  'Inte nu',
-    suggestProgress: (trips: number, min: number) => `Efter ${min} handlingar i butiken kan appen föreslå en ordning efter hur ni går — men bara det som är säkert. ${trips} av ${min} hittills.`,
+    suggestTitle:    'Ändra ordning?',
+    suggestBody:     (otherHouseholds: number) => otherHouseholds > 0
+      ? 'Förslag på ny kategoriordning, efter hur ni och andra brukar handla i den här butiken.'
+      : 'Förslag på ny kategoriordning, efter hur ni brukar handla i den här butiken.',
+    suggestApplied:  (unsaved: boolean) => unsaved
+      ? 'Kategoriordningen är ändrad efter förslaget. Spara för att behålla den.'
+      : 'Kategoriordningen är ändrad efter förslaget.',
+    suggestUndo:     'Ångra',
+    suggestPreview:  'Förhandsgranska',
+    suggestToggle:     'Föreslå kategoriordning',
+    suggestToggleHint: 'Efter hur ni brukar handla i den här butiken. Gäller hela hushållet. Varorna inom varje kategori sorteras efter hur ni går oavsett.',
+    previewTitle:    'Förhandsgranskning',
+    previewBody:     'Så här blir ordningen. Det som flyttats är markerat.',
+    movedTag:        'Flyttad',
+    suggestUse:      'Godkänn',
+    suggestDismiss:  'Avvisa',
     allHidden:   'Inga kategorier valda — du måste ha minst en.',
     mergedHint:  'Kategorier som slagits ihop med en annan i den här butiken. Varorna behåller sin kategori — de grupperas bara under en annan rubrik här.',
     subHint:     (parent: string) => `Bocka i det som ska bli en egen sektion i listan. Resten hamnar under ${parent}.`,
@@ -1834,6 +1841,16 @@ export const admin = {
   empty:     'Inget här just nu.',
   retry:     'Försök igen',
   searchPlaceholder: 'Klassa ett varunamn…',
+  sandbox: {
+    'order-suggestions': {
+      title:       'Förslag på kategoriordning',
+      description: 'Kortet "Ändra ordning?" i butiksvyn med förhandsgranskning, markerade rader och Ångra, och reglaget för att stänga av förslagen per butik.',
+    },
+    'order-suggestions-relaxed': {
+      title:       'Förslag ur en enda handling',
+      description: 'Räknar fram förslaget ur så lite som en handling i butiken, så kortet går att prova direkt. Kräver att funktionen ovan är på.',
+    },
+  },
   tabs: {
     votes:      'Oense',
     gaps:       'Utan underkategori',
@@ -1843,6 +1860,7 @@ export const admin = {
     cleanup:    'Städförslag',
     jobs:       'Städjobb',
     households: 'Nya hushåll',
+    sandbox:    'Sandbox',
   },
   tabHint: {
     votes:      'Varor där hushåll valt en annan kategori än klassaren. Flera hushåll som oberoende valt samma sak är en signal om att klassaren har fel.',
@@ -1853,6 +1871,7 @@ export const admin = {
     cleanup:    'Det städskripten föreslår: rader som inte är varor, mängder som fastnat i namnet och stavningsvarianter av samma vara. Alternativ ("linguine eller spaghetti") delas av städjobbet Trasiga namn i poolen.',
     jobs:       'Städskripten som knappar. Förhandsvisa, bocka ur det du inte vill ha och kör. Ingenting ändras förrän du trycker Kör.',
     households: 'Hushåll skapade de senaste två veckorna, och hur mycket de hunnit göra.',
+    sandbox:    'Testfunktioner som bara syns på den här telefonen. Slå på för att prova nya saker innan de släpps till alla — de är av för alla andra.',
   },
   rows: {
     disagree:  (oense: number, alla: number) => `${oense} av ${alla} hushåll oense`,

@@ -18,10 +18,11 @@ import { DraggableBottomSheet } from '../src/components/DraggableBottomSheet';
 import { NyHeader } from '../src/components/nydesign/NyHeader';
 import { useBottomGap } from '../src/hooks/useBottomGap';
 import { nyFont, type NyPalett } from '../src/lib/nyDesign';
+import { EXPERIMENTS, setExperiment, useExperiment, type ExperimentId } from '../src/lib/experiments';
 import { admin as str, common } from '../src/lib/svenska';
 
-type Tab = 'votes' | 'gaps' | 'candidates' | 'curated' | 'names' | 'cleanup' | 'jobs' | 'households';
-const TABS: Tab[] = ['votes', 'gaps', 'candidates', 'curated', 'names', 'cleanup', 'jobs', 'households'];
+type Tab = 'votes' | 'gaps' | 'candidates' | 'curated' | 'names' | 'cleanup' | 'jobs' | 'households' | 'sandbox';
+const TABS: Tab[] = ['votes', 'gaps', 'candidates', 'curated', 'names', 'cleanup', 'jobs', 'households', 'sandbox'];
 /** Flikar där en rad öppnar namnarket (byt namn/radera) i stället för klassningen. */
 const NAME_TABS: Tab[] = ['names', 'cleanup'];
 
@@ -68,6 +69,8 @@ export default function AdminScreen() {
   const load = useCallback(async (t: Tab, q = '') => {
     setRows(null);
     setSummary(null);
+    // Sandboxen har inga rader att hämta — flaggorna ligger på telefonen.
+    if (t === 'sandbox') { setRows([]); return; }
     try {
       if (t === 'votes') {
         const r = await client.adminCategoryVotes(1);
@@ -260,7 +263,11 @@ export default function AdminScreen() {
         )}
         {summary && <Text style={s.summary}>{summary}</Text>}
 
-        {rows === null ? (
+        {tab === 'sandbox' ? (
+          <View style={s.group}>
+            {EXPERIMENTS.map((id, i) => <ExperimentRow key={id} id={id} first={i === 0} />)}
+          </View>
+        ) : rows === null ? (
           <ActivityIndicator color={ny.skog} style={{ marginTop: 24 }} />
         ) : rows.length === 0 ? (
           <Text style={s.meta}>{str.empty}</Text>
@@ -311,6 +318,21 @@ export default function AdminScreen() {
         onClassify={openClassify}
       />
     </SafeAreaView>
+  );
+}
+
+function ExperimentRow({ id, first }: { id: ExperimentId; first: boolean }) {
+  const { ny } = useTheme();
+  const s = useMemo(() => makeStyles(ny), [ny]);
+  const on = useExperiment(id);
+  return (
+    <View style={[s.row, !first && s.rowBorder]}>
+      <View style={{ flex: 1 }}>
+        <Text style={s.rowTitle}>{str.sandbox[id].title}</Text>
+        <Text style={s.meta}>{str.sandbox[id].description}</Text>
+      </View>
+      <Switch value={on} onValueChange={v => { void setExperiment(id, v); }} trackColor={{ true: ny.skog }} />
+    </View>
   );
 }
 

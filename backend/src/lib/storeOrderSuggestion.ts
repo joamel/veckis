@@ -155,11 +155,16 @@ function longestCommonSubsequence(a: string[], b: string[]): Set<string> {
  * Allt som inte styrs av ett starkt par står kvar så nära sin plats som
  * möjligt: ordningen byggs med nuvarande plats som utslagsfråga.
  */
-export function suggestStoreOrder(events: CheckEventLike[], currentOrder: string[], now: Date): OrderSuggestion {
+/** Lägre krav för appadminens testläge: ett par räcker att ha setts en gång,
+ *  så förslagsflödet går att prova utan fyra handlingar. Samma 80 %-regel. */
+export type SuggestOptions = { minPairTrips?: number };
+
+export function suggestStoreOrder(events: CheckEventLike[], currentOrder: string[], now: Date, opts: SuggestOptions = {}): OrderSuggestion {
+  const minPairTrips = opts.minPairTrips ?? MIN_PAIR_TRIPS;
   // En handling med en enda sektion säger inget om ordningen.
   const trips = usableTrips(events).filter(t => new Set(t.map(e => e.section)).size >= 2);
   const none: OrderSuggestion = { trips: trips.length, order: currentOrder, changed: false, known: 0, moves: [] };
-  if (trips.length < MIN_TRIPS) return none;
+  if (trips.length < minPairTrips) return none;
 
   const inOrder = new Set(currentOrder);
   // pairs.get(a).get(b) = viktad mängd "a före b" och antal handlingar med båda.
@@ -186,11 +191,11 @@ export function suggestStoreOrder(events: CheckEventLike[], currentOrder: string
       const a = keys[i], b = keys[j];
       const ab = get(a, b), ba = get(b, a);
       const n = ab.n + ba.n;
-      if (n < 3) continue;
+      if (n < Math.min(3, minPairTrips)) continue;
       const share = ab.w / (ab.w + ba.w);
       for (const k of [a, b]) supported.set(k, (supported.get(k) ?? 0) + 1);
       if (share > 0.3 && share < 0.7) for (const k of [a, b]) contradictions.set(k, (contradictions.get(k) ?? 0) + 1);
-      if (n < MIN_PAIR_TRIPS) continue;
+      if (n < minPairTrips) continue;
       if (share >= MIN_PAIR_AGREEMENT) strong.push([a, b]);
       else if (1 - share >= MIN_PAIR_AGREEMENT) strong.push([b, a]);
     }

@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -35,6 +36,7 @@ import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
 import { NyHeader, NyIkonKnapp } from '../../src/components/nydesign/NyHeader';
 import { storeMeta } from '../../src/lib/storeMeta';
 import * as SecureStore from '../../src/lib/secureStorage';
+import { useExperiment } from '../../src/lib/experiments';
 import { isPlacedSubKey, placedClusters, placedHeadings } from '../../src/lib/categoryGroups';
 
 /** Nyckeln en utbruten underkategori (expandedSubs-post) får i parentOrder när
@@ -144,6 +146,18 @@ export default function StoreDetailScreen() {
   // gäller den SPARADE ordningen — därför visas det bara utan osparade ändringar.
   const [suggestion, setSuggestion] = useState<{ trips: number; order: string[]; changed: boolean; otherHouseholds?: number; moves?: { key: string; after: string | null }[]; minTrips?: number } | null>(null);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+  // Ordningen före "Godkänn", så förslaget kan ångras (null = inget att ångra).
+  const [orderBeforeSuggestion, setOrderBeforeSuggestion] = useState<string[] | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  // Förslagsflödet ligger bakom en testflagga (adminsidans Sandbox) tills det
+  // släpps till alla. Utan flaggan hämtas inget förslag, så inget kort syns.
+  const suggestionsOn = useExperiment('order-suggestions');
+  const relaxedSuggestions = useExperiment('order-suggestions-relaxed');
+  // Rader som flyttas i förslaget — markeras under förhandsgranskningen.
+  const movedKeys = useMemo(
+    () => new Set(previewing ? (suggestion?.moves ?? []).map(m => m.key) : []),
+    [previewing, suggestion],
+  );
   const [linking, setLinking] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [renaming, setRenaming] = useState(false);
@@ -230,15 +244,29 @@ export default function StoreDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    if (!storeId) return;
+    if (!storeId || !suggestionsOn) { setSuggestion(null); return; }
     // Ett förslag man sagt "Inte nu" till visas inte igen förrän bockarna
     // säger något annat — då är det ett nytt förslag.
-    client.getStoreOrderSuggestion(storeId).then(async sug => {
+    client.getStoreOrderSuggestion(storeId, relaxedSuggestions).then(async sug => {
       const dismissed = await SecureStore.getItemAsync(dismissedKey(storeId)).catch(() => null);
       if (dismissed && dismissed === JSON.stringify(sug.order)) setSuggestionDismissed(true);
       setSuggestion(sug);
     }).catch(() => setSuggestion(null));
-  }, [storeId, client]);
+  }, [storeId, client, suggestionsOn, relaxedSuggestions, store?.orderSuggestions]);
+
+  // Reglaget sparas direkt, utanför Spara-flödet: det är en inställning, inte
+  // en ändring av ordningen.
+  async function toggleOrderSuggestions(on: boolean) {
+    if (!store) return;
+    setStore({ ...store, orderSuggestions: on });
+    try {
+      const updated = await client.updateStore(store.id, { orderSuggestions: on });
+      setStore(prev => (prev ? { ...prev, orderSuggestions: updated.orderSuggestions } : prev));
+    } catch (e) {
+      setStore(prev => (prev ? { ...prev, orderSuggestions: !on } : prev));
+      showError(e, str.toasts.errorSave);
+    }
+  }
 
   function dismissSuggestion() {
     setSuggestionDismissed(true);
@@ -284,7 +312,10 @@ export default function StoreDetailScreen() {
     activeRowKeysRef.current = active;
   }
 
-  function applySuggestion() {
+  // Förhandsgranskning: förslaget ligger i listan nedanför med de flyttade
+  // raderna markerade, men är inte sparat. Godkänn sparar, Avvisa lägger
+  // tillbaka ordningen som den var.
+  function previewSuggestion() {
     if (!suggestion) return;
     // Förslagets INBÖRDES ordning läggs på vyns lista: den kan ha städats vid
     // laddningen (inaktuella placeringar, saknade standardkategorier), så
@@ -293,8 +324,31 @@ export default function StoreDetailScreen() {
     const pos = new Map(suggestion.order.map((k, i) => [k, i]));
     const known = parentOrder.filter(k => pos.has(k)).sort((x, y) => pos.get(x)! - pos.get(y)!);
     let n = 0;
+    setOrderBeforeSuggestion(parentOrder);
     setParentOrder(parentOrder.map(k => (pos.has(k) ? known[n++] : k)));
+    setPreviewing(true);
+    setDirty(true);
+  }
+
+  // Godkänn lägger in ordningen; sparandet sker som för alla andra ändringar i
+  // vyn, med Spara-raden som kommer upp först nu.
+  function approveSuggestion() {
+    setPreviewing(false);
     setSuggestionDismissed(true);
+  }
+
+  function rejectPreview() {
+    if (orderBeforeSuggestion) setParentOrder(orderBeforeSuggestion);
+    setOrderBeforeSuggestion(null);
+    setPreviewing(false);
+    setDirty(false);
+    dismissSuggestion();
+  }
+
+  function undoSuggestion() {
+    if (!orderBeforeSuggestion) return;
+    setParentOrder(orderBeforeSuggestion);
+    setOrderBeforeSuggestion(null);
     setDirty(true);
   }
 
@@ -807,29 +861,47 @@ export default function StoreDetailScreen() {
         </View>
 
 
-        {suggestion && !suggestionDismissed && !dirty && (
-          suggestion.changed ? (
+        {/* Inlärningen sker i det tysta — kortet syns bara när det finns en
+            säker ändring att föreslå, ingen räknare dessförinnan. */}
+        {suggestion && !suggestionDismissed && !dirty && !previewing && suggestion.changed && (
             <View style={s.suggestCard}>
-              <Text style={s.suggestTitle}>{str.detail.suggestTitle(suggestion.trips, suggestion.otherHouseholds ?? 0)}</Text>
-              <Text style={s.sectionSub}>{str.detail.suggestBody}</Text>
-              {/* Bara det som flyttas — hela ordningen gick inte att bedöma. */}
-              {(suggestion.moves ?? []).map(m => (
-                <Text key={m.key} style={s.suggestOrder}>
-                  {m.after ? str.detail.suggestMove(labelWithTag(m.key), labelWithTag(m.after)) : str.detail.suggestMoveFirst(labelWithTag(m.key))}
-                </Text>
-              ))}
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <Pressable style={s.suggestUse} onPress={applySuggestion}>
-                  <Text style={s.suggestUseText}>{str.detail.suggestUse}</Text>
+              <Text style={s.suggestTitle}>{str.detail.suggestTitle}</Text>
+              <Text style={s.sectionSub}>{str.detail.suggestBody(suggestion.otherHouseholds ?? 0)}</Text>
+              {/* Ingen lista över flyttar här — förhandsgranskningen visar dem
+                  på plats i listan, vilket är lättare att bedöma. */}
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
+                <Pressable style={s.suggestUse} onPress={previewSuggestion}>
+                  <Text style={s.suggestUseText}>{str.detail.suggestPreview}</Text>
                 </Pressable>
                 <Pressable style={s.suggestDismiss} onPress={dismissSuggestion}>
                   <Text style={s.suggestDismissText}>{str.detail.suggestDismiss}</Text>
                 </Pressable>
               </View>
             </View>
-          ) : suggestion.trips < (suggestion.minTrips ?? 4) ? (
-            <Text style={s.sectionSub}>{str.detail.suggestProgress(suggestion.trips, suggestion.minTrips ?? 4)}</Text>
-          ) : null
+        )}
+        {previewing && (
+          <View style={s.suggestCard}>
+            <Text style={s.suggestTitle}>{str.detail.previewTitle}</Text>
+            <Text style={s.sectionSub}>{str.detail.previewBody}</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
+              <Pressable style={s.suggestUse} onPress={approveSuggestion}>
+                <Text style={s.suggestUseText}>{str.detail.suggestUse}</Text>
+              </Pressable>
+              <Pressable style={s.suggestDismiss} onPress={rejectPreview}>
+                <Text style={s.suggestDismissText}>{str.detail.suggestDismiss}</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+        {/* Efter "Godkänn": ett felsteg ska gå att backa, även efter Spara.
+            Ångra lägger tillbaka ordningen och kräver ett nytt Spara. */}
+        {orderBeforeSuggestion && !previewing && (
+          <View style={[s.suggestCard, s.suggestAppliedRow]}>
+            <Text style={[s.sectionSub, { flex: 1 }]}>{str.detail.suggestApplied(dirty)}</Text>
+            <Pressable style={s.suggestDismiss} onPress={undoSuggestion}>
+              <Text style={s.suggestDismissText}>{str.detail.suggestUndo}</Text>
+            </Pressable>
+          </View>
         )}
         <View ref={orderHeaderRef} collapsable={false}>
           <Text style={s.sectionLabel}>{str.detail.sections.visible}</Text>
@@ -890,10 +962,11 @@ export default function StoreDetailScreen() {
                         onLayout={() => measureCatRow(key, null)}
                         style={[beingDragged && s.catRowDragging, dropTarget && dropLineStyle]}
                       >
-                        <View style={s.catRow}>
+                        <View style={[s.catRow, movedKeys.has(key) && s.catRowMoved]}>
                           <View style={{ flex: 1 }}>
                           <View style={[nameColumn(PLACED_NAME_TAKEN), { paddingLeft: cluster ? 40 : 24 }]}>
                             <Text style={[s.subName, s.subNameActive]}>{subLabel}</Text>
+                            {movedKeys.has(key) && <Text style={s.movedTag}>{str.detail.movedTag}</Text>}
                             {!cluster && (
                               <Text style={s.placedFrom} numberOfLines={1}>
                                 {headings.get(key) ? str.detail.inHeading(plainLabel(headings.get(key)!)) : str.detail.placedFrom(fromParent)}
@@ -939,7 +1012,7 @@ export default function StoreDetailScreen() {
                   onLayout={() => measureCatRow(key, null)}
                   style={[isBeingDragged && s.catRowDragging, isDropTarget && dropLineStyle]}
                 >
-                  <View style={s.catRow}>
+                  <View style={[s.catRow, movedKeys.has(key) && s.catRowMoved]}>
                     <Pressable
                       onPress={() => isCustom ? toggleCustomParentOpen(cat) : toggleParentOpen(key as StoreCategory)}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
@@ -947,6 +1020,7 @@ export default function StoreDetailScreen() {
                     >
                       <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={c.textMuted} />
                       <Text style={s.catName}>{plainLabel(key)}</Text>
+                      {movedKeys.has(key) && <Text style={s.movedTag}>{str.detail.movedTag}</Text>}
                       {expandedHere > 0 && <Text style={s.expandedBadge}>{expandedHere}</Text>}
                       {placedOut > 0 && (
                         <View style={s.placedOutBadge} accessibilityLabel={str.detail.placedOutLabel(placedOut)}>
@@ -1029,6 +1103,20 @@ export default function StoreDetailScreen() {
           </>
         )}
 
+        {suggestionsOn && store && (
+          <View style={[s.suggestCard, s.suggestAppliedRow, { marginTop: 24 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.suggestTitle}>{str.detail.suggestToggle}</Text>
+              <Text style={s.sectionSub}>{str.detail.suggestToggleHint}</Text>
+            </View>
+            <Switch
+              value={store.orderSuggestions !== false}
+              onValueChange={toggleOrderSuggestions}
+              trackColor={{ true: nyDesign ? ny.skog : c.primary }}
+            />
+          </View>
+        )}
+
         <View style={{ height: dirty ? 100 : 40 }} />
       </ScrollView>
 
@@ -1043,7 +1131,8 @@ export default function StoreDetailScreen() {
         );
       })()}
 
-      {dirty && (
+      {/* Ingen Spara under förhandsgranskningen — där är det Godkänn/Avvisa. */}
+      {dirty && !previewing && (
         <View style={[s.saveBar, { bottom: bottomGap }]}>
           <Pressable
             style={[s.primaryBtn, (saving || visibleEnum.length === 0) && { opacity: 0.4 }]}
@@ -1157,8 +1246,11 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
     : { fontSize: 12, fontWeight: '700', color: c.textMuted, letterSpacing: 0.5, marginBottom: 6 },
   sectionSub: { fontSize: 13, color: c.textMuted, marginBottom: 14, lineHeight: 18 },
   suggestCard: { backgroundColor: nyD ? ny.kort : c.surface, borderRadius: 16, padding: 14, marginBottom: 16, gap: 4 },
+  suggestAppliedRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Förhandsgranskningens markering: lime kant till vänster och ljus ton.
+  catRowMoved: { backgroundColor: nyD ? ny.bricka : c.primaryTint, borderLeftWidth: 4, borderLeftColor: nyD ? ny.lime : c.primary },
+  movedTag: { fontSize: 11, fontWeight: '700', color: nyD ? ny.skog : '#fff', backgroundColor: nyD ? ny.lime : c.primary, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, overflow: 'hidden', alignSelf: 'flex-start' },
   suggestTitle: { fontSize: 16, fontWeight: '700', color: nyD ? ny.text : c.text },
-  suggestOrder: { fontSize: 14, color: nyD ? ny.padYta : c.primary, lineHeight: 20, marginBottom: 6 },
   suggestUse: { backgroundColor: nyD ? ny.lime : c.primary, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 10 },
   suggestUseText: { color: nyD ? ny.skog : '#fff', fontWeight: '700', fontSize: 15 },
   suggestDismiss: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },

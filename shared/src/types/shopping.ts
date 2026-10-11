@@ -93,4 +93,6 @@ export interface Store {
    *  ELLER "c:<egen kategori>") vid visning — varans egen category ändras
    *  aldrig, bara vilken sektion den grupperas under i just den här butiken. */
   categoryMerge: Record<string, string>;
+  /** Förslag på kategoriordning efter hur hushållet handlar (av = inga förslag). */
+  orderSuggestions?: boolean;
 }

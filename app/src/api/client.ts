@@ -489,15 +489,17 @@ export function useApiClient() {
       request<Store>('/api/stores', { method: 'POST', body: JSON.stringify(data) }),
 
     // Föreslagen sektionsordning ur hushållets bockar i butiken (steg 4).
-    getStoreOrderSuggestion: (storeId: string) =>
-      request<{ trips: number; order: string[]; changed: boolean; known: number; moves: { key: string; after: string | null }[]; ownTrips: number; otherHouseholds: number; minTrips: number }>(`/api/stores/${storeId}/order-suggestion`),
+    // relaxed: appadminens testläge (förslag ur en enda handling); servern
+    // bortser från det för alla andra.
+    getStoreOrderSuggestion: (storeId: string, relaxed = false) =>
+      request<{ trips: number; order: string[]; changed: boolean; known: number; moves: { key: string; after: string | null }[]; ownTrips: number; otherHouseholds: number; minTrips: number }>(`/api/stores/${storeId}/order-suggestion${relaxed ? '?relaxed=1' : ''}`),
 
     // Ordningen INOM sektionerna ur hushållets egna bockar: plats 0–1 per
     // underkategori och varunamn. Används direkt i listan.
     getStoreInnerOrder: (storeId: string) =>
       request<{ subs: Record<string, number>; items: Record<string, number> }>(`/api/stores/${storeId}/inner-order`),
 
-    updateStore: (storeId: string, data: { name?: string; sharedStoreId?: string | null; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; parentOrder?: string[]; categoryMerge?: Record<string, string>; categoryLabels?: Record<string, string> }) =>
+    updateStore: (storeId: string, data: { name?: string; sharedStoreId?: string | null; orderSuggestions?: boolean; categoryOrder?: StoreCategory[]; customCategories?: string[]; expandedSubs?: string[]; subOrder?: string[]; parentOrder?: string[]; categoryMerge?: Record<string, string>; categoryLabels?: Record<string, string> }) =>
       request<Store>(`/api/stores/${storeId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     deleteStore: (storeId: string) =>

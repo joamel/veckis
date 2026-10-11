@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { StoreCategory } from '@prisma/client';
 import { prisma } from '../db';
-import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireHouseholdMember, AuthenticatedRequest, ärAppAdmin } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { positionForPostcode, searchSharedStores, type SharedStoreRow } from '../lib/sharedStores';
 import { eventsForSuggestion, learnInnerOrder, MIN_TRIPS, sectionKeyFor, suggestStoreOrder } from '../lib/storeOrderSuggestion';
@@ -66,6 +66,8 @@ const updateStoreSchema = z.object({
   categoryLabels: categoryLabelsSchema,
   // Koppling till butiksbanken; null = egen butik.
   sharedStoreId: z.string().max(40).nullable().optional(),
+  // Förslag på kategoriordning på/av för hela hushållet.
+  orderSuggestions: z.boolean().optional(),
 });
 
 const searchSchema = z.object({
@@ -167,7 +169,12 @@ storesRouter.get('/:storeId/order-suggestion', requireAuth, asyncHandler(async (
     : [];
   const { events, otherHouseholds } = eventsForSuggestion(own, others);
   const toSection = (e: typeof own[number]) => ({ shopperKey: e.shopperKey, checkedAt: e.checkedAt, bulk: e.bulk, section: sectionKeyFor(e, { parentOrder, categoryMerge }) });
-  const suggestion = suggestStoreOrder(events.map(toSection), parentOrder, new Date());
+  // Testläget (?relaxed=1) gäller bara appadmin: ett förslag ur en enda
+  // handling, så flödet går att prova innan det går ut till alla.
+  const relaxed = req.query.relaxed === '1' && ärAppAdmin((req as AuthenticatedRequest).clerkUserId);
+  const suggestion = store.orderSuggestions || relaxed
+    ? suggestStoreOrder(events.map(toSection), parentOrder, new Date(), relaxed ? { minPairTrips: 1 } : {})
+    : { trips: 0, order: parentOrder, changed: false, known: 0, moves: [] };
   // Hushållets egna handlingar, så appen kan säga hur mycket som är era.
   const ownTrips = suggestStoreOrder(own.map(toSection), parentOrder, new Date()).trips;
   res.json({ ...suggestion, ownTrips, otherHouseholds, minTrips: MIN_TRIPS });

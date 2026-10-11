@@ -104,6 +104,13 @@ describe('suggestStoreOrder', () => {
     expect(s.order.slice(0, 3)).toEqual(['meat_fish', 'fruit_veg', 'dairy_eggs']);
   });
 
+  it('testläget (appadmin) räcker med en enda handling', () => {
+    const events = trip('a', 1, ['meat_fish', 'fruit_veg', 'dairy_eggs']);
+    expect(suggestStoreOrder(events, current, now).changed).toBe(false);
+    const s = suggestStoreOrder(events, current, now, { minPairTrips: 1 });
+    expect(s.order.slice(0, 3)).toEqual(['meat_fish', 'fruit_veg', 'dairy_eggs']);
+  });
+
   it('ger changed: false när man redan går i listans ordning', () => {
     const events = [1, 2, 3, 4].flatMap(d => trip('a', d, current));
     expect(suggestStoreOrder(events, current, now)).toMatchObject({ changed: false, moves: [] });

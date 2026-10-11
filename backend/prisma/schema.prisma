@@ -94,6 +94,9 @@ model Store {
   // ("Skafferi" på ICA, "Torrvaror" på Coop). Bara rubriken — varans kategori
   // är densamma i alla butiker.
   categoryLabels    Json          @default("{}")
+  // Förslag på kategoriordning efter hur hushållet handlar. Av = inga förslag
+  // i butiksvyn; ordningen INOM kategorierna lärs ändå.
+  orderSuggestions  Boolean       @default(true)
   // Kopplingen till en butik i butiksbanken. null = en egen butik, som förut.
   // SetNull: försvinner butiken ur banken blir den en egen butik igen, med
   // hushållets ordning orörd.
