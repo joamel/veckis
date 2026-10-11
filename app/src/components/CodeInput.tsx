@@ -87,7 +87,7 @@ function makeStyles(c: Palette) {
     char: { fontSize: 20, fontWeight: '700', color: c.text },
     // Täcker rutorna så tryck var som helst fokuserar; texten syns bara i rutorna.
     hiddenInput: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       color: 'transparent',
       backgroundColor: 'transparent',
       fontSize: 1,

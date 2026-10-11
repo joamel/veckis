@@ -234,7 +234,7 @@ export function DraggableBottomSheet({
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  overlayDim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.4)' },
   overlayTap: { flex: 1 },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
   body: { paddingHorizontal: 24, paddingTop: 20, flexShrink: 1 },

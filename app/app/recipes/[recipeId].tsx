@@ -43,7 +43,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -2235,7 +2235,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // drar i) och måste klippas av de rundade hörnen, inte spilla ut.
   heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, backgroundColor: c.surfaceSubtle, overflow: 'hidden' },
   heroPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  heroImageOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(241,239,236,0.6)' },
+  heroImageOverlay: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(241,239,236,0.6)' },
   imgBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: c.primaryTint },
   imgBtnText: { color: c.primary, fontWeight: '600', fontSize: 14 },
   imgBtnDisabled: { opacity: 0.5 },

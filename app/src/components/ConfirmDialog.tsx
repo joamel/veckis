@@ -137,7 +137,7 @@ export function ConfirmDialog({
               så utan den syns bara skuggan. Svagare än sheet-/action-varianternas
               0.4 — en liten meny ska inte släcka ner halva appen — och visar
               samtidigt att man kan trycka utanför för att stänga. */}
-          <View pointerEvents="none" style={{ ...StyleSheet.absoluteFillObject, backgroundColor: MENU_SCRIM }} />
+          <View pointerEvents="none" style={{ ...StyleSheet.absoluteFill, backgroundColor: MENU_SCRIM }} />
           <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onPress={dismiss} />
           <Animated.View
             style={[
@@ -160,7 +160,7 @@ export function ConfirmDialog({
 
     return (
       <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
-        <View pointerEvents="none" style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+        <View pointerEvents="none" style={{ ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.4)' }} />
         <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onPress={dismiss} />
         <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 16, paddingBottom: 40, pointerEvents: 'box-none' }}>
           <View style={[s.menuCardBase, { width: '100%' }]}>{rows}</View>

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Handlis",
     "slug": "veckis",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -16,11 +16,6 @@
     "scheme": "handlis",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#cddcb3"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.handlis.app",
@@ -35,7 +30,7 @@
     },
     "android": {
       "package": "com.handlis.app",
-      "versionCode": 22,
+      "versionCode": 23,
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
@@ -89,8 +84,25 @@
           "android": {
             "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "extraProguardRules": "-keep class com.clerk.** { *; }\n-keep class androidx.credentials.** { *; }\n-keep class com.google.android.libraries.identity.googleid.** { *; }\n-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod,Exceptions\n-keep,allowobfuscation,allowshrinking interface retrofit2.Call\n-keep,allowobfuscation,allowshrinking class retrofit2.Response\n-keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation\n-keepclassmembers class * { @kotlinx.serialization.Serializable *; }\n-keep class **$$serializer { *; }\n-keepclassmembers @kotlinx.serialization.Serializable class ** { *** Companion; kotlinx.serialization.KSerializer serializer(...); }\n-dontwarn com.clerk.**"
+            "extraProguardRules": "-keep class com.clerk.** { *; }\n-keep class androidx.credentials.** { *; }\n-keep class com.google.android.libraries.identity.googleid.** { *; }\n-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod,Exceptions\n-keep,allowobfuscation,allowshrinking interface retrofit2.Call\n-keep,allowobfuscation,allowshrinking class retrofit2.Response\n-keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation\n-keepclassmembers class * { @kotlinx.serialization.Serializable *; }\n-keep class **$$serializer { *; }\n-keepclassmembers @kotlinx.serialization.Serializable class ** { *** Companion; kotlinx.serialization.KSerializer serializer(...); }\n-dontwarn com.clerk.**\n-dontwarn kotlin.MustUseReturnValues"
           }
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#cddcb3"
         }
       ]
     ],

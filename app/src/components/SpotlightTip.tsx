@@ -212,7 +212,7 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
           />
         </>
       ) : (
-        <View style={[s.dim, StyleSheet.absoluteFillObject]} />
+        <View style={[s.dim, StyleSheet.absoluteFill]} />
       )}
       {/* Tap outside the card dismisses (covers full screen, behind the card). */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />

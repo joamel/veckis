@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { Platform } from 'react-native';
 import * as SecureStore from '../lib/secureStorage';
+import { reportClientError } from '../lib/errorReport';
 
 export const HAPTIC_CHECKOUT_KEY = 'haptic-checkout';
 export const SOUND_CHECKOUT_KEY = 'sound-checkout';
@@ -10,7 +11,7 @@ export const SOUND_CHECKOUT_KEY = 'sound-checkout';
 export function useCheckHaptic() {
   const hapticEnabledRef = useRef(true);
   const soundEnabledRef = useRef(true);
-  const checkSoundRef = useRef<Audio.Sound | null>(null);
+  const checkSoundRef = useRef<AudioPlayer | null>(null);
 
   useEffect(() => {
     SecureStore.getItemAsync(HAPTIC_CHECKOUT_KEY).then(v => {
@@ -22,28 +23,43 @@ export function useCheckHaptic() {
     }).catch(() => {});
 
     if (Platform.OS as any !== 'web') {
-      Audio.Sound.createAsync(
-        require('../../assets/sounds/check.wav'),
-        { shouldPlay: false, volume: 0.7 },
-      ).then(({ sound }) => { checkSoundRef.current = sound; }).catch(() => {});
+      // Samma beteende som med expo-av: tyst läge på iPhone tystar klicket,
+      // och musik som redan spelas fortsätter (blandas, avbryts inte).
+      setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' })
+        .catch(e => reportClientError(e, { where: 'checkSound.audioMode' }));
+      try {
+        const player = createAudioPlayer(require('../../assets/sounds/check.wav'));
+        player.volume = 0.7;
+        checkSoundRef.current = player;
+      } catch (e) {
+        // Inget ljud — bocken fungerar ändå, men felet syns i adminloggen.
+        reportClientError(e, { where: 'checkSound.create' });
+      }
     }
 
     return () => {
-      checkSoundRef.current?.unloadAsync().catch(() => {});
+      checkSoundRef.current?.remove();
+      checkSoundRef.current = null;
     };
   }, []);
 
-  function play(soundRef: React.MutableRefObject<Audio.Sound | null>) {
-    if (!soundEnabledRef.current || Platform.OS as any === 'web') return;
-    soundRef.current?.setPositionAsync(0).then(() => {
-      soundRef.current?.playAsync().catch(() => {});
-    }).catch(() => {});
+  function play(player: AudioPlayer | null) {
+    if (!soundEnabledRef.current || Platform.OS as any === 'web' || !player) return;
+    // Som i expo-audio:s dokumentation: spola tillbaka och spela direkt, utan
+    // att vänta på seekTo. (Tystnaden vid första provet på SDK 57 var stör ej
+    // på telefonen, inte koden.)
+    try {
+      if (player.currentTime > 0) void player.seekTo(0).catch(() => {});
+      player.play();
+    } catch (e) {
+      reportClientError(e, { where: 'checkSound.play', isLoaded: player.isLoaded });
+    }
   }
 
   const triggerCheck = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) => {
     if (Platform.OS as any === 'web') return;
     if (hapticEnabledRef.current) Haptics.impactAsync(style).catch(() => {});
-    play(checkSoundRef);
+    play(checkSoundRef.current);
   };
 
   const triggerDelete = () => {
