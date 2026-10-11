@@ -8,6 +8,8 @@ import { reportClientError } from '../lib/errorReport';
 export const HAPTIC_CHECKOUT_KEY = 'haptic-checkout';
 export const SOUND_CHECKOUT_KEY = 'sound-checkout';
 
+let silentCheckDone = false;
+
 export function useCheckHaptic() {
   const hapticEnabledRef = useRef(true);
   const soundEnabledRef = useRef(true);
@@ -54,6 +56,18 @@ export function useCheckHaptic() {
       player.play();
     } catch (e) {
       reportClientError(e, { where: 'checkSound.play', isLoaded: player.isLoaded });
+      return;
+    }
+    // Diagnostik (tillfällig, SDK 57): blev det tyst utan att något kastade?
+    // Rapporteras en gång per session, med spelarens tillstånd.
+    if (!silentCheckDone) {
+      silentCheckDone = true;
+      setTimeout(() => {
+        if (player.playing || player.currentTime > 0) return;
+        reportClientError(new Error('Avbockningsljudet spelades inte'), {
+          where: 'checkSound.silent', isLoaded: player.isLoaded, duration: player.duration, volume: player.volume,
+        });
+      }, 500);
     }
   }
 
