@@ -127,7 +127,7 @@ export function DatePickerModal({ value, onChange, onClose, title, visible, clea
 
 // nyD: den nya designen (beta) skriver over de stilar som skiljer.
 const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
   container: { position: 'absolute', top: '15%', left: 20, right: 20, backgroundColor: ny.kort, borderRadius: 24, overflow: 'hidden', elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } },
   // Outfit bar vikten i typsnittet — fontWeight till ger reservtypsnitt.
   headerBand: { backgroundColor: ny.skog, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 12 },

@@ -122,7 +122,7 @@ export function WelcomeModal({ visible, onDone }: Props) {
 
 // nyD: den nya designen (beta) skriver over de stilar som skiljer.
 const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create({
-  dim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.85)' },
+  dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.85)' },
   cardWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   card: {
     backgroundColor: nyD ? ny.kort : c.surface,

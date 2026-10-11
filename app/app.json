@@ -16,11 +16,6 @@
     "scheme": "handlis",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#cddcb3"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.handlis.app",
@@ -99,6 +94,15 @@
           "microphonePermission": false,
           "recordAudioAndroid": false,
           "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#cddcb3"
         }
       ]
     ],

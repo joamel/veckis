@@ -47,7 +47,7 @@ export function AnimatedSplash() {
 
 const s = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#cddcb3', // samma som app.json splash.backgroundColor (sömlös native→JS-overlay)
     alignItems: 'center',
     justifyContent: 'center',

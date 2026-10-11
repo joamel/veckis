@@ -205,7 +205,7 @@ export function ReceptBild({
   const användUtsnitt = !!utsnitt && (justerbar || dragVal !== null || ärJusterad(fokusX, fokusY, zoom));
   const bildstil = användUtsnitt && utsnitt
     ? { position: 'absolute' as const, left: utsnitt.x, top: utsnitt.y, width: utsnitt.bredd, height: utsnitt.höjd }
-    : StyleSheet.absoluteFillObject;
+    : StyleSheet.absoluteFill;
 
   return (
     // overflow: hidden är INTE valfritt här. Bilden skalas medvetet större än

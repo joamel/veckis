@@ -12,7 +12,7 @@ import {
 import { Pressable } from '../../src/components/Pressable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { resolveStorePick, hasPendingStorePick } from '../../src/lib/storePicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, ApiError } from '../../src/api/client';

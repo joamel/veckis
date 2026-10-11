@@ -59,7 +59,7 @@ import RNAnimated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { pickStore } from '../../src/lib/storePicker';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe, type ImportVara } from '../../src/api/client';
@@ -3310,7 +3310,7 @@ const ItemRow = memo(function ItemRow({ row, onToggle, onEdit, onDelete, pending
 
   return (
     <View style={[s.swipeRowWrap, !item.isChecked && s.swipeRowWrapShadow]}>
-      <RNAnimated.View style={[StyleSheet.absoluteFillObject, s.swipeDeleteBg, checkboxLeft && s.swipeDeleteBgLeft, bgStyle]}>
+      <RNAnimated.View style={[StyleSheet.absoluteFill, s.swipeDeleteBg, checkboxLeft && s.swipeDeleteBgLeft, bgStyle]}>
         <Ionicons name="trash-outline" size={22} color="#fff" />
       </RNAnimated.View>
       {/* touchAction="pan-y" (web-only, ignoreras på native): webbläsaren
@@ -3501,7 +3501,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // inkl. bakom sheetens rundade hörn; overlay-Pressablen är transparent och
   // sköter bara tap-to-dismiss + att putta ner sheeten (flex:1).
   overlay: { flex: 1 },
-  overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(41,37,36,0.55)' },
+  overlayDim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(41,37,36,0.55)' },
   // width:100% + maxWidth + alignSelf:center → full bredd på telefon (<480), men
   // capad och centrerad på bred/webb-viewport så sheeten inte blir "fullscreen".
   // Bakgrund, rundning, rubrik och padding kommer från DraggableBottomSheet.
