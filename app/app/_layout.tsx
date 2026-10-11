@@ -161,7 +161,16 @@ function NavigationGuard() {
       <VersionBanner />
       <WakeupIndicator />
       <OfflineBanner />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.background } }} />
+      {/* iOS 26 lägger annars ett eget suddigt band överst (och nederst) i
+          scrollvyer — ljust i ljust läge, ovanpå vårt gröna sidhuvud. Appen
+          ritar egna sidhuvuden och flikrader, så systemets kanteffekt stängs av. */}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: c.background },
+          scrollEdgeEffects: { top: 'hidden', bottom: 'hidden', left: 'hidden', right: 'hidden' },
+        }}
+      />
       <WelcomeModal visible={welcomeState === 'show'} onDone={markWelcomeSeen} />
     </>
   );
