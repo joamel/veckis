@@ -143,8 +143,13 @@ const META = `
       // en global flagga som UI:t kan lyssna på (window.__veckisNewVersion).
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
+          // Vid första besöket tar sw.js över sidan direkt (clients.claim),
+          // och det ger också en controllerchange — men det är ingen ny
+          // version. Bara ett byte från en tidigare worker räknas.
+          var hadController = !!navigator.serviceWorker.controller;
           navigator.serviceWorker.register('/sw.js').then(function (reg) {
             navigator.serviceWorker.addEventListener('controllerchange', function () {
+              if (!hadController) { hadController = true; return; }
               window.__veckisNewVersion = true;
               window.dispatchEvent(new CustomEvent('veckis-new-version'));
             });
