@@ -170,3 +170,21 @@ describe('inferSubCategory — frysta potatisvaror (2026-10-01)', () => {
     expect(inferSubCategory('fast potatis')).toBe('rotsaker');
   });
 });
+
+describe('korv- och hamburgerbröd', () => {
+  it('har en egen underkategori i brödet', () => {
+    expect(inferSubCategory('korvbröd')).toBe('korv_hamburgerbröd');
+    expect(inferSubCategory('hamburgerbröd')).toBe('korv_hamburgerbröd');
+    expect(inferSubCategory('hamburgerbröd brioche')).toBe('korv_hamburgerbröd');
+    expect(parentForSub('korv_hamburgerbröd')).toBe('bread_bakery');
+    expect(inferSubCategory('rågbröd')).toBe('bröd');
+  });
+});
+
+describe('parmesan', () => {
+  it('riven står med matlagningsosten, hel bit med delikatessosten', () => {
+    expect(inferSubCategory('riven parmesan')).toBe('matlagningsost');
+    expect(inferSubCategory('parmesan')).toBe('delikatessost');
+    expect(inferSubCategory('pecorino')).toBe('delikatessost');
+  });
+});

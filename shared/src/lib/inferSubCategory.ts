@@ -48,11 +48,12 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'drickyoghurt_mellanmål', patterns: ['drickyoghurt', 'yoghurtdryck', 'mellanmål', 'pudding', 'chokladpudding', 'vaniljpudding', 'risifrutti', 'proteinpudding', 'kvargmellanmål', 'fruktyoghurt'] },
   { sub: 'smör_margarin', patterns: ['smör', 'baksmör', 'margarin', 'bregott', 'lätt & lagom'] },
   { sub: 'ost', patterns: ['hushållsost', 'präst', 'grevé', 'svecia', 'herrgård', 'cheddar (vanlig)', 'ost'] },
-  { sub: 'matlagningsost', patterns: ['riven ost', 'gratängost', 'pizzaost', 'riven mozzarella', 'mozzarella (färsk)', 'mozzarella', 'feta', 'fetaost', 'salladsost', 'halloumi', 'grillost', 'matlagningsost'] },
+  { sub: 'matlagningsost', patterns: ['riven ost', 'riven parmesan', 'riven pecorino', 'rivna parmesan', 'parmesan riven', 'gratängost', 'pizzaost', 'riven mozzarella', 'mozzarella (färsk)', 'mozzarella', 'feta', 'fetaost', 'salladsost', 'halloumi', 'grillost', 'matlagningsost'] },
   { sub: 'grädde', patterns: ['vispgrädde', 'matlagningsgrädde', 'crème fraîche', 'creme fraiche', 'gräddfil', 'grädde'] },
   { sub: 'ägg', patterns: ['ägg', 'äggulor', 'äggula', 'äggvitor', 'äggvita'] },
   // Bröd & bageri
-  { sub: 'bröd', patterns: ['limpa', 'rågbröd', 'levain', 'baguette', 'tunnbröd', 'pitabröd', 'hamburgerbröd', 'korvbröd', 'bröd', 'naanbröd', 'naan'] },
+  { sub: 'bröd', patterns: ['limpa', 'rågbröd', 'levain', 'baguette', 'tunnbröd', 'pitabröd', 'bröd', 'naanbröd', 'naan'] },
+  { sub: 'korv_hamburgerbröd', patterns: ['korvbröd', 'hamburgerbröd', 'burgerbröd', 'hamburgerbrioche', 'hotdogbröd', 'varmkorvbröd'] },
   { sub: 'knäckebröd_skorpor', patterns: ['knäckebröd', 'skorpor', 'krisprolls'] },
   { sub: 'bakverk_kex', patterns: ['kakor', 'kex', 'bullar', 'wienerbröd', 'kanelbullar', 'småkakor', 'bulle'] },
   // Frysvaror

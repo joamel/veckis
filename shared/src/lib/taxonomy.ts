@@ -50,6 +50,7 @@ export type SubCategory =
   | 'mejerisubstitut'
   // Bröd & bageri
   | 'bröd'
+  | 'korv_hamburgerbröd'
   | 'knäckebröd_skorpor'
   | 'bakverk_kex'
   | 'sylt_marmelad'
@@ -177,6 +178,8 @@ export const SUB_TAXONOMY: Record<SubCategory, SubInfo> = {
   mejerisubstitut: { defaultParent: 'dairy_eggs', alsoUnder: [], label: 'Mejerisubstitut' },
   // Bröd & bageri
   bröd: { defaultParent: 'bread_bakery', alsoUnder: [], label: 'Bröd' },
+  // Står ofta för sig, vid grillkorven eller i en egen hylla bredvid brödet.
+  korv_hamburgerbröd: { defaultParent: 'bread_bakery', alsoUnder: [], label: 'Korv- & hamburgerbröd' },
   knäckebröd_skorpor: { defaultParent: 'bread_bakery', alsoUnder: [], label: 'Knäckebröd & skorpor' },
   bakverk_kex: { defaultParent: 'bread_bakery', alsoUnder: [], label: 'Bakverk & kex' },
   sylt_marmelad: { defaultParent: 'canned_dry', alsoUnder: ['bread_bakery'], label: 'Sylt & marmelad' },
