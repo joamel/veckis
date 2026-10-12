@@ -37,6 +37,10 @@ export interface ConfirmOptions {
   menuAnchorRef?: RefObject<{ measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => void } | null>;
 }
 
+/** Hur länge en knapps handling väntar på att frågan animerats ut på iOS, om
+ *  onDismiss uteblir. Längre än modalernas fade/slide. */
+const IOS_DISMISS_FALLBACK_MS = 800;
+
 /** Luft mellan popup-kortets underkant och knappen den hör till. */
 const MENU_ANCHOR_GAP = 8;
 
@@ -81,15 +85,36 @@ export function ConfirmDialog({
     anchorRef.current.measureInWindow((_x, y) => setAnchorTop(y));
   }, [visible, anchorRef]);
 
-  if (!options) return null;
+  // Modalen ligger kvar med den senaste frågan tills den animerats ut — annars
+  // avmonteras den direkt och onDismiss nedan avfyras aldrig.
+  const lastOptionsRef = useRef(options);
+  if (options) lastOptionsRef.current = options;
+  const shown = options ?? lastOptionsRef.current;
 
-  const dismiss = () => {
-    options.buttons.find(b => b.style === 'cancel')?.onPress?.();
+  // iOS köar inte modaler: öppnar knappens handling ett ark eller en ny fråga
+  // medan den här animeras ut vägrar UIKit tyst, och RN tror ändå att den
+  // visas — osynlig, och alla följande frågor med den. Där väntar handlingen
+  // på onDismiss, med en reserv om den uteblir.
+  const pendingRef = useRef<(() => void) | null>(null);
+  const runPending = () => {
+    const fn = pendingRef.current;
+    pendingRef.current = null;
+    fn?.();
+  };
+  const choose = (fn?: () => void) => {
     onClose();
+    if (!fn) return;
+    if (Platform.OS !== 'ios') { fn(); return; }
+    pendingRef.current = fn;
+    setTimeout(runPending, IOS_DISMISS_FALLBACK_MS);
   };
 
-  if (options.variant === 'menu' || options.variant === 'action') {
-    const actionButtons = options.buttons.filter(b => b.style !== 'cancel');
+  if (!shown) return null;
+
+  const dismiss = () => choose(shown.buttons.find(b => b.style === 'cancel')?.onPress);
+
+  if (shown.variant === 'menu' || shown.variant === 'action') {
+    const actionButtons = shown.buttons.filter(b => b.style !== 'cancel');
     const firstDestructiveIdx = actionButtons.findIndex(b => b.style === 'destructive');
     const rows = actionButtons.map((b, i) => {
       const isDestructive = b.style === 'destructive';
@@ -102,7 +127,7 @@ export function ConfirmDialog({
           {showDivider && <View style={s.menuDivider} />}
           <Pressable
             style={s.menuBtn}
-            onPress={() => { onClose(); b.onPress?.(); }}
+            onPress={() => choose(b.onPress)}
             accessibilityRole="button"
             accessibilityLabel={b.label}
           >
@@ -113,7 +138,7 @@ export function ConfirmDialog({
       );
     });
 
-    if (options.variant === 'menu') {
+    if (shown.variant === 'menu') {
       // Top-right-menyn förankras i övre högra hörnet men skjuts ned under
       // status bar-insetet så kortet inte lägger sig över klocka/batteri.
       // windowHeight är hela skärmen, men measureInWindow mäter på Android från
@@ -124,7 +149,7 @@ export function ConfirmDialog({
       const anchorOffset = Platform.OS === 'android' ? insets.top : 0;
       // Mätt ankare vinner; annars faller vi tillbaka på FAB:ens nominella läge
       // (bottom 20 + 56 hög) plus säkerhetszonen.
-      const anchorStyle = options.menuAnchor === 'bottom-right'
+      const anchorStyle = shown.menuAnchor === 'bottom-right'
         ? [s.menuCardBottomRight, {
             bottom: anchorTop !== null
               ? windowHeight - anchorTop - anchorOffset + MENU_ANCHOR_GAP
@@ -132,7 +157,7 @@ export function ConfirmDialog({
           }]
         : [s.menuCardTopRight, { top: insets.top + 8 }];
       return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss} onDismiss={runPending}>
           {/* Lätt tonad bakgrund: kortet är #ffffff mot en #faf8f3 sidbakgrund,
               så utan den syns bara skuggan. Svagare än sheet-/action-varianternas
               0.4 — en liten meny ska inte släcka ner halva appen — och visar
@@ -147,7 +172,7 @@ export function ConfirmDialog({
                 opacity: menuAnim,
                 transform: [
                   { scale: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1] }) },
-                  { translateY: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [options.menuAnchor === 'bottom-right' ? 12 : -12, 0] }) },
+                  { translateY: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [shown.menuAnchor === 'bottom-right' ? 12 : -12, 0] }) },
                 ],
               },
             ]}
@@ -159,7 +184,7 @@ export function ConfirmDialog({
     }
 
     return (
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss} onDismiss={runPending}>
         <View pointerEvents="none" style={{ ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.4)' }} />
         <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onPress={dismiss} />
         <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 16, paddingBottom: 40, pointerEvents: 'box-none' }}>
@@ -172,10 +197,10 @@ export function ConfirmDialog({
   // Samma anatomi som alla andra ark: rubrik och text i det mörkgröna huvudet,
   // knapparna i den ljusa kroppen. BARA den första primära knappen är fylld
   // mörkgrön — två fyllda staplade tävlar om uppmärksamheten.
-  const forstaPrimar = options.buttons.findIndex(b => (b.style ?? 'primary') === 'primary');
+  const forstaPrimar = shown.buttons.findIndex(b => (b.style ?? 'primary') === 'primary');
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss} onDismiss={runPending}>
       {/* height 100dvh på web: Modal blir annars 100% hög, och Chrome på
           Android räknar in ytan BAKOM adressfältet. Arket hamnade då delvis
           utanför synfältet — underkanten kapad och bara ena hörnet rundat i
@@ -184,12 +209,12 @@ export function ConfirmDialog({
       <View style={[s.overlay, ÄR_WEBB && ({ height: '100dvh' } as object)]}>
         <Pressable style={{ flex: 1 }} onPress={dismiss} />
         <View style={s.sheet}>
-          <SheetHeader title={options.title} subtitle={options.message} />
+          <SheetHeader title={shown.title} subtitle={shown.message} />
           {/* Safe area i botten så gestindikatorn inte ligger över knappen.
               Knapparna staplas i stället för att ligga sida vid sida: svenska
               etiketter som "Lägg till i veckan" ryms inte på en halv bredd. */}
           <View style={[s.body, { paddingBottom: 24 + insets.bottom }]}>
-            {options.buttons.map((b, i) => {
+            {shown.buttons.map((b, i) => {
               const style = b.style ?? 'primary';
               return (
                 <Pressable
@@ -198,7 +223,7 @@ export function ConfirmDialog({
                     s.btn,
                     style === 'cancel' ? s.btnAvbryt : i === forstaPrimar ? s.btnPrimar : s.btnSekundar,
                   ]}
-                  onPress={() => { onClose(); b.onPress?.(); }}
+                  onPress={() => choose(b.onPress)}
                   accessibilityRole="button"
                   accessibilityLabel={b.label}
                 >

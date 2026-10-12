@@ -425,6 +425,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [savingStaple, setSavingStaple] = useState(false);
 
   const [showActionsMenu, setShowActionsMenu] = useState(false);
+  // Menyn är en egen <Modal>. På iOS öppnas ett ark eller en fråga först när
+  // menyn animerats ut — annars vägrar UIKit tyst, och den osynliga modalen
+  // låser resten (se ConfirmHost i ConfirmContext).
+  const pendingMenuAction = useRef<(() => void) | null>(null);
+  const runMenuAction = () => { const fn = pendingMenuAction.current; pendingMenuAction.current = null; fn?.(); };
+  const afterMenu = (fn: () => void) => {
+    setShowActionsMenu(false);
+    if (Platform.OS !== 'ios') { fn(); return; }
+    pendingMenuAction.current = fn;
+    setTimeout(runMenuAction, 800);
+  };
   // Import av en annan lista: foto (ofta handskriven lapp) eller inklistrad
   // text → granska → lägg till de valda i den här listan.
   const [importSteg, setImportSteg] = useState<null | 'val' | 'text' | 'laddar' | 'granska'>(null);
@@ -2915,7 +2926,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       </DraggableBottomSheet>
 
       {/* Actions menu (3-dot) */}
-      <Modal visible={showActionsMenu} transparent animationType="fade" onRequestClose={() => setShowActionsMenu(false)}>
+      <Modal visible={showActionsMenu} transparent animationType="fade" onRequestClose={() => setShowActionsMenu(false)} onDismiss={runMenuAction}>
         <View pointerEvents="none" style={s.overlayDim} />
         <Pressable style={s.overlay} onPress={() => setShowActionsMenu(false)} />
         {/* insets.top: modalen täcker HELA skärmen, så top:0 la menyn över
@@ -2924,39 +2935,38 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         <View style={[s.actionsMenu, { top: insets.top + 4 }]}>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); setRenameValue(list.name); setRenameEmoji(list.emoji ?? null); setShowRenameModal(true); }}
+            onPress={() => afterMenu(() => { setRenameValue(list.name); setRenameEmoji(list.emoji ?? null); setShowRenameModal(true); })}
           >
             <Ionicons name="create-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>{str.renameTitle}</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); openStorePicker(); }}
+            onPress={() => afterMenu(openStorePicker)}
           >
             <Ionicons name="storefront-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>{list.store?.name ? str.a11y.store(list.store.name) : str.a11y.chooseStore}</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); setImportSteg('val'); }}
+            onPress={() => afterMenu(() => setImportSteg('val'))}
           >
             <Ionicons name="document-text-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>{str.actionsMenu.importItems}</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); goToBulkTransfer(); }}
+            onPress={() => afterMenu(goToBulkTransfer)}
           >
             <Ionicons name="restaurant-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>{str.actionsMenu.importMenu}</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => {
-              setShowActionsMenu(false);
+            onPress={() => afterMenu(() => {
               if (duplicateGroups.length > 0) openMergeForDupes(duplicateGroups[0]);
               else setMergeSheet({ name: '', category: 'other' as StoreCategory, items: [] });
-            }}
+            })}
           >
             <Ionicons name="git-merge-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>
@@ -2965,7 +2975,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); checkAllUnchecked(); }}
+            onPress={() => afterMenu(checkAllUnchecked)}
           >
             <Ionicons name="checkbox-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>{str.actionsMenu.checkAll}</Text>
@@ -2982,14 +2992,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           <View style={s.actionsMenuDivider} />
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); completeList(); }}
+            onPress={() => afterMenu(completeList)}
           >
             <Ionicons name="sparkles-outline" size={20} color={c.danger} />
             <Text style={[s.actionsMenuText, { color: c.danger }]}>{str.actionsMenu.clear}</Text>
           </Pressable>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => { setShowActionsMenu(false); deleteEntireList(); }}
+            onPress={() => afterMenu(deleteEntireList)}
           >
             <Ionicons name="trash-outline" size={20} color={c.danger} />
             <Text style={[s.actionsMenuText, { color: c.danger }]}>{str.deleteList}</Text>

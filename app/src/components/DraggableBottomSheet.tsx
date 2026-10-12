@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ConfirmHost, useConfirm } from '../context/ConfirmContext';
+import { useConfirm, useConfirmHost } from '../context/ConfirmContext';
 import { useDiscardDraft } from '../hooks/useDiscardDraft';
 import {
   Modal,
@@ -105,6 +105,7 @@ export function DraggableBottomSheet({
   const ny = useNy();
   const confirm = useConfirm();
   const tryClose = useDiscardDraft(confirm);
+  const confirmHost = useConfirmHost(visible);
   const guardRef = useRef({ isDirty, onRequestClose, onDragClose, tryClose });
   // Valfri vy i arkets fönster — pekar ut fönstret för autofyll-spärren.
   const windowAnchorRef = useRef<View>(null);
@@ -218,6 +219,7 @@ export function DraggableBottomSheet({
       // withDisableAutofill stänger av autofyll — utan det här föreslog
       // Samsung Pass inloggningsuppgifter i t.ex. receptlänkens fält.
       onShow={() => excludeWindowFromAutofill(windowAnchorRef.current)}
+      onDismiss={confirmHost.onDismiss}
     >
       {/* paddingTop: modalen täcker hela skärmen (statusBarTranslucent), så ett
           ark med maxHeight i procent räknade mot skärmhöjden och kunde nå upp
@@ -228,8 +230,8 @@ export function DraggableBottomSheet({
         <Animated.View pointerEvents="none" style={[styles.overlayDim, dimAnimStyle]} />
         {content}
         {/* Bekräftelser medan arket är öppet visas härinne — på iOS syns de
-            annars aldrig (se ConfirmHost). */}
-        <ConfirmHost />
+            annars aldrig (se useConfirmHost). */}
+        {confirmHost.dialog}
       </GestureHandlerRootView>
     </Modal>
   );
