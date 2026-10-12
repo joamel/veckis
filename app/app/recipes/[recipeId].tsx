@@ -783,6 +783,17 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     rowRefs.current = [];
     setActiveUnitIdx(null);
 
+    // Hushållets övriga taggar, så de kan återanvändas med ett tap. Före
+    // utkastgrenen: den returnerar tidigt, och med hämtningen efter den syntes
+    // bara utkastets egna taggar när man återvände till ett sparat utkast.
+    if (householdId) {
+      client.getRecipes(householdId).then(rs => {
+        const tags = new Set<string>();
+        for (const r of rs) for (const t of r.tags ?? []) tags.add(t);
+        setKnownTags([...tags]);
+      }).catch(() => {});
+    }
+
     // Fanns osparade ändringar sedan förra gången skärmen lämnades? Återställ
     // dem i stället för receptets sparade värden. Ingen fråga här — utkastet ÄR
     // det användaren senast skrev, och en dialog vid varje ingång vore i vägen.
@@ -813,14 +824,6 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     setEditFokus({ x: recipe.imageFocusX, y: recipe.imageFocusY, zoom: recipe.imageZoom });
     setEditTags(recipe.tags ?? []);
     setCustomTag('');
-    // Hämta hushållets övriga taggar så de kan återanvändas med ett tap.
-    if (householdId) {
-      client.getRecipes(householdId).then(rs => {
-        const tags = new Set<string>();
-        for (const r of rs) for (const t of r.tags ?? []) tags.add(t);
-        setKnownTags([...tags]);
-      }).catch(() => {});
-    }
     setEditServings(recipe.servings);
     setEditCookMinutes(recipe.cookMinutes != null ? String(recipe.cookMinutes) : '');
     setScaledServings(null); // nollställ transient läs-skalning inför edit
