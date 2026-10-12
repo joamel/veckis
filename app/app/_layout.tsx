@@ -33,9 +33,14 @@ import { OfflineBanner } from '../src/components/OfflineBanner';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { installGlobalErrorHandler } from '../src/lib/errorReport';
 import { getLandingTab, type LandingTabKey } from '../src/lib/landingTab';
+import { clearAllDrafts, setDraftBackend } from '../src/lib/drafts';
+import { draftBackend } from '../src/lib/draftBackend';
 import { AnimatedSplash } from '../src/components/AnimatedSplash';
 import * as WebBrowser from 'expo-web-browser';
 import { useFonts } from 'expo-font';
+
+// Osparade utkast överlever omstart: registreras innan någon vy läser dem.
+setDraftBackend(draftBackend);
 
 // Slutför en ev. väntande OAuth-webbläsarsession vid app-start. MÅSTE ligga i
 // roten (körs oavsett vilken skärm appen öppnas till via djuplänken) — annars
@@ -85,6 +90,8 @@ function StatusBarBackdrop() {
 
 function NavigationGuard() {
   const { isLoaded, isSignedIn } = useAuth();
+  // Utloggad = utkasten tillhör inte längre någon på telefonen.
+  useEffect(() => { if (isLoaded && !isSignedIn) clearAllDrafts(); }, [isLoaded, isSignedIn]);
   const { householdId, isLoading: householdLoading, loadFailed: householdLoadFailed } = useHousehold();
   const segments = useSegments();
   const router = useRouter();

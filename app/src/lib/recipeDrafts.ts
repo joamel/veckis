@@ -21,7 +21,7 @@ export interface RecipeFields {
 
 export type RecipeDraft = MedTid<RecipeFields>;
 
-const lager = createDraftStore<RecipeFields>();
+const lager = createDraftStore<RecipeFields>('recept');
 
 export const sparaUtkast = (recipeId: string, draft: RecipeFields) => lager.spara(recipeId, draft);
 export const hamtaUtkast = (recipeId: string): RecipeDraft | null => lager.hamta(recipeId);
