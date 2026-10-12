@@ -149,9 +149,7 @@ export default function StoreDetailScreen() {
   // Ordningen före "Godkänn", så förslaget kan ångras (null = inget att ångra).
   const [orderBeforeSuggestion, setOrderBeforeSuggestion] = useState<string[] | null>(null);
   const [previewing, setPreviewing] = useState(false);
-  // Förslagsflödet ligger bakom en testflagga (adminsidans Sandbox) tills det
-  // släpps till alla. Utan flaggan hämtas inget förslag, så inget kort syns.
-  const suggestionsOn = useExperiment('order-suggestions');
+  // Appadminens testläge (Sandbox): förslaget ur en enda handling.
   const relaxedSuggestions = useExperiment('order-suggestions-relaxed');
   // Rader som flyttas i förslaget — markeras under förhandsgranskningen.
   const movedKeys = useMemo(
@@ -244,7 +242,7 @@ export default function StoreDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    if (!storeId || !suggestionsOn) { setSuggestion(null); return; }
+    if (!storeId) return;
     // Ett förslag man sagt "Inte nu" till visas inte igen förrän bockarna
     // säger något annat — då är det ett nytt förslag.
     client.getStoreOrderSuggestion(storeId, relaxedSuggestions).then(async sug => {
@@ -252,7 +250,7 @@ export default function StoreDetailScreen() {
       if (dismissed && dismissed === JSON.stringify(sug.order)) setSuggestionDismissed(true);
       setSuggestion(sug);
     }).catch(() => setSuggestion(null));
-  }, [storeId, client, suggestionsOn, relaxedSuggestions, store?.orderSuggestions]);
+  }, [storeId, client, relaxedSuggestions, store?.orderSuggestions]);
 
   // Reglaget sparas direkt, utanför Spara-flödet: det är en inställning, inte
   // en ändring av ordningen.
@@ -1103,7 +1101,7 @@ export default function StoreDetailScreen() {
           </>
         )}
 
-        {suggestionsOn && store && (
+        {store && (
           <View style={[s.suggestCard, s.suggestAppliedRow, { marginTop: 24 }]}>
             <View style={{ flex: 1 }}>
               <Text style={s.suggestTitle}>{str.detail.suggestToggle}</Text>

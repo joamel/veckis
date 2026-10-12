@@ -14,11 +14,9 @@ import { useSyncExternalStore } from 'react';
 import * as SecureStore from './secureStorage';
 
 export const EXPERIMENTS = [
-  // Förslagskortet för kategoriordning: förhandsgranskning, markerade rader,
-  // Ångra och reglaget per butik.
-  'order-suggestions',
-  // Förslaget räknas fram ur en enda handling (backend godtar det bara från
-  // appadmin) — för att kunna prova kortet utan fyra handlingar i butiken.
+  // Förslaget på kategoriordning räknas fram ur en enda handling (backend
+  // godtar det bara från appadmin) — ett varaktigt testverktyg, så kortet går
+  // att prova utan fyra handlingar i butiken.
   'order-suggestions-relaxed',
 ] as const;
 

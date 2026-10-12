@@ -1842,13 +1842,9 @@ export const admin = {
   retry:     'Försök igen',
   searchPlaceholder: 'Klassa ett varunamn…',
   sandbox: {
-    'order-suggestions': {
-      title:       'Förslag på kategoriordning',
-      description: 'Kortet "Ändra ordning?" i butiksvyn med förhandsgranskning, markerade rader och Ångra, och reglaget för att stänga av förslagen per butik.',
-    },
     'order-suggestions-relaxed': {
       title:       'Förslag ur en enda handling',
-      description: 'Räknar fram förslaget ur så lite som en handling i butiken, så kortet går att prova direkt. Kräver att funktionen ovan är på.',
+      description: 'Räknar fram förslaget på kategoriordning ur så lite som en handling i butiken, så kortet "Ändra ordning?" går att prova direkt.',
     },
   },
   tabs: {
