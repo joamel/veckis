@@ -188,3 +188,21 @@ describe('parmesan', () => {
     expect(inferSubCategory('pecorino')).toBe('delikatessost');
   });
 });
+
+describe('alkohol', () => {
+  it('känner igen vanliga alkoholhaltiga drycker men inte lättöl eller vinäger', () => {
+    for (const n of ['rödvin', 'vitvin', 'öl', 'prosecco', 'portvin', 'gin']) expect(inferSubCategory(n), n).toBe('alkoholhaltigt');
+    expect(inferSubCategory('lättöl')).toBe('alkoholfritt_öl_cider');
+    expect(inferSubCategory('alkoholfritt vin')).toBe('alkoholfritt_öl_cider');
+    expect(inferSubCategory('rödvinsvinäger')).toBe('olja_vinäger');
+    expect(inferSubCategory('sherryvinäger')).toBe('olja_vinäger');
+    // Matlagningsvin är mat: står vid vinägern och ska föreslås för alla.
+    expect(inferSubCategory('matlagningsvin')).toBe('olja_vinäger');
+    expect(inferSubCategory('rött matlagningsvin')).toBe('olja_vinäger');
+    expect(inferSubCategory('ättikssprit 12%')).toBe('olja_vinäger');
+    expect(inferSubCategory('ättika')).toBe('olja_vinäger');
+    // T-sprit är städ, inte alkohol — bindestrecket gjorde "sprit" till eget ord.
+    expect(inferSubCategory('t-sprit')).toBe('ytrengöring');
+    expect(inferSubCategory('rödsprit')).toBe('ytrengöring');
+  });
+});

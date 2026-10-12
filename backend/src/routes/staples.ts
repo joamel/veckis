@@ -189,18 +189,25 @@ staplesRouter.get('/suggestions', requireAuth, asyncHandler(async (req, res) => 
   // slutar se namnet.
   const hiddenNames = new Set([...hidden, ...hiddenGlobal].map(h => h.name.toLowerCase()));
 
+  // Alkohol föreslås inte för alla — bara för hushåll som själva använt namnet.
+  // Egna basvaror (GET /api/staples) och vin i recept påverkas inte.
+  const ownRaws = (await prisma.ingredientAliasHousehold.findMany({ where: { householdId }, select: { raw: true } })).map(r => r.raw);
+  const ownNames = new Set((await prisma.ingredientAlias.findMany({ where: { raw: { in: ownRaws } }, select: { canonical: true } }))
+    .map(a => a.canonical.toLowerCase()));
+  const alcoholBlocked = (name: string) => curatedSubCategory(name) === 'alkoholhaltigt' && !ownNames.has(name.toLowerCase());
+
   // Filtrera bort trasiga legacy-alias där en mängd fastnat först i namnet
   // ("kg potatis", "400g ost") — de ska aldrig dyka upp som förslag. Nya alias
   // stoppas redan av samma predikat på skriv-sidan; det här skyddar mot rader
   // som redan ligger i DB och mot att de två sidorna glider isär.
-  const cleanAliases = eligibleAliases.filter(a => duglingGlobalt(a.canonical) && !hiddenNames.has(a.canonical.toLowerCase()));
+  const cleanAliases = eligibleAliases.filter(a => duglingGlobalt(a.canonical) && !hiddenNames.has(a.canonical.toLowerCase()) && !alcoholBlocked(a.canonical));
   const aliasNames = new Set(cleanAliases.map(a => a.canonical.toLowerCase()));
-  const common = COMMON_INGREDIENTS.filter(c => !aliasNames.has(c.name.toLowerCase()) && !hiddenNames.has(c.name.toLowerCase()));
+  const common = COMMON_INGREDIENTS.filter(c => !aliasNames.has(c.name.toLowerCase()) && !hiddenNames.has(c.name.toLowerCase()) && !alcoholBlocked(c.name));
   // Namn som klassats på adminsidan är granskade — de föreslås för alla, som
   // den kurerade listan, även om bara ett hushåll använt dem.
   const commonNames = new Set(common.map(c => c.name.toLowerCase()));
   const curated = (await prisma.curatedCategory.findMany({ select: { name: true, category: true, subCategory: true } }))
-    .filter(k => !aliasNames.has(k.name) && !commonNames.has(k.name) && !hiddenNames.has(k.name));
+    .filter(k => !aliasNames.has(k.name) && !commonNames.has(k.name) && !hiddenNames.has(k.name) && !alcoholBlocked(k.name));
 
   res.json([
     // Aliasets kategori föddes med klassarens gissning på sin tid; den
