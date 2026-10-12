@@ -19,7 +19,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   // Frukt & grönt
   { sub: 'frukt', patterns: ['äpple', 'äpplen', 'banan', 'apelsin', 'citron', 'lime', 'päron', 'kiwi', 'mango', 'avocado', 'meloner', 'melon', 'persika', 'plommon', 'druvor', 'ananas', 'granatäpple', 'mandarin', 'satsuma', 'clementin', 'nektarin', 'blodapelsin', 'vindruvor', 'vindruva'] },
   { sub: 'bär', patterns: ['jordgubbar', 'jordgubb', 'hallon', 'blåbär', 'björnbär', 'lingon', 'tranbär', 'krusbär', 'havtorn', 'fläderbär'] },
-  { sub: 'grönsaker', patterns: ['broccoli', 'blomkål', 'paprika', 'tomat', 'gurka', 'zucchini', 'aubergine', 'majs', 'sparris', 'kålrot', 'vitkål', 'rödkål', 'spenat', 'sockerärt', 'haricot', 'bönor (färska)', 'tomater', 'körsbärstomater', 'romanticatomater', 'cocktailtomater', 'babyspenat'] },
+  { sub: 'grönsaker', patterns: ['broccoli', 'blomkål', 'paprika', 'tomat', 'gurka', 'zucchini', 'aubergine', 'majs', 'sparris', 'kålrot', 'vitkål', 'rödkål', 'spenat', 'sockerärt', 'haricot', 'bönor (färska)', 'tomater', 'körsbärstomater', 'romanticatomater', 'cocktailtomater', 'babyspenat', 'rädisor', 'rädisa'] },
   { sub: 'rotsaker', patterns: ['potatis', 'morötter', 'morot', 'palsternacka', 'rödbeta', 'rotselleri', 'kålrabbi', 'sötpotatis', 'jordärtskocka', 'småpotatis', 'fast potatis', 'mjölig potatis'] },
   { sub: 'lök_vitlök', patterns: ['gul lök', 'rödlök', 'salladslök', 'purjolök', 'schalottenlök', 'vitlök', 'lök', 'vitlöksklyfta', 'vitlöksklyftor'] },
   { sub: 'örter_sallad', patterns: ['basilika', 'persilja', 'koriander', 'mynta', 'rosmarin', 'timjan', 'dill', 'gräslök', 'salvia', 'ruccola', 'sallad', 'isbergssallad', 'spenat (frisk)', 'mangold', 'rucola', 'salladsmix'] },
@@ -83,7 +83,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'mjöl_bakingredienser', patterns: ['vetemjöl', 'rågmjöl', 'mannagryn', 'jäst', 'bakpulver', 'bikarbonat', 'florsocker', 'strösocker', 'farinsocker', 'sirap', 'kakao', 'vaniljsocker', 'sockerkaka mix', 'socker', 'pärlsocker', 'ströbröd', 'våffelmix', 'pannkaksmix', 'kakmix', 'muffinsmix', 'brödmix', 'sockerkaksmix', 'mandelmjöl', 'kokosmjöl', 'potatismjöl', 'majsstärkelse', 'maizena'] },
   { sub: 'olja_vinäger', patterns: ['olivolja', 'rapsolja', 'kokosolja', 'solrosolja', 'sesamolja', 'balsamico', 'äppelcidervinäger', 'rödvinsvinäger', 'vinäger', 'olja'] },
   { sub: 'kryddor_buljong', patterns: ['salt', 'peppar', 'svartpeppar', 'paprikapulver', 'curry', 'kanel', 'kardemumma', 'oregano', 'paprika (krydda)', 'buljongtärningar', 'kycklingbuljong', 'grönsaksbuljong', 'köttbuljong', 'chiliflakes', 'chiliflingor', 'chilipulver', 'gurkmeja', 'spiskummin', 'kummin', 'muskot', 'kryddpeppar', 'lagerblad', 'garam masala', 'cayennepeppar', 'malen koriander', 'mald koriander', 'malen ingefära', 'mald ingefära', 'buljongtärning', 'kycklingbuljongtärning', 'grönsaksbuljongtärning', 'köttbuljongtärning', 'hönsbuljong'] },
-  { sub: 'sås_dressing', patterns: ['ketchup', 'senap', 'majonnäs', 'sweet chili', 'sojasås', 'sambal oelek', 'dressing', 'caesardressing', 'hamburgerdressing', 'rhode island', 'pesto', 'aioli', 'dijonsenap', 'soja', 'japansk soja', 'kinesisk soja', 'pastasås', 'tomatsås', 'bolognesesås', 'arrabbiatasås', 'grillsås'] },
+  { sub: 'sås_dressing', patterns: ['ketchup', 'senap', 'majonnäs', 'sweet chili', 'sojasås', 'sambal oelek', 'dressing', 'caesardressing', 'hamburgerdressing', 'rhode island', 'pesto', 'aioli', 'remoulad', 'remouladsås', 'worcestershiresås', 'worcestershire', 'dijonsenap', 'soja', 'japansk soja', 'kinesisk soja', 'pastasås', 'tomatsås', 'bolognesesås', 'arrabbiatasås', 'grillsås'] },
   { sub: 'nötter_frön_torra', patterns: ['mandlar', 'cashewnötter', 'jordnötter', 'hasselnötter', 'valnötter', 'pinjenötter', 'pumpafrön', 'solrosfrön', 'sesamfrön', 'chiafrön', 'linfrön', 'russin', 'aprikoser', 'dadlar', 'torkad frukt', 'katrinplommon', 'tranbär (torkade)', 'fikon (torkade)', 'torkade aprikoser', 'torkade tranbär', 'torkade fikon', 'nötmix', 'studentmix', 'pumpakärnor', 'pekannötter', 'paranötter', 'pistagenötter', 'macadamianötter'] },
   // Snacks & godis
   { sub: 'godis', patterns: ['godis', 'gelégodis', 'salta lakritsar', 'sura' /* karameller */, 'kola'] },
@@ -93,7 +93,7 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   // Drycker
   { sub: 'läsk', patterns: ['cola', 'pepsi', 'fanta', 'sprite', 'läsk', 'lemonad'] },
   { sub: 'juice', patterns: ['juice', 'apelsinjuice', 'äppeljuice', 'fruktjuice', 'must'] },
-  { sub: 'vatten', patterns: ['vatten', 'mineralvatten', 'kolsyrat vatten', 'ramlösa'] },
+  { sub: 'vatten', patterns: ['vatten', 'mineralvatten', 'kolsyrat vatten', 'ramlösa', 'kokosvatten'] },
   { sub: 'sport_energidryck', patterns: ['energidryck', 'red bull', 'nocco', 'celsius', 'sportdryck', 'gatorade', 'powerade'] },
   { sub: 'saft_koncentrat', patterns: ['saft', 'blandsaft', 'koncentrat', 'squash'] },
   { sub: 'kaffe_te', patterns: ['kaffe', 'snabbkaffe', 'espressopulver', 'kaffekapslar', 'bryggkaffe', 'kaffefilter', 'te', 'tepåsar', 'grönt te', 'svart te', 'rooibos', 'kamomill', 'oboy', 'chokladdryck', 'pulverchoklad', 'varm choklad', 'kakaodryck', 'chokladpulver'] },
@@ -108,16 +108,16 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   { sub: 'veg_protein', patterns: ['tofu', 'tempeh', 'quorn', 'oumph', 'seitan', 'sojafärs', 'vegofärs', 'sojabitar', 'falafel', 'växtbaserad färs', 'beyond meat'] },
   { sub: 'vegan', patterns: ['vegan'] },
   // Städ & rengöring
-  { sub: 'diskmedel', patterns: ['diskmedel', 'maskindisk', 'disktabletter', 'sköljmedel (disk)'] },
-  { sub: 'tvättmedel', patterns: ['tvättmedel', 'sköljmedel', 'fläckborttagning', 'klorin'] },
-  { sub: 'ytrengöring', patterns: ['ytrengöring', 'allrent', 'badrumsrengöring', 'fönsterputs', 'ugnsrengöring'] },
-  { sub: 'städredskap', patterns: ['svampar', 'disktrasa', 'sopborste', 'mopp', 'soppåsar', 'sopsäckar'] },
-  { sub: 'folie_matförvaring', patterns: ['plastfolie', 'aluminiumfolie', 'folie', 'bakplåtspapper', 'fryspåsar', 'plastpåsar', 'papperspåsar', 'muffinsformar', 'matlådor', 'frysboxar', 'gladpack', 'smörgåspapper', 'brödpåsar'] },
-  { sub: 'toalett_hushållspapper', patterns: ['toalettpapper', 'toapapper', 'hushållspapper', 'pappershanddukar', 'servetter', 'pappersservetter'] },
+  { sub: 'diskmedel', patterns: ['diskmedel', 'maskindisk', 'disktabletter', 'disktablett', 'diskmaskinstabletter', 'diskmaskinsmedel', 'diskmaskinssalt', 'diskmaskinsrengöring', 'spolglans', 'sköljmedel (disk)', 'yes', 'fairy'] },
+  { sub: 'tvättmedel', patterns: ['tvättmedel', 'tvättkapslar', 'tvättlappar', 'tvättpulver', 'sköljmedel', 'fläckborttagning', 'fläckborttagare', 'klorin', 'blekmedel', 'avkalkningsmedel', 'avkalkning'] },
+  { sub: 'ytrengöring', patterns: ['ytrengöring', 'allrent', 'allrengöring', 'rengöringsmedel', 'badrumsrengöring', 'fönsterputs', 'ugnsrengöring', 'wc-rent', 'toarent', 'wc-rengöring', 'wc-block', 'toalettblock', 'kalkborttagning', 'kalkborttagare', 'avloppsrensning', 'propplösare', 'grönsåpa', 'såpa', 'ajax', 'cillit bang', 'golvrengöring', 'möbelpolish', 'luftfräschare', 'doftspray'] },
+  { sub: 'städredskap', patterns: ['svampar', 'disksvamp', 'disksvampar', 'skursvamp', 'disktrasa', 'disktrasor', 'diskborste', 'trasor', 'trasa', 'skurtrasa', 'mikrofiberduk', 'mikrofibertrasa', 'gummihandskar', 'diskhandskar', 'städhandskar', 'sopborste', 'mopp', 'moppar', 'toalettborste', 'dammsugarpåsar', 'soppåsar', 'sopsäckar', 'avfallspåsar', 'komposteringspåsar', 'komposteringspåse', 'kompostpåsar', 'bajspåsar', 'hundpåsar'] },
+  { sub: 'folie_matförvaring', patterns: ['plastfolie', 'aluminiumfolie', 'folie', 'bakplåtspapper', 'fryspåsar', 'plastpåsar', 'papperspåsar', 'zip-påsar', 'zippåsar', 'muffinsformar', 'matlådor', 'frysboxar', 'gladpack', 'smörgåspapper', 'brödpåsar', 'engångsmuggar', 'plastmuggar', 'pappersmuggar', 'papperstallrikar', 'engångstallrikar', 'engångsbestick', 'plastbestick', 'sugrör', 'grillspett', 'tandpetare', 'kökssnöre'] },
+  { sub: 'toalett_hushållspapper', patterns: ['toalettpapper', 'toapapper', 'hushållspapper', 'kökspapper', 'kökrulle', 'pappershanddukar', 'servetter', 'pappersservetter'] },
   // Hygien & personvård
   { sub: 'tandvård', patterns: ['tandkräm', 'tandborste', 'tandtråd', 'munvatten'] },
   { sub: 'hårvård', patterns: ['schampo', 'balsam', 'hårinpackning', 'hårspray', 'styling'] },
-  { sub: 'duschtvål_hudvård', patterns: ['duschgel', 'duschtvål', 'tvål', 'handkräm', 'ansiktskräm', 'bodylotion', 'deodorant', 'rakkräm'] },
+  { sub: 'duschtvål_hudvård', patterns: ['duschgel', 'duschtvål', 'tvål', 'handkräm', 'ansiktskräm', 'bodylotion', 'deodorant', 'deo', 'rakkräm', 'rakhyvel', 'rakblad', 'bomullspinnar', 'tops', 'bomullspads', 'sminkborttagning', 'solskydd', 'solkräm', 'myggmedel'] },
   { sub: 'intimhygien', patterns: ['bindor', 'tamponger', 'intimtvätt', 'trosskydd'] },
   { sub: 'mediciner', patterns: ['alvedon', 'ipren', 'paracetamol', 'plåster', 'huvudvärkstabletter', 'magmedicin'] },
   { sub: 'smink_kosmetika', patterns: ['mascara', 'foundation', 'läppstift', 'smink', 'nagellack', 'kosmetika', 'concealer'] },
@@ -128,8 +128,21 @@ const PATTERNS: Array<{ sub: SubCategory; patterns: string[] }> = [
   // Övrigt
   { sub: 'husdjur', patterns: ['hundmat', 'kattmat', 'hundgodis', 'kattsand', 'kattgrus'] },
   { sub: 'blommor_växter', patterns: ['blommor', 'krukväxt', 'krukor', 'växtjord', 'gödsel'] },
-  { sub: 'hushållsvaror', patterns: ['ljus', 'tändstickor'] },
+  { sub: 'hushållsvaror', patterns: ['ljus', 'tändstickor', 'tändare', 'grilltändare', 'grillkol', 'briketter', 'tändvätska', 'tändblock', 'tejp', 'maskeringstejp', 'eltejp'] },
   { sub: 'batteri_elektronik', patterns: ['batteri', 'laddare', 'usb-kabel', 'batterier', 'glödlampa', 'glödlampor', 'lampa', 'lampor', 'led-lampa', 'ledlampa', 'ficklampa'] },
+];
+
+// Sammansättningar: svenskan sätter huvudordet sist, så "kulörtvättmedel" är
+// ett tvättmedel och "värmeljus" ett ljus. Mönstren ovan matchar bara hela ord
+// och missar därför varje ny förled — hushållsvarorna hamnade i Övrigt.
+// Här står bara huvudord som aldrig avslutar ett matord; "påsar" och "papper"
+// saknas med flit (godispåsar, rispapper).
+const COMPOUND_HEADS: Array<{ sub: SubCategory; heads: string[] }> = [
+  { sub: 'diskmedel', heads: ['diskmedel'] },
+  { sub: 'tvättmedel', heads: ['tvättmedel', 'sköljmedel'] },
+  { sub: 'ytrengöring', heads: ['rengöring', 'rengöringsmedel', 'rengöringsspray'] },
+  { sub: 'städredskap', heads: ['handskar', 'trasor', 'borste'] },
+  { sub: 'hushållsvaror', heads: ['ljus'] },
 ];
 
 /**
@@ -182,6 +195,16 @@ export function inferSubCategory(name: string): SubCategory | null {
         if (!best || p.length > best.len) {
           best = { sub, len: p.length };
         }
+      }
+    }
+  }
+  // Huvudordet väger som sin egen längd, så ett längre helordsmönster vinner
+  // ("tandborste" är tandvård, inte en borste från städhyllan).
+  const words = haystack.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  for (const { sub, heads } of COMPOUND_HEADS) {
+    for (const h of heads) {
+      if (words.some(w => w.endsWith(h)) && (!best || h.length > best.len)) {
+        best = { sub, len: h.length };
       }
     }
   }

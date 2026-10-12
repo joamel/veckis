@@ -185,3 +185,39 @@ describe('granskningen av alla varunamn 2026-09-30', () => {
     expect(categorizeIngredient('kalkonkorv')).toBe('deli_charcuterie');
   });
 });
+
+describe('hushållsvaror som hamnade i Övrigt (feedback 2026-10-12)', () => {
+  it('hittar städ- och papperssaker', () => {
+    for (const n of [
+      'diskmaskinstabletter', 'spolglans', 'diskborste', 'disksvamp', 'diskhandskar',
+      'tvättkapslar', 'blekmedel', 'grönsåpa', 'wc-rent', 'kalkborttagning', 'avloppsrensning',
+      'mikrofiberduk', 'skurtrasa', 'dammsugarpåsar', 'avfallspåsar', 'komposteringspåsar',
+      'kökspapper', 'zip-påsar', 'engångsmuggar', 'sugrör', 'avkalkningsmedel',
+    ]) expect(categorizeIngredient(n), n).toBe('cleaning');
+  });
+
+  it('förstår sammansättningar genom huvudordet', () => {
+    expect(categorizeIngredient('kulörtvättmedel')).toBe('cleaning');
+    expect(categorizeIngredient('handdiskmedel')).toBe('cleaning');
+    expect(categorizeIngredient('maskindiskmedel')).toBe('cleaning');
+    expect(categorizeIngredient('golvrengöring')).toBe('cleaning');
+    // Ett längre helordsmönster vinner över huvudordet.
+    expect(categorizeIngredient('tandborste')).toBe('personal_care');
+  });
+
+  it('en känd Övrigt-vara faller inte vidare till nyckelorden', () => {
+    // "tejp" börjar på "te" och blev dryck.
+    expect(categorizeIngredient('tejp')).toBe('other');
+    expect(categorizeIngredient('värmeljus')).toBe('other');
+    expect(categorizeWithStored('värmeljus', 'cleaning')).toBe('cleaning');
+  });
+
+  it('hygien och några matvaror utan regel', () => {
+    expect(categorizeIngredient('deo')).toBe('personal_care');
+    expect(categorizeIngredient('bomullspads')).toBe('personal_care');
+    expect(categorizeIngredient('näsdukar')).toBe('personal_care');
+    expect(categorizeIngredient('rädisor')).toBe('fruit_veg');
+    expect(categorizeIngredient('remoulad')).toBe('canned_dry');
+    expect(categorizeIngredient('kokosvatten')).toBe('beverages');
+  });
+});

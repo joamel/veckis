@@ -411,14 +411,18 @@ function classifyWithSource(name: string, opts: { useSubCategory: boolean; store
   }
   // Underkategorin före nyckelorden: dess mönster är hela ord och längsta
   // träff vinner, medan nyckelorden matchar på ordbörjan ("kaka" → kakao).
-  // En underkategori under Övrigt (husdjur, hushållsvaror …) säger inget om
-  // hyllan och får falla igenom.
+  // En underkategori under Övrigt (husdjur, hushållsvaror …) låter ett lagrat
+  // svar gå först, men faller inte vidare till nyckelorden: varan är känd, och
+  // ordbörjan gav fel — "tejp" börjar på "te" och blev dryck.
+  let knownOther = false;
   if (opts.useSubCategory) {
     const sub = inferSubCategory(lower);
     const parent = sub ? parentForSub(sub) : null;
     if (parent && parent !== 'other') return { category: parent as StoreCategory, source: 'underkategori' };
+    knownOther = parent === 'other';
   }
   if (opts.stored) return { category: opts.stored, source: 'lagrat' };
+  if (knownOther) return { category: 'other', source: 'underkategori' };
   for (const rule of RULES) {
     if (rule.keywords.some(kw => matchar(lower, ord, kw))) {
       return { category: rule.category, source: 'nyckelord' };

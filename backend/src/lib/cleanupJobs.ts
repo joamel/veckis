@@ -147,9 +147,18 @@ const categories: CleanupJob = {
       const to = betterCategory(name);
       if (to) rows.push({ table: 'basvara', key: `staple:${name}`, label: count > 1 ? `${name} (${count} hushåll)` : name, from: 'other', to, name });
     }
+    // Listvarorna likaså: en rad per namn och målkategori, inte en per varurad.
+    const itemGroups = new Map<string, { label: string; to: StoreCategory; count: number }>();
     for (const i of items) {
       const to = betterCategory(i.name, i.subCategory);
-      if (to) rows.push({ table: 'vara', key: `item:${i.id}`, label: i.name, from: 'other', to, name: i.name });
+      if (!to) continue;
+      const key = `${i.name.toLowerCase().trim()}|${to}`;
+      const g = itemGroups.get(key) ?? { label: i.name, to, count: 0 };
+      g.count++;
+      itemGroups.set(key, g);
+    }
+    for (const [key, g] of itemGroups) {
+      rows.push({ table: 'vara', key: `items:${key}`, label: g.count > 1 ? `${g.label} (${g.count} i listor)` : g.label, from: 'other', to: g.to, name: g.label });
     }
     return { rows };
   },
@@ -166,10 +175,16 @@ const categories: CleanupJob = {
       } else if (kind === 'staple') {
         const to = betterCategory(id);
         if (to) n += (await prisma.stapleItem.updateMany({ where: { name: id, category: 'other' }, data: { category: to } })).count;
-      } else if (kind === 'item') {
-        const it = await prisma.shoppingItem.findUnique({ where: { id }, select: { name: true, subCategory: true, category: true } });
-        const to = it && it.category === 'other' ? betterCategory(it.name, it.subCategory) : null;
-        if (to) { await prisma.shoppingItem.update({ where: { id }, data: { category: to } }); n++; }
+      } else if (kind === 'items') {
+        const name = id.slice(0, id.lastIndexOf('|'));
+        const found = await prisma.shoppingItem.findMany({
+          where: { category: 'other', customCategory: null, name: { equals: name, mode: 'insensitive' } },
+          select: { id: true, name: true, subCategory: true },
+        });
+        for (const it of found) {
+          const to = betterCategory(it.name, it.subCategory);
+          if (to) { await prisma.shoppingItem.update({ where: { id: it.id }, data: { category: to } }); n++; }
+        }
       }
     }
     const summary = `${n} rader fick rätt kategori.`;
@@ -201,47 +216,80 @@ const subcategories: CleanupJob = {
   description: 'Basvaror och obockade varor i listor vars underkategori skiljer sig från vad reglerna säger i dag — t.ex. glutenfri pizza som hamnat på torra hyllan i stället för i frysen. Basvaror som hushållet själv klassat rörs inte, och inte heller deras varor.',
   usesAi: false,
   async plan() {
-    const [staples, items] = await Promise.all([
-      prisma.stapleItem.findMany({ where: { NOT: { categoryChosen: true } }, select: { id: true, name: true, subCategory: true } }),
-      prisma.shoppingItem.findMany({
-        where: { isChecked: false, mergedIntoId: null },
-        select: { id: true, name: true, subCategory: true, list: { select: { householdId: true } } },
-      }),
-    ]);
-    // Hushållens egna val: varor med samma namn ska följa basvaran, inte reglerna.
-    const chosen = new Set((await prisma.stapleItem.findMany({ where: { categoryChosen: true }, select: { householdId: true, name: true } }))
-      .map(c => `${c.householdId}|${c.name}`));
-    const rows: JobRow[] = [];
-    for (const b of staples) {
-      const to = currentSub(b.name);
-      if (to && to.sub !== b.subCategory) rows.push({ table: 'basvara', key: `staple:${b.id}`, label: b.name, from: subLabel(b.subCategory), to: subLabel(to.sub), name: b.name });
-    }
-    for (const i of items) {
-      if (chosen.has(`${i.list.householdId}|${stripIngredient(i.name).toLowerCase()}`)) continue;
-      const to = currentSub(i.name);
-      if (to && to.sub !== i.subCategory) rows.push({ table: 'vara', key: `item:${i.id}`, label: i.name, from: subLabel(i.subCategory), to: subLabel(to.sub), name: i.name });
-    }
+    // EN rad per varunamn — salt i tio hushåll är ett beslut, inte tio. Raden
+    // gäller varje basvara och listvara med namnet som fortfarande avviker.
+    const groups = await subcategoryMismatches();
+    const size = (g: SubMismatch) => g.staples.length + g.items.length;
+    const rows: JobRow[] = [...groups].sort(([, a], [, b]) => size(b) - size(a)).map(([name, g]) => {
+      const counts = [
+        g.staples.length ? `${g.staples.length} basvar${g.staples.length === 1 ? 'a' : 'or'}` : '',
+        g.items.length ? `${g.items.length} i listor` : '',
+      ].filter(Boolean).join(', ');
+      return {
+        table: g.staples.length && g.items.length ? 'basvara + vara' : g.staples.length ? 'basvara' : 'vara',
+        key: `name:${name}`,
+        label: g.staples.length + g.items.length > 1 ? `${g.label} (${counts})` : g.label,
+        from: [...g.from].join(' / '),
+        to: subLabel(g.to.sub),
+        name: g.label,
+      };
+    });
     return { rows };
   },
   async apply(rows, actor) {
+    // Räknas om från databasen: bara det som FORTFARANDE avviker ändras.
+    const wanted = new Set(rows.map(r => r.key).filter(k => k.startsWith('name:')).map(k => k.slice('name:'.length)));
+    const groups = await subcategoryMismatches();
     let n = 0;
-    for (const { key } of rows) {
-      const [kind, id] = key.split(':');
-      if (kind === 'staple') {
-        const b = await prisma.stapleItem.findUnique({ where: { id }, select: { name: true, subCategory: true, categoryChosen: true } });
-        const to = b && b.categoryChosen !== true ? currentSub(b.name) : null;
-        if (to && to.sub !== b!.subCategory) { await prisma.stapleItem.update({ where: { id }, data: { subCategory: to.sub, category: to.category } }); n++; }
-      } else if (kind === 'item') {
-        const it = await prisma.shoppingItem.findUnique({ where: { id }, select: { name: true, subCategory: true, isChecked: true } });
-        const to = it && !it.isChecked ? currentSub(it.name) : null;
-        if (to && to.sub !== it!.subCategory) { await prisma.shoppingItem.update({ where: { id }, data: { subCategory: to.sub, category: to.category } }); n++; }
-      }
+    for (const [name, g] of groups) {
+      if (!wanted.has(name)) continue;
+      const data = { subCategory: g.to.sub, category: g.to.category };
+      if (g.staples.length) n += (await prisma.stapleItem.updateMany({ where: { id: { in: g.staples } }, data })).count;
+      if (g.items.length) n += (await prisma.shoppingItem.updateMany({ where: { id: { in: g.items } }, data })).count;
     }
     const summary = `${n} rader fick dagens underkategori.`;
     await audit(actor, 'subcategories', n, summary);
     return summary;
   },
 };
+
+type SubMismatch = {
+  label: string;
+  to: { sub: SubCategory; category: StoreCategory };
+  from: Set<string>;
+  staples: string[];
+  items: string[];
+};
+
+/** Basvaror och obockade listvaror vars underkategori avviker från dagens regler, grupperade per namn. */
+async function subcategoryMismatches(): Promise<Map<string, SubMismatch>> {
+  const [staples, items] = await Promise.all([
+    prisma.stapleItem.findMany({ where: { NOT: { categoryChosen: true } }, select: { id: true, name: true, subCategory: true } }),
+    prisma.shoppingItem.findMany({
+      where: { isChecked: false, mergedIntoId: null },
+      select: { id: true, name: true, subCategory: true, list: { select: { householdId: true } } },
+    }),
+  ]);
+  // Hushållens egna val: varor med samma namn ska följa basvaran, inte reglerna.
+  const chosen = new Set((await prisma.stapleItem.findMany({ where: { categoryChosen: true }, select: { householdId: true, name: true } }))
+    .map(c => `${c.householdId}|${c.name}`));
+  const groups = new Map<string, SubMismatch>();
+  const add = (kind: 'staples' | 'items', id: string, name: string, subCategory: string | null) => {
+    const to = currentSub(name);
+    if (!to || to.sub === subCategory) return;
+    const key = stripIngredient(name).toLowerCase().trim();
+    const g = groups.get(key) ?? { label: stripIngredient(name), to, from: new Set<string>(), staples: [], items: [] };
+    g.from.add(subLabel(subCategory));
+    g[kind].push(id);
+    groups.set(key, g);
+  };
+  for (const b of staples) add('staples', b.id, b.name, b.subCategory);
+  for (const i of items) {
+    if (chosen.has(`${i.list.householdId}|${stripIngredient(i.name).toLowerCase()}`)) continue;
+    add('items', i.id, i.name, i.subCategory);
+  }
+  return groups;
+}
 
 // --- Trasiga namn i poolen (clean-ingredient-aliases) -----------------------
 
