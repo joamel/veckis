@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useConfirm } from '../context/ConfirmContext';
+import { ConfirmHost, useConfirm } from '../context/ConfirmContext';
 import { useDiscardDraft } from '../hooks/useDiscardDraft';
 import {
   Modal,
@@ -227,6 +227,9 @@ export function DraggableBottomSheet({
       <GestureHandlerRootView style={[styles.fill, { paddingTop: insets.top }]}>
         <Animated.View pointerEvents="none" style={[styles.overlayDim, dimAnimStyle]} />
         {content}
+        {/* Bekräftelser medan arket är öppet visas härinne — på iOS syns de
+            annars aldrig (se ConfirmHost). */}
+        <ConfirmHost />
       </GestureHandlerRootView>
     </Modal>
   );
