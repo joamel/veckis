@@ -32,3 +32,28 @@ export function quickListRows(staples: StapleItem[], items: ListItem[]): QuickLi
     .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, 'sv'))
     .map(staple => ({ staple, onList: open.has(key(staple.name)) }));
 }
+
+type BoughtItem = ListItem & { checkedAt?: string | null; recipeId?: string | null; menuItemId?: string | null };
+
+/** Hur långt bak "just handlat" når när ingen "Jag handlar"-start finns. */
+export const RECENT_PURCHASE_MS = 24 * 60 * 60 * 1000;
+
+/** Kandidater till snabblistan: det som bockats av sedan `since`, utom det som
+ *  kom från veckomenyn eller ett recept (dagens middag är ingen snabbvara) och
+ *  det som redan är snabbvaror. En rad per namn, de oftast tillagda först —
+ *  engångsköpen hamnar sist men tas aldrig bort, så en ny vana kan komma med. */
+export function quickListCandidates(items: BoughtItem[], staples: StapleItem[], since: Date): string[] {
+  const usage = new Map(staples.map(s => [key(s.name), s]));
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const i of items) {
+    const k = key(i.name);
+    if (!i.isChecked || !i.checkedAt || new Date(i.checkedAt) < since) continue;
+    if (i.recipeId || i.menuItemId) continue;
+    if (usage.get(k)?.inQuickList || seen.has(k)) continue;
+    seen.add(k);
+    names.push(i.name.trim());
+  }
+  const count = (n: string) => usage.get(key(n))?.usageCount ?? 0;
+  return names.sort((a, b) => count(b) - count(a) || a.localeCompare(b, 'sv'));
+}

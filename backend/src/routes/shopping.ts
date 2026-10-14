@@ -676,7 +676,7 @@ shoppingRouter.patch('/items/:itemId/check', requireAuth, asyncHandler(async (re
   const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
   const item = await prisma.shoppingItem.update({
     where: { id: existing.id },
-    data: { isChecked: body.data.checked, checkedBy: body.data.checked ? clerkUserId : null },
+    data: { isChecked: body.data.checked, checkedBy: body.data.checked ? clerkUserId : null, checkedAt: body.data.checked ? new Date() : null },
   });
   bcast(list, { type: 'item_updated', data: item });
   res.json(item);

@@ -206,6 +206,9 @@ model ShoppingItem {
   customSubCategory String? // UTFASAD 2026-09-30 (egna underkategorier borttagna) — alltid null, kolumnen tas bort senare
   isChecked    Boolean       @default(false)
   checkedBy    String?
+  // När varan bockades av (null = obockad, eller bockad före 2026-10-14).
+  // Snabblistan föreslår det som just handlats ur det här.
+  checkedAt    DateTime?
   addedBy      String
   note         String?
   recipeId     String?

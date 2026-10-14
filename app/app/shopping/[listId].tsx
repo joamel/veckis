@@ -82,7 +82,7 @@ import {
 } from '../../src/lib/shoppingOfflineQueue';
 import { useDirtySince } from '../../src/hooks/useDirtySince';
 import { useExperiment } from '../../src/lib/experiments';
-import { quickListRows, stapleForName } from '../../src/lib/quickList';
+import { quickListCandidates, quickListRows, stapleForName, RECENT_PURCHASE_MS } from '../../src/lib/quickList';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
   fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', cheese: '🧀', dairy_eggs: '🥛',
@@ -463,6 +463,12 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [quickSheetOpen, setQuickSheetOpen] = useState(false);
   const [quickSelected, setQuickSelected] = useState<Set<string>>(new Set());
   const [quickAdding, setQuickAdding] = useState(false);
+  // "Välj från det du handlat": arkets andra läge, för att bygga upp
+  // snabblistan ur det som just bockats av.
+  const [pickSince, setPickSince] = useState<Date | null>(null);
+  const [pickSelected, setPickSelected] = useState<Set<string>>(new Set());
+  const [pickSaving, setPickSaving] = useState(false);
+  const quickNudge = useOnceFlag('seen-quick-list-nudge');
 
   // Osparade ändringar i arken — jämförs mot en ögonblicksbild tagen när
   // arket öppnades, eftersom fälten fylls i med formatering (komma i mängden,
@@ -688,10 +694,21 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     if (!list || !myMember || togglingShopper) return;
     setTogglingShopper(true);
     const next = iAmShopping ? null : myMember.id;
+    const shoppingSince = list.activeShopperSince;
     // Optimistisk uppdatering — backend broadcastar tillbaka när det landat.
     setList(prev => prev ? { ...prev, activeShopperMemberId: next, activeShopperSince: next ? new Date().toISOString() : null } : prev);
     try {
       await client.setListShopper(list.id, next);
+      // En gång, och bara när snabblistan är tom: erbjud att bygga den ur det
+      // som just handlats. Aldrig en fråga efter varje handling.
+      if (!next && devMode && quickNudge.seen === false && quickRows.length === 0
+          && list.items.some(i => i.isChecked && !i.recipeId && !i.menuItemId)) {
+        quickNudge.markSeen();
+        showGlobalToast(str.quickList.nudge, 'neutral', {
+          label: str.quickList.nudgeAction,
+          onPress: () => { setQuickSheetOpen(true); openPick(shoppingSince); },
+        });
+      }
     } catch (e) {
       // Rulla tillbaka
       setList(prev => prev ? { ...prev, activeShopperMemberId: list.activeShopperMemberId, activeShopperSince: list.activeShopperSince } : prev);
@@ -856,6 +873,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // quick-add chips when the add field is empty so återkommande inköp går snabbt.
   const topStaples = useMemo(() => staples.filter(s => s.usageCount > 0).slice(0, 8), [staples]);
   const quickRows = useMemo(() => quickListRows(staples, list?.items ?? []), [staples, list?.items]);
+  const pickCandidates = useMemo(
+    () => (pickSince ? quickListCandidates(list?.items ?? [], staples, pickSince) : []),
+    [pickSince, list?.items, staples],
+  );
 
   function visaImportGranskning(items: ImportVara[], kapad = false) {
     if (items.length === 0) {
@@ -1715,13 +1736,39 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   // Sparar valet på basvaran (skapar den om hushållet inte har en). Utan
   // kategori i anropet, så ett val gjort i basvaru-editorn står kvar.
-  function setQuickListFlag(name: string, on: boolean) {
-    if (!householdId) return;
-    client.upsertStaple({ householdId, name, inQuickList: on })
-      .then(saved => setStaples(prev => prev.some(s2 => s2.id === saved.id)
+  async function setQuickListFlag(name: string, on: boolean): Promise<boolean> {
+    if (!householdId) return false;
+    try {
+      const saved = await client.upsertStaple({ householdId, name, inQuickList: on });
+      setStaples(prev => prev.some(s2 => s2.id === saved.id)
         ? prev.map(s2 => s2.id === saved.id ? { ...s2, inQuickList: saved.inQuickList } : s2)
-        : [...prev, saved]))
-      .catch(e => showError(e, str.quickList.errorSave));
+        : [...prev, saved]);
+      return true;
+    } catch (e) {
+      showError(e, str.quickList.errorSave);
+      return false;
+    }
+  }
+
+  // Från "Jag handlar"-starten, annars det senaste dygnet. Listan laddas om
+  // så avbockningarnas tidsstämplar kommer från servern — de optimistiska
+  // uppdateringarna i appen sätter dem inte.
+  function openPick(since?: string | null) {
+    setPickSince(since ? new Date(since) : new Date(Date.now() - RECENT_PURCHASE_MS));
+    setPickSelected(new Set());
+    load();
+  }
+
+  async function savePicked() {
+    const names = [...pickSelected];
+    if (names.length === 0) return;
+    setPickSaving(true);
+    const ok = (await Promise.all(names.map(n2 => setQuickListFlag(n2, true)))).every(Boolean);
+    setPickSaving(false);
+    if (ok) {
+      setPickSince(null);
+      showGlobalToast(str.quickList.saved(names.length), 'success');
+    }
   }
 
   function toggleQuickSelected(id: string) {
@@ -1736,7 +1783,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     if (!listId) return;
     const picked: ImportVara[] = quickRows
       .filter(r => quickSelected.has(r.staple.id) && !r.onList)
-      .map(r => ({ name: r.staple.name, quantity: r.staple.defaultQuantity ?? null, unit: r.staple.unit ?? null }));
+      // Bara namnet, som när varan skrivs i fältet — basvarans sparade enhet
+      // och mängd följer inte med där heller (det gav "1 kg kycklingfilé").
+      .map(r => ({ name: r.staple.name, quantity: null, unit: null }));
     if (picked.length === 0) return;
     setQuickAdding(true);
     try {
@@ -2272,7 +2321,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           uppmärksamhet. */}
       {devMode && list?.showQuickList !== false && addBarH > 0 && !keyboardVisible && (
         <View style={[s.quickFloatWrap, { bottom: addBarH + 12 }]} pointerEvents="box-none">
-          <Pressable style={s.quickFloatBtn} onPress={() => { setQuickSelected(new Set()); setQuickSheetOpen(true); }} hitSlop={8}>
+          <Pressable style={s.quickFloatBtn} onPress={() => { setQuickSelected(new Set()); setPickSince(null); setQuickSheetOpen(true); }} hitSlop={8}>
             <Text style={s.quickFloatText}>{str.quickList.button}</Text>
             <Ionicons name="chevron-up" size={14} color={c.primary} />
           </Pressable>
@@ -3107,15 +3156,58 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         onRequestClose={() => { if (!quickAdding) setQuickSheetOpen(false); }}
         sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85 }]}
         bodyStyle={s.sheetBody}
-        title={str.quickList.title}
+        title={pickSince ? str.quickList.pickTitle : str.quickList.title}
       >
-        {quickRows.length === 0 ? (
-          <Text style={s.sheetSub}>{str.quickList.empty}</Text>
+        {pickSince ? (
+          <>
+            <Text style={s.sheetSub}>{pickCandidates.length > 0 ? str.quickList.pickHint : str.quickList.pickEmpty}</Text>
+            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
+              {pickCandidates.map(name => {
+                const picked = pickSelected.has(name);
+                return (
+                  <Pressable
+                    key={name}
+                    style={s.mergeItem}
+                    onPress={() => setPickSelected(prev => {
+                      const next = new Set(prev);
+                      if (next.has(name)) next.delete(name); else next.add(name);
+                      return next;
+                    })}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: picked }}
+                  >
+                    <Ionicons name={picked ? 'checkbox' : 'square-outline'} size={22} color={picked ? c.primary : c.textFaint} />
+                    <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(name)}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            {pickCandidates.length > 0 && (
+              <Pressable
+                style={[s.saveBtn, (pickSelected.size === 0 || pickSaving) && s.saveBtnDisabled]}
+                onPress={savePicked}
+                disabled={pickSelected.size === 0 || pickSaving}
+              >
+                {pickSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{str.quickList.savePicked(pickSelected.size)}</Text>}
+              </Pressable>
+            )}
+            <Pressable style={s.mergeIgnoreBtn} onPress={() => setPickSince(null)}>
+              <Text style={s.mergeIgnoreBtnText}>{str.quickList.back}</Text>
+            </Pressable>
+          </>
+        ) : quickRows.length === 0 ? (
+          <>
+            <Text style={s.sheetSub}>{str.quickList.empty}</Text>
+            <Pressable style={s.saveBtn} onPress={() => openPick(list?.activeShopperSince)}>
+              <Text style={s.saveBtnText}>{str.quickList.pickFromBought}</Text>
+            </Pressable>
+          </>
         ) : (
           <>
             <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
               {quickRows.map(({ staple: q, onList }) => {
                 const picked = onList || quickSelected.has(q.id);
+                const amount = onList ? browserEntryFor(list?.items ?? [], q.name)?.label || str.quickList.onList : '';
                 return (
                   <Pressable
                     key={q.id}
@@ -3128,7 +3220,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                     <Ionicons name={picked ? 'checkbox' : 'square-outline'} size={22} color={onList ? c.textFaint : picked ? c.primary : c.textFaint} />
                     <Text style={[s.mergeItemName, onList && s.importAvvald]} numberOfLines={1}>{capitalize(q.name)}</Text>
                     {onList ? (
-                      <Text style={s.quickOnList}>{str.quickList.onList}</Text>
+                      // Explicit bredd: Android klipper annars sista glyfen ("kg" → "k").
+                      <Text style={[s.quickOnList, { width: amount.length * 8 + 8 }]}>{amount}</Text>
                     ) : (
                       <Pressable onPress={() => setQuickListFlag(q.name, false)} hitSlop={10} accessibilityLabel={str.stapleEditor.removeSuggestion}>
                         <Ionicons name="close" size={18} color={c.textFaint} />
@@ -3144,6 +3237,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               disabled={quickSelected.size === 0 || quickAdding}
             >
               {quickAdding ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{str.quickList.add(quickSelected.size)}</Text>}
+            </Pressable>
+            <Pressable style={s.mergeIgnoreBtn} onPress={() => openPick(list?.activeShopperSince)}>
+              <Text style={s.mergeIgnoreBtnText}>{str.quickList.pickFromBought}</Text>
             </Pressable>
           </>
         )}
@@ -3598,7 +3694,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   quickFloatText: { fontSize: 13, fontWeight: '600', color: c.primary },
   quickToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   quickToggleText: { fontSize: 15, color: c.textSecondary, flex: 1 },
-  quickOnList: { fontSize: 13, color: c.textFaint, width: 72, textAlign: 'right' },
+  quickOnList: { fontSize: 13, color: c.textFaint, textAlign: 'right' },
   dupeFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: nyD ? ny.valdYta : c.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
   dupeFloatText: { fontSize: 13, fontWeight: '700', color: nyD ? ny.lime : '#fff' },
   dupeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.accent100, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },

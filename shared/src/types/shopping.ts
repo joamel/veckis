@@ -46,6 +46,8 @@ export interface ShoppingItem {
   subCategory: string | null;
   isChecked: boolean;
   checkedBy: string | null;
+  /** När varan bockades av. null = obockad, eller bockad innan fältet fanns. */
+  checkedAt?: string | null;
   addedBy: string;
   note: string | null;
   recipeId: string | null;
