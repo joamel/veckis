@@ -81,6 +81,8 @@ import {
   applyPendingToggles, replayPendingToggles, saveListSnapshot, readListSnapshot,
 } from '../../src/lib/shoppingOfflineQueue';
 import { useDirtySince } from '../../src/hooks/useDirtySince';
+import { useExperiment } from '../../src/lib/experiments';
+import { quickListRows, stapleForName } from '../../src/lib/quickList';
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
   fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', cheese: '🧀', dairy_eggs: '🥛',
@@ -295,6 +297,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [editUnit, setEditUnit] = useState('');
   const [editCategory, setEditCategory] = useState<StoreCategory>('other');
   const [editSubCategory, setEditSubCategory] = useState<SubCategory | null>(null);
+  // "Visa i snabblistan" — sparas på basvaran, inte på raden i listan.
+  const [editInQuickList, setEditInQuickList] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Pure transform-only collapsing header (UI-thread, no layout = zero lag).
@@ -423,6 +427,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [stapleCategory, setStapleCategory] = useState<StoreCategory>('other');
   const [stapleSubCategory, setStapleSubCategory] = useState<SubCategory | null>(null);
   const [savingStaple, setSavingStaple] = useState(false);
+  const [stapleInQuickList, setStapleInQuickList] = useState(false);
 
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   // Menyn är en egen <Modal>. På iOS öppnas ett ark eller en fråga först när
@@ -451,15 +456,22 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const importTextRef = useRef<TextInput>(null);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+  const [renameShowQuickList, setRenameShowQuickList] = useState(true);
+  // Snabblistan: hushållets egna snabbvaror, att bocka i och lägga till på en
+  // gång. Bara i dev-läget (adminsidans Sandbox) tills vidare.
+  const devMode = useExperiment('dev-mode');
+  const [quickSheetOpen, setQuickSheetOpen] = useState(false);
+  const [quickSelected, setQuickSelected] = useState<Set<string>>(new Set());
+  const [quickAdding, setQuickAdding] = useState(false);
 
   // Osparade ändringar i arken — jämförs mot en ögonblicksbild tagen när
   // arket öppnades, eftersom fälten fylls i med formatering (komma i mängden,
   // versal i namnet) och en jämförelse mot källvaran annars sa "ändrat"
   // direkt. DraggableBottomSheet frågar då innan arket stängs.
-  const editDirty = useDirtySince(editingItem, [editName, editQty, editUnit, editCategory, editSubCategory]);
-  const stapleDirty = useDirtySince(editingStaple, [stapleName, stapleUnit, stapleCategory]);
+  const editDirty = useDirtySince(editingItem, [editName, editQty, editUnit, editCategory, editSubCategory, editInQuickList]);
+  const stapleDirty = useDirtySince(editingStaple, [stapleName, stapleUnit, stapleCategory, stapleInQuickList]);
   const qtyDirty = useDirtySince(qtySheet, [qtyValue, qtyUnit, qtyCategory, qtySubCategory]);
-  const renameDirty = useDirtySince(showRenameModal, [renameValue]);
+  const renameDirty = useDirtySince(showRenameModal, [renameValue, renameShowQuickList]);
   const [renameEmoji, setRenameEmoji] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
 
@@ -468,13 +480,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const newName = renameValue.trim();
     if (!newName) return;
     setRenaming(true);
-    const prev = { name: list?.name, emoji: list?.emoji };
-    setList(p => p ? { ...p, name: newName, emoji: renameEmoji } : p);
+    const prev = { name: list?.name, emoji: list?.emoji, showQuickList: list?.showQuickList };
+    const showQuickList = devMode ? renameShowQuickList : undefined;
+    setList(p => p ? { ...p, name: newName, emoji: renameEmoji, ...(showQuickList !== undefined ? { showQuickList } : {}) } : p);
     setShowRenameModal(false);
     try {
-      await client.updateShoppingList(listId, { name: newName, emoji: renameEmoji });
+      await client.updateShoppingList(listId, { name: newName, emoji: renameEmoji, showQuickList });
     } catch (e) {
-      setList(p => p && prev.name !== undefined ? { ...p, name: prev.name!, emoji: prev.emoji ?? null } : p);
+      setList(p => p && prev.name !== undefined ? { ...p, name: prev.name!, emoji: prev.emoji ?? null, showQuickList: prev.showQuickList ?? true } : p);
       showError(e, str.toasts.errorRename);
     } finally {
       setRenaming(false);
@@ -842,6 +855,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Most-added staples (getStaples returns them usageCount-desc) — shown as
   // quick-add chips when the add field is empty so återkommande inköp går snabbt.
   const topStaples = useMemo(() => staples.filter(s => s.usageCount > 0).slice(0, 8), [staples]);
+  const quickRows = useMemo(() => quickListRows(staples, list?.items ?? []), [staples, list?.items]);
 
   function visaImportGranskning(items: ImportVara[], kapad = false) {
     if (items.length === 0) {
@@ -1350,6 +1364,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setEditUnit(item.unit ?? '');
     setEditCategory(item.category as StoreCategory);
     setEditSubCategory(((item as { subCategory?: string | null }).subCategory as SubCategory | null) ?? null);
+    setEditInQuickList(!!stapleForName(staples, item.name)?.inQuickList);
   }
 
   // Varorna bakom en AGGREGERAD rad (samma namn + enhet, t.ex. 5 × "2 st ägg"
@@ -1380,6 +1395,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const unit = editUnit.trim() || null;
     const name = (editName.trim() || editingItem.name).toLowerCase();
     const snapshot = editingItem;
+    if (devMode && editInQuickList !== !!stapleForName(staples, name)?.inQuickList) {
+      setQuickListFlag(name, editInQuickList);
+    }
 
     // Aggregerad rad: användaren redigerade SUMMAN ("10 st"), inte en av varorna
     // bakom den. Att spara på en enskild medlem gav fel mängd, och dubblett-
@@ -1695,6 +1713,45 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     });
   }
 
+  // Sparar valet på basvaran (skapar den om hushållet inte har en). Utan
+  // kategori i anropet, så ett val gjort i basvaru-editorn står kvar.
+  function setQuickListFlag(name: string, on: boolean) {
+    if (!householdId) return;
+    client.upsertStaple({ householdId, name, inQuickList: on })
+      .then(saved => setStaples(prev => prev.some(s2 => s2.id === saved.id)
+        ? prev.map(s2 => s2.id === saved.id ? { ...s2, inQuickList: saved.inQuickList } : s2)
+        : [...prev, saved]))
+      .catch(e => showError(e, str.quickList.errorSave));
+  }
+
+  function toggleQuickSelected(id: string) {
+    setQuickSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function addQuickSelected() {
+    if (!listId) return;
+    const picked: ImportVara[] = quickRows
+      .filter(r => quickSelected.has(r.staple.id) && !r.onList)
+      .map(r => ({ name: r.staple.name, quantity: r.staple.defaultQuantity ?? null, unit: r.staple.unit ?? null }));
+    if (picked.length === 0) return;
+    setQuickAdding(true);
+    try {
+      await client.addShoppingItemsBulk(listId, picked);
+      setQuickSheetOpen(false);
+      setQuickSelected(new Set());
+      showGlobalToast(str.quickList.added(picked.length), 'success');
+      load();
+    } catch (e) {
+      showError(e, str.quickList.errorAdd);
+    } finally {
+      setQuickAdding(false);
+    }
+  }
+
   function openStapleEditor(suggestion: StapleItem) {
     // Suggestion chips include both real staples (DB row, has cuid id) and ingredient
     // suggestions (synthetic id "suggestion:<name>", no DB row yet). For the latter we
@@ -1704,6 +1761,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setStapleUnit(suggestion.unit ?? '');
     setStapleCategory(suggestion.category as StoreCategory);
     setStapleSubCategory((suggestion.subCategory as SubCategory | null) ?? null);
+    setStapleInQuickList(!!suggestion.inQuickList);
   }
 
   async function saveStapleEdit() {
@@ -1713,7 +1771,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setSavingStaple(true);
     const original = editingStaple;
     const isNew = original.id.startsWith('suggestion:');
-    const optimistic: StapleItem = { ...original, name: newName, unit: stapleUnit.trim() || null, category: stapleCategory, subCategory: stapleSubCategory };
+    const inQuickList = devMode ? stapleInQuickList : undefined;
+    const optimistic: StapleItem = { ...original, name: newName, unit: stapleUnit.trim() || null, category: stapleCategory, subCategory: stapleSubCategory, inQuickList: inQuickList ?? !!original.inQuickList };
     if (!isNew) {
       setStaples(prev => prev.map(s2 => s2.id === original.id ? optimistic : s2));
     }
@@ -1729,6 +1788,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         category: stapleCategory,
         subCategory: stapleSubCategory,
         unit: stapleUnit.trim() || null,
+        inQuickList,
       });
       // Varor som redan ligger i listan flyttas av backend (som också
       // broadcastar). Uppdatera optimistiskt här också, annars hinner den som
@@ -2207,6 +2267,18 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         </View>
       )}
 
+      {/* Snabblistan: nere till vänster, mittemot dubblettknappen och
+          dämpad bredvid den — den ska finnas till hands, inte påkalla
+          uppmärksamhet. */}
+      {devMode && list?.showQuickList !== false && addBarH > 0 && !keyboardVisible && (
+        <View style={[s.quickFloatWrap, { bottom: addBarH + 12 }]} pointerEvents="box-none">
+          <Pressable style={s.quickFloatBtn} onPress={() => { setQuickSelected(new Set()); setQuickSheetOpen(true); }} hitSlop={8}>
+            <Text style={s.quickFloatText}>{str.quickList.button}</Text>
+            <Ionicons name="chevron-up" size={14} color={c.primary} />
+          </Pressable>
+        </View>
+      )}
+
       <RNAnimated.View style={addBarLift}>
       {/* Mätningen sitter INNANFÖR lyftet: addBarLift:s paddingBottom kommer
           från ett reanimated-värde som animeras varje frame när tangentbordet
@@ -2524,6 +2596,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               })}
             </View>
           </ScrollView>
+          {devMode && (
+            <Pressable
+              style={s.quickToggleRow}
+              onPress={() => setEditInQuickList(v => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: editInQuickList }}
+            >
+              <Ionicons name={editInQuickList ? 'checkbox' : 'square-outline'} size={22} color={editInQuickList ? c.primary : c.textFaint} />
+              <Text style={s.quickToggleText}>{str.quickList.inQuickList}</Text>
+            </Pressable>
+          )}
           </ScrollView>
           <View style={s.editActions}>
             <Pressable style={s.deleteBtn} onPress={() => { setEditingItem(null); if (editingItem) deleteItem(editingItem.id); }}>
@@ -2629,6 +2712,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 </View>
               </ScrollView>
             </>
+          )}
+          {devMode && (
+            <Pressable
+              style={s.quickToggleRow}
+              onPress={() => setStapleInQuickList(v => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: stapleInQuickList }}
+            >
+              <Ionicons name={stapleInQuickList ? 'checkbox' : 'square-outline'} size={22} color={stapleInQuickList ? c.primary : c.textFaint} />
+              <Text style={s.quickToggleText}>{str.quickList.inQuickList}</Text>
+            </Pressable>
           )}
           </ScrollView>
           <View style={s.editActions}>
@@ -2935,7 +3029,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         <View style={[s.actionsMenu, { top: insets.top + 4 }]}>
           <Pressable
             style={s.actionsMenuItem}
-            onPress={() => afterMenu(() => { setRenameValue(list.name); setRenameEmoji(list.emoji ?? null); setShowRenameModal(true); })}
+            onPress={() => afterMenu(() => { setRenameValue(list.name); setRenameEmoji(list.emoji ?? null); setRenameShowQuickList(list.showQuickList !== false); setShowRenameModal(true); })}
           >
             <Ionicons name="create-outline" size={20} color={c.primary} />
             <Text style={s.actionsMenuText}>{str.renameTitle}</Text>
@@ -3007,6 +3101,54 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         </View>
       </Modal>
 
+      {/* Snabblistan: bocka i snabbvaror och lägg till dem på en gång. */}
+      <DraggableBottomSheet
+        visible={quickSheetOpen}
+        onRequestClose={() => { if (!quickAdding) setQuickSheetOpen(false); }}
+        sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85 }]}
+        bodyStyle={s.sheetBody}
+        title={str.quickList.title}
+      >
+        {quickRows.length === 0 ? (
+          <Text style={s.sheetSub}>{str.quickList.empty}</Text>
+        ) : (
+          <>
+            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
+              {quickRows.map(({ staple: q, onList }) => {
+                const picked = onList || quickSelected.has(q.id);
+                return (
+                  <Pressable
+                    key={q.id}
+                    style={s.mergeItem}
+                    onPress={() => toggleQuickSelected(q.id)}
+                    disabled={onList}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: picked, disabled: onList }}
+                  >
+                    <Ionicons name={picked ? 'checkbox' : 'square-outline'} size={22} color={onList ? c.textFaint : picked ? c.primary : c.textFaint} />
+                    <Text style={[s.mergeItemName, onList && s.importAvvald]} numberOfLines={1}>{capitalize(q.name)}</Text>
+                    {onList ? (
+                      <Text style={s.quickOnList}>{str.quickList.onList}</Text>
+                    ) : (
+                      <Pressable onPress={() => setQuickListFlag(q.name, false)} hitSlop={10} accessibilityLabel={str.stapleEditor.removeSuggestion}>
+                        <Ionicons name="close" size={18} color={c.textFaint} />
+                      </Pressable>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <Pressable
+              style={[s.saveBtn, (quickSelected.size === 0 || quickAdding) && s.saveBtnDisabled]}
+              onPress={addQuickSelected}
+              disabled={quickSelected.size === 0 || quickAdding}
+            >
+              {quickAdding ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{str.quickList.add(quickSelected.size)}</Text>}
+            </Pressable>
+          </>
+        )}
+      </DraggableBottomSheet>
+
       {/* Rename list modal */}
       <DraggableBottomSheet
         visible={showRenameModal}
@@ -3031,6 +3173,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             {nyDesign
               ? <IkonValjare value={renameEmoji} onChange={setRenameEmoji} label={common.iconOptional} />
               : <EmojiPicker value={renameEmoji} onChange={setRenameEmoji} />}
+            {devMode && (
+              <Pressable
+                style={s.quickToggleRow}
+                onPress={() => setRenameShowQuickList(v => !v)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: renameShowQuickList }}
+              >
+                <Ionicons name={renameShowQuickList ? 'checkbox' : 'square-outline'} size={22} color={renameShowQuickList ? c.primary : c.textFaint} />
+                <Text style={s.quickToggleText}>{str.quickList.showOnList}</Text>
+              </Pressable>
+            )}
             <Pressable
               style={[s.saveBtn, (!renameValue.trim() || renaming) && s.saveBtnDisabled]}
               onPress={saveRename}
@@ -3440,6 +3593,12 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   emptyText: { fontSize: 17, fontWeight: '600', color: c.textSecondary, marginTop: 12 },
   emptySubtext: { fontSize: 13, color: c.textFaint, marginTop: 4, textAlign: 'center', paddingHorizontal: 32 },
   dupeFloatWrap: { position: 'absolute', right: 16, zIndex: 5 },
+  quickFloatWrap: { position: 'absolute', left: 16, zIndex: 5 },
+  quickFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
+  quickFloatText: { fontSize: 13, fontWeight: '600', color: c.primary },
+  quickToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  quickToggleText: { fontSize: 15, color: c.textSecondary, flex: 1 },
+  quickOnList: { fontSize: 13, color: c.textFaint, width: 72, textAlign: 'right' },
   dupeFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: nyD ? ny.valdYta : c.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
   dupeFloatText: { fontSize: 13, fontWeight: '700', color: nyD ? ny.lime : '#fff' },
   dupeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.accent100, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },

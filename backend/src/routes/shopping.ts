@@ -83,6 +83,7 @@ const createListSchema = z.object({
   emoji: z.string().max(8).nullable().optional(),
   storeId: z.string().optional(),
   isShared: z.boolean().default(true),
+  showQuickList: z.boolean().optional(),
 });
 
 const addItemSchema = z.object({
@@ -268,6 +269,7 @@ shoppingRouter.patch('/lists/:listId', requireAuth, asyncHandler(async (req, res
     name: z.string().min(1).max(100).optional(),
     emoji: z.string().max(8).nullable().optional(),
     storeId: z.string().nullable().optional(),
+    showQuickList: z.boolean().optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 

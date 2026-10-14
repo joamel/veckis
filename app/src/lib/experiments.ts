@@ -14,10 +14,11 @@ import { useSyncExternalStore } from 'react';
 import * as SecureStore from './secureStorage';
 
 export const EXPERIMENTS = [
-  // Förslaget på kategoriordning räknas fram ur en enda handling (backend
-  // godtar det bara från appadmin) — ett varaktigt testverktyg, så kortet går
-  // att prova utan fyra handlingar i butiken.
-  'order-suggestions-relaxed',
+  // Dev-läge: allt som är under utveckling, på en gång. Hittills:
+  // - förslaget på kategoriordning ur en enda handling (backend godtar det
+  //   bara från appadmin), så kortet går att prova utan fyra handlingar
+  // - snabblistan i inköpslistan
+  'dev-mode',
 ] as const;
 
 export type ExperimentId = typeof EXPERIMENTS[number];

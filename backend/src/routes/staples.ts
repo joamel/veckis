@@ -68,6 +68,9 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
     subCategory: z.string().max(60).nullable().optional(),
     unit: z.string().max(50).nullable().optional(),
     defaultQuantity: z.number().positive().nullable().optional(),
+    // Snabblistan. Utelämnad = lämna valet orört, så anropet som följer med
+    // varje tillägg aldrig plockar bort en snabbvara.
+    inQuickList: z.boolean().optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
@@ -110,6 +113,7 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
         ...skrivning.uppdatera,
         unit: body.data.unit,
         defaultQuantity: body.data.defaultQuantity,
+        inQuickList: body.data.inQuickList,
       },
     }));
   }

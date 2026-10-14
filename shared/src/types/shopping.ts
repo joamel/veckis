@@ -29,6 +29,8 @@ export interface ShoppingList {
    *  dubbla turer till affären. */
   activeShopperMemberId: string | null;
   activeShopperSince: string | null;
+  /** Visar listan snabblistan? Av för listor där snabbvarorna inte hör hemma. */
+  showQuickList: boolean;
 }
 
 export interface ShoppingItem {

@@ -179,6 +179,9 @@ model ShoppingList {
   // ser en markör så ingen råkar göra dubbla turer till affären.
   activeShopperMemberId String?
   activeShopperSince    DateTime?
+  // Visar listan snabblistan (hushållets valda snabbvaror)? Av för listor där
+  // de inte hör hemma, t.ex. en apotekslista.
+  showQuickList         Boolean   @default(true)
 
   household Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
   store     Store?        @relation(fields: [storeId], references: [id], onDelete: SetNull)
@@ -357,6 +360,9 @@ model StapleItem {
   unit            String?
   defaultQuantity Float?
   usageCount      Int           @default(0) // times added to a list — drives "dina vanligaste"
+  // Hushållet har själv valt att varan visas i snabblistan. Aldrig inlärt —
+  // ett val, så det inte kan glida ur synk med hur man faktiskt handlar.
+  inQuickList     Boolean       @default(false)
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 

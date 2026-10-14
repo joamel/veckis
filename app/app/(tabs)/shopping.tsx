@@ -40,6 +40,7 @@ import { type Store } from '@veckis/shared';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { shopping as str, common, gettingStarted } from '../../src/lib/svenska';
+import { useExperiment } from '../../src/lib/experiments';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 
 export default function ShoppingScreen() {
@@ -52,7 +53,7 @@ export default function ShoppingScreen() {
   const { showError } = useToast();
   const confirm = useConfirm();
   const tryCloseCreate = useDiscardDraft(confirm);
-  const discardCreate = () => { setShowModal(false); setNewListName(''); setNewListEmoji(null); setNewListStoreId(null); };
+  const discardCreate = () => { setShowModal(false); setNewListName(''); setNewListEmoji(null); setNewListStoreId(null); setNewListQuickList(true); };
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
   const storesTip = useOnceFlag('seen-stores-tip');
@@ -66,6 +67,10 @@ export default function ShoppingScreen() {
   const [newListName, setNewListName] = useState('');
   const [newListEmoji, setNewListEmoji] = useState<string | null>(null);
   const [newListStoreId, setNewListStoreId] = useState<string | null>(null);
+  // Snabblistan på/av för den nya listan. På som standard — den som gör en
+  // apotekslista stänger av den, alla andra behöver inte ta ställning.
+  const [newListQuickList, setNewListQuickList] = useState(true);
+  const devMode = useExperiment('dev-mode');
   const [creating, setCreating] = useState(false);
   // Scroll-into-view-lyft för modalen (mät fokuserat fält, lyft lagom).
   const { sheetLift, onFocusInput } = useSheetLift();
@@ -157,8 +162,9 @@ export default function ShoppingScreen() {
     if (!householdId || !newListName.trim()) return;
     setCreating(true);
     try {
-      const list = await client.createShoppingList({ householdId, name: newListName.trim(), emoji: newListEmoji, storeId: newListStoreId ?? undefined });
+      const list = await client.createShoppingList({ householdId, name: newListName.trim(), emoji: newListEmoji, storeId: newListStoreId ?? undefined, ...(devMode ? { showQuickList: newListQuickList } : {}) });
       setShowModal(false);
+      setNewListQuickList(true);
       setNewListName('');
       setNewListEmoji(null);
       setNewListStoreId(null);
@@ -334,6 +340,17 @@ export default function ShoppingScreen() {
               </Text>
               <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
             </Pressable>
+            {devMode && (
+              <Pressable
+                style={styles.quickToggleRow}
+                onPress={() => setNewListQuickList(v => !v)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: newListQuickList }}
+              >
+                <Ionicons name={newListQuickList ? 'checkbox' : 'square-outline'} size={22} color={newListQuickList ? c.primary : c.textFaint} />
+                <Text style={styles.quickToggleText}>{str.createModal.showQuickList}</Text>
+              </Pressable>
+            )}
             <Pressable
               style={[styles.button, !newListName.trim() && styles.buttonDisabled]}
               onPress={createList}
@@ -452,6 +469,8 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.background },
   catRowLabel: { flex: 1, fontSize: 15, color: c.textSecondary },
   catArrow: { padding: 6 },
+  quickToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
+  quickToggleText: { fontSize: 15, color: c.textSecondary, flex: 1 },
   pickStoreLabel: { fontSize: 14, fontWeight: '600', color: c.textSecondary, marginBottom: -6 },
   storePickBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: c.borderLight, backgroundColor: c.background },
   storePickBtnText: { flex: 1, fontSize: 15, color: c.textSecondary, fontWeight: '500' },

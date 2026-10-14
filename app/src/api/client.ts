@@ -410,7 +410,7 @@ export function useApiClient() {
     getShoppingList: (listId: string) =>
       request<ShoppingListWithItems>(`/api/shopping/lists/${listId}`),
 
-    createShoppingList: (data: { householdId: string; name: string; emoji?: string | null; storeId?: string; isShared?: boolean }) =>
+    createShoppingList: (data: { householdId: string; name: string; emoji?: string | null; storeId?: string; isShared?: boolean; showQuickList?: boolean }) =>
       request<ShoppingListWithItems>('/api/shopping/lists', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -675,7 +675,7 @@ export function useApiClient() {
     getStaples: (householdId: string) =>
       request<StapleItem[]>(`/api/staples?householdId=${householdId}`),
 
-    upsertStaple: (data: { householdId: string; name: string; category?: string; subCategory?: string | null; unit?: string | null; defaultQuantity?: number | null }) =>
+    upsertStaple: (data: { householdId: string; name: string; category?: string; subCategory?: string | null; unit?: string | null; defaultQuantity?: number | null; inQuickList?: boolean }) =>
       request<StapleItem>('/api/staples', { method: 'POST', body: JSON.stringify(data) }),
 
     deleteStaple: (stapleId: string) =>
@@ -696,7 +696,7 @@ export function useApiClient() {
     unhideSuggestion: (householdId: string, name: string) =>
       request<void>('/api/staples/hide-suggestion', { method: 'DELETE', body: JSON.stringify({ householdId, name }) }),
 
-    updateShoppingList: (listId: string, data: { name?: string; emoji?: string | null; storeId?: string | null }) =>
+    updateShoppingList: (listId: string, data: { name?: string; emoji?: string | null; storeId?: string | null; showQuickList?: boolean }) =>
       request<ShoppingListWithItems>(`/api/shopping/lists/${listId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     // Push notifications

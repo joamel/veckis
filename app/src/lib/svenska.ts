@@ -159,6 +159,7 @@ export const shopping = {
     storeLabel:      'Butik (valfritt)',
     storePlaceholder:'Välj butik…',
     createButton:    'Skapa lista',
+    showQuickList:   'Visa snabblistan',
   },
 
   toasts: {
@@ -261,6 +262,18 @@ export const shoppingList = {
   fallbackActor:   'Någon',
   checkedLabel:    'Klart',
   stapleEditor:    { saveTitle: 'Spara som basvara', editTitle: 'Redigera basvara', removeSuggestion: 'Ta bort förslag' },
+  quickList: {
+    button:        'Snabblista',
+    title:         'Snabblista',
+    inQuickList:   'Visa i snabblistan',
+    showOnList:    'Visa snabblistan',
+    onList:        'På listan',
+    add:           (n: number) => n === 0 ? 'Välj varor' : `Lägg till ${n} ${n === 1 ? 'vara' : 'varor'}`,
+    added:         (n: number) => `${n} ${n === 1 ? 'vara' : 'varor'} tillagd${n === 1 ? '' : 'a'}`,
+    empty:         'Snabblistan är tom. Redigera en vara och bocka i "Visa i snabblistan" så hamnar den här.',
+    errorAdd:      'Kunde inte lägga till varorna',
+    errorSave:     'Kunde inte spara snabblistan',
+  },
   shopperToggle:   { start: 'Jag handlar nu', stop: 'Sluta handla' },
 
   validation: {
@@ -1842,9 +1855,9 @@ export const admin = {
   retry:     'Försök igen',
   searchPlaceholder: 'Klassa ett varunamn…',
   sandbox: {
-    'order-suggestions-relaxed': {
-      title:       'Förslag ur en enda handling',
-      description: 'Räknar fram förslaget på kategoriordning ur så lite som en handling i butiken, så kortet "Ändra ordning?" går att prova direkt.',
+    'dev-mode': {
+      title:       'Dev-läge',
+      description: 'Slår på det som är under utveckling, bara på den här telefonen: snabblistan i inköpslistan, och förslag på kategoriordning ur så lite som en handling i butiken.',
     },
   },
   tabs: {
