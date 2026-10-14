@@ -149,8 +149,8 @@ export default function StoreDetailScreen() {
   // Ordningen före "Godkänn", så förslaget kan ångras (null = inget att ångra).
   const [orderBeforeSuggestion, setOrderBeforeSuggestion] = useState<string[] | null>(null);
   const [previewing, setPreviewing] = useState(false);
-  // Appadminens testläge (Sandbox): förslaget ur en enda handling.
-  const relaxedSuggestions = useExperiment('order-suggestions-relaxed');
+  // Appadminens dev-läge (Sandbox): förslaget ur en enda handling.
+  const relaxedSuggestions = useExperiment('dev-mode');
   // Rader som flyttas i förslaget — markeras under förhandsgranskningen.
   const movedKeys = useMemo(
     () => new Set(previewing ? (suggestion?.moves ?? []).map(m => m.key) : []),

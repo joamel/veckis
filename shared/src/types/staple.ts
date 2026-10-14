@@ -11,6 +11,8 @@ export interface StapleItem {
   unit: string | null;
   defaultQuantity: number | null;
   usageCount: number;
+  /** Hushållet har valt att varan visas i snabblistan. */
+  inQuickList: boolean;
 }
 
 export const CATEGORY_LABELS: Record<StoreCategory, string> = {
