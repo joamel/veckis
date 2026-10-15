@@ -2352,7 +2352,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           uppmärksamhet. */}
       {devMode && list?.showQuickList !== false && addBarH > 0 && !keyboardVisible && (
         <View style={[s.quickFloatWrap, { bottom: addBarH + 12 }]} pointerEvents="box-none">
-          <Pressable style={s.quickFloatBtn} onPress={() => { setQuickSelected(new Set()); setPickSince(null); setQuickSheetOpen(true); }} hitSlop={8}>
+          {/* Grå vid tryck i stället för den vanliga nedtoningen: pillen svävar
+              över listan, och tonad syntes raderna bakom igenom. */}
+          <Pressable
+            noFeedback
+            style={({ pressed }) => [s.quickFloatBtn, pressed && s.quickFloatBtnPressed]}
+            onPress={() => { setQuickSelected(new Set()); setPickSince(null); setQuickSheetOpen(true); }}
+            hitSlop={8}
+          >
             <Text style={s.quickFloatText}>{str.quickList.button}</Text>
             <Ionicons name="chevron-up" size={14} color={c.primary} />
           </Pressable>
@@ -3723,6 +3730,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   dupeFloatWrap: { position: 'absolute', right: 16, zIndex: 5 },
   quickFloatWrap: { position: 'absolute', left: 16, zIndex: 5 },
   quickFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
+  quickFloatBtnPressed: { backgroundColor: c.borderLight },
   quickFloatText: { fontSize: 13, fontWeight: '600', color: c.primary },
   quickToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   quickToggleText: { fontSize: 15, color: c.textSecondary, flex: 1 },
