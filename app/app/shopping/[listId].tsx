@@ -87,6 +87,8 @@ import { amountOf, quickAmountLabel, quickListCandidates, quickListRows, stapleF
 /** Luft under listan när en knapp svävar ovanför lägg-till-baren: knappens
  *  höjd (~34) + avståndet till baren (12) + lite marginal. */
 const FLOATING_BUTTON_CLEARANCE = 56;
+/** Snabblistans ark visar så här många rader (plus en halv) innan det scrollar. */
+const QUICK_VISIBLE_ROWS = 6;
 /** chipRowWrap:s paddingVertical och gap — höjden på två rader räknas ur dem. */
 const CHIP_ROW_PAD = 6;
 const CHIP_GAP = 8;
@@ -478,6 +480,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [quickSheetOpen, setQuickSheetOpen] = useState(false);
   const [quickSelected, setQuickSelected] = useState<Set<string>>(new Set());
   const [quickAdding, setQuickAdding] = useState(false);
+  const [quickRowH, setQuickRowH] = useState(0);
   // "Välj från det du handlat": arkets andra läge, för att bygga upp
   // snabblistan ur det som just bockats av.
   const [pickSince, setPickSince] = useState<Date | null>(null);
@@ -3240,6 +3243,19 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85 }]}
         bodyStyle={s.sheetBody}
         title={pickSince ? str.quickList.pickTitle : str.quickList.title}
+        headerRight={!pickSince && quickSelectable.length > 1 ? (
+          // Lime på rubrikens skog — samma färgpar som valda saker i appen.
+          <Pressable
+            style={s.quickSelectAll}
+            onPress={() => setQuickSelected(quickAllPicked ? new Set() : new Set(quickSelectable.map(r => r.staple.id)))}
+            hitSlop={10}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: quickAllPicked }}
+          >
+            <Ionicons name={quickAllPicked ? 'checkbox' : 'square-outline'} size={20} color={ny.lime} />
+            <Text style={s.quickSelectAllText}>{str.quickList.selectAll}</Text>
+          </Pressable>
+        ) : undefined}
       >
         {pickSince ? (
           <>
@@ -3289,21 +3305,13 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           </>
         ) : (
           <>
-            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
-              {/* "Välj alla" som en kryssrad överst, likadan som raderna under —
-                  en länk i rubriken var för lätt att missa. */}
-              {quickSelectable.length > 1 && (
-                <Pressable
-                  style={s.mergeItem}
-                  onPress={() => setQuickSelected(quickAllPicked ? new Set() : new Set(quickSelectable.map(r => r.staple.id)))}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: quickAllPicked }}
-                >
-                  <Ionicons name={quickAllPicked ? 'checkbox' : 'square-outline'} size={22} color={quickAllPicked ? c.primary : c.textFaint} />
-                  <Text style={[s.mergeItemName, s.quickSelectAllText]}>{str.quickList.selectAll}</Text>
-                </Pressable>
-              )}
-              {quickRows.map(({ staple: q, onList }) => {
+            {/* Högst sex och en halv rad: den halva raden längst ner visar att
+                det finns mer att scrolla till. Radhöjden mäts på första raden. */}
+            <ScrollView
+              style={[{ flexShrink: 1 }, quickRowH > 0 && quickRows.length > QUICK_VISIBLE_ROWS && { maxHeight: quickRowH * (QUICK_VISIBLE_ROWS + 0.5) }]}
+              showsVerticalScrollIndicator
+            >
+              {quickRows.map(({ staple: q, onList }, rowIndex) => {
                 const picked = quickSelected.has(q.id);
                 // Snabbvarans egen mängd — det som läggs till. Vad som redan
                 // står på listan visas för sig under namnet.
@@ -3313,23 +3321,26 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   <Pressable
                     key={q.id}
                     style={s.mergeItem}
+                    onLayout={rowIndex === 0 ? e => { const h = e.nativeEvent.layout.height; setQuickRowH(prev => (Math.abs(prev - h) > 1 ? h : prev)); } : undefined}
                     onPress={() => toggleQuickSelected(q.id)}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: picked }}
                   >
                     <Ionicons name={picked ? 'checkbox' : 'square-outline'} size={22} color={picked ? c.primary : c.textFaint} />
                     <View style={{ flex: 1 }}>
-                      <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(q.name)}</Text>
+                      {/* Mängden i SAMMA text som namnet: direkt efter, på samma
+                          baslinje, och en enda mätning (två texter bredvid
+                          varandra är det som klipper på Android). */}
+                      <Text style={s.mergeItemName} numberOfLines={1}>
+                        {capitalize(q.name)}
+                        {amount ? <Text style={s.quickAmountInline}>{'  '}{amount}</Text> : null}
+                      </Text>
                       {onList && (
                         <Text style={s.importUnder} numberOfLines={1}>
                           {onListLabel ? str.quickList.onListAmount(onListLabel) : str.quickList.onList}
                         </Text>
                       )}
                     </View>
-                    {amount ? (
-                      // Explicit bredd: Android klipper annars sista glyfen ("kg" → "k").
-                      <Text style={[s.mergeItemQty, { width: amount.length * 8 + 8 }]}>{amount}</Text>
-                    ) : null}
                     {/* Krysset alltid längst ut, även när varan står på listan. */}
                     <Pressable onPress={() => setQuickListFlag(q.name, false)} hitSlop={10} accessibilityLabel={str.stapleEditor.removeSuggestion}>
                       <Ionicons name="close" size={18} color={c.textFaint} />
@@ -3804,7 +3815,9 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   quickToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   quickToggleText: { fontSize: 15, color: c.textSecondary, flex: 1 },
   quickLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
-  quickSelectAllText: { fontWeight: '700', color: c.text },
+  quickSelectAll: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  quickSelectAllText: { fontSize: 14, fontWeight: '700', color: ny.lime },
+  quickAmountInline: { fontSize: 14, color: c.textMuted },
   quickLinkText: { fontSize: 14, fontWeight: '600', color: c.primary },
   dupeFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: nyD ? ny.valdYta : c.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
   dupeFloatText: { fontSize: 13, fontWeight: '700', color: nyD ? ny.lime : '#fff' },
