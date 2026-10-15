@@ -873,6 +873,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // quick-add chips when the add field is empty so återkommande inköp går snabbt.
   const topStaples = useMemo(() => staples.filter(s => s.usageCount > 0).slice(0, 8), [staples]);
   const quickRows = useMemo(() => quickListRows(staples, list?.items ?? []), [staples, list?.items]);
+  // Det som faktiskt läggs till: markerat, fortfarande i snabblistan och inte
+  // redan på listan. En markering på en vara som sedan togs bort ur snabb-
+  // listan räknades annars med i "Lägg till 1 vara".
+  const quickPicked = useMemo(() => quickRows.filter(r => quickSelected.has(r.staple.id) && !r.onList), [quickRows, quickSelected]);
   const pickCandidates = useMemo(
     () => (pickSince ? quickListCandidates(list?.items ?? [], staples, pickSince) : []),
     [pickSince, list?.items, staples],
@@ -1781,8 +1785,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   async function addQuickSelected() {
     if (!listId) return;
-    const picked: ImportVara[] = quickRows
-      .filter(r => quickSelected.has(r.staple.id) && !r.onList)
+    const picked: ImportVara[] = quickPicked
       // Bara namnet, som när varan skrivs i fältet — basvarans sparade enhet
       // och mängd följer inte med där heller (det gav "1 kg kycklingfilé").
       .map(r => ({ name: r.staple.name, quantity: null, unit: null }));
@@ -3232,11 +3235,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               })}
             </ScrollView>
             <Pressable
-              style={[s.saveBtn, (quickSelected.size === 0 || quickAdding) && s.saveBtnDisabled]}
+              style={[s.saveBtn, (quickPicked.length === 0 || quickAdding) && s.saveBtnDisabled]}
               onPress={addQuickSelected}
-              disabled={quickSelected.size === 0 || quickAdding}
+              disabled={quickPicked.length === 0 || quickAdding}
             >
-              {quickAdding ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{str.quickList.add(quickSelected.size)}</Text>}
+              {quickAdding ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{str.quickList.add(quickPicked.length)}</Text>}
             </Pressable>
             <Pressable style={s.mergeIgnoreBtn} onPress={() => openPick(list?.activeShopperSince)}>
               <Text style={s.mergeIgnoreBtnText}>{str.quickList.pickFromBought}</Text>
