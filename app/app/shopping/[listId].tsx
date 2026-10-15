@@ -82,7 +82,7 @@ import {
 } from '../../src/lib/shoppingOfflineQueue';
 import { useDirtySince } from '../../src/hooks/useDirtySince';
 import { useExperiment } from '../../src/lib/experiments';
-import { quickListCandidates, quickListRows, stapleForName, RECENT_PURCHASE_MS } from '../../src/lib/quickList';
+import { amountOf, quickAmountLabel, quickListCandidates, quickListRows, stapleForName, RECENT_PURCHASE_MS, type QuickAmount } from '../../src/lib/quickList';
 
 /** Luft under listan när en knapp svävar ovanför lägg-till-baren: knappens
  *  höjd (~34) + avståndet till baren (12) + lite marginal. */
@@ -895,11 +895,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Det som faktiskt läggs till: markerat, fortfarande i snabblistan och inte
   // redan på listan. En markering på en vara som sedan togs bort ur snabb-
   // listan räknades annars med i "Lägg till 1 vara".
-  const quickPicked = useMemo(() => quickRows.filter(r => quickSelected.has(r.staple.id) && !r.onList), [quickRows, quickSelected]);
+  const quickPicked = useMemo(() => quickRows.filter(r => quickSelected.has(r.staple.id)), [quickRows, quickSelected]);
   // "Välj alla" gäller det som går att lägga till — inte det som redan står
   // på listan. Är allt redan valt avmarkerar samma knapp.
   const quickSelectable = useMemo(() => quickRows.filter(r => !r.onList), [quickRows]);
-  const quickAllPicked = quickSelectable.length > 0 && quickPicked.length === quickSelectable.length;
+  const quickAllPicked = quickSelectable.length > 0 && quickSelectable.every(r => quickSelected.has(r.staple.id));
   const pickCandidates = useMemo(
     () => (pickSince ? quickListCandidates(list?.items ?? [], staples, pickSince) : []),
     [pickSince, list?.items, staples],
@@ -1451,7 +1451,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const name = (editName.trim() || editingItem.name).toLowerCase();
     const snapshot = editingItem;
     if (devMode && editInQuickList !== !!stapleForName(staples, name)?.inQuickList) {
-      setQuickListFlag(name, editInQuickList);
+      // Läggs den i snabblistan blir mängden i formuläret dess mängd.
+      setQuickListFlag(name, editInQuickList, editInQuickList ? amountOf({ quantity: qty, unit }) : undefined);
     }
 
     // Aggregerad rad: användaren redigerade SUMMAN ("10 st"), inte en av varorna
@@ -1771,12 +1772,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   // Sparar valet på basvaran (skapar den om hushållet inte har en). Utan
   // kategori i anropet, så ett val gjort i basvaru-editorn står kvar.
-  async function setQuickListFlag(name: string, on: boolean): Promise<boolean> {
+  // amount: snabbvarans egen mängd, satt när varan LÄGGS i snabblistan —
+  // aldrig senare, annars blev en ihopslagen rad (1,5 l + 1 l) den nya mängden.
+  async function setQuickListFlag(name: string, on: boolean, amount?: QuickAmount): Promise<boolean> {
     if (!householdId) return false;
     try {
-      const saved = await client.upsertStaple({ householdId, name, inQuickList: on });
+      const saved = await client.upsertStaple({ householdId, name, inQuickList: on, ...amount });
       setStaples(prev => prev.some(s2 => s2.id === saved.id)
-        ? prev.map(s2 => s2.id === saved.id ? { ...s2, inQuickList: saved.inQuickList } : s2)
+        ? prev.map(s2 => s2.id === saved.id ? { ...s2, inQuickList: saved.inQuickList, quickQuantity: saved.quickQuantity, quickUnit: saved.quickUnit } : s2)
         : [...prev, saved]);
       return true;
     } catch (e) {
@@ -1798,7 +1801,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const names = [...pickSelected];
     if (names.length === 0) return;
     setPickSaving(true);
-    const ok = (await Promise.all(names.map(n2 => setQuickListFlag(n2, true)))).every(Boolean);
+    const chosen = pickCandidates.filter(cand => pickSelected.has(cand.name));
+    const ok = (await Promise.all(chosen.map(({ name: n2, ...amount }) => setQuickListFlag(n2, true, amount)))).every(Boolean);
     setPickSaving(false);
     if (ok) {
       setPickSince(null);
@@ -1817,9 +1821,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   async function addQuickSelected() {
     if (!listId) return;
     const picked: ImportVara[] = quickPicked
-      // Bara namnet, som när varan skrivs i fältet — basvarans sparade enhet
-      // och mängd följer inte med där heller (det gav "1 kg kycklingfilé").
-      .map(r => ({ name: r.staple.name, quantity: null, unit: null }));
+      // Snabbvarans EGEN mängd — inte basvarans unit/defaultQuantity, som
+      // skrivs av annat i appen (det gav "1 kg kycklingfilé").
+      .map(r => ({ name: r.staple.name, quantity: r.staple.quickQuantity ?? null, unit: r.staple.quickUnit ?? null }));
     if (picked.length === 0) return;
     setQuickAdding(true);
     try {
@@ -1855,6 +1859,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const original = editingStaple;
     const isNew = original.id.startsWith('suggestion:');
     const inQuickList = devMode ? stapleInQuickList : undefined;
+    // Basvaru-editorn har ingen mängd — läggs varan i snabblistan härifrån är
+    // den bara namnet (och en gammal mängd från förra gången följer inte med).
+    const quickAmount: QuickAmount | undefined = inQuickList && !original.inQuickList ? { quickQuantity: null, quickUnit: null } : undefined;
     const optimistic: StapleItem = { ...original, name: newName, unit: stapleUnit.trim() || null, category: stapleCategory, subCategory: stapleSubCategory, inQuickList: inQuickList ?? !!original.inQuickList };
     if (!isNew) {
       setStaples(prev => prev.map(s2 => s2.id === original.id ? optimistic : s2));
@@ -1872,6 +1879,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         subCategory: stapleSubCategory,
         unit: stapleUnit.trim() || null,
         inQuickList,
+        ...quickAmount,
       });
       // Varor som redan ligger i listan flyttas av backend (som också
       // broadcastar). Uppdatera optimistiskt här också, annars hinner den som
@@ -3221,8 +3229,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           <>
             <Text style={s.sheetSub}>{pickCandidates.length > 0 ? str.quickList.pickHint : str.quickList.pickEmpty}</Text>
             <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
-              {pickCandidates.map(name => {
+              {pickCandidates.map(({ name, ...amount }) => {
                 const picked = pickSelected.has(name);
+                const label = quickAmountLabel(amount);
                 return (
                   <Pressable
                     key={name}
@@ -3237,6 +3246,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   >
                     <Ionicons name={picked ? 'checkbox' : 'square-outline'} size={22} color={picked ? c.primary : c.textFaint} />
                     <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(name)}</Text>
+                    {label ? <Text style={[s.mergeItemQty, { width: label.length * 8 + 8 }]}>{label}</Text> : null}
                   </Pressable>
                 );
               })}
@@ -3278,23 +3288,32 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 </Pressable>
               )}
               {quickRows.map(({ staple: q, onList }) => {
-                const picked = onList || quickSelected.has(q.id);
-                const amount = onList ? browserEntryFor(list?.items ?? [], q.name)?.label || str.quickList.onList : '';
+                const picked = quickSelected.has(q.id);
+                // Snabbvarans egen mängd — det som läggs till. Vad som redan
+                // står på listan visas för sig under namnet.
+                const amount = quickAmountLabel(q);
+                const onListLabel = onList ? browserEntryFor(list?.items ?? [], q.name)?.label ?? '' : '';
                 return (
                   <Pressable
                     key={q.id}
                     style={s.mergeItem}
                     onPress={() => toggleQuickSelected(q.id)}
-                    disabled={onList}
                     accessibilityRole="checkbox"
-                    accessibilityState={{ checked: picked, disabled: onList }}
+                    accessibilityState={{ checked: picked }}
                   >
-                    <Ionicons name={picked ? 'checkbox' : 'square-outline'} size={22} color={onList ? c.textFaint : picked ? c.primary : c.textFaint} />
-                    <Text style={[s.mergeItemName, onList && s.importAvvald]} numberOfLines={1}>{capitalize(q.name)}</Text>
-                    {onList && (
+                    <Ionicons name={picked ? 'checkbox' : 'square-outline'} size={22} color={picked ? c.primary : c.textFaint} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.mergeItemName} numberOfLines={1}>{capitalize(q.name)}</Text>
+                      {onList && (
+                        <Text style={s.importUnder} numberOfLines={1}>
+                          {onListLabel ? str.quickList.onListAmount(onListLabel) : str.quickList.onList}
+                        </Text>
+                      )}
+                    </View>
+                    {amount ? (
                       // Explicit bredd: Android klipper annars sista glyfen ("kg" → "k").
-                      <Text style={[s.quickOnList, { width: amount.length * 8 + 8 }]}>{amount}</Text>
-                    )}
+                      <Text style={[s.mergeItemQty, { width: amount.length * 8 + 8 }]}>{amount}</Text>
+                    ) : null}
                     {/* Krysset alltid längst ut, även när varan står på listan. */}
                     <Pressable onPress={() => setQuickListFlag(q.name, false)} hitSlop={10} accessibilityLabel={str.stapleEditor.removeSuggestion}>
                       <Ionicons name="close" size={18} color={c.textFaint} />
@@ -3771,7 +3790,6 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   quickLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   quickSelectAllText: { fontWeight: '700', color: c.text },
   quickLinkText: { fontSize: 14, fontWeight: '600', color: c.primary },
-  quickOnList: { fontSize: 13, color: c.textFaint, textAlign: 'right' },
   dupeFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: nyD ? ny.valdYta : c.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
   dupeFloatText: { fontSize: 13, fontWeight: '700', color: nyD ? ny.lime : '#fff' },
   dupeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.accent100, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },

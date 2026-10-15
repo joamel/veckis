@@ -268,6 +268,7 @@ export const shoppingList = {
     inQuickList:   'Visa i snabblistan',
     showOnList:    'Visa snabblistan',
     onList:        'På listan',
+    onListAmount:  (amount: string) => `${amount} på listan`,
     add:           (n: number) => n === 0 ? 'Lägg till' : `Lägg till ${n} ${n === 1 ? 'vara' : 'varor'}`,
     added:         (n: number) => `${n} ${n === 1 ? 'vara' : 'varor'} tillagd${n === 1 ? '' : 'a'}`,
     empty:         'Snabblistan är tom. Välj bland det du just handlat, eller bocka i "Visa i snabblistan" när du redigerar en vara.',

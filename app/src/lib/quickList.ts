@@ -4,8 +4,26 @@ import { DEFAULT_CATEGORY_ORDER, type StapleItem } from '@veckis/shared';
 
 export interface QuickListRow {
   staple: StapleItem;
-  /** Står redan obockad på listan — läggs inte till en gång till. */
+  /** Står redan obockad på listan. Går ändå att välja (snabbvarans mängd
+   *  läggs till ovanpå), men "Välj alla" hoppar över den. */
   onList: boolean;
+}
+
+/** Snabbvarans egen mängd. null/null = bara namnet. */
+export interface QuickAmount { quickQuantity: number | null; quickUnit: string | null }
+
+/** En rads mängd som snabbmängd. En rad utan enhet med mängden 1 är bara
+ *  namnet — så ser en vara ut som lagts till utan mängd. */
+export function amountOf(item: { quantity: number | null; unit: string | null }): QuickAmount {
+  const unit = item.unit?.trim() || null;
+  if (!unit && (item.quantity == null || item.quantity === 1)) return { quickQuantity: null, quickUnit: null };
+  return { quickQuantity: item.quantity ?? 1, quickUnit: unit };
+}
+
+/** "1,5 l", "2", eller tom sträng när snabbvaran bara är namnet. */
+export function quickAmountLabel(a: Partial<QuickAmount>): string {
+  const qty = a.quickQuantity != null ? String(a.quickQuantity).replace('.', ',') : '';
+  return [qty, a.quickUnit?.trim() ?? ''].filter(Boolean).join(' ');
 }
 
 type ListItem = { name: string; isChecked: boolean };
@@ -42,18 +60,23 @@ export const RECENT_PURCHASE_MS = 24 * 60 * 60 * 1000;
  *  kom från veckomenyn eller ett recept (dagens middag är ingen snabbvara) och
  *  det som redan är snabbvaror. En rad per namn, de oftast tillagda först —
  *  engångsköpen hamnar sist men tas aldrig bort, så en ny vana kan komma med. */
-export function quickListCandidates(items: BoughtItem[], staples: StapleItem[], since: Date): string[] {
+export function quickListCandidates(
+  items: (BoughtItem & { quantity: number | null; unit: string | null })[],
+  staples: StapleItem[],
+  since: Date,
+): (QuickAmount & { name: string })[] {
   const usage = new Map(staples.map(s => [key(s.name), s]));
   const seen = new Set<string>();
-  const names: string[] = [];
+  const found: (QuickAmount & { name: string })[] = [];
   for (const i of items) {
     const k = key(i.name);
     if (!i.isChecked || !i.checkedAt || new Date(i.checkedAt) < since) continue;
     if (i.recipeId || i.menuItemId) continue;
     if (usage.get(k)?.inQuickList || seen.has(k)) continue;
     seen.add(k);
-    names.push(i.name.trim());
+    // Mängden från det som handlades blir snabbvarans mängd.
+    found.push({ name: i.name.trim(), ...amountOf(i) });
   }
   const count = (n: string) => usage.get(key(n))?.usageCount ?? 0;
-  return names.sort((a, b) => count(b) - count(a) || a.localeCompare(b, 'sv'));
+  return found.sort((a, b) => count(b.name) - count(a.name) || a.name.localeCompare(b.name, 'sv'));
 }

@@ -71,6 +71,8 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
     // Snabblistan. Utelämnad = lämna valet orört, så anropet som följer med
     // varje tillägg aldrig plockar bort en snabbvara.
     inQuickList: z.boolean().optional(),
+    quickQuantity: z.number().positive().nullable().optional(),
+    quickUnit: z.string().max(50).nullable().optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
 
@@ -80,6 +82,7 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   // Enheten lagras i EN skriven form, annars lär hushållet sig "förpackning"
   // för en vara och "förp" för nästa.
   if (body.data.unit !== undefined) body.data.unit = normalizeUnit(body.data.unit);
+  if (body.data.quickUnit !== undefined) body.data.quickUnit = normalizeUnit(body.data.quickUnit);
 
   // Valde anroparen en kategori, eller skickade den bara med varan?
   //
@@ -114,6 +117,8 @@ staplesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
         unit: body.data.unit,
         defaultQuantity: body.data.defaultQuantity,
         inQuickList: body.data.inQuickList,
+        quickQuantity: body.data.quickQuantity,
+        quickUnit: body.data.quickUnit,
       },
     }));
   }

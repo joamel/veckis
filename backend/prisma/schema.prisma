@@ -366,6 +366,12 @@ model StapleItem {
   // Hushållet har själv valt att varan visas i snabblistan. Aldrig inlärt —
   // ett val, så det inte kan glida ur synk med hur man faktiskt handlar.
   inQuickList     Boolean       @default(false)
+  // Snabbvarans egen mängd, satt när varan lades i snabblistan. Egna fält:
+  // unit/defaultQuantity ovan skrivs av annat i appen (därav "1 kg
+  // kycklingfilé"), och det som står på listan just nu är inte snabbvarans
+  // mängd. null = bara namnet.
+  quickQuantity   Float?
+  quickUnit       String?
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
