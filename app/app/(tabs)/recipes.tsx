@@ -624,6 +624,15 @@ export default function RecipesScreen() {
   // `platsKvar` hindrar att man plockar fler sidor än taket tillåter.
   async function capturePhoto(source: 'camera' | 'library', platsKvar: number): Promise<string[]> {
     try {
+      // iOS kastar "Missing camera permission" om behörigheten inte redan är
+      // beviljad — launchCameraAsync frågar inte själv.
+      if (source === 'camera') {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+          showError(new Error('permission_denied'), str.permissions.camera);
+          return [];
+        }
+      }
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, aspect: [4, 3] })
         : await ImagePicker.launchImageLibraryAsync({
