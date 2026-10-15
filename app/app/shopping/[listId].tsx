@@ -312,6 +312,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [editSubCategory, setEditSubCategory] = useState<SubCategory | null>(null);
   // "Visa i snabblistan" — sparas på basvaran, inte på raden i listan.
   const [editInQuickList, setEditInQuickList] = useState(false);
+  // Varans plats i snabblistan just nu, för raden under rutan.
+  const editQuickStaple = editingItem ? stapleForName(staples, editingItem.name) : undefined;
   const [saving, setSaving] = useState(false);
 
   // Pure transform-only collapsing header (UI-thread, no layout = zero lag).
@@ -1419,7 +1421,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setEditUnit(item.unit ?? '');
     setEditCategory(item.category as StoreCategory);
     setEditSubCategory(((item as { subCategory?: string | null }).subCategory as SubCategory | null) ?? null);
-    setEditInQuickList(!!stapleForName(staples, item.name)?.inQuickList);
+    // Rutan är en HANDLING ("spara i snabblistan med den här mängden"), inte
+    // en visning av läget — alltid urkryssad. Annars skrev en ihopslagen rad
+    // (1,5 l + 1 l) över snabbmängden, och att byta mängd krävde ur och i.
+    setEditInQuickList(false);
   }
 
   // Varorna bakom en AGGREGERAD rad (samma namn + enhet, t.ex. 5 × "2 st ägg"
@@ -1450,9 +1455,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const unit = editUnit.trim() || null;
     const name = (editName.trim() || editingItem.name).toLowerCase();
     const snapshot = editingItem;
-    if (devMode && editInQuickList !== !!stapleForName(staples, name)?.inQuickList) {
-      // Läggs den i snabblistan blir mängden i formuläret dess mängd.
-      setQuickListFlag(name, editInQuickList, editInQuickList ? amountOf({ quantity: qty, unit }) : undefined);
+    // Ikryssad: varan sparas i snabblistan med formulärets mängd (ersätter en
+    // tidigare). Urkryssad gör ingenting — ta bort görs med krysset i arket.
+    if (devMode && editInQuickList) {
+      setQuickListFlag(name, true, amountOf({ quantity: qty, unit }));
     }
 
     // Aggregerad rad: användaren redigerade SUMMAN ("10 st"), inte en av varorna
@@ -1848,7 +1854,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setStapleUnit(suggestion.unit ?? '');
     setStapleCategory(suggestion.category as StoreCategory);
     setStapleSubCategory((suggestion.subCategory as SubCategory | null) ?? null);
-    setStapleInQuickList(!!suggestion.inQuickList);
+    setStapleInQuickList(false);
   }
 
   async function saveStapleEdit() {
@@ -1858,11 +1864,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setSavingStaple(true);
     const original = editingStaple;
     const isNew = original.id.startsWith('suggestion:');
-    const inQuickList = devMode ? stapleInQuickList : undefined;
-    // Basvaru-editorn har ingen mängd — läggs varan i snabblistan härifrån är
-    // den bara namnet (och en gammal mängd från förra gången följer inte med).
-    const quickAmount: QuickAmount | undefined = inQuickList && !original.inQuickList ? { quickQuantity: null, quickUnit: null } : undefined;
-    const optimistic: StapleItem = { ...original, name: newName, unit: stapleUnit.trim() || null, category: stapleCategory, subCategory: stapleSubCategory, inQuickList: inQuickList ?? !!original.inQuickList };
+    // Ikryssad: i snabblistan som bara namnet (editorn har ingen mängd).
+    // Byts namnet raderas den gamla basvaran, så en snabbvara tas med över.
+    const renamed = !isNew && newName !== original.name;
+    const quick: { inQuickList?: boolean } & Partial<QuickAmount> = devMode && stapleInQuickList
+      ? { inQuickList: true, quickQuantity: null, quickUnit: null }
+      : renamed && original.inQuickList
+        ? { inQuickList: true, quickQuantity: original.quickQuantity ?? null, quickUnit: original.quickUnit ?? null }
+        : {};
+    const optimistic: StapleItem = { ...original, name: newName, unit: stapleUnit.trim() || null, category: stapleCategory, subCategory: stapleSubCategory, ...quick, inQuickList: quick.inQuickList ?? !!original.inQuickList };
     if (!isNew) {
       setStaples(prev => prev.map(s2 => s2.id === original.id ? optimistic : s2));
     }
@@ -1878,8 +1888,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         category: stapleCategory,
         subCategory: stapleSubCategory,
         unit: stapleUnit.trim() || null,
-        inQuickList,
-        ...quickAmount,
+        ...quick,
       });
       // Varor som redan ligger i listan flyttas av backend (som också
       // broadcastar). Uppdatera optimistiskt här också, annars hinner den som
@@ -2720,7 +2729,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               accessibilityState={{ checked: editInQuickList }}
             >
               <Ionicons name={editInQuickList ? 'checkbox' : 'square-outline'} size={22} color={editInQuickList ? c.primary : c.textFaint} />
-              <Text style={s.quickToggleText}>{str.quickList.inQuickList}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.quickToggleText}>{str.quickList.inQuickList}</Text>
+                {editQuickStaple?.inQuickList && (
+                  <Text style={s.importUnder}>
+                    {quickAmountLabel(editQuickStaple) ? str.quickList.currentAmount(quickAmountLabel(editQuickStaple)) : str.quickList.currentNoAmount}
+                  </Text>
+                )}
+              </View>
             </Pressable>
           )}
           </ScrollView>
