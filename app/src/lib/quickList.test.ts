@@ -95,8 +95,15 @@ describe('snabbvarans mängd', () => {
     expect(amountOf({ quantity: 3, unit: null })).toEqual({ quickQuantity: 3, quickUnit: null });
   });
 
+  it('enheten böjs efter antalet, som i listan', () => {
+    expect(quickAmountLabel({ quickQuantity: 2, quickUnit: 'påse' })).toBe('2 påsar');
+    expect(quickAmountLabel({ quickQuantity: 1, quickUnit: 'påse' })).toBe('1 påse');
+  });
+
   it('visas med decimalkomma, och tomt för bara namnet', () => {
-    expect(quickAmountLabel({ quickQuantity: 1.5, quickUnit: 'l' })).toBe('1,5 l');
+    // Samma form som listan: köksmåttet skriver liter i bråk.
+    expect(quickAmountLabel({ quickQuantity: 1.5, quickUnit: 'l' })).toBe('1 1/2 l');
+    expect(quickAmountLabel({ quickQuantity: 0.5, quickUnit: 'kg' })).toBe('0,5 kg');
     expect(quickAmountLabel({ quickQuantity: 3, quickUnit: null })).toBe('3');
     expect(quickAmountLabel({ quickQuantity: null, quickUnit: null })).toBe('');
     expect(quickAmountLabel({})).toBe('');

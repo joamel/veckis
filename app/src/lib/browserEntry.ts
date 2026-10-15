@@ -1,3 +1,4 @@
+import { amountLabel } from './quickList';
 // Kategoribläddrarens högerkant per vara. Finns varan inte på listan läggs den
 // till med +. Finns den visas mängden med enhet ("2 st", "400 g") och ett tryck
 // öppnar redigeringen — ett − antal + utan enhet sa för lite (2 av vad?).
@@ -10,7 +11,6 @@ export function browserEntryFor<T extends Item>(items: T[], name: string): Brows
   const key = name.trim().toLowerCase();
   const target = items.find(i => !i.isChecked && i.name.trim().toLowerCase() === key);
   if (!target) return null;
-  const qty = target.quantity != null ? String(target.quantity).replace('.', ',') : '';
-  const unit = (target.unit ?? '').trim();
-  return { target, label: [qty, unit].filter(Boolean).join(' ') };
+  // Som listan visar mängden: köksmått och enheten böjd efter antalet.
+  return { target, label: amountLabel(target.quantity ?? null, target.unit ?? null) };
 }

@@ -1,6 +1,6 @@
 // Snabblistan: hushållets egna snabbvaror, valda för hand i redigeringen av en
 // vara. Aldrig inlärda — ett val kan inte glida ur synk med hur man handlar.
-import { DEFAULT_CATEGORY_ORDER, type StapleItem } from '@veckis/shared';
+import { DEFAULT_CATEGORY_ORDER, formateraKöksmått, visningsnamn, type StapleItem } from '@veckis/shared';
 
 export interface QuickListRow {
   staple: StapleItem;
@@ -20,10 +20,18 @@ export function amountOf(item: { quantity: number | null; unit: string | null })
   return { quickQuantity: item.quantity ?? 1, quickUnit: unit };
 }
 
-/** "1,5 l", "2", eller tom sträng när snabbvaran bara är namnet. */
+/** "1,5 l", "2 påsar", eller tom sträng när snabbvaran bara är namnet.
+ *  Samma form som i listan: köksmått och enheten böjd efter antalet. */
 export function quickAmountLabel(a: Partial<QuickAmount>): string {
-  const qty = a.quickQuantity != null ? String(a.quickQuantity).replace('.', ',') : '';
-  return [qty, a.quickUnit?.trim() ?? ''].filter(Boolean).join(' ');
+  return amountLabel(a.quickQuantity ?? null, a.quickUnit ?? null);
+}
+
+/** En mängd som listan visar den. Tom sträng utan mängd och enhet. */
+export function amountLabel(quantity: number | null, unit: string | null): string {
+  const u = unit?.trim() || null;
+  if (quantity == null && !u) return '';
+  const qty = quantity ?? 1;
+  return u ? `${formateraKöksmått(qty, u)} ${visningsnamn(u, qty)}` : formateraKöksmått(qty, null);
 }
 
 type ListItem = { name: string; isChecked: boolean };

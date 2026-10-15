@@ -901,9 +901,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // redan på listan. En markering på en vara som sedan togs bort ur snabb-
   // listan räknades annars med i "Lägg till 1 vara".
   const quickPicked = useMemo(() => quickRows.filter(r => quickSelected.has(r.staple.id)), [quickRows, quickSelected]);
-  // "Välj alla" gäller det som går att lägga till — inte det som redan står
-  // på listan. Är allt redan valt avmarkerar samma knapp.
-  const quickSelectable = useMemo(() => quickRows.filter(r => !r.onList), [quickRows]);
+  // "Välj alla" väljer ALLA, även det som redan står på listan: snabbvarans
+  // mängd är det man vill köpa (min 1,5 l yoghurt), oavsett vad som ligger
+  // där av annat skäl. Är allt redan valt avmarkerar samma knapp.
+  const quickSelectable = quickRows;
   const quickAllPicked = quickSelectable.length > 0 && quickSelectable.every(r => quickSelected.has(r.staple.id));
   const pickCandidates = useMemo(
     () => (pickSince ? quickListCandidates(list?.items ?? [], staples, pickSince) : []),
@@ -3292,8 +3293,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                 {pickSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{str.quickList.savePicked(pickSelected.size)}</Text>}
               </Pressable>
             )}
-            <Pressable style={s.mergeIgnoreBtn} onPress={() => setPickSince(null)}>
-              <Text style={s.mergeIgnoreBtnText}>{str.quickList.back}</Text>
+            <Pressable style={s.quickLinkBtn} onPress={() => setPickSince(null)} accessibilityRole="button">
+              <Ionicons name="arrow-back" size={16} color={c.primary} />
+              <Text style={s.quickLinkText}>{str.quickList.back}</Text>
             </Pressable>
           </>
         ) : quickRows.length === 0 ? (
