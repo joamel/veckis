@@ -84,6 +84,10 @@ import { useDirtySince } from '../../src/hooks/useDirtySince';
 import { useExperiment } from '../../src/lib/experiments';
 import { quickListCandidates, quickListRows, stapleForName, RECENT_PURCHASE_MS } from '../../src/lib/quickList';
 
+/** Luft under listan när en knapp svävar ovanför lägg-till-baren: knappens
+ *  höjd (~34) + avståndet till baren (12) + lite marginal. */
+const FLOATING_BUTTON_CLEARANCE = 56;
+
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
   fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', cheese: '🧀', dairy_eggs: '🥛',
   bread_bakery: '🍞', frozen: '🧊', canned_dry: '🥫',
@@ -243,6 +247,12 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // omladdning utan nät inte ersätta den med den sparade eller ge en felruta.
   const listRef = useRef(list);
   listRef.current = list;
+  // Butiksbytet sparas samtidigt som listan laddas om: valet görs på
+  // /stores, och router.back() ger listan fokus → load(). Omladdningen väntar
+  // på fyra anrop och landade oftast EFTER bytet — med listan som den såg ut
+  // innan, så den gamla butiken låg kvar tills man valde en gång till.
+  // En omladdning som överlappar ett byte får därför inte skriva över listan.
+  const storeChange = useRef({ inFlight: 0, version: 0 });
   const [loading, setLoading] = useState(true);
   const [newItem, setNewItem] = useState('');
   const [adding, setAdding] = useState(false);
@@ -959,6 +969,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   const load = useCallback(async () => {
     if (!listId || !householdId) return;
+    const storeVersion = storeChange.current.version;
     // Bockar som köats när nätet saknades — även före en omstart av appen.
     await hydratePendingToggles();
     try {
@@ -972,7 +983,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       // Serverns version sparas som den är, så listan går att öppna utan nät.
       // Väntande bockar läggs ovanpå vid visning, aldrig i det sparade.
       void saveListSnapshot(listId, data);
-      setList({ ...data, items: applyPendingToggles(data.items, getPendingToggles(listId)) });
+      const overlapped = storeChange.current.inFlight > 0 || storeChange.current.version !== storeVersion;
+      if (!overlapped) setList({ ...data, items: applyPendingToggles(data.items, getPendingToggles(listId)) });
       setStaples(stapleList);
       setIngredientSuggestions(suggestions);
       if (household) setMembers(household.members);
@@ -1905,11 +1917,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
 
   async function selectStore(storeId: string | null) {
     if (!listId) return;
+    storeChange.current.inFlight++;
     try {
       const updated = await client.updateShoppingList(listId, { storeId });
       setList(updated);
     } catch (e) {
       showError(e, str.toasts.errorChangeStore);
+    } finally {
+      storeChange.current.inFlight--;
+      storeChange.current.version++;
     }
   }
 
@@ -2127,14 +2143,18 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // som den är, och react-native-web försöker då sätta style[0] på DOM-noden:
   //   "Failed to set an indexed property [0] on CSSStyleDeclaration"
   // — vilket kraschade hela inköpslistan i PWA:n. Native påverkades inte.
+  // Snabblistan och dubblettknappen svävar strax ovanför lägg-till-baren. Utan
+  // luft under listan täckte de de sista raderna även när man scrollat ända ner.
+  const floatingButtonsVisible = (devMode && list?.showQuickList !== false && addBarH > 0 && !keyboardVisible) || dupeButtonVisible;
   const listContentStyle = useMemo(
     () => StyleSheet.flatten([
       s.list,
       allItems.length === 0 && s.listEmpty,
       { paddingTop: HEADER_TOP + NAVBAR_HEIGHT + TITLE_AREA_HEIGHT + 8 },
+      floatingButtonsVisible ? { paddingBottom: FLOATING_BUTTON_CLEARANCE } : null,
       keyboardVisible && listKeyboardPad > 0 ? { paddingBottom: 8 + listKeyboardPad } : null,
     ]),
-    [s, allItems.length, keyboardVisible, listKeyboardPad],
+    [s, allItems.length, floatingButtonsVisible, keyboardVisible, listKeyboardPad],
   );
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
