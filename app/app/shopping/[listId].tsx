@@ -87,6 +87,9 @@ import { quickListCandidates, quickListRows, stapleForName, RECENT_PURCHASE_MS }
 /** Luft under listan när en knapp svävar ovanför lägg-till-baren: knappens
  *  höjd (~34) + avståndet till baren (12) + lite marginal. */
 const FLOATING_BUTTON_CLEARANCE = 56;
+/** chipRowWrap:s paddingVertical och gap — höjden på två rader räknas ur dem. */
+const CHIP_ROW_PAD = 6;
+const CHIP_GAP = 8;
 
 const CATEGORY_EMOJIS: Record<StoreCategory, string> = {
   fruit_veg: '🥦', meat_fish: '🥩', deli_charcuterie: '🥓', cheese: '🧀', dairy_eggs: '🥛',
@@ -884,6 +887,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // Most-added staples (getStaples returns them usageCount-desc) — shown as
   // quick-add chips when the add field is empty so återkommande inköp går snabbt.
   const topStaples = useMemo(() => staples.filter(s => s.usageCount > 0).slice(0, 8), [staples]);
+  // "Dina vanligaste" får högst två rader — med tangentbordet uppe åt en tredje
+  // rad upp det mesta av listan, och snabblistan täcker resten. Höjden mäts på
+  // första chipet så det håller oavsett textstorlek; det som inte ryms döljs.
+  const [topChipH, setTopChipH] = useState(0);
   const quickRows = useMemo(() => quickListRows(staples, list?.items ?? []), [staples, list?.items]);
   // Det som faktiskt läggs till: markerat, fortfarande i snabblistan och inte
   // redan på listan. En markering på en vara som sedan togs bort ur snabb-
@@ -2404,10 +2411,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         ) : keyboardVisible && newItem.trim().length === 0 && topStaples.length > 0 ? (
           <View style={s.commonScroll}>
             <Text style={s.chipHint}>{str.staplesHeading}</Text>
-            <View style={s.chipRowWrap}>
-              {topStaples.map(s2 => (
+            <View style={[s.chipRowWrap, topChipH > 0 && { maxHeight: CHIP_ROW_PAD * 2 + topChipH * 2 + CHIP_GAP, overflow: 'hidden' }]}>
+              {topStaples.map((s2, i) => (
                 <TouchableOpacity
                   key={s2.id}
+                  onLayout={i === 0 ? e => { const h = e.nativeEvent.layout.height; setTopChipH(prev => (Math.abs(prev - h) > 1 ? h : prev)); } : undefined}
                   style={s.chip}
                   onPress={() => quickAdd(s2.name)}
                   onLongPress={() => openStapleEditor(s2)}
@@ -3794,7 +3802,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   chipScroll: { backgroundColor: nyD ? ny.ljus : c.surface, borderTopWidth: 1, borderTopColor: nyD ? ny.bricka : c.surfaceSubtle, maxHeight: 44 },
   commonScroll: { backgroundColor: nyD ? ny.ljus : c.surface, borderTopWidth: 1, borderTopColor: nyD ? ny.bricka : c.surfaceSubtle, paddingTop: 6, paddingBottom: 2 },
   chipHint: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5, paddingHorizontal: 12 },
-  chipRowWrap: { paddingHorizontal: 12, paddingVertical: 6, gap: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+  chipRowWrap: { paddingHorizontal: 12, paddingVertical: CHIP_ROW_PAD, gap: CHIP_GAP, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   chipRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
   chip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: nyD ? ny.bricka : c.primaryTint, borderRadius: nyD ? 16 : 20 },
   chipText: { fontSize: 13, color: nyD ? ny.chipText : c.primary, fontWeight: nyD ? '600' : '500' },
