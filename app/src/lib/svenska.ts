@@ -280,6 +280,8 @@ export const shoppingList = {
     back:          'Tillbaka',
     nudge:         'Spara det du brukar köpa i snabblistan?',
     nudgeAction:   'Välj',
+    selectAll:     'Välj alla',
+    selectNone:    'Avmarkera alla',
     errorAdd:      'Kunde inte lägga till varorna',
     errorSave:     'Kunde inte spara snabblistan',
   },

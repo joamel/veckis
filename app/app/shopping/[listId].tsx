@@ -896,6 +896,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // redan på listan. En markering på en vara som sedan togs bort ur snabb-
   // listan räknades annars med i "Lägg till 1 vara".
   const quickPicked = useMemo(() => quickRows.filter(r => quickSelected.has(r.staple.id) && !r.onList), [quickRows, quickSelected]);
+  // "Välj alla" gäller det som går att lägga till — inte det som redan står
+  // på listan. Är allt redan valt avmarkerar samma knapp.
+  const quickSelectable = useMemo(() => quickRows.filter(r => !r.onList), [quickRows]);
+  const quickAllPicked = quickSelectable.length > 0 && quickPicked.length === quickSelectable.length;
   const pickCandidates = useMemo(
     () => (pickSince ? quickListCandidates(list?.items ?? [], staples, pickSince) : []),
     [pickSince, list?.items, staples],
@@ -3212,6 +3216,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85 }]}
         bodyStyle={s.sheetBody}
         title={pickSince ? str.quickList.pickTitle : str.quickList.title}
+        headerRight={!pickSince && quickSelectable.length > 1 ? (
+          <Pressable
+            onPress={() => setQuickSelected(quickAllPicked ? new Set() : new Set(quickSelectable.map(r => r.staple.id)))}
+            hitSlop={10}
+            accessibilityRole="button"
+          >
+            <Text style={s.quickLinkText}>{quickAllPicked ? str.quickList.selectNone : str.quickList.selectAll}</Text>
+          </Pressable>
+        ) : undefined}
       >
         {pickSince ? (
           <>
