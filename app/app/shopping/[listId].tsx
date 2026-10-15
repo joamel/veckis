@@ -1039,6 +1039,11 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     });
     const hideSub = Keyboard.addListener('keyboardDidHide', () => {
       setKeyboardVisible(false);
+      // Stängs tangentbordet (bakåtknappen, scroll, ett ark som öppnas) ska
+      // sökfältet släppa fokus också. Annars gav Android tillbaka fokus till
+      // fältet när ett ark eller snabblistan stängdes, och tangentbordet kom
+      // upp igen när man ville se listan.
+      inputRef.current?.blur();
     });
     // keyboardDidHide avfyras INTE tillförlitligt när appen bakgrundas med
     // tangentbordet uppe. keyboardVisible låg då kvar som true, och eftersom
@@ -2188,6 +2193,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={VIEWABILITY_CONFIG}
         keyboardShouldPersistTaps="handled"
+        // Scrollar man i listan vill man se den — tangentbordet går ner.
+        keyboardDismissMode="on-drag"
         // FlashList v2 mäter rader själv — ingen estimatedItemSize behövs, och
         // FlatLists windowSize/batch-rattar finns inte. drawDistance styr hur
         // långt utanför vyn den förbereder.
@@ -2439,7 +2446,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             value={newItem}
             onChangeText={setNewItem}
             returnKeyType="done"
-            onSubmitEditing={() => quickAdd(newItem)}
+            // Kvar efter tillägg, så nästa vara kan skrivas direkt — men "Klar"
+            // på ett tomt fält är vägen ut.
+            onSubmitEditing={() => { if (newItem.trim()) quickAdd(newItem); else Keyboard.dismiss(); }}
             blurOnSubmit={false}
             autoCapitalize="none"
           />
