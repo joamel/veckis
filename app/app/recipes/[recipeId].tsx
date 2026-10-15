@@ -51,6 +51,7 @@ import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems, t
 import { normalizeQtyInput, skalaQty } from '../../src/lib/qty';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
+import { useImagePermission } from '../../src/hooks/useImagePermission';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { ReceptBild, type Bildval } from '../../src/components/ReceptBild';
@@ -143,6 +144,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
   const client = useApiClient();
   const { householdId } = useHousehold();
   const { showError, showToast } = useToast();
+  const ensureImagePermission = useImagePermission();
   const confirm = useConfirm();
   const tryCloseEdit = useDiscardDraft(confirm);
 
@@ -1038,13 +1040,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     // Uppladdningen adresserar receptet via id, så den kräver ett sparat recept.
     if (!recipe || isNew) return;
     try {
-      const perm = source === 'camera'
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        showError(new Error('permission_denied'), source === 'camera' ? str.permissions.camera : str.permissions.photos);
-        return;
-      }
+      if (!(await ensureImagePermission(source))) return;
       // Ingen beskärning här: hela bilden laddas upp, och vilket utsnitt som
       // visas justeras efteråt genom att dra i bilden (imageFocusX/Y). Då
       // bevaras originalet, justeringen går att ändra om, och samma sätt

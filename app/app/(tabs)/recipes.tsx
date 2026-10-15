@@ -30,6 +30,7 @@ import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe }
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useToast } from '../../src/context/ToastContext';
+import { useImagePermission } from '../../src/hooks/useImagePermission';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useDiscardDraft } from '../../src/hooks/useDiscardDraft';
 import { EmptyState } from '../../src/components/EmptyState';
@@ -96,6 +97,7 @@ export default function RecipesScreen() {
   const { nyDesign, receptVy, setReceptVy } = useDesign();
   const { getToken } = useAuth();
   const { showToast, showError } = useToast();
+  const ensureImagePermission = useImagePermission();
   const confirm = useConfirm();
   const tryCloseCreate = useDiscardDraft(confirm);
   const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setPhotoUris([]); setMode('url'); };
@@ -624,15 +626,7 @@ export default function RecipesScreen() {
   // `platsKvar` hindrar att man plockar fler sidor än taket tillåter.
   async function capturePhoto(source: 'camera' | 'library', platsKvar: number): Promise<string[]> {
     try {
-      // iOS kastar "Missing camera permission" om behörigheten inte redan är
-      // beviljad — launchCameraAsync frågar inte själv.
-      if (source === 'camera') {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) {
-          showError(new Error('permission_denied'), str.permissions.camera);
-          return [];
-        }
-      }
+      if (source === 'camera' && !(await ensureImagePermission('camera'))) return [];
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, aspect: [4, 3] })
         : await ImagePicker.launchImageLibraryAsync({

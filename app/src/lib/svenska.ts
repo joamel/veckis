@@ -37,6 +37,19 @@ export const common = {
     unitOptional:        'Enhet (valfritt)',
     none:                'Ingen',
   },
+  permissions: {
+    camera: {
+      denied:         'Handlis behöver tillgång till kameran',
+      blockedTitle:   'Kameran är avstängd för Handlis',
+      blockedMessage: 'Slå på kameran för Handlis i Inställningar för att kunna fota.',
+    },
+    photos: {
+      denied:         'Handlis behöver tillgång till bilder',
+      blockedTitle:   'Bilderna är avstängda för Handlis',
+      blockedMessage: 'Slå på bildåtkomst för Handlis i Inställningar för att kunna välja en bild.',
+    },
+    openSettings: 'Öppna Inställningar',
+  },
   discardDraft: {
     restored:     'Dina osparade ändringar är återställda.',
     discardShort: 'Släng',
@@ -901,11 +914,6 @@ export const recipes = {
       message: (oldTitle: string, newTitle: string) => `Ersätt "${oldTitle}" med "${newTitle}"?`,
       confirm: 'Byt ut',
     },
-  },
-
-  permissions: {
-    camera: 'Handlis behöver tillgång till kameran',
-    photos: 'Handlis behöver tillgång till bilder',
   },
 
   tips: {

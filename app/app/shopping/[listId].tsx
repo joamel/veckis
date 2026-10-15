@@ -65,6 +65,7 @@ import { useAuth } from '@clerk/expo';
 import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe, type ImportVara } from '../../src/api/client';
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '../../src/context/ToastContext';
+import { useImagePermission } from '../../src/hooks/useImagePermission';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
@@ -75,7 +76,7 @@ import { usePendingRemoval } from '../../src/context/PendingRemovalContext';
 import { useShoppingSocket } from '../../src/hooks/useShoppingSocket';
 import { CATEGORY_LABELS, DEFAULT_CATEGORY_ORDER, SUB_TAXONOMY, subsForParent, inferSubCategory, type StoreCategory, type SubCategory, type StapleItem , visningsnamn, parseItemLine, formateraKöksmått } from '@veckis/shared';
 import { isIOSLike, isWeb } from '../../src/lib/platform';
-import { shoppingList as str, common, recipes as recipesStr } from '../../src/lib/svenska';
+import { shoppingList as str, common } from '../../src/lib/svenska';
 import {
   enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError, hydratePendingToggles,
   applyPendingToggles, replayPendingToggles, saveListSnapshot, readListSnapshot,
@@ -217,6 +218,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const client = useApiClient();
   const { triggerCheck: triggerCheckHaptic, triggerDelete: triggerDeleteHaptic } = useCheckHaptic();
   const { showToast: showGlobalToast, showError, setBottomObstruction } = useToast();
+  const ensureImagePermission = useImagePermission();
   const confirm = useConfirm();
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
@@ -931,14 +933,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     setImportSteg(null);
     let uri: string | null = null;
     try {
-      // iOS kastar om kamerabehörigheten inte redan är beviljad.
-      if (källa === 'camera') {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) {
-          showError(new Error('permission_denied'), recipesStr.permissions.camera);
-          return;
-        }
-      }
+      if (källa === 'camera' && !(await ensureImagePermission('camera'))) return;
       const res = källa === 'camera'
         ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
         : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
