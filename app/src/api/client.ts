@@ -429,6 +429,9 @@ export function useApiClient() {
     clearShoppingList: (listId: string) =>
       request<void>(`/api/shopping/lists/${listId}/items`, { method: 'DELETE' }),
 
+    clearCheckedItems: (listId: string) =>
+      request<void>(`/api/shopping/lists/${listId}/items?checked=1`, { method: 'DELETE' }),
+
     deleteShoppingList: (listId: string) =>
       request<void>(`/api/shopping/lists/${listId}`, { method: 'DELETE' }),
 

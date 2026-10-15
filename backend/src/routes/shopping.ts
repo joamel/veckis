@@ -559,10 +559,22 @@ shoppingRouter.post('/lists/:listId/items/bulk', requireAuth, asyncHandler(async
 }));
 
 // DELETE /api/shopping/lists/:listId/items  (clear all items, keep the list)
+// ?checked=1 — bara de klarmarkerade: städningen efter en handling. Det som
+// står kvar att köpa rörs inte, och varken "Jag handlar" eller pushen till
+// resten av hushållet berörs — inget har ändrats för den som ska handla.
 shoppingRouter.delete('/lists/:listId/items', requireAuth, asyncHandler(async (req, res) => {
   const clerkUserId = (req as AuthenticatedRequest).clerkUserId;
   const list = await getListAndVerifyMember(req.params.listId, clerkUserId, res);
   if (!list) return;
+  if (req.query.checked === '1') {
+    // Hopslagna underrader följer med sin behållare (onDelete: Cascade).
+    await prisma.shoppingItem.deleteMany({ where: { listId: list.id, isChecked: true } });
+    // Egen händelse: äldre appar känner inte igen den och låter listan vara,
+    // i stället för att tömma den helt som vid list_cleared.
+    bcast(list, { type: 'checked_cleared' });
+    res.status(204).send();
+    return;
+  }
   await prisma.shoppingItem.deleteMany({ where: { listId: list.id } });
   // Rensa "jag handlar"-presence när listan töms (annars hänger den kvar
   // visuellt fast inget finns att handla).

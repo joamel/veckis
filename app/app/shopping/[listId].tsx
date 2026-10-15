@@ -688,6 +688,8 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           return { ...prev, items: prev.items.filter(i => i.id !== msg.data.id) };
         case 'list_cleared':
           return { ...prev, items: [] };
+        case 'checked_cleared':
+          return { ...prev, items: prev.items.filter(i => !i.isChecked) };
         case 'shopping_presence':
           return {
             ...prev,
@@ -1682,9 +1684,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       message: str.clearDialog.message,
       buttons: [
       { label: str.clearDialog.confirm, style: 'destructive', onPress: () => {
-        // Optimistic clear with undo: hide items from UI, defer backend call 5s
+        // Bara de klarmarkerade — det som står kvar att köpa rörs inte.
+        // Optimistiskt med ångra: döljs direkt, servern anropas efter 5 s.
         const snapshot = list?.items ?? [];
-        setList(prev => prev ? { ...prev, items: [] } : prev);
+        setList(prev => prev ? { ...prev, items: prev.items.filter(i => !i.isChecked) } : prev);
         let cancelled = false;
         showGlobalToast(str.toasts.cleared, 'neutral', {
           label: common.actions.undo,
@@ -1696,7 +1699,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         setTimeout(async () => {
           if (cancelled) return;
           try {
-            await client.clearShoppingList(listId);
+            await client.clearCheckedItems(listId);
             emitShoppingChanged(); // refresh the lists overview's count
           } catch (e) {
             setList(prev => prev ? { ...prev, items: snapshot } : prev);
@@ -2063,8 +2066,10 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       case 'catHeader': {
         const group = row.group;
         // Bocka-av-ikonen följer bockrutornas sida, så tummen hittar den där
-        // den redan bockar.
-        const checkAll = group.items.some(i => !i.isChecked) && (
+        // den redan bockar. Bara vid två eller fler obockade — en enda vara
+        // bockar man lika gärna själv, och ikonen var bara en sak till att
+        // råka trycka på.
+        const checkAll = group.items.filter(i => !i.isChecked).length > 1 && (
               <Pressable
                 onPress={e => {
                   e.stopPropagation();
@@ -2086,16 +2091,19 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         );
         return (
           <Pressable
-            style={[s.categoryHeader, group.isSub && s.categorySubHeader]}
+            style={[s.categoryHeader, group.isSub ? s.categorySubHeader : s.categoryGap]}
             onPress={() => toggleCategoryCollapsed(groupKey(group) as StoreCategory | 'checked')}
             hitSlop={4}
           >
             {checkboxSide === 'left' && checkAll}
+            {/* Pilen INNE i texten, direkt efter rubriken i stället för längst
+                ut till höger. Rubrikens mätning lämnas orörd — att låta texten
+                krympa till sitt innehåll är det som klipper text på Android. */}
             <Text style={[s.categoryLabel, group.isSub && s.categorySubLabel]} numberOfLines={2}>
-              {row.label}{row.collapsed ? ` (${group.items.length})` : ''}
+              {row.label}{row.collapsed ? ` (${group.items.length})` : ''}{'  '}
+              <Ionicons name={row.collapsed ? 'chevron-down' : 'chevron-up'} size={13} color={nyDesign ? ny.textDampad : c.textFaint} />
             </Text>
             {checkboxSide !== 'left' && checkAll}
-            <Ionicons name={row.collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={nyDesign ? ny.textDampad : c.textFaint} />
           </Pressable>
         );
       }
@@ -3261,8 +3269,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             >
               {quickAdding ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{str.quickList.add(quickPicked.length)}</Text>}
             </Pressable>
-            <Pressable style={s.mergeIgnoreBtn} onPress={() => openPick(list?.activeShopperSince)}>
-              <Text style={s.mergeIgnoreBtnText}>{str.quickList.pickFromBought}</Text>
+            <Pressable style={s.quickLinkBtn} onPress={() => openPick(list?.activeShopperSince)} accessibilityRole="button">
+              <Ionicons name="bag-check-outline" size={16} color={c.primary} />
+              <Text style={s.quickLinkText}>{str.quickList.pickFromBought}</Text>
             </Pressable>
           </>
         )}
@@ -3717,6 +3726,8 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   quickFloatText: { fontSize: 13, fontWeight: '600', color: c.primary },
   quickToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   quickToggleText: { fontSize: 15, color: c.textSecondary, flex: 1 },
+  quickLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
+  quickLinkText: { fontSize: 14, fontWeight: '600', color: c.primary },
   quickOnList: { fontSize: 13, color: c.textFaint, textAlign: 'right' },
   dupeFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: nyD ? ny.valdYta : c.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
   dupeFloatText: { fontSize: 13, fontWeight: '700', color: nyD ? ny.lime : '#fff' },
@@ -3737,6 +3748,9 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // långa subnamn som "Toalett- & hushållspapper"); lite indenterad + dämpad
   // för att visuellt tillhöra sin parent.
   categorySubHeader: { paddingVertical: 4 },
+  // Luft mellan kategorierna, så en kategoris sista vara inte ligger tätt
+  // intill nästa rubrik (och dess bocka-alla-ikon) för den klumpfingrade.
+  categoryGap: { marginTop: 10 },
   categorySubLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: nyD ? ny.chipText : c.primary },
   checkedCatLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.4, paddingHorizontal: 2, paddingTop: 8, paddingBottom: 1 },
   showAllChecked: { alignItems: 'center', paddingVertical: 12, marginTop: 2 },

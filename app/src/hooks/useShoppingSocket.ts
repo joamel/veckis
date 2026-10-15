@@ -18,6 +18,7 @@ export type ShoppingWsMessage =
   | { type: 'item_updated'; data: ShoppingItemWithRecipe; actor?: string }
   | { type: 'item_deleted'; data: { id: string }; actor?: string }
   | { type: 'list_cleared' }
+  | { type: 'checked_cleared' }
   | { type: 'items_auto_merged'; data: { name: string; count: number } }
   | { type: 'shopping_presence'; data: { listId: string; memberId: string | null; since: string | null } };
 
