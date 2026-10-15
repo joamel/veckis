@@ -3216,15 +3216,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         sheetStyle={[s.sheet, { maxHeight: windowHeight * 0.85 }]}
         bodyStyle={s.sheetBody}
         title={pickSince ? str.quickList.pickTitle : str.quickList.title}
-        headerRight={!pickSince && quickSelectable.length > 1 ? (
-          <Pressable
-            onPress={() => setQuickSelected(quickAllPicked ? new Set() : new Set(quickSelectable.map(r => r.staple.id)))}
-            hitSlop={10}
-            accessibilityRole="button"
-          >
-            <Text style={s.quickLinkText}>{quickAllPicked ? str.quickList.selectNone : str.quickList.selectAll}</Text>
-          </Pressable>
-        ) : undefined}
       >
         {pickSince ? (
           <>
@@ -3273,6 +3264,19 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         ) : (
           <>
             <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
+              {/* "Välj alla" som en kryssrad överst, likadan som raderna under —
+                  en länk i rubriken var för lätt att missa. */}
+              {quickSelectable.length > 1 && (
+                <Pressable
+                  style={s.mergeItem}
+                  onPress={() => setQuickSelected(quickAllPicked ? new Set() : new Set(quickSelectable.map(r => r.staple.id)))}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: quickAllPicked }}
+                >
+                  <Ionicons name={quickAllPicked ? 'checkbox' : 'square-outline'} size={22} color={quickAllPicked ? c.primary : c.textFaint} />
+                  <Text style={[s.mergeItemName, s.quickSelectAllText]}>{str.quickList.selectAll}</Text>
+                </Pressable>
+              )}
               {quickRows.map(({ staple: q, onList }) => {
                 const picked = onList || quickSelected.has(q.id);
                 const amount = onList ? browserEntryFor(list?.items ?? [], q.name)?.label || str.quickList.onList : '';
@@ -3287,14 +3291,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
                   >
                     <Ionicons name={picked ? 'checkbox' : 'square-outline'} size={22} color={onList ? c.textFaint : picked ? c.primary : c.textFaint} />
                     <Text style={[s.mergeItemName, onList && s.importAvvald]} numberOfLines={1}>{capitalize(q.name)}</Text>
-                    {onList ? (
+                    {onList && (
                       // Explicit bredd: Android klipper annars sista glyfen ("kg" → "k").
                       <Text style={[s.quickOnList, { width: amount.length * 8 + 8 }]}>{amount}</Text>
-                    ) : (
-                      <Pressable onPress={() => setQuickListFlag(q.name, false)} hitSlop={10} accessibilityLabel={str.stapleEditor.removeSuggestion}>
-                        <Ionicons name="close" size={18} color={c.textFaint} />
-                      </Pressable>
                     )}
+                    {/* Krysset alltid längst ut, även när varan står på listan. */}
+                    <Pressable onPress={() => setQuickListFlag(q.name, false)} hitSlop={10} accessibilityLabel={str.stapleEditor.removeSuggestion}>
+                      <Ionicons name="close" size={18} color={c.textFaint} />
+                    </Pressable>
                   </Pressable>
                 );
               })}
@@ -3765,6 +3769,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   quickToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   quickToggleText: { fontSize: 15, color: c.textSecondary, flex: 1 },
   quickLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
+  quickSelectAllText: { fontWeight: '700', color: c.text },
   quickLinkText: { fontSize: 14, fontWeight: '600', color: c.primary },
   quickOnList: { fontSize: 13, color: c.textFaint, textAlign: 'right' },
   dupeFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: nyD ? ny.valdYta : c.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
