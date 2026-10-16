@@ -694,7 +694,15 @@ export default function MenuScreen() {
     veckaH ? { height: veckaH * veckaSynlig.value, opacity: veckaSynlig.value } : {}
   ));
   // Ny vecka börjar om högst upp — då ska veckoraden synas igen.
+  // Positionen nollställs också: varje vecka har en egen scrollyta men delar
+  // scrollOffsetY, och den nya veckans mätning (matInnehall) räknade annars med
+  // den förra veckans position och fällde ihop raden igen. Den nya veckan stod
+  // redan överst, så ingen scrollhändelse kom som kunde fälla ut den.
+  // Grannveckorna är monterade och minns sin scroll — därför scrollas den nya
+  // mittveckan upp, så ett veckobyte alltid landar överst.
   useEffect(() => {
+    scrollOffsetY.current = 0;
+    menuScrollRef.current?.scrollTo({ y: 0, animated: false });
     sättVeckaFälld(false);
   }, [weekOffset, sättVeckaFälld]);
   const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
