@@ -21,8 +21,8 @@ import { nyFont, type NyPalett } from '../src/lib/nyDesign';
 import { EXPERIMENTS, setExperiment, useExperiment, type ExperimentId } from '../src/lib/experiments';
 import { admin as str, common } from '../src/lib/svenska';
 
-type Tab = 'votes' | 'gaps' | 'candidates' | 'curated' | 'names' | 'cleanup' | 'jobs' | 'households' | 'sandbox';
-const TABS: Tab[] = ['votes', 'gaps', 'candidates', 'curated', 'names', 'cleanup', 'jobs', 'households', 'sandbox'];
+type Tab = 'votes' | 'gaps' | 'candidates' | 'curated' | 'names' | 'cleanup' | 'jobs' | 'households' | 'recipes' | 'sandbox';
+const TABS: Tab[] = ['votes', 'gaps', 'candidates', 'curated', 'names', 'cleanup', 'jobs', 'households', 'recipes', 'sandbox'];
 /** Flikar där en rad öppnar namnarket (byt namn/radera) i stället för klassningen. */
 const NAME_TABS: Tab[] = ['names', 'cleanup'];
 
@@ -117,6 +117,10 @@ export default function AdminScreen() {
       } else if (t === 'curated') {
         const r = await client.adminCurated();
         setRows(r.map(k => ({ key: k.name, name: k.name, title: k.name, meta: answer(k.category, k.subCategory) })));
+      } else if (t === 'recipes') {
+        const r = await client.adminRecipeSources();
+        setRows(r.rader.map(k => ({ key: k.source, title: str.rows.recipeSource[k.source] ?? k.source, meta: str.rows.recipeSourceMeta(k.total, k.recent, k.households) })));
+        setSummary(str.rows.recipeSourcesNote);
       } else {
         const r = await client.adminNewHouseholds();
         const date = (iso: string) => new Date(iso).toLocaleString('sv-SE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });

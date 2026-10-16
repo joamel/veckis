@@ -139,7 +139,9 @@ const createRecipeSchema = z.object({
   description: z.string().max(2000).nullable().optional(),
   instructions: z.string().max(8000).nullable().optional(),
   sourceUrl: z.string().url().nullable().optional(),
-  source: z.enum(['manual', 'ai_paste', 'url_import']).default('manual'),
+  // 'photo' sedan 2026-10-16 — fotade recept sparades förut som 'ai_paste',
+  // så de två gick inte att skilja åt i statistiken.
+  source: z.enum(['manual', 'ai_paste', 'url_import', 'photo']).default('manual'),
   imageUrl: z.string().url().nullable().optional(),
   servings: z.number().int().positive().default(4),
   // Minuter; null = okänd. Tak ett dygn, samma gräns som tolkningen.

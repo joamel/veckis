@@ -515,7 +515,7 @@ export function useApiClient() {
     getRecipe: (recipeId: string) =>
       request<RecipeWithIngredients>(`/api/recipes/${recipeId}`),
 
-    createRecipe: (data: { householdId: string; title: string; description?: string | null; instructions?: string | null; sourceUrl?: string | null; source?: 'manual' | 'ai_paste' | 'url_import'; imageUrl?: string | null; servings?: number; cookMinutes?: number | null; ingredients?: Array<{ name: string; quantity?: number | null; unit?: string | null; category?: StoreCategory; originalName?: string | null }>; tags?: string[] }) =>
+    createRecipe: (data: { householdId: string; title: string; description?: string | null; instructions?: string | null; sourceUrl?: string | null; source?: 'manual' | 'ai_paste' | 'url_import' | 'photo'; imageUrl?: string | null; servings?: number; cookMinutes?: number | null; ingredients?: Array<{ name: string; quantity?: number | null; unit?: string | null; category?: StoreCategory; originalName?: string | null }>; tags?: string[] }) =>
       request<RecipeWithIngredients>('/api/recipes', { method: 'POST', body: JSON.stringify(data) }),
 
     updateRecipe: (recipeId: string, data: { title?: string; description?: string | null; instructions?: string | null; imageUrl?: string | null; imageFocusX?: number | null; imageFocusY?: number | null; imageZoom?: number | null; servings?: number; cookMinutes?: number | null; ingredients?: Array<{ name: string; quantity?: number | null; unit?: string | null; category?: StoreCategory; originalName?: string | null }>; tags?: string[] }) =>
@@ -730,6 +730,8 @@ export function useApiClient() {
       request<{ totalt: number; utanRegel: number; luckor: { namn: string; seenCount: number; lagradKategori: string }[] }>('/api/admin/category-gaps'),
     adminCandidates: () =>
       request<{ kandidater: number; rader: { name: string; seenCount: number; category: string }[] }>('/api/admin/candidates'),
+    adminRecipeSources: () =>
+      request<{ rader: { source: string; total: number; recent: number; households: number }[] }>('/api/admin/recipe-sources'),
     adminNewHouseholds: (since?: string) =>
       request<{ since: string; rader: { createdAt: string; members: number; recipes: number; lists: number; items: number; menuItems: number }[] }>(
         `/api/admin/new-households${since ? `?since=${encodeURIComponent(since)}` : ''}`,

@@ -748,6 +748,15 @@ export const recipes = {
       multiPartial:     (sparade: number, alla: number, fel: string) => `${sparade} av ${alla} recept sparades. Övriga gick inte att spara: ${fel}`,
     },
     pasteHint:        'Klistra in recept eller länktext — AI:n plockar ut titel, ingredienser och steg.',
+    // Dev-läget: ett fält för både länk och recept, tre val i menyn.
+    combined: {
+      title:       'Klistra in länk eller recept',
+      hint:        'Klistra in en länk till ett recept, eller själva receptet — titel, ingredienser och steg plockas ut åt dig.',
+      placeholder: 'Klistra in länk eller recept här…',
+      menuWrite:   'Skriv själv',
+      menuPaste:   'Klistra in länk eller recept',
+      menuPhoto:   'Fota eller välj bild',
+    },
     pastePlaceholder: 'Klistra in recept eller receptsida här…',
     parseButton:      'Tolka och skapa recept',
     urlPlaceholder:   'https://tasteline.com/recept/...',
@@ -1890,6 +1899,7 @@ export const admin = {
     cleanup:    'Städförslag',
     jobs:       'Städjobb',
     households: 'Nya hushåll',
+    recipes:    'Recept',
     sandbox:    'Sandbox',
   },
   tabHint: {
@@ -1901,6 +1911,7 @@ export const admin = {
     cleanup:    'Det städskripten föreslår: rader som inte är varor, mängder som fastnat i namnet och stavningsvarianter av samma vara. Alternativ ("linguine eller spaghetti") delas av städjobbet Trasiga namn i poolen.',
     jobs:       'Städskripten som knappar. Förhandsvisa, bocka ur det du inte vill ha och kör. Ingenting ändras förrän du trycker Kör.',
     households: 'Hushåll skapade de senaste två veckorna, och hur mycket de hunnit göra.',
+    recipes:    'Hur recepten kommit in: skrivna själv, från länk, inklistrad text eller foto. Underlag för hur receptmenyn ska se ut.',
     sandbox:    'Testfunktioner som bara syns på den här telefonen. Slå på för att prova nya saker innan de släpps till alla — de är av för alla andra.',
   },
   rows: {
@@ -1915,6 +1926,15 @@ export const admin = {
     household: (datum: string, medlemmar: number, recept: number, listor: number, varor: number, meny: number) =>
       `${datum} · ${medlemmar} medl. · ${recept} recept · ${listor} listor · ${varor} varor · ${meny} menyrätter`,
     householdsSummary: (alla: number, aktiva: number) => `${alla} nya hushåll, varav ${aktiva} har skapat något.`,
+    recipeSource: {
+      manual:     'Skrivna själv',
+      url_import: 'Från länk',
+      ai_paste:   'Inklistrad text',
+      photo:      'Foto',
+    } as Record<string, string>,
+    recipeSourceMeta: (totalt: number, senaste: number, hushall: number) =>
+      `${totalt} totalt · ${senaste} senaste 30 dagarna · ${hushall} hushåll`,
+    recipeSourcesNote: 'Foto räknas som inklistrad text för recept skapade före 2026-10-16 — då sparades de likadant.',
     weight:    (n: number) => `sedd ${n} gånger`,
     junk:      (skäl: string) => `ser inte ut som en vara: ${skäl}`,
     suggestDelete: (skäl: string) => `radera — ${skäl}`,

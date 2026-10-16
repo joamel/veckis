@@ -31,3 +31,23 @@ export function extractUrl(text: string): string {
   while (url.length > 0 && TRAILING.has(url[url.length - 1])) url = url.slice(0, -1);
   return url;
 }
+
+/** Så mycket text runt en länk som fortfarande räknas som "bara en länk":
+ *  receptnamnet från ICA:s delning, "Delat från …" och liknande. */
+const MAX_TEXT_RUNT_LANK = 120;
+
+/**
+ * Länken, om det inklistrade i princip BARA är en länk — annars null, och
+ * texten tolkas som ett recept. Ett recept som råkar innehålla en länk
+ * ("källa: https://…") är fortfarande ett recept: då är texten runt länken lång.
+ * En adress utan http (www.ica.se/…) räknas också.
+ */
+export function pastedLink(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  if (/^www\.\S+\.\S+$/i.test(trimmed)) return `https://${trimmed}`;
+  const url = extractUrl(trimmed);
+  if (!/^https?:\/\/\S+\.\S+/i.test(url)) return null;
+  const rest = trimmed.replace(url, '').trim();
+  return rest.length <= MAX_TEXT_RUNT_LANK ? url : null;
+}

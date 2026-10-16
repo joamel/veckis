@@ -142,6 +142,26 @@ adminRouter.get('/new-households', asyncHandler(async (req, res) => {
   res.json({ since: since.toISOString(), rader: await newHouseholds(since) });
 }));
 
+// GET /api/admin/recipe-sources — hur recepten kommit in (skrivna, länk,
+// inklistrade, fotade): totalt, senaste 30 dagarna och antal hushåll. Underlag
+// för hur receptmenyn ska se ut.
+adminRouter.get('/recipe-sources', asyncHandler(async (_req, res) => {
+  const since = new Date(Date.now() - 30 * 86_400_000);
+  const [total, recent, perHousehold] = await Promise.all([
+    prisma.recipe.groupBy({ by: ['source'], _count: { _all: true } }),
+    prisma.recipe.groupBy({ by: ['source'], where: { createdAt: { gte: since } }, _count: { _all: true } }),
+    prisma.recipe.groupBy({ by: ['source', 'householdId'] }),
+  ]);
+  const recentBy = new Map(recent.map(r => [r.source, r._count._all]));
+  const households = new Map<string, number>();
+  for (const r of perHousehold) households.set(r.source, (households.get(r.source) ?? 0) + 1);
+  res.json({
+    rader: total
+      .map(r => ({ source: r.source, total: r._count._all, recent: recentBy.get(r.source) ?? 0, households: households.get(r.source) ?? 0 }))
+      .sort((a, b) => b.total - a.total),
+  });
+}));
+
 // GET /api/admin/classify?name= — hur ett namn klassas idag och av vilken regel.
 adminRouter.get('/classify', asyncHandler(async (req, res) => {
   const name = typeof req.query.name === 'string' ? req.query.name : '';

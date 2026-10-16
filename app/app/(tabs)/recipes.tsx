@@ -54,7 +54,8 @@ import { VeckoDagValjare } from '../../src/components/nydesign/VeckoDagValjare';
 import { Murverk, murverkHojd } from '../../src/components/nydesign/Murverk';
 import { TagLabel, isFavoriteTag } from '../../src/components/TagLabel';
 import { orderTags, tagChips } from '../../src/lib/tagOrder';
-import { cleanPastedUrl, extractUrl } from '../../src/lib/extractUrl';
+import { cleanPastedUrl, extractUrl, pastedLink } from '../../src/lib/extractUrl';
+import { useExperiment } from '../../src/lib/experiments';
 
 // Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
 // dagnamn är hårdkodat i komponenten — då räcker det att översätta svenska.ts.
@@ -99,6 +100,9 @@ export default function RecipesScreen() {
   const { showToast, showError } = useToast();
   const ensureImagePermission = useImagePermission();
   const confirm = useConfirm();
+  // Dev-läget: tre val i receptmenyn i stället för fem (länk och inklistrad
+  // text i ett fält, foto och galleri i ett val).
+  const devMode = useExperiment('dev-mode');
   const tryCloseCreate = useDiscardDraft(confirm);
   const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setPhotoUris([]); setMode('url'); };
   const closeCreate = () => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '' || photoUris.length > 0, discardCreate);
@@ -469,6 +473,8 @@ export default function RecipesScreen() {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [pasteText, setPasteText] = useState('');
+  // Dev-läget: är det inklistrade en länk (hämtas) eller ett recept (tolkas)?
+  const pasteLink = devMode ? pastedLink(pasteText) : null;
   const [parsing, setParsing] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -527,9 +533,9 @@ export default function RecipesScreen() {
     showTip({ title: gettingStarted.spotlight.recipe.title, message: gettingStarted.spotlight.recipe.message, targetRef: fabRef });
   }, [loading, showTip]));
 
-  async function handleScrape() {
+  async function handleScrape(raw?: string) {
     // Samma rensning som fältet gör, ifall texten kom in på annat sätt.
-    const link = extractUrl(url);
+    const link = extractUrl(raw ?? url);
     if (!link) return;
     const normalizedUrl = link.replace(/\/$/, '');
     const existing = recipes.find(r => r.sourceUrl?.replace(/\/$/, '') === normalizedUrl);
@@ -564,6 +570,7 @@ export default function RecipesScreen() {
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
       setShowModal(false);
       setUrl('');
+      setPasteText('');
       // Recipe found but no ingredients parsed — drop the user straight into edit
       // mode to fill them in, instead of a confusing empty recipe.
       if (scraped.ingredients.length === 0) {
@@ -688,7 +695,7 @@ export default function RecipesScreen() {
       title: egenTitel?.trim() || r.title,
       description: r.description,
       instructions: r.instructions,
-      source: 'ai_paste',
+      source: 'photo',
       servings: r.servings,
       cookMinutes: r.cookMinutes ?? null,
       ingredients: r.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
@@ -812,7 +819,23 @@ export default function RecipesScreen() {
       // 3-punktsmeny uppe i headern — därför bottom-right, inte default.
       menuAnchor: 'bottom-right',
       menuAnchorRef: fabRef,
-      buttons: [
+      buttons: devMode ? [
+        { label: str.createModal.combined.menuWrite, icon: 'pencil-outline', onPress: () => router.push('/recipes/new' as never) },
+        // Länk eller recept — fältet avgör själv vilket det är.
+        { label: str.createModal.combined.menuPaste, icon: 'clipboard-outline', onPress: () => openModalWithMode('paste') },
+        // Kamera eller galleri väljs i ett andra steg. ConfirmDialog kör valet
+        // först när menyn animerats ut, så frågan kan öppnas direkt härifrån.
+        { label: str.createModal.combined.menuPhoto, icon: 'camera-outline', onPress: () => confirm({
+          title: str.createModal.photo.sourceTitle,
+          message: str.createModal.photo.sourceMessage,
+          buttons: [
+            { label: str.createModal.photo.sourceCamera, icon: 'camera-outline', onPress: () => { void startPhotoFlow('camera'); } },
+            { label: str.createModal.photo.sourceLibrary, icon: 'images-outline', onPress: () => { void startPhotoFlow('library'); } },
+            { label: common.actions.cancel, style: 'cancel' },
+          ],
+        }) },
+        { label: common.actions.cancel, style: 'cancel' },
+      ] : [
         { label: str.createModal.menu.manual, icon: 'pencil-outline', onPress: () => router.push('/recipes/new' as never) },
         { label: str.createModal.menu.url, icon: 'link-outline', onPress: () => openModalWithMode('url') },
         { label: str.createModal.menu.paste, icon: 'sparkles', onPress: () => openModalWithMode('paste') },
@@ -832,11 +855,11 @@ export default function RecipesScreen() {
         <View style={s.modeBody}>
         {mode === 'paste' ? (
           <>
-            <Text style={s.pasteHint}>{str.createModal.pasteHint}</Text>
+            <Text style={s.pasteHint}>{devMode ? str.createModal.combined.hint : str.createModal.pasteHint}</Text>
             <ClearableInput
               ref={pasteRef}
               style={[s.input, { height: 130, textAlignVertical: 'top', paddingTop: 10 }]}
-              placeholder={str.createModal.pastePlaceholder}
+              placeholder={devMode ? str.createModal.combined.placeholder : str.createModal.pastePlaceholder}
               value={pasteText}
               onChangeText={setPasteText}
               multiline
@@ -847,10 +870,12 @@ export default function RecipesScreen() {
             <Pressable
               ref={pasteBtnRef}
               style={[s.button, s.modeBodyBtn, !pasteText.trim() && s.buttonDisabled]}
-              onPress={handleParseAndCreate}
-              disabled={parsing || creating || !pasteText.trim()}
+              onPress={() => { if (pasteLink) void handleScrape(pasteLink); else void handleParseAndCreate(); }}
+              disabled={parsing || scraping || creating || !pasteText.trim()}
             >
-              {parsing || creating ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{str.createModal.parseButton}</Text>}
+              {parsing || scraping || creating
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={s.buttonText}>{pasteLink ? str.createModal.fetchButton : str.createModal.parseButton}</Text>}
             </Pressable>
           </>
         ) : mode === 'url' ? (
@@ -869,13 +894,13 @@ export default function RecipesScreen() {
               textContentType="none"
               onFocus={() => { revealTargetRef.current = urlBtnRef.current; lyftRef.current.nollställ(); revealFocused(); }}
               returnKeyType="done"
-              onSubmitEditing={handleScrape}
+              onSubmitEditing={() => handleScrape()}
             />
             <Text style={s.urlHint}>{str.createModal.urlHint}</Text>
             <Pressable
               ref={urlBtnRef}
               style={[s.button, s.modeBodyBtn, !url.trim() && s.buttonDisabled]}
-              onPress={handleScrape}
+              onPress={() => handleScrape()}
               disabled={scraping || creating || !url.trim()}
             >
               {scraping || creating
@@ -1245,7 +1270,7 @@ export default function RecipesScreen() {
         onRequestClose={closeCreate}
         liftOffset={sheetLift}
         bodyStyle={s.sheetBody}
-        title={str.createModal.modeTitles[mode]}
+        title={devMode && mode === 'paste' ? str.createModal.combined.title : str.createModal.modeTitles[mode]}
       >
         {createSheetInner}
       </DraggableBottomSheet>
