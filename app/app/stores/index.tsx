@@ -313,11 +313,11 @@ export default function StoresScreen() {
                     const parts: string[] = [];
                     if (catCount > 0) parts.push(str.card.categories(catCount));
                     if (isCurrent) parts.push(str.card.current);
-                    return parts.length > 0 ? <Text style={[s.cardMeta, isCurrent && s.cardMetaCurrent, isChosen && s.cardMetaChosen]}>{parts.join(' · ')}</Text> : null;
+                    return parts.length > 0 ? <Text style={[s.cardMeta, isCurrent && s.cardMetaCurrent]}>{parts.join(' · ')}</Text> : null;
                   })()}
                 </View>
                 {isChosen ? (
-                  <Ionicons name="checkmark-circle" size={22} color={nyDesign ? ny.lime : c.primary} />
+                  <Ionicons name="checkmark-circle" size={22} color={c.primary} />
                 ) : !pickMode ? (
                   <Ionicons name="chevron-forward" size={18} color={c.border} />
                 ) : null}
@@ -423,27 +423,23 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   card: nyD
     ? { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: ny.kort, borderRadius: 18, padding: 12, marginBottom: 10, borderWidth: 2, borderColor: 'transparent' }
     : { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 2, borderWidth: 1, borderColor: c.surfaceSubtle },
-  // Ny design: vald butik i skog & lime (som andra valda saker i appen), inte
-  // den gamla palettens terrakotta — limetext kräver den mörka ytan.
-  cardCurrent: nyD
-    ? { borderColor: ny.lime, backgroundColor: ny.valdYta, borderWidth: 2 }
-    : { borderColor: c.primary, backgroundColor: c.primaryTint, borderWidth: 2 },
+  // Vald butik markeras som valda rätter när veckomenyn förs över (ljus
+  // grön yta, grön kontur, grön bock) — plus att ikonen blir mörk.
+  cardCurrent: { borderColor: c.primary, backgroundColor: c.primaryTint, borderWidth: 2 },
   cardIcon: nyD
     ? { width: 44, height: 44, borderRadius: 13, backgroundColor: ny.bricka, alignItems: 'center', justifyContent: 'center' }
     : { width: 36, height: 36, borderRadius: 10, backgroundColor: c.primaryTint, alignItems: 'center', justifyContent: 'center' },
-  cardIconCurrent: nyD
-    ? { backgroundColor: ny.skog, borderWidth: 2, borderColor: ny.lime }
-    : { backgroundColor: c.accent100 },
+  // Samma mörka bricka som varannan butik i "Butiker" (nyBrickaMork).
+  cardIconCurrent: nyD ? { backgroundColor: ny.valdYta } : { backgroundColor: c.accent100 },
   addCard: { backgroundColor: 'transparent', borderWidth: nyD ? 2 : 1, borderStyle: 'dashed', borderColor: nyD ? ny.kontur : c.border },
   addCardIcon: { backgroundColor: 'transparent' },
   addCardTitle: { color: nyD ? ny.padYta : c.primary },
   cardTitle: nyD
     ? { fontFamily: nyFont.fet, fontSize: 17, letterSpacing: -0.3, color: ny.text }
     : { fontSize: 16, fontWeight: '600', color: c.text },
-  cardTitleCurrent: { color: nyD ? ny.lime : c.accentDark },
+  cardTitleCurrent: nyD ? {} : { color: c.accentDark },
   cardMeta: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   cardMetaCurrent: { color: nyD ? ny.padYta : c.accent, fontWeight: '600' },
-  cardMetaChosen: nyD ? { color: ny.lime } : {},
   cardClearBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerTint },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: nyD ? ny.lime : c.primary, alignItems: 'center', justifyContent: 'center', shadowColor: nyD ? ny.skog : c.primary, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   input: { borderWidth: 1, borderColor: ny.kontur, borderRadius: 14, backgroundColor: ny.bakgrund, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12, color: ny.text },
