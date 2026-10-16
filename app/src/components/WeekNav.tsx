@@ -28,7 +28,10 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
   const s = useMemo(() => makeStyles(c, ny), [c, ny]);
 
   return (
-    <View style={[s.container, arNy && s.nyContainer, { paddingHorizontal: sp(arNy ? 4 : 12), paddingVertical: sp(arNy ? 7 : 10) }]}>
+    // Ny design: exakt sökfältets höjd i receptvyn (44), så rubrikerna i
+    // veckomenyn och receptvyn blir lika höga. Med 7 px utfyllnad runt pilarna
+    // blev veckoraden 48 och veckomenyns rubrik några pixlar högre.
+    <View style={[s.container, arNy && s.nyContainer, arNy ? { paddingHorizontal: sp(4), height: NY_HOJD } : { paddingHorizontal: sp(12), paddingVertical: sp(10) }]}>
       {/* Rendered first so arrows appear on top of it in touch handling */}
       <Pressable style={s.labelBtn} onPress={onPickDate ?? onToday}>
         <Text style={[s.label, { fontSize: fs(14) }, isCurrentWeek && s.labelCurrent, isPastWeek && s.labelPast, arNy && s.nyLabel, arNy && isPastWeek && s.nyLabelPast]}>{weekLabel}</Text>
@@ -49,6 +52,9 @@ export function WeekNav({ weekLabel, isCurrentWeek, onPrev, onNext, onToday, onP
     </View>
   );
 }
+
+/** Samma höjd som sökfältet i receptvyns rubrik (nySok i recipes.tsx). */
+const NY_HOJD = 44;
 
 const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   container: {
