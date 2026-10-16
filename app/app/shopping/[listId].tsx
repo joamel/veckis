@@ -82,7 +82,6 @@ import {
   applyPendingToggles, replayPendingToggles, saveListSnapshot, readListSnapshot,
 } from '../../src/lib/shoppingOfflineQueue';
 import { useDirtySince } from '../../src/hooks/useDirtySince';
-import { useExperiment } from '../../src/lib/experiments';
 import { amountOf, quickAmountLabel, quickListCandidates, quickListRows, stapleForName, RECENT_PURCHASE_MS, type QuickAmount } from '../../src/lib/quickList';
 
 /** Luft under listan när en knapp svävar ovanför lägg-till-baren: knappens
@@ -476,9 +475,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [renameShowQuickList, setRenameShowQuickList] = useState(true);
-  // Snabblistan: hushållets egna snabbvaror, att bocka i och lägga till på en
-  // gång. Bara i dev-läget (adminsidans Sandbox) tills vidare.
-  const devMode = useExperiment('dev-mode');
+  // Snabblistan: hushållets egna snabbvaror, att bocka i och lägga till på en gång.
   const [quickSheetOpen, setQuickSheetOpen] = useState(false);
   const [quickSelected, setQuickSelected] = useState<Set<string>>(new Set());
   const [quickAdding, setQuickAdding] = useState(false);
@@ -507,7 +504,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     if (!newName) return;
     setRenaming(true);
     const prev = { name: list?.name, emoji: list?.emoji, showQuickList: list?.showQuickList };
-    const showQuickList = devMode ? renameShowQuickList : undefined;
+    const showQuickList = renameShowQuickList;
     setList(p => p ? { ...p, name: newName, emoji: renameEmoji, ...(showQuickList !== undefined ? { showQuickList } : {}) } : p);
     setShowRenameModal(false);
     try {
@@ -723,7 +720,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       await client.setListShopper(list.id, next);
       // En gång, och bara när snabblistan är tom: erbjud att bygga den ur det
       // som just handlats. Aldrig en fråga efter varje handling.
-      if (!next && devMode && quickNudge.seen === false && quickRows.length === 0
+      if (!next && quickNudge.seen === false && quickRows.length === 0
           && list.items.some(i => i.isChecked && !i.recipeId && !i.menuItemId)) {
         quickNudge.markSeen();
         showGlobalToast(str.quickList.nudge, 'neutral', {
@@ -1464,7 +1461,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     const snapshot = editingItem;
     // Ikryssad: varan sparas i snabblistan med formulärets mängd (ersätter en
     // tidigare). Urkryssad gör ingenting — ta bort görs med krysset i arket.
-    if (devMode && editInQuickList) {
+    if (editInQuickList) {
       setQuickListFlag(name, true, amountOf({ quantity: qty, unit }));
     }
 
@@ -1874,7 +1871,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     // Ikryssad: i snabblistan som bara namnet (editorn har ingen mängd).
     // Byts namnet raderas den gamla basvaran, så en snabbvara tas med över.
     const renamed = !isNew && newName !== original.name;
-    const quick: { inQuickList?: boolean } & Partial<QuickAmount> = devMode && stapleInQuickList
+    const quick: { inQuickList?: boolean } & Partial<QuickAmount> = stapleInQuickList
       ? { inQuickList: true, quickQuantity: null, quickUnit: null }
       : renamed && original.inQuickList
         ? { inQuickList: true, quickQuantity: original.quickQuantity ?? null, quickUnit: original.quickUnit ?? null }
@@ -2193,7 +2190,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   // — vilket kraschade hela inköpslistan i PWA:n. Native påverkades inte.
   // Snabblistan och dubblettknappen svävar strax ovanför lägg-till-baren. Utan
   // luft under listan täckte de de sista raderna även när man scrollat ända ner.
-  const floatingButtonsVisible = (devMode && list?.showQuickList !== false && addBarH > 0 && !keyboardVisible) || dupeButtonVisible;
+  const floatingButtonsVisible = (list?.showQuickList !== false && addBarH > 0 && !keyboardVisible) || dupeButtonVisible;
   const listContentStyle = useMemo(
     () => StyleSheet.flatten([
       s.list,
@@ -2392,7 +2389,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       {/* Snabblistan: nere till vänster, mittemot dubblettknappen och
           dämpad bredvid den — den ska finnas till hands, inte påkalla
           uppmärksamhet. */}
-      {devMode && list?.showQuickList !== false && addBarH > 0 && !keyboardVisible && (
+      {list?.showQuickList !== false && addBarH > 0 && !keyboardVisible && (
         <View style={[s.quickFloatWrap, { bottom: addBarH + 12 }]} pointerEvents="box-none">
           {/* Grå vid tryck i stället för den vanliga nedtoningen: pillen svävar
               över listan, och tonad syntes raderna bakom igenom. */}
@@ -2728,24 +2725,22 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               })}
             </View>
           </ScrollView>
-          {devMode && (
-            <Pressable
-              style={s.quickToggleRow}
-              onPress={() => setEditInQuickList(v => !v)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: editInQuickList }}
-            >
-              <Ionicons name={editInQuickList ? 'checkbox' : 'square-outline'} size={22} color={editInQuickList ? c.primary : c.textFaint} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.quickToggleText}>{str.quickList.inQuickList}</Text>
-                {editQuickStaple?.inQuickList && (
-                  <Text style={s.importUnder}>
-                    {quickAmountLabel(editQuickStaple) ? str.quickList.currentAmount(quickAmountLabel(editQuickStaple)) : str.quickList.currentNoAmount}
-                  </Text>
-                )}
-              </View>
-            </Pressable>
-          )}
+          <Pressable
+            style={s.quickToggleRow}
+            onPress={() => setEditInQuickList(v => !v)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: editInQuickList }}
+          >
+            <Ionicons name={editInQuickList ? 'checkbox' : 'square-outline'} size={22} color={editInQuickList ? c.primary : c.textFaint} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.quickToggleText}>{str.quickList.inQuickList}</Text>
+              {editQuickStaple?.inQuickList && (
+                <Text style={s.importUnder}>
+                  {quickAmountLabel(editQuickStaple) ? str.quickList.currentAmount(quickAmountLabel(editQuickStaple)) : str.quickList.currentNoAmount}
+                </Text>
+              )}
+            </View>
+          </Pressable>
           </ScrollView>
           <View style={s.editActions}>
             <Pressable style={s.deleteBtn} onPress={() => { setEditingItem(null); if (editingItem) deleteItem(editingItem.id); }}>
@@ -2852,17 +2847,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
               </ScrollView>
             </>
           )}
-          {devMode && (
-            <Pressable
-              style={s.quickToggleRow}
-              onPress={() => setStapleInQuickList(v => !v)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: stapleInQuickList }}
-            >
-              <Ionicons name={stapleInQuickList ? 'checkbox' : 'square-outline'} size={22} color={stapleInQuickList ? c.primary : c.textFaint} />
-              <Text style={s.quickToggleText}>{str.quickList.inQuickList}</Text>
-            </Pressable>
-          )}
+          <Pressable
+            style={s.quickToggleRow}
+            onPress={() => setStapleInQuickList(v => !v)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: stapleInQuickList }}
+          >
+            <Ionicons name={stapleInQuickList ? 'checkbox' : 'square-outline'} size={22} color={stapleInQuickList ? c.primary : c.textFaint} />
+            <Text style={s.quickToggleText}>{str.quickList.inQuickList}</Text>
+          </Pressable>
           </ScrollView>
           <View style={s.editActions}>
             <Pressable style={s.deleteBtn} onPress={deleteStaple}>
@@ -3393,17 +3386,15 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             {nyDesign
               ? <IkonValjare value={renameEmoji} onChange={setRenameEmoji} label={common.iconOptional} />
               : <EmojiPicker value={renameEmoji} onChange={setRenameEmoji} />}
-            {devMode && (
-              <Pressable
-                style={s.quickToggleRow}
-                onPress={() => setRenameShowQuickList(v => !v)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: renameShowQuickList }}
-              >
-                <Ionicons name={renameShowQuickList ? 'checkbox' : 'square-outline'} size={22} color={renameShowQuickList ? c.primary : c.textFaint} />
-                <Text style={s.quickToggleText}>{str.quickList.showOnList}</Text>
-              </Pressable>
-            )}
+            <Pressable
+              style={s.quickToggleRow}
+              onPress={() => setRenameShowQuickList(v => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: renameShowQuickList }}
+            >
+              <Ionicons name={renameShowQuickList ? 'checkbox' : 'square-outline'} size={22} color={renameShowQuickList ? c.primary : c.textFaint} />
+              <Text style={s.quickToggleText}>{str.quickList.showOnList}</Text>
+            </Pressable>
             <Pressable
               style={[s.saveBtn, (!renameValue.trim() || renaming) && s.saveBtnDisabled]}
               onPress={saveRename}

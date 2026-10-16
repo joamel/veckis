@@ -40,7 +40,6 @@ import { type Store } from '@veckis/shared';
 import { EmojiPicker } from '../../src/components/EmojiPicker';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { shopping as str, common, gettingStarted } from '../../src/lib/svenska';
-import { useExperiment } from '../../src/lib/experiments';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 
 export default function ShoppingScreen() {
@@ -70,7 +69,6 @@ export default function ShoppingScreen() {
   // Snabblistan på/av för den nya listan. På som standard — den som gör en
   // apotekslista stänger av den, alla andra behöver inte ta ställning.
   const [newListQuickList, setNewListQuickList] = useState(true);
-  const devMode = useExperiment('dev-mode');
   const [creating, setCreating] = useState(false);
   // Scroll-into-view-lyft för modalen (mät fokuserat fält, lyft lagom).
   const { sheetLift, onFocusInput } = useSheetLift();
@@ -162,7 +160,7 @@ export default function ShoppingScreen() {
     if (!householdId || !newListName.trim()) return;
     setCreating(true);
     try {
-      const list = await client.createShoppingList({ householdId, name: newListName.trim(), emoji: newListEmoji, storeId: newListStoreId ?? undefined, ...(devMode ? { showQuickList: newListQuickList } : {}) });
+      const list = await client.createShoppingList({ householdId, name: newListName.trim(), emoji: newListEmoji, storeId: newListStoreId ?? undefined, showQuickList: newListQuickList });
       setShowModal(false);
       setNewListQuickList(true);
       setNewListName('');
@@ -340,17 +338,15 @@ export default function ShoppingScreen() {
               </Text>
               <Ionicons name="chevron-forward" size={16} color={c.textFaint} />
             </Pressable>
-            {devMode && (
-              <Pressable
-                style={styles.quickToggleRow}
-                onPress={() => setNewListQuickList(v => !v)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: newListQuickList }}
-              >
-                <Ionicons name={newListQuickList ? 'checkbox' : 'square-outline'} size={22} color={newListQuickList ? c.primary : c.textFaint} />
-                <Text style={styles.quickToggleText}>{str.createModal.showQuickList}</Text>
-              </Pressable>
-            )}
+            <Pressable
+              style={styles.quickToggleRow}
+              onPress={() => setNewListQuickList(v => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: newListQuickList }}
+            >
+              <Ionicons name={newListQuickList ? 'checkbox' : 'square-outline'} size={22} color={newListQuickList ? c.primary : c.textFaint} />
+              <Text style={styles.quickToggleText}>{str.createModal.showQuickList}</Text>
+            </Pressable>
             <Pressable
               style={[styles.button, !newListName.trim() && styles.buttonDisabled]}
               onPress={createList}

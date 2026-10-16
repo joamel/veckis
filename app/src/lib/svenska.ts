@@ -1887,7 +1887,7 @@ export const admin = {
   sandbox: {
     'dev-mode': {
       title:       'Dev-läge',
-      description: 'Slår på det som är under utveckling, bara på den här telefonen: snabblistan i inköpslistan, och förslag på kategoriordning ur så lite som en handling i butiken.',
+      description: 'Slår på det som är under utveckling, bara på den här telefonen: receptmenyn med tre val (länk och recept i ett fält), och förslag på kategoriordning ur så lite som en handling i butiken.',
     },
   },
   tabs: {
