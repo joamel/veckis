@@ -2,10 +2,12 @@ import { useMemo } from 'react';
 import { useTheme } from '../src/context/ThemeContext';
 import type { Palette } from '../src/lib/theme';
 import { nyFont, nyLjus as ny } from '../src/lib/nyDesign';
-// Publik landningssida för installation: PWA-install-prompt där browsern
-// stödjer det, manuell instruktion för iOS Safari. Detekterar plattform via
-// UA och visar bara det som är relevant — användaren ska inte behöva läsa
-// fel kolumn.
+// Publik landningssida för installation. Telefonen får sin appbutik först
+// (App Store / Google Play, ute sedan 2026-10), webbappen som alternativ:
+// PWA-prompten där browsern stödjer det, manuell instruktion för iOS Safari.
+// Datorn får sin PWA-install och båda butikerna. Detekterar plattform via UA
+// och visar bara det som är relevant — användaren ska inte behöva läsa fel
+// kolumn.
 //
 // Inte auth-skyddad (NavigationGuard hoppar över /install). Användare
 // hamnar här via en delad länk: https://handlis.app/install
@@ -23,6 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { detectInstallTarget, isAlreadyInstalled, type InstallTarget } from '../src/lib/installDetect';
 import { install as str } from '../src/lib/svenska';
+import { StoreButtons } from '../src/components/StoreButtons';
 
 // Chromiums beforeinstallprompt-event. Sparas globalt så vi kan trigga
 // PWA-prompten på knapptryck.
@@ -97,24 +100,15 @@ export default function InstallScreen() {
         </View>
 
         <View style={s.sheet}>
-          {/* Android: "kommer snart" + PWA-install om Chromium */}
+          {/* Android: Google Play först, PWA-install som alternativ om Chromium */}
           {(target === 'android-chrome' || target === 'android-other') && (
             <View style={s.section}>
               <Text style={s.sectionTitle}>{str.android.cardTitle}</Text>
               <Text style={s.sectionBody}>{str.android.cardBody}</Text>
-
-              <View style={s.optionBox}>
-                <View style={s.optionHeader}>
-                  <Ionicons name="logo-android" size={22} color={ny.skog} />
-                  <Text style={s.optionTitle}>{str.android.comingSoon.title}</Text>
-                </View>
-                <Text style={s.optionBody}>
-                  {str.android.comingSoon.body}
-                </Text>
-              </View>
+              <StoreButtons tone="light" only="android" />
 
               {target === 'android-chrome' && (
-                <View style={[s.optionBox, { marginTop: 12 }]}>
+                <View style={[s.optionBox, { marginTop: 24 }]}>
                   <View style={s.optionHeader}>
                     <Ionicons name="globe-outline" size={22} color={ny.skog} />
                     <Text style={s.optionTitle}>{str.android.pwa.title}</Text>
@@ -137,43 +131,49 @@ export default function InstallScreen() {
             </View>
           )}
 
-          {/* iOS Safari: bara manuell PWA-install */}
+          {/* iOS: App Store först, manuell PWA-install via Safari som alternativ */}
           {(target === 'ios-safari' || target === 'ios-other') && (
             <View style={s.section}>
               <Text style={s.sectionTitle}>{str.ios.cardTitle}</Text>
               <Text style={s.sectionBody}>
                 {str.ios.cardBody}
               </Text>
-              {target === 'ios-other' && (
-                <View style={s.warningBox}>
-                  <Ionicons name="warning-outline" size={18} color={c.warningText} />
-                  <Text style={s.warningText}>
-                    {str.ios.warningPrefix}<Text style={s.bold}>{str.ios.warningSafari}</Text>{str.ios.warningSuffix}
-                  </Text>
+              <StoreButtons tone="light" only="ios" />
+              <View style={[s.optionBox, { marginTop: 24 }]}>
+                <View style={s.optionHeader}>
+                  <Ionicons name="globe-outline" size={22} color={ny.skog} />
+                  <Text style={s.optionTitle}>{str.ios.pwaTitle}</Text>
                 </View>
-              )}
-              <View style={s.steps}>
-                <View style={s.stepRow}>
-                  <Text style={s.stepNum}>1.</Text>
-                  <Text style={s.stepText}>
-                    {str.ios.step1Prefix}<Ionicons name="share-outline" size={18} color={ny.skog} />{' '}
-                    <Text style={s.bold}>{str.ios.step1Bold}</Text>{str.ios.step1Suffix}
-                  </Text>
-                </View>
-                <View style={s.stepRow}>
-                  <Text style={s.stepNum}>2.</Text>
-                  <Text style={s.stepText}>
-                    {str.ios.step2Prefix}<Text style={s.bold}>"{str.ios.step2Bold}"</Text>{str.ios.step2Suffix}
-                  </Text>
-                </View>
-                <View style={s.stepRow}>
-                  <Text style={s.stepNum}>3.</Text>
-                  <Text style={s.stepText}>
-                    {str.ios.step3}
-                  </Text>
+                {target === 'ios-other' && (
+                  <View style={s.warningBox}>
+                    <Ionicons name="warning-outline" size={18} color={c.warningText} />
+                    <Text style={s.warningText}>
+                      {str.ios.warningPrefix}<Text style={s.bold}>{str.ios.warningSafari}</Text>{str.ios.warningSuffix}
+                    </Text>
+                  </View>
+                )}
+                <View style={s.steps}>
+                  <View style={s.stepRow}>
+                    <Text style={s.stepNum}>1.</Text>
+                    <Text style={s.stepText}>
+                      {str.ios.step1Prefix}<Ionicons name="share-outline" size={18} color={ny.skog} />{' '}
+                      <Text style={s.bold}>{str.ios.step1Bold}</Text>{str.ios.step1Suffix}
+                    </Text>
+                  </View>
+                  <View style={s.stepRow}>
+                    <Text style={s.stepNum}>2.</Text>
+                    <Text style={s.stepText}>
+                      {str.ios.step2Prefix}<Text style={s.bold}>"{str.ios.step2Bold}"</Text>{str.ios.step2Suffix}
+                    </Text>
+                  </View>
+                  <View style={s.stepRow}>
+                    <Text style={s.stepNum}>3.</Text>
+                    <Text style={s.stepText}>
+                      {str.ios.step3}
+                    </Text>
+                  </View>
                 </View>
               </View>
-              <Text style={s.hint}>{str.androidComingSoon}</Text>
             </View>
           )}
 
@@ -192,7 +192,8 @@ export default function InstallScreen() {
                   {str.desktop.hintPrefix}<Ionicons name="download-outline" size={16} color={ny.skog} />{str.desktop.hintMiddle}<Text style={s.bold}>"{str.desktop.hintBold}"</Text>{str.desktop.hintSuffix}
                 </Text>
               )}
-              <Text style={s.hint}>{str.androidComingSoon}</Text>
+              <Text style={s.storesLead}>{str.phoneApps}</Text>
+              <StoreButtons tone="light" />
             </View>
           )}
 
@@ -206,7 +207,8 @@ export default function InstallScreen() {
               <Text style={s.hint}>
                 {str.unsupportedDesktop.hintPrefix}<Text style={s.bold}>{str.unsupportedDesktop.hintChrome}</Text>{str.unsupportedDesktop.hintComma}<Text style={s.bold}>{str.unsupportedDesktop.hintEdge}</Text>{str.unsupportedDesktop.hintOr}<Text style={s.bold}>{str.unsupportedDesktop.hintBrave}</Text>{str.unsupportedDesktop.hintSuffix}
               </Text>
-              <Text style={s.hint}>{str.androidComingSoon}</Text>
+              <Text style={s.storesLead}>{str.phoneApps}</Text>
+              <StoreButtons tone="light" />
             </View>
           )}
 
@@ -217,6 +219,8 @@ export default function InstallScreen() {
               <Text style={s.sectionBody}>
                 {str.fallback.cardBody}
               </Text>
+              <Text style={s.storesLead}>{str.phoneApps}</Text>
+              <StoreButtons tone="light" />
             </View>
           )}
 
@@ -246,6 +250,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   optionBody: { fontSize: 13, color: ny.textDampad, marginBottom: 10, lineHeight: 18, textAlign: 'center' },
   primaryBtn: { backgroundColor: ny.lime, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4, width: '100%' },
   primaryBtnText: { fontFamily: nyFont.halvfet, color: ny.skog, fontSize: 16 },
+  storesLead: { fontSize: 14, color: ny.textDampad, textAlign: 'center', marginTop: 20, marginBottom: 10 },
   hint: { fontSize: 13, color: ny.textDampad, lineHeight: 20, fontStyle: 'italic', textAlign: 'center', marginTop: 12 },
   bold: { fontFamily: nyFont.halvfet, color: ny.text, fontStyle: 'normal' },
   steps: { width: '100%', marginTop: 4 },

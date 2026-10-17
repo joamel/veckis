@@ -4,6 +4,7 @@ import { Pressable } from './Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { landing as str } from '../lib/svenska';
+import { StoreButtons } from './StoreButtons';
 import { nyLjus as ny, nyFont } from '../lib/nyDesign';
 
 // Publik landningssida på handlis.app. Renderas bara på webben för utloggade
@@ -78,10 +79,9 @@ export function WebLanding() {
             <Pressable onPress={goSignIn} style={s.ctaPrimary}>
               <Text style={s.ctaPrimaryText}>{str.hero.ctaPrimary}</Text>
             </Pressable>
-            <Pressable onPress={goInstall} style={s.ctaSecondary}>
-              <Text style={s.ctaSecondaryText}>{str.hero.ctaSecondary}</Text>
-            </Pressable>
           </View>
+          <Text style={s.storesLead}>{str.hero.stores}</Text>
+          <StoreButtons tone="dark" />
         </View>
       </View>
 
@@ -127,6 +127,9 @@ export function WebLanding() {
           <Pressable onPress={goSignIn} style={s.ctaBandBtn}>
             <Text style={s.ctaPrimaryText}>{str.cta.button}</Text>
           </Pressable>
+          <View style={{ marginTop: 20 }}>
+            <StoreButtons tone="dark" />
+          </View>
         </View>
       </View>
 
@@ -210,11 +213,10 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   heroLogo: { width: 96, height: 96, borderRadius: 22, marginBottom: 24 },
   heroTitle: { fontSize: narrow ? 30 : 44, lineHeight: narrow ? 38 : 52, fontFamily: nyFont.fet, fontWeight: 'normal', color: '#fff', textAlign: 'center', letterSpacing: -0.6, maxWidth: 640 },
   heroSubtitle: { fontSize: narrow ? 16 : 18, lineHeight: narrow ? 24 : 28, color: BRAND.lightMute, textAlign: 'center', marginTop: 18, maxWidth: 560 },
+  storesLead: { fontSize: 14, color: BRAND.light, opacity: 0.75, textAlign: 'center', marginTop: 28, marginBottom: 12 },
   heroCtas: { flexDirection: narrow ? 'column' : 'row', gap: 12, marginTop: 32, alignItems: 'center', alignSelf: 'stretch', justifyContent: 'center' },
   ctaPrimary: { backgroundColor: BRAND.terra, paddingHorizontal: 28, paddingVertical: 15, borderRadius: 12, alignItems: 'center', minWidth: narrow ? '100%' : 200 },
   ctaPrimaryText: { color: ON_LIME, fontSize: 16, fontWeight: '800' },
-  ctaSecondary: { paddingHorizontal: 28, paddingVertical: 15, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', minWidth: narrow ? '100%' : 180 },
-  ctaSecondaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   section: { paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72, backgroundColor: BRAND.creme },
   sectionInner: { width: '100%', maxWidth: 1040, alignSelf: 'center' },

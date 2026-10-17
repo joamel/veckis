@@ -1760,13 +1760,9 @@ export const install = {
 
   android: {
     cardTitle:   'Android',
-    cardBody:    'Handlis funkar redan perfekt som webbapp på Android:',
-    comingSoon: {
-      title: 'Google Play-appen kommer snart',
-      body:  'Vi jobbar på att få ut Handlis som riktig app i Google Play.\n              Installera webbappen nedan så funkar allt redan idag - även offline.',
-    },
+    cardBody:    'Hämta Handlis på Google Play:',
     pwa: {
-      title:       'Installera som webbapp (PWA)',
+      title:       'Eller som webbapp',
       body:        'Snabbare att komma igång. Funkar offline men inga pushnotiser.',
       install:     'Installera som app',
       hintPrefix:  'Tryck på menyn (⋮) i Chrome → ',
@@ -1779,7 +1775,8 @@ export const install = {
 
   ios: {
     cardTitle:     'iPhone / iPad',
-    cardBody:      'Apple tillåter inte direkt-installation från web. Du installerar Handlis\n            som en webbapp via Safari:',
+    cardBody:      'Hämta Handlis i App Store:',
+    pwaTitle:      'Eller som webbapp via Safari',
     warningPrefix: 'Öppna denna sida i ',
     warningSafari: 'Safari',
     warningSuffix: ' - andra browsers (Chrome/Edge på iOS)\n                kan inte installera webbappar.',
@@ -1824,9 +1821,18 @@ export const install = {
   },
 
   openWebAppLink: 'Eller öppna webbappen direkt →',
-  // Visas på iOS/desktop-korten så man vet att en Android-app är på gång,
-  // inte bara det plattformen råkade auto-detektera.
-  androidComingSoon: 'Har du en Android-telefon? Google Play-appen kommer snart - webbappen funkar precis lika bra redan idag.',
+  // Visas på dator-korten: telefonen är där Handlis används mest.
+  phoneApps: 'Handlis finns också som app för telefonen:',
+};
+
+// ─── Knappar till appbutikerna (webbens publika sidor) ──────────────────────
+export const storeButtons = {
+  appStoreLead:   'Hämta i',
+  appStore:       'App Store',
+  appStoreA11y:   'Hämta Handlis i App Store',
+  googlePlayLead: 'Ladda ned på',
+  googlePlay:     'Google Play',
+  googlePlayA11y: 'Ladda ned Handlis på Google Play',
 };
 
 // Publik landningssida (handlis.app) — visas för utloggade webbesökare istället
@@ -1841,7 +1847,7 @@ export const landing = {
     tagline:     'Handlis är din vän när du planerar veckans mat.',
     subtitle:    'Inköp, recept och veckomeny på ett ställe. Dela inköpslistan i realtid, spara recept och planera veckans måltider tillsammans med familjen.',
     ctaPrimary:  'Kom igång gratis',
-    ctaSecondary:'Installera appen',
+    stores:      'Finns för iPhone och Android',
   },
   features: {
     heading:     'Allt familjen behöver för en smidigare veckoplanering',
@@ -1874,7 +1880,8 @@ export const landing = {
     tagline:     'Planera – Inventera – Handla',
     privacy:     'Integritetspolicy',
     terms:       'Användarvillkor',
-    install:     'Installera appen',
+    // /install: butikerna för telefonen, webbappen för datorn.
+    install:     'Använd i webbläsaren',
     rights:      (year: number) => `© ${year} Handlis`,
   },
 };
