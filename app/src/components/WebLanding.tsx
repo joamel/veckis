@@ -120,6 +120,19 @@ export function WebLanding() {
         </View>
       </View>
 
+      {/* Vanliga frågor — synlig text för sökmotorerna, samma som i index.html */}
+      <View style={[s.section, s.faqSection]}>
+        <View style={s.faqInner}>
+          <Text style={s.sectionHeading} accessibilityRole="header">{str.faq.heading}</Text>
+          {str.faq.items.map(item => (
+            <View key={item.q} style={s.faqItem}>
+              <Text style={s.faqQ} accessibilityRole="header">{item.q}</Text>
+              <Text style={s.faqA}>{item.a}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
       {/* CTA-band */}
       <View style={s.ctaBand}>
         <View style={s.ctaBandInner}>
@@ -236,6 +249,12 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   featureCard: { flex: narrow ? undefined : 1, backgroundColor: BRAND.card, borderRadius: 18, padding: 26, borderWidth: 1, borderColor: BRAND.line },
   featureTitle: { fontSize: 19, fontWeight: '800', color: BRAND.greenDark, marginBottom: 10 },
   featureBody: { fontSize: 15, lineHeight: 23, color: BRAND.inkMuted },
+
+  faqSection: { paddingTop: 0 },
+  faqInner: { width: '100%', maxWidth: 720, alignSelf: 'center' },
+  faqItem: { paddingVertical: 18, borderTopWidth: 1, borderTopColor: BRAND.line },
+  faqQ: { fontSize: 17, fontWeight: '800', color: BRAND.greenDark, marginBottom: 6 },
+  faqA: { fontSize: 15, lineHeight: 23, color: BRAND.inkMuted },
 
   // Krittavla-sektion (ljusgrön bricka-bakgrund så den svarta tavlan blir ett kort)
   board: { backgroundColor: BRAND.beige, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72 },
