@@ -14,7 +14,7 @@ const ASKED_KEY = 'review-asked';
  * Frågas en gång per installation; iOS/Android begränsar dessutom själva hur
  * ofta dialogen syns och visar den kanske inte alls.
  *
- * expo-store-review kom med 2.2.1. En OTA till 2.2.0 saknar native-modulen,
+ * expo-store-review kom med 2.3.0. En OTA till 2.2.0 saknar native-modulen,
  * och paketets import kastar då direkt — därför kollas modulen först och
  * paketet laddas lat.
  */
