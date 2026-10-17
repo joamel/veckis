@@ -66,6 +66,7 @@ import { useApiClient, type ShoppingListWithItems, type ShoppingItemWithRecipe, 
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '../../src/context/ToastContext';
 import { useImagePermission } from '../../src/hooks/useImagePermission';
+import { recordShoppingTripAndMaybeAskForReview } from '../../src/lib/reviewPrompt';
 import { useConfirm } from '../../src/context/ConfirmContext';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
@@ -731,6 +732,9 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           label: str.quickList.nudgeAction,
           onPress: () => { setQuickSheetOpen(true); openPick(shoppingSince); },
         });
+      } else if (!next && list.items.some(i => i.isChecked)) {
+        // En riktig tur (något bockades av) — räknas mot betygsfrågan.
+        void recordShoppingTripAndMaybeAskForReview();
       }
     } catch (e) {
       // Rulla tillbaka
