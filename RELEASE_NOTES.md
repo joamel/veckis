@@ -1,3 +1,29 @@
+# Handlis 2.3.0 — release notes
+
+Dela recept direkt till Handlis, och snabblistan för de varor du köper varje
+vecka. Versionsnumret höjs den här gången: dela-funktionen är en ny
+native-modul, och en snabbuppdatering som använder den hade kraschat på
+telefoner med ett äldre bygge. Den som inte uppdaterar från butiken får
+därför inte längre snabbuppdateringar — "Vad är nytt" ska ge ett skäl att
+uppdatera.
+
+## Play Store / App Store — kort "Vad är nytt"
+
+> **Dela recept till Handlis.** Hittar du ett recept i webbläsaren, på Instagram eller i ICA-appen – tryck Dela och välj Handlis, så hämtas det direkt. **Snabblistan:** spara varorna du köper varje vecka, med din egen mängd, och lägg till dem med ett tryck. Plus: rensa bara klarmarkerade varor, butiksvalet går igenom direkt och tangentbordet stänger sig när du vill.
+
+*(cirka 410 tecken — Play tillåter 500.)*
+
+## Nytt sedan 2.2.0
+
+- **Dela till Handlis** — dela en länk eller en text från en annan app till Handlis; receptfliken öppnas med länken i "Hämta från länk" eller texten i "Klistra in". Kräver det här bygget.
+- **Snabblistan** — egna vardagsvaror med egen mängd, "Välj alla", "Välj från det du handlat", av/på per lista. (Ute som snabbuppdatering sedan 2026-10-16.)
+- **Rensa klarmarkerade** i stället för att tömma hela listan.
+- **Butiksvalet** går igenom första gången; vald butik markeras i grönt.
+- **Tangentbordet** i inköpslistan går att stänga och kommer inte tillbaka efter ett ark.
+- **Veckomenyn** landar överst vid veckobyte, och veckoraden syns igen.
+
+---
+
 # Handlis 2.1.0, bygge 16 — release notes
 
 Butiken i centrum: välj din riktiga butik, låt listan lära sig i vilken

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GettingStartedOverlay } from '../../src/components/GettingStartedOverlay';
 import { usePushRegistration } from '../../src/hooks/usePushRegistration';
 import { useNotificationRouting } from '../../src/hooks/useNotificationRouting';
+import { useSharedRecipeRouting } from '../../src/hooks/useSharedRecipeRouting';
 import { useTablet } from '../../src/hooks/useTablet';
 import { common } from '../../src/lib/svenska';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -13,6 +14,9 @@ import { useDesign } from '../../src/context/DesignContext';
 export default function TabLayout() {
   usePushRegistration();
   useNotificationRouting();
+  // Delat från en annan app → receptfliken med länken eller texten ifylld.
+  // Här (inte i roten) så det bara sker inloggad med hushåll.
+  useSharedRecipeRouting();
   const { fs, sp } = useTablet();
   const insets = useSafeAreaInsets();
   const { colors: c, ny } = useTheme();

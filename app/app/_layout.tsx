@@ -4,6 +4,7 @@
 // → Clerk läste tillbaka en token den inte kunde använda och nollade sessionen mitt
 // under användning (clerkHasSession:false, clerkClientSessions:0).
 import { ClerkProvider, useAuth } from '@clerk/expo';
+import { ShareIntentProvider } from 'expo-share-intent';
 // Officiella token-cachen (expo-secure-store + keychainAccessible AFTER_FIRST_UNLOCK,
 // och self-heal: raderar posten och returnerar null om läsningen failar). Vår
 // handrullade variant saknade båda — en enda kastad SecureStore-läsning räckte för
@@ -273,6 +274,9 @@ export default function RootLayout() {
   void fontsLoaded; void fontError;
 
   return (
+    // Delning från andra appar (dela-menyn → Handlis). Ytterst, före alla
+    // andra providers, som paketet kräver. Avstängd på webben av paketet.
+    <ShareIntentProvider>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
       <SafeAreaProvider>
@@ -302,5 +306,6 @@ export default function RootLayout() {
       </SafeAreaProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>
+    </ShareIntentProvider>
   );
 }

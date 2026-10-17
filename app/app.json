@@ -2,7 +2,7 @@
   "expo": {
     "name": "Handlis",
     "slug": "veckis",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -30,7 +30,7 @@
     },
     "android": {
       "package": "com.handlis.app",
-      "versionCode": 23,
+      "versionCode": 24,
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
@@ -103,6 +103,20 @@
           "image": "./assets/splash-icon.png",
           "resizeMode": "contain",
           "backgroundColor": "#cddcb3"
+        }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsText": true,
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+            "NSExtensionActivationSupportsWebPageWithMaxCount": 1
+          },
+          "androidIntentFilters": [
+            "text/*"
+          ],
+          "iosShareExtensionName": "Handlis"
         }
       ]
     ],

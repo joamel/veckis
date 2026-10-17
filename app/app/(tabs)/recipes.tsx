@@ -85,7 +85,7 @@ export default function RecipesScreen() {
   const { colors: c, ny, scheme } = useTheme();
   const s = useMemo(() => makeStyles(c, ny, scheme === 'dark'), [c, ny, scheme]);
   const router = useRouter();
-  const params = useLocalSearchParams<{ create?: string; forMenuDay?: string; replaceMenuItemId?: string; replaceTitle?: string; forMenuWeek?: string; chooseDay?: string }>();
+  const params = useLocalSearchParams<{ create?: string; sharedUrl?: string; sharedText?: string; forMenuDay?: string; replaceMenuItemId?: string; replaceTitle?: string; forMenuWeek?: string; chooseDay?: string }>();
   const createTriggeredRef = useRef(false);
   const fabRef = useRef<View>(null);
   const showTip = useSpotlightTip();
@@ -801,6 +801,22 @@ export default function RecipesScreen() {
     }
     if (params.create !== '1') createTriggeredRef.current = false;
   }, [params.create]);
+
+  // Delat från en annan app (useSharedRecipeRouting): öppna arket med det
+  // ifyllt. Parametrarna nollställs direkt, så arket inte öppnas igen.
+  useEffect(() => {
+    const { sharedUrl, sharedText } = params;
+    if (!sharedUrl && !sharedText) return;
+    router.setParams({ sharedUrl: undefined, sharedText: undefined });
+    if (sharedUrl) {
+      openModalWithMode('url');
+      setUrl(sharedUrl);
+    } else if (sharedText) {
+      openModalWithMode('paste');
+      setPasteText(sharedText);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.sharedUrl, params.sharedText]);
 
   function openModalWithMode(m: 'paste' | 'url' | 'photo') {
     wantFocusRef.current = m === 'url' || m === 'paste';
