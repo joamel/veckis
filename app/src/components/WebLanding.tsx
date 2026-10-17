@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Image, Linking, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Pressable } from './Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { landing as str } from '../lib/svenska';
 import { StoreButtons } from './StoreButtons';
+import { APP_STORE_URL, INSTAGRAM_URL, PLAY_STORE_URL } from '../lib/storeLinks';
 import { nyLjus as ny, nyFont } from '../lib/nyDesign';
 
 // Publik landningssida på handlis.app. Renderas bara på webben för utloggade
@@ -127,9 +128,6 @@ export function WebLanding() {
           <Pressable onPress={goSignIn} style={s.ctaBandBtn}>
             <Text style={s.ctaPrimaryText}>{str.cta.button}</Text>
           </Pressable>
-          <View style={{ marginTop: 20 }}>
-            <StoreButtons tone="dark" />
-          </View>
         </View>
       </View>
 
@@ -141,6 +139,18 @@ export function WebLanding() {
             <Pressable onPress={() => router.push('/privacy')}><Text style={s.footerLink}>{str.footer.privacy}</Text></Pressable>
             <Pressable onPress={() => router.push('/terms')}><Text style={s.footerLink}>{str.footer.terms}</Text></Pressable>
             <Pressable onPress={goInstall}><Text style={s.footerLink}>{str.footer.install}</Text></Pressable>
+          </View>
+          {/* Bara ikoner här nere — de stora butiksknapparna står i toppen. */}
+          <View style={s.footerIcons}>
+            {[
+              { icon: 'logo-apple' as const, url: APP_STORE_URL, label: str.footer.appStoreA11y },
+              { icon: 'logo-google-playstore' as const, url: PLAY_STORE_URL, label: str.footer.googlePlayA11y },
+              ...(INSTAGRAM_URL ? [{ icon: 'logo-instagram' as const, url: INSTAGRAM_URL, label: str.footer.instagramA11y }] : []),
+            ].map(l => (
+              <Pressable key={l.icon} onPress={() => { void Linking.openURL(l.url); }} hitSlop={8} accessibilityRole="link" accessibilityLabel={l.label}>
+                <Ionicons name={l.icon} size={24} color={BRAND.lightMute} />
+              </Pressable>
+            ))}
           </View>
           <Text style={s.footerRights}>{str.footer.rights(year)}</Text>
         </View>
@@ -254,5 +264,6 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   footerTagline: { fontSize: 15, fontWeight: '700', color: BRAND.light, textAlign: 'center' },
   footerLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 22, justifyContent: 'center', marginTop: 18 },
   footerLink: { fontSize: 14, color: BRAND.lightMute, fontWeight: '600' },
+  footerIcons: { flexDirection: 'row', gap: 24, justifyContent: 'center', marginTop: 22 },
   footerRights: { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 22 },
 });

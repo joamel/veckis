@@ -1882,6 +1882,9 @@ export const landing = {
     terms:       'Användarvillkor',
     // /install: butikerna för telefonen, webbappen för datorn.
     install:     'Använd i webbläsaren',
+    appStoreA11y:   'Handlis i App Store',
+    googlePlayA11y: 'Handlis på Google Play',
+    instagramA11y:  'Handlis på Instagram',
     rights:      (year: number) => `© ${year} Handlis`,
   },
 };
