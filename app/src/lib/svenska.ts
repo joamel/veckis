@@ -315,6 +315,8 @@ export const shoppingList = {
 
   toasts: {
     added:            (name: string) => `${name} tillagd till inköpslistan`,
+    addedShort:       (name: string) => `${name} tillagd`,
+    changeAmount:     'Ändra mängd',
     itemDeleted:      (name: string) => `${name} borttagen`,
     allChecked:       (n: number) => `${n} vara${n === 1 ? '' : 'r'} klarmarkerad${n === 1 ? '' : 'e'}`,
     merged:           (n: number, name: string) => `Slog ihop ${n} ${name}`,
@@ -386,6 +388,9 @@ export const shoppingList = {
 
   placeholders: {
     addItem:    'Lägg till vara...',
+    // Kort: fältet rymmer ~200 px mellan grid-knappen och +, och + säger redan
+    // vad fältet är till för. Visar att mängden kan skrivas direkt.
+    addItemExample: 'T.ex. 5 dl mjölk',
     itemName:   'Varunamn',
     qty:        '1',
     unit:       'enhet',
