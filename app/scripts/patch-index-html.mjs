@@ -19,6 +19,9 @@ const TITLE = 'Handlis | Veckomeny, recept & inköpslista för hushållet';
 const DESCRIPTION = 'Handlis samlar hushållets inköpslista, recept och veckomeny på ett ställe. Dela listan i realtid, spara recept och planera veckans måltider tillsammans. Gratis.';
 const OG_IMAGE = `${SITE}/og-image.png`;
 const GA_ID = 'G-XJG4FKTTSD'; // GA4 Measurement ID (handlis.app web-stream)
+// Samma som src/lib/storeLinks.ts.
+const APP_STORE = 'https://apps.apple.com/se/app/handlis/id6819080577';
+const PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.handlis.app&hl=sv';
 
 const META = `
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
@@ -182,12 +185,103 @@ if (/<title>.*?<\/title>/is.test(html)) {
 }
 
 // 3. Injicera META precis före </head>.
-const patched = html.replace('</head>', `${META}</head>`);
+let patched = html.replace('</head>', `${META}</head>`);
 
 if (patched === html) {
   console.error('!! Hittade inte </head> i dist/index.html — patchen kördes inte.');
   process.exit(1);
 }
 
+// 4. Landningstexten som statisk HTML i #root. Appen byggs helt i JS, så utan
+//    det här hämtar Google en tom sida och ser texten först om och när den
+//    kör JavaScript. React tömmer #root när appen monteras, så blocket syns
+//    bara tills dess — och samma text står synligt i WebLanding (ingen dold
+//    text). Texterna läses ur svenska.ts så de aldrig glider isär.
+const landing = await loadLanding();
+const before = patched;
+patched = patched.replace(/<div id="root">\s*<\/div>/, `<div id="root">${staticLanding(landing)}</div>`);
+if (patched === before) {
+  console.error('!! Hittade inte en tom <div id="root"> i dist/index.html — statisk landningstext saknas.');
+  process.exit(1);
+}
+const faqLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: landing.faq.items.map(i => ({
+    '@type': 'Question',
+    name: i.q,
+    acceptedAnswer: { '@type': 'Answer', text: i.a },
+  })),
+};
+patched = patched.replace('</head>', `    <script type="application/ld+json">${JSON.stringify(faqLd).replace(/</g, '\\u003c')}</script>\n</head>`);
+
 writeFileSync(indexPath, patched);
-console.log('✓ Patchade dist/index.html med PWA + SEO/OG-metadata');
+console.log('✓ Patchade dist/index.html med PWA + SEO/OG-metadata + statisk landningstext');
+
+// svenska.ts är TypeScript och byggservern kör Node 20 (ingen type stripping),
+// så filen transpileras med appens egen typescript och importeras som data-URL.
+async function loadLanding() {
+  const ts = (await import('typescript')).default;
+  const src = readFileSync(join(here, '..', 'src', 'lib', 'svenska.ts'), 'utf8');
+  const { outputText } = ts.transpileModule(src, {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
+  });
+  const mod = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
+  return mod.landing;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function staticLanding(l) {
+  const features = [l.features.shopping, l.features.recipes, l.features.menu];
+  return `
+    <div id="seo-landing">
+      <style>
+        #seo-landing { font-family: system-ui, -apple-system, sans-serif; color: #1d3b2e; background: #faf8f3; }
+        #seo-landing header { background: #1d3b2e; color: #fff; text-align: center; padding: 56px 20px; }
+        #seo-landing h1 { font-size: 32px; line-height: 1.2; margin: 0 auto; max-width: 640px; }
+        #seo-landing header p { color: #c9d8c0; font-size: 17px; line-height: 1.6; max-width: 560px; margin: 16px auto 0; }
+        #seo-landing section { max-width: 720px; margin: 0 auto; padding: 36px 20px; }
+        #seo-landing h2 { font-size: 24px; text-align: center; margin: 0 0 20px; }
+        #seo-landing h3 { font-size: 17px; margin: 18px 0 6px; }
+        #seo-landing p { font-size: 15px; line-height: 1.6; margin: 0; }
+        #seo-landing a { color: #1d3b2e; font-weight: 700; }
+      </style>
+      <header>
+        <h1>${esc(l.hero.tagline)}</h1>
+        <p>${esc(l.hero.subtitle)}</p>
+        <p><a href="${esc(APP_STORE)}" style="color:#cde66b">App Store</a> · <a href="${esc(PLAY_STORE)}" style="color:#cde66b">Google Play</a></p>
+      </header>
+      <section>
+        <h2>${esc(l.flow.heading)}</h2>
+        <p>${esc(l.flow.caption)}</p>
+      </section>
+      <section>
+        <h2>${esc(l.features.heading)}</h2>
+        ${features.map(f => `<h3>${esc(f.title)}</h3><p>${esc(f.body)}</p>`).join('\n        ')}
+      </section>
+      <section>
+        <h2>${esc(l.faq.heading)}</h2>
+        ${l.faq.items.map(i => `<h3>${esc(i.q)}</h3><p>${esc(i.a)}</p>`).join('\n        ')}
+      </section>
+      <section>
+        <h2>${esc(l.cta.heading)}</h2>
+        <p>${esc(l.cta.body)} <a href="/install">${esc(l.footer.install)}</a> · <a href="/privacy">${esc(l.footer.privacy)}</a> · <a href="/terms">${esc(l.footer.terms)}</a></p>
+      </section>
+    </div>
+    <script>
+      // Blocket är till för utloggade besökare på startsidan (och sökmotorer).
+      // Inloggade, installerad PWA och andra adresser än / ska inte se det
+      // blinka förbi innan appen monterats.
+      (function () {
+        var hide = location.pathname !== '/'
+          || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)
+          || navigator.standalone === true;
+        try { hide = hide || !!localStorage.getItem('active_household_id'); } catch (e) {}
+        if (hide) { var el = document.getElementById('seo-landing'); if (el) el.parentNode.removeChild(el); }
+      })();
+    </script>
+  `;
+}

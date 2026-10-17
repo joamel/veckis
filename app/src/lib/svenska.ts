@@ -1871,6 +1871,38 @@ export const landing = {
     caption:     'Välj maträtter, se vad som redan finns hemma, och handla bara det som saknas.',
     alt:         'Krittavla i tre steg. 1. Veckomeny: måndag carbonara, tisdag lasagne, onsdag tacos. 2. Inventera skafferiet: pasta, krossade tomater och parmesan finns; nötfärs och tacoskal saknas. 3. Inköpslista med det som saknas: nötfärs, tacoskal, sallad, tomat, grädde, lök, vitlök och riven ost.',
   },
+  // Synliga svar på det folk faktiskt söker på. Skrivs också in som statisk
+  // HTML i index.html vid bygget (scripts/patch-index-html.mjs) så Google ser
+  // texten utan att köra JavaScript.
+  faq: {
+    heading:     'Vanliga frågor',
+    items: [
+      {
+        q: 'Hur gör man en veckomeny?',
+        a: 'Lägg recepten på veckans dagar i Handlis – frukost, lunch eller middag. Flytta rätter mellan dagar när planerna ändras, och spara en bra vecka som mall till nästa gång.',
+      },
+      {
+        q: 'Kan vi dela inköpslistan i familjen?',
+        a: 'Ja. Alla i hushållet ser samma inköpslista och veckomeny i realtid. Bockar någon av en vara i butiken syns det direkt hos de andra, så ingen köper dubbelt.',
+      },
+      {
+        q: 'Hur blir veckomenyn en inköpslista?',
+        a: 'Med ett tryck förs ingredienserna från veckans recept över till inköpslistan. Samma vara från flera recept slås ihop, och det du redan har hemma bockar du bort innan du handlar.',
+      },
+      {
+        q: 'Sorteras listan efter butiken?',
+        a: 'Ja. Välj din riktiga matbutik, så hamnar varorna i rätt avdelning. Listan lär sig dessutom i vilken ordning du går, så att du slipper springa fram och tillbaka.',
+      },
+      {
+        q: 'Kan jag spara recept från en länk eller en kokbok?',
+        a: 'Klistra in en länk eller en text, eller fota en kokbokssida eller ett handskrivet recept. Handlis läser ut titel, ingredienser och instruktioner åt dig.',
+      },
+      {
+        q: 'Vad kostar Handlis?',
+        a: 'Handlis är gratis och utan reklam. Appen finns för iPhone och Android, och fungerar även i webbläsaren på datorn.',
+      },
+    ],
+  },
   cta: {
     heading:     'Redo att förenkla veckohandlingen?',
     body:        'Kom igång på under en minut. Det är gratis.',
