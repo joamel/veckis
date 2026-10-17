@@ -25,6 +25,17 @@ Build 2.1.0 (4) testas av gruppen "Family & Friends" via TestFlight. Byggen gör
 
 </details>
 
+## Instagram (@handlis.app)
+Kontot startades 2026-10-17 och syns som ikon i webbens sidfot (`INSTAGRAM_URL` i `app/src/lib/storeLinks.ts`). Första inlägget är en karusell med 5 bilder i 3:4 (1080×1440, `app/store/instagram/`), byggd som HTML med Outfit och appens skärmbilder och fotograferad i en headless-webbläsare. **Vinkel:** lyft det som skiljer Handlis från andra appar, alltså att listan lär sig hur du handlar och sorteras i den ordning du går i just din butik. Realtidsdelning har alla listappar. Kommande inlägg är djupdykningar i en funktion i taget som är lätt att missa:
+
+- [ ] **Snabblistan** — dina egna vardagsvaror med egen mängd ("min 1,5 l frukostyoghurt"), inlagda med ett tryck, och "Välj från det du handlat".
+- [ ] **Skriv "5 dl mjölk" direkt** — mängden hamnar rätt utan att öppna något.
+- [ ] **Fota kokboken** — flera sidor per recept och flera recept på samma uppslag; utländska recept översätts.
+- [ ] **Hitta din butik** — butiksbanken och "Nära mig"; listan sorteras efter just den butiken och lär sig din väg.
+- [ ] **Dubbletter slås ihop** — 2 dl + 3 dl grädde från två recept blir 5 dl.
+- [ ] **Veckomenyn → inköpslistan** — inventera skafferiet först och handla bara det som saknas.
+- [ ] **Jag handlar** — hushållet ser vem som är i butiken, så ingen åker dit två gånger.
+
 ## Bäst på storhandlingen
 Beslut 2026-09-28: det som skiljer Handlis från receptappar som SmakShare är tiden från planerad vecka till varor i korgen — inventering, sammanslagning, listan och butiken. Där ska Handlis vara bäst.
 
