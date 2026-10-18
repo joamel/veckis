@@ -11,12 +11,12 @@ mat och familj.
 ---
 
 ## Sön 18/10 – Reel: "Söndag.." + story med länk
-Filer: `0-reel-sondag.mp4` (reel) och `0-story-lank.png` (story)
+Filer: `../aterkommande/reel-sondag.mp4` (reel) och `../aterkommande/story-lank.png` (story). Båda slutar med "Planera veckan i Handlis idag" utan veckonummer, så de kan återanvändas och fungerar bland sparade inlägg och som höjdpunkt.
 
 Reelen (29,5 s, ca 5 s per scen): "Söndag.." (suck 😮‍💨) → "…men vänta! 💡 Alla favoritrecept
 finns ju i Handlis" → "Plocka några till veckomenyn – eller ta en sparad vecka,
 klart på en minut" → "Listan sorterar sig själv – efter butikens ordning" →
-"Handla en gång – med Handlis 💚" → "Planera vecka 43 i Handlis idag".
+"Handla en gång – med Handlis 💚" → "Planera veckan i Handlis idag".
 
 > Söndag.. och ingen aning om vad vi ska äta i veckan 😮‍💨
 > …men vänta, favoriterna finns ju redan i Handlis 💡 Några till veckomenyn (eller en sparad vecka), och inköpslistan sorterar sig själv efter din butik. Handla en gång – sen är det bara att laga 💚
@@ -27,7 +27,7 @@ klart på en minut" → "Listan sorterar sig själv – efter butikens ordning" 
 
 **Story med klickbar länk** (reels kan inte ha länkar, stories kan):
 1. Publicera reelen och tryck **Dela → Din story**.
-2. Lägg upp `0-story-lank.png` som nästa story.
+2. Lägg upp `story-lank.png` som nästa story.
 3. Tryck på klistermärkesikonen → **Länk** → `https://handlis.app` och
    placera klistermärket under "Tryck här ↓".
 4. Spara gärna storyn i en höjdpunkt ("Kom igång"), så finns länken kvar på
