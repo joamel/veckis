@@ -10,7 +10,8 @@ export default async function run(pg) {
   const FPS = 30, N = Math.round(27.9 * FPS);
   for (let i = 0; i < N; i++) {
     await p.evaluate(t => window.setTime(t), i / FPS, false);
-    await p.screenshot({ path: FR + String(i).padStart(4, '0') + '.jpg', type: 'jpeg', quality: 92 });
+    // PNG, inte JPEG: ingen förlust innan videokodningen (Instagram komprimerar ändå om).
+    await p.screenshot({ path: FR + String(i).padStart(4, '0') + '.png', type: 'png' });
   }
   return N;
 }
