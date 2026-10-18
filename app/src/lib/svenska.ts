@@ -1899,13 +1899,13 @@ export const landing = {
       },
       {
         q: 'Vad kostar Handlis?',
-        a: 'Handlis är gratis och utan reklam. Appen finns för iPhone och Android, och fungerar även i webbläsaren på datorn.',
+        a: 'Handlis är gratis att använda och utan reklam. Appen finns för iPhone och Android, och fungerar även i webbläsaren på datorn.',
       },
     ],
   },
   cta: {
     heading:     'Redo att förenkla veckohandlingen?',
-    body:        'Kom igång på under en minut. Det är gratis.',
+    body:        'Kom igång gratis på under en minut.',
     button:      'Kom igång',
   },
   footer: {
