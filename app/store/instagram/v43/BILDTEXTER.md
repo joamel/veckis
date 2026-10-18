@@ -1,8 +1,8 @@
 # Instagram vecka 43 (19–25 oktober 2026)
 
 Ett reel i dag och fyra karuseller i veckan. Bilderna är 1080 × 1440 (3:4),
-reelen 1080 × 1920 och knappt 30 sekunder **utan ljud**. Lägg till ett populärt ljud
-i Instagram-appen när du publicerar, det ger mer räckvidd än tystnad.
+reelen 1080 × 1920 och 28 sekunder, i två versioner: med egen glad melodi
+och utan ljud (välj då ett populärt ljud i Instagram-appen, det ger ofta mer räckvidd).
 
 Lägg in tiderna i förväg med Instagrams schemaläggning ("Avancerade
 inställningar → Schemalägg"). Kvällar runt 19–20 brukar fungera bra för
@@ -13,7 +13,7 @@ mat och familj.
 ## Sön 18/10 – Reel: "Söndag.." + story med länk
 Filer: `../aterkommande/reel-sondag.mp4` (reel) och `../aterkommande/story-lank.png` (story). Båda slutar med "Planera veckan i Handlis idag" utan veckonummer, så de kan återanvändas och fungerar bland sparade inlägg och som höjdpunkt.
 
-Reelen (29,5 s, ca 5 s per scen): "Söndag.." (suck 😮‍💨) → "…men vänta! 💡 Alla favoritrecept
+Reelen (27,9 s): "Söndag.." (suck 😮‍💨) → "…men vänta! 💡 Alla favoritrecept
 finns ju i Handlis" → "Plocka några till veckomenyn – eller ta en sparad vecka,
 klart på en minut" → "Listan sorterar sig själv – efter butikens ordning" →
 "Handla en gång – med Handlis 💚" → "Planera veckan i Handlis idag".
