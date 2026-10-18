@@ -18,7 +18,7 @@ Reelen: "Söndag.." (suck 😮‍💨) → "Lägg till recept på veckomenyn" �
 med Handlis 💚" → "Planera vecka 43 i Handlis idag".
 
 > Söndag.. och ingen aning om vad vi ska äta i veckan 😮‍💨
-> Tio minuter nu, så är det löst: recepten på veckomenyn och inköpslistan sorterad efter din butik. Handla en gång – sen är det bara att laga 💚
+> …men vänta, favoriterna finns ju redan i Handlis 💡 Några till veckomenyn (eller en sparad vecka), och inköpslistan sorterar sig själv efter din butik. Handla en gång – sen är det bara att laga 💚
 >
 > Hur planerar ni veckans mat? Skriv i kommentarerna 👇
 >

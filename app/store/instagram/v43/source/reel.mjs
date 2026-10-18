@@ -7,7 +7,7 @@ export default async function run(pg) {
   await p.goto(pathToFileURL(DIR + 'reel.html').href);
   await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(300);
   mkdirSync(DIR + 'frames', { recursive: true });
-  const FPS = 30, N = 15 * FPS;
+  const FPS = 30, N = Math.round(17.5 * FPS);
   for (let i = 0; i < N; i++) {
     await p.evaluate(t => window.setTime(t), i / FPS, false);
     await p.screenshot({ path: DIR + 'frames/' + String(i).padStart(4, '0') + '.jpg', type: 'jpeg', quality: 92 });
