@@ -13,9 +13,10 @@ mat och familj.
 ## Sön 18/10 – Reel: "Söndag.." + story med länk
 Filer: `0-reel-sondag.mp4` (reel) och `0-story-lank.png` (story)
 
-Reelen: "Söndag.." (suck 😮‍💨) → "Lägg till recept på veckomenyn" →
-"Listan sorterar sig själv – efter butikens ordning" → "Handla en gång –
-med Handlis 💚" → "Planera vecka 43 i Handlis idag".
+Reelen (17,5 s): "Söndag.." (suck 😮‍💨) → "…men vänta! 💡 Alla favoritrecept
+finns ju i Handlis" → "Plocka några till veckomenyn – eller ta en sparad vecka,
+klart på en minut" → "Listan sorterar sig själv – efter butikens ordning" →
+"Handla en gång – med Handlis 💚" → "Planera vecka 43 i Handlis idag".
 
 > Söndag.. och ingen aning om vad vi ska äta i veckan 😮‍💨
 > …men vänta, favoriterna finns ju redan i Handlis 💡 Några till veckomenyn (eller en sparad vecka), och inköpslistan sorterar sig själv efter din butik. Handla en gång – sen är det bara att laga 💚
