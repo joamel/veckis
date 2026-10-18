@@ -1,7 +1,7 @@
 # Instagram vecka 43 (19–25 oktober 2026)
 
 Ett reel i dag och fyra karuseller i veckan. Bilderna är 1080 × 1440 (3:4),
-reelen 1080 × 1920 och 15 sekunder **utan ljud**. Lägg till ett populärt ljud
+reelen 1080 × 1920 och knappt 30 sekunder **utan ljud**. Lägg till ett populärt ljud
 i Instagram-appen när du publicerar, det ger mer räckvidd än tystnad.
 
 Lägg in tiderna i förväg med Instagrams schemaläggning ("Avancerade
