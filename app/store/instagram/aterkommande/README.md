@@ -11,6 +11,7 @@ höjdpunkter på profilen.
 - `reel-sondag-tyst.mp4`: samma reel utan ljud, för att i stället välja ett
   populärt ljud ur Instagrams bibliotek (ger ofta mer räckvidd). Sök t.ex. på
   "ukulele", "happy" eller "cooking" i Instagrams ljudval.
+- `reel-omslag.jpg`: omslagsbild till reelen (reelens första bildruta är tom, eftersom allt tonar in). Välj den som omslag vid uppladdning, eller i efterhand: reelen → ⋯ → Redigera → Redigera omslag → Lägg till från kamerarullen. Det viktiga ligger i mitten, eftersom profilrutnätet visar reels beskurna till 3:4.
 - `story-lank.png`: storybild efter reelen. Lägg ett länkklistermärke till
   `https://handlis.app` under "Tryck här ↓". Spara i höjdpunkten "Kom igång".
 
