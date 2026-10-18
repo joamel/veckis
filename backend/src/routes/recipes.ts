@@ -19,6 +19,7 @@ import { parseIngredientString } from '../lib/parseIngredientString';
 import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
 import { recipeAbuseLimiter, parseTextLimiter } from '../lib/rateLimits';
 import { safeFetch } from '../lib/ssrfGuard';
+import { extractMetaText, isInstagramUrl, LINK_PREVIEW_USER_AGENT } from '../lib/pageMeta';
 import { tolkaJsonSvar, saknarReceptinnehåll, InteJsonError, textUr } from '../lib/aiJson';
 import { bokförAiKostnad } from '../lib/aiCost';
 import { taFotokvot, MAX_FOTON_PER_MANAD } from '../lib/photoQuota';
@@ -775,7 +776,31 @@ function parseInstructions(raw: any): string | null {
   return steps.map((s, i) => `${i + 1}. ${s}`).join('\n').slice(0, 8000);
 }
 
+const INSTAGRAM_FEL = 'Instagram visar inte inlägget för oss – kopiera bildtexten och klistra in den i stället.';
+
 async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
+  // Delade Instagram-inlägg kommer som en länk utan bildtext. Instagram visar
+  // inloggningsväggen för vanliga hämtningar, men lägger bildtexten i
+  // metataggarna för länkförhandsvisningar — så hämta som en sådan och tolka
+  // bara metataggarna (resten av sidan är JavaScript utan recept).
+  if (isInstagramUrl(url)) {
+    try {
+      const res = await safeFetch(url, {
+        headers: { 'User-Agent': LINK_PREVIEW_USER_AGENT },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) throw new Error(INSTAGRAM_FEL);
+      const html = await res.text();
+      const caption = extractMetaText(html);
+      if (caption.length < 40) throw new Error(INSTAGRAM_FEL);
+      const parsed = await parseRecipeTextWithAI(caption);
+      if (!parsed.imageUrl) parsed.imageUrl = extractOgImage(html);
+      return parsed;
+    } catch {
+      throw new Error(INSTAGRAM_FEL);
+    }
+  }
+
   // safeFetch validerar måladressen + varje redirect-hopp (SSRF-skydd) — en
   // publik URL får inte redirecta vidare till en intern tjänst.
   const res = await safeFetch(url, {
@@ -802,7 +827,9 @@ async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
   // "klistra in text" använder. Dyrare än regex men funkar oavsett sajtens
   // klassnamn/struktur, som annars kräver en parser per sajt.
   try {
-    const text = htmlTillText(html);
+    // Metataggarna först: htmlTillText slänger <head>, där sammanfattningen
+    // (och på vissa sajter hela receptet) ligger.
+    const text = [extractMetaText(html), htmlTillText(html)].filter(Boolean).join('\n\n');
     if (!text) throw new Error('Hittade inget recept på sidan');
     const parsed = await parseRecipeTextWithAI(text);
     if (!parsed.imageUrl) parsed.imageUrl = extractOgImage(html);
