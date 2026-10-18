@@ -794,7 +794,10 @@ async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
       const caption = extractMetaText(html);
       if (caption.length < 40) throw new Error(INSTAGRAM_FEL);
       const parsed = await parseRecipeTextWithAI(caption);
-      if (!parsed.imageUrl) parsed.imageUrl = extractOgImage(html);
+      // Ingen bild: Instagrams bildlänkar är signerade och går ut, och deras
+      // CDN nekar ofta hämtning utifrån — det blev "Kunde inte ladda bilden".
+      // Hellre tomt, så att man kan lägga till en egen.
+      parsed.imageUrl = null;
       return parsed;
     } catch {
       throw new Error(INSTAGRAM_FEL);
