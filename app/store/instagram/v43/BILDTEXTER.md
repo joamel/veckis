@@ -10,15 +10,27 @@ mat och familj.
 
 ---
 
-## Sön 18/10 – Reel: "Söndag. Vecka 43 börjar i morgon."
-Fil: `0-reel-sondag.mp4`
+## Sön 18/10 – Reel: "Söndag.." + story med länk
+Filer: `0-reel-sondag.mp4` (reel) och `0-story-lank.png` (story)
 
-> Söndag = planeringsdag 🗓️
-> Tio minuter nu, och veckan är löst: middagarna på dagarna, inköpslistan klar och sorterad efter din butik. En tur till affären i stället för tre.
+Reelen: "Söndag.." (suck 😮‍💨) → "Lägg till recept på veckomenyn" →
+"Listan sorterar sig själv – efter butikens ordning" → "Handla en gång –
+med Handlis 💚" → "Planera vecka 43 i Handlis idag".
+
+> Söndag.. och ingen aning om vad vi ska äta i veckan 😮‍💨
+> Tio minuter nu, så är det löst: recepten på veckomenyn och inköpslistan sorterad efter din butik. Handla en gång – sen är det bara att laga 💚
 >
 > Hur planerar ni veckans mat? Skriv i kommentarerna 👇
 >
-> #veckomeny #matsedel #veckohandling #storhandla #inköpslista #middagstips #barnfamilj #planering #handlis
+> #veckomeny #matsedel #veckohandling #storhandla #inköpslista #middagstips #barnfamilj #söndag #handlis
+
+**Story med klickbar länk** (reels kan inte ha länkar, stories kan):
+1. Publicera reelen och tryck **Dela → Din story**.
+2. Lägg upp `0-story-lank.png` som nästa story.
+3. Tryck på klistermärkesikonen → **Länk** → `https://handlis.app` och
+   placera klistermärket under "Tryck här ↓".
+4. Spara gärna storyn i en höjdpunkt ("Kom igång"), så finns länken kvar på
+   profilen efter 24 timmar.
 
 ---
 
