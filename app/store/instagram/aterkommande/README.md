@@ -50,3 +50,15 @@ alltid med 💚" → "Rädda era favoritrecept i Handlis".
 
 **Tips:** posta en reel i veckan, gärna söndag–måndag kväll, och dela den
 till storyn med `story-lank.png` efter (se ovan).
+
+## Kvalitet – så blir reels skarpa
+
+Suddiga reels och bilder ger fel signal. Det mesta av skärpan tappas i tre led:
+
+1. **Källbilderna.** Ta skärmbilder direkt på telefonen och för över via USB/mejl som original – aldrig via WhatsApp (skalar ned och komprimerar). Uppskalade bilder blir aldrig skarpa igen.
+2. **Vår kodning.** Bildrutor som PNG (`source/reel.mjs`), sedan:
+   `ffmpeg -framerate 30 -i ram/%04d.png -c:v libx264 -preset slow -crf 14 -profile:v high -pix_fmt yuv420p -maxrate 12M -bufsize 24M -movflags +faststart ut.mp4`
+   och för ljudversionen `-i music.wav -c:a aac -b:a 192k -shortest`. 1080 × 1920, 30 fps.
+3. **Instagram.** Slå på *Inställningar → Dataanvändning och mediekvalitet → Ladda upp i högsta kvalitet* och ladda upp via wifi. En reel som delas till storyn visas som ett mindre kort och komprimeras igen – den blir alltid lite mjukare där än i reelflödet.
+
+Design: fet text (Outfit 700) i minst ~36 px (av 540 px bredd i mallen) tål omkomprimeringen; tunn och liten text på mörkgrön bakgrund blir grötig först.
