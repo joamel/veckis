@@ -13,7 +13,7 @@ mat och familj.
 ## Sön 18/10 – Reel: "Söndag.." + story med länk
 Filer: `0-reel-sondag.mp4` (reel) och `0-story-lank.png` (story)
 
-Reelen (17,5 s): "Söndag.." (suck 😮‍💨) → "…men vänta! 💡 Alla favoritrecept
+Reelen (29,5 s, ca 5 s per scen): "Söndag.." (suck 😮‍💨) → "…men vänta! 💡 Alla favoritrecept
 finns ju i Handlis" → "Plocka några till veckomenyn – eller ta en sparad vecka,
 klart på en minut" → "Listan sorterar sig själv – efter butikens ordning" →
 "Handla en gång – med Handlis 💚" → "Planera vecka 43 i Handlis idag".
