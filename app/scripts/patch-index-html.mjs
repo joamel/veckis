@@ -16,7 +16,7 @@ let html = readFileSync(indexPath, 'utf8');
 
 const SITE = 'https://handlis.app';
 const TITLE = 'Handlis | Veckomeny, recept & inköpslista för hushållet';
-const DESCRIPTION = 'Handlis samlar hushållets inköpslista, recept och veckomeny på ett ställe. Dela listan i realtid, spara recept och planera veckans måltider tillsammans. Gratis.';
+const DESCRIPTION = 'Handlis samlar hushållets inköpslista, recept och veckomeny på ett ställe. Dela listan i realtid, spara recept och planera veckans måltider tillsammans. Gratis att använda.';
 const OG_IMAGE = `${SITE}/og-image.png`;
 const GA_ID = 'G-XJG4FKTTSD'; // GA4 Measurement ID (handlis.app web-stream)
 // Samma som src/lib/storeLinks.ts.
