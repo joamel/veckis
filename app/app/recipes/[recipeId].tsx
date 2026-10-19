@@ -6,6 +6,7 @@ import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   Animated,
+  Easing,
   AppState,
   Dimensions,
   Image,
@@ -36,6 +37,7 @@ import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { cloudinaryOptimized } from '../../src/lib/cloudinaryUrl';
 import { TagLabel } from '../../src/components/TagLabel';
+import { useExperiment } from '../../src/lib/experiments';
 import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
 import { getISOWeek } from '../../src/lib/week';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -793,6 +795,19 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   const suggestedTags = useMemo(() => (suggestedParam ?? '').split(',').map(t => t.trim()).filter(Boolean), [suggestedParam]);
   const suggestedStillOn = suggestedTags.filter(t => editTags.includes(t));
 
+  // Dev-läge: i stället för den förklarande raden pulserar de föreslagna
+  // taggarna två gånger i lime när redigeringsläget öppnas — man ser att de
+  // fyllts i av sig själva, och att de går att trycka bort.
+  const devMode = useExperiment('dev-mode');
+  const tagPulse = useRef(new Animated.Value(0)).current;
+  const tagPulsedRef = useRef(false);
+  useEffect(() => {
+    if (!devMode || !editMode || suggestedTags.length === 0 || tagPulsedRef.current) return;
+    tagPulsedRef.current = true;
+    const step = (to: number) => Animated.timing(tagPulse, { toValue: to, duration: 380, easing: Easing.inOut(Easing.quad), useNativeDriver: true });
+    Animated.sequence([Animated.delay(450), step(1), step(0), step(1), step(0)]).start();
+  }, [devMode, editMode, suggestedTags.length, tagPulse]);
+
   // Edit everything (name, image, description, ingredients, instructions) inline
   // in the detail view.
   function startEdit() {
@@ -1472,7 +1487,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
         {editMode && (
           <View>
             <Text style={s.editLabel}>{str.tags.label}</Text>
-            {suggestedStillOn.length > 0 && (
+            {!devMode && suggestedStillOn.length > 0 && (
               <Text style={s.suggestedTagsHint}>{str.tags.suggestedHint(suggestedStillOn)}</Text>
             )}
             <View style={s.tagRow}>
@@ -1481,10 +1496,22 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                   av sig själv. Enda fasta förslaget är favorit (samma som hjärtat). */}
               {[...new Set([str.tags.favorite, ...knownTags, ...editTags])].map(t => {
                 const active = editTags.includes(t);
-                return (
-                  <Pressable key={t} style={[s.tagChip, active && s.tagChipActive]} onPress={() => toggleEditTag(t)}>
+                const chip = (
+                  <Pressable
+                    key={t}
+                    style={[s.tagChip, active && s.tagChipActive]}
+                    onPress={() => toggleEditTag(t)}
+                    accessibilityLabel={suggestedStillOn.includes(t) ? str.tags.suggestedA11y(t) : undefined}
+                  >
                     <TagLabel tag={t} style={[s.tagChipText, active && s.tagChipTextActive]} iconColor={active ? (nyDesign ? ny.lime : '#fff') : (nyDesign ? ny.chipText : c.primary)} />
                   </Pressable>
+                );
+                if (!devMode || !suggestedStillOn.includes(t)) return chip;
+                return (
+                  <Animated.View key={t} style={{ transform: [{ scale: tagPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) }] }}>
+                    <Animated.View pointerEvents="none" style={[s.tagPulseRing, { opacity: tagPulse }]} />
+                    {chip}
+                  </Animated.View>
                 );
               })}
             </View>
@@ -2417,6 +2444,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   checkLabelUnchecked: { color: c.textFaint, textDecorationLine: 'line-through' },
   selectAllRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginVertical: 8 },
   suggestedTagsHint: { fontSize: 13, lineHeight: 18, color: c.textSecondary, marginBottom: 8 },
+  tagPulseRing: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 19, borderWidth: 2.5, borderColor: ny.lime },
   selectAllText: { fontSize: 13, color: c.primary, fontWeight: '500' },
   listPickLabel: { fontSize: 13, fontWeight: '600', color: c.textSecondary, marginTop: 4, marginBottom: 6 },
 });

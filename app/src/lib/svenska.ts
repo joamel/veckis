@@ -671,6 +671,7 @@ export const recipes = {
     editHint:       'Tryck för att välja, eller skriv en egen',
     // Efter import: taggar som lagts till ur rubriken och tillagningstiden.
     suggestedHint:  (tags: string[]) => `Föreslagna efter receptet: ${tags.join(', ')}. Tryck på en tagg för att ta bort den.`,
+    suggestedA11y:  (tag: string) => `${tag}, föreslagen efter receptet. Tryck för att ta bort.`,
     addPlaceholder: 'Ny tagg…',
     // Den enda taggen som alltid finns att välja. Receptkorten visar ett hjärta för den.
     favorite:        'favorit',
@@ -741,6 +742,13 @@ export const recipes = {
       paste:  'Klistra in',
       photo:  'Fota recept',
       gallery:'Välj bild ur galleriet',
+    },
+    // Laddningen med korgen (dev-läge). Byts efter hur lång tid som gått —
+    // servern säger inte vilket steg den är på, men ordningen stämmer.
+    loading: {
+      link:   ['Hämtar receptet…', 'Läser ingredienserna…', 'Nästan klart…'],
+      paste:  ['Läser texten…', 'Läser ingredienserna…', 'Nästan klart…'],
+      saving: 'Sparar receptet…',
     },
     photo: {
       sourceTitle:      'Lägg till bild',

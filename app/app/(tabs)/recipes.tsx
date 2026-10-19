@@ -39,6 +39,7 @@ import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet'
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek } from '../../src/lib/week';
 import { suggestRecipeTags } from '../../src/lib/recipeTagSuggestions';
+import { HandlisLoader } from '../../src/components/HandlisLoader';
 import type { WeekDay } from '@veckis/shared';
 import { recipes as str, common, gettingStarted } from '../../src/lib/svenska';
 import { formateraTidsetikett } from '../../src/lib/cookTimer';
@@ -866,8 +867,25 @@ export default function RecipesScreen() {
     });
   }
 
+  // Dev-läge: medan importen pågår visas korgen i stället för formuläret, med
+  // en text som säger vad som händer.
+  const importBusy = parsing || scraping || creating || photoParsing;
+  const [loadingStep, setLoadingStep] = useState(0);
+  useEffect(() => {
+    setLoadingStep(0);
+    if (!importBusy) return;
+    const timers = [3000, 7000].map((ms, i) => setTimeout(() => setLoadingStep(i + 1), ms));
+    return () => timers.forEach(clearTimeout);
+  }, [importBusy]);
+  const loadingText = creating && !photoParsing ? str.createModal.loading.saving
+    : photoParsing
+      ? (photoLoadingStage === 'reading' ? str.createModal.photo.stageReading
+        : photoLoadingStage === 'analyzing' ? (photoUris.length > 1 ? str.createModal.photo.stageAnalyzingMulti(photoUris.length) : str.createModal.photo.stageAnalyzing)
+        : str.createModal.photo.stageCreating)
+      : (scraping ? str.createModal.loading.link : str.createModal.loading.paste)[loadingStep];
+
   // Sheet-innehållet (delas ut för läsbarhet; renderas inuti DraggableBottomSheet nedan).
-  const createSheetInner = (
+  const createSheetInner = devMode && importBusy ? <HandlisLoader text={loadingText} /> : (
     <>
         <View style={s.modeBody}>
         {mode === 'paste' ? (
