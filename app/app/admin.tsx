@@ -4,7 +4,8 @@
 // i koden. Varje skrivning förhandsvisas först och loggas i backenden.
 // Byggd främst för webben på datorn, men fungerar i appen.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppSwitch } from '../src/components/AppSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -335,7 +336,7 @@ function ExperimentRow({ id, first }: { id: ExperimentId; first: boolean }) {
         <Text style={s.rowTitle}>{str.sandbox[id].title}</Text>
         <Text style={s.meta}>{str.sandbox[id].description}</Text>
       </View>
-      <Switch value={on} onValueChange={v => { void setExperiment(id, v); }} trackColor={{ true: ny.skog }} />
+      <AppSwitch value={on} onValueChange={v => { void setExperiment(id, v); }} />
     </View>
   );
 }
@@ -445,13 +446,13 @@ function ClassifySheet({ name, onClose, onChanged }: { name: string | null; onCl
 
           <View style={s.switchRow}>
             <Text style={[s.rowTitle, { flex: 1 }]}>{str.sheet.moveItems}</Text>
-            <Switch value={moveItems} onValueChange={setMoveItems} trackColor={{ true: ny.skog }} />
+            <AppSwitch value={moveItems} onValueChange={setMoveItems} />
           </View>
           {differingChoices > 0 && (
             <>
               <View style={s.switchRow}>
                 <Text style={[s.rowTitle, { flex: 1 }]}>{str.sheet.resetChoices}</Text>
-                <Switch value={resetChoices} onValueChange={setResetChoices} trackColor={{ true: ny.skog }} />
+                <AppSwitch value={resetChoices} onValueChange={setResetChoices} />
               </View>
               <Text style={s.meta}>{str.sheet.resetChoicesHint(differingChoices)}</Text>
             </>
@@ -659,7 +660,7 @@ function JobSheet({ job, onClose, onClassify }: { job: AdminJob | null; onClose:
               </View>
               <View style={s.switchRow}>
                 <Text style={[s.rowTitle, { flex: 1 }]}>{str.jobSheet.ignoreUnchecked}</Text>
-                <Switch value={ignoreUnchecked} onValueChange={setIgnoreUnchecked} trackColor={{ true: ny.skog }} />
+                <AppSwitch value={ignoreUnchecked} onValueChange={setIgnoreUnchecked} />
               </View>
               <View style={s.actions}>
                 <Pressable style={[s.primaryBtn, (busy || (selected.size === 0 && !ignoreUnchecked)) && { opacity: 0.5 }]} onPress={run} disabled={busy || (selected.size === 0 && !ignoreUnchecked)}>

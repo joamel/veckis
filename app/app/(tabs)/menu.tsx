@@ -13,12 +13,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  Switch,
   TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
 import { Pressable } from '../../src/components/Pressable';
+import { AppSwitch } from '../../src/components/AppSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
@@ -2426,12 +2426,7 @@ export default function MenuScreen() {
                         <Text style={s.basicsText}>{str.inventory.basicsAtHome}</Text>
                         {basicsAtHome && <Text style={s.basicsHint}>{str.inventory.basicsHidden(basics.length)}</Text>}
                       </View>
-                      <Switch
-                        value={basicsAtHome}
-                        onValueChange={toggleBasicsAtHome}
-                        trackColor={{ false: ny.kontur, true: ny.lime }}
-                        thumbColor={basicsAtHome ? ny.skog : ny.ljus}
-                      />
+                      <AppSwitch value={basicsAtHome} onValueChange={toggleBasicsAtHome} />
                     </View>
                   );
                 })()}

@@ -4,7 +4,8 @@ import { useDesign } from '../context/DesignContext';
 import { nyFont, type NyPalett } from '../lib/nyDesign';
 import type { Palette } from '../lib/theme';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppSwitch } from './AppSwitch';
 import * as Notifications from 'expo-notifications';
 import { reportClientError } from '../lib/errorReport';
 import { Pressable } from './Pressable';
@@ -117,14 +118,9 @@ export function NotificationsModal({ visible, onClose }: { visible: boolean; onC
                     <Text style={s.rowTitle}>{title}</Text>
                     <Text style={s.rowDesc}>{desc}</Text>
                   </View>
-                  <Switch
+                  <AppSwitch
                     value={prefs[key] as boolean}
                     onValueChange={v => toggle(key, v)}
-                    // Lime spar med morkgron knopp. Morkgront spar lamnade
-                    // knoppen till Androids standard — en grav it knopp mot
-                    // mork botten, vilket sag trasigt ut.
-                    trackColor={{ true: nyDesign ? ny.lime : c.primary, false: nyDesign ? ny.kontur : c.border }}
-                    thumbColor={nyDesign ? ny.skog : undefined}
                     accessibilityLabel={title}
                   />
                 </View>

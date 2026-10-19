@@ -10,7 +10,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  Switch,
   View,
 } from 'react-native';
 import { Pressable } from '../../src/components/Pressable';

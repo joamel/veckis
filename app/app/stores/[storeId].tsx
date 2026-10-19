@@ -5,12 +5,12 @@ import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { Pressable } from '../../src/components/Pressable';
+import { AppSwitch } from '../../src/components/AppSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -861,6 +861,20 @@ export default function StoreDetailScreen() {
         </View>
 
 
+        {/* Överst, under butiksbanken: reglaget ska synas utan att man vet att
+            det finns — längst ned hittade ingen det. */}
+        {store && (
+          <View style={[s.suggestCard, s.suggestAppliedRow]}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.suggestTitle}>{str.detail.suggestToggle}</Text>
+            </View>
+            <AppSwitch
+              value={store.orderSuggestions !== false && store.orderAutoApply !== false}
+              onValueChange={toggleOrderSuggestions}
+            />
+          </View>
+        )}
+
         {/* Inlärningen sker i det tysta — kortet syns bara när det finns en
             säker ändring att föreslå, ingen räknare dessförinnan. */}
         {suggestion && !suggestionDismissed && !dirty && !previewing && suggestion.changed && (
@@ -1101,19 +1115,6 @@ export default function StoreDetailScreen() {
               })}
             </View>
           </>
-        )}
-
-        {store && (
-          <View style={[s.suggestCard, s.suggestAppliedRow, { marginTop: 24 }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.suggestTitle}>{str.detail.suggestToggle}</Text>
-            </View>
-            <Switch
-              value={store.orderSuggestions !== false && store.orderAutoApply !== false}
-              onValueChange={toggleOrderSuggestions}
-              trackColor={{ true: nyDesign ? ny.skog : c.primary }}
-            />
-          </View>
         )}
 
         <View style={{ height: dirty ? 100 : 40 }} />
