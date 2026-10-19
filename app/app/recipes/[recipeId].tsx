@@ -124,7 +124,7 @@ function IngredientDragHandle({ idx, onDragStart, onDragMove, onDragEnd }: {
   );
 }
 
-export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, cook, servings: servingsParam, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; servings?: string; onClose?: () => void }) {
+export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: suggestedParam, forMenuDay, forMenuWeek, from, cook, servings: servingsParam, onClose }: { recipeId: string; transfer?: string; edit?: string; suggested?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; servings?: string; onClose?: () => void }) {
   const edit = editParam;
   // Sentinel-id från /recipes/new. Riktiga id:n är cuid, så ingen krock.
   const isNew = recipeId === 'new';
@@ -777,6 +777,21 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     for (const id of timerNotisIds.current.values()) Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
     timerNotisIds.current.clear();
   }, [cookMode]);
+
+  // Ett nyimporterat recept öppnas i redigeringsläget (edit=import), så att
+  // taggar kan läggas till utan ett extra tryck. De föreslagna (suggested=…)
+  // är redan sparade på receptet — raden under Taggar säger vilka de är.
+  const importEditDoneRef = useRef(false);
+  useEffect(() => {
+    if (edit !== 'import' || !recipe || importEditDoneRef.current) return;
+    importEditDoneRef.current = true;
+    startEdit();
+    if (!onClose) router.setParams({ edit: undefined });
+    // startEdit läser receptet; effekten ska bara köras en gång per import.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edit, recipe]);
+  const suggestedTags = useMemo(() => (suggestedParam ?? '').split(',').map(t => t.trim()).filter(Boolean), [suggestedParam]);
+  const suggestedStillOn = suggestedTags.filter(t => editTags.includes(t));
 
   // Edit everything (name, image, description, ingredients, instructions) inline
   // in the detail view.
@@ -1457,6 +1472,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         {editMode && (
           <View>
             <Text style={s.editLabel}>{str.tags.label}</Text>
+            {suggestedStillOn.length > 0 && (
+              <Text style={s.suggestedTagsHint}>{str.tags.suggestedHint(suggestedStillOn)}</Text>
+            )}
             <View style={s.tagRow}>
               {/* Bara taggar som något recept i hushållet använder, plus det här
                   receptets egna. En tagg som inget recept har längre försvinner
@@ -2398,11 +2416,12 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   checkLabel: { fontSize: 15, color: c.text, flex: 1 },
   checkLabelUnchecked: { color: c.textFaint, textDecorationLine: 'line-through' },
   selectAllRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginVertical: 8 },
+  suggestedTagsHint: { fontSize: 13, lineHeight: 18, color: c.textSecondary, marginBottom: 8 },
   selectAllText: { fontSize: 13, color: c.primary, fontWeight: '500' },
   listPickLabel: { fontSize: 13, fontWeight: '600', color: c.textSecondary, marginTop: 4, marginBottom: 6 },
 });
 
 export default function RecipeDetailScreen() {
-  const { recipeId, transfer, edit, forMenuDay, forMenuWeek, from, cook, servings } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; servings?: string }>();
-  return <RecipeDetail recipeId={recipeId} transfer={transfer} edit={edit} forMenuDay={forMenuDay} forMenuWeek={forMenuWeek} from={from} cook={cook} servings={servings} />;
+  const { recipeId, transfer, edit, suggested, forMenuDay, forMenuWeek, from, cook, servings } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; suggested?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; servings?: string }>();
+  return <RecipeDetail recipeId={recipeId} transfer={transfer} edit={edit} suggested={suggested} forMenuDay={forMenuDay} forMenuWeek={forMenuWeek} from={from} cook={cook} servings={servings} />;
 }

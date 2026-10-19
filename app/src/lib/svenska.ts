@@ -669,6 +669,8 @@ export const recipes = {
   tags: {
     label:          'Taggar',
     editHint:       'Tryck för att välja, eller skriv en egen',
+    // Efter import: taggar som lagts till ur rubriken och tillagningstiden.
+    suggestedHint:  (tags: string[]) => `Föreslagna efter receptet: ${tags.join(', ')}. Tryck på en tagg för att ta bort den.`,
     addPlaceholder: 'Ny tagg…',
     // Den enda taggen som alltid finns att välja. Receptkorten visar ett hjärta för den.
     favorite:        'favorit',

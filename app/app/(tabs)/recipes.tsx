@@ -38,6 +38,7 @@ import { ClearableInput } from '../../src/components/ClearableInput';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { getISOWeek } from '../../src/lib/week';
+import { suggestRecipeTags } from '../../src/lib/recipeTagSuggestions';
 import type { WeekDay } from '@veckis/shared';
 import { recipes as str, common, gettingStarted } from '../../src/lib/svenska';
 import { formateraTidsetikett } from '../../src/lib/cookTimer';
@@ -292,9 +293,17 @@ export default function RecipesScreen() {
   // "?edit=1" före — skapade man ett recept från menyns "+" blev adressen
   // /recipes/<id>&forMenuWeek=…, receptsidan hittade inget recept och visade
   // ett fel, fast receptet redan var sparat.
-  function newRecipeHref(id: string, edit: boolean) {
+  //
+  // Ett importerat recept öppnas i redigeringsläget ("edit=import"), så att
+  // taggar kan läggas till direkt — och de föreslagna syns och kan tas bort
+  // ("suggested=snabb,vegetariskt"). Utan ingredienser: "edit=1", som förut.
+  // Hushållets taggar — förslagen väljs bara bland dem (se recipeTagSuggestions).
+  const householdTags = () => [...new Set(recipes.flatMap(r => r.tags ?? []))];
+
+  function newRecipeHref(id: string, edit: boolean | 'import', suggested: string[] = []) {
     const query = [
-      edit ? 'edit=1' : null,
+      edit === 'import' ? 'edit=import' : edit ? 'edit=1' : null,
+      suggested.length ? `suggested=${encodeURIComponent(suggested.join(','))}` : null,
       params.forMenuDay !== undefined ? `forMenuDay=${params.forMenuDay}` : null,
       params.forMenuWeek ? `forMenuWeek=${params.forMenuWeek}` : null,
     ].filter(Boolean).join('&');
@@ -555,6 +564,7 @@ export default function RecipesScreen() {
       const scraped = await client.scrapeRecipe(link);
       if (!householdId) return;
       setCreating(true);
+      const suggested = suggestRecipeTags({ title: scraped.title, cookMinutes: scraped.cookMinutes }, householdTags());
       const recipe = await client.createRecipe({
         householdId,
         title: scraped.title,
@@ -566,6 +576,7 @@ export default function RecipesScreen() {
         servings: scraped.servings,
         cookMinutes: scraped.cookMinutes ?? null,
         ingredients: scraped.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit, originalName: i.originalName ?? null })),
+        tags: suggested,
       });
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
       setShowModal(false);
@@ -575,9 +586,9 @@ export default function RecipesScreen() {
       // mode to fill them in, instead of a confusing empty recipe.
       if (scraped.ingredients.length === 0) {
         confirm({ title: str.errors.noIngredients.title, message: str.errors.noIngredients.message, buttons: [{ label: common.actions.ok }] });
-        router.push(`/recipes/${recipe.id}?edit=1` as never);
+        router.push(newRecipeHref(recipe.id, true, suggested) as never);
       } else {
-        router.push(`/recipes/${recipe.id}` as never);
+        router.push(newRecipeHref(recipe.id, 'import', suggested) as never);
       }
     } catch (err) {
       // Scrape failed (no recipe data, fetch error, timeout…) — don't dead-end;
@@ -602,6 +613,7 @@ export default function RecipesScreen() {
     try {
       const parsed = await client.parseRecipeText(pasteText.trim());
       const usedTitle = title.trim() || parsed.title;
+      const suggested = suggestRecipeTags({ title: usedTitle, cookMinutes: parsed.cookMinutes }, householdTags());
       setCreating(true);
       const recipe = await client.createRecipe({
         householdId,
@@ -612,13 +624,14 @@ export default function RecipesScreen() {
         servings: parsed.servings,
         cookMinutes: parsed.cookMinutes ?? null,
         ingredients: parsed.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+        tags: suggested,
       });
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
       setShowModal(false);
       setTitle('');
       setPasteText('');
       setMode('url');
-      router.push(newRecipeHref(recipe.id, parsed.ingredients.length === 0) as never);
+      router.push(newRecipeHref(recipe.id, parsed.ingredients.length === 0 || 'import', suggested) as never);
     } catch (err) {
       confirm({ title: str.errors.generic, message: err instanceof Error ? err.message : str.errors.couldNotParse, buttons: [{ label: common.actions.ok }] });
     } finally {
@@ -688,10 +701,13 @@ export default function RecipesScreen() {
 
   // Skapar ett tolkat recept och lägger in det i listan. Bryts ut för att kunna
   // anropas både för ett ensamt recept och i följd för flera.
-  async function skapaTolkat(r: TolkatRecept, egenTitel: string | null) {
+  // tags: föreslagna taggar — bara när receptet sedan öppnas i redigeringsläget,
+  // där de syns. Sparas flera på en gång blir det inga förslag.
+  async function skapaTolkat(r: TolkatRecept, egenTitel: string | null, tags: string[] = []) {
     if (!householdId) throw new Error(str.errors.generic);
     const recipe = await client.createRecipe({
       householdId,
+      tags,
       title: egenTitel?.trim() || r.title,
       description: r.description,
       instructions: r.instructions,
@@ -748,7 +764,7 @@ export default function RecipesScreen() {
         ? str.createModal.photo.multiCreatedOne(skapade[0].title)
         : str.createModal.photo.multiCreatedMany(skapade.length), 'success');
       if (skapade.length === 1) {
-        router.push(newRecipeHref(skapade[0].id, false) as never);
+        router.push(newRecipeHref(skapade[0].id, 'import') as never);
       }
     } catch (err) {
       showError(err, str.errors.generic);
@@ -780,9 +796,10 @@ export default function RecipesScreen() {
 
       setPhotoLoadingStage('creating');
       setCreating(true);
-      const recipe = await skapaTolkat(funna[0], title);
+      const suggested = suggestRecipeTags({ title: title.trim() || funna[0].title, cookMinutes: funna[0].cookMinutes }, householdTags());
+      const recipe = await skapaTolkat(funna[0], title, suggested);
       stangSkapaSheet();
-      router.push(newRecipeHref(recipe.id, funna[0].ingredients.length === 0) as never);
+      router.push(newRecipeHref(recipe.id, funna[0].ingredients.length === 0 || 'import', suggested) as never);
     } catch (err) {
       confirm({ title: str.errors.generic, message: err instanceof Error ? err.message : str.errors.couldNotParse, buttons: [{ label: common.actions.ok }] });
     } finally {
