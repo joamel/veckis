@@ -115,7 +115,7 @@ async function computeOrderSuggestion(store: StoreRow, relaxed: boolean) {
     ? await prisma.shoppingCheckEvent.findMany({ where: { storeId: { in: otherStores.map(s => s.id) }, customCategory: null }, select })
     : [];
   const { events, otherHouseholds } = eventsForSuggestion(own, others);
-  const toSection = (e: typeof own[number]) => ({ shopperKey: e.shopperKey, checkedAt: e.checkedAt, bulk: e.bulk, section: sectionKeyFor(e, { parentOrder, categoryMerge }) });
+  const toSection = (e: typeof own[number] & { own?: boolean }) => ({ shopperKey: e.shopperKey, checkedAt: e.checkedAt, bulk: e.bulk, own: e.own, section: sectionKeyFor(e, { parentOrder, categoryMerge }) });
   const suggestion = store.orderSuggestions || relaxed
     ? suggestStoreOrder(events.map(toSection), parentOrder, new Date(), relaxed ? { minPairTrips: 1 } : {})
     : { trips: 0, order: parentOrder, changed: false, known: 0, moves: [] };

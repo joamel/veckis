@@ -792,6 +792,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     // startEdit läser receptet; effekten ska bara köras en gång per import.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [edit, recipe]);
+  // Källchippet ("Original" + ikon): bara ikonen om det inte ryms på raden.
+  const metaFirstRowY = useRef<number | null>(null);
+  const [sourceIconOnly, setSourceIconOnly] = useState(false);
   const suggestedTags = useMemo(() => (suggestedParam ?? '').split(',').map(t => t.trim()).filter(Boolean), [suggestedParam]);
   const suggestedStillOn = suggestedTags.filter(t => editTags.includes(t));
 
@@ -799,14 +802,27 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   // taggarna två gånger i lime när redigeringsläget öppnas — man ser att de
   // fyllts i av sig själva, och att de går att trycka bort.
   const devMode = useExperiment('dev-mode');
+  // Taggarna ligger långt ned i redigeringsläget — pulsen väntar tills
+  // raden syns på skärmen (vid öppning eller när man scrollar dit).
   const tagPulse = useRef(new Animated.Value(0)).current;
   const tagPulsedRef = useRef(false);
+  const tagRowRef = useRef<View>(null);
+  const pulseWanted = devMode && editMode && suggestedTags.length > 0;
+  const maybePulseTags = useCallback(() => {
+    if (!pulseWanted || tagPulsedRef.current) return;
+    tagRowRef.current?.measureInWindow((_x, y, _w, h) => {
+      if (tagPulsedRef.current || h === 0) return;
+      if (y < 0 || y + h > Dimensions.get('window').height - 60) return;
+      tagPulsedRef.current = true;
+      const step = (to: number) => Animated.timing(tagPulse, { toValue: to, duration: 380, easing: Easing.inOut(Easing.quad), useNativeDriver: true });
+      Animated.sequence([Animated.delay(200), step(1), step(0), step(1), step(0)]).start();
+    });
+  }, [pulseWanted, tagPulse]);
   useEffect(() => {
-    if (!devMode || !editMode || suggestedTags.length === 0 || tagPulsedRef.current) return;
-    tagPulsedRef.current = true;
-    const step = (to: number) => Animated.timing(tagPulse, { toValue: to, duration: 380, easing: Easing.inOut(Easing.quad), useNativeDriver: true });
-    Animated.sequence([Animated.delay(450), step(1), step(0), step(1), step(0)]).start();
-  }, [devMode, editMode, suggestedTags.length, tagPulse]);
+    if (!pulseWanted) return;
+    const t = setTimeout(maybePulseTags, 500);
+    return () => clearTimeout(t);
+  }, [pulseWanted, maybePulseTags]);
 
   // Edit everything (name, image, description, ingredients, instructions) inline
   // in the detail view.
@@ -1263,7 +1279,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
         ]}
         keyboardShouldPersistTaps="always"
         scrollEventThrottle={16}
-        onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
+        onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; maybePulseTags(); }}
       >
         {editMode ? (
           <View style={{ gap: 8 }}>
@@ -1413,7 +1429,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
         <View style={s.metaRow}>
           {/* Serving scaler — i edit-läget skalar den ingredienserna + sparar
               nya portioner; i läs-läget bara transient display-skalning. */}
-          <View style={s.servingChip}>
+          <View style={s.servingChip} onLayout={e => { metaFirstRowY.current = e.nativeEvent.layout.y; }}>
             <Pressable onPress={() => editMode ? adjustEditServings(-1) : adjustServings(-1)} style={s.servingBtn} hitSlop={8}>
               <Ionicons name="remove" size={14} color={c.primary} />
             </Pressable>
@@ -1466,10 +1482,17 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
               onPress={() => WebBrowser.openBrowserAsync(recipe.sourceUrl!)}
               accessibilityRole="link"
               accessibilityLabel={str.detail.originalRecipeA11y}
+              // Bröt chippet ned på en egen rad? Då räcker ikonen — portioner,
+              // tid och källa ska stå på samma rad.
+              onLayout={e => {
+                if (metaFirstRowY.current != null && e.nativeEvent.layout.y > metaFirstRowY.current + 4) setSourceIconOnly(true);
+              }}
             >
-              <Text style={[s.metaText, { width: metaBredd(str.detail.originalRecipe) }]} numberOfLines={1}>{str.detail.originalRecipe}</Text>
+              {!sourceIconOnly && (
+                <Text style={[s.metaText, { width: metaBredd(str.detail.originalRecipe) }]} numberOfLines={1}>{str.detail.originalRecipe}</Text>
+              )}
               {/* Ruta med pil ut: säger att länken lämnar appen. */}
-              <Ionicons name="open-outline" size={13} color={metaFarg} />
+              <Ionicons name="open-outline" size={sourceIconOnly ? 15 : 13} color={metaFarg} />
             </Pressable>
           )}
         </View>
@@ -1490,7 +1513,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
             {!devMode && suggestedStillOn.length > 0 && (
               <Text style={s.suggestedTagsHint}>{str.tags.suggestedHint(suggestedStillOn)}</Text>
             )}
-            <View style={s.tagRow}>
+            <View style={s.tagRow} ref={tagRowRef} collapsable={false}>
               {/* Bara taggar som något recept i hushållet använder, plus det här
                   receptets egna. En tagg som inget recept har längre försvinner
                   av sig själv. Enda fasta förslaget är favorit (samma som hjärtat). */}
@@ -2291,7 +2314,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   imgAfterSaveHint: { fontSize: 13, color: c.textFaint, textAlign: 'center', paddingVertical: 8 },
   imgRemoveBtn: { width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: c.dangerTint },
   editImagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: c.surfaceSubtle, marginTop: 8 },
-  metaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  metaRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   metaChip: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 20, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, flexShrink: 0 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   tagChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.kort : c.primaryTint, flexShrink: 0 },
@@ -2307,8 +2330,8 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // Länken till källan. Tätare än de andra chipsen: ordet plus ikonen måste
   // rymmas bredvid portioner och tid, annars bryter raden.
   kallaChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0,
-    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 20,
+    flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 0,
+    paddingHorizontal: 8, paddingVertical: 8, borderRadius: 20,
     backgroundColor: nyD ? ny.kort : c.surfaceSubtle,
   },
   description: { fontSize: 14, color: nyD ? ny.text : c.textSecondary, lineHeight: 22 },
