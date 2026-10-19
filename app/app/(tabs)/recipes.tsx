@@ -43,7 +43,7 @@ import { HandlisLoader } from '../../src/components/HandlisLoader';
 import type { WeekDay } from '@veckis/shared';
 import { recipes as str, common, gettingStarted } from '../../src/lib/svenska';
 import { formateraTidsetikett } from '../../src/lib/cookTimer';
-import { useOnboardingMaster, useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
+import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -57,7 +57,6 @@ import { Murverk, murverkHojd } from '../../src/components/nydesign/Murverk';
 import { TagLabel, isFavoriteTag } from '../../src/components/TagLabel';
 import { orderTags, tagChips } from '../../src/lib/tagOrder';
 import { cleanPastedUrl, extractUrl, pastedLink } from '../../src/lib/extractUrl';
-import { useExperiment } from '../../src/lib/experiments';
 
 // Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
 // dagnamn är hårdkodat i komponenten — då räcker det att översätta svenska.ts.
@@ -104,7 +103,6 @@ export default function RecipesScreen() {
   const confirm = useConfirm();
   // Dev-läget: tre val i receptmenyn i stället för fem (länk och inklistrad
   // text i ett fält, foto och galleri i ett val).
-  const devMode = useExperiment('dev-mode');
   const tryCloseCreate = useDiscardDraft(confirm);
   const discardCreate = () => { setShowModal(false); setTitle(''); setUrl(''); setPasteText(''); setPhotoUris([]); setMode('url'); };
   const closeCreate = () => tryCloseCreate(title.trim() !== '' || url.trim() !== '' || pasteText.trim() !== '' || photoUris.length > 0, discardCreate);
@@ -484,7 +482,7 @@ export default function RecipesScreen() {
   const [url, setUrl] = useState('');
   const [pasteText, setPasteText] = useState('');
   // Dev-läget: är det inklistrade en länk (hämtas) eller ett recept (tolkas)?
-  const pasteLink = devMode ? pastedLink(pasteText) : null;
+  const pasteLink = pastedLink(pasteText);
   const [parsing, setParsing] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -670,26 +668,7 @@ export default function RecipesScreen() {
   // faktiskt kom tillbaka. Backar man ur kameran ligger man kvar i receptlistan
   // i stället för att mötas av en tom foto-sheet (eller, som tidigare, ett
   // taget foto som hamnade i state utan att någon vy visade det).
-  // Första gången man fotar: vad funktionen klarar, innan kameran öppnas —
-  // annars går man direkt till kameran utan att veta att ett handskrivet
-  // recept eller en tidningssida fungerar.
-  // Följer "Visa onboarding-tips" och nollställs av "Återställ introduktion"
-  // (seen-photo-tip står i TIP_FLAGS).
-  const photoTip = useOnceFlag('seen-photo-tip');
-  const { skipAll: onboardingOff } = useOnboardingMaster();
-  async function startPhotoFlow(source: 'camera' | 'library', skipTip = false) {
-    if (!skipTip && photoTip.seen === false && onboardingOff !== true) {
-      photoTip.markSeen();
-      confirm({
-        title: str.createModal.photo.tipTitle,
-        message: str.createModal.photo.emptyHint,
-        buttons: [
-          { label: source === 'camera' ? str.createModal.photo.sourceCamera : str.createModal.photo.sourceLibrary, icon: source === 'camera' ? 'camera-outline' : 'images-outline', onPress: () => { void startPhotoFlow(source, true); } },
-          { label: common.actions.cancel, style: 'cancel' },
-        ],
-      });
-      return;
-    }
+  async function startPhotoFlow(source: 'camera' | 'library') {
     const uris = await capturePhoto(source, MAX_SIDOR);
     if (uris.length === 0) return;
     wantFocusRef.current = false;
@@ -872,39 +851,29 @@ export default function RecipesScreen() {
       // 3-punktsmeny uppe i headern — därför bottom-right, inte default.
       menuAnchor: 'bottom-right',
       menuAnchorRef: fabRef,
-      buttons: devMode ? [
+      buttons: [
         { label: str.createModal.combined.menuWrite, icon: 'pencil-outline', onPress: () => router.push('/recipes/new' as never) },
         // Länk eller recept — fältet avgör själv vilket det är.
         { label: str.createModal.combined.menuPaste, icon: 'clipboard-outline', onPress: () => openModalWithMode('paste') },
         // Kamera eller galleri väljs i ett andra steg. ConfirmDialog kör valet
         // först när menyn animerats ut, så frågan kan öppnas direkt härifrån.
-        // Tipset står i frågan om kamera eller galleri — då behövs inget eget.
+        // Tipset om vad man kan fota står i frågan om kamera eller galleri.
         { label: str.createModal.combined.menuPhoto, icon: 'camera-outline', onPress: () => confirm({
           title: str.createModal.photo.tipTitle,
           message: str.createModal.photo.emptyHint,
           buttons: [
-            { label: str.createModal.photo.sourceCamera, icon: 'camera-outline', onPress: () => { void startPhotoFlow('camera', true); } },
-            { label: str.createModal.photo.sourceLibrary, icon: 'images-outline', onPress: () => { void startPhotoFlow('library', true); } },
+            { label: str.createModal.photo.sourceCamera, icon: 'camera-outline', onPress: () => { void startPhotoFlow('camera'); } },
+            { label: str.createModal.photo.sourceLibrary, icon: 'images-outline', onPress: () => { void startPhotoFlow('library'); } },
             { label: common.actions.cancel, style: 'cancel' },
           ],
         }) },
-        { label: common.actions.cancel, style: 'cancel' },
-      ] : [
-        { label: str.createModal.menu.manual, icon: 'pencil-outline', onPress: () => router.push('/recipes/new' as never) },
-        { label: str.createModal.menu.url, icon: 'link-outline', onPress: () => openModalWithMode('url') },
-        { label: str.createModal.menu.paste, icon: 'sparkles', onPress: () => openModalWithMode('paste') },
-        { label: str.createModal.menu.photo, icon: 'camera-outline', onPress: () => startPhotoFlow('camera') },
-        // Egen rad i stället för en källväljare på "Fota recept": popupen har
-        // redan valt läget överallt annars, och galleriet gick tidigare bara
-        // att nå via "Byt foto" — som syns först EFTER ett taget kamerafoto.
-        { label: str.createModal.menu.gallery, icon: 'images-outline', onPress: () => startPhotoFlow('library') },
         { label: common.actions.cancel, style: 'cancel' },
       ],
     });
   }
 
-  // Dev-läge: medan importen pågår visas korgen i stället för formuläret, med
-  // en text som säger vad som händer.
+  // Medan importen pågår visas korgen i stället för formuläret, med en text
+  // som säger vad som händer.
   const importBusy = parsing || scraping || creating || photoParsing;
   const [loadingStep, setLoadingStep] = useState(0);
   useEffect(() => {
@@ -921,16 +890,16 @@ export default function RecipesScreen() {
       : (scraping ? str.createModal.loading.link : str.createModal.loading.paste)[loadingStep];
 
   // Sheet-innehållet (delas ut för läsbarhet; renderas inuti DraggableBottomSheet nedan).
-  const createSheetInner = devMode && importBusy ? <HandlisLoader text={loadingText} /> : (
+  const createSheetInner = importBusy ? <HandlisLoader text={loadingText} /> : (
     <>
         <View style={s.modeBody}>
         {mode === 'paste' ? (
           <>
-            <Text style={s.pasteHint}>{devMode ? str.createModal.combined.hint : str.createModal.pasteHint}</Text>
+            <Text style={s.pasteHint}>{str.createModal.combined.hint}</Text>
             <ClearableInput
               ref={pasteRef}
               style={[s.input, { height: 130, textAlignVertical: 'top', paddingTop: 10 }]}
-              placeholder={devMode ? str.createModal.combined.placeholder : str.createModal.pastePlaceholder}
+              placeholder={str.createModal.combined.placeholder}
               value={pasteText}
               onChangeText={setPasteText}
               multiline
@@ -1342,7 +1311,7 @@ export default function RecipesScreen() {
         onRequestClose={closeCreate}
         liftOffset={sheetLift}
         bodyStyle={s.sheetBody}
-        title={devMode && mode === 'paste' ? str.createModal.combined.title : str.createModal.modeTitles[mode]}
+        title={mode === 'paste' ? str.createModal.combined.title : str.createModal.modeTitles[mode]}
       >
         {createSheetInner}
       </DraggableBottomSheet>

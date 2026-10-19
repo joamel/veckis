@@ -669,8 +669,6 @@ export const recipes = {
   tags: {
     label:          'Taggar',
     editHint:       'Tryck för att välja, eller skriv en egen',
-    // Efter import: taggar som lagts till ur rubriken och tillagningstiden.
-    suggestedHint:  (tags: string[]) => `Föreslagna efter receptet: ${tags.join(', ')}. Tryck på en tagg för att ta bort den.`,
     suggestedA11y:  (tag: string) => `${tag}, föreslagen efter receptet. Tryck för att ta bort.`,
     addPlaceholder: 'Ny tagg…',
     // Den enda taggen som alltid finns att välja. Receptkorten visar ett hjärta för den.
@@ -736,14 +734,7 @@ export const recipes = {
       url:    'Hämta från länk',
       photo:  'Fota recept',
     },
-    menu: {
-      manual: 'Lägg till manuellt',
-      url:    'Från URL',
-      paste:  'Klistra in',
-      photo:  'Fota recept',
-      gallery:'Välj bild ur galleriet',
-    },
-    // Laddningen med korgen (dev-läge). Byts efter hur lång tid som gått —
+    // Laddningen med korgen. Byts efter hur lång tid som gått —
     // servern säger inte vilket steg den är på, men ordningen stämmer.
     loading: {
       link:   ['Hämtar receptet…', 'Läser ingredienserna…', 'Nästan klart…'],
@@ -751,7 +742,7 @@ export const recipes = {
       saving: 'Sparar receptet…',
     },
     photo: {
-      // Innan någon bild valts: vad funktionen är till för.
+      // Vad man kan fota — står i frågan om kamera eller galleri.
       tipTitle:         'Fota ett recept',
       emptyHint:        'Prova att fota ett handskrivet recept, en kokbokssida eller ett urklipp ur tidningen – Handlis läser av ingredienser och steg åt dig.',
       sourceTitle:      'Lägg till bild',
@@ -779,7 +770,6 @@ export const recipes = {
       multiCreatedMany: (n: number) => `${n} recept skapades`,
       multiPartial:     (sparade: number, alla: number, fel: string) => `${sparade} av ${alla} recept sparades. Övriga gick inte att spara: ${fel}`,
     },
-    pasteHint:        'Klistra in recept eller länktext — AI:n plockar ut titel, ingredienser och steg.',
     // Dev-läget: ett fält för både länk och recept, tre val i menyn.
     combined: {
       title:       'Klistra in länk eller recept',
@@ -789,7 +779,6 @@ export const recipes = {
       menuPaste:   'Klistra in länk eller recept',
       menuPhoto:   'Fota eller välj bild',
     },
-    pastePlaceholder: 'Klistra in recept eller receptsida här…',
     parseButton:      'Tolka och skapa recept',
     urlPlaceholder:   'https://tasteline.com/recept/...',
     urlHint:          'Fungerar med de flesta receptsajter (ICA, Arla, Tasteline, m.fl.)',

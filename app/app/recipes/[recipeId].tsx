@@ -37,7 +37,6 @@ import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { cloudinaryOptimized } from '../../src/lib/cloudinaryUrl';
 import { TagLabel } from '../../src/components/TagLabel';
-import { useExperiment } from '../../src/lib/experiments';
 import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
 import { getISOWeek } from '../../src/lib/week';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -798,16 +797,15 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   const suggestedTags = useMemo(() => (suggestedParam ?? '').split(',').map(t => t.trim()).filter(Boolean), [suggestedParam]);
   const suggestedStillOn = suggestedTags.filter(t => editTags.includes(t));
 
-  // Dev-läge: i stället för den förklarande raden pulserar de föreslagna
+  // I stället för en förklarande rad pulserar de föreslagna
   // taggarna två gånger i lime när redigeringsläget öppnas — man ser att de
   // fyllts i av sig själva, och att de går att trycka bort.
-  const devMode = useExperiment('dev-mode');
   // Taggarna ligger långt ned i redigeringsläget — pulsen väntar tills
   // raden syns på skärmen (vid öppning eller när man scrollar dit).
   const tagPulse = useRef(new Animated.Value(0)).current;
   const tagPulsedRef = useRef(false);
   const tagRowRef = useRef<View>(null);
-  const pulseWanted = devMode && editMode && suggestedTags.length > 0;
+  const pulseWanted = editMode && suggestedTags.length > 0;
   const maybePulseTags = useCallback(() => {
     if (!pulseWanted || tagPulsedRef.current) return;
     tagRowRef.current?.measureInWindow((_x, y, _w, h) => {
@@ -1510,9 +1508,6 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
         {editMode && (
           <View>
             <Text style={s.editLabel}>{str.tags.label}</Text>
-            {!devMode && suggestedStillOn.length > 0 && (
-              <Text style={s.suggestedTagsHint}>{str.tags.suggestedHint(suggestedStillOn)}</Text>
-            )}
             <View style={s.tagRow} ref={tagRowRef} collapsable={false}>
               {/* Bara taggar som något recept i hushållet använder, plus det här
                   receptets egna. En tagg som inget recept har längre försvinner
@@ -1529,7 +1524,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                     <TagLabel tag={t} style={[s.tagChipText, active && s.tagChipTextActive]} iconColor={active ? (nyDesign ? ny.lime : '#fff') : (nyDesign ? ny.chipText : c.primary)} />
                   </Pressable>
                 );
-                if (!devMode || !suggestedStillOn.includes(t)) return chip;
+                if (!suggestedStillOn.includes(t)) return chip;
                 return (
                   <Animated.View key={t} style={{ transform: [{ scale: tagPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) }] }}>
                     <Animated.View pointerEvents="none" style={[s.tagPulseRing, { opacity: tagPulse }]} />

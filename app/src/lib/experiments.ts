@@ -17,7 +17,8 @@ export const EXPERIMENTS = [
   // Dev-läge: allt som är under utveckling, på en gång. Hittills:
   // - förslaget på kategoriordning ur en enda handling (backend godtar det
   //   bara från appadmin), så kortet går att prova utan fyra handlingar
-  // - receptmenyn med tre val (snabblistan låg här till 2026-10-16)
+  // - "Dela mall" i veckomallarna (receptmenyn med tre val, korgen och
+  //   taggpulsen släpptes 2026-10-20)
   'dev-mode',
 ] as const;
 

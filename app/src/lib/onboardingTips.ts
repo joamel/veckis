@@ -17,7 +17,6 @@ export const TIP_FLAGS = [
   'seen-pin-tag-tip',
   'seen-shopper-tip',
   'seen-list-store-tip',
-  'seen-photo-tip',
 ] as const;
 
 /** Special master flag — kvar för bakåtkompat (dormant SpotlightTip-infra). */
