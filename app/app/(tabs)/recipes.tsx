@@ -43,7 +43,7 @@ import { HandlisLoader } from '../../src/components/HandlisLoader';
 import type { WeekDay } from '@veckis/shared';
 import { recipes as str, common, gettingStarted } from '../../src/lib/svenska';
 import { formateraTidsetikett } from '../../src/lib/cookTimer';
-import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
+import { useOnboardingMaster, useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -673,9 +673,12 @@ export default function RecipesScreen() {
   // Första gången man fotar: vad funktionen klarar, innan kameran öppnas —
   // annars går man direkt till kameran utan att veta att ett handskrivet
   // recept eller en tidningssida fungerar.
+  // Följer "Visa onboarding-tips" och nollställs av "Återställ introduktion"
+  // (seen-photo-tip står i TIP_FLAGS).
   const photoTip = useOnceFlag('seen-photo-tip');
+  const { skipAll: onboardingOff } = useOnboardingMaster();
   async function startPhotoFlow(source: 'camera' | 'library', skipTip = false) {
-    if (!skipTip && photoTip.seen === false) {
+    if (!skipTip && photoTip.seen === false && onboardingOff !== true) {
       photoTip.markSeen();
       confirm({
         title: str.createModal.photo.tipTitle,
@@ -880,8 +883,8 @@ export default function RecipesScreen() {
           title: str.createModal.photo.tipTitle,
           message: str.createModal.photo.emptyHint,
           buttons: [
-            { label: str.createModal.photo.sourceCamera, icon: 'camera-outline', onPress: () => { photoTip.markSeen(); void startPhotoFlow('camera', true); } },
-            { label: str.createModal.photo.sourceLibrary, icon: 'images-outline', onPress: () => { photoTip.markSeen(); void startPhotoFlow('library', true); } },
+            { label: str.createModal.photo.sourceCamera, icon: 'camera-outline', onPress: () => { void startPhotoFlow('camera', true); } },
+            { label: str.createModal.photo.sourceLibrary, icon: 'images-outline', onPress: () => { void startPhotoFlow('library', true); } },
             { label: common.actions.cancel, style: 'cancel' },
           ],
         }) },
