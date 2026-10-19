@@ -7,11 +7,38 @@ telefoner med ett äldre bygge. Den som inte uppdaterar från butiken får
 därför inte längre snabbuppdateringar — "Vad är nytt" ska ge ett skäl att
 uppdatera.
 
-## Play Store / App Store — kort "Vad är nytt"
+## App Store — "Nyheter" (bygge 11 och senare)
 
-> **Dela recept till Handlis.** Hittar du ett recept i webbläsaren, på Instagram eller i ICA-appen – tryck Dela och välj Handlis, så hämtas det direkt. **Snabblistan:** spara varorna du köper varje vecka, med din egen mängd, och lägg till dem med ett tryck. Plus: rensa bara klarmarkerade varor, butiksvalet går igenom direkt och tangentbordet stänger sig när du vill.
+> Spara recept direkt i Handlis
+> Hittar du ett recept i webbläsaren eller på Instagram? Tryck på Dela och välj "Spara i Handlis" – receptet hämtas direkt, utan att du behöver kopiera länken.
+>
+> Skriv vad du är sugen på
+> Skriv till exempel "frasiga våfflor" så skriver Handlis ett recept åt dig – eller fota ett handskrivet recept eller en sida ur tidningen. Nya recept öppnas direkt för redigering, med dina egna taggar, som "snabb" eller "vegetariskt", redan föreslagna.
+>
+> Butiken lär sig din väg
+> En ny butik börjar i samma ordning som liknande butiker, till exempel andra ICA Maxi. Sedan uppdateras ordningen av sig själv efter hur du handlar – och varje ändring går att ångra.
+>
+> Snabblistan
+> Spara varorna du köper varje vecka, med önskad mängd, och lägg till dem på inköpslistan med ett tryck.
+>
+> Dessutom
+> • Förhandsgranska veckomallar innan du lägger in dem
+> • Fler varor hamnar i rätt kategori, bland annat disk- och tvättmedel
+> • Rensa i inköpslistan rensar bara de klarmarkerade varorna i stället för hela listan
+> • Butiksvalet går igenom direkt, och vald butik markeras
+> • Tangentbordet i inköpslistan stänger sig när du vill
+> • Veckomenyn hamnar rätt när du byter vecka
 
-*(cirka 410 tecken — Play tillåter 500.)*
+## Play Store — kort "Vad är nytt"
+
+> **Dela recept till Handlis** från webbläsaren eller Instagram. **Skriv vad du är sugen på** – t.ex. ”frasiga våfflor” – så skriver Handlis ett recept, och nya recept får dina taggar föreslagna. **Butiken lär sig din väg** och uppdaterar ordningen själv. **Snabblistan** för varor du köper varje vecka. Plus: förhandsgranska veckomallar, fler varor i rätt kategori, rensa bara klarmarkerade och snabbare butiksval.
+
+*(397 tecken — Play tillåter 500.)*
+
+Det som kom efter bygge 11 (taggförslag, "skriv vad du är sugen på", butikens
+startordning och automatiska ordning, förhandsgranskade mallar, nya
+kategoriregler) är ute som snabbuppdatering till 2.3.0 och behöver inget nytt
+bygge — den som installerar bygge 11 får det vid första start.
 
 ## Nytt sedan 2.2.0
 
@@ -21,6 +48,12 @@ uppdatera.
 - **Butiksvalet** går igenom första gången; vald butik markeras i grönt.
 - **Tangentbordet** i inköpslistan går att stänga och kommer inte tillbaka efter ett ark.
 - **Veckomenyn** landar överst vid veckobyte, och veckoraden syns igen.
+- **Skriv vad du är sugen på** — "frasiga våfflor" i klistra in-fältet ger ett eget recept (bara inklistrad text, aldrig webbsidor).
+- **Importerade recept öppnas i redigeringsläget**, med hushållets egna taggar föreslagna (snabb vid högst 20 min, kost bara ur rubriken); taggarna pulserar. Korgen visas medan importen pågår. Receptmenyn har tre val i stället för fem.
+- **Butikens ordning** — en ny butik startar i den ordning andra sorterat samma butik, kedja och format; ordningen uppdateras automatiskt (ett reglage, på som standard, med Ångra), och den egna vägen väger tyngre än andras.
+- **Veckomallar** fälls ut och visar rätterna innan man lägger in dem.
+- **Kategorier** — disk- och tvättmedel, papper, påsar och sammansatta ord hamnar rätt; korv- och hamburgerbröd egen underkategori; alkohol föreslås inte för alla.
+- **iOS** — ark med text i går att stänga, och frågor efter en meny syns.
 
 ---
 
