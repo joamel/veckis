@@ -47,8 +47,11 @@ export function EmptyState({ icon, title, subtitle, actionLabel, onAction }: Emp
 
 const makeStyles = (c: Palette) => StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: 32 },
-  title: { fontWeight: '600', color: c.textSecondary, marginTop: 16, textAlign: 'center' },
-  subtitle: { color: c.textFaint, marginTop: 6, textAlign: 'center' },
+  // alignSelf: stretch — centrerad text i en behållare som krymper till
+  // innehållet mäts för smalt på Android, och andra raden försvann
+  // ("… manuellt eller via en"). Full bredd låter den radbrytas rätt.
+  title: { fontWeight: '600', color: c.textSecondary, marginTop: 16, textAlign: 'center', alignSelf: 'stretch' },
+  subtitle: { color: c.textFaint, marginTop: 6, textAlign: 'center', alignSelf: 'stretch' },
   btn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primaryBtn },
   btnText: { color: '#fff', fontWeight: '700' },
 });

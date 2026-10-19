@@ -1007,6 +1007,7 @@ export default function RecipesScreen() {
                 <Text style={s.buttonText}>{str.createModal.photo.add}</Text>
               </Pressable>
             )}
+            {photoUris.length === 0 && <Text style={[s.urlHint, { marginTop: 4 }]}>{str.createModal.photo.emptyHint}</Text>}
             <ClearableInput
               style={s.input}
               placeholder={str.createModal.photo.titlePlaceholder}

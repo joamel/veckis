@@ -530,7 +530,7 @@ export const menu = {
 
   emptyState: {
     title:    'Inga recept än',
-    subtitle: 'Lägg till ett recept manuellt eller via en URL',
+    subtitle: 'Klistra in en länk, skriv själv eller fota ett recept',
     noDishesPlanned: {
       title:        'Inga rätter planerade',
       subtitlePast: 'Inga rätter var planerade denna vecka.',
@@ -721,7 +721,7 @@ export const recipes = {
 
   emptyState: {
     title:       'Inga recept än',
-    subtitle:    'Lägg till ett recept manuellt eller via en URL',
+    subtitle:    'Klistra in en länk, skriv själv eller fota ett recept',
     noResults:   'Inga recept matchar filtret',
     noResultsFor:(q: string) => `Inget recept matchar "${q}"`,
     loosenFilter:'Prova att minska filtret eller söka på något annat.',
@@ -751,6 +751,8 @@ export const recipes = {
       saving: 'Sparar receptet…',
     },
     photo: {
+      // Innan någon bild valts: vad funktionen är till för.
+      emptyHint:        'Prova att fota ett handskrivet recept, en kokbokssida eller ett urklipp ur tidningen – Handlis läser av ingredienser och steg åt dig.',
       sourceTitle:      'Lägg till bild',
       sourceMessage:    'Hur vill du lägga till bilden?',
       sourceCamera:     'Ta foto',
@@ -965,7 +967,7 @@ export const recipes = {
     },
     add: {
       title:   'Skapa recept',
-      message: 'Lägg till ett recept manuellt eller importera direkt från en webbsida - klistra bara in URL:en så hämtar appen titel, ingredienser, bild och instruktioner automatiskt.',
+      message: 'Klistra in en länk eller skriv själv – eller fota ett handskrivet recept eller en sida ur en tidning eller kokbok, så läser Handlis in ingredienser och steg åt dig.',
     },
   },
 };
