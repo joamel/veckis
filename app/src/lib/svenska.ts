@@ -783,8 +783,8 @@ export const recipes = {
     // Dev-läget: ett fält för både länk och recept, tre val i menyn.
     combined: {
       title:       'Klistra in länk eller recept',
-      hint:        'Klistra in en länk till ett recept, eller själva receptet — titel, ingredienser och steg plockas ut åt dig.',
-      placeholder: 'Klistra in länk eller recept här…',
+      hint:        'Klistra in en länk eller ett recept — eller skriv vad du är sugen på, så skriver Handlis ett recept åt dig.',
+      placeholder: 'Länk, recept – eller t.ex. ”frasiga våfflor”…',
       menuWrite:   'Skriv själv',
       menuPaste:   'Klistra in länk eller recept',
       menuPhoto:   'Fota eller välj bild',

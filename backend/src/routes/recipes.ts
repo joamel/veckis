@@ -482,17 +482,26 @@ Regler:
 - instructions: om steg finns, ett steg per rad, "1. Förbered X\n2. Stek Y\n3. Servera" — varje steg på egen rad med \n emellan, annars null`;
 
 /**
+ * Bara för INKLISTRAD text: är det en önskan ("ge mig ett recept på frasiga
+ * våfflor") skriver modellen ett eget recept. Aldrig för en webbsida utan
+ * receptdata — där skulle en artikel eller en startsida bli ett påhittat recept.
+ */
+const WRITE_OWN_RECIPE_RULE = `
+
+Undantag — gäller bara när texten INTE innehåller något recept utan är en önskan eller bara namnet på en rätt (t.ex. "ge mig ett recept på frasiga våfflor", "köttbullar med potatismos"): skriv då ett eget enkelt hemlagat recept — titel, 4 portioner, vanliga svenska ingredienser med mängder, numrerade steg och en rimlig cookMinutes (här får du uppskatta tiden). Ett inklistrat recept återges alltid som det står.`;
+
+/**
  * Tolkar fri text (inklistrad eller extraherad ur en sida utan strukturerad
  * receptdata) till ett recept via Claude. Delad av /parse-text och
  * URL-scrapingens fallback när ingen JSON-LD hittas.
  */
-async function parseRecipeTextWithAI(text: string): Promise<ScrapedRecipe> {
+async function parseRecipeTextWithAI(text: string, opts: { writeOwnRecipe?: boolean } = {}): Promise<ScrapedRecipe> {
   if (!anthropic) throw new Error('AI-tolkning inte tillgänglig');
 
   const msg = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 2048,
-    system: RECEPT_TEXT_SYSTEM_PROMPT,
+    system: RECEPT_TEXT_SYSTEM_PROMPT + (opts.writeOwnRecipe ? WRITE_OWN_RECIPE_RULE : ''),
     messages: [{ role: 'user', content: text.slice(0, 80000) }],
   });
   await bokförAiKostnad('claude-haiku-4-5-20251001', msg.usage);
@@ -526,7 +535,7 @@ recipesRouter.post('/parse-text', parseTextLimiter, requireAuth, asyncHandler(as
   if (!anthropic) { res.status(503).json({ error: 'AI-tolkning inte tillgänglig' }); return; }
 
   try {
-    res.json(await parseRecipeTextWithAI(body.data.text));
+    res.json(await parseRecipeTextWithAI(body.data.text, { writeOwnRecipe: true }));
   } catch (err) {
     if (err instanceof InteJsonError) {
       console.error('Text parsing: inget recept i texten.', err.råtext.slice(0, 200));
