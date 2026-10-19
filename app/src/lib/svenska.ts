@@ -1358,6 +1358,9 @@ export const components = {
     noTemplates:     'Inga mallar än. Spara en vecka ovan för att skapa din första.',
     dishCount:       (n: number) => `${n} ${n === 1 ? 'rätt' : 'rätter'}`,
     shareA11y:       (name: string) => `Dela mall ${name}`,
+    previewA11y:     (name: string) => `Visa rätterna i mallen ${name}`,
+    applyA11y:       (name: string) => `Lägg in mallen ${name} i veckan`,
+    applyButton:     'Lägg in veckan',
     deleteA11y:      (name: string) => `Ta bort mall ${name}`,
     toasts: {
       saved:          'Vecka sparad som mall',

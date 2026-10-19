@@ -12,6 +12,8 @@ import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { shareTemplate } from '../lib/shareWeekMenu';
 import { components as str, common } from '../lib/svenska';
+
+const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 import { DraggableBottomSheet } from './DraggableBottomSheet';
 import { SHEET_HEADER_ICON } from './SheetHeader';
 import { useSheetLift } from '../hooks/useSheetLift';
@@ -68,6 +70,11 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
       setSaving(false);
     }
   }
+
+  // Mallen som visar sina rätter (bara en åt gången).
+  const [openId, setOpenId] = useState<string | null>(null);
+  const sortedItems = (tpl: MenuTemplate) =>
+    [...tpl.items].sort((a, b) => (a.day ? DAYS.indexOf(a.day) : 7) - (b.day ? DAYS.indexOf(b.day) : 7));
 
   function apply(tpl: MenuTemplate) {
     const run = async (overwrite: boolean) => {
@@ -153,22 +160,53 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
             <Text style={s.hint}>{str.menuTemplatesModal.noTemplates}</Text>
           ) : (
             templates.map(tpl => (
-              <View key={tpl.id} style={s.tplRow}>
-                <Pressable style={s.tplMain} onPress={() => apply(tpl)} disabled={busyId === tpl.id || readOnly}>
+              <View key={tpl.id} style={s.tplCard}>
+              <View style={s.tplRow}>
+                {/* Tryck eller håll inne: visa rätterna. Förut lade ett tryck in
+                    mallen direkt — med bara namnet att gå på. Plus lägger in. */}
+                <Pressable
+                  style={s.tplMain}
+                  onPress={() => setOpenId(id => (id === tpl.id ? null : tpl.id))}
+                  onLongPress={() => setOpenId(tpl.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: openId === tpl.id }}
+                  accessibilityLabel={str.menuTemplatesModal.previewA11y(tpl.name)}
+                >
                   <View style={{ flex: 1 }}>
                     <Text style={s.tplName}>{tpl.name}</Text>
                     <Text style={s.tplMeta}>{str.menuTemplatesModal.dishCount(tpl.items.length)}</Text>
                   </View>
-                  {busyId === tpl.id
-                    ? <ActivityIndicator color={c.primary} size="small" />
-                    : !readOnly && <Ionicons name="add-circle-outline" size={22} color={nyDesign ? ny.padYta : c.primary} />}
+                  <Ionicons name={openId === tpl.id ? 'chevron-up' : 'chevron-down'} size={18} color={nyDesign ? ny.textDampad : c.textFaint} />
                 </Pressable>
+                {!readOnly && (
+                  <Pressable style={s.tplShare} onPress={() => apply(tpl)} disabled={busyId === tpl.id} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.applyA11y(tpl.name)}>
+                    {busyId === tpl.id
+                      ? <ActivityIndicator color={c.primary} size="small" />
+                      : <Ionicons name="add-circle-outline" size={22} color={nyDesign ? ny.padYta : c.primary} />}
+                  </Pressable>
+                )}
                 <Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.shareA11y(tpl.name)}>
                   <Ionicons name="share-outline" size={18} color={nyDesign ? ny.padYta : c.primary} />
                 </Pressable>
                 <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.deleteA11y(tpl.name)}>
                   <Ionicons name="trash-outline" size={18} color={nyDesign ? ny.textDampad : c.textFaint} />
                 </Pressable>
+              </View>
+              {openId === tpl.id && (
+                <View style={s.tplDishes}>
+                  {sortedItems(tpl).map(it => (
+                    <View key={it.id} style={s.tplDishRow}>
+                      <Text style={s.tplDay}>{it.day ? common.weekdays.short[DAYS.indexOf(it.day)] : common.noDay}</Text>
+                      <Text style={s.tplDish} numberOfLines={1}>{it.recipe.title}</Text>
+                    </View>
+                  ))}
+                  {!readOnly && (
+                    <Pressable style={s.tplApplyBtn} onPress={() => apply(tpl)} disabled={busyId === tpl.id} accessibilityRole="button">
+                      <Text style={s.tplApplyText}>{str.menuTemplatesModal.applyButton}</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
               </View>
             ))
           )}
@@ -189,7 +227,14 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: nyD ? ny.skog : '#fff', fontWeight: '700', fontSize: 15 },
   hint: { fontSize: 13, color: nyD ? ny.textDampad : c.textFaint, marginTop: 8, marginLeft: 4 },
-  tplRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: nyD ? ny.ljus : c.surfaceSubtle, borderRadius: nyD ? 16 : 12, marginBottom: 8 },
+  tplCard: { backgroundColor: nyD ? ny.ljus : c.surfaceSubtle, borderRadius: nyD ? 16 : 12, marginBottom: 8 },
+  tplRow: { flexDirection: 'row', alignItems: 'center' },
+  tplDishes: { paddingHorizontal: 16, paddingBottom: 14, gap: 6 },
+  tplDishRow: { flexDirection: 'row', gap: 10 },
+  tplDay: { width: 38, fontSize: 13, fontWeight: '600', color: nyD ? ny.textDampad : c.textFaint },
+  tplDish: { flex: 1, fontSize: 14, color: nyD ? ny.text : c.text },
+  tplApplyBtn: { marginTop: 8, alignSelf: 'flex-start', backgroundColor: nyD ? ny.lime : c.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10 },
+  tplApplyText: { color: nyD ? ny.skog : '#fff', fontWeight: '700', fontSize: 14 },
   tplMain: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   tplName: nyD
     ? { fontFamily: nyFont.halvfet, fontWeight: 'normal', fontSize: 15, color: ny.text }

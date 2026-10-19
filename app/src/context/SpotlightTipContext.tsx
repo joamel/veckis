@@ -12,6 +12,10 @@ type ShowTipFn = (opts: SpotlightOptions) => boolean;
 
 interface SpotlightContextValue {
   show: ShowTipFn;
+  /** Tar bort ägarens tips — det som visas och de som väntar i kön. */
+  cancelOwner: (owner: number) => void;
+  /** Kopplar ett tips till skärmen som visar det (se useSpotlightTip). */
+  setOwner: (opts: SpotlightOptions, owner: number) => void;
   /** null while the flag is still loading from SecureStore. */
   skipAll: boolean | null;
   setSkipAll: (v: boolean) => Promise<void>;
@@ -29,10 +33,32 @@ const SpotlightTipContext = createContext<SpotlightContextValue | null>(null);
  * referenced UI element. Use for "first time you see this feature" hints; pair
  * with `useOnceFlag('seen-…')` so each fires at most once per device.
  */
+let nextOwner = 1;
+
+/**
+ * Tipset hör till skärmen som visar det. Lämnar man skärmen — även mitt i
+ * 2-sekundersbufferten innan tipset hunnit visas — tas det bort, i stället
+ * för att lägga sig över vyn man gått vidare till och peka på fel sak.
+ * De flesta anropare markerar tipset som sett när show() svarar true, så ett
+ * borttaget tips kommer oftast inte tillbaka — bättre än ett på fel vy.
+ */
 export function useSpotlightTip(): ShowTipFn {
   const ctx = useContext(SpotlightTipContext);
   if (!ctx) throw new Error('useSpotlightTip must be used within SpotlightTipProvider');
-  return ctx.show;
+  const owner = useRef(nextOwner++).current;
+  const isFocused = useIsFocused();
+  const focusedRef = useRef(isFocused);
+  focusedRef.current = isFocused;
+  const { show, cancelOwner, setOwner } = ctx;
+  useEffect(() => {
+    if (!isFocused) cancelOwner(owner);
+  }, [isFocused, cancelOwner, owner]);
+  useEffect(() => () => cancelOwner(owner), [cancelOwner, owner]);
+  return useCallback<ShowTipFn>((o) => {
+    if (!focusedRef.current) return false;
+    setOwner(o, owner);
+    return show(o);
+  }, [show, setOwner, owner]);
 }
 
 /** Master-toggle för hela onboarding-systemet. När `skipAll` är true fyrar
@@ -130,6 +156,9 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
     return true;
   }, []);
 
+  const owners = useRef(new WeakMap<SpotlightOptions, number>()).current;
+  const setOwner = useCallback((o: SpotlightOptions, owner: number) => { owners.set(o, owner); }, [owners]);
+
   const dismiss = useCallback(() => {
     const next = queueRef.current.shift() ?? null;
     optsRef.current = next;
@@ -139,9 +168,19 @@ export function SpotlightTipProvider({ children }: { children: ReactNode }) {
     setShownIndex(i => next ? i + 1 : 0);
   }, []);
 
+  const cancelOwner = useCallback((owner: number) => {
+    const before = queueRef.current.length;
+    queueRef.current = queueRef.current.filter(q => owners.get(q) !== owner);
+    if (queueRef.current.length !== before) {
+      setHasNext(queueRef.current.length > 0);
+      setQueueLen(queueRef.current.length);
+    }
+    if (optsRef.current && owners.get(optsRef.current) === owner) dismiss();
+  }, [owners, dismiss]);
+
   const value = useMemo<SpotlightContextValue>(
-    () => ({ show, skipAll, setSkipAll, welcomeReady, markWelcomeReady }),
-    [show, skipAll, setSkipAll, welcomeReady, markWelcomeReady],
+    () => ({ show, cancelOwner, setOwner, skipAll, setSkipAll, welcomeReady, markWelcomeReady }),
+    [show, cancelOwner, setOwner, skipAll, setSkipAll, welcomeReady, markWelcomeReady],
   );
 
   return (
