@@ -2688,9 +2688,15 @@ function MenuCard({
               {item.mealType && (
                 <Text style={[s.cardMealTag, { fontSize: fs(10) }, nyDesign && s.nyMaltid]}>{common.mealTypes[item.mealType].toUpperCase()}</Text>
               )}
-              {/* Ingen chevron i nya designen: att kortet gar att falla ut
-                  forstar man anda, och den satt i vagen bredvid rubriken. */}
-              <Text style={[s.cardTitle, { fontSize: fs(16) }, nyDesign && s.nyKortTitel, isPending && s.cardTitlePending]} numberOfLines={isExpanded ? undefined : 1}>{title}</Text>
+              {/* Liten chevron direkt efter rubriken (ny design): utan den var det
+                  inte självklart att kortet går att fälla ut. Rubriken krymper
+                  med "…" före chevronen, så den aldrig trycks undan. */}
+              <View style={s.nyTitelRad}>
+                <Text style={[s.cardTitle, { fontSize: fs(16) }, nyDesign && s.nyKortTitel, isPending && s.cardTitlePending, nyDesign && { flexShrink: 1 }]} numberOfLines={isExpanded ? undefined : 1}>{title}</Text>
+                {nyDesign && (
+                  <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={fs(15)} color={ny.textDampad} />
+                )}
+              </View>
             </View>
             {/* Kundvagnen före chevronen, och chevronen närmast draghandtaget:
                 de två sitter ihop som kortets högerkant. Båda ligger utanför
@@ -3027,6 +3033,7 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   nyKortMain: { padding: 6, paddingRight: 2, gap: 10 },
   // Outfit har vikten i själva typsnittet — en fontWeight till gör att
   // Android väljer ett reservtypsnitt.
+  nyTitelRad: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   nyKortTitel: { fontFamily: nyFont.fet, fontWeight: 'normal', fontSize: 15, letterSpacing: -0.3, color: ny.text },
   nyMaltid: { color: ny.chipText },
   nyTid: { color: ny.padYta, fontWeight: '700' },
