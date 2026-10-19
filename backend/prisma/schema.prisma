@@ -97,6 +97,21 @@ model Store {
   // Förslag på kategoriordning efter hur hushållet handlar. Av = inga förslag
   // i butiksvyn; ordningen INOM kategorierna lärs ändå.
   orderSuggestions  Boolean       @default(true)
+  // Ett reglage i appen styr både detta och orderSuggestions ("Uppdatera
+  // butikens layout efter hur du och andra handlar"). Förslaget används direkt
+  // nästa gång en lista i butiken öppnas, med Ångra. På som standard.
+  orderAutoApply    Boolean       @default(true)
+  // Ordningen ett automatiskt byte ångrades till: samma förslag används inte
+  // igen förrän bockarna säger något annat (JSON av förslagets ordning).
+  orderAutoUndone   String?
+  // Varifrån kategoriordningen kommer: "default" (standardordningen),
+  // "shared_store" / "chain_format" / "chain" (startordning ur andra hushålls
+  // sorteringar, se lib/storeOrderSeed.ts) eller "custom" (hushållet har
+  // sorterat själv eller tagit ett förslag). Styr raden i listan som säger
+  // var ordningen kommer ifrån.
+  orderSource       String        @default("default")
+  // Vad startordningen hämtades från, för visning: "ICA Maxi", "Coop".
+  orderSeedLabel    String?
   // Kopplingen till en butik i butiksbanken. null = en egen butik, som förut.
   // SetNull: försvinner butiken ur banken blir den en egen butik igen, med
   // hushållets ordning orörd.

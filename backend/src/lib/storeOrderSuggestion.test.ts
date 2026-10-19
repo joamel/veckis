@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { learnInnerOrder, sectionKeyFor, splitTrips, suggestStoreOrder, type CheckEventLike, type InnerEventLike, eventsForSuggestion } from './storeOrderSuggestion';
+import { learnInnerOrder, sectionKeyFor, splitTrips, suggestStoreOrder, type CheckEventLike, type InnerEventLike, eventsForSuggestion, applySuggestedOrder } from './storeOrderSuggestion';
 
 const now = new Date('2026-09-29T12:00:00Z');
 const min = 60_000;
@@ -178,5 +178,34 @@ describe('eventsForSuggestion', () => {
   it('andra hushålls egna kategorier räknas aldrig', () => {
     const r = eventsForSuggestion([], [ev('a', 'Barn'), ev('b', 'Hund'), ev('c')]);
     expect(r.otherHouseholds).toBe(0);
+  });
+});
+
+describe('applySuggestedOrder', () => {
+  it('ordnar om de kända nycklarna och lämnar egna rubriker på plats', () => {
+    expect(applySuggestedOrder(['fruit_veg', 'c:Kassan', 'bread_bakery', 'dairy_eggs'], ['bread_bakery', 'dairy_eggs', 'fruit_veg']))
+      .toEqual(['bread_bakery', 'c:Kassan', 'dairy_eggs', 'fruit_veg']);
+  });
+});
+
+describe('egna handlingar väger tyngre', () => {
+  const trip = (start: number, shopperKey: string, own: boolean, order: string[]) =>
+    order.map((section, i) => ({ shopperKey, checkedAt: new Date(now.getTime() - start * 86_400_000 + i * 60_000), bulk: false, section, own }));
+
+  it('den egna vägen vinner över andras när de säger emot', () => {
+    // Tre egna handlingar: bröd före frukt. Två andras: frukt före bröd.
+    // Med lika vikt blir det 3 mot 2 (60 %) — under 80 % och inget förslag.
+    const events = [
+      ...trip(1, 'a', true, ['bread_bakery', 'fruit_veg']),
+      ...trip(2, 'a', true, ['bread_bakery', 'fruit_veg']),
+      ...trip(3, 'a', true, ['bread_bakery', 'fruit_veg']),
+      ...trip(1, 'x', false, ['fruit_veg', 'bread_bakery']),
+      ...trip(2, 'y', false, ['fruit_veg', 'bread_bakery']),
+    ];
+    const s = suggestStoreOrder(events, ['fruit_veg', 'bread_bakery'], now);
+    expect(s.changed).toBe(true);
+    expect(s.order).toEqual(['bread_bakery', 'fruit_veg']);
+    const utanVikt = suggestStoreOrder(events.map(e => ({ ...e, own: undefined })), ['fruit_veg', 'bread_bakery'], now);
+    expect(utanVikt.changed).toBe(false);
   });
 });

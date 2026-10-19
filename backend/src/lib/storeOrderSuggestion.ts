@@ -24,6 +24,8 @@ export type CheckEventLike = {
   bulk: boolean;
   /** Sektionen varan låg i, som nyckel i parentOrder (se sectionKeyFor). */
   section: string;
+  /** Bocken är hushållets egen (inte ett annat hushålls i samma butik). */
+  own?: boolean;
 };
 
 export const TRIP_GAP_MS = 45 * 60 * 1000;
@@ -112,9 +114,13 @@ export function usableTrips<T extends CheckEventLike>(events: T[]): T[][] {
   return splitTrips(events).map(dropBursts).filter(t => t.length > 0);
 }
 
+/** Hushållets egen väg genom butiken väger så här mycket mer än ett annat
+ *  hushålls — det är deras lista, och andra kan gå en annan väg. */
+export const OWN_TRIP_WEIGHT = 3;
+
 function weightFor(trip: CheckEventLike[], now: Date): number {
   const ageDays = (now.getTime() - trip[trip.length - 1].checkedAt.getTime()) / 86_400_000;
-  return Math.pow(0.5, Math.max(0, ageDays) / HALF_LIFE_DAYS);
+  return Math.pow(0.5, Math.max(0, ageDays) / HALF_LIFE_DAYS) * (trip[0].own ? OWN_TRIP_WEIGHT : 1);
 }
 
 function firstSeen<T>(xs: T[]): T[] {
@@ -288,6 +294,7 @@ export type RawCheckEvent = {
   category: string;
   subCategory: string | null;
   customCategory: string | null;
+  own?: boolean;
 };
 
 /**
@@ -300,8 +307,9 @@ export type RawCheckEvent = {
 export function eventsForSuggestion(own: RawCheckEvent[], others: RawCheckEvent[]): { events: RawCheckEvent[]; otherHouseholds: number } {
   const standard = others.filter(e => !e.customCategory);
   const otherHouseholds = new Set(standard.map(e => e.storeId)).size;
-  if (otherHouseholds < MIN_OTHER_HOUSEHOLDS) return { events: own, otherHouseholds: 0 };
-  return { events: [...own, ...standard], otherHouseholds };
+  const mine = own.map(e => ({ ...e, own: true }));
+  if (otherHouseholds < MIN_OTHER_HOUSEHOLDS) return { events: mine, otherHouseholds: 0 };
+  return { events: [...mine, ...standard.map(e => ({ ...e, own: false }))], otherHouseholds };
 }
 
 /**
@@ -321,4 +329,16 @@ export function sectionKeyFor(
   const parent = e.customCategory ? `c:${e.customCategory}` : resolve(e.category);
   if (e.subCategory && store.parentOrder.includes(`s:${e.subCategory}`)) return `s:${e.subCategory}`;
   return parent;
+}
+
+/**
+ * Förslagets INBÖRDES ordning läggs på butikens lista — samma regel som
+ * förhandsgranskningen i appen: nycklar förslaget inte känner till (egna
+ * rubriker, utlyfta underkategorier) står kvar på sin plats.
+ */
+export function applySuggestedOrder(current: string[], suggested: string[]): string[] {
+  const pos = new Map(suggested.map((k, i) => [k, i]));
+  const known = current.filter(k => pos.has(k)).sort((x, y) => pos.get(x)! - pos.get(y)!);
+  let n = 0;
+  return current.map(k => (pos.has(k) ? known[n++] : k));
 }

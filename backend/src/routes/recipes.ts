@@ -428,13 +428,19 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, asyncHandler(as
     // schema.org) ombeds redan svara på svenska, så där ändrar heuristiken
     // ingenting — vilket var den udda konsekvensen förut: ju bättre uppmärkt
     // sajten var, desto mer engelska blev kvar i receptet.
-    const översatta = await översättIngrediensnamn(scraped.ingredients.map(i => i.name));
-
+    //
     // Ersätt källans (upphovsrättsskyddade) ingress med en färsk EGEN beskrivning.
+    // De två AI-anropen beror inte på varandra och körs samtidigt — i följd
+    // väntade beskrivningen på översättningen i onödan.
+    const [översatta, description] = await Promise.all([
+      översättIngrediensnamn(scraped.ingredients.map(i => i.name)),
+      freshDescription(scraped.title, scraped.ingredients),
+    ]);
+
     // Return with normalized names but quantity/unit preserved
     res.json({
       ...scraped,
-      description: await freshDescription(scraped.title, scraped.ingredients),
+      description,
       ingredients: scraped.ingredients.map((i, idx) => ({
         ...i,
         name: stripIngredient(översatta[idx]),

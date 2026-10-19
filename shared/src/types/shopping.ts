@@ -99,4 +99,12 @@ export interface Store {
   categoryMerge: Record<string, string>;
   /** Förslag på kategoriordning efter hur hushållet handlar (av = inga förslag). */
   orderSuggestions?: boolean;
+  /** Förslaget används direkt nästa gång en lista öppnas, utan att godkännas. */
+  orderAutoApply?: boolean;
+  /** Varifrån kategoriordningen kommer: standardordningen, startordning ur
+   *  andra hushålls sorteringar (samma butik, kedja + format, kedja) eller
+   *  hushållets egen. */
+  orderSource?: 'default' | 'shared_store' | 'chain_format' | 'chain' | 'custom';
+  /** Vad startordningen hämtades från ("ICA Maxi"). */
+  orderSeedLabel?: string | null;
 }

@@ -254,14 +254,16 @@ export default function StoreDetailScreen() {
 
   // Reglaget sparas direkt, utanför Spara-flödet: det är en inställning, inte
   // en ändring av ordningen.
+  // Ett reglage för både förslag och automatik: på = ordningen uppdateras av
+  // sig själv efter hur ni och andra handlar (med Ångra), av = inte alls.
   async function toggleOrderSuggestions(on: boolean) {
     if (!store) return;
-    setStore({ ...store, orderSuggestions: on });
+    setStore({ ...store, orderSuggestions: on, orderAutoApply: on });
     try {
-      const updated = await client.updateStore(store.id, { orderSuggestions: on });
-      setStore(prev => (prev ? { ...prev, orderSuggestions: updated.orderSuggestions } : prev));
+      const updated = await client.updateStore(store.id, { orderSuggestions: on, orderAutoApply: on });
+      setStore(prev => (prev ? { ...prev, orderSuggestions: updated.orderSuggestions, orderAutoApply: updated.orderAutoApply } : prev));
     } catch (e) {
-      setStore(prev => (prev ? { ...prev, orderSuggestions: !on } : prev));
+      setStore(prev => (prev ? { ...prev, orderSuggestions: !on, orderAutoApply: !on } : prev));
       showError(e, str.toasts.errorSave);
     }
   }
@@ -1105,10 +1107,9 @@ export default function StoreDetailScreen() {
           <View style={[s.suggestCard, s.suggestAppliedRow, { marginTop: 24 }]}>
             <View style={{ flex: 1 }}>
               <Text style={s.suggestTitle}>{str.detail.suggestToggle}</Text>
-              <Text style={s.sectionSub}>{str.detail.suggestToggleHint}</Text>
             </View>
             <Switch
-              value={store.orderSuggestions !== false}
+              value={store.orderSuggestions !== false && store.orderAutoApply !== false}
               onValueChange={toggleOrderSuggestions}
               trackColor={{ true: nyDesign ? ny.skog : c.primary }}
             />

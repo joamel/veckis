@@ -5,7 +5,8 @@ import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest, ärAppAdmin } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { positionForPostcode, searchSharedStores, type SharedStoreRow } from '../lib/sharedStores';
-import { eventsForSuggestion, learnInnerOrder, MIN_TRIPS, sectionKeyFor, suggestStoreOrder } from '../lib/storeOrderSuggestion';
+import { eventsForSuggestion, learnInnerOrder, MIN_TRIPS, sectionKeyFor, suggestStoreOrder, TRIP_GAP_MS, applySuggestedOrder } from '../lib/storeOrderSuggestion';
+import { findOrderSeed } from '../lib/storeOrderSeedDb';
 
 export const storesRouter = Router();
 
@@ -68,6 +69,8 @@ const updateStoreSchema = z.object({
   sharedStoreId: z.string().max(40).nullable().optional(),
   // Förslag på kategoriordning på/av för hela hushållet.
   orderSuggestions: z.boolean().optional(),
+  // Förslaget används direkt, utan att godkännas.
+  orderAutoApply: z.boolean().optional(),
 });
 
 const searchSchema = z.object({
@@ -88,6 +91,40 @@ async function redanKopplad(householdId: string, sharedStoreId: string, utomStor
     select: { id: true, name: true },
   });
 }
+
+
+type StoreRow = NonNullable<Awaited<ReturnType<typeof prisma.store.findUnique>>>;
+
+/** Butikens sektionsordning; tom parentOrder härleds som i appen. */
+function effectiveParentOrder(store: StoreRow): string[] {
+  return store.parentOrder.length
+    ? store.parentOrder
+    : [...store.categoryOrder, ...((store.customCategories as string[] | null) ?? []).map(c => `c:${c}`)];
+}
+
+/** Förslag på sektionsordning ur hushållets och andras bockar (steg 4). */
+async function computeOrderSuggestion(store: StoreRow, relaxed: boolean) {
+  const parentOrder = effectiveParentOrder(store);
+  const categoryMerge = (store.categoryMerge ?? {}) as Record<string, string>;
+  const select = { storeId: true, shopperKey: true, checkedAt: true, bulk: true, category: true, subCategory: true, customCategory: true } as const;
+  const own = await prisma.shoppingCheckEvent.findMany({ where: { storeId: store.id }, select });
+  const otherStores = store.sharedStoreId
+    ? await prisma.store.findMany({ where: { sharedStoreId: store.sharedStoreId, id: { not: store.id } }, select: { id: true } })
+    : [];
+  const others = otherStores.length
+    ? await prisma.shoppingCheckEvent.findMany({ where: { storeId: { in: otherStores.map(s => s.id) }, customCategory: null }, select })
+    : [];
+  const { events, otherHouseholds } = eventsForSuggestion(own, others);
+  const toSection = (e: typeof own[number] & { own?: boolean }) => ({ shopperKey: e.shopperKey, checkedAt: e.checkedAt, bulk: e.bulk, own: e.own, section: sectionKeyFor(e, { parentOrder, categoryMerge }) });
+  const suggestion = store.orderSuggestions || relaxed
+    ? suggestStoreOrder(events.map(toSection), parentOrder, new Date(), relaxed ? { minPairTrips: 1 } : {})
+    : { trips: 0, order: parentOrder, changed: false, known: 0, moves: [] };
+  // Hushållets egna handlingar, så appen kan säga hur mycket som är era.
+  const ownTrips = suggestStoreOrder(own.map(toSection), parentOrder, new Date()).trips;
+  const lastOwnCheck = own.reduce<Date | null>((m, e) => (!m || e.checkedAt > m ? e.checkedAt : m), null);
+  return { suggestion, parentOrder, ownTrips, otherHouseholds, lastOwnCheck };
+}
+
 
 // GET /api/stores/bank?q=&postcode=&lat=&lon= — sök i butiksbanken.
 // Position (från webbläsaren) går före postnummer. Svaret anger källan, som
@@ -131,11 +168,18 @@ storesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async (
     if (finns) { res.status(409).json({ error: 'already_linked', store: finns }); return; }
   }
 
+  // En butik ur banken startar i den ordning andra sorterat liknande butiker,
+  // inte i standardordningen — om ingen ordning skickats med.
+  const seed = body.data.sharedStoreId && !body.data.categoryOrder && !body.data.parentOrder
+    ? await findOrderSeed(body.data.sharedStoreId, body.data.householdId)
+    : null;
+
   const store = await prisma.store.create({
     data: {
       householdId: body.data.householdId,
       name: body.data.name,
-      categoryOrder: body.data.categoryOrder ?? (Object.values(StoreCategory) as StoreCategory[]),
+      categoryOrder: seed?.order ?? body.data.categoryOrder ?? (Object.values(StoreCategory) as StoreCategory[]),
+      ...(seed ? { parentOrder: seed.order, orderSource: seed.level, orderSeedLabel: seed.label } : {}),
       sharedStoreId: body.data.sharedStoreId ?? null,
     },
     include: { sharedStore: { select: { id: true, name: true, chain: true, street: true, postcode: true, city: true, postalCity: true } } },
@@ -155,29 +199,63 @@ storesRouter.get('/:storeId/order-suggestion', requireAuth, asyncHandler(async (
   });
   if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
 
-  const parentOrder = store.parentOrder.length
-    ? store.parentOrder
-    : [...store.categoryOrder, ...((store.customCategories as string[] | null) ?? []).map(c => `c:${c}`)];
-  const categoryMerge = (store.categoryMerge ?? {}) as Record<string, string>;
-  const select = { storeId: true, shopperKey: true, checkedAt: true, bulk: true, category: true, subCategory: true, customCategory: true } as const;
-  const own = await prisma.shoppingCheckEvent.findMany({ where: { storeId: store.id }, select });
-  const otherStores = store.sharedStoreId
-    ? await prisma.store.findMany({ where: { sharedStoreId: store.sharedStoreId, id: { not: store.id } }, select: { id: true } })
-    : [];
-  const others = otherStores.length
-    ? await prisma.shoppingCheckEvent.findMany({ where: { storeId: { in: otherStores.map(s => s.id) }, customCategory: null }, select })
-    : [];
-  const { events, otherHouseholds } = eventsForSuggestion(own, others);
-  const toSection = (e: typeof own[number]) => ({ shopperKey: e.shopperKey, checkedAt: e.checkedAt, bulk: e.bulk, section: sectionKeyFor(e, { parentOrder, categoryMerge }) });
   // Testläget (?relaxed=1) gäller bara appadmin: ett förslag ur en enda
   // handling, så flödet går att prova innan det går ut till alla.
   const relaxed = req.query.relaxed === '1' && ärAppAdmin((req as AuthenticatedRequest).clerkUserId);
-  const suggestion = store.orderSuggestions || relaxed
-    ? suggestStoreOrder(events.map(toSection), parentOrder, new Date(), relaxed ? { minPairTrips: 1 } : {})
-    : { trips: 0, order: parentOrder, changed: false, known: 0, moves: [] };
-  // Hushållets egna handlingar, så appen kan säga hur mycket som är era.
-  const ownTrips = suggestStoreOrder(own.map(toSection), parentOrder, new Date()).trips;
+  const { suggestion, ownTrips, otherHouseholds } = await computeOrderSuggestion(store, relaxed);
   res.json({ ...suggestion, ownTrips, otherHouseholds, minTrips: MIN_TRIPS });
+}));
+
+// POST /api/stores/:storeId/auto-order — "Ändra automatiskt": används när en
+// lista i butiken öppnas. Finns ett förslag används det direkt, och svaret
+// innehåller ordningen före, så appen kan erbjuda Ångra. Aldrig mitt i en
+// handling (bockar inom TRIP_GAP_MS) — då skulle sektionerna hoppa under
+// tiden man går. Ett ångrat förslag används inte igen förrän bockarna säger
+// något annat.
+storesRouter.post('/:storeId/auto-order', requireAuth, asyncHandler(async (req, res) => {
+  const store = await prisma.store.findUnique({ where: { id: req.params.storeId } });
+  if (!store) { res.status(404).json({ error: 'Store not found' }); return; }
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId: store.householdId, clerkUserId: (req as AuthenticatedRequest).clerkUserId } },
+  });
+  if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
+  if (!store.orderSuggestions || !store.orderAutoApply) { res.json({ applied: false }); return; }
+
+  const { suggestion, parentOrder, lastOwnCheck } = await computeOrderSuggestion(store, false);
+  const suggestedKey = JSON.stringify(suggestion.order);
+  const midTrip = lastOwnCheck && Date.now() - lastOwnCheck.getTime() < TRIP_GAP_MS;
+  if (!suggestion.changed || midTrip || store.orderAutoUndone === suggestedKey) { res.json({ applied: false }); return; }
+
+  const next = applySuggestedOrder(parentOrder, suggestion.order);
+  const updated = await prisma.store.update({
+    where: { id: store.id },
+    data: { parentOrder: next, orderSource: 'custom', orderSeedLabel: null },
+    include: { sharedStore: { select: { id: true, name: true, chain: true, street: true, postcode: true, city: true, postalCity: true } } },
+  });
+  res.json({ applied: true, previousOrder: parentOrder, suggestedOrder: suggestion.order, moves: suggestion.moves, store: updated });
+}));
+
+// POST /api/stores/:storeId/auto-order/undo { previousOrder, suggestedOrder }
+// — ångrar ett automatiskt byte och minns förslaget, så det inte kommer
+// tillbaka vid nästa öppning.
+storesRouter.post('/:storeId/auto-order/undo', requireAuth, asyncHandler(async (req, res) => {
+  const body = z.object({
+    previousOrder: z.array(z.string().min(1).max(120)).max(100).transform(withoutCustomSubs),
+    suggestedOrder: z.array(z.string().min(1).max(120)).max(100),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+  const store = await prisma.store.findUnique({ where: { id: req.params.storeId } });
+  if (!store) { res.status(404).json({ error: 'Store not found' }); return; }
+  const member = await prisma.householdMember.findUnique({
+    where: { householdId_clerkUserId: { householdId: store.householdId, clerkUserId: (req as AuthenticatedRequest).clerkUserId } },
+  });
+  if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
+  const updated = await prisma.store.update({
+    where: { id: store.id },
+    data: { parentOrder: body.data.previousOrder, orderAutoUndone: JSON.stringify(body.data.suggestedOrder) },
+    include: { sharedStore: { select: { id: true, name: true, chain: true, street: true, postcode: true, city: true, postalCity: true } } },
+  });
+  res.json(updated);
 }));
 
 // GET /api/stores/:storeId/inner-order — ordningen INOM sektionerna (under-
@@ -222,9 +300,21 @@ storesRouter.patch('/:storeId', requireAuth, asyncHandler(async (req, res) => {
     const annan = await redanKopplad(store.householdId, body.data.sharedStoreId, store.id);
     if (annan) { res.status(409).json({ error: 'already_linked', store: annan }); return; }
   }
+  // En sparad ordning är hushållets egen — raden i listan slutar kalla den
+  // standard- eller startordning.
+  const orderChanged = body.data.parentOrder !== undefined || body.data.categoryOrder !== undefined;
+  // En egen butik som kopplas till banken får startordningen, om hushållet
+  // inte redan har sorterat den själv.
+  const seed = body.data.sharedStoreId && !orderChanged && store.orderSource === 'default'
+    ? await findOrderSeed(body.data.sharedStoreId, store.householdId)
+    : null;
   const updated = await prisma.store.update({
     where: { id: store.id },
-    data: body.data,
+    data: {
+      ...body.data,
+      ...(orderChanged ? { orderSource: 'custom', orderSeedLabel: null } : {}),
+      ...(seed ? { categoryOrder: seed.order, parentOrder: seed.order, orderSource: seed.level, orderSeedLabel: seed.label } : {}),
+    },
     include: { sharedStore: { select: { id: true, name: true, chain: true, street: true, postcode: true, city: true, postalCity: true } } },
   });
   res.json(updated);

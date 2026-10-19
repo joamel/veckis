@@ -2019,6 +2019,38 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     client.getStoreInnerOrder(listStoreId).then(o => { if (!cancelled) setInnerOrder(o); }).catch(() => {});
     return () => { cancelled = true; };
   }, [listStoreId, client]);
+
+  // "Ändra automatiskt" (butiksvyn): finns ett förslag på kategoriordning
+  // används det när listan öppnas, med Ångra i notisen. Servern hoppar över
+  // det mitt i en handling, så sektionerna aldrig hoppar medan man går.
+  const listStoreAuto = list?.store?.orderAutoApply === true;
+  const autoOrderTriedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!listStoreId || !listStoreAuto || autoOrderTriedRef.current === listStoreId) return;
+    autoOrderTriedRef.current = listStoreId;
+    client.autoApplyStoreOrder(listStoreId).then(r => {
+      if (!r.applied) return;
+      setList(p => (p ? { ...p, store: r.store } : p));
+      showGlobalToast(str.autoOrder.applied, 'success', {
+        label: str.autoOrder.undo,
+        onPress: () => {
+          client.undoAutoStoreOrder(listStoreId, r.previousOrder, r.suggestedOrder)
+            .then(store => setList(p => (p ? { ...p, store } : p)))
+            .catch(e => showError(e, str.autoOrder.undoFailed));
+        },
+      });
+    }).catch(() => {});
+  }, [listStoreId, listStoreAuto, client, showGlobalToast, showError]);
+
+  // Raden överst som säger varifrån ordningen kommer — tills hushållet själv
+  // sorterat butiken eller stängt raden.
+  const orderSource = list?.store?.orderSource;
+  const orderSourceFlag = useOnceFlag(`seen-order-source-${listStoreId ?? 'none'}`);
+  const orderSourceText = !listStoreId || !orderSource || orderSource === 'custom' || orderSourceFlag.seen !== false
+    ? null
+    : orderSource === 'default' ? str.orderSource.default
+    : orderSource === 'shared_store' ? str.orderSource.sharedStore
+    : str.orderSource.seeded(list?.store?.orderSeedLabel ?? '');
   const isPending = (item: ShoppingItemWithRecipe) => !!item.menuItemId && pendingMenuItemRemovals.has(item.menuItemId);
   // Allt härlett i EN memo. Låg tidigare som fristående const:ar, vilket gav
   // nya array-identiteter varje render — då bommade listRows-memon nedanför
@@ -2246,6 +2278,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         // FlatLists windowSize/batch-rattar finns inte. drawDistance styr hur
         // långt utanför vyn den förbereder.
         {...(ÄR_WEBB ? {} : { drawDistance: 250 })}
+        ListHeaderComponent={orderSourceText && allItems.length > 0 ? (
+          <View style={s.orderSourceRow}>
+            <Pressable style={s.orderSourceMain} onPress={() => router.push(`/stores/${listStoreId}` as never)} accessibilityRole="button">
+              <Ionicons name="swap-vertical" size={18} color={nyDesign ? ny.padYta : c.primary} />
+              <Text style={s.orderSourceText}>{orderSourceText}</Text>
+            </Pressable>
+            <Pressable onPress={orderSourceFlag.markSeen} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.orderSource.dismiss}>
+              <Ionicons name="close" size={18} color={c.textSecondary} />
+            </Pressable>
+          </View>
+        ) : null}
         ListEmptyComponent={
           <View style={s.emptyContainer}>
             <Pressable onPress={goToBulkTransfer} style={s.emptyImportBtn} hitSlop={12}>
@@ -3822,6 +3865,13 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   list: { padding: 16, paddingBottom: 8 },
   listEmpty: { flex: 1 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
+  orderSourceRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12,
+    paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14,
+    backgroundColor: nyD ? ny.kort : c.surface,
+  },
+  orderSourceMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  orderSourceText: { flex: 1, fontSize: 13, lineHeight: 18, color: c.textSecondary },
   emptyImportBtn: { marginBottom: 4 },
   emptyText: { fontSize: 17, fontWeight: '600', color: c.textSecondary, marginTop: 12 },
   emptySubtext: { fontSize: 13, color: c.textFaint, marginTop: 4, textAlign: 'center', paddingHorizontal: 32 },

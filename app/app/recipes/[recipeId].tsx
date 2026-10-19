@@ -6,6 +6,7 @@ import type { Palette } from '../../src/lib/theme';
 import {
   ActivityIndicator,
   Animated,
+  Easing,
   AppState,
   Dimensions,
   Image,
@@ -36,6 +37,7 @@ import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { cloudinaryOptimized } from '../../src/lib/cloudinaryUrl';
 import { TagLabel } from '../../src/components/TagLabel';
+import { useExperiment } from '../../src/lib/experiments';
 import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
 import { getISOWeek } from '../../src/lib/week';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -124,7 +126,7 @@ function IngredientDragHandle({ idx, onDragStart, onDragMove, onDragEnd }: {
   );
 }
 
-export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, forMenuWeek, from, cook, servings: servingsParam, onClose }: { recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; servings?: string; onClose?: () => void }) {
+export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: suggestedParam, forMenuDay, forMenuWeek, from, cook, servings: servingsParam, onClose }: { recipeId: string; transfer?: string; edit?: string; suggested?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; servings?: string; onClose?: () => void }) {
   const edit = editParam;
   // Sentinel-id från /recipes/new. Riktiga id:n är cuid, så ingen krock.
   const isNew = recipeId === 'new';
@@ -778,6 +780,50 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
     timerNotisIds.current.clear();
   }, [cookMode]);
 
+  // Ett nyimporterat recept öppnas i redigeringsläget (edit=import), så att
+  // taggar kan läggas till utan ett extra tryck. De föreslagna (suggested=…)
+  // är redan sparade på receptet — raden under Taggar säger vilka de är.
+  const importEditDoneRef = useRef(false);
+  useEffect(() => {
+    if (edit !== 'import' || !recipe || importEditDoneRef.current) return;
+    importEditDoneRef.current = true;
+    startEdit();
+    if (!onClose) router.setParams({ edit: undefined });
+    // startEdit läser receptet; effekten ska bara köras en gång per import.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edit, recipe]);
+  // Källchippet ("Original" + ikon): bara ikonen om det inte ryms på raden.
+  const metaFirstRowY = useRef<number | null>(null);
+  const [sourceIconOnly, setSourceIconOnly] = useState(false);
+  const suggestedTags = useMemo(() => (suggestedParam ?? '').split(',').map(t => t.trim()).filter(Boolean), [suggestedParam]);
+  const suggestedStillOn = suggestedTags.filter(t => editTags.includes(t));
+
+  // Dev-läge: i stället för den förklarande raden pulserar de föreslagna
+  // taggarna två gånger i lime när redigeringsläget öppnas — man ser att de
+  // fyllts i av sig själva, och att de går att trycka bort.
+  const devMode = useExperiment('dev-mode');
+  // Taggarna ligger långt ned i redigeringsläget — pulsen väntar tills
+  // raden syns på skärmen (vid öppning eller när man scrollar dit).
+  const tagPulse = useRef(new Animated.Value(0)).current;
+  const tagPulsedRef = useRef(false);
+  const tagRowRef = useRef<View>(null);
+  const pulseWanted = devMode && editMode && suggestedTags.length > 0;
+  const maybePulseTags = useCallback(() => {
+    if (!pulseWanted || tagPulsedRef.current) return;
+    tagRowRef.current?.measureInWindow((_x, y, _w, h) => {
+      if (tagPulsedRef.current || h === 0) return;
+      if (y < 0 || y + h > Dimensions.get('window').height - 60) return;
+      tagPulsedRef.current = true;
+      const step = (to: number) => Animated.timing(tagPulse, { toValue: to, duration: 380, easing: Easing.inOut(Easing.quad), useNativeDriver: true });
+      Animated.sequence([Animated.delay(200), step(1), step(0), step(1), step(0)]).start();
+    });
+  }, [pulseWanted, tagPulse]);
+  useEffect(() => {
+    if (!pulseWanted) return;
+    const t = setTimeout(maybePulseTags, 500);
+    return () => clearTimeout(t);
+  }, [pulseWanted, maybePulseTags]);
+
   // Edit everything (name, image, description, ingredients, instructions) inline
   // in the detail view.
   function startEdit() {
@@ -1233,7 +1279,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         ]}
         keyboardShouldPersistTaps="always"
         scrollEventThrottle={16}
-        onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
+        onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; maybePulseTags(); }}
       >
         {editMode ? (
           <View style={{ gap: 8 }}>
@@ -1383,7 +1429,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         <View style={s.metaRow}>
           {/* Serving scaler — i edit-läget skalar den ingredienserna + sparar
               nya portioner; i läs-läget bara transient display-skalning. */}
-          <View style={s.servingChip}>
+          <View style={s.servingChip} onLayout={e => { metaFirstRowY.current = e.nativeEvent.layout.y; }}>
             <Pressable onPress={() => editMode ? adjustEditServings(-1) : adjustServings(-1)} style={s.servingBtn} hitSlop={8}>
               <Ionicons name="remove" size={14} color={c.primary} />
             </Pressable>
@@ -1436,10 +1482,17 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
               onPress={() => WebBrowser.openBrowserAsync(recipe.sourceUrl!)}
               accessibilityRole="link"
               accessibilityLabel={str.detail.originalRecipeA11y}
+              // Bröt chippet ned på en egen rad? Då räcker ikonen — portioner,
+              // tid och källa ska stå på samma rad.
+              onLayout={e => {
+                if (metaFirstRowY.current != null && e.nativeEvent.layout.y > metaFirstRowY.current + 4) setSourceIconOnly(true);
+              }}
             >
-              <Text style={[s.metaText, { width: metaBredd(str.detail.originalRecipe) }]} numberOfLines={1}>{str.detail.originalRecipe}</Text>
+              {!sourceIconOnly && (
+                <Text style={[s.metaText, { width: metaBredd(str.detail.originalRecipe) }]} numberOfLines={1}>{str.detail.originalRecipe}</Text>
+              )}
               {/* Ruta med pil ut: säger att länken lämnar appen. */}
-              <Ionicons name="open-outline" size={13} color={metaFarg} />
+              <Ionicons name="open-outline" size={sourceIconOnly ? 15 : 13} color={metaFarg} />
             </Pressable>
           )}
         </View>
@@ -1457,16 +1510,31 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, forMenuDay, 
         {editMode && (
           <View>
             <Text style={s.editLabel}>{str.tags.label}</Text>
-            <View style={s.tagRow}>
+            {!devMode && suggestedStillOn.length > 0 && (
+              <Text style={s.suggestedTagsHint}>{str.tags.suggestedHint(suggestedStillOn)}</Text>
+            )}
+            <View style={s.tagRow} ref={tagRowRef} collapsable={false}>
               {/* Bara taggar som något recept i hushållet använder, plus det här
                   receptets egna. En tagg som inget recept har längre försvinner
                   av sig själv. Enda fasta förslaget är favorit (samma som hjärtat). */}
               {[...new Set([str.tags.favorite, ...knownTags, ...editTags])].map(t => {
                 const active = editTags.includes(t);
-                return (
-                  <Pressable key={t} style={[s.tagChip, active && s.tagChipActive]} onPress={() => toggleEditTag(t)}>
+                const chip = (
+                  <Pressable
+                    key={t}
+                    style={[s.tagChip, active && s.tagChipActive]}
+                    onPress={() => toggleEditTag(t)}
+                    accessibilityLabel={suggestedStillOn.includes(t) ? str.tags.suggestedA11y(t) : undefined}
+                  >
                     <TagLabel tag={t} style={[s.tagChipText, active && s.tagChipTextActive]} iconColor={active ? (nyDesign ? ny.lime : '#fff') : (nyDesign ? ny.chipText : c.primary)} />
                   </Pressable>
+                );
+                if (!devMode || !suggestedStillOn.includes(t)) return chip;
+                return (
+                  <Animated.View key={t} style={{ transform: [{ scale: tagPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) }] }}>
+                    <Animated.View pointerEvents="none" style={[s.tagPulseRing, { opacity: tagPulse }]} />
+                    {chip}
+                  </Animated.View>
                 );
               })}
             </View>
@@ -2246,7 +2314,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   imgAfterSaveHint: { fontSize: 13, color: c.textFaint, textAlign: 'center', paddingVertical: 8 },
   imgRemoveBtn: { width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: c.dangerTint },
   editImagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: c.surfaceSubtle, marginTop: 8 },
-  metaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  metaRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   metaChip: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 20, backgroundColor: nyD ? ny.kort : c.surfaceSubtle, flexShrink: 0 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   tagChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.kort : c.primaryTint, flexShrink: 0 },
@@ -2262,8 +2330,8 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   // Länken till källan. Tätare än de andra chipsen: ordet plus ikonen måste
   // rymmas bredvid portioner och tid, annars bryter raden.
   kallaChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0,
-    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 20,
+    flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 0,
+    paddingHorizontal: 8, paddingVertical: 8, borderRadius: 20,
     backgroundColor: nyD ? ny.kort : c.surfaceSubtle,
   },
   description: { fontSize: 14, color: nyD ? ny.text : c.textSecondary, lineHeight: 22 },
@@ -2398,11 +2466,13 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   checkLabel: { fontSize: 15, color: c.text, flex: 1 },
   checkLabelUnchecked: { color: c.textFaint, textDecorationLine: 'line-through' },
   selectAllRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginVertical: 8 },
+  suggestedTagsHint: { fontSize: 13, lineHeight: 18, color: c.textSecondary, marginBottom: 8 },
+  tagPulseRing: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 19, borderWidth: 2.5, borderColor: ny.lime },
   selectAllText: { fontSize: 13, color: c.primary, fontWeight: '500' },
   listPickLabel: { fontSize: 13, fontWeight: '600', color: c.textSecondary, marginTop: 4, marginBottom: 6 },
 });
 
 export default function RecipeDetailScreen() {
-  const { recipeId, transfer, edit, forMenuDay, forMenuWeek, from, cook, servings } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; servings?: string }>();
-  return <RecipeDetail recipeId={recipeId} transfer={transfer} edit={edit} forMenuDay={forMenuDay} forMenuWeek={forMenuWeek} from={from} cook={cook} servings={servings} />;
+  const { recipeId, transfer, edit, suggested, forMenuDay, forMenuWeek, from, cook, servings } = useLocalSearchParams<{ recipeId: string; transfer?: string; edit?: string; suggested?: string; forMenuDay?: string; forMenuWeek?: string; from?: string; cook?: string; servings?: string }>();
+  return <RecipeDetail recipeId={recipeId} transfer={transfer} edit={edit} suggested={suggested} forMenuDay={forMenuDay} forMenuWeek={forMenuWeek} from={from} cook={cook} servings={servings} />;
 }
