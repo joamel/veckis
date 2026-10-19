@@ -670,7 +670,23 @@ export default function RecipesScreen() {
   // faktiskt kom tillbaka. Backar man ur kameran ligger man kvar i receptlistan
   // i stället för att mötas av en tom foto-sheet (eller, som tidigare, ett
   // taget foto som hamnade i state utan att någon vy visade det).
-  async function startPhotoFlow(source: 'camera' | 'library') {
+  // Första gången man fotar: vad funktionen klarar, innan kameran öppnas —
+  // annars går man direkt till kameran utan att veta att ett handskrivet
+  // recept eller en tidningssida fungerar.
+  const photoTip = useOnceFlag('seen-photo-tip');
+  async function startPhotoFlow(source: 'camera' | 'library', skipTip = false) {
+    if (!skipTip && photoTip.seen === false) {
+      photoTip.markSeen();
+      confirm({
+        title: str.createModal.photo.tipTitle,
+        message: str.createModal.photo.emptyHint,
+        buttons: [
+          { label: source === 'camera' ? str.createModal.photo.sourceCamera : str.createModal.photo.sourceLibrary, icon: source === 'camera' ? 'camera-outline' : 'images-outline', onPress: () => { void startPhotoFlow(source, true); } },
+          { label: common.actions.cancel, style: 'cancel' },
+        ],
+      });
+      return;
+    }
     const uris = await capturePhoto(source, MAX_SIDOR);
     if (uris.length === 0) return;
     wantFocusRef.current = false;
@@ -859,12 +875,13 @@ export default function RecipesScreen() {
         { label: str.createModal.combined.menuPaste, icon: 'clipboard-outline', onPress: () => openModalWithMode('paste') },
         // Kamera eller galleri väljs i ett andra steg. ConfirmDialog kör valet
         // först när menyn animerats ut, så frågan kan öppnas direkt härifrån.
+        // Tipset står i frågan om kamera eller galleri — då behövs inget eget.
         { label: str.createModal.combined.menuPhoto, icon: 'camera-outline', onPress: () => confirm({
-          title: str.createModal.photo.sourceTitle,
-          message: str.createModal.photo.sourceMessage,
+          title: str.createModal.photo.tipTitle,
+          message: str.createModal.photo.emptyHint,
           buttons: [
-            { label: str.createModal.photo.sourceCamera, icon: 'camera-outline', onPress: () => { void startPhotoFlow('camera'); } },
-            { label: str.createModal.photo.sourceLibrary, icon: 'images-outline', onPress: () => { void startPhotoFlow('library'); } },
+            { label: str.createModal.photo.sourceCamera, icon: 'camera-outline', onPress: () => { photoTip.markSeen(); void startPhotoFlow('camera', true); } },
+            { label: str.createModal.photo.sourceLibrary, icon: 'images-outline', onPress: () => { photoTip.markSeen(); void startPhotoFlow('library', true); } },
             { label: common.actions.cancel, style: 'cancel' },
           ],
         }) },

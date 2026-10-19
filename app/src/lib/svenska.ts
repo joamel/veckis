@@ -752,6 +752,7 @@ export const recipes = {
     },
     photo: {
       // Innan någon bild valts: vad funktionen är till för.
+      tipTitle:         'Fota ett recept',
       emptyHint:        'Prova att fota ett handskrivet recept, en kokbokssida eller ett urklipp ur tidningen – Handlis läser av ingredienser och steg åt dig.',
       sourceTitle:      'Lägg till bild',
       sourceMessage:    'Hur vill du lägga till bilden?',
