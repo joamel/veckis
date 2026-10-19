@@ -135,8 +135,8 @@ export const gettingStarted = {
   // Spotlight-texter som pekar ut kontrollen på målskärmen (Fas 2).
   spotlight: {
     recipe: { title: 'Skapa ett recept', message: 'Tryck på + för att lägga till ett recept — skriv själv, klistra in text, eller importera från en länk.' },
-    store:  { title: 'Skapa din butik', message: 'Lägg upp din butik och sortera kategorierna efter din affärsrutt — inköpslistan följer då din väg genom butiken.' },
-    list:   { title: 'Skapa en inköpslista', message: 'Tryck här för att skapa en lista. Koppla den till en butik så sorteras varorna efter butikens ordning.' },
+    store:  { title: 'Skapa din butik', message: 'Lägg upp din butik. Kategorierna startar i samma ordning som i liknande butiker — dra om dem efter din väg, så följer inköpslistan den.' },
+    list:   { title: 'Skapa en inköpslista', message: 'Tryck här för att skapa en lista. Koppla den till en butik så grupperas varorna efter butikens avdelningar.' },
   },
 };
 
@@ -183,7 +183,7 @@ export const shopping = {
   tips: {
     stores: {
       title:   'Inköpslistan i butikens ordning',
-      message: 'Koppla inköpslistan till en butik så sorteras varorna i den ordning du hittar dem i affären - du slipper leta och gå fram och tillbaka i butiken. Lägg till din butik här.',
+      message: 'Koppla inköpslistan till en butik så grupperas varorna efter avdelning, i den ordning du går genom affären. Stämmer den inte första gången går den att dra om – och listan lär sig av hur ni handlar. Lägg till din butik här.',
     },
   },
 };
@@ -193,6 +193,20 @@ export const shopping = {
 export const shoppingList = {
   section: {
     done: 'KLART',
+  },
+
+  // Raden överst i en lista med butik: varifrån kategoriordningen kommer, så
+  // att den som handlar första gången vet varför den kan vara fel.
+  orderSource: {
+    default:     'Standardordning – stämmer den inte med butiken? Tryck här och dra om kategorierna.',
+    sharedStore: 'Ordningen kommer från andra som handlar här – stämmer den inte? Tryck här och ändra.',
+    seeded:      (label: string) => `Ordningen kommer från andra ${label}-butiker – stämmer den inte? Tryck här och ändra.`,
+    dismiss:     'Dölj',
+  },
+  autoOrder: {
+    applied:    'Kategoriordningen ändrad efter hur ni brukar handla här',
+    undo:       'Ångra',
+    undoFailed: 'Kunde inte ångra ordningen',
   },
 
   shopper: {
@@ -417,7 +431,7 @@ export const shoppingList = {
     },
     listStore: {
       title:   'Sortera efter din butik',
-      message: 'Välj vilken butik du handlar i, så sorteras listan i den ordning varorna står i butiken.',
+      message: 'Välj vilken butik du handlar i, så grupperas listan efter butikens avdelningar. Ordningen blir bättre ju mer ni handlar där.',
     },
     shopper: {
       title:   'Handlar du nu?',
@@ -1117,7 +1131,7 @@ export const stores = {
 
   emptyState: {
     title:      'Inga butiker än',
-    subtitle:   'Lägg till en butik så kan dina inköpslistor sorteras efter butikens layout',
+    subtitle:   'Lägg till en butik så grupperas dina inköpslistor efter butikens avdelningar',
     cta:        'Lägg till butik',
     noResults:  (q: string) => `Inga butiker matchar "${q}"`,
   },
@@ -1208,6 +1222,8 @@ export const stores = {
     suggestPreview:  'Förhandsgranska',
     suggestToggle:     'Föreslå kategoriordning',
     suggestToggleHint: 'Efter hur ni brukar handla i den här butiken. Gäller hela hushållet. Varorna inom varje kategori sorteras efter hur ni går oavsett.',
+    autoApplyToggle:     'Ändra automatiskt',
+    autoApplyToggleHint: 'Ordningen ändras direkt efter hur ni handlar, utan att fråga – nästa gång ni öppnar en lista i butiken. Varje ändring går att ångra.',
     previewTitle:    'Förhandsgranskning',
     previewBody:     'Så här blir ordningen. Det som flyttats är markerat.',
     movedTag:        'Flyttad',

@@ -266,6 +266,20 @@ export default function StoreDetailScreen() {
     }
   }
 
+  // "Ändra automatiskt": förslaget används när en lista i butiken öppnas,
+  // utan att godkännas här (se autoApplyStoreOrder i listan).
+  async function toggleOrderAutoApply(on: boolean) {
+    if (!store) return;
+    setStore({ ...store, orderAutoApply: on });
+    try {
+      const updated = await client.updateStore(store.id, { orderAutoApply: on });
+      setStore(prev => (prev ? { ...prev, orderAutoApply: updated.orderAutoApply } : prev));
+    } catch (e) {
+      setStore(prev => (prev ? { ...prev, orderAutoApply: !on } : prev));
+      showError(e, str.toasts.errorSave);
+    }
+  }
+
   function dismissSuggestion() {
     setSuggestionDismissed(true);
     if (storeId && suggestion) SecureStore.setItemAsync(dismissedKey(storeId), JSON.stringify(suggestion.order)).catch(() => {});
@@ -1110,6 +1124,19 @@ export default function StoreDetailScreen() {
             <Switch
               value={store.orderSuggestions !== false}
               onValueChange={toggleOrderSuggestions}
+              trackColor={{ true: nyDesign ? ny.skog : c.primary }}
+            />
+          </View>
+        )}
+        {store && store.orderSuggestions !== false && (
+          <View style={[s.suggestCard, s.suggestAppliedRow, { marginTop: 12 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.suggestTitle}>{str.detail.autoApplyToggle}</Text>
+              <Text style={s.sectionSub}>{str.detail.autoApplyToggleHint}</Text>
+            </View>
+            <Switch
+              value={store.orderAutoApply === true}
+              onValueChange={toggleOrderAutoApply}
               trackColor={{ true: nyDesign ? ny.skog : c.primary }}
             />
           </View>

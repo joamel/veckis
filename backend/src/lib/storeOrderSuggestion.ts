@@ -322,3 +322,15 @@ export function sectionKeyFor(
   if (e.subCategory && store.parentOrder.includes(`s:${e.subCategory}`)) return `s:${e.subCategory}`;
   return parent;
 }
+
+/**
+ * Förslagets INBÖRDES ordning läggs på butikens lista — samma regel som
+ * förhandsgranskningen i appen: nycklar förslaget inte känner till (egna
+ * rubriker, utlyfta underkategorier) står kvar på sin plats.
+ */
+export function applySuggestedOrder(current: string[], suggested: string[]): string[] {
+  const pos = new Map(suggested.map((k, i) => [k, i]));
+  const known = current.filter(k => pos.has(k)).sort((x, y) => pos.get(x)! - pos.get(y)!);
+  let n = 0;
+  return current.map(k => (pos.has(k) ? known[n++] : k));
+}
