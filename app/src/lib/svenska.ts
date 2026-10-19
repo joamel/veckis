@@ -183,7 +183,7 @@ export const shopping = {
   tips: {
     stores: {
       title:   'Inköpslistan i butikens ordning',
-      message: 'Koppla inköpslistan till en butik så grupperas varorna efter avdelning, i den ordning du går genom affären. Stämmer den inte första gången går den att dra om – och listan lär sig av hur ni handlar. Lägg till din butik här.',
+      message: 'Koppla listan till en butik så grupperas varorna efter avdelning. Stämmer den inte första gången kan du enkelt flytta om kategorierna som du vill – dessutom lär sig Handlis med tiden och uppdaterar ordningen åt dig.',
     },
   },
 };

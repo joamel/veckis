@@ -226,8 +226,11 @@ export function SpotlightTip({ visible, targetRef, targetRect, title, message, e
           </View>
         ) : null}
 
+        {/* Scrollindikatorn syns: en text som inte ryms ska gå att upptäcka.
+            Utan den såg ett långt tips ut att klippas mitt i en mening. */}
         <ScrollView
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator
+          persistentScrollbar
           contentContainerStyle={{ paddingBottom: 4 }}
         >
           <View style={s.emojiBadge}><Text style={s.emojiText}>{emoji}</Text></View>
