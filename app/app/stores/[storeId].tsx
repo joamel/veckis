@@ -279,10 +279,11 @@ export default function StoreDetailScreen() {
   useEffect(() => {
     if (!tipsReady || loading || !store) return;
     if (orderTip.seen !== false || orderTipShownRef.current) return;
+    // Ingen ring runt rubriken: "Synliga kategorier" säger redan hur man
+    // drar — tipset ska inte upprepa det inringat.
     const shown = showTip({
       title: str.orderTip.title,
       message: str.orderTip.message,
-      targetRef: orderHeaderRef,
     });
     if (shown) { orderTipShownRef.current = true; orderTip.markSeen(); }
   }, [tipsReady, loading, store, orderTip.seen, orderTip.markSeen, showTip]);

@@ -1252,7 +1252,7 @@ export const stores = {
 
   orderTip: {
     title:   'Din väg genom butiken',
-    message: 'Dra kategorierna i den ordning du föredrar, så sorteras inköpslistan likadant. Eller handla som vanligt: efter några handlingar föreslår appen en ordning utifrån hur du bockat av varorna, och varorna inom varje kategori sorteras efter hur du går.',
+    message: 'Inköpslistan följer kategoriernas ordning här. Handla som vanligt, så uppdaterar Handlis ordningen efter hur du går – eller dra om kategorierna direkt.',
   },
 
   renameModal: {
