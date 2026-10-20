@@ -81,6 +81,49 @@ export function getPendingToggles(listId: string): ReadonlyMap<string, boolean> 
   return new Map(m ? [...m].map(([id, p]) => [id, p.checked]) : []);
 }
 
+/**
+ * Bockar som SKICKATS men inte fått svar. Med dålig täckning kopplar
+ * realtidsanslutningen upp igen titt som tätt, och varje gång hämtas listan på
+ * nytt — kom serverns svar innan bocken hunnit fram hoppade varan tillbaka en
+ * stund och försvann sedan igen. I flygläge märktes inget: där går allt via
+ * kön, som redan lades ovanpå. Det här läggs ovanpå på samma sätt.
+ *
+ * token: bockas samma vara två gånger i rad räknas den klar först när svaret
+ * på den SENASTE har kommit.
+ */
+const inFlight = new Map<string, Map<string, { checked: boolean; token: number }>>();
+let nextToken = 1;
+
+export function markInFlight(listId: string, itemId: string, checked: boolean): number {
+  const token = nextToken++;
+  const m = inFlight.get(listId) ?? new Map();
+  m.set(itemId, { checked, token });
+  inFlight.set(listId, m);
+  return token;
+}
+
+export function clearInFlight(listId: string, itemId: string, token: number): void {
+  const m = inFlight.get(listId);
+  if (m?.get(itemId)?.token !== token) return;
+  m.delete(itemId);
+  if (m.size === 0) inFlight.delete(listId);
+}
+
+/** Vad användaren senast tryckt för en vara som ännu inte bekräftats, eller undefined. */
+export function inFlightToggle(listId: string, itemId: string): boolean | undefined {
+  return inFlight.get(listId)?.get(itemId)?.checked;
+}
+
+/**
+ * Köade OCH skickade-men-obesvarade bockar — det som ska ligga ovanpå när
+ * listan hämtas på nytt. Den skickade är nyare än en köad för samma vara.
+ */
+export function getDesiredToggles(listId: string): ReadonlyMap<string, boolean> {
+  const out = new Map(getPendingToggles(listId));
+  for (const [id, p] of inFlight.get(listId) ?? []) out.set(id, p.checked);
+  return out;
+}
+
 export function clearPendingToggle(listId: string, itemId: string): void {
   const m = queue.get(listId);
   if (!m?.delete(itemId)) return;

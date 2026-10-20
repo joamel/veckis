@@ -200,3 +200,22 @@ describe('isNetworkError', () => {
     expect(isNetworkError('sträng')).toBe(false);
   });
 });
+
+describe('skickade bockar som inte fått svar', () => {
+  it('läggs ovanpå en nyhämtad lista tills svaret kommit', async () => {
+    const { markInFlight, clearInFlight, getDesiredToggles, applyPendingToggles } = await import('./shoppingOfflineQueue');
+    const items = [{ id: 'a', isChecked: false }, { id: 'b', isChecked: false }];
+    const t = markInFlight('lista-f', 'a', true);
+    expect(applyPendingToggles(items, getDesiredToggles('lista-f'))).toEqual([{ id: 'a', isChecked: true }, { id: 'b', isChecked: false }]);
+    clearInFlight('lista-f', 'a', t);
+    expect(getDesiredToggles('lista-f').size).toBe(0);
+  });
+
+  it('räknas klar först när svaret på den senaste bocken kommit', async () => {
+    const { markInFlight, clearInFlight, inFlightToggle } = await import('./shoppingOfflineQueue');
+    const första = markInFlight('lista-g', 'a', true);
+    markInFlight('lista-g', 'a', false);
+    clearInFlight('lista-g', 'a', första);
+    expect(inFlightToggle('lista-g', 'a')).toBe(false);
+  });
+});
