@@ -12,7 +12,14 @@
  * text-emoji blev en tom ruta.
  */
 import path from 'path';
-import sharp, { type OverlayOptions } from 'sharp';
+import type { OverlayOptions } from 'sharp';
+
+// sharp laddas först när en bild byggs: servern ska kunna starta även om
+// bildbiblioteket inte går att ladda på plattformen — då misslyckas bara
+// knappen, inte hela backenden (hälsokontrollen föll annars vid start).
+async function loadSharp() {
+  return (await import('sharp')).default;
+}
 
 export const BRAND_IMAGE_WIDTH = 1200;
 export const BRAND_IMAGE_HEIGHT = 900;
@@ -77,6 +84,7 @@ function escapeMarkup(s: string): string {
 }
 
 async function text(str: string, size: number, color: string): Promise<Buffer> {
+  const sharp = await loadSharp();
   return sharp({
     text: {
       text: `<span foreground="${color}">${escapeMarkup(str)}</span>`,
@@ -92,6 +100,7 @@ async function text(str: string, size: number, color: string): Promise<Buffer> {
  * Bygger bilden. emojiSvg = Twemoji-SVG:n (null → ingen symbol, bara cirkeln).
  */
 export async function renderBrandImage(opts: { title: string; emojiSvg: string | null }): Promise<Buffer> {
+  const sharp = await loadSharp();
   const W = BRAND_IMAGE_WIDTH, H = BRAND_IMAGE_HEIGHT;
   const p = paletteFor(opts.title);
   const cx = W / 2, cy = H / 2, r = 280, emojiSize = 360;

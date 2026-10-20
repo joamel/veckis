@@ -343,8 +343,17 @@ recipesRouter.post('/:recipeId/brand-image', recipeAbuseLimiter, requireAuth, as
   if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
 
   const emoji = await dishEmoji(recipe.title, recipe.ingredients.map(i => i.name));
-  const image = await renderBrandImage({ title: recipe.title, emojiSvg: await fetchEmojiSvg(emoji) ?? await fetchEmojiSvg(FALLBACK_EMOJI) });
-  const uploaded = await uploadRecipeImage(image, recipe.householdId);
+  let uploaded: UploadResult;
+  try {
+    const image = await renderBrandImage({ title: recipe.title, emojiSvg: await fetchEmojiSvg(emoji) ?? await fetchEmojiSvg(FALLBACK_EMOJI) });
+    uploaded = await uploadRecipeImage(image, recipe.householdId);
+  } catch (e) {
+    // Orsaken i svaret (dev-funktion): bildbiblioteket, typsnittet eller
+    // Cloudinary — annars syns bara ett allmänt serverfel.
+    console.error('brand-image', e);
+    res.status(500).json({ error: `Bilden kunde inte skapas: ${e instanceof Error ? e.message : String(e)}` });
+    return;
+  }
   const updated = await prisma.recipe.update({
     where: { id: recipe.id },
     data: { imageUrl: uploaded.url, imagePublicId: uploaded.publicId, imageFocusX: null, imageFocusY: null, imageZoom: null },
