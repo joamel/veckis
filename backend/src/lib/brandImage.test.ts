@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import sharp from 'sharp';
-import { twemojiCode, firstEmoji, recolorSvg, renderBrandImage, BRAND_IMAGE_WIDTH, BRAND_IMAGE_HEIGHT } from './brandImage';
+import { twemojiCode, firstEmoji, outlineSvg, renderBrandImage, BRAND_IMAGE_WIDTH, BRAND_IMAGE_HEIGHT } from './brandImage';
 
 describe('twemojiCode', () => {
   it('tar bort FE0F utanför ZWJ-sekvenser', () => {
@@ -27,9 +27,10 @@ describe('renderBrandImage', () => {
   });
 });
 
-describe('recolorSvg', () => {
-  it('byter varje färg mot appens nyans efter ljushet', () => {
-    const svg = '<svg><path fill="#292F33"/><path fill="#F4900C"/><path fill="#FFF"/></svg>';
-    expect(recolorSvg(svg, ['#mork', '#mitt', '#ljus'])).toBe('<svg><path fill="#mork"/><path fill="#mitt"/><path fill="#ljus"/></svg>');
+describe('outlineSvg', () => {
+  it('ritar varje fylld form som en kontur i en färg', () => {
+    const out = outlineSvg('<svg><path fill="#F4900C"/><path fill="#FFF"/></svg>', '#b1c29e');
+    expect(out).not.toMatch(/fill="#/);
+    expect(out.match(/stroke="#b1c29e"/g)).toHaveLength(2);
   });
 });

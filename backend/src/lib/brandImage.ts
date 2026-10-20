@@ -1,17 +1,13 @@
 /**
- * Handlis-bild för ett recept utan bild: stor matsymbol på en cirkel och
- * "Handlis" i hörnet. Inget receptnamn i bilden — korten lägger namnet över
- * bildens nederkant och receptsidan har det som rubrik direkt under, så det
- * hade stått två gånger. Symbolen ligger mitt i, så den syns hur korten än
- * beskär bilden. Ingen AI-genererad bild — en
- * illustration i appens färger, så den alltid ser ut som Handlis och aldrig
- * låtsas vara ett foto av rätten.
+ * Bild till ett recept utan bild — samma utseende som appens platshållare
+ * (ljus eller mörkgrön yta med en svag matikon i konturstil), men med rättens
+ * EGEN symbol i stället för en av appens åtta generiska ikoner. Ingen ny
+ * bakgrund, ingen text: korten lägger namnet över bilden och receptsidan har
+ * det som rubrik.
  *
- * Symbolen ritas med Twemoji (CC-BY 4.0, © Twitter/X och bidragsgivare) i
- * stället för en emoji-font: serverns Linux har ingen färg-emoji, och en
- * text-emoji blev en tom ruta.
+ * Symbolen ritas med Twemoji (CC-BY 4.0, © Twitter/X och bidragsgivare) som
+ * bara konturer i platshållarens ikonfärg.
  */
-import path from 'path';
 import type { OverlayOptions } from 'sharp';
 
 // sharp laddas först när en bild byggs: servern ska kunna starta även om
@@ -24,13 +20,12 @@ async function loadSharp() {
 export const BRAND_IMAGE_WIDTH = 1200;
 export const BRAND_IMAGE_HEIGHT = 900;
 
-const FONT = path.join(__dirname, '..', '..', 'assets', 'fonts', 'Outfit_700Bold.ttf');
-
-const PALETTES = [
-  // tones: symbolens färger byts mot dessa, mörkast → ljusast.
-  { bg: '#eef1e8', circle: '#cde66b', mark: '#2c4a3b', tones: ['#1d3b2e', '#6f9a4f', '#ffffff'] },
-  { bg: '#1d3b2e', circle: '#2c4a3b', mark: '#cde66b', tones: ['#142a1d', '#cde66b', '#f4f8ea'] },
-];
+// Platshållarens färger i ljust läge (nyDesign: platsLjus/skogMellan, och
+// ytIkon/ytIkonMork blandade mot ytan) — en bild kan inte följa mörkt läge.
+const PALETTES = {
+  ljus: { bg: '#cddcb3', line: '#b1c29e' },
+  mork: { bg: '#2c4a3b', line: '#5c7949' },
+};
 
 export const FALLBACK_EMOJI = '🍽️';
 
@@ -58,42 +53,21 @@ function luminance(hex: string): number {
 }
 
 /**
- * Symbolen som en ikon i appens färger: varje färg i Twemoji-SVG:n byts mot
- * en av tre nyanser efter hur ljus den är. Detaljerna (smöret på våfflan,
- * fyllningen i tacon) finns kvar, men bilden blir Handlis och inte en
- * färggrann emoji.
+ * Symbolen som konturer: varje fylld form ritas bara som en linje i
+ * platshållarens ikonfärg, så den ser ut som appens egna konturikoner.
  */
-export function recolorSvg(svg: string, tones: string[]): string {
-  return svg.replace(/(fill|stroke)="(#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?)"/g, (_m, attr: string, hex: string) => {
-    const l = luminance(hex);
-    const tone = l < 0.35 ? tones[0] : l < 0.7 ? tones[1] : tones[2];
-    return `${attr}="${tone}"`;
-  });
+export function outlineSvg(svg: string, color: string, strokeWidth = 0.9): string {
+  return svg
+    .replace(/fill="#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?"/g, `fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linejoin="round" stroke-linecap="round"`)
+    .replace(/stroke="#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?"(?! stroke-width)/g, `stroke="${color}"`);
 }
 
-/** Samma titel → samma färg, så en bild som skapas om ser likadan ut — och
- *  receptlistan blir inte enfärgad. */
+/** Samma fördelning som platshållaren: två ljusa på en mörk, efter titeln
+ *  så en bild som skapas om ser likadan ut. */
 function paletteFor(title: string) {
   let h = 0;
   for (const c of title) h = (h * 31 + c.codePointAt(0)!) >>> 0;
-  return PALETTES[h % PALETTES.length];
-}
-
-function escapeMarkup(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-async function text(str: string, size: number, color: string): Promise<Buffer> {
-  const sharp = await loadSharp();
-  return sharp({
-    text: {
-      text: `<span foreground="${color}">${escapeMarkup(str)}</span>`,
-      font: `Outfit ${size}`,
-      fontfile: FONT,
-      rgba: true,
-      dpi: 72,
-    },
-  }).png().toBuffer();
+  return h % 3 === 0 ? PALETTES.mork : PALETTES.ljus;
 }
 
 /**
@@ -103,20 +77,12 @@ export async function renderBrandImage(opts: { title: string; emojiSvg: string |
   const sharp = await loadSharp();
   const W = BRAND_IMAGE_WIDTH, H = BRAND_IMAGE_HEIGHT;
   const p = paletteFor(opts.title);
-  const cx = W / 2, cy = H / 2, r = 280, emojiSize = 360;
-
-  const layers: OverlayOptions[] = [{
-    input: Buffer.from(`<svg width="${W}" height="${H}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="${p.circle}"/></svg>`),
-    left: 0, top: 0,
-  }];
+  const size = 440;
+  const layers: OverlayOptions[] = [];
   if (opts.emojiSvg) {
-    const emoji = await sharp(Buffer.from(recolorSvg(opts.emojiSvg, p.tones)), { density: 600 }).resize(emojiSize, emojiSize).png().toBuffer();
-    layers.push({ input: emoji, left: Math.round(cx - emojiSize / 2), top: Math.round(cy - emojiSize / 2) });
+    const icon = await sharp(Buffer.from(outlineSvg(opts.emojiSvg, p.line)), { density: 600 }).resize(size, size).png().toBuffer();
+    layers.push({ input: icon, left: Math.round((W - size) / 2), top: Math.round((H - size) / 2) });
   }
-  const mark = await text('Handlis', 30, p.mark);
-  const mm = await sharp(mark).metadata();
-  layers.push({ input: mark, left: W - mm.width! - 40, top: H - mm.height! - 30 });
-
   return sharp({ create: { width: W, height: H, channels: 3, background: p.bg } })
     .composite(layers)
     .jpeg({ quality: 90 })
