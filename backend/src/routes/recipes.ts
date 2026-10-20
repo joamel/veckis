@@ -23,7 +23,7 @@ import { extractMetaText, isInstagramUrl, LINK_PREVIEW_USER_AGENT } from '../lib
 import { tolkaJsonSvar, saknarReceptinnehåll, InteJsonError, textUr } from '../lib/aiJson';
 import { bokförAiKostnad } from '../lib/aiCost';
 import { taFotokvot, MAX_FOTON_PER_MANAD } from '../lib/photoQuota';
-import { renderBrandImage, fetchEmojiSvg, firstEmoji, FALLBACK_EMOJI } from '../lib/brandImage';
+import { assignDishIcon } from '../lib/dishIcon';
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -245,6 +245,8 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
     } as Prisma.RecipeUncheckedCreateInput,
     include: { ingredients: true },
   });
+  // Matsymbolen för platshållaren — i bakgrunden, receptet sparas inte senare för den.
+  void assignDishIcon(recipe.id);
 
   // Basvaror och den globala poolen ska ha KANONISKA namn, inte receptets
   // ordalydelse. Receptet självt behåller "kokt, svalt basmatiris" — det är en
@@ -313,56 +315,6 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   }
 }));
 
-/** En emoji som föreställer rätten, vald av modellen; tallriken som reserv. */
-async function dishEmoji(title: string, ingredients: string[]): Promise<string> {
-  if (!anthropic) return FALLBACK_EMOJI;
-  try {
-    const msg = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 16,
-      system: 'Välj EN emoji som bäst föreställer maträtten — rätten själv, inte en ingrediens om rätten har en egen emoji (våfflor 🧇, tacos 🌮, pasta 🍝, soppa 🍲, pannkakor 🥞). Svara med enbart emojin.',
-      messages: [{ role: 'user', content: `${title}
-Ingredienser: ${ingredients.slice(0, 15).join(', ')}` }],
-    });
-    await bokförAiKostnad('claude-haiku-4-5-20251001', msg.usage);
-    return firstEmoji(textUr(msg)) ?? FALLBACK_EMOJI;
-  } catch {
-    return FALLBACK_EMOJI;
-  }
-}
-
-// POST /api/recipes/:recipeId/brand-image — Handlis-bild till ett recept utan
-// bild (dev-läge i appen): matsymbol på en cirkel i appens färger. Ersätter en
-// tidigare bild, och den gamla tas bort ur Cloudinary.
-recipesRouter.post('/:recipeId/brand-image', recipeAbuseLimiter, requireAuth, asyncHandler(async (req, res) => {
-  const recipe = await prisma.recipe.findUnique({ where: { id: req.params.recipeId }, include: { ingredients: { select: { name: true } } } });
-  if (!recipe) { res.status(404).json({ error: 'Recipe not found' }); return; }
-  const member = await prisma.householdMember.findUnique({
-    where: { householdId_clerkUserId: { householdId: recipe.householdId, clerkUserId: (req as AuthenticatedRequest).clerkUserId } },
-  });
-  if (!member) { res.status(403).json({ error: 'Not a member of this household' }); return; }
-
-  const emoji = await dishEmoji(recipe.title, recipe.ingredients.map(i => i.name));
-  let uploaded: UploadResult;
-  try {
-    const image = await renderBrandImage({ title: recipe.title, emojiSvg: await fetchEmojiSvg(emoji) ?? await fetchEmojiSvg(FALLBACK_EMOJI) });
-    uploaded = await uploadRecipeImage(image, recipe.householdId);
-  } catch (e) {
-    // Orsaken i svaret (dev-funktion): bildbiblioteket, typsnittet eller
-    // Cloudinary — annars syns bara ett allmänt serverfel.
-    console.error('brand-image', e);
-    res.status(500).json({ error: `Bilden kunde inte skapas: ${e instanceof Error ? e.message : String(e)}` });
-    return;
-  }
-  const updated = await prisma.recipe.update({
-    where: { id: recipe.id },
-    data: { imageUrl: uploaded.url, imagePublicId: uploaded.publicId, imageFocusX: null, imageFocusY: null, imageZoom: null },
-    include: { ingredients: { orderBy: { id: 'asc' } } },
-  });
-  if (recipe.imagePublicId) void deleteRecipeImage(recipe.imagePublicId);
-  res.json(updated);
-}));
-
 // PATCH /api/recipes/:recipeId
 recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => {
   const recipe = await prisma.recipe.findUnique({ where: { id: req.params.recipeId } });
@@ -405,6 +357,8 @@ recipesRouter.patch('/:recipeId', requireAuth, asyncHandler(async (req, res) => 
     });
   });
   if (clearingImage && recipe.imagePublicId) void deleteRecipeImage(recipe.imagePublicId);
+  // Nytt namn kan vara en annan rätt — välj symbolen på nytt.
+  if (typeof recipeData.title === 'string' && recipeData.title !== recipe.title) void assignDishIcon(recipe.id);
   if (ingredients !== undefined) {
     // Samma kanonisering som vid skapande — se kommentaren där.
     void (async () => {

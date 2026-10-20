@@ -174,6 +174,13 @@ import('./jobs/backfillStapleChoice').then(m => {
     .catch(e => console.error('[basvaruval backfill] fel:', e));
 });
 
+// Matsymboler för recept utan symbol (platshållaren). Idempotent, i bakgrunden.
+import('./jobs/backfillDishIcons').then(m => {
+  m.backfillDishIcons()
+    .then(n => { if (n > 0) console.log(`[matsymbol backfill] ${n} recept fick en symbol`); })
+    .catch(e => console.error('[matsymbol backfill] fel:', e));
+});
+
 // WebSocket server for real-time shopping list updates
 const wss = new WebSocketServer({ noServer: true });
 

@@ -259,6 +259,10 @@ model Recipe {
   source      String   @default("manual")
   imageUrl    String?
   imagePublicId String?  // Cloudinary public_id for the uploaded image, so we can delete it on change/recipe-delete
+  // Matsymbolen som platshållaren visar när receptet saknar bild (en av
+  // DISH_ICON_EMOJIS i shared). Väljs av AI:n när receptet skapas eller byter
+  // namn, se lib/dishIcon.ts.
+  iconEmoji     String?
   // Vilken del av bilden som ska synas när den beskärs till 16:9 vid visning.
   // 0 = vänster/överkant, 1 = höger/nederkant, null = mitten (som förut).
   // Sparas i stället för att beskära filen: originalet blir kvar, justeringen

@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { Pressable } from '../../src/components/Pressable';
 import { AppSwitch } from '../../src/components/AppSwitch';
+import { DishIcon } from '../../src/components/DishIcon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
@@ -2613,7 +2614,7 @@ function MenuCard({
   const visaHero = nyDesign && !!bildUrl && (!!hero || isExpanded);
   // Samma platshållare som receptlistan, så ett recept ser likadant ut i båda.
   const ph = nyDesign && !bildUrl
-    ? platshallare(recipe?.id ?? item.id, [title, ...(recipe?.tags ?? [])].join(' '))
+    ? platshallare(recipe?.id ?? item.id, [title, ...(recipe?.tags ?? [])].join(' '), recipe?.iconEmoji)
     : null;
 
   function handlePress() {
@@ -2676,7 +2677,9 @@ function MenuCard({
                 <Image source={{ uri: bildUrl }} style={s.nyTumnagel} resizeMode="cover" />
               ) : (
                 <View style={[s.nyTumnagel, s.nyTumnagelTom, ph?.ton === 'mork' ? s.nyTumMork : s.nyTumLjus]}>
-                  <Ionicons name={ph!.ikon} size={20} color={ph?.ton === 'mork' ? ny.lime : ny.padYta} />
+                  {ph!.emoji
+                    ? <DishIcon emoji={ph!.emoji} size={22} color={ph?.ton === 'mork' ? ny.lime : ny.padYta} />
+                    : <Ionicons name={ph!.ikon} size={20} color={ph?.ton === 'mork' ? ny.lime : ny.padYta} />}
                 </View>
               )
             ) : (

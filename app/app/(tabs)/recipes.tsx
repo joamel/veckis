@@ -1068,6 +1068,7 @@ export default function RecipesScreen() {
     ingredienser: recipe.ingredients.length,
     tid: recipe.cookMinutes ? formateraTidsetikett(recipe.cookMinutes) : null,
     bildUrl: recipe.imageUrl ?? null,
+    ikonEmoji: recipe.iconEmoji ?? null,
     fokusX: recipe.imageFocusX,
     fokusY: recipe.imageFocusY,
     zoom: recipe.imageZoom,

@@ -104,7 +104,10 @@ export default function PrivacyScreen() {
         som tillhör originalkällan.{'\n\n'}
         Är du rättighetshavare och vill att ett recept eller en bild tas bort?
         Mejla <Text style={s.link}>support@handlis.app</Text> med länken, så
-        tar vi bort det skyndsamt.
+        tar vi bort det skyndsamt.{'\n\n'}
+        Matsymbolerna som visas för recept utan bild kommer från Twemoji
+        (© Twitter/X och bidragsgivare, licens CC-BY 4.0), omritade som
+        konturer.
       </Text>
 
       <Text style={s.h2}>Kontakt</Text>

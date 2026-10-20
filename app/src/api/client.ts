@@ -531,10 +531,6 @@ export function useApiClient() {
     deleteRecipe: (recipeId: string) =>
       request<void>(`/api/recipes/${recipeId}`, { method: 'DELETE' }),
 
-    // Handlis-bild till ett recept utan bild (dev-läge).
-    createBrandImage: (recipeId: string) =>
-      request<RecipeWithIngredients>(`/api/recipes/${recipeId}/brand-image`, { method: 'POST' }),
-
     uploadRecipeImage: async (recipeId: string, fileUri: string, mimeType = 'image/jpeg'): Promise<RecipeWithIngredients> => {
       const form = new FormData();
       // RN's FormData accepts the file blob descriptor object directly.

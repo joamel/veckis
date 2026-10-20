@@ -11,6 +11,8 @@ export interface Recipe {
   originalInstructions: string | null;
   sourceUrl: string | null;
   imageUrl: string | null;
+  /** Matsymbolen platshållaren visar när bild saknas (en av DISH_ICON_EMOJIS). */
+  iconEmoji?: string | null;
   imagePublicId: string | null;
   /** Vilken del av bilden som visas när den beskärs till 16:9. 0–1 per axel,
    *  null = mitten. Se schema.prisma för varför den lagras i stället för att

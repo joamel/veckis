@@ -862,9 +862,6 @@ export const recipes = {
     imageLoadError: 'Kunde inte ladda bilden',
     noIngredients:  'Inga ingredienser än - tryck för att lägga till',
     originalRecipe: 'Original',
-    brandImageCreate:   'Skapa Handlis-bild',
-    brandImageCreating: 'Skapar bild…',
-    brandImageFailed:   'Bilden gick inte att skapa. Försök igen om en stund.',
     originalRecipeA11y: 'Öppna originalreceptet i webbläsaren',
     /** Utan punkt: förkortningen är tydlig ändå och punkten tog plats på en
      *  metarad där chipsen knappt får plats bredvid varandra. */

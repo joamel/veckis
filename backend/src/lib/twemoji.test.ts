@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import sharp from 'sharp';
-import { twemojiCode, firstEmoji, outlineSvg, renderBrandImage, BRAND_IMAGE_WIDTH, BRAND_IMAGE_HEIGHT } from './brandImage';
+import { twemojiCode, firstEmoji, outlineSvg } from './twemoji';
 
 describe('twemojiCode', () => {
   it('tar bort FE0F utanför ZWJ-sekvenser', () => {
@@ -13,17 +12,6 @@ describe('firstEmoji', () => {
   it('hittar emojin i ett svar med text runt', () => {
     expect(firstEmoji('Här: 🌮 passar bra')).toBe('🌮');
     expect(firstEmoji('ingen emoji')).toBeNull();
-  });
-});
-
-describe('renderBrandImage', () => {
-  it('bygger en bild i rätt storlek, med och utan symbol', async () => {
-    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="#f4900c"/></svg>';
-    for (const emojiSvg of [svg, null]) {
-      const buf = await renderBrandImage({ title: 'Frasiga våfflor med grädde & sylt <3', emojiSvg });
-      const m = await sharp(buf).metadata();
-      expect([m.width, m.height, m.format]).toEqual([BRAND_IMAGE_WIDTH, BRAND_IMAGE_HEIGHT, 'jpeg']);
-    }
   });
 });
 

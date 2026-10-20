@@ -7,6 +7,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { nyFont, type NyPalett } from '../../lib/nyDesign';
 import { useNy } from '../../context/ThemeContext';
 import { platshallare, type PlatshallarTon } from '../../lib/receptPlatshallare';
+import { DishIcon } from '../DishIcon';
 import { recipes as str } from '../../lib/svenska';
 
 /** Hur kortet beter sig — speglar receptlistans lägen. */
@@ -25,6 +26,8 @@ interface Props {
   /** Tillagningstid, färdigformaterad ("45 min"). null = okänd, ingen bricka. */
   tid: string | null;
   bildUrl: string | null;
+  /** Receptets matsymbol för platshållaren (DISH_ICON_EMOJIS). */
+  ikonEmoji?: string | null;
   /** Utsnittet som valts i receptet (0–1 per axel, null = mitten). Utan det
    *  beskärs bilden uppifrån och motivet kan hamna utanför kortet. */
   fokusX?: number | null;
@@ -50,7 +53,7 @@ interface Props {
 export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
   const ny = useNy();
   const st = useMemo(() => gorSt(ny), [ny]);
-  const ph = p.bildUrl ? null : platshallare(p.id, p.sokord);
+  const ph = p.bildUrl ? null : platshallare(p.id, p.sokord, p.ikonEmoji);
   const mork = ph?.ton === 'mork';
   return (
     <View>
@@ -62,7 +65,9 @@ export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
         {p.bildUrl ? (
           <ReceptBild uri={cloudinaryOptimized(p.bildUrl, CARD_IMAGE_WIDTH)} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} zoom={p.zoom ?? null} style={StyleSheet.absoluteFill} />
         ) : (
-          <Ionicons name={ph!.ikon} size={76} color={mork ? ny.ytIkonMork : ny.ytIkon} style={[st.ikonStor, p.tid && st.ikonUnderTid]} />
+          ph!.emoji
+            ? <DishIcon emoji={ph!.emoji} size={76} color={mork ? ny.ytIkonMork : ny.ytIkon} style={[st.ikonStor, p.tid && st.ikonUnderTid]} />
+            : <Ionicons name={ph!.ikon} size={76} color={mork ? ny.ytIkonMork : ny.ytIkon} style={[st.ikonStor, p.tid && st.ikonUnderTid]} />
         )}
         {/* Tiden i övre vänstra hörnet, mitt emot planera-knappen: den är
             beslutsunderlag och ska synas innan man läst titeln. */}
@@ -93,7 +98,7 @@ export function ReceptKompaktRad(p: Props) {
   // ljusa raden, mjukt limegrön mot den mörka. Dämpad grå försvann nästan i
   // mörkt läge, och ren lime blev skrikig bredvid rubrikerna.
   const metaFarg = ny.padYta;
-  const ph = p.bildUrl ? null : platshallare(p.id, p.sokord);
+  const ph = p.bildUrl ? null : platshallare(p.id, p.sokord, p.ikonEmoji);
   const mork = ph?.ton === 'mork';
   return (
     <View>
@@ -102,7 +107,9 @@ export function ReceptKompaktRad(p: Props) {
           <ReceptBild uri={cloudinaryOptimized(p.bildUrl, THUMB_IMAGE_WIDTH)} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} zoom={p.zoom ?? null} style={st.tumnagel} />
         ) : (
           <View style={[st.tumnagel, st.tumnagelTom, mork ? st.ytaMork : st.ytaLjusRad]}>
-            <Ionicons name={ph!.ikon} size={28} color={mork ? ny.lime : ny.padYta} />
+            {ph!.emoji
+              ? <DishIcon emoji={ph!.emoji} size={30} color={mork ? ny.lime : ny.padYta} />
+              : <Ionicons name={ph!.ikon} size={28} color={mork ? ny.lime : ny.padYta} />}
           </View>
         )}
         {/* Tiden står SIST på metaraden, inte till höger om titeln: där åt den av

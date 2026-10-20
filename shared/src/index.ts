@@ -11,3 +11,4 @@ export * from './lib/pluralform';
 export * from './lib/koksmatt';
 export * from './lib/itemLine';
 export * from './lib/unitSynonyms';
+export * from './lib/dishIconList';

@@ -3,6 +3,8 @@
 // bokstaven, vilket blev tungt och enformigt när få recept har bild — tio "P"
 // i rad säger ingenting.
 
+import { isDishIconEmoji } from '@veckis/shared';
+
 export type PlatshallarTon = 'ljus' | 'mork';
 export type PlatshallarIkon =
   | 'pizza-outline' | 'fish-outline' | 'flame-outline' | 'leaf-outline'
@@ -30,10 +32,13 @@ const REGLER: [RegExp, PlatshallarIkon][] = [
   [/sallad|vegetar|vegan|grönsak|bowl/, 'leaf-outline'],
 ];
 
-export function platshallare(id: string, sokord: string): { ton: PlatshallarTon; ikon: PlatshallarIkon } {
+export function platshallare(id: string, sokord: string, emoji?: string | null): { ton: PlatshallarTon; ikon: PlatshallarIkon; emoji: string | null } {
   const text = sokord.toLowerCase();
   const ikon = REGLER.find(([re]) => re.test(text))?.[1] ?? 'restaurant-outline';
-  // Två ljusa på ett mörkt: mörka ytor tar mycket plats när få recept har bild.
-  const ton: PlatshallarTon = idHash(id) % 3 === 0 ? 'mork' : 'ljus';
-  return { ton, ikon };
+  // Hälften ljusa, hälften mörka: med två ljusa på en mörk blev listan
+  // enformig när få recept har bild (feedback 2026-10-20).
+  const ton: PlatshallarTon = idHash(id) % 2 === 0 ? 'mork' : 'ljus';
+  // Receptets egen matsymbol (vald av AI:n, se backend/lib/dishIcon.ts) går
+  // före de åtta generiska ikonerna; ikon är reserven.
+  return { ton, ikon, emoji: isDishIconEmoji(emoji) ? emoji : null };
 }

@@ -37,7 +37,6 @@ import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { cloudinaryOptimized } from '../../src/lib/cloudinaryUrl';
 import { TagLabel } from '../../src/components/TagLabel';
-import { useExperiment } from '../../src/lib/experiments';
 import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
 import { getISOWeek } from '../../src/lib/week';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -792,28 +791,6 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     // startEdit läser receptet; effekten ska bara köras en gång per import.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [edit, recipe]);
-  const devMode = useExperiment('dev-mode');
-  const [creatingBrandImage, setCreatingBrandImage] = useState(false);
-  async function createBrandImage() {
-    if (!recipe) return;
-    setCreatingBrandImage(true);
-    try {
-      const updated = await client.createBrandImage(recipe.id);
-      setRecipe(prev => (prev ? { ...prev, imageUrl: updated.imageUrl, imageFocusX: null, imageFocusY: null, imageZoom: null } : prev));
-      // Bilden är redan sparad — redigeringen visar den och räknar den inte
-      // som en osparad ändring.
-      setEditImage(updated.imageUrl ?? '');
-      setEditFokus({ x: null, y: null, zoom: null });
-    } catch (e) {
-      // Dev-funktion: orsaken med i rutan, så den går att felsöka.
-      confirm({ title: str.errors.generic, message: `${str.detail.brandImageFailed}${e instanceof Error ? `
-
-${e.message}` : ''}`, buttons: [{ label: common.actions.ok }] });
-    } finally {
-      setCreatingBrandImage(false);
-    }
-  }
-
   // Källchippet ("Original" + ikon): bara ikonen om det inte ryms på raden.
   const metaFirstRowY = useRef<number | null>(null);
   const [sourceIconOnly, setSourceIconOnly] = useState(false);
@@ -1410,20 +1387,6 @@ ${e.message}` : ''}`, buttons: [{ label: common.actions.ok }] });
               ) : null}
             </View>
             )}
-            {/* Dev-läge: bara här, i redigeringsläget — en knapp mitt i receptet
-                lockade till att trycka varje gång man öppnade det. */}
-            {devMode && !isNew && !editImage.trim() ? (
-              <Pressable
-                style={[s.imgBtn, (creatingBrandImage || uploadingImage) && s.imgBtnDisabled]}
-                onPress={createBrandImage}
-                disabled={creatingBrandImage || uploadingImage}
-              >
-                {creatingBrandImage
-                  ? <ActivityIndicator color={c.primary} size="small" />
-                  : <Ionicons name="sparkles-outline" size={18} color={c.primary} />}
-                <Text style={s.imgBtnText}>{creatingBrandImage ? str.detail.brandImageCreating : str.detail.brandImageCreate}</Text>
-              </Pressable>
-            ) : null}
             {uploadingImage ? <ActivityIndicator color={c.primary} /> : null}
           </View>
         ) : recipe.imageUrl ? (
