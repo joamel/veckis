@@ -800,8 +800,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     try {
       const updated = await client.createBrandImage(recipe.id);
       setRecipe(prev => (prev ? { ...prev, imageUrl: updated.imageUrl, imageFocusX: null, imageFocusY: null, imageZoom: null } : prev));
-    } catch {
-      confirm({ title: str.errors.generic, message: str.detail.brandImageFailed, buttons: [{ label: common.actions.ok }] });
+    } catch (e) {
+      // Dev-funktion: orsaken med i rutan, så den går att felsöka.
+      confirm({ title: str.errors.generic, message: `${str.detail.brandImageFailed}${e instanceof Error ? `
+
+${e.message}` : ''}`, buttons: [{ label: common.actions.ok }] });
     } finally {
       setCreatingBrandImage(false);
     }
