@@ -800,6 +800,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     try {
       const updated = await client.createBrandImage(recipe.id);
       setRecipe(prev => (prev ? { ...prev, imageUrl: updated.imageUrl, imageFocusX: null, imageFocusY: null, imageZoom: null } : prev));
+      // Bilden är redan sparad — redigeringen visar den och räknar den inte
+      // som en osparad ändring.
+      setEditImage(updated.imageUrl ?? '');
+      setEditFokus({ x: null, y: null, zoom: null });
     } catch (e) {
       // Dev-funktion: orsaken med i rutan, så den går att felsöka.
       confirm({ title: str.errors.generic, message: `${str.detail.brandImageFailed}${e instanceof Error ? `
@@ -1406,6 +1410,20 @@ ${e.message}` : ''}`, buttons: [{ label: common.actions.ok }] });
               ) : null}
             </View>
             )}
+            {/* Dev-läge: bara här, i redigeringsläget — en knapp mitt i receptet
+                lockade till att trycka varje gång man öppnade det. */}
+            {devMode && !isNew && !editImage.trim() ? (
+              <Pressable
+                style={[s.imgBtn, (creatingBrandImage || uploadingImage) && s.imgBtnDisabled]}
+                onPress={createBrandImage}
+                disabled={creatingBrandImage || uploadingImage}
+              >
+                {creatingBrandImage
+                  ? <ActivityIndicator color={c.primary} size="small" />
+                  : <Ionicons name="sparkles-outline" size={18} color={c.primary} />}
+                <Text style={s.imgBtnText}>{creatingBrandImage ? str.detail.brandImageCreating : str.detail.brandImageCreate}</Text>
+              </Pressable>
+            ) : null}
             {uploadingImage ? <ActivityIndicator color={c.primary} /> : null}
           </View>
         ) : recipe.imageUrl ? (
@@ -1440,15 +1458,6 @@ ${e.message}` : ''}`, buttons: [{ label: common.actions.ok }] });
               </View>
             ) : null}
           </View>
-        ) : devMode && !isNew ? (
-          // Dev-läge: recept utan bild kan få en Handlis-bild (matsymbol i
-          // appens färger) i stället för att stå tomt i receptlistan.
-          <Pressable style={s.brandImageBtn} onPress={createBrandImage} disabled={creatingBrandImage} accessibilityRole="button">
-            {creatingBrandImage
-              ? <ActivityIndicator color={nyDesign ? ny.padYta : c.primary} />
-              : <Ionicons name="sparkles-outline" size={20} color={nyDesign ? ny.padYta : c.primary} />}
-            <Text style={s.brandImageText}>{creatingBrandImage ? str.detail.brandImageCreating : str.detail.brandImageCreate}</Text>
-          </Pressable>
         ) : null}
 
         {/* Meta */}
@@ -2489,12 +2498,6 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   checkLabel: { fontSize: 15, color: c.text, flex: 1 },
   checkLabelUnchecked: { color: c.textFaint, textDecorationLine: 'line-through' },
   selectAllRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginVertical: 8 },
-  brandImageBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    height: 120, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed',
-    borderColor: nyD ? ny.kontur : c.border, backgroundColor: nyD ? ny.kort : c.surfaceSubtle,
-  },
-  brandImageText: { fontSize: 15, fontWeight: '600', color: nyD ? ny.padYta : c.primary },
   suggestedTagsHint: { fontSize: 13, lineHeight: 18, color: c.textSecondary, marginBottom: 8 },
   tagPulseRing: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 19, borderWidth: 2.5, borderColor: ny.lime },
   selectAllText: { fontSize: 13, color: c.primary, fontWeight: '500' },
