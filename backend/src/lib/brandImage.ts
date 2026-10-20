@@ -20,11 +20,12 @@ async function loadSharp() {
 export const BRAND_IMAGE_WIDTH = 1200;
 export const BRAND_IMAGE_HEIGHT = 900;
 
-// Platshållarens färger i ljust läge (nyDesign: platsLjus/skogMellan, och
-// ytIkon/ytIkonMork blandade mot ytan) — en bild kan inte följa mörkt läge.
+// Platshållarens ytor i ljust läge (nyDesign: platsLjus/skogMellan) — en bild
+// kan inte följa mörkt läge. Linjerna tydligare än platshållarens svaga ikon:
+// med samma svaghet blev bilderna tråkiga och likadana (feedback 2026-10-20).
 const PALETTES = {
-  ljus: { bg: '#cddcb3', line: '#b1c29e' },
-  mork: { bg: '#2c4a3b', line: '#5c7949' },
+  ljus: { bg: '#cddcb3', line: '#7d9a68' },
+  mork: { bg: '#2c4a3b', line: '#9fbd5c' },
 };
 
 export const FALLBACK_EMOJI = '🍽️';
@@ -56,18 +57,18 @@ function luminance(hex: string): number {
  * Symbolen som konturer: varje fylld form ritas bara som en linje i
  * platshållarens ikonfärg, så den ser ut som appens egna konturikoner.
  */
-export function outlineSvg(svg: string, color: string, strokeWidth = 0.9): string {
+export function outlineSvg(svg: string, color: string, strokeWidth = 1.1): string {
   return svg
     .replace(/fill="#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?"/g, `fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linejoin="round" stroke-linecap="round"`)
     .replace(/stroke="#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?"(?! stroke-width)/g, `stroke="${color}"`);
 }
 
-/** Samma fördelning som platshållaren: två ljusa på en mörk, efter titeln
- *  så en bild som skapas om ser likadan ut. */
+/** Hälften mörka, hälften ljusa — efter titeln, så en bild som skapas om ser
+ *  likadan ut. */
 function paletteFor(title: string) {
   let h = 0;
   for (const c of title) h = (h * 31 + c.codePointAt(0)!) >>> 0;
-  return h % 3 === 0 ? PALETTES.mork : PALETTES.ljus;
+  return h % 2 === 0 ? PALETTES.mork : PALETTES.ljus;
 }
 
 /**

@@ -51,3 +51,13 @@ export function pastedLink(text: string): string | null {
   const rest = trimmed.replace(url, '').trim();
   return rest.length <= MAX_TEXT_RUNT_LANK ? url : null;
 }
+
+/**
+ * En länk någonstans i texten, även i en lång bildtext — null om ingen finns.
+ * Används som receptets källa när en text med länk tolkas som recept (t.ex.
+ * Instagram-bildtexten med länken till inlägget), så "Original" leder dit.
+ */
+export function anyLink(text: string): string | null {
+  const url = extractUrl(text);
+  return /^https?:\/\/\S+\.\S+/i.test(url) ? url : null;
+}

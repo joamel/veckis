@@ -56,7 +56,7 @@ import { VeckoDagValjare } from '../../src/components/nydesign/VeckoDagValjare';
 import { Murverk, murverkHojd } from '../../src/components/nydesign/Murverk';
 import { TagLabel, isFavoriteTag } from '../../src/components/TagLabel';
 import { orderTags, tagChips } from '../../src/lib/tagOrder';
-import { cleanPastedUrl, extractUrl, pastedLink } from '../../src/lib/extractUrl';
+import { cleanPastedUrl, extractUrl, pastedLink, anyLink } from '../../src/lib/extractUrl';
 
 // Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
 // dagnamn är hårdkodat i komponenten — då räcker det att översätta svenska.ts.
@@ -620,6 +620,9 @@ export default function RecipesScreen() {
         description: parsed.description,
         instructions: parsed.instructions,
         source: 'ai_paste',
+        // Fanns en länk i texten (Instagram-bildtexten har länken till
+        // inlägget) blir den källan — "Original" leder tillbaka dit.
+        sourceUrl: anyLink(pasteText),
         servings: parsed.servings,
         cookMinutes: parsed.cookMinutes ?? null,
         ingredients: parsed.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),

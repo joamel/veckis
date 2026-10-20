@@ -62,3 +62,12 @@ describe('pastedLink', () => {
     expect(pastedLink('   ')).toBeNull();
   });
 });
+
+describe('anyLink', () => {
+  it('hittar länken i en lång bildtext', async () => {
+    const { anyLink } = await import('./extractUrl');
+    const caption = 'Krämig kycklingpasta 🍝 Du behöver: 500 g kyckling, 2 dl grädde … Se hela reelen: https://www.instagram.com/reel/ABC123/ #middag';
+    expect(anyLink(caption)).toBe('https://www.instagram.com/reel/ABC123/');
+    expect(anyLink('Bara ett recept utan länk')).toBeNull();
+  });
+});
