@@ -81,6 +81,10 @@ import { shoppingList as str, common } from '../../src/lib/svenska';
 import {
   enqueueToggle, getPendingToggles, clearPendingToggle, isNetworkError, hydratePendingToggles,
   applyPendingToggles, replayPendingToggles, saveListSnapshot, readListSnapshot,
+  markInFlight,
+  clearInFlight,
+  inFlightToggle,
+  getDesiredToggles,
 } from '../../src/lib/shoppingOfflineQueue';
 import { useDirtySince } from '../../src/hooks/useDirtySince';
 import { useExperiment } from '../../src/lib/experiments';
@@ -689,13 +693,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
           if (exists) return prev;
           return { ...prev, items: [...prev.items, { ...msg.data, recipe: null }] };
         }
-        case 'item_updated':
+        case 'item_updated': {
+          // En bock som är på väg vinner över ett äldre meddelande om samma
+          // vara — annars hoppade den tillbaka en stund vid dålig täckning.
+          const desired = inFlightToggle(listId!, msg.data.id);
           return {
             ...prev,
             items: prev.items.map(i =>
-              i.id === msg.data.id ? { ...msg.data, recipe: i.recipe } : i,
+              i.id === msg.data.id ? { ...msg.data, recipe: i.recipe, ...(desired !== undefined ? { isChecked: desired } : {}) } : i,
             ),
           };
+        }
         case 'item_deleted':
           return { ...prev, items: prev.items.filter(i => i.id !== msg.data.id) };
         case 'list_cleared':
@@ -1011,7 +1019,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
       // Väntande bockar läggs ovanpå vid visning, aldrig i det sparade.
       void saveListSnapshot(listId, data);
       const overlapped = storeChange.current.inFlight > 0 || storeChange.current.version !== storeVersion;
-      if (!overlapped) setList({ ...data, items: applyPendingToggles(data.items, getPendingToggles(listId)) });
+      if (!overlapped) setList({ ...data, items: applyPendingToggles(data.items, getDesiredToggles(listId)) });
       setStaples(stapleList);
       setIngredientSuggestions(suggestions);
       if (household) setMembers(household.members);
@@ -1037,7 +1045,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
         if (listRef.current) return;
         const sparad = await readListSnapshot<NonNullable<typeof list>>(listId);
         if (sparad) {
-          setList({ ...sparad, items: applyPendingToggles(sparad.items, getPendingToggles(listId)) });
+          setList({ ...sparad, items: applyPendingToggles(sparad.items, getDesiredToggles(listId)) });
           showGlobalToast(str.toasts.offlineSnapshot, 'neutral');
           return;
         }
@@ -1385,11 +1393,16 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     // När fingret tryckte, inte när anropet lyckades — köas bocken skickas
     // samma tidpunkt senare.
     const at = new Date().toISOString();
+    const token = markInFlight(listId!, item.id, newChecked);
     try {
       const updated = await client.checkShoppingItem(item.id, newChecked, { at });
       clearPendingToggle(listId!, item.id);
-      setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: item.recipe } : i) } : prev);
+      clearInFlight(listId!, item.id, token);
+      // Har man tryckt igen medan svaret var på väg gäller det senaste trycket.
+      const desired = inFlightToggle(listId!, item.id);
+      setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: item.recipe, ...(desired !== undefined ? { isChecked: desired } : {}) } : i) } : prev);
     } catch (e) {
+      clearInFlight(listId!, item.id, token);
       if (isNetworkError(e)) {
         // Offline — behåll optimistisk bockning och köa för replay vid reconnect
         enqueueToggle(listId!, item.id, newChecked, at);
@@ -1413,11 +1426,14 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
     // Massbock: märks så den inte räknas som en väg genom butiken.
     const at = new Date().toISOString();
     await Promise.all(unchecked.map(async item => {
+      const token = markInFlight(listId!, item.id, true);
       try {
         const updated = await client.checkShoppingItem(item.id, true, { at, bulk: true });
         clearPendingToggle(listId!, item.id);
+        clearInFlight(listId!, item.id, token);
         setList(prev => prev ? { ...prev, items: prev.items.map(i => i.id === updated.id ? { ...updated, recipe: item.recipe } : i) } : prev);
       } catch (e) {
+        clearInFlight(listId!, item.id, token);
         if (isNetworkError(e)) {
           enqueueToggle(listId!, item.id, true, at, true);
         } else {
