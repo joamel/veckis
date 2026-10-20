@@ -65,5 +65,8 @@
   "devDependencies": {
     "tsx": "^4.15.0",
     "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }
