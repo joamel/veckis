@@ -37,6 +37,7 @@ import { kavBehavior } from '../../src/lib/platform';
 import { recipes as str, common } from '../../src/lib/svenska';
 import { cloudinaryOptimized } from '../../src/lib/cloudinaryUrl';
 import { TagLabel } from '../../src/components/TagLabel';
+import { useExperiment } from '../../src/lib/experiments';
 import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
 import { getISOWeek } from '../../src/lib/week';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -791,6 +792,21 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     // startEdit läser receptet; effekten ska bara köras en gång per import.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [edit, recipe]);
+  const devMode = useExperiment('dev-mode');
+  const [creatingBrandImage, setCreatingBrandImage] = useState(false);
+  async function createBrandImage() {
+    if (!recipe) return;
+    setCreatingBrandImage(true);
+    try {
+      const updated = await client.createBrandImage(recipe.id);
+      setRecipe(prev => (prev ? { ...prev, imageUrl: updated.imageUrl, imageFocusX: null, imageFocusY: null, imageZoom: null } : prev));
+    } catch {
+      confirm({ title: str.errors.generic, message: str.detail.brandImageFailed, buttons: [{ label: common.actions.ok }] });
+    } finally {
+      setCreatingBrandImage(false);
+    }
+  }
+
   // Källchippet ("Original" + ikon): bara ikonen om det inte ryms på raden.
   const metaFirstRowY = useRef<number | null>(null);
   const [sourceIconOnly, setSourceIconOnly] = useState(false);
@@ -1421,6 +1437,15 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
               </View>
             ) : null}
           </View>
+        ) : devMode && !isNew ? (
+          // Dev-läge: recept utan bild kan få en Handlis-bild (matsymbol i
+          // appens färger) i stället för att stå tomt i receptlistan.
+          <Pressable style={s.brandImageBtn} onPress={createBrandImage} disabled={creatingBrandImage} accessibilityRole="button">
+            {creatingBrandImage
+              ? <ActivityIndicator color={nyDesign ? ny.padYta : c.primary} />
+              : <Ionicons name="sparkles-outline" size={20} color={nyDesign ? ny.padYta : c.primary} />}
+            <Text style={s.brandImageText}>{creatingBrandImage ? str.detail.brandImageCreating : str.detail.brandImageCreate}</Text>
+          </Pressable>
         ) : null}
 
         {/* Meta */}
@@ -2461,6 +2486,12 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   checkLabel: { fontSize: 15, color: c.text, flex: 1 },
   checkLabelUnchecked: { color: c.textFaint, textDecorationLine: 'line-through' },
   selectAllRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginVertical: 8 },
+  brandImageBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    height: 120, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed',
+    borderColor: nyD ? ny.kontur : c.border, backgroundColor: nyD ? ny.kort : c.surfaceSubtle,
+  },
+  brandImageText: { fontSize: 15, fontWeight: '600', color: nyD ? ny.padYta : c.primary },
   suggestedTagsHint: { fontSize: 13, lineHeight: 18, color: c.textSecondary, marginBottom: 8 },
   tagPulseRing: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 19, borderWidth: 2.5, borderColor: ny.lime },
   selectAllText: { fontSize: 13, color: c.primary, fontWeight: '500' },
