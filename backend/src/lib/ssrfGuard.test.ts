@@ -55,7 +55,7 @@ describe('Brotli-spärren', () => {
   });
 
   it('ber bara om gzip/deflate', async () => {
-    const fetchMock = vi.fn(async () => new Response('ok', { status: 200 }));
+    const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) => new Response('ok', { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     await safeFetch('http://93.184.216.34/', { headers: { 'Accept-Encoding': 'br' } });
     const init = fetchMock.mock.calls[0][1] as RequestInit;
