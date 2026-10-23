@@ -95,7 +95,9 @@ export const nyLjus: NyPalett = {
   kalenderIkon: '#b9cfc0',
   valdYta: '#1d3b2e',
   bandOverlay: 'rgba(29,59,46,0.8)',
-  ytIkon: 'rgba(29,59,46,0.16)',
+  // 0.16 blev grått och vagt mot den ljusgröna ytan; 0.3 väger lika mycket
+  // som limen på de mörka korten.
+  ytIkon: 'rgba(29,59,46,0.3)',
   ytIkonMork: 'rgba(205,230,107,0.3)',
   fara: '#b3261e',
   faraYta: '#f8e1de',
