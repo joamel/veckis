@@ -9,6 +9,7 @@
 // kunde ge per-user men IP räcker som grov spärr och kräver ingen DB-lookup.
 import rateLimit, { type RateLimitRequestHandler } from 'express-rate-limit';
 import type { Request, Response, NextFunction } from 'express';
+import type { AuthenticatedRequest } from '../middleware/auth';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -52,6 +53,22 @@ export const recipeAbuseLimiter: RateLimitRequestHandler | typeof passthrough = 
  *  den generella: varje anrop är en dyr Claude-körning (kostnadstak). */
 export const parseTextLimiter: RateLimitRequestHandler | typeof passthrough = isProd
   ? build(15, 'För många AI-tolkningar — vänta en stund.')
+  : passthrough;
+
+/** AI-tolkning av text och länkar — 30/dygn/KONTO, gemensamt för
+ *  /recipes/parse-text och /recipes/from-url. IP-gränserna ovan stoppar inte
+ *  någon som byter nät, och fritexten är det som går att missbruka som en
+ *  gratis språkmodell. Läggs EFTER requireAuth, som sätter clerkUserId.
+ *  Minnet nollställs vid omstart — det är en spärr, inte en kvot. */
+export const aiDailyUserLimiter: RateLimitRequestHandler | typeof passthrough = isProd
+  ? rateLimit({
+      windowMs: 24 * HOUR,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: req => (req as AuthenticatedRequest).clerkUserId,
+      message: { error: 'Du har tolkat många recept i dag. Försök igen i morgon, eller skriv in receptet själv.' },
+    })
   : passthrough;
 
 /** POST /api/auth/review-ticket — 10/timme/IP. Vägen kontrollerar ett

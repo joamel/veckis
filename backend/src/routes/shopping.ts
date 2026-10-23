@@ -30,6 +30,7 @@ import { taFotokvot, MAX_FOTON_PER_MANAD } from '../lib/photoQuota';
 import { parseTextLimiter } from '../lib/rateLimits';
 import { delaUppDataUrl } from './recipes';
 import { recordCheckEvent } from '../lib/checkEvents';
+import { aiErrorResponse, AI_UNAVAILABLE_LIST } from '../lib/aiError';
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -519,9 +520,9 @@ Regler:
     tolkat = tolkaJsonSvar(textUr(msg)) as typeof tolkat;
   } catch (err) {
     if (err instanceof InteJsonError) { res.status(422).json({ error: INGA_VAROR_I_BILD }); return; }
-    const errMsg = err instanceof Error ? err.message : 'AI-anropet misslyckades';
-    console.error('Shopping photo parsing error:', errMsg);
-    res.status(422).json({ error: errMsg });
+    console.error('Shopping photo parsing error:', err instanceof Error ? err.message : err);
+    const { status, error } = aiErrorResponse(err, AI_UNAVAILABLE_LIST, 'AI-anropet misslyckades');
+    res.status(status).json({ error });
     return;
   }
 
