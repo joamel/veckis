@@ -5,12 +5,12 @@ import { idHash } from '../../lib/receptPlatshallare';
 // Höjderna väljs deterministiskt per recept-id i stället för att mätas: då
 // hoppar inte korten när bilderna laddar, och samma recept har alltid samma
 // form. Variationen är det som ger murverket dess Pinterest-känsla.
+// Recept utan bild får samma höjder: platshållaren är en stor matsymbol som
+// ska väga som en bild, inte ett lågt kort med en ikon i hörnet.
 const HOJDER = [210, 170, 240, 190, 225, 180];
-const HOJD_UTAN_BILD = 150;
 const MELLANRUM = 10;
 
-export function murverkHojd(id: string, harBild: boolean): number {
-  if (!harBild) return HOJD_UTAN_BILD;
+export function murverkHojd(id: string): number {
   return HOJDER[idHash(id) % HOJDER.length];
 }
 

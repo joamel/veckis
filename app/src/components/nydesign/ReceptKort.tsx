@@ -47,6 +47,18 @@ interface Props {
   taBortLabel: string;
 }
 
+// Platshållarsymbolen centreras mellan knappraden och titeln. TEXT_RESERV
+// rymmer en titel på två rader plus metaraden; en längre titel får gå in
+// över symbolen, som är dämpad nog att läsa text på.
+const IKON_TOPP = 20;
+const TEXT_RESERV = 56;
+const IKON_MAX = 112;
+
+/** Så stor som ytan ovanför titeln tillåter, men inte bredare än kortet. */
+function platsIkonStorlek(hojd: number): number {
+  return Math.min(IKON_MAX, hojd - IKON_TOPP - TEXT_RESERV - 8);
+}
+
 /** Pinterest-kort i murverket. Med bild: titeln på ett halvgenomskinligt
  *  grönt band, så den syns även på ljusa bilder. Utan bild: ljus eller mörk
  *  grön yta med en matikon. */
@@ -65,9 +77,12 @@ export function ReceptBildkort({ hojd, ...p }: Props & { hojd: number }) {
         {p.bildUrl ? (
           <ReceptBild uri={cloudinaryOptimized(p.bildUrl, CARD_IMAGE_WIDTH)} fokusX={p.fokusX ?? null} fokusY={p.fokusY ?? null} zoom={p.zoom ?? null} style={StyleSheet.absoluteFill} />
         ) : (
-          ph!.emoji
-            ? <DishIcon emoji={ph!.emoji} size={76} color={mork ? ny.ytIkonMork : ny.ytIkon} style={[st.ikonStor, p.tid && st.ikonUnderTid]} />
-            : <Ionicons name={ph!.ikon} size={76} color={mork ? ny.ytIkonMork : ny.ytIkon} style={[st.ikonStor, p.tid && st.ikonUnderTid]} />
+          // Stor och centrerad ovanför titeln, så den fyller kortet som en bild.
+          <View style={st.ikonYta}>
+            {ph!.emoji
+              ? <DishIcon emoji={ph!.emoji} size={platsIkonStorlek(hojd)} color={mork ? ny.ytIkonMork : ny.ytIkon} />
+              : <Ionicons name={ph!.ikon} size={platsIkonStorlek(hojd)} color={mork ? ny.ytIkonMork : ny.ytIkon} />}
+          </View>
         )}
         {/* Tiden i övre vänstra hörnet, mitt emot planera-knappen: den är
             beslutsunderlag och ska synas innan man läst titeln. */}
@@ -224,9 +239,10 @@ const gorSt = (ny: NyPalett) => StyleSheet.create({
   bildkort: { borderRadius: 20, overflow: 'hidden', backgroundColor: ny.skogMellan },
   ytaMork: { backgroundColor: ny.skogMellan },
   ytaLjus: { backgroundColor: ny.platsLjus },
-  ikonStor: { position: 'absolute', top: 12, left: 12 },
-  // Platshållarikonen flyttas ned när tidsbrickan tar övre vänstra hörnet.
-  ikonUnderTid: { top: 46 },
+  ikonYta: {
+    position: 'absolute', top: IKON_TOPP, left: 0, right: 0, bottom: TEXT_RESERV,
+    alignItems: 'center', justifyContent: 'center',
+  },
   tidBricka: {
     position: 'absolute', top: 11, left: 11, flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 9, height: 26, borderRadius: 13, backgroundColor: ny.bandOverlay,

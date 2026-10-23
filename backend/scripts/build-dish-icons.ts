@@ -31,7 +31,11 @@ async function main() {
     const code = twemojiCode(emoji);
     // Linjen väger som Ionicons-glyferna i samma storlek; 2.3 flöt ihop till
     // en massa i de detaljrika symbolerna (pasta, curry).
-    const raw = await sharp(Buffer.from(outlineSvg(svg, '#ffffff', 1.8)), { density: 600 }).png().toBuffer();
+    // Marginal runt Twemojis 36×36-ruta: linjen ritas till hälften utanför
+    // formen, och där motivet går ut till kanten (skålens botten, tallrikens
+    // sidor) kapades den annars rakt av.
+    const outlined = outlineSvg(svg, '#ffffff', 1.8).replace('viewBox="0 0 36 36"', 'viewBox="-2 -2 40 40"');
+    const raw = await sharp(Buffer.from(outlined), { density: 600 }).png().toBuffer();
     // Twemoji fyller inte rutan jämnt (curryn ligger i nedre halvan, gaffeln
     // sticker ut åt höger). Beskär till motivet och centrera det med luft runt
     // om, så att den fyller rutan som Ionicons-glyferna gör.
