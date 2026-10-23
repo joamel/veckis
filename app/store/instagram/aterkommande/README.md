@@ -16,6 +16,7 @@ höjdpunkter på profilen.
   `https://handlis.app` under "Tryck här ↓". Spara i höjdpunkten "Kom igång".
 
 Bildtext och publiceringstips finns i `../v43/BILDTEXTER.md`. Källor i `source/`.
+Bio och manus för filmade reels finns i `../PROFIL-OCH-REELS.md`.
 
 ## Fler reels (samma längd och melodi, 27,9 s)
 
@@ -41,8 +42,8 @@ sidan! Handlis läser receptet åt dig" → "Ingredienser och steg – på sekun
 → "Lägg det på veckomenyn – listan gör sig själv" → "Mormors pannkakor –
 alltid med 💚" → "Rädda era favoritrecept i Handlis".
 
-> Mormors receptbok – som aldrig finns där när man behöver den 📖
-> Fota sidan, så läser Handlis ut ingredienser och steg åt dig, även när receptet går över flera sidor. Lägg det på veckomenyn så hamnar ingredienserna på inköpslistan.
+> Mormors receptbok – med fettfläckarna och handstilen ingen annan kan läsa 📖
+> Fota sidan, så läser Handlis ut ingredienser och steg åt dig. Sedan är receptet förevigat i er digitala receptsamling – sökbart, delat med hela familjen och alltid med i mobilen. Och när ni vill laga det hamnar ingredienserna på inköpslistan med ett tryck.
 >
 > Vilket recept skulle du rädda först? 👇 Länk i bion.
 >
