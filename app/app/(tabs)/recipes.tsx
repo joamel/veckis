@@ -1168,7 +1168,7 @@ export default function RecipesScreen() {
               {filteredRecipes.length === 0 ? tomLista : (
                 <Murverk
                   items={filteredRecipes}
-                  hojd={r => murverkHojd(r.id)}
+                  hojd={r => murverkHojd(r.id, !!r.imageUrl)}
                   nyckel={r => r.id}
                   rendera={(r, h) => <ReceptBildkort hojd={h} {...kortProps(r)} />}
                 />
