@@ -23,6 +23,6 @@
     "react-native-web": "^0.21.0"
   },
   "engines": {
-    "node": "22.x"
+    "node": "22.23.4"
   }
 }

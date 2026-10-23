@@ -70,9 +70,26 @@ async function assertPublicUrl(raw: string): Promise<URL> {
   return url;
 }
 
+/** Svar komprimerade med Brotli packas aldrig upp: Node före 22.23.4 hade en
+ *  brist i Brotli-dekomprimeringen som kunde ge fjärrkörning av kod (Node-
+ *  säkerhetsuppdateringen 2026-10-21), och safeFetch hämtar sidor från adresser
+ *  som vem som helst kan ange. Vi ber bara om gzip/deflate, och skickar servern
+ *  ändå Brotli avbryts svaret innan kroppen läses — det är först då fetch
+ *  packar upp. Skyddet gäller oavsett vilken Node-version som kör. */
+export class BrotliBlockedError extends Error {
+  constructor() {
+    super('Sidan kunde inte hämtas');
+    this.name = 'BrotliBlockedError';
+  }
+}
+
+export function harBrotli(contentEncoding: string | null): boolean {
+  return !!contentEncoding && contentEncoding.toLowerCase().split(',').some(e => e.trim() === 'br');
+}
+
 /**
  * fetch() med SSRF-skydd: validerar måladressen och följer redirects manuellt
- * (om-validerar varje hopp). Drop-in för scrape-flödet.
+ * (om-validerar varje hopp). Drop-in för scrape-flödet. Se BrotliBlockedError.
  */
 export async function safeFetch(
   raw: string,
@@ -82,7 +99,13 @@ export async function safeFetch(
   let current = raw;
   for (let hop = 0; hop <= maxRedirects; hop++) {
     const url = await assertPublicUrl(current);
-    const res = await fetch(url, { ...init, redirect: 'manual' });
+    const headers = new Headers(init.headers);
+    headers.set('Accept-Encoding', 'gzip, deflate');
+    const res = await fetch(url, { ...init, headers, redirect: 'manual' });
+    if (harBrotli(res.headers.get('content-encoding'))) {
+      await res.body?.cancel().catch(() => {});
+      throw new BrotliBlockedError();
+    }
     // 3xx med Location → validera nästa hopp innan vi följer det.
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers.get('location');

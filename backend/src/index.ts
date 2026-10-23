@@ -94,8 +94,10 @@ if (!isDev) {
 // Railway sätter RAILWAY_GIT_COMMIT_SHA automatiskt; lokalt blir den 'dev'.
 const COMMIT = (process.env.RAILWAY_GIT_COMMIT_SHA ?? 'dev').substring(0, 7);
 
+// Node-versionen syns här så att det går att kontrollera utifrån att en
+// säkerhetsuppdatering av Node faktiskt landat (se engines i package.json).
 app.get('/healthz', (_req, res) => {
-  res.json({ ok: true, commit: COMMIT });
+  res.json({ ok: true, commit: COMMIT, node: process.version });
 });
 
 // Readiness — verifierar DB. 500:ar om DB:n är onåbar (för manuell diagnostik).

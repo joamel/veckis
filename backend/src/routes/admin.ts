@@ -13,6 +13,7 @@ import { requireAuth, requireAppAdmin } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { stripIngredient } from '../lib/stripIngredient';
 import { adminSyncLimiter } from '../lib/rateLimits';
+import { safeFetch } from '../lib/ssrfGuard';
 
 export const adminRouter = Router();
 
@@ -342,7 +343,8 @@ adminRouter.post('/jobs/:id/apply', asyncHandler(async (req, res) => {
 }));
 
 async function scrapeIngredients(url: string): Promise<string[]> {
-  const res = await fetch(url, {
+  // safeFetch: SSRF-skydd och ingen Brotli-uppackning, som receptimporten.
+  const res = await safeFetch(url, {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Veckis/1.0)' },
     signal: AbortSignal.timeout(10000),
   });

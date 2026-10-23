@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { isPrivateIp } from './ssrfGuard';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { isPrivateIp, harBrotli, safeFetch, BrotliBlockedError } from './ssrfGuard';
 
 describe('isPrivateIp', () => {
   it('blockerar loopback + privata IPv4-nät', () => {
@@ -41,5 +41,29 @@ describe('isPrivateIp', () => {
   it('blockerar skräpinput', () => {
     expect(isPrivateIp('inte-en-ip')).toBe(true);
     expect(isPrivateIp('')).toBe(true);
+  });
+});
+
+describe('Brotli-spärren', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('känner igen br, även i en lista', () => {
+    expect(harBrotli('br')).toBe(true);
+    expect(harBrotli('gzip, BR')).toBe(true);
+    expect(harBrotli('gzip')).toBe(false);
+    expect(harBrotli(null)).toBe(false);
+  });
+
+  it('ber bara om gzip/deflate', async () => {
+    const fetchMock = vi.fn(async () => new Response('ok', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await safeFetch('http://93.184.216.34/', { headers: { 'Accept-Encoding': 'br' } });
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(new Headers(init.headers).get('accept-encoding')).toBe('gzip, deflate');
+  });
+
+  it('avbryter ett svar som ändå är Brotli-komprimerat', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('x', { status: 200, headers: { 'Content-Encoding': 'br' } })));
+    await expect(safeFetch('http://93.184.216.34/')).rejects.toBeInstanceOf(BrotliBlockedError);
   });
 });
