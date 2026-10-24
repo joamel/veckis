@@ -2410,9 +2410,10 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   ingQty: { width: 76, fontFamily: nyFont.halvfet, fontSize: 15, color: ny.padYta },
   ingBrak: { fontSize: 11 },
   ingName: { flex: 1, fontFamily: nyFont.halvfet, fontSize: 15, lineHeight: 21, color: ny.text },
-  // Underrubriken i ingredienskortet, i rubrikernas gröna.
-  ingSection: { fontFamily: nyFont.fet, fontSize: 14, color: ny.padYta, paddingTop: 16, paddingBottom: 2, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ny.kontur },
-  ingSectionForst: { paddingTop: 10, borderTopWidth: 0 },
+  // Underrubriken i ingredienskortet: versaler med luft, i rubrikernas gröna.
+  // I 14 px fet bredvid raderna i 15 px halvfet syntes den knappt som rubrik.
+  ingSection: { fontFamily: nyFont.fet, fontSize: 13, letterSpacing: 1.2, textTransform: 'uppercase', color: ny.padYta, paddingTop: 20, paddingBottom: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ny.kontur },
+  ingSectionForst: { paddingTop: 12, borderTopWidth: 0 },
   ingConvertBtn: { padding: 4 },
   wideBtnLime: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 26, backgroundColor: ny.lime, marginTop: 4 },
   wideBtnLimeText: { fontFamily: nyFont.halvfet, fontSize: 16, color: ny.skog },
