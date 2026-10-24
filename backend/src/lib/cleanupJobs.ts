@@ -533,7 +533,7 @@ const tal = (n: number) => String(n).replace('.', ',');
 const recipeQuantities: CleanupJob = {
   id: 'recipe-quantities',
   title: 'Missade mängder i recept',
-  description: 'Rader där importen missade mängden ("ca 13 dl vetemjöl" utan mängd och enhet) får den, och intervall som blev decimaltal ("1–2 tsk" som 1,2 tsk) får den övre gränsen. Intervallen är gissningar — granska innan du kör.',
+  description: 'Rader där importen missade mängden ("ca 13 dl vetemjöl" utan mängd och enhet) får den — och "ca" står kvar. Intervall som blev decimaltal ("1–2 tsk" som 1,2 tsk) blir intervall igen (1–2 tsk). Intervallen är gissningar — granska innan du kör.',
   usesAi: false,
   async plan() {
     const all = await prisma.recipeIngredient.findMany({ select: { id: true, name: true, quantity: true, unit: true, recipe: { select: { title: true } } } });
@@ -542,13 +542,14 @@ const recipeQuantities: CleanupJob = {
       if (r.quantity === null) {
         const p = parseIngredientString(r.name);
         if (p.quantity !== null && p.name) {
-          rows.push({ table: 'recept', key: `parse:${r.id}`, label: `${r.recipe.title}: ${r.name}`, from: r.name, to: `${tal(p.quantity)} ${p.unit ?? r.unit ?? ''} ${p.name}`.replace(/\s+/g, ' ') });
+          const mängd = `${p.qualifier ? p.qualifier + ' ' : ''}${p.quantityMin !== null ? tal(p.quantityMin) + '–' : ''}${tal(p.quantity)}`;
+          rows.push({ table: 'recept', key: `parse:${r.id}`, label: `${r.recipe.title}: ${r.name}`, from: r.name, to: `${mängd} ${p.unit ?? r.unit ?? ''} ${p.name}`.replace(/\s+/g, ' ') });
         }
         continue;
       }
       const iv = troligtIntervall(r.quantity);
       if (iv) {
-        rows.push({ table: 'recept', key: `range:${r.id}`, label: `${r.recipe.title}: ${r.name}`, from: `${tal(r.quantity)} ${r.unit ?? ''}`.trim(), to: `${iv.to} ${r.unit ?? ''}`.trim(), note: `troligen ${iv.from}–${iv.to}` });
+        rows.push({ table: 'recept', key: `range:${r.id}`, label: `${r.recipe.title}: ${r.name}`, from: `${tal(r.quantity)} ${r.unit ?? ''}`.trim(), to: `${iv.from}–${iv.to} ${r.unit ?? ''}`.trim(), note: 'troligen ett intervall' });
       }
     }
     return { rows };
@@ -563,12 +564,13 @@ const recipeQuantities: CleanupJob = {
       if (typ === 'parse' && r.quantity === null) {
         const p = parseIngredientString(r.name);
         if (p.quantity === null || !p.name) continue;
-        await prisma.recipeIngredient.update({ where: { id }, data: { name: p.name, quantity: p.quantity, unit: p.unit ?? r.unit } });
+        await prisma.recipeIngredient.update({ where: { id }, data: { name: p.name, quantity: p.quantity, unit: p.unit ?? r.unit, quantityMin: p.quantityMin, qualifier: p.qualifier } });
         n++;
       } else if (typ === 'range') {
         const iv = troligtIntervall(r.quantity);
         if (!iv) continue;
-        await prisma.recipeIngredient.update({ where: { id }, data: { quantity: iv.to } });
+        // Båda gränserna: receptet visar "1–2 tsk" igen, inköpslistan räknar med 2.
+        await prisma.recipeIngredient.update({ where: { id }, data: { quantity: iv.to, quantityMin: iv.from } });
         n++;
       }
     }

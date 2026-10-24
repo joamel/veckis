@@ -316,6 +316,13 @@ model RecipeIngredient {
   // där man köper den sammanlagda mängden. Ordningen är radordningen (id).
   section String?
 
+  // "3–4 dl", "ca 13 dl", "ev. 1 dl": receptets formulering är tycke och smak
+  // och ska synas som den står. quantity är den övre gränsen — det inköps-
+  // listan och skalningen räknar med — och quantityMin den lägre, null utan
+  // intervall. qualifier: 'ca' | 'drygt' | 'knappt' | 'ev.' (ev. = tillval).
+  quantityMin Float?
+  qualifier   String?
+
   recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@index([recipeId])

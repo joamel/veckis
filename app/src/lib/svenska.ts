@@ -526,6 +526,7 @@ export const menu = {
     amountPlaceholder: 'Har',
     basicsAtHome:      'Salt, peppar och vatten finns hemma',
     basicsHidden:      (n: number) => `${n} ${n === 1 ? 'rad' : 'rader'} dolda`,
+    optionalName:      (name: string) => `${name} (ev.)`,
   },
 
   emptyState: {

@@ -1,4 +1,5 @@
 import type { StoreCategory } from './shopping';
+import type { AmountQualifier } from '../lib/itemLine';
 import type { WeekDay } from './schedule';
 
 export interface Recipe {
@@ -46,6 +47,10 @@ export interface RecipeIngredient {
   /** Underrubriken i receptet ("Deg", "Sås"), null utan rubrik. Ingredienserna
    *  kommer i receptets ordning, så en rubrik gäller raderna tills nästa. */
   section?: string | null;
+  /** Lägre gränsen i ett intervall ("3–4 dl" → 3); quantity är den övre. */
+  quantityMin?: number | null;
+  /** "ca" | "drygt" | "knappt" | "ev." — receptets ord före mängden. */
+  qualifier?: AmountQualifier | null;
 }
 
 /** Måltidstyper så flera rätter kan samsas på samma dag (frukost + middag …).

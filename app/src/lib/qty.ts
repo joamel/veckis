@@ -24,6 +24,16 @@ export function skalaQty(quantity: number, scaleRatio = 1): number {
 // Normaliserar mängd-inmatning i alla qty-fält: "." → "," (svensk decimal),
 // lägger en ledande "0" om man börjar med "," (→ "0,"), och tillåter bara
 // siffror + ett enda kommatecken.
+// Mängdfältet i receptredigeringen: som normalizeQtyInput, men ett ord först
+// ("ca 13", "ev. 1") och ett intervall ("3–4") får stå kvar — receptets egen
+// formulering, som parseAmountText (shared) läser när receptet sparas.
+export function normalizeRecipeQtyInput(t: string): string {
+  const m = t.match(/^([a-zåäö:.]*\s*)(.*)$/iu);
+  const ord = (m?.[1] ?? '').toLowerCase();
+  const tal = (m?.[2] ?? t).replace(/\./g, ',').replace(/[^0-9,\-–\s]/g, '').replace(/\s*[-–]\s*/, '–');
+  return ord + tal;
+}
+
 export function normalizeQtyInput(t: string): string {
   let txt = t.replace('.', ',').replace(/[^0-9,]/g, '');
   if (txt.startsWith(',')) txt = '0' + txt;

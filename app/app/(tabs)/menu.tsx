@@ -114,6 +114,8 @@ interface AggIngredient {
   measured: boolean;
   recipeTitles: string[];
   sources: { menuItemId: string; recipeId: string; qty: number | null }[];
+  /** Varje rad som bidrar är "ev." — ett tillval, som börjar som "har hemma". */
+  optional: boolean;
 }
 
 // Sliderns steg per enhet: kg är finkorning (0,1), övriga delbara mått (l, dl,
@@ -450,6 +452,17 @@ export default function MenuScreen() {
   function resetInventoryFor(ids: Set<string>) {
     resetInventory();
     inventoryBuiltForRef.current = new Set(ids);
+    // "ev. 1 dl russin" är ett tillval: börjar som "har hemma", så det bara
+    // hamnar i listan om man själv väljer det.
+    const have: Record<string, number> = {};
+    const had = new Set<string>();
+    for (const agg of aggregatedInventory) {
+      if (!agg.optional) continue;
+      if (agg.measured) have[agg.key] = agg.totalQty ?? 0;
+      else had.add(agg.key);
+    }
+    setHaveAtHome(have);
+    setHadUnmeasured(had);
   }
 
   // Menu items already transferred — scoped to the target list when we came from
@@ -548,8 +561,10 @@ export default function MenuScreen() {
           // Var varan hamnar i butiken — inlärt per namn, annars gissat ur
           // namnet. Receptets egen kategori är oftast 'other' (se inventoryCategory).
           const cat = resolved?.category ?? inventoryCategory(ing.name, {}, ing.category);
-          agg = { key, name, unit, category: cat, totalQty: 0, measured: true, recipeTitles: [], sources: [] };
+          agg = { key, name, unit, category: cat, totalQty: 0, measured: true, recipeTitles: [], sources: [], optional: ing.qualifier === 'ev.' };
           map.set(key, agg);
+        } else if (ing.qualifier !== 'ev.') {
+          agg.optional = false;
         }
         agg.sources.push({ menuItemId: item.id, recipeId: item.recipeId, qty });
         if (!agg.recipeTitles.includes(item.recipe.title)) agg.recipeTitles.push(item.recipe.title);
@@ -590,7 +605,7 @@ export default function MenuScreen() {
       return (
         <View key={agg.key} style={s.invRowV2}>
           <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={[s.invName, have && s.invNameDone]}>{agg.name}</Text>
+            <Text style={[s.invName, have && s.invNameDone]}>{agg.optional ? str.inventory.optionalName(agg.name) : agg.name}</Text>
           </View>
           <Pressable
             style={[s.invAllBtn, have && s.invAllBtnOn]}
@@ -605,7 +620,7 @@ export default function MenuScreen() {
     return (
       <InvMeasuredRow
         key={agg.key}
-        agg={agg}
+        agg={agg.optional ? { ...agg, name: str.inventory.optionalName(agg.name) } : agg}
         haveAmt={haveAtHome[agg.key] ?? 0}
         onCommit={v => setHaveAtHome(prev => ({ ...prev, [agg.key]: v }))}
       />

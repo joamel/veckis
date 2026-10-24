@@ -49,7 +49,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { useApiClient, type RecipeWithIngredients, type ShoppingListWithItems, type WeekMenuItemWithRecipe } from '../../src/api/client';
-import { normalizeQtyInput, skalaQty } from '../../src/lib/qty';
+import { normalizeRecipeQtyInput, skalaQty } from '../../src/lib/qty';
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useImagePermission } from '../../src/hooks/useImagePermission';
@@ -60,7 +60,7 @@ import { MAX_ZOOM } from '../../src/lib/bildutsnitt';
 import { VeckoDagValjare } from '../../src/components/nydesign/VeckoDagValjare';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import type { RecipeIngredient, WeekDay } from '@veckis/shared';
-import { convertToMetric, isConvertibleUnit, formateraKöksmått } from '@veckis/shared';
+import { convertToMetric, isConvertibleUnit, formateraKöksmått, parseAmountText } from '@veckis/shared';
 import { useWebLeaveGuard } from '../../src/hooks/useWebLeaveGuard';
 import { sparaUtkast, hamtaUtkast, slangUtkast } from '../../src/lib/recipeDrafts';
 
@@ -927,7 +927,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     if (JSON.stringify(editTags) !== JSON.stringify(recipe.tags ?? [])) return true;
     const origIngs = recipe.ingredients.map(i => ({
       name: i.name,
-      quantity: i.quantity != null ? String(i.quantity).replace('.', ',') : '',
+      quantity: mängdText(i.quantity, i.quantityMin ?? null, i.qualifier ?? null),
       unit: i.unit ?? '',
       originalName: i.originalName ?? null,
       section: i.section ?? null,
@@ -1030,7 +1030,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
         .filter(r => r.name.trim())
         .map(r => ({
           name: r.name.trim(),
-          quantity: r.quantity ? parseFloat(r.quantity.replace(',', '.')) || null : null,
+          // "ca 13", "3–4", "ev. 1": ordet och den lägre gränsen sparas för sig.
+          ...parseAmountText(r.quantity),
           unit: r.unit.trim() || null,
           // Skrivs namnet om för hand är källans rad inte längre en
           // översättning AV den här varan — då ska ↔ inte erbjuda den.
@@ -1146,7 +1147,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     setShowTransfer(true);
     const deduped = deduplicateIngredients(rec.ingredients, scaleRatio);
     setDeduplicatedIngredients(deduped);
-    setCheckedIds(new Set(deduped.map(i => i.id)));
+    // "ev. 1 dl russin" är ett tillval: inte förbockat.
+    setCheckedIds(new Set(deduped.filter(i => i.qualifier !== 'ev.').map(i => i.id)));
     setSelectedListId(null);
     try {
       const fetched = await client.getShoppingLists(householdId);
@@ -1703,8 +1705,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                       placeholder={str.detail.ingQtyPlaceholder}
                       placeholderTextColor={c.textFaint}
                       value={row.quantity}
-                      onChangeText={v => updateEditRow(idx, 'quantity', normalizeQtyInput(v))}
-                      keyboardType="decimal-pad"
+                      onChangeText={v => updateEditRow(idx, 'quantity', normalizeRecipeQtyInput(v))}
+                      // iOS decimal-pad saknar bindestreck; "3–4" och "ca 13" ska gå att skriva.
+                      keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'decimal-pad'}
                       returnKeyType="next"
                       blurOnSubmit={false}
                       onSubmitEditing={() => getRowRef(idx).unit?.focus()}
@@ -2253,6 +2256,9 @@ function deduplicateIngredients(ingredients: RecipeIngredient[], scaleRatio: num
     if (map.has(key)) {
       const ex = map.get(key)!;
       ex.quantity = (ex.quantity ?? 1) + (ing.quantity ?? 1);
+      // Summan är inget intervall, och tillval är den bara om alla raderna är det.
+      ex.quantityMin = null;
+      if (ing.qualifier !== 'ev.') ex.qualifier = null;
     } else {
       map.set(key, { ...ing, quantity: ing.quantity });
     }
@@ -2273,12 +2279,13 @@ function deduplicateIngredients(ingredients: RecipeIngredient[], scaleRatio: num
  * läsvyn, och det är den som sparas när man trycker Spara: den som redigerar
  * ser och skriver svenska mått.
  */
-function tillFormulärrad(i: { name: string; quantity: number | null; unit: string | null; originalName?: string | null; section?: string | null }) {
+function tillFormulärrad(i: { name: string; quantity: number | null; unit: string | null; originalName?: string | null; section?: string | null; quantityMin?: number | null; qualifier?: RecipeIngredient['qualifier'] }) {
   const converted = i.quantity != null && i.unit ? convertToMetric(i.quantity, i.unit) : null;
   const quantity = converted?.quantity ?? i.quantity;
+  const min = i.quantityMin != null && converted && i.unit ? convertToMetric(i.quantityMin, i.unit)?.quantity ?? i.quantityMin : i.quantityMin ?? null;
   return {
     name: i.name,
-    quantity: quantity != null ? String(quantity).replace('.', ',') : '',
+    quantity: mängdText(quantity, min, i.qualifier ?? null),
     unit: (converted?.unit ?? i.unit) ?? '',
     originalName: i.originalName ?? null,
     section: i.section ?? null,
@@ -2298,30 +2305,44 @@ function medLitetBrak(text: string, brakStil: TextStyle): ReactNode {
 /** Bara mängd + enhet ("300 g"), för receptvyns mängdkolumn. Tom sträng om
  *  ingrediensen saknar mängd ("salt"). visaOriginal=false (default) räknar om
  *  amerikanska enheter till svenska; true visar källans mängd orörd. */
-function formatQty(ing: { quantity: number | null; unit: string | null }, scaleRatio = 1, visaOriginal = false): string {
+/** Mängdfältets text: "13", "ca 13", "3–4", "ev. 1", "ev.". */
+function mängdText(quantity: number | null, min: number | null, qualifier: RecipeIngredient['qualifier'] | null): string {
+  const tal = (n: number) => String(n).replace('.', ',');
+  const mängd = quantity != null ? `${min != null ? tal(min) + '–' : ''}${tal(quantity)}` : '';
+  return [qualifier, mängd].filter(Boolean).join(' ');
+}
+
+function formatQty(ing: { quantity: number | null; unit: string | null; quantityMin?: number | null; qualifier?: RecipeIngredient['qualifier'] }, scaleRatio = 1, visaOriginal = false): string {
   let quantity = ing.quantity != null ? skalaQty(ing.quantity, scaleRatio) : null;
+  let min = ing.quantityMin != null ? skalaQty(ing.quantityMin, scaleRatio) : null;
   let unit = ing.unit;
   if (!visaOriginal && quantity != null && unit) {
     const converted = convertToMetric(quantity, unit);
-    if (converted) { quantity = converted.quantity; unit = converted.unit; }
+    if (converted) {
+      quantity = converted.quantity;
+      if (min != null) min = convertToMetric(min, unit)?.quantity ?? min;
+      unit = converted.unit;
+    }
   }
+  // Receptets egen formulering står kvar: "ca 13 dl", "3–4 dl", "ev. 1 dl".
   const parts: string[] = [];
+  if (ing.qualifier) parts.push(ing.qualifier);
   if (quantity != null) {
     // Bråk i stället för decimaler för mått man mäter upp: "4,7 dl" finns inte
     // i en måttsats, "4⅔ dl" gör det — och skillnaden är tre milliliter.
     // Vikt lämnas som decimaltal; det är vad vågen visar.
-    parts.push(formateraKöksmått(quantity, unit));
+    const övre = formateraKöksmått(quantity, unit);
+    parts.push(min != null ? `${formateraKöksmått(min, unit)}–${övre}` : övre);
   }
-  if (unit) parts.push(unit);
+  if (unit && quantity != null) parts.push(unit);
   return parts.join(' ');
 }
 
-function formatIngredient(ing: { quantity: number | null; unit: string | null; name: string }, scaleRatio = 1): string {
+function formatIngredient(ing: { quantity: number | null; unit: string | null; name: string; quantityMin?: number | null; qualifier?: RecipeIngredient['qualifier'] }, scaleRatio = 1): string {
   const parts: string[] = [];
-  if (ing.quantity != null) {
-    const scaled = skalaQty(ing.quantity, scaleRatio);
-    parts.push(String(scaled % 1 === 0 ? scaled : scaled.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')));
-  }
+  const tal = (n: number) => { const x = skalaQty(n, scaleRatio); return String(x % 1 === 0 ? x : x.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')); };
+  if (ing.qualifier) parts.push(ing.qualifier);
+  if (ing.quantity != null) parts.push(ing.quantityMin != null ? `${tal(ing.quantityMin)}–${tal(ing.quantity)}` : tal(ing.quantity));
   if (ing.unit) parts.push(ing.unit);
   parts.push(ing.name);
   return parts.join(' ');

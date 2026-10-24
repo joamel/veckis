@@ -72,32 +72,82 @@ export function parseQuantity(raw: string): number | null {
  * ("salted butter") till en okänd "enhet" som aldrig kändes igen, och hela
  * biten hamnade i namnet i stället.
  */
-// "ca 13 dl vetemjöl", "drygt 1 dl grädde": ordet före mängden fick hela raden
-// att bli ett namn utan mängd — Köket skriver "ca" framför mjölet i nästan
-// varje bakrecept. Ordet stryks; mängden är ändå en uppskattning.
-const APPROX_RE = /^(?:ca\.?|c:a|cirka|ungefär|ung\.|drygt|knappt|about|approx\.?|approximately|~)\s*(?=\d|[½¼¾⅓⅔⅛⅜⅝⅞])/iu;
+/** Ordet före mängden. Receptet skriver "ca 13 dl" eller "ev. 1 dl" för att
+ *  mängden är en känsla eller ett tillval — det ska synas i receptet, inte
+ *  strykas. Inköpslistan räknar ändå med talet. */
+export type AmountQualifier = 'ca' | 'drygt' | 'knappt' | 'ev.';
+export const AMOUNT_QUALIFIERS: readonly AmountQualifier[] = ['ca', 'drygt', 'knappt', 'ev.'];
 
-// "1–2 tsk salt", "3-4 tomater". Lästes förut som decimaltalet 1,2 — fel i
-// tyst form. Nu den övre gränsen: det är den man ska ha hemma, och i
-// inköpslistan räcker den till.
+// "ca 13 dl vetemjöl": ordet gjorde förut hela raden till ett namn utan mängd.
+// Varianterna samlas till fyra ord. "ev." får stå utan mängd ("ev. salt").
+const QUALIFIER_RE = /^(ca\.?|c:a|cirka|ungefär|ung\.|about|approx\.?|approximately|~|drygt|knappt|ev\.?|eventuellt|optional)(?:\s+|$|(?=\d|[½¼¾⅓⅔⅛⅜⅝⅞]))/iu;
+
+function tillQualifier(ord: string): AmountQualifier {
+  const o = ord.toLowerCase();
+  if (o === 'drygt') return 'drygt';
+  if (o === 'knappt') return 'knappt';
+  if (o.startsWith('ev') || o === 'optional') return 'ev.';
+  return 'ca';
+}
+
+/** Plockar av ordet före mängden. Utom "ev." gäller ordet bara när en mängd
+ *  följer — "cashewnötter" och "ca" i "cayennepeppar" rörs inte. */
+export function splitQualifier(text: string): { qualifier: AmountQualifier | null; rest: string } {
+  const s = text.trim();
+  const m = s.match(QUALIFIER_RE);
+  if (!m) return { qualifier: null, rest: s };
+  const qualifier = tillQualifier(m[1]);
+  const rest = s.slice(m[0].length).trim();
+  if (qualifier !== 'ev.' && !/^(\d|[½¼¾⅓⅔⅛⅜⅝⅞])/u.test(rest)) return { qualifier: null, rest: s };
+  return { qualifier, rest };
+}
+
+// "1–2 tsk salt", "3-4 tomater". Lästes förut som decimaltalet 1,2. Nu sparas
+// båda: quantity är den övre gränsen (det man ska ha hemma, och det
+// inköpslistan räknar med), quantityMin den lägre.
 const RANGE_RE = /^(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)\s*/u;
 
-export function parseIngredientString(raw: string): { name: string; quantity: number | null; unit: string | null } {
-  const s = raw.trim().replace(APPROX_RE, '');
+export type ParsedIngredient = {
+  name: string;
+  quantity: number | null;
+  unit: string | null;
+  /** Lägre gränsen i ett intervall ("3–4 dl" → 3), annars null. */
+  quantityMin: number | null;
+  qualifier: AmountQualifier | null;
+};
+
+export function parseIngredientString(raw: string): ParsedIngredient {
+  const { qualifier, rest: s } = splitQualifier(raw);
   const range = s.match(RANGE_RE);
   const qtyMatch = range ?? s.match(QTY_RE);
-  if (!qtyMatch) return { name: raw.trim(), quantity: null, unit: null };
+  if (!qtyMatch) return { name: qualifier ? s : raw.trim(), quantity: null, unit: null, quantityMin: null, qualifier };
 
   const quantity = range ? parseQuantity(range[2]) : parseQuantity(qtyMatch[1]);
+  const quantityMin = range ? parseQuantity(range[1]) : null;
   const rest = s.slice(qtyMatch[0].length);
 
   const unitMatch = rest.match(/^([a-zA-ZåäöÅÄÖ]+)\.?\s+/u);
   const rawUnit = unitMatch?.[1].toLowerCase();
 
   if (rawUnit && UNITS.has(rawUnit)) {
-    return { name: rest.slice(unitMatch![0].length).trim(), quantity, unit: rawUnit };
+    return { name: rest.slice(unitMatch![0].length).trim(), quantity, unit: rawUnit, quantityMin, qualifier };
   }
-  return { name: rest.trim(), quantity, unit: null };
+  return { name: rest.trim(), quantity, unit: null, quantityMin, qualifier };
+}
+
+/**
+ * Mängdfältet i receptredigeringen: "13", "ca 13", "3–4", "ev. 1". null om
+ * texten inte är en mängd alls. Tomt fält = ingen mängd (men "ev." får stå
+ * ensamt).
+ */
+export function parseAmountText(text: string): { quantity: number | null; quantityMin: number | null; qualifier: AmountQualifier | null } {
+  const { qualifier, rest: rå } = splitQualifier(text);
+  // Annan text före talet (ett halvskrivet ord) får inte ta mängden med sig.
+  const rest = rå.replace(/^[^\d½¼¾⅓⅔⅛⅜⅝⅞]+/u, '').trim();
+  const range = rest.match(/^(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)$/u);
+  if (range) return { quantity: parseQuantity(range[2]), quantityMin: parseQuantity(range[1]), qualifier };
+  const q = rest ? parseQuantity(rest) : null;
+  return { quantity: q, quantityMin: null, qualifier };
 }
 
 // Enheter som kan stå EFTER namnet: "mjölk 2 l", "ägg 12 st".
@@ -127,7 +177,7 @@ export function parseItemLine(text: string): ParsedItemLine {
   if (leadingX) return { name: leadingX[2].trim(), quantity: Number(leadingX[1]), unit: null };
 
   const leading = parseIngredientString(line);
-  if (leading.quantity !== null && leading.name) return { ...leading, unit: normalizeUnit(leading.unit) };
+  if (leading.quantity !== null && leading.name) return { name: leading.name, quantity: leading.quantity, unit: normalizeUnit(leading.unit) };
 
   const trailing = line.match(TRAILING_RE);
   if (trailing && /\p{L}/u.test(trailing[1])) {

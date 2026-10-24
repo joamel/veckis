@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeQtyInput, skalaQty } from './qty';
+import { normalizeQtyInput, normalizeRecipeQtyInput, skalaQty } from './qty';
 
 describe('skalaQty', () => {
   it('rör inte mängden alls när receptet inte skalas', () => {
@@ -37,5 +37,15 @@ describe('normalizeQtyInput', () => {
 
   it('kastar tecken som inte hör hemma i ett mängdfält', () => {
     expect(normalizeQtyInput('2 dl')).toBe('2');
+  });
+});
+
+describe('normalizeRecipeQtyInput', () => {
+  it('behåller ord först och intervall', () => {
+    expect(normalizeRecipeQtyInput('ca 13')).toBe('ca 13');
+    expect(normalizeRecipeQtyInput('3-4')).toBe('3–4');
+    expect(normalizeRecipeQtyInput('1.5 - 2')).toBe('1,5–2');
+    expect(normalizeRecipeQtyInput('ev. 1')).toBe('ev. 1');
+    expect(normalizeRecipeQtyInput('2x')).toBe('2');
   });
 });
