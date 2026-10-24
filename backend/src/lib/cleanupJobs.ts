@@ -8,6 +8,7 @@ import { delaAlternativ } from './alternativ';
 import { bevararSkyddadeOrd } from './importMatchning';
 import { serEngelsktUt, översättIngrediensnamn } from './translateIngredients';
 import { junkReason, renameIngredient } from './nameCleanup';
+import { parseIngredientString } from './parseIngredientString';
 
 /**
  * Städjobben på adminsidan — samma jobb som städskripten, men som
@@ -506,7 +507,78 @@ const recipeIngredients: CleanupJob = {
   },
 };
 
-export const CLEANUP_JOBS: CleanupJob[] = [categories, subcategories, units, aliases, recipeNames, recipeIngredients];
+// --- Mängder som importen missade -------------------------------------------
+
+/**
+ * Två tolkningsfel som sparats i recept innan de rättades i parseIngredientString:
+ *
+ *   "ca 13 dl vetemjöl" — ordet före mängden gjorde hela raden till namnet,
+ *     utan mängd och enhet. Känns igen på att mängden saknas men namnet
+ *     tolkas till en mängd i dag.
+ *   "1–2 tsk salt" — intervallet blev decimaltalet 1,2. Går inte att skilja
+ *     från ett riktigt decimaltal med säkerhet, så bara mönstret a,(a+1)
+ *     föreslås (1,2 … 8,9), utom 4,5 som oftast är just 4,5. Granska raderna.
+ */
+export function troligtIntervall(q: number | null): { from: number; to: number } | null {
+  if (q === null) return null;
+  const a = Math.floor(q);
+  const b = Math.round((q - a) * 10);
+  if (Math.abs(q - (a + b / 10)) > 1e-9) return null;
+  if (a < 1 || a > 8 || b !== a + 1 || (a === 4 && b === 5)) return null;
+  return { from: a, to: b };
+}
+
+const tal = (n: number) => String(n).replace('.', ',');
+
+const recipeQuantities: CleanupJob = {
+  id: 'recipe-quantities',
+  title: 'Missade mängder i recept',
+  description: 'Rader där importen missade mängden ("ca 13 dl vetemjöl" utan mängd och enhet) får den, och intervall som blev decimaltal ("1–2 tsk" som 1,2 tsk) får den övre gränsen. Intervallen är gissningar — granska innan du kör.',
+  usesAi: false,
+  async plan() {
+    const all = await prisma.recipeIngredient.findMany({ select: { id: true, name: true, quantity: true, unit: true, recipe: { select: { title: true } } } });
+    const rows: JobRow[] = [];
+    for (const r of all) {
+      if (r.quantity === null) {
+        const p = parseIngredientString(r.name);
+        if (p.quantity !== null && p.name) {
+          rows.push({ table: 'recept', key: `parse:${r.id}`, label: `${r.recipe.title}: ${r.name}`, from: r.name, to: `${tal(p.quantity)} ${p.unit ?? r.unit ?? ''} ${p.name}`.replace(/\s+/g, ' ') });
+        }
+        continue;
+      }
+      const iv = troligtIntervall(r.quantity);
+      if (iv) {
+        rows.push({ table: 'recept', key: `range:${r.id}`, label: `${r.recipe.title}: ${r.name}`, from: `${tal(r.quantity)} ${r.unit ?? ''}`.trim(), to: `${iv.to} ${r.unit ?? ''}`.trim(), note: `troligen ${iv.from}–${iv.to}` });
+      }
+    }
+    return { rows };
+  },
+  async apply(rows, actor) {
+    let n = 0;
+    for (const { key } of rows) {
+      const [typ, id] = key.split(':');
+      const r = await prisma.recipeIngredient.findUnique({ where: { id }, select: { name: true, quantity: true, unit: true } });
+      if (!r) continue;
+      // Räknas om från databasen: raden skrivs bara om felet finns kvar.
+      if (typ === 'parse' && r.quantity === null) {
+        const p = parseIngredientString(r.name);
+        if (p.quantity === null || !p.name) continue;
+        await prisma.recipeIngredient.update({ where: { id }, data: { name: p.name, quantity: p.quantity, unit: p.unit ?? r.unit } });
+        n++;
+      } else if (typ === 'range') {
+        const iv = troligtIntervall(r.quantity);
+        if (!iv) continue;
+        await prisma.recipeIngredient.update({ where: { id }, data: { quantity: iv.to } });
+        n++;
+      }
+    }
+    const summary = `${n} receptrader fick rätt mängd.`;
+    await audit(actor, 'recipe-quantities', n, summary);
+    return summary;
+  },
+};
+
+export const CLEANUP_JOBS: CleanupJob[] = [categories, subcategories, units, aliases, recipeNames, recipeIngredients, recipeQuantities];
 
 export function findJob(id: string): CleanupJob | undefined {
   return CLEANUP_JOBS.find(j => j.id === id);

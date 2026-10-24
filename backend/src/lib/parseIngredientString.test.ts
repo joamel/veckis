@@ -8,8 +8,25 @@ describe('parseIngredientString — svenska', () => {
     expect(parseIngredientString('1.5 kg potatis')).toEqual({ name: 'potatis', quantity: 1.5, unit: 'kg' });
   });
 
-  it('behåller ett intervall som decimaltal (befintligt beteende)', () => {
-    expect(parseIngredientString('3-4 tomater')).toEqual({ name: 'tomater', quantity: 3.4, unit: null });
+  it('ett intervall ger den övre gränsen, inte ett decimaltal', () => {
+    // Förut blev "3-4 tomater" 3,4 och "1–2 tsk salt" 1,2.
+    expect(parseIngredientString('3-4 tomater')).toEqual({ name: 'tomater', quantity: 4, unit: null });
+    expect(parseIngredientString('1–2 tsk salt')).toEqual({ name: 'salt', quantity: 2, unit: 'tsk' });
+    expect(parseIngredientString('1 - 1,5 dl grädde')).toEqual({ name: 'grädde', quantity: 1.5, unit: 'dl' });
+  });
+
+  it('läser mängden efter "ca", "cirka", "drygt" och "knappt"', () => {
+    expect(parseIngredientString('ca 13 dl vetemjöl')).toEqual({ name: 'vetemjöl', quantity: 13, unit: 'dl' });
+    expect(parseIngredientString('ca. 2 dl mjölk')).toEqual({ name: 'mjölk', quantity: 2, unit: 'dl' });
+    expect(parseIngredientString('c:a 3 dl mjöl')).toEqual({ name: 'mjöl', quantity: 3, unit: 'dl' });
+    expect(parseIngredientString('cirka 1 1/2 dl socker')).toEqual({ name: 'socker', quantity: 1.5, unit: 'dl' });
+    expect(parseIngredientString('drygt 1 dl grädde')).toEqual({ name: 'grädde', quantity: 1, unit: 'dl' });
+    expect(parseIngredientString('ungefär ½ tsk salt')).toEqual({ name: 'salt', quantity: 0.5, unit: 'tsk' });
+  });
+
+  it('rör inte ord som bara börjar likadant', () => {
+    expect(parseIngredientString('cashewnötter')).toEqual({ name: 'cashewnötter', quantity: null, unit: null });
+    expect(parseIngredientString('cayennepeppar')).toEqual({ name: 'cayennepeppar', quantity: null, unit: null });
   });
 
   it('lämnar okänd enhet i namnet i stället för att gissa', () => {

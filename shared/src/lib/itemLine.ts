@@ -72,12 +72,23 @@ export function parseQuantity(raw: string): number | null {
  * ("salted butter") till en okänd "enhet" som aldrig kändes igen, och hela
  * biten hamnade i namnet i stället.
  */
-export function parseIngredientString(raw: string): { name: string; quantity: number | null; unit: string | null } {
-  const s = raw.trim();
-  const qtyMatch = s.match(QTY_RE);
-  if (!qtyMatch) return { name: s, quantity: null, unit: null };
+// "ca 13 dl vetemjöl", "drygt 1 dl grädde": ordet före mängden fick hela raden
+// att bli ett namn utan mängd — Köket skriver "ca" framför mjölet i nästan
+// varje bakrecept. Ordet stryks; mängden är ändå en uppskattning.
+const APPROX_RE = /^(?:ca\.?|c:a|cirka|ungefär|ung\.|drygt|knappt|about|approx\.?|approximately|~)\s*(?=\d|[½¼¾⅓⅔⅛⅜⅝⅞])/iu;
 
-  const quantity = parseQuantity(qtyMatch[1]);
+// "1–2 tsk salt", "3-4 tomater". Lästes förut som decimaltalet 1,2 — fel i
+// tyst form. Nu den övre gränsen: det är den man ska ha hemma, och i
+// inköpslistan räcker den till.
+const RANGE_RE = /^(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)\s*/u;
+
+export function parseIngredientString(raw: string): { name: string; quantity: number | null; unit: string | null } {
+  const s = raw.trim().replace(APPROX_RE, '');
+  const range = s.match(RANGE_RE);
+  const qtyMatch = range ?? s.match(QTY_RE);
+  if (!qtyMatch) return { name: raw.trim(), quantity: null, unit: null };
+
+  const quantity = range ? parseQuantity(range[2]) : parseQuantity(qtyMatch[1]);
   const rest = s.slice(qtyMatch[0].length);
 
   const unitMatch = rest.match(/^([a-zA-ZåäöÅÄÖ]+)\.?\s+/u);
