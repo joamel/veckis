@@ -310,6 +310,12 @@ model RecipeIngredient {
   // fanns. Receptvyns ↔-knapp växlar mellan name och originalName.
   originalName String?
 
+  // Underrubriken ingrediensen står under i receptet ("Deg", "Sås"), null när
+  // receptet inte delar upp ingredienserna. Samma vara kan stå under flera
+  // rubriker och ska då INTE slås ihop i receptet — men väl i inköpslistan,
+  // där man köper den sammanlagda mängden. Ordningen är radordningen (id).
+  section String?
+
   recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@index([recipeId])

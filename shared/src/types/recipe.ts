@@ -43,6 +43,9 @@ export interface RecipeIngredient {
    *  svenska. null för allt annat. Receptvyns ↔-knapp växlar mellan name och
    *  originalName, på samma sätt som den växlar enhet. */
   originalName?: string | null;
+  /** Underrubriken i receptet ("Deg", "Sås"), null utan rubrik. Ingredienserna
+   *  kommer i receptets ordning, så en rubrik gäller raderna tills nästa. */
+  section?: string | null;
 }
 
 /** Måltidstyper så flera rätter kan samsas på samma dag (frukost + middag …).

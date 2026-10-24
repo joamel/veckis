@@ -574,7 +574,7 @@ export default function RecipesScreen() {
         imageUrl: scraped.imageUrl,
         servings: scraped.servings,
         cookMinutes: scraped.cookMinutes ?? null,
-        ingredients: scraped.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit, originalName: i.originalName ?? null })),
+        ingredients: scraped.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit, originalName: i.originalName ?? null, section: i.section ?? null })),
         tags: suggested,
       });
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
@@ -625,7 +625,7 @@ export default function RecipesScreen() {
         sourceUrl: anyLink(pasteText),
         servings: parsed.servings,
         cookMinutes: parsed.cookMinutes ?? null,
-        ingredients: parsed.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+        ingredients: parsed.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit, section: i.section ?? null })),
         tags: suggested,
       });
       setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
@@ -716,7 +716,7 @@ export default function RecipesScreen() {
       source: 'photo',
       servings: r.servings,
       cookMinutes: r.cookMinutes ?? null,
-      ingredients: r.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+      ingredients: r.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit, section: i.section ?? null })),
     });
     setRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
     return recipe;

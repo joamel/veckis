@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect, type ReactNode } from 'react';
+import { Fragment, useState, useCallback, useMemo, useRef, useEffect, type ReactNode } from 'react';
 import { useTheme } from '../../src/context/ThemeContext';
 import { useDesign } from '../../src/context/DesignContext';
 import { nyFont, type NyPalett } from '../../src/lib/nyDesign';
@@ -226,7 +226,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   // originalName följer med genom redigeringen utan att kunna ändras: rättar man
   // ett översatt namn för hand är källans rad fortfarande sann, och ↔-knappen
   // ska inte tappa den bara för att raden rörts.
-  const [editIngredients, setEditIngredients] = useState<Array<{ name: string; quantity: string; unit: string; originalName: string | null }>>([]);
+  // section: underrubriken raden står under ("Deg", "Sås"), null utan rubrik,
+  // '' för en nyss tillagd rubrik som inte fått något namn än.
+  const [editIngredients, setEditIngredients] = useState<Array<{ name: string; quantity: string; unit: string; originalName: string | null; section: string | null }>>([]);
   const [saving, setSaving] = useState(false);
   const [activeUnitIdx, setActiveUnitIdx] = useState<number | null>(null);
   const [activeNameIdx, setActiveNameIdx] = useState<number | null>(null);
@@ -519,7 +521,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
         setEditTags([]);
         setEditServings(4);
         setEditCookMinutes('');
-        setEditIngredients([{ name: '', quantity: '', unit: '', originalName: null }]);
+        setEditIngredients([{ name: '', quantity: '', unit: '', originalName: null, section: null }]);
         setEditMode(true);
         if (householdId) {
           client.getRecipes(householdId).then(rs => {
@@ -555,7 +557,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
         setEditInstr(r.instructions ?? '');
         setEditImage(r.imageUrl ?? '');
         setEditFokus({ x: r.imageFocusX, y: r.imageFocusY, zoom: r.imageZoom });
-        setEditIngredients([{ name: '', quantity: '', unit: '', originalName: null }]);
+        setEditIngredients([{ name: '', quantity: '', unit: '', originalName: null, section: null }]);
         setEditMode(true);
         if (!onClose) router.setParams({ edit: undefined });
         setTimeout(() => getRowRef(0).name?.focus(), 250);
@@ -854,7 +856,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
       setEditTags(draft.tags);
       setEditServings(draft.servings ?? recipe.servings);
       setEditCookMinutes(draft.cookMinutes ?? (recipe.cookMinutes != null ? String(recipe.cookMinutes) : ''));
-      setEditIngredients(draft.ingredients.map(i => ({ ...i, originalName: i.originalName ?? null })));
+      setEditIngredients(draft.ingredients.map(i => ({ ...i, originalName: i.originalName ?? null, section: i.section ?? null })));
       setCustomTag('');
       setScaledServings(null);
       setVisarUtkast(true);
@@ -928,6 +930,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
       quantity: i.quantity != null ? String(i.quantity).replace('.', ',') : '',
       unit: i.unit ?? '',
       originalName: i.originalName ?? null,
+      section: i.section ?? null,
     }));
     return JSON.stringify(editIngredients) !== JSON.stringify(origIngs);
   }
@@ -962,8 +965,30 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   // (som bara lever i minnet) faktiskt skulle gå förlorat.
   useWebLeaveGuard(dirty);
 
+  // En ny rad hamnar under samma rubrik som raden ovanför.
   function addEditRow() {
-    setEditIngredients(prev => [...prev, { name: '', quantity: '', unit: '', originalName: null }]);
+    setEditIngredients(prev => [...prev, { name: '', quantity: '', unit: '', originalName: null, section: prev[prev.length - 1]?.section ?? null }]);
+  }
+
+  // Ny rubrik längst ned, med en tom rad under som börjar gruppen.
+  function addEditSection() {
+    setEditIngredients(prev => [...prev, { name: '', quantity: '', unit: '', originalName: null, section: '' }]);
+  }
+
+  // En rubrik gäller raderna i följd från idx som delar den — byts eller tas
+  // den bort ändras hela gruppen, inte en ensam rad.
+  function updateSectionRun(idx: number, section: string | null) {
+    setEditIngredients(prev => {
+      const old = prev[idx]?.section;
+      const next = [...prev];
+      for (let i = idx; i < next.length && next[i].section === old; i++) next[i] = { ...next[i], section };
+      return next;
+    });
+  }
+
+  // Utan rubrik hör raderna till gruppen ovanför.
+  function removeSection(idx: number) {
+    updateSectionRun(idx, idx > 0 ? editIngredients[idx - 1].section : null);
   }
 
   function updateEditRow(idx: number, field: 'name' | 'quantity' | 'unit', val: string) {
@@ -986,7 +1011,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     setEditIngredients(prev => {
       const next = [...prev];
       const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
+      // Raden byter grupp när den dras: den får rubriken där den släpps.
+      const granne = to > 0 ? next[to - 1] : next[to];
+      next.splice(to, 0, granne ? { ...moved, section: granne.section } : moved);
       return next;
     });
   }
@@ -1009,6 +1036,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
           // översättning AV den här varan — då ska ↔ inte erbjuda den.
           // Rättar man bara stavningen (samma namn) följer originalet med.
           originalName: recipe.ingredients.some(i => i.name === r.name.trim()) ? (r.originalName ?? null) : null,
+          section: r.section?.trim() || null,
         }));
       // Nytt recept skapas FÖRST här — fram till nu har det bara funnits i state.
       if (isNew) {
@@ -1597,8 +1625,27 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
           {editMode ? (
             <View style={s.editList} {...({ importantForAutofill: 'noExcludeDescendants' } as object)}>
               {editIngredients.map((row, idx) => (
+                <Fragment key={idx}>
+                {row.section !== null && (idx === 0 || editIngredients[idx - 1].section !== row.section) && (
+                  <View style={s.editSectionRow}>
+                    <TextInput
+                      style={[s.editInput, s.editSectionInput]}
+                      placeholder={str.detail.sectionPlaceholder}
+                      placeholderTextColor={c.textFaint}
+                      value={row.section}
+                      onChangeText={v => updateSectionRun(idx, v)}
+                      autoFocus={row.section === ''}
+                      returnKeyType="next"
+                      blurOnSubmit={false}
+                      onSubmitEditing={() => getRowRef(idx).name?.focus()}
+                      accessibilityLabel={str.detail.sectionPlaceholder}
+                    />
+                    <Pressable onPress={() => removeSection(idx)} style={s.editRemove} accessibilityRole="button" accessibilityLabel={str.detail.removeSection}>
+                      <Ionicons name="close-circle" size={20} color={c.border} />
+                    </Pressable>
+                  </View>
+                )}
                 <View
-                  key={idx}
                   ref={ref => measureIngRow(idx, ref)}
                   onLayout={() => measureIngRow(idx, null)}
                   style={[
@@ -1776,11 +1823,18 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                     );
                   })()}
                 </View>
+                </Fragment>
               ))}
-              <Pressable style={s.addRowBtn} onPress={addEditRow}>
-                <Ionicons name="add" size={16} color={c.primary} />
-                <Text style={s.addRowBtnText}>{str.detail.addRow}</Text>
-              </Pressable>
+              <View style={s.addRowBtnRad}>
+                <Pressable style={s.addRowBtn} onPress={addEditRow}>
+                  <Ionicons name="add" size={16} color={c.primary} />
+                  <Text style={s.addRowBtnText}>{str.detail.addRow}</Text>
+                </Pressable>
+                <Pressable style={s.addRowBtn} onPress={addEditSection}>
+                  <Ionicons name="text-outline" size={16} color={c.primary} />
+                  <Text style={s.addRowBtnText}>{str.detail.addSection}</Text>
+                </Pressable>
+              </View>
             </View>
           ) : recipe.ingredients.length === 0 ? (
             <Pressable style={s.noIngredients} onPress={startEdit}>
@@ -1791,12 +1845,19 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
               {/* Som en inköpslapp: mängden i en fast kolumn till vänster, så
                   man kan läsa "300 g" mot "nötfärs" uppifrån och ned. */}
               <View style={s.ingCard}>
-                {recipe.ingredients.map((ing, i) => (
-                  <View key={ing.id} style={[s.ingRow, i > 0 && s.ingRowBorder]}>
-                    <Text style={s.ingQty}>{medLitetBrak(formatQty(ing, scaleRatio, visaOriginal), s.ingBrak)}</Text>
-                    <Text style={s.ingName}>{visaOriginal && ing.originalName ? ing.originalName : ing.name}</Text>
-                  </View>
-                ))}
+                {recipe.ingredients.map((ing, i) => {
+                  // Underrubrik ("Deg", "Sås") före första raden i varje grupp.
+                  const nyRubrik = !!ing.section && (i === 0 || recipe.ingredients[i - 1].section !== ing.section);
+                  return (
+                    <Fragment key={ing.id}>
+                      {nyRubrik && <Text style={[s.ingSection, i === 0 && s.ingSectionForst]}>{ing.section}</Text>}
+                      <View style={[s.ingRow, i > 0 && !nyRubrik && s.ingRowBorder]}>
+                        <Text style={s.ingQty}>{medLitetBrak(formatQty(ing, scaleRatio, visaOriginal), s.ingBrak)}</Text>
+                        <Text style={s.ingName}>{visaOriginal && ing.originalName ? ing.originalName : ing.name}</Text>
+                      </View>
+                    </Fragment>
+                  );
+                })}
               </View>
               {/* Sidans huvudhandling, därför full bredd och lime. */}
               <Pressable style={s.wideBtnLime} onPress={() => openTransfer()} accessibilityLabel={str.detail.transferA11y}>
@@ -2212,7 +2273,7 @@ function deduplicateIngredients(ingredients: RecipeIngredient[], scaleRatio: num
  * läsvyn, och det är den som sparas när man trycker Spara: den som redigerar
  * ser och skriver svenska mått.
  */
-function tillFormulärrad(i: { name: string; quantity: number | null; unit: string | null; originalName?: string | null }) {
+function tillFormulärrad(i: { name: string; quantity: number | null; unit: string | null; originalName?: string | null; section?: string | null }) {
   const converted = i.quantity != null && i.unit ? convertToMetric(i.quantity, i.unit) : null;
   const quantity = converted?.quantity ?? i.quantity;
   return {
@@ -2220,6 +2281,7 @@ function tillFormulärrad(i: { name: string; quantity: number | null; unit: stri
     quantity: quantity != null ? String(quantity).replace('.', ',') : '',
     unit: (converted?.unit ?? i.unit) ?? '',
     originalName: i.originalName ?? null,
+    section: i.section ?? null,
   };
 }
 
@@ -2348,6 +2410,9 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   ingQty: { width: 76, fontFamily: nyFont.halvfet, fontSize: 15, color: ny.padYta },
   ingBrak: { fontSize: 11 },
   ingName: { flex: 1, fontFamily: nyFont.halvfet, fontSize: 15, lineHeight: 21, color: ny.text },
+  // Underrubriken i ingredienskortet, i rubrikernas gröna.
+  ingSection: { fontFamily: nyFont.fet, fontSize: 14, color: ny.padYta, paddingTop: 16, paddingBottom: 2, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ny.kontur },
+  ingSectionForst: { paddingTop: 10, borderTopWidth: 0 },
   ingConvertBtn: { padding: 4 },
   wideBtnLime: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 26, backgroundColor: ny.lime, marginTop: 4 },
   wideBtnLimeText: { fontFamily: nyFont.halvfet, fontSize: 16, color: ny.skog },
@@ -2378,6 +2443,9 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   ingEditRowDragging: { opacity: 0.4 },
   ingEditRowDropTarget: { borderTopWidth: 2, borderTopColor: nyD ? ny.skog : c.primary },
   addRowBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
+  addRowBtnRad: { flexDirection: 'row', gap: 20 },
+  editSectionRow: { flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 8 },
+  editSectionInput: { flex: 1, fontWeight: '700' },
   addRowBtnText: { fontSize: 14, color: c.primary, fontWeight: '500' },
   unitChipScroll: { marginBottom: 4 },
   unitChipRow: { flexDirection: 'row', gap: 6, paddingVertical: 4 },
