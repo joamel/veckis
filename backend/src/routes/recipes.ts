@@ -16,7 +16,7 @@ import { delaAlternativ } from '../lib/alternativ';
 import { stripIngredient } from '../lib/stripIngredient';
 import { stadaIngrediensrad } from '../lib/ingrediensrad';
 import { parseIngredientString } from '../lib/parseIngredientString';
-import { withSections } from '../lib/ingredientSections';
+import { withSections, htmlHeadingTexts } from '../lib/ingredientSections';
 import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
 import { recipeAbuseLimiter, parseTextLimiter, aiDailyUserLimiter } from '../lib/rateLimits';
 import { safeFetch } from '../lib/ssrfGuard';
@@ -870,7 +870,7 @@ async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
     try {
       const data = JSON.parse(match[1]);
       const recipe = findRecipeNode(data);
-      if (recipe) return parseJsonLdRecipe(recipe, url);
+      if (recipe) return parseJsonLdRecipe(recipe, url, html);
     } catch { /* skip malformed blocks */ }
   }
 
@@ -945,7 +945,7 @@ function findRecipeNode(data: any): any {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseJsonLdRecipe(r: any, sourceUrl: string): ScrapedRecipe {
+function parseJsonLdRecipe(r: any, sourceUrl: string, html = ''): ScrapedRecipe {
   const title = String(r.name ?? '').trim() || 'Okänt recept';
 
   const description = r.description ? String(r.description).slice(0, 2000) : null;
@@ -967,8 +967,9 @@ function parseJsonLdRecipe(r: any, sourceUrl: string): ScrapedRecipe {
   })();
 
   const rawIngredients: string[] = Array.isArray(r.recipeIngredient) ? r.recipeIngredient.map(String) : [];
-  // Rubrikrader ("Deg:", "TILL SÅSEN") blir underrubriker, inte ingredienser.
-  const ingredients = withSections(rawIngredients, parseIngredientString);
+  // Rubrikrader ("Deg:", "TILL SÅSEN", Kökets "Fyllning") blir underrubriker,
+  // inte ingredienser. Sidans egna rubriker avgör när raden bara är ett ord.
+  const ingredients = withSections(rawIngredients, parseIngredientString, htmlHeadingTexts(html));
 
   const instructions = parseInstructions(r.recipeInstructions);
 

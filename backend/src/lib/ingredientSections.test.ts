@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ingredientHeading, withSections } from './ingredientSections';
+import { ingredientHeading, withSections, htmlHeadingTexts } from './ingredientSections';
 
 describe('ingredientHeading', () => {
   it('känner igen rubriker med kolon, i versaler och i fetstil', () => {
@@ -38,5 +38,30 @@ describe('withSections', () => {
       { rad: 'salt', section: null },
       { rad: 'grädde', section: 'Sås' },
     ]);
+  });
+});
+
+describe('rubriker som bara är ett ord (Köket)', () => {
+  // Köket skriver rubrikerna utan kolon i JSON-LD; på sidan står de i <h3>.
+  const rader = ['100 g smör', '5 dl mjölk', 'Fyllning', '100 g smör', '3 msk malen kanel', 'Pensling', 'ägg', 'Garnering', 'Dansukker Pärlsocker'];
+  const html = '<div><h3 class="M_kyyq_sectionTitle">Fyllning</h3><ul>…</ul></div><h3 class="x">Pensling</h3><h3>Garnering</h3>';
+
+  it('sidans rubriker gör ordet till rubrik', () => {
+    const ut = withSections(rader, l => ({ rad: l }), htmlHeadingTexts(html));
+    expect(ut.map(r => r.section)).toEqual([null, null, 'Fyllning', 'Fyllning', 'Pensling', 'Garnering']);
+    expect(ut.map(r => r.rad)).toEqual(['100 g smör', '5 dl mjölk', '100 g smör', '3 msk malen kanel', 'ägg', 'Dansukker Pärlsocker']);
+  });
+
+  it('vanliga rubrikord räcker även utan HTML', () => {
+    expect(ingredientHeading('Fyllning')).toBe('Fyllning');
+    expect(ingredientHeading('Till servering')).toBe('Till servering');
+    expect(ingredientHeading('ägg')).toBeNull();
+    expect(ingredientHeading('Dansukker Pärlsocker')).toBeNull();
+  });
+
+  it('sidrubriker med siffror eller långa texter räknas inte', () => {
+    const r = htmlHeadingTexts('<h2>Ingredienser för 4 portioner</h2><h3>Gör så här</h3>');
+    expect(r.has('gör så här')).toBe(true);
+    expect([...r].some(t => /\d/.test(t))).toBe(false);
   });
 });
